@@ -12,41 +12,11 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraShader.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemStaticBuffers.h"
 #include "NiagaraTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCurveBase"
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Curve);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCurveBase, FNiagaraDataInterfaceParametersCS_Curve);
-
-void FNiagaraDataInterfaceParametersCS_Curve::Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-{
-	MinTime.Bind(ParameterMap, *(TEXT("MinTime_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	MaxTime.Bind(ParameterMap, *(TEXT("MaxTime_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	InvTimeRange.Bind(ParameterMap, *(TEXT("InvTimeRange_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	CurveLUTNumMinusOne.Bind(ParameterMap, *(TEXT("CurveLUTNumMinusOne_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	LUTOffset.Bind(ParameterMap, *(TEXT("LUTOffset_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	CurveLUT.Bind(ParameterMap, *(TEXT("CurveLUT_") + ParameterInfo.DataInterfaceHLSLSymbol));
-}
-
-void FNiagaraDataInterfaceParametersCS_Curve::Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-{
-	check(IsInRenderingThread());
-
-	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-	FNiagaraDataInterfaceProxyCurveBase* CurveDI = (FNiagaraDataInterfaceProxyCurveBase*)Context.DataInterface;
-
-	ensure((CurveDI->LUTOffset != INDEX_NONE) || CurveDI->CurveLUT.SRV.IsValid());
-
-	SetShaderValue(RHICmdList, ComputeShaderRHI, MinTime, CurveDI->LUTMinTime);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTime, CurveDI->LUTMaxTime);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, InvTimeRange, CurveDI->LUTInvTimeRange);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, CurveLUTNumMinusOne, CurveDI->CurveLUTNumMinusOne);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, LUTOffset, CurveDI->LUTOffset);
-	SetSRVParameter(RHICmdList, ComputeShaderRHI, CurveLUT, CurveDI->CurveLUT.SRV.IsValid() ? CurveDI->CurveLUT.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer());
-}
 
 float GNiagaraLUTOptimizeThreshold = UNiagaraDataInterfaceCurveBase::DefaultOptimizeThreshold;
 static FAutoConsoleVariableRef CVarNiagaraLUTOptimizeThreshold(
@@ -63,6 +33,17 @@ static FAutoConsoleVariableRef CVarNiagaraLUTVerifyPostLoad(
 	TEXT("Enable to verify LUTs match in PostLoad vs the Loaded Data\n"),
 	ECVF_Default
 );
+
+BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraDataInterfaceCurveParameters, )
+	SHADER_PARAMETER(float, MinTime)
+	SHADER_PARAMETER(float, MaxTime)
+	SHADER_PARAMETER(float, InvTimeRange)
+	SHADER_PARAMETER(uint32, CurveLUTNumMinusOne)
+	SHADER_PARAMETER(uint32, LUTOffset)
+	SHADER_PARAMETER_SRV(Buffer<float>, CurveLUT)
+END_SHADER_PARAMETER_STRUCT()
+
+static const TCHAR* NDICurve_TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCurveTemplate.ush");
 
 void UNiagaraDataInterfaceCurveBase::PostLoad()
 {
@@ -175,7 +156,7 @@ void UNiagaraDataInterfaceCurveBase::UpdateLUT(bool bFromSerialize)
 	{
 		ShaderLUT = BuildLUT(CurveLUTDefaultWidth);
 		OptimizeLUT();
-		LUTNumSamplesMinusOne = float(ShaderLUT.Num() / GetCurveNumElems()) - 1;
+		LUTNumSamplesMinusOne = (ShaderLUT.Num() / GetCurveNumElems()) - 1;
 	}
 
 	if (!bUseLUT || (ShaderLUT.Num() == 0))
@@ -343,65 +324,51 @@ void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemSta
 	}
 }
 
+void UNiagaraDataInterfaceCurveBase::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FNiagaraDataInterfaceCurveParameters>();
+}
+
+void UNiagaraDataInterfaceCurveBase::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	const FNiagaraDataInterfaceProxyCurveBase& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyCurveBase>();
+	FNiagaraDataInterfaceCurveParameters* Parameters = Context.GetParameterNestedStruct<FNiagaraDataInterfaceCurveParameters>();
+	Parameters->MinTime = DIProxy.LUTMinTime;
+	Parameters->MaxTime = DIProxy.LUTMaxTime;
+	Parameters->InvTimeRange = DIProxy.LUTInvTimeRange;
+	Parameters->CurveLUTNumMinusOne = DIProxy.CurveLUTNumMinusOne;
+	Parameters->LUTOffset = DIProxy.LUTOffset;
+	Parameters->CurveLUT = DIProxy.CurveLUT.SRV.IsValid() ? DIProxy.CurveLUT.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+}
+
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceCurveBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	FSHAHash Hash = GetShaderFileHash(NDICurve_TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceCurveTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<FNiagaraDataInterfaceCurveParameters>();
+	return bSuccess;
+}
+
 void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	OutHLSL += TEXT("\n");
-	FString MinTimeStr = TEXT("MinTime_") + ParamInfo.DataInterfaceHLSLSymbol;
-	FString MaxTimeStr = TEXT("MaxTime_") + ParamInfo.DataInterfaceHLSLSymbol;
-	FString InvTimeRangeStr = TEXT("InvTimeRange_") + ParamInfo.DataInterfaceHLSLSymbol;
-	FString CurveLUTNumMinusOneStr = TEXT("CurveLUTNumMinusOne_") + ParamInfo.DataInterfaceHLSLSymbol;
-	FString LUTOffsetStr = TEXT("LUTOffset_") + ParamInfo.DataInterfaceHLSLSymbol;
+	const int32 NumElements = GetCurveNumElems();
+	check(NumElements > 0 && NumElements <= 4);
 
-	FString BufferName;
-	if (ParamInfo.IsUserParameter() == true)
+	TMap<FString, FStringFormatArg> TemplateArgs =
 	{
-		BufferName = "CurveLUT_" + ParamInfo.DataInterfaceHLSLSymbol;
-		OutHLSL += TEXT("Buffer<float> ") + BufferName + TEXT(";\n");
-	}
-	else
-	{
-		BufferName = "StaticInputFloat";
-	}
+		{TEXT("ParameterName"),				ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("UseStaticBuffer"),			ParamInfo.IsUserParameter() ? TEXT("1") : TEXT("0")},
+		{TEXT("NumElements"),				FString::FromInt(NumElements)},
+		{TEXT("CurveSampleFunctionName"),	GetCurveSampleFunctionName().ToString()},
+	};
 
-	OutHLSL += TEXT("float ") + MinTimeStr + TEXT(";\n");
-	OutHLSL += TEXT("float ") + MaxTimeStr + TEXT(";\n");
-	OutHLSL += TEXT("float ") + InvTimeRangeStr + TEXT(";\n");
-	OutHLSL += TEXT("float ") + CurveLUTNumMinusOneStr + TEXT(";\n");
-	OutHLSL += TEXT("uint ") + LUTOffsetStr + TEXT(";\n");
-	OutHLSL += TEXT("\n");
-
-	//TODO: Create a Unitiliy/Common funcitons hlsl def shared between all instances of the same data interface class for these.
-	OutHLSL += FString::Printf(TEXT("float TimeToLUTFraction_%s(float T)\n{\n\treturn saturate((T - %s) * %s);\n}\n"), *ParamInfo.DataInterfaceHLSLSymbol, *MinTimeStr, *InvTimeRangeStr);
-	if (ParamInfo.IsUserParameter() == true)
-	{
-		OutHLSL += FString::Printf(TEXT("float SampleCurve_%s(float T)\n{\n\treturn %s[(uint)T];\n}\n"), *ParamInfo.DataInterfaceHLSLSymbol, *BufferName);
-	}
-	else
-	{
-		OutHLSL += FString::Printf(TEXT("float SampleCurve_%s(float T)\n{\n\treturn %s[%s + (uint)T];\n}\n"), *ParamInfo.DataInterfaceHLSLSymbol, *BufferName, *LUTOffsetStr);
-	}
-	OutHLSL += TEXT("\n");
+	FString TemplateFile;
+	LoadShaderSourceFile(NDICurve_TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
-
-//FReadBuffer& UNiagaraDataInterfaceCurveBase::GetCurveLUTGPUBuffer()
-//{
-//	//TODO: This isn't really very thread safe. Need to move to a proxy like system where DIs can push data to the RT safely.
-//	if (GPUBufferDirty)
-//	{
-//		int32 ElemSize = GetCurveNumElems();
-//		CurveLUT.Release();
-//		CurveLUT.Initialize(sizeof(float), CurveLUTWidth * ElemSize, EPixelFormat::PF_R32_FLOAT, BUF_Static);
-//		uint32 BufferSize = ShaderLUT.Num() * sizeof(float);
-//		int32 *BufferData = static_cast<int32*>(RHILockBuffer(CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
-//		FPlatformMemory::Memcpy(BufferData, ShaderLUT.GetData(), BufferSize);
-//		RHIUnlockBuffer(CurveLUT.Buffer);
-//		GPUBufferDirty = false;
-//	}
-//
-//	return CurveLUT;
-//}
 
 void UNiagaraDataInterfaceCurveBase::GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const
 {

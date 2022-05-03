@@ -155,25 +155,11 @@ void UNiagaraDataInterfaceVector2DCurve::GetFunctions(TArray<FNiagaraFunctionSig
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceVector2DCurve::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FString TimeToLUTFrac = TEXT("TimeToLUTFraction_") + ParamInfo.DataInterfaceHLSLSymbol;
-	FString Sample = TEXT("SampleCurve_") + ParamInfo.DataInterfaceHLSLSymbol;
-	FString NumSamples = TEXT("CurveLUTNumMinusOne_") + ParamInfo.DataInterfaceHLSLSymbol;
-	OutHLSL += FString::Printf(TEXT("\
-void %s(in float In_X, out float2 Out_Value) \n\
-{ \n\
-	float RemappedX = %s(In_X) * %s; \n\
-	float Prev = floor(RemappedX); \n\
-	float Next = Prev < %s ? Prev + 1.0 : Prev; \n\
-	float Interp = RemappedX - Prev; \n\
-	Prev *= %u; \n\
-	Next *= %u; \n\
-	float2 A = float2(%s(Prev), %s(Prev + 1)); \n\
-	float2 B = float2(%s(Next), %s(Next + 1)); \n\
-	Out_Value = lerp(A, B, Interp); \n\
-}\n")
-, *FunctionInfo.InstanceName, *TimeToLUTFrac, *NumSamples, *NumSamples, CurveLUTNumElems, CurveLUTNumElems, *Sample, *Sample, *Sample, *Sample);
-
-	return true;
+	if (FunctionInfo.DefinitionName == SampleCurveName)
+	{
+		return true;
+	}
+	return false;
 }
 #endif
 

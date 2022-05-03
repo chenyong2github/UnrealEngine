@@ -23,7 +23,7 @@ struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy
 	float LUTMinTime = 0.0f;
 	float LUTMaxTime = 0.0f;
 	float LUTInvTimeRange = 0.0f;
-	float CurveLUTNumMinusOne = 0.0f;
+	uint32 CurveLUTNumMinusOne = 0;
 	uint32 LUTOffset = INDEX_NONE;
 	FReadBuffer CurveLUT;
 
@@ -76,8 +76,6 @@ protected:
 	}
 
 public:
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bUseLUT : 1;
 
@@ -184,8 +182,12 @@ public:
 
 	virtual void CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const struct FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo, bool bUsedByCPU, bool bUsedByGPU) override;
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const  override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	void SetDefaultLUT();
 #if WITH_EDITORONLY_DATA
@@ -202,7 +204,10 @@ public:
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 
-	virtual int32 GetCurveNumElems() const { checkf(false, TEXT("You must implement this function in your derived class")); return 0; }
+	virtual int32 GetCurveNumElems() const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::GetCurveNumElems(), return 0;)
+#if WITH_EDITORONLY_DATA
+	virtual FName GetCurveSampleFunctionName() const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::GetCurveSampleFunctionName(), return NAME_None;)
+#endif
 
 	virtual void UpdateTimeRanges() { checkf(false, TEXT("You must implement this function in your derived class")); }
 	virtual TArray<float> BuildLUT(int32 NumEntries) const { checkf(false, TEXT("You must implement this function in your derived class")); return TArray<float>(); }
@@ -235,19 +240,4 @@ struct TCurveUseLUTBinder
 			NextBinder::template Bind<ParamTypes..., TIntegralConstant<bool, false>>(Interface, BindingInfo, InstanceData, OutFunc);
 		}
 	}
-};
-
-struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Curve, NonVirtual);
-
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap);
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
-
-	LAYOUT_FIELD(FShaderParameter, MinTime);
-	LAYOUT_FIELD(FShaderParameter, MaxTime);
-	LAYOUT_FIELD(FShaderParameter, InvTimeRange);
-	LAYOUT_FIELD(FShaderParameter, CurveLUTNumMinusOne);
-	LAYOUT_FIELD(FShaderParameter, LUTOffset);
-	LAYOUT_FIELD(FShaderResourceParameter, CurveLUT);
 };
