@@ -353,7 +353,7 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, const FGP
 	{
 		check(UploadInfo.InstancePayloadDataOffset != INDEX_NONE);
 
-		const int32 PayloadBufferSize = BufferState.InstancePayloadDataBuffer.Buffer->GetSize() / BufferState.InstancePayloadDataBuffer.Buffer->GetStride();
+		const int32 PayloadBufferSize = BufferState.InstancePayloadDataBuffer->GetSize() / BufferState.InstancePayloadDataBuffer->GetStride();
 		check(UploadInfo.InstancePayloadDataOffset < PayloadBufferSize);
 	}
 #endif
@@ -583,6 +583,7 @@ void FGPUScene::BeginRender(const FScene* Scene, FGPUSceneDynamicContext &GPUSce
 	CurrentDynamicContext = &GPUSceneDynamicContext;
 	DynamicPrimitivesOffset = NumScenePrimitives;
 	bInBeginEndBlock = true;
+	bInExternalAccessMode = false;
 }
 
 void FGPUScene::EndRender()
@@ -592,10 +593,11 @@ void FGPUScene::EndRender()
 	DynamicPrimitivesOffset = -1;
 	bInBeginEndBlock = false;
 	CurrentDynamicContext = nullptr;
+	BufferState = {};
 }
 
 
-void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
+void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
@@ -603,6 +605,8 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 	ensure(bIsEnabled == UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()));
 	ensure(NumScenePrimitives == Scene.Primitives.Num());
 	ensure(DynamicPrimitivesOffset >= Scene.Primitives.Num());
+
+	RDG_EVENT_SCOPE(GraphBuilder, "GPUScene.Update");
 
 	LastDeferredGPUWritePass = EGPUSceneGPUWritePass::None;
 
@@ -639,8 +643,10 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 		}
 	}
 
+	check(!BufferState.IsValid());
+
 	FUploadDataSourceAdapterScenePrimitives Adapter(Scene, SceneFrameNumber, MoveTemp(PrimitivesToUpdate), MoveTemp(PrimitiveDirtyState));
-	FGPUSceneBufferState BufferState = UpdateBufferState(GraphBuilder, &Scene, Adapter);
+	UpdateBufferState(GraphBuilder, &Scene, Adapter);
 
 	// Run a pass that clears (Sets ID to invalid) any instances that need it
 	AddClearInstancesPass(GraphBuilder);
@@ -667,288 +673,23 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 	PrimitivesToUpdate.Reset();
 	PrimitiveDirtyState.Init(EPrimitiveDirtyState::None, PrimitiveDirtyState.Num());
 
-	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::Update"), 
-		[this, &Scene, Adapter = MoveTemp(Adapter), BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_NAMED_EVENT(STAT_UpdateGPUScene, FColor::Green);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdateGPUScene);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScene);
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
-		RHICmdList.Transition({
-			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-		});
+		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(GraphBuilder, &Scene, ExternalAccessQueue, Adapter);
+	}
 
-		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(RHICmdList, &Scene, Adapter, BufferState);
-
-// TODO: Reimplement!
-#if DO_CHECK && 0
-		// Validate the scene primitives are identical to the uploaded data (not the dynamic ones).
-		if (GGPUSceneValidatePrimitiveBuffer && BufferState.PrimitiveBuffer.NumBytes > 0)
-		{
-			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
-			const FPrimitiveSceneShaderData* PrimitiveBufferPtr = reinterpret_cast<const FPrimitiveSceneShaderData*>(RHILockBuffer(BufferState.PrimitiveBuffer.Buffer, 0, BufferState.PrimitiveBuffer.NumBytes, RLM_ReadOnly));
-
-			if (PrimitiveBufferPtr != nullptr)
-			{
-				const int32 TotalNumberPrimitives = Scene.PrimitiveSceneProxies.Num();
-				check(BufferState.PrimitiveBuffer.NumBytes >= TotalNumberPrimitives * sizeof(FPrimitiveSceneShaderData));
-
-				int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(TotalNumberPrimitives, FPrimitiveSceneShaderData::DataStrideInFloat4s);
-				for (int32 IndexOffset = 0; IndexOffset < TotalNumberPrimitives; IndexOffset += MaxPrimitivesUploads)
-				{
-					for (int32 Index = 0; (Index < MaxPrimitivesUploads) && ((Index + IndexOffset) < TotalNumberPrimitives); ++Index)
-					{
-						FPrimitiveSceneShaderData PrimitiveSceneData(Scene.PrimitiveSceneProxies[Index + IndexOffset]);
-						const FPrimitiveSceneShaderData& Item = PrimitiveBufferPtr[Index + IndexOffset];
-						for (int32 DataIndex = 0; DataIndex < FPrimitiveSceneShaderData::DataStrideInFloat4s; ++DataIndex)
-						{
-							check(FMemory::Memcmp(&PrimitiveSceneData.Data[DataIndex], &Item.Data[DataIndex], sizeof(FVector4f)) == 0);
-						}
-					}
-				}
-			}
-			RHIUnlockBuffer(BufferState.PrimitiveBuffer.Buffer);
-		}
-
-
-		// Validate the scene instances are identical to the uploaded data (not the dynamic ones).
-		if (GGPUSceneValidateInstanceBuffer && BufferState.InstanceSceneDataBuffer.NumBytes > 0)
-		{
-			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
-			const FVector4f* InstanceSceneDataBufferPtr = reinterpret_cast<const FVector4f*>(RHILockBuffer(BufferState.InstanceSceneDataBuffer.Buffer, 0, BufferState.InstanceSceneDataBuffer.NumBytes, RLM_ReadOnly));
-
-			struct FInstanceSceneDataDebug
-			{
-				FRenderTransform  LocalToWorld;
-				FRenderTransform  PrevLocalToWorld;
-#if 0
-				// Derived data, not checked: 
-				FMatrix44f  WorldToLocal;
-				FVector4f    NonUniformScale;
-				FVector3f   InvNonUniformScale;
-				float       DeterminantSign;
-				uint32      NaniteRuntimeResourceID;
-#endif 
-				FVector3f   LocalBoundsCenter;
-				uint32      PrimitiveId;
-				uint32      PayloadDataOffset;
-				FVector3f   LocalBoundsExtent;
-				uint32      LastUpdateSceneFrameNumber;
-				uint32      NaniteRuntimeResourceID;
-				uint32      NaniteHierarchyOffset;
-				float       PerInstanceRandom;
-				FVector4f    LightMapAndShadowMapUVBias;
-				bool        ValidInstance;
-				uint32      Flags;
-			};
-
-			auto GetInstanceSceneData = [](uint32 InstanceId, uint32 SOAStride, const FVector4f* InstanceSceneDataBufferInner) -> FInstanceSceneDataDebug
-			{
-				auto LoadInstanceSceneDataElement = [InstanceSceneDataBufferInner](uint32 Index) -> FVector4f
-				{
-					return InstanceSceneDataBufferInner[Index];
-				};
-
-				auto asuint = [](const float& Value) -> uint32
-				{
-					return *reinterpret_cast<const uint32*>(&Value);
-				};
-
-				auto LoadRenderTransform = [&](uint32 InstanceId, uint32 StartOffset) -> FRenderTransform
-				{
-					FVector4f V0 = LoadInstanceSceneDataElement((StartOffset + 0) * SOAStride + InstanceId);
-					FVector4f V1 = LoadInstanceSceneDataElement((StartOffset + 1) * SOAStride + InstanceId);
-					FVector4f V2 = LoadInstanceSceneDataElement((StartOffset + 2) * SOAStride + InstanceId);
-
-					FRenderTransform Result;
-					Result.TransformRows[0] = FVector3f(V0.X, V1.X, V2.X);
-					Result.TransformRows[1] = FVector3f(V0.Y, V1.Y, V2.Y);
-					Result.TransformRows[2] = FVector3f(V0.Z, V1.Z, V2.Z);
-					Result.Origin = FVector3f(V0.W, V1.W, V2.W);
-
-					return Result;
-				};
-
-				FInstanceSceneDataDebug InstanceSceneData;
-
-				InstanceSceneData.Flags = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).X);
-				InstanceSceneData.PrimitiveId = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).Y);
-				InstanceSceneData.NaniteHierarchyOffset = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).Z);
-				InstanceSceneData.LastUpdateSceneFrameNumber = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).W);
-
-				// Only process valid instances
-				InstanceSceneData.ValidInstance = InstanceSceneData.PrimitiveId != INVALID_PRIMITIVE_ID;
-
-				if (InstanceSceneData.ValidInstance)
-				{
-					InstanceSceneData.LocalToWorld = LoadRenderTransform(InstanceId, 1);
-					InstanceSceneData.PrevLocalToWorld = LoadRenderTransform(InstanceId, 4);
-
-					InstanceSceneData.LocalBoundsCenter = LoadInstanceSceneDataElement(7 * SOAStride + InstanceId);
-					InstanceSceneData.LocalBoundsExtent.X = LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).W;
-
-					InstanceSceneData.LocalBoundsExtent.Y = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).X;
-					InstanceSceneData.LocalBoundsExtent.Z = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).Y;
-					InstanceSceneData.PayloadDataOffset = asuint(LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).Z);
-					//InstanceSceneData.PerInstanceRandom = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).W;
-
-					//InstanceSceneData.LightMapAndShadowMapUVBias = LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
-				}
-
-				return InstanceSceneData;
-			};
-
-			if (InstanceSceneDataBufferPtr != nullptr)
-			{
-				//const int32 TotalNumberInstances = InstanceSceneDataAllocator.GetMaxSize();
-				check(BufferState.InstanceSceneDataBuffer.NumBytes >= BufferState.InstanceSceneDataSOAStride * sizeof(FInstanceSceneShaderData::Data));
-
-				for (int32 Index = 0; Index < InstanceSceneDataAllocator.GetMaxSize(); ++Index)
-				{
-					FInstanceSceneDataDebug InstanceSceneDataGPU = GetInstanceSceneData(uint32(Index), BufferState.InstanceSceneDataSOAStride, InstanceSceneDataBufferPtr);
-
-					if (InstanceSceneDataGPU.ValidInstance)
-					{
-						check(!InstanceSceneDataAllocator.IsFree(Index));
-						if (InstanceSceneDataGPU.PrimitiveId < uint32(Scene.Primitives.Num()))
-						{
-							const FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[InstanceSceneDataGPU.PrimitiveId];
-							const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
-							check(Index >= PrimitiveSceneInfo->GetInstanceSceneDataOffset() && Index < PrimitiveSceneInfo->GetInstanceSceneDataOffset() + PrimitiveSceneInfo->GetNumInstanceSceneDataEntries());
-							FPrimitiveInstance PrimitiveInstance;
-
-							float RandomID = 0.0f; // TODO: Temporary
-							FVector4f LightMapAndShadowMapUVBias = FVector4f(ForceInitToZero); // TODO: Temporary
-							FRenderTransform PrevLocalToPrimitive = FRenderTransform::Identity; // TODO: Temporary
-
-							// TODO: Temporary code to de-interleave optional data on the CPU, but prior to doing the same on the GPU
-							if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
-							{
-								const int32 InstanceDataIndex = Index - PrimitiveSceneInfo->GetInstanceSceneDataOffset();
-
-								const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneProxy->GetInstanceSceneData();
-								PrimitiveInstance = InstanceSceneData[InstanceDataIndex];
-
-								const TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData = PrimitiveSceneProxy->GetInstanceDynamicData();
-								if (InstanceDynamicData.Num() == InstanceSceneData.Num())
-								{
-									PrevLocalToPrimitive = InstanceDynamicData[InstanceDataIndex].PrevLocalToPrimitive;
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0);
-								}
-								else
-								{
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) == 0);
-								}
-								
-								const TConstArrayView<float> InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
-								if (InstanceRandomID.Num() == InstanceSceneData.Num())
-								{
-									RandomID = InstanceRandomID[InstanceDataIndex];
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0);
-								}
-								else
-								{
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) == 0);
-								}
-
-								const TConstArrayView<float> InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
-								if (InstanceCustomData.Num() == InstanceSceneData.Num())
-								{
-									// TODO: Implement
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0);
-								}
-								else
-								{
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) == 0);
-								}
-
-								const TConstArrayView<FVector4f> InstanceLightShadowUVBias = PrimitiveSceneProxy->GetInstanceLightShadowUVBias();
-								if (InstanceLightShadowUVBias.Num() == InstanceSceneData.Num())
-								{
-									LightMapAndShadowMapUVBias = InstanceLightShadowUVBias[InstanceDataIndex];
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0);
-								}
-								else
-								{
-									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) == 0);
-								}
-							}
-							else
-							{
-								PrimitiveInstance.LocalToPrimitive.SetIdentity();
-								PrimitiveInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
-								PrimitiveInstance.NaniteHierarchyOffset = INDEX_NONE;
-								PrimitiveInstance.NaniteImposterIndex = INDEX_NONE;
-								// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
-								PrimitiveInstance.Flags = 0;
-							}
-
-							FMatrix PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
-							bool bHasPrecomputedVolumetricLightmap{};
-							bool bOutputVelocity{};
-							int32 SingleCaptureIndex{};
-
-							FMatrix PrevPrimitiveToWorld;
-							Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PrevPrimitiveToWorld, SingleCaptureIndex, bOutputVelocity);
-
-							// Pack down then info just as for upload.
-							const FInstanceSceneShaderData InstanceSceneData(
-								PrimitiveInstance,
-								InstanceSceneDataGPU.PrimitiveId,
-								PrimitiveToWorld,
-								PrevPrimitiveToWorld,
-								PrevLocalToPrimitive, // TODO: Temporary
-								LightMapAndShadowMapUVBias, // TODO: Temporary
-								RandomID, // TODO: Temporary
-								0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-								SceneFrameNumber
-							);
-
-							// unpack again, just as on GPU...
-							FInstanceSceneDataDebug InstanceDataHost = GetInstanceSceneData(0U, 1U, InstanceSceneData.Data.GetData());
-
-							check(InstanceDataHost.LocalToWorld.Equals(InstanceSceneDataGPU.LocalToWorld));
-							// Check disabled for now as PrevLocalToWorld handling is a bit odd and is subject to change.
-							// check(PrimitiveInstance.PrevLocalToWorld.Equals(InstanceDataGPU.PrevLocalToWorld));
-							checkSlow(FMath::IsFinite(InstanceSceneDataGPU.PerInstanceRandom));
-							check(InstanceDataHost.PerInstanceRandom == InstanceSceneDataGPU.PerInstanceRandom);
-							// Can't validate this because it is transient and can't be known at this point
-							// check(PrimitiveInstance.LastUpdateSceneFrameNumber == InstanceDataGPU.LastUpdateSceneFrameNumber);
-							check(InstanceDataHost.LocalBoundsCenter.Equals(InstanceSceneDataGPU.LocalBoundsCenter));
-							check(InstanceDataHost.LocalBoundsExtent.Equals(InstanceSceneDataGPU.LocalBoundsExtent));
-							check(InstanceDataHost.LightMapAndShadowMapUVBias == InstanceSceneDataGPU.LightMapAndShadowMapUVBias);
-							check(InstanceDataHost.NaniteHierarchyOffset == InstanceSceneDataGPU.NaniteHierarchyOffset);
-							check(InstanceDataHost.Flags == InstanceSceneDataGPU.Flags);
-						}
-					}
-				}
-			}
-			RHIUnlockBuffer(BufferState.InstanceSceneDataBuffer.Buffer);
-		}
-
-#endif // DO_CHECK
-
-		RHICmdList.Transition({
-			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-		});
-	});
+	UseExternalAccessMode(ExternalAccessQueue, ERHIAccess::SRVMask, ERHIPipeline::All);
 }
 
 template<typename FUploadDataSourceAdapter>
-FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter)
+void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
-	FGPUSceneBufferState BufferState;
 	ensure(bInBeginEndBlock);
 	if (Scene != nullptr)
 	{
@@ -963,29 +704,25 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 	constexpr int32 InitialBufferSize = 256;
 
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(DynamicPrimitivesOffset, InitialBufferSize));
-	BufferState.bResizedPrimitiveData = ResizeResourceIfNeeded(GraphBuilder, PrimitiveBuffer, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("GPUScene.PrimitiveData"));
-	BufferState.PrimitiveBuffer = PrimitiveBuffer;
+	BufferState.PrimitiveBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, PrimitiveBuffer, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("GPUScene.PrimitiveData"));
 
 	const uint32 InstanceSceneDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceSceneDataAllocator.GetMaxSize(), InitialBufferSize));
 	FResizeResourceSOAParams ResizeParams;
 	ResizeParams.NumBytes = InstanceSceneDataSizeReserve * sizeof(FInstanceSceneShaderData::Data);
 	ResizeParams.NumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
 
-	BufferState.bResizedInstanceSceneData = ResizeResourceSOAIfNeeded(GraphBuilder, InstanceSceneDataBuffer, ResizeParams, TEXT("GPUScene.InstanceSceneData"));
-	BufferState.InstanceSceneDataBuffer = InstanceSceneDataBuffer;
+	BufferState.InstanceSceneDataBuffer = ResizeStructuredBufferSOAIfNeeded(GraphBuilder, InstanceSceneDataBuffer, ResizeParams, TEXT("GPUScene.InstanceSceneData"));
 	InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
 	BufferState.InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
 
 	const uint32 PayloadFloat4Count = FMath::Max(InstancePayloadDataAllocator.GetMaxSize(), InitialBufferSize);
 	const uint32 InstancePayloadDataSizeReserve = FMath::RoundUpToPowerOfTwo(PayloadFloat4Count * sizeof(FVector4f));
-	BufferState.bResizedInstancePayloadData = ResizeResourceIfNeeded(GraphBuilder, InstancePayloadDataBuffer, InstancePayloadDataSizeReserve, TEXT("GPUScene.InstancePayloadData"));
-	BufferState.InstancePayloadDataBuffer = InstancePayloadDataBuffer;
+	BufferState.InstancePayloadDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, InstancePayloadDataBuffer, InstancePayloadDataSizeReserve, TEXT("GPUScene.InstancePayloadData"));
 
 	if (Scene != nullptr)
 	{
 		const uint32 NumNodes = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene->InstanceBVH.GetNumNodes(), InitialBufferSize));
-		ResizeResourceIfNeeded(GraphBuilder, InstanceBVHBuffer, NumNodes * sizeof(FBVHNode), TEXT("InstanceBVH"));
-		BufferState.InstanceBVHBuffer = InstanceBVHBuffer;
+		BufferState.InstanceBVHBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, InstanceBVHBuffer, NumNodes * sizeof(FBVHNode), TEXT("InstanceBVH"));
 
 		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 		if (UploadDataSourceAdapter.bUpdateNaniteMaterialTables && bNaniteEnabled)
@@ -998,11 +735,17 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 	}
 
 	const uint32 LightMapDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(LightmapDataAllocator.GetMaxSize(), InitialBufferSize));
-	BufferState.bResizedLightmapData = ResizeResourceIfNeeded(GraphBuilder, LightmapDataBuffer, LightMapDataBufferSize * sizeof(FLightmapSceneShaderData::Data), TEXT("GPUScene.LightmapData"));
-	BufferState.LightmapDataBuffer = LightmapDataBuffer;
+	BufferState.LightmapDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LightmapDataBuffer, LightMapDataBufferSize * sizeof(FLightmapSceneShaderData::Data), TEXT("GPUScene.LightmapData"));
 	BufferState.LightMapDataBufferSize = LightMapDataBufferSize;
 
-	return BufferState;
+	ShaderParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(BufferState.InstanceSceneDataBuffer);
+	ShaderParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(BufferState.InstancePayloadDataBuffer);
+	ShaderParameters.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(BufferState.PrimitiveBuffer);
+	ShaderParameters.GPUSceneLightmapData = GraphBuilder.CreateSRV(BufferState.LightmapDataBuffer);
+	ShaderParameters.InstanceDataSOAStride = InstanceSceneDataSOAStride;
+	ShaderParameters.NumScenePrimitives = NumScenePrimitives;
+	ShaderParameters.NumInstances = InstanceSceneDataAllocator.GetMaxSize();
+	ShaderParameters.GPUSceneFrameNumber = GetSceneFrameNumber();
 }
 
 /**
@@ -1080,8 +823,53 @@ struct FInstanceBatcher
 	}
 };
 
+void FGPUScene::UseInternalAccessMode(FRDGBuilder& GraphBuilder)
+{
+	if (!bInExternalAccessMode)
+	{
+		return;
+	}
+
+	GraphBuilder.UseInternalAccessMode({
+		BufferState.InstanceSceneDataBuffer,
+		BufferState.InstancePayloadDataBuffer,
+		BufferState.PrimitiveBuffer,
+		BufferState.LightmapDataBuffer
+	});
+
+	if (BufferState.InstanceBVHBuffer)
+	{
+		GraphBuilder.UseInternalAccessMode(BufferState.InstanceBVHBuffer);
+	}
+
+	bInExternalAccessMode = false;
+}
+
+void FGPUScene::UseExternalAccessMode(FRDGExternalAccessQueue& ExternalAccessQueue, ERHIAccess Access, ERHIPipeline Pipelines)
+{
+	if (bInExternalAccessMode)
+	{
+		return;
+	}
+
+	if (!ExternalAccessQueue.Contains(BufferState.InstanceSceneDataBuffer))
+	{
+		ExternalAccessQueue.Add(BufferState.InstanceSceneDataBuffer, Access, Pipelines);
+		ExternalAccessQueue.Add(BufferState.InstancePayloadDataBuffer, Access, Pipelines);
+		ExternalAccessQueue.Add(BufferState.PrimitiveBuffer, Access, Pipelines);
+		ExternalAccessQueue.Add(BufferState.LightmapDataBuffer, Access, Pipelines);
+
+		if (BufferState.InstanceBVHBuffer)
+		{
+			ExternalAccessQueue.Add(BufferState.InstanceBVHBuffer, Access, Pipelines);
+		}
+	}
+
+	bInExternalAccessMode = true;
+}
+
 template<typename FUploadDataSourceAdapter>
-void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter, const FGPUSceneBufferState& BufferState)
+void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene *Scene, FRDGExternalAccessQueue& ExternalAccessQueue, const FUploadDataSourceAdapter& UploadDataSourceAdapter)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
@@ -1090,10 +878,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		ensure(bIsEnabled == UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()));
 		ensure(NumScenePrimitives == Scene->Primitives.Num());
 	}
+
 	{
 		// Multi-GPU support : Updating on all GPUs is inefficient for AFR. Work is wasted
 		// for any primitives that update on consecutive frames.
-		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 		const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
 		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
@@ -1108,7 +897,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			{
 				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 				{
-					Scene->NaniteMaterials[NaniteMeshPassIndex].Begin(RHICmdList, Scene->Primitives.Num(), NumPrimitiveDataUploads);
+					Scene->NaniteMaterials[NaniteMeshPassIndex].Begin(GraphBuilder, Scene->Primitives.Num(), NumPrimitiveDataUploads);
 				}
 			}
 		}
@@ -1124,99 +913,94 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			SCOPED_NAMED_EVENT(STAT_UpdateGPUScenePrimitives, FColor::Green);
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScenePrimitives);
 
-			const bool bShouldUploadViaCreate = GRHISupportsEfficientUploadOnResourceCreation && GGPUSceneInstanceUploadViaCreate != 0;
-			PrimitiveUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
-			InstanceSceneUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
+			RDG_EVENT_SCOPE(GraphBuilder, "UpdateGPUScene NumPrimitiveDataUploads %u", NumPrimitiveDataUploads);
 
 			{
-				SCOPED_DRAW_EVENTF(RHICmdList, UpdateGPUScene, TEXT("UpdateGPUScene NumPrimitiveDataUploads %u"), NumPrimitiveDataUploads);
+				SCOPED_NAMED_EVENT(STAT_UpdateGPUScenePrimitives_Seq, FColor::Green);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScenePrimitives_Seq);
 
+				InstanceUpdates.PerPrimitiveItemInfo.SetNumUninitialized(NumPrimitiveDataUploads);
+				PrimitiveUploadBuffer.Init(GraphBuilder, UploadDataSourceAdapter.GetItemPrimitiveIds(), sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadBuffer"));
+
+				// 1. do sequential work first
+				for (int32 ItemIndex = 0; ItemIndex < NumPrimitiveDataUploads; ++ItemIndex)
 				{
-					SCOPED_NAMED_EVENT(STAT_UpdateGPUScenePrimitives_Seq, FColor::Green);
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScenePrimitives_Seq);
+					FPrimitiveUploadInfoHeader UploadInfo;
+					UploadDataSourceAdapter.GetPrimitiveInfoHeader(ItemIndex, UploadInfo);
 
-					InstanceUpdates.PerPrimitiveItemInfo.SetNumUninitialized(NumPrimitiveDataUploads);
-					PrimitiveUploadBuffer.Init(UploadDataSourceAdapter.GetItemPrimitiveIds(), sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadBuffer"));
-					// 1. do sequential work first
-					for (int32 ItemIndex = 0; ItemIndex < NumPrimitiveDataUploads; ++ItemIndex)
+					FInstanceBatcher::FPrimitiveItemInfo PrimitiveItemInfo;
+					PrimitiveItemInfo.InstanceSceneDataUploadOffset = NumInstanceSceneDataUploads;
+					PrimitiveItemInfo.InstancePayloadDataUploadOffset = NumInstancePayloadDataUploads;
+					InstanceUpdates.QueueInstances(UploadInfo, ItemIndex, PrimitiveItemInfo);
+
+					NumLightmapDataUploads += UploadInfo.LightmapUploadCount; // Not thread safe
+					NumInstanceSceneDataUploads += UploadInfo.NumInstanceUploads; // Not thread safe
+					NumInstancePayloadDataUploads += UploadInfo.NumInstancePayloadDataUploads; // Not thread safe
+
+					if (Scene != nullptr && bNaniteEnabled && UploadInfo.NaniteSceneProxy != nullptr)
 					{
-						FPrimitiveUploadInfoHeader UploadInfo;
-						UploadDataSourceAdapter.GetPrimitiveInfoHeader(ItemIndex, UploadInfo);
+						check(UploadDataSourceAdapter.bUpdateNaniteMaterialTables);
+						check(UploadInfo.PrimitiveSceneInfo != nullptr);
+						const FPrimitiveSceneInfo* PrimitiveSceneInfo = UploadInfo.PrimitiveSceneInfo;
+						const Nanite::FSceneProxyBase* NaniteSceneProxy = UploadInfo.NaniteSceneProxy;
+						const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
 
-						FInstanceBatcher::FPrimitiveItemInfo PrimitiveItemInfo;
-						PrimitiveItemInfo.InstanceSceneDataUploadOffset = NumInstanceSceneDataUploads;
-						PrimitiveItemInfo.InstancePayloadDataUploadOffset = NumInstancePayloadDataUploads;
-						InstanceUpdates.QueueInstances(UploadInfo, ItemIndex, PrimitiveItemInfo);
-
-						NumLightmapDataUploads += UploadInfo.LightmapUploadCount; // Not thread safe
-						NumInstanceSceneDataUploads += UploadInfo.NumInstanceUploads; // Not thread safe
-						NumInstancePayloadDataUploads += UploadInfo.NumInstancePayloadDataUploads; // Not thread safe
-
-						if (Scene != nullptr && bNaniteEnabled && UploadInfo.NaniteSceneProxy != nullptr)
+						// Update raster bin, material depth and hit proxy ID remapping tables.
+						for (int32 NaniteMeshPass = 0; NaniteMeshPass < ENaniteMeshPass::Num; ++NaniteMeshPass)
 						{
-							check(UploadDataSourceAdapter.bUpdateNaniteMaterialTables);
-							check(UploadInfo.PrimitiveSceneInfo != nullptr);
-							const FPrimitiveSceneInfo* PrimitiveSceneInfo = UploadInfo.PrimitiveSceneInfo;
-							const Nanite::FSceneProxyBase* NaniteSceneProxy = UploadInfo.NaniteSceneProxy;
-							const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
-
-							// Update raster bin, material depth and hit proxy ID remapping tables.
-							for (int32 NaniteMeshPass = 0; NaniteMeshPass < ENaniteMeshPass::Num; ++NaniteMeshPass)
-							{
-								FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPass];
-								const TArray<FNaniteMaterialSlot>& PassMaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPass];
+							FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPass];
+							const TArray<FNaniteMaterialSlot>& PassMaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPass];
 								
-								if (PassMaterials.Num() == PassMaterialSlots.Num())
+							if (PassMaterials.Num() == PassMaterialSlots.Num())
+							{
+								const uint32 MaterialSlotCount = uint32(PassMaterialSlots.Num());
+								const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
+
+								// TODO: Make this more robust, and catch issues earlier on
+								const uint32 UploadEntryCount = FMath::Max(MaterialSlotCount, TableEntryCount);
+
+								void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, UploadEntryCount);
+								uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
+								for (uint32 Entry = 0; Entry < MaterialSlotCount; ++Entry)
 								{
-									const uint32 MaterialSlotCount = uint32(PassMaterialSlots.Num());
-									const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
-
-									// TODO: Make this more robust, and catch issues earlier on
-									const uint32 UploadEntryCount = FMath::Max(MaterialSlotCount, TableEntryCount);
-
-									void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, UploadEntryCount);
-									uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
-									for (uint32 Entry = 0; Entry < MaterialSlotCount; ++Entry)
-									{
-										MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry].Pack();
-									}
-
-								#if WITH_EDITOR
-									if (NaniteMeshPass == ENaniteMeshPass::BasePass && NaniteSceneProxy->GetHitProxyMode() == Nanite::FSceneProxyBase::EHitProxyMode::MaterialSection)
-									{
-										const TArray<uint32>& PassHitProxyIds = PrimitiveSceneInfo->NaniteHitProxyIds;
-										uint32* HitProxyTable = static_cast<uint32*>(NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, MaterialSlotCount));
-										for (int32 Entry = 0; Entry < PassHitProxyIds.Num(); ++Entry)
-										{
-											HitProxyTable[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
-										}
-									}
-								#endif
+									MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry].Pack();
 								}
+
+							#if WITH_EDITOR
+								if (NaniteMeshPass == ENaniteMeshPass::BasePass && NaniteSceneProxy->GetHitProxyMode() == Nanite::FSceneProxyBase::EHitProxyMode::MaterialSection)
+								{
+									const TArray<uint32>& PassHitProxyIds = PrimitiveSceneInfo->NaniteHitProxyIds;
+									uint32* HitProxyTable = static_cast<uint32*>(NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, MaterialSlotCount));
+									for (int32 Entry = 0; Entry < PassHitProxyIds.Num(); ++Entry)
+									{
+										HitProxyTable[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
+									}
+								}
+							#endif
 							}
 						}
 					}
 				}
-				
-				{
-					SCOPED_NAMED_EVENT(STAT_UpdateGPUScenePrimitives_Par, FColor::Green);
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScenePrimitives_Par);
-					// 1. do (potentially) parallel work next
-					ParallelFor(NumPrimitiveDataUploads, [&UploadDataSourceAdapter, this](int32 ItemIndex)
-					{
-						FPrimitiveUploadInfo UploadInfo;
-						UploadDataSourceAdapter.GetPrimitiveInfo(ItemIndex, UploadInfo);
-
-						FVector4f* DstData = static_cast<FVector4f*>(PrimitiveUploadBuffer.GetRef(ItemIndex));
-						for (uint32 VectorIndex = 0; VectorIndex < FPrimitiveSceneShaderData::DataStrideInFloat4s; ++VectorIndex)
-						{
-							DstData[VectorIndex] = UploadInfo.PrimitiveSceneData.Data[VectorIndex];
-						}
-					}, !bExecuteInParallel);
-				}
-
-				PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.PrimitiveBuffer, true);
 			}
+
+			{
+				SCOPED_NAMED_EVENT(STAT_UpdateGPUScenePrimitives_Par, FColor::Green);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScenePrimitives_Par);
+				// 1. do (potentially) parallel work next
+				ParallelFor(NumPrimitiveDataUploads, [&UploadDataSourceAdapter, this](int32 ItemIndex)
+				{
+					FPrimitiveUploadInfo UploadInfo;
+					UploadDataSourceAdapter.GetPrimitiveInfo(ItemIndex, UploadInfo);
+
+					FVector4f* DstData = static_cast<FVector4f*>(PrimitiveUploadBuffer.GetRef(ItemIndex));
+					for (uint32 VectorIndex = 0; VectorIndex < FPrimitiveSceneShaderData::DataStrideInFloat4s; ++VectorIndex)
+					{
+						DstData[VectorIndex] = UploadInfo.PrimitiveSceneData.Data[VectorIndex];
+					}
+				}, !bExecuteInParallel);
+			}
+
+			PrimitiveUploadBuffer.ResourceUploadTo(GraphBuilder, BufferState.PrimitiveBuffer);
 		}
 
 		if (Scene != nullptr)
@@ -1225,14 +1009,14 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			{
 				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 				{
-					Scene->NaniteMaterials[NaniteMeshPassIndex].Finish(RHICmdList);
+					Scene->NaniteMaterials[NaniteMeshPassIndex].Finish(GraphBuilder, ExternalAccessQueue);
 				}
 			}
 		}
 		{
 			if (NumInstancePayloadDataUploads > 0)
 			{
-				InstancePayloadUploadBuffer.InitPreSized(NumInstancePayloadDataUploads, sizeof(FVector4f), true, TEXT("InstancePayloadUploadBuffer"));
+				InstancePayloadUploadBuffer.InitPreSized(GraphBuilder, NumInstancePayloadDataUploads, sizeof(FVector4f), true, TEXT("InstancePayloadUploadBuffer"));
 			}
 
 			// Upload instancing data for the scene.
@@ -1241,11 +1025,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 				SCOPED_NAMED_EVENT(STAT_UpdateGPUSceneInstances, FColor::Green);
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneInstances);
 
-				InstanceSceneUploadBuffer.InitPreSized(NumInstanceSceneDataUploads * InstanceSceneDataNumArrays, sizeof(FVector4f), true, TEXT("InstanceSceneUploadBuffer"));
+				InstanceSceneUploadBuffer.InitPreSized(GraphBuilder, NumInstanceSceneDataUploads * InstanceSceneDataNumArrays, sizeof(FVector4f), true, TEXT("InstanceSceneUploadBuffer"));
 
 				if (!InstanceUpdates.UpdateBatches.IsEmpty())
 				{
-					ParallelFor(InstanceUpdates.UpdateBatches.Num(), [this, &InstanceUpdates, &Scene, &UploadDataSourceAdapter, NumInstancePayloadDataUploads, &BufferState](int32 BatchIndex)
+					ParallelFor(InstanceUpdates.UpdateBatches.Num(), [this, &InstanceUpdates, &Scene, &UploadDataSourceAdapter, NumInstancePayloadDataUploads](int32 BatchIndex)
 					{
 						const FInstanceUploadBatch Batch = InstanceUpdates.UpdateBatches[BatchIndex];
 						for (int32 BatchItemIndex = 0; BatchItemIndex < Batch.NumItems; ++BatchItemIndex)
@@ -1376,15 +1160,15 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 				if (NumInstancePayloadDataUploads > 0)
 				{
-					InstancePayloadUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.InstancePayloadDataBuffer, false);
+					InstancePayloadUploadBuffer.ResourceUploadTo(GraphBuilder, BufferState.InstancePayloadDataBuffer);
 				}
 
-				InstanceSceneUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.InstanceSceneDataBuffer, false);
+				InstanceSceneUploadBuffer.ResourceUploadTo(GraphBuilder, BufferState.InstanceSceneDataBuffer);
 			}
 
 			if( Scene != nullptr && Scene->InstanceBVH.GetNumDirty() > 0 )
 			{
-				InstanceSceneUploadBuffer.Init( Scene->InstanceBVH.GetNumDirty(), sizeof( FBVHNode ), true, TEXT("InstanceSceneUploadBuffer") );
+				InstanceSceneUploadBuffer.Init(GraphBuilder, Scene->InstanceBVH.GetNumDirty(), sizeof( FBVHNode ), true, TEXT("InstanceSceneUploadBuffer") );
 
 				Scene->InstanceBVH.ForAllDirty(
 					[&]( uint32 NodeIndex, const auto& Node )
@@ -1406,7 +1190,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						InstanceSceneUploadBuffer.Add( NodeIndex, &GPUNode );
 					} );
 
-				InstanceSceneUploadBuffer.ResourceUploadTo( RHICmdList, BufferState.InstanceBVHBuffer, false );
+				InstanceSceneUploadBuffer.ResourceUploadTo(GraphBuilder, BufferState.InstanceBVHBuffer);
 			}
 
 			if (NumLightmapDataUploads > 0)
@@ -1421,7 +1205,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 				const int32 MaxLightmapsUploads = GetMaxPrimitivesUpdate(NumLightmapDataUploads, FLightmapSceneShaderData::DataStrideInFloat4s);
 				for (int32 PrimitiveOffset = 0; PrimitiveOffset < NumPrimitiveDataUploads; PrimitiveOffset += MaxLightmapsUploads)
 				{
-					LightmapUploadBuffer.Init(MaxLightmapsUploads, sizeof(FLightmapSceneShaderData::Data), true, TEXT("LightmapUploadBuffer"));
+					LightmapUploadBuffer.Init(GraphBuilder, MaxLightmapsUploads, sizeof(FLightmapSceneShaderData::Data), true, TEXT("LightmapUploadBuffer"));
 
 					for (int32 IndexUpdate = 0; (IndexUpdate < MaxLightmapsUploads) && ((IndexUpdate + PrimitiveOffset) < NumPrimitiveDataUploads); ++IndexUpdate)
 					{
@@ -1437,12 +1221,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						}
 					}
 
-					if (PrimitiveOffset > 0)
-					{
-						RHICmdList.Transition(FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-					}
-
-					LightmapUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.LightmapDataBuffer, false);
+					LightmapUploadBuffer.ResourceUploadTo(GraphBuilder, BufferState.LightmapDataBuffer);
 				}
 			}
 
@@ -1605,13 +1384,12 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 	TArray<uint32, SceneRenderingAllocator> PrimitivesIds;
 };
 
-void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View, bool bIsShadowView)
+void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
 	RDG_EVENT_SCOPE(GraphBuilder, "GPUScene.UploadDynamicPrimitiveShaderDataForView");
 
-	check(!bAsyncComputeReadAccess);
 	ensure(bInBeginEndBlock);
 	ensure(Scene == nullptr || DynamicPrimitivesOffset >= Scene->Primitives.Num());
 
@@ -1629,6 +1407,8 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 
 	// Make sure we are not trying to upload data that lives in a different context.
 	ensure(Collector.UploadData == nullptr || CurrentDynamicContext->DymamicPrimitiveUploadData.Find(Collector.UploadData) != INDEX_NONE);
+
+	check(BufferState.IsValid());
 
 	// Skip uploading empty & already uploaded data
 	const bool bNeedsUpload = Collector.UploadData != nullptr && NumPrimitiveDataUploads > 0 && !Collector.UploadData->bIsUploaded;
@@ -1667,39 +1447,22 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 			InstanceIdStart,
 			Collector.UploadData->InstancePayloadDataOffset,
 			SceneFrameNumber);
-		FGPUSceneBufferState BufferState = UpdateBufferState(GraphBuilder, Scene, UploadAdapter);
+
+		UpdateBufferState(GraphBuilder, Scene, UploadAdapter);
+
+		UseInternalAccessMode(GraphBuilder);
 
 		// Run a pass that clears (Sets ID to invalid) any instances that need it.
 		AddClearInstancesPass(GraphBuilder);
 
-		AddPass(GraphBuilder, RDG_EVENT_NAME("Uploads"),
-			[this, Scene, UploadAdapter, BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.Transition({
-				FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			});
-
-			UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter, BufferState);
-
-			RHICmdList.Transition({
-				FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-				FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-				FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-				FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-				FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-			});
-		});
+		UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(GraphBuilder, Scene, ExternalAccessQueue, UploadAdapter);
 	}
 
 	// Update view uniform buffer
-	View.CachedViewUniformShaderParameters->PrimitiveSceneData = PrimitiveBuffer.SRV;
-	View.CachedViewUniformShaderParameters->LightmapSceneData = LightmapDataBuffer.SRV;
-	View.CachedViewUniformShaderParameters->InstancePayloadData = InstancePayloadDataBuffer.SRV;
-	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceSceneDataBuffer.SRV;
+	View.CachedViewUniformShaderParameters->PrimitiveSceneData = PrimitiveBuffer->GetSRV();
+	View.CachedViewUniformShaderParameters->LightmapSceneData = LightmapDataBuffer->GetSRV();
+	View.CachedViewUniformShaderParameters->InstancePayloadData = InstancePayloadDataBuffer->GetSRV();
+	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceSceneDataBuffer->GetSRV();
 	View.CachedViewUniformShaderParameters->InstanceSceneDataSOAStride = InstanceSceneDataSOAStride;
 
 	View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
@@ -1735,18 +1498,17 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 				uint32 PassIndex = uint32(PrimData.SourceData.DataWriterGPUPass);
 				DeferredGPUWritePassDelegates[PassIndex].Add(DeferredWrite);
 			}
-		}		
+		}
 
 		if (ImmediateWrites.Num() > 0)
 		{
 			// Execute writes that should execute immediately
 			RDG_EVENT_SCOPE(GraphBuilder, "GPU Writer Delegates");
-			BeginReadWriteAccess(GraphBuilder, true);			
 
 			FGPUSceneWriteDelegateParams Params;
 			Params.View = &View;
 			Params.GPUWritePass = EGPUSceneGPUWritePass::None;
-			GetWriteParameters(Params.GPUWriteParams);
+			GetWriteParameters(GraphBuilder, Params.GPUWriteParams);
 
 			for (uint32 PrimitiveIndex : ImmediateWrites)
 			{
@@ -1756,9 +1518,9 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 
 				PrimData.SourceData.DataWriterGPU.Execute(GraphBuilder, Params);
 			}
-
-			EndReadWriteAccess(GraphBuilder, ERHIAccess::SRVMask);
 		}
+
+		UseExternalAccessMode(ExternalAccessQueue, ERHIAccess::SRVMask, ERHIPipeline::All);
 	}
 }
 
@@ -1786,7 +1548,7 @@ void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState Dir
 }
 
 
-void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
+void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
 	if (bIsEnabled)
 	{
@@ -1794,17 +1556,17 @@ void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 		ensure(bInBeginEndBlock);
 		
-		UpdateInternal(GraphBuilder, Scene);
+		UpdateInternal(GraphBuilder, Scene, ExternalAccessQueue);
 	}
 }
 
-void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View, bool bIsShadowView)
+void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView)
 {
 	if (bIsEnabled)
 	{
 		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-		UploadDynamicPrimitiveShaderDataForViewInternal(GraphBuilder, Scene, View, bIsShadowView);
+		UploadDynamicPrimitiveShaderDataForViewInternal(GraphBuilder, Scene, View, ExternalAccessQueue, bIsShadowView);
 	}
 }
 
@@ -1920,20 +1682,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FGPUSceneDebugRenderCS, "/Engine/Private/GPUSceneDebugRender.usf", "GPUSceneDebugRenderCS", SF_Compute);
 
-
-FGPUSceneResourceParameters FGPUScene::SetParameters(FRDGBuilder& GraphBuilder) const
-{
-	FGPUSceneResourceParameters Out;
-	Out.GPUSceneInstanceSceneData = InstanceSceneDataBuffer.SRV;
-	Out.GPUSceneInstancePayloadData = InstancePayloadDataBuffer.SRV;
-	Out.GPUScenePrimitiveSceneData = PrimitiveBuffer.SRV;
-	Out.InstanceDataSOAStride = InstanceSceneDataSOAStride;
-	Out.NumScenePrimitives = NumScenePrimitives;
-	Out.NumInstances = InstanceSceneDataAllocator.GetMaxSize();
-	Out.GPUSceneFrameNumber = GetSceneFrameNumber();
-	return Out;
-}
-
 void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View)
 {
 	int32 DebugMode = CVarGPUSceneDebugMode.GetValueOnRenderThread();
@@ -2009,7 +1757,7 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 
 			FGPUSceneDebugRenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneDebugRenderCS::FParameters>();
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
-			PassParameters->GPUSceneResource = SetParameters(GraphBuilder);
+			PassParameters->GPUSceneResource = ShaderParameters;
 			PassParameters->bDrawUpdatedOnly = DebugMode == 3;
 			PassParameters->bDrawAll = DebugMode != 2;
 			PassParameters->SelectedNameInfoCount = SelectedCount;
@@ -2103,12 +1851,15 @@ bool FGPUScene::ExecuteDeferredGPUWritePass(FRDGBuilder& GraphBuilder, const TAr
 		return false;
 	}
 
+	check(BufferState.IsValid());
+
 	RDG_EVENT_SCOPE(GraphBuilder, "GPUScene.DeferredGPUWrites - Pass %u", uint32(GPUWritePass));
-	BeginReadWriteAccess(GraphBuilder, true);
+
+	UseInternalAccessMode(GraphBuilder);
 
 	FGPUSceneWriteDelegateParams Params;
 	Params.GPUWritePass = GPUWritePass;
-	GetWriteParameters(Params.GPUWriteParams);
+	GetWriteParameters(GraphBuilder, Params.GPUWriteParams);
 
 	for (const FDeferredGPUWrite& DeferredWrite : DeferredGPUWritePassDelegates[PassIndex])
 	{
@@ -2122,7 +1873,9 @@ bool FGPUScene::ExecuteDeferredGPUWritePass(FRDGBuilder& GraphBuilder, const TAr
 		DeferredWrite.DataWriterGPU.Execute(GraphBuilder, Params);
 	}
 
-	EndReadWriteAccess(GraphBuilder, ERHIAccess::SRVMask);
+	FRDGExternalAccessQueue ExternalAccessQueue;
+	UseExternalAccessMode(ExternalAccessQueue, ERHIAccess::SRVMask, ERHIPipeline::All);
+	ExternalAccessQueue.Submit(GraphBuilder);
 
 	DeferredGPUWritePassDelegates[PassIndex].Reset();
 	return true;
@@ -2179,121 +1932,17 @@ FGPUScenePrimitiveCollector::FUploadData* FGPUSceneDynamicContext::AllocateDynam
 }
 
 /**
- * Call before accessing the GPU scene in a read/write pass.
- */
-bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder, bool bAllowUAVOverlap)
-{
-	if (IsEnabled())
-	{
-		checkf(!bAsyncComputeReadAccess, TEXT("You must call EndAsyncComputeReadAccess first."));
-		checkf(!bReadWriteAccess, TEXT("GPUScene's buffers already have r/w access"));
-		bReadWriteAccess = true;
-		bReadWriteUAVOverlap = bAllowUAVOverlap;
-
-		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"),
-			[this, bAllowUAVOverlap](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.Transition({
-				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			});
-
-			if (bAllowUAVOverlap) // NOTE: using a capture because the member is set on a different timeline
-			{
-				RHICmdList.BeginUAVOverlap({ InstanceSceneDataBuffer.UAV, InstancePayloadDataBuffer.UAV, PrimitiveBuffer.UAV });
-			}
-		});
-		return true;
-	}
-
-	return false;
-}
-
-/**
  * Fills in the FGPUSceneWriterParameters to use for read/write access to the GPU Scene.
  */
-void FGPUScene::GetWriteParameters(FGPUSceneWriterParameters& GPUSceneWriterParametersOut)
+void FGPUScene::GetWriteParameters(FRDGBuilder& GraphBuilder, FGPUSceneWriterParameters& GPUSceneWriterParametersOut)
 {
 	GPUSceneWriterParametersOut.GPUSceneFrameNumber = SceneFrameNumber;
 	GPUSceneWriterParametersOut.GPUSceneInstanceSceneDataSOAStride = InstanceSceneDataSOAStride;
 	GPUSceneWriterParametersOut.GPUSceneNumAllocatedInstances = InstanceSceneDataAllocator.GetMaxSize();
 	GPUSceneWriterParametersOut.GPUSceneNumAllocatedPrimitives = DynamicPrimitivesOffset;
-	GPUSceneWriterParametersOut.GPUSceneInstanceSceneDataRW = InstanceSceneDataBuffer.UAV;
-	GPUSceneWriterParametersOut.GPUSceneInstancePayloadDataRW = InstancePayloadDataBuffer.UAV;
-	GPUSceneWriterParametersOut.GPUScenePrimitiveSceneDataRW = PrimitiveBuffer.UAV;
-}
-
-/**
- * Call after accessing the GPU scene in a read/write pass. Ensures barriers are done.
- */
-void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAccessState)
-{
-	if (IsEnabled())
-	{
-		checkf(bReadWriteAccess, TEXT("GPUScene's buffers do not currently have r/w access"));
-
-		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"),
-			[this, FinalAccessState, bEndUAVOverlap=bReadWriteUAVOverlap](FRHICommandList& RHICmdList)
-		{
-			if (bEndUAVOverlap) // NOTE: using a capture because the member is set on a different timeline
-			{
-				RHICmdList.EndUAVOverlap({ InstanceSceneDataBuffer.UAV, InstancePayloadDataBuffer.UAV, PrimitiveBuffer.UAV });
-			}
-
-			RHICmdList.Transition({
-				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::UAVCompute, FinalAccessState),
-				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::UAVCompute, FinalAccessState),
-				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::UAVCompute, FinalAccessState)
-			});
-		});
-
-		bReadWriteAccess = false;
-		bReadWriteUAVOverlap = false;
-	}
-}
-
-void FGPUScene::BeginAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const
-{
-	if (IsEnabled() && GSupportsEfficientAsyncCompute)
-	{
-		check(!bReadWriteAccess);
-		check(!bAsyncComputeReadAccess);
-
-		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionToAsyncComputeRead"),
-			[this](FRHICommandListImmediate&)
-		{
-			FRHICommandListExecutor::Transition({
-				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask)
-			}, ERHIPipeline::Graphics, ERHIPipeline::All);
-		});
-
-		bAsyncComputeReadAccess = true;
-	}
-}
-
-void FGPUScene::EndAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const
-{
-	if (IsEnabled() && GSupportsEfficientAsyncCompute)
-	{
-		check(bAsyncComputeReadAccess);
-
-		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionToAsyncComputeRead"),
-			[this](FRHICommandListImmediate&)
-		{
-			FRHICommandListExecutor::Transition({
-				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask)
-				}, ERHIPipeline::All, ERHIPipeline::Graphics);
-		});
-
-		bAsyncComputeReadAccess = false;
-	}
+	GPUSceneWriterParametersOut.GPUSceneInstanceSceneDataRW = GraphBuilder.CreateUAV(BufferState.InstanceSceneDataBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	GPUSceneWriterParametersOut.GPUSceneInstancePayloadDataRW = GraphBuilder.CreateUAV(BufferState.InstancePayloadDataBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	GPUSceneWriterParametersOut.GPUScenePrimitiveSceneDataRW = GraphBuilder.CreateUAV(BufferState.PrimitiveBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
 }
 
 /**
@@ -2336,9 +1985,7 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGP
 
 		IdOnlyUpdateItems.Upload(GraphBuilder).GetShaderParameters(GraphBuilder, PassParameters->BatcherParameters);
 
-		BeginReadWriteAccess(GraphBuilder);
-
-		GetWriteParameters(PassParameters->GPUSceneWriterParameters);
+		GetWriteParameters(GraphBuilder, PassParameters->GPUSceneWriterParameters);
 
 		auto ComputeShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FGPUSceneSetInstancePrimitiveIdCS>();
 
@@ -2349,8 +1996,6 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGP
 			PassParameters,
 			IdOnlyUpdateItems.GetWrappedCsGroupCount()
 		);
-
-		EndReadWriteAccess(GraphBuilder, ERHIAccess::UAVCompute);
 	}
 }
 

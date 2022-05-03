@@ -10,9 +10,9 @@ class FRDGBuilder;
 
 /** Include in shader parameters struct for shaders that modify GPU-Scene instances */
 BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneWriterParameters, ENGINE_API)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstanceSceneDataRW)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstancePayloadDataRW)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUScenePrimitiveSceneDataRW)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, GPUSceneInstanceSceneDataRW)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, GPUSceneInstancePayloadDataRW)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, GPUScenePrimitiveSceneDataRW)
 	SHADER_PARAMETER(uint32, GPUSceneInstanceSceneDataSOAStride)
 	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)

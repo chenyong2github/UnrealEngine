@@ -392,7 +392,7 @@ static void AddDebugHairPrintPass(
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
 	FHairDebugPrintCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintCS::FParameters>();
-	Parameters->GPUSceneResource = Scene->GPUScene.SetParameters(GraphBuilder);
+	Parameters->GPUSceneResource = Scene->GPUScene.GetShaderParameters();
 	Parameters->HairInstanceCount = InstanceIDs.Num();
 	Parameters->HairInstanceIDs = GraphBuilder.CreateSRV(InstancesIDBuffer, PF_R32_UINT);
 	Parameters->GroupSize = GetVendorOptimalGroupSize2D();

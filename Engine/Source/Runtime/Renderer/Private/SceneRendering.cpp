@@ -1886,9 +1886,9 @@ void FViewInfo::SetupUniformBufferParameters(
 		{
 			ViewUniformShaderParameters.PrimitiveSceneData = PrimitiveSceneDataOverrideSRV;
 		}
-		else if (Scene && Scene->GPUScene.PrimitiveBuffer.SRV != nullptr)
+		else if (Scene && Scene->GPUScene.PrimitiveBuffer != nullptr)
 		{
-			ViewUniformShaderParameters.PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
+			ViewUniformShaderParameters.PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer->GetSRV();
 		}
 
 		if (InstanceSceneDataOverrideSRV)
@@ -1896,9 +1896,9 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;
 			ViewUniformShaderParameters.InstanceSceneDataSOAStride = 1;
 		}
-		else if (Scene && Scene->GPUScene.InstanceSceneDataBuffer.SRV)
+		else if (Scene && Scene->GPUScene.InstanceSceneDataBuffer)
 		{
-			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
+			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer->GetSRV();
 			ViewUniformShaderParameters.InstanceSceneDataSOAStride = Scene->GPUScene.InstanceSceneDataSOAStride;
 		}
 
@@ -1906,18 +1906,18 @@ void FViewInfo::SetupUniformBufferParameters(
 		{
 			ViewUniformShaderParameters.InstancePayloadData = InstancePayloadDataOverrideSRV;
 		}
-		else if (Scene && Scene->GPUScene.InstancePayloadDataBuffer.SRV)
+		else if (Scene && Scene->GPUScene.InstancePayloadDataBuffer)
 		{
-			ViewUniformShaderParameters.InstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
+			ViewUniformShaderParameters.InstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer->GetSRV();
 		}
 
 		if (LightmapSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.LightmapSceneData = LightmapSceneDataOverrideSRV;
 		}
-		else if (Scene && Scene->GPUScene.LightmapDataBuffer.SRV)
+		else if (Scene && Scene->GPUScene.LightmapDataBuffer)
 		{
-			ViewUniformShaderParameters.LightmapSceneData = Scene->GPUScene.LightmapDataBuffer.SRV;
+			ViewUniformShaderParameters.LightmapSceneData = Scene->GPUScene.LightmapDataBuffer->GetSRV();
 		}
 	}
 
@@ -4691,7 +4691,10 @@ public:
 	{
 		Scene.UpdateAllPrimitiveSceneInfos(GraphBuilder, false);
 		GPUScene.BeginRender(&Scene, GPUSceneDynamicContext);
-		Scene.GPUScene.Update(GraphBuilder, Scene);
+
+		FRDGExternalAccessQueue ExternalAccessQueue;
+		Scene.GPUScene.Update(GraphBuilder, Scene, ExternalAccessQueue);
+		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 
 	virtual ~FScenePrimitiveRenderingContext()

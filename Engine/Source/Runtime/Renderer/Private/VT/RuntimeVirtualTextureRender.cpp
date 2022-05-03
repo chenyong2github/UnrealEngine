@@ -1163,7 +1163,10 @@ namespace RuntimeVirtualTexture
 		View->CachedViewUniformShaderParameters->RuntimeVirtualTexturePackHeight = FVector2f(WorldHeightPackParameter);	// LWC_TODO: Precision loss
 		View->CachedViewUniformShaderParameters->RuntimeVirtualTextureDebugParams = FVector4f(DebugType == ERuntimeVirtualTextureDebugType::Debug ? 1.f : 0.f, 0.f, 0.f, 0.f);
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, (const_cast<FScene*>(Scene)), *View);
+
+		FRDGExternalAccessQueue ExternalAccessQueue;
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, (const_cast<FScene*>(Scene)), *View, ExternalAccessQueue);
+		ExternalAccessQueue.Submit(GraphBuilder);
 
 		// Build graph
 		FRenderGraphSetup GraphSetup(GraphBuilder, Scene->GetFeatureLevel(), MaterialType, OutputTexture0, TextureSize, bIsThumbnails);
@@ -1286,7 +1289,11 @@ namespace RuntimeVirtualTexture
 
 		// Call to let GPU-Scene determine if it is active and record scene primitive count
 		FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(InDesc.Scene->GPUScene, GPUSceneDynamicContext, InDesc.Scene);
-		InDesc.Scene->GPUScene.Update(GraphBuilder, *InDesc.Scene);
+
+		FRDGExternalAccessQueue ExternalAccessQueue;
+		InDesc.Scene->GPUScene.Update(GraphBuilder, *InDesc.Scene, ExternalAccessQueue);
+		ExternalAccessQueue.Submit(GraphBuilder);
+
 		RenderPagesInternal(GraphBuilder, InDesc);
 	}
 

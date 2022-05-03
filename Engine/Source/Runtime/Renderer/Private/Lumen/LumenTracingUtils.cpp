@@ -129,10 +129,11 @@ void GetLumenCardTracingParameters(
 	
 	// GPUScene
 	const FScene* Scene = ((const FScene*)View.Family->Scene);
-	const FGPUScene& GPUScene = Scene->GPUScene;
-	TracingParameters.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
-	TracingParameters.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
-	TracingParameters.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
+	const FGPUSceneResourceParameters GPUSceneParameters = Scene->GPUScene.GetShaderParameters();
+
+	TracingParameters.GPUSceneInstanceSceneData = GPUSceneParameters.GPUSceneInstanceSceneData;
+	TracingParameters.GPUSceneInstancePayloadData = GPUSceneParameters.GPUSceneInstancePayloadData;
+	TracingParameters.GPUScenePrimitiveSceneData = GPUSceneParameters.GPUScenePrimitiveSceneData;
 
 	// Feedback
 	extern float GLumenSurfaceCacheFeedbackResLevelBias;

@@ -308,9 +308,9 @@ void BuildRayTracingInstanceBuffer(
 	if (GPUScene)
 	{
 		PassParams.InstanceSceneDataSOAStride = GPUScene->InstanceSceneDataSOAStride;
-		PassParams.GPUSceneInstanceSceneData = GPUScene->InstanceSceneDataBuffer.SRV;
-		PassParams.GPUSceneInstancePayloadData = GPUScene->InstancePayloadDataBuffer.SRV;
-		PassParams.GPUScenePrimitiveSceneData = GPUScene->PrimitiveBuffer.SRV;
+		PassParams.GPUSceneInstanceSceneData = GPUScene->InstanceSceneDataBuffer->GetSRV();
+		PassParams.GPUSceneInstancePayloadData = GPUScene->InstancePayloadDataBuffer->GetSRV();
+		PassParams.GPUScenePrimitiveSceneData = GPUScene->PrimitiveBuffer->GetSRV();
 	}
 
 	FRayTracingBuildInstanceBufferCS::FPermutationDomain PermutationVector;

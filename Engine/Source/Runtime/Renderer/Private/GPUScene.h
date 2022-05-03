@@ -22,9 +22,10 @@ class FGPUScene;
 class FGPUSceneDynamicContext;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneResourceParameters, )
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
 	SHADER_PARAMETER(uint32, InstanceDataSOAStride)
 	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 	SHADER_PARAMETER(int32, NumInstances)
@@ -164,18 +165,15 @@ private:
 // dynamic primitives will turn up after Pre-pass, we can't guarantee a resize won't happen).
 struct FGPUSceneBufferState
 {
-	FRWBufferStructured	PrimitiveBuffer;
-	FRWBufferStructured	InstanceSceneDataBuffer;
-	uint32				InstanceSceneDataSOAStride = 1; // Distance between arrays in float4s
-	FRWBufferStructured	InstancePayloadDataBuffer;
-	FRWBufferStructured	InstanceBVHBuffer;
-	FRWBufferStructured	LightmapDataBuffer;
-	uint32 LightMapDataBufferSize;
+	bool IsValid() const { return PrimitiveBuffer != nullptr; }
 
-	bool bResizedPrimitiveData = false;
-	bool bResizedInstanceSceneData = false;
-	bool bResizedInstancePayloadData = false;
-	bool bResizedLightmapData = false;
+	FRDGBuffer* PrimitiveBuffer = nullptr;
+	FRDGBuffer* InstanceSceneDataBuffer = nullptr;
+	uint32 InstanceSceneDataSOAStride = 1; // Distance between arrays in float4s
+	FRDGBuffer* InstancePayloadDataBuffer = nullptr;
+	FRDGBuffer* InstanceBVHBuffer = nullptr;
+	FRDGBuffer* LightmapDataBuffer = nullptr;
+	uint32 LightMapDataBufferSize = 0;
 };
 
 class FGPUScene
@@ -220,12 +218,12 @@ public:
 	/**
 	 * Upload primitives from View.DynamicPrimitiveCollector.
 	 */
-	void UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View, bool bIsShadowView = false);
+	void UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView = false);
 
 	/**
 	 * Pull all pending updates from Scene and upload primitive & instance data.
 	 */
-	void Update(FRDGBuilder& GraphBuilder, FScene& Scene);
+	void Update(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 	/**
 	 * Queue the given primitive for upload to GPU at next call to Update.
@@ -280,19 +278,9 @@ public:
 	}
 
 	/**
-	 * Call before accessing the GPU scene in a read/write pass, returns false if read/write acces is not supported on the platform or the GPU scene is not enabled.
-	 */
-	bool BeginReadWriteAccess(FRDGBuilder& GraphBuilder, bool bAllowUAVOverlap = false);
-
-	/**
 	 * Fills in the FGPUSceneWriterParameters to use for read/write access to the GPU Scene.
 	 */
-	void GetWriteParameters(FGPUSceneWriterParameters& GPUSceneWriterParametersOut);
-
-	/**
-	 * Call after accessing the GPU scene in a read/write pass. Ensures barriers are done.
-	 */
-	void EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAccessState = ERHIAccess::SRVGraphics);
+	void GetWriteParameters(FRDGBuilder& GraphBuilder, FGPUSceneWriterParameters& GPUSceneWriterParametersOut);
 
 	uint32 GetSceneFrameNumber() const { return SceneFrameNumber; }
 
@@ -305,7 +293,7 @@ public:
 	/**
 	 * Return the GPU scene resource
 	 */
-	FGPUSceneResourceParameters SetParameters(FRDGBuilder& GraphBuilder) const;
+	FGPUSceneResourceParameters GetShaderParameters() const { return ShaderParameters; }
 
 	/**
 	 * Draw GPU-Scene debug info, such as bounding boxes. Call once per view at some point in the frame after GPU scene has been updated fully.
@@ -328,34 +316,31 @@ public:
 	/** Returns whether or not a GPU Write is pending for the specified primitive */
 	bool HasPendingGPUWrite(uint32 PrimitiveId) const;
 
-	void BeginAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const;
-	void EndAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const;
-
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
 	TArray<int32>			PrimitivesToUpdate;
 
 	/** GPU mirror of Primitives */
-	FRWBufferStructured PrimitiveBuffer;
-	FScatterUploadBuffer PrimitiveUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> PrimitiveBuffer;
+	FRDGScatterUploadBuffer PrimitiveUploadBuffer;
 
 	/** GPU primitive instance list */
 	FGrowOnlySpanAllocator	InstanceSceneDataAllocator;
-	FRWBufferStructured		InstanceSceneDataBuffer;
-	FScatterUploadBuffer	InstanceSceneUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> InstanceSceneDataBuffer;
+	FRDGScatterUploadBuffer	InstanceSceneUploadBuffer;
 	uint32					InstanceSceneDataSOAStride;	// Distance between arrays in float4s
 
 	FGrowOnlySpanAllocator	InstancePayloadDataAllocator;
-	FRWBufferStructured		InstancePayloadDataBuffer;
-	FScatterUploadBuffer	InstancePayloadUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> InstancePayloadDataBuffer;
+	FRDGScatterUploadBuffer	InstancePayloadUploadBuffer;
 
-	FRWBufferStructured		InstanceBVHBuffer;
+	TRefCountPtr<FRDGPooledBuffer> InstanceBVHBuffer;
 
 	/** GPU light map data */
 	FGrowOnlySpanAllocator	LightmapDataAllocator;
-	FRWBufferStructured		LightmapDataBuffer;
-	FScatterUploadBuffer	LightmapUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> LightmapDataBuffer;
+	FRDGScatterUploadBuffer	LightmapUploadBuffer;
 
 	struct FInstanceRange
 	{
@@ -367,6 +352,9 @@ public:
 
 	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
 private:
+	FGPUSceneBufferState BufferState;
+	FGPUSceneResourceParameters ShaderParameters;
+
 	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
 
 	TArray<FInstanceRange> InstanceRangesToClear;
@@ -398,31 +386,32 @@ private:
 
 	bool bIsEnabled = false;
 	bool bInBeginEndBlock = false;
-	bool bReadWriteAccess = false;
-	bool bReadWriteUAVOverlap = false;
-	mutable bool bAsyncComputeReadAccess = false;
+	bool bInExternalAccessMode = false;
 	FGPUSceneDynamicContext* CurrentDynamicContext = nullptr;
 	int32 NumScenePrimitives = 0;
 
 	ERHIFeatureLevel::Type FeatureLevel;
 
 	template<typename FUploadDataSourceAdapter>
-	FGPUSceneBufferState UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter);
+	void UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter);
 
 	/**
 	 * Generalized upload that uses an adapter to abstract the data souce. Enables uploading scene primitives & dynamic primitives using a single path.
 	 * @parameter Scene may be null, as it is only needed for the Nanite material table update (which is coupled to the Scene at the moment).
 	 */
 	template<typename FUploadDataSourceAdapter>
-	void UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter, const FGPUSceneBufferState &BufferState);
+	void UploadGeneral(FRDGBuilder& GraphBuilder, FScene* Scene, FRDGExternalAccessQueue& ExternalAccessQueue, const FUploadDataSourceAdapter& UploadDataSourceAdapter);
 
-	void UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View, bool bIsShadowView);
+	void UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView);
 
-	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene);
+	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems);
 
 	void AddClearInstancesPass(FRDGBuilder& GraphBuilder);
+
+	void UseInternalAccessMode(FRDGBuilder& GraphBuilder);
+	void UseExternalAccessMode(FRDGExternalAccessQueue& ExternalAccessQueue, ERHIAccess Access, ERHIPipeline Pipelines);
 };
 
 class FGPUSceneScopeBeginEndHelper

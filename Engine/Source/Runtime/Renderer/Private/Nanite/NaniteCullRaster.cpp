@@ -245,9 +245,9 @@ BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT( FGPUSceneParameters, )
-	SHADER_PARAMETER_SRV( StructuredBuffer<float4>,	GPUSceneInstanceSceneData)
-	SHADER_PARAMETER_SRV( StructuredBuffer<float4>,	GPUSceneInstancePayloadData)
-	SHADER_PARAMETER_SRV( StructuredBuffer<float4>,	GPUScenePrimitiveSceneData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,	GPUSceneInstanceSceneData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,	GPUSceneInstancePayloadData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,	GPUScenePrimitiveSceneData)
 	SHADER_PARAMETER( uint32,						GPUSceneFrameNumber)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -2845,11 +2845,6 @@ void CullRasterize(
 
 	check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
 
-	if (RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
-	{
-		Scene.GPUScene.BeginAsyncComputeReadAccess(GraphBuilder);
-	}
-
 	// Calling CullRasterize more than once on a CullingContext is illegal unless bSupportsMultiplePasses is enabled.
 	check(CullingContext.DrawPassIndex == 0 || CullingContext.Configuration.bSupportsMultiplePasses);
 
@@ -2950,10 +2945,14 @@ void CullRasterize(
 		VirtualTargetParameters.OutDirtyPageFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray->DirtyPageFlagsRDG);
 	}
 	FGPUSceneParameters GPUSceneParameters;
-	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceSceneDataBuffer.SRV;
-	GPUSceneParameters.GPUSceneInstancePayloadData = Scene.GPUScene.InstancePayloadDataBuffer.SRV;
-	GPUSceneParameters.GPUScenePrimitiveSceneData = Scene.GPUScene.PrimitiveBuffer.SRV;
-	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.GetSceneFrameNumber();
+
+	{
+		const FGPUSceneResourceParameters ShaderParameters = Scene.GPUScene.GetShaderParameters();
+		GPUSceneParameters.GPUSceneInstanceSceneData = ShaderParameters.GPUSceneInstanceSceneData;
+		GPUSceneParameters.GPUSceneInstancePayloadData = ShaderParameters.GPUSceneInstancePayloadData;
+		GPUSceneParameters.GPUScenePrimitiveSceneData = ShaderParameters.GPUScenePrimitiveSceneData;
+		GPUSceneParameters.GPUSceneFrameNumber = ShaderParameters.GPUSceneFrameNumber;
+	}
 	
 	if (VirtualShadowMapArray != nullptr)
 	{
@@ -3206,11 +3205,6 @@ void CullRasterize(
 		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
 		CullingContext.DrawPassIndex++;
 		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA;
-	}
-
-	if (RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
-	{
-		Scene.GPUScene.EndAsyncComputeReadAccess(GraphBuilder);
 	}
 
 	if (bExtractStats)

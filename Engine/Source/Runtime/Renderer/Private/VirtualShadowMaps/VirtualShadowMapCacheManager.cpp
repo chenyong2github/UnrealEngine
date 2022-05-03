@@ -815,9 +815,9 @@ public:
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDynamicCasterPageFlags)
 
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
@@ -917,9 +917,9 @@ static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 	FRDGBufferRef DynamicCasterPageFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevBuffers.DynamicCasterPageFlags, TEXT("Shadow.Virtual.PrevDynamicCasterFlags"));
 	OutPassParameters.OutDynamicCasterPageFlags = GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG);
 
-	OutPassParameters.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
-	OutPassParameters.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-	OutPassParameters.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
+	OutPassParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScene.InstanceSceneDataBuffer));
+	OutPassParameters.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScene.PrimitiveBuffer));
+	OutPassParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScene.InstancePayloadDataBuffer));
 	OutPassParameters.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 	OutPassParameters.GPUSceneNumAllocatedInstances = GPUScene.GetNumInstances();
 	OutPassParameters.GPUSceneNumAllocatedPrimitives = GPUScene.GetNumPrimitives();

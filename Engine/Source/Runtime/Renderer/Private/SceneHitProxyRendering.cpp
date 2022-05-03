@@ -649,16 +649,22 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	Scene->GPUScene.Update(GraphBuilder, *Scene);
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		ShaderPrint::BeginView(GraphBuilder, Views[ViewIndex]);
 	}
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, Views[ViewIndex]);
+		FRDGExternalAccessQueue ExternalAccessQueue;
+
+		Scene->GPUScene.Update(GraphBuilder, *Scene, ExternalAccessQueue);
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, Views[ViewIndex], ExternalAccessQueue);
+		}
+
+		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 
 	InstanceCullingManager.FlushRegisteredViews(GraphBuilder);

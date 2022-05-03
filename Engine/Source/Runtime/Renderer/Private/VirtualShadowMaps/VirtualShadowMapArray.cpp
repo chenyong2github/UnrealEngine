@@ -1844,9 +1844,9 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
@@ -2030,11 +2030,13 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 
 		PassParameters->VirtualShadowMap = VirtualShadowMapArray->GetUniformBuffer(GraphBuilder);
 
-		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
-		PassParameters->GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
-		PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-		PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
-		PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
+		const FGPUSceneResourceParameters GPUSceneParameters = GPUScene.GetShaderParameters();
+
+		PassParameters->GPUSceneInstanceSceneData = GPUSceneParameters.GPUSceneInstanceSceneData;
+		PassParameters->GPUSceneInstancePayloadData = GPUSceneParameters.GPUSceneInstancePayloadData;
+		PassParameters->GPUScenePrimitiveSceneData = GPUSceneParameters.GPUScenePrimitiveSceneData;
+		PassParameters->GPUSceneFrameNumber = GPUSceneParameters.GPUSceneFrameNumber;
+		PassParameters->InstanceSceneDataSOAStride = GPUSceneParameters.InstanceDataSOAStride;
 
 		// Make sure there is enough space in the buffer for all the primitive IDs that might be used to index.
 		check(PrimitiveRevealedMaskRdg->Desc.NumElements * 32u >= uint32(PrimitiveRevealedNum));

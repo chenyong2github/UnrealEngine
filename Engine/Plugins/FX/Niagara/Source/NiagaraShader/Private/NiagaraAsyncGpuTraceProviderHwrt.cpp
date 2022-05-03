@@ -32,7 +32,7 @@ struct FVFXTracePayload
 	float WorldNormal[3];
 };
 
-BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraGPUSceneParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
@@ -46,7 +46,7 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraGPUSceneParameters, GPUSceneParameters)
 
 		SHADER_PARAMETER_SRV(Buffer<UINT>, HashTable)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, HashToCollisionGroups)
@@ -346,9 +346,9 @@ void FNiagaraAsyncGpuTraceProviderHwrt::IssueTraces(FRHICommandList& RHICmdList,
 	FNiagaraCollisionRayTraceRG::FParameters Params;
 
 	Params.View = GetShaderBinding(ViewUniformBuffer);
-	Params.GPUSceneParameters.GPUSceneInstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
-	Params.GPUSceneParameters.GPUSceneInstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
-	Params.GPUSceneParameters.GPUScenePrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
+	Params.GPUSceneParameters.GPUSceneInstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer->GetSRV();
+	Params.GPUSceneParameters.GPUSceneInstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer->GetSRV();
+	Params.GPUSceneParameters.GPUScenePrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer->GetSRV();
 	Params.GPUSceneParameters.GPUSceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
 
 	if (CollisionGroupHash)

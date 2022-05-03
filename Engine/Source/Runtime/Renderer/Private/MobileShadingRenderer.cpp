@@ -578,10 +578,16 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		View.InitRHIResources();
 	}
 
-	Scene->GPUScene.Update(GraphBuilder, *Scene);
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, Views[ViewIndex]);
+		FRDGExternalAccessQueue ExternalAccessQueue;
+
+		Scene->GPUScene.Update(GraphBuilder, *Scene, ExternalAccessQueue);
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, Views[ViewIndex], ExternalAccessQueue);
+		}
+
+		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 
 	if (bRequiresDistanceField)

@@ -349,21 +349,21 @@ public:
 
 	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
 
-	void Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
+	void Begin(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
 	void* GetMaterialSlotPtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #if WITH_EDITOR
 	void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #endif
-	void Finish(FRHICommandListImmediate& RHICmdList);
+	void Finish(FRDGBuilder& GraphBuilder, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 #if WITH_EDITOR
-	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer.SRV; }
+	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer->GetSRV(); }
 #endif
 
-	FRHIShaderResourceView* GetMaterialSlotSRV() const { return MaterialSlotDataBuffer.SRV; }
-	FRHIShaderResourceView* GetMaterialDepthSRV() const { return MaterialDepthDataBuffer.SRV; }
+	FRHIShaderResourceView* GetMaterialSlotSRV() const { return MaterialSlotDataBuffer->GetSRV(); }
+	FRHIShaderResourceView* GetMaterialDepthSRV() const { return MaterialDepthDataBuffer->GetSRV(); }
 #if WITH_DEBUG_VIEW_MODES
-	FRHIShaderResourceView* GetMaterialEditorSRV() const { return MaterialEditorDataBuffer.SRV; }
+	FRHIShaderResourceView* GetMaterialEditorSRV() const { return MaterialEditorDataBuffer->GetSRV(); }
 #endif
 
 	inline const int32 GetHighestMaterialSlot() const
@@ -380,20 +380,20 @@ private:
 	uint32 NumMaterialSlotUpdates = 0;
 	uint32 NumMaterialDepthUpdates = 0;
 
-	FScatterUploadBuffer MaterialSlotUploadBuffer;
-	FRWByteAddressBuffer MaterialSlotDataBuffer;
+	FRDGScatterUploadBuffer MaterialSlotUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> MaterialSlotDataBuffer;
 
-	FScatterUploadBuffer HitProxyTableUploadBuffer;
-	FRWByteAddressBuffer HitProxyTableDataBuffer;
+	FRDGScatterUploadBuffer HitProxyTableUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> HitProxyTableDataBuffer;
 
 	FGrowOnlySpanAllocator	MaterialSlotAllocator;
 
-	FScatterUploadBuffer	MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
-	FRWByteAddressBuffer	MaterialDepthDataBuffer;
+	FRDGScatterUploadBuffer MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
+	TRefCountPtr<FRDGPooledBuffer> MaterialDepthDataBuffer;
 
 #if WITH_DEBUG_VIEW_MODES
-	FScatterUploadBuffer	MaterialEditorUploadBuffer; // 1 uint per slot (VS and PS instruction count)
-	FRWByteAddressBuffer	MaterialEditorDataBuffer;
+	FRDGScatterUploadBuffer MaterialEditorUploadBuffer; // 1 uint per slot (VS and PS instruction count)
+	TRefCountPtr<FRDGPooledBuffer> MaterialEditorDataBuffer;
 #endif
 };
 

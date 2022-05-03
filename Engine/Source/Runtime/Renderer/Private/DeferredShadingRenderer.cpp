@@ -2188,17 +2188,21 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			GraphBuilder.SetFlushResourcesRHI();
 		}
 
-		Scene->GPUScene.Update(GraphBuilder, *Scene);
+		FRDGExternalAccessQueue ExternalAccessQueue;
+
+		Scene->GPUScene.Update(GraphBuilder, *Scene, ExternalAccessQueue);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			FViewInfo& View = Views[ViewIndex];
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, View);
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, View, ExternalAccessQueue);
 
 			Scene->GPUScene.DebugRender(GraphBuilder, *Scene, View);
 		}
+
+		ExternalAccessQueue.Submit(GraphBuilder);
 
 		InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 

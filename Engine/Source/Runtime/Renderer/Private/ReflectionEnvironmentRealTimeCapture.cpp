@@ -342,6 +342,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_TargetArraySlicesIndependently,
 		TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable, false, 1, CubeMipCount, false);
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	const bool bTimeSlicedRealTimeCapture = CVarRealTimeReflectionCaptureTimeSlicing.GetValueOnRenderThread() > 0;
 
 	const bool CubeResolutionInvalidated = ConvolvedSkyRenderTargetReadyIndex < 0 || (ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex].IsValid() && ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]->GetDesc().GetSize().X != CubeWidth);
@@ -544,7 +546,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				CubeView.CreateViewUniformBuffers(*CubeView.CachedViewUniformShaderParameters);
 				if (CubeView.bSceneHasSkyMaterial)
 				{
-					GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, this, CubeView);
+					GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, this, CubeView, ExternalAccessQueue);
 				}
 
 				SkyRC.ViewUniformBuffer = CubeView.ViewUniformBuffer;
@@ -1068,8 +1070,10 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	if (ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex])
 	{
-		GraphBuilder.UseExternalAccessMode(GraphBuilder.RegisterExternalTexture(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]), ERHIAccess::SRVMask);
+		ExternalAccessQueue.Add(GraphBuilder.RegisterExternalTexture(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]), ERHIAccess::SRVMask);
 	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
 }
 
 

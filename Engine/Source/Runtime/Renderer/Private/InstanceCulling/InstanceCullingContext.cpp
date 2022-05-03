@@ -361,10 +361,10 @@ public:
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, GPUSceneNumInstances)
@@ -544,17 +544,19 @@ void FInstanceCullingContext::BuildRenderingCommands(
 
 	PassParametersTmp.InstanceCullingPayloads = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.PayloadData"), PayloadData));
 
+	const FGPUSceneResourceParameters GPUSceneParameters = GPUScene.GetShaderParameters();
+
 	// Because the view uniforms are not set up by the time this runs
 	// PassParametersTmp.View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
-	PassParametersTmp.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
-	PassParametersTmp.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
-	PassParametersTmp.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-	PassParametersTmp.GPUSceneLightmapData = GPUScene.LightmapDataBuffer.SRV;
+	PassParametersTmp.GPUSceneInstanceSceneData = GPUSceneParameters.GPUSceneInstanceSceneData;
+	PassParametersTmp.GPUSceneInstancePayloadData = GPUSceneParameters.GPUSceneInstancePayloadData;
+	PassParametersTmp.GPUScenePrimitiveSceneData = GPUSceneParameters.GPUScenePrimitiveSceneData;
+	PassParametersTmp.GPUSceneLightmapData = GPUSceneParameters.GPUSceneLightmapData;
 	PassParametersTmp.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
-	PassParametersTmp.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
-	PassParametersTmp.GPUSceneNumInstances = GPUScene.GetNumInstances();
-	PassParametersTmp.GPUSceneNumPrimitives = GPUScene.GetNumPrimitives();
+	PassParametersTmp.GPUSceneFrameNumber = GPUSceneParameters.GPUSceneFrameNumber;
+	PassParametersTmp.GPUSceneNumInstances = GPUSceneParameters.NumInstances;
+	PassParametersTmp.GPUSceneNumPrimitives = GPUSceneParameters.NumScenePrimitives;
 	PassParametersTmp.GPUSceneNumLightmapDataItems = GPUScene.GetNumLightmapDataItems();
 	PassParametersTmp.DynamicInstanceIdOffset = DynamicInstanceIdOffset;
 	PassParametersTmp.DynamicInstanceIdMax = DynamicInstanceIdOffset + DynamicInstanceIdNum;
@@ -861,17 +863,19 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 		DeferredContext->InstanceDataBuffer = InstanceIdOffsetBuffer;
 	}
 
+	const FGPUSceneResourceParameters GPUSceneParameters = GPUScene.GetShaderParameters();
+
 	// Because the view uniforms are not set up by the time this runs
 	// PassParameters->View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
-	PassParametersTmp.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
-	PassParametersTmp.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
-	PassParametersTmp.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-	PassParametersTmp.GPUSceneLightmapData = GPUScene.LightmapDataBuffer.SRV;
+	PassParametersTmp.GPUSceneInstanceSceneData = GPUSceneParameters.GPUSceneInstanceSceneData;
+	PassParametersTmp.GPUSceneInstancePayloadData = GPUSceneParameters.GPUSceneInstancePayloadData;
+	PassParametersTmp.GPUScenePrimitiveSceneData = GPUSceneParameters.GPUScenePrimitiveSceneData;
+	PassParametersTmp.GPUSceneLightmapData = GPUSceneParameters.GPUSceneLightmapData;
 	PassParametersTmp.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
-	PassParametersTmp.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
-	PassParametersTmp.GPUSceneNumInstances = GPUScene.GetNumInstances();
-	PassParametersTmp.GPUSceneNumPrimitives = GPUScene.GetNumPrimitives();
+	PassParametersTmp.GPUSceneFrameNumber = GPUSceneParameters.GPUSceneFrameNumber;
+	PassParametersTmp.GPUSceneNumInstances = GPUSceneParameters.NumInstances;
+	PassParametersTmp.GPUSceneNumPrimitives = GPUSceneParameters.NumScenePrimitives;
 	PassParametersTmp.GPUSceneNumLightmapDataItems = GPUScene.GetNumLightmapDataItems();
 
 	PassParametersTmp.DrawCommandDescs = GraphBuilder.CreateSRV(DrawCommandDescsRDG);

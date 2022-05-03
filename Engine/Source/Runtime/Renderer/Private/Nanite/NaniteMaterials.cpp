@@ -1315,17 +1315,17 @@ FNaniteMaterialCommands::~FNaniteMaterialCommands()
 void FNaniteMaterialCommands::Release()
 {
 	HitProxyTableUploadBuffer.Release();
-	HitProxyTableDataBuffer.Release();
+	HitProxyTableDataBuffer = nullptr;
 
 	MaterialSlotUploadBuffer.Release();
-	MaterialSlotDataBuffer.Release();
+	MaterialSlotDataBuffer = nullptr;
 
 	MaterialDepthUploadBuffer.Release();
-	MaterialDepthDataBuffer.Release();
+	MaterialDepthDataBuffer = nullptr;
 
 #if WITH_DEBUG_VIEW_MODES
 	MaterialEditorUploadBuffer.Release();
-	MaterialEditorDataBuffer.Release();
+	MaterialEditorDataBuffer = nullptr;
 #endif
 }
 
@@ -1417,37 +1417,19 @@ void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint3
 	const uint32 MaterialSlotReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumMaterialSlots, 256u));
 
 #if WITH_EDITOR
-	if (ResizeResourceIfNeeded(GraphBuilder, HitProxyTableDataBuffer, PrimitiveUpdateReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer")))
-	{
-		UAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-	}
+	ResizeByteAddressBufferIfNeeded(GraphBuilder, HitProxyTableDataBuffer, PrimitiveUpdateReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer"));
 #endif
 
-	if (ResizeResourceIfNeeded(GraphBuilder, MaterialSlotDataBuffer, PrimitiveUpdateReserve * sizeof(uint32), TEXT("Nanite.MaterialSlotDataBuffer")))
-	{
-		UAVs.Add(FRHITransitionInfo(MaterialSlotDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-	}
+	ResizeByteAddressBufferIfNeeded(GraphBuilder, MaterialSlotDataBuffer, PrimitiveUpdateReserve * sizeof(uint32), TEXT("Nanite.MaterialSlotDataBuffer"));
 
-	if (ResizeResourceIfNeeded(GraphBuilder, MaterialDepthDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialDepthDataBuffer")))
-	{
-		UAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-	}
+	ResizeByteAddressBufferIfNeeded(GraphBuilder, MaterialDepthDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialDepthDataBuffer"));
 
 #if WITH_DEBUG_VIEW_MODES
-	if (ResizeResourceIfNeeded(GraphBuilder, MaterialEditorDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialEditorDataBuffer")))
-	{
-		UAVs.Add(FRHITransitionInfo(MaterialEditorDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-	}
+	ResizeByteAddressBufferIfNeeded(GraphBuilder, MaterialEditorDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialEditorDataBuffer"));
 #endif
-
-	GraphBuilder.AddPass(RDG_EVENT_NAME("NaniteMaterialCommands.UpdateBufferState-Transition"), ERDGPassFlags::None,
-		[LocalUAVs = MoveTemp(UAVs)](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.Transition(LocalUAVs);
-	});
 }
 
-void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
+void FNaniteMaterialCommands::Begin(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -1463,28 +1445,32 @@ void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32
 
 #if WITH_EDITOR
 	check(NumHitProxyTableUpdates == 0);
-	check(HitProxyTableDataBuffer.NumBytes == PrimitiveUpdateReserve * sizeof(uint32));
+	check(HitProxyTableDataBuffer);
+	check(HitProxyTableDataBuffer->GetSize() == PrimitiveUpdateReserve * sizeof(uint32));
 #endif
 #if WITH_DEBUG_VIEW_MODES
-	check(MaterialEditorDataBuffer.NumBytes == MaterialSlotReserve * sizeof(uint32));
+	check(MaterialEditorDataBuffer)
+	check(MaterialEditorDataBuffer->GetSize() == MaterialSlotReserve * sizeof(uint32));
 #endif
-	check(MaterialSlotDataBuffer.NumBytes == PrimitiveUpdateReserve * sizeof(uint32));
-	check(MaterialDepthDataBuffer.NumBytes == MaterialSlotReserve * sizeof(uint32));
+	check(MaterialSlotDataBuffer);
+	check(MaterialSlotDataBuffer->GetSize() == PrimitiveUpdateReserve * sizeof(uint32));
+	check(MaterialDepthDataBuffer);
+	check(MaterialDepthDataBuffer->GetSize() == MaterialSlotReserve * sizeof(uint32));
 
 	NumPrimitiveUpdates = InNumPrimitiveUpdates;
 	if (NumPrimitiveUpdates > 0)
 	{
-		MaterialSlotUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.MaterialSlotUploadBuffer"));
+		MaterialSlotUploadBuffer.Init(GraphBuilder, NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.MaterialSlotUploadBuffer"));
 	#if WITH_EDITOR
-		HitProxyTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.HitProxyTableUploadBuffer"));
+		HitProxyTableUploadBuffer.Init(GraphBuilder, NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.HitProxyTableUploadBuffer"));
 	#endif
 	}
 
 	if (NumMaterialDepthUpdates > 0)
 	{
-		MaterialDepthUploadBuffer.Init(NumMaterialDepthUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialDepthUploadBuffer"));
+		MaterialDepthUploadBuffer.Init(GraphBuilder, NumMaterialDepthUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialDepthUploadBuffer"));
 	#if WITH_DEBUG_VIEW_MODES
-		MaterialEditorUploadBuffer.Init(NumMaterialDepthUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialEditorUploadBuffer"));
+		MaterialEditorUploadBuffer.Init(GraphBuilder, NumMaterialDepthUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialEditorUploadBuffer"));
 	#endif
 
 		for (auto& Command : EntryMap)
@@ -1519,7 +1505,7 @@ void* FNaniteMaterialCommands::GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32
 }
 #endif
 
-void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
+void FNaniteMaterialCommands::Finish(FRDGBuilder& GraphBuilder, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -1535,51 +1521,39 @@ void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 
-	SCOPED_DRAW_EVENTF(RHICmdList, UpdateMaterialTables, TEXT("UpdateNaniteMaterials PrimitiveUpdate = %u, MaterialUpdate = %u"), NumPrimitiveUpdates, NumMaterialDepthUpdates);
+	RDG_EVENT_SCOPE(GraphBuilder, "UpdateNaniteMaterials PrimitiveUpdate = %u, MaterialUpdate = %u", NumPrimitiveUpdates, NumMaterialDepthUpdates);
 
-	TArray<FRHITransitionInfo, TInlineAllocator<3>> UploadUAVs;
+	const auto Register = [&](const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer)
+	{
+		FRDGBuffer* Buffer = GraphBuilder.RegisterExternalBuffer(PooledBuffer);
+		ExternalAccessQueue.Add(Buffer);
+		return Buffer;
+	};
+
+	FRDGBuffer* MaterialSlotDataBufferRDG = Register(MaterialSlotDataBuffer);
+	FRDGBuffer* MaterialDepthDataBufferRDG = Register(MaterialDepthDataBuffer);
+#if WITH_EDITOR
+	FRDGBuffer* HitProxyTableDataBufferRDG = Register(HitProxyTableDataBuffer);
+#endif
+#if WITH_DEBUG_VIEW_MODES
+	FRDGBuffer* MaterialEditorDataBufferRDG = Register(MaterialEditorDataBuffer);
+#endif
 
 	if (NumPrimitiveUpdates > 0)
 	{
-		UploadUAVs.Add(FRHITransitionInfo(MaterialSlotDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	#if WITH_EDITOR
-		UploadUAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		MaterialSlotUploadBuffer.ResourceUploadTo(GraphBuilder, MaterialSlotDataBufferRDG);
+#if WITH_EDITOR
+		HitProxyTableUploadBuffer.ResourceUploadTo(GraphBuilder, HitProxyTableDataBufferRDG);
 	#endif
 	}
 
 	if (NumMaterialDepthUpdates > 0)
 	{
-		UploadUAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		MaterialDepthUploadBuffer.ResourceUploadTo(GraphBuilder, MaterialDepthDataBufferRDG);
 	#if WITH_DEBUG_VIEW_MODES
-		UploadUAVs.Add(FRHITransitionInfo(MaterialEditorDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		MaterialEditorUploadBuffer.ResourceUploadTo(GraphBuilder, MaterialEditorDataBufferRDG);
 	#endif
 	}
-
-	RHICmdList.Transition(UploadUAVs);
-
-	if (NumPrimitiveUpdates > 0)
-	{
-		MaterialSlotUploadBuffer.ResourceUploadTo(RHICmdList, MaterialSlotDataBuffer, false);
-	#if WITH_EDITOR
-		HitProxyTableUploadBuffer.ResourceUploadTo(RHICmdList, HitProxyTableDataBuffer, false);
-	#endif
-	}
-
-	if (NumMaterialDepthUpdates > 0)
-	{
-		MaterialDepthUploadBuffer.ResourceUploadTo(RHICmdList, MaterialDepthDataBuffer, false);
-	#if WITH_DEBUG_VIEW_MODES
-		MaterialEditorUploadBuffer.ResourceUploadTo(RHICmdList, MaterialEditorDataBuffer, false);
-	#endif
-	}
-
-	for (FRHITransitionInfo& Info : UploadUAVs)
-	{
-		Info.AccessBefore = Info.AccessAfter;
-		Info.AccessAfter = ERHIAccess::SRVMask;
-	}
-
-	RHICmdList.Transition(UploadUAVs);
 
 	NumMaterialSlotUpdates = 0;
 #if WITH_EDITOR
