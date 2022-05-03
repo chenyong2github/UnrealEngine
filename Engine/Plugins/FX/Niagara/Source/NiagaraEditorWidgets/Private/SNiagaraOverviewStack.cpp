@@ -191,6 +191,25 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		],
 		InOwnerTableView);
 
+		if (StackEntry->IsA<UNiagaraStackItem>())
+		{
+			// Execution Category Item Highlight
+			RowOverlay->AddSlot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Fill)
+			.Padding(FMargin(0))
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(IconColor)
+				.Padding(FMargin(0))
+				[
+					SNew(SBox)
+					.WidthOverride(2)
+				]
+			];
+		}
+		
 		// we special case the red overlay for renderer items as they have their own scalability settings
 		if(UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(StackEntry))
 		{			
