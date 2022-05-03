@@ -23,17 +23,10 @@
 #define PACK_INTERPOLANTS (USE_VERTEX_FOG && NUM_VF_PACKED_INTERPOLANTS > 0 && (ES3_1_PROFILE))
 #define LANDSCAPE_BUG_WORKAROUND (IOS && IS_MOBILE_BASEPASS_VERTEX_SHADER && PACK_INTERPOLANTS)
 
-#if COMPILER_METAL
-// @todo-rco: @todo metal: FIXME!
-#define INTERP_TYPE float4
-#else
-#define INTERP_TYPE half4
-#endif
-
 struct FSharedMobileBasePassInterpolants
 {
 #if USE_VERTEX_FOG && !PACK_INTERPOLANTS
-	INTERP_TYPE VertexFog			: TEXCOORD7;
+	half4 VertexFog			: TEXCOORD7;
 #endif
 
 	float4 PixelPosition	: TEXCOORD8; // xyz = world position, w = clip z
@@ -54,7 +47,7 @@ struct FSharedMobileBasePassInterpolants
 // as it currently uses indexing for interpolator naming.  Otherwise
 // the VS to PS attribute mapping won't match
 #if LANDSCAPE_BUG_WORKAROUND
-	INTERP_TYPE DummyInterp		: DUMMY_INTERP;
+	half4 DummyInterp		: DUMMY_INTERP;
 #endif
 };
 

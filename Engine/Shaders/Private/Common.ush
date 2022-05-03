@@ -571,17 +571,9 @@ MaterialFloat4 TextureCubeArraySampleLevel(TextureCubeArray Tex, SamplerState Sa
 #endif
 
 #else
-
 	#define TANGENTTOWORLD0					TEXCOORD10
 	#define TANGENTTOWORLD2					TEXCOORD11
-
-	// TangentToWorld0 is float4 only to match D3D11
-#if METAL_PROFILE || COMPILER_GLSL_ES3_1 || VULKAN_PROFILE
-		//@todo-rco: FIXME!
-		#define TANGENTTOWORLD_INTERPOLATOR_BLOCK	float4 TangentToWorld0 : TANGENTTOWORLD0; float4	TangentToWorld2	: TANGENTTOWORLD2;
-#else
-	#define TANGENTTOWORLD_INTERPOLATOR_BLOCK	MaterialFloat4 TangentToWorld0 : TANGENTTOWORLD0; MaterialFloat4	TangentToWorld2	: TANGENTTOWORLD2;
-#endif
+	#define TANGENTTOWORLD_INTERPOLATOR_BLOCK	half4 TangentToWorld0 : TANGENTTOWORLD0; half4 TangentToWorld2 : TANGENTTOWORLD2;
 #endif
 
 MaterialFloat Luminance( MaterialFloat3 LinearColor )
