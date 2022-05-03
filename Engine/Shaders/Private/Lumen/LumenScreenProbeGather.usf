@@ -606,6 +606,31 @@ uint GetDiffuseIntegrationMethod(FLumenMaterialData In)
 #define PERMUTATION_OVERFLOW_TILE 0
 #endif
 
+FLumenMaterialCoord GetLumenMaterialCoordForScreenProbeGather(uint2 DispatchThreadId, uint2 GroupId, inout bool bIsValid, inout uint2 FlattenTileCoord)
+{
+	FLumenMaterialCoord Out = (FLumenMaterialCoord)0;
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
+	bIsValid = all((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) < uint2(Strata.OverflowTileCount));
+	Out = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
+	FlattenTileCoord = Out.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
+#else
+	bIsValid = all(DispatchThreadId < View.ViewRectMinAndSize.zw);
+	Out = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
+	FlattenTileCoord = GroupId; // LUMEN_TODO: This should be: Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT in order to support multi-view in same texture/buffer
+#endif
+	return Out;
+}
+
+FLumenMaterialCoord GetLumenMaterialCoordForScreenProbeGather(uint2 DispatchThreadId, bool bIncludeTileOffset)
+{
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
+	// If bIncludeTileOffset is false, then it means that DispatchThreadId/TileCoord already contains +OverflowTileOffset
+	return GetLumenMaterialCoord(DispatchThreadId + (bIncludeTileOffset ? (Strata.OverflowTileOffset * STRATA_TILE_SIZE) : 0), true);
+#else
+	return GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
+#endif
+}
+
 // Return the indirect args offset depending on the permutation type (i.e., primary/overflow)
 #define TILE_CLASSIFICATION_ARGS_OFFSET (PERMUTATION_OVERFLOW_TILE * TILE_CLASSIFICATION_NUM * 3)
 
@@ -627,15 +652,9 @@ void ScreenProbeTileClassificationMarkCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-#if PERMUTATION_OVERFLOW_TILE && STRATA_ENABLED
-	const bool bIsValid = all((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) < uint2(Strata.OverflowTileCount));
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
-	const uint2 FlattenTileCoord = Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
-#else
-	const bool bIsValid = all(DispatchThreadId < View.ViewRectMinAndSize.zw);
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
-	const uint2 FlattenTileCoord = GroupId; // LUMEN_TODO: This should be: Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT in order to support multi-view in same texture/buffer
-#endif
+	bool bIsValid = false;
+	uint2 FlattenTileCoord = 0;
+	FLumenMaterialCoord Coord = GetLumenMaterialCoordForScreenProbeGather(DispatchThreadId, GroupId, bIsValid, FlattenTileCoord);
 
 	if (bIsValid)
 	{
@@ -1016,16 +1035,12 @@ void ScreenProbeIntegrateCS(
 	const uint ModeOffset		 = ViewportTileCount * INTEGRATE_TILE_CLASSIFICATION_MODE;
 	const uint OverflowOffset    = ViewportTileCount * TILE_CLASSIFICATION_NUM * PERMUTATION_OVERFLOW_TILE;
 
+	// See data layout in ScreenProbeTileClassificationBuildListsCS
 	uint2 TileCoord = UnpackTileData(IntegrateTileData[OverflowOffset + ModeOffset + GroupId]);
 	DispatchThreadId = TileCoord * INTEGRATE_TILE_SIZE + GroupThreadId;
 #endif
 
-#if PERMUTATION_OVERFLOW_TILE
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId /* DispatchThreadId/TileCoord already contains +OverflowTileOffset */, true);
-#else
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);	
-#endif
-
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForScreenProbeGather(DispatchThreadId, false /* Does not add offset as DispatchThreadId/TileCoord already contains +OverflowTileOffset */);
 	FLumenMaterialData Material = ReadMaterialData(Coord);
 	{
 		if (IsValid(Material))
@@ -1576,11 +1591,7 @@ float WeightedAverage(float4 V, float4 Weights)
 void ScreenProbeTemporalReprojectionCS( 
 	uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
-#else
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
-#endif
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForScreenProbeGather(DispatchThreadId, true /* Include tile offset*/);
 
 	float2 ScreenUV = (Coord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
