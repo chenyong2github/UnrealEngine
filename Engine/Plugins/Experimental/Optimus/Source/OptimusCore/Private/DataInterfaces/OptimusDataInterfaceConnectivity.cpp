@@ -21,7 +21,6 @@ namespace
 	{
 		const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData.MultiSizeIndexContainer.GetIndexBuffer();
 		const uint32 IndexCount = IndexBuffer->Num();
-		const uint32 TriangleCount = IndexCount / 3;
 
 		const FPositionVertexBuffer& VertexBuffer = LodRenderData.StaticVertexBuffers.PositionVertexBuffer;
 		const uint32 VertexCount = LodRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
@@ -29,86 +28,98 @@ namespace
 		Buffer.SetNum(MaxAdjacencyCount * VertexCount, true);
 		FMemory::Memset(Buffer.GetData(), 0xFF, Buffer.Num() * sizeof(uint32));
 
-		TArray<uint32> RedirectionArray;
-		RedirectionArray.SetNum(VertexCount);
-		TMap<FVector, int32 /*UniqueVertexIndex*/> UniqueIndexMap;
-
-		for (uint32 TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
+		int32 BaseTriangle = 0;
+		int32 BaseVertex = 0;
+		for (int32 SectionIndex = 0; SectionIndex < LodRenderData.RenderSections.Num(); ++SectionIndex)
 		{
-			const uint32 V[3] =
+			FSkelMeshRenderSection const& RenderSection = LodRenderData.RenderSections[SectionIndex];
+			int32 NumTriangles = RenderSection.NumTriangles;
+			int32 NumVertices = RenderSection.NumVertices;
+		
+			TArray<uint32> RedirectionArray;
+			RedirectionArray.SetNum(VertexCount);
+			TMap<FVector, int32 /*UniqueVertexIndex*/> UniqueIndexMap;
+
+			for (int32 TriangleIt = BaseTriangle; TriangleIt < BaseTriangle + NumTriangles; ++TriangleIt)
 			{
-				IndexBuffer->Get(TriangleIt * 3 + 0),
-				IndexBuffer->Get(TriangleIt * 3 + 1),
-				IndexBuffer->Get(TriangleIt * 3 + 2)
-			};
-
-			const FVector P[3] =
-			{
-				(FVector)VertexBuffer.VertexPosition(V[0]),
-				(FVector)VertexBuffer.VertexPosition(V[1]),
-				(FVector)VertexBuffer.VertexPosition(V[2])
-			};
-
-			for (int32 i = 0; i < 3; ++i)
-			{
-				const uint32 VertexIndex = RedirectionArray[V[i]] = UniqueIndexMap.FindOrAdd(P[i], V[i]);
-
-				TArrayView<uint32> AdjacentVertices = MakeArrayView(Buffer.GetData() + VertexIndex * MaxAdjacencyCount, MaxAdjacencyCount);
-
-				for (int32 a = 1; a < 3; ++a)
+				const uint32 V[3] =
 				{
-					const uint32 AdjacentVertexIndex = V[(i + a) % 3];
+					IndexBuffer->Get(TriangleIt * 3 + 0),
+					IndexBuffer->Get(TriangleIt * 3 + 1),
+					IndexBuffer->Get(TriangleIt * 3 + 2)
+				};
 
-					int32 InsertionPoint = 0;
-					while (InsertionPoint < MaxAdjacencyCount)
+				const FVector P[3] =
+				{
+					(FVector)VertexBuffer.VertexPosition(V[0]),
+					(FVector)VertexBuffer.VertexPosition(V[1]),
+					(FVector)VertexBuffer.VertexPosition(V[2])
+				};
+
+				for (int32 i = 0; i < 3; ++i)
+				{
+					const uint32 VertexIndex = RedirectionArray[V[i]] = UniqueIndexMap.FindOrAdd(P[i], V[i]);
+
+					TArrayView<uint32> AdjacentVertices = MakeArrayView(Buffer.GetData() + VertexIndex * MaxAdjacencyCount, MaxAdjacencyCount);
+
+					for (int32 a = 1; a < 3; ++a)
 					{
-						const uint32 Test = AdjacentVertices[InsertionPoint];
+						const uint32 AdjacentVertexIndex = V[(i + a) % 3];
 
-						if (Test == INDEX_NONE)
+						int32 InsertionPoint = 0;
+						while (InsertionPoint < MaxAdjacencyCount)
 						{
-							AdjacentVertices[InsertionPoint] = AdjacentVertexIndex;
-							break;
-						}
+							const uint32 Test = AdjacentVertices[InsertionPoint];
 
-						if (AdjacentVertexIndex == Test)
-						{
-							break;
-						}
-
-						if (AdjacentVertexIndex < Test)
-						{
-							// skip empty entries
-							int32 ShiftIt = MaxAdjacencyCount - 1;
-							while (AdjacentVertices[ShiftIt - 1] == INDEX_NONE)
+							if (Test == INDEX_NONE)
 							{
-								--ShiftIt;
+								AdjacentVertices[InsertionPoint] = AdjacentVertexIndex;
+								break;
 							}
 
-							// shift the results down and then insert
-							do
+							if (AdjacentVertexIndex == Test)
 							{
-								AdjacentVertices[ShiftIt] = AdjacentVertices[ShiftIt - 1];
-								--ShiftIt;
-							} while (ShiftIt > InsertionPoint);
+								break;
+							}
 
-							AdjacentVertices[InsertionPoint] = AdjacentVertexIndex;
-							break;
+							if (AdjacentVertexIndex < Test)
+							{
+								// skip empty entries
+								int32 ShiftIt = MaxAdjacencyCount - 1;
+								while (AdjacentVertices[ShiftIt - 1] == INDEX_NONE)
+								{
+									--ShiftIt;
+								}
+
+								// shift the results down and then insert
+								do
+								{
+									AdjacentVertices[ShiftIt] = AdjacentVertices[ShiftIt - 1];
+									--ShiftIt;
+								} while (ShiftIt > InsertionPoint);
+
+								AdjacentVertices[InsertionPoint] = AdjacentVertexIndex;
+								break;
+							}
+
+							++InsertionPoint;
 						}
-
-						++InsertionPoint;
 					}
 				}
 			}
-		}
 
-		for (uint32 VertexIt = 1; VertexIt < VertexCount; ++VertexIt)
-		{
-			// if this vertex has a sibling we copy the data over
-			const int32 SiblingIndex = RedirectionArray[VertexIt];
-			if (SiblingIndex != VertexIt)
+			for (int32 VertexIt = BaseVertex + 1; VertexIt < BaseVertex + NumVertices; ++VertexIt)
 			{
-				FMemory::Memcpy(Buffer.GetData() + VertexIt * MaxAdjacencyCount, Buffer.GetData() + SiblingIndex * MaxAdjacencyCount, MaxAdjacencyCount * sizeof(uint32));
+				// if this vertex has a sibling we copy the data over
+				const int32 SiblingIndex = RedirectionArray[VertexIt];
+				if (SiblingIndex != VertexIt)
+				{
+					FMemory::Memcpy(Buffer.GetData() + VertexIt * MaxAdjacencyCount, Buffer.GetData() + SiblingIndex * MaxAdjacencyCount, MaxAdjacencyCount * sizeof(uint32));
+				}
 			}
+
+			BaseTriangle += NumTriangles;
+			BaseVertex += NumVertices;
 		}
 	}
 }
