@@ -2200,6 +2200,9 @@ static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	 *	- Add a partial log line to tracking (case insensitive, and can match substrings):
 	 *		GEngine->Exec(NULL, TEXT("LogTrace AddPartial LogLine"));
 	 *
+	 *	- Add a partial log line to tracking for debug breaking:
+	 *		GEngine->Exec(NULL, TEXT("LogTrace AddDebug LogLine"));
+	 *
 	 *	- Dump accumulated log entries, for a specified log line, and clears it from tracing:
 	 *		GEngine->Exec(NULL, TEXT("LogTrace Dump LogLine"));
 	 *
@@ -2216,11 +2219,15 @@ static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 		if (FParse::Command(&Cmd, TEXT("Add")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(LogLine, false);
+			GLogTraceManager->AddLogTrace(LogLine, ELogTraceFlags::Full);
 		}
 		else if (FParse::Command(&Cmd, TEXT("AddPartial")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(LogLine, true);
+			GLogTraceManager->AddLogTrace(LogLine, ELogTraceFlags::Partial);
+		}
+		else if (FParse::Command(&Cmd, TEXT("AddDebug")) && (LogLine = Cmd).Len() > 0)
+		{
+			GLogTraceManager->AddLogTrace(LogLine, ELogTraceFlags::Partial | ELogTraceFlags::Debug);
 		}
 		else if (FParse::Command(&Cmd, TEXT("Dump")) && (LogLine = Cmd).Len() > 0)
 		{

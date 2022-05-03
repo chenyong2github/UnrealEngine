@@ -67,7 +67,7 @@ void FScopedLog::InternalConstruct(const TArray<FString>& InLogCategories, UClie
 			ENUTControlCommand ControlCmd = ENUTControlCommand::Command_NoResult;
 			FString Cmd = TEXT("");
 
-			for (auto CurCategory : LogCategories)
+			for (const FString& CurCategory : LogCategories)
 			{
 				Cmd = TEXT("Log ") + CurCategory + TEXT(" ") + TargetVerbosity;
 
@@ -195,7 +195,7 @@ bool FProcessEventHookBase::InternalProcessEventHook(AActor* Actor, UFunction* F
 void FScopedProcessEventLog::ProcessEventHook(AActor* Actor, UFunction* Function, void* Parameters)
 {
 	UE_LOG(LogUnitTest, Log, TEXT("FScopedProcessEventLog: Actor: %s, Function: %s"),
-			(Actor != NULL ? *Actor->GetName() : TEXT("NULL")),
+			(Actor != nullptr ? *Actor->GetName() : TEXT("nullptr")),
 			*Function->GetName());
 }
 #endif
@@ -269,11 +269,11 @@ FStackTraceManager::FStackTraceManager()
 
 FStackTraceManager::~FStackTraceManager()
 {
-	for (auto It=Traces.CreateConstIterator(); It; ++It)
+	for (TMap<FString, FNUTStackTrace*>::TConstIterator It=Traces.CreateConstIterator(); It; ++It)
 	{
 		FNUTStackTrace* Trace = It->Value;
 
-		if (Trace != NULL)
+		if (Trace != nullptr)
 		{
 			delete Trace;
 		}
@@ -293,7 +293,7 @@ void FStackTraceManager::Disable(FString TraceName)
 {
 	FNUTStackTrace* Trace = GetTrace(TraceName);
 
-	if (Trace != NULL)
+	if (Trace != nullptr)
 	{
 		Trace->Disable();
 	}
@@ -335,7 +335,7 @@ void FStackTraceManager::Dump(FString TraceName, bool bKeepTraceHistory/*=false*
 {
 	FNUTStackTrace* Trace = GetTrace(TraceName);
 
-	if (Trace != NULL)
+	if (Trace != nullptr)
 	{
 		Trace->Dump(bKeepTraceHistory);
 
@@ -355,7 +355,7 @@ void FStackTraceManager::Clear(FString TraceName)
 {
 	FNUTStackTrace* Trace = GetTrace(TraceName);
 
-	if (Trace != NULL)
+	if (Trace != nullptr)
 	{
 		delete Trace;
 		Traces.FindAndRemoveChecked(TraceName);
@@ -370,11 +370,11 @@ void FStackTraceManager::DumpAll(bool bKeepTraceHistory/*=false*/, bool bKeepTra
 {
 	UE_LOG(LogUnitTest, Log, TEXT("Dumping all tracked stack traces:"));
 
-	for (auto It=Traces.CreateIterator(); It; ++It)
+	for (TMap<FString, FNUTStackTrace*>::TIterator It=Traces.CreateIterator(); It; ++It)
 	{
 		FNUTStackTrace* Trace = It->Value;
 
-		if (Trace != NULL)
+		if (Trace != nullptr)
 		{
 			Trace->Dump(bKeepTraceHistory);
 
@@ -391,7 +391,7 @@ void FStackTraceManager::TraceAndDump(FString TraceName)
 {
 	FNUTStackTrace* Trace = GetTrace(TraceName);
 
-	if (Trace == NULL || Trace->IsTrackingEnabled())
+	if (Trace == nullptr || Trace->IsTrackingEnabled())
 	{
 		UE_LOG(LogUnitTest, Log, TEXT("Dumping once-off stack trace for TraceName '%s':"), *TraceName);
 
@@ -400,6 +400,201 @@ void FStackTraceManager::TraceAndDump(FString TraceName)
 		TempTracker.CaptureStackTrace(TRACE_IGNORE_DEPTH);
 		TempTracker.DumpStackTraces(0, *GLog);
 		TempTracker.ResetTracking();
+	}
+}
+
+
+/**
+ * FLogStackTraceManager
+ */
+
+FLogStackTraceManager::~FLogStackTraceManager()
+{
+	if (GLog != nullptr)
+	{
+		GLog->RemoveOutputDevice(this);
+	}
+}
+
+void FLogStackTraceManager::AddLogTrace(FString LogLine, ELogTraceFlags TraceFlags)
+{
+	const bool bPartial = EnumHasAnyFlags(TraceFlags, ELogTraceFlags::Partial);
+
+	if (!bPartial && !EnumHasAnyFlags(TraceFlags, ELogTraceFlags::Full))
+	{
+		UE_LOG(LogUnitTest, Warning, TEXT("AddLogTrace: Should specify either ELogTraceFlags::Full or ELogTraceFlags::Partial. Enabling 'Full'."));
+
+		TraceFlags |= ELogTraceFlags::Full;
+	}
+	else if (bPartial && EnumHasAnyFlags(TraceFlags, ELogTraceFlags::Full))
+	{
+		UE_LOG(LogUnitTest, Warning, TEXT("AddLogTrace: Specified both ELogTraceFlags::Full and ELogTraceFlags::Partial. Defaulting to 'Partial'."));
+
+		TraceFlags &= ~ELogTraceFlags::Full;
+	}
+
+	const bool bDumpTrace = EnumHasAnyFlags(TraceFlags, ELogTraceFlags::DumpTrace);
+	const bool bDebugTrace = EnumHasAnyFlags(TraceFlags, ELogTraceFlags::Debug);
+
+	UE_LOG(LogUnitTest, Log, TEXT("Adding %slog trace for line: %s (DumpTrace: %i, Debug: %i)"),
+			(bPartial ? TEXT("partial ") : TEXT("")), *LogLine, (int32)bDumpTrace, (int32)bDebugTrace);
+
+	// Add the log hook, if not active already
+	if (!GLog->IsRedirectingTo(this))
+	{
+		GLog->AddOutputDevice(this);
+	}
+
+	FLogTraceEntry CurEntry;
+
+	CurEntry.LogLine = LogLine;
+	CurEntry.TraceFlags = TraceFlags;
+
+
+	auto MatchLogLine =
+		[&](const FLogTraceEntry& InEntry)
+		{
+			return InEntry.LogLine == LogLine;
+		};
+
+	if (bPartial)
+	{
+		if (!PartialMatches.ContainsByPredicate(MatchLogLine))
+		{
+			PartialMatches.Add(CurEntry);
+		}
+	}
+	else
+	{
+		if (!ExactMatches.ContainsByPredicate(MatchLogLine))
+		{
+			ExactMatches.Add(CurEntry);
+		}
+	}
+}
+
+void FLogStackTraceManager::ClearLogTrace(FString LogLine, bool bDump/*=true*/)
+{
+	UE_LOG(LogUnitTest, Log, TEXT("Clearing log trace for line: %s"), *LogLine);
+
+	auto MatchLogLine =
+		[&](const FLogTraceEntry& CurEntry)
+		{
+			return CurEntry.LogLine == LogLine;
+		};
+
+	int32 ExactIdx = ExactMatches.IndexOfByPredicate(MatchLogLine);
+	int32 PartialIdx = PartialMatches.IndexOfByPredicate(MatchLogLine);
+
+	if (ExactIdx != INDEX_NONE)
+	{
+		ExactMatches.RemoveAt(ExactIdx);
+	}
+
+	if (PartialIdx != INDEX_NONE)
+	{
+		PartialMatches.RemoveAt(PartialIdx);
+	}
+
+
+	if (PartialIdx != INDEX_NONE || ExactIdx != INDEX_NONE)
+	{
+		if (bDump)
+		{
+			GTraceManager->Dump(LogLine, false, false);
+		}
+		else
+		{
+			GTraceManager->Clear(LogLine);
+		}
+	}
+
+	if (PartialMatches.Num() == 0 && ExactMatches.Num() == 0)
+	{
+		GLog->RemoveOutputDevice(this);
+	}
+}
+
+void FLogStackTraceManager::ClearAll(bool bDump/*=false*/)
+{
+	UE_LOG(LogUnitTest, Log, TEXT("Clearing all log traces."));
+
+	if (bDump)
+	{
+		for (const FLogTraceEntry& CurEntry : ExactMatches)
+		{
+			if (GTraceManager->ContainsTrace(CurEntry.LogLine))
+			{
+				GTraceManager->Dump(CurEntry.LogLine, false, false);
+			}
+			else
+			{
+				UE_LOG(LogUnitTest, Log, TEXT("No stack traces for log trace: %s"), *CurEntry.LogLine);
+			}
+		}
+
+		for (auto CurEntry : PartialMatches)
+		{
+			if (GTraceManager->ContainsTrace(CurEntry.LogLine))
+			{
+				GTraceManager->Dump(CurEntry.LogLine, false, false);
+			}
+			else
+			{
+				UE_LOG(LogUnitTest, Log, TEXT("No stack traces for (partial) log trace: %s"), *CurEntry.LogLine);
+			}
+		}
+	}
+
+	ExactMatches.Empty();
+	PartialMatches.Empty();
+
+	GLog->RemoveOutputDevice(this);
+}
+
+void FLogStackTraceManager::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category)
+{
+	static bool bWithinLogTrace = false;
+
+	if (!bWithinLogTrace)
+	{
+		auto CheckCurEntry = [](const FLogTraceEntry& CurEntry)
+		{
+			bWithinLogTrace = true;
+
+			if (EnumHasAnyFlags(CurEntry.TraceFlags, ELogTraceFlags::DumpTrace))
+			{
+				GTraceManager->TraceAndDump(CurEntry.LogLine);
+			}
+			else
+			{
+				GTraceManager->AddTrace(CurEntry.LogLine);
+			}
+
+			if (EnumHasAnyFlags(CurEntry.TraceFlags, ELogTraceFlags::Debug))
+			{
+				// Careful - you're about to crash unless you hit 'Continue' before you hit 'Stop Debugging'
+				UE_DEBUG_BREAK();
+			}
+
+			bWithinLogTrace = false;
+		};
+
+		for (const FLogTraceEntry& CurEntry : ExactMatches)
+		{
+			if (CurEntry.LogLine == Data)
+			{
+				CheckCurEntry(CurEntry);
+			}
+		}
+
+		for (const FLogTraceEntry& CurEntry : PartialMatches)
+		{
+			if (FCString::Stristr(Data, *CurEntry.LogLine) != nullptr)
+			{
+				CheckCurEntry(CurEntry);
+			}
+		}
 	}
 }
 

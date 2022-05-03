@@ -101,7 +101,12 @@ public:
 
 		if (FParse::Value(FCommandLine::Get(), TEXT("LogTrace="), TraceStr) && TraceStr.Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(TraceStr);
+			GLogTraceManager->AddLogTrace(TraceStr, ELogTraceFlags::Partial | ELogTraceFlags::DumpTrace);
+		}
+
+		if (FParse::Value(FCommandLine::Get(), TEXT("LogDebug="), TraceStr) && TraceStr.Len() > 0)
+		{
+			GLogTraceManager->AddLogTrace(TraceStr, ELogTraceFlags::Partial | ELogTraceFlags::Debug);
 		}
 	}
 

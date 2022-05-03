@@ -433,8 +433,18 @@ protected:
 //				some stuff (like enable/disable) should be easy to add though, so do that eventually
 
 
-// @todo #JohnB: NOTE: Don't move the log stack trace manager to .cpp yet; not until you decide how to implement,
-//				the similar ProcessEvent hook that will tie in to the trace manager, as you may try to generalize the below for that
+/**
+ * Flags specifying the type of log trace
+ */
+enum class ELogTraceFlags : uint16
+{
+	Full			= 0x0001,	// Full string match log trace (excluding category and verbosity level)
+	Partial			= 0x0002,	// Partial string match log trace
+	DumpTrace		= 0x0004,	// Dump a stack trace every time there's a match
+	Debug			= 0x0008	// Start debugging on match (if debugger attached)
+};
+
+ENUM_CLASS_FLAGS(ELogTraceFlags);
 
 /**
  * A log hook, which watches the log for specified log entries, and ties them into the stack trace manager
@@ -452,14 +462,8 @@ public:
 		/**	The log line being to watch for */
 		FString LogLine;
 
-		/** Whether or not to do a dump every time the log entry is encountered */
-		bool bDump;
-
-		FLogTraceEntry()
-			: LogLine()
-			, bDump(false)
-		{
-		}
+		/** Flags specifying the type of log trace */
+		ELogTraceFlags TraceFlags;
 	};
 
 public:
@@ -473,13 +477,7 @@ public:
 	/**
 	 * Destructor
 	 */
-	virtual ~FLogStackTraceManager() override
-	{
-		if (GLog != nullptr)
-		{
-			GLog->RemoveOutputDevice(this);
-		}
-	}
+	virtual ~FLogStackTraceManager() override;
 
 	/**
 	 * Adds a log line for log trace tracking
@@ -490,43 +488,28 @@ public:
 	 * @param bPartial	Whether or not to do partial matches for this line (case insensitive, and matches substrings)
 	 * @param bDump		Whether or not to dump traces as they are encountered
 	 */
+	UE_DEPRECATED(5.2, "Use AddLogTrace with ELogTraceFlags now, instead.")
 	void AddLogTrace(FString LogLine, bool bPartial=true, bool bDump=true)
 	{
-		UE_LOG(LogUnitTest, Log, TEXT("Adding %slog trace for line: %s"), (bPartial ? TEXT("partial ") : TEXT("")), *LogLine);
+		ELogTraceFlags TraceFlags = (bPartial ? ELogTraceFlags::Partial : ELogTraceFlags::Full);
 
-		// Add the log hook, if not active already
-		if (!GLog->IsRedirectingTo(this))
+		if (bDump)
 		{
-			GLog->AddOutputDevice(this);
+			TraceFlags |= ELogTraceFlags::DumpTrace;
 		}
 
-		FLogTraceEntry CurEntry;
-
-		CurEntry.LogLine = LogLine;
-		CurEntry.bDump = bDump;
-
-
-		auto MatchLogLine =
-			[&](const FLogTraceEntry& InEntry)
-			{
-				return InEntry.LogLine == LogLine;
-			};
-
-		if (bPartial)
-		{
-			if (!PartialMatches.ContainsByPredicate(MatchLogLine))
-			{
-				PartialMatches.Add(CurEntry);
-			}
-		}
-		else
-		{
-			if (!ExactMatches.ContainsByPredicate(MatchLogLine))
-			{
-				ExactMatches.Add(CurEntry);
-			}
-		}
+		AddLogTrace(LogLine, TraceFlags);
 	}
+
+	/**
+	 * Adds a log line for log trace tracking
+	 * NOTE: The LogLine does NOT match the category or verbosity (e.g. LogNet or Warning/Verbose) of logs
+	 * NOTE: Partial matches, will output to log when encountered, so matched logs can be identified
+	 *
+	 * @param LogLine		The line to be tracked
+	 * @param TraceFlags	Flags for the type of trace to perform
+	 */
+	void AddLogTrace(FString LogLine, ELogTraceFlags TraceFlags);
 
 	/**
 	 * Removes a log line from trace tracking
@@ -534,89 +517,14 @@ public:
 	 * @param LogLine	The log line that was being tracked
 	 * @param bDump		Whether or not to dump from the trace manager as well (defaults to true); cleared from trace manager either way
 	 */
-	void ClearLogTrace(FString LogLine, bool bDump=true)
-	{
-		UE_LOG(LogUnitTest, Log, TEXT("Clearing log trace for line: %s"), *LogLine);
-
-		auto MatchLogLine =
-			[&](const FLogTraceEntry& CurEntry)
-			{
-				return CurEntry.LogLine == LogLine;
-			};
-
-		int32 ExactIdx = ExactMatches.IndexOfByPredicate(MatchLogLine);
-		int32 PartialIdx = PartialMatches.IndexOfByPredicate(MatchLogLine);
-
-		if (ExactIdx != INDEX_NONE)
-		{
-			ExactMatches.RemoveAt(ExactIdx);
-		}
-
-		if (PartialIdx != INDEX_NONE)
-		{
-			PartialMatches.RemoveAt(PartialIdx);
-		}
-
-
-		if (PartialIdx != INDEX_NONE || ExactIdx != INDEX_NONE)
-		{
-			if (bDump)
-			{
-				GTraceManager->Dump(LogLine, false, false);
-			}
-			else
-			{
-				GTraceManager->Clear(LogLine);
-			}
-		}
-
-		if (PartialMatches.Num() == 0 && ExactMatches.Num() == 0)
-		{
-			GLog->RemoveOutputDevice(this);
-		}
-	}
+	void ClearLogTrace(FString LogLine, bool bDump=true);
 
 	/**
 	 * Clears all log tracing
 	 *
 	 * @param bDump		Whether or not to dump all cleared log trace entries
 	 */
-	void ClearAll(bool bDump=false)
-	{
-		UE_LOG(LogUnitTest, Log, TEXT("Clearing all log traces."));
-
-		if (bDump)
-		{
-			for (auto CurEntry : ExactMatches)
-			{
-				if (GTraceManager->ContainsTrace(CurEntry.LogLine))
-				{
-					GTraceManager->Dump(CurEntry.LogLine, false, false);
-				}
-				else
-				{
-					UE_LOG(LogUnitTest, Log, TEXT("No stack traces for log trace: %s"), *CurEntry.LogLine);
-				}
-			}
-
-			for (auto CurEntry : PartialMatches)
-			{
-				if (GTraceManager->ContainsTrace(CurEntry.LogLine))
-				{
-					GTraceManager->Dump(CurEntry.LogLine, false, false);
-				}
-				else
-				{
-					UE_LOG(LogUnitTest, Log, TEXT("No stack traces for (partial) log trace: %s"), *CurEntry.LogLine);
-				}
-			}
-		}
-
-		ExactMatches.Empty();
-		PartialMatches.Empty();
-
-		GLog->RemoveOutputDevice(this);
-	}
+	void ClearAll(bool bDump=false);
 
 
 	// We're hiding UObject::Serialize() by declaring this.  That's OK, but Clang will warn about it.
@@ -631,55 +539,7 @@ public:
 	 * @param Verbosity	The log level verbosity for the message
 	 * @param Category	The log category for the message
 	 */
-	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override
-	{
-		static bool bWithinLogTrace = false;
-
-		if (!bWithinLogTrace)
-		{
-			for (auto CurEntry : ExactMatches)
-			{
-				if (CurEntry.LogLine == Data)
-				{
-					bWithinLogTrace = true;
-
-					if (CurEntry.bDump)
-					{
-						GTraceManager->TraceAndDump(CurEntry.LogLine);
-					}
-					else
-					{
-						GTraceManager->AddTrace(CurEntry.LogLine);
-					}
-
-					bWithinLogTrace = false;
-				}
-			}
-
-			if (PartialMatches.Num() > 0)
-			{
-				for (auto CurEntry : PartialMatches)
-				{
-					if (FCString::Stristr(Data, *CurEntry.LogLine) != NULL)
-					{
-						// NOTE: Do not use Data for the TraceName, as this makes things much harder to track
-						bWithinLogTrace = true;
-
-						if (CurEntry.bDump)
-						{
-							GTraceManager->TraceAndDump(CurEntry.LogLine);
-						}
-						else
-						{
-							GTraceManager->AddTrace(CurEntry.LogLine);
-						}
-
-						bWithinLogTrace = false;
-					}
-				}
-			}
-		}
-	}
+	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
@@ -694,7 +554,7 @@ public:
 };
 
 
-// @todo #JohnBFeatureDebug: Continue implementing
+// @todo #JohnBFeatureDebug: Continue implementing (will likely tie into the FLogStackTraceManager tracing features, so refactor/generalize that)
 #if 0
 #if !UE_BUILD_SHIPPING
 /**
