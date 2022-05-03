@@ -17,7 +17,6 @@ class IMediaPlayer;
 class UCameraComponent;
 class UImgMediaPlaybackComponent;
 class UMediaTexture;
-class FViewport;
 
 /**
  * Helps manage FImgMediaMipMapInfo objects.
@@ -98,8 +97,9 @@ protected:
 	 * 
 	 * @param Viewport		The camera's viewport size rectangle.
 	 * @param SceneView		The scene view we want to add.
+	 * @param ResolutionFraction	The viewport resolution fraction used to adjust mip level calculations.
 	 */
-	void AddCameraInfo(FViewport* Viewport, FSceneView* SceneView);
+	void AddCameraInfo(FViewport* Viewport, FSceneView* SceneView, float ResolutionFraction);
 
 	/**
 	 * Called when the cvar changes.

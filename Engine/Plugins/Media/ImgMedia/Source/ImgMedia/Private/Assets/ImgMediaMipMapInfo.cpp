@@ -350,8 +350,8 @@ namespace {
 								
 								if (bValidLevel)
 								{
-									MipLevelRange[0] = FMath::Min(MipLevelRange[0], FMath::Min((int32)CalculatedLevel, MaxLevel));
-									MipLevelRange[1] = FMath::Max(MipLevelRange[1], FMath::Min(FMath::CeilToInt32(CalculatedLevel), MaxLevel));
+									MipLevelRange[0] = FMath::Min(MipLevelRange[0], FMath::Clamp((int32)CalculatedLevel, 0, MaxLevel));
+									MipLevelRange[1] = FMath::Max(MipLevelRange[1], FMath::Clamp(FMath::CeilToInt32(CalculatedLevel), 0, MaxLevel));
 									NumVisibleCorners++;
 								}
 							}

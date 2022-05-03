@@ -13,6 +13,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "LegacyScreenPercentageDriver.h"
 #include "MovieSceneCommonHelpers.h"
 #include "SceneView.h"
 
@@ -141,8 +142,32 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 						// Did we get a view?
 						if (SceneView != nullptr)
 						{
+							float ResolutionFraction = 1.0f;
+
+							if (ViewFamily.EngineShowFlags.ScreenPercentage)
+							{
+								// Get global view fraction.
+								FStaticResolutionFractionHeuristic StaticHeuristic;
+
+#if WITH_EDITOR
+								if (FStaticResolutionFractionHeuristic::FUserSettings::EditorOverridePIESettings())
+								{
+									StaticHeuristic.Settings.PullEditorRenderingSettings(/* bIsRealTime = */ true);
+								}
+								else
+#endif
+								{
+									StaticHeuristic.Settings.PullRunTimeRenderingSettings();
+								}
+
+								StaticHeuristic.PullViewFamilyRenderingSettings(ViewFamily);
+								StaticHeuristic.DPIScale = GameViewportClient->GetDPIScale();
+
+								ResolutionFraction = StaticHeuristic.ResolveResolutionFraction();
+							}
+
 							// Add camera info for this scene view.
-							AddCameraInfo(Viewport, SceneView);
+							AddCameraInfo(Viewport, SceneView, ResolutionFraction);
 						}
 					}
 				}
@@ -177,7 +202,7 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 						FSceneView* SceneView = ViewportClient->CalcSceneView(&ViewFamily);
 						
 						// Add camera info for this scene view.
-						AddCameraInfo(Viewport, SceneView);
+						AddCameraInfo(Viewport, SceneView, ViewportClient->GetPreviewScreenPercentage() / 100.0f);
 					}
 				}
 			}
@@ -186,14 +211,22 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 #endif
 }
 
-void FImgMediaMipMapInfoManager::AddCameraInfo(FViewport* Viewport, FSceneView* SceneView)
+void FImgMediaMipMapInfoManager::AddCameraInfo(FViewport* Viewport, FSceneView* SceneView, float ResolutionFraction)
 {
 	FImgMediaMipMapCameraInfo Info;
 	Info.Location = SceneView->ViewMatrices.GetViewOrigin();
 	Info.ViewMatrix = SceneView->ViewMatrices.GetViewMatrix();
 	Info.ViewProjectionMatrix = SceneView->ViewMatrices.GetViewProjectionMatrix();
-	Info.ViewportRect = FIntRect(FIntPoint::ZeroValue, Viewport->GetSizeXY());
-	Info.MaterialTextureMipBias = SceneView->MaterialTextureMipBias;
+	Info.ViewportRect = FIntRect(FIntPoint::ZeroValue, Viewport->GetSizeXY()).Scale(ResolutionFraction);
+
+	if (SceneView->PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+	{
+		static const auto CVarMinAutomaticViewMipBiasOffset = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ViewTextureMipBias.Offset"));
+		static const auto CVarMinAutomaticViewMipBias = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ViewTextureMipBias.Min"));
+
+		Info.MaterialTextureMipBias = -(FMath::Max(-FMath::Log2(ResolutionFraction), 0.0f)) + CVarMinAutomaticViewMipBiasOffset->GetValueOnGameThread();
+		Info.MaterialTextureMipBias = FMath::Max(Info.MaterialTextureMipBias, CVarMinAutomaticViewMipBias->GetValueOnGameThread());
+	}
 
 	CameraInfos.Emplace(MoveTemp(Info));
 }
