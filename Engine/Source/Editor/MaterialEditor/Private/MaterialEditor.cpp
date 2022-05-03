@@ -4678,7 +4678,7 @@ void FMaterialEditor::OnCreateStrataNodeForPin(const FToolMenuContext& InMenuCon
 	UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
 	const UEdGraphPin* TargetPin = NodeContext->Pin;
 	UMaterialGraphNode_Base* PinNode = Cast<UMaterialGraphNode_Base>(TargetPin->GetOwningNode());
-	const bool bTargetPinIsInput = TargetPin && (TargetPin->Direction == EEdGraphPinDirection::EGPD_Input);
+	const bool bTargetPinIsInput = TargetPin->Direction == EEdGraphPinDirection::EGPD_Input;
 
 	FMaterialGraphSchemaAction_NewNode Action;
 	Action.MaterialExpressionClass = UMaterialExpressionStrataSlabBSDF::StaticClass();
@@ -4742,7 +4742,7 @@ bool FMaterialEditor::OnCanCreateStrataNodeForPin(const FToolMenuContext& InMenu
 	UMaterialGraphNode_Root* RootPinNode = Cast<UMaterialGraphNode_Root>(TargetPin->GetOwningNode());
 	UMaterialGraphNode* OtherPinNode = Cast<UMaterialGraphNode>(TargetPin->GetOwningNode());
 
-	if (TargetPin && (TargetPin->Direction == EEdGraphPinDirection::EGPD_Input) && (TargetPin->LinkedTo.Num() == 0))
+	if ((TargetPin->Direction == EEdGraphPinDirection::EGPD_Input) && (TargetPin->LinkedTo.Num() == 0))
 	{
 		if (RootPinNode != nullptr)
 		{

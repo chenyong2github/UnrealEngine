@@ -1238,7 +1238,7 @@ namespace UE::MLDeformer
 		{
 			if (EditorActor->GetMLDeformerComponent())
 			{
-				USkeletalMeshComponent* SkelMeshComponent = EditorActor ? EditorActor->GetSkeletalMeshComponent() : nullptr;
+				USkeletalMeshComponent* SkelMeshComponent = EditorActor->GetSkeletalMeshComponent();
 				UMLDeformerAsset* DeformerAsset = Model->GetDeformerAsset();
 				EditorActor->GetMLDeformerComponent()->SetupComponent(DeformerAsset, SkelMeshComponent);
 			}
