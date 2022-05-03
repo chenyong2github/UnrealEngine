@@ -55,7 +55,7 @@ FArchive* FFileManagerGeneric::CreateFileReaderInternal( const TCHAR* InFilename
 		}
 		return NULL;
 	}
-	return new FArchiveFileReaderGeneric( Handle, InFilename, Handle->Size(), BufferSize );
+	return new FArchiveFileReaderGeneric( Handle, InFilename, Handle->Size(), BufferSize, Flags );
 }
 
 /**
