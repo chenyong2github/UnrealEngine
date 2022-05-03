@@ -92,8 +92,9 @@ public class TextureFormatOodle : ModuleRules
 		// dynamic libs , for every version, not just current :
 
 		AddDynamicLibsForVersion("2.9.5");
+		AddDynamicLibsForVersion("2.9.6");
 
-		string LatestOodleVersion = "2.9.5";
+		string LatestOodleVersion = "2.9.6";
 
 		string IncludeDirectory = Path.Combine(ModuleDirectory, "..", "Sdks", LatestOodleVersion, "include");
 		PrivateIncludePaths.Add(IncludeDirectory);
