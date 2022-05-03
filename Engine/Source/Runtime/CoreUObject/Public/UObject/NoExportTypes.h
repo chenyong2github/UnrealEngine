@@ -1790,6 +1790,43 @@ private:
 	FFloatRangeBound UpperBound;
 };
 
+
+/**
+ * Defines a single bound for a range of values.
+ * @note This is a mirror of TRangeBound<double>, defined in RangeBound.h
+ * @note Fields are private to match the C++ declaration in the header above.
+ */
+USTRUCT(noexport, BlueprintType)
+struct FDoubleRangeBound
+{
+private:
+	/** Holds the type of the bound. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Range, meta=(AllowPrivateAccess="true"))
+	TEnumAsByte<ERangeBoundTypes::Type> Type;
+
+	/** Holds the bound's value. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Range, meta=(AllowPrivateAccess="true"))
+	double Value;
+};
+
+/**
+ * A contiguous set of doubles described by lower and upper bound values.
+ * @note This is a mirror of TRange<double>, defined in Range.h
+ * @note Fields are private to match the C++ declaration in the header above.
+ */
+USTRUCT(noexport, BlueprintType)
+struct FDoubleRange
+{
+private:
+	/** Holds the range's lower bound. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Range, meta=(AllowPrivateAccess="true"))
+	FDoubleRangeBound LowerBound;
+
+	/** Holds the range's upper bound. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Range, meta=(AllowPrivateAccess="true"))
+	FDoubleRangeBound UpperBound;
+};
+
 /**
  * Defines a single bound for a range of values.
  * @note This is a mirror of TRangeBound<int32>, defined in RangeBound.h

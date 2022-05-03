@@ -825,6 +825,27 @@ public:
 
 	/**
 	* Find the metadata value associated with the key
+	* and return double
+	* @param Key The key to lookup in the metadata
+	* @return the float value stored in the metadata.
+	*/
+	double GetDoubleMetaData(const TCHAR* Key) const
+	{
+		const FString& DOUBLEString = GetMetaData(Key);
+		// FString == operator does case insensitive comparison
+		double Value = FCString::Atod(*DOUBLEString);
+		return Value;
+	}
+	double GetDoubleMetaData(const FName& Key) const
+	{
+		const FString& DOUBLEString = GetMetaData(Key);
+		// FString == operator does case insensitive comparison
+		double Value = FCString::Atod(*DOUBLEString);
+		return Value;
+	}
+
+	/**
+	* Find the metadata value associated with the key
 	* and return Class
 	* @param Key The key to lookup in the metadata
 	* @return the class value stored in the metadata.

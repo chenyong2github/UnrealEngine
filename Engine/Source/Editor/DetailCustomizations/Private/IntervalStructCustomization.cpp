@@ -349,6 +349,7 @@ bool FIntervalStructCustomization<NumericType>::IsPropertyEnabled(EIntervalField
  *****************************************************************************/
 
 template class FIntervalStructCustomization<float>;
+template class FIntervalStructCustomization<double>;
 template class FIntervalStructCustomization<int32>;
 
 

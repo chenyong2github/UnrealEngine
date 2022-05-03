@@ -3625,6 +3625,16 @@ template<> struct TBaseStructure<FFloatRange>
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
+template<> struct TBaseStructure<FDoubleRangeBound>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FDoubleRange>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
 template<> struct TBaseStructure<FInt32RangeBound>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
@@ -3636,6 +3646,11 @@ template<> struct TBaseStructure<FInt32Range>
 };
 
 template<> struct TBaseStructure<FFloatInterval>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FDoubleInterval>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };

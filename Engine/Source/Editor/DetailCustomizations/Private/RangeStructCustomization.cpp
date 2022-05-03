@@ -37,6 +37,15 @@ namespace
 	};
 
 	template <>
+	struct FGetMetaDataHelper<double>
+	{
+		static double GetMetaData(const FProperty* Property, const TCHAR* Key)
+		{
+			return Property->GetDoubleMetaData(Key);
+		}
+	};
+
+	template <>
 	struct FGetMetaDataHelper<int32>
 	{
 		static int32 GetMetaData(const FProperty* Property, const TCHAR* Key)
@@ -395,6 +404,7 @@ void FRangeStructCustomization<NumericType>::OnComboSelectionChanged(TSharedPtr<
  *****************************************************************************/
 
 template class FRangeStructCustomization<float>;
+template class FRangeStructCustomization<double>;
 template class FRangeStructCustomization<int32>;
 
 
