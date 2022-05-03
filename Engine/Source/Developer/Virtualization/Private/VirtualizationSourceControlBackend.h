@@ -11,6 +11,8 @@ class ISourceControlProvider;
 namespace UE::Virtualization
 {
 
+class FSemaphore;
+
 /**
  * This backend can be used to access payloads stored in source control.
  * The backend doesn't 'check out' a payload file but instead will just download the payload as
@@ -91,6 +93,9 @@ private:
 	/** Should we try to make the temp client partitioned or not? */
 	bool bUsePartitionedClient = true;
 
+	/** A counted semaphore that will limit the number of concurrent connections that we can make */
+	TUniquePtr<UE::Virtualization::FSemaphore> ConcurrentConnectionLimit;
+	
 	/** The number of times to retry pulling a payload from the depot */
 	int32 RetryCount = 2;
 
