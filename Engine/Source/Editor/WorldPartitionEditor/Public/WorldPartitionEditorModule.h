@@ -61,6 +61,9 @@ private:
 	/** Called when the level editors map changes. We will determine if the new map is a valid world partition world and close world partition tabs if not */
 	void OnMapChanged(uint32 MapFlags);
 
+	/** Register menus */
+	void RegisterMenus();
+
 	/** Registers world partition tabs spawners with the level editor */
 	void RegisterWorldPartitionTabs(TSharedPtr<FTabManager> InTabManager);
 
