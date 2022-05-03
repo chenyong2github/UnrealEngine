@@ -410,6 +410,7 @@ void FMulticastInlineDelegateProperty::SerializeItem(FStructuredArchive::FSlot S
 	FArchiveUObjectFromStructuredArchive Adapter(Slot);
 	FArchive& Ar = Adapter.GetArchive();
 	Ar << *GetPropertyValuePtr(Value);
+	Adapter.Close();
 }
 
 const TCHAR* FMulticastInlineDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
