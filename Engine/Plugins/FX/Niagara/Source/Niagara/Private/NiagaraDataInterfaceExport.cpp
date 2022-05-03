@@ -7,21 +7,24 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuReadbackManager.h"
 #include "NiagaraGPUSystemTick.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
+
 #include "Internationalization/Internationalization.h"
-#include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
+#include "ShaderParameterUtils.h"
 
 namespace NDIExportLocal
 {
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(uint32,				WriteBufferSize)
+		SHADER_PARAMETER_UAV(RWBuffer<uint>,	RWWriteBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
 	static const TCHAR*		TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceExportTemplate.ush");
 
 	static const FName		StoreDataName_DEPRECATED(TEXT("StoreParticleData"));
 	static const FName		ExportDataName(TEXT("ExportParticleData"));
-
-	static const FString	WriteBufferSizeName(TEXT("WriteBufferSize_"));
-	static const FString	RWWriteBufferName(TEXT("RWWriteBuffer_"));
-	static const FString	WriteBufferName(TEXT("WriteBuffer_"));
 
 	static constexpr uint32 NumFloatsPerInstance = 7;
 
@@ -218,65 +221,6 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 
 	TMap<FNiagaraSystemInstanceID, FNDIExportInstanceData_RenderThread> SystemInstancesToProxyData_RT;
 };
-
-//////////////////////////////////////////////////////////////////////////
-// Compute Shader Binding
-
-struct FNDIExportCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIExportCS, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		WriteBufferSizeParam.Bind(ParameterMap, *(NDIExportLocal::WriteBufferSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
-		WriteBufferParam.Bind(ParameterMap, *(NDIExportLocal::WriteBufferName + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		uint32 WriteBufferSize = 0;
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		if (WriteBufferParam.IsUAVBound())
-		{
-			// Get proxy data
-			FNDIExportProxy* DIProxy = static_cast<FNDIExportProxy*>(Context.DataInterface);
-			FNDIExportInstanceData_RenderThread* InstanceData = DIProxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-			check(InstanceData);
-
-			if (InstanceData->WeakCallbackHandler.IsExplicitlyNull())
-			{
-				WriteBufferSize = 0;
-				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
-			}
-			else
-			{
-				InstanceData->bWriteBufferUsed = true;
-				WriteBufferSize = InstanceData->WriteBufferInstanceCount;
-				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), InstanceData->WriteBuffer.UAV);
-			}
-		}
-		SetShaderValue(RHICmdList, ComputeShaderRHI, WriteBufferSizeParam, WriteBufferSize);
-	}
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		WriteBufferParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, WriteBufferSizeParam);
-	LAYOUT_FIELD(FRWShaderParameter, WriteBufferParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDIExportCS);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceExport, FNDIExportCS);
 
 //////////////////////////////////////////////////////////////////////////
 // Data Interface
@@ -491,6 +435,38 @@ bool UNiagaraDataInterfaceExport::AppendCompileHash(FNiagaraCompileHashVisitor* 
 	return bSuccess;
 }
 #endif
+
+void UNiagaraDataInterfaceExport::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NDIExportLocal::FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceExport::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNDIExportProxy& DIProxy = Context.GetProxy<FNDIExportProxy>();
+	FNDIExportInstanceData_RenderThread* InstanceData_RT = DIProxy.SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+
+	NDIExportLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NDIExportLocal::FShaderParameters>();
+	if ( Context.IsResourceBound(&Parameters->RWWriteBuffer) )
+	{
+		if ( (InstanceData_RT != nullptr) && !InstanceData_RT->WeakCallbackHandler.IsExplicitlyNull() )
+		{
+			InstanceData_RT->bWriteBufferUsed = true;
+			Parameters->WriteBufferSize = InstanceData_RT->WriteBufferInstanceCount;
+			Parameters->RWWriteBuffer = InstanceData_RT->WriteBuffer.UAV;
+		}
+		else
+		{
+			Parameters->WriteBufferSize = 0;
+			Parameters->RWWriteBuffer = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
+		}
+	}
+	else
+	{
+		Parameters->WriteBufferSize	= 0;
+		Parameters->RWWriteBuffer = nullptr;
+	}
+}
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceExport, StoreData);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceExport, ExportData);

@@ -5,6 +5,7 @@
 #include "Curves/CurveLinearColor.h"
 #include "NiagaraTypes.h"
 #include "ShaderParameterUtils.h"
+#include "NiagaraGPUSystemTick.h"
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
 #include "ShaderCompilerCore.h"
@@ -220,5 +221,32 @@ FSimpleMulticastDelegate& UNiagaraDataInterface::OnErrorsRefreshed()
 
 #endif
 
-#undef LOCTEXT_NAMESPACE
+FNiagaraSystemInstanceID FNiagaraDataInterfaceSetShaderParametersContext::GetSystemInstanceID() const
+{
+	return SystemTick.SystemInstanceID;
+}
 
+bool FNiagaraDataInterfaceSetShaderParametersContext::IsResourceBound(const void* ResourceAddress) const
+{
+	const uint16 ByteOffset = uint16(uintptr_t(ResourceAddress) - uintptr_t(BaseParameters));
+	for (const FShaderParameterBindings::FResourceParameter& ResourceParameter : ShaderRef->Bindings.ResourceParameters)
+	{
+		if ( ResourceParameter.ByteOffset == ByteOffset )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FNiagaraDataInterfaceSetShaderParametersContext::IsOutputStage() const
+{
+	return ComputeInstanceData.IsOutputStage(DataInterfaceProxy, SimStageData.StageIndex);
+}
+
+bool FNiagaraDataInterfaceSetShaderParametersContext::IsIterationStage() const
+{
+	return ComputeInstanceData.IsIterationStage(DataInterfaceProxy, SimStageData.StageIndex);
+}
+
+#undef LOCTEXT_NAMESPACE
