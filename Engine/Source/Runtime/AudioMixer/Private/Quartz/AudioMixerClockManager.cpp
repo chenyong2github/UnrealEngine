@@ -289,11 +289,6 @@ namespace Audio
 
 	void FQuartzClockManager::Shutdown()
 	{
-		if (MixerDevice)
-		{
-			check(MixerDevice->IsAudioRenderingThread());
-		}
-
 		FScopeLock Lock(&ActiveClockCritSec);
 		ActiveClocks.Reset();
 	}
