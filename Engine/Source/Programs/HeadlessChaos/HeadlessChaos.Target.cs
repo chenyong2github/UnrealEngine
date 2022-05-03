@@ -29,5 +29,8 @@ public class HeadlessChaosTarget : TestTargetRules
 		bCompilePhysX = false;
 		bCompileAPEX = false;
 		bCompileNvCloth = false;
+
+		// our gtest does not have debug crt libs
+		bDebugBuildsActuallyUseDebugCRT = false;
 	}
 }
