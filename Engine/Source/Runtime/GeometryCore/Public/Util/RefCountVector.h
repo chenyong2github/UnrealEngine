@@ -136,7 +136,7 @@ public:
 			int j = (int)RefCounts.GetLength();
 			while (j < Index)
 			{
-				int InvalidCount = INVALID_REF_COUNT;	// required on older clang because a constexpr can't be passed by ref
+				unsigned short InvalidCount = INVALID_REF_COUNT;	// required on older clang because a constexpr can't be passed by ref
 				RefCounts.Add(InvalidCount);
 				FreeIndices.Add(j);
 				++j;
@@ -178,7 +178,7 @@ public:
 			int j = (int)RefCounts.GetLength();
 			while (j < Index)
 			{
-				int InvalidCount = INVALID_REF_COUNT;	// required on older clang because a constexpr can't be passed by ref
+				unsigned short InvalidCount = INVALID_REF_COUNT;	// required on older clang because a constexpr can't be passed by ref
 				RefCounts.Add(InvalidCount);
 				++j;
 			}
@@ -595,8 +595,8 @@ public:
 			return false;
 		}
 
-		const int32 Num = FMath::Max(Lhs.GetMaxIndex(), Rhs.GetMaxIndex());
-		for (int32 Idx = 0; Idx < Num; ++Idx)
+		const size_t Num = FMath::Max(Lhs.GetMaxIndex(), Rhs.GetMaxIndex());
+		for (size_t Idx = 0; Idx < Num; ++Idx)
 		{
 			const bool LhsIsValid = Lhs.IsValid(Idx);
 			if (LhsIsValid != Rhs.IsValid(Idx))
