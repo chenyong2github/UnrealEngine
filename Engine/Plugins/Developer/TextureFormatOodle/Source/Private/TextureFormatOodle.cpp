@@ -262,7 +262,7 @@ struct FOodleTextureVTable
 		if ( DynamicLib == nullptr )
 		{
 			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Oodle Texture %s requested but could not be loaded"), *DynamicLibName);
-			Version = FName("invalid"); // so we can't be found
+			Version = FName("invalid");
 			return false;
 		}
 	
@@ -751,15 +751,13 @@ public:
 	FName OodleTextureVersionLatest;
 	FName OodleTextureSdkVersionToUseIfNone;
 
-	FTextureFormatOodle() : 
-		OodleTextureVersionLatest(OodleTextureVersion),
+	FTextureFormatOodle() : OodleTextureVersionLatest(OodleTextureVersion),
 		OodleTextureSdkVersionToUseIfNone("2.9.5")
 	{
 		// OodleTextureSdkVersionToUseIfNone is the fallback version to use if none is in the Texture uasset
 		//	and also no remap pref is set
 		// it should not be latest; it should be oldest (2.9.5)
 		//  OodleTextureSdkVersionToUseIfNone should never be changed
-		// if you want to map none to a newer version use config ini option AlternateTextureCompression/OodleTextureSdkVersionToUseIfNone
 	}
 
 
@@ -797,27 +795,10 @@ public:
 
 		// load ALL Oodle DLL versions we support :
 		// !! add new versions of Oodle here !!
+		VTables.SetNum(1);
 
-		const TCHAR * OodleTextureVersions[] =
-		{
-			TEXT("2.9.5"),
-			TEXT("2.9.6")
-		};
-		const int32 OodleTextureVersionsCount = (int32)( sizeof(OodleTextureVersions)/sizeof(OodleTextureVersions[0]) );
-
-		VTables.SetNum(OodleTextureVersionsCount);
-
-		for(int32 i=0;i<OodleTextureVersionsCount;i++)
-		{
-			if ( VTables[i].LoadDynamicLib( FString(OodleTextureVersions[i]) ) )
-			{
-				TFO_Plugins_Install(&(VTables[i]));
-			}
-		}
-
-		// verify the latest and oldest can be found :
-		check( GetOodleTextureVTable(OodleTextureVersionLatest) != nullptr );
-		check( GetOodleTextureVTable(OodleTextureSdkVersionToUseIfNone) != nullptr );
+		VTables[0].LoadDynamicLib( FString(TEXT("2.9.5")) );
+		TFO_Plugins_Install(&(VTables[0]));
 	}
 	
 	const FOodleTextureVTable * GetOodleTextureVTable(const FName & InVersion) const
