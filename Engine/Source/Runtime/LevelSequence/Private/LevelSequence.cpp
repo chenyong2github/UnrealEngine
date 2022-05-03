@@ -456,11 +456,12 @@ UObject* ULevelSequence::GetParentObject(UObject* Object) const
 
 bool ULevelSequence::AllowsSpawnableObjects() const
 {
+#if WITH_EDITOR
 	if (!UMovieScene::IsTrackClassAllowed(UMovieSceneSpawnTrack::StaticClass()))
 	{
 		return false;
 	}
-
+#endif
 	return true;
 }
 
