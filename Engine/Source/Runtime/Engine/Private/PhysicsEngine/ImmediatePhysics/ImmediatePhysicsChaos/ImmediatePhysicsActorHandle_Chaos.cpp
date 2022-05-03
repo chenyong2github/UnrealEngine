@@ -296,9 +296,9 @@ namespace ImmediatePhysics_Chaos
 					Dynamic->SetRotationOfMass(CoMTransform.GetRotation());
 					Dynamic->SetI(TVec3<FRealSingle>( Inertia.X, Inertia.Y, Inertia.Z ));
 					Dynamic->SetInvI(TVec3<FRealSingle>(InertiaInv.X, InertiaInv.Y, InertiaInv.Z ));
-					Dynamic->SetInertiaConditioningEnabled(BodyInstance->IsInertiaConditioningEnabled());
 					if (BodyInstance != nullptr)
 					{
+						Dynamic->SetInertiaConditioningEnabled(BodyInstance->IsInertiaConditioningEnabled());
 						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
 						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
 						Dynamic->SetGravityEnabled(BodyInstance->bEnableGravity);
