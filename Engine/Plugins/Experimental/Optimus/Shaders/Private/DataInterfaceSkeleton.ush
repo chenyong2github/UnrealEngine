@@ -51,7 +51,7 @@ int4 DI_LOCAL(GetBlendIndices)(uint StreamOffset, uint ExtraInfluenceIndex)
 
 float4 DI_LOCAL(GetBlendWeights)(uint StreamOffset, uint ExtraInfluenceIndex)
 {
-	StreamOffset += ((DI_LOCAL(NumBoneInfluences) + 3) / 4) + ExtraInfluenceIndex;
+	StreamOffset += (((DI_LOCAL(NumBoneInfluences) + 3) / 4) + ExtraInfluenceIndex) * (1 + GPUSKIN_BONE_INDEX_UINT16);
 	uint PackedBlendWeights = DI_LOCAL(InputWeightStream)[StreamOffset];
 	
 	float4 UnpackedBlendWeights = 0;
