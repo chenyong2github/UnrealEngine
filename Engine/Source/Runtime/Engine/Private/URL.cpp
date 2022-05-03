@@ -510,7 +510,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 			if (!bFoundMap)
 			{
 				// can't find file, invalidate and bail
-				UE_CLOG(MapNameError.ToString().Len() > 0, LogLongPackageNames, Warning, TEXT("URL: %s: %s"), *URLStr, *MapNameError.ToString());
+				UE_LOG(LogLongPackageNames, Warning, TEXT("Can't Find URL: %s: %s. Invalidating and reverting to Default URL."), *URLStr, *MapNameError.ToString());
 				*this = FURL();
 				Valid = 0;
 			}

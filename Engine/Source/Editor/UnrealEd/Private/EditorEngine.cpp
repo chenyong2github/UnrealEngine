@@ -7364,29 +7364,6 @@ void FActorLabelUtilities::RenameExistingActor(AActor* Actor, const FString& New
 	}
 }
 
-void UEditorEngine::HandleTravelFailure(UWorld* InWorld, ETravelFailure::Type FailureType, const FString& ErrorString)
-{
-	if (InWorld && InWorld->IsPlayInEditor())
-	{
-		// Default behavior will try to fall back to default map and potentially throw a fatal error if that fails.
-		// Rather than bringing down the whole editor if this happens during a PIE session, just throw a warning and abort the PIE session.
-		{
-			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("FailureType"), FText::FromString(ETravelFailure::ToString(FailureType)));
-			Arguments.Add(TEXT("ErrorString"), FText::FromString(ErrorString));
-			FText ErrorMsg = FText::Format(LOCTEXT("PIETravelFailure", "TravelFailure: {FailureType}, Reason for Failure: '{ErrorString}'. Shutting down PIE."), Arguments);
-			UE_LOG(LogNet, Warning, TEXT("%s"), *ErrorMsg.ToString());
-			FMessageLog("PIE").Warning(ErrorMsg);
-		}
-
-		RequestEndPlayMap();
-	}
-	else
-	{
-		Super::HandleTravelFailure(InWorld, FailureType, ErrorString);
-	}
-}
-
 void UEditorEngine::AutomationLoadMap(const FString& MapName, bool bForceReload, FString* OutError)
 {
 #if WITH_AUTOMATION_TESTS
