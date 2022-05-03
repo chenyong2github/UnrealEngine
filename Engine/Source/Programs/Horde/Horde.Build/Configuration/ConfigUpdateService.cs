@@ -134,9 +134,10 @@ namespace Horde.Build.Config
 				Globals globals = await _mongoService.GetGlobalsAsync();
 				if (globals.ConfigRevision == revision)
 				{
-					_logger.LogInformation("Updating configuration from {ConfigPath}", globals.ConfigRevision);
 					break;
 				}
+
+				_logger.LogInformation("Updating configuration from {ConfigPath}", globals.ConfigRevision);
 
 				globals.ConfigRevision = revision;
 				globals.PerforceClusters = _cachedGlobalConfig.PerforceClusters;
