@@ -257,8 +257,11 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
 		}
 
-		OutEnvironment.CompilerFlags.Add( CFLAG_Wave32 );
-		OutEnvironment.CompilerFlags.Add( CFLAG_AllowRealTypes );
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+		if (FDataDrivenShaderPlatformInfo::GetSupportsRealTypes(Parameters.Platform) == ERHIFeatureSupport::RuntimeGuaranteed)
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_AllowRealTypes);
+		}
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
