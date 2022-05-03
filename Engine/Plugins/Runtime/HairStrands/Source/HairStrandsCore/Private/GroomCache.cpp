@@ -7,6 +7,11 @@ void UGroomCache::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
+	if (Ar.IsLoading())
+	{
+		ArchiveVersion = Ar.UEVer();
+	}
+
 	int32 NumChunks = Chunks.Num();
 	Ar << NumChunks;
 
@@ -207,6 +212,11 @@ bool UGroomCache::GetGroomDataAtFrameIndex(int32 FrameIndex, FGroomCacheAnimatio
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UGroomCache::GetGroomDataAtFrameIndex_Serialize);
 		FMemoryReader Ar(TempBytes, true);
+		// Propagate the GroomCache archive version to the memory archive for proper serialization
+		if (ArchiveVersion.IsSet())
+		{
+			Ar.SetUEVer(ArchiveVersion.GetValue());
+		}
 		AnimData.Serialize(Ar);
 	}
 

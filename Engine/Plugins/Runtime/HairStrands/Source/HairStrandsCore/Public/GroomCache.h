@@ -50,6 +50,8 @@ public:
 
 	TArray<FGroomCacheChunk>& GetChunks() { return Chunks; }
 
+	TOptional<FPackageFileVersion> ArchiveVersion;
+
 #if WITH_EDITORONLY_DATA
 	/** Import options used for this GroomCache */
 	UPROPERTY(Category = ImportSettings, VisibleAnywhere, Instanced)

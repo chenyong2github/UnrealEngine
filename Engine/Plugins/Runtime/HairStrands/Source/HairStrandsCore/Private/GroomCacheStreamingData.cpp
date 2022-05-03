@@ -198,6 +198,11 @@ void FGroomCacheStreamingData::UpdateStreamingStatus(bool bAsyncDeletionAllowed)
 						// The bulk data buffer is then serialized into GroomCacheAnimationData
 						TArrayView<uint8> TempView(ReadBuffer, DataSize);
 						FMemoryReaderView Ar(TempView, true);
+						// Propagate the GroomCache archive version to the memory archive for proper serialization
+						if (GroomCache->ArchiveVersion.IsSet())
+						{
+							Ar.SetUEVer(GroomCache->ArchiveVersion.GetValue());
+						}
 						AnimData->Serialize(Ar);
 
 						// We became the owner of ReadBuffer when GetReadResults was called so free it now
