@@ -51,10 +51,11 @@ public:
 	 */
 	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> WorldPartitionBuilder, const FString& InLongPackageName) override;
 
-	/**
-	 *
-	 */
+	/** Return the world added event. */
 	virtual FWorldPartitionCreated& OnWorldPartitionCreated() override { return WorldPartitionCreatedEvent; }
+
+	/** Return the commandlet execution event */
+	virtual FOnExecuteCommandlet& OnExecuteCommandlet() override { return OnExecuteCommandletEvent; }
 
 private:
 	/** Called when the level editors map changes. We will determine if the new map is a valid world partition world and close world partition tabs if not */
@@ -73,6 +74,7 @@ private:
 	bool BuildMinimap(const FString& InMapToProcess);
 
 private:
+	void RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled, FString& OutCommandletOutput);
 	void OnConvertMap();
 
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
@@ -82,4 +84,6 @@ private:
 	TWeakPtr<SDockTab> WorldPartitionTab;
 
 	FWorldPartitionCreated WorldPartitionCreatedEvent;
+
+	FOnExecuteCommandlet OnExecuteCommandletEvent;
 };

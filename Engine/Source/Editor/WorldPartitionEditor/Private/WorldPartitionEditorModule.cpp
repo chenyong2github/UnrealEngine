@@ -259,7 +259,7 @@ static void RescanAssetsAndLoadMap(const FString& MapToLoad)
 	FEditorFileUtils::LoadMap(MapToLoad);
 }
 
-static void RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled, FString& OutCommandletOutput)
+void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled, FString& OutCommandletOutput)
 {
 	OutResult = 0;
 	bOutCancelled = false;
@@ -276,13 +276,26 @@ static void RunCommandletAsExternalProcess(const FString& InCommandletArgs, cons
 
 	FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
 
+	TArray<FString> AdditionalArgs;
+	OnExecuteCommandletEvent.Broadcast(AdditionalArgs);
+
 	// Try to provide complete Path, if we can't try with project name
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
 
-	uint32 ProcessID;
-	FString Arguments = FString::Printf(TEXT("\"%s\" %s -unattended"), *ProjectPath, *InCommandletArgs);
+	FString Arguments;
+	Arguments += ProjectPath;
+	Arguments += TEXT(" -BaseDir=\"") + FString(FPlatformProcess::BaseDir()) + TEXT('"');
+	Arguments += TEXT(" -Unattended");
+	Arguments += TEXT(" ") + InCommandletArgs;
+	for (const FString& AdditionalArg : AdditionalArgs)
+	{
+		Arguments += " ";
+		Arguments += AdditionalArg;
+	}
 	
 	UE_LOG(LogWorldPartitionEditor, Display, TEXT("Running commandlet: %s %s"), *CurrentExecutableName, *Arguments);
+
+	uint32 ProcessID;
 	const bool bLaunchDetached = true;
 	const bool bLaunchHidden = true;
 	const bool bLaunchReallyHidden = true;
@@ -373,8 +386,6 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 		RunCommandletAsExternalProcess(CommandletArgs, OperationDescription, Result, bCancelled, CommandletOutput);
 		if (!bCancelled && Result == 0)
 		{	
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("ConvertMapCompleted", "Conversion completed:\n{0}"), FText::FromString(CommandletOutput)));
-
 #if	PLATFORM_DESKTOP
 			if (DefaultConvertOptions->bGenerateIni)
 			{
@@ -398,7 +409,7 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 		}
 		else if(Result != 0)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("ConvertMapFailed", "Conversion failed:\n{0}"), FText::FromString(CommandletOutput)));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapFailed", "Conversion failed! See log for details."));
 		}
 	}
 
@@ -461,7 +472,6 @@ bool FWorldPartitionEditorModule::BuildHLODs(const FString& InMapToProcess)
 		bool bSuccess = !bCancelled && Result == 0;
 		if (bSuccess)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("HLODBuildCompleted", "HLOD build completed:\n{0}"), FText::FromString(CommandletOutput)));
 			RescanAssetsAndLoadMap(InMapToProcess);
 		}
 		else if (bCancelled)
@@ -470,7 +480,7 @@ bool FWorldPartitionEditorModule::BuildHLODs(const FString& InMapToProcess)
 		}
 		else if (Result != 0)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("HLODBuildFailed", "HLOD build failed:\n{0}"), FText::FromString(CommandletOutput)));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HLODBuildFailed", "HLOD build failed! See log for details."));
 		}
 
 		return bSuccess;
@@ -497,7 +507,6 @@ bool FWorldPartitionEditorModule::BuildMinimap(const FString& InMapToProcess)
 	bool bSuccess = !bCancelled && Result == 0;
 	if (bSuccess)
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("MinimapBuildCompleted", "Minimap build completed:\n{0}"), FText::FromString(CommandletOutput)));
 		RescanAssetsAndLoadMap(InMapToProcess);
 	}
 	else if (bCancelled)
@@ -506,7 +515,7 @@ bool FWorldPartitionEditorModule::BuildMinimap(const FString& InMapToProcess)
 	}
 	else if (Result != 0)
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("MinimapBuildFailed", "Minimap build failed:\n{0}"), FText::FromString(CommandletOutput)));
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MinimapBuildFailed", "Minimap build failed! See log for details."));
 	}
 
 	return bSuccess;

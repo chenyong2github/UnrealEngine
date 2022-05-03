@@ -79,15 +79,24 @@ bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 	bool bResult = true;
 	// Setup the world
 	{
-		UWorld::InitializationValues IVS;
-		IVS.RequiresHitProxies(false);
-		IVS.ShouldSimulatePhysics(false);
-		IVS.EnableTraceCollision(false);
-		IVS.CreateNavigation(false);
-		IVS.CreateAISystem(false);
-		IVS.AllowAudioPlayback(false);
-		IVS.CreatePhysicsScene(true);
-		FScopedEditorWorld EditorWorld(World, IVS);
+		TUniquePtr<FScopedEditorWorld> EditorWorld;
+		if (World->bIsWorldInitialized)
+		{
+			// Skip initialization, but ensure we're dealing with an editor world.
+			check(World->WorldType == EWorldType::Editor);
+		}
+		else
+		{
+			UWorld::InitializationValues IVS;
+			IVS.RequiresHitProxies(false);
+			IVS.ShouldSimulatePhysics(false);
+			IVS.EnableTraceCollision(false);
+			IVS.CreateNavigation(false);
+			IVS.CreateAISystem(false);
+			IVS.AllowAudioPlayback(false);
+			IVS.CreatePhysicsScene(true);
+			EditorWorld = MakeUnique<FScopedEditorWorld>(World, IVS);
+		}
 
 		// Make sure the world is partitioned
 		if (UWorld::IsPartitionedWorld(World))

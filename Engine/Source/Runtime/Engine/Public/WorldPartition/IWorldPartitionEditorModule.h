@@ -25,6 +25,12 @@ public:
 	/** Triggered when a world is added. */
 	DECLARE_EVENT_OneParam(IWorldPartitionEditorModule, FWorldPartitionCreated, UWorld*);
 
+	/** Triggered when the editor launches a commandlet. Can be used to provide project specific arguments. */
+	DECLARE_EVENT_OneParam(IWorldPartitionEditorModule, FOnExecuteCommandlet, TArray<FString>&);
+
 	/** Return the world added event. */
 	virtual FWorldPartitionCreated& OnWorldPartitionCreated() = 0;
+
+	/** Return the commandlet execution event */
+	virtual FOnExecuteCommandlet& OnExecuteCommandlet() = 0;
 };
