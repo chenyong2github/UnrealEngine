@@ -2829,7 +2829,10 @@ void AddMeshDrawTransitionPass(
 			ExternalAccessQueue.Add(VFInput.Strands.TangentBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.Attribute0Buffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.Attribute1Buffer.Buffer);
-			ExternalAccessQueue.Add(VFInput.Strands.MaterialBuffer.Buffer);
+			if (VFInput.Strands.MaterialBuffer.Buffer != nullptr)
+			{
+				ExternalAccessQueue.Add(VFInput.Strands.MaterialBuffer.Buffer);
+			}
 			ExternalAccessQueue.Add(VFInput.Strands.PositionOffsetBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionOffsetBuffer.Buffer);
 
