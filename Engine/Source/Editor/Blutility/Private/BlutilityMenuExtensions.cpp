@@ -74,7 +74,25 @@ class SFunctionParamDialog : public SCompoundWidget
 		// Hide any property that has been marked as such
 		StructureDetailsView->GetDetailsView()->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda([HiddenPropertyName](const FPropertyAndParent& InPropertyAndParent)
 		{
-			return InPropertyAndParent.Property.HasAnyPropertyFlags(CPF_Parm) && InPropertyAndParent.Property.GetFName() != HiddenPropertyName;
+			if (InPropertyAndParent.Property.GetFName() == HiddenPropertyName)
+			{
+				return false;
+			}
+
+			if (InPropertyAndParent.Property.HasAnyPropertyFlags(CPF_Parm))
+			{
+				return true;
+			}
+
+			for (const FProperty* Parent : InPropertyAndParent.ParentProperties)
+			{
+				if (Parent->HasAnyPropertyFlags(CPF_Parm))
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}));
 
 		StructureDetailsView->GetDetailsView()->ForceRefresh();
