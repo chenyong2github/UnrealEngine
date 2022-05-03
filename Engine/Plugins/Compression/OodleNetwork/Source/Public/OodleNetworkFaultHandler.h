@@ -5,6 +5,9 @@
 // Includes
 #include "Net/Core/Connection/NetResultManager.h"
 
+#include "OodleNetworkFaultHandler.generated.h"
+
+
 // Forward declarations
 namespace UE
 {
@@ -39,7 +42,7 @@ enum class EOodleNetResult : uint8
 
 DECLARE_NETRESULT_ENUM(EOodleNetResult);
 
-OODLENETWORKHANDLERCOMPONENT_API const TCHAR* LexToString(EOodleNetResult InResult);
+OODLENETWORKHANDLERCOMPONENT_API const TCHAR* LexToString(EOodleNetResult Enum);
 
 
 /**

@@ -10,35 +10,27 @@
  * EAESGCMNetResult
  */
 
-const TCHAR* LexToString(EAESGCMNetResult InResult)
+#ifndef CASE_ENUM_TO_TEXT_RET
+#define CASE_ENUM_TO_TEXT_RET(txt) case txt: ReturnVal = TEXT(#txt); break;
+#endif
+
+const TCHAR* LexToString(EAESGCMNetResult Enum)
 {
-	switch (InResult)
+	const TCHAR* ReturnVal = TEXT("::Invalid");
+
+	switch (Enum)
 	{
-	case EAESGCMNetResult::Unknown:
-		return TEXT("Unknown");
-
-	case EAESGCMNetResult::Success:
-		return TEXT("Success");
-
-	case EAESGCMNetResult::AESMissingIV:
-		return TEXT("AESMissingIV");
-
-	case EAESGCMNetResult::AESMissingAuthTag:
-		return TEXT("AESMissingAuthTag");
-
-	case EAESGCMNetResult::AESMissingPayload:
-		return TEXT("AESMissingPayload");
-
-	case EAESGCMNetResult::AESDecryptionFailed:
-		return TEXT("AESDecryptionFailed");
-
-	case EAESGCMNetResult::AESZeroLastByte:
-		return TEXT("AESZeroLastByte");
-
-
-	default:
-		return TEXT("Invalid");
+		FOREACH_ENUM_EAESGCMNETRESULT(CASE_ENUM_TO_TEXT_RET)
 	}
+
+	while (*ReturnVal != ':')
+	{
+		ReturnVal++;
+	}
+
+	ReturnVal += 2;
+
+	return ReturnVal;
 }
 
 
@@ -108,35 +100,3 @@ UE::Net::EHandleNetResult FAESGCMFaultHandler::HandleNetResult(UE::Net::FNetResu
 		
 	return ReturnVal;
 }
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#include "Misc/AutomationTest.h"
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAESGCMNetResultEnumTest, "System.Core.Networking.EAESGCMNetResult.EnumTest",
-									EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter);
-
-bool FAESGCMNetResultEnumTest::RunTest(const FString& Parameters)
-{
-	const UEnum* AESGCMResultEnum = StaticEnum<EAESGCMNetResult>();
-
-	if (TestTrue(TEXT("EAESGCMNetResult must exist"), AESGCMResultEnum != nullptr) && AESGCMResultEnum != nullptr)
-	{
-		const int64 AESGCMResultEnumLast = AESGCMResultEnum->GetMaxEnumValue() - 1;
-		bool bLexMismatch = false;
-
-		for (int64 EnumIdx=0; EnumIdx<=AESGCMResultEnumLast; EnumIdx++)
-		{
-			if (AESGCMResultEnum->GetNameStringByValue(EnumIdx) != LexToString((EAESGCMNetResult)EnumIdx))
-			{
-				bLexMismatch = true;
-				break;
-			}
-		}
-
-		TestFalse(TEXT("EAESGCMNetResult must not be missing LexToString entries"), bLexMismatch);
-	}
-
-	return true;
-}
-#endif
-

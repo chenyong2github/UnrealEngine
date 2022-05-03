@@ -5,6 +5,9 @@
 // Includes
 #include "Net/Core/Connection/NetResultManager.h"
 
+#include "AESGCMFaultHandler.generated.h"
+
+
 // Forward declarations
 namespace UE
 {
@@ -41,7 +44,7 @@ enum class EAESGCMNetResult : uint8
 
 DECLARE_NETRESULT_ENUM(EAESGCMNetResult);
 
-AESGCMHANDLERCOMPONENT_API const TCHAR* LexToString(EAESGCMNetResult InResult);
+AESGCMHANDLERCOMPONENT_API const TCHAR* LexToString(EAESGCMNetResult Enum);
 
 
 

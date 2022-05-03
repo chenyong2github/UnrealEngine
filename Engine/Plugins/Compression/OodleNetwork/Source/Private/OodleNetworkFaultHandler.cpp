@@ -11,32 +11,27 @@
  * EOodleNetResult
  */
 
-const TCHAR* LexToString(EOodleNetResult InResult)
+#ifndef CASE_ENUM_TO_TEXT_RET
+#define CASE_ENUM_TO_TEXT_RET(txt) case txt: ReturnVal = TEXT(#txt); break;
+#endif
+
+const TCHAR* LexToString(EOodleNetResult Enum)
 {
-	switch (InResult)
+	const TCHAR* ReturnVal = TEXT("::Invalid");
+
+	switch (Enum)
 	{
-	case EOodleNetResult::Unknown:
-		return TEXT("Unknown");
-
-	case EOodleNetResult::Success:
-		return TEXT("Success");
-
-	case EOodleNetResult::OodleDecodeFailed:
-		return TEXT("OodleDecodeFailed");
-
-	case EOodleNetResult::OodleSerializePayloadFail:
-		return TEXT("OodleSerializePayloadFail");
-
-	case EOodleNetResult::OodleBadDecompressedLength:
-		return TEXT("OodleBadDecompressedLength");
-
-	case EOodleNetResult::OodleNoDictionary:
-		return TEXT("OodleNoDictionary");
-
-
-	default:
-		return TEXT("Invalid");
+		FOREACH_ENUM_EOODLENETRESULT(CASE_ENUM_TO_TEXT_RET)
 	}
+
+	while (*ReturnVal != ':')
+	{
+		ReturnVal++;
+	}
+
+	ReturnVal += 2;
+
+	return ReturnVal;
 }
 
 
@@ -104,35 +99,3 @@ UE::Net::EHandleNetResult FOodleNetworkFaultHandler::HandleNetResult(UE::Net::FN
 		
 	return ReturnVal;
 }
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#include "Misc/AutomationTest.h"
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOodleNetResultEnumTest, "System.Core.Networking.EOodleNetResult.EnumTest",
-									EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter);
-
-bool FOodleNetResultEnumTest::RunTest(const FString& Parameters)
-{
-	const UEnum* OodleResultEnum = StaticEnum<EOodleNetResult>();
-
-	if (TestTrue(TEXT("EOodleNetResult must exist"), OodleResultEnum != nullptr) && OodleResultEnum != nullptr)
-	{
-		const int64 OodleResultEnumLast = OodleResultEnum->GetMaxEnumValue() - 1;
-		bool bLexMismatch = false;
-
-		for (int64 EnumIdx=0; EnumIdx<=OodleResultEnumLast; EnumIdx++)
-		{
-			if (OodleResultEnum->GetNameStringByValue(EnumIdx) != LexToString((EOodleNetResult)EnumIdx))
-			{
-				bLexMismatch = true;
-				break;
-			}
-		}
-
-		TestFalse(TEXT("EOodleNetResult must not be missing LexToString entries"), bLexMismatch);
-	}
-
-	return true;
-}
-#endif
-
