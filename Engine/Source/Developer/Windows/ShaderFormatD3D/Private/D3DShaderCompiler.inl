@@ -412,7 +412,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 				{
 					UniformBufferNames.AddDefaulted(CBIndex - UniformBufferNames.Num() + 1);
 				}
-				UniformBufferNames[CBIndex] = UniformBufferName;
+				UniformBufferNames[CBIndex] = UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(UniformBufferName);
 				UsedUniformBufferSlots[CBIndex] = true;
 			}
 

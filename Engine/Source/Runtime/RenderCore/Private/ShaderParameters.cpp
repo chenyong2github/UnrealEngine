@@ -278,7 +278,7 @@ static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShade
 		return FString::Printf(
 			TEXT("#ifndef __UniformBuffer_%s_Definition__\r\n")
 			TEXT("#define __UniformBuffer_%s_Definition__\r\n")
-			TEXT("cbuffer %s\r\n")
+			TEXT("cbuffer UB_CB_NAME(%s)\r\n")
 			TEXT("{\r\n")
 			TEXT("%s")
 			TEXT("}\r\n")

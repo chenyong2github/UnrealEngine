@@ -8,6 +8,11 @@
 #include "CrossCompilerDefinitions.h"
 #include "ShaderConductorContext.h"
 
+namespace UE::ShaderCompilerCommon
+{
+	static constexpr const TCHAR* kUniformBufferConstantBufferPrefix = TEXT("UniformBufferConstants_");
+}
+
 /**
  * This function looks for resources specified in ResourceTableMap in the 
  * parameter map, adds them to the resource table, and removes them from the
@@ -138,6 +143,11 @@ private:
 
 	bool bMovedLoosedParametersToRootConstantBuffer = false;
 };
+
+namespace UE::ShaderCompilerCommon
+{
+	extern SHADERCOMPILERCOMMON_API FString RemoveConstantBufferPrefix(const FString& InName);
+}
 
 extern SHADERCOMPILERCOMMON_API void HandleReflectedGlobalConstantBufferMember(
 	const FString& MemberName,

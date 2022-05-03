@@ -469,6 +469,13 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 	return nullptr;
 }
 
+FString UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(const FString& InName)
+{
+	FString NewName(InName);
+	NewName.RemoveFromStart(UE::ShaderCompilerCommon::kUniformBufferConstantBufferPrefix);
+	return NewName;
+}
+
 void HandleReflectedGlobalConstantBufferMember(
 	const FString& MemberName,
 	uint32 ConstantBufferIndex,
@@ -518,8 +525,10 @@ void HandleReflectedUniformBuffer(
 	FShaderCompilerOutput& CompilerOutput
 )
 {
+	FString AdjustedUniformBufferName(UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(UniformBufferName));
+
 	CompilerOutput.ParameterMap.AddParameterAllocation(
-		*UniformBufferName,
+		*AdjustedUniformBufferName,
 		ReflectionSlot,
 		BaseIndex,
 		BufferSize,

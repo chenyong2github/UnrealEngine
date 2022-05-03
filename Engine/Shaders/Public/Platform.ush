@@ -200,6 +200,15 @@
 #define COMPILER_SUPPORTS_HLSL2021 0
 #endif
 
+#ifndef PLATFORM_SUPPORTS_UB_STRUCT
+#define PLATFORM_SUPPORTS_UB_STRUCT 0
+#endif
+
+#if PLATFORM_SUPPORTS_UB_STRUCT
+	#define UB_CB_NAME(X) UniformBufferConstants_##X
+#else
+	#define UB_CB_NAME(X) X
+#endif
 
 // ---------------------------------------------------- Alternative floating point types
 
