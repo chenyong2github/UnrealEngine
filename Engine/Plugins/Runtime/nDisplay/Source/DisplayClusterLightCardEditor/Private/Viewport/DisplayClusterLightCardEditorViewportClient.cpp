@@ -37,11 +37,137 @@
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CameraController.h"
-
+#include "ImageUtils.h"
 
 #include "Renderer/Private/SceneRendering.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterLightCardEditorViewportClient"
+
+
+//////////////////////////////////////////////////////////////////////////
+// FNormalMap
+
+const int32 FDisplayClusterLightCardEditorViewportClient::FNormalMap::NormalMapSize = 512;
+const float FDisplayClusterLightCardEditorViewportClient::FNormalMap::NormalMapFOV = 2.0f * FMath::RadiansToDegrees(FMath::Atan(0.55 * PI)); // Equation for FOV from desired angle from north pole;
+
+void FDisplayClusterLightCardEditorViewportClient::FNormalMap::Init(const FSceneViewInitOptions& InSceneViewInitOptions)
+{
+	SizeX = InSceneViewInitOptions.GetViewRect().Width();
+	SizeY = InSceneViewInitOptions.GetViewRect().Height();
+
+	ViewMatrices = FViewMatrices(InSceneViewInitOptions);
+
+	if (NormalMapTexture.IsValid())
+	{
+		NormalMapTexture->MarkAsGarbage();
+		NormalMapTexture = nullptr;
+	}
+
+	ENQUEUE_RENDER_COMMAND(InitRHIResourcesCommand)([this](FRHICommandListImmediate& RHICmdList)
+		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("NormalMapTexture"))
+				.SetExtent(SizeX, SizeY)
+				.SetFormat(PF_FloatRGBA)
+				.SetClearValue(FClearValueBinding::Black);
+
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI);
+		});
+}
+
+void FDisplayClusterLightCardEditorViewportClient::FNormalMap::Release()
+{
+	ENQUEUE_RENDER_COMMAND(ReleaseRHIResourcesCommand)([this](FRHICommandListImmediate& RHICmdList)
+		{
+			RenderTargetTextureRHI.SafeRelease();
+		});
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::FNormalMap::GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance)
+{
+	auto GetPixel = [this](uint32 InX, uint32 InY)
+	{
+		uint32 WrappedX = InX % SizeX;
+		uint32 WrappedY = InY % SizeY;
+
+		return CachedNormalData[WrappedY * SizeX + WrappedX].GetFloats();
+	};
+
+	const FVector ViewPos = FVector(ViewMatrices.GetViewMatrix().TransformFVector4(FVector4(Position, 1)));
+	const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, EDisplayClusterMeshProjectionType::Azimuthal);
+
+	const FVector4 ScreenPos = ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(ProjectedViewPos, 1));
+
+	if (ScreenPos.W != 0.0)
+	{
+		const float InvW = (ScreenPos.W > 0.0f ? 1.0f : -1.0f) / ScreenPos.W;
+		const float Y = (GProjectionSignY > 0.0f) ? ScreenPos.Y : 1.0f - ScreenPos.Y;
+		const FVector2D PixelPos = FVector2D((0.5f + ScreenPos.X * 0.5f * InvW) * SizeX, (0.5f - Y * 0.5f * InvW) * SizeY);
+
+		// Perform a bilinear interpolation on the computed pixel position to ensure a continuous normal regardless of the resolution of the normal map
+		const uint32 PixelX = FMath::Floor(PixelPos.X - 0.5f);
+		const uint32 PixelY = FMath::Floor(PixelPos.Y - 0.5f);
+		const float PixelXFrac = FMath::Frac(PixelPos.X);
+		const float PixelYFrac = FMath::Frac(PixelPos.X);
+
+		FLinearColor NormalData;
+		NormalData = FMath::Lerp(
+			FMath::Lerp(GetPixel(PixelX, PixelY), GetPixel(PixelX + 1, PixelY), PixelXFrac),
+			FMath::Lerp(GetPixel(PixelX, PixelY + 1), GetPixel(PixelX + 1, PixelY + 1), PixelXFrac),
+			PixelYFrac);
+
+		const FVector NormalVector = 2.f * FVector(NormalData.R, NormalData.G, NormalData.B) - 1.f;
+		OutNormal = NormalVector.GetSafeNormal();
+
+		// Make sure the depth value is not 0, as that will cause a divide by zero when transformed, resulting in an NaN distance being returned
+		const float Depth = FMath::Max(0.001f, NormalData.A);
+
+		FVector4 DepthPos = ViewMatrices.GetInvProjectionMatrix().TransformFVector4(FVector4(ScreenPos.X * InvW, ScreenPos.Y * InvW, Depth, 1.0f));
+		DepthPos /= DepthPos.W;
+
+		const FVector UnprojectedDepthPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(DepthPos, EDisplayClusterMeshProjectionType::Azimuthal);
+		OutDistance = UnprojectedDepthPos.Length();
+
+		return true;
+	}
+	else
+	{
+		OutNormal = FVector::ZeroVector;
+		OutDistance = 0.0;
+		return false;
+	}
+}
+
+UTexture2D* FDisplayClusterLightCardEditorViewportClient::FNormalMap::GenerateNormalMapTexture(const FString& TextureName)
+{
+	if (NormalMapTexture.IsValid())
+	{
+		NormalMapTexture->MarkAsGarbage();
+		NormalMapTexture = nullptr;
+	}
+
+	if (CachedNormalData.Num())
+	{
+		FCreateTexture2DParameters Params;
+		Params.bDeferCompression = true;
+
+		TArray<FColor> Bitmap;
+		Bitmap.AddZeroed(CachedNormalData.Num());
+
+		for (int32 Index = 0; Index < CachedNormalData.Num(); ++Index)
+		{
+			Bitmap[Index] = CachedNormalData[Index].GetFloats().ToFColor(false);
+		}
+
+		NormalMapTexture = FImageUtils::CreateTexture2D(SizeX, SizeY, Bitmap, GetTransientPackage(), TextureName, RF_Transient, Params);
+	}
+
+	return GetNormalMapTexture();
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FDisplayClusterLightCardEditorViewportClient
 
 FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene,
                                                            const TWeakPtr<SEditorViewport>& InEditorViewportWidget,
@@ -168,6 +294,13 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 
 void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
+	if (bNormalMapInvalid)
+	{
+		RenderNormalMap(NorthNormalMap, FVector::UpVector);
+		RenderNormalMap(SouthNormalMap, -FVector::UpVector);
+		bNormalMapInvalid = false;
+	}
+
 	FViewport* ViewportBackup = Viewport;
 	Viewport = InViewport ? InViewport : Viewport;
 
@@ -272,6 +405,27 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 	if (View)
 	{
 		DrawCanvas(*Viewport, *View, *Canvas);
+	}
+
+	if (bDisplayNormalMapVisualization)
+	{
+		auto DrawNormalMap = [Canvas](FNormalMap& NormalMap, const FString& TextureName, FVector2D Position)
+		{
+			UTexture2D* NormalMapTexture = NormalMap.GetNormalMapTexture();
+
+			if (!NormalMapTexture)
+			{
+				NormalMapTexture = NormalMap.GenerateNormalMapTexture(TextureName);
+			}
+
+			if (NormalMapTexture)
+			{
+				Canvas->DrawTile(Position.X, Position.Y, 512, 512, 0, 0, 1, 1, FLinearColor::White, NormalMapTexture->GetResource());
+			}
+		};
+
+		DrawNormalMap(NorthNormalMap, TEXT("DisplayClusterLightCardEditor.NorthNormalMap"), FVector2D(0.0f, 0.0f));
+		DrawNormalMap(SouthNormalMap, TEXT("DisplayClusterLightCardEditor.SouthNormalMap"), FVector2D(0.0f, 512.0f));
 	}
 
 	// Remove temporary debug lines.
@@ -571,7 +725,8 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 	auto Finalize = [this]()
 	{
 		Viewport->InvalidateHitProxy();
-		bShouldCheckHitProxy = true;	
+		bShouldCheckHitProxy = true;
+		InvalidateNormalMap();
 	};
 	
 	if (RootActor == nullptr)
@@ -628,6 +783,8 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 				RootActorProxy->UpdatePreviewComponents();
 				RootActorProxy->EnableEditorRender(false);
+
+				RootActorBoundingRadius = 0.5f * RootActorProxy->GetComponentsBoundingBox().GetSize().Length();
 			}
 
 			// Filter out any primitives hidden in game except screen components
@@ -802,6 +959,9 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionModeFOV(EDisplay
 	{
 		ViewFOV = NewFOV;
 	}
+
+	Viewport->InvalidateHitProxy();
+	bShouldCheckHitProxy = true;
 }
 
 void FDisplayClusterLightCardEditorViewportClient::BeginTransaction(const FText& Description)
@@ -927,6 +1087,73 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 	ViewInitOptions.CursorPos = CurrentMousePos;
 
 	OutViewInitOptions = ViewInitOptions;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::GetNormalMapSceneViewInitOptions(FIntPoint NormalMapSize, float NormalMapFOV, const FVector& ViewDirection, FSceneViewInitOptions& OutViewInitOptions)
+{
+	FViewportCameraTransform& ViewTransform = GetViewTransform();
+
+	OutViewInitOptions.ViewLocation = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
+	OutViewInitOptions.ViewRotation = ViewDirection.Rotation();
+	OutViewInitOptions.ViewOrigin = OutViewInitOptions.ViewLocation;
+
+	OutViewInitOptions.SetViewRectangle(FIntRect(0, 0, NormalMapSize.X, NormalMapSize.Y));
+
+	AWorldSettings* WorldSettings = nullptr;
+	if (GetScene() != nullptr && GetScene()->GetWorld() != nullptr)
+	{
+		WorldSettings = GetScene()->GetWorld()->GetWorldSettings();
+	}
+
+	if (WorldSettings != nullptr)
+	{
+		OutViewInitOptions.WorldToMetersScale = WorldSettings->WorldToMeters;
+	}
+
+	// Rotate view 90 degrees
+	OutViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(OutViewInitOptions.ViewRotation) * FMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	const float MinZ = GetNearClipPlane();
+	const float MaxZ = FMath::Max(RootActorBoundingRadius, MinZ);
+
+	// Avoid zero ViewFOV's which cause divide by zero's in projection matrix
+	const float MatrixFOV = FMath::Max(0.001f, NormalMapFOV) * (float)PI / 360.0f;
+
+	const float XAxisMultiplier = 1.0f;
+	const float YAxisMultiplier = 1.0f;
+
+	if ((bool)ERHIZBuffer::IsInverted)
+	{
+		OutViewInitOptions.ProjectionMatrix = FReversedZPerspectiveMatrix(
+			MatrixFOV,
+			MatrixFOV,
+			XAxisMultiplier,
+			YAxisMultiplier,
+			MinZ,
+			MaxZ);
+	}
+	else
+	{
+		OutViewInitOptions.ProjectionMatrix = FPerspectiveMatrix(
+			MatrixFOV,
+			MatrixFOV,
+			XAxisMultiplier,
+			YAxisMultiplier,
+			MinZ,
+			MaxZ);
+	}
+
+	OutViewInitOptions.SceneViewStateInterface = ViewState.GetReference();
+	OutViewInitOptions.ViewElementDrawer = this;
+
+	OutViewInitOptions.EditorViewBitflag = (uint64)1 << ViewIndex, // send the bit for this view - each actor will check it's visibility bits against this
+
+	OutViewInitOptions.FOV = NormalMapFOV;
+	OutViewInitOptions.OverrideFarClippingPlaneDistance = GetFarClipPlaneOverride();
 }
 
 UDisplayClusterConfigurationViewport* FDisplayClusterLightCardEditorViewportClient::FindViewportForPrimitiveComponent(UPrimitiveComponent* PrimitiveComponent)
@@ -1144,62 +1371,72 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 	FVector Direction;
 	PixelToWorld(*View, MousePos, Origin, Direction);
 
-	const TWeakObjectPtr<ADisplayClusterLightCardActor>& SelectedLightCard = SelectedLightCards.Last();
-	if (SelectedLightCard.IsValid())
+	const FVector CursorRayStart = Origin;
+	const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
+
+	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
+	if (LastSelectedLightCard.IsValid())
 	{
-		const FVector CurrentLightCardLocation = SelectedLightCard->GetLightCardTransform().GetTranslation();
+		const FSphericalCoordinates DeltaCoords = GetLightCardTranslationDelta(InViewport, LastSelectedLightCard.Get(), CurrentAxis);
 
-		// Light cards should be centered on the current view origin, so set the light card position to match the current view origin. Update the light card
-		// spherical coordinates to match its current coordinates
-		if (ProjectionOriginComponent.IsValid() && ProjectionOriginComponent->GetComponentLocation() != SelectedLightCard->GetActorLocation())
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
 		{
-			const FVector DesiredLightCardOffset = CurrentLightCardLocation - ProjectionOriginComponent->GetComponentLocation();
-
-			SelectedLightCard->SetActorLocation(ProjectionOriginComponent->GetComponentLocation());
-
-			FSphericalCoordinates SphericalCoords(DesiredLightCardOffset);
-
-			SelectedLightCard->DistanceFromCenter = SphericalCoords.Radius;
-			SelectedLightCard->Longitude = FMath::RadiansToDegrees(SphericalCoords.Radius) - 180;
-			SelectedLightCard->Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Radius);
-		}
-
-		const FVector CursorRayStart = Origin;
-		const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
-
-		FCollisionQueryParams Param(SCENE_QUERY_STAT(DragDropTrace), true);
-
-		bool bHitScreen = false;
-		FHitResult ScreenHitResult;
-		if (PreviewWorld->LineTraceSingleByObjectType(ScreenHitResult, CursorRayStart, CursorRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), Param))
-		{
-			if (AActor* HitActor = ScreenHitResult.GetActor())
+			if (!LightCard.IsValid())
 			{
-				if (RootActorProxy.Get() == HitActor && ScreenHitResult.Component.IsValid())
-				{
-					// TODO: Make the light card flush with the screen, which requires setting the LC's distance from center to just behind the screen, and setting the pitch and yaw of the card
-					// to match the screen's normal at the traced point
-				}
+				continue;
 			}
-		}
 
-		// If we didn't hit a screen, keep the light card's radius fixed, and simply orbit it around the view origin
-		if (!bHitScreen)
-		{
-			const FSphericalCoordinates CurrentCoords = GetLightCardCoordinates(SelectedLightCard.Get());
-			const FSphericalCoordinates DeltaCoords = GetLightCardTranslationDelta(InViewport, SelectedLightCard.Get(), CurrentAxis);
+			// Light cards should be centered on the current view origin, so set the light card position to match the current view origin. Update the light card
+			// spherical coordinates to match its current coordinates
+			if (ProjectionOriginComponent.IsValid() && ProjectionOriginComponent->GetComponentLocation() != LightCard->GetActorLocation())
+			{
+				const FVector DesiredLightCardOffset = LightCard->GetLightCardTransform().GetTranslation() - ProjectionOriginComponent->GetComponentLocation();
+
+				LightCard->SetActorLocation(ProjectionOriginComponent->GetComponentLocation());
+
+				FSphericalCoordinates SphericalCoords(DesiredLightCardOffset);
+
+				LightCard->DistanceFromCenter = SphericalCoords.Radius;
+				LightCard->Longitude = FMath::RadiansToDegrees(SphericalCoords.Radius) - 180;
+				LightCard->Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Radius);
+			}
+
+			const FSphericalCoordinates CurrentCoords = GetLightCardCoordinates(LightCard.Get());
 
 			FSphericalCoordinates NewCoords;
 			NewCoords.Radius = CurrentCoords.Radius + DeltaCoords.Radius;
 			NewCoords.Azimuth = CurrentCoords.Azimuth + DeltaCoords.Azimuth;
 			NewCoords.Inclination = CurrentCoords.Inclination + DeltaCoords.Inclination;
 
-			SelectedLightCard->DistanceFromCenter = NewCoords.Radius;
-			SelectedLightCard->Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(NewCoords.Azimuth) - 180);
-			SelectedLightCard->Latitude = 90.f - FMath::RadiansToDegrees(NewCoords.Inclination);
-		}
+			LightCard->DistanceFromCenter = NewCoords.Radius;
+			LightCard->Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(NewCoords.Azimuth) - 180);
+			LightCard->Latitude = 90.f - FMath::RadiansToDegrees(NewCoords.Inclination);
 
-		PropagateLightCardTransform(SelectedLightCard.Get());
+			{
+				const FVector LightCardPosition = LightCard->GetLightCardTransform().GetTranslation();
+
+				FVector DesiredNormal;
+				float DesiredDistance;
+
+				// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
+				if (LightCardPosition.Z < Origin.Z)
+				{
+					SouthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
+				}
+				else
+				{
+					NorthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
+				}
+
+				const FRotator Rotation = FRotationMatrix::MakeFromX(-DesiredNormal).Rotator();
+
+				LightCard->Pitch = Rotation.Pitch;
+				LightCard->Yaw = Rotation.Yaw;
+				LightCard->DistanceFromCenter = FMath::Min(DesiredDistance, RootActorBoundingRadius) + LightCardFlushOffset;
+			}
+
+			PropagateLightCardTransform(LightCard.Get());
+		}
 	}
 }
 
@@ -1227,8 +1464,21 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 	const FVector LocalDirection = LightCard->GetActorRotation().RotateVector(Direction);
 	const FVector LightCardLocation = LightCard->GetLightCardTransform().GetTranslation() - Origin;
 
+	FVector Normal;
+	float Distance;
+
+	// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
+	if (LightCardLocation.Z < 0.0f)
+	{
+		SouthNormalMap.GetNormalAndDistanceAtPosition(LightCard->GetLightCardTransform().GetTranslation(), Normal, Distance);
+	}
+	else
+	{
+		NorthNormalMap.GetNormalAndDistanceAtPosition(LightCard->GetLightCardTransform().GetTranslation(), Normal, Distance);
+	}
+
 	FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
-	FSphericalCoordinates RequestedCoords(LocalDirection * LightCardLocation.Size());
+	FSphericalCoordinates RequestedCoords(LocalDirection * Distance);
 	
 	FSphericalCoordinates DeltaCoords;
 	DeltaCoords.Radius = RequestedCoords.Radius - LightCardCoords.Radius;
@@ -1387,7 +1637,7 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 
 	const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
 	const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
-	const FVector AzimuthalVector = FVector::ZAxisVector ^ RadialVector;
+	const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
 	const FVector InclinationVector = RadialVector ^ AzimuthalVector;
 
 	FRotator Orientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).Rotator();
@@ -1396,6 +1646,39 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 	WidgetTransformAfterMapProjection.SetRotation(Orientation.Quaternion());
 
 	return true;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection)
+{
+	FSceneViewInitOptions ViewInitOptions;
+	GetNormalMapSceneViewInitOptions(FIntPoint(FNormalMap::NormalMapSize), FNormalMap::NormalMapFOV, NormalMapDirection, ViewInitOptions);
+
+	NormalMap.Init(ViewInitOptions);
+
+	// Only render primitive components from the stage actor for the normal map
+	FDisplayClusterMeshProjectionPrimitiveFilter PrimitiveFilter;
+	PrimitiveFilter.PrimitiveFilterDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([this](const UPrimitiveComponent* PrimitiveComponent)
+	{
+		return PrimitiveComponent->GetOwner() == RootActorProxy;
+	});
+
+	FCanvas Canvas(&NormalMap, nullptr, GetWorld(), GetScene()->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+	{
+		Canvas.Clear(FLinearColor::Black);
+
+		MeshProjectionRenderer->RenderNormals(&Canvas, GetScene(), ViewInitOptions, EngineShowFlags, EDisplayClusterMeshProjectionType::Azimuthal, &PrimitiveFilter);
+	}
+	Canvas.Flush_GameThread();
+
+	NormalMap.ReadFloat16Pixels(NormalMap.GetCachedNormalData());
+	NormalMap.Release();
+
+	FlushRenderingCommands();
+}
+
+void FDisplayClusterLightCardEditorViewportClient::InvalidateNormalMap()
+{
+	bNormalMapInvalid = true;
 }
 
 #undef LOCTEXT_NAMESPACE

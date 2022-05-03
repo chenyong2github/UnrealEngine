@@ -21,7 +21,6 @@ class UDisplayClusterConfigurationViewport;
 class FDisplayClusterLightCardEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FDisplayClusterLightCardEditorViewportClient>
 {
 private:
-
 	struct FSphericalCoordinates
 	{
 	public:
@@ -51,6 +50,58 @@ private:
 		float Inclination = 0.f;
 		float Azimuth = 0.f;
 	};
+
+	/** Custom render target that stores the normal data for the stage */
+	class FNormalMap : public FRenderTarget
+	{
+	public:
+		/** The size of the normal map */
+		static const int32 NormalMapSize;
+
+		/** The field of view to render the normal map with. Using the azimuthal projection,
+		 * this is set so that the entire 360 degree scene is rendered */
+		static const float NormalMapFOV;
+
+		/** Initializes the normal map render target using the specified scene view options */
+		void Init(const FSceneViewInitOptions& InSceneViewInitOptions);
+
+		/** Releases the normal map render target's resources */
+		void Release();
+
+		/** Gets the size of the render target */
+		virtual FIntPoint GetSizeXY() const override { return FIntPoint(SizeX, SizeY); }
+
+		/** Gets a reference to the normal map data array, which stores the normal vector in the RGB components (color = 0.5 * Normal + 0.5) and the depth in the A component */
+		TArray<FFloat16Color>& GetCachedNormalData() { return CachedNormalData; }
+
+		/** Gets the normal vector and distance at the specified world location. The normal and distance are bilinearly interpolated from the nearest pixels in the normal map */
+		bool GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance);
+
+		/** Generates a texture object that can be used to visualize the normal map */
+		UTexture2D* GenerateNormalMapTexture(const FString& TextureName);
+
+		/** Gets the normal map visualization texture, or null if it hasn't been generated */
+		UTexture2D* GetNormalMapTexture() const { return NormalMapTexture.IsValid() ? NormalMapTexture.Get() : nullptr; }
+
+	private:
+		/** The view matrices used when the normal map was last rendered */
+		FViewMatrices ViewMatrices;
+
+		/** The cached normal map data from the last normal map render */
+		TArray<FFloat16Color> CachedNormalData;
+
+		/** A texture that contains the normal map, for visualization purposes */
+		TWeakObjectPtr<UTexture2D> NormalMapTexture;
+
+		/** The width of the normal map. */
+		uint32 SizeX = 0;
+
+		/** The height of the normal map. */
+		uint32 SizeY = 0;
+	};
+
+	/** The amount to offset a light card's DistanceFromCenter when making it flush with a screen */
+	static constexpr float LightCardFlushOffset = -0.5f;
 
 public:
 	FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget,
@@ -117,6 +168,9 @@ private:
 	/** Gets the scene view init options to use to create scene views for the preview scene */
 	void GetSceneViewInitOptions(FSceneViewInitOptions& OutViewInitOptions);
 
+	/** Gets the scene view init options to use when rendering the normal map cache */
+	void GetNormalMapSceneViewInitOptions(FIntPoint NormalMapSize, float NormalMapFOV, const FVector& ViewDirection, FSceneViewInitOptions& OutViewInitOptions);
+
 	/** Gets the viewport that is attached to the specified primitive component */
 	UDisplayClusterConfigurationViewport* FindViewportForPrimitiveComponent(UPrimitiveComponent* PrimitiveComponent);
 
@@ -156,11 +210,20 @@ private:
 	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
 	bool CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection, FTransform& WidgetTransformAfterMapProjection);
 
+	/** Renders the viewport's normal map and stores the texture data to be used later */
+	void RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection);
+
+	/** Invalidates the viewport's normal map, forcing it to be rerendered on the next draw call */
+	void InvalidateNormalMap();
+
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
+
+	/** The radius of the bounding sphere that entirely encapsulates the root actor */
+	float RootActorBoundingRadius = 0.0f;
 
 	struct FLightCardProxy
 	{
@@ -207,4 +270,16 @@ private:
 
 	/** The increment to change the FOV by when using the scroll wheel */
 	float FOVScrollIncrement = 5.0f;
+
+	/** The render target used to render a map of the screens' normals for the northern hemisphere of the view */
+	FNormalMap NorthNormalMap;
+
+	/** The render target used to render a map of the screens' normals for the southern hemisphere of the view */
+	FNormalMap SouthNormalMap;
+
+	/** Indicates if the cached normal map is invalid and needs to be redrawn */
+	bool bNormalMapInvalid = false;
+
+	/** Indicates if the normal map should be displayed to the screen */
+	bool bDisplayNormalMapVisualization = false;
 };

@@ -24,6 +24,18 @@ enum DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API EDisplayClusterMeshProjectionType
 	Azimuthal
 };
 
+/** A filter that allows specific primitive components to be filtered from a render pass */
+class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionPrimitiveFilter
+{
+public:
+	/** A delegate that returns true if the primitive component should be included in the render pass */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FPrimitiveFilter, const UPrimitiveComponent*);
+	FPrimitiveFilter PrimitiveFilterDelegate;
+
+	/** Gets whether a primitive component should be filtered out of the render pass or not */
+	bool IsPrimitiveComponentFiltered(const UPrimitiveComponent* InPrimitiveComponent) const;
+};
+
 /** A renderer that projects meshes to screen space using non-linear projection methods */
 class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionRenderer
 {
@@ -49,6 +61,14 @@ public:
 	/** Renders its list of primitive components to the specified canvas using the desired projection type. Can be called from the game thread */
 	void Render(FCanvas* Canvas, FSceneInterface* Scene, const FSceneViewInitOptions& ViewInitOptions, const FEngineShowFlags& EngineShowFlags, EDisplayClusterMeshProjectionType  ProjectionType);
 
+	/** Renders the normals and depth of the scene's primitives and performs blurring to create a continuous normal map */
+	void RenderNormals(FCanvas* Canvas,
+		FSceneInterface* Scene,
+		const FSceneViewInitOptions& ViewInitOptions,
+		const FEngineShowFlags& EngineShowFlags,
+		EDisplayClusterMeshProjectionType ProjectionType, 
+		FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter = nullptr);
+
 private:
 	/** Adds a pass to perform the base render for the mesh projection. */
 	void AddBaseRenderPass(FRDGBuilder& GraphBuilder, 
@@ -70,6 +90,22 @@ private:
 		EDisplayClusterMeshProjectionType ProjectionType,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
+
+	/** Adds a pass to perform a render of the primitives' normals for the mesh projection */
+	void AddNormalsRenderPass(FRDGBuilder& GraphBuilder,
+		const FViewInfo* View,
+		EDisplayClusterMeshProjectionType ProjectionType,
+		FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter,
+		FRenderTargetBinding& OutputRenderTargetBinding,
+		FDepthStencilBinding& OutputDepthStencilBinding);
+
+	/** Adds a pass to filter the output normal map for the mesh projection, dilating and blurring it
+	 * to obtain a continuous normal map from primitives into empty space */
+	void AddNormalsFilterPass(FRDGBuilder& GraphBuilder,
+		const FViewInfo* View,
+		FRenderTargetBinding& OutputRenderTargetBinding,
+		FRDGTexture* SceneColor,
+		FRDGTexture* SceneDepth);
 
 #if WITH_EDITOR
 	/** Adds a pass to perform the depth render for any selected primitives for the mesh projection */
@@ -100,6 +136,10 @@ private:
 	/** Renders the hit proxies of the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
 	void RenderHitProxies_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList);
+
+	/** Renders the normals of the list of primitive components using the appropriate mesh pass processor given by the template parameter */
+	template<EDisplayClusterMeshProjectionType ProjectionType>
+	void RenderNormals_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter);
 
 #if WITH_EDITOR
 	/** Renders the list of primitive components using the appropriate mesh pass processor given by the template parameter */

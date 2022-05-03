@@ -63,6 +63,28 @@ void PerspectiveVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 	Output.Position = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToClip);
 }
 
+/** Gets a scalar value that indicates how much the current pixel diverges from where it should be from the projected vertices */
+float GetProjectionDivergence(FMeshProjectionVSToPS Input)
+{
+	// Compute the "actual" azimuth of the pixel based on its screen space position
+	// This will be subtracted from the expected azimuth interpolated from the vertices of the primitive
+	// to determine the divergence magnitude
+	
+	float4 ScreenPos = SvPositionToResolvedScreenPosition(Input.Position);
+	float3 ViewPos = mul(ScreenPos, ResolvedView.ClipToView).xyz;
+	float3 UnitPos = normalize(ViewPos);
+	float ActualAzimuth = length(UnitPos.xy) / UnitPos.z;
+	
+	return abs(ActualAzimuth - Input.Azimuth);
+}
+
+/** Clips any pixel whose projection divergence exceeds the specified threshold */
+void ClipDivergentPixel(FMeshProjectionVSToPS Input, float DivergenceThreshold)
+{
+	float Divergence = GetProjectionDivergence(Input);
+	clip(DivergenceThreshold - Divergence);
+}
+
 void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputColor : SV_Target0)
 {
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Input.FactoryInterpolants, Input.Position);
@@ -73,9 +95,9 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 	
 	const float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
 	const float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-		
+	
 	OutputColor = float4(Emissive, Opacity);
-
+	
 	static const float Gamma = 2.2;
 	OutputColor.rgb = pow(OutputColor.rgb, Gamma);
 	
@@ -84,4 +106,22 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 	
 	const float AlphaBlendWeight = saturate((Input.Azimuth - AzimuthFeatherStart) / (AzimuthFeatherEnd - AzimuthFeatherStart));
 	OutputColor.a = lerp(OutputColor.a, 0, AlphaBlendWeight);
+}
+
+void NormalPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputColor : SV_Target0)
+{
+	ResolvedView = ResolveView();
+	
+	const float ClipThreshold = 0.25;
+	ClipDivergentPixel(Input, ClipThreshold);
+	
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Input.FactoryInterpolants, Input.Position);
+	FPixelMaterialInputs PixelMaterialInputs;
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, Input.Position, bIsFrontFace);
+
+	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
+
+	float3 Normal = TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
+	
+	OutputColor = float4(Normal * 0.5 + 0.5, 1.0f);
 }

@@ -48,6 +48,13 @@ using FMeshAzimuthalProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjecti
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshPerspectiveProjectionVS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("PerspectiveVS"), SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshAzimuthalProjectionVS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("AzimuthalVS"), SF_Vertex);
 
+enum EMeshProjectionShaderOutput
+{
+	Default,
+	Normals
+};
+
+template<EMeshProjectionShaderOutput OutputType>
 class FMeshProjectionPS : public FMeshMaterialShader
 {
 public:
@@ -68,7 +75,11 @@ public:
 	}
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FMeshProjectionPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("MainPS"), SF_Pixel);
+using FMeshProjectionDefaultPS = FMeshProjectionPS<EMeshProjectionShaderOutput::Default>;
+using FMeshProjectionNormalPS = FMeshProjectionPS<EMeshProjectionShaderOutput::Normals>;
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshProjectionDefaultPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("MainPS"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshProjectionNormalPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("NormalPS"), SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMeshProjectionPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -77,7 +88,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMeshProjectionPassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-template<EDisplayClusterMeshProjectionType ProjectionType> 
+template<EDisplayClusterMeshProjectionType ProjectionType, EMeshProjectionShaderOutput OutputType = EMeshProjectionShaderOutput::Default> 
 class FLightCardEditorMeshPassProcessor : public FMeshPassProcessor
 {
 public:
@@ -85,6 +96,7 @@ public:
 		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
 		, DrawRenderState(*InView)
 		, bTranslucencyPass(bIsTranslucencyPass)
+		, bIgnoreTranslucency(false)
 	{
 
 		if (bTranslucencyPass)
@@ -94,7 +106,7 @@ public:
 		}
 		else
 		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
 			DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA, CW_RGBA, CW_RGBA, CW_RGBA>::GetRHI());
 		}
 	}
@@ -112,11 +124,11 @@ public:
 
 		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
-		TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionPS> PassShaders;
+		TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionPS<OutputType>> PassShaders;
 
 		FMaterialShaderTypes ShaderTypes;
 		ShaderTypes.AddShaderType<FMeshProjectionVS<ProjectionType>>();
-		ShaderTypes.AddShaderType<FMeshProjectionPS>();
+		ShaderTypes.AddShaderType<FMeshProjectionPS<OutputType>>();
 
 		FMaterialShaders Shaders;
 		if (!Material.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
@@ -136,6 +148,8 @@ public:
 
 		FMeshDrawCommandSortKey SortKey = CreateMeshSortKey(MeshBatch, PrimitiveSceneProxy, Material, PassShaders.VertexShader.GetShader(), PassShaders.PixelShader.GetShader());
 
+		DrawRenderState.SetStencilRef(StencilValue);
+
 		BuildMeshDrawCommands(
 			MeshBatch,
 			BatchElementMask,
@@ -151,6 +165,16 @@ public:
 			ShaderElementData);
 	}
 
+	void SetStencilValue(uint32 InStencilValue)
+	{
+		StencilValue = InStencilValue;
+	}
+
+	void SetIgnoreTranslucency(bool bInIgnoreTranslucency)
+	{
+		bIgnoreTranslucency = bInIgnoreTranslucency;
+	}
+
 private:
 	bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FMaterial& Material)
 	{
@@ -162,7 +186,7 @@ private:
 		}
 		else
 		{
-			return !bIsTranslucent;
+			return bIgnoreTranslucency || !bIsTranslucent;
 		}
 	}
 
@@ -202,7 +226,9 @@ private:
 
 private:
 	FMeshPassProcessorRenderState DrawRenderState;
+	uint32 StencilValue;
 	bool bTranslucencyPass;
+	bool bIgnoreTranslucency;
 };
 
 
@@ -347,6 +373,124 @@ private:
 	FMeshPassProcessorRenderState DrawRenderState;
 };
 
+//////////////////////////////////////////////////////////////////////////
+// Normals Render Pass
+
+class FMeshProjectionNormalsCreateRWTexturesCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMeshProjectionNormalsCreateRWTexturesCS);
+	SHADER_USE_PARAMETER_STRUCT(FMeshProjectionNormalsCreateRWTexturesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SceneStencil)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWStencil)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsPCPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMeshProjectionNormalsCreateRWTexturesCS, "/Plugin/nDisplay/Private/MeshProjectionNormalSmoothing.usf", "CreateRWTexturesCS", SF_Compute);
+
+#define FILTER_KERNEL_SIZE 25
+
+enum EMeshProjectionFilterType
+{
+	DepthDilate,
+	Dilate,
+	Blur
+};
+
+BEGIN_SHADER_PARAMETER_STRUCT(FMeshProjectionNormalsFilterParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SceneStencil)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWColor)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWDepth)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWStencil)
+	SHADER_PARAMETER_SCALAR_ARRAY(float, SpatialKernel, [FILTER_KERNEL_SIZE])
+	SHADER_PARAMETER_SCALAR_ARRAY(float, InteriorSpatialKernel, [FILTER_KERNEL_SIZE])
+	SHADER_PARAMETER(FVector2f, SampleDirection)
+	SHADER_PARAMETER(FVector2f, SampleOffsetScale)
+END_SHADER_PARAMETER_STRUCT()
+
+template<EMeshProjectionFilterType FilterType>
+class FMeshProjectionNormalsFilterCS : public FGlobalShader
+{
+public:
+	using FParameters = FMeshProjectionNormalsFilterParameters;
+
+	DECLARE_GLOBAL_SHADER(FMeshProjectionNormalsFilterCS);
+
+	FMeshProjectionNormalsFilterCS() { }
+	FMeshProjectionNormalsFilterCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, true);
+	}
+
+	static inline const FShaderParametersMetadata* GetRootParametersMetadata() { return FParameters::FTypeInfo::GetStructMetadata(); }
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsPCPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+	}
+};
+
+using FMeshProjectionNormalsDepthDilationCS = FMeshProjectionNormalsFilterCS<EMeshProjectionFilterType::DepthDilate>;
+using FMeshProjectionNormalsDilationCS = FMeshProjectionNormalsFilterCS<EMeshProjectionFilterType::Dilate>;
+using FMeshProjectionNormalsBlurCS = FMeshProjectionNormalsFilterCS<EMeshProjectionFilterType::Blur>;
+
+IMPLEMENT_SHADER_TYPE(template<>, FMeshProjectionNormalsDepthDilationCS, TEXT("/Plugin/nDisplay/Private/MeshProjectionNormalSmoothing.usf"), TEXT("DepthDilationCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FMeshProjectionNormalsDilationCS, TEXT("/Plugin/nDisplay/Private/MeshProjectionNormalSmoothing.usf"), TEXT("DilationCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FMeshProjectionNormalsBlurCS, TEXT("/Plugin/nDisplay/Private/MeshProjectionNormalSmoothing.usf"), TEXT("BlurCS"), SF_Compute);
+
+class FMeshProjectionNormalsOutputPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMeshProjectionNormalsOutputPS);
+	SHADER_USE_PARAMETER_STRUCT(FMeshProjectionNormalsOutputPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWDepth)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsPCPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMeshProjectionNormalsOutputPS, "/Plugin/nDisplay/Private/MeshProjectionNormalSmoothing.usf", "OutputNormalMapPS", SF_Pixel);
 
 //////////////////////////////////////////////////////////////////////////
 // Selection Outline Render Pass
@@ -419,11 +563,11 @@ public:
 				
 				const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
-				TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionPS> PassShaders;
+				TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionDefaultPS> PassShaders;
 
 				FMaterialShaderTypes ShaderTypes;
 				ShaderTypes.AddShaderType<FMeshProjectionVS<ProjectionType>>();
-				ShaderTypes.AddShaderType<FMeshProjectionPS>();
+				ShaderTypes.AddShaderType<FMeshProjectionDefaultPS>();
 
 				FMaterialShaders Shaders;
 				if (!Material->TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
@@ -534,6 +678,19 @@ public:
 private:
 	FHitProxyConsumer* HitProxyConsumer;
 };
+
+bool FDisplayClusterMeshProjectionPrimitiveFilter::IsPrimitiveComponentFiltered(const UPrimitiveComponent* InPrimitiveComponent) const
+{
+	if (PrimitiveFilterDelegate.IsBound())
+	{
+		if (!PrimitiveFilterDelegate.Execute(InPrimitiveComponent))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 FVector FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(const FVector& ViewPosition, EDisplayClusterMeshProjectionType  ProjectionType)
 {
@@ -784,6 +941,66 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 		});
 }
 
+void FDisplayClusterMeshProjectionRenderer::RenderNormals(FCanvas* Canvas,
+	FSceneInterface* Scene,
+	const FSceneViewInitOptions& ViewInitOptions,
+	const FEngineShowFlags& EngineShowFlags,
+	EDisplayClusterMeshProjectionType  ProjectionType,
+	FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter)
+{
+	Canvas->Flush_GameThread();
+	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
+
+	ENQUEUE_RENDER_COMMAND(FDrawProjectedMeshes)(
+		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, ProjectionType, PrimitiveFilter, this](FRHICommandListImmediate& RHICmdList)
+		{
+			FMemMark Mark(FMemStack::Get());
+			FRDGBuilder GraphBuilder(RHICmdList);
+
+			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(
+				RenderTarget,
+				Scene,
+				EngineShowFlags)
+				.SetTime(FGameTime::GetTimeSinceAppStart())
+				.SetGammaCorrection(1.0f));
+
+			if (Scene)
+			{
+				Scene->IncrementFrameNumber();
+				ViewFamily.FrameNumber = Scene->GetFrameNumber();
+			}
+			else
+			{
+				ViewFamily.FrameNumber = GFrameNumber;
+			}
+
+			FScenePrimitiveRenderingContextScopeHelper ScenePrimitiveRenderingContextScopeHelper(GetRendererModule().BeginScenePrimitiveRendering(GraphBuilder, &ViewFamily));
+
+			FSceneViewInitOptions NewInitOptions(ViewInitOptions);
+			NewInitOptions.ViewFamily = &ViewFamily;
+
+			GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &NewInitOptions);
+			FViewInfo* View = (FViewInfo*)ViewFamily.Views[0];
+
+			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("ViewRenderTarget")));
+			FRenderTargetBinding OutputRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
+
+			const FRDGTextureDesc NormalsDesc(FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, OutputTexture->Desc.Format, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+			FRDGTextureRef NormalsTexture = GraphBuilder.CreateTexture(NormalsDesc, TEXT("DisplayClusterMeshProjection.NormalsTexture"));
+
+			const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+			FRDGTextureRef NormalsDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.NormalsDepthTexture"));
+
+			FRenderTargetBinding NormalsRenderTargetBinding(NormalsTexture, ERenderTargetLoadAction::EClear);
+			FDepthStencilBinding NormalsDepthStencilBinding(NormalsDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+			AddNormalsRenderPass(GraphBuilder, View, ProjectionType, PrimitiveFilter, NormalsRenderTargetBinding, NormalsDepthStencilBinding);
+			AddNormalsFilterPass(GraphBuilder, View, OutputRenderTargetBinding, NormalsTexture, NormalsDepthTexture);
+
+			GraphBuilder.Execute();
+		});
+}
+
 // Helper macros that generate appropriate switch cases for each projection type the mesh projection renderer supports, allowing new projection types to be easily added
 #define PROJECTION_TYPE_CASE(FuncName, ProjectionType, ...) case ProjectionType: \
 	FuncName<ProjectionType>(__VA_ARGS__); \
@@ -854,6 +1071,226 @@ void FDisplayClusterMeshProjectionRenderer::AddHitProxyRenderPass(FRDGBuilder& G
 
 		SWITCH_ON_PROJECTION_TYPE(RenderHitProxies_RenderThread, ProjectionType, View, RHICmdList);
 	});
+}
+
+void FDisplayClusterMeshProjectionRenderer::AddNormalsRenderPass(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	EDisplayClusterMeshProjectionType ProjectionType,
+	FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter,
+	FRenderTargetBinding& OutputRenderTargetBinding,
+	FDepthStencilBinding& OutputDepthStencilBinding)
+{
+	FMeshProjectionPassParameters* MeshPassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
+	MeshPassParameters->View = View->ViewUniformBuffer;
+	MeshPassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	MeshPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
+	MeshPassParameters->RenderTargets.DepthStencil = OutputDepthStencilBinding;
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::Normals"),
+		MeshPassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+		[View, ProjectionType, PrimitiveFilter, this](FRHICommandList& RHICmdList)
+		{
+			FIntRect ViewRect = View->UnscaledViewRect;
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+
+			SWITCH_ON_PROJECTION_TYPE(RenderNormals_RenderThread, ProjectionType, View, RHICmdList, PrimitiveFilter);
+		});
+}
+
+void GaussianSpatialFilter(float Sigma, TArray<float>& OutKernel)
+{
+	constexpr uint32 KernelSize = FILTER_KERNEL_SIZE;
+	constexpr uint32 KernelRadius = (KernelSize - 1) / 2;
+
+	OutKernel.Init(0.0, KernelSize);
+
+	const float InvSigma = 1.f / Sigma;
+
+	float Sum = 0.0f;
+	for (int Index = 0; Index < KernelSize; ++Index)
+	{
+		int32 X = Index - KernelRadius;
+
+		OutKernel[Index] = 0.39894 * FMath::Exp(-0.5f * (X * X) * InvSigma * InvSigma) * InvSigma;
+		Sum += OutKernel[Index];
+	}
+
+	// Normalize the kernel so that there is no change in intensity of the filtered elements
+	for (int Index = 0; Index < KernelSize; ++Index)
+	{
+		OutKernel[Index] /= Sum;
+	}
+}
+
+template<EMeshProjectionFilterType FilterType>
+void AddSeparableFilterPass(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	FRDGTexture* SceneDepth,
+	FRDGTextureUAV* RWColorUAV,
+	FRDGTextureUAV* RWDepthUAV,
+	FRDGTextureUAV* RWStencilUAV)
+{
+	TArray<float> SpatialKernel;
+	TArray<float> InteriorSpatialKernel;
+
+	GaussianSpatialFilter(100.0f, SpatialKernel);
+	GaussianSpatialFilter(1.0f, InteriorSpatialKernel);
+
+	const FScreenPassTextureViewport InputViewport(RWColorUAV->Desc.Texture);
+
+	FMeshProjectionNormalsFilterParameters* HorizontalPassParameters = GraphBuilder.AllocParameters<FMeshProjectionNormalsFilterParameters>();
+	HorizontalPassParameters->View = View->ViewUniformBuffer;
+	HorizontalPassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
+	HorizontalPassParameters->SceneStencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneDepth, PF_X24_G8));
+	HorizontalPassParameters->RWColor = RWColorUAV;
+	HorizontalPassParameters->RWDepth = RWDepthUAV;
+	HorizontalPassParameters->RWStencil = RWStencilUAV;
+	HorizontalPassParameters->SampleDirection = FVector2f(1.0f, 0.0f);
+	HorizontalPassParameters->SampleOffsetScale = FVector2f(1.f);
+
+	for (int Index = 0; Index < FILTER_KERNEL_SIZE; ++Index)
+	{
+		GET_SCALAR_ARRAY_ELEMENT(HorizontalPassParameters->SpatialKernel, Index) = SpatialKernel[Index];
+		GET_SCALAR_ARRAY_ELEMENT(HorizontalPassParameters->InteriorSpatialKernel, Index) = InteriorSpatialKernel[Index];
+	}
+
+	TShaderMapRef<FMeshProjectionNormalsFilterCS<FilterType>> ComputeShader(View->ShaderMap);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("MeshProjectionRenderer::NormalsFilterHorizontal"),
+		ComputeShader,
+		HorizontalPassParameters,
+		FComputeShaderUtils::GetGroupCount(InputViewport.Extent, FIntPoint(8, 8)));
+
+	FMeshProjectionNormalsFilterParameters* VerticalPassParameters = GraphBuilder.AllocParameters<FMeshProjectionNormalsFilterParameters>();
+	VerticalPassParameters->View = View->ViewUniformBuffer;
+	VerticalPassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
+	VerticalPassParameters->SceneStencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneDepth, PF_X24_G8));
+	VerticalPassParameters->RWColor = RWColorUAV;
+	VerticalPassParameters->RWDepth = RWDepthUAV;
+	VerticalPassParameters->RWStencil = RWStencilUAV;
+	VerticalPassParameters->SampleDirection = FVector2f(0.0f, 1.0f);
+	VerticalPassParameters->SampleOffsetScale = FVector2f(1.f);
+
+	for (int Index = 0; Index < FILTER_KERNEL_SIZE; ++Index)
+	{
+		GET_SCALAR_ARRAY_ELEMENT(VerticalPassParameters->SpatialKernel, Index) = SpatialKernel[Index];
+		GET_SCALAR_ARRAY_ELEMENT(VerticalPassParameters->InteriorSpatialKernel, Index) = InteriorSpatialKernel[Index];
+	}
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("MeshProjectionRenderer::NormalsFilterVertical"),
+		ComputeShader,
+		VerticalPassParameters,
+		FComputeShaderUtils::GetGroupCount(InputViewport.Extent, FIntPoint(8, 8)));
+}
+
+void FDisplayClusterMeshProjectionRenderer::AddNormalsFilterPass(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	FRenderTargetBinding& OutputRenderTargetBinding,
+	FRDGTexture* SceneColor,
+	FRDGTexture* SceneDepth)
+{
+	// The normal map filter pass is made up of several separate passes:
+	// * First, the scene color, depth, and stencil textures must be copied into UAV read-write textures for the compute shaders to operate on. This pass also
+	//   converts the normal vectors from world space to radial space, so that the filtering operates on the relative normals instead of the absolute normals
+	// * Second, the depth and normals are dilated so they bleed into empty space. There is a separate interior depth dilate pass which dilates closer overlapping
+	//   screen depths into further away screens, so that when blurred, there is a continuous depth change between overlapping screens
+	// * Third, the normals and depths are blurred using a Gaussian blur. There are two separate gaussian spatial filters used, one used for blurring empty space regions
+	//   and one used for blurring the screens. The empty space filter has a large sigma, allowing a large blur, while the interior filter has a smaller sigma, so that
+	//   the blurring doesn't cause too much feature loss
+	// * Finally, the RW textures are rendered back to a render target. Here, the normals are placed into the RGB components, while the depth is placed in the A component
+
+	const FRDGTextureDesc RWColorDesc(FRDGTextureDesc::Create2D(SceneColor->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureRef RWColor = GraphBuilder.CreateTexture(RWColorDesc, TEXT("DisplayClusterMeshProjection.NormalsRWTexture"));
+	FRDGTextureUAVRef RWColorUAV = GraphBuilder.CreateUAV(RWColor);
+
+	const FRDGTextureDesc RWDepthDesc = FRDGTextureDesc::Create2D(SceneDepth->Desc.Extent, PF_G16, FClearValueBinding::White, TexCreate_UAV | TexCreate_ShaderResource);
+	FRDGTextureRef RWDepth = GraphBuilder.CreateTexture(RWDepthDesc, TEXT("DisplayClusterMeshProjection.RWDepth"));
+	FRDGTextureUAVRef RWDepthUAV = GraphBuilder.CreateUAV(RWDepth);
+
+	const FRDGTextureDesc RWStencilDesc = FRDGTextureDesc::Create2D(SceneDepth->Desc.Extent, PF_R32_UINT, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
+	FRDGTextureRef RWStencil = GraphBuilder.CreateTexture(RWStencilDesc, TEXT("DisplayClusterMeshProjection.RWStencil"));
+	FRDGTextureUAVRef RWStencilUAV = GraphBuilder.CreateUAV(RWStencil);
+
+	// Copy the scene color and depth to RW buffers
+	{
+		FMeshProjectionNormalsCreateRWTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMeshProjectionNormalsCreateRWTexturesCS::FParameters>();
+		PassParameters->View = View->ViewUniformBuffer;
+		PassParameters->SceneColor = SceneColor;
+		PassParameters->SceneDepth = SceneDepth;
+		PassParameters->SceneStencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneDepth, PF_X24_G8));
+		PassParameters->RWColor = RWColorUAV;
+		PassParameters->RWDepth = RWDepthUAV;
+		PassParameters->RWStencil = RWStencilUAV;
+
+		TShaderMapRef<FMeshProjectionNormalsCreateRWTexturesCS> ComputeShader(View->ShaderMap);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("MeshProjectionRenderer::CreateRWTextures"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(SceneColor->Desc.Extent, FIntPoint(8, 8)));
+	}
+
+	static constexpr int32 DepthDilatePasses = 1;
+	static constexpr int32 DilatePasses = 8;
+	static constexpr int32 BlurPasses = 32;
+
+	// Filter the RW buffers, dilating and blurring them appropriately
+	for (int32 Index = 0; Index < DepthDilatePasses; Index++)
+	{
+		AddSeparableFilterPass<EMeshProjectionFilterType::DepthDilate>(GraphBuilder, View, SceneDepth, RWColorUAV, RWDepthUAV, RWStencilUAV);
+	}
+
+	for (int32 Index = 0; Index < DilatePasses; ++Index)
+	{
+		AddSeparableFilterPass<EMeshProjectionFilterType::Dilate>(GraphBuilder, View, SceneDepth, RWColorUAV, RWDepthUAV, RWStencilUAV);
+	}
+
+	for (int32 Index = 0; Index < BlurPasses; Index++)
+	{
+		AddSeparableFilterPass<EMeshProjectionFilterType::Blur>(GraphBuilder, View, SceneDepth, RWColorUAV, RWDepthUAV, RWStencilUAV);
+	}
+
+	// Copy the RW buffers to the output render target
+	{
+		const FScreenPassTextureViewport InputViewport(RWColor);
+		const FScreenPassTextureViewport OutputViewport(OutputRenderTargetBinding.GetTexture());
+
+		FMeshProjectionNormalsOutputPS::FParameters* ScreenPassParameters = GraphBuilder.AllocParameters<FMeshProjectionNormalsOutputPS::FParameters>();
+		ScreenPassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
+		ScreenPassParameters->RWColor = RWColorUAV;
+		ScreenPassParameters->RWDepth = RWDepthUAV;
+		ScreenPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
+
+		TShaderMapRef<FScreenPassVS> ScreenPassVS(View->ShaderMap);
+		TShaderMapRef<FMeshProjectionNormalsOutputPS> OutputNormalsPS(View->ShaderMap);
+
+		FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("MeshProjectionRenderer::OutputNormals"),
+			ScreenPassParameters,
+			ERDGPassFlags::Raster,
+			[View, ScreenPassVS, OutputNormalsPS, InputViewport, OutputViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
+		{
+			DrawScreenPass(
+				RHICmdList,
+				*View,
+				InputViewport,
+				OutputViewport,
+				FScreenPassPipelineState(ScreenPassVS, OutputNormalsPS, DefaultBlendState),
+				[&](FRHICommandList&)
+			{
+				SetShaderParameters(RHICmdList, OutputNormalsPS, OutputNormalsPS.GetPixelShader(), *ScreenPassParameters);
+			});
+		});
+	}
 }
 
 #if WITH_EDITOR
@@ -1016,6 +1453,42 @@ void FDisplayClusterMeshProjectionRenderer::RenderHitProxies_RenderThread(const 
 	});
 }
 
+template<EDisplayClusterMeshProjectionType ProjectionType>
+void FDisplayClusterMeshProjectionRenderer::RenderNormals_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter)
+{
+	DrawDynamicMeshPass(*View, RHICmdList, [View, PrimitiveFilter, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	{
+		TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
+		for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
+		{
+			if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy)
+			{
+				if (PrimitiveFilter && PrimitiveFilter->IsPrimitiveComponentFiltered(PrimitiveComponent.Get()))
+				{
+					continue;
+				}
+
+				PrimitiveSceneProxies.Add(PrimitiveComponent->SceneProxy);
+			}
+		}
+
+		FLightCardEditorMeshPassProcessor<ProjectionType, EMeshProjectionShaderOutput::Normals> MeshProcessor(nullptr, View, DynamicMeshPassContext);
+		MeshProcessor.SetStencilValue(1);
+		MeshProcessor.SetIgnoreTranslucency(true);
+
+		for (FPrimitiveSceneProxy* PrimitiveProxy : PrimitiveSceneProxies)
+		{
+			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
+			{
+				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
+				const uint64 BatchElementMask = ~0ull;
+				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+			}
+		}
+	});
+}
+
 #if WITH_EDITOR
 template<EDisplayClusterMeshProjectionType ProjectionType>
 void FDisplayClusterMeshProjectionRenderer::RenderSelection_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList)
@@ -1065,6 +1538,7 @@ bool FDisplayClusterMeshProjectionRenderer::IsPrimitiveComponentSelected(const U
 
 CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderPrimitives_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass)
 CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderHitProxies_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList)
+CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderNormals_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter)
 
 #if WITH_EDITOR
 CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderSelection_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList)
