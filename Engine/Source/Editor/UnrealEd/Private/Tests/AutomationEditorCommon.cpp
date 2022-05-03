@@ -533,6 +533,8 @@ FString FAutomationEditorCommonUtils::ConvertPackagePathToAssetPath(const FStrin
 	const FString Filename = FPaths::ConvertRelativePathToFull(PackagePath);
 	FString EngineFileName = Filename;
 	FString GameFileName = Filename;
+	FString ProjectPluginFileName = Filename;
+	FString EnginePluginFileName = Filename;
 	if (FPaths::MakePathRelativeTo(EngineFileName, *FPaths::EngineContentDir()) && !EngineFileName.Contains(TEXT("../")))
 	{
 		const FString ShortName = FPaths::GetBaseFilename(EngineFileName);
@@ -545,6 +547,22 @@ FString FAutomationEditorCommonUtils::ConvertPackagePathToAssetPath(const FStrin
 		const FString ShortName = FPaths::GetBaseFilename(GameFileName);
 		const FString PathName = FPaths::GetPath(GameFileName);
 		const FString AssetName = FString::Printf(TEXT("/Game/%s/%s.%s"), *PathName, *ShortName, *ShortName);
+		return AssetName;
+	}
+	else if (FPaths::MakePathRelativeTo(ProjectPluginFileName, *FPaths::ProjectPluginsDir()) && !ProjectPluginFileName.Contains(TEXT("../")))
+	{
+		const FString ShortName = FPaths::GetBaseFilename(ProjectPluginFileName);
+		const FString FullPathName = FPaths::GetPath(ProjectPluginFileName);
+		const FString CleanedPathName = FullPathName.Replace(TEXT("Content/"), TEXT(""));
+		const FString AssetName = FString::Printf(TEXT("/%s/%s.%s"), *CleanedPathName, *ShortName, *ShortName);
+		return AssetName;
+	}
+	else if (FPaths::MakePathRelativeTo(EnginePluginFileName, *FPaths::EnginePluginsDir()) && !EnginePluginFileName.Contains(TEXT("../")))
+	{
+		const FString ShortName = FPaths::GetBaseFilename(EnginePluginFileName);
+		const FString FullPathName = FPaths::GetPath(EnginePluginFileName);
+		const FString CleanedPathName = FullPathName.Replace(TEXT("Content/"), TEXT(""));
+		const FString AssetName = FString::Printf(TEXT("/%s/%s.%s"), *CleanedPathName, *ShortName, *ShortName);
 		return AssetName;
 	}
 	else
