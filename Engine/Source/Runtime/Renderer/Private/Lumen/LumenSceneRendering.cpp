@@ -988,6 +988,8 @@ void AddCardCaptureDraws(const FScene* Scene,
 					}
 
 					LODToRender = NextLODToRender >= 0 ? NextLODToRender : PrevLODToRender;
+					const int32 CurFirstLODIdx = (int32)PrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
+					LODToRender = FMath::Max(LODToRender, CurFirstLODIdx);
 				}
 
 				FMeshDrawCommandPrimitiveIdInfo IdInfo(PrimitiveSceneInfo->GetIndex(), PrimitiveSceneInfo->GetInstanceSceneDataOffset());
