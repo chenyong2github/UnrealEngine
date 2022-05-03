@@ -54,13 +54,11 @@ namespace Chaos
 		@param BToATM The transform of B in A's local space
 		@param ThicknessA The amount of geometry inflation for Geometry A(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
 		@param InitialDir The first direction we use to search the CSO
-		@param ThicknessB The amount of geometry inflation for Geometry B(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
 		@return True if the geometries overlap, False otherwise 
 	 */
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKIntersection(const TGeometryA& RESTRICT A, const TGeometryB& RESTRICT B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0)
+	bool GJKIntersection(const TGeometryA& RESTRICT A, const TGeometryB& RESTRICT B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0))
 	{
-
 		const UE::Math::TQuat<T>& RotationDouble = BToATM.GetRotation();
 		VectorRegister4Float RotationSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
 
@@ -71,10 +69,18 @@ namespace Chaos
 
 		const VectorRegister4Float InitialDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InitialDir[0], InitialDir[1], InitialDir[2], 0.0));
 		
-		VectorRegister4Float VSimd = VectorNegate(InitialDirSimd);
-		VSimd = VectorNormalizeSafe(VSimd, MakeVectorRegisterFloatConstant(-1.f, 0.f, 0.f, 0.f));
+		return GJKIntersectionSimd(A, B, TranslationSimd, RotationSimd, InThicknessA, InitialDirSimd);
+	}
 
-		const VectorRegister4Float AToBRotationSimd = VectorQuaternionInverse(RotationSimd);
+
+	template <typename TGeometryA, typename TGeometryB>
+	bool GJKIntersectionSimd(const TGeometryA& RESTRICT A, const TGeometryB& RESTRICT B, const VectorRegister4Float& Translation, const VectorRegister4Float& Rotation, FReal InThicknessA, const VectorRegister4Float& InitialDir)
+	{
+
+		VectorRegister4Float V = VectorNegate(InitialDir);
+		V = VectorNormalizeSafe(V, MakeVectorRegisterFloatConstant(-1.f, 0.f, 0.f, 0.f));
+
+		const VectorRegister4Float AToBRotation = VectorQuaternionInverse(Rotation);
 		bool bTerminate;
 		bool bNearZero = false;
 		int NumIterations = 0;
@@ -84,15 +90,14 @@ namespace Chaos
 		VectorRegister4Float BarycentricSimd;
 		VectorRegister4Int NumVerts = GlobalVectorConstants::IntZero;
 
-		T ThicknessA;
-		T ThicknessB;
+		FReal ThicknessA;
+		FReal ThicknessB;
 		CalculateQueryMargins(A, B, ThicknessA, ThicknessB);
 		ThicknessA += InThicknessA;
-		ThicknessB += InThicknessB;
 
-
-		const T Inflation = ThicknessA + ThicknessB + static_cast<T>(1e-3);
-		const VectorRegister4Float InflationSimd = MakeVectorRegisterFloat((float)Inflation, (float)Inflation, (float)Inflation, (float)Inflation);
+		const FReal InflationReal = ThicknessA + ThicknessB + static_cast<FReal>(1e-3);
+		const VectorRegister4Float Inflation = VectorSet1(static_cast<FRealSingle>(InflationReal));
+		const VectorRegister4Float Inflation2 = VectorMultiply(Inflation, Inflation);
 
 		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 		do
@@ -101,14 +106,14 @@ namespace Chaos
 			{
 				break;	//if taking too long just stop. This should never happen
 			}
-			const VectorRegister4Float NegVSimd = VectorNegate(VSimd);
+			const VectorRegister4Float NegVSimd = VectorNegate(V);
 			const VectorRegister4Float SupportASimd = A.SupportCoreSimd(NegVSimd, ThicknessA);
-			const VectorRegister4Float VInBSimd = VectorQuaternionRotateVector(AToBRotationSimd, VSimd);
+			const VectorRegister4Float VInBSimd = VectorQuaternionRotateVector(AToBRotation, V);
 			const VectorRegister4Float SupportBLocalSimd = B.SupportCoreSimd(VInBSimd, ThicknessB);
-			const VectorRegister4Float SupportBSimd = VectorAdd(VectorQuaternionRotateVector(RotationSimd, SupportBLocalSimd), TranslationSimd);
+			const VectorRegister4Float SupportBSimd = VectorAdd(VectorQuaternionRotateVector(Rotation, SupportBLocalSimd), Translation);
 			const VectorRegister4Float WSimd = VectorSubtract(SupportASimd, SupportBSimd);
 
-			if (VectorMaskBits(VectorCompareGT(VectorDot3(VSimd, WSimd), InflationSimd)))
+			if (VectorMaskBits(VectorCompareGT(VectorDot3(V, WSimd), Inflation)))
 			{
 				return false;
 			}
@@ -123,10 +128,10 @@ namespace Chaos
 
 			NumVerts = VectorIntAdd(NumVerts, GlobalVectorConstants::IntOne);
 
-			VSimd = VectorSimplexFindClosestToOrigin<false>(SimplexSimd, NumVerts, BarycentricSimd, nullptr, nullptr);
+			V = VectorSimplexFindClosestToOrigin<false>(SimplexSimd, NumVerts, BarycentricSimd, nullptr, nullptr);
 
-			const VectorRegister4Float NewDist2Simd = VectorDot3(VSimd, VSimd);///
-			bNearZero = VectorMaskBits(VectorCompareLT(NewDist2Simd, VectorMultiply(InflationSimd, InflationSimd))) != 0;
+			const VectorRegister4Float NewDist2Simd = VectorDot3(V, V);///
+			bNearZero = VectorMaskBits(VectorCompareLT(NewDist2Simd, Inflation2)) != 0;
 
 			//as simplices become degenerate we will stop making progress. This is a side-effect of precision, in that case take V as the current best approximation
 			//question: should we take previous v in case it's better?
@@ -136,7 +141,7 @@ namespace Chaos
 
 			if (!bTerminate)
 			{
-				VSimd = VectorDivide(VSimd,VectorSqrt(NewDist2Simd));
+				V = VectorDivide(V, VectorSqrt(NewDist2Simd));
 			}
 
 		} while (!bTerminate);
