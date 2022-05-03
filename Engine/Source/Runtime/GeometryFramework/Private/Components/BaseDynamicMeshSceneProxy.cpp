@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "Components/BaseDynamicMeshSceneProxy.h"
+#include "Materials/Material.h"
+#include "RayTracingDefinitions.h"
+#include "RayTracingInstance.h"
 
 FBaseDynamicMeshSceneProxy::FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component)
 	: FPrimitiveSceneProxy(Component),
