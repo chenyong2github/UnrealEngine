@@ -35,7 +35,10 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2r2");
+	if (IsHairStrandContinuousDecimationReorderingEnabled())
+		return TEXT("3r0");
+	else
+		return TEXT("2r2");
 }
 
 namespace FHairStrandsDecimation
@@ -44,6 +47,7 @@ namespace FHairStrandsDecimation
 		const FHairStrandsDatas& InData,
 		float CurveDecimationPercentage,
 		float VertexDecimationPercentage,
+		bool bContinuousDecimationReordering,
 		FHairStrandsDatas& OutData);
 }
 
@@ -1750,6 +1754,7 @@ void FGroomBuilder::BuildData(
 	const float CurveDecimation		= FMath::Clamp(InSettings.DecimationSettings.CurveDecimation, 0.f, 1.f);
 	const float VertexDecimation	= FMath::Clamp(InSettings.DecimationSettings.VertexDecimation, 0.f, 1.f);
 	const float HairToGuideDensity	= FMath::Clamp(InSettings.InterpolationSettings.HairToGuideDensity, 0.f, 1.f);	
+	const bool bContinuousDecimationReordering = IsHairStrandContinuousDecimationReorderingEnabled(); //this is a read only project setting which will modify the platform data that is stored in the DDC
 
 	{
 		OutGroupInfo.GroupID = InHairDescriptionGroup.Info.GroupID;
@@ -1763,11 +1768,11 @@ void FGroomBuilder::BuildData(
 			HairStrandsBuilder::BuildInternalData(OutRen, !InHairDescriptionGroup.bHasUVData);
 
 			// Decimate
-			if (CurveDecimation < 1 || VertexDecimation < 1)
+			if (CurveDecimation < 1 || VertexDecimation < 1 || bContinuousDecimationReordering)
 			{
 				FHairStrandsDatas FullData = OutRen;
 				OutRen.Reset();
-				FHairStrandsDecimation::Decimate(FullData, CurveDecimation, VertexDecimation, OutRen);
+				FHairStrandsDecimation::Decimate(FullData, CurveDecimation, VertexDecimation, bContinuousDecimationReordering, OutRen);
 			}
 			OutGroupInfo.NumCurves			= OutRen.GetNumCurves();
 			OutGroupInfo.NumCurveVertices	= OutRen.GetNumPoints();
@@ -1789,7 +1794,7 @@ void FGroomBuilder::BuildData(
 			else
 			{
 				OutSim.Reset();
-				FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, OutSim);
+				FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, false, OutSim);
 			}
 
 			OutGroupInfo.NumGuides			= OutSim.GetNumCurves();
@@ -1924,6 +1929,7 @@ void Decimate(
 	const FHairStrandsDatas& InData, 
 	float CurveDecimationPercentage, 
 	float VertexDecimationPercentage, 
+	bool bContinuousDecimationReordering,
 	FHairStrandsDatas& OutData)
 {
 	CurveDecimationPercentage = FMath::Clamp(CurveDecimationPercentage, 0.f, 1.f);
@@ -1941,6 +1947,23 @@ void Decimate(
 	uint32 OutTotalPointCount = 0;
 	FRandomStream Random;
 
+	TArray<uint32> CurveRandomizedIndex;
+
+	// this is the proof of concept version - which just does a shuffle - TODO: improved voxel based version which caters for both long hair and short hair
+	if (bContinuousDecimationReordering)
+	{
+		CurveRandomizedIndex.SetNum(InCurveCount);
+
+		Random.Initialize(0xdeedbeed);
+
+		//shuffle
+		for (uint32 CurveIndex = 0; CurveIndex < InCurveCount; CurveIndex++)
+		{
+			uint32 RandIndex = Random.RandRange(0, InCurveCount - 1);
+			CurveRandomizedIndex.Swap(CurveIndex, RandIndex);
+		}
+	}
+
 	const float CurveBucketSize = float(InCurveCount) / float(OutCurveCount);
 	int32 LastCurveIndex = -1;
 	for (uint32 BucketIndex = 0; BucketIndex < OutCurveCount; BucketIndex++)
@@ -1953,8 +1976,10 @@ void Decimate(
 			const uint32 CurveIndex = Random.RandRange(MinBucket, FMath::FloorToInt(MinBucket + AdjustedBucketSize)-1);
 			CurveIndices[BucketIndex] = CurveIndex;
 			LastCurveIndex = CurveIndex;
+			
+			const uint32 EffectiveCurveIndex = bContinuousDecimationReordering ? CurveRandomizedIndex[CurveIndex] : CurveIndex;
 
-			const uint32 InPointCount = InData.StrandsCurves.CurvesCount[CurveIndex];
+			const uint32 InPointCount = InData.StrandsCurves.CurvesCount[EffectiveCurveIndex];
 			const uint32 OutPointCount = DecimatePointCount(InPointCount, VertexDecimationPercentage);
 			OutTotalPointCount += OutPointCount;
 		}
@@ -1968,8 +1993,10 @@ void Decimate(
 	for (uint32 OutCurveIndex = 0; OutCurveIndex < OutCurveCount; ++OutCurveIndex)
 	{
 		const uint32 InCurveIndex	= CurveIndices[OutCurveIndex];
-		const uint32 InPointOffset	= InData.StrandsCurves.CurvesOffset[InCurveIndex];
-		const uint32 InPointCount	= InData.StrandsCurves.CurvesCount[InCurveIndex];
+		const uint32 EffectiveCurveIndex = bContinuousDecimationReordering ? CurveRandomizedIndex[InCurveIndex] : InCurveIndex;
+
+		const uint32 InPointOffset	= InData.StrandsCurves.CurvesOffset[EffectiveCurveIndex];
+		const uint32 InPointCount	= InData.StrandsCurves.CurvesCount[EffectiveCurveIndex];
 
 		// Decimation using area metric
 	#if 1
@@ -2029,13 +2056,13 @@ void Decimate(
 	#endif
 
 		OutData.StrandsCurves.CurvesCount[OutCurveIndex]  = OutPointCount;
-		OutData.StrandsCurves.CurvesRootUV[OutCurveIndex] = InData.StrandsCurves.CurvesRootUV[InCurveIndex];
+		OutData.StrandsCurves.CurvesRootUV[OutCurveIndex] = InData.StrandsCurves.CurvesRootUV[EffectiveCurveIndex];
 		OutData.StrandsCurves.CurvesOffset[OutCurveIndex] = OutPointOffset;
-		OutData.StrandsCurves.CurvesLength[OutCurveIndex] = InData.StrandsCurves.CurvesLength[InCurveIndex];
+		OutData.StrandsCurves.CurvesLength[OutCurveIndex] = InData.StrandsCurves.CurvesLength[EffectiveCurveIndex];
 		if (bHasPrecomputedWeights)
 		{
-			OutData.StrandsCurves.CurvesClosestGuideIDs[OutCurveIndex] = InData.StrandsCurves.CurvesClosestGuideIDs[InCurveIndex];
-			OutData.StrandsCurves.CurvesClosestGuideWeights[OutCurveIndex] = InData.StrandsCurves.CurvesClosestGuideWeights[InCurveIndex];
+			OutData.StrandsCurves.CurvesClosestGuideIDs[OutCurveIndex] = InData.StrandsCurves.CurvesClosestGuideIDs[EffectiveCurveIndex];
+			OutData.StrandsCurves.CurvesClosestGuideWeights[OutCurveIndex] = InData.StrandsCurves.CurvesClosestGuideWeights[EffectiveCurveIndex];
 		}
 		OutData.StrandsCurves.MaxLength = InData.StrandsCurves.MaxLength;
 		OutData.StrandsCurves.MaxRadius = InData.StrandsCurves.MaxRadius;

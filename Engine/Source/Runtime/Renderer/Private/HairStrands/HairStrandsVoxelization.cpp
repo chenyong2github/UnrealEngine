@@ -1247,6 +1247,9 @@ class FVoxelRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VoxelizationViewInfoBuffer)
 		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutPageTexture)
+		SHADER_PARAMETER(uint32, VertexCount)
+		SHADER_PARAMETER(uint32, VertexStart)
+		SHADER_PARAMETER(float, SampleWeight)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1259,6 +1262,11 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FVoxelRasterComputeCS, "/Engine/Private/HairStrands/HairStrandsVoxelRasterCompute.usf", "MainCS", SF_Compute);
+
+uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, uint32 InVertexCount);
+uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount);
+float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize);
+bool IsHairStrandContinuousDecimationReorderingEnabled();
 
 static void AddVirtualVoxelizationComputeRasterPass(
 	FRDGBuilder& GraphBuilder,
@@ -1274,6 +1282,8 @@ static void AddVirtualVoxelizationComputeRasterPass(
 
 	if (ViewInfo)
 	{
+		const uint32 TemporalAASampleIndex = ViewInfo->ViewState ? ViewInfo->ViewState->GetCurrentTemporalAASampleIndex() : 0;
+
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
 
 		FRDGBufferSRVRef VoxelizationViewInfoBufferSRV = GraphBuilder.CreateSRV(VoxelResources.VoxelizationViewInfoBuffer);
@@ -1305,6 +1315,10 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
+				const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(TemporalAASampleIndex, VFInput.Strands.VertexCount);
+				const uint32 VertexCount = GetHairVisibilityComputeRasterVertexCount(HairGroupPublicData->DebugScreenSize, VFInput.Strands.VertexCount);
+				const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(HairGroupPublicData->DebugScreenSize);
+
 				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
 				LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
 
@@ -1327,7 +1341,13 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->HairStrandsVF_Density = VFInput.Strands.HairDensity;
 				PassParameters->HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
 				PassParameters->HairStrandsVF_bHasRaytracedGeometry = VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
-				const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
+
+				PassParameters->VertexCount = VertexCount;
+				PassParameters->VertexStart = VertexStart;
+				PassParameters->SampleWeight = SampleWeight;
+			
+				const bool bCullingEnable = !IsHairStrandContinuousDecimationReorderingEnabled() && HairGroupPublicData->GetCullingResultAvailable();
+
 				PassParameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
 
 				if (bCullingEnable)
@@ -1342,7 +1362,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				}
 				else
 				{
-					const FIntVector DispatchCount = ComputeDispatchCount(PassParameters->HairStrandsVF_VertexCount, GroupSize);
+					const FIntVector DispatchCount = ComputeDispatchCount(PassParameters->VertexCount, GroupSize);
 					PassParameters->DispatchCountX = DispatchCount.X;
 					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelComputeRaster(culling=off)"), ComputeShader_CullingOff, PassParameters, DispatchCount);
 				}

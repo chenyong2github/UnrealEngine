@@ -41,6 +41,10 @@ StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxelParams_NodeDescBuffer;
 
 RWTexture3D<uint> OutPageTexture;
 
+uint			VertexCount;
+uint			VertexStart;
+float SampleWeight;
+
 ///////////////////////////////////////////////////////////////////////////
 // Define
 
@@ -72,11 +76,10 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 #if PERMUTATION_CULLING == 1
 	uint VertexIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadID, GROUP_SIZE);
 #else
-	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadID, GROUP_SIZE, DispatchCountX);
+	uint VertexIndex0 = VertexStart + GetHairStrandsVertexFetchIndex(DispatchThreadID, GROUP_SIZE, DispatchCountX);
 #endif
-
-	uint VertexIndex1 = min(VertexIndex0 + 1, HairStrandsVF_VertexCount - 1);
-	if (VertexIndex0 >= HairStrandsVF_VertexCount)
+	uint VertexIndex1 = min(VertexIndex0 + 1, VertexStart + VertexCount - 1);
+	if (VertexIndex0 >= VertexStart + VertexCount)
 		return;
 
 	float LodRadiusScale0 = 1;
@@ -209,7 +212,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 				const float VoxelFixPointScale = GetVoxelDensityFixPointScale();
 				
 				const float HairCoverage = lerp(HairCoverage0, HairCoverage1, U);
-				uint RawData = HairCoverage * VoxelFixPointScale * HairStrandsVF_Density;
+				uint RawData = HairCoverage * VoxelFixPointScale * HairStrandsVF_Density * SampleWeight;
 				InterlockedAdd(OutPageTexture[VoxelPageCoord], RawData);
 
 				// Groom having raytraced geometry will cast-shadow on opaque geomtry with their RT-geometry, not with their 

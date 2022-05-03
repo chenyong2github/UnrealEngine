@@ -415,6 +415,12 @@ RENDERER_API bool IsHairStrandsSimulationEnable();
 // Return true if hair binding is enabled (i.e., hair can be attached to skeletal mesh)
 RENDERER_API bool IsHairStrandsBindingEnable();
 
+// Return true if strand reordering for compute raster continuous LOD is enabled
+RENDERER_API bool IsHairStrandContinuousDecimationReorderingEnabled();
+
+// Return true if continuous LOD is enabled - implies computer raster and continuous decimation reordering is true
+RENDERER_API bool IsHairVisibilityComputeRasterContinuousLODEnabled();
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TArray<FRHIUnorderedAccessView*> FBufferTransitionQueue;

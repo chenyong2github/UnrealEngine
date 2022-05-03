@@ -40,7 +40,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		{
 			const uint Coverage = InputUintTexture.Load(uint3(PixelCoord, 0));
 			fHair = Coverage >= IntCoverageThreshold;
-			pHair = Coverage > 0 && Coverage < IntCoverageThreshold;
+			pHair = Coverage > 0;//&& Coverage < IntCoverageThreshold; //this is now consistent with non-int branch below
 		}
 		else
 		{

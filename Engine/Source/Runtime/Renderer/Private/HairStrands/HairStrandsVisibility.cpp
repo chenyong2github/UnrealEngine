@@ -17,6 +17,7 @@
 #include "ScenePrivate.h"
 #include "SceneTextureReductions.h"
 #include "PixelShaderUtils.h"
+#include "SceneManagement.h"
 
 DECLARE_GPU_STAT(HairStrandsVisibility);
 
@@ -53,23 +54,17 @@ static FAutoConsoleVariableRef CVarGHairVisibilityPPLL_MeanSamplePerPixel(TEXT("
 static float GHairStrandsViewHairCountDepthDistanceThreshold = 30.f;
 static FAutoConsoleVariableRef CVarHairStrandsViewHairCountDepthDistanceThreshold(TEXT("r.HairStrands.Visibility.HairCount.DistanceThreshold"), GHairStrandsViewHairCountDepthDistanceThreshold, TEXT("Distance threshold defining if opaque depth get injected into the 'view-hair-count' buffer."));
 
-int32 GHairVisibilityComputeRaster = 0;
 int32 GHairVisibilityComputeRaster_Culling = 0;
-int32 GHairVisibilityComputeRaster_CLOD = 0;
 int32 GHairVisibilityComputeRaster_MaxTiles = 8192;
 int32 GHairVisibilityComputeRaster_TileSize = 32;
 int32 GHairVisibilityComputeRaster_NumBinners = 32;
 int32 GHairVisibilityComputeRaster_NumRasterizers = 256;
-int32 GHairVisibilityComputeRaster_TemporalLayering = 0;
 
-static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRaster(TEXT("r.HairStrands.Visibility.ComputeRaster"), GHairVisibilityComputeRaster, TEXT("Hair Visiblity uses raster compute. Experimental"), ECVF_Scalability | ECVF_RenderThreadSafe);
 static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_Culling(TEXT("r.HairStrands.Visibility.ComputeRaster.Culling"), GHairVisibilityComputeRaster_Culling, TEXT("Use culling buffers with compute rasterization."));
-static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_CLOD(TEXT("r.HairStrands.Visibility.ComputeRaster.CLOD"), GHairVisibilityComputeRaster_CLOD, TEXT("Enable Continuous LOD when using compute rasterization. Experimental - needs further improvement"));
-static FAutoConsoleVariableRef CHairVisibilityComputeRaster_MaxTiles(TEXT("r.HairStrands.Visibility.ComputeRaster.MaxTiles"), GHairVisibilityComputeRaster_MaxTiles, TEXT("Maximum number of tiles used for compute rasterization. 8192 is default"));
-static FAutoConsoleVariableRef CHairVisibilityComputeRaster_TileSize(TEXT("r.HairStrands.Visibility.ComputeRaster.TileSize"), GHairVisibilityComputeRaster_TileSize, TEXT("Tile size used for compute rasterization. Experimental - only size of 32 currently supported"));
-static FAutoConsoleVariableRef CHairVisibilityComputeRaster_NumBinners(TEXT("r.HairStrands.Visibility.ComputeRaster.NumBinners"), GHairVisibilityComputeRaster_NumBinners, TEXT("Number of Binners used in Binning compute rasterization pass. 32 is default"));
-static FAutoConsoleVariableRef CHairVisibilityComputeRaster_NumRasterizers(TEXT("r.HairStrands.Visibility.ComputeRaster.NumRasterizers"), GHairVisibilityComputeRaster_NumRasterizers, TEXT("Number of Rasterizers used compute rasterization. 256 is default"));
-static FAutoConsoleVariableRef CHairVisibilityComputeRaster_TemporalLayering(TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering"), GHairVisibilityComputeRaster_TemporalLayering, TEXT("Enable Experimental WIP Temporal Layering (requires TAA changes to work well)"));
+static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_MaxTiles(TEXT("r.HairStrands.Visibility.ComputeRaster.MaxTiles"), GHairVisibilityComputeRaster_MaxTiles, TEXT("Maximum number of tiles used for compute rasterization. 8192 is default"));
+static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_TileSize(TEXT("r.HairStrands.Visibility.ComputeRaster.TileSize"), GHairVisibilityComputeRaster_TileSize, TEXT("Tile size used for compute rasterization. Experimental - only size of 32 currently supported"));
+static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_NumBinners(TEXT("r.HairStrands.Visibility.ComputeRaster.NumBinners"), GHairVisibilityComputeRaster_NumBinners, TEXT("Number of Binners used in Binning compute rasterization pass. 32 is default"));
+static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_NumRasterizers(TEXT("r.HairStrands.Visibility.ComputeRaster.NumRasterizers"), GHairVisibilityComputeRaster_NumRasterizers, TEXT("Number of Rasterizers used compute rasterization. 256 is default"));
 
 static float GHairStrandsFullCoverageThreshold = 0.98f;
 static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
@@ -138,13 +133,15 @@ inline bool DoesSupportRasterCompute()
 	return true; //GRHISupportsAtomicUInt64; //TODO: re-enable support for 64 bit visibility buffers
 }
 
+bool IsHairVisibilityComputeRasterEnabled();
+
 inline EHairVisibilityRenderMode GetHairVisibilityRenderMode()
 {
 	if (GHairVisibilityPPLL > 0)
 	{
 		return HairVisibilityRenderMode_PPLL;
 	}
-	else if (GHairVisibilityComputeRaster > 0 && DoesSupportRasterCompute())
+	else if (IsHairVisibilityComputeRasterEnabled() && DoesSupportRasterCompute())
 	{
 		return HairVisibilityRenderMode_ComputeRaster;
 	}
@@ -289,9 +286,11 @@ float GetHairStrandsFullCoverageThreshold()
 	return FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
 }
 
+bool IsHairVisibilityComputeRasterTemporalLayeringEnabled();
+
 uint32 GetHairStrandsIntCoverageThreshold()
 {
-	return ((GHairVisibilityComputeRaster) ? ((GHairVisibilityComputeRaster_TemporalLayering) ? 16000u : 4000u) : 1000u);
+	return (IsHairVisibilityComputeRasterEnabled() ? ((IsHairVisibilityComputeRasterTemporalLayeringEnabled()) ? 1000u : 1000u) : 1000u);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2895,8 +2894,7 @@ class FVisiblityRasterComputeBinningCS : public FGlobalShader
 
 	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FCulling : SHADER_PERMUTATION_BOOL("PERMUTATION_CULLING");
-	class FTemporalLayering : SHADER_PERMUTATION_BOOL("PERMUTATION_TEMPORAL_LAYERING");
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling, FTemporalLayering>;
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MacroGroupId)
@@ -2930,8 +2928,8 @@ class FVisiblityRasterComputeBinningCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutVisTileData)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RDG_TEXTURE_ACCESS(VisTileBinningGridTex, ERHIAccess::UAVCompute)
-		SHADER_PARAMETER(float, TileLODScale)
-		SHADER_PARAMETER(float, TileBaseDepth)
+		SHADER_PARAMETER(uint32, VertexCount)
+		SHADER_PARAMETER(uint32, VertexStart)
 		SHADER_PARAMETER(FIntPoint, TileRes)
 		SHADER_PARAMETER(uint32, TileSize)
 		SHADER_PARAMETER(float, RcpTileSize)
@@ -2957,8 +2955,7 @@ class FVisiblityRasterComputeRasterizeCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeRasterizeCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
-	class FTemporalLayering : SHADER_PERMUTATION_BOOL("PERMUTATION_TEMPORAL_LAYERING");
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FTemporalLayering>;
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MacroGroupId)
@@ -2985,7 +2982,7 @@ class FVisiblityRasterComputeRasterizeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingRadiusScaleBuffer)
 		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-		SHADER_PARAMETER(float, TileLODScale)
+		SHADER_PARAMETER(float, SampleWeight)
 		SHADER_PARAMETER(uint32, TileSize)
 		SHADER_PARAMETER(float, RcpTileSize)
 		SHADER_PARAMETER(uint32, SqrTileSize)
@@ -3013,6 +3010,11 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeRasterizeCS, "/Engine/Private/HairStrands/HairStrandsVisibilityRasterCompute.usf", "RasterCS", SF_Compute);
+
+uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, uint32 InVertexCount);
+uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount);
+float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize);
+bool IsHairStrandContinuousDecimationReorderingEnabled();
 
 static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	FRDGBuilder& GraphBuilder,
@@ -3099,26 +3101,22 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	SetUpViewHairRenderInfo(ViewInfo, bEnableMSAA, ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo, ViewInfo.CachedViewUniformShaderParameters->HairRenderInfoBits, ViewInfo.CachedViewUniformShaderParameters->HairComponents);
 	ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
-	const uint32 FrameIdMode8 = ViewInfo.ViewState ? (ViewInfo.ViewState->GetFrameIndex() % 8) : 0;
 	const uint32 GroupSize = GetVendorOptimalGroupSize1D();
-
-	const bool bTemporalLayering = GHairVisibilityComputeRaster_TemporalLayering ? true : false;
+	
+	const uint32 TemporalAASampleIndex = ViewInfo.ViewState ? ViewInfo.ViewState->GetCurrentTemporalAASampleIndex() : 0;
 
 	FVisiblityRasterComputeBinningCS::FPermutationDomain BinningPermutationVector_CullingOff;
 	BinningPermutationVector_CullingOff.Set<FVisiblityRasterComputeBinningCS::FGroupSize>(GroupSize);
 	BinningPermutationVector_CullingOff.Set<FVisiblityRasterComputeBinningCS::FCulling>(false);
-	BinningPermutationVector_CullingOff.Set<FVisiblityRasterComputeBinningCS::FTemporalLayering>(bTemporalLayering);
 	TShaderMapRef<FVisiblityRasterComputeBinningCS> ComputeShaderBinning_CullingOff(ViewInfo.ShaderMap, BinningPermutationVector_CullingOff);
 
 	FVisiblityRasterComputeBinningCS::FPermutationDomain BinningPermutationVector_CullingOn;
 	BinningPermutationVector_CullingOn.Set<FVisiblityRasterComputeBinningCS::FGroupSize>(GroupSize);
 	BinningPermutationVector_CullingOn.Set<FVisiblityRasterComputeBinningCS::FCulling>(true);
-	BinningPermutationVector_CullingOn.Set<FVisiblityRasterComputeBinningCS::FTemporalLayering>(bTemporalLayering);
 	TShaderMapRef<FVisiblityRasterComputeBinningCS> ComputeShaderBinning_CullingOn(ViewInfo.ShaderMap, BinningPermutationVector_CullingOn);
 
 	FVisiblityRasterComputeRasterizeCS::FPermutationDomain RasterPermutationVector;
 	RasterPermutationVector.Set<FVisiblityRasterComputeRasterizeCS::FGroupSize>(GroupSize);
-	RasterPermutationVector.Set<FVisiblityRasterComputeRasterizeCS::FTemporalLayering>(bTemporalLayering);
 	TShaderMapRef<FVisiblityRasterComputeRasterizeCS> ComputeShaderRaster(ViewInfo.ShaderMap, RasterPermutationVector);
 
 	TShaderMapRef<FVisiblityRasterComputePrepareDepthGridCS> ComputeShaderPrepareDepthGrid(ViewInfo.ShaderMap);	
@@ -3138,6 +3136,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	{
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
 
+		const FSphere MacroBoundsSphere = MacroGroup.Bounds.GetSphere();
+
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
 		{
 			check(PrimitiveInfo.Mesh && PrimitiveInfo.Mesh->Elements.Num() > 0);
@@ -3147,8 +3147,13 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 			const FMatrix44d LocalToWorldPrimitiveTransform = VFInput.LocalToWorldTransform.ToMatrixWithScale(); 
 
-			const FVector4f ScreenPosition = FVector4f(ViewInfo.ViewMatrices.GetViewProjectionMatrix().TransformPosition(LocalToWorldPrimitiveTransform.GetOrigin() + FVector4d(0, 0, 165, 0))); //hardcoded - TODO find a way to get correct offset to origin
 			const bool bCullingEnable = GHairVisibilityComputeRaster_Culling ? HairGroupPublicData->GetCullingResultAvailable() : false;
+			
+			const float ScreenSize = ComputeBoundsScreenSize(FVector4(MacroBoundsSphere.Center, 1), MacroBoundsSphere.W, ViewInfo);
+
+			const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(TemporalAASampleIndex, VFInput.Strands.VertexCount);
+			const uint32 VertexCount = GetHairVisibilityComputeRasterVertexCount(ScreenSize, VFInput.Strands.VertexCount);
+			const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(ScreenSize);
 
 			//reset buffers
 			uint32 IndexGridClearValues[4] = { 0x0,0x0,0x0,0x0 };
@@ -3180,8 +3185,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			BinningParameters->HairStrandsVF_Density = VFInput.Strands.HairDensity;
 			BinningParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = FMatrix44f(LocalToWorldPrimitiveTransform); // LWC_TODO: Precision loss
 
-			BinningParameters->TileBaseDepth = ScreenPosition.Z / ScreenPosition.W;
-			BinningParameters->TileLODScale = GHairVisibilityComputeRaster_CLOD ? 1.0 / ScreenPosition.W : 1.0;
+			BinningParameters->VertexCount = VertexCount;
+			BinningParameters->VertexStart = VertexStart;
 			BinningParameters->TileRes = TileGridRes;
 			BinningParameters->VisTileBinningGridTex = OutVisTileBinningGrid;
 			BinningParameters->TileSize = TileSize;
@@ -3209,7 +3214,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			RasterParameters->ResolutionMultiplier = Out.ResolutionMultiplier;
 			RasterParameters->MacroGroupId = MacroGroup.MacroGroupId;
 			RasterParameters->MaxRasterCount = TileSize; //TODO: implement tile clipping in raster pass to exisiting avoid edge case
-			RasterParameters->FrameIdMod8 = FrameIdMode8;
 			RasterParameters->HairMaterialId = PrimitiveInfo.MaterialId;
 			RasterParameters->ViewUniformBuffer = ViewUniformShaderParameters;
 			RasterParameters->SceneDepthTexture = SceneDepthTexture;
@@ -3235,7 +3239,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			RasterParameters->VisTileIndirect = GraphBuilder.CreateSRV(OutVisTileIndirect);
 			RasterParameters->IndirectBufferArgs = OutVisTileIndirect;
 			RasterParameters->TileRes = TileGridRes;
-			RasterParameters->TileLODScale = GHairVisibilityComputeRaster_CLOD ? 1.0 / ScreenPosition.W : 1.0;
+			RasterParameters->SampleWeight = SampleWeight;
 			RasterParameters->TileSize = TileSize;
 			RasterParameters->RcpTileSize = 1.0 / TileSize;
 			RasterParameters->SqrTileSize = TileSize * TileSize;
@@ -3622,7 +3626,7 @@ bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 	{
 		FHairGroupPublicData* HairGroupPublicData = GetHairData(Batch.Mesh);
 		check(HairGroupPublicData);
-		const int32 LODIndex = FMath::FloorToInt(HairGroupPublicData->LODIndex);
+		const int32 LODIndex = HairGroupPublicData->GetIntLODIndex();
 		const bool bHasSimulationOrSkinning = 
 			HairGroupPublicData->GetGeometryType(LODIndex) == EHairGeometryType::Strands &&
 			(HairGroupPublicData->IsSimulationEnable(LODIndex) || HairGroupPublicData->GetBindingType(LODIndex) == EHairBindingType::Skinning);
@@ -3709,9 +3713,10 @@ void RenderHairStrandsVisibilityBuffer(
 			check(SceneDepthTexture);
 			const FIntPoint Resolution = SceneDepthTexture->Desc.Extent;
 
-			const bool bRunColorAndDepthPatching = SceneGBufferBTexture && SceneColorTexture;
 			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();
 			check(RenderMode == HairVisibilityRenderMode_MSAA_Visibility || RenderMode == HairVisibilityRenderMode_PPLL || RenderMode == HairVisibilityRenderMode_ComputeRaster);
+
+			const bool bRunColorAndDepthPatching = SceneGBufferBTexture && SceneColorTexture && RenderMode != HairVisibilityRenderMode_ComputeRaster;
 
 			FRDGTextureRef HairOnlyDepthTexture = GraphBuilder.CreateTexture(SceneDepthTexture->Desc, TEXT("Hair.HairOnlyDepthTexture"));
 			FRDGTextureRef CoverageTexture = nullptr;

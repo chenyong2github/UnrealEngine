@@ -64,6 +64,36 @@ static TAutoConsoleVariable<int32> CVarHairStrandsNonVisibleShadowCasting(
 	TEXT("Enable shadow casting for hair strands even when culled out from the primary view"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarHairStrandsContinuousDecimationReordering(
+	TEXT("r.HairStrands.ContinuousDecimationReordering"), 0,
+	TEXT("Enable strand reordering to allow Continuous LOD. Experimental"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster(
+	TEXT("r.HairStrands.Visibility.ComputeRaster"), 0,
+	TEXT("Hair Visiblity uses raster compute. Experimental"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_ContinuousLOD(
+	TEXT("r.HairStrands.Visibility.ComputeRaster.ContinuousLOD"), 1,
+	TEXT("Enable Continuos LOD when using compute rasterization. Experimental"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering(
+	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering"), 0,
+	TEXT("Enable Experimental WIP Temporal Layering (requires TAA changes to work well)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering_LayerCount(
+	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering.LayerCount"), 8,
+	TEXT("Enable Temporal Layering Override Index  8)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex(
+	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering.OverrideIndex"), -1,
+	TEXT("Enable Temporal Layering Override Index (default: -1 = no override)"),
+	ECVF_RenderThreadSafe);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair strands instance ref. counting for debug purpose only
 uint32 FHairStrandsInstance::GetRefCount() const
@@ -422,6 +452,91 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 	}
 	return bIsVisibleInShadow;
 }
+
+bool IsHairStrandContinuousDecimationReorderingEnabled()
+{
+	return CVarHairStrandsContinuousDecimationReordering.GetValueOnAnyThread() > 0;
+}
+
+bool IsHairVisibilityComputeRasterEnabled()
+{
+	return CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() > 0;
+}
+
+bool IsHairVisibilityComputeRasterContinuousLODEnabled()
+{
+	return IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterEnabled() && (CVarHairStrandsVisibilityComputeRaster_ContinuousLOD.GetValueOnAnyThread() > 0);
+}
+
+float GetHairVisibilityComputeRasterContinuousLODScale(float ScreenSize)
+{
+	return FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 8.0f, 1.0f), 2.0f);
+}
+
+bool IsHairVisibilityComputeRasterTemporalLayeringEnabled()
+{
+	return IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterEnabled() && (CVarHairStrandsVisibilityComputeRaster_TemporalLayering.GetValueOnAnyThread() > 0);
+}
+
+int32 GetHairVisibilityComputeRasterTemporalLayerCount()
+{
+	const uint32 LayerCount = FMath::Clamp(CVarHairStrandsVisibilityComputeRaster_TemporalLayering_LayerCount.GetValueOnAnyThread(), 1, 32);
+	return LayerCount;
+}
+
+uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, uint32 InVertexCount)
+{
+	uint32 VertexStart = 0;
+
+	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
+	{
+		const uint32 LayerCount = GetHairVisibilityComputeRasterTemporalLayerCount();
+		const uint32 OverrideIndex = CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex.GetValueOnAnyThread();
+
+		const uint32 VertexCount = InVertexCount / LayerCount;
+
+		VertexStart = (((OverrideIndex >= 0) ? OverrideIndex : TemporalAASampleIndex) % LayerCount) * VertexCount;
+	}
+
+	return VertexStart;
+}
+
+uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount)
+{
+	uint32 VertexCount = InVertexCount;
+
+	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
+	{
+		VertexCount /= GetHairVisibilityComputeRasterTemporalLayerCount();
+	}
+
+	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
+	{
+		VertexCount *= GetHairVisibilityComputeRasterContinuousLODScale(ScreenSize);
+	}
+
+	return VertexCount;
+}
+
+float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize)
+{
+	float SampleWeight = 1.0;
+
+	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
+	{
+		// sample weight should increase if layer count increases
+		SampleWeight *= GetHairVisibilityComputeRasterTemporalLayerCount();
+	}
+
+	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
+	{
+		//sample weight should increase if decimation scale is lower
+		SampleWeight /= GetHairVisibilityComputeRasterContinuousLODScale(ScreenSize);
+	}
+
+	return SampleWeight;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Bookmark API

@@ -81,9 +81,12 @@ Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
 
 Texture2D<float> SceneDepthTexture;
-float			TileLODScale;
+
 int2			TileRes;
-float			TileBaseDepth;
+
+uint 			VertexCount;
+uint 			VertexStart;
+float			SampleWeight;
 
 float3 NDCToPixelCoord(float4 InDC)
 {
@@ -123,7 +126,7 @@ void CalcScreenPosAndRad(in uint4 PB, in float3 PBO, out float4 SP, out float Ra
 
 	SP = float4(NDCToPixelCoord(NDC).xy, NDC.zw);
 
-	Rad = CP.WorldRadius * OutputResolutionf.x;
+	Rad = CP.WorldRadius*2000.0; // OutputResolutionf.x; //TODO: figure this out correctly?
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -217,14 +220,19 @@ void BinningCS(uint2 DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID 
 	ResolvedView = ResolveView();
 	if (GroupThreadID == 0)
 	{
-		uint VertexCount = HairStrandsVF_VertexCount;
 #if PERMUTATION_CULLING	
 		if (HairStrandsVF_bIsCullingEnable)
 		{
-			VertexCount = HairStrandsVF_CullingIndirectBuffer[3];
+			group_BatchNum = (HairStrandsVF_CullingIndirectBuffer[3] + 1023) / 1024;
 		}
+		else
+		{
+			group_BatchNum = (VertexCount + 1023) / 1024;
+		}
+#else
+		group_BatchNum = (VertexCount + 1023) / 1024;
 #endif
-		group_BatchNum = (VertexCount+1023)/1024;
+		
 		group_LoopNum = (group_BatchNum + (NumBinners - 1)) * RcpNumBinners;
 	}
 
@@ -243,9 +251,19 @@ void BinningCS(uint2 DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID 
 
 		uint SegIndex[3] = { 0xffffffff, 0xffffffff, 0xffffffff };
 
-		uint PrimID = BatchIndex * 1024 + GroupThreadID;
 
 #if PERMUTATION_CULLING
+		uint PrimID = BatchIndex * 1024 + GroupThreadID;
+		if (HairStrandsVF_bIsCullingEnable)
+		{
+			group_BatchNum = (HairStrandsVF_CullingIndirectBuffer[3] + 1023) / 1024;
+			if (bSegValid) bSegValid = (PrimID < (HairStrandsVF_CullingIndirectBuffer[3])) ? true : false;
+		}
+		else
+		{
+			if (bSegValid) bSegValid = (PrimID < (VertexCount)) ? true : false;
+		}
+
 		if (bSegValid && HairStrandsVF_bIsCullingEnable)
 		{
 			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
@@ -274,20 +292,15 @@ void BinningCS(uint2 DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID 
 				}
 			}
 		}
+#else
+		uint PrimID = BatchIndex * 1024 + GroupThreadID + VertexStart;
+		if (bSegValid) bSegValid = (PrimID < (VertexStart + VertexCount)) ? true : false;
 #endif
 
 		uint BinID = GroupID - (uint(float(GroupID + 0.5) * RcpNumBinners)* NumBinners);
 		uint BinID2 = BinID + NumBinners;
 
-#if PERMUTATION_TEMPORAL_LAYERING
-		//remap linear frame index to improve TAA result (still a bit exprimental)
-		uint remapped = (View.StateFrameIndex) & 0x3;
-		remapped = ((remapped & 0x1) << 1) | ((remapped & 0x2) >> 1);
 
-		if (bSegValid) bSegValid = ((PrimID < HairStrandsVF_VertexCount) && ((PrimID & 0x3) == (remapped))) ? true : false;
-#else
-		if (bSegValid) bSegValid = (PrimID < HairStrandsVF_VertexCount) ? true : false;
-#endif
 		if (bSegValid) //currently hardcoded to a maximum of 3 tile bins - this only works corectly when segment length does not exceed TileSize - TODO: add support for N bins
 		{
 			float3 SP0;
@@ -454,11 +467,8 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 	{
 		group_TileNum = VisTileArgs[0];
 		group_LoopNum = (float(group_TileNum) + float(NumRasterizers - 1))* RcpNumRasterizers;
-//		group_LoopNum = (float(1024) + float(NumRasterizers - 1)) * RcpNumRasterizers;
 
 		group_PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
-
-		group_ooTileLODScale = 1.0;// max(min(1.0 / (TileLODScale * 25.0), 16.0), 1.0);
 
 		/* no longer in use - keep for ref? Moving these values to group shared memory did seem to reduce VGPRs - more experimentation needed
 		group_RadScale = (((HairStrandsVF_TipScale - HairStrandsVF_RootScale) * HairStrandsVF_Radius * OutputResolutionf.x) / 63.0) / 255.0;
@@ -610,11 +620,7 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 					{
 						const float Rad = lerp(Rad0, Rad1, J / float(NumSteps)) / SP.w;
 
-#if PERMUTATION_TEMPORAL_LAYERING
-						InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 1.0) * 1.0 * 8000.0 * group_ooTileLODScale);
-#else
-						InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 1.0) * 1.0 * 1000.0 * group_ooTileLODScale);
-#endif
+						InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 0.5) * 2.0 * 1000.0 * SampleWeight);
 					}
 				}					
 			}
