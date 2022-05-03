@@ -271,7 +271,7 @@ struct FNiagaraDataInterfaceProxy
 
 //////////////////////////////////////////////////////////////////////////
 
-struct FNiagaraDataInterfaceSetShaderParametersContext
+struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 {
 	friend class FNiagaraGpuComputeDispatch;
 
