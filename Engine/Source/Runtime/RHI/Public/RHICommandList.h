@@ -3613,6 +3613,7 @@ public:
 	using FRHIComputeCommandList::TransitionResource;
 	using FRHIComputeCommandList::TransitionResources;
 
+	UE_DEPRECATED(5.1, "TransitionResource has been deprecated. Use Transition instead.")
 	FORCEINLINE_DEBUGGABLE void TransitionResource(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
 	{
 		check(DepthStencilMode.IsUsingDepth() || DepthStencilMode.IsUsingStencil());
