@@ -154,6 +154,33 @@ groupshared uint SharedTileUsed[THREADGROUP_SIZE * THREADGROUP_SIZE];
 groupshared uint SharedTileData[THREADGROUP_SIZE * THREADGROUP_SIZE];
 groupshared uint SharedGlobalTileOffset;
 
+bool IsTileValid(inout uint2 TileCoordinate)
+{
+	bool bIsValid = all(TileCoordinate < TileViewportDimensions);
+#if STRATA_ENABLED
+	if (bOverflow)
+	{
+		TileCoordinate += Strata.OverflowTileOffset;
+		bIsValid = IsTileNCoordValid(TileCoordinate);
+	}
+#endif
+	return bIsValid;
+}
+
+FLumenMaterialCoord GetLumenMaterialCoordForReflections(uint2 ScreenCoord, inout bool bIsOverflow)
+{
+	uint2 SvPositionForMaterialCoord = ScreenCoord + View.ViewRectMinAndSize.xy;
+	bIsOverflow = false;
+#if STRATA_ENABLED
+	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
+	if (bIsOverflow)
+	{
+		SvPositionForMaterialCoord = ScreenCoord;
+	}
+#endif
+	return GetLumenMaterialCoord(SvPositionForMaterialCoord, bIsOverflow);
+}
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)] 
 void ReflectionTileClassificationBuildListsCS(
 	uint2 GroupId : SV_GroupID,
@@ -201,15 +228,7 @@ void ReflectionTileClassificationBuildListsCS(
 			// The tile locality ultimately affects trace coherency, since trace compaction pulls from neighboring tiles
 			uint2 ThreadOffset = ZOrder2D(x, log2(THREADGROUP_SIZE));
 			uint2 TileCoordinate = GroupId * THREADGROUP_SIZE + ThreadOffset;
-			bool bIsValid = all(TileCoordinate < TileViewportDimensions);
-
-			#if STRATA_ENABLED
-			if (bOverflow)
-			{
-				TileCoordinate += Strata.OverflowTileOffset;
-				bIsValid = IsTileNCoordValid(TileCoordinate);
-			}
-			#endif
+			bool bIsValid = IsTileValid(TileCoordinate);
 
 			if (bIsValid)
 			{
@@ -426,20 +445,10 @@ void ReflectionResolveCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	// SvPositionForMaterialCoord is the SvPosition for primary sample, but is PixelCoord for overflow sample
 	uint2 ScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
+
 	bool bIsOverflow = false;
-	uint2 SvPositionForMaterialCoord = ScreenCoord + View.ViewRectMinAndSize.xy;
-
-#if STRATA_ENABLED
-	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
-	if (bIsOverflow)
-	{
-		SvPositionForMaterialCoord = ScreenCoord;
-	}
-#endif
-
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(SvPositionForMaterialCoord, bIsOverflow);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForReflections(ScreenCoord, bIsOverflow);
 
 	const float2 ScreenUV = (Coord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
 	
@@ -876,20 +885,10 @@ void ReflectionTemporalReprojectionCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	// SvPositionForMaterialCoord is the SvPosition for primary sample, but is PixelCoord for overflow sample
 	uint2 ReflectionScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
-	uint2 SvPositionForMaterialCoord = ReflectionScreenCoord + View.ViewRectMinAndSize.xy;
 
 	bool bIsOverflow = false;
-#if STRATA_ENABLED
-	bIsOverflow = all((ReflectionScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
-	if (bIsOverflow)
-	{
-		SvPositionForMaterialCoord = ReflectionScreenCoord;
-	}
-#endif
-
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(SvPositionForMaterialCoord, bIsOverflow);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForReflections(ReflectionScreenCoord, bIsOverflow);
 
 	float2 ScreenUV = (Coord.SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
@@ -1053,19 +1052,10 @@ void ReflectionBilateralFilterCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	// SvPositionForMaterialCoord is the SvPosition for primary sample, but is PixelCoord for overflow sample
 	uint2 ScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
-	uint2 SvPositionForMaterialCoord = ScreenCoord + View.ViewRectMinAndSize.xy;
 
 	bool bIsOverflow = false;
-#if STRATA_ENABLED
-	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
-	if (bIsOverflow)
-	{
-		SvPositionForMaterialCoord = ScreenCoord;
-	}
-#endif
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(SvPositionForMaterialCoord, bIsOverflow);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForReflections(ScreenCoord, bIsOverflow);
 
 	float2 ScreenUV = (Coord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
 	float SceneDepth = CalcSceneDepth(ScreenUV);
@@ -1149,19 +1139,11 @@ void ReflectionPassthroughCopyCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	// SvPositionForMaterialCoord is the SvPosition for primary sample, but is PixelCoord for overflow sample
 	uint2 ReflectionScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
-	uint2 SvPositionForMaterialCoord = ReflectionScreenCoord + View.ViewRectMinAndSize.xy;
 
 	bool bIsOverflow = false;
-#if STRATA_ENABLED
-	bIsOverflow = all((ReflectionScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
-	if (bIsOverflow)
-	{
-		SvPositionForMaterialCoord = ReflectionScreenCoord;
-	}
-#endif
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(SvPositionForMaterialCoord, bIsOverflow);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForReflections(ReflectionScreenCoord, bIsOverflow);
+
 	float4 NewSpecularAndDepth = ResolvedReflections.Load(uint3(ReflectionScreenCoord, 0));
 
 	RWSpecularIndirect[Coord.SvPositionFlatten] = float4(NewSpecularAndDepth.xyz, 0);
