@@ -110,6 +110,19 @@ struct FIntVector
 #endif
 };
 
+#ifndef EXPLICIT_INTVECTOR4
+#define EXPLICIT_INTVECTOR4 0
+#endif
+
+struct FIntVector4
+{
+#if EXPLICIT_INTVECTOR4 == 0
+	int V[4];
+#else
+	int<4> V;
+#endif
+};
+
 // Define types
 typedef FVector2 FVector2d;
 typedef FVector FVector3d;
@@ -346,6 +359,37 @@ inline void VectorStore(uniform FIntVector *uniform DstPtr, const varying FIntVe
 		DstPtr[programIndex] = V;
 	}
 }
+
+inline varying FIntVector4 VectorLoad(const uniform FIntVector4 *uniform SrcPtr)
+{
+	varying FIntVector4 Result;
+
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		aos_to_soa4_ispc((uniform int32 * uniform)SrcPtr, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		Result = SrcPtr[programIndex];
+	}
+
+	return Result;
+}
+
+inline void VectorStore(uniform FIntVector4 *uniform DstPtr, const varying FIntVector4 &V)
+{
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform int32 *uniform)DstPtr);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		DstPtr[programIndex] = V;
+	}
+}
+
 
 inline varying FVector2 VectorLoad(const uniform FVector2 *uniform SrcPtr)
 {

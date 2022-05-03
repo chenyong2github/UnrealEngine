@@ -220,7 +220,6 @@ protected:
 	FSolverReal BucklingRatio;
 	FPBDStiffness BucklingStiffness;
 
-private:
 	TArray<FSolverReal> RestAngles;
 };
 

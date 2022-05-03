@@ -4,7 +4,6 @@
 #include "Chaos/PBDSpringConstraintsBase.h"
 #include "ChaosStats.h"
 
-DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Spring Constraint"), STAT_XPBD_Spring, STATGROUP_Chaos);
 
 namespace Chaos::Softs
 {
@@ -13,7 +12,7 @@ namespace Chaos::Softs
 static const FSolverReal XPBDSpringMinStiffness = (FSolverReal)1e-1; // Min stiffness: 1e3 N/M^2 = 1e-1 N/CM^2. Empirically defined to have similar look to XPBDSpringConstraints.
 static const FSolverReal XPBDSpringMaxStiffness = (FSolverReal)1e7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2
 
-class FXPBDSpringConstraints final : public FPBDSpringConstraintsBase
+class CHAOS_API FXPBDSpringConstraints final : public FPBDSpringConstraintsBase
 {
 	typedef FPBDSpringConstraintsBase Base;
 	using Base::Constraints;
@@ -34,6 +33,7 @@ public:
 		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
+		InitColor(Particles);
 	}
 
 	virtual ~FXPBDSpringConstraints() override {}
@@ -43,45 +43,12 @@ public:
 	// Update stiffness table, as well as the simulation stiffness exponent
 	inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDSpringMinStiffness, XPBDSpringMaxStiffness); }
 
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
-	{
-		const TVec2<int32>& Constraint = Constraints[ConstraintIndex];
-		const int32 i1 = Constraint[0];
-		const int32 i2 = Constraint[1];
-		const FSolverVec3 Delta = GetDelta(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
-		if (Particles.InvM(i1) > (FSolverReal)0.)
-		{
-			Particles.P(i1) -= Particles.InvM(i1) * Delta;
-		}
-		if (Particles.InvM(i2) > (FSolverReal)0.)
-		{
-			Particles.P(i2) += Particles.InvM(i2) * Delta;
-		}
-	}
-
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const
-	{
-		SCOPE_CYCLE_COUNTER(STAT_XPBD_Spring);
-
-		if (!Stiffness.HasWeightMap())
-		{
-			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
-			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
-			{
-				Apply(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
-			}
-		}
-		else
-		{
-			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
-			{
-				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
-				Apply(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
-			}
-		}
-	}
+	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
+	void InitColor(const FSolverParticles& InParticles);
+	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
+
 	FSolverVec3 GetDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 	{
 		const TVec2<int32>& Constraint = Constraints[ConstraintIndex];
@@ -113,6 +80,16 @@ private:
 
 private:
 	mutable TArray<FSolverReal> Lambdas;
+	TArray<int32> ConstraintsPerColorStartIndex; // Constraints are ordered so each batch is contiguous. This is ColorNum + 1 length so it can be used as start and end.
 };
 
 }  // End namespace Chaos::Softs
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_XPBDSpring_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_XPBDSpring_ISPC_Enabled = true;
+#else
+extern CHAOS_API bool bChaos_XPBDSpring_ISPC_Enabled;
+#endif

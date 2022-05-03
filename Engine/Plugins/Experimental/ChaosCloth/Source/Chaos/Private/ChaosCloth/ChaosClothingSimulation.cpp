@@ -32,6 +32,7 @@
 #include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/PBDBendingConstraints.h"
+#include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
@@ -148,6 +149,8 @@ namespace ClothingSimulationConsole
 					bChaos_PreSimulationTransforms_ISPC_Enabled =
 					bChaos_CalculateBounds_ISPC_Enabled =
 					bChaos_PostIterationUpdates_ISPC_Enabled =
+					bChaos_Bending_ISPC_Enabled =
+					bChaos_XPBDSpring_ISPC_Enabled =
 					bEnableISPC;
 				return;
 			}
