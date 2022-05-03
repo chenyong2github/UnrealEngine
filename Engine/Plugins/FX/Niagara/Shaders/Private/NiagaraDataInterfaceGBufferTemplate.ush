@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
 #define NDIGBUFFER_HAS_GBUFFER				(FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
@@ -10,10 +8,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2D NDIGBuffer_VelocityTexture;
-SamplerState NDIGBuffer_VelocityTextureSampler;
+Texture2D {ParameterName}_VelocityTexture;
+SamplerState {ParameterName}_VelocityTextureSampler;
 
-float2 DIGBuffer_ApplyViewportOffset(float2 UV, bool bApplyViewportOffset)
+float2 ApplyViewportOffset_{ParameterName}(float2 UV, bool bApplyViewportOffset)
 {
 	if (bApplyViewportOffset)
 	{
@@ -22,10 +20,10 @@ float2 DIGBuffer_ApplyViewportOffset(float2 UV, bool bApplyViewportOffset)
 	return UV;
 }
 
-void DIGBuffer_DecodeDiffuseColor(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
+void DecodeDiffuseColor_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.DiffuseColor;
@@ -35,10 +33,10 @@ void DIGBuffer_DecodeDiffuseColor(in float2 ScreenUV, in bool bApplyViewportOffs
 #endif
 }
 
-void DIGBuffer_DecodeWorldNormal(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
+void DecodeWorldNormal_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.WorldNormal;
@@ -48,17 +46,17 @@ void DIGBuffer_DecodeWorldNormal(in float2 ScreenUV, in bool bApplyViewportOffse
 #endif
 }
 
-void DIGBuffer_DecodeScreenVelocity(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
+void DecodeScreenVelocity_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
 {
 	IsValid = false;
 	OutValue = 0;
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	float4 EncodedVelocity = 0;
 	#if NDIGBUFFER_USE_GBUFFER_VELOCITY
 		EncodedVelocity = GetGBufferData(ScreenUV).Velocity;
 	#else
-		EncodedVelocity = NDIGBuffer_VelocityTexture.SampleLevel(NDIGBuffer_VelocityTextureSampler, ScreenUV, 0);
+		EncodedVelocity = {ParameterName}_VelocityTexture.SampleLevel({ParameterName}_VelocityTextureSampler, ScreenUV, 0);
 	#endif
 	IsValid = true;
 	if ( EncodedVelocity.x > 0 )
@@ -72,17 +70,17 @@ void DIGBuffer_DecodeScreenVelocity(in float2 ScreenUV, in bool bApplyViewportOf
 #endif
 }
 
-void DIGBuffer_DecodeWorldVelocity(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
+void DecodeWorldVelocity_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
 {
 	IsValid = false;
 	OutValue = 0;
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	float4 EncodedVelocity = 0;
 	#if NDIGBUFFER_USE_GBUFFER_VELOCITY
 		EncodedVelocity = GetGBufferData(ScreenUV).Velocity;
 	#else
-		EncodedVelocity = NDIGBuffer_VelocityTexture.SampleLevel(NDIGBuffer_VelocityTextureSampler, ScreenUV, 0);
+		EncodedVelocity = {ParameterName}_VelocityTexture.SampleLevel({ParameterName}_VelocityTextureSampler, ScreenUV, 0);
 	#endif
 	IsValid = true;
 	if ( EncodedVelocity.x > 0 )
@@ -113,10 +111,10 @@ void DIGBuffer_DecodeWorldVelocity(in float2 ScreenUV, in bool bApplyViewportOff
 #endif
 }
 
-void DIGBuffer_DecodeBaseColor(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
+void DecodeBaseColor_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float3 OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.BaseColor;
@@ -126,10 +124,10 @@ void DIGBuffer_DecodeBaseColor(in float2 ScreenUV, in bool bApplyViewportOffset,
 #endif
 }
 
-void DIGBuffer_DecodeMetallic(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
+void DecodeMetallic_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Metallic;
@@ -139,10 +137,10 @@ void DIGBuffer_DecodeMetallic(in float2 ScreenUV, in bool bApplyViewportOffset, 
 #endif
 }
 
-void DIGBuffer_DecodeSpecular(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
+void DecodeSpecular_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Specular;
@@ -152,10 +150,10 @@ void DIGBuffer_DecodeSpecular(in float2 ScreenUV, in bool bApplyViewportOffset, 
 #endif
 }
 
-void DIGBuffer_DecodeRoughness(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
+void DecodeRoughness_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Roughness;
@@ -165,10 +163,10 @@ void DIGBuffer_DecodeRoughness(in float2 ScreenUV, in bool bApplyViewportOffset,
 #endif
 }
 
-void DIGBuffer_DecodeDepth(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
+void DecodeDepth_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Depth;
@@ -183,12 +181,12 @@ void DIGBuffer_DecodeDepth(in float2 ScreenUV, in bool bApplyViewportOffset, out
 
 #if 0
 // This has not been tested yet
-void DIGBuffer_DecodeStencil(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
+void DecodeStencil_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
 	IsValid = true;
 
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	uint2 IntUV = (uint2)(ScreenUV.xy * (float2)View.BufferSizeAndInvSize.xy);
 	uint Stencil = SceneStencilTexture.Load(uint3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
 	OutValue = int(Stencil);
@@ -199,10 +197,10 @@ void DIGBuffer_DecodeStencil(in float2 ScreenUV, in bool bApplyViewportOffset, o
 }
 #endif
 
-void DIGBuffer_DecodeCustomDepth(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
+void DecodeCustomDepth_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.CustomDepth;
@@ -215,10 +213,10 @@ void DIGBuffer_DecodeCustomDepth(in float2 ScreenUV, in bool bApplyViewportOffse
 #endif
 }
 
-void DIGBuffer_DecodeCustomStencil(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
+void DecodeCustomStencil_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.CustomStencil;
@@ -235,11 +233,11 @@ void DIGBuffer_DecodeCustomStencil(in float2 ScreenUV, in bool bApplyViewportOff
 #endif
 }
 
-void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float4 OutValue)
+void DecodeSceneColor_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out float4 OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
 	IsValid = true;
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	OutValue = Texture2DSampleLevel(SceneTexturesStruct_SceneColorTexture, SceneTexturesStruct_SceneColorTextureSampler, ScreenUV, 0);
 	OutValue.rgb *= View.OneOverPreExposure.xxx;
 #elif NDIGBUFFER_IS_MOBILE
@@ -252,10 +250,10 @@ void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, in bool bApplyViewportOffset
 #endif
 }
 
-void DIGBuffer_DecodeShadingModelID(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
+void DecodeShadingModelID_{ParameterName}(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
-	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	ScreenUV = ApplyViewportOffset_{ParameterName}(ScreenUV, bApplyViewportOffset);
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.ShadingModelID;

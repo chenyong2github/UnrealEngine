@@ -5,15 +5,24 @@
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraTypes.h"
 #include "NiagaraRenderViewDataManager.h"
-#include "NiagaraWorldManager.h"
-#include "ShaderParameterUtils.h"
-#include "Internationalization/Internationalization.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraWorldManager.h"
+
+#include "Internationalization/Internationalization.h"
+#include "ShaderParameterUtils.h"
 
 //////////////////////////////////////////////////////////////////////////
 
 namespace NiagaraDataInterfaceGBufferLocal
 {
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER_TEXTURE(Texture2D, VelocityTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceGBufferTemplate.ush");
+
 	struct EDIFunctionVersion
 	{
 		enum Type
@@ -108,42 +117,6 @@ struct FNiagaraDataIntefaceProxyGBuffer : public FNiagaraDataInterfaceProxy
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 };
 
-struct FNiagaraDataInterfaceParametersCS_GBuffer : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_GBuffer, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		VelocityTextureParam.Bind(ParameterMap, TEXT("NDIGBuffer_VelocityTexture"));
-		VelocityTextureSamplerParam.Bind(ParameterMap, TEXT("NDIGBuffer_VelocityTextureSampler"));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		FRHISamplerState* VelocitySamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		FRHITexture* VelocityRHITexture = GBlackTexture->TextureRHI;
-		if ( FNiagaraSceneTextureParameters* NiagaraSceneTextures = static_cast<const FNiagaraGpuComputeDispatch*>(Context.ComputeDispatchInterface)->GetNiagaraSceneTextures() )	//-BATCHERTODO:
-		{
-			if ( FRDGTexture* VelocityRDGTexture = NiagaraSceneTextures->Velocity.GetTexture() )
-			{
-				VelocityRHITexture = VelocityRDGTexture->GetRHI();
-			}
-		}
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, VelocityTextureParam, VelocityTextureSamplerParam, VelocitySamplerState, VelocityRHITexture);
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, VelocityTextureParam);
-	LAYOUT_FIELD(FShaderResourceParameter, VelocityTextureSamplerParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_GBuffer);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceGBuffer, FNiagaraDataInterfaceParametersCS_GBuffer);
-
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraDataInterfaceGBuffer::UNiagaraDataInterfaceGBuffer(FObjectInitializer const& ObjectInitializer)
@@ -193,40 +166,57 @@ void UNiagaraDataInterfaceGBuffer::GetFunctions(TArray<FNiagaraFunctionSignature
 	}
 }
 
+void UNiagaraDataInterfaceGBuffer::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NiagaraDataInterfaceGBufferLocal::FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceGBuffer::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FRHITexture* VelocityTexture = GBlackTexture->TextureRHI;
+
+	if (FNiagaraSceneTextureParameters* NiagaraSceneTextures = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetNiagaraSceneTextures())	//-BATCHERTODO:
+	{
+		if (FRDGTexture* VelocityRDGTexture = NiagaraSceneTextures->Velocity.GetTexture())
+		{
+			VelocityTexture = VelocityRDGTexture->GetRHI();
+		}
+	}
+	NiagaraDataInterfaceGBufferLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NiagaraDataInterfaceGBufferLocal::FShaderParameters>();
+	Parameters->VelocityTexture = VelocityTexture;
+	Parameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+}
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceGBuffer::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
-	if (!Super::AppendCompileHash(InVisitor))
-		return false;
-
-	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceGBuffer.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceGBufferHLSLSource"), Hash.ToString());
-	return true;
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	FSHAHash Hash = GetShaderFileHash(NiagaraDataInterfaceGBufferLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceGBufferTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<NiagaraDataInterfaceGBufferLocal::FShaderParameters>();
+	return bSuccess;
 }
 
-void UNiagaraDataInterfaceGBuffer::GetCommonHLSL(FString& OutHLSL)
+void UNiagaraDataInterfaceGBuffer::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceGBuffer.ush\"\n");
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NiagaraDataInterfaceGBufferLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceGBuffer::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	using namespace NiagaraDataInterfaceGBufferLocal;
 
-	TMap<FString, FStringFormatArg> ArgsSample =
-	{
-		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
-	};
-
 	for ( const FGBufferAttribute& Attribute : GetGBufferAttributes() )
 	{
 		if (FunctionInfo.DefinitionName == Attribute.ScreenUVFunctionName)
 		{
-			ArgsSample.Emplace(TEXT("AttributeName"), Attribute.AttributeName);
-			ArgsSample.Emplace(TEXT("AttributeType"), Attribute.AttributeType);
-
-			static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float2 ScreenUV, bool bApplyViewportOffset, out bool IsValid, out {AttributeType} {AttributeName}) { DIGBuffer_Decode{AttributeName}(ScreenUV, bApplyViewportOffset, IsValid, {AttributeName}); }\n");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
 			return true;
 		}
 	}
