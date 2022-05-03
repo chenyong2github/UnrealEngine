@@ -52,7 +52,7 @@ namespace EpicGames.UHT.Tables
 	public class UhtLocTextDefaultValueTable
 	{
 
-		private readonly Dictionary<StringView, UhtLocTextDefaultValue> _locTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
+		private readonly Dictionary<StringView, UhtLocTextDefaultValue> _locTextDefaultValues = new();
 
 		/// <summary>
 		/// Return the loc text default value associated with the given name
@@ -78,7 +78,7 @@ namespace EpicGames.UHT.Tables
 				throw new UhtIceException("A loc text default value attribute must have a name");
 			}
 
-			UhtLocTextDefaultValue locTextDefaultValue = new UhtLocTextDefaultValue
+			UhtLocTextDefaultValue locTextDefaultValue = new()
 			{
 				Delegate = (UhtLocTextDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtLocTextDefaultValueDelegate), methodInfo)
 			};

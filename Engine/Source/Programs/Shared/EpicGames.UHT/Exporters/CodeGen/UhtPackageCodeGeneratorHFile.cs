@@ -28,8 +28,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="packageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
 		public void Generate(IUhtExportFactory factory, List<UhtHeaderFile> packageSortedHeaders)
 		{
-			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
+				using BorrowStringBuilder borrower = new(StringBuilderCache.Big);
 				StringBuilder builder = borrower.StringBuilder;
 
 				builder.Append(HeaderCopyright);
@@ -37,7 +37,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\r\n");
 				builder.Append("\r\n");
 
-				List<UhtHeaderFile> headerFiles = new List<UhtHeaderFile>(this.Package.Children.Count * 2);
+				List<UhtHeaderFile> headerFiles = new(this.Package.Children.Count * 2);
 				headerFiles.AddRange(packageSortedHeaders);
 
 				foreach (UhtHeaderFile headerFile in this.Package.Children)
@@ -48,7 +48,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 				}
 
-				List<UhtHeaderFile> sortedHeaderFiles = new List<UhtHeaderFile>(headerFiles.Distinct());
+				List<UhtHeaderFile> sortedHeaderFiles = new(headerFiles.Distinct());
 				sortedHeaderFiles.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.FilePath, y.FilePath));
 
 				foreach (UhtHeaderFile headerFile in sortedHeaderFiles)

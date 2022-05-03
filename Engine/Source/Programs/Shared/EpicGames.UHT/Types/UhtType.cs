@@ -587,7 +587,7 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtDocumentationPolicy
 	{
-		private static readonly UhtDocumentationPolicy s_strictDocumentationPolicy = new UhtDocumentationPolicy
+		private static readonly UhtDocumentationPolicy s_strictDocumentationPolicy = new()
 		{
 			PolicySet = true,
 			ClassOrStructCommentRequired = true,
@@ -597,7 +597,7 @@ namespace EpicGames.UHT.Types
 			FloatRangesRequired = true,
 		};
 
-		private static readonly UhtDocumentationPolicy s_noDocumentationPolicy = new UhtDocumentationPolicy
+		private static readonly UhtDocumentationPolicy s_noDocumentationPolicy = new()
 		{
 			PolicySet = false,
 			ClassOrStructCommentRequired = false,
@@ -665,7 +665,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Empty list of type used when children are requested but no children have been added.
 		/// </summary>
-		private static readonly List<UhtType> s_emptyTypeList = new List<UhtType>();
+		private static readonly List<UhtType> s_emptyTypeList = new();
 
 		/// <summary>
 		/// All UHT runs are associated with a given session.  The session holds all the global information for a run.
@@ -764,7 +764,7 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				StringBuilder builder = new StringBuilder();
+				StringBuilder builder = new();
 				AppendFullName(builder);
 				return builder.ToString();
 			}
@@ -778,7 +778,7 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				StringBuilder builder = new StringBuilder();
+				StringBuilder builder = new();
 				AppendPathName(builder, null);
 				return builder.ToString();
 			}
@@ -1089,8 +1089,7 @@ namespace EpicGames.UHT.Types
 				{
 					foreach (KeyValuePair<UhtMetaDataKey, string> kvp in this.MetaData.Dictionary)
 					{
-						UhtSpecifierValidator? specifier;
-						if (table.TryGetValue(kvp.Key.Name, out specifier))
+						if (table.TryGetValue(kvp.Key.Name, out UhtSpecifierValidator? specifier))
 						{
 							specifier.Delegate(this, MetaData, kvp.Key, kvp.Value);
 						}
@@ -1202,8 +1201,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The display name for this object.</returns>
 		public string GetDisplayNameText()
 		{
-			string? nativeDisplayName;
-			if (this.MetaData.TryGetValue(UhtNames.DisplayName, out nativeDisplayName))
+			if (this.MetaData.TryGetValue(UhtNames.DisplayName, out string? nativeDisplayName))
 			{
 				return nativeDisplayName;
 			}

@@ -96,7 +96,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns></returns>
 		private static string FormatExtraContext(object? extraContext = null)
 		{
-			StringBuilder builder = new StringBuilder(" while parsing ");
+			StringBuilder builder = new(" while parsing ");
 			int startingLength = builder.Length;
 			if (extraContext != null)
 			{

@@ -70,8 +70,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The value of the constant</returns>
 		public static int GetConstInt(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			int value;
-			if (!tokenReader.TryOptionalConstInt(out value))
+			if (!tokenReader.TryOptionalConstInt(out int value))
 			{
 				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant integer", exceptionContext);
 			}
@@ -135,8 +134,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The value of the constant</returns>
 		public static long GetConstLong(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			long value;
-			if (!tokenReader.TryOptionalConstLong(out value))
+			if (!tokenReader.TryOptionalConstLong(out long value))
 			{
 				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant long integer", exceptionContext);
 			}
@@ -151,30 +149,28 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the next token was an parsed, false if not.</returns>
 		public static bool TryOptionalLeadingSignConstNumeric(this IUhtTokenReader tokenReader, UhtParseMergedSignToken tokenDelegate)
 		{
-			using (UhtTokenSaveState savedState = new UhtTokenSaveState(tokenReader))
+			using UhtTokenSaveState savedState = new(tokenReader);
+			// Check for a leading sign token
+			char sign = ' ';
+			UhtToken token = tokenReader.PeekToken();
+			if (token.IsSymbol() && token.Value.Length == 1 && UhtFCString.IsSign(token.Value.Span[0]))
 			{
-				// Check for a leading sign token
-				char sign = ' ';
-				UhtToken token = tokenReader.PeekToken();
-				if (token.IsSymbol() && token.Value.Length == 1 && UhtFCString.IsSign(token.Value.Span[0]))
+				sign = token.Value.Span[0];
+				tokenReader.ConsumeToken();
+				token = tokenReader.PeekToken();
+				if (UhtFCString.IsSign(token.Value.Span[0]))
 				{
-					sign = token.Value.Span[0];
-					tokenReader.ConsumeToken();
-					token = tokenReader.PeekToken();
-					if (UhtFCString.IsSign(token.Value.Span[0]))
-					{
-						return false;
-					}
-					token.Value = new StringView($"{sign}{token.Value}");
+					return false;
 				}
-				if (tokenDelegate(ref token))
-				{
-					tokenReader.ConsumeToken();
-					savedState.AbandonState();
-					return true;
-				}
-				return false;
+				token.Value = new StringView($"{sign}{token.Value}");
 			}
+			if (tokenDelegate(ref token))
+			{
+				tokenReader.ConsumeToken();
+				savedState.AbandonState();
+				return true;
+			}
+			return false;
 		}
 
 		/// <summary>

@@ -111,7 +111,7 @@ namespace EpicGames.UHT.Types
 			{
 				return null;
 			}
-			UhtStrProperty property = new UhtStrProperty(propertySettings);
+			UhtStrProperty property = new(propertySettings);
 			if (property.PropertyCategory != UhtPropertyCategory.Member)
 			{
 				if (tokenReader.TryOptional('&'))

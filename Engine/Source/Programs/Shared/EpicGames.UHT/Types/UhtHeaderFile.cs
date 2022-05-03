@@ -105,7 +105,7 @@ namespace EpicGames.UHT.Types
 	{
 		private readonly UhtSimpleMessageSite _messageSite;
 		private readonly UhtSourceFile _sourceFile;
-		private readonly List<UhtHeaderFile> _referencedHeaders = new List<UhtHeaderFile>();
+		private readonly List<UhtHeaderFile> _referencedHeaders = new();
 
 		/// <summary>
 		/// Contents of the header
@@ -333,8 +333,8 @@ namespace EpicGames.UHT.Types
 		{
 			options = base.Validate(options | UhtValidationOptions.Shadowing);
 
-			Dictionary<int, UhtFunction> usedRPCIds = new Dictionary<int, UhtFunction>();
-			Dictionary<int, UhtFunction> rpcsNeedingHookup = new Dictionary<int, UhtFunction>();
+			Dictionary<int, UhtFunction> usedRPCIds = new();
+			Dictionary<int, UhtFunction> rpcsNeedingHookup = new();
 			foreach (UhtType type in this.Children)
 			{
 				if (type is UhtClass classObj)
@@ -350,8 +350,7 @@ namespace EpicGames.UHT.Types
 
 							if (function.RPCId > 0)
 							{
-								UhtFunction? existingFunc;
-								if (usedRPCIds.TryGetValue(function.RPCId, out existingFunc))
+								if (usedRPCIds.TryGetValue(function.RPCId, out UhtFunction? existingFunc))
 								{
 									function.LogError($"Function {existingFunc.SourceName} already uses identifier {function.RPCId}");
 								}

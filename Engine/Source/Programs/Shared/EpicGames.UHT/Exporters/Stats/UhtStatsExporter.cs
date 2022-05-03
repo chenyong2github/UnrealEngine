@@ -16,7 +16,7 @@ namespace EpicGames.UHT.Exporters.Stats
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void StatsExporter(IUhtExportFactory factory)
 		{
-			SortedDictionary<string, int> countByType = new SortedDictionary<string, int>();
+			SortedDictionary<string, int> countByType = new();
 			foreach (UhtType type in factory.Session.Packages)
 			{
 				Collect(countByType, type);

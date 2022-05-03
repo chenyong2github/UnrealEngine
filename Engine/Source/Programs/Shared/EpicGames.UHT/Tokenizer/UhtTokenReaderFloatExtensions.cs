@@ -77,8 +77,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The floating point value of the token</returns>
 		public static float GetConstFloat(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			float value;
-			if (!tokenReader.TryOptionalConstFloat(out value))
+			if (!tokenReader.TryOptionalConstFloat(out float value))
 			{
 				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant float", exceptionContext);
 			}

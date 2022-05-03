@@ -188,7 +188,7 @@ namespace EpicGames.UHT.Tables
 	public class UhtExporterTable : IEnumerable<UhtExporter>
 	{
 
-		private readonly Dictionary<string, UhtExporter> _exporterValues = new Dictionary<string, UhtExporter>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<string, UhtExporter> _exporterValues = new(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Return the exporter associated with the given name
@@ -223,7 +223,7 @@ namespace EpicGames.UHT.Tables
 				}
 			}
 
-			UhtExporter exporterValue = new UhtExporter(exporterAttribute, (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), methodInfo));
+			UhtExporter exporterValue = new(exporterAttribute, (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), methodInfo));
 			this._exporterValues.Add(exporterAttribute.Name, exporterValue);
 		}
 

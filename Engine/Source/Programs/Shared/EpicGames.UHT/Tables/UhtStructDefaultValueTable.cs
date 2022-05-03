@@ -116,8 +116,8 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtStructDefaultValueTable
 	{
-		private readonly Dictionary<StringView, UhtStructDefaultValue> _structDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
-		private UhtStructDefaultValue? _defaultInternal = null;
+		private readonly Dictionary<StringView, UhtStructDefaultValue> _structDefaultValues = new();
+		private UhtStructDefaultValue? _default = null;
 
 		/// <summary>
 		/// Fetch the default sanitizer
@@ -126,11 +126,11 @@ namespace EpicGames.UHT.Tables
 		{
 			get
 			{
-				if (this._defaultInternal == null)
+				if (this._default == null)
 				{
 					throw new UhtIceException("No struct default value has been marked as default");
 				}
-				return (UhtStructDefaultValue)this._defaultInternal;
+				return (UhtStructDefaultValue)this._default;
 			}
 		}
 
@@ -158,18 +158,18 @@ namespace EpicGames.UHT.Tables
 				throw new UhtIceException("A struct default value attribute must have a name or be marked as default");
 			}
 
-			UhtStructDefaultValue structDefaultValue = new UhtStructDefaultValue
+			UhtStructDefaultValue structDefaultValue = new()
 			{
 				Delegate = (UhtStructDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtStructDefaultValueDelegate), methodInfo)
 			};
 
 			if (structDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
 			{
-				if (this._defaultInternal != null)
+				if (this._default != null)
 				{
 					throw new UhtIceException("Only one struct default value attribute dispatcher can be marked as default");
 				}
-				this._defaultInternal = structDefaultValue;
+				this._default = structDefaultValue;
 			}
 			else if (!String.IsNullOrEmpty(structDefaultValueAttribute.Name))
 			{

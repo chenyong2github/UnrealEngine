@@ -115,10 +115,9 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			int value;
 			if (defaultValueReader.TryOptional("NULL") ||
 				defaultValueReader.TryOptional("nullptr") ||
-				(defaultValueReader.TryOptionalConstInt(out value) && value == 0))
+				(defaultValueReader.TryOptionalConstInt(out int value) && value == 0))
 			{
 				innerDefaultValue.Append("None");
 				return true;
@@ -161,7 +160,7 @@ namespace EpicGames.UHT.Types
 				return null;
 			}
 			bool isNativeConstTemplateArg = false;
-			UhtToken identifier = new UhtToken();
+			UhtToken identifier = new();
 			tokenReader
 				.Require('<')
 				.Optional("const", () => { isNativeConstTemplateArg = true; })
@@ -193,7 +192,7 @@ namespace EpicGames.UHT.Types
 		public static UhtClass? ParseTemplateClass(UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
 			UhtSession session = propertySettings.Outer.Session;
-			UhtToken identifier = new UhtToken();
+			UhtToken identifier = new();
 
 			if (tokenReader.TryOptional("const"))
 			{

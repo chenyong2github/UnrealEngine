@@ -41,7 +41,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			ReadOnlySpan<char> parameterTypeSpan = paramterType.AsSpan();
 			if (parameterTypeSpan.EndsWith("&"))
 			{
-				parameterTypeSpan = parameterTypeSpan.Slice(0, parameterTypeSpan.Length - 1);
+				parameterTypeSpan = parameterTypeSpan[0..^1];
 			}
 			builder.Append(parameterTypeSpan);
 			if (parameterTypeSpan.Length > 0 && (parameterTypeSpan[0] == 'T' || parameterTypeSpan[0] == 'F'))
@@ -72,7 +72,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			ReadOnlySpan<char> parameterTypeSpan = paramterType.AsSpan();
 			if (parameterTypeSpan.EndsWith("&"))
 			{
-				parameterTypeSpan = parameterTypeSpan.Slice(0, parameterTypeSpan.Length - 1);
+				parameterTypeSpan = parameterTypeSpan[0..^1];
 			}
 			return builder.Append(parameterTypeSpan);
 		}

@@ -95,32 +95,28 @@ namespace EpicGames.UHT.Utils
 
 			try
 			{
-				using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
-				{
-					using (StreamReader sr = new StreamReader(fs, Encoding.UTF8, true))
-					{
+				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
+				using StreamReader sr = new(fs, Encoding.UTF8, true);
 
-						// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
-						// GC stress on the system.  Removing the StreamReader would be nice in the future.
-						long rawFileLength = fs.Length;
-						UhtBuffer initialBuffer = UhtBuffer.Borrow((int)rawFileLength);
-						int readLength = sr.Read(initialBuffer.Memory.Span);
-						if (sr.EndOfStream)
-						{
-							initialBuffer.Reset(readLength);
-							return initialBuffer;
-						}
-						else
-						{
-							string remaining = sr.ReadToEnd();
-							long totalSize = readLength + remaining.Length;
-							UhtBuffer combined = UhtBuffer.Borrow((int)totalSize);
-							Buffer.BlockCopy(initialBuffer.Block, 0, combined.Block, 0, readLength * sizeof(char));
-							Buffer.BlockCopy(remaining.ToArray(), 0, combined.Block, readLength * sizeof(char), remaining.Length * sizeof(char));
-							UhtBuffer.Return(initialBuffer);
-							return combined;
-						}
-					}
+				// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
+				// GC stress on the system.  Removing the StreamReader would be nice in the future.
+				long rawFileLength = fs.Length;
+				UhtBuffer initialBuffer = UhtBuffer.Borrow((int)rawFileLength);
+				int readLength = sr.Read(initialBuffer.Memory.Span);
+				if (sr.EndOfStream)
+				{
+					initialBuffer.Reset(readLength);
+					return initialBuffer;
+				}
+				else
+				{
+					string remaining = sr.ReadToEnd();
+					long totalSize = readLength + remaining.Length;
+					UhtBuffer combined = UhtBuffer.Borrow((int)totalSize);
+					Buffer.BlockCopy(initialBuffer.Block, 0, combined.Block, 0, readLength * sizeof(char));
+					Buffer.BlockCopy(remaining.ToArray(), 0, combined.Block, readLength * sizeof(char), remaining.Length * sizeof(char));
+					UhtBuffer.Return(initialBuffer);
+					return combined;
 				}
 			}
 			catch (IOException)
@@ -139,10 +135,8 @@ namespace EpicGames.UHT.Utils
 				{
 					Directory.CreateDirectory(fileDirectory);
 				}
-				using (StreamWriter writer = new StreamWriter(filePath, false, new UTF8Encoding(false, true), 16 * 1024))
-				{
-					writer.Write(contents);
-				}
+				using StreamWriter writer = new(filePath, false, new UTF8Encoding(false, true), 16 * 1024);
+				writer.Write(contents);
 				return true;
 			}
 			catch (Exception)
@@ -182,28 +176,24 @@ namespace EpicGames.UHT.Utils
 
 			try
 			{
-				using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
-				{
-					using (StreamReader sr = new StreamReader(fs, Encoding.UTF8, true))
-					{
+				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
+				using StreamReader sr = new(fs, Encoding.UTF8, true);
 
-						// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
-						// GC stress on the system.  Removing the StreamReader would be nice in the future.
-						long rawFileLength = fs.Length;
-						char[] initialBuffer = new char[rawFileLength];
-						int readLength = sr.Read(initialBuffer, 0, (int)rawFileLength);
-						if (sr.EndOfStream)
-						{
-							contents = new StringView(new ReadOnlyMemory<char>(initialBuffer, 0, readLength));
-						}
-						else
-						{
-							string remaining = sr.ReadToEnd();
-							contents = new StringView(String.Concat(new ReadOnlySpan<char>(initialBuffer, 0, readLength), remaining));
-						}
-						return true;
-					}
+				// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
+				// GC stress on the system.  Removing the StreamReader would be nice in the future.
+				long rawFileLength = fs.Length;
+				char[] initialBuffer = new char[rawFileLength];
+				int readLength = sr.Read(initialBuffer, 0, (int)rawFileLength);
+				if (sr.EndOfStream)
+				{
+					contents = new StringView(new ReadOnlyMemory<char>(initialBuffer, 0, readLength));
 				}
+				else
+				{
+					string remaining = sr.ReadToEnd();
+					contents = new StringView(String.Concat(new ReadOnlySpan<char>(initialBuffer, 0, readLength), remaining));
+				}
+				return true;
 			}
 			catch (IOException)
 			{

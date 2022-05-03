@@ -260,63 +260,61 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtProperty? MapProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (UhtMessageContext tokenContext = new UhtMessageContext("TMap"))
+			using UhtMessageContext tokenContext = new("TMap");
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 			{
-				if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
-				{
-					return null;
-				}
-				tokenReader.Require('<');
-
-				// Parse the key type
-				UhtProperty? key = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Key", tokenReader);
-				if (key == null)
-				{
-					return null;
-				}
-
-				if (!key.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
-				{
-					tokenReader.LogError($"The type \'{key.GetUserFacingDecl()}\' can not be used as a key in a TMap");
-				}
-
-				if (propertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
-				{
-					tokenReader.LogError("Replicated maps are not supported.");
-				}
-
-				tokenReader.Require(',');
-
-				// Parse the value type
-				UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Value", tokenReader);
-				if (value == null)
-				{
-					return null;
-				}
-
-				if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
-				{
-					tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a value in a TMap");
-				}
-
-				if (tokenReader.TryOptional(','))
-				{
-					UhtToken allocatorToken = tokenReader.GetIdentifier();
-					if (allocatorToken.IsIdentifier("FMemoryImageSetAllocator"))
-					{
-						propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
-					}
-					else
-					{
-						tokenReader.LogError($"Found '{allocatorToken.Value}' - explicit allocators are not supported in TMap properties.");
-					}
-				}
-				tokenReader.Require('>');
-
-				//@TODO: Prevent sparse delegate types from being used in a container
-
-				return new UhtMapProperty(propertySettings, key, value);
+				return null;
 			}
+			tokenReader.Require('<');
+
+			// Parse the key type
+			UhtProperty? key = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Key", tokenReader);
+			if (key == null)
+			{
+				return null;
+			}
+
+			if (!key.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
+			{
+				tokenReader.LogError($"The type \'{key.GetUserFacingDecl()}\' can not be used as a key in a TMap");
+			}
+
+			if (propertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+			{
+				tokenReader.LogError("Replicated maps are not supported.");
+			}
+
+			tokenReader.Require(',');
+
+			// Parse the value type
+			UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Value", tokenReader);
+			if (value == null)
+			{
+				return null;
+			}
+
+			if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
+			{
+				tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a value in a TMap");
+			}
+
+			if (tokenReader.TryOptional(','))
+			{
+				UhtToken allocatorToken = tokenReader.GetIdentifier();
+				if (allocatorToken.IsIdentifier("FMemoryImageSetAllocator"))
+				{
+					propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
+				}
+				else
+				{
+					tokenReader.LogError($"Found '{allocatorToken.Value}' - explicit allocators are not supported in TMap properties.");
+				}
+			}
+			tokenReader.Require('>');
+
+			//@TODO: Prevent sparse delegate types from being used in a container
+
+			return new UhtMapProperty(propertySettings, key, value);
 		}
 		#endregion
 	}

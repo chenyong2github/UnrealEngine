@@ -109,7 +109,7 @@ namespace EpicGames.UHT.Types
 			else
 			{
 				this.SourceName = module.Name;
-				this.ShortName = this.SourceName.Substring(lastSlashIndex + 1);
+				this.ShortName = this.SourceName[(lastSlashIndex + 1)..];
 			}
 		}
 	}

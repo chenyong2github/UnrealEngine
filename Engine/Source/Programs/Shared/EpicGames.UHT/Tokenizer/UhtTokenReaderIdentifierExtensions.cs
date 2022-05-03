@@ -205,81 +205,78 @@ namespace EpicGames.UHT.Tokenizer
 		public static bool TryOptionalCppIdentifier(this IUhtTokenReader tokenReader, [NotNullWhen(true)] out IEnumerable<UhtToken>? identifier, UhtCppIdentifierOptions options = UhtCppIdentifierOptions.None)
 		{
 			identifier = null;
-			List<UhtToken> localIdentifier = new List<UhtToken>();
+			List<UhtToken> localIdentifier = new();
 
-			using (UhtTokenSaveState savedState = new UhtTokenSaveState(tokenReader))
+			using UhtTokenSaveState savedState = new(tokenReader);
+
+			if (tokenReader.TryOptionalIdentifier(out UhtToken token))
 			{
-				UhtToken token;
+				localIdentifier.Add(token);
+			}
+			else
+			{
+				return false;
+			}
 
-				if (tokenReader.TryOptionalIdentifier(out token))
+			if (options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
+			{
+				while (true)
 				{
-					localIdentifier.Add(token);
-				}
-				else
-				{
-					return false;
-				}
-
-				if (options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
-				{
-					while (true)
+					if (tokenReader.TryPeekOptional('<'))
 					{
-						if (tokenReader.TryPeekOptional('<'))
+						localIdentifier.Add(tokenReader.GetToken());
+						int nestedScopes = 1;
+						while (nestedScopes > 0)
 						{
-							localIdentifier.Add(tokenReader.GetToken());
-							int nestedScopes = 1;
-							while (nestedScopes > 0)
+							token = tokenReader.GetToken();
+							if (token.TokenType.IsEndType())
 							{
-								token = tokenReader.GetToken();
-								if (token.TokenType.IsEndType())
-								{
-									return false;
-								}
-								localIdentifier.Add(token);
-								if (token.IsSymbol('<'))
-								{
-									++nestedScopes;
-								}
-								else if (token.IsSymbol('>'))
-								{
-									--nestedScopes;
-								}
+								return false;
+							}
+							localIdentifier.Add(token);
+							if (token.IsSymbol('<'))
+							{
+								++nestedScopes;
+							}
+							else if (token.IsSymbol('>'))
+							{
+								--nestedScopes;
 							}
 						}
+					}
 
-						if (!tokenReader.TryPeekOptional("::"))
-						{
-							break;
-						}
-						localIdentifier.Add(tokenReader.GetToken());
-						if (!tokenReader.TryOptionalIdentifier(out token))
-						{
-							localIdentifier.Add(token);
-						}
-						else
-						{
-							return false;
-						}
-					}
-				}
-				else
-				{
-					while (tokenReader.TryOptional("::"))
+					if (!tokenReader.TryPeekOptional("::"))
 					{
-						if (tokenReader.TryOptionalIdentifier(out token))
-						{
-							localIdentifier.Add(token);
-						}
-						else
-						{
-							return false;
-						}
+						break;
+					}
+					localIdentifier.Add(tokenReader.GetToken());
+					if (!tokenReader.TryOptionalIdentifier(out token))
+					{
+						localIdentifier.Add(token);
+					}
+					else
+					{
+						return false;
 					}
 				}
-				identifier = localIdentifier;
-				savedState.AbandonState();
-				return true;
 			}
+			else
+			{
+				while (tokenReader.TryOptional("::"))
+				{
+					if (tokenReader.TryOptionalIdentifier(out token))
+					{
+						localIdentifier.Add(token);
+					}
+					else
+					{
+						return false;
+					}
+				}
+			}
+			identifier = localIdentifier;
+			savedState.AbandonState();
+			return true;
 		}
 
 		/// <summary>

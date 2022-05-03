@@ -212,50 +212,48 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtProperty? ArrayProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (UhtMessageContext tokenContext = new UhtMessageContext("TArray"))
+			using UhtMessageContext tokenContext = new("TArray");
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 			{
-				if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
-				{
-					return null;
-				}
-				tokenReader.Require('<');
-
-				// Parse the value type
-				UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, propertySettings.SourceName, tokenReader);
-				if (value == null)
-				{
-					return null;
-				}
-
-				if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
-				{
-					tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a value in a TArray");
-				}
-
-				if (tokenReader.TryOptional(','))
-				{
-					// If we found a comma, read the next thing, assume it's an allocator, and report that
-					UhtToken allocatorToken = tokenReader.GetIdentifier();
-					if (allocatorToken.IsIdentifier("FMemoryImageAllocator"))
-					{
-						propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
-					}
-					else if (allocatorToken.IsIdentifier("TMemoryImageAllocator"))
-					{
-						tokenReader.RequireList('<', '>', "TMemoryImageAllocator template arguments");
-						propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
-					}
-					else
-					{
-						throw new UhtException(tokenReader, $"Found '{allocatorToken.Value}' - explicit allocators are not supported in TArray properties.");
-					}
-				}
-				tokenReader.Require('>');
-
-				//@TODO: Prevent sparse delegate types from being used in a container
-
-				return new UhtArrayProperty(propertySettings, value);
+				return null;
 			}
+			tokenReader.Require('<');
+
+			// Parse the value type
+			UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, propertySettings.SourceName, tokenReader);
+			if (value == null)
+			{
+				return null;
+			}
+
+			if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
+			{
+				tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a value in a TArray");
+			}
+
+			if (tokenReader.TryOptional(','))
+			{
+				// If we found a comma, read the next thing, assume it's an allocator, and report that
+				UhtToken allocatorToken = tokenReader.GetIdentifier();
+				if (allocatorToken.IsIdentifier("FMemoryImageAllocator"))
+				{
+					propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
+				}
+				else if (allocatorToken.IsIdentifier("TMemoryImageAllocator"))
+				{
+					tokenReader.RequireList('<', '>', "TMemoryImageAllocator template arguments");
+					propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
+				}
+				else
+				{
+					throw new UhtException(tokenReader, $"Found '{allocatorToken.Value}' - explicit allocators are not supported in TArray properties.");
+				}
+			}
+			tokenReader.Require('>');
+
+			//@TODO: Prevent sparse delegate types from being used in a container
+
+			return new UhtArrayProperty(propertySettings, value);
 		}
 		#endregion
 	}

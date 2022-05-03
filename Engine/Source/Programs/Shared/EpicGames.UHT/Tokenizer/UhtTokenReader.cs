@@ -291,7 +291,7 @@ namespace EpicGames.UHT.Tokenizer
 			{
 				return this.Token.Value.ToString();
 			}
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			Join(builder, seperator);
 			return builder.ToString();
 		}
@@ -324,7 +324,7 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public static class UhtTokenListCache
 	{
-		private static readonly ThreadLocal<UhtTokenList?> s_tls = new ThreadLocal<UhtTokenList?>(() => null);
+		private static readonly ThreadLocal<UhtTokenList?> s_tls = new(() => null);
 
 		/// <summary>
 		/// Borrow a token list

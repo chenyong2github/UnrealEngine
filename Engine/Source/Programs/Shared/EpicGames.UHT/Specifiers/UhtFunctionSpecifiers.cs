@@ -422,8 +422,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					if (kvp.Key.Span.StartsWith("Id", StringComparison.OrdinalIgnoreCase))
 					{
-						int id;
-						if (!Int32.TryParse(kvp.Value.Span, out id) || id <= 0 || id > UInt16.MaxValue)
+						if (!Int32.TryParse(kvp.Value.Span, out int id) || id <= 0 || id > UInt16.MaxValue)
 						{
 							tokenReader.LogError($"Invalid network identifier {kvp.Key} for function");
 						}
@@ -434,8 +433,7 @@ namespace EpicGames.UHT.Parsers
 					}
 					else if (kvp.Key.Span.StartsWith("ResponseId", StringComparison.OrdinalIgnoreCase) || kvp.Key.Span.StartsWith("Priority", StringComparison.OrdinalIgnoreCase))
 					{
-						int id;
-						if (!Int32.TryParse(kvp.Value.Span, out id) || id <= 0 || id > UInt16.MaxValue)
+						if (!Int32.TryParse(kvp.Value.Span, out int id) || id <= 0 || id > UInt16.MaxValue)
 						{
 							tokenReader.LogError($"Invalid network identifier {kvp.Key} for function");
 						}

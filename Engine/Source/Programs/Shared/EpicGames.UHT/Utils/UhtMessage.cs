@@ -198,7 +198,7 @@ namespace EpicGames.UHT.Utils
 		{
 			if (context is IUhtMessageExtraContext extraContextInterface)
 			{
-				StringBuilder builder = new StringBuilder();
+				StringBuilder builder = new();
 				Append(builder, extraContextInterface, false);
 				return builder.ToString();
 			}
@@ -286,14 +286,14 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public class UhtSimpleMessageSite : IUhtMessageSite
 	{
-		private readonly IUhtMessageSession _messageSessionInternal;
-		private IUhtMessageSource? _messageSourceInternal;
+		private readonly IUhtMessageSession _messageSession;
+		private IUhtMessageSource? _messageSource;
 
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
-		public IUhtMessageSession MessageSession => this._messageSessionInternal;
+		public IUhtMessageSession MessageSession => this._messageSession;
 		/// <inheritdoc/>
-		public IUhtMessageSource? MessageSource { get => this._messageSourceInternal; set => this._messageSourceInternal = value; }
+		public IUhtMessageSource? MessageSource { get => this._messageSource; set => this._messageSource = value; }
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
 		#endregion
@@ -305,8 +305,8 @@ namespace EpicGames.UHT.Utils
 		/// <param name="messageSource">Source for the messages</param>
 		public UhtSimpleMessageSite(IUhtMessageSession messageSession, IUhtMessageSource? messageSource = null)
 		{
-			this._messageSessionInternal = messageSession;
-			this._messageSourceInternal = messageSource;
+			this._messageSession = messageSession;
+			this._messageSource = messageSource;
 		}
 	}
 
@@ -487,7 +487,7 @@ namespace EpicGames.UHT.Utils
 	public sealed class UhtTlsMessageExtraContext : IUhtMessageExtraContext
 	{
 		private Stack<object?>? _extraContexts;
-		private static readonly ThreadLocal<UhtTlsMessageExtraContext> s_tls = new ThreadLocal<UhtTlsMessageExtraContext>(() => new UhtTlsMessageExtraContext());
+		private static readonly ThreadLocal<UhtTlsMessageExtraContext> s_tls = new(() => new UhtTlsMessageExtraContext());
 
 		#region IUHTMessageExtraContext implementation
 		IEnumerable<object?>? IUhtMessageExtraContext.MessageExtraContext => this._extraContexts;

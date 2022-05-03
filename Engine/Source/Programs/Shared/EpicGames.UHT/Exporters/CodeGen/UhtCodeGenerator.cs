@@ -20,7 +20,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			HeaderFilters = new string[] { "*.generated.h" })]
 		public static void CodeGenerator(IUhtExportFactory factory)
 		{
-			UhtCodeGenerator generator = new UhtCodeGenerator(factory);
+			UhtCodeGenerator generator = new(factory);
 			generator.Generate();
 		}
 
@@ -67,7 +67,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private void Generate()
 		{
-			List<Task?> prereqs = new List<Task?>();
+			List<Task?> prereqs = new();
 
 			// Perform some startup initialization to compute things we need over and over again
 			if (this.Session.GoWide)
@@ -112,7 +112,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// Generate the files for the packages
-			List<Task?> generatedPackages = new List<Task?>(this.Session.PackageTypeCount);
+			List<Task?> generatedPackages = new(this.Session.PackageTypeCount);
 			foreach (UhtPackage package in this.Session.Packages)
 			{
 				UHTManifest.Module module = package.Module;
@@ -153,7 +153,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// Wait for all the packages to complete
-			List<Task> packageTasks = new List<Task>(this.Session.PackageTypeCount);
+			List<Task> packageTasks = new(this.Session.PackageTypeCount);
 			foreach (Task? output in generatedPackages)
 			{
 				if (output != null)
@@ -228,7 +228,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		#region Information initialization
 		private void InitPackageInfo(UhtPackage package)
 		{
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 
 			ref PackageInfo packageInfo = ref this._packageInfos[package.PackageTypeIndex];
 			packageInfo._strippedName = package.SourceName.Replace('/', '_');
@@ -280,7 +280,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				while (filePath.StartsWith("../", StringComparison.Ordinal))
 				{
-					filePath = filePath.Substring(3);
+					filePath = filePath[3..];
 				}
 			}
 
@@ -374,7 +374,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Sorted list of the header files</returns>
 		private static List<UhtHeaderFile> GetSortedHeaderFiles(UhtPackage package)
 		{
-			List<UhtHeaderFile> sortedHeaders = new List<UhtHeaderFile>(package.Children.Count);
+			List<UhtHeaderFile> sortedHeaders = new(package.Children.Count);
 			foreach (UhtHeaderFile headerFile in package.Children)
 			{
 				if (headerFile.ShouldExport)

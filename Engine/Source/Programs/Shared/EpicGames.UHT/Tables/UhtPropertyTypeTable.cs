@@ -154,9 +154,9 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtPropertyTypeTable
 	{
-		private readonly Dictionary<StringView, UhtPropertyType> _caseSensitive = new Dictionary<StringView, UhtPropertyType>();
-		private readonly Dictionary<StringView, UhtPropertyType> _caseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
-		private UhtPropertyType? _defaultInternal = null;
+		private readonly Dictionary<StringView, UhtPropertyType> _caseSensitive = new();
+		private readonly Dictionary<StringView, UhtPropertyType> _caseInsensitive = new(StringViewComparer.OrdinalIgnoreCase);
+		private UhtPropertyType? _default = null;
 
 		/// <summary>
 		/// Return the default processor
@@ -165,11 +165,11 @@ namespace EpicGames.UHT.Tables
 		{
 			get
 			{
-				if (this._defaultInternal == null)
+				if (this._default == null)
 				{
 					throw new UhtIceException("No property type has been marked as default");
 				}
-				return (UhtPropertyType)this._defaultInternal;
+				return (UhtPropertyType)this._default;
 			}
 		}
 
@@ -199,7 +199,7 @@ namespace EpicGames.UHT.Tables
 				throw new UhtIceException("A property type must have a keyword or be marked as default");
 			}
 
-			UhtPropertyType propertyType = new UhtPropertyType
+			UhtPropertyType propertyType = new()
 			{
 				Delegate = (UhtResolvePropertyDelegate)Delegate.CreateDelegate(typeof(UhtResolvePropertyDelegate), methodInfo),
 				Options = propertyTypeAttribute.Options,
@@ -207,11 +207,11 @@ namespace EpicGames.UHT.Tables
 
 			if (propertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
 			{
-				if (this._defaultInternal != null)
+				if (this._default != null)
 				{
 					throw new UhtIceException("Only one property type dispatcher can be marked as default");
 				}
-				this._defaultInternal = propertyType;
+				this._default = propertyType;
 			}
 			else if (!String.IsNullOrEmpty(propertyTypeAttribute.Keyword))
 			{

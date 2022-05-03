@@ -28,14 +28,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="packageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
 		public void Generate(IUhtExportFactory factory, List<UhtHeaderFile> packageSortedHeaders)
 		{
-			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
+				using BorrowStringBuilder borrower = new(StringBuilderCache.Big);
 				const string MetaDataParamsName = "Package_MetaDataParams";
 				StringBuilder builder = borrower.StringBuilder;
 
 				// Collect information from all of the headers
-				List<UhtField> singletons = new List<UhtField>();
-				StringBuilder declarations = new StringBuilder();
+				List<UhtField> singletons = new();
+				StringBuilder declarations = new();
 				uint bodiesHash = 0;
 				foreach (UhtHeaderFile headerFile in packageSortedHeaders)
 				{

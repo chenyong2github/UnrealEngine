@@ -277,7 +277,7 @@ namespace EpicGames.UHT.Types
 	[UhtEngineClass(Name = "Class")]
 	public class UhtClass : UhtStruct
 	{
-		private List<UhtDeclaration>? _declarationsInternal = null;
+		private List<UhtDeclaration>? _declarations = null;
 
 		/// <summary>
 		/// Configuration section
@@ -333,7 +333,7 @@ namespace EpicGames.UHT.Types
 		/// Collection of functions and other declarations found in the class
 		/// </summary>
 		[JsonIgnore]
-		public IList<UhtDeclaration>? Declarations => this._declarationsInternal;
+		public IList<UhtDeclaration>? Declarations => this._declarations;
 
 		/// <summary>
 		/// If this, this class is a UINTERFACE and NativeInterface is the associated native interface
@@ -463,11 +463,11 @@ namespace EpicGames.UHT.Types
 		/// <param name="function">If parsed as part of a UFUNCTION, this will reference it</param>
 		public void AddDeclaration(UhtCompilerDirective compilerDirectives, List<UhtToken> tokens, UhtFunction? function)
 		{
-			if (this._declarationsInternal == null)
+			if (this._declarations == null)
 			{
-				this._declarationsInternal = new List<UhtDeclaration>();
+				this._declarations = new List<UhtDeclaration>();
 			}
-			this._declarationsInternal.Add(new UhtDeclaration { CompilerDirectives = compilerDirectives, Tokens = tokens.ToArray(), Function = function });
+			this._declarations.Add(new UhtDeclaration { CompilerDirectives = compilerDirectives, Tokens = tokens.ToArray(), Function = function });
 		}
 
 		/// <summary>
@@ -819,8 +819,8 @@ namespace EpicGames.UHT.Types
 			}
 
 			// Verify the type
-			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
 			{
+				using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
 				StringBuilder builder = borrower.StringBuilder;
 				builder.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg);
 				if (property.IsStaticArray)
@@ -861,7 +861,7 @@ namespace EpicGames.UHT.Types
 					}
 
 					// Extract the remaining part of the string we expect to match
-					expectedSpan = expectedSpan.Slice(tokenSpan.Length).TrimStart();
+					expectedSpan = expectedSpan[tokenSpan.Length..].TrimStart();
 					typeIndex++;
 				}
 
@@ -1321,33 +1321,29 @@ namespace EpicGames.UHT.Types
 					if (property.PropertyExportFlags.HasExactFlags(UhtPropertyExportFlags.GetterSpecified | UhtPropertyExportFlags.GetterSpecifiedNone | 
 						UhtPropertyExportFlags.GetterFound, UhtPropertyExportFlags.GetterSpecified))
 					{
+						using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+						StringBuilder builder = borrower.StringBuilder;
 						string expectedName = property.Getter ?? $"Get{property.SourceName}";
-						using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
+						builder.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg);
+						if (property.IsStaticArray)
 						{
-							StringBuilder builder = borrower.StringBuilder;
-							builder.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg);
-							if (property.IsStaticArray)
-							{
-								builder.Append($"*/[{property.ArrayDimensions}]");
-							}
-							string expectedType = builder.ToString();
-							property.LogError($"Property '{property.SourceName}' expected a getter function '[const] {expectedType} [&] {expectedName}() const', but it was not found");
+							builder.Append($"*/[{property.ArrayDimensions}]");
 						}
+						string expectedType = builder.ToString();
+						property.LogError($"Property '{property.SourceName}' expected a getter function '[const] {expectedType} [&] {expectedName}() const', but it was not found");
 					}
 					if (property.PropertyExportFlags.HasExactFlags(UhtPropertyExportFlags.SetterSpecified | UhtPropertyExportFlags.SetterSpecifiedNone | UhtPropertyExportFlags.SetterFound, UhtPropertyExportFlags.SetterSpecified))
 					{
+						using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+						StringBuilder builder = borrower.StringBuilder;
 						string expectedName = property.Setter ?? $"Set{property.SourceName}";
-						using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
+						builder.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg);
+						if (property.IsStaticArray)
 						{
-							StringBuilder builder = borrower.StringBuilder;
-							builder.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg);
-							if (property.IsStaticArray)
-							{
-								builder.Append($"*/[{property.ArrayDimensions}]");
-							}
-							string expectedType = builder.ToString();
-							property.LogError($"Property '{property.SourceName}' expected a setter function 'void {expectedName}([const] {expectedType} [&] InArg)', but it was not found");
+							builder.Append($"*/[{property.ArrayDimensions}]");
 						}
+						string expectedType = builder.ToString();
+						property.LogError($"Property '{property.SourceName}' expected a setter function 'void {expectedName}([const] {expectedType} [&] InArg)', but it was not found");
 					}
 				}
 			}

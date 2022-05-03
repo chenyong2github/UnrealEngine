@@ -31,8 +31,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public void Generate(IUhtExportFactory factory)
 		{
 			ref UhtCodeGenerator.HeaderInfo headerInfo = ref this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex];
-			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
+				using BorrowStringBuilder borrower = new(StringBuilderCache.Big);
 				StringBuilder builder = borrower.StringBuilder;
 
 				builder.Append(HeaderCopyright);
@@ -41,7 +41,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				bool addedStructuredArchiveFromArchiveHeader = false;
 				bool addedArchiveUObjectFromStructuredArchiveHeader = false;
-				HashSet<UhtHeaderFile> addedIncludes = new HashSet<UhtHeaderFile>();
+				HashSet<UhtHeaderFile> addedIncludes = new();
 				addedIncludes.Add(this.HeaderFile);
 				foreach (UhtType type in this.HeaderFile.Children)
 				{
@@ -288,17 +288,17 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				builder.Append(EnableDeprecationWarnings).Append("\r\n");
 
-				using (UhtBorrowBuffer borrowBuffer = new UhtBorrowBuffer(builder))
 				{
+					using UhtBorrowBuffer borrowBuffer = new(builder);
 					string cppFilePath = factory.MakePath(HeaderFile, ".gen.cpp");
-					StringView generatedBody = new StringView(borrowBuffer.Buffer.Memory);
+					StringView generatedBody = new(borrowBuffer.Buffer.Memory);
 					if (this.SaveExportedHeaders)
 					{
 						factory.CommitOutput(cppFilePath, generatedBody);
 					}
 
 					// Save the hash of the generated body 
-					this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex]._bodyHash = UhtHash.GenenerateTextHash(generatedBody.Span.Slice(generatedBodyStart, generatedBodyEnd - generatedBodyStart));
+					this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex]._bodyHash = UhtHash.GenenerateTextHash(generatedBody.Span[generatedBodyStart..generatedBodyEnd]);
 				}
 			}
 		}
@@ -317,7 +317,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				enumDisplayNameFn = "nullptr";
 			}
 
-			using (UhtMacroBlockEmitter macroBlockEmitter = new UhtMacroBlockEmitter(builder, "WITH_EDITORONLY_DATA", enumObj.IsEditorOnly))
+			using (UhtMacroBlockEmitter macroBlockEmitter = new(builder, "WITH_EDITORONLY_DATA", enumObj.IsEditorOnly))
 			{
 
 				// If we don't have a zero 0 then we emit a static assert to verify we have one
@@ -378,8 +378,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				int enumIndex = 0;
 				foreach (UhtEnumValue value in enumObj.EnumValues)
 				{
-					string? keyName;
-					if (!enumObj.MetaData.TryGetValue("OverrideName", enumIndex, out keyName))
+					if (!enumObj.MetaData.TryGetValue("OverrideName", enumIndex, out string? keyName))
 					{
 						keyName = value.Name.ToString();
 					}
@@ -415,8 +414,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t\treturn ").Append(registrationName).Append(".InnerSingleton;\r\n");
 				builder.Append("\t}\r\n");
 
-				using (UhtBorrowBuffer borrowBuffer = new UhtBorrowBuffer(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 				{
+					using UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart);
 					this.ObjectInfos[enumObj.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 				}
 			}
@@ -607,7 +606,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t}\r\n");
 			}
 
-			using (UhtBorrowBuffer borrowBuffer = new UhtBorrowBuffer(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
+			using (UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 			{
 				this.ObjectInfos[scriptStruct.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 			}
@@ -772,7 +771,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			builder.AppendEndEditorOnlyGuard(function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly));
 
-			using (UhtBorrowBuffer borrowBuffer = new UhtBorrowBuffer(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
+			using (UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 			{
 				this.ObjectInfos[function.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 			}
@@ -815,7 +814,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private static StringBuilder AppendExportProperties(StringBuilder builder, UhtScriptStruct scriptStruct, int tabs)
 		{
-			using (UhtMacroBlockEmitter emitter = new UhtMacroBlockEmitter(builder, "WITH_EDITORONLY_DATA"))
+			using (UhtMacroBlockEmitter emitter = new(builder, "WITH_EDITORONLY_DATA"))
 			{
 				foreach (UhtProperty property in scriptStruct.Properties)
 				{
@@ -833,9 +832,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				return builder;
 			}
 
-			PropertyMemberContextImpl context = new PropertyMemberContextImpl(this.CodeGenerator, structObj, structSourceName, staticsName);
+			PropertyMemberContextImpl context = new(this.CodeGenerator, structObj, structSourceName, staticsName);
 
-			using (UhtMacroBlockEmitter emitter = new UhtMacroBlockEmitter(builder, "WITH_EDITORONLY_DATA"))
+			using (UhtMacroBlockEmitter emitter = new(builder, "WITH_EDITORONLY_DATA"))
 			{
 				bool hasAllEditorOnlyDataProperties = true;
 				foreach (UhtType type in structObj.Children)
@@ -872,9 +871,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				return builder;
 			}
 
-			PropertyMemberContextImpl context = new PropertyMemberContextImpl(this.CodeGenerator, structObj, structSourceName, staticsName);
+			PropertyMemberContextImpl context = new(this.CodeGenerator, structObj, structSourceName, staticsName);
 
-			using (UhtMacroBlockEmitter emitter = new UhtMacroBlockEmitter(builder, "WITH_EDITORONLY_DATA"))
+			using (UhtMacroBlockEmitter emitter = new(builder, "WITH_EDITORONLY_DATA"))
 			{
 				bool hasAllEditorOnlyDataProperties = true;
 				foreach (UhtType type in structObj.Children)
@@ -911,7 +910,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private StringBuilder AppendClass(StringBuilder builder, UhtClass classObj)
 		{
 			// Collect the functions in reversed order
-			List<UhtFunction> reversedFunctions = new List<UhtFunction>(classObj.Functions.Where(x => IsRpcFunction(x) && ShouldExportFunction(x)));
+			List<UhtFunction> reversedFunctions = new(classObj.Functions.Where(x => IsRpcFunction(x) && ShouldExportFunction(x)));
 			reversedFunctions.Reverse();
 
 			// Check to see if we have any RPC functions for the editor
@@ -930,7 +929,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			AppendPropertyAccessors(builder, classObj);
 
 			// Collect the callback function and sort by name to make the order stable
-			List<UhtFunction> callbackFunctions = new List<UhtFunction>(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
+			List<UhtFunction> callbackFunctions = new(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
 
 			// VM -> C++ proxies (events and delegates).
@@ -975,11 +974,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// Scan the children to see what we have
-			bool hasProperties;
-			bool hasFunctions;
-			bool hasEditorFields;
-			bool allEditorFields;
-			GetFieldNotifyStats(classObj, out hasProperties, out hasFunctions, out hasEditorFields, out allEditorFields);
+			GetFieldNotifyStats(classObj, out bool hasProperties, out bool hasFunctions, out bool hasEditorFields, out bool allEditorFields);
 
 			if (allEditorFields)
 			{
@@ -1211,13 +1206,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			string registrationName = $"Z_Registration_Info_UClass_{classObj.SourceName}";
 			string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
 
-			PropertyMemberContextImpl context = new PropertyMemberContextImpl(this.CodeGenerator, classObj, classObj.SourceName, staticsName);
+			PropertyMemberContextImpl context = new(this.CodeGenerator, classObj, classObj.SourceName, staticsName);
 
 			bool hasInterfaces = classObj.Bases.Any(x => x is UhtClass baseClass && baseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface));
 
 			// Collect the functions to be exported
 			bool allEditorOnlyFunctions = true;
-			List<UhtFunction> sortedFunctions = new List<UhtFunction>();
+			List<UhtFunction> sortedFunctions = new();
 			foreach (UhtFunction function in classObj.Functions)
 			{
 				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
@@ -1423,7 +1418,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// At this point, we can compute the hash... HOWEVER, in the old UHT extra data is appended to the hash block that isn't emitted to the actual output
-			using (BorrowStringBuilder hashBorrower = new BorrowStringBuilder(StringBuilderCache.Small))
+			using (BorrowStringBuilder hashBorrower = new(StringBuilderCache.Small))
 			{
 				StringBuilder hashBuilder = hashBorrower.StringBuilder;
 				hashBuilder.Append(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart);
@@ -1468,17 +1463,15 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				if (this.Session.IncludeDebugOutput)
 				{
-					using (UhtBorrowBuffer borrowBuffer = new UhtBorrowBuffer(hashBuilder, saveLength, hashBuilder.Length - saveLength))
-					{
-						builder.Append("#if 0\r\n");
-						builder.Append(borrowBuffer.Buffer.Memory);
-						builder.Append("#endif\r\n");
-					}
+					using UhtBorrowBuffer borrowBuffer = new(hashBuilder, saveLength, hashBuilder.Length - saveLength);
+					builder.Append("#if 0\r\n");
+					builder.Append(borrowBuffer.Buffer.Memory);
+					builder.Append("#endif\r\n");
 				}
 
 				// Calculate generated class initialization code hash so that we know when it changes after hot-reload
-				using (UhtBorrowBuffer borrowBuffer = new UhtBorrowBuffer(hashBuilder))
 				{
+					using UhtBorrowBuffer borrowBuffer = new(hashBuilder);
 					this.ObjectInfos[classObj.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 				}
 			}
@@ -1532,7 +1525,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			bool allEditorOnly = true;
 
-			List<UhtFunction> sortedFunctions = new List<UhtFunction>();
+			List<UhtFunction> sortedFunctions = new();
 			foreach (UhtFunction function in classObj.Functions)
 			{
 				if (function.FunctionFlags.HasExactFlags(EFunctionFlags.Native | EFunctionFlags.NetRequest, EFunctionFlags.Native))
@@ -1545,8 +1538,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			if (sortedFunctions.Count != 0)
 			{
-				using (UhtMacroBlockEmitter blockEmitter = new UhtMacroBlockEmitter(builder, "WITH_EDITOR", allEditorOnly))
 				{
+					using UhtMacroBlockEmitter blockEmitter = new(builder, "WITH_EDITOR", allEditorOnly);
 					builder.Append("\t\tUClass* Class = ").Append(classObj.SourceName).Append("::StaticClass();\r\n");
 					builder.Append("\t\tstatic const FNameNativePtrPair Funcs[] = {\r\n");
 
@@ -1580,8 +1573,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			if (callbackFunctions.Count > 0)
 			{
 				bool isInterfaceClass = classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface);
-				using (UhtMacroBlockEmitter blockEmitter = new UhtMacroBlockEmitter(builder, "WITH_EDITOR"))
 				{
+					using UhtMacroBlockEmitter blockEmitter = new(builder, "WITH_EDITOR");
 					foreach (UhtFunction function in callbackFunctions)
 					{
 						// Net response functions don't go into the VM
@@ -1741,7 +1734,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private static List<UhtScriptStruct> FindNoExportStructs(UhtStruct structObj)
 		{
-			List<UhtScriptStruct> outScriptStructs = new List<UhtScriptStruct>();
+			List<UhtScriptStruct> outScriptStructs = new();
 			FindNoExportStructsRecursive(outScriptStructs, structObj);
 			outScriptStructs.Reverse();
 			return outScriptStructs;
@@ -1750,21 +1743,21 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private class PropertyMemberContextImpl : IUhtPropertyMemberContext
 		{
 			private readonly UhtCodeGenerator _codeGenerator;
-			private readonly UhtStruct _outerStructInternal;
-			private readonly string _outerStructSourceNameInternal;
-			private readonly string _staticsNameInternal;
+			private readonly UhtStruct _outerStruct;
+			private readonly string _outerStructSourceName;
+			private readonly string _staticsName;
 
 			public PropertyMemberContextImpl(UhtCodeGenerator codeGenerator, UhtStruct outerStruct, string outerStructSourceName, string staticsName)
 			{
 				this._codeGenerator = codeGenerator;
-				this._outerStructInternal = outerStruct;
-				this._staticsNameInternal = staticsName;
-				this._outerStructSourceNameInternal = outerStructSourceName.Length == 0 ? outerStruct.SourceName : outerStructSourceName;
+				this._outerStruct = outerStruct;
+				this._staticsName = staticsName;
+				this._outerStructSourceName = outerStructSourceName.Length == 0 ? outerStruct.SourceName : outerStructSourceName;
 			}
 
-			public UhtStruct OuterStruct => this._outerStructInternal;
-			public string OuterStructSourceName => this._outerStructSourceNameInternal;
-			public string StaticsName => this._staticsNameInternal;
+			public UhtStruct OuterStruct => this._outerStruct;
+			public string OuterStructSourceName => this._outerStructSourceName;
+			public string StaticsName => this._staticsName;
 			public string NamePrefix => "NewProp_";
 			public string MetaDataSuffix => "_MetaData";
 

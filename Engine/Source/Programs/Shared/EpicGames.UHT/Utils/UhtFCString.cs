@@ -46,8 +46,7 @@ namespace EpicGames.UHT.Utils
 			}
 			else
 			{
-				int intValue;
-				return Int32.TryParse(span, out intValue) && intValue != 0;
+				return Int32.TryParse(span, out int intValue) && intValue != 0;
 			}
 		}
 
@@ -76,8 +75,7 @@ namespace EpicGames.UHT.Utils
 			}
 			else
 			{
-				int intValue;
-				return Int32.TryParse(value, out intValue) && intValue != 0;
+				return Int32.TryParse(value, out int intValue) && intValue != 0;
 			}
 		}
 
@@ -252,7 +250,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Resulting string</returns>
 		public static string UnescapeText(string text)
 		{
-			StringBuilder result = new StringBuilder();
+			StringBuilder result = new();
 			for (int idx = 0; idx < text.Length; idx++)
 			{
 				if (text[idx] == '\\' && idx + 1 < text.Length)
@@ -278,8 +276,7 @@ namespace EpicGames.UHT.Utils
 							bool parsed = false;
 							if (idx + 4 < text.Length)
 							{
-								int value;
-								if (Int32.TryParse(text.Substring(idx + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out value))
+								if (Int32.TryParse(text.Substring(idx + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out int value))
 								{
 									parsed = true;
 									result.Append((char)value);
@@ -346,7 +343,7 @@ namespace EpicGames.UHT.Utils
 			bool wasNumber = false;
 			bool wasMinusSign = false;
 
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			for (int charIndex = 0; charIndex < chars.Length; ++charIndex)
 			{
 				char ch = chars[charIndex];
@@ -487,47 +484,45 @@ namespace EpicGames.UHT.Utils
 		private static string TabsToSpacesInternal(ReadOnlySpan<char> span, int tabSpacing, bool emulateCrBug, int tabIndex)
 		{
 			// Locate the last \n since all tabs have to be computed relative to this.
-			int crPos = span.Slice(0, tabIndex).LastIndexOf('\n') + 1;
+			int crPos = span[..tabIndex].LastIndexOf('\n') + 1;
 
-			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
+			using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+			StringBuilder builder = borrower.StringBuilder;
+			int committed = 0;
+			do
 			{
-				StringBuilder builder = borrower.StringBuilder;
-				int committed = 0;
-				do
+				// Commit everything prior to the tab to the builder
+				builder.Append(span[..tabIndex]);
+				span = span[(tabIndex + 1)..];
+				committed += tabIndex;
+
+				// Add the appropriate number of spaces
+				int adjustedCrPos = crPos;
+				if (emulateCrBug && adjustedCrPos > 0)
 				{
-					// Commit everything prior to the tab to the builder
-					builder.Append(span.Slice(0, tabIndex));
-					span = span.Slice(tabIndex + 1);
-					committed += tabIndex;
+					--adjustedCrPos;
+				}
+				int spacesToInsert = tabSpacing - (committed - adjustedCrPos) % tabSpacing;
+				builder.AppendSpaces(spacesToInsert);
+				committed += spacesToInsert;
 
-					// Add the appropriate number of spaces
-					int adjustedCrPos = crPos;
-					if (emulateCrBug && adjustedCrPos > 0)
+				// Search for the next \t or \n
+				for (tabIndex = 0; tabIndex < span.Length; ++tabIndex)
+				{
+					if (span[tabIndex] == '\n')
 					{
-						--adjustedCrPos;
+						crPos = committed + tabIndex + 1;
 					}
-					int spacesToInsert = tabSpacing - (committed - adjustedCrPos) % tabSpacing;
-					builder.AppendSpaces(spacesToInsert);
-					committed += spacesToInsert;
-
-					// Search for the next \t or \n
-					for (tabIndex = 0; tabIndex < span.Length; ++tabIndex)
+					else if (span[tabIndex] == '\t')
 					{
-						if (span[tabIndex] == '\n')
-						{
-							crPos = committed + tabIndex + 1;
-						}
-						else if (span[tabIndex] == '\t')
-						{
-							break;
-						}
+						break;
 					}
-				} while (tabIndex < span.Length);
+				}
+			} while (tabIndex < span.Length);
 
-				// Commit the remaining data
-				builder.Append(span);
-				return builder.ToString();
-			}
+			// Commit the remaining data
+			builder.Append(span);
+			return builder.ToString();
 		}
 	}
 }

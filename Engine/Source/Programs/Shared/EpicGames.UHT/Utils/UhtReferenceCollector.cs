@@ -125,9 +125,7 @@ namespace EpicGames.UHT.Utils
 			for (int index = 0; index < this.References.Count; ++index)
 			{
 				int key = this.References[index];
-				int objectIndex;
-				bool registered;
-				UngetKey(key, out objectIndex, out registered);
+				UngetKey(key, out int objectIndex, out bool registered);
 				sorted[index] = referenceStringDelegate(objectIndex, registered);
 			}
 

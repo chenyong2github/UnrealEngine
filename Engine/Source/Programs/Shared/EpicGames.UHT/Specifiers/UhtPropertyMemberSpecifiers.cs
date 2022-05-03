@@ -104,8 +104,7 @@ namespace EpicGames.UHT.Parsers
 				context.MessageSite.LogError("Cannot specify a property as being both BlueprintReadOnly and BlueprintReadWrite.");
 			}
 
-			string? privateAccessMD;
-			bool allowPrivateAccess = context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out privateAccessMD) && !privateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
+			bool allowPrivateAccess = context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out string? privateAccessMD) && !privateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
 			if (specifierContext.Scope.AccessSpecifier == UhtAccessSpecifier.Private && !allowPrivateAccess)
 			{
 				context.MessageSite.LogError("BlueprintReadWrite should not be used on private members");
@@ -130,8 +129,7 @@ namespace EpicGames.UHT.Parsers
 				context.MessageSite.LogError("Cannot specify both BlueprintReadOnly and BlueprintReadWrite or BlueprintSetter.");
 			}
 
-			string? privateAccessMD;
-			bool allowPrivateAccess = context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out privateAccessMD) && !privateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
+			bool allowPrivateAccess = context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out string? privateAccessMD) && !privateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
 			if (specifierContext.Scope.AccessSpecifier == UhtAccessSpecifier.Private && !allowPrivateAccess)
 			{
 				context.MessageSite.LogError("BlueprintReadOnly should not be used on private members");

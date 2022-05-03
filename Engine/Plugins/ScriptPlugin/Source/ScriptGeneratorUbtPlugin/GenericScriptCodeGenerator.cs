@@ -13,66 +13,66 @@ namespace ScriptGeneratorUbtPlugin
 {
 	static class GenericScriptCodeGeneratorStringBuilderExtensinos
 	{
-		public static StringBuilder AppendGenericWrapperFunctionDeclaration(this StringBuilder Builder, UhtClass Class, string FunctionName)
+		public static StringBuilder AppendGenericWrapperFunctionDeclaration(this StringBuilder builder, UhtClass classObj, string functionName)
 		{
-			return Builder.Append("int32 ").Append(Class.EngineName).Append('_').Append(FunctionName).Append("(void* InScriptContext)");
+			return builder.Append("int32 ").Append(classObj.EngineName).Append('_').Append(functionName).Append("(void* InScriptContext)");
 		}
 
-		public static StringBuilder AppendGenericFunctionParamDeclaration(this StringBuilder Builder, UhtClass Class, UhtProperty Property)
+		public static StringBuilder AppendGenericFunctionParamDeclaration(this StringBuilder builder, UhtClass _ /* classObj */, UhtProperty property)
 		{
-			if (Property is UhtObjectPropertyBase)
+			if (property is UhtObjectPropertyBase)
 			{
-				Builder.Append("UObject* ").Append(Property.SourceName).Append(" = nullptr;");
+				builder.Append("UObject* ").Append(property.SourceName).Append(" = nullptr;");
 			}
 			else
 			{
-				Builder
-					.AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal)
+				builder
+					.AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal)
 					.Append(' ')
-					.Append(Property.SourceName)
-					.Append(" = ").AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal)
+					.Append(property.SourceName)
+					.Append(" = ").AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal)
 					.Append("();");
 			}
-			return Builder;
+			return builder;
 		}
 
-		public static StringBuilder AppendGenericObjectDeclarationFromContext(this StringBuilder Builder, UhtClass Class)
+		public static StringBuilder AppendGenericObjectDeclarationFromContext(this StringBuilder builder, UhtClass _ /* classObj */)
 		{
-			return Builder.Append("UObject* Obj = (UObject*)InScriptContext;");
+			return builder.Append("UObject* Obj = (UObject*)InScriptContext;");
 		}
 
-		public static StringBuilder AppendGenericReturnValueHandler(this StringBuilder Builder, UhtClass Class, UhtProperty? ReturnValue)
+		public static StringBuilder AppendGenericReturnValueHandler(this StringBuilder builder, UhtClass _1 /* classObj */, UhtProperty? _2 /* returnValue */)
 		{
-			return Builder.Append("return 0;");
+			return builder.Append("return 0;");
 		}
 	}
 
 	internal class GenericScriptCodeGenerator : ScriptCodeGeneratorBase
 	{
-		public GenericScriptCodeGenerator(IUhtExportFactory Factory)
-			: base(Factory)
+		public GenericScriptCodeGenerator(IUhtExportFactory factory)
+			: base(factory)
 		{
 		}
 
-		protected override bool CanExportClass(UhtClass Class)
+		protected override bool CanExportClass(UhtClass classObj)
 		{
-			if (!base.CanExportClass(Class))
+			if (!base.CanExportClass(classObj))
 			{
 				return false;
 			}
 
-			foreach (UhtType Child in Class.Children)
+			foreach (UhtType child in classObj.Children)
 			{
-				if (Child is UhtFunction Function)
+				if (child is UhtFunction function)
 				{
-					if (CanExportFunction(Class, Function))
+					if (CanExportFunction(classObj, function))
 					{
 						return true;
 					}
 				}
-				else if (Child is UhtProperty Property)
+				else if (child is UhtProperty property)
 				{
-					if (CanExportProperty(Class, Property))
+					if (CanExportProperty(classObj, property))
 					{
 						return true;
 					}
@@ -81,122 +81,122 @@ namespace ScriptGeneratorUbtPlugin
 			return false;
 		}
 
-		protected override void ExportClass(StringBuilder Builder, UhtClass Class)
+		protected override void ExportClass(StringBuilder builder, UhtClass classObj)
 		{
-			Builder.Append("#pragma once\r\n\r\n");
+			builder.Append("#pragma once\r\n\r\n");
 
-			List<UhtFunction> Functions = Class.Children.Where(x => x is UhtFunction).Cast<UhtFunction>().Reverse().ToList();
+			List<UhtFunction> functions = classObj.Children.Where(x => x is UhtFunction).Cast<UhtFunction>().Reverse().ToList();
 
 			//ETSTODO - Functions are reversed in the engine
-			foreach (UhtFunction Function in Class.Functions.Reverse())
+			foreach (UhtFunction function in classObj.Functions.Reverse())
 			{
-				if (CanExportFunction(Class, Function))
+				if (CanExportFunction(classObj, function))
 				{
-					ExportFunction(Builder, Class, Function);
+					ExportFunction(builder, classObj, function);
 				}
 			}
-			//foreach (UhtType Child in Class.Children)
+			//foreach (UhtType child in Class.Children)
 			//{
-			//	if (Child is UhtFunction Function && CanExportFunction(Class, Function))
+			//	if (child is UhtFunction function && CanExportFunction(classObj, Function))
 			//	{
-			//		ExportFunction(Builder, Class, Function);
+			//		ExportFunction(Builder, classObj, function);
 			//	}
 			//}
 
-			foreach (UhtType Child in Class.Children)
+			foreach (UhtType child in classObj.Children)
 			{
-				if (Child is UhtProperty Property && CanExportProperty(Class, Property))
+				if (child is UhtProperty property && CanExportProperty(classObj, property))
 				{
-					ExportProperty(Builder, Class, Property);
+					ExportProperty(builder, classObj, property);
 				}
 			}
 
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
+			if (!classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
 			{
-				Builder.AppendGenericWrapperFunctionDeclaration(Class, "New").Append("\r\n");
-				Builder.Append("{\r\n");
-				Builder.Append("\tUObject* Outer = NULL;\r\n");
-				Builder.Append("\tFName Name = FName(\"ScriptObject\");\r\n");
-				Builder.Append("\tUObject* Obj = NewObject<").Append(Class.SourceName).Append(">(Outer, Name);\r\n");
-				Builder.Append("\tif (Obj)\r\n\t{\r\n");
-				Builder.Append("\t\tFScriptObjectReferencer::Get().AddObjectReference(Obj);\r\n");
-				Builder.Append("\t\t// @todo: Register the object with the script context here\r\n");
-				Builder.Append("\t}\r\n\treturn 0;\r\n");
-				Builder.Append("}\r\n\r\n");
+				builder.AppendGenericWrapperFunctionDeclaration(classObj, "New").Append("\r\n");
+				builder.Append("{\r\n");
+				builder.Append("\tUObject* Outer = NULL;\r\n");
+				builder.Append("\tFName Name = FName(\"ScriptObject\");\r\n");
+				builder.Append("\tUObject* Obj = NewObject<").Append(classObj.SourceName).Append(">(Outer, Name);\r\n");
+				builder.Append("\tif (Obj)\r\n\t{\r\n");
+				builder.Append("\t\tFScriptObjectReferencer::Get().AddObjectReference(Obj);\r\n");
+				builder.Append("\t\t// @todo: Register the object with the script context here\r\n");
+				builder.Append("\t}\r\n\treturn 0;\r\n");
+				builder.Append("}\r\n\r\n");
 
-				Builder.AppendGenericWrapperFunctionDeclaration(Class, "Destroy").Append("\r\n");
-				Builder.Append("{\r\n");
-				Builder.Append("\t").AppendGenericObjectDeclarationFromContext(Class).Append("\r\n");
-				Builder.Append("\tif (Obj)\r\n\t{\r\n");
-				Builder.Append("\t\tFScriptObjectReferencer::Get().RemoveObjectReference(Obj);\r\n");
-				Builder.Append("\t\t// @todo: Remove the object from the script context here if required\r\n");
-				Builder.Append("\t}\r\n\treturn 0;\r\n");
-				Builder.Append("}\r\n\r\n");
+				builder.AppendGenericWrapperFunctionDeclaration(classObj, "Destroy").Append("\r\n");
+				builder.Append("{\r\n");
+				builder.Append('\t').AppendGenericObjectDeclarationFromContext(classObj).Append("\r\n");
+				builder.Append("\tif (Obj)\r\n\t{\r\n");
+				builder.Append("\t\tFScriptObjectReferencer::Get().RemoveObjectReference(Obj);\r\n");
+				builder.Append("\t\t// @todo: Remove the object from the script context here if required\r\n");
+				builder.Append("\t}\r\n\treturn 0;\r\n");
+				builder.Append("}\r\n\r\n");
 			}
 		}
 
-		protected void ExportFunction(StringBuilder Builder, UhtClass Class, UhtFunction Function)
+		protected void ExportFunction(StringBuilder builder, UhtClass classObj, UhtFunction function)
 		{
-			Builder.AppendGenericWrapperFunctionDeclaration(Class, Function.SourceName).Append("\r\n");
-			Builder.Append("{\r\n");
-			Builder.Append("\t").AppendGenericObjectDeclarationFromContext(Class).Append("\r\n");
-			AppendFunctionDispatch(Builder, Class, Function);
-			Builder.Append("\t").AppendGenericReturnValueHandler(Class, Function.ReturnProperty).Append("\r\n");
-			Builder.Append("}\r\n\r\n");
+			builder.AppendGenericWrapperFunctionDeclaration(classObj, function.SourceName).Append("\r\n");
+			builder.Append("{\r\n");
+			builder.Append('\t').AppendGenericObjectDeclarationFromContext(classObj).Append("\r\n");
+			AppendFunctionDispatch(builder, classObj, function);
+			builder.Append('\t').AppendGenericReturnValueHandler(classObj, function.ReturnProperty).Append("\r\n");
+			builder.Append("}\r\n\r\n");
 		}
 
-		protected void ExportProperty(StringBuilder Builder, UhtClass Class, UhtProperty Property)
+		protected static void ExportProperty(StringBuilder builder, UhtClass classObj, UhtProperty property)
 		{
 			// Getter
-			Builder.AppendGenericWrapperFunctionDeclaration(Class, $"Get_{Property.SourceName}").Append("\r\n");
-			Builder.Append("{\r\n");
-			Builder.Append('\t').AppendGenericObjectDeclarationFromContext(Class).Append("\r\n");
-			Builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(Class.SourceName).Append("::StaticClass(), TEXT(\"").Append(Property.SourceName).Append("\"));\r\n");
-			Builder.Append('\t').AppendGenericFunctionParamDeclaration(Class, Property).Append("\r\n");
-			Builder.Append("\tProperty->CopyCompleteValue(&").Append(Property.SourceName).Append(", Property->ContainerPtrToValuePtr<void>(Obj));\r\n");
-			Builder.Append("\t// @todo: handle property value here\r\n");
-			Builder.Append("\treturn 0;\r\n");
-			Builder.Append("}\r\n\r\n");
+			builder.AppendGenericWrapperFunctionDeclaration(classObj, $"Get_{property.SourceName}").Append("\r\n");
+			builder.Append("{\r\n");
+			builder.Append('\t').AppendGenericObjectDeclarationFromContext(classObj).Append("\r\n");
+			builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(classObj.SourceName).Append("::StaticClass(), TEXT(\"").Append(property.SourceName).Append("\"));\r\n");
+			builder.Append('\t').AppendGenericFunctionParamDeclaration(classObj, property).Append("\r\n");
+			builder.Append("\tProperty->CopyCompleteValue(&").Append(property.SourceName).Append(", Property->ContainerPtrToValuePtr<void>(Obj));\r\n");
+			builder.Append("\t// @todo: handle property value here\r\n");
+			builder.Append("\treturn 0;\r\n");
+			builder.Append("}\r\n\r\n");
 
 			// Setter
-			Builder.AppendGenericWrapperFunctionDeclaration(Class, $"Set_{Property.SourceName}").Append("\r\n");
-			Builder.Append("{\r\n");
-			Builder.Append('\t').AppendGenericObjectDeclarationFromContext(Class).Append("\r\n");
-			Builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(Class.SourceName).Append("::StaticClass(), TEXT(\"").Append(Property.SourceName).Append("\"));\r\n");
-			Builder.Append('\t').AppendGenericFunctionParamDeclaration(Class, Property).Append("\r\n");
-			Builder.Append("\tProperty->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Obj), &").Append(Property.SourceName).Append(");\r\n");
-			Builder.Append("\treturn 0;\r\n");
-			Builder.Append("}\r\n\r\n");
+			builder.AppendGenericWrapperFunctionDeclaration(classObj, $"Set_{property.SourceName}").Append("\r\n");
+			builder.Append("{\r\n");
+			builder.Append('\t').AppendGenericObjectDeclarationFromContext(classObj).Append("\r\n");
+			builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(classObj.SourceName).Append("::StaticClass(), TEXT(\"").Append(property.SourceName).Append("\"));\r\n");
+			builder.Append('\t').AppendGenericFunctionParamDeclaration(classObj, property).Append("\r\n");
+			builder.Append("\tProperty->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Obj), &").Append(property.SourceName).Append(");\r\n");
+			builder.Append("\treturn 0;\r\n");
+			builder.Append("}\r\n\r\n");
 		}
 
-		protected override void Finish(StringBuilder Builder, List<UhtClass> Classes)
+		protected override void Finish(StringBuilder builder, List<UhtClass> classes)
 		{
-			HashSet<UhtHeaderFile> UniqueHeaders = new HashSet<UhtHeaderFile>();
-			foreach (UhtClass Class in Classes)
+			HashSet<UhtHeaderFile> uniqueHeaders = new();
+			foreach (UhtClass classObj in classes)
 			{
-				UniqueHeaders.Add(Class.HeaderFile);
+				uniqueHeaders.Add(classObj.HeaderFile);
 			}
-			List<string> SortedHeaders = new List<string>();
-			foreach (UhtHeaderFile HeaderFile in UniqueHeaders)
+			List<string> sortedHeaders = new();
+			foreach (UhtHeaderFile headerFile in uniqueHeaders)
 			{
-				SortedHeaders.Add(HeaderFile.FilePath);
+				sortedHeaders.Add(headerFile.FilePath);
 			}
-			SortedHeaders.Sort(StringComparerUE.OrdinalIgnoreCase);
-			foreach (string FilePath in SortedHeaders)
+			sortedHeaders.Sort(StringComparerUE.OrdinalIgnoreCase);
+			foreach (string filePath in sortedHeaders)
 			{
-				string RelativePath = Path.GetRelativePath(this.Factory.PluginModule!.IncludeBase, FilePath).Replace("\\", "/");
-				Builder.Append("#include \"").Append(RelativePath).Append("\"\r\n");
+				string relativePath = Path.GetRelativePath(Factory.PluginModule!.IncludeBase, filePath).Replace("\\", "/");
+				builder.Append("#include \"").Append(relativePath).Append("\"\r\n");
 			}
 
-			SortedHeaders.Clear();
-			foreach (UhtClass Class in Classes)
+			sortedHeaders.Clear();
+			foreach (UhtClass classObj in classes)
 			{
-				SortedHeaders.Add($"{Class.EngineName}.script.h");
+				sortedHeaders.Add($"{classObj.EngineName}.script.h");
 			}
-			SortedHeaders.Sort(StringComparerUE.OrdinalIgnoreCase);
-			foreach (string FilePath in SortedHeaders)
+			sortedHeaders.Sort(StringComparerUE.OrdinalIgnoreCase);
+			foreach (string filePath in sortedHeaders)
 			{
-				Builder.Append("#include \"").Append(FilePath).Append("\"\r\n");
+				builder.Append("#include \"").Append(filePath).Append("\"\r\n");
 			}
 		}
 	}

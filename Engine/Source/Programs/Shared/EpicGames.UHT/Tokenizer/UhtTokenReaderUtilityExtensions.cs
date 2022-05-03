@@ -13,7 +13,7 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public static class UhtTokenReaderUtilityExtensions
 	{
-		private static readonly HashSet<StringView> s_skipDeclarationWarningStrings = new HashSet<StringView>
+		private static readonly HashSet<StringView> s_skipDeclarationWarningStrings = new()
 		{
 			"GENERATED_BODY",
 			"GENERATED_IINTERFACE_BODY",
@@ -128,8 +128,8 @@ namespace EpicGames.UHT.Tokenizer
 			bool endOfDeclarationFound = false;
 
 			// Store the current value of PrevComment so it can be restored after we parsed everything.
-			using (UhtTokenDisableComments disableComments = new UhtTokenDisableComments(tokenReader))
 			{
+				using UhtTokenDisableComments disableComments = new(tokenReader);
 
 				// Check if this is a class/struct declaration in which case it can be followed by member variable declaration.	
 				bool possiblyClassDeclaration = token.IsIdentifier() && (token.IsValue("class") || token.IsValue("struct"));
@@ -281,7 +281,7 @@ namespace EpicGames.UHT.Tokenizer
 			}
 
 			// Failing that, we'll guess about it being a macro based on it being a fully-capitalized identifier.
-			foreach (char ch in span.Slice(1))
+			foreach (char ch in span[1..])
 			{
 				if (ch != '_' && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9'))
 				{

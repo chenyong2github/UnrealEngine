@@ -170,7 +170,7 @@ namespace EpicGames.UHT.Types
 			ReadOnlySpan<char> strippedNS = namespaceString.Span;
 			if (strippedNS.Length > 1)
 			{
-				strippedNS = strippedNS.Slice(1, strippedNS.Length - 2).Trim();
+				strippedNS = strippedNS[1..^1].Trim();
 				if (strippedNS.Length > 0)
 				{
 					if (strippedNS[^1] == ']')
@@ -178,7 +178,7 @@ namespace EpicGames.UHT.Types
 						int index = strippedNS.LastIndexOf('[');
 						if (index != -1)
 						{
-							strippedNS = strippedNS.Slice(0, index).TrimEnd();
+							strippedNS = strippedNS[..index].TrimEnd();
 						}
 					}
 				}
@@ -333,9 +333,8 @@ namespace EpicGames.UHT.Types
 		{
 			defaultValueReader.Require('(');
 
-			double baseValue;
 			UhtToken token = defaultValueReader.GetToken();
-			if (!token.GetConstDouble(out baseValue))
+			if (!token.GetConstDouble(out double baseValue))
 			{
 				return false;
 			}

@@ -5,7 +5,6 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,114 +13,114 @@ namespace ScriptGeneratorUbtPlugin
 {
 	static class LuaScriptCodeGeneratorStringBuilderExtensinos
 	{
-		public static StringBuilder AppendLuaWrapperFunctionDeclaration(this StringBuilder Builder, UhtClass Class, string FunctionName)
+		public static StringBuilder AppendLuaWrapperFunctionDeclaration(this StringBuilder builder, UhtClass classObj, string functionName)
 		{
-			return Builder.Append("int32 ").Append(Class.EngineName).Append('_').Append(FunctionName).Append("(lua_State* InScriptContext)");
+			return builder.Append("int32 ").Append(classObj.EngineName).Append('_').Append(functionName).Append("(lua_State* InScriptContext)");
 		}
 
-		public static StringBuilder AppendLuaObjectDeclarationFromContext(this StringBuilder Builder, UhtClass Class)
+		public static StringBuilder AppendLuaObjectDeclarationFromContext(this StringBuilder builder, UhtClass classObj)
 		{
-			return Builder.Append("UObject* Obj = (").Append(Class.SourceName).Append("*)lua_touserdata(InScriptContext, 1);");
+			return builder.Append("UObject* Obj = (").Append(classObj.SourceName).Append("*)lua_touserdata(InScriptContext, 1);");
 		}
 
-		public static StringBuilder AppendLuaReturnValueHandler(this StringBuilder Builder, UhtClass Class, UhtProperty? ReturnValue, string? ReturnValueName)
+		public static StringBuilder AppendLuaReturnValueHandler(this StringBuilder builder, UhtClass _ /* classObj */, UhtProperty? returnValue, string? returnValueName)
 		{
-			if (ReturnValue != null)
+			if (returnValue != null)
 			{
-				if (ReturnValue is UhtIntProperty)
+				if (returnValue is UhtIntProperty)
 				{
-					Builder.Append("lua_pushinteger(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+					builder.Append("lua_pushinteger(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 				}
-				else if (ReturnValue is UhtFloatProperty)
+				else if (returnValue is UhtFloatProperty)
 				{
-					Builder.Append("lua_pushnumber(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+					builder.Append("lua_pushnumber(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 				}
-				else if (ReturnValue is UhtStrProperty)
+				else if (returnValue is UhtStrProperty)
 				{
-					Builder.Append("lua_pushstring(InScriptContext, TCHAR_TO_ANSI(*").Append(ReturnValueName).Append("));\r\n");
+					builder.Append("lua_pushstring(InScriptContext, TCHAR_TO_ANSI(*").Append(returnValueName).Append("));\r\n");
 				}
-				else if (ReturnValue is UhtNameProperty)
+				else if (returnValue is UhtNameProperty)
 				{
-					Builder.Append("lua_pushstring(InScriptContext, TCHAR_TO_ANSI(*").Append(ReturnValueName).Append(".ToString()));\r\n");
+					builder.Append("lua_pushstring(InScriptContext, TCHAR_TO_ANSI(*").Append(returnValueName).Append(".ToString()));\r\n");
 				}
-				else if (ReturnValue is UhtBoolProperty)
+				else if (returnValue is UhtBoolProperty)
 				{
-					Builder.Append("lua_pushboolean(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+					builder.Append("lua_pushboolean(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 				}
-				else if (ReturnValue is UhtStructProperty StructProperty)
+				else if (returnValue is UhtStructProperty structProperty)
 				{
-					if (StructProperty.ScriptStruct.EngineName == "Vector2D")
+					if (structProperty.ScriptStruct.EngineName == "Vector2D")
 					{
-						Builder.Append("FLuaVector2D::Return(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+						builder.Append("FLuaVector2D::Return(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Vector")
+					else if (structProperty.ScriptStruct.EngineName == "Vector")
 					{
-						Builder.Append("FLuaVector::Return(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+						builder.Append("FLuaVector::Return(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Vector4")
+					else if (structProperty.ScriptStruct.EngineName == "Vector4")
 					{
-						Builder.Append("FLuaVector4::Return(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+						builder.Append("FLuaVector4::Return(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Quat")
+					else if (structProperty.ScriptStruct.EngineName == "Quat")
 					{
-						Builder.Append("FLuaQuat::Return(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+						builder.Append("FLuaQuat::Return(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "LinearColor")
+					else if (structProperty.ScriptStruct.EngineName == "LinearColor")
 					{
-						Builder.Append("FLuaLinearColor::Return(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+						builder.Append("FLuaLinearColor::Return(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Color")
+					else if (structProperty.ScriptStruct.EngineName == "Color")
 					{
-						Builder.Append("FLuaLinearColor::Return(InScriptContext, FLinearColor(").Append(ReturnValueName).Append("));\r\n");
+						builder.Append("FLuaLinearColor::Return(InScriptContext, FLinearColor(").Append(returnValueName).Append("));\r\n");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Transform")
+					else if (structProperty.ScriptStruct.EngineName == "Transform")
 					{
-						Builder.Append("FLuaTransform::Return(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+						builder.Append("FLuaTransform::Return(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 					}
 					else
 					{
-						throw new UhtIceException($"Unsupported function return value struct type: {StructProperty.ScriptStruct.EngineName}");
+						throw new UhtIceException($"Unsupported function return value struct type: {structProperty.ScriptStruct.EngineName}");
 					}
 				}
-				else if (ReturnValue is UhtObjectPropertyBase)
+				else if (returnValue is UhtObjectPropertyBase)
 				{
-					Builder.Append("lua_pushlightuserdata(InScriptContext, ").Append(ReturnValueName).Append(");\r\n");
+					builder.Append("lua_pushlightuserdata(InScriptContext, ").Append(returnValueName).Append(");\r\n");
 				}
 				else
 				{
-					throw new UhtIceException($"Unsupported function return type: {ReturnValue.GetType().Name}");
+					throw new UhtIceException($"Unsupported function return type: {returnValue.GetType().Name}");
 				}
-				Builder.Append("\treturn 1;");
+				builder.Append("\treturn 1;");
 			}
 			else
 			{
-				Builder.Append("return 0;");
+				builder.Append("return 0;");
 			}
-			return Builder;
+			return builder;
 		}
 	}
 
 	internal class LuaScriptCodeGenerator : ScriptCodeGeneratorBase
 	{
-		public LuaScriptCodeGenerator(IUhtExportFactory Factory)
-			: base(Factory)
+		public LuaScriptCodeGenerator(IUhtExportFactory factory)
+			: base(factory)
 		{
 		}
 
-		protected override bool CanExportClass(UhtClass Class)
+		protected override bool CanExportClass(UhtClass classObj)
 		{
-			if (!base.CanExportClass(Class))
+			if (!base.CanExportClass(classObj))
 			{
 				return false;
 			}
 
-			for (UhtClass? Current = Class; Current != null; Current = Current.SuperClass)
+			for (UhtClass? current = classObj; current != null; current = current.SuperClass)
 			{
-				foreach (UhtType Child in Current.Children)
+				foreach (UhtType child in current.Children)
 				{
-					if (Child is UhtFunction Function)
+					if (child is UhtFunction function)
 					{
-						if (CanExportFunction(Class, Function))
+						if (CanExportFunction(classObj, function))
 						{
 							return true;
 						}
@@ -129,11 +128,11 @@ namespace ScriptGeneratorUbtPlugin
 				}
 			}
 
-			foreach (UhtType Child in Class.Children)
+			foreach (UhtType child in classObj.Children)
 			{
-				if (Child is UhtProperty Property)
+				if (child is UhtProperty property)
 				{
-					if (CanExportProperty(Class, Property))
+					if (CanExportProperty(classObj, property))
 					{
 						return true;
 					}
@@ -142,18 +141,18 @@ namespace ScriptGeneratorUbtPlugin
 			return false;
 		}
 
-		protected override bool CanExportFunction(UhtClass Class, UhtFunction Function)
+		protected override bool CanExportFunction(UhtClass classObj, UhtFunction function)
 		{
-			if (!base.CanExportFunction(Class, Function))
+			if (!base.CanExportFunction(classObj, function))
 			{
 				return false;
 			}
 
-			foreach (UhtType Child in Function.Children)
+			foreach (UhtType child in function.Children)
 			{
-				if (Child is UhtProperty Property)
+				if (child is UhtProperty property)
 				{
-					if (!IsPropertyTypeSupported(Property))
+					if (!IsPropertyTypeSupported(property))
 					{
 						return false;
 					}
@@ -162,326 +161,326 @@ namespace ScriptGeneratorUbtPlugin
 			return true;
 		}
 
-		protected override bool CanExportProperty(UhtClass Class, UhtProperty Property)
+		protected override bool CanExportProperty(UhtClass classObj, UhtProperty property)
 		{
-			return Property.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit) && IsPropertyTypeSupported(Property);
+			return property.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit) && IsPropertyTypeSupported(property);
 		}
 
-		private bool IsPropertyTypeSupported(UhtProperty Property)
+		private static bool IsPropertyTypeSupported(UhtProperty property)
 		{
-			if (Property is UhtStructProperty StructProperty)
+			if (property is UhtStructProperty structProperty)
 			{
 				return
-					StructProperty.ScriptStruct.EngineName == "Vector2D" ||
-					StructProperty.ScriptStruct.EngineName == "Vector" ||
-					StructProperty.ScriptStruct.EngineName == "Vector4" ||
-					StructProperty.ScriptStruct.EngineName == "Quat" ||
-					StructProperty.ScriptStruct.EngineName == "LinearColor" ||
-					StructProperty.ScriptStruct.EngineName == "Color" ||
-					StructProperty.ScriptStruct.EngineName == "Transform";
+					structProperty.ScriptStruct.EngineName == "Vector2D" ||
+					structProperty.ScriptStruct.EngineName == "Vector" ||
+					structProperty.ScriptStruct.EngineName == "Vector4" ||
+					structProperty.ScriptStruct.EngineName == "Quat" ||
+					structProperty.ScriptStruct.EngineName == "LinearColor" ||
+					structProperty.ScriptStruct.EngineName == "Color" ||
+					structProperty.ScriptStruct.EngineName == "Transform";
 			}
 			else if (
-				Property is UhtLazyObjectPtrProperty ||
-				Property is UhtSoftObjectProperty ||
-				Property is UhtSoftClassProperty ||
-				Property is UhtWeakObjectPtrProperty)
+				property is UhtLazyObjectPtrProperty ||
+				property is UhtSoftObjectProperty ||
+				property is UhtSoftClassProperty ||
+				property is UhtWeakObjectPtrProperty)
 			{
 				return false;
 			}
 			else if (
-				Property is UhtIntProperty ||
-				Property is UhtFloatProperty ||
-				Property is UhtStrProperty ||
-				Property is UhtNameProperty ||
-				Property is UhtBoolProperty ||
-				Property is UhtObjectPropertyBase)
+				property is UhtIntProperty ||
+				property is UhtFloatProperty ||
+				property is UhtStrProperty ||
+				property is UhtNameProperty ||
+				property is UhtBoolProperty ||
+				property is UhtObjectPropertyBase)
 			{
 				return true;
 			}
 			return false;
 		}
 
-		protected override void ExportClass(StringBuilder Builder, UhtClass Class)
+		protected override void ExportClass(StringBuilder builder, UhtClass classObj)
 		{
-			Builder.Append("#pragma once\r\n\r\n");
+			builder.Append("#pragma once\r\n\r\n");
 
-			List<UhtFunction> Functions = Class.Children.Where(x => x is UhtFunction).Cast<UhtFunction>().Reverse().ToList();
+			List<UhtFunction> functions = classObj.Children.Where(x => x is UhtFunction).Cast<UhtFunction>().Reverse().ToList();
 
 			//ETSTODO - Functions are reversed in the engine
-			for (UhtClass? Current = Class; Current != null; Current = Current.SuperClass)
+			for (UhtClass? current = classObj; current != null; current = current.SuperClass)
 			{
-				foreach (UhtFunction Function in Current.Functions.Reverse())
+				foreach (UhtFunction function in current.Functions.Reverse())
 				{
-					if (CanExportFunction(Class, Function))
+					if (CanExportFunction(classObj, function))
 					{
-						ExportFunction(Builder, Class, Function);
+						ExportFunction(builder, classObj, function);
 					}
 				}
 			}
 
-			for (UhtClass? Current = Class; Current != null; Current = Current.SuperClass)
+			for (UhtClass? current = classObj; current != null; current = current.SuperClass)
 			{
-				foreach (UhtType Child in Current.Children)
+				foreach (UhtType child in current.Children)
 				{
-					if (Child is UhtProperty Property && CanExportProperty(Class, Property))
+					if (child is UhtProperty property && CanExportProperty(classObj, property))
 					{
-						ExportProperty(Builder, Class, Property);
+						ExportProperty(builder, classObj, property);
 					}
 				}
 			}
 
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
+			if (!classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
 			{
-				Builder.AppendLuaWrapperFunctionDeclaration(Class, "New").Append("\r\n");
-				Builder.Append("{\r\n");
-				Builder.Append("\tUObject* Outer = (UObject*)lua_touserdata(InScriptContext, 1);\r\n");
-				Builder.Append("\tFName Name = FName(luaL_checkstring(InScriptContext, 2));\r\n");
-				Builder.Append("\tUObject* Obj = NewObject<").Append(Class.SourceName).Append(">(Outer, Name);\r\n");
-				Builder.Append("\tif (Obj)\r\n\t{\r\n");
-				Builder.Append("\t\tFScriptObjectReferencer::Get().AddObjectReference(Obj);\r\n");
-				Builder.Append("\t}\r\n");
-				Builder.Append("\tlua_pushlightuserdata(InScriptContext, Obj);\r\n");
-				Builder.Append("\treturn 1;\r\n");
-				Builder.Append("}\r\n\r\n");
+				builder.AppendLuaWrapperFunctionDeclaration(classObj, "New").Append("\r\n");
+				builder.Append("{\r\n");
+				builder.Append("\tUObject* Outer = (UObject*)lua_touserdata(InScriptContext, 1);\r\n");
+				builder.Append("\tFName Name = FName(luaL_checkstring(InScriptContext, 2));\r\n");
+				builder.Append("\tUObject* Obj = NewObject<").Append(classObj.SourceName).Append(">(Outer, Name);\r\n");
+				builder.Append("\tif (Obj)\r\n\t{\r\n");
+				builder.Append("\t\tFScriptObjectReferencer::Get().AddObjectReference(Obj);\r\n");
+				builder.Append("\t}\r\n");
+				builder.Append("\tlua_pushlightuserdata(InScriptContext, Obj);\r\n");
+				builder.Append("\treturn 1;\r\n");
+				builder.Append("}\r\n\r\n");
 
-				Builder.AppendLuaWrapperFunctionDeclaration(Class, "Destroy").Append("\r\n");
-				Builder.Append("{\r\n");
-				Builder.Append("\t").AppendLuaObjectDeclarationFromContext(Class).Append("\r\n");
-				Builder.Append("\tif (Obj)\r\n\t{\r\n");
-				Builder.Append("\t\tFScriptObjectReferencer::Get().RemoveObjectReference(Obj);\r\n");
-				Builder.Append("\t}\r\n");
-				Builder.Append("\treturn 0;\r\n");
-				Builder.Append("}\r\n\r\n");
+				builder.AppendLuaWrapperFunctionDeclaration(classObj, "Destroy").Append("\r\n");
+				builder.Append("{\r\n");
+				builder.Append('\t').AppendLuaObjectDeclarationFromContext(classObj).Append("\r\n");
+				builder.Append("\tif (Obj)\r\n\t{\r\n");
+				builder.Append("\t\tFScriptObjectReferencer::Get().RemoveObjectReference(Obj);\r\n");
+				builder.Append("\t}\r\n");
+				builder.Append("\treturn 0;\r\n");
+				builder.Append("}\r\n\r\n");
 			}
 
 			// Class: Equivalent of StaticClass()
-			Builder.AppendLuaWrapperFunctionDeclaration(Class, "Class").Append("\r\n");
-			Builder.Append("{\r\n");
-			Builder.Append("\tUClass* Class = ").Append(Class.SourceName).Append("::StaticClass();\r\n");
-			Builder.Append("\tlua_pushlightuserdata(InScriptContext, Class);\r\n");
-			Builder.Append("\treturn 1;\r\n");
-			Builder.Append("}\r\n\r\n");
+			builder.AppendLuaWrapperFunctionDeclaration(classObj, "Class").Append("\r\n");
+			builder.Append("{\r\n");
+			builder.Append("\tUClass* Class = ").Append(classObj.SourceName).Append("::StaticClass();\r\n");
+			builder.Append("\tlua_pushlightuserdata(InScriptContext, Class);\r\n");
+			builder.Append("\treturn 1;\r\n");
+			builder.Append("}\r\n\r\n");
 
 			// Library
-			Builder.Append("static const luaL_Reg ").Append(Class.EngineName).Append("_Lib[] =\r\n");
-			Builder.Append("{\r\n");
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
+			builder.Append("static const luaL_Reg ").Append(classObj.EngineName).Append("_Lib[] =\r\n");
+			builder.Append("{\r\n");
+			if (!classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
 			{
-				Builder.Append("\t{ \"New\", ").Append(Class.EngineName).Append("_New },\r\n");
-				Builder.Append("\t{ \"Destroy\", ").Append(Class.EngineName).Append("_Destroy },\r\n");
-				Builder.Append("\t{ \"Class\", ").Append(Class.EngineName).Append("_Class },\r\n");
+				builder.Append("\t{ \"New\", ").Append(classObj.EngineName).Append("_New },\r\n");
+				builder.Append("\t{ \"Destroy\", ").Append(classObj.EngineName).Append("_Destroy },\r\n");
+				builder.Append("\t{ \"Class\", ").Append(classObj.EngineName).Append("_Class },\r\n");
 			}
 
 			//ETSTODO - Functions are reversed in the engine
-			for (UhtClass? Current = Class; Current != null; Current = Current.SuperClass)
+			for (UhtClass? current = classObj; current != null; current = current.SuperClass)
 			{
-				foreach (UhtFunction Function in Current.Functions.Reverse())
+				foreach (UhtFunction function in current.Functions.Reverse())
 				{
-					if (CanExportFunction(Class, Function))
+					if (CanExportFunction(classObj, function))
 					{
-						Builder.Append("\t{ \"").Append(Function.SourceName).Append("\", ").Append(Class.EngineName).Append('_').Append(Function.SourceName).Append(" },\r\n");
+						builder.Append("\t{ \"").Append(function.SourceName).Append("\", ").Append(classObj.EngineName).Append('_').Append(function.SourceName).Append(" },\r\n");
 					}
 				}
 			}
 
-			for (UhtClass? Current = Class; Current != null; Current = Current.SuperClass)
+			for (UhtClass? current = classObj; current != null; current = current.SuperClass)
 			{
-				foreach (UhtType Child in Current.Children)
+				foreach (UhtType child in current.Children)
 				{
-					if (Child is UhtProperty Property && CanExportProperty(Class, Property))
+					if (child is UhtProperty property && CanExportProperty(classObj, property))
 					{
-						Builder.Append("\t{ \"Get_").Append(Property.SourceName).Append("\", ").Append(Class.EngineName).Append("_Get_").Append(Property.SourceName).Append(" },\r\n");
-						Builder.Append("\t{ \"Set_").Append(Property.SourceName).Append("\", ").Append(Class.EngineName).Append("_Set_").Append(Property.SourceName).Append(" },\r\n");
+						builder.Append("\t{ \"Get_").Append(property.SourceName).Append("\", ").Append(classObj.EngineName).Append("_Get_").Append(property.SourceName).Append(" },\r\n");
+						builder.Append("\t{ \"Set_").Append(property.SourceName).Append("\", ").Append(classObj.EngineName).Append("_Set_").Append(property.SourceName).Append(" },\r\n");
 					}
 				}
 			}
 
-			Builder.Append("\t{ NULL, NULL }\r\n");
-			Builder.Append("};\r\n\r\n");
+			builder.Append("\t{ NULL, NULL }\r\n");
+			builder.Append("};\r\n\r\n");
 		}
 
-		protected void ExportFunction(StringBuilder Builder, UhtClass Class, UhtFunction Function)
+		protected void ExportFunction(StringBuilder builder, UhtClass classObj, UhtFunction function)
 		{
-			UhtClass? FunctionSuper = null;
-			if (Function.Outer != null && Function.Outer != Class && Function.Outer is UhtClass OuterClass && base.CanExportClass(OuterClass))
+			UhtClass? functionSuper = null;
+			if (function.Outer != null && function.Outer != classObj && function.Outer is UhtClass outerClass && base.CanExportClass(outerClass))
 			{
-				FunctionSuper = OuterClass;
+				functionSuper = outerClass;
 			}
 
-			Builder.AppendLuaWrapperFunctionDeclaration(Class, Function.SourceName).Append("\r\n");
-			Builder.Append("{\r\n");
-			if (FunctionSuper == null)
+			builder.AppendLuaWrapperFunctionDeclaration(classObj, function.SourceName).Append("\r\n");
+			builder.Append("{\r\n");
+			if (functionSuper == null)
 			{
-				Builder.Append("\t").AppendLuaObjectDeclarationFromContext(Class).Append("\r\n");
-				AppendFunctionDispatch(Builder, Class, Function);
-				string ReturnValueName = Function.ReturnProperty != null ? $"Params.{Function.ReturnProperty.SourceName}" : String.Empty;
-				Builder.Append("\t").AppendLuaReturnValueHandler(Class, Function.ReturnProperty, ReturnValueName).Append("\r\n");
+				builder.Append('\t').AppendLuaObjectDeclarationFromContext(classObj).Append("\r\n");
+				AppendFunctionDispatch(builder, classObj, function);
+				string returnValueName = function.ReturnProperty != null ? $"Params.{function.ReturnProperty.SourceName}" : String.Empty;
+				builder.Append('\t').AppendLuaReturnValueHandler(classObj, function.ReturnProperty, returnValueName).Append("\r\n");
 			}
 			else
 			{
-				Builder.Append("\treturn ").Append(FunctionSuper.EngineName).Append('_').Append(Function.SourceName).Append("(InScriptContext);\r\n");
+				builder.Append("\treturn ").Append(functionSuper.EngineName).Append('_').Append(function.SourceName).Append("(InScriptContext);\r\n");
 			}
-			Builder.Append("}\r\n\r\n");
+			builder.Append("}\r\n\r\n");
 		}
 
-		protected void ExportProperty(StringBuilder Builder, UhtClass Class, UhtProperty Property)
+		protected void ExportProperty(StringBuilder builder, UhtClass classObj, UhtProperty property)
 		{
-			UhtClass? PropertySuper = null;
-			if (Property.Outer != null && Property.Outer != Class && Property.Outer is UhtClass OuterClass && base.CanExportClass(OuterClass))
+			UhtClass? propertySuper = null;
+			if (property.Outer != null && property.Outer != classObj && property.Outer is UhtClass outerClass && base.CanExportClass(outerClass))
 			{
-				PropertySuper = OuterClass;
+				propertySuper = outerClass;
 			}
 
 			// Getter
-			Builder.AppendLuaWrapperFunctionDeclaration(Class, $"Get_{Property.SourceName}").Append("\r\n");
-			Builder.Append("{\r\n");
-			if (PropertySuper == null)
+			builder.AppendLuaWrapperFunctionDeclaration(classObj, $"Get_{property.SourceName}").Append("\r\n");
+			builder.Append("{\r\n");
+			if (propertySuper == null)
 			{
-				Builder.Append('\t').AppendLuaObjectDeclarationFromContext(Class).Append("\r\n");
-				Builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(Class.SourceName).Append("::StaticClass(), TEXT(\"").Append(Property.SourceName).Append("\"));\r\n");
-				Builder.Append('\t').AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(" PropertyValue;\r\n");
-				Builder.Append("\tProperty->CopyCompleteValue(&PropertyValue, Property->ContainerPtrToValuePtr<void>(Obj));\r\n");
-				Builder.Append('\t').AppendLuaReturnValueHandler(Class, Property, "PropertyValue").Append("\r\n");
+				builder.Append('\t').AppendLuaObjectDeclarationFromContext(classObj).Append("\r\n");
+				builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(classObj.SourceName).Append("::StaticClass(), TEXT(\"").Append(property.SourceName).Append("\"));\r\n");
+				builder.Append('\t').AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(" PropertyValue;\r\n");
+				builder.Append("\tProperty->CopyCompleteValue(&PropertyValue, Property->ContainerPtrToValuePtr<void>(Obj));\r\n");
+				builder.Append('\t').AppendLuaReturnValueHandler(classObj, property, "PropertyValue").Append("\r\n");
 			}
 			else
 			{
-				Builder.Append("\treturn ").Append(PropertySuper.EngineName).Append('_').Append("Get_").Append(Property.SourceName).Append("(InScriptContext);\r\n");
+				builder.Append("\treturn ").Append(propertySuper.EngineName).Append('_').Append("Get_").Append(property.SourceName).Append("(InScriptContext);\r\n");
 			}
-			Builder.Append("}\r\n\r\n");
+			builder.Append("}\r\n\r\n");
 
 			// Setter
-			Builder.AppendLuaWrapperFunctionDeclaration(Class, $"Set_{Property.SourceName}").Append("\r\n");
-			Builder.Append("{\r\n");
-			if (PropertySuper == null)
+			builder.AppendLuaWrapperFunctionDeclaration(classObj, $"Set_{property.SourceName}").Append("\r\n");
+			builder.Append("{\r\n");
+			if (propertySuper == null)
 			{
-				Builder.Append('\t').AppendLuaObjectDeclarationFromContext(Class).Append("\r\n");
-				Builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(Class.SourceName).Append("::StaticClass(), TEXT(\"").Append(Property.SourceName).Append("\"));\r\n");
-				Builder.Append('\t').AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(" PropertyValue = ");
-				AppendInitializeFunctionDispatchParam(Builder, Class, null, Property, 0).Append(";\r\n");
-				Builder.Append("\tProperty->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Obj), &PropertyValue);\r\n");
-				Builder.Append("\treturn 0;\r\n");
+				builder.Append('\t').AppendLuaObjectDeclarationFromContext(classObj).Append("\r\n");
+				builder.Append("\tstatic FProperty* Property = FindScriptPropertyHelper(").Append(classObj.SourceName).Append("::StaticClass(), TEXT(\"").Append(property.SourceName).Append("\"));\r\n");
+				builder.Append('\t').AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(" PropertyValue = ");
+				AppendInitializeFunctionDispatchParam(builder, classObj, null, property, 0).Append(";\r\n");
+				builder.Append("\tProperty->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Obj), &PropertyValue);\r\n");
+				builder.Append("\treturn 0;\r\n");
 			}
 			else
 			{
-				Builder.Append("\treturn ").Append(PropertySuper.EngineName).Append('_').Append("Set_").Append(Property.SourceName).Append("(InScriptContext);\r\n");
+				builder.Append("\treturn ").Append(propertySuper.EngineName).Append('_').Append("Set_").Append(property.SourceName).Append("(InScriptContext);\r\n");
 			}
-			Builder.Append("}\r\n\r\n");
+			builder.Append("}\r\n\r\n");
 		}
 
-		protected override void Finish(StringBuilder Builder, List<UhtClass> Classes)
+		protected override void Finish(StringBuilder builder, List<UhtClass> classes)
 		{
-			HashSet<UhtHeaderFile> UniqueHeaders = new HashSet<UhtHeaderFile>();
-			foreach (UhtClass Class in Classes)
+			HashSet<UhtHeaderFile> uniqueHeaders = new();
+			foreach (UhtClass classObj in classes)
 			{
-				UniqueHeaders.Add(Class.HeaderFile);
+				uniqueHeaders.Add(classObj.HeaderFile);
 			}
-			List<string> SortedHeaders = new List<string>();
-			foreach (UhtHeaderFile HeaderFile in UniqueHeaders)
+			List<string> sortedHeaders = new();
+			foreach (UhtHeaderFile headerFile in uniqueHeaders)
 			{
-				SortedHeaders.Add(HeaderFile.FilePath);
+				sortedHeaders.Add(headerFile.FilePath);
 			}
-			SortedHeaders.Sort(StringComparerUE.OrdinalIgnoreCase);
-			foreach (string FilePath in SortedHeaders)
+			sortedHeaders.Sort(StringComparerUE.OrdinalIgnoreCase);
+			foreach (string filePath in sortedHeaders)
 			{
-				string RelativePath = Path.GetRelativePath(this.Factory.PluginModule!.IncludeBase, FilePath).Replace("\\", "/");
-				Builder.Append("#include \"").Append(RelativePath).Append("\"\r\n");
+				string relativePath = Path.GetRelativePath(Factory.PluginModule!.IncludeBase, filePath).Replace("\\", "/");
+				builder.Append("#include \"").Append(relativePath).Append("\"\r\n");
 			}
 
-			Classes.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
-			SortedHeaders.Clear();
-			foreach (UhtClass Class in Classes)
+			classes.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
+			sortedHeaders.Clear();
+			foreach (UhtClass classObj in classes)
 			{
-				Builder.Append("#include \"").Append(Class.EngineName).Append(".script.h\"\r\n");
+				builder.Append("#include \"").Append(classObj.EngineName).Append(".script.h\"\r\n");
 			}
-			Builder.Append("\r\n");
-			Builder.Append("void LuaRegisterExportedClasses(lua_State* InScriptContext)\r\n");
-			Builder.Append("{\r\n");
-			foreach(UhtClass Class in Classes)
+			builder.Append("\r\n");
+			builder.Append("void LuaRegisterExportedClasses(lua_State* InScriptContext)\r\n");
+			builder.Append("{\r\n");
+			foreach(UhtClass classObj in classes)
 			{
-				Builder.Append("\tFLuaUtils::RegisterLibrary(InScriptContext, ").Append(Class.EngineName).Append("_Lib, \"").Append(Class.EngineName).Append("\");\r\n");
+				builder.Append("\tFLuaUtils::RegisterLibrary(InScriptContext, ").Append(classObj.EngineName).Append("_Lib, \"").Append(classObj.EngineName).Append("\");\r\n");
 			}
-			Builder.Append("}\r\n\r\n");
+			builder.Append("}\r\n\r\n");
 		}
 
-		protected override StringBuilder AppendInitializeFunctionDispatchParam(StringBuilder Builder, UhtClass Class, UhtFunction? Function, UhtProperty Property, int PropertyIndex)
+		protected override StringBuilder AppendInitializeFunctionDispatchParam(StringBuilder builder, UhtClass classObj, UhtFunction? function, UhtProperty property, int propertyIndex)
 		{
-			if (!Property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm))
+			if (!property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm))
 			{
-				int ParamIndex = PropertyIndex + 2;
-				if (Property is UhtIntProperty)
+				int paramIndex = propertyIndex + 2;
+				if (property is UhtIntProperty)
 				{
-					Builder.Append("(luaL_checkint");
+					builder.Append("(luaL_checkint");
 				}
-				else if (Property is UhtFloatProperty)
+				else if (property is UhtFloatProperty)
 				{
-					Builder.Append("(float)(luaL_checknumber");
+					builder.Append("(float)(luaL_checknumber");
 				}
-				else if (Property is UhtStrProperty)
+				else if (property is UhtStrProperty)
 				{
-					Builder.Append("ANSI_TO_TCHAR(luaL_checkstring");
+					builder.Append("ANSI_TO_TCHAR(luaL_checkstring");
 				}
-				else if (Property is UhtNameProperty)
+				else if (property is UhtNameProperty)
 				{
-					Builder.Append("FName(luaL_checkstring");
+					builder.Append("FName(luaL_checkstring");
 				}
-				else if (Property is UhtBoolProperty)
+				else if (property is UhtBoolProperty)
 				{
-					Builder.Append("!!(lua_toboolean");
+					builder.Append("!!(lua_toboolean");
 				}
-				else if (Property is UhtStructProperty StructProperty)
+				else if (property is UhtStructProperty structProperty)
 				{
-					if (StructProperty.ScriptStruct.EngineName == "Vector2D")
+					if (structProperty.ScriptStruct.EngineName == "Vector2D")
 					{
-						Builder.Append("(FLuaVector2D::Get");
+						builder.Append("(FLuaVector2D::Get");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Vector")
+					else if (structProperty.ScriptStruct.EngineName == "Vector")
 					{
-						Builder.Append("(FLuaVector::Get");
+						builder.Append("(FLuaVector::Get");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Vector4")
+					else if (structProperty.ScriptStruct.EngineName == "Vector4")
 					{
-						Builder.Append("(FLuaVector4::Get");
+						builder.Append("(FLuaVector4::Get");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Quat")
+					else if (structProperty.ScriptStruct.EngineName == "Quat")
 					{
-						Builder.Append("(FLuaQuat::Get");
+						builder.Append("(FLuaQuat::Get");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "LinearColor")
+					else if (structProperty.ScriptStruct.EngineName == "LinearColor")
 					{
-						Builder.Append("(FLuaLinearColor::Get");
+						builder.Append("(FLuaLinearColor::Get");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Color")
+					else if (structProperty.ScriptStruct.EngineName == "Color")
 					{
-						Builder.Append("FColor(FLuaLinearColor::Get");
+						builder.Append("FColor(FLuaLinearColor::Get");
 					}
-					else if (StructProperty.ScriptStruct.EngineName == "Transform")
+					else if (structProperty.ScriptStruct.EngineName == "Transform")
 					{
-						Builder.Append("(FLuaTransform::Get");
+						builder.Append("(FLuaTransform::Get");
 					}
 					else
 					{
-						throw new UhtIceException($"Unsupported function param struct type: {StructProperty.ScriptStruct.EngineName}");
+						throw new UhtIceException($"Unsupported function param struct type: {structProperty.ScriptStruct.EngineName}");
 					}
 				}
-				else if (Property is UhtClassProperty)
+				else if (property is UhtClassProperty)
 				{
-					Builder.Append("(UClass*)(lua_touserdata");
+					builder.Append("(UClass*)(lua_touserdata");
 				}
-				else if (Property is UhtObjectPropertyBase)
+				else if (property is UhtObjectPropertyBase)
 				{
-					Builder.Append("(").AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(")(lua_touserdata");
+					builder.Append('(').AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(")(lua_touserdata");
 				}
 				else
 				{
-					throw new UhtIceException($"Unsupported function param type: {Property.GetType().Name}");
+					throw new UhtIceException($"Unsupported function param type: {property.GetType().Name}");
 				}
-				Builder.Append("(InScriptContext, ").Append(ParamIndex).Append("))");
+				builder.Append("(InScriptContext, ").Append(paramIndex).Append("))");
 			}
 			else
 			{
-				base.AppendInitializeFunctionDispatchParam(Builder, Class, Function, Property, PropertyIndex);
+				base.AppendInitializeFunctionDispatchParam(builder, classObj, function, property, propertyIndex);
 			}
-			return Builder;
+			return builder;
 		}
 	}
 }

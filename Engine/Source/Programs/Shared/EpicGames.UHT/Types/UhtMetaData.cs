@@ -125,12 +125,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Helper comparer for meta data keys
 		/// </summary>
-		private static readonly UhtMetaDataKeyComparer s_comparer = new UhtMetaDataKeyComparer();
+		private static readonly UhtMetaDataKeyComparer s_comparer = new();
 
 		/// <summary>
 		/// Empty collection of meta data
 		/// </summary>
-		public static readonly UhtMetaData Empty = new UhtMetaData(null, null);
+		public static readonly UhtMetaData Empty = new(null, null);
 
 		/// <summary>
 		/// The meta data of the outer object for the type that owns this meta data
@@ -313,8 +313,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Meta data value or empty string if not found.</returns>
 		public string GetValueOrDefault(string name, int nameIndex = IndexNone)
 		{
-			string? output;
-			if (TryGetValue(name, nameIndex, out output))
+			if (TryGetValue(name, nameIndex, out string? output))
 			{
 				return output;
 			}
@@ -329,8 +328,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Meta data value or empty string if not found.</returns>
 		public string GetValueOrDefaultHierarchical(string name, int nameIndex = IndexNone)
 		{
-			string? output;
-			if (TryGetValueHierarchical(name, nameIndex, out output))
+			if (TryGetValueHierarchical(name, nameIndex, out string? output))
 			{
 				return output;
 			}
@@ -368,8 +366,7 @@ namespace EpicGames.UHT.Types
 		public double GetDouble(string name, int nameIndex = IndexNone)
 		{
 			string value = GetValueOrDefault(name, nameIndex);
-			double result;
-			if (!Double.TryParse(value, out result))
+			if (!Double.TryParse(value, out double result))
 			{
 				result = 0;
 			}
@@ -384,8 +381,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>String array or null if not found</returns>
 		public string[]? GetStringArray(string name, int nameIndex = IndexNone)
 		{
-			string? temp;
-			if (TryGetValue(name, nameIndex, out temp))
+			if (TryGetValue(name, nameIndex, out string? temp))
 			{
 				return temp.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			}
@@ -400,8 +396,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>String array or null if not found</returns>
 		public string[]? GetStringArrayHierarchical(string name, int nameIndex = IndexNone)
 		{
-			string? temp;
-			if (TryGetValueHierarchical(name, nameIndex, out temp))
+			if (TryGetValueHierarchical(name, nameIndex, out string? temp))
 			{
 				return temp.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			}
@@ -426,10 +421,9 @@ namespace EpicGames.UHT.Types
 		/// <param name="value">Value of the meta data</param>
 		public void Add(string name, int nameIndex, string value)
 		{
-			string remappedName;
 			if (this.Config != null)
 			{
-				if (this.Config.RedirectMetaDataKey(name, out remappedName))
+				if (this.Config.RedirectMetaDataKey(name, out string remappedName))
 				{
 					if (this.MessageSite != null)
 					{
@@ -544,7 +538,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>List of meta data key and value pairs</returns>
 		public List<KeyValuePair<string, string>> GetSorted()
 		{
-			List<KeyValuePair<string, string>> output = new List<KeyValuePair<string, string>>(this.Dictionary != null ? this.Dictionary.Count : 0);
+			List<KeyValuePair<string, string>> output = new(this.Dictionary != null ? this.Dictionary.Count : 0);
 			if (this.Dictionary != null && this.Dictionary.Count > 0)
 			{
 				foreach (KeyValuePair<UhtMetaDataKey, string> kvp in this.Dictionary)

@@ -24,7 +24,7 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="baseIdentifiers">Output base identifiers</param>
 		public static void ParseInheritance(IUhtTokenReader tokenReader, IUhtConfig config, out UhtToken superIdentifier, out List<UhtToken[]>? baseIdentifiers)
 		{
-			UhtToken superIdentifierTemp = new UhtToken();
+			UhtToken superIdentifierTemp = new();
 			List<UhtToken[]>? baseIdentifiersTemp = null;
 			tokenReader.OptionalInheritance(
 				(ref UhtToken identifier) =>

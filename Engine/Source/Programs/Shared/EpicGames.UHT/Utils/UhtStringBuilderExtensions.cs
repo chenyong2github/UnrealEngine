@@ -13,12 +13,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// String of tabs used to generate code with proper indentation
 		/// </summary>
-		public static StringView TabsString = new StringView(new string('\t', 128));
+		public static StringView TabsString = new(new string('\t', 128));
 
 		/// <summary>
 		/// String of spaces used to generate code with proper indentation
 		/// </summary>
-		public static StringView SpacesString = new StringView(new string(' ', 128));
+		public static StringView SpacesString = new(new string(' ', 128));
 
 		/// <summary>
 		/// Append tabs to the builder
@@ -35,7 +35,7 @@ namespace EpicGames.UHT.Utils
 			}
 			else if (tabs > 0)
 			{
-				builder.Append(TabsString.Span.Slice(0, tabs));
+				builder.Append(TabsString.Span[..tabs]);
 			}
 			return builder;
 		}
@@ -55,7 +55,7 @@ namespace EpicGames.UHT.Utils
 			}
 			else if (spaces > 0)
 			{
-				builder.Append(SpacesString.Span.Slice(0, spaces));
+				builder.Append(SpacesString.Span[..spaces]);
 			}
 			return builder;
 		}
@@ -347,7 +347,7 @@ namespace EpicGames.UHT.Utils
 						{
 							builder.Append("\"\"");
 						}
-						builder.Append(span.Slice(startIndex, index - startIndex));
+						builder.Append(span[startIndex..index]);
 					}
 
 					// We have either reached the end of the string, break
@@ -492,12 +492,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Cache of StringBuilders with large initial buffer sizes
 		/// </summary>
-		public static readonly StringBuilderCache Big = new StringBuilderCache(256, 256 * 1024);
+		public static readonly StringBuilderCache Big = new(256, 256 * 1024);
 
 		/// <summary>
 		/// Cache of StringBuilders with small initial buffer sizes
 		/// </summary>
-		public static readonly StringBuilderCache Small = new StringBuilderCache(256, 1 * 1024);
+		public static readonly StringBuilderCache Small = new(256, 1 * 1024);
 
 		/// <summary>
 		/// Capacity of the cache

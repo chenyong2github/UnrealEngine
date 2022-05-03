@@ -442,13 +442,13 @@ namespace EpicGames.UHT.Parsers
 		private UhtParsingScope TopScope => this._specifierContext.Scope;
 
 		// Scratch pad variables used by actions
-		private List<UhtToken> _currentTypeTokens = new List<UhtToken>();
+		private List<UhtToken> _currentTypeTokens = new();
 		private int _currentTemplateDepth = 0;
 
 		// Actions/Delegates
 		private readonly UhtTokensUntilDelegate _gatherTypeTokensDelegate;
 
-		private static readonly Dictionary<StringView, UhtLayoutMacroType> s_layoutMacroTypes = new Dictionary<StringView, UhtLayoutMacroType>(new[]
+		private static readonly Dictionary<StringView, UhtLayoutMacroType> s_layoutMacroTypes = new(new[]
 		{
 			UhtLayoutMacroType.Array.MacroNameAndValue(),
 			UhtLayoutMacroType.ArrayEditorOnly.MacroNameAndValue(),
@@ -509,10 +509,8 @@ namespace EpicGames.UHT.Parsers
 			this._currentTypeTokens = new List<UhtToken>();
 			this._currentTemplateDepth = 0;
 
-			using (UhtMessageContext tokenContext = new UhtMessageContext(this))
-			{
-				ParseInternal(propertyDelegate);
-			}
+			using UhtMessageContext tokenContext = new(this);
+			ParseInternal(propertyDelegate);
 			return this;
 		}
 
@@ -522,7 +520,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			get
 			{
-				Stack<object?> extraContext = new Stack<object?>(1);
+				Stack<object?> extraContext = new(1);
 				extraContext.Push(this._specifierContext.PropertySettings.PropertyCategory.GetHintText());
 				return extraContext;
 			}
@@ -544,7 +542,6 @@ namespace EpicGames.UHT.Parsers
 			IUhtTokenReader replayReader = UhtTokenReplayReader.GetThreadInstance(propertySettings.Outer, data, typeTokens, UhtTokenType.EndOfType);
 
 			// Loop through the tokens until we find a known property type or the start of a template argument list
-			UhtPropertyType propertyType;
 			for (int index = 0; index < typeTokens.Length; ++index)
 			{
 				if (typeTokens.Span[index].IsSymbol())
@@ -557,7 +554,7 @@ namespace EpicGames.UHT.Parsers
 				}
 				else
 				{
-					if (session.TryGetPropertyType(typeTokens.Span[index].Value, out propertyType))
+					if (session.TryGetPropertyType(typeTokens.Span[index].Value, out UhtPropertyType propertyType))
 					{
 						if (resolvePhase == UhtPropertyResolvePhase.Resolving || propertyType.Options.HasAnyFlags(UhtPropertyTypeOptions.Immediate))
 						{
@@ -575,7 +572,7 @@ namespace EpicGames.UHT.Parsers
 			return null;
 		}
 
-		private static readonly ThreadLocal<UhtPropertySettings> s_tlsPropertySettings = new ThreadLocal<UhtPropertySettings>(() => { return new UhtPropertySettings(); });
+		private static readonly ThreadLocal<UhtPropertySettings> s_tlsPropertySettings = new(() => { return new UhtPropertySettings(); });
 
 		/// <summary>
 		/// Given a type with children, resolve any children that couldn't be resolved during the parsing phase.
@@ -628,11 +625,11 @@ namespace EpicGames.UHT.Parsers
 			UhtSession session = parentPropertySettings.Outer.Session;
 
 			// Save the token reader state.  We need this to restore back to the start when invoking the resolve methods.
-			using (UhtTokenSaveState saveState = new UhtTokenSaveState(tokenReader))
 			{
-				UhtPropertySettings propertySettings = new UhtPropertySettings(parentPropertySettings, paramName.ToString(), tokenReader);
+				using UhtTokenSaveState saveState = new(tokenReader);
+				UhtPropertySettings propertySettings = new(parentPropertySettings, paramName.ToString(), tokenReader);
 
-				UhtPropertyType propertyType = new UhtPropertyType();
+				UhtPropertyType propertyType = new();
 				while (!tokenReader.IsEOF)
 				{
 					UhtToken token = tokenReader.GetToken();
@@ -963,7 +960,7 @@ namespace EpicGames.UHT.Parsers
 				this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
 				CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken);
 
-				ReadOnlyMemory<UhtToken> typeTokens = new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray());
+				ReadOnlyMemory<UhtToken> typeTokens = new(this._currentTypeTokens.ToArray());
 
 				while (true)
 				{
@@ -1026,7 +1023,7 @@ namespace EpicGames.UHT.Parsers
 			}
 			else
 			{
-				UhtToken nameToken = new UhtToken();
+				UhtToken nameToken = new();
 				CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken);
 				Finalize(ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
@@ -1098,7 +1095,7 @@ namespace EpicGames.UHT.Parsers
 					}
 
 					newProperty.PropertyFlags |= EPropertyFlags.Deprecated;
-					newProperty.EngineName = newProperty.SourceName.Substring(0, deprecatedIndex);
+					newProperty.EngineName = newProperty.SourceName[..deprecatedIndex];
 				}
 			}
 
@@ -1141,8 +1138,7 @@ namespace EpicGames.UHT.Parsers
 
 		private void RequireBitfield(UhtPropertySettings propertySettings, ref UhtToken nameToken)
 		{
-			int bitfieldSize;
-			if (!this.TokenReader.TryOptionalConstInt(out bitfieldSize) || bitfieldSize != 1)
+			if (!this.TokenReader.TryOptionalConstInt(out int bitfieldSize) || bitfieldSize != 1)
 			{
 				throw new UhtException(this.TokenReader, $"Bad or missing bit field size for '{nameToken.Value}', must be 1.");
 			}

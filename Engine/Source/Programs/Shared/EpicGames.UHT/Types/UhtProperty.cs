@@ -845,7 +845,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Collection of invalid names for parameters 
 		/// </summary>
-		private static readonly HashSet<string> s_invalidParamNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "self" };
+		private static readonly HashSet<string> s_invalidParamNames = new(StringComparer.OrdinalIgnoreCase) { "self" };
 
 		/// <summary>
 		/// Standard object flags for properties
@@ -1377,7 +1377,7 @@ namespace EpicGames.UHT.Types
 		/// <returns></returns>
 		public string GetUserFacingDecl()
 		{
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			AppendText(builder, UhtPropertyTextType.Generic);
 			return builder.ToString();
 		}
@@ -1388,11 +1388,9 @@ namespace EpicGames.UHT.Types
 		/// <returns></returns>
 		public string GetRigVMType()
 		{
-			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
-			{
-				AppendText(borrower.StringBuilder, UhtPropertyTextType.RigVMType);
-				return borrower.StringBuilder.ToString();
-			}
+			using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+			AppendText(borrower.StringBuilder, UhtPropertyTextType.RigVMType);
+			return borrower.StringBuilder.ToString();
 		}
 
 		/// <summary>
@@ -1447,7 +1445,7 @@ namespace EpicGames.UHT.Types
 										{
 											if (index == dim.Length - 1)
 											{
-												dim = dim.Slice(1, index - 1);
+												dim = dim[1..index];
 												again = true;
 											}
 											break;
@@ -1467,7 +1465,7 @@ namespace EpicGames.UHT.Types
 								{
 									if (dim.StartsWith(cast))
 									{
-										dim = dim.Slice(cast.Length);
+										dim = dim[cast.Length..];
 										again = true;
 										break;
 									}
@@ -1759,8 +1757,7 @@ namespace EpicGames.UHT.Types
 			if (!options.HasAnyFlags(UhtValidationOptions.IsKeyOrValue))
 			{
 				// First check if the category was specified at all and if the property was exposed to the editor.
-				string? category;
-				if (!this.MetaData.TryGetValue(UhtNames.Category, out category))
+				if (!this.MetaData.TryGetValue(UhtNames.Category, out string? category))
 				{
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible))
 					{

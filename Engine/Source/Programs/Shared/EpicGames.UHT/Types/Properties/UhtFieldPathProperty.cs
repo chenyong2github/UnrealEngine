@@ -110,22 +110,20 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? FieldPathProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (UhtMessageContext tokenContext = new UhtMessageContext("TFieldPath"))
-			{
-				UhtToken identifier = new UhtToken();
-				tokenReader
-					.Require("TFieldPath")
-					.Require('<')
-					.RequireIdentifier((ref UhtToken token) => identifier = token)
-					.Require('>');
+			using UhtMessageContext tokenContext = new("TFieldPath");
+			UhtToken identifier = new();
+			tokenReader
+				.Require("TFieldPath")
+				.Require('<')
+				.RequireIdentifier((ref UhtToken token) => identifier = token)
+				.Require('>');
 
-				StringView fieldClassName = new StringView(identifier.Value, 1);
-				if (!propertySettings.Outer.Session.IsValidPropertyTypeName(fieldClassName))
-				{
-					throw new UhtException($"Undefined property type: {identifier.Value}");
-				}
-				return new UhtFieldPathProperty(propertySettings, fieldClassName.ToString());
+			StringView fieldClassName = new(identifier.Value, 1);
+			if (!propertySettings.Outer.Session.IsValidPropertyTypeName(fieldClassName))
+			{
+				throw new UhtException($"Undefined property type: {identifier.Value}");
 			}
+			return new UhtFieldPathProperty(propertySettings, fieldClassName.ToString());
 		}
 		#endregion
 	}

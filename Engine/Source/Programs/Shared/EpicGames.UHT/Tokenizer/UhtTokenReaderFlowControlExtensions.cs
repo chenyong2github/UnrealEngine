@@ -216,7 +216,7 @@ namespace EpicGames.UHT.Tokenizer
 			// Process the body
 			while (true)
 			{
-				List<UhtToken> tokens = new List<UhtToken>();
+				List<UhtToken> tokens = new();
 
 				// Read the tokens until we hit the end
 				while (true)

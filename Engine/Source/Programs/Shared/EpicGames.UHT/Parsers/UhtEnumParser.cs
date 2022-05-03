@@ -36,16 +36,16 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUEnum(UhtParsingScope parentScope, UhtToken keywordToken)
 		{
-			UhtEnumParser enumObject = new UhtEnumParser(parentScope.ScopeType, keywordToken.InputLine);
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, enumObject, parentScope.Session.GetKeywordTable(UhtTableNames.Enum), UhtAccessSpecifier.Public))
+			UhtEnumParser enumObject = new(parentScope.ScopeType, keywordToken.InputLine);
 			{
+				using UhtParsingScope topScope = new(parentScope, enumObject, parentScope.Session.GetKeywordTable(UhtTableNames.Enum), UhtAccessSpecifier.Public);
 				const string ScopeName = "UENUM";
 
-				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
+					using UhtMessageContext tokenContext = new(ScopeName);
 
 					// Parse the specifiers
-					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, enumObject.MetaData);
+					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, enumObject.MetaData);
 					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Enum));
 					specifiers.ParseSpecifiers();
 
@@ -88,8 +88,7 @@ namespace EpicGames.UHT.Parsers
 						{
 							UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
 
-							UhtEnumUnderlyingType underlyingType;
-							if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), out underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
+							if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), out UhtEnumUnderlyingType underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
 							{
 								topScope.TokenReader.LogError(enumType.InputLine, $"Unsupported enum class base type '{enumType.Value}'");
 							}
@@ -176,8 +175,7 @@ namespace EpicGames.UHT.Parsers
 						// Try to read an optional explicit enum value specification
 						if (topScope.TokenReader.TryOptional('='))
 						{
-							long scatchValue;
-							bool parsedValue = topScope.TokenReader.TryOptionalConstLong(out scatchValue);
+							bool parsedValue = topScope.TokenReader.TryOptionalConstLong(out long scatchValue);
 							if (parsedValue)
 							{
 								currentEnumValue = scatchValue;

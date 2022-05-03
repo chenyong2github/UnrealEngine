@@ -121,15 +121,16 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUScriptStruct(UhtParsingScope parentScope, UhtToken keywordToken)
 		{
-			UhtScriptStructParser scriptStruct = new UhtScriptStructParser(parentScope.ScopeType, keywordToken.InputLine);
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, scriptStruct, parentScope.Session.GetKeywordTable(UhtTableNames.ScriptStruct), UhtAccessSpecifier.Public))
+			UhtScriptStructParser scriptStruct = new(parentScope.ScopeType, keywordToken.InputLine);
 			{
-				const string ScopeName = "struct";
+				using UhtParsingScope topScope = new(parentScope, scriptStruct, parentScope.Session.GetKeywordTable(UhtTableNames.ScriptStruct), UhtAccessSpecifier.Public);
 
-				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
+					const string ScopeName = "struct";
+					using UhtMessageContext tokenContext = new(ScopeName);
+
 					// Parse the specifiers
-					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, scriptStruct.MetaData);
+					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, scriptStruct.MetaData);
 					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.ScriptStruct));
 					specifiers.ParseSpecifiers();
 
@@ -139,8 +140,7 @@ namespace EpicGames.UHT.Parsers
 					topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 
 					// Read the struct name and possible API macro name
-					UhtToken apiMacroToken;
-					topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken);
+					topScope.TokenReader.TryOptionalAPIMacro(out UhtToken apiMacroToken);
 					scriptStruct.SourceName = topScope.TokenReader.GetIdentifier().Value.ToString();
 
 					topScope.AddModuleRelativePathToMetaData();
@@ -148,7 +148,7 @@ namespace EpicGames.UHT.Parsers
 					// Strip the name
 					if (scriptStruct.SourceName[0] == 'T' || scriptStruct.SourceName[0] == 'F')
 					{
-						scriptStruct.EngineName = scriptStruct.SourceName.Substring(1);
+						scriptStruct.EngineName = scriptStruct.SourceName[1..];
 					}
 					else
 					{
@@ -163,9 +163,7 @@ namespace EpicGames.UHT.Parsers
 					}
 
 					// Parse the inheritance
-					UhtToken superIdentifier;
-					List<UhtToken[]>? baseIdentifiers;
-					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out superIdentifier, out baseIdentifiers);
+					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out UhtToken superIdentifier, out List<UhtToken[]>? baseIdentifiers);
 					scriptStruct.SuperIdentifier = superIdentifier;
 					scriptStruct.BaseIdentifiers = baseIdentifiers;
 
@@ -209,8 +207,8 @@ namespace EpicGames.UHT.Parsers
 		{
 			UhtScriptStruct scriptStruct = (UhtScriptStruct)topScope.ScopeType;
 
-			using (UhtMessageContext tokenContext = new UhtMessageContext("RIGVM_METHOD"))
 			{
+				using UhtMessageContext tokenContext = new("RIGVM_METHOD");
 
 				// Create the RigVM information if it doesn't already exist
 				UhtRigVMStructInfo? structInfo = scriptStruct.RigVMStructInfo;
@@ -222,7 +220,7 @@ namespace EpicGames.UHT.Parsers
 				}
 
 				// Create a new method information and add it
-				UhtRigVMMethodInfo methodInfo = new UhtRigVMMethodInfo();
+				UhtRigVMMethodInfo methodInfo = new();
 
 				// NOTE: The argument list reader doesn't handle templates with multiple arguments (i.e. the ',' issue)
 				topScope.TokenReader
@@ -249,8 +247,8 @@ namespace EpicGames.UHT.Parsers
 					{
 						if (!isGetUpgradeInfo && !isGetNextAggregateName)
 						{
-							StringViewBuilder builder = new StringViewBuilder();
-							UhtToken lastToken = new UhtToken();
+							StringViewBuilder builder = new();
+							UhtToken lastToken = new();
 							foreach (UhtToken token in tokens)
 							{
 								if (token.IsSymbol('='))

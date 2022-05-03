@@ -245,8 +245,7 @@ namespace EpicGames.UHT.Tables
 				{
 					continue;
 				}
-				UhtKeyword info;
-				if (keywordTable.TryGetValue(token.Value, out info))
+				if (keywordTable.TryGetValue(token.Value, out UhtKeyword info))
 				{
 					if (info.DisableUsageError)
 					{

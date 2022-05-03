@@ -108,8 +108,8 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public string UserName
 		{
-			get => String.IsNullOrEmpty(this.UserNameInternal) ? this.TableName : this.UserNameInternal;
-			set => this.UserNameInternal = value;
+			get => String.IsNullOrEmpty(this._userName) ? this.TableName : this._userName;
+			set => this._userName = value;
 		}
 
 		/// <summary>
@@ -125,7 +125,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Internal version of the user name.  If it hasn't been set, then the table name will be used
 		/// </summary>
-		private string UserNameInternal { get; set; } = String.Empty;
+		private string _userName = String.Empty;
 
 		/// <summary>
 		/// Merge the lookup table.  Duplicates will be ignored.
@@ -150,7 +150,7 @@ namespace EpicGames.UHT.Utils
 			{
 				if (methodInfo.Name.EndsWith(suffix, StringComparison.Ordinal))
 				{
-					name = methodInfo.Name.Substring(0, methodInfo.Name.Length - suffix.Length);
+					name = methodInfo.Name[..^suffix.Length];
 				}
 				else
 				{
@@ -249,8 +249,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>The table associated with the name.</returns>
 		public TTable Get(string tableName)
 		{
-			TTable? table;
-			if (!this.Tables.TryGetValue(tableName, out table))
+			if (!this.Tables.TryGetValue(tableName, out TTable? table))
 			{
 				table = new TTable();
 				table.TableName = tableName;
@@ -287,9 +286,9 @@ namespace EpicGames.UHT.Utils
 		/// <exception cref="UhtIceException">Thrown if there are problems with the tables.</exception>
 		public void Merge()
 		{
-			List<TTable> orderedList = new List<TTable>(this.Tables.Count);
-			List<TTable> remainingList = new List<TTable>(this.Tables.Count);
-			HashSet<UhtLookupTableBase> doneTables = new HashSet<UhtLookupTableBase>();
+			List<TTable> orderedList = new(this.Tables.Count);
+			List<TTable> remainingList = new(this.Tables.Count);
+			HashSet<UhtLookupTableBase> doneTables = new();
 
 			// Collect all of the tables
 			foreach (KeyValuePair<string, TTable> kvp in this.Tables)

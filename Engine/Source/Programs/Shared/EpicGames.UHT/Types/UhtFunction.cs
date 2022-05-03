@@ -196,7 +196,7 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtFunction : UhtStruct
 	{
-		private string? _strippedFunctionNameInternal = null;
+		private string? _strippedFunctionName = null;
 
 		/// <summary>
 		/// Suffix added to delegate engine names 
@@ -270,8 +270,8 @@ namespace EpicGames.UHT.Types
 		[JsonIgnore]
 		public string StrippedFunctionName
 		{
-			get => this._strippedFunctionNameInternal ?? this.EngineName;
-			set => this._strippedFunctionNameInternal = value;
+			get => this._strippedFunctionName ?? this.EngineName;
+			set => this._strippedFunctionName = value;
 		}
 
 		///<inheritdoc/>
@@ -339,7 +339,7 @@ namespace EpicGames.UHT.Types
 		/// Return read only memory of all the function parameters
 		/// </summary>
 		[JsonIgnore]
-		public ReadOnlyMemory<UhtType> ParameterProperties => new ReadOnlyMemory<UhtType>(this.Children.ToArray(), 0, this.HasReturnProperty ? this.Children.Count - 1 : this.Children.Count);
+		public ReadOnlyMemory<UhtType> ParameterProperties => new(this.Children.ToArray(), 0, this.HasReturnProperty ? this.Children.Count - 1 : this.Children.Count);
 
 		/// <summary>
 		/// True if the function has any outputs including a return value
@@ -419,8 +419,7 @@ namespace EpicGames.UHT.Types
 							!this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk) &&
 							this.CppImplName != this.SourceName)
 						{
-							UhtFoundDeclaration declaration;
-							if (classObj.TryGetDeclaration(this.CppImplName, out declaration))
+							if (classObj.TryGetDeclaration(this.CppImplName, out UhtFoundDeclaration declaration))
 							{
 								this.FunctionExportFlags |= UhtFunctionExportFlags.ImplFound;
 								if (declaration.IsVirtual)
@@ -765,7 +764,7 @@ namespace EpicGames.UHT.Types
 
 		private void LogRpcFunctionError(bool virtualError, string functionName)
 		{
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 
 			if (virtualError)
 			{
@@ -920,7 +919,7 @@ namespace EpicGames.UHT.Types
 				if (hasAnyParamToolTips)
 				{
 					// ensure each parameter has a tooltip
-					HashSet<StringView> existingFields = new HashSet<StringView>(StringViewComparer.OrdinalIgnoreCase);
+					HashSet<StringView> existingFields = new(StringViewComparer.OrdinalIgnoreCase);
 					foreach (UhtType parameter in this.ParameterProperties.Span)
 					{
 						existingFields.Add(parameter.SourceName);
@@ -945,7 +944,7 @@ namespace EpicGames.UHT.Types
 					}
 
 					// check for duplicate tooltips
-					Dictionary<StringView, StringView> toolTipToParam = new Dictionary<StringView, StringView>(StringViewComparer.OrdinalIgnoreCase);
+					Dictionary<StringView, StringView> toolTipToParam = new(StringViewComparer.OrdinalIgnoreCase);
 					foreach (KeyValuePair<StringView, StringView> kvp in paramToolTips)
 					{
 						if (kvp.Key == UhtNames.ReturnValue)
@@ -1002,7 +1001,7 @@ namespace EpicGames.UHT.Types
 			const string ParamTag = "@param";
 			const string ReturnTag = "@return";
 
-			Dictionary<StringView, StringView> paramMap = new Dictionary<StringView, StringView>(StringViewComparer.OrdinalIgnoreCase);
+			Dictionary<StringView, StringView> paramMap = new(StringViewComparer.OrdinalIgnoreCase);
 
 			// Loop until we are out of text
 			while (input.Length > 0)

@@ -34,8 +34,7 @@ namespace EpicGames.UHT.Parsers
 			this._alreadyLeft = 0;
 			this._bUseNumber = false;
 
-			string? foundString;
-			if (this._metaData.TryGetValue(UhtNames.AdvancedDisplay, out foundString))
+			if (this._metaData.TryGetValue(UhtNames.AdvancedDisplay, out string? foundString))
 			{
 				this._parameterNames = foundString.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
 				for (int index = 0, endIndex = this._parameterNames.Length; index < endIndex; ++index)
@@ -130,7 +129,7 @@ namespace EpicGames.UHT.Parsers
 								try
 								{
 									// All tokens MUST be consumed from the reader
-									StringBuilder builder = new StringBuilder();
+									StringBuilder builder = new();
 									IUhtTokenReader defaultValueReader = UhtTokenReplayReader.GetThreadInstance(property, this.HeaderFile.Data.Memory, property.DefaultValueTokens.ToArray(), UhtTokenType.EndOfDefault);
 									parsed = property.SanitizeDefaultValue(defaultValueReader, builder) && defaultValueReader.IsEOF;
 									if (parsed)
@@ -145,7 +144,7 @@ namespace EpicGames.UHT.Parsers
 
 								if (!parsed)
 								{
-									StringView defaultValueText = new StringView(this.HeaderFile.Data, property.DefaultValueTokens.First().InputStartPos,
+									StringView defaultValueText = new(this.HeaderFile.Data, property.DefaultValueTokens.First().InputStartPos,
 										property.DefaultValueTokens.Last().InputEndPos - property.DefaultValueTokens.First().InputStartPos);
 									property.LogError($"C++ Default parameter not parsed: {property.SourceName} '{defaultValueText}'");
 								}
@@ -213,21 +212,21 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUDelegate(UhtParsingScope parentScope, UhtToken token, bool hasSpecifiers)
 		{
-			UhtFunctionParser function = new UhtFunctionParser(parentScope.ScopeType, token.InputLine);
+			UhtFunctionParser function = new(parentScope.ScopeType, token.InputLine);
 
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, function, parentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public))
 			{
+				using UhtParsingScope topScope = new(parentScope, function, parentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public);
 				const string ScopeName = "delegate declaration";
 
-				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
+					using UhtMessageContext tokenContext = new(ScopeName);
 					topScope.AddModuleRelativePathToMetaData();
 
-					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, function.MetaData);
+					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, function.MetaData);
 					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 
 					// If this is a UDELEGATE, parse the specifiers
-					StringView delegateMacro = new StringView();
+					StringView delegateMacro = new();
 					if (hasSpecifiers)
 					{
 						specifiers.ParseSpecifiers();
@@ -315,7 +314,7 @@ namespace EpicGames.UHT.Parsers
 						{
 							topScope.TokenReader.LogError("Delegate type declarations must start with F");
 						}
-						function.StrippedFunctionName = function.SourceName.Substring(1);
+						function.StrippedFunctionName = function.SourceName[1..];
 						function.EngineName = $"{function.StrippedFunctionName}{UhtFunction.GeneratedDelegateSignatureSuffix}";
 					}
 
@@ -383,19 +382,19 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUFunction(UhtParsingScope parentScope, UhtToken token)
 		{
-			UhtFunctionParser function = new UhtFunctionParser(parentScope.ScopeType, token.InputLine);
+			UhtFunctionParser function = new(parentScope.ScopeType, token.InputLine);
 
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, function, parentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public))
 			{
+				using UhtParsingScope topScope = new(parentScope, function, parentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public);
 				UhtParsingScope outerClassScope = topScope.CurrentClassScope;
 				UhtClass outerClass = (UhtClass)outerClassScope.ScopeType;
 				string scopeName = "function";
 
-				using (UhtMessageContext tokenContext = new UhtMessageContext(scopeName))
 				{
+					using UhtMessageContext tokenContext = new(scopeName);
 					topScope.AddModuleRelativePathToMetaData();
 
-					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, function.MetaData);
+					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, function.MetaData);
 					UhtSpecifierParser specifierParser = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, scopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 					specifierParser.ParseSpecifiers();
 
@@ -466,8 +465,8 @@ namespace EpicGames.UHT.Parsers
 					}
 
 					// Record the tokens so we can detect this function as a declaration later (i.e. RPC)
-					using (UhtTokenRecorder tokenRecorder = new UhtTokenRecorder(parentScope, function))
 					{
+						using UhtTokenRecorder tokenRecorder = new(parentScope, function);
 
 						if (topScope.TokenReader.TryOptional("virtual"))
 						{
@@ -477,8 +476,7 @@ namespace EpicGames.UHT.Parsers
 						bool internalOnly = function.MetaData.GetBoolean(UhtNames.BlueprintInternalUseOnly);
 
 						// Peek ahead to look for a CORE_API style DLL import/export token if present
-						UhtToken apiMacroToken;
-						if (topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken))
+						if (topScope.TokenReader.TryOptionalAPIMacro(out UhtToken apiMacroToken))
 						{
 							//@TODO: Validate the module name for RequiredAPIMacroIfPresent
 							function.FunctionFlags |= EFunctionFlags.RequiredAPI;
@@ -512,7 +510,7 @@ namespace EpicGames.UHT.Parsers
 						}
 
 						// Get return type.  C++ style functions always have a return value type, even if it's void
-						UhtToken funcNameToken = new UhtToken();
+						UhtToken funcNameToken = new();
 						UhtProperty? returnValueProperty = null;
 						topScope.HeaderParser.GetCachedPropertyParser(topScope).Parse(EPropertyFlags.None,
 							function.GetPropertyParseOptions(true), UhtParsePropertyDeclarationStyle.None, UhtPropertyCategory.Return,
@@ -584,8 +582,7 @@ namespace EpicGames.UHT.Parsers
 						// Handle C++ style functions being declared as abstract
 						if (topScope.TokenReader.TryOptional('='))
 						{
-							int zeroValue = 1;
-							bool gotZero = topScope.TokenReader.TryOptionalConstInt(out zeroValue);
+							bool gotZero = topScope.TokenReader.TryOptionalConstInt(out int zeroValue);
 							gotZero = gotZero && (zeroValue == 0);
 							if (!gotZero || zeroValue != 0)
 							{
@@ -610,7 +607,7 @@ namespace EpicGames.UHT.Parsers
 						else if (topScope.TokenReader.TryPeekOptional('{'))
 						{
 							// Skip inline function bodies
-							UhtToken tokenCopy = new UhtToken();
+							UhtToken tokenCopy = new();
 							topScope.TokenReader.SkipDeclaration(ref tokenCopy);
 						}
 					}
@@ -641,7 +638,7 @@ namespace EpicGames.UHT.Parsers
 			UhtPropertyCategory propertyCategory = isNetFunc ? UhtPropertyCategory.ReplicatedParameter : UhtPropertyCategory.RegularParameter;
 			EPropertyFlags disallowFlags = ~(EPropertyFlags.ParmFlags | EPropertyFlags.AutoWeak | EPropertyFlags.RepSkip | EPropertyFlags.UObjectWrapper | EPropertyFlags.NativeAccessSpecifiers);
 
-			UhtAdvancedDisplayParameterHandler advancedDisplay = new UhtAdvancedDisplayParameterHandler(topScope.ScopeType.MetaData);
+			UhtAdvancedDisplayParameterHandler advancedDisplay = new(topScope.ScopeType.MetaData);
 
 			topScope.TokenReader.RequireList(')', ',', false, () =>
 			{
@@ -657,7 +654,7 @@ namespace EpicGames.UHT.Parsers
 						// Default value.
 						if (topScope.TokenReader.TryOptional('='))
 						{
-							List<UhtToken> defaultValueTokens = new List<UhtToken>();
+							List<UhtToken> defaultValueTokens = new();
 							int parenthesisNestCount = 0;
 							while (!topScope.TokenReader.IsEOF)
 							{
@@ -720,7 +717,7 @@ namespace EpicGames.UHT.Parsers
 			string functionName = function.EngineName;
 			if (functionName.EndsWith(UhtFunction.GeneratedDelegateSignatureSuffix, StringComparison.Ordinal))
 			{
-				functionName = functionName.Substring(0, functionName.Length - UhtFunction.GeneratedDelegateSignatureSuffix.Length);
+				functionName = functionName[..^UhtFunction.GeneratedDelegateSignatureSuffix.Length];
 			}
 
 			function.UnMarshalAndCallName = "exec" + functionName;

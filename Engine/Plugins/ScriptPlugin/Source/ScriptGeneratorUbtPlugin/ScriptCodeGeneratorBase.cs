@@ -13,14 +13,14 @@ using UnrealBuildTool;
 
 namespace ScriptGeneratorUbtPlugin
 {
-	abstract internal class ScriptCodeGeneratorBase
+	internal abstract class ScriptCodeGeneratorBase
 	{
 		public readonly IUhtExportFactory Factory;
-		public UhtSession Session => this.Factory.Session;
+		public UhtSession Session => Factory.Session;
 
-		public ScriptCodeGeneratorBase(IUhtExportFactory Factory)
+		public ScriptCodeGeneratorBase(IUhtExportFactory factory)
 		{
-			this.Factory = Factory;
+			Factory = factory;
 		}
 
 		/// <summary>
@@ -28,98 +28,98 @@ namespace ScriptGeneratorUbtPlugin
 		/// </summary>
 		public void Generate()
 		{
-			DirectoryReference ConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs/UnrealBuildTool");
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, BuildHostPlatform.Current.Platform);
-			Ini.GetArray("Plugins", "ScriptSupportedModules", out List<string>? SupportedScriptModules);
+			DirectoryReference configDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs/UnrealBuildTool");
+			ConfigHierarchy ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, configDirectory, BuildHostPlatform.Current.Platform);
+			ini.GetArray("Plugins", "ScriptSupportedModules", out List<string>? supportedScriptModules);
 
 			// Loop through the packages making sure they should be exported.  Queue the export of the classes
-			List<UhtClass> Classes = new();
-			List<Task?> Tasks = new();
-			foreach (UhtPackage Package in this.Session.Packages)
+			List<UhtClass> classes = new();
+			List<Task?> tasks = new();
+			foreach (UhtPackage package in Session.Packages)
 			{
-				if (Package.Module.ModuleType != UHTModuleType.EngineRuntime && Package.Module.ModuleType != UHTModuleType.GameRuntime)
+				if (package.Module.ModuleType != UHTModuleType.EngineRuntime && package.Module.ModuleType != UHTModuleType.GameRuntime)
 				{
 					continue;
 				}
 
-				if (SupportedScriptModules != null && !SupportedScriptModules.Any(x => string.Compare(x, Package.Module.Name, StringComparison.OrdinalIgnoreCase) == 0))
+				if (supportedScriptModules != null && !supportedScriptModules.Any(x => String.Compare(x, package.Module.Name, StringComparison.OrdinalIgnoreCase) == 0))
 				{
 					continue;
 				}
 
-				QueueClassExports(Package, Package, Classes, Tasks);
+				QueueClassExports(package, package, classes, tasks);
 			}
 
 			// Wait for all the classes to export
-			Task[]? WaitTasks = Tasks.Where(x => x != null).Cast<Task>().ToArray();
-			if (WaitTasks.Length > 0)
+			Task[]? waitTasks = tasks.Where(x => x != null).Cast<Task>().ToArray();
+			if (waitTasks.Length > 0)
 			{
-				Task.WaitAll(WaitTasks);
+				Task.WaitAll(waitTasks);
 			}
 
 			// Finish the export process
-			Finish(Classes);
+			Finish(classes);
 		}
 
 		/// <summary>
 		/// Collect the classes to be exported for the given package and type
 		/// </summary>
-		/// <param name="Package">Package being exported</param>
-		/// <param name="Type">Type to test for exporting</param>
-		/// <param name="Classes">Collection of exported classes</param>
-		/// <param name="Tasks">Collection of queued tasks</param>
-		private void QueueClassExports(UhtPackage Package, UhtType Type, List<UhtClass> Classes, List<Task?> Tasks)
+		/// <param name="package">Package being exported</param>
+		/// <param name="type">Type to test for exporting</param>
+		/// <param name="classes">Collection of exported classes</param>
+		/// <param name="tasks">Collection of queued tasks</param>
+		private void QueueClassExports(UhtPackage package, UhtType type, List<UhtClass> classes, List<Task?> tasks)
 		{
-			if (Type is UhtClass Class)
+			if (type is UhtClass classObj)
 			{
-				if (CanExportClass(Class))
+				if (CanExportClass(classObj))
 				{
-					Classes.Add(Class);
-					Tasks.Add(Factory.CreateTask((Factory) => { ExportClass(Class); }));
+					classes.Add(classObj);
+					tasks.Add(Factory.CreateTask((factory) => { ExportClass(classObj); }));
 				}
 			}
-			foreach (UhtType Child in Type.Children)
+			foreach (UhtType child in type.Children)
 			{
-				QueueClassExports(Package, Child, Classes, Tasks);
+				QueueClassExports(package, child, classes, tasks);
 			}
 		}
 
 		/// <summary>
 		/// Test to see if the given class should be exported
 		/// </summary>
-		/// <param name="Class">Class to test</param>
+		/// <param name="classObj">Class to test</param>
 		/// <returns>True if the class should be exported, false if not</returns>
-		protected virtual bool CanExportClass(UhtClass Class)
+		protected virtual bool CanExportClass(UhtClass classObj)
 		{
-			return Class.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI | EClassFlags.MinimalAPI); // Don't export classes that don't export DLL symbols
+			return classObj.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI | EClassFlags.MinimalAPI); // Don't export classes that don't export DLL symbols
 		}
 
 		/// <summary>
 		/// Test to see if the given function should be exported
 		/// </summary>
-		/// <param name="Class">Owning class of the function</param>
-		/// <param name="Function">Function to test</param>
+		/// <param name="classObj">Owning class of the function</param>
+		/// <param name="function">Function to test</param>
 		/// <returns>True if the function should be exported</returns>
-		protected virtual bool CanExportFunction(UhtClass Class, UhtFunction Function)
+		protected virtual bool CanExportFunction(UhtClass classObj, UhtFunction function)
 		{
 			// We don't support delegates and non-public functions
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
 			{
 				return false;
 			}
 
 			// Reject if any of the parameter types is unsupported yet
-			foreach (UhtType Child in Function.Children)
+			foreach (UhtType child in function.Children)
 			{
-				if (Child is UhtArrayProperty ||
-					Child is UhtDelegateProperty ||
-					Child is UhtMulticastDelegateProperty ||
-					Child is UhtWeakObjectPtrProperty ||
-					Child is UhtInterfaceProperty)
+				if (child is UhtArrayProperty ||
+					child is UhtDelegateProperty ||
+					child is UhtMulticastDelegateProperty ||
+					child is UhtWeakObjectPtrProperty ||
+					child is UhtInterfaceProperty)
 				{
 					return false;
 				}
-				if (Child is UhtProperty Property && Property.IsStaticArray)
+				if (child is UhtProperty property && property.IsStaticArray)
 				{
 					return false;
 				}
@@ -130,32 +130,32 @@ namespace ScriptGeneratorUbtPlugin
 		/// <summary>
 		/// Test to see if the given property should be exported
 		/// </summary>
-		/// <param name="Class">Owning class of the property</param>
-		/// <param name="Property">Property to test</param>
+		/// <param name="classObj">Owning class of the property</param>
+		/// <param name="property">Property to test</param>
 		/// <returns>True if the property should be exported</returns>
-		protected virtual bool CanExportProperty(UhtClass Class, UhtProperty Property)
+		protected virtual bool CanExportProperty(UhtClass classObj, UhtProperty property)
 		{
 			// Property must be DLL exported
-			if (!Class.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI))
+			if (!classObj.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI))
 			{
 				return false;
 			}
 
 			// Only public, editable properties can be exported
-			if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.NativeAccessSpecifierPrivate | EPropertyFlags.NativeAccessSpecifierProtected) || 
-				!Property.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit))
+			if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.NativeAccessSpecifierPrivate | EPropertyFlags.NativeAccessSpecifierProtected) || 
+				!property.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit))
 			{
 				return false;
 			}
 
 			// Reject if any of the parameter types is unsupported yet
-			if (Property.IsStaticArray ||
-				Property is UhtArrayProperty ||
-				Property is UhtDelegateProperty ||
-				Property is UhtMulticastDelegateProperty ||
-				Property is UhtWeakObjectPtrProperty ||
-				Property is UhtInterfaceProperty ||
-				Property is UhtStructProperty)
+			if (property.IsStaticArray ||
+				property is UhtArrayProperty ||
+				property is UhtDelegateProperty ||
+				property is UhtMulticastDelegateProperty ||
+				property is UhtWeakObjectPtrProperty ||
+				property is UhtInterfaceProperty ||
+				property is UhtStructProperty)
 			{
 				return false;
 			}
@@ -166,73 +166,73 @@ namespace ScriptGeneratorUbtPlugin
 		/// Export the given class
 		/// </summary>
 		/// <param name="Factory">Factory associated with the export</param>
-		/// <param name="Class">Class to export</param>
-		private void ExportClass(UhtClass Class)
+		/// <param name="classObj">Class to export</param>
+		private void ExportClass(UhtClass classObj)
 		{
-			using BorrowStringBuilder Borrower = new(StringBuilderCache.Big);
-			ExportClass(Borrower.StringBuilder, Class);
-			string FileName = this.Factory.MakePath(Class.EngineName, ".script.h");
-			this.Factory.CommitOutput(FileName, Borrower.StringBuilder);
+			using BorrowStringBuilder borrower = new(StringBuilderCache.Big);
+			ExportClass(borrower.StringBuilder, classObj);
+			string fileName = Factory.MakePath(classObj.EngineName, ".script.h");
+			Factory.CommitOutput(fileName, borrower.StringBuilder);
 		}
 
-		private void Finish(List<UhtClass> Classes)
+		private void Finish(List<UhtClass> classes)
 		{
-			using BorrowStringBuilder Borrower = new(StringBuilderCache.Big);
-			Finish(Borrower.StringBuilder, Classes);
-			string FileName = this.Factory.MakePath("GeneratedScriptLibraries", ".inl");
-			this.Factory.CommitOutput(FileName, Borrower.StringBuilder);
+			using BorrowStringBuilder borrower = new(StringBuilderCache.Big);
+			Finish(borrower.StringBuilder, classes);
+			string fileName = Factory.MakePath("GeneratedScriptLibraries", ".inl");
+			Factory.CommitOutput(fileName, borrower.StringBuilder);
 		}
 
-		abstract protected void ExportClass(StringBuilder Builder, UhtClass Class);
+		protected abstract void ExportClass(StringBuilder builder, UhtClass classObj);
 
-		abstract protected void Finish(StringBuilder Builder, List<UhtClass> Classes);
+		protected abstract void Finish(StringBuilder builder, List<UhtClass> classes);
 
-		virtual protected StringBuilder AppendInitializeFunctionDispatchParam(StringBuilder Builder, UhtClass Class, UhtFunction? Function, UhtProperty Property, int PropertyIndex)
+		protected virtual StringBuilder AppendInitializeFunctionDispatchParam(StringBuilder builder, UhtClass classObj, UhtFunction? function, UhtProperty property, int propertyIndex)
 		{
-			if (Property is UhtObjectPropertyBase)
+			if (property is UhtObjectPropertyBase)
 			{
-				Builder.Append("NULL");
+				builder.Append("NULL");
 			}
 			else
 			{
-				Builder.AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append("()");
+				builder.AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append("()");
 			}
-			return Builder;
+			return builder;
 		}
 
-		virtual protected StringBuilder AppendFunctionDispatch(StringBuilder Builder, UhtClass Class, UhtFunction Function)
+		protected virtual StringBuilder AppendFunctionDispatch(StringBuilder builder, UhtClass classObj, UhtFunction function)
 		{
-			bool bHasParamsOrReturnValue = Function.Children.Count > 0;
-			if (bHasParamsOrReturnValue)
+			bool hasParamsOrReturnValue = function.Children.Count > 0;
+			if (hasParamsOrReturnValue)
 			{
-				Builder.Append("\tstruct FDispatchParams\r\n");
-				Builder.Append("\t{\r\n");
-				foreach (UhtProperty Property in Function.Children)
+				builder.Append("\tstruct FDispatchParams\r\n");
+				builder.Append("\t{\r\n");
+				foreach (UhtProperty property in function.Children)
 				{
-					Builder.Append("\t\t").AppendPropertyText(Property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(' ').Append(Property.SourceName).Append(";\r\n");
+					builder.Append("\t\t").AppendPropertyText(property, UhtPropertyTextType.GenericFunctionArgOrRetVal).Append(' ').Append(property.SourceName).Append(";\r\n");
 				}
-				Builder.Append("\t} Params;\r\n");
-				int PropertyIndex = 0;
-				foreach (UhtProperty Property in Function.Children)
+				builder.Append("\t} Params;\r\n");
+				int propertyIndex = 0;
+				foreach (UhtProperty property in function.Children)
 				{
-					Builder.Append("\tParams.").Append(Property.SourceName).Append(" = ");
-					AppendInitializeFunctionDispatchParam(Builder, Class, Function, Property, PropertyIndex).Append(";\r\n");
-					PropertyIndex++;
+					builder.Append("\tParams.").Append(property.SourceName).Append(" = ");
+					AppendInitializeFunctionDispatchParam(builder, classObj, function, property, propertyIndex).Append(";\r\n");
+					propertyIndex++;
 				}
 			}
 
-			Builder.Append("\tstatic UFunction* Function = Obj->FindFunctionChecked(TEXT(\"").Append(Function.SourceName).Append("\"));\r\n");
+			builder.Append("\tstatic UFunction* Function = Obj->FindFunctionChecked(TEXT(\"").Append(function.SourceName).Append("\"));\r\n");
 
-			if (bHasParamsOrReturnValue)
+			if (hasParamsOrReturnValue)
 			{
-				Builder.Append("\tcheck(Function->ParmsSize == sizeof(FDispatchParams));\r\n");
-				Builder.Append("\tObj->ProcessEvent(Function, &Params);\r\n");
+				builder.Append("\tcheck(Function->ParmsSize == sizeof(FDispatchParams));\r\n");
+				builder.Append("\tObj->ProcessEvent(Function, &Params);\r\n");
 			}
 			else
 			{
-				Builder.Append("\tObj->ProcessEvent(Function, NULL);\r\n");
+				builder.Append("\tObj->ProcessEvent(Function, NULL);\r\n");
 			}
-			return Builder;
+			return builder;
 		}
 	}
 }

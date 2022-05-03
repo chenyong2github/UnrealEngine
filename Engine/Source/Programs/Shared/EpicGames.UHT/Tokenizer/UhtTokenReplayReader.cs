@@ -14,21 +14,21 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public sealed class UhtTokenReplayReader : IUhtTokenReader, IUhtMessageLineNumber
 	{
-		private static readonly ThreadLocal<UhtTokenReplayReader> s_tls = new ThreadLocal<UhtTokenReplayReader>(() => new UhtTokenReplayReader());
+		private static readonly ThreadLocal<UhtTokenReplayReader> s_tls = new(() => new UhtTokenReplayReader());
 
 		const int MaxSavedStates = 2;
 		private struct SavedState
 		{
-			public int _tokenIndex;
-			public bool _hasToken;
+			public int TokenIndex { get; set; }
+			public bool HasToken { get; set; }
 		}
 
-		private IUhtMessageSite _messageSiteInternal;
+		private IUhtMessageSite _messageSite;
 		private ReadOnlyMemory<UhtToken> _tokens;
 		private ReadOnlyMemory<char> _data;
 		private int _currentTokenIndex = -1;
 		private bool _hasToken = false;
-		private UhtToken _currentToken = new UhtToken();
+		private UhtToken _currentToken = new();
 		private readonly SavedState[] _savedStates = new SavedState[MaxSavedStates];
 		private int _savedStateCount = 0;
 		private UhtTokenType _endTokenType = UhtTokenType.EndOfFile;
@@ -42,7 +42,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <param name="endTokenType">Token type to return when end of tokens reached</param>
 		public UhtTokenReplayReader(IUhtMessageSite messageSite, ReadOnlyMemory<char> data, ReadOnlyMemory<UhtToken> tokens, UhtTokenType endTokenType)
 		{
-			this._messageSiteInternal = messageSite;
+			this._messageSite = messageSite;
 			this._tokens = tokens;
 			this._data = data;
 			this._endTokenType = endTokenType;
@@ -54,7 +54,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// </summary>
 		public UhtTokenReplayReader()
 		{
-			this._messageSiteInternal = new UhtEmptyMessageSite();
+			this._messageSite = new UhtEmptyMessageSite();
 			this._tokens = Array.Empty<UhtToken>().AsMemory();
 			this._data = Array.Empty<char>().AsMemory();
 		}
@@ -69,7 +69,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The replay reader</returns>
 		public UhtTokenReplayReader Reset(IUhtMessageSite messageSite, ReadOnlyMemory<char> data, ReadOnlyMemory<UhtToken> tokens, UhtTokenType endTokenType)
 		{
-			this._messageSiteInternal = messageSite;
+			this._messageSite = messageSite;
 			this._tokens = tokens;
 			this._data = data;
 			this._currentTokenIndex = -1;
@@ -101,8 +101,8 @@ namespace EpicGames.UHT.Tokenizer
 		}
 
 		#region IUHTMessageSite Implementation
-		IUhtMessageSession IUhtMessageSite.MessageSession => this._messageSiteInternal.MessageSession;
-		IUhtMessageSource? IUhtMessageSite.MessageSource => this._messageSiteInternal.MessageSource;
+		IUhtMessageSession IUhtMessageSite.MessageSession => this._messageSite.MessageSession;
+		IUhtMessageSource? IUhtMessageSite.MessageSource => this._messageSite.MessageSource;
 		IUhtMessageLineNumber? IUhtMessageSite.MessageLineNumber => this;
 		#endregion
 
@@ -241,7 +241,7 @@ namespace EpicGames.UHT.Tokenizer
 			{
 				throw new UhtIceException("Token reader saved states full");
 			}
-			this._savedStates[this._savedStateCount] = new SavedState { _tokenIndex = this._currentTokenIndex, _hasToken = this._hasToken };
+			this._savedStates[this._savedStateCount] = new SavedState { TokenIndex = this._currentTokenIndex, HasToken = this._hasToken };
 			++this._savedStateCount;
 		}
 
@@ -254,8 +254,8 @@ namespace EpicGames.UHT.Tokenizer
 			}
 
 			--this._savedStateCount;
-			this._currentTokenIndex = this._savedStates[this._savedStateCount]._tokenIndex;
-			this._hasToken = this._savedStates[this._savedStateCount]._hasToken;
+			this._currentTokenIndex = this._savedStates[this._savedStateCount].TokenIndex;
+			this._hasToken = this._savedStates[this._savedStateCount].HasToken;
 		}
 
 		/// <inheritdoc/>

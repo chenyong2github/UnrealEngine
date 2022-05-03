@@ -123,7 +123,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Merged names</returns>
 		public static string MergeTypeNames(IEnumerable<string> typeNames, string andOr, bool quote = false)
 		{
-			List<string> local = new List<string>(typeNames);
+			List<string> local = new(typeNames);
 
 			if (local.Count == 0)
 			{
@@ -132,7 +132,7 @@ namespace EpicGames.UHT.Utils
 
 			local.Sort();
 
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			for (int index = 0; index < local.Count; ++index)
 			{
 				if (index != 0)
@@ -176,7 +176,7 @@ namespace EpicGames.UHT.Utils
 				case 'A':
 				case 'U':
 					// If it is a class prefix, check for deprecated class prefix also
-					if (sourceName.Span.Length > 12 && sourceName.Span.Slice(1).StartsWith("DEPRECATED_"))
+					if (sourceName.Span.Length > 12 && sourceName.Span[1..].StartsWith("DEPRECATED_"))
 					{
 						return new UhtEngineNameParts { Prefix = new StringView(sourceName, 0, 12), EngineName = new StringView(sourceName, 12), IsDeprecated = true };
 					}
@@ -207,12 +207,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// When only a string view has been appended, this references that StringView
 		/// </summary>
-		private StringView _stringViewInternal = new StringView();
+		private StringView _stringView = new();
 
 		/// <summary>
 		/// Represents more complex data being appended
 		/// </summary>
-		private StringBuilder? _stringBuilderInternal = null;
+		private StringBuilder? _stringBuilder = null;
 
 		/// <summary>
 		/// Set to true when the builder has switched to a StringBuilder (NOTE: This can probably be removed)
@@ -226,13 +226,13 @@ namespace EpicGames.UHT.Utils
 		{
 			get
 			{
-				if (this._useStringBuilder && this._stringBuilderInternal != null)
+				if (this._useStringBuilder && this._stringBuilder != null)
 				{
-					return this._stringBuilderInternal.Length;
+					return this._stringBuilder.Length;
 				}
 				else
 				{
-					return this._stringViewInternal.Span.Length;
+					return this._stringView.Span.Length;
 				}
 			}
 		}
@@ -243,7 +243,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Contents of the builder</returns>
 		public StringView ToStringView()
 		{
-			return this._useStringBuilder ? new StringView(this._stringBuilderInternal!.ToString()) : this._stringViewInternal;
+			return this._useStringBuilder ? new StringView(this._stringBuilder!.ToString()) : this._stringView;
 		}
 
 		/// <summary>
@@ -252,7 +252,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Contents of the builder</returns>
 		public override string ToString()
 		{
-			return this._useStringBuilder ? this._stringBuilderInternal!.ToString() : this._stringViewInternal.ToString();
+			return this._useStringBuilder ? this._stringBuilder!.ToString() : this._stringView.ToString();
 		}
 
 		/// <summary>
@@ -264,16 +264,16 @@ namespace EpicGames.UHT.Utils
 		{
 			if (this._useStringBuilder)
 			{
-				this._stringBuilderInternal!.Append(text.Span);
+				this._stringBuilder!.Append(text.Span);
 			}
-			else if (this._stringViewInternal.Span.Length > 0)
+			else if (this._stringView.Span.Length > 0)
 			{
 				SwitchToStringBuilder();
-				this._stringBuilderInternal!.Append(text.Span);
+				this._stringBuilder!.Append(text.Span);
 			}
 			else
 			{
-				this._stringViewInternal = text;
+				this._stringView = text;
 			}
 			return this;
 		}
@@ -286,7 +286,7 @@ namespace EpicGames.UHT.Utils
 		public StringViewBuilder Append(char c)
 		{
 			SwitchToStringBuilder();
-			this._stringBuilderInternal!.Append(c);
+			this._stringBuilder!.Append(c);
 			return this;
 		}
 
@@ -297,12 +297,12 @@ namespace EpicGames.UHT.Utils
 		{
 			if (!this._useStringBuilder)
 			{
-				if (this._stringBuilderInternal == null)
+				if (this._stringBuilder == null)
 				{
-					this._stringBuilderInternal = new StringBuilder();
+					this._stringBuilder = new StringBuilder();
 				}
 				this._useStringBuilder = true;
-				this._stringBuilderInternal.Append(this._stringViewInternal.Span);
+				this._stringBuilder.Append(this._stringView.Span);
 			}
 		}
 	}

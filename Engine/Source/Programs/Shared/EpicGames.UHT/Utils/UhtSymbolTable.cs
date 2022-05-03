@@ -73,12 +73,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Case name lookup table that returns the symbol index and the case index
 		/// </summary>
-		private readonly Dictionary<string, Lookup> _casedDictionary = new Dictionary<string, Lookup>(StringComparer.Ordinal);
+		private readonly Dictionary<string, Lookup> _casedDictionary = new(StringComparer.Ordinal);
 
 		/// <summary>
 		/// Caseless name lookup table that returns the symbol index
 		/// </summary>
-		private readonly Dictionary<string, int> _caselessDictionary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<string, int> _caselessDictionary = new(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Collection of symbols in the table
@@ -101,8 +101,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="name">The name of the type which could be the source name or the engine name</param>
 		public void Add(UhtType type, string name)
 		{
-			Lookup existing;
-			if (this._casedDictionary.TryGetValue(name, out existing))
+			if (this._casedDictionary.TryGetValue(name, out Lookup existing))
 			{
 				AddExisting(type, existing.CasedIndex, existing.SymbolIndex);
 				return;
@@ -110,8 +109,7 @@ namespace EpicGames.UHT.Utils
 
 			int casedIndex = ++this._casedCount;
 
-			int symbolIndex;
-			if (this._caselessDictionary.TryGetValue(name, out symbolIndex))
+			if (this._caselessDictionary.TryGetValue(name, out int symbolIndex))
 			{
 				this._casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
 				AddExisting(type, casedIndex, symbolIndex);
@@ -135,8 +133,7 @@ namespace EpicGames.UHT.Utils
 		/// <exception cref="UhtIceException">Thrown if the symbol wasn't found.</exception>
 		public void Replace(UhtType oldType, UhtType newType, string name)
 		{
-			int symbolIndex;
-			if (this._caselessDictionary.TryGetValue(name, out symbolIndex))
+			if (this._caselessDictionary.TryGetValue(name, out int symbolIndex))
 			{
 				for (; symbolIndex != 0; symbolIndex = this._symbols[symbolIndex].NextIndex)
 				{
@@ -159,8 +156,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Found type or null if not found.</returns>
 		public UhtType? FindCasedType(UhtType? startingType, UhtFindOptions options, string name)
 		{
-			Lookup existing;
-			if (this._casedDictionary.TryGetValue(name, out existing))
+			if (this._casedDictionary.TryGetValue(name, out Lookup existing))
 			{
 				return FindType(startingType, options, existing);
 			}
@@ -176,8 +172,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Found type or null if not found.</returns>
 		public UhtType? FindCaselessType(UhtType? startingType, UhtFindOptions options, string name)
 		{
-			int symbolIndex;
-			if (this._caselessDictionary.TryGetValue(name, out symbolIndex))
+			if (this._caselessDictionary.TryGetValue(name, out int symbolIndex))
 			{
 				return FindType(startingType, options, new Lookup { SymbolIndex = symbolIndex, CasedIndex = 0 });
 			}

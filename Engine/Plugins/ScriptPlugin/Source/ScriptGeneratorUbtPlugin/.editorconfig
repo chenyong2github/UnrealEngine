@@ -255,20 +255,3 @@ csharp_space_between_square_brackets = false
 csharp_prefer_braces = true:silent
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
-
-# The follow are UHT specific variances
-
-# CA1045: Do not pass types by reference
-dotnet_diagnostic.CA1045.severity = none
-
-# CA1508: Avoid dead conditional code
-dotnet_diagnostic.CA1508.severity = none
-
-# CA1501: 'UhtClassParser' has an object hierarchy '6' levels deep within the defining module. If possible, eliminate base classes within the hierarchy to decrease its hierarchy level below '6': 'UhtClassBaseParser, UhtClass, UhtStruct, UhtField, UhtObject, UhtType'.
-dotnet_diagnostic.CA1501.severity = none
-
-# IDE0003: Name can be simplified
-dotnet_diagnostic.IDE0003.severity = none
-
-# IDE0079: Remove unnecessary supression - Different tool versions will complain about unused stuff.
-dotnet_diagnostic.IDE0079.severity = none

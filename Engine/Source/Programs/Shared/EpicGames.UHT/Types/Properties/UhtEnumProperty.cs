@@ -307,7 +307,7 @@ namespace EpicGames.UHT.Types
 
 		private UhtProperty CreateUnderlyingProperty()
 		{
-			UhtPropertySettings propertySettings = new UhtPropertySettings();
+			UhtPropertySettings propertySettings = new();
 			propertySettings.Reset(this, 0, this.PropertyCategory, 0);
 			propertySettings.SourceName = "UnderlyingType";
 			switch (this.UnderlyingType)
@@ -341,18 +341,16 @@ namespace EpicGames.UHT.Types
 		{
 			UhtType outer = propertySettings.Outer;
 			UhtEnum? enumObj = null;
-			using (UhtMessageContext tokenContext = new UhtMessageContext("TEnumAsByte"))
-			{
-				tokenReader
-					.Require("TEnumAsByte")
-					.Require('<')
-					.Optional("enum")
-					.RequireCppIdentifier(UhtCppIdentifierOptions.None, (UhtTokenList tokenList) =>
-					{
-						enumObj = outer.FindType(UhtFindOptions.Enum | UhtFindOptions.SourceName, tokenList, tokenReader) as UhtEnum;
-					})
-					.Require('>');
-			}
+			using UhtMessageContext tokenContext = new("TEnumAsByte");
+			tokenReader
+				.Require("TEnumAsByte")
+				.Require('<')
+				.Optional("enum")
+				.RequireCppIdentifier(UhtCppIdentifierOptions.None, (UhtTokenList tokenList) =>
+				{
+					enumObj = outer.FindType(UhtFindOptions.Enum | UhtFindOptions.SourceName, tokenList, tokenReader) as UhtEnum;
+				})
+				.Require('>');
 			return enumObj != null ? new UhtByteProperty(propertySettings, UhtPropertyIntType.None, enumObj) : null;
 		}
 		#endregion

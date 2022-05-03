@@ -86,7 +86,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		//[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtStruct>))]
 		[JsonIgnore]
-		public IReadOnlyList<UhtStruct> Bases => _basesInternal ?? s_emptyBases;
+		public IReadOnlyList<UhtStruct> Bases => _bases ?? s_emptyBases;
 
 		/// <summary>
 		/// Super struct type
@@ -124,8 +124,8 @@ namespace EpicGames.UHT.Types
 			return false;
 		}
 
-		private static readonly List<UhtStruct> s_emptyBases = new List<UhtStruct>();
-		private List<UhtStruct>? _basesInternal = null;
+		private static readonly List<UhtStruct> s_emptyBases = new();
+		private List<UhtStruct>? _bases = null;
 
 		#region Resolution support
 		/// <inheritdoc/>
@@ -208,11 +208,11 @@ namespace EpicGames.UHT.Types
 					UhtStruct? baseStruct = (UhtStruct?)this.FindType(findOptions | UhtFindOptions.Class | UhtFindOptions.ScriptStruct | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, baseIdentifier);
 					if (baseStruct != null)
 					{
-						if (this._basesInternal == null)
+						if (this._bases == null)
 						{
-							this._basesInternal = new List<UhtStruct>();
+							this._bases = new List<UhtStruct>();
 						}
-						this._basesInternal.Add(baseStruct);
+						this._bases.Add(baseStruct);
 						this.HeaderFile.AddReferencedHeader(baseStruct);
 						baseStruct.Resolve(UhtResolvePhase.Bases);
 					}
@@ -240,14 +240,12 @@ namespace EpicGames.UHT.Types
 			}
 
 			// NOTE: Old UHT didn't handle parse errors
-			double minValue;
-			if (!Double.TryParse(uiMin, out minValue))
+			if (!Double.TryParse(uiMin, out double minValue))
 			{
 				minValue = 0;
 			}
 
-			double maxValue;
-			if (!Double.TryParse(uiMax, out maxValue))
+			if (!Double.TryParse(uiMax, out double maxValue))
 			{
 				maxValue = 0;
 			}
@@ -270,7 +268,7 @@ namespace EpicGames.UHT.Types
 
 			if (policy.MemberToolTipsRequired)
 			{
-				Dictionary<string, UhtProperty> toolTipToType = new Dictionary<string, UhtProperty>();
+				Dictionary<string, UhtProperty> toolTipToType = new();
 				foreach (UhtProperty property in this.Properties)
 				{
 					string toolTip = property.GetToolTipText();
@@ -280,8 +278,7 @@ namespace EpicGames.UHT.Types
 						continue;
 					}
 
-					UhtProperty? existing;
-					if (toolTipToType.TryGetValue(toolTip, out existing))
+					if (toolTipToType.TryGetValue(toolTip, out UhtProperty? existing))
 					{
 						property.LogError($"Property '{this.SourceName}::{existing.SourceName}' and '{this.SourceName}::{property.SourceName}' are using identical tooltips (DocumentationPolicy).");
 					}
@@ -311,7 +308,7 @@ namespace EpicGames.UHT.Types
 			{
 				if (this is UhtClass)
 				{
-					Dictionary<string, UhtType> toolTipToType = new Dictionary<string, UhtType>();
+					Dictionary<string, UhtType> toolTipToType = new();
 					foreach (UhtType child in this.Children)
 					{
 						if (child is UhtFunction function)
@@ -324,8 +321,7 @@ namespace EpicGames.UHT.Types
 								continue;
 							}
 
-							UhtType? existing;
-							if (toolTipToType.TryGetValue(toolTip, out existing))
+							if (toolTipToType.TryGetValue(toolTip, out UhtType? existing))
 							{
 								child.LogError($"Functions '{this.SourceName}::{existing.SourceName}' and '{this.SourceName}::{function.SourceName}' are using identical tooltips / comments (DocumentationPolicy).");
 							}

@@ -23,14 +23,14 @@ namespace EpicGames.UHT.Parsers
 			public object? _value;
 		}
 
-		private static readonly List<KeyValuePair<StringView, StringView>> s_emptyKVPValues = new List<KeyValuePair<StringView, StringView>>();
+		private static readonly List<KeyValuePair<StringView, StringView>> s_emptyKVPValues = new();
 
 		private UhtSpecifierContext _specifierContext;
 		private IUhtTokenReader _tokenReader;
 		private UhtSpecifierTable _table;
 		private StringView _context;
-		private StringView _currentSpecifier = new StringView();
-		private List<DeferredSpecifier> _deferredSpecifiers = new List<DeferredSpecifier>();
+		private StringView _currentSpecifier = new();
+		private List<DeferredSpecifier> _deferredSpecifiers = new();
 		private bool _isParsingFieldMetaData = false;
 		private List<KeyValuePair<StringView, StringView>>? _currentKVPValues = null;
 		private List<StringView>? _currentStringValues = null;
@@ -97,10 +97,8 @@ namespace EpicGames.UHT.Parsers
 			this._isParsingFieldMetaData = false;
 			this._specifierContext.MetaData.LineNumber = _tokenReader.InputLine;
 
-			using (UhtMessageContext tokenContext = new UhtMessageContext(this))
-			{
-				this._tokenReader.RequireList('(', ')', ',', false, this._parseAction);
-			}
+			using UhtMessageContext tokenContext = new(this);
+			this._tokenReader.RequireList('(', ')', ',', false, this._parseAction);
 			return this;
 		}
 
@@ -113,16 +111,14 @@ namespace EpicGames.UHT.Parsers
 			this._tokenReader = this._specifierContext.Scope.TokenReader;
 			this._isParsingFieldMetaData = true;
 
-			using (UhtMessageContext tokenContext = new UhtMessageContext(this))
+			using UhtMessageContext tokenContext = new(this);
+			if (_tokenReader.TryOptional("UMETA"))
 			{
-				if (_tokenReader.TryOptional("UMETA"))
+				this._umetaElementsParsed = 0;
+				_tokenReader.RequireList('(', ')', ',', false, this._parseFieldMetaDataAction);
+				if (this._umetaElementsParsed == 0)
 				{
-					this._umetaElementsParsed = 0;
-					_tokenReader.RequireList('(', ')', ',', false, this._parseFieldMetaDataAction);
-					if (this._umetaElementsParsed == 0)
-					{
-						this._tokenReader.LogError($"No metadata specified while parsing {UhtMessage.FormatContext(this)}");
-					}
+					this._tokenReader.LogError($"No metadata specified while parsing {UhtMessage.FormatContext(this)}");
 				}
 			}
 			return this;
@@ -147,7 +143,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			get
 			{
-				Stack<object?> extraContext = new Stack<object?>(1);
+				Stack<object?> extraContext = new(1);
 				string what = this._isParsingFieldMetaData ? "metadata" : "specifiers";
 				if (this._context.Span.Length > 0)
 				{
@@ -167,8 +163,7 @@ namespace EpicGames.UHT.Parsers
 			UhtToken identifier = this._tokenReader.GetIdentifier();
 
 			this._currentSpecifier = identifier.Value;
-			UhtSpecifier? specifier;
-			if (this._table.TryGetValue(_currentSpecifier, out specifier))
+			if (this._table.TryGetValue(_currentSpecifier, out UhtSpecifier? specifier))
 			{
 				if (TryParseValue(specifier.ValueType, out object? value))
 				{
@@ -194,13 +189,12 @@ namespace EpicGames.UHT.Parsers
 
 		private void ParseFieldMetaDataInternal()
 		{
-			UhtToken key;
-			if (!_tokenReader.TryOptionalIdentifier(out key))
+			if (!_tokenReader.TryOptionalIdentifier(out UhtToken key))
 			{
 				throw new UhtException(this._tokenReader, $"UMETA expects a key and optional value", this);
 			}
 
-			StringViewBuilder builder = new StringViewBuilder();
+			StringViewBuilder builder = new();
 			if (_tokenReader.TryOptional('='))
 			{
 				if (!ReadValue(_tokenReader, builder, true))
@@ -331,8 +325,7 @@ namespace EpicGames.UHT.Parsers
 
 		private KeyValuePair<StringView, StringView> ReadKVP()
 		{
-			UhtToken key;
-			if (!this._tokenReader.TryOptionalIdentifier(out key))
+			if (!this._tokenReader.TryOptionalIdentifier(out UhtToken key))
 			{
 				throw new UhtException(this._tokenReader, $"The specifier '{this._currentSpecifier}' expects a key and optional value", this);
 			}
@@ -368,7 +361,7 @@ namespace EpicGames.UHT.Parsers
 
 		private StringView ReadValue()
 		{
-			StringViewBuilder builder = new StringViewBuilder();
+			StringViewBuilder builder = new();
 			if (!ReadValue(this._tokenReader, builder, false))
 			{
 				throw new UhtException(this._tokenReader, $"The specifier '{this._currentSpecifier}' expects a value", this);

@@ -211,44 +211,42 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtProperty? SetProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (UhtMessageContext tokenContext = new UhtMessageContext("TSet"))
+			using UhtMessageContext tokenContext = new("TSet");
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 			{
-				if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
-				{
-					return null;
-				}
-				tokenReader.Require('<');
-
-				// Parse the value type
-				UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Value", tokenReader);
-				if (value == null)
-				{
-					return null;
-				}
-
-				if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
-				{
-					tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a key in a TSet");
-				}
-
-				if (propertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
-				{
-					tokenReader.LogError("Replicated sets are not supported.");
-				}
-
-				if (tokenReader.TryOptional(','))
-				{
-					// If we found a comma, read the next thing, assume it's a keyfuncs, and report that
-					UhtToken keyFuncToken = tokenReader.GetIdentifier();
-					throw new UhtException(tokenReader, $"Found '{keyFuncToken.Value}' - explicit KeyFuncs are not supported in TSet properties.");
-				}
-
-				tokenReader.Require('>');
-
-				//@TODO: Prevent sparse delegate types from being used in a container
-
-				return new UhtSetProperty(propertySettings, value);
+				return null;
 			}
+			tokenReader.Require('<');
+
+			// Parse the value type
+			UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Value", tokenReader);
+			if (value == null)
+			{
+				return null;
+			}
+
+			if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
+			{
+				tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a key in a TSet");
+			}
+
+			if (propertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+			{
+				tokenReader.LogError("Replicated sets are not supported.");
+			}
+
+			if (tokenReader.TryOptional(','))
+			{
+				// If we found a comma, read the next thing, assume it's a keyfuncs, and report that
+				UhtToken keyFuncToken = tokenReader.GetIdentifier();
+				throw new UhtException(tokenReader, $"Found '{keyFuncToken.Value}' - explicit KeyFuncs are not supported in TSet properties.");
+			}
+
+			tokenReader.Require('>');
+
+			//@TODO: Prevent sparse delegate types from being used in a container
+
+			return new UhtSetProperty(propertySettings, value);
 		}
 		#endregion
 	}

@@ -11,14 +11,14 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public struct UhtHash
 	{
-		private ulong _hashInternal;
+		private ulong _hash;
 
 		/// <summary>
 		/// Start the hash computation
 		/// </summary>
 		public void Begin()
 		{
-			this._hashInternal = 0;
+			this._hash = 0;
 		}
 
 		/// <summary>
@@ -32,13 +32,13 @@ namespace EpicGames.UHT.Utils
 				int crPos = text.IndexOf('\r');
 				if (crPos == -1)
 				{
-					HashText(text.Slice(0, text.Length));
+					HashText(text[..]);
 					break;
 				}
 				else
 				{
-					HashText(text.Slice(0, crPos));
-					text = text.Slice(crPos + 1);
+					HashText(text[..crPos]);
+					text = text[(crPos + 1)..];
 				}
 			}
 		}
@@ -49,7 +49,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Final hash value</returns>
 		public uint End()
 		{
-			return (uint)(this._hashInternal + (this._hashInternal >> 32));
+			return (uint)(this._hash + (this._hash >> 32));
 		}
 
 		/// <summary>
@@ -59,7 +59,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Hash value</returns>
 		public static uint GenenerateTextHash(ReadOnlySpan<char> text)
 		{
-			UhtHash hash = new UhtHash();
+			UhtHash hash = new();
 			hash.Begin();
 			hash.Add(text);
 			return hash.End();
@@ -73,7 +73,7 @@ namespace EpicGames.UHT.Utils
 				{
 					fixed (char* textPtr = text)
 					{
-						this._hashInternal = CityHash.CityHash64WithSeed((byte*)textPtr, (uint)(text.Length * sizeof(char)), this._hashInternal);
+						this._hash = CityHash.CityHash64WithSeed((byte*)textPtr, (uint)(text.Length * sizeof(char)), this._hash);
 					}
 				}
 			}

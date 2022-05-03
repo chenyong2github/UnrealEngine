@@ -211,7 +211,7 @@ namespace EpicGames.UHT.Parsers
 			// If this class has new show categories, then merge them
 			if (this.ShowCategories.Count != 0)
 			{
-				StringBuilder subCategoryPath = new StringBuilder();
+				StringBuilder subCategoryPath = new();
 				foreach (string value in this.ShowCategories)
 				{
 
@@ -343,7 +343,7 @@ namespace EpicGames.UHT.Parsers
 
 		private static List<string> GetStringListMetaData(UhtType? type, string key)
 		{
-			List<string> outStrings = new List<string>();
+			List<string> outStrings = new();
 			AppendStringListMetaData(type, key, outStrings);
 			return outStrings;
 		}
@@ -403,15 +403,15 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUClass(UhtParsingScope parentScope, ref UhtToken token)
 		{
-			UhtClassParser classObj = new UhtClassParser(parentScope.ScopeType, token.InputLine);
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.Class), UhtAccessSpecifier.Private))
+			UhtClassParser classObj = new(parentScope.ScopeType, token.InputLine);
 			{
+				using UhtParsingScope topScope = new(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.Class), UhtAccessSpecifier.Private);
 				const string ScopeName = "class";
 
-				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
+					using UhtMessageContext tokenContext = new(ScopeName);
 					// Parse the specifiers
-					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, classObj.MetaData);
+					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, classObj.MetaData);
 					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Class));
 					specifiers.ParseSpecifiers();
 					classObj.PrologLineNumber = topScope.TokenReader.InputLine;
@@ -425,8 +425,7 @@ namespace EpicGames.UHT.Parsers
 					topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 
 					// Read the class name and possible API macro name
-					UhtToken apiMacroToken;
-					topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken);
+					topScope.TokenReader.TryOptionalAPIMacro(out UhtToken apiMacroToken);
 					classObj.SourceName = topScope.TokenReader.GetIdentifier().Value.ToString();
 
 					// Update the context for better error messages
@@ -446,9 +445,7 @@ namespace EpicGames.UHT.Parsers
 					topScope.TokenReader.Optional("final");
 
 					// Parse the inheritance
-					UhtToken superIdentifier;
-					List<UhtToken[]>? baseIdentifiers;
-					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out superIdentifier, out baseIdentifiers);
+					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out UhtToken superIdentifier, out List<UhtToken[]>? baseIdentifiers);
 					classObj.SuperIdentifier = superIdentifier;
 					classObj.BaseIdentifiers = baseIdentifiers;
 

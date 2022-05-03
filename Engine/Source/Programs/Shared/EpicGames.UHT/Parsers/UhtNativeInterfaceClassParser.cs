@@ -71,10 +71,10 @@ namespace EpicGames.UHT.Parsers
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult ClassKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			using (UhtTokenSaveState saveState = new UhtTokenSaveState(topScope.TokenReader))
 			{
-				UhtToken sourceName = new UhtToken();
-				UhtToken superName = new UhtToken();
+				using UhtTokenSaveState saveState = new(topScope.TokenReader);
+				UhtToken sourceName = new();
+				UhtToken superName = new();
 				if (TryParseIInterface(topScope, out sourceName, out superName))
 				{
 					saveState.AbandonState();
@@ -152,7 +152,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			IUhtTokenReader tokenReader = parentScope.TokenReader;
 
-			UhtParserNativeInterfaceClass classObj = new UhtParserNativeInterfaceClass(parentScope.ScopeType, token.InputLine);
+			UhtParserNativeInterfaceClass classObj = new(parentScope.ScopeType, token.InputLine);
 			classObj.ClassType = UhtClassType.NativeInterface;
 			classObj.SourceName = sourceName.Value.ToString();
 			classObj.ClassFlags |= EClassFlags.Native | EClassFlags.Interface;
@@ -174,15 +174,11 @@ namespace EpicGames.UHT.Parsers
 
 			classObj.SuperIdentifier = superName;
 
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.NativeInterface), UhtAccessSpecifier.Private))
 			{
-				const string ScopeName = "native interface";
-
-				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
-				{
-					topScope.HeaderParser.ParseStatements('{', '}', false);
-					tokenReader.Require(';');
-				}
+				using UhtParsingScope topScope = new(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.NativeInterface), UhtAccessSpecifier.Private);
+				using UhtMessageContext tokenContext = new("native interface");
+				topScope.HeaderParser.ParseStatements('{', '}', false);
+				tokenReader.Require(';');
 			}
 			return;
 		}

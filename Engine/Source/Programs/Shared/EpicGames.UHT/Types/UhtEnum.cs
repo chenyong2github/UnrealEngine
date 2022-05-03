@@ -209,7 +209,7 @@ namespace EpicGames.UHT.Types
 				int scopeIndex = enumName.IndexOf("::", StringComparison.Ordinal);
 				if (scopeIndex >= 0)
 				{
-					enumName = enumName.Substring(scopeIndex + 2);
+					enumName = enumName[(scopeIndex + 2)..];
 				}
 			}
 			return $"{enumName}.{name}";
@@ -259,7 +259,7 @@ namespace EpicGames.UHT.Types
 		private string CleanEnumValueName(string name)
 		{
 			int lastColons = name.LastIndexOf("::", StringComparison.Ordinal);
-			return lastColons == -1 ? GetFullEnumName(name) : GetFullEnumName(name.Substring(lastColons + 2));
+			return lastColons == -1 ? GetFullEnumName(name) : GetFullEnumName(name[(lastColons + 2)..]);
 		}
 
 		#region Validation support
@@ -274,24 +274,21 @@ namespace EpicGames.UHT.Types
 				}
 			}
 
-			Dictionary<string, string> toolTips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, string> toolTips = new(StringComparer.OrdinalIgnoreCase);
 			for (int enumIndex = 0; enumIndex < this.EnumValues.Count; ++enumIndex)
 			{
-				string? entryName;
-				if (!this.MetaData.TryGetValue(UhtNames.Name, enumIndex, out entryName))
+				if (!this.MetaData.TryGetValue(UhtNames.Name, enumIndex, out string? entryName))
 				{
 					continue;
 				}
 
-				string? toolTip;
-				if (!this.MetaData.TryGetValue(UhtNames.ToolTip, enumIndex, out toolTip))
+				if (!this.MetaData.TryGetValue(UhtNames.ToolTip, enumIndex, out string? toolTip))
 				{
 					this.LogError(this.MetaData.LineNumber, $"Enum entry '{this.SourceName}::{entryName}' does not provide a tooltip / comment (DocumentationPolicy)");
 					continue;
 				}
 
-				string? dupName;
-				if (toolTips.TryGetValue(toolTip, out dupName))
+				if (toolTips.TryGetValue(toolTip, out string? dupName))
 				{
 					this.LogError(this.MetaData.LineNumber, $"Enum entries '{this.SourceName}::{entryName}' and '{this.SourceName}::{dupName}' have identical tooltips / comments (DocumentationPolicy)");
 				}

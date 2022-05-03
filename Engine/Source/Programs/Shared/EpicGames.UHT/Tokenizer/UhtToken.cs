@@ -460,7 +460,7 @@ namespace EpicGames.UHT.Tokenizer
 			switch (this.TokenType)
 			{
 				case UhtTokenType.StringConst:
-					ReadOnlySpan<char> span = this.Value.Span.Slice(1, this.Value.Span.Length - 2);
+					ReadOnlySpan<char> span = this.Value.Span[1..^1];
 					int index = span.IndexOf('\\');
 					if (index == -1)
 					{
@@ -468,15 +468,15 @@ namespace EpicGames.UHT.Tokenizer
 					}
 					else
 					{
-						StringBuilder builder = new StringBuilder();
+						StringBuilder builder = new();
 						while (index >= 0)
 						{
-							builder.Append(span.Slice(0, index));
+							builder.Append(span[..index]);
 							if (span[index + 1] == 'n')
 							{
 								builder.Append('\n');
 							}
-							span = span.Slice(index + 1);
+							span = span[(index + 1)..];
 							index = span.IndexOf('\\');
 						}
 						builder.Append(span);
@@ -537,11 +537,11 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>Resulting string</returns>
 		public StringView GetTokenString(bool respectQuotes = false)
 		{
-			StringViewBuilder builder = new StringViewBuilder();
+			StringViewBuilder builder = new();
 			switch (this.TokenType)
 			{
 				case UhtTokenType.StringConst:
-					StringView subValue = new StringView(this.Value, 1, this.Value.Span.Length - 2);
+					StringView subValue = new(this.Value, 1, this.Value.Span.Length - 2);
 					while (subValue.Span.Length > 0)
 					{
 						int slashIndex = subValue.Span.IndexOf('\\');
@@ -610,7 +610,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>Joined strings</returns>
 		public static string Join(IEnumerable<UhtToken> tokens)
 		{
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			foreach (UhtToken token in tokens)
 			{
 				builder.Append(token.Value.ToString());
@@ -626,7 +626,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>Joined strings</returns>
 		public static string Join(char separator, IEnumerable<UhtToken> tokens)
 		{
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			bool includeSeperator = false;
 			foreach (UhtToken token in tokens)
 			{
@@ -651,7 +651,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>Joined strings</returns>
 		public static string Join(string separator, IEnumerable<UhtToken> tokens)
 		{
-			StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new();
 			bool includeSeperator = false;
 			foreach (UhtToken token in tokens)
 			{
@@ -690,7 +690,7 @@ namespace EpicGames.UHT.Tokenizer
 			{
 				if (UhtFCString.IsFloatMarker(Value.Span[^1]))
 				{
-					return Single.Parse(Value.Span.Slice(0, Value.Span.Length - 1));
+					return Single.Parse(Value.Span[0..^1]);
 				}
 			}
 			return Single.Parse(Value.Span);
@@ -702,7 +702,7 @@ namespace EpicGames.UHT.Tokenizer
 			{
 				if (UhtFCString.IsFloatMarker(Value.Span[^1]))
 				{
-					return Double.Parse(Value.Span.Slice(0, Value.Span.Length - 1));
+					return Double.Parse(Value.Span[0..^1]);
 				}
 			}
 			return Double.Parse(Value.Span);
@@ -717,12 +717,12 @@ namespace EpicGames.UHT.Tokenizer
 				char c = span[^1];
 				if (UhtFCString.IsLongMarker(c))
 				{
-					span = span.Slice(0, span.Length - 1);
+					span = span[0..^1];
 				}
 				else if (UhtFCString.IsUnsignedMarker(c))
 				{
 					isUnsigned = true;
-					span = span.Slice(0, span.Length - 1);
+					span = span[0..^1];
 				}
 				else
 				{

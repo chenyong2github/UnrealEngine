@@ -108,17 +108,18 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUInterface(UhtParsingScope parentScope, ref UhtToken token)
 		{
-			UhtInterfaceClassParser classObj = new UhtInterfaceClassParser(parentScope.ScopeType, token.InputLine);
+			UhtInterfaceClassParser classObj = new(parentScope.ScopeType, token.InputLine);
 			classObj.ClassType = UhtClassType.Interface;
 
-			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.Interface), UhtAccessSpecifier.Private))
 			{
+				using UhtParsingScope topScope = new(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.Interface), UhtAccessSpecifier.Private);
 				const string ScopeName = "interface";
 
-				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
+					using UhtMessageContext tokenContext = new(ScopeName);
+
 					// Parse the specifiers
-					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, classObj.MetaData);
+					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, classObj.MetaData);
 					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Interface));
 					specifiers.ParseSpecifiers();
 					classObj.PrologLineNumber = topScope.TokenReader.InputLine;
@@ -129,8 +130,7 @@ namespace EpicGames.UHT.Parsers
 					topScope.TokenReader.Require("class");
 
 					// Get the optional API macro
-					UhtToken apiMacroToken;
-					topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken);
+					topScope.TokenReader.TryOptionalAPIMacro(out UhtToken apiMacroToken);
 
 					// Get the name of the interface
 					classObj.SourceName = topScope.TokenReader.GetIdentifier().Value.ToString();

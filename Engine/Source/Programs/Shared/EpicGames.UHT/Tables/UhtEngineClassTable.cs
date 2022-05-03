@@ -50,7 +50,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Internal mapping from engine class name to information
 		/// </summary>
-		private readonly Dictionary<StringView, UhtEngineClass> _engineClasses = new Dictionary<StringView, UhtEngineClass>();
+		private readonly Dictionary<StringView, UhtEngineClass> _engineClasses = new();
 
 		/// <summary>
 		/// Test to see if the given class name is a property

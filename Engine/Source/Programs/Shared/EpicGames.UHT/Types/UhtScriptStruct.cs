@@ -219,7 +219,7 @@ namespace EpicGames.UHT.Types
 					{
 						string extendedType = this.ExtendedType(false);
 						this.CastName = $"{this.Name}_{index}_Array";
-						this.CastType = $"TArrayView<const {extendedType.Substring(1, extendedType.Length - 2)}>";
+						this.CastType = $"TArrayView<const {extendedType[1..^1]}>";
 					}
 				}
 			}
@@ -283,7 +283,7 @@ namespace EpicGames.UHT.Types
 			int lesserPos = typeOriginal.IndexOf('<', StringComparison.Ordinal);
 			if (lesserPos >= 0)
 			{
-				return typeOriginal.Substring(0, lesserPos);
+				return typeOriginal[..lesserPos];
 			}
 			else
 			{
@@ -303,7 +303,7 @@ namespace EpicGames.UHT.Types
 			int lesserPos = typeOriginal.IndexOf('<', StringComparison.Ordinal);
 			if (lesserPos >= 0)
 			{
-				return typeOriginal.Substring(lesserPos);
+				return typeOriginal[lesserPos..];
 			}
 			else
 			{
@@ -350,7 +350,7 @@ namespace EpicGames.UHT.Types
 			string typeOriginal = TypeOriginal(castType);
 			if (typeOriginal.EndsWith("&", StringComparison.Ordinal))
 			{
-				return typeOriginal.Substring(0, typeOriginal.Length - 1);
+				return typeOriginal[0..^1];
 			}
 			else
 			{
@@ -404,7 +404,7 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtRigVMMethodInfo
 	{
-		private static readonly string s_noPrefixInternal = String.Empty;
+		private static readonly string s_noPrefix = String.Empty;
 		private const string ReturnPrefixInternal = "return ";
 
 		/// <summary>
@@ -428,7 +428,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Prefix required for the return value</returns>
 		public string ReturnPrefix()
 		{
-			return (ReturnType.Length == 0 || ReturnType == "void") ? s_noPrefixInternal : ReturnPrefixInternal;
+			return (ReturnType.Length == 0 || ReturnType == "void") ? s_noPrefix : ReturnPrefixInternal;
 		}
 	}
 

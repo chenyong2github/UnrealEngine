@@ -159,8 +159,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			UhtStructDefaultValue structDefaultValue;
-			if (!this.Session.TryGetStructDefaultValue(this.ScriptStruct.SourceName, out structDefaultValue))
+			if (!this.Session.TryGetStructDefaultValue(this.ScriptStruct.SourceName, out UhtStructDefaultValue structDefaultValue))
 			{
 				structDefaultValue = this.Session.DefaultStructDefaultValue;
 			}

@@ -462,13 +462,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				throw new UhtIceException("Marshal and call name must begin with 'delegate'");
 			}
-			return $"F{function.MarshalAndCallName.Substring(DelegatePrefix.Length)}_DelegateWrapper";
+			return $"F{function.MarshalAndCallName[DelegatePrefix.Length..]}_DelegateWrapper";
 		}
 
 		protected static string GetDelegateFunctionExtraParameter(UhtFunction function)
 		{
 			string returnType = function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "FMulticastScriptDelegate" : "FScriptDelegate";
-			return $"const {returnType}& {function.SourceName.Substring(1)}";
+			return $"const {returnType}& {function.SourceName[1..]}";
 		}
 		#endregion
 

@@ -191,16 +191,14 @@ namespace EpicGames.UHT.Parsers
 			}
 			else
 			{
-				using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
+				using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+				StringBuilder builder = borrower.StringBuilder;
+				foreach (StringView comment in comments)
 				{
-					StringBuilder builder = borrower.StringBuilder;
-					foreach (StringView comment in comments)
-					{
-						builder.Append(comment);
-					}
-					mergedString = builder.ToString();
-					type.MetaData.Add(UhtNames.Comment, metaNameIndex, mergedString);
+					builder.Append(comment);
 				}
+				mergedString = builder.ToString();
+				type.MetaData.Add(UhtNames.Comment, metaNameIndex, mergedString);
 			}
 
 			// Format the tooltip and set the metadata
@@ -365,7 +363,7 @@ namespace EpicGames.UHT.Parsers
 							++pos;
 						}
 
-						line = line.Substring(pos + 1);
+						line = line[(pos + 1)..];
 					}
 				}
 				lines[index] = line;
@@ -445,7 +443,7 @@ namespace EpicGames.UHT.Parsers
 
 					if (pos > 0)
 					{
-						line = line.Substring(pos);
+						line = line[pos..];
 					}
 
 					if (index > firstIndex)
@@ -464,13 +462,13 @@ namespace EpicGames.UHT.Parsers
 			// Make sure it doesn't start with a newline
 			if (result.Length != 0 && UhtFCString.IsLinebreak(result[0]))
 			{
-				result = result.Substring(1);
+				result = result[1..];
 			}
 
 			// Make sure it doesn't end with a dead newline
 			if (result.Length != 0 && UhtFCString.IsLinebreak(result[^1]))
 			{
-				result = result.Substring(0, result.Length - 1);
+				result = result[0..^1];
 			}
 
 			// Done.
