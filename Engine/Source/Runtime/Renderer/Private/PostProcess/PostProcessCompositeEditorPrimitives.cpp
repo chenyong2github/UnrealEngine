@@ -327,6 +327,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 	// Load the color target if it already exists.
 	const FScreenPassTextureViewport EditorPrimitivesViewport(EditorPrimitiveColor, Inputs.SceneColor.ViewRect);
 
+	RDG_GPU_STAT_SCOPE(GraphBuilder, EditorPrimitives);
 	RDG_EVENT_SCOPE(GraphBuilder, "CompositeEditorPrimitives %dx%d MSAA=%d",
 		EditorPrimitivesViewport.Rect.Width(),
 		EditorPrimitivesViewport.Rect.Height(),

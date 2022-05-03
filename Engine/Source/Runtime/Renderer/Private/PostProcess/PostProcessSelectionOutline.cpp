@@ -4,6 +4,7 @@
 
 #include "PostProcess/PostProcessSelectionOutline.h"
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
+#include "EditorPrimitivesRendering.h"
 #include "SceneTextureParameters.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
@@ -57,6 +58,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 	const bool bNaniteEnabled = NaniteRasterResults != nullptr;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, EditorPrimitives);
 
 	const uint32 NumSamples = View.GetSceneTexturesConfig().NumSamples;
 
