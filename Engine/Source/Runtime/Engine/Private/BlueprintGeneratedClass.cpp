@@ -985,9 +985,24 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 				// after having previously serialized an instanced into another package (e.g. map). In
 				// that case, the Blueprint class might contain an SCS node with the same name as the
 				// previously-serialized object, but it might also have been switched to a different type.
-				if (SCSNode->ComponentTemplate && SCSNode->ComponentTemplate->IsA(ArchetypeClass))
+				if (SCSNode->ComponentTemplate)
 				{
-					Archetype = SCSNode->ComponentTemplate;
+					if (SCSNode->ComponentTemplate->IsA(ArchetypeClass))
+					{
+						Archetype = SCSNode->ComponentTemplate;
+					}
+
+					// If the component class is in the process of being reinstanced, archetype lookup
+					// will fail the class check because the SCS template will already have been replaced
+					// when instances try to look up their archetype, so return the already reinstanced one
+					else if (ArchetypeClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+					{
+						const FString ArchetypeClassName = ArchetypeClass->GetName();
+						if (ArchetypeClassName.StartsWith("REINST_") && FStringView(ArchetypeClassName).RightChop(7).StartsWith(SCSNode->ComponentTemplate->GetClass()->GetName()))
+						{
+							Archetype = SCSNode->ComponentTemplate;
+						}
+					}
 				}
 			}
 			else if (UInheritableComponentHandler* ICH = Class->GetInheritableComponentHandler())

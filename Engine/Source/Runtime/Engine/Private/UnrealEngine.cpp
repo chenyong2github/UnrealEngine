@@ -15880,6 +15880,8 @@ public:
 		// serialization methods, which is dangerous (the data is not guaranteed to be homogeneous)
 		// in that case, we have to stick with tagged properties only
 		, FCPFUOArchive(FindNativeSuperClass(SrcObject) == FindNativeSuperClass(DstObject))
+		, SourceObject(SrcObject)
+		, SourceArchetype(Params.SourceObjectArchetype)
 		, bSkipCompilerGeneratedDefaults(Params.bSkipCompilerGeneratedDefaults)
 	{
 		ArIgnoreArchetypeRef = true;
@@ -15914,6 +15916,11 @@ public:
 		}
 	}
 
+	virtual UObject* GetArchetypeFromLoader(const UObject* Obj) override
+	{
+		return (Obj == SourceObject && SourceArchetype ? SourceArchetype : nullptr);
+	}
+
 	virtual void MarkScriptSerializationStart(const UObject* Object) override { OpenTaggedDataScope(); }
 	virtual void MarkScriptSerializationEnd(const UObject* Object) override   { CloseTaggedDataScope(); }
 
@@ -15939,6 +15946,8 @@ private:
 		return Class;
 	}
 
+	UObject* SourceObject;
+	UObject* SourceArchetype;
 	bool bSkipCompilerGeneratedDefaults;
 };
 
@@ -15989,6 +15998,7 @@ UEngine::FCopyPropertiesForUnrelatedObjectsParams::FCopyPropertiesForUnrelatedOb
 	, bNotifyObjectReplacement(false)
 	, bClearReferences(true)
 	, bDontClearReferenceIfNewerClassExists(false)
+	, SourceObjectArchetype(nullptr)
 {}
 UEngine::FCopyPropertiesForUnrelatedObjectsParams::FCopyPropertiesForUnrelatedObjectsParams(const FCopyPropertiesForUnrelatedObjectsParams&) = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

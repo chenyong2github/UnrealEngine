@@ -2785,6 +2785,9 @@ public:
 		bool bClearReferences;
 		bool bDontClearReferenceIfNewerClassExists;
 
+		// In cases where the SourceObject will no longer be able to look up its correct Archetype, it can be supplied
+		UObject* SourceObjectArchetype;
+
 		ENGINE_API FCopyPropertiesForUnrelatedObjectsParams();
 		ENGINE_API FCopyPropertiesForUnrelatedObjectsParams(const FCopyPropertiesForUnrelatedObjectsParams&);
 	};
