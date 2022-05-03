@@ -73,6 +73,9 @@ public:
 	/** Get the curve table being edited */
 	UCurveTable* GetCurveTable() const;
 
+	/** Determine if the table being viewed, can be edited or is read-only */
+	bool IsReadOnly() const;
+
 	/** Get the curve editor used for the Curve View*/
 	TSharedPtr<FCurveEditor> GetCurveEditor() const { return CurveEditor; }
 
