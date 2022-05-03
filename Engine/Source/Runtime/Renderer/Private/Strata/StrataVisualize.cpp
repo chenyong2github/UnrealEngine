@@ -203,7 +203,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 	if (View.Family->EngineShowFlags.VisualizeStrataMaterial)
 	{
 		if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
-		ShaderPrint::RequestSpaceForLines(64);
+		ShaderPrint::RequestSpaceForLines(1024);
 		ShaderPrint::RequestSpaceForCharacters(1024);
 
 		const uint32 ViewMode = FMath::Max(0, CVarStrataDebugVisualizeMode.GetValueOnRenderThread());
