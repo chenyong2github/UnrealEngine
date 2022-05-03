@@ -511,7 +511,10 @@ namespace Horde.Storage.Implementation
                     }
 
                     await using Stream s = await blobResponse.Content.ReadAsStreamAsync(cancellationToken);
-                    using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(s);
+                    long? contentLength = blobResponse.Content.Headers.ContentLength;
+                            
+                    using IBufferedPayload payload = contentLength is null or > int.MaxValue ? await FilesystemBufferedPayload.Create(s) : await MemoryBufferedPayload.Create(s);
+
                     await _blobService.PutObject(ns, payload, blobToReplicate);
                 });
             }

@@ -384,8 +384,10 @@ namespace Horde.Storage.Implementation
 
                         if (response.IsSuccessStatusCode)
                         {
+                            long? contentLength = response.Content.Headers.ContentLength;
                             await using Stream responseStream = await response.Content.ReadAsStreamAsync(replicationToken);
-                            using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(responseStream);
+                            
+                            using IBufferedPayload payload = contentLength is null or > int.MaxValue ? await FilesystemBufferedPayload.Create(responseStream) : await MemoryBufferedPayload.Create(responseStream);
 
                             {
                                 await using Stream s = payload.GetStream();
