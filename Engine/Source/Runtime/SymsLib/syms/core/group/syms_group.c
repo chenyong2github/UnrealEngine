@@ -4,7 +4,7 @@
 #define SYMS_GROUP_C
 
 ////////////////////////////////
-// NOTE(allen): Syms Group Setup Functions
+// allen: Syms Group Setup Functions
 
 SYMS_API SYMS_Group*
 syms_group_alloc(void){
@@ -79,6 +79,7 @@ syms_group_init(SYMS_Group *group, SYMS_ParseBundle *params){
   SYMS_UnitSetAccel *unit_set = syms_unit_set_accel_from_dbg(group->arena, dbg_data, dbg);
   SYMS_U64 unit_count = syms_unit_count_from_set(unit_set);
   SYMS_MapAccel *type_map = syms_type_map_from_dbg(group->arena, dbg_data, dbg);
+  SYMS_MapAccel *symbol_map = syms_unmangled_symbol_map_from_dbg(group->arena, dbg_data, dbg);
   
   //- init lanes to single-threaded setup
   group->lane_arenas = &group->arena;
@@ -96,7 +97,8 @@ syms_group_init(SYMS_Group *group, SYMS_ParseBundle *params){
   group->sec_info_array = sec_info_array;
   group->unit_set = unit_set;
   group->unit_count = unit_count;
-  group->type_map = type_map;
+  group->type_mau.map = type_map;
+  group->symbol_mau.map = symbol_map;
   
   //- setup basic caches
   group->unit_cache_flags = syms_push_array_zero(group->arena, SYMS_GroupUnitCacheFlags, unit_count);
@@ -154,6 +156,7 @@ syms_group_parse_all_top_level(SYMS_Group *group){
   
   syms_group_unit_ranges(group);
   syms_group_type_map(group);
+  syms_group_unmangled_symbol_map(group);
   
   syms_group_sec_map_v(group);
   syms_group_sec_map_f(group);
@@ -213,7 +216,7 @@ syms_group_get_lane_arena(SYMS_Group *group){
 }
 
 ////////////////////////////////
-// NOTE(allen): Syms Group Getters
+// allen: Syms Group Getters
 
 SYMS_API SYMS_String8
 syms_group_bin_data(SYMS_Group *group){
@@ -527,35 +530,138 @@ syms_group_file_name_from_id(SYMS_Group *group, SYMS_UnitID uid, SYMS_FileID fil
   return(result);
 }
 
-SYMS_API SYMS_MapAndUnit
+SYMS_API SYMS_MapAndUnit*
 syms_group_type_map(SYMS_Group *group){
   if (!group->type_map_unit_is_filled){
-    SYMS_UnitID type_map_uid = syms_partner_uid_from_map(group->type_map);
+    SYMS_UnitID type_map_uid = syms_partner_uid_from_map(group->type_mau.map);
     SYMS_UnitAccel *type_map_unit = syms_group_unit_from_uid(group, type_map_uid);
-    group->type_map_unit = type_map_unit;
+    group->type_mau.unit = type_map_unit;
     group->type_map_unit_is_filled = syms_true;
   }
-  SYMS_MapAndUnit result = {0};
-  result.map = group->type_map;
-  result.unit = group->type_map_unit;
+  SYMS_MapAndUnit *result = &group->type_mau;
   return(result);
 }
 
-SYMS_API SYMS_StrippedInfoArray
-syms_group_stripped_info(SYMS_Group *group){
-  if (!group->stripped_info_is_filled){
-    SYMS_UnitID pub_uid = syms_uid_collated_public_symbols_from_set(group->unit_set);
-    SYMS_UnitAccel *pub = syms_group_unit_from_uid(group, pub_uid);
-    group->stripped_info = syms_stripped_from_unit(group->arena, group->dbg_data, group->dbg, pub);
-    group->stripped_info_is_filled = syms_true;
+SYMS_API SYMS_MapAndUnit*
+syms_group_unmangled_symbol_map(SYMS_Group *group){
+  if (!group->symbol_map_unit_is_filled){
+    SYMS_UnitID symbol_map_uid = syms_partner_uid_from_map(group->symbol_mau.map);
+    SYMS_UnitAccel *symbol_map_unit = syms_group_unit_from_uid(group, symbol_map_uid);
+    group->symbol_mau.unit = symbol_map_unit;
+    group->symbol_map_unit_is_filled = syms_true;
   }
-  SYMS_StrippedInfoArray result = group->stripped_info;
+  SYMS_MapAndUnit *result = &group->symbol_mau;
   return(result);
+}
+
+SYMS_API SYMS_LinkNameRecArray
+syms_group_link_name_records(SYMS_Group *group){
+  if (!group->link_name_record_array_is_filled){
+    SYMS_UnitID link_uid = syms_link_names_uid(group->dbg);
+    SYMS_UnitAccel *unit = syms_group_unit_from_uid(group, link_uid);
+    SYMS_LinkNameRecArray array = syms_link_name_array_from_unit(group->arena, group->dbg_data, group->dbg, unit);
+    group->link_name_record_array = array;
+    
+    // sort
+    syms_group__link_names_sort_in_place(array.recs, array.count);
+    
+    group->link_name_record_array_is_filled = syms_true;
+  }
+  SYMS_LinkNameRecArray result = group->link_name_record_array;
+  return(result);
+}
+
+SYMS_API SYMS_LinkMapAccel*
+syms_group_link_name_map(SYMS_Group *group){
+  if (!group->link_map_is_built){
+    group->link_map = syms_link_map_from_dbg(group->arena, group->dbg_data, group->dbg);
+    group->link_map_is_built = !group->link_map_is_built;
+  }
+  SYMS_LinkMapAccel *result = group->link_map;
+  return(result);
+}
+
+SYMS_API SYMS_UnitAccel*
+syms_group_link_name_unit(SYMS_Group *group){
+  if (!group->link_name_unit_is_filled){
+    SYMS_UnitID uid = syms_link_names_uid(group->dbg);
+    group->link_name_unit = syms_group_unit_from_uid(group, uid);
+    group->link_name_unit_is_filled = syms_true;
+  }
+  SYMS_UnitAccel *result = group->link_name_unit;
+  return(result);
+}
+
+SYMS_API void
+syms_group__link_names_sort_in_place(SYMS_LinkNameRec *recs, SYMS_U64 count){
+  SYMS_ArenaTemp scratch = syms_get_scratch(0, 0);
+  
+  // setup stack with full range
+  SYMS_SortNode *stack = 0;
+  SYMS_SortNode *free_stack = 0;
+  syms_sort_node_push(scratch.arena, &stack, &free_stack, 0, count);
+  
+  // sort loop
+  for (; stack != 0;){
+    SYMS_SortNode *node = stack;
+    SYMS_StackPop(stack);
+    
+    SYMS_U64 first = node->first;
+    SYMS_U64 opl = node->opl;
+    
+    SYMS_StackPush(free_stack, node);
+    
+    SYMS_U64 node_count = (opl - first);
+    if (node_count > 2){
+      SYMS_U64 last = opl - 1;
+      
+      // swap key to last
+      SYMS_U64 mid = (first + opl)/2;
+      SYMS_Swap(SYMS_LinkNameRec, recs[mid], recs[last]);
+      
+      // partition
+      SYMS_B32 equal_send_left = syms_false;
+      SYMS_U64 key = recs[last].voff;
+      SYMS_U64 j = first;
+      for (SYMS_U64 i = first; i < last; i += 1){
+        SYMS_B32 send_left = (recs[i].voff < key);
+        if (!send_left && recs[i].voff == key){
+          send_left = equal_send_left;
+          equal_send_left = !equal_send_left;
+        }
+        if (send_left){
+          if (j != i){
+            SYMS_Swap(SYMS_LinkNameRec, recs[i], recs[j]);
+          }
+          j += 1;
+        }
+      }
+      
+      // swap last to pivot
+      SYMS_Swap(SYMS_LinkNameRec, recs[j], recs[last]);
+      
+      // recurse
+      SYMS_U64 pivot = j;
+      if (pivot - first > 1){
+        syms_sort_node_push(scratch.arena, &stack, &free_stack, first, pivot);
+      }
+      if (opl - (pivot + 1) > 1){
+        syms_sort_node_push(scratch.arena, &stack, &free_stack, pivot + 1, opl);
+      }
+    }
+    else if (node_count == 2){
+      if (recs[first].voff > recs[first + 1].voff){
+        SYMS_Swap(SYMS_LinkNameRec, recs[first], recs[first + 1]);
+      }
+    }
+  }
+  
+  syms_release_scratch(scratch);
 }
 
 
 ////////////////////////////////
-// NOTE(allen): Syms Group Address Mapping Functions
+// allen: Syms Group Address Mapping Functions
 
 SYMS_API SYMS_U64
 syms_group_sec_number_from_voff__linear_scan(SYMS_Group *group, SYMS_U64 voff){
@@ -1211,23 +1317,23 @@ syms_group_type_map_from_uid(SYMS_Group *group, SYMS_UnitID uid){
 
 
 SYMS_API SYMS_SpatialMap1D*
-syms_group_stripped_info_map(SYMS_Group *group){
+syms_group_link_name_spatial_map(SYMS_Group *group){
   SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
-  SYMS_ProfBegin("syms_group_stripped_info_map");
-  if (!group->stripped_info_map_is_built){
+  SYMS_ProfBegin("syms_group_link_name_spatial_map");
+  if (!group->link_name_spatial_map_is_built){
     SYMS_Arena *arena = group->arena;
     
     //- fill spatial map array
-    SYMS_StrippedInfoArray stripped_info = syms_group_stripped_info(group);
-    SYMS_U64 guess_count = stripped_info.count;
+    SYMS_LinkNameRecArray link_name_rec_array = syms_group_link_name_records(group);
+    SYMS_U64 guess_count = link_name_rec_array.count;
     SYMS_SpatialMap1DRange *ranges = syms_push_array(arena, SYMS_SpatialMap1DRange, guess_count);
     SYMS_SpatialMap1DRange *range_ptr = ranges;
-    SYMS_StrippedInfo *stripped_ptr = stripped_info.info;
-    for (SYMS_U64 i = 0; i < guess_count; i += 1, stripped_ptr += 1){
-      SYMS_U64 min = stripped_ptr->voff;
+    SYMS_LinkNameRec *rec_ptr = link_name_rec_array.recs;
+    for (SYMS_U64 i = 0; i < guess_count; i += 1, rec_ptr += 1){
+      SYMS_U64 min = rec_ptr->voff;
       SYMS_U64 max = SYMS_U64_MAX;
       if (i + 1 < guess_count){
-        max = (stripped_ptr + 1)->voff;
+        max = (rec_ptr + 1)->voff;
       }
       SYMS_ASSERT(min <= max);
       if (min < max){
@@ -1246,13 +1352,13 @@ syms_group_stripped_info_map(SYMS_Group *group){
     SYMS_SpatialMap1D map = {ranges, actual_count};
     
     //- save to group
-    group->stripped_info_map_is_built = syms_true;
-    group->stripped_info_map = map;
+    group->link_name_spatial_map_is_built = syms_true;
+    group->link_name_spatial_map = map;
     
     SYMS_ASSERT_PARANOID(syms_spatial_map_1d_invariants(&map));
   }
   
-  SYMS_SpatialMap1D *result = &group->stripped_info_map;
+  SYMS_SpatialMap1D *result = &group->link_name_spatial_map;
   SYMS_ProfEnd();
   return(result);
 }
@@ -1461,15 +1567,70 @@ syms_line_to_addr_line_sort__rec(SYMS_FileToLineToAddrLooseLine **array, SYMS_U6
 }
 
 ////////////////////////////////
-// NOTE(allen): Syms Group Type Graph
+// allen: Syms Group Name Mapping Functions
 
-SYMS_API SYMS_TypeGraph* syms_group_type_graph(SYMS_Group *group){
+SYMS_API SYMS_USID
+syms_group_usid_from_unmangled_name(SYMS_Group *group, SYMS_String8 name){
+  SYMS_USID result = {0};
+  SYMS_ArenaTemp scratch = syms_get_scratch(0, 0);
+  SYMS_MapAndUnit *map = syms_group_unmangled_symbol_map(group);
+  if (syms_accel_is_good(map->map)){
+    SYMS_USIDList list = syms_usid_list_from_string(scratch.arena, group->dbg_data, group->dbg, map, name);
+    if (list.first != 0){
+      result = list.first->usid;
+    }
+  }
+  syms_release_scratch(scratch);
+  return(result);
+}
+
+SYMS_API SYMS_USIDList
+syms_group_all_usid_from_unmangled_name(SYMS_Arena *arena, SYMS_Group *group, SYMS_String8 name){
+  SYMS_USIDList result = {0};
+  SYMS_MapAndUnit *map = syms_group_unmangled_symbol_map(group);
+  if (syms_accel_is_good(map->map)){
+    result = syms_usid_list_from_string(arena, group->dbg_data, group->dbg, map, name);
+  }
+  return(result);
+}
+
+SYMS_API SYMS_U64
+syms_group_voff_from_link_name(SYMS_Group *group, SYMS_String8 name){
+  SYMS_LinkMapAccel *map = syms_group_link_name_map(group);
+  SYMS_UnitAccel *unit = syms_group_link_name_unit(group);
+  SYMS_U64 result = syms_voff_from_link_name(group->dbg_data, group->dbg, map, unit, name);
+  return(result);
+}
+
+SYMS_API SYMS_ResolvedLine
+syms_group_resolved_location_from_link_name(SYMS_Group *group, SYMS_String8 name){
+  SYMS_U64 voff = syms_group_voff_from_link_name(group, name);
+  SYMS_UnitID uid = syms_group_uid_from_voff__accelerated(group, voff);
+  SYMS_Line line = syms_group_line_from_uid_voff__accelerated(group, uid, voff);
+  SYMS_SrcCoord *src_coord = &line.src_coord;
+  SYMS_String8 file_name = syms_group_file_name_from_id(group, uid, src_coord->file_id);
+  
+  SYMS_ResolvedLine result = {0};
+  result.file_name = file_name;
+  result.line = src_coord->line;
+  result.col = src_coord->col;
+  result.voff = voff;
+  return(result);
+}
+
+
+////////////////////////////////
+// allen: Syms Group Type Graph
+
+SYMS_API SYMS_TypeGraph*
+syms_group_type_graph(SYMS_Group *group){
   SYMS_TypeGraph *result = &group->type_graph;
   return(result);
 }
 
+
 ////////////////////////////////
-// NOTE(allen): Syms Group Varaible Address Mapping Functions
+// allen: Syms Group Varaible Address Mapping Functions
 
 SYMS_API SYMS_SymbolID
 syms_group_var_sid_from_uid_voff__linear_scan(SYMS_TypeGraph *graph, SYMS_Group *group,
@@ -1577,7 +1738,7 @@ syms_group_var_sid_from_uid_voff__accelerated(SYMS_TypeGraph *graph, SYMS_Group 
 
 
 ////////////////////////////////
-// NOTE(allen): Syms Group Type Graph Functions
+// allen: Syms Group Type Graph Functions
 
 SYMS_API SYMS_TypeNode*
 syms_group_type_from_usid(SYMS_TypeGraph *graph, SYMS_Group *group, SYMS_USID usid){
@@ -1650,9 +1811,9 @@ syms_group_type_from_usid__rec(SYMS_TypeGraph *graph, SYMS_Group *group, SYMS_US
               SYMS_TypeKind match_kind = syms_type_kind_main_from_fwd(type_info.kind);
               
               SYMS_String8 name = syms_group_symbol_name_from_sid(scratch.arena, group, unit, usid.sid);
-              SYMS_MapAndUnit type_map = syms_group_type_map(group);
-              SYMS_USIDList matches = syms_symbol_list_from_string(scratch.arena, group->dbg_data, group->dbg,
-                                                                   type_map, name);
+              SYMS_MapAndUnit *type_map = syms_group_type_map(group);
+              SYMS_USIDList matches = syms_usid_list_from_string(scratch.arena, group->dbg_data, group->dbg,
+                                                                 type_map, name);
               
               SYMS_USID match_usid = {0};
               for (SYMS_USIDNode *node = matches.first;
@@ -1807,8 +1968,7 @@ syms_group_type_from_usid__rec(SYMS_TypeGraph *graph, SYMS_Group *group, SYMS_US
         }
         
         if (!pre_inserted){
-          syms_type_usid_buckets_insert(graph->arena, &graph->type_usid_buckets,
-                                        usid, new_type);
+          syms_type_usid_buckets_insert(graph->arena, &graph->type_usid_buckets, usid, new_type);
         }
       }
       
@@ -1856,8 +2016,7 @@ syms_group_type_size_from_usid(SYMS_TypeGraph *graph, SYMS_Group *group, SYMS_US
   return(result);
 }
 
-SYMS_API SYMS_TypeChain syms_group_artificial_types_from_name(SYMS_Group *group,
-                                                              SYMS_String8 name){
+SYMS_API SYMS_TypeChain syms_group_artificial_types_from_name(SYMS_Group *group, SYMS_String8 name){
   SYMS_TypeChain result = syms_type_from_name(&group->type_graph, name);
   return(result);
 }
@@ -1865,15 +2024,10 @@ SYMS_API SYMS_TypeChain syms_group_artificial_types_from_name(SYMS_Group *group,
 SYMS_API SYMS_USIDList
 syms_group_type_list_from_name_accelerated(SYMS_Arena *arena, SYMS_Group *group, SYMS_String8 name){
   SYMS_USIDList result = {0};
-  
-  SYMS_MapAndUnit map_unit = syms_group_type_map(group);
-  if (syms_accel_is_good(map_unit.map)){
-    SYMS_String8 dbg_data = group->dbg_data;
-    SYMS_DbgAccel *dbg = group->dbg;
-    result = syms_symbol_list_from_string(arena, dbg_data, dbg,
-                                          map_unit, name);
+  SYMS_MapAndUnit *map_unit = syms_group_type_map(group);
+  if (syms_accel_is_good(map_unit->map)){
+    result = syms_usid_list_from_string(arena, group->dbg_data, group->dbg, map_unit, name);
   }
-  
   return(result);
 }
 
@@ -2024,7 +2178,7 @@ syms_type_enum_members_from_type(SYMS_Group *group,
 }
 
 ////////////////////////////////
-//~ NOTE(allen): Syms File Mapp
+//~ allen: Syms File Mapp
 
 SYMS_API SYMS_Name2FileIDMap*
 syms_group_file_map(SYMS_Group *group){

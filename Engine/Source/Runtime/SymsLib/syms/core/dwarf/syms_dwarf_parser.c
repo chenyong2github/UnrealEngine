@@ -1076,6 +1076,14 @@ syms_dw_uid_from_foff(SYMS_DwDbgAccel *dbg, SYMS_U64 foff)
 
 //- rjf: important DWARF section base/range accessors
 
+SYMS_API SYMS_B32
+syms_dw_sec_is_present(SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind kind)
+{
+  SYMS_U64Range *range = &dbg->section_map[kind].range;
+  SYMS_B32 result = (range->max > range->min);
+  return(result);
+}
+
 SYMS_API void *
 syms_dw_sec_base_from_dbg(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind kind)
 {
@@ -5602,7 +5610,7 @@ SYMS_API SYMS_DwMapAccel*
 syms_dw_type_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg)
 {
   SYMS_DwMapAccel *result = (SYMS_DwMapAccel *)&syms_format_nil;
-  if(syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_PubTypes))
+  if(syms_dw_sec_is_present(dbg, SYMS_DwSectionKind_PubTypes))
   {
     result = syms_push_array(arena, SYMS_DwMapAccel, 1);
     syms_memzero_struct(result);
@@ -5616,7 +5624,7 @@ SYMS_API SYMS_DwMapAccel*
 syms_dw_image_symbol_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg)
 {
   SYMS_DwMapAccel *result = (SYMS_DwMapAccel *)&syms_format_nil;
-  if(syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_PubNames))
+  if(syms_dw_sec_is_present(dbg, SYMS_DwSectionKind_PubNames))
   {
     result = syms_push_array(arena, SYMS_DwMapAccel, 1);
     syms_memzero_struct(result);

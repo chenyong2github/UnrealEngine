@@ -5,7 +5,7 @@
 #define SYMS_DATA_STRUCTURES_H
 
 ////////////////////////////////
-//~ NOTE(allen): String Cons Structure
+//~ allen: String Cons Structure
 
 // deduplicates equivalent strings
 
@@ -40,7 +40,7 @@ typedef struct SYMS_DataIdxCons{
 } SYMS_DataIdxCons;
 
 ////////////////////////////////
-//~ NOTE(allen): U64 Set
+//~ allen: U64 Set
 
 typedef struct SYMS_U64Set{
   SYMS_U64 *vals;
@@ -49,7 +49,7 @@ typedef struct SYMS_U64Set{
 } SYMS_U64Set;
 
 ////////////////////////////////
-//~ NOTE(allen): 1D Spatial Mapping Structure
+//~ allen: 1D Spatial Mapping Structure
 
 // assigns a value to ranges of unsigned 64-bit values
 // ranges specified in half-open intervals: [min,max)
@@ -97,7 +97,7 @@ typedef struct SYMS_1DEndPoint{
 } SYMS_1DEndPoint;
 
 ////////////////////////////////
-//~ NOTE(allen): File Mapping Structure ({UnitID,FileID} -> String)
+//~ allen: File Mapping Structure ({UnitID,FileID} -> String)
 
 // maps a unit-id,file-id pair to a string
 // organized as a hash table to opimize for key based lookups
@@ -118,7 +118,7 @@ typedef struct SYMS_FileID2NameMap{
 } SYMS_FileID2NameMap;
 
 ////////////////////////////////
-//~ NOTE(allen): File Mapping Structure (String -> {UnitID,FileID})
+//~ allen: File Mapping Structure (String -> {UnitID,FileID})
 
 // maps strings to a set of unit-id,file-id pairs
 // oragnized in an array of strings with each string
@@ -168,7 +168,7 @@ typedef struct SYMS_Name2FileIDMapLoose{
 
 
 ////////////////////////////////
-//~ NOTE(allen): ID Mapping Structure
+//~ allen: ID Mapping Structure
 
 // maps unsigned 64-bit values to arbitrary user pointers
 // organized as a hash table to opimize key based lookups
@@ -190,7 +190,7 @@ typedef struct SYMS_IDMap{
 
 
 ////////////////////////////////
-//~ NOTE(allen): Symbol Name Mapping Structure (String -> Array(USID))
+//~ allen: Symbol Name Mapping Structure (String -> Array(USID))
 
 // maps strings to lists of USIDs
 // organized as an array of nodes and a hash table simultaneously
@@ -229,7 +229,7 @@ typedef struct SYMS_SymbolNameMapLoose{
 } SYMS_SymbolNameMapLoose;
 
 ////////////////////////////////
-//~ NOTE(allen): String Cons Functions
+//~ allen: String Cons Functions
 
 SYMS_API SYMS_StringCons syms_string_cons_alloc(SYMS_Arena *arena, SYMS_U64 bucket_count);
 SYMS_API SYMS_String8    syms_string_cons(SYMS_Arena *arena, SYMS_StringCons *cons, SYMS_String8 string);
@@ -238,7 +238,7 @@ SYMS_API SYMS_DataIdxCons syms_data_idx_cons_alloc(SYMS_Arena *arena, SYMS_U64 b
 SYMS_API SYMS_U64         syms_data_idx_cons(SYMS_Arena *arena, SYMS_DataIdxCons *cons, SYMS_String8 data);
 
 ////////////////////////////////
-//~ NOTE(allen): U64 Set
+//~ allen: U64 Set
 
 SYMS_API SYMS_U64Set syms_u64_set_alloc(SYMS_Arena *arena, SYMS_U64 cap);
 SYMS_API SYMS_U64    syms_u64_set__bs(SYMS_U64Set *set, SYMS_U64 x);
@@ -246,7 +246,7 @@ SYMS_API SYMS_B32    syms_u64_set_insert(SYMS_U64Set *set, SYMS_U64 x);
 SYMS_API void        syms_u64_set_erase(SYMS_U64Set *set, SYMS_U64 x);
 
 ////////////////////////////////
-//~ NOTE(allen): 1D Spatial Mapping Functions (Overlaps Not Allowed)
+//~ allen: 1D Spatial Mapping Functions (Overlaps Not Allowed)
 
 //- lookups into spatial maps
 SYMS_API SYMS_U64          syms_spatial_map_1d_binary_search(SYMS_SpatialMap1D *map, SYMS_U64 x);
@@ -280,7 +280,7 @@ SYMS_API void              syms_spatial_map_1d_endpoint_sort(SYMS_1DEndPoint *en
 SYMS_API SYMS_B32          syms_spatial_map_1d_invariants(SYMS_SpatialMap1D *map);
 
 ////////////////////////////////
-//~ NOTE(allen): File Mapping Functions ({UnitID,FileID} -> String)
+//~ allen: File Mapping Functions ({UnitID,FileID} -> String)
 
 //- shared file id bucket definitions
 SYMS_API SYMS_U64            syms_file_id_2_name_map_hash(SYMS_UnitID uid, SYMS_FileID file_id);
@@ -301,7 +301,7 @@ SYMS_API void                syms_file_id_2_name_map_insert(SYMS_Arena *arena, S
 
 
 ////////////////////////////////
-//~ NOTE(allen): File Mapping Functions (String -> {UnitID,FileID})
+//~ allen: File Mapping Functions (String -> {UnitID,FileID})
 
 //- copying file maps
 SYMS_API SYMS_Name2FileIDMap syms_name_2_file_id_map_copy(SYMS_Arena *arena, SYMS_StringCons *cons_optional,
@@ -309,14 +309,14 @@ SYMS_API SYMS_Name2FileIDMap syms_name_2_file_id_map_copy(SYMS_Arena *arena, SYM
 
 //- constructing file maps
 SYMS_API SYMS_Name2FileIDMap syms_name_2_file_id_map_bake(SYMS_Arena *arena, SYMS_Name2FileIDMapLoose *loose);
-// NOTE(allen): Strings passed to this function should all be cons'ed in the same cons structure first.
+// allen: Strings passed to this function should all be cons'ed in the same cons structure first.
 SYMS_API void syms_name_2_file_id_map_loose_push(SYMS_Arena *arena, SYMS_Name2FileIDMapLoose *map,
                                                  SYMS_String8 name_cons,
                                                  SYMS_UnitID uid, SYMS_FileID file_id);
 
 
 ////////////////////////////////
-//~ NOTE(allen): ID Mapping Functions
+//~ allen: ID Mapping Functions
 
 //- copying id maps
 SYMS_API SYMS_IDMap   syms_id_map_copy(SYMS_Arena *arena, SYMS_IDMap *map);
@@ -330,7 +330,7 @@ SYMS_API void         syms_id_map_insert(SYMS_Arena *arena, SYMS_IDMap *map, SYM
 
 
 ////////////////////////////////
-//~ NOTE(allen): Symbol Name Mapping Structure (String -> Array(USID))
+//~ allen: Symbol Name Mapping Structure (String -> Array(USID))
 
 // TODO(allen): copying
 
@@ -346,7 +346,7 @@ SYMS_API SYMS_SymbolNameMap      syms_symbol_name_map_bake(SYMS_Arena *arena, SY
 
 
 ////////////////////////////////
-//~ NOTE(allen): Line Tables
+//~ allen: Line Tables
 
 //- lookups into line tables
 SYMS_API SYMS_U64  syms_line_index_from_voff__binary_search(SYMS_Line *lines, SYMS_U64 ender_index, SYMS_U64 voff);
@@ -360,12 +360,12 @@ SYMS_API SYMS_LineTable    syms_line_table_with_indexes_from_parse(SYMS_Arena *a
 
 
 ////////////////////////////////
-//~ NOTE(allen): Copies & Operators for Other Data Structures
+//~ allen: Copies & Operators for Other Data Structures
 
 SYMS_API SYMS_String8Array syms_string_array_copy(SYMS_Arena *arena, SYMS_StringCons *cons_optional,
                                                   SYMS_String8Array *array);
 
-SYMS_API SYMS_StrippedInfoArray syms_stripped_info_copy(SYMS_Arena *arena, SYMS_StrippedInfoArray *stripped);
+SYMS_API SYMS_LinkNameRecArray  syms_link_name_record_copy(SYMS_Arena *arena, SYMS_LinkNameRecArray *array);
 
 
 #endif //SYMS_DATA_STRUCTURES_H

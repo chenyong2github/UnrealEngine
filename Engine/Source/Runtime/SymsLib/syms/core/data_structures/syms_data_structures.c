@@ -1313,15 +1313,16 @@ syms_string_array_copy(SYMS_Arena *arena, SYMS_StringCons *cons, SYMS_String8Arr
   return(result);
 }
 
-SYMS_API SYMS_StrippedInfoArray
-syms_stripped_info_copy(SYMS_Arena *arena, SYMS_StrippedInfoArray *stripped){
-  SYMS_ProfBegin("syms_stripped_info_copy");
-  SYMS_StrippedInfoArray result = {0};
-  result.count = stripped->count;
-  result.info = syms_push_array(arena, SYMS_StrippedInfo, result.count);
+
+SYMS_API SYMS_LinkNameRecArray
+syms_link_name_record_copy(SYMS_Arena *arena, SYMS_LinkNameRecArray *array){
+  SYMS_ProfBegin("syms_link_name_record_copy");
+  SYMS_LinkNameRecArray result = {0};
+  result.count = array->count;
+  result.recs = syms_push_array(arena, SYMS_LinkNameRec, result.count);
   
-  SYMS_StrippedInfo *src = stripped->info;
-  SYMS_StrippedInfo *dst = result.info;
+  SYMS_LinkNameRec *src = array->recs;
+  SYMS_LinkNameRec *dst = result.recs;
   for (SYMS_U64 i = 0; i < result.count; i += 1, src += 1, dst += 1){
     dst->name = syms_push_string_copy(arena, src->name);
     dst->voff = src->voff;

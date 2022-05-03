@@ -5,7 +5,7 @@
 #define SYMS_BASE_H
 
 ////////////////////////////////
-//~ NOTE(allen): Version
+//~ allen: Version
 
 #define SYMS_VERSION_MAJOR    1
 #define SYMS_VERSION_MINOR    0
@@ -13,17 +13,17 @@
 #define SYMS_VERSION_STR      "1.0.0"
 
 ////////////////////////////////
-//~ NOTE(rjf): Context Cracking
+//~ rjf: Context Cracking
 
 #include "syms_base_context_crack.h"
 
 ////////////////////////////////
-//~ NOTE(rjf): Overrideables
+//~ rjf: Overrideables
 
 #include "syms_base_overrides_check.h"
 
 ////////////////////////////////
-//~ NOTE(allen): Linkage Macros
+//~ allen: Linkage Macros
 
 #if !defined(SYMS_API)
 # define SYMS_API static
@@ -67,7 +67,7 @@
 #endif
 
 ////////////////////////////////
-//~ NOTE(allen): Feature Macros
+//~ allen: Feature Macros
 
 #if !defined(SYMS_PARANOID)
 # define SYMS_PARANOID 0
@@ -92,7 +92,7 @@
 #endif
 
 ////////////////////////////////
-//~ NOTE(rjf): Base Types and Constants
+//~ rjf: Base Types and Constants
 
 typedef SYMS_S8  SYMS_B8;
 typedef SYMS_S16 SYMS_B16;
@@ -107,7 +107,7 @@ typedef double   SYMS_F64;
 typedef SYMS_U32 SYMS_RegID;
 
 ////////////////////////////////
-//~ NOTE(allen): Macros
+//~ allen: Macros
 
 #if !defined(syms_write_srcloc__impl)
 # define syms_write_srcloc__impl(f,l) ((void)0)
@@ -191,7 +191,7 @@ typedef SYMS_U32 SYMS_RegID;
 #define SYMS_THIS_SRCLOC __FILE__ ":" SYMS_Stringify(__LINE__)
 
 ////////////////////////////////
-//~ NOTE(allen): ID Macros
+//~ allen: ID Macros
 
 #define SYMS_ID_u32_0(id) (SYMS_U32)(id)
 #define SYMS_ID_u32_1(id) (SYMS_U32)((id) >> 32)
@@ -204,7 +204,7 @@ typedef SYMS_U32 SYMS_RegID;
 #define SYMS_ID_u16_u16_u32(a,b,c) ((SYMS_U64)(a) | ((SYMS_U64)(b) << 16) | ((SYMS_U64)(c) << 32))
 
 ////////////////////////////////
-//~ NOTE(allen): Linked List Macros
+//~ allen: Linked List Macros
 
 #define SYMS_QueuePush_N(f,l,n,next) ( (f)==0?\
 ((f)=(l)=(n),(n)->next=0):\
@@ -227,7 +227,7 @@ typedef SYMS_U32 SYMS_RegID;
 #define SYMS_StackPop(f) SYMS_StackPop_N(f,next)
 
 ////////////////////////////////
-//~ NOTE(allen): Common Basic Types
+//~ allen: Common Basic Types
 
 typedef struct SYMS_U64Array{
   SYMS_U64 *u64;
@@ -307,12 +307,21 @@ typedef struct SYMS_StringJoin{
 } SYMS_StringJoin;
 
 ////////////////////////////////
-//~ NOTE(allen): Generated Types
+//~ allen: Syms Sort Node
+
+typedef struct SYMS_SortNode{
+  struct SYMS_SortNode *next;
+  SYMS_U64 first;
+  SYMS_U64 opl;
+} SYMS_SortNode;
+
+////////////////////////////////
+//~ allen: Generated Types
 
 #include "syms/core/generated/syms_meta_base.h"
 
 ////////////////////////////////
-//~ NOTE(rjf): Serial Information
+//~ rjf: Serial Information
 
 typedef enum SYMS_SerialWidthKind{
   SYMS_SerialWidthKind_Null,
@@ -366,7 +375,7 @@ typedef struct SYMS_SerialType{
 } SYMS_SerialType;
 
 ////////////////////////////////
-//~ NOTE(allen): Syms Arena
+//~ allen: Syms Arena
 
 typedef struct SYMS_ArenaTemp{
   SYMS_Arena *arena;
@@ -374,10 +383,10 @@ typedef struct SYMS_ArenaTemp{
 } SYMS_ArenaTemp;
 
 ////////////////////////////////
-//~ NOTE(allen): Memory Views
+//~ allen: Memory Views
 
 typedef struct SYMS_MemoryView{
-  // NOTE(allen): Upgrade path:
+  // allen: Upgrade path:
   //  1. A list of ranges like this one
   //  2. After building the list put into a binary-searchable format
   //  3. Equip with the ability to request missing memory in-line.
@@ -395,7 +404,7 @@ typedef struct SYMS_UnwindResult{
 
 
 ////////////////////////////////
-//~ NOTE(allen): Generated Serial Info
+//~ allen: Generated Serial Info
 
 #include "syms/core/generated/syms_meta_serial_base.h"
 
@@ -403,19 +412,19 @@ typedef struct SYMS_UnwindResult{
 SYMS_C_LINKAGE_BEGIN
 
 ////////////////////////////////
-//~ NOTE(rjf): Library Metadata
+//~ rjf: Library Metadata
 
 SYMS_API SYMS_String8 syms_version_string(void);
 
 ////////////////////////////////
-//~ NOTE(rjf): Basic Type Functions
+//~ rjf: Basic Type Functions
 
 SYMS_API SYMS_U64Range syms_make_u64_range(SYMS_U64 min, SYMS_U64 max);
 SYMS_API SYMS_U64Range syms_make_u64_inrange(SYMS_U64Range range, SYMS_U64 offset, SYMS_U64 size);
 SYMS_API SYMS_U64 syms_u64_range_size(SYMS_U64Range range);
 
 ////////////////////////////////
-//~ NOTE(allen): Hash Functions
+//~ allen: Hash Functions
 
 SYMS_GLOBAL SYMS_U64 syms_hash_djb2_initial = 5381;
 SYMS_API SYMS_U64 syms_hash_djb2(SYMS_String8 string);
@@ -424,7 +433,7 @@ SYMS_API SYMS_U64 syms_hash_djb2_continue(SYMS_String8 string, SYMS_U64 intermed
 SYMS_API SYMS_U64 syms_hash_u64(SYMS_U64 x);
 
 ////////////////////////////////
-//~ NOTE(rjf): Serial Information Functions
+//~ rjf: Serial Information Functions
 
 #define syms_serial_type(name) (_syms_serial_type_##name)
 #define syms_string_from_enum_value(enum_type, value) \
@@ -443,7 +452,7 @@ SYMS_API SYMS_String8List  syms_string_list_from_flags(SYMS_Arena *arena, SYMS_S
 SYMS_API SYMS_U64 syms_enum_index_from_value_identity(SYMS_U64 v);
 
 ////////////////////////////////
-//~ NOTE(allen): String Functions
+//~ allen: String Functions
 
 SYMS_API SYMS_B32    syms_codepoint_is_whitespace(SYMS_U32 codepoint);
 SYMS_API SYMS_U32    syms_lowercase_from_codepoint(SYMS_U32 codepoint);
@@ -478,7 +487,7 @@ SYMS_API SYMS_String8 syms_string_trunc_symbol_heuristic(SYMS_String8 string);
 SYMS_API SYMS_String8List syms_string_split(SYMS_Arena *arena, SYMS_String8 input, SYMS_U32 delimiter);
 
 ////////////////////////////////
-//~ NOTE(allen): String <-> Integer
+//~ allen: String <-> Integer
 
 SYMS_API SYMS_U64 syms_u64_from_string(SYMS_String8 str, SYMS_U32 radix);
 SYMS_API SYMS_S64 syms_s64_from_string_c_rules(SYMS_String8 str);
@@ -486,7 +495,7 @@ SYMS_API SYMS_S64 syms_s64_from_string_c_rules(SYMS_String8 str);
 SYMS_API SYMS_String8 syms_string_from_u64(SYMS_Arena *arena, SYMS_U64 x);
 
 ////////////////////////////////
-//~ NOTE(rjf): U64 Range Functions
+//~ rjf: U64 Range Functions
 
 SYMS_API void syms_u64_range_list_push_node(SYMS_U64RangeNode *node, SYMS_U64RangeList *list, SYMS_U64Range range);
 SYMS_API void syms_u64_range_list_push(SYMS_Arena *arena, SYMS_U64RangeList *list, SYMS_U64Range range);
@@ -495,7 +504,7 @@ SYMS_API void syms_u64_range_list_concat(SYMS_U64RangeList *list, SYMS_U64RangeL
 SYMS_API SYMS_U64RangeArray syms_u64_range_array_from_list(SYMS_Arena *arena, SYMS_U64RangeList *list);
 
 ////////////////////////////////
-//~ NOTE(rjf): Memory/Arena Functions
+//~ rjf: Memory/Arena Functions
 
 #define syms_arena_alloc          syms_arena_alloc__impl
 #define syms_arena_release        syms_arena_release__impl
@@ -525,13 +534,19 @@ SYMS_API SYMS_ArenaTemp syms_get_scratch(SYMS_Arena **conflicts, SYMS_U64 count)
 #define syms_scratch_pool_tidy syms_scratch_pool_tidy__impl
 
 ////////////////////////////////
-//~ NOTE(allen): Thread Lanes
+//~ allen: Syms Sort Node
+
+SYMS_API SYMS_SortNode* syms_sort_node_push(SYMS_Arena *arena, SYMS_SortNode **stack, SYMS_SortNode **free_stack,
+                                            SYMS_U64 first, SYMS_U64 opl);
+
+////////////////////////////////
+//~ allen: Thread Lanes
 
 SYMS_API void     syms_set_lane(SYMS_U64 lane);
 SYMS_API SYMS_U64 syms_get_lane(void);
 
 ////////////////////////////////
-//~ NOTE(rjf): Based Ranges
+//~ rjf: Based Ranges
 
 SYMS_API void *   syms_based_range_ptr(void *base, SYMS_U64Range range, SYMS_U64 offset);
 SYMS_API SYMS_U64 syms_based_range_read(void *base, SYMS_U64Range range, SYMS_U64 offset, SYMS_U64 out_size, void *out);
@@ -543,7 +558,7 @@ SYMS_API SYMS_String8 syms_based_range_read_string(void *base, SYMS_U64Range ran
 #define syms_based_range_read_struct(b,r,o,p) syms_based_range_read((b), (r), (o), sizeof(*(p)), p)
 
 ////////////////////////////////
-//~ NOTE(allen): Memory Views
+//~ allen: Memory Views
 
 SYMS_API SYMS_MemoryView syms_memory_view_make(SYMS_String8 data, SYMS_U64 base);
 SYMS_API SYMS_B32        syms_memory_view_read(SYMS_MemoryView *memview, SYMS_U64 addr,
@@ -554,7 +569,7 @@ SYMS_API SYMS_B32        syms_memory_view_read(SYMS_MemoryView *memview, SYMS_U6
 SYMS_API void syms_unwind_result_missed_read(SYMS_UnwindResult *unwind_result, SYMS_U64 addr);
 
 ////////////////////////////////
-//~ NOTE(nick): Bit manipulations
+//~ nick: Bit manipulations
 
 SYMS_API SYMS_U16 syms_bswap_u16(SYMS_U16 x);
 SYMS_API SYMS_U32 syms_bswap_u32(SYMS_U32 x);
@@ -562,7 +577,7 @@ SYMS_API SYMS_U64 syms_bswap_u64(SYMS_U64 x);
 SYMS_API void syms_bswap_bytes(void *p, SYMS_U64 size);
 
 ////////////////////////////////
-//~ NOTE(allen): Dev Features
+//~ allen: Dev Features
 
 #include "syms_dev.h"
 

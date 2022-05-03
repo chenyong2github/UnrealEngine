@@ -546,6 +546,13 @@ struct SYMS_DwMapAccel
   SYMS_DwPubStringsTable tbl;
 };
 
+typedef struct SYMS_DwLinkMapAccel SYMS_DwLinkMapAccel;
+struct SYMS_DwLinkMapAccel
+{
+  SYMS_FileFormat format;
+  // TODO(allen): 
+};
+
 SYMS_C_LINKAGE_BEGIN //-
 
 ////////////////////////////////
@@ -590,6 +597,7 @@ SYMS_API SYMS_U64          syms_dw_default_vbase_from_dbg(SYMS_DwDbgAccel *dbg);
 SYMS_API SYMS_UnitID syms_dw_uid_from_foff(SYMS_DwDbgAccel *dbg, SYMS_U64 foff);
 
 //- rjf: important DWARF section base/range accessors
+SYMS_API SYMS_B32      syms_dw_sec_is_present(SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind kind);
 SYMS_API void*         syms_dw_sec_base_from_dbg(SYMS_String8 data, SYMS_DwDbgAccel *dbg,
                                                  SYMS_DwSectionKind kind);
 SYMS_API SYMS_U64Range syms_dw_sec_range_from_dbg(SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind kind);

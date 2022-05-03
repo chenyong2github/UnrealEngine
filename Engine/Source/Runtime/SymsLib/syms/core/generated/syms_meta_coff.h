@@ -143,18 +143,28 @@ SYMS_CoffRelocTypeX64_COUNT = 17
 typedef SYMS_U16 SYMS_CoffRelocTypeX86;
 enum{
 SYMS_CoffRelocTypeX86_ABS = 0x0,
+//  relocation is ignored
 SYMS_CoffRelocTypeX86_DIR16 = 0x1,
+//  no support
 SYMS_CoffRelocTypeX86_REL16 = 0x2,
+//  no support
 SYMS_CoffRelocTypeX86_UNKNOWN0 = 0x3,
 SYMS_CoffRelocTypeX86_UNKNOWN2 = 0x4,
 SYMS_CoffRelocTypeX86_UNKNOWN3 = 0x5,
 SYMS_CoffRelocTypeX86_DIR32 = 0x6,
+//  32-bit virtual address
 SYMS_CoffRelocTypeX86_DIR32NB = 0x7,
+//  32-bit virtual offset
 SYMS_CoffRelocTypeX86_SEG12 = 0x9,
+//  no support
 SYMS_CoffRelocTypeX86_SECTION = 0xA,
+//  16-bit section index, used for debug info purposes
 SYMS_CoffRelocTypeX86_SECREL = 0xB,
+//  32-bit offset from start of a section
 SYMS_CoffRelocTypeX86_TOKEN = 0xC,
+//  CLR token? (for managed languages)
 SYMS_CoffRelocTypeX86_SECREL7 = 0xD,
+//  7-bit offset from the base of the section that contains the target.
 SYMS_CoffRelocTypeX86_UNKNOWN4 = 0xE,
 SYMS_CoffRelocTypeX86_UNKNOWN5 = 0xF,
 SYMS_CoffRelocTypeX86_UNKNOWN6 = 0x10,
@@ -254,9 +264,9 @@ SYMS_CoffSymSecNumber_COUNT = 3
 typedef SYMS_U8 SYMS_CoffSymDType;
 enum{
 SYMS_CoffSymDType_NULL = 0,
-SYMS_CoffSymDType_POINTER = 1,
-SYMS_CoffSymDType_FUNCTION = 2,
-SYMS_CoffSymDType_ARRAY = 3,
+SYMS_CoffSymDType_PTR = 16,
+SYMS_CoffSymDType_FUNC = 32,
+SYMS_CoffSymDType_ARRAY = 48,
 SYMS_CoffSymDType_COUNT = 4
 };
 typedef SYMS_U32 SYMS_CoffWeakExtType;
@@ -287,6 +297,7 @@ SYMS_CoffImportHeaderNameType_COUNT = 4
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Arch syms_arch_from_coff_machine_type(SYMS_CoffMachineType v);
 SYMS_API SYMS_U32 syms_coff_reloc_size_for_x64(SYMS_CoffRelocTypeX64 v);
+SYMS_API SYMS_U32 syms_coff_reloc_size_for_x86(SYMS_CoffRelocTypeX86 v);
 SYMS_C_LINKAGE_END
 
 //~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588

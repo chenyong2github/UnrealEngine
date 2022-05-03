@@ -9,6 +9,8 @@
 SYMS_API SYMS_FileAccel*
 syms_file_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
   SYMS_FileAccel *result = (SYMS_FileAccel*)&syms_format_nil;
+  
+  // easy to recognize
   if (result->format == SYMS_FileFormat_Null){
     result = (SYMS_FileAccel*)syms_pe_file_accel_from_data(arena, data);
   }
@@ -21,6 +23,12 @@ syms_file_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
   if (result->format == SYMS_FileFormat_Null){
     result = (SYMS_FileAccel*)syms_mach_file_accel_from_data(arena, data);
   }
+  
+  // harder to recognize
+  if (result->format == SYMS_FileFormat_Null){
+    result = (SYMS_FileAccel*)syms_coff_file_accel_from_data(arena, data);
+  }
+  
   SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
   return(result);
 }
@@ -40,6 +48,8 @@ syms_file_is_bin(SYMS_FileAccel *file){
   switch (file->format){
     case SYMS_FileFormat_PE:
     case SYMS_FileFormat_ELF:
+    case SYMS_FileFormat_COFF16:
+    case SYMS_FileFormat_COFF32:
     {
       result = syms_true;
     }break;
@@ -61,6 +71,12 @@ syms_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_FileAccel *f
     case SYMS_FileFormat_PE:
     {
       result = (SYMS_BinAccel*)syms_pe_bin_accel_from_file(arena, data, &file->pe_accel);
+    }break;
+    
+    case SYMS_FileFormat_COFF16:
+    case SYMS_FileFormat_COFF32:
+    {
+      result = (SYMS_BinAccel*)syms_coff_bin_accel_from_file(arena, data, &file->coff_accel);
     }break;
     
     case SYMS_FileFormat_ELF:
@@ -87,6 +103,12 @@ syms_arch_from_bin(SYMS_BinAccel *bin){
     case SYMS_FileFormat_PE:
     {
       result = syms_pe_arch_from_bin(&bin->pe_accel);
+    }break;
+    
+    case SYMS_FileFormat_COFF16:
+    case SYMS_FileFormat_COFF32:
+    {
+      result = syms_coff_arch_from_bin(&bin->coff_accel);
     }break;
     
     case SYMS_FileFormat_ELF:
@@ -136,6 +158,12 @@ syms_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_BinAccel
       result = syms_pe_sec_info_array_from_bin(arena, data, &bin->pe_accel);
     }break;
     
+    case SYMS_FileFormat_COFF16:
+    case SYMS_FileFormat_COFF32:
+    {
+      result = syms_coff_sec_info_array_from_bin(arena, data, &bin->coff_accel);
+    }break;
+    
     case SYMS_FileFormat_ELF:
     {
       result = syms_elf_sec_info_array_from_bin(arena, data, &bin->elf_accel);
@@ -166,6 +194,11 @@ syms_default_vbase_from_bin(SYMS_BinAccel *bin){
     case SYMS_FileFormat_ELF:
     {
       result = syms_elf_default_vbase_from_bin(&bin->elf_accel);
+    }break;
+    
+    case SYMS_FileFormat_MACH:
+    {
+      // TODO(allen): ?
     }break;
   }
   SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
@@ -1233,28 +1266,6 @@ syms_location_ranges_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_Db
   return(result);
 }
 
-SYMS_API SYMS_StrippedInfoArray
-syms_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit){
-  SYMS_ProfBegin("syms_stripped_from_unit");
-  SYMS_StrippedInfoArray result = {0};
-  if (unit->format == dbg->format){
-    switch (unit->format){
-      case SYMS_FileFormat_PDB:
-      {
-        result = syms_pdb_stripped_from_unit(arena, data, &dbg->pdb_accel, &unit->pdb_accel);
-      }break;
-      
-      case SYMS_FileFormat_DWARF:
-      {
-        // do nothing
-      }break;
-    }
-  }
-  SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
-  SYMS_ProfEnd();
-  return(result);
-}
-
 // signature info
 SYMS_API SYMS_SigInfo
 syms_sig_info_from_type_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
@@ -1369,13 +1380,13 @@ syms_type_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg)
 }
 
 SYMS_API SYMS_MapAccel*
-syms_image_symbol_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg){
-  SYMS_ProfBegin("syms_image_symbol_map_from_dbg");
+syms_unmangled_symbol_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg){
+  SYMS_ProfBegin("syms_unmangled_symbol_map_from_dbg");
   SYMS_MapAccel *result = (SYMS_MapAccel*)&syms_format_nil;
   switch (dbg->format){
     case SYMS_FileFormat_PDB:
     {
-      result = (SYMS_MapAccel*)syms_pdb_image_symbol_map_from_dbg(arena, data, &dbg->pdb_accel);
+      result = (SYMS_MapAccel*)syms_pdb_unmangled_symbol_map_from_dbg(arena, data, &dbg->pdb_accel);
     }break;
     
     case SYMS_FileFormat_DWARF:
@@ -1409,27 +1420,127 @@ syms_partner_uid_from_map(SYMS_MapAccel *map){
 }
 
 SYMS_API SYMS_USIDList
-syms_symbol_list_from_string(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
-                             SYMS_MapAndUnit map_and_unit, SYMS_String8 string){
-  SYMS_ProfBegin("syms_symbol_list_from_string");
+syms_usid_list_from_string(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                           SYMS_MapAndUnit *map_and_unit, SYMS_String8 string){
+  SYMS_ProfBegin("syms_usid_list_from_string");
   SYMS_USIDList result = {0};
-  if (map_and_unit.map->format == dbg->format){
+  if (map_and_unit->map->format == dbg->format){
     switch (dbg->format){
       case SYMS_FileFormat_PDB:
       {
         result = syms_pdb_usid_list_from_string(arena, data, &dbg->pdb_accel,
-                                                &map_and_unit.unit->pdb_accel,
-                                                &map_and_unit.map->pdb_accel,
+                                                &map_and_unit->unit->pdb_accel,
+                                                &map_and_unit->map->pdb_accel,
                                                 string);
       }break;
       
       case SYMS_FileFormat_DWARF:
       {
-        result = syms_dw_usid_list_from_string(arena, &map_and_unit.map->dw_accel, string);
+        result = syms_dw_usid_list_from_string(arena, &map_and_unit->map->dw_accel, string);
       }break;
     }
   }
   SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
+  SYMS_ProfEnd();
+  return(result);
+}
+
+// mangled names (linker names)
+
+SYMS_API SYMS_UnitID
+syms_link_names_uid(SYMS_DbgAccel *dbg){
+  SYMS_UnitID result = 0;
+  switch (dbg->format){
+    case SYMS_FileFormat_PDB:
+    {
+      result = syms_pdb_link_names_uid();
+    }break;
+    
+    case SYMS_FileFormat_DWARF:
+    {
+      // NOTE(allen): do nothing
+    }break;
+  }
+  return(result);
+}
+
+SYMS_API SYMS_B32
+syms_link_map_is_complete(SYMS_LinkMapAccel *map){
+  SYMS_ProfBegin("syms_link_map_is_complete");
+  SYMS_B32 result = syms_false;
+  switch (map->format){
+    case SYMS_FileFormat_PDB:
+    {
+      result = syms_true;
+    }break;
+    case SYMS_FileFormat_DWARF:
+    {
+      result = syms_false;
+    }break;
+  }
+  SYMS_ProfEnd();
+  return(result);
+}
+
+SYMS_API SYMS_LinkMapAccel*
+syms_link_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg){
+  SYMS_ProfBegin("syms_link_map_from_dbg");
+  SYMS_LinkMapAccel *result = (SYMS_LinkMapAccel*)&syms_format_nil;
+  switch (dbg->format){
+    case SYMS_FileFormat_PDB:
+    {
+      result = (SYMS_LinkMapAccel*)syms_pdb_link_map_from_dbg(arena, data, (SYMS_PdbDbgAccel*)dbg);
+    }break;
+    
+    case SYMS_FileFormat_DWARF:
+    {
+      // TODO(allen): 
+    }break;
+  }
+  SYMS_ProfEnd();
+  return(result);
+}
+
+SYMS_API SYMS_U64
+syms_voff_from_link_name(SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_LinkMapAccel *map,
+                         SYMS_UnitAccel *link_unit, SYMS_String8 name){
+  SYMS_ProfBegin("syms_voff_from_link_name");
+  SYMS_U64 result = 0;
+  if (dbg->format == map->format){
+    switch (dbg->format){
+      case SYMS_FileFormat_PDB:
+      {
+        result = syms_pdb_voff_from_link_name(data, (SYMS_PdbDbgAccel*)dbg, (SYMS_PdbLinkMapAccel*)map,
+                                              (SYMS_PdbUnitAccel*)link_unit, name);
+      }break;
+      
+      case SYMS_FileFormat_DWARF:
+      {
+        // TODO(allen): 
+      }break;
+    }
+  }
+  SYMS_ProfEnd();
+  return(result);
+}
+
+SYMS_API SYMS_LinkNameRecArray
+syms_link_name_array_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit){
+  SYMS_ProfBegin("syms_link_name_array_from_unit");
+  SYMS_LinkNameRecArray result = {0};
+  if (dbg->format == unit->format){
+    switch (dbg->format){
+      case SYMS_FileFormat_PDB:
+      {
+        result = syms_pdb_link_name_array_from_unit(arena, data, (SYMS_PdbDbgAccel*)dbg, (SYMS_PdbUnitAccel*)unit);
+      }break;
+      
+      case SYMS_FileFormat_DWARF:
+      {
+        // TODO(allen): 
+      }break;
+    }
+  }
   SYMS_ProfEnd();
   return(result);
 }

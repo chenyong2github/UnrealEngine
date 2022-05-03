@@ -80,9 +80,9 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
         {
           SYMS_PeOptionalPe32 pe_optional = {0};
           syms_based_range_read_struct(base, optional_range, 0, &pe_optional);
-
+          
           image_base = pe_optional.image_base;
-
+          
           reported_data_dir_offset = sizeof(pe_optional);
           reported_data_dir_count = pe_optional.data_dir_count;
         }break;
@@ -90,9 +90,9 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
         {
           SYMS_PeOptionalPe32Plus pe_optional = {0};
           syms_based_range_read_struct(base, optional_range, 0, &pe_optional);
-
+          
           image_base = pe_optional.image_base;
-
+          
           reported_data_dir_offset = sizeof(pe_optional);
           reported_data_dir_count = pe_optional.data_dir_count;
         }break;
@@ -176,8 +176,28 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
   return(result);
 }
 
+SYMS_API SYMS_CoffFileAccel*
+syms_coff_file_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
+  SYMS_CoffFileAccel *result = (SYMS_CoffFileAccel *)&syms_format_nil;
+  // TODO(allen): 
+  return(result);
+}
+
+SYMS_API SYMS_CoffBinAccel*
+syms_coff_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_CoffFileAccel *file){
+  SYMS_CoffBinAccel *result = (SYMS_CoffBinAccel *)&syms_format_nil;
+  // TODO(allen): 
+  return(result);
+}
+
 SYMS_API SYMS_Arch
 syms_pe_arch_from_bin(SYMS_PeBinAccel *bin){
+  SYMS_Arch result = bin->arch;
+  return(result);
+}
+
+SYMS_API SYMS_Arch
+syms_coff_arch_from_bin(SYMS_CoffBinAccel *bin){
   SYMS_Arch result = bin->arch;
   return(result);
 }
@@ -209,6 +229,14 @@ syms_pe_coff_section(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 n){
 }
 
 SYMS_API SYMS_SecInfoArray
+syms_pe_coff_sec_info_array_from_data(SYMS_Arena *arena, SYMS_String8 data,
+                                      SYMS_U64 sec_array_off, SYMS_U64 sec_count){
+  SYMS_SecInfoArray result = {0};
+  // TODO(allen): 
+  return(result);
+}
+
+SYMS_API SYMS_SecInfoArray
 syms_pe_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin){
   SYMS_SecInfoArray result = {0};
   result.count = bin->section_count;
@@ -235,142 +263,16 @@ syms_pe_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBin
   return(result);
 }
 
-////////////////////////////////
-// NOTE(allen): PE Specific Helpers
-
-SYMS_API SYMS_U64
-syms_pe_binary_search_intel_pdata(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff){
-  SYMS_ASSERT(bin->arch == SYMS_Arch_X86 || bin->arch == SYMS_Arch_X64);
-  SYMS_U64 pdata_off = bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXCEPTIONS].min;
-  SYMS_U64 pdata_count = syms_u64_range_size(bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXCEPTIONS]) / sizeof(SYMS_PeIntelPdata);
-  
-  SYMS_U64 result = 0;
-  // check if this bin includes a pdata array
-  if (pdata_count > 0){
-    SYMS_PeIntelPdata *pdata_array = (SYMS_PeIntelPdata*)(data.str + pdata_off);
-    if (voff >= pdata_array[0].voff_first){
-      
-      // binary search:
-      //  find max index s.t. pdata_array[index].voff_first <= voff
-      //  we assume (i < j) -> (pdata_array[i].voff_first < pdata_array[j].voff_first)
-      SYMS_U64 index = pdata_count;
-      SYMS_U64 min = 0;
-      SYMS_U64 opl = pdata_count;
-      for (;;){
-        SYMS_U64 mid = (min + opl)/2;
-        SYMS_PeIntelPdata *pdata = pdata_array + mid;
-        if (voff < pdata->voff_first){
-          opl = mid;
-        }
-        else if (pdata->voff_first < voff){
-          min = mid;
-        }
-        else{
-          index = mid;
-          break;
-        }
-        if (min + 1 >= opl){
-          index = min;
-          break;
-        }
-      }
-      
-      // if we are in range fill result
-      {
-        SYMS_PeIntelPdata *pdata = pdata_array + index;
-        if (pdata->voff_first <= voff && voff < pdata->voff_one_past_last){
-          result = pdata_off + index*sizeof(SYMS_PeIntelPdata);
-        }
-      }
-    }
-  }
-  
+SYMS_API SYMS_SecInfoArray
+syms_coff_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data,
+                                  SYMS_CoffBinAccel *bin){
+  SYMS_SecInfoArray result = {0};
+  // TODO(allen): 
   return(result);
-}
-
-SYMS_API SYMS_U64
-syms_pe_sec_number_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff){
-  SYMS_U64 sec_count = bin->section_count;
-  SYMS_CoffSection *sec_array = (SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off);
-  SYMS_CoffSection *sec_ptr = sec_array;
-  SYMS_U64 result = 0;
-  for (SYMS_U64 i = 1; i <= sec_count; i += 1, sec_ptr += 1){
-    if (sec_ptr->virt_off <= voff && voff < sec_ptr->virt_off + sec_ptr->virt_size){
-      result = i;
-      break;
-    }
-  }
-  return(result);
-}
-
-SYMS_API void*
-syms_pe_ptr_from_sec_number(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 n){
-  void *result = 0;
-  SYMS_U64 sec_count = bin->section_count;
-  if (1 <= n && n <= sec_count){
-    SYMS_CoffSection *sec_array = (SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off);
-    SYMS_CoffSection *sec = sec_array + n - 1;
-    if (sec->file_size > 0){
-      result = data.str + sec->file_off;
-    }
-  }
-  return(result);
-}
-
-SYMS_API void*
-syms_pe_ptr_from_foff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 foff){
-  void *result = 0;
-  if (foff < data.size){
-    result = data.str + foff;
-  }
-  return(result);
-}
-
-SYMS_API void*
-syms_pe_ptr_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff){
-  //- get the section for this voff
-  SYMS_U64 sec_count = bin->section_count;
-  SYMS_CoffSection *sec_array = (SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off);
-  SYMS_CoffSection *sec_ptr = sec_array;
-  SYMS_CoffSection *sec = 0;
-  for (SYMS_U64 i = 1; i <= sec_count; i += 1, sec_ptr += 1){
-    if (sec_ptr->virt_off <= voff && voff < sec_ptr->virt_off + sec_ptr->virt_size){
-      sec = sec_ptr;
-      break;
-    }
-  }
-  
-  //- adjust to file pointer
-  void *result = 0;
-  if (sec != 0 & sec_ptr->file_size > 0){
-    result = data.str + voff - sec->virt_off + sec->file_off;
-  }
-  
-  return(result);
-}
-
-SYMS_API SYMS_U64
-syms_pe_virt_off_to_file_off(SYMS_CoffSection *sections, SYMS_U32 section_count, SYMS_U64 virt_off)
-{
-  SYMS_U64 file_off = 0;
-  for (SYMS_U32 sect_idx = 0; sect_idx < section_count; sect_idx += 1){
-    SYMS_CoffSection *sect = &sections[sect_idx];
-    if (sect->virt_off <= virt_off && virt_off < sect->virt_off + sect->virt_size){
-      file_off = sect->file_off + (virt_off - sect->virt_off);
-    }
-  }
-  return file_off;
-}
-
-SYMS_API SYMS_U64
-syms_pe_bin_virt_off_to_file_off(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 virt_off)
-{
-  return syms_pe_virt_off_to_file_off((SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off), bin->section_count, virt_off);
 }
 
 SYMS_API SYMS_ImportArray
-syms_pe_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin)
-{
+syms_pe_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin){
   SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
   
   //- rjf: grab prerequisites
@@ -492,8 +394,7 @@ syms_pe_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *
 }
 
 SYMS_API SYMS_ExportArray
-syms_pe_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin)
-{
+syms_pe_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin){
   SYMS_U64Range dir_range = bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXPORT];
   SYMS_U64Range data_range = syms_make_u64_range(0, data.size);
   void *base = (void*)data.str;
@@ -564,6 +465,138 @@ syms_pe_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *
   }
   
   return export_array;
+}
+
+
+////////////////////////////////
+// NOTE(allen): PE Specific Helpers
+
+SYMS_API SYMS_U64
+syms_pe_binary_search_intel_pdata(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff){
+  SYMS_ASSERT(bin->arch == SYMS_Arch_X86 || bin->arch == SYMS_Arch_X64);
+  SYMS_U64 pdata_off = bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXCEPTIONS].min;
+  SYMS_U64 pdata_count = syms_u64_range_size(bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXCEPTIONS]) / sizeof(SYMS_PeIntelPdata);
+  
+  SYMS_U64 result = 0;
+  // check if this bin includes a pdata array
+  if (pdata_count > 0){
+    SYMS_PeIntelPdata *pdata_array = (SYMS_PeIntelPdata*)(data.str + pdata_off);
+    if (voff >= pdata_array[0].voff_first){
+      
+      // binary search:
+      //  find max index s.t. pdata_array[index].voff_first <= voff
+      //  we assume (i < j) -> (pdata_array[i].voff_first < pdata_array[j].voff_first)
+      SYMS_U64 index = pdata_count;
+      SYMS_U64 min = 0;
+      SYMS_U64 opl = pdata_count;
+      for (;;){
+        SYMS_U64 mid = (min + opl)/2;
+        SYMS_PeIntelPdata *pdata = pdata_array + mid;
+        if (voff < pdata->voff_first){
+          opl = mid;
+        }
+        else if (pdata->voff_first < voff){
+          min = mid;
+        }
+        else{
+          index = mid;
+          break;
+        }
+        if (min + 1 >= opl){
+          index = min;
+          break;
+        }
+      }
+      
+      // if we are in range fill result
+      {
+        SYMS_PeIntelPdata *pdata = pdata_array + index;
+        if (pdata->voff_first <= voff && voff < pdata->voff_one_past_last){
+          result = pdata_off + index*sizeof(SYMS_PeIntelPdata);
+        }
+      }
+    }
+  }
+  
+  return(result);
+}
+
+SYMS_API SYMS_U64
+syms_pe_sec_number_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff){
+  SYMS_U64 sec_count = bin->section_count;
+  SYMS_CoffSection *sec_array = (SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off);
+  SYMS_CoffSection *sec_ptr = sec_array;
+  SYMS_U64 result = 0;
+  for (SYMS_U64 i = 1; i <= sec_count; i += 1, sec_ptr += 1){
+    if (sec_ptr->virt_off <= voff && voff < sec_ptr->virt_off + sec_ptr->virt_size){
+      result = i;
+      break;
+    }
+  }
+  return(result);
+}
+
+SYMS_API void*
+syms_pe_ptr_from_sec_number(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 n){
+  void *result = 0;
+  SYMS_U64 sec_count = bin->section_count;
+  if (1 <= n && n <= sec_count){
+    SYMS_CoffSection *sec_array = (SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off);
+    SYMS_CoffSection *sec = sec_array + n - 1;
+    if (sec->file_size > 0){
+      result = data.str + sec->file_off;
+    }
+  }
+  return(result);
+}
+
+SYMS_API void*
+syms_pe_ptr_from_foff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 foff){
+  void *result = 0;
+  if (foff < data.size){
+    result = data.str + foff;
+  }
+  return(result);
+}
+
+SYMS_API void*
+syms_pe_ptr_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff){
+  //- get the section for this voff
+  SYMS_U64 sec_count = bin->section_count;
+  SYMS_CoffSection *sec_array = (SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off);
+  SYMS_CoffSection *sec_ptr = sec_array;
+  SYMS_CoffSection *sec = 0;
+  for (SYMS_U64 i = 1; i <= sec_count; i += 1, sec_ptr += 1){
+    if (sec_ptr->virt_off <= voff && voff < sec_ptr->virt_off + sec_ptr->virt_size){
+      sec = sec_ptr;
+      break;
+    }
+  }
+  
+  //- adjust to file pointer
+  void *result = 0;
+  if (sec != 0 & sec_ptr->file_size > 0){
+    result = data.str + voff - sec->virt_off + sec->file_off;
+  }
+  
+  return(result);
+}
+
+SYMS_API SYMS_U64
+syms_pe_virt_off_to_file_off(SYMS_CoffSection *sections, SYMS_U32 section_count, SYMS_U64 virt_off){
+  SYMS_U64 file_off = 0;
+  for (SYMS_U32 sect_idx = 0; sect_idx < section_count; sect_idx += 1){
+    SYMS_CoffSection *sect = &sections[sect_idx];
+    if (sect->virt_off <= virt_off && virt_off < sect->virt_off + sect->virt_size){
+      file_off = sect->file_off + (virt_off - sect->virt_off);
+    }
+  }
+  return file_off;
+}
+
+SYMS_API SYMS_U64
+syms_pe_bin_virt_off_to_file_off(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 virt_off){
+  return syms_pe_virt_off_to_file_off((SYMS_CoffSection*)((SYMS_U8*)data.str + bin->section_array_off), bin->section_count, virt_off);
 }
 
 #endif //SYMS_PE_PARSER_C

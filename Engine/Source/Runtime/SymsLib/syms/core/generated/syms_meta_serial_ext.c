@@ -87,6 +87,8 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_Language[] = {
 SYMS_SerialValue _syms_serial_members_for_SYMS_FileFormat[] = {
 { { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_FileFormat_Null },
 { { (SYMS_U8*)"PE", 2 }, (SYMS_U64)SYMS_FileFormat_PE },
+{ { (SYMS_U8*)"COFF16", 6 }, (SYMS_U64)SYMS_FileFormat_COFF16 },
+{ { (SYMS_U8*)"COFF32", 6 }, (SYMS_U64)SYMS_FileFormat_COFF32 },
 { { (SYMS_U8*)"ELF", 3 }, (SYMS_U64)SYMS_FileFormat_ELF },
 { { (SYMS_U8*)"MACH", 4 }, (SYMS_U64)SYMS_FileFormat_MACH },
 { { (SYMS_U8*)"PDB", 3 }, (SYMS_U64)SYMS_FileFormat_PDB },
@@ -332,7 +334,18 @@ case SYMS_CoffSymSecNumber_DEBUG: result = 2; break;
 }
 return(result);
 }
-// syms_enum_index_from_coffsymdtype - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_coffsymdtype(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_CoffSymDType_NULL: result = 0; break;
+case SYMS_CoffSymDType_PTR: result = 1; break;
+case SYMS_CoffSymDType_FUNC: result = 2; break;
+case SYMS_CoffSymDType_ARRAY: result = 3; break;
+}
+return(result);
+}
 SYMS_API SYMS_U64
 syms_enum_index_from_coff_weak_ext_type(SYMS_U64 v){
 SYMS_U64 result = 0;
@@ -567,8 +580,8 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymSecNumber[] = {
 };
 SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymDType[] = {
 { { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymDType_NULL },
-{ { (SYMS_U8*)"POINTER", 7 }, (SYMS_U64)SYMS_CoffSymDType_POINTER },
-{ { (SYMS_U8*)"FUNCTION", 8 }, (SYMS_U64)SYMS_CoffSymDType_FUNCTION },
+{ { (SYMS_U8*)"PTR", 3 }, (SYMS_U64)SYMS_CoffSymDType_PTR },
+{ { (SYMS_U8*)"FUNC", 4 }, (SYMS_U64)SYMS_CoffSymDType_FUNC },
 { { (SYMS_U8*)"ARRAY", 5 }, (SYMS_U64)SYMS_CoffSymDType_ARRAY },
 };
 SYMS_SerialValue _syms_serial_members_for_SYMS_CoffWeakExtType[] = {
@@ -629,7 +642,7 @@ SYMS_SerialType _syms_serial_type_SYMS_CoffSymSecNumber = {
 {(SYMS_U8*)"SYMS_CoffSymSecNumber", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymSecNumber), _syms_serial_members_for_SYMS_CoffSymSecNumber, sizeof(SYMS_CoffSymSecNumber), syms_enum_index_from_coffsymsecnumber
 };
 SYMS_SerialType _syms_serial_type_SYMS_CoffSymDType = {
-{(SYMS_U8*)"SYMS_CoffSymDType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymDType), _syms_serial_members_for_SYMS_CoffSymDType, sizeof(SYMS_CoffSymDType), syms_enum_index_from_value_identity
+{(SYMS_U8*)"SYMS_CoffSymDType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymDType), _syms_serial_members_for_SYMS_CoffSymDType, sizeof(SYMS_CoffSymDType), syms_enum_index_from_coffsymdtype
 };
 SYMS_SerialType _syms_serial_type_SYMS_CoffWeakExtType = {
 {(SYMS_U8*)"SYMS_CoffWeakExtType", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffWeakExtType), _syms_serial_members_for_SYMS_CoffWeakExtType, sizeof(SYMS_CoffWeakExtType), syms_enum_index_from_coff_weak_ext_type
@@ -3772,7 +3785,7 @@ static SYMS_SerialField _syms_serial_members_for_SYMS_CvData32[] = {
 SYMS_SerialFlag _syms_serial_members_for_SYMS_CvPubsymFlags[] = {
 { { (SYMS_U8*)"CODE", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
 { { (SYMS_U8*)"FUNCTION", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
-{ { (SYMS_U8*)"MANGED_CODE", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+{ { (SYMS_U8*)"MANAGED_CODE", 12 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
 { { (SYMS_U8*)"MSIL", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
 };
 static SYMS_SerialField _syms_serial_members_for_SYMS_CvPubsym32[] = {
@@ -9187,6 +9200,19 @@ case SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS: result = 17; break;
 }
 return(result);
 }
+SYMS_API SYMS_U64
+syms_enum_index_from_pe_f_p_o_flags(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_PeFPOFlags_HAS_SEH: result = 0; break;
+case SYMS_PeFPOFlags_USE_BP_REG: result = 1; break;
+case SYMS_PeFPOFlags_RESERVED: result = 2; break;
+}
+return(result);
+}
+// syms_enum_index_from_pe_f_p_o_type - skipped identity mapping
+// syms_enum_index_from_pe_debug_misc_type - skipped identity mapping
 
 //~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1322
 static SYMS_SerialField _syms_serial_members_for_SYMS_DosHeader[] = {
@@ -9362,6 +9388,27 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_PeDebugDirectoryType[] = {
 { { (SYMS_U8*)"REPRO", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_REPRO },
 { { (SYMS_U8*)"EX_DLLCHARACTERISTICS", 21 }, (SYMS_U64)SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS },
 };
+SYMS_SerialValue _syms_serial_members_for_SYMS_PeFPOFlags[] = {
+{ { (SYMS_U8*)"HAS_SEH", 7 }, (SYMS_U64)SYMS_PeFPOFlags_HAS_SEH },
+{ { (SYMS_U8*)"USE_BP_REG", 10 }, (SYMS_U64)SYMS_PeFPOFlags_USE_BP_REG },
+{ { (SYMS_U8*)"RESERVED", 8 }, (SYMS_U64)SYMS_PeFPOFlags_RESERVED },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_PeFPOEncoded[] = {
+{ { (SYMS_U8*)"PROLOG_SIZE", 11 }, &_syms_serial_type_SYMS_U8, 0xff, 0 },
+{ { (SYMS_U8*)"SAVED_REGS_SIZE", 15 }, &_syms_serial_type_SYMS_U8, 0x7, 8 },
+{ { (SYMS_U8*)"FLAGS", 5 }, &_syms_serial_type_SYMS_U8, 0x7, 11 },
+{ { (SYMS_U8*)"FRAME_TYPE", 10 }, &_syms_serial_type_SYMS_U8, 0x3, 14 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_PeFPOType[] = {
+{ { (SYMS_U8*)"FPO", 3 }, (SYMS_U64)SYMS_PeFPOType_FPO },
+{ { (SYMS_U8*)"TRAP", 4 }, (SYMS_U64)SYMS_PeFPOType_TRAP },
+{ { (SYMS_U8*)"TSS", 3 }, (SYMS_U64)SYMS_PeFPOType_TSS },
+{ { (SYMS_U8*)"NOFPO", 5 }, (SYMS_U64)SYMS_PeFPOType_NOFPO },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_PeDebugMiscType[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_PeDebugMiscType_NULL },
+{ { (SYMS_U8*)"EXE_NAME", 8 }, (SYMS_U64)SYMS_PeDebugMiscType_EXE_NAME },
+};
 static SYMS_SerialField _syms_serial_members_for_SYMS_PeDebugDirectory[] = {
 { {(SYMS_U8*)"characteristics", 15}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
 { {(SYMS_U8*)"time_stamp", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
@@ -9445,6 +9492,18 @@ SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectory = {
 };
 SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectoryType = {
 {(SYMS_U8*)"SYMS_PeDebugDirectoryType", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugDirectoryType), _syms_serial_members_for_SYMS_PeDebugDirectoryType, sizeof(SYMS_PeDebugDirectoryType), syms_enum_index_from_pe_debug_directory_type
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeFPOFlags = {
+{(SYMS_U8*)"SYMS_PeFPOFlags", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeFPOFlags), _syms_serial_members_for_SYMS_PeFPOFlags, sizeof(SYMS_PeFPOFlags), syms_enum_index_from_pe_f_p_o_flags
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeFPOEncoded = {
+{(SYMS_U8*)"SYMS_PeFPOEncoded", 17}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeFPOEncoded), _syms_serial_members_for_SYMS_PeFPOEncoded, sizeof(SYMS_PeFPOEncoded), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeFPOType = {
+{(SYMS_U8*)"SYMS_PeFPOType", 14}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeFPOType), _syms_serial_members_for_SYMS_PeFPOType, sizeof(SYMS_PeFPOType), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeDebugMiscType = {
+{(SYMS_U8*)"SYMS_PeDebugMiscType", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugMiscType), _syms_serial_members_for_SYMS_PeDebugMiscType, sizeof(SYMS_PeDebugMiscType), syms_enum_index_from_value_identity
 };
 SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory = {
 {(SYMS_U8*)"PeDebugDirectory", 16}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugDirectory), _syms_serial_members_for_SYMS_PeDebugDirectory, sizeof(SYMS_PeDebugDirectory), 0

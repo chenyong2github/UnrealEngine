@@ -1000,22 +1000,22 @@ EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Entry, FStringView Sear
 
 	// store stripped format symbols
 	{
-		SYMS_StrippedInfoArray StrippedInfo = syms_group_stripped_info(Group);
+		SYMS_LinkNameRecArray StrippedInfo = syms_group_link_name_records(Group);
 
 		FSymsSymbol* StrippedSymbols = syms_push_array(Arena, FSymsSymbol, StrippedInfo.count);
 		for (SYMS_U64 Index = 0; Index < StrippedInfo.count; Index++)
 		{
-			SYMS_StrippedInfo* Info = &StrippedInfo.info[Index];
+			SYMS_LinkNameRec* Info = &StrippedInfo.recs[Index];
 			FSymsSymbol* StrippedSymbol = &StrippedSymbols[Index];
 
 			SYMS_String8 Name = syms_push_string_copy(Arena, Info->name);
 			StrippedSymbol->Name = reinterpret_cast<char*>(Name.str);
 		}
 
-		Instance->StrippedMap = syms_spatial_map_1d_copy(Arena, syms_group_stripped_info_map(Group));
+		Instance->StrippedMap = syms_spatial_map_1d_copy(Arena, syms_group_link_name_spatial_map(Group));
 		Instance->StrippedSymbols = StrippedSymbols;
 
-		SymbolCount += StrippedInfo.count;
+		SymbolCount += (uint32)StrippedInfo.count;
 	}
 
 	Instance->UnitMap = syms_spatial_map_1d_copy(Arena, syms_group_unit_map(Group));

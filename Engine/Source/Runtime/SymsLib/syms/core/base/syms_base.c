@@ -36,7 +36,7 @@ syms_u64_range_size(SYMS_U64Range range){
 }
 
 ////////////////////////////////
-//~ NOTE(allen): Hash Functions
+//~ allen: Hash Functions
 
 SYMS_API SYMS_U64
 syms_hash_djb2(SYMS_String8 string){
@@ -150,7 +150,7 @@ SYMS_API SYMS_U64
 syms_enum_index_from_value_identity(SYMS_U64 v){ return(v); }
 
 ////////////////////////////////
-//~ NOTE(allen): String Functions
+//~ allen: String Functions
 
 SYMS_API SYMS_B32
 syms_codepoint_is_whitespace(SYMS_U32 codepoint){
@@ -418,7 +418,7 @@ syms_string_split(SYMS_Arena *arena, SYMS_String8 input, SYMS_U32 delimiter)
 }
 
 ////////////////////////////////
-//~ NOTE(allen): String -> Int
+//~ allen: String -> Int
 
 SYMS_API SYMS_U64
 syms_u64_from_string(SYMS_String8 str, SYMS_U32 radix){
@@ -549,7 +549,7 @@ syms_string_from_u64(SYMS_Arena *arena, SYMS_U64 x){
 }
 
 ////////////////////////////////
-//~ NOTE(rjf): U64 Range Functions
+//~ rjf: U64 Range Functions
 
 SYMS_API void
 syms_u64_range_list_push_node(SYMS_U64RangeNode *node, SYMS_U64RangeList *list, SYMS_U64Range range){
@@ -599,7 +599,7 @@ syms_u64_range_array_from_list(SYMS_Arena *arena, SYMS_U64RangeList *list){
 }
 
 ////////////////////////////////
-//~ NOTE(allen): Arena Functions
+//~ allen: Arena Functions
 
 SYMS_API void
 syms_arena_push_align(SYMS_Arena *arena, SYMS_U64 pow2_boundary){
@@ -645,7 +645,26 @@ syms_get_scratch(SYMS_Arena **conflicts, SYMS_U64 conflict_count){
 }
 
 ////////////////////////////////
-//~ NOTE(allen): Thread Lanes
+//~ allen: Syms Sort Node
+
+SYMS_API SYMS_SortNode*
+syms_sort_node_push(SYMS_Arena *arena, SYMS_SortNode **stack, SYMS_SortNode **free_stack,
+                    SYMS_U64 first, SYMS_U64 opl){
+  SYMS_SortNode *result = *free_stack;
+  if (result != 0){
+    SYMS_StackPop(*free_stack);
+  }
+  else{
+    result = syms_push_array(arena, SYMS_SortNode, 1);
+  }
+  SYMS_StackPush(*stack, result);
+  result->first = first;
+  result->opl = opl;
+  return(result);
+}
+
+////////////////////////////////
+//~ allen: Thread Lanes
 
 SYMS_THREAD_LOCAL SYMS_U64 syms_thread_lane = 0;
 
@@ -660,7 +679,7 @@ syms_get_lane(void){
 }
 
 ////////////////////////////////
-//~ NOTE(rjf): Based Ranges
+//~ rjf: Based Ranges
 
 SYMS_API void*
 syms_based_range_ptr(void *base, SYMS_U64Range range, SYMS_U64 offset){
@@ -756,7 +775,7 @@ syms_based_range_read_string(void *base, SYMS_U64Range range, SYMS_U64 offset){
 }
 
 ////////////////////////////////
-//~ NOTE(allen): Memory Views
+//~ allen: Memory Views
 
 SYMS_API SYMS_MemoryView
 syms_memory_view_make(SYMS_String8 data, SYMS_U64 base){
@@ -787,7 +806,7 @@ syms_unwind_result_missed_read(SYMS_UnwindResult *unwind_result, SYMS_U64 addr){
 }
 
 ////////////////////////////////
-//~ NOTE(nick): Bit manipulations
+//~ nick: Bit manipulations
 
 SYMS_API SYMS_U16
 syms_bswap_u16(SYMS_U16 x)
@@ -838,7 +857,7 @@ syms_bswap_bytes(void *p, SYMS_U64 size)
 #include "syms/core/generated/syms_meta_serial_base.c"
 
 ////////////////////////////////
-//~ NOTE(allen): Dev Features
+//~ allen: Dev Features
 
 #include "syms_dev.c"
 

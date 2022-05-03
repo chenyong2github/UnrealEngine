@@ -1897,7 +1897,7 @@ typedef SYMS_U32 SYMS_CvPubsymFlags;
 enum{
 SYMS_CvPubsymFlags_CODE = (1 << 0),
 SYMS_CvPubsymFlags_FUNCTION = (1 << 1),
-SYMS_CvPubsymFlags_MANGED_CODE = (1 << 2),
+SYMS_CvPubsymFlags_MANAGED_CODE = (1 << 2),
 SYMS_CvPubsymFlags_MSIL = (1 << 3),//  "set if managed IL code"
 };
 typedef struct SYMS_CvPubsym32{

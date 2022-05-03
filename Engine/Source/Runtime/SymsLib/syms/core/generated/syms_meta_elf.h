@@ -376,7 +376,7 @@ typedef SYMS_U8 SYMS_ElfSymBind;
 enum{
 //  the same name may exists in multiple files without interfering with each other. 
 SYMS_ElfSymBind_LOCAL = 0,
-//  Visible to all object that are linked together. 
+//  Visible to all objects that are linked together. 
 SYMS_ElfSymBind_GLOBAL = 1,
 //  If there is a global symbol with identical name linker doesn't issue an error.
 SYMS_ElfSymBind_WEAK = 2,

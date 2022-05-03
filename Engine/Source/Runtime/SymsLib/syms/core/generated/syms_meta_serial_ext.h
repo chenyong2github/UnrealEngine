@@ -80,7 +80,7 @@ SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypearm(SYMS_U64 v);
 // syms_enum_index_from_coffsymtype - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_coffsymstorageclass(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_coffsymsecnumber(SYMS_U64 v);
-// syms_enum_index_from_coffsymdtype - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffsymdtype(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_coff_weak_ext_type(SYMS_U64 v);
 // syms_enum_index_from_coff_import_header_type - skipped identity mapping
 // syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
@@ -1769,6 +1769,9 @@ SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_pe_windows_subsystem(SYMS_U64 v);
 // syms_enum_index_from_pe_data_directory_index - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_pe_debug_directory_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_pe_f_p_o_flags(SYMS_U64 v);
+// syms_enum_index_from_pe_f_p_o_type - skipped identity mapping
+// syms_enum_index_from_pe_debug_misc_type - skipped identity mapping
 SYMS_C_LINKAGE_END
 
 //~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1308
@@ -1781,6 +1784,10 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32Plus;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectoryIndex;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectory;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectoryType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeFPOFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeFPOEncoded;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeFPOType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDebugMiscType;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeGlobalFlags;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeLoadConfigGuardFlags;

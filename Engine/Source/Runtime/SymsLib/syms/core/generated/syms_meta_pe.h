@@ -184,6 +184,38 @@ SYMS_PeDebugDirectoryType_REPRO = 16,
 SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS = 20,
 SYMS_PeDebugDirectoryType_COUNT = 18
 };
+typedef SYMS_U8 SYMS_PeFPOFlags;
+enum{
+SYMS_PeFPOFlags_HAS_SEH = 0x800,
+SYMS_PeFPOFlags_USE_BP_REG = 0x1000,
+SYMS_PeFPOFlags_RESERVED = 0x2000,
+SYMS_PeFPOFlags_COUNT = 3
+};
+typedef SYMS_U16 SYMS_PeFPOEncoded;
+enum{
+SYMS_PeFPOEncoded_PROLOG_SIZE_SHIFT = 0, SYMS_PeFPOEncoded_PROLOG_SIZE_MASK = 0xff,
+SYMS_PeFPOEncoded_SAVED_REGS_SIZE_SHIFT = 8, SYMS_PeFPOEncoded_SAVED_REGS_SIZE_MASK = 0x7,
+SYMS_PeFPOEncoded_FLAGS_SHIFT = 11, SYMS_PeFPOEncoded_FLAGS_MASK = 0x7,
+SYMS_PeFPOEncoded_FRAME_TYPE_SHIFT = 14, SYMS_PeFPOEncoded_FRAME_TYPE_MASK = 0x3,
+};
+#define SYMS_PeFPOEncoded_Extract_PROLOG_SIZE(f) (SYMS_U8)(((f) >> SYMS_PeFPOEncoded_PROLOG_SIZE_SHIFT) & SYMS_PeFPOEncoded_PROLOG_SIZE_MASK)
+#define SYMS_PeFPOEncoded_Extract_SAVED_REGS_SIZE(f) (SYMS_U8)(((f) >> SYMS_PeFPOEncoded_SAVED_REGS_SIZE_SHIFT) & SYMS_PeFPOEncoded_SAVED_REGS_SIZE_MASK)
+#define SYMS_PeFPOEncoded_Extract_FLAGS(f) (SYMS_U8)(((f) >> SYMS_PeFPOEncoded_FLAGS_SHIFT) & SYMS_PeFPOEncoded_FLAGS_MASK)
+#define SYMS_PeFPOEncoded_Extract_FRAME_TYPE(f) (SYMS_U8)(((f) >> SYMS_PeFPOEncoded_FRAME_TYPE_SHIFT) & SYMS_PeFPOEncoded_FRAME_TYPE_MASK)
+typedef SYMS_U8 SYMS_PeFPOType;
+enum{
+SYMS_PeFPOType_FPO = 0,
+SYMS_PeFPOType_TRAP = 1,
+SYMS_PeFPOType_TSS = 2,
+SYMS_PeFPOType_NOFPO = 3,
+SYMS_PeFPOType_COUNT = 4
+};
+typedef SYMS_U32 SYMS_PeDebugMiscType;
+enum{
+SYMS_PeDebugMiscType_NULL,
+SYMS_PeDebugMiscType_EXE_NAME,
+SYMS_PeDebugMiscType_COUNT = 2
+};
 typedef struct SYMS_PeDebugDirectory{
 SYMS_U32 characteristics;
 SYMS_U32 time_stamp;

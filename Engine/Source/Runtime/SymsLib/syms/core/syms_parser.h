@@ -5,12 +5,13 @@
 #define SYMS_PARSER_H
 
 ////////////////////////////////
-//~ NOTE(allen): Abstraction Acclerators
+//~ allen: Abstraction Acclerators
 
 typedef union SYMS_FileAccel{
   SYMS_FileFormat format;
   SYMS_ElfFileAccel elf_accel;
   SYMS_PeFileAccel pe_accel;
+  SYMS_CoffFileAccel coff_accel;
   SYMS_PdbFileAccel pdb_accel;
   SYMS_MachFileAccel mach_accel;
 } SYMS_FileAccel;
@@ -18,6 +19,7 @@ typedef union SYMS_FileAccel{
 typedef union SYMS_BinAccel{
   SYMS_FileFormat format;
   SYMS_PeBinAccel pe_accel;
+  SYMS_CoffBinAccel coff_accel;
   SYMS_ElfBinAccel elf_accel;
   SYMS_MachBinAccel mach_accel;
 } SYMS_BinAccel;
@@ -57,8 +59,14 @@ typedef union SYMS_MapAccel{
   SYMS_PdbMapAccel pdb_accel;
 } SYMS_MapAccel;
 
+typedef union SYMS_LinkMapAccel{
+  SYMS_FileFormat format;
+  SYMS_DwLinkMapAccel dw_accel;
+  SYMS_PdbLinkMapAccel pdb_accel;
+} SYMS_LinkMapAccel;
+
 ////////////////////////////////
-//~ NOTE(allen): Accelerator Bundle Types
+//~ allen: Accelerator Bundle Types
 
 typedef struct SYMS_MapAndUnit{
   SYMS_MapAccel *map;
@@ -76,18 +84,18 @@ SYMS_C_LINKAGE_BEGIN
 
 
 ////////////////////////////////
-//~ NOTE(allen): Accel Helpers
+//~ allen: Accel Helpers
 
 #define syms_accel_is_good(a) ((a) != 0 && (a)->format != SYMS_FileFormat_Null)
 
 ////////////////////////////////
-//~ NOTE(allen): General File Analysis
+//~ allen: General File Analysis
 
 SYMS_API SYMS_FileAccel*   syms_file_accel_from_data(SYMS_Arena *arena, SYMS_String8 data);
 SYMS_API SYMS_FileFormat   syms_file_format_from_file(SYMS_FileAccel *file);
 
 ////////////////////////////////
-//~ NOTE(allen): Bin File
+//~ allen: Bin File
 
 SYMS_API SYMS_B32          syms_file_is_bin(SYMS_FileAccel *file);
 SYMS_API SYMS_BinAccel*    syms_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_FileAccel *file);
@@ -109,7 +117,7 @@ SYMS_API SYMS_ImportArray  syms_imports_from_bin(SYMS_Arena *arena, SYMS_String8
 SYMS_API SYMS_ExportArray  syms_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_BinAccel *bin);
 
 ////////////////////////////////
-//~ NOTE(nick): Bin List
+//~ nick: Bin List
 
 SYMS_API SYMS_B32          syms_file_is_bin_list(SYMS_FileAccel *file);
 SYMS_API SYMS_BinListAccel*syms_bin_list_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_FileAccel *file);
@@ -118,7 +126,7 @@ SYMS_API SYMS_BinAccel*    syms_bin_accel_from_bin_list_number(SYMS_Arena *arena
                                                                SYMS_BinListAccel *list, SYMS_U64 n);
 
 ////////////////////////////////
-//~ NOTE(rjf): Dbg File
+//~ rjf: Dbg File
 
 SYMS_API SYMS_B32          syms_file_is_dbg(SYMS_FileAccel *file);
 SYMS_API SYMS_DbgAccel*    syms_dbg_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_FileAccel *file);
@@ -207,7 +215,7 @@ SYMS_API SYMS_SigInfo      syms_sig_info_from_mem_number(SYMS_Arena *arena, SYMS
 SYMS_API SYMS_USID         syms_symbol_from_mem_number(SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit, SYMS_MemsAccel *mems, SYMS_U64 n);
 SYMS_API SYMS_USID         syms_containing_type_from_sid(SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                          SYMS_UnitAccel *unit, SYMS_SymbolID sid);
-// TODO(rjf): linkage name
+// TODO(rjf): linkage name from symbol
 
 SYMS_API SYMS_EnumInfoArray syms_enum_info_array_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                           SYMS_UnitAccel *unit, SYMS_SymbolID sid);
@@ -233,9 +241,6 @@ SYMS_API SYMS_LocRangeArray syms_location_ranges_from_proc_sid(SYMS_Arena *arena
                                                                SYMS_UnitAccel *unit, SYMS_SymbolID sid,
                                                                SYMS_ProcLoc proc_loc);
 
-SYMS_API SYMS_StrippedInfoArray syms_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
-                                                        SYMS_UnitAccel *unit);
-
 // signature info
 SYMS_API SYMS_SigInfo      syms_sig_info_from_type_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                        SYMS_UnitAccel *unit, SYMS_SymbolID sid);
@@ -252,13 +257,22 @@ SYMS_API SYMS_LineParseOut syms_line_parse_from_uid(SYMS_Arena *arena, SYMS_Stri
 
 // name maps
 SYMS_API SYMS_MapAccel*    syms_type_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg);
-SYMS_API SYMS_MapAccel*    syms_image_symbol_map_from_dbg(SYMS_Arena *arena,SYMS_String8 data,SYMS_DbgAccel *dbg);
+SYMS_API SYMS_MapAccel*    syms_unmangled_symbol_map_from_dbg(SYMS_Arena *arena,SYMS_String8 data,SYMS_DbgAccel *dbg);
 SYMS_API SYMS_UnitID       syms_partner_uid_from_map(SYMS_MapAccel *map);
-SYMS_API SYMS_USIDList     syms_symbol_list_from_string(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
-                                                        SYMS_MapAndUnit map_and_unit, SYMS_String8 string);
+SYMS_API SYMS_USIDList     syms_usid_list_from_string(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                      SYMS_MapAndUnit *map_and_unit, SYMS_String8 string);
+
+// linker names
+SYMS_API SYMS_UnitID       syms_link_names_uid(SYMS_DbgAccel *dbg);
+
+SYMS_API SYMS_LinkMapAccel*syms_link_map_from_dbg(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg);
+SYMS_API SYMS_B32          syms_link_map_is_complete(SYMS_LinkMapAccel *map);
+SYMS_API SYMS_U64          syms_voff_from_link_name(SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_LinkMapAccel *map,
+                                                    SYMS_UnitAccel *link_unit, SYMS_String8 name);
+SYMS_API SYMS_LinkNameRecArray syms_link_name_array_from_unit(SYMS_Arena *arena, SYMS_String8 data,
+                                                              SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit);
 
 // thread vars
-
 SYMS_API SYMS_UnitID        syms_tls_var_uid_from_dbg(SYMS_DbgAccel *dbg);
 SYMS_API SYMS_SymbolIDArray syms_tls_var_sid_array_from_unit(SYMS_Arena *arena, SYMS_UnitAccel *thread_unit);
 
