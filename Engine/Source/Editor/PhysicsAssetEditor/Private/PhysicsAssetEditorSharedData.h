@@ -349,7 +349,8 @@ public:
 	/** Misc toggles */
 	bool bRunningSimulation;
 	bool bNoGravitySimulation;
-	
+	bool bSimulationFloorCollisionEnabled;
+
 	/** Manipulation (rotate, translate, scale) */
 	bool bManipulating;
 

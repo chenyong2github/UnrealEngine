@@ -224,6 +224,8 @@ private:
 	void OnToggleSimulation(bool bInSelected);
 	void OnToggleSimulationNoGravity();
 	bool IsNoGravitySimulationEnabled() const;
+	void OnToggleSimulationFloorCollision();
+	bool IsSimulationFloorCollisionEnabled() const;
 	void SetupSelectedSimulation();
 	bool IsFullSimulation() const;
 	bool IsSelectedSimulation() const;

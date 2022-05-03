@@ -74,6 +74,7 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 
 	bRunningSimulation = false;
 	bNoGravitySimulation = false;
+	bSimulationFloorCollisionEnabled = true;
 
 	bManipulating = false;
 

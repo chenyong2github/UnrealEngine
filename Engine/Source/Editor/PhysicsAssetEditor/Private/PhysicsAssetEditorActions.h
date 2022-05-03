@@ -31,6 +31,7 @@ public:
 	TSharedPtr<FUICommandInfo> PasteProperties;
 	TSharedPtr<FUICommandInfo> RepeatLastSimulation;
 	TSharedPtr<FUICommandInfo> SimulationNoGravity;
+	TSharedPtr<FUICommandInfo> SimulationFloorCollision;
 	TSharedPtr<FUICommandInfo> SelectedSimulation;
 	TSharedPtr<FUICommandInfo> SimulationAll;
 	TSharedPtr<FUICommandInfo> MeshRenderingMode_Solid;

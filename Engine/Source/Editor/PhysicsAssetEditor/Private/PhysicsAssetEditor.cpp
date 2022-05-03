@@ -573,6 +573,7 @@ void FPhysicsAssetEditor::ExtendToolbar()
 			MenuBuilder.BeginSection("SimulationOptions", LOCTEXT("SimulationOptionsHeader", "Simulation Options"));
 			{
 				MenuBuilder.AddMenuEntry(Commands.SimulationNoGravity);
+				MenuBuilder.AddMenuEntry(Commands.SimulationFloorCollision);
 			}
 			MenuBuilder.EndSection();
 
@@ -765,6 +766,12 @@ void FPhysicsAssetEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleSimulationNoGravity),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsNoGravitySimulationEnabled));
+
+	ToolkitCommands->MapAction(
+		Commands.SimulationFloorCollision,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleSimulationFloorCollision),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsSimulationFloorCollisionEnabled));
 
 	ToolkitCommands->MapAction(
 		Commands.SelectedSimulation,
@@ -2269,6 +2276,34 @@ void FPhysicsAssetEditor::OnToggleSimulationNoGravity()
 bool FPhysicsAssetEditor::IsNoGravitySimulationEnabled() const
 {
 	return SharedData->bNoGravitySimulation;
+}
+
+void FPhysicsAssetEditor::OnToggleSimulationFloorCollision()
+{
+	SharedData->bSimulationFloorCollisionEnabled = !SharedData->bSimulationFloorCollisionEnabled;
+
+	// Update collision for floor
+	if (PersonaToolkit)
+	{
+		TSharedRef<IPersonaPreviewScene> PersonaPreviewScene = PersonaToolkit->GetPreviewScene();
+
+		if (UStaticMeshComponent* FloorMeshComponent = const_cast<UStaticMeshComponent*>(PersonaPreviewScene->GetFloorMeshComponent()))
+		{
+			if (SharedData->bSimulationFloorCollisionEnabled)
+			{
+				FloorMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			}
+			else
+			{
+				FloorMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			}
+		}
+	}
+}
+
+bool FPhysicsAssetEditor::IsSimulationFloorCollisionEnabled() const
+{
+	return SharedData->bSimulationFloorCollisionEnabled;
 }
 
 bool FPhysicsAssetEditor::IsFullSimulation() const
