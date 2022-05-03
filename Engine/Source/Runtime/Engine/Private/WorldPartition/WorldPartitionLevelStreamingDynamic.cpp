@@ -125,7 +125,10 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 	check(RuntimeLevel == nullptr);
 	const UWorld* World = GetWorld();
 	check(World && (World->IsGameWorld() || GetShouldBeVisibleInEditor()));
-	check(StreamingCell != nullptr);
+
+	// Make sure we are creating a runtime level for a cell.
+	// Or, we created a transient WPLevelStreamingDynamic via UWorldPartitionLevelStreamingDynamic::LoadInEditor, to load a pack of actors (Hlods generation).
+	check(StreamingCell != nullptr || GetShouldBeVisibleInEditor());
 
 	// Create streaming cell Level package
 	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(StreamingCell.Get(), World, GetWorldAsset().ToString());
