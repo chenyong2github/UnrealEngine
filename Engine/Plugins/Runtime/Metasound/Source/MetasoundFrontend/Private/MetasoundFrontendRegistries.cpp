@@ -573,7 +573,6 @@ FMetasoundFrontendRegistryContainer* FMetasoundFrontendRegistryContainer::LazySi
 
 FMetasoundFrontendRegistryContainer* FMetasoundFrontendRegistryContainer::Get()
 {
-	METASOUND_LLM_SCOPE;
 	if (!LazySingleton)
 	{
 		LazySingleton = new Metasound::Frontend::MetasoundFrontendRegistryPrivate::FRegistryContainerImpl();
