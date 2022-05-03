@@ -50,42 +50,6 @@ namespace Chaos
 	{
 	public:
 		using Base = FPBDRigidsEvolutionBase;
-		using Base::Particles;
-		using typename Base::FForceRule;
-		using Base::ForceRules;
-		using Base::PrepareTick;
-		using Base::UnprepareTick;
-		using Base::ApplyKinematicTargets;
-		using Base::UpdateConstraintPositionBasedState;
-		using Base::InternalAcceleration;
-		using Base::CreateConstraintGraph;
-		using Base::CreateIslands;
-		using Base::GetParticles;
-		using Base::DirtyParticle;
-		using Base::SetPhysicsMaterial;
-		using Base::SetPerParticlePhysicsMaterial;
-		using Base::GetPerParticlePhysicsMaterial;
-		using Base::CreateParticle;
-		using Base::GenerateUniqueIdx;
-		using Base::DestroyParticle;
-		using Base::CreateClusteredParticles;
-		using Base::EnableParticle;
-		using Base::DisableParticles;
-		using Base::NumIslands;
-		using Base::GetNonDisabledClusteredView;
-		using Base::DisableParticle;
-		using Base::GetConstraintGraph;
-		using Base::PhysicsMaterials;
-		using Base::PerParticlePhysicsMaterials;
-		using Base::ParticleDisableCount;
-		using Base::SolverPhysicsMaterials;
-		using Base::CaptureRewindData;
-		using Base::Collided;
-		using Base::SetParticleUpdatePositionFunction;
-		using Base::AddForceFunction;
-		using Base::AddConstraintRule;
-		using Base::ParticleUpdatePosition;
-		using Base::GetAllRemovals;
 
 		using FGravityForces = FPerParticleGravity;
 		using FCollisionConstraints = FPBDCollisionConstraints;
@@ -98,16 +62,13 @@ namespace Chaos
 		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
 
 		// Default iteration counts
-		static constexpr int32 DefaultNumIterations = 8;
-		static constexpr int32 DefaultNumCollisionPairIterations = 1;
-		static constexpr int32 DefaultNumPushOutIterations = 1;
-		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 1;
+		static constexpr int32 DefaultNumPositionIterations = 8;
+		static constexpr int32 DefaultNumVelocityIterations = 1;
+		static constexpr int32 DefaultNumProjectionIterations = 1;
 		static constexpr FRealSingle DefaultCollisionMarginFraction = 0.05f;
 		static constexpr FRealSingle DefaultCollisionMarginMax = 10.0f;
 		static constexpr FRealSingle DefaultCollisionCullDistance = 3.0f;
 		static constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;
-		static constexpr int32 DefaultNumJointPairIterations = 1;
-		static constexpr int32 DefaultNumJointPushOutPairIterations = 1;
 		static constexpr int32 DefaultRestitutionThreshold = 1000;
 
 		CHAOS_API FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
@@ -347,10 +308,16 @@ namespace Chaos
 		void SetImplicitVelocities(const FReal Dt, int32 GroupIndex);
 		
 		// Second phase of constraint solver (after implicit velocity calculation following results of phase 1)
-		// For GBF this is the pushout phase
+		// For StandardPBD this does nothing
 		// For QuasiPBD this is the velocity solve phase
 		void ApplyConstraintsPhase2(const FReal Dt, int32 GroupIndex);
 
+		// Apply the accumulated corrections to the solver bodies
+		void ApplyCorrections(const FReal Dt, int32 GroupIndex);
+
+		// Third phase of constraint solver
+		// This is the projection phase (only joints implement this atm)
+		void ApplyConstraintsPhase3(const FReal Dt, int32 GroupIndex);
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 

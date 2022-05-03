@@ -233,16 +233,11 @@ void FPBDJointCachedSolver::InitProjection(
 	const FPBDJointSolverSettings& SolverSettings,
 	const FPBDJointSettings& JointSettings)
 {
-	bool bHasLinearProjection = false;
-	{
-		const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
-		bHasLinearProjection = JointSettings.bProjectionEnabled && LinearProjection > 0.0;
-	}
-	bool bHasAngularProjection = false;
-	{
-		const FReal AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
-		bHasAngularProjection = JointSettings.bProjectionEnabled && AngularProjection > 0.0;
-	}
+	const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
+	const FReal AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
+	const bool bHasLinearProjection = JointSettings.bProjectionEnabled && ((LinearProjection > 0) || (JointSettings.TeleportDistance > 0));
+	const bool bHasAngularProjection = JointSettings.bProjectionEnabled && ((AngularProjection > 0) || (JointSettings.TeleportAngle > 0));
+
 	if(bHasLinearProjection || bHasAngularProjection)
 	{
 		ComputeBodyState(0);
@@ -250,11 +245,14 @@ void FPBDJointCachedSolver::InitProjection(
 
 		ConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);
 
-		InvMScales[0] = 0.0;
-		InvMScales[1] = 1.0;
+		InvMScales[0] = 0;
+		InvMScales[1] = 1;
 
-		UpdateMass0();
-		UpdateMass1();
+		// Fake spherical inertia for angular projection (avoid cost of recomputing inertia at current world space rotation)
+		InvMs[0] = 0;
+		InvIs[0] = FMatrix33(0, 0, 0);
+		InvMs[1] = ConditionedInvMs[1];
+		InvIs[1] = FMatrix33::FromDiagonal(FVec3(ConditionedInvILs[1].GetMax()));
 
 		if(bHasLinearProjection)
 		{
@@ -1323,19 +1321,22 @@ void FPBDJointCachedSolver::InitAxisPositionDrive(
 	
 void FPBDJointCachedSolver::ApplyProjections(
 		const FReal Dt,
-		const FReal InSolverStiffness,
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings,
 		const bool bLastIteration)
 {
+	if (!JointSettings.bProjectionEnabled)
+	{
+		return;
+	}
+
 	if (!IsDynamic(1))
 	{
 		// If child is kinematic, return. 
 		return;
 	}
 
-	SolverStiffness = InSolverStiffness;
-	
+	SolverStiffness = 1;
 
 	if (SolverSettings.bSolvePositionLast)
 	{
@@ -1347,29 +1348,18 @@ void FPBDJointCachedSolver::ApplyProjections(
 		ApplyPositionProjection(Dt, SolverSettings, JointSettings);
 		ApplyRotationProjection(Dt, SolverSettings, JointSettings);
 	}
+
 	if(bLastIteration)
 	{
-		//Final position fixup
-		const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
-		const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
-		if (bLinearLocked)
+		// Add velocity correction from the net projection motion
+		// @todo(chaos): this should be a joint setting?
+		if (Chaos_Joint_VelProjectionAlpha > 0.0f)
 		{
-			const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
-			if (JointSettings.bProjectionEnabled && (LinearProjection > 0))
-			{
-				const FVec3 DP1 = -LinearProjection * (ConnectorXs[1] - ConnectorXs[0]);
-				ApplyPositionDelta(1, DP1);
-			}
+			const FSolverReal VelocityScale = Chaos_Joint_VelProjectionAlpha  / static_cast<FSolverReal>(Dt);
+			const FSolverVec3 DV1 = Body1().DP() * VelocityScale;
+			const FSolverVec3 DW1 = Body1().DQ()* VelocityScale;
 		
-			// Add velocity correction from the net projection motion
-			if (Chaos_Joint_VelProjectionAlpha > 0.0f)
-			{
-				const FSolverReal VelocityScale = Chaos_Joint_VelProjectionAlpha  / static_cast<FSolverReal>(Dt);
-				const FSolverVec3 DV1 = Body1().DP() * VelocityScale;
-				const FSolverVec3 DW1 = Body1().DQ()* VelocityScale;
-		
-				Body(1).ApplyVelocityDelta(DV1, DW1);
-			}
+			Body(1).ApplyVelocityDelta(DV1, DW1);
 		}
 	}
 }
@@ -1380,6 +1370,10 @@ void FPBDJointCachedSolver::ApplyRotationProjection(
 			const FPBDJointSettings& JointSettings)
 {
 	const FReal AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
+	if (AngularProjection == 0)
+	{
+		return;
+	}
 	
 	const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
 	const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
@@ -1388,40 +1382,37 @@ void FPBDJointCachedSolver::ApplyRotationProjection(
 	{
 		if(RotationConstraints.bValidDatas[ConstraintIndex])
 		{
-			if (JointSettings.bProjectionEnabled && (AngularProjection > 0.0f))
-			{
-				FReal DeltaAngle = RotationConstraints.ConstraintCX[ConstraintIndex] +
-					FVec3::DotProduct(Body(1).DQ() - Body(0).DQ(), RotationConstraints.ConstraintAxis[ConstraintIndex]);
+			FReal DeltaAngle = RotationConstraints.ConstraintCX[ConstraintIndex] +
+				FVec3::DotProduct(Body(1).DQ() - Body(0).DQ(), RotationConstraints.ConstraintAxis[ConstraintIndex]);
 	
-				bool NeedsSolve = false;
-				if(RotationConstraints.bLimitsCheck[ConstraintIndex])
+			bool NeedsSolve = false;
+			if(RotationConstraints.bLimitsCheck[ConstraintIndex])
+			{
+				if(DeltaAngle > RotationConstraints.ConstraintLimits[ConstraintIndex] )
 				{
-					if(DeltaAngle > RotationConstraints.ConstraintLimits[ConstraintIndex] )
-					{
-						DeltaAngle -= RotationConstraints.ConstraintLimits[ConstraintIndex];
-						NeedsSolve = true;
-					}
-					else if(DeltaAngle < -RotationConstraints.ConstraintLimits[ConstraintIndex])
-					{
-						DeltaAngle += RotationConstraints.ConstraintLimits[ConstraintIndex];
-						NeedsSolve = true;
-			
-					}
+					DeltaAngle -= RotationConstraints.ConstraintLimits[ConstraintIndex];
+					NeedsSolve = true;
 				}
-
-				if (!RotationConstraints.bLimitsCheck[ConstraintIndex] || (RotationConstraints.bLimitsCheck[ConstraintIndex] && NeedsSolve && FMath::Abs(DeltaAngle) > AngleTolerance))
+				else if(DeltaAngle < -RotationConstraints.ConstraintLimits[ConstraintIndex])
 				{
-					const FReal IM = -FVec3::DotProduct(RotationConstraints.ConstraintAxis[ConstraintIndex], RotationConstraints.ConstraintDRAxis[ConstraintIndex][1]);
-					const FReal DeltaLambda = SolverStiffness * RotationConstraints.ConstraintHardStiffness[ConstraintIndex] * DeltaAngle / IM;
-					
-					const FVec3 DR1 = AngularProjection * RotationConstraints.ConstraintDRAxis[ConstraintIndex][1] * DeltaLambda;
-					ApplyRotationDelta(1, DR1);
+					DeltaAngle += RotationConstraints.ConstraintLimits[ConstraintIndex];
+					NeedsSolve = true;
+			
+				}
+			}
 
-					if(bLinearLocked)
-					{
-						const FVec3 DP1 = -AngularProjection * FVec3::CrossProduct(DR1, PositionConstraints.ConstraintArms[ConstraintIndex][1]);
-						ApplyPositionDelta(1,DP1);
-					}
+			if (!RotationConstraints.bLimitsCheck[ConstraintIndex] || (RotationConstraints.bLimitsCheck[ConstraintIndex] && NeedsSolve && FMath::Abs(DeltaAngle) > AngleTolerance))
+			{
+				const FReal IM = -FVec3::DotProduct(RotationConstraints.ConstraintAxis[ConstraintIndex], RotationConstraints.ConstraintDRAxis[ConstraintIndex][1]);
+				const FReal DeltaLambda = SolverStiffness * RotationConstraints.ConstraintHardStiffness[ConstraintIndex] * DeltaAngle / IM;
+					
+				const FVec3 DR1 = AngularProjection * RotationConstraints.ConstraintDRAxis[ConstraintIndex][1] * DeltaLambda;
+				ApplyRotationDelta(1, DR1);
+
+				if(bLinearLocked)
+				{
+					const FVec3 DP1 = -AngularProjection * FVec3::CrossProduct(DR1, PositionConstraints.ConstraintArms[ConstraintIndex][1]);
+					ApplyPositionDelta(1,DP1);
 				}
 			}
 		}
@@ -1434,51 +1425,116 @@ void FPBDJointCachedSolver::ApplyPositionProjection(
 		const FPBDJointSettings& JointSettings)
 {
 	const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
+	if (LinearProjection == 0)
+	{
+		return;
+	}
 
 	for(int32 ConstraintIndex = 0; ConstraintIndex < 3; ++ConstraintIndex)
 	{
 		if(PositionConstraints.bValidDatas[ConstraintIndex])
 		{
-			if (JointSettings.bProjectionEnabled && (LinearProjection > 0.0f))
+			const FVec3 CX = Body(1).DP()  - Body(0).DP() +
+				FVec3::CrossProduct(Body(1).DQ(), PositionConstraints.ConstraintArms[ConstraintIndex][1]) -
+				FVec3::CrossProduct(Body(0).DQ(), PositionConstraints.ConstraintArms[ConstraintIndex][0]);
+				
+			FReal DeltaPosition = PositionConstraints.ConstraintCX[ConstraintIndex] + FVec3::DotProduct(CX, PositionConstraints.ConstraintAxis[ConstraintIndex]);
+				
+			bool NeedsSolve = false;
+			if(PositionConstraints.bLimitsCheck[ConstraintIndex])
 			{
-				const FVec3 CX = Body(1).DP()  - Body(0).DP() +
-					FVec3::CrossProduct(Body(1).DQ(), PositionConstraints.ConstraintArms[ConstraintIndex][1]) -
-					FVec3::CrossProduct(Body(0).DQ(), PositionConstraints.ConstraintArms[ConstraintIndex][0]);
-				
-				FReal DeltaPosition = PositionConstraints.ConstraintCX[ConstraintIndex] + FVec3::DotProduct(CX, PositionConstraints.ConstraintAxis[ConstraintIndex]);
-				
-				bool NeedsSolve = false;
-				if(PositionConstraints.bLimitsCheck[ConstraintIndex])
+				if(DeltaPosition > PositionConstraints.ConstraintLimits[ConstraintIndex] )
 				{
-					if(DeltaPosition > PositionConstraints.ConstraintLimits[ConstraintIndex] )
-					{
-						DeltaPosition -= PositionConstraints.ConstraintLimits[ConstraintIndex];
-						NeedsSolve = true;
-					}
-					else if(DeltaPosition < -PositionConstraints.ConstraintLimits[ConstraintIndex])
-					{
-						DeltaPosition += PositionConstraints.ConstraintLimits[ConstraintIndex];
-						NeedsSolve = true;
-					}
+					DeltaPosition -= PositionConstraints.ConstraintLimits[ConstraintIndex];
+					NeedsSolve = true;
 				}
-				if (!PositionConstraints.bLimitsCheck[ConstraintIndex] || (PositionConstraints.bLimitsCheck[ConstraintIndex] && NeedsSolve && FMath::Abs(DeltaPosition ) > PositionTolerance))
+				else if(DeltaPosition < -PositionConstraints.ConstraintLimits[ConstraintIndex])
 				{
-					const FVec3 AngularAxis1 = FVec3::CrossProduct(PositionConstraints.ConstraintArms[ConstraintIndex][1], PositionConstraints.ConstraintAxis[ConstraintIndex]);
-					const FReal IM = InvM(1) - FVec3::DotProduct(AngularAxis1, PositionConstraints.ConstraintDRAxis[ConstraintIndex][1]);
-					const FReal DeltaLambda = SolverStiffness * PositionConstraints.ConstraintHardStiffness[ConstraintIndex] * DeltaPosition / IM;
+					DeltaPosition += PositionConstraints.ConstraintLimits[ConstraintIndex];
+					NeedsSolve = true;
+				}
+			}
+			if (!PositionConstraints.bLimitsCheck[ConstraintIndex] || (PositionConstraints.bLimitsCheck[ConstraintIndex] && NeedsSolve && FMath::Abs(DeltaPosition ) > PositionTolerance))
+			{
+				const FVec3 AngularAxis1 = FVec3::CrossProduct(PositionConstraints.ConstraintArms[ConstraintIndex][1], PositionConstraints.ConstraintAxis[ConstraintIndex]);
+				const FReal IM = InvM(1) - FVec3::DotProduct(AngularAxis1, PositionConstraints.ConstraintDRAxis[ConstraintIndex][1]);
+				const FReal DeltaLambda = SolverStiffness * PositionConstraints.ConstraintHardStiffness[ConstraintIndex] * DeltaPosition / IM;
 	
-					const FVec3 DX = PositionConstraints.ConstraintAxis[ConstraintIndex] * DeltaLambda;
+				const FVec3 DX = PositionConstraints.ConstraintAxis[ConstraintIndex] * DeltaLambda;
 					
-					const FVec3 DP1 = -LinearProjection * InvM(1) * DX;
-					const FVec3 DR1 = LinearProjection * PositionConstraints.ConstraintDRAxis[ConstraintIndex][1] * DeltaLambda;
-					
-					ApplyPositionDelta(1,DP1);
-					ApplyRotationDelta(1,DR1);
+				const FVec3 DP1 = -LinearProjection * InvM(1) * DX;
+				const FVec3 DR1 = LinearProjection * PositionConstraints.ConstraintDRAxis[ConstraintIndex][1] * DeltaLambda;
+
+				ApplyPositionDelta(1, DP1);
+				ApplyRotationDelta(1, DR1);
+			}
+		}
+	}
+}
+
+void FPBDJointCachedSolver::ApplyTeleports(
+	const FReal Dt,
+	const FPBDJointSolverSettings& SolverSettings,
+	const FPBDJointSettings& JointSettings)
+{
+	ApplyRotationTeleport(Dt, SolverSettings, JointSettings);
+	ApplyPositionTeleport(Dt, SolverSettings, JointSettings);
+}
+
+
+void FPBDJointCachedSolver::ApplyPositionTeleport(
+	const FReal Dt,
+	const FPBDJointSolverSettings& SolverSettings,
+	const FPBDJointSettings& JointSettings)
+{
+	if (JointSettings.TeleportDistance <= 0)
+	{
+		return;
+	}
+
+	for (int32 ConstraintIndex = 0; ConstraintIndex < 3; ++ConstraintIndex)
+	{
+		if (PositionConstraints.bValidDatas[ConstraintIndex])
+		{
+			FReal DeltaPosition = PositionConstraints.ConstraintCX[ConstraintIndex];
+
+			bool NeedsSolve = false;
+			if (PositionConstraints.bLimitsCheck[ConstraintIndex])
+			{
+				if (DeltaPosition > PositionConstraints.ConstraintLimits[ConstraintIndex])
+				{
+					DeltaPosition -= PositionConstraints.ConstraintLimits[ConstraintIndex];
+					NeedsSolve = true;
+				}
+				else if (DeltaPosition < -PositionConstraints.ConstraintLimits[ConstraintIndex])
+				{
+					DeltaPosition += PositionConstraints.ConstraintLimits[ConstraintIndex];
+					NeedsSolve = true;
+				}
+			}
+			if (!PositionConstraints.bLimitsCheck[ConstraintIndex] || (PositionConstraints.bLimitsCheck[ConstraintIndex] && NeedsSolve))
+			{
+				if (FMath::Abs(DeltaPosition) > JointSettings.TeleportDistance)
+				{
+					const FVec3 DP1 = -DeltaPosition * PositionConstraints.ConstraintAxis[ConstraintIndex];
+					ApplyPositionDelta(1, DP1);
 				}
 			}
 		}
 	}
 }
+
+void FPBDJointCachedSolver::ApplyRotationTeleport(
+	const FReal Dt,
+	const FPBDJointSolverSettings& SolverSettings,
+	const FPBDJointSettings& JointSettings)
+{
+	if (JointSettings.TeleportAngle <= 0)
+	{
+		return;
+	}
+}
+
 
 /** APPLY POSITION  DRIVES *********************************************************************************/
 

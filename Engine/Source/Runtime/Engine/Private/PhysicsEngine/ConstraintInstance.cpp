@@ -143,11 +143,8 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, ContactTransferScale(0.f)
 	, bDisableCollision(false)
 	, bParentDominates(false)
-	, bEnableLinearProjection(false)
-	, bEnableAngularProjection(false)
 	, bEnableShockPropagation(false)
-	, bEnableProjection(true)		// to be deprecated
-	, bEnableSoftProjection(false)	// to be deprecated
+	, bEnableProjection(true)
 	, bAngularBreakable(false)
 	, bAngularPlasticity(false)
 	, bLinearBreakable(false)
@@ -469,7 +466,7 @@ void FConstraintProfileProperties::UpdateConstraintFlags_AssumesLocked(const FPh
 
 	FPhysicsInterface::SetCollisionEnabled(InConstraintRef, !bDisableCollision);
 #if WITH_CHAOS
-	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableLinearProjection || bEnableAngularProjection, ProjectionLinearAlpha, ProjectionAngularAlpha);
+	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha, ProjectionLinearTolerance, ProjectionAngularTolerance);
 	FPhysicsInterface::SetShockPropagationEnabled_AssumesLocked(InConstraintRef, bEnableShockPropagation, ShockPropagationAlpha);
 #else
 	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearTolerance, ProjectionAngularTolerance);
@@ -1183,41 +1180,34 @@ FConstraintInstance * FConstraintInstance::Alloc()
 	return new (Memory)FConstraintInstance();
 }
 
-void FConstraintInstance::GetProjectionAlphasOrTolerances(float& ProjectionLinearAlphaOrTolerance, float& ProjectionAngularAlphaOrTolerance) const
+void FConstraintInstance::GetProjectionParams(float& ProjectionLinearAlpha, float& ProjectionAngularAlpha, float& ProjectionLinearTolerance, float& ProjectionAngularTolerance) const
 {
-#if WITH_CHAOS
-	ProjectionLinearAlphaOrTolerance = ProfileInstance.ProjectionLinearAlpha;
-	ProjectionAngularAlphaOrTolerance = ProfileInstance.ProjectionAngularAlpha;
-#else
-	ProjectionLinearAlphaOrTolerance = ProfileInstance.ProjectionLinearTolerance;
-	ProjectionAngularAlphaOrTolerance = ProfileInstance.ProjectionAngularTolerance;
-
-#endif
+	ProjectionLinearAlpha = ProfileInstance.ProjectionLinearAlpha;
+	ProjectionAngularAlpha = ProfileInstance.ProjectionAngularAlpha;
+	ProjectionLinearTolerance = ProfileInstance.ProjectionLinearTolerance;
+	ProjectionAngularTolerance = ProfileInstance.ProjectionAngularTolerance;
 }
 
-void FConstraintInstance::SetProjectionParams(bool bEnableLinearProjection, bool bEnableAngularProjection, float ProjectionLinearAlphaOrTolerance, float ProjectionAngularAlphaOrTolerance)
+void FConstraintInstance::SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlpha, float ProjectionAngularAlpha, float ProjectionLinearTolerance, float ProjectionAngularTolerance)
 {
-	ProfileInstance.bEnableLinearProjection = bEnableLinearProjection;
-	ProfileInstance.bEnableAngularProjection = bEnableAngularProjection;
-#if WITH_CHAOS
-	ProfileInstance.ProjectionLinearAlpha = ProjectionLinearAlphaOrTolerance;
-	ProfileInstance.ProjectionAngularAlpha = ProjectionAngularAlphaOrTolerance;
-#else
-	ProfileInstance.ProjectionLinearTolerance = ProjectionLinearAlphaOrTolerance;
-	ProfileInstance.ProjectionAngularTolerance = ProjectionAngularAlphaOrTolerance;
-#endif
+	ProfileInstance.bEnableProjection = bEnableProjection;
+	ProfileInstance.ProjectionLinearAlpha = ProjectionLinearAlpha;
+	ProfileInstance.ProjectionAngularAlpha = ProjectionAngularAlpha;
+	ProfileInstance.ProjectionLinearTolerance = ProjectionLinearTolerance;
+	ProfileInstance.ProjectionAngularTolerance = ProjectionAngularTolerance;
 
 	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
 		{
 #if WITH_CHAOS
-			const bool bEnableProjection = bEnableAngularProjection || ProjectionLinearAlphaOrTolerance;
-			const float LinearAlpha = bEnableLinearProjection ? ProjectionLinearAlphaOrTolerance : 0.0f;
-			const float AngularAlpha = bEnableAngularProjection ? ProjectionAngularAlphaOrTolerance : 0.0f;
-			FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, bEnableProjection, LinearAlpha, AngularAlpha);
+			const float LinearAlpha = bEnableProjection ? ProjectionLinearAlpha : 0.0f;
+			const float AngularAlpha = bEnableProjection ? ProjectionAngularAlpha : 0.0f;
+			const float TeleportDistance = bEnableProjection ? ProjectionLinearTolerance : -1.0f;
+			const float TeleportAngle = bEnableProjection ? ProjectionAngularTolerance : -1.0f;
+			FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, bEnableProjection, LinearAlpha, AngularAlpha, TeleportDistance, TeleportAngle);
 #else
-			if (bEnableLinearProjection)
+			if (bEnableProjection)
 			{
-				FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, true, ProjectionLinearAlphaOrTolerance, ProjectionAngularAlphaOrTolerance);
+				FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, true, ProjectionLinearTolerance, ProjectionAngularTolerance);
 			}
 			else
 			{
@@ -1251,7 +1241,7 @@ void FConstraintInstance::SetShockPropagationParams(bool bEnableShockPropagation
 void FConstraintInstance::EnableProjection()
 {
 #if WITH_CHAOS
-	SetProjectionParams(true, true, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha);
+	SetProjectionParams(true, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
 #else
 	SetProjectionParams(true, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
 #endif
@@ -1260,7 +1250,7 @@ void FConstraintInstance::EnableProjection()
 void FConstraintInstance::DisableProjection()
 {
 #if WITH_CHAOS
-	SetProjectionParams(false, false, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha);
+	SetProjectionParams(false, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
 #else
 	SetProjectionParams(false, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
 #endif

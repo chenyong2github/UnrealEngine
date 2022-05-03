@@ -53,10 +53,14 @@ void UConstraintInstanceBlueprintLibrary::SetProjectionParams(
 	float ProjectionAngularAlpha
 	)
 {
+	// @todo: Need to add ProjectionLinearTolerance and ProjectionAngularTolerance to SetProjectionParams
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		const float ProjectionLinearTolerance = ConstraintInstance->ProfileInstance.ProjectionLinearTolerance;
+		const float ProjectionAngularTolerance = ConstraintInstance->ProfileInstance.ProjectionAngularTolerance;
+
 		Accessor.Modify();
-		ConstraintInstance->SetProjectionParams(bEnableProjection, bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha);
+		ConstraintInstance->SetProjectionParams(bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha, ProjectionLinearTolerance, ProjectionAngularTolerance);
 	}
 }
 
@@ -67,10 +71,13 @@ void UConstraintInstanceBlueprintLibrary::GetProjectionParams(
 	float& ProjectionAngularAlpha
 	)
 {
+	// @todo: Need to add ProjectionLinearTolerance and ProjectionAngularTolerance to GetProjectionParams
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
 		bEnableProjection = ConstraintInstance->IsProjectionEnabled();
-		ConstraintInstance->GetProjectionAlphasOrTolerances(ProjectionLinearAlpha, ProjectionAngularAlpha);
+		float ProjectionLinearTolerance = 0;
+		float ProjectionAngularTolerance = 0;
+		ConstraintInstance->GetProjectionParams(ProjectionLinearAlpha, ProjectionAngularAlpha, ProjectionLinearTolerance, ProjectionAngularTolerance);
 	}
 	else
 	{

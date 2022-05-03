@@ -51,12 +51,9 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("NumUpdatedManifoldPoints"), STAT_ChaosCounter_N
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumJoints"), STAT_ChaosCounter_NumJoints, STATGROUP_ChaosCounters);
 
 // Stat Iteration counters
-DECLARE_DWORD_COUNTER_STAT(TEXT("NumIterations"), STAT_ChaosCounter_NumIterations, STATGROUP_ChaosCounters);
-DECLARE_DWORD_COUNTER_STAT(TEXT("NumCollisionIterations"), STAT_ChaosCounter_NumCollisionIterations, STATGROUP_ChaosCounters);
-DECLARE_DWORD_COUNTER_STAT(TEXT("NumJointIterations"), STAT_ChaosCounter_NumJointIterations, STATGROUP_ChaosCounters);
-DECLARE_DWORD_COUNTER_STAT(TEXT("NumPushOutIterations"), STAT_ChaosCounter_NumPushOutIterations, STATGROUP_ChaosCounters);
-DECLARE_DWORD_COUNTER_STAT(TEXT("NumPushOutCollisionIterations"), STAT_ChaosCounter_NumPushOutCollisionIterations, STATGROUP_ChaosCounters);
-DECLARE_DWORD_COUNTER_STAT(TEXT("NumPushOutJointIterations"), STAT_ChaosCounter_NumPushOutJointIterations, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumPositionIterations"), STAT_ChaosCounter_NumPositionIterations, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumVelocityIterations"), STAT_ChaosCounter_NumVelocityIterations, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumProjectionIterations"), STAT_ChaosCounter_NumProjectionIterations, STATGROUP_ChaosCounters);
 
 
 // DebugDraw CVars
@@ -199,26 +196,17 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosSolverCollisionPositionShockPropagationIterations(TEXT("p.Chaos.Solver.Collision.PositionShockPropagationIterations"), ChaosSolverCollisionPositionShockPropagationIterations, TEXT("Override number of position iterations where shock propagation is applied (if >= 0)"));
 		FAutoConsoleVariableRef CVarChaosSolverCollisionVelocityShockPropagationIterations(TEXT("p.Chaos.Solver.Collision.VelocityShockPropagationIterations"), ChaosSolverCollisionVelocityShockPropagationIterations, TEXT("Override number of velocity iterations where shock propagation is applied (if >= 0)"));
 
-		int32 ChaosSolverIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations"), ChaosSolverIterations, TEXT("Override number of solver iterations (-1 to use config)"));
+		int32 ChaosSolverPositionIterations = -1;
+		FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations.Position"), ChaosSolverPositionIterations, TEXT("Override number of solver position iterations (-1 to use config)"));
 
-		int32 ChaosSolverCollisionIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverCollisionIterations(TEXT("p.Chaos.Solver.Collision.Iterations"), ChaosSolverCollisionIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
+		int32 ChaosSolverVelocityIterations = -1;
+		FAutoConsoleVariableRef CVarChaosSolverPushOutIterations(TEXT("p.Chaos.Solver.Iterations.Velocity"), ChaosSolverVelocityIterations, TEXT("Override number of solver velocity iterations (-1 to use config)"));
 
-		int32 ChaosSolverPushOutIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverPushOutIterations(TEXT("p.Chaos.Solver.PushoutIterations"), ChaosSolverPushOutIterations, TEXT("Override number of solver pushout iterations (-1 to use config)"));
-
-		int32 ChaosSolverCollisionPushOutIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverCollisionPushOutIterations(TEXT("p.Chaos.Solver.Collision.PushOutIterations"), ChaosSolverCollisionPushOutIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
-
-		int32 ChaosSolverJointPairIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverJointPairIterations(TEXT("p.Chaos.Solver.Joint.PairIterations"), ChaosSolverJointPairIterations, TEXT("Override number of iterations per joint pair during a solver iteration (-1 to use config)"));
-
-		int32 ChaosSolverJointPushOutPairIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverJointPushOutPairIterations(TEXT("p.Chaos.Solver.Joint.PushOutPairIterations"), ChaosSolverJointPushOutPairIterations, TEXT("Override number of push out iterations per joint during a solver iteration (-1 to use config)"));
+		int32 ChaosSolverProjectionIterations = -1;
+		FAutoConsoleVariableRef CVarChaosSolverProjectionIterations(TEXT("p.Chaos.Solver.Iterations.Projection"), ChaosSolverProjectionIterations, TEXT("Override number of solver projection iterations (-1 to use config)"));
 
 		int32 ChaosSolverDeterministic = -1;
-		FAutoConsoleVariableRef CVarChaosSolverDeterministic(TEXT("p.Chaos.Solver.Deterministic"), ChaosSolverDeterministic, TEXT("Override determinism. 0: disabled; 1: enabled; -1: default(disabled)"));
+		FAutoConsoleVariableRef CVarChaosSolverDeterministic(TEXT("p.Chaos.Solver.Deterministic"), ChaosSolverDeterministic, TEXT("Override determinism. 0: disabled; 1: enabled; -1: use config"));
 
 		// Copied from RBAN
 		Chaos::FRealSingle ChaosSolverJointPositionTolerance = 0.025f;
@@ -861,29 +849,17 @@ namespace Chaos
 			{
 				MEvolution->GetCollisionConstraints().SetVelocityShockPropagationIterations(ChaosSolverCollisionVelocityShockPropagationIterations);
 			}
-			if (ChaosSolverIterations >= 0)
+			if (ChaosSolverPositionIterations >= 0)
 			{
-				SetIterations(ChaosSolverIterations);
+				SetPositionIterations(ChaosSolverPositionIterations);
 			}
-			if (ChaosSolverCollisionIterations >= 0)
+			if (ChaosSolverVelocityIterations >= 0)
 			{
-				SetCollisionPairIterations(ChaosSolverCollisionIterations);
+				SetVelocityIterations(ChaosSolverVelocityIterations);
 			}
-			if (ChaosSolverPushOutIterations >= 0)
+			if (ChaosSolverProjectionIterations >= 0)
 			{
-				SetPushOutIterations(ChaosSolverPushOutIterations);
-			}
-			if (ChaosSolverCollisionPushOutIterations >= 0)
-			{
-				SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
-			}
-			if (ChaosSolverJointPairIterations >= 0)
-			{
-				SetJointPairIterations(ChaosSolverJointPairIterations);
-			}
-			if (ChaosSolverJointPushOutPairIterations >= 0)
-			{
-				SetJointPushOutPairIterations(ChaosSolverJointPushOutPairIterations);
+				SetProjectionIterations(ChaosSolverProjectionIterations);
 			}
 			if (ChaosSolverCullDistance >= 0.0f)
 			{
@@ -1469,12 +1445,9 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 #endif
 
 		// Iterations
-		CHAOS_COUNTER_STAT(NumIterations, GetEvolution()->GetNumIterations());
-		CHAOS_COUNTER_STAT(NumCollisionIterations, GetEvolution()->GetCollisionConstraints().GetPairIterations());
-		CHAOS_COUNTER_STAT(NumJointIterations, GetJointConstraints().GetSettings().ApplyPairIterations);
-		CHAOS_COUNTER_STAT(NumPushOutIterations, GetEvolution()->GetNumPushOutIterations());
-		CHAOS_COUNTER_STAT(NumPushOutCollisionIterations, GetEvolution()->GetCollisionConstraints().GetPushOutPairIterations());
-		CHAOS_COUNTER_STAT(NumPushOutJointIterations, GetJointConstraints().GetSettings().ApplyPushOutPairIterations);
+		CHAOS_COUNTER_STAT(NumPositionIterations, GetEvolution()->GetNumPositionIterations());
+		CHAOS_COUNTER_STAT(NumVelocityIterations, GetEvolution()->GetNumVelocityIterations());
+		CHAOS_COUNTER_STAT(NumProjectionIterations, GetEvolution()->GetNumProjectionIterations());
 	}
 
 	void FPBDRigidsSolver::UpdateExpensiveStatCounters() const
@@ -1726,12 +1699,9 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 	{
 		GetEvolution()->GetRigidClustering().SetClusterConnectionFactor(InConfig.ClusterConnectionFactor);
 		GetEvolution()->GetRigidClustering().SetClusterUnionConnectionType(ToInternalConnectionMethod(InConfig.ClusterUnionConnectionType));
-		SetIterations(InConfig.Iterations);
-		SetCollisionPairIterations(InConfig.CollisionPairIterations);
-		SetPushOutIterations(InConfig.PushOutIterations);
-		SetCollisionPushOutPairIterations(InConfig.CollisionPushOutPairIterations);
-		SetJointPairIterations(InConfig.JointPairIterations);
-		SetJointPushOutPairIterations(InConfig.JointPushOutPairIterations);
+		SetPositionIterations(InConfig.PositionIterations);
+		SetVelocityIterations(InConfig.VelocityIterations);
+		SetProjectionIterations(InConfig.ProjectionIterations);
 		SetCollisionCullDistance(InConfig.CollisionCullDistance);
 		SetCollisionMaxPushOutVelocity(InConfig.CollisionMaxPushOutVelocity);
 		SetGenerateCollisionData(InConfig.bGenerateCollisionData);

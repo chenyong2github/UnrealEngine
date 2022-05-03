@@ -55,5 +55,7 @@ void UPhysicsSettingsCore::PostInitProperties()
 	{
 		DefaultShapeComplexity = bDefaultHasComplexCollision_DEPRECATED ? CTF_UseSimpleAndComplex : CTF_UseSimpleAsComplex;
 	}
+
+	SolverOptions.MoveRenamedPropertyValues();
 }
 

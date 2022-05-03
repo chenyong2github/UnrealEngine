@@ -26,26 +26,26 @@ struct ENGINE_API FConstraintProfileProperties
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** [PhysX only] Linear tolerance value in world units. If the distance error exceeds this tolerence limit, the body will be projected. */
-	UPROPERTY()
+	/** If the joint error is above this distance after the solve phase, the child body will be teleported to fix the error. Only used if bEnableProjection is true. */
+	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0"))
 	float ProjectionLinearTolerance;
 
-	/** [PhysX only] Angular tolerance value in world units. If the distance error exceeds this tolerence limit, the body will be projected. */
-	UPROPERTY()
+	/** If the joint error is above this distance after the solve phase, the child body will be teleported to fix the error. Only used if bEnableProjection is true. */
+	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0"))
 	float ProjectionAngularTolerance;
 
-	/**  How much linear projection to apply [0-1] */
+	/**  How much semi-physical linear projection correction to apply [0-1]. Only used if bEnableProjection is true and if hard limits are used. */
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ProjectionLinearAlpha;
 
-	/** How much angular projection to apply [0-1] */
+	/** How much semi-physical angular projection correction to apply [0-1]. Only used if bEnableProjection is true and if hard limits are used. */
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ProjectionAngularAlpha;
 
 	/** 
 	 * How much shock propagation to apply [0-1]. Shock propagation increases the mass of the parent body for the last iteration of the
 	 * position and velocity solve phases. This can help stiffen up joint chains, but is also prone to introducing energy down the chain
-	 * especially at high alpha.
+	 * especially at high alpha. Only used in bEnableShockPropagation is true.
 	 */
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ShockPropagationAlpha;
@@ -88,47 +88,30 @@ struct ENGINE_API FConstraintProfileProperties
 	uint8 bParentDominates : 1;
 
 	/**
-	* NOTE: RigidBody AnimNode only. Projection is not applied to ragdoll physics in the main scene. For Ragdolls, ShockPropagation has a similar effect
-	* and is more compatible with the world solver.
-	* 
-	* Projection is a post-solve position and angular fixup where the parent body in the constraint is treated as having infinite mass and the child body is
-	* translated and rotated to resolve any remaining errors using a semi-physical correction. This can be used to make constraint chains significantly stiffer 
-	* at lower iteration counts. Increasing iterations would have the same effect, but be much more expensive. Projection only works well if the chain is not 
-	* interacting with other objects (e.g., through collisions) because the projection of the bodies in the chain will cause other constraints to be violated. 
-	* Likewise, if a body is influenced by multiple constraints, then enabling projection on more than one constraint may lead to unexpected results - the 
-	* "last" constraint would win but the order in which constraints are solved cannot be directly controlled.
-	* 
-	* Projection is fairly expensive compared to a single position iteration, so if you can get the behaviour you need by adding a couple iterations, that
-	* is probably a better approach.
-	*
-	*
-	* Note: projection is only applied to hard-limit constraints, anf not applied to constraints with soft limits.
-	*/
-	UPROPERTY(EditAnywhere, Category = Projection)
-	uint8 bEnableLinearProjection : 1;
-
-	/**
-	 * NOTE: RigidBody AnimNode only. See coments on bEnableLinearProjection
-	*/
-	UPROPERTY(EditAnywhere, Category = Projection)
-	uint8 bEnableAngularProjection : 1;
-
-	/**
 	 * Shock propagation increases the mass of the parent body for the last iteration of the position and velocity solve phases. 
 	 * This can help stiffen up joint chains, but is also prone to introducing energy down the chain especially at high alpha.
-	 * 
-	 * NOTE: This is intended to be used for world constraints, not RigidBody AnimNodes which have the Projection system.
+	 * It also does not work well if there are collisions on the bodies preventing the joints from correctly resolving - this 
+	 * can lead to jitter, especially if collision shock propagation is also enabled.
 	 */
 	UPROPERTY(EditAnywhere, Category = Projection)
 	uint8 bEnableShockPropagation : 1;
 
-	// HIDDEN - TO BE DEPRECATED
-	UPROPERTY()
+	/**
+	* Projection is a post-solve position and angular fixup consisting of two correction procedures. First, if the constraint limits are exceeded
+	* by more that the Linear or Angular Tolerance, the bodies are teleported to eliminate the error. Second, if the constraint limits are exceeded
+	* by less than the tolerance, a semi-physical correction is applied,  with the parent body in the constraint is treated as having infinite mass.
+	* The teleport tolerance are controlled by ProjectionLinearTolerance and ProjectionAngularTolerance. The semi-physical correction is controlled
+	* by ProjectionLinearAlpha and ProjectionAnguilarAlpha. You may have one, none, or both systems enabled at the same time.
+	*
+	* Projection only works well if the chain is not interacting with other objects (e.g., through collisions) because the projection of the bodies in
+	* the chain will cause other constraints to be violated. Likewise, if a body is influenced by multiple constraints, then enabling projection on more
+	* than one constraint may lead to unexpected results - the  "last" constraint would win but the order in which constraints are solved cannot be directly controlled.
+	*
+	* Note that the semi-physical projection (ProjectionLinearAlpha and ProjectionAngularAlpha) is only applied to hard-limit constraints and not those with
+	* soft limits because the soft limit is the point at which the soft-constraint (spring) kicks in, and not really a limit on how far the joint can be separated.
+	*/
+	UPROPERTY(EditAnywhere, Category = Projection)
 	uint8 bEnableProjection : 1;
-
-	// HIDDEN - TO BE DEPRECATED
-	UPROPERTY()
-	uint8 bEnableSoftProjection : 1;
 
 	/** Whether it is possible to break the joint with angular force. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular)
@@ -928,10 +911,10 @@ public:
 	void DisableProjection();
 
 	/** Set projection parameters */
-	void SetProjectionParams(bool bEnableLinearProjection, bool bEnableAngularProjection, float ProjectionLinearAlphaOrTolerance, float ProjectionAngularAlphaOrTolerance);
+	void SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlpha, float ProjectionAngularAlpha, float ProjectionLinearTolerance, float ProjectionAngularTolerance);
 
 	/** Get projection parameters */
-	void GetProjectionAlphasOrTolerances(float& ProjectionLinearAlphaOrTolerance, float& ProjectionAngularAlphaOrTolerance) const;
+	void GetProjectionParams(float& ProjectionLinearAlpha, float& ProjectionAngularAlpha, float& ProjectionLinearTolerance, float& ProjectionAngularTolerance) const;
 
 	/** Set the shock propagation amount [0, 1] */
 	void SetShockPropagationParams(bool bEnableShockPropagation, float ShockPropagationAlpha);

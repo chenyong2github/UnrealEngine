@@ -242,7 +242,7 @@ public:
 	typedef TFunction<void(FPBDRigidParticles&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
 	typedef TFunction<void(TParticleView<FPBDRigidParticles>&)> FCaptureRewindRule;
 
-	CHAOS_API FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
+	CHAOS_API FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~FPBDRigidsEvolutionBase();
 
 	CHAOS_API TArray<FGeometryParticleHandle*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FGeometryParticleParameters& Params = FGeometryParticleParameters())
@@ -313,24 +313,34 @@ public:
 		ConstraintRule->BindToGraph(ConstraintGraph, ContainerId);
 	}
 
-	CHAOS_API void SetNumIterations(int32 InNumIterations)
+	CHAOS_API void SetNumPositionIterations(int32 InNumIterations)
 	{
-		NumIterations = InNumIterations;
+		NumPositionIterations = InNumIterations;
 	}
 
-	CHAOS_API int32 GetNumIterations() const
+	CHAOS_API int32 GetNumPositionIterations() const
 	{
-		return NumIterations;
+		return NumPositionIterations;
 	}
 
-	CHAOS_API void SetNumPushOutIterations(int32 InNumIterations)
+	CHAOS_API void SetNumVelocityIterations(int32 InNumIterations)
 	{
-		NumPushOutIterations = InNumIterations;
+		NumVelocityIterations = InNumIterations;
 	}
 
-	CHAOS_API int32 GetNumPushOutIterations() const
+	CHAOS_API int32 GetNumVelocityIterations() const
 	{
-		return NumPushOutIterations;
+		return NumVelocityIterations;
+	}
+
+	CHAOS_API void SetNumProjectionIterations(int32 InNumIterations)
+	{
+		NumProjectionIterations = InNumIterations;
+	}
+
+	CHAOS_API int32 GetNumProjectionIterations() const
+	{
+		return NumProjectionIterations;
 	}
 
 	CHAOS_API void SetParticleKinematicTarget(FKinematicGeometryParticleHandle* KinematicHandle, const FKinematicTarget& NewKinematicTarget)
@@ -1024,8 +1034,9 @@ protected:
 	};
 	FGraphEventRef AccelerationStructureTaskComplete;
 
-	int32 NumIterations;
-	int32 NumPushOutIterations;
+	int32 NumPositionIterations;
+	int32 NumVelocityIterations;
+	int32 NumProjectionIterations;
 	TUniquePtr<ISpatialAccelerationCollectionFactory> SpatialCollectionFactory;
 
 	FAccelerationStructure* GetFreeSpatialAcceleration_Internal();

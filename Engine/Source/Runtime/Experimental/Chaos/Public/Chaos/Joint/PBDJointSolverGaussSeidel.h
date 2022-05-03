@@ -180,7 +180,6 @@ namespace Chaos
 		// @todo(chaos): this can be build into the Apply phase when the whole solver is PBD
 		void ApplyProjections(
 			const FReal Dt,
-			const FReal InSolverStiffness,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 

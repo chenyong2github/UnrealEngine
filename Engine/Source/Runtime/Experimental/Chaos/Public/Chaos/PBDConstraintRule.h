@@ -132,6 +132,9 @@ namespace Chaos
 		/** Apply push out for constraints in the specified island. Return true if more iterations are needed. */
 		virtual bool ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) { return false; }
 
+		/** Apply push out for constraints in the specified island. Return true if more iterations are needed. */
+		virtual bool ApplyProjection(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) { return false; }
+
 		/** Add all constraints to the connectivity graph */
 		virtual void AddToGraph() {}
 
@@ -247,6 +250,8 @@ namespace Chaos
 		virtual bool ApplyConstraints(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
 
 		virtual bool ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
+
+		virtual bool ApplyProjection(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
 
 		virtual void InitializeAccelerationStructures() override;
 		

@@ -121,6 +121,7 @@ namespace Chaos
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase1"), STAT_Evolution_ApplyConstraintsPhase1, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_Evolution_UpdateVelocites, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase2"), STAT_Evolution_ApplyConstraintsPhase2, STATGROUP_Chaos);
+		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase3"), STAT_Evolution_ApplyConstraintsPhase3, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::DetectCollisions"), STAT_Evolution_DetectCollisions, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::TransferJointCollisions"), STAT_Evolution_TransferJointCollisions, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PostDetectCollisionsCallback"), STAT_Evolution_PostDetectCollisionsCallback, STATGROUP_Chaos);
@@ -290,6 +291,7 @@ struct alignas(64) FPerIslandStats
 		PerIslandSolve_ApplyTotalSerialized,
 		PerIslandSolve_UpdateVelocitiesTotalSerialized,
 		PerIslandSolve_ApplyPushOutTotalSerialized,
+		PerIslandSolve_ApplyProjectionTotalSerialized,
 		PerIslandSolve_ScatterTotalSerialized,
 		NumStats
 	};
@@ -301,6 +303,7 @@ struct alignas(64) FPerIslandStats
 		CSV_CUSTOM_STAT_PER_ISLAND_HELPER(PerIslandSolve_ApplyTotalSerialized);
 		CSV_CUSTOM_STAT_PER_ISLAND_HELPER(PerIslandSolve_UpdateVelocitiesTotalSerialized);
 		CSV_CUSTOM_STAT_PER_ISLAND_HELPER(PerIslandSolve_ApplyPushOutTotalSerialized);
+		CSV_CUSTOM_STAT_PER_ISLAND_HELPER(PerIslandSolve_ApplyProjectionTotalSerialized);
 		CSV_CUSTOM_STAT_PER_ISLAND_HELPER(PerIslandSolve_ScatterTotalSerialized);
 	}
 
@@ -467,12 +470,13 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		PerIslandStats.AddDefaulted(NumGroups);
 #endif
 
-		PhysicsParallelFor(NumGroups, [&](int32 GroupIndex) {
-
-			if(GetConstraintGraph().GetIslandGroups().IsValidIndex(GroupIndex) &&
-			  !GetConstraintGraph().GetIslandGroup(GroupIndex)->IsValid())
-			  	
+		PhysicsParallelFor(NumGroups, [&](int32 GroupIndex) 
+		{
+			const bool bValidIsland = GetConstraintGraph().GetIslandGroups().IsValidIndex(GroupIndex) && GetConstraintGraph().GetIslandGroup(GroupIndex)->IsValid();
+		  	if (!bValidIsland)
+			{
 				return;
+			}
 			
 			// Reload cache if necessary
 			{
@@ -526,6 +530,14 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase2);
 				CSV_SCOPED_PER_ISLAND_TIMING_STAT(PerIslandSolve_ApplyPushOutTotalSerialized);
 				ApplyConstraintsPhase2(Dt, GroupIndex);
+			}
+
+			// Apply projections. This is a phase only implemented by joints that applies a semi-physical
+			// correction and/or teleport to fix any errors remaining after the position and velocity solve steps
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase3);
+				CSV_SCOPED_PER_ISLAND_TIMING_STAT(PerIslandSolve_ApplyProjectionTotalSerialized);
+				ApplyConstraintsPhase3(Dt, GroupIndex);
 			}
 
 			// Update the particles with the results of the constraint solvers, and also update constraint data
@@ -712,14 +724,13 @@ void FPBDRigidsEvolutionGBF::ScatterSolverOutput(FReal Dt, int32 GroupIndex)
 
 void FPBDRigidsEvolutionGBF::ApplyConstraintsPhase1(const FReal Dt, int32 GroupIndex)
 {
-	int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
 	// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
-	for (int i = 0; i < LocalNumIterations; ++i)
+	for (int i = 0; i < NumPositionIterations; ++i)
 	{
 		bool bNeedsAnotherIteration = false;
 		for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 		{
-			bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, GroupIndex, i, LocalNumIterations);
+			bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, GroupIndex, i, NumPositionIterations);
 		}
 
 		if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
@@ -739,19 +750,37 @@ void FPBDRigidsEvolutionGBF::SetImplicitVelocities(const FReal Dt, int32 GroupIn
 
 void FPBDRigidsEvolutionGBF::ApplyConstraintsPhase2(const FReal Dt, int32 GroupIndex)
 {
-	int32 LocalNumPushOutIterations = ChaosNumPushOutIterationsOverride >= 0 ? ChaosNumPushOutIterationsOverride : NumPushOutIterations;
 	bool bNeedsAnotherIteration = true;
-	for (int32 It = 0; It < LocalNumPushOutIterations; ++It)
+	for (int32 It = 0; It < NumVelocityIterations; ++It)
 	{
 		bNeedsAnotherIteration = false;
 		for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 		{
-			bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, GroupIndex, It, LocalNumPushOutIterations);
+			bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, GroupIndex, It, NumVelocityIterations);
 		}
 
 		if (ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar && !bNeedsAnotherIteration)
 		{
 			break;
+		}
+	}
+}
+
+void FPBDRigidsEvolutionGBF::ApplyConstraintsPhase3(const FReal Dt, int32 GroupIndex)
+{
+	// Update the body transforms from the deltas calculated in the constraint solve phases 1 and 2
+	// NOTE: deliberately not updating the world-space inertia as it is not currently needed by joint projection
+	// and no other constraints implement projection
+	if (FPBDIslandGroup* IslandGroup = ConstraintGraph.GetIslandGroups()[GroupIndex].Get())
+	{
+		IslandGroup->GetBodyContainer().ApplyCorrections();
+	}
+
+	for (int32 It = 0; It < NumProjectionIterations; ++It)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
+		{
+			ConstraintRule->ApplyProjection(Dt, GroupIndex, It, NumProjectionIterations);
 		}
 	}
 }
@@ -763,11 +792,11 @@ void FPBDRigidsEvolutionGBF::SetIsDeterministic(const bool bInIsDeterministic)
 }
 
 FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers, bool InIsSingleThreaded)
-	: Base(InParticles, SolverPhysicsMaterials, DefaultNumIterations, DefaultNumPushOutIterations, InIsSingleThreaded)
+	: Base(InParticles, SolverPhysicsMaterials, InIsSingleThreaded)
 	, Clustering(*this, Particles.GetClusteredParticles())
 	, JointConstraintRule(JointConstraints, ChaosSolverJointPriority)
 	, SuspensionConstraintRule(SuspensionConstraints, ChaosSolverSuspensionPriority)
-	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, DefaultNumCollisionPairIterations, DefaultNumCollisionPushOutPairIterations, DefaultRestitutionThreshold)
+	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, 0, 0, DefaultRestitutionThreshold)
 	, CollisionRule(CollisionConstraints, ChaosSolverCollisionPriority)
 	, BroadPhase(InParticles)
 	, NarrowPhase(DefaultCollisionCullDistance, BoundsThicknessVelocityMultiplier, CollisionConstraints.GetConstraintAllocator())
@@ -781,6 +810,10 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	, CCDManager()
 	, bIsDeterministic(false)
 {
+	SetNumPositionIterations(DefaultNumPositionIterations);
+	SetNumVelocityIterations(DefaultNumVelocityIterations);
+	SetNumProjectionIterations(DefaultNumProjectionIterations);
+
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
 
 	SetParticleUpdatePositionFunction([this](const TParticleView<FPBDRigidParticles>& ParticlesInput, const FReal Dt)

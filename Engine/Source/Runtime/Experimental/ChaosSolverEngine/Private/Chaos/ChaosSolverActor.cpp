@@ -356,10 +356,8 @@ void AChaosSolverActor::PostLoad()
 			return EClusterUnionMethod::None;
 		};
 
-		Properties.Iterations = CollisionIterations_DEPRECATED;
-		Properties.CollisionPairIterations = 2;
-		Properties.PushOutIterations = PushOutIterations_DEPRECATED;
-		Properties.CollisionPushOutPairIterations = PushOutPairIterations_DEPRECATED;
+		Properties.PositionIterations = CollisionIterations_DEPRECATED;
+		Properties.VelocityIterations = PushOutIterations_DEPRECATED;
 		Properties.ClusterConnectionFactor = ClusterConnectionFactor_DEPRECATED;
 		Properties.ClusterUnionConnectionType = ConvertDeprecatedConnectionType(ClusterUnionConnectionType_DEPRECATED);
 		Properties.bGenerateBreakData = DoGenerateBreakingData_DEPRECATED;

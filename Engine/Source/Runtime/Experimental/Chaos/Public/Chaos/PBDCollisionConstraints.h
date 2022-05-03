@@ -177,6 +177,7 @@ public:
 
 	bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 	bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
+	bool ApplyPhase3Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
 
 	//
 	// Color Rule API
@@ -342,8 +343,11 @@ private:
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
 	const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& MPerParticlePhysicsMaterials;
 	const THandleArray<FChaosPhysicsMaterial>* const SimMaterials;
+
+	// @todo(chaos): remove pair iteration counts when legacy PBD solver is removed (RBAN-only)
 	int32 MApplyPairIterations;
 	int32 MApplyPushOutPairIterations;
+
 	FReal RestitutionThreshold;
 	bool bEnableCollisions;
 	bool bEnableRestitution;

@@ -194,11 +194,12 @@ namespace Chaos
 		, LinearProjection(0)
 		, AngularProjection(0)
 		, ShockPropagation(0)
+		, TeleportDistance(0)
+		, TeleportAngle(0)
 		, ParentInvMassScale(1)
 		, bCollisionEnabled(true)
 		, bProjectionEnabled(false)
 		, bShockPropagationEnabled(false)
-		, bSoftProjectionEnabled(false)
 		, LinearMotionTypes({ EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked })
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
@@ -1056,12 +1057,12 @@ namespace Chaos
 		return (NumActive > 0);
 	}
 	
-	void FPBDJointConstraints::PreparePhase3Serial(const FReal Dt, const int32 It, FPBDIslandSolverData& SolverData)
+	void FPBDJointConstraints::PreparePhase3Serial(const FReal Dt, FPBDIslandSolverData& SolverData)
 	{
 		CSV_SCOPED_TIMING_STAT(Chaos, ProjectJointConstraints);
 		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyProjection);
 
-		if(It == 0 && Settings.bUseLinearSolver)
+		if(Settings.bUseLinearSolver)
 		{
 			for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
 			{
@@ -1086,7 +1087,10 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyProjection);
 
 		// Prepare phase 3 for the linear solver in order to partially re-init the solver
-		PreparePhase3Serial(Dt, It, SolverData);
+		if (It == 0)
+		{
+			PreparePhase3Serial(Dt, SolverData);
+		}
 
 		// UpdateConstraintProjection(It, NumIts, SolverData);
 		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
@@ -1395,7 +1399,7 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Project Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-		if (!JointSettings.bProjectionEnabled && !JointSettings.bSoftProjectionEnabled)
+		if (!JointSettings.bProjectionEnabled)
 		{
 			return false;
 		}
@@ -1420,8 +1424,12 @@ namespace Chaos
 				return false;
 			}
 
-			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
-			Solver.ApplyProjections(Dt, IterationStiffness, Settings, JointSettings, (It==(NumIts-1)));
+			if (It == 0)
+			{
+				Solver.ApplyTeleports(Dt, Settings, JointSettings);
+			}
+
+			Solver.ApplyProjections(Dt, Settings, JointSettings, (It==(NumIts-1)));
 		}
 		else
 		{
@@ -1439,8 +1447,7 @@ namespace Chaos
 				Solver.UpdateMasses(FReal(0), FReal(1));
 			}
 
-			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
-			Solver.ApplyProjections(Dt, IterationStiffness, Settings, JointSettings);
+			Solver.ApplyProjections(Dt, Settings, JointSettings);
 
 			if (SolverType == EConstraintSolverType::StandardPbd)
 			{

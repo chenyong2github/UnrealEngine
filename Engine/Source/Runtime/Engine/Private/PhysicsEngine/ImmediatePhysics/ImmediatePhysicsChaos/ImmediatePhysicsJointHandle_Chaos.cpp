@@ -45,11 +45,13 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing1Limit());
 		ConstraintSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing2Limit());
 
-		ConstraintSettings.bProjectionEnabled = Profile.bEnableLinearProjection || Profile.bEnableAngularProjection;
+		ConstraintSettings.bProjectionEnabled = Profile.bEnableProjection;
 		ConstraintSettings.bShockPropagationEnabled = Profile.bEnableShockPropagation;
 
-		ConstraintSettings.LinearProjection = Profile.bEnableLinearProjection ? Profile.ProjectionLinearAlpha : 0.0f;
-		ConstraintSettings.AngularProjection = Profile.bEnableAngularProjection ? Profile.ProjectionAngularAlpha : 0.0f;
+		ConstraintSettings.LinearProjection = Profile.bEnableProjection ? Profile.ProjectionLinearAlpha : 0.0f;
+		ConstraintSettings.AngularProjection = Profile.bEnableProjection ? Profile.ProjectionAngularAlpha : 0.0f;
+		ConstraintSettings.TeleportDistance = Profile.bEnableProjection ? Profile.ProjectionLinearTolerance : -1.0f;
+		ConstraintSettings.TeleportAngle = Profile.bEnableProjection ? FMath::DegreesToRadians(Profile.ProjectionAngularTolerance) : -1.0f;
 		ConstraintSettings.ShockPropagation = Profile.bEnableShockPropagation ? Profile.ShockPropagationAlpha : 0.0f;
 		ConstraintSettings.ParentInvMassScale = Profile.bParentDominates ? (FReal)0 : (FReal)1;
 
@@ -180,6 +182,8 @@ namespace ImmediatePhysics_Chaos
 			ConstraintSettings.LinearSoftForceMode = EJointForceMode::Acceleration;
 			ConstraintSettings.LinearProjection = 0.0f;
 			ConstraintSettings.AngularProjection = 0.0f;
+			ConstraintSettings.TeleportDistance = -1.0f;
+			ConstraintSettings.TeleportAngle = -1.0f;
 		}
 
 		ConstraintSettings.Sanitize();

@@ -314,7 +314,7 @@ namespace Chaos
 		// Position Projection
 		const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
 		const bool bLinearSoft = FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings);
-		const bool bLinearProjectionEnabled = (bLinearSoft && JointSettings.bSoftProjectionEnabled) || (!bLinearSoft && JointSettings.bProjectionEnabled);
+		const bool bLinearProjectionEnabled = (!bLinearSoft && JointSettings.bProjectionEnabled);
 		const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
 		const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
 		const bool bLinearLimited = (LinearMotion[0] == EJointMotionType::Limited) && (LinearMotion[1] == EJointMotionType::Limited) && (LinearMotion[2] == EJointMotionType::Limited);
@@ -345,7 +345,7 @@ namespace Chaos
 
 		// Twist projection
 		const bool bTwistSoft = FPBDJointUtilities::GetSoftTwistLimitEnabled(SolverSettings, JointSettings);
-		const bool bTwistProjectionEnabled = SolverSettings.bEnableTwistLimits && ((bTwistSoft && JointSettings.bSoftProjectionEnabled) || (!bTwistSoft && JointSettings.bProjectionEnabled));
+		const bool bTwistProjectionEnabled = SolverSettings.bEnableTwistLimits && (!bTwistSoft && JointSettings.bProjectionEnabled);
 		if (bTwistProjectionEnabled && (AngularProjection > 0.0f))
 		{
 			const EJointMotionType TwistMotion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
@@ -357,7 +357,7 @@ namespace Chaos
 
 		// Swing projection
 		const bool bSwingSoft = FPBDJointUtilities::GetSoftSwingLimitEnabled(SolverSettings, JointSettings);
-		const bool bSwingProjectionEnabled = SolverSettings.bEnableSwingLimits && ((bSwingSoft && JointSettings.bSoftProjectionEnabled) || (!bSwingSoft && JointSettings.bProjectionEnabled));
+		const bool bSwingProjectionEnabled = SolverSettings.bEnableSwingLimits && (!bSwingSoft && JointSettings.bProjectionEnabled);
 		if (bSwingProjectionEnabled && (AngularProjection > 0.0f))
 		{
 			const EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
@@ -401,7 +401,6 @@ namespace Chaos
 
 	void FPBDJointSolver::ApplyProjections(
 		const FReal Dt,
-		const FReal InSolverStiffness,
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
@@ -412,7 +411,7 @@ namespace Chaos
 			return;
 		}
 
-		SolverStiffness = InSolverStiffness;
+		SolverStiffness = 1;
 
 
 		FVec3 DP1 = FVec3(0);
@@ -436,7 +435,7 @@ namespace Chaos
 		{
 			const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
 			const bool bLinearSoft = FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings);
-			const bool bLinearProjectionEnabled = (bLinearSoft && JointSettings.bSoftProjectionEnabled) || (!bLinearSoft && JointSettings.bProjectionEnabled);
+			const bool bLinearProjectionEnabled = (!bLinearSoft && JointSettings.bProjectionEnabled);
 			if (bLinearProjectionEnabled && (LinearProjection > 0))
 			{
 				ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);

@@ -282,7 +282,6 @@ namespace Chaos
 		bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 		bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 		bool ApplyPhase3Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
-		void PreparePhase3Serial(const FReal Dt, const int32 It, FPBDIslandSolverData& SolverData);
 
 		/**
 		 * Set the solver method to use
@@ -309,6 +308,8 @@ namespace Chaos
 		void SortConstraints();
 
 		bool CanEvaluate(const int32 ConstraintIndex) const;
+
+		void PreparePhase3Serial(const FReal Dt, FPBDIslandSolverData& SolverData);
 
 		bool ApplyPhase1Single(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		bool ApplyPhase2Single(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);

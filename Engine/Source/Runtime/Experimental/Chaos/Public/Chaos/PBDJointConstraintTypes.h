@@ -132,12 +132,13 @@ namespace Chaos
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal ShockPropagation;
+		FReal TeleportDistance;
+		FReal TeleportAngle;			// Radians
 		FReal ParentInvMassScale;
 
 		bool bCollisionEnabled;
-		bool bProjectionEnabled;		// @chaos(todo): remove - implied by alpha
+		bool bProjectionEnabled;		// @chaos(todo): remove - implied by alpha and teleport settings
 		bool bShockPropagationEnabled;	// @chaos(todo): remove - implied by alpha
-		bool bSoftProjectionEnabled;	// @chaos(todo): remove - old PBD solver only
 
 		TVector<EJointMotionType, 3> LinearMotionTypes;
 		FReal LinearLimit;
@@ -204,6 +205,7 @@ namespace Chaos
 		FPBDJointSolverSettings();
 
 		// Iterations
+		// @todo(chaos): remove pair iteration counts when legacy PBD solver is removed (RBAN-only)
 		int32 ApplyPairIterations;
 		int32 ApplyPushOutPairIterations;
 

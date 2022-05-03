@@ -8,10 +8,13 @@ namespace Chaos
 	{
 		if (Particle.IsValid())
 		{
+			// Set the particle state
 			if (SolverBody.IsDynamic())
 			{
-				// Set the particle state
-				FParticleUtilities::SetCoMWorldTransform(Particle, SolverBody.CorrectedP(), SolverBody.CorrectedQ());
+				// Apply DP and DQ to P and Q
+				SolverBody.ApplyCorrections();
+
+				FParticleUtilities::SetCoMWorldTransform(Particle, SolverBody.P(), SolverBody.Q());
 				Particle->SetV(SolverBody.V());
 				Particle->SetW(SolverBody.W());
 			}

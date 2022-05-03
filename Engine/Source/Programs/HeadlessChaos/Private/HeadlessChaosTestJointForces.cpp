@@ -72,7 +72,6 @@ namespace ChaosTest {
 		{
 			Test.JointSettings[JointIndex].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked };
 			Test.JointSettings[JointIndex].bProjectionEnabled = false;
-			Test.JointSettings[JointIndex].bSoftProjectionEnabled = false;
 		}
 
 		Test.Create();
@@ -137,7 +136,6 @@ namespace ChaosTest {
 		{
 			Test.JointSettings[JointIndex].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked };
 			Test.JointSettings[JointIndex].bProjectionEnabled = false;
-			Test.JointSettings[JointIndex].bSoftProjectionEnabled = false;
 		}
 
 		Test.Create();

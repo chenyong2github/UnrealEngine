@@ -248,6 +248,13 @@ namespace Chaos
 	}
 
 	template<class ConstraintType>
+	bool TPBDConstraintIslandRule<ConstraintType>::ApplyProjection(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts)
+	{
+		FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex);
+		return IslandGroup ? Constraints.ApplyPhase3Serial(Dt, It, NumIts, *IslandGroup) : false;
+	}
+
+	template<class ConstraintType>
 	void TPBDConstraintIslandRule<ConstraintType>::InitializeAccelerationStructures()
 	{
 		ConstraintGraph->template AddConstraintDatas<ConstraintType>(Constraints.GetContainerId());
