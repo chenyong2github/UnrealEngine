@@ -2906,7 +2906,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			// the name of the pure interface class
 			FString InterfaceCPPName = ClassDef.GetAlternateNameCPP(true);
-			FString SuperInterfaceCPPName = SuperClassDef ? SuperClassDef->GetAlternateNameCPP(true) : FString();
+			FString SuperInterfaceCPPName = SuperClassDef->GetAlternateNameCPP(true);
 
 			// Thunk functions
 			FUHTStringBuilder InterfaceBoilerplate;

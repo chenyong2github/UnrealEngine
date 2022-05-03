@@ -1404,6 +1404,7 @@ void FUnrealFieldDefinitionInfo::PostParseFinalizeReferencedProperties()
 		{
 			OuterPropDef = NextPropDef;
 		}
+		checkSlow(OuterPropDef);
 		FPropertyTraits::PostParseFinalize(*OuterPropDef);
 	}
 }
@@ -2359,7 +2360,7 @@ void FUnrealClassDefinitionInfo::MarkHasFieldNotify()
 		{
 			LogError(TEXT("INotifyFieldValueChanged could not be found. FieldNotify are not valid for UClass %s"), *GetName());
 		}
-		if (!ImplementsInterface(*NotifyFieldInterface))
+		else if (!ImplementsInterface(*NotifyFieldInterface))
 		{
 			LogError(TEXT("UClass %s need to implement the interface INotifyFieldValueChanged to support FieldNotify."), *GetName());
 		}
