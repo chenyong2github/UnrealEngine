@@ -2989,8 +2989,18 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 					return;
 				}
 
-				if ( Bunch.bHasPackageMapExports )
+				if (Bunch.bHasPackageMapExports)
 				{
+					// Clients still send NetGUID.IsDefault()/FExportFlags.bHasPath packets to the server, separate from this check
+					if (Driver->IsServer())
+					{
+						UE_LOG(LogNetTraffic, Error, TEXT("UNetConnection::ReceivedPacket: Server received bHasPackageMapExports packet."));
+
+						Close(ENetCloseResult::BunchServerPackageMapExports);
+
+						return;
+					}
+
 					Driver->NetGUIDInBytes += (BunchDataBits + (HeaderPos - IncomingStartPos)) >> 3;
 
 					if (IsInternalAck())

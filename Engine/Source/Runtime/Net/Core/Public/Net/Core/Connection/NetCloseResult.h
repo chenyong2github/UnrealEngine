@@ -7,6 +7,8 @@
 #include "Net/Core/Connection/NetResult.h"
 #include "Templates/PimplPtr.h"
 
+#include "NetCloseResult.generated.h"
+
 
 /**
  * Network Close results (can occur before NetDriver/NetConnection creation, and can be success or error)
@@ -143,6 +145,9 @@ enum class ENetCloseResult : uint32
 
 	/** Bunch data serialization overflowed */
 	BunchDataOverflow,
+
+	/** Server received bHasPackageMapExports packet */
+	BunchServerPackageMapExports,
 
 	/** Received control channel bunch before control channel was created */
 	BunchPrematureControlChannel,
@@ -370,7 +375,7 @@ enum class ENetCloseResult : uint32
 DECLARE_NETRESULT_ENUM(ENetCloseResult);
 
 
-NETCORE_API const TCHAR* LexToString(ENetCloseResult InResult);
+NETCORE_API const TCHAR* LexToString(ENetCloseResult Enum);
 
 /** Converts from ENetworkFailure to ENetCloseResult */
 NETCORE_API ENetCloseResult FromNetworkFailure(ENetworkFailure::Type Val);
