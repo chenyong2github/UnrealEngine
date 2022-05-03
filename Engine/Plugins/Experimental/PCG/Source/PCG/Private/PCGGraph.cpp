@@ -184,10 +184,11 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 	}
 
 	UPCGNode* Node = Settings->CreateNode();
-	Node->SetFlags(RF_Transactional);
 
 	if (Node)
 	{
+		Node->SetFlags(RF_Transactional);
+
 		Modify();
 
 		// Assign settings to node
@@ -223,10 +224,11 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 	}
 
 	UPCGNode* Node = InSettings->CreateNode();
-	Node->SetFlags(RF_Transactional);
 
 	if (Node)
 	{
+		Node->SetFlags(RF_Transactional);
+
 		Modify();
 
 		// Assign settings to node & reparent
