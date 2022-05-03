@@ -749,7 +749,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	
 	/** Information about the time-code from import, if available.  */
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = Info)
 	FSoundWaveTimecodeInfo TimecodeInfo;
 
 #endif // WITH_EDITORONLY_DATA
