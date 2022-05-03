@@ -18,17 +18,17 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioQuartz, Log, All);
 struct FQuartzClockTickRate;
 struct FQuartzQuantizationBoundary;
 struct FQuartzTimeSignature;
-
+class FQuartzTickableObject;
 
 
 namespace Audio
 {
 	// forwards (Audio::)
-	class IAudioMixerQuantizedEventListener;
+	template <class ListenerType>
+	class TQuartzShareableCommandQueue;
+
 	class IQuartzQuantizedCommand;
 	class FQuartzClock;
-	class FShareableQuartzCommandQueue;
-
 	class FMixerDevice;
 
 	struct FQuartzQuantizedCommandDelegateData;
@@ -36,7 +36,6 @@ namespace Audio
 	struct FQuartzQuantizedCommandInitInfo;
 } // namespace Audio
 
-// UOBJECT LAYER:
 
 // An enumeration for specifying quantization for Quartz commands
 UENUM(BlueprintType)
@@ -252,7 +251,7 @@ struct ENGINE_API FQuartzQuantizationBoundary
 	bool bResumeClockOnQueued{ false };
 
 	// Game thread subscribers that will be passed to command init data (for C++ implementations)
-	TArray<TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+	TArray<TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>> GameThreadSubscribers;
 
 	// ctor
 	FQuartzQuantizationBoundary(
@@ -451,7 +450,7 @@ namespace Audio
 		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
 		FQuartzQuantizationBoundary QuantizationBoundary{ EQuartzCommandQuantization::Tick, 1.f, EQuarztQuantizationReference::BarRelative, true };
-		TArray<TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+		TArray<TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>> GameThreadSubscribers;
 		int32 GameThreadDelegateID{ -1 };
 	};
 
@@ -468,6 +467,7 @@ namespace Audio
 		void SetOwningClockPtr(TSharedPtr<Audio::FQuartzClock> InClockPointer)
 		{
 			OwningClockPointer = InClockPointer;
+			ensure(OwningClockPointer);
 		}
 
 		// shared with FQuartzQuantizedRequestData
@@ -476,7 +476,7 @@ namespace Audio
 		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr{ nullptr };
 		FQuartzQuantizationBoundary QuantizationBoundary;
-		TArray<TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+		TArray<TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>> GameThreadSubscribers;
 		int32 GameThreadDelegateID{ -1 };
 
 		// Audio Render thread-specific data:
@@ -501,7 +501,7 @@ namespace Audio
 		// allocate a copy of the derived class
 		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const;
 
-		void AddSubscriber(TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> InSubscriber);
+		void AddSubscriber(TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> InSubscriber);
 
 		// Command has reached the AudioRenderThread
 		void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
@@ -538,8 +538,8 @@ namespace Audio
 		virtual EQuartzCommandType GetCommandType() const = 0;
 
 
-	protected:
-		// base classes can override these to add extra functionality
+	private:
+		// derived classes can override these to add extra functionality
 		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) {}
 		virtual void FailedToQueueCustom() {}
 		virtual void AboutToStartCustom() {}
@@ -548,9 +548,8 @@ namespace Audio
 		virtual void OnClockStartedCustom() {}
 		virtual void CancelCustom() {}
 
-		TArray<TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+		TArray<TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>> GameThreadSubscribers;
 
-	private:
 		int32 GameThreadDelegateID{ -1 };
 		bool bAboutToStartHasBeenCalled{ false };
 	}; // class IAudioMixerQuantizedCommandBase
@@ -581,7 +580,7 @@ struct ENGINE_API FAudioComponentCommandInfo
 		, CommandID(Other.CommandID)
 	{}
 
- 	FAudioComponentCommandInfo(TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> InComponentCommandPtr, FQuartzQuantizationBoundary InAnticaptoryBoundary)
+ 	FAudioComponentCommandInfo(TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> InComponentCommandPtr, FQuartzQuantizationBoundary InAnticaptoryBoundary)
 		: ComponentCommandPtr(InComponentCommandPtr)
 		, AnticapatoryBoundary(InAnticaptoryBoundary)
 	{
@@ -589,7 +588,7 @@ struct ENGINE_API FAudioComponentCommandInfo
 		CommandID = CommandIDs++;
 	}
 
-	TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> ComponentCommandPtr;
+	TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> ComponentCommandPtr;
 	FQuartzQuantizationBoundary AnticapatoryBoundary;
 	uint32 CommandID{ (uint32)INDEX_NONE };
 };

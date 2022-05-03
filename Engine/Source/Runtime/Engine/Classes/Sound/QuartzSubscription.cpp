@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/QuartzSubscription.h"
-
-#include "Quartz/AudioMixerClockHandle.h"
+#include "Quartz/QuartzSubsystem.h"
 
 namespace Audio
 {
@@ -11,35 +10,158 @@ namespace Audio
 		ClockName(InClockName)
 	{}
 
-	void FShareableQuartzCommandQueue::PushEvent(const FQuartzQuantizedCommandDelegateData& Data)
-	{
-		if (bIsAcceptingCommands)
-		{
-			EventDelegateQueue.Enqueue([InData = Data](FQuartzTickableObject* Handle) { Handle->ProcessCommand(InData); });
-		}
-	}
-
-	void FShareableQuartzCommandQueue::PushEvent(const FQuartzMetronomeDelegateData& Data)
-	{
-		if (bIsAcceptingCommands)
-		{
-			EventDelegateQueue.Enqueue([InData = Data](FQuartzTickableObject* Handle) { Handle->ProcessCommand(InData); });
-		}
-	}
-
-	void FShareableQuartzCommandQueue::PushEvent(const FQuartzQueueCommandData& Data)
-	{
-		if (bIsAcceptingCommands)
-		{
-			EventDelegateQueue.Enqueue([InData = Data](FQuartzTickableObject* Handle) { Handle->ProcessCommand(InData); });
-		}
-	}
-
-
-	void FShareableQuartzCommandQueue::StopTakingCommands()
-	{
-		bIsAcceptingCommands = false;
-		EventDelegateQueue.Empty();
-	}
-
 } // namespace Audio
+
+// FQuartzTickableObject implementation
+void FQuartzTickableObject::FQuartzTickableObjectGCObjectMembers::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(QuartzSubsystem);
+	Collector.AddReferencedObject(WorldPtr);
+}
+
+FString FQuartzTickableObject::FQuartzTickableObjectGCObjectMembers::GetReferencerName() const
+{
+	return TEXT("FQuartzTickableObject::FQuartzTickableObjectGCObjectMembers");
+}
+
+FQuartzTickableObject::~FQuartzTickableObject()
+{
+	if (GCObjectMembers.WorldPtr && GCObjectMembers.QuartzSubsystem)
+	{
+		GCObjectMembers.QuartzSubsystem->UnsubscribeFromQuartzTick(this);
+		GCObjectMembers.WorldPtr = nullptr;
+		GCObjectMembers.QuartzSubsystem = nullptr;
+	}
+}
+
+FQuartzTickableObject* FQuartzTickableObject::Init(UWorld* InWorldPtr)
+{
+	if (!ensure(InWorldPtr))
+	{
+		// can't initialize if we don't have a valid world
+		return this;
+	}
+
+	GCObjectMembers.WorldPtr = InWorldPtr;
+	GCObjectMembers.QuartzSubsystem = UQuartzSubsystem::Get(GCObjectMembers.WorldPtr);
+	CommandQueue = Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>::Create();
+	GCObjectMembers.QuartzSubsystem->SubscribeToQuartzTick(this);
+
+	return this;
+}
+
+int32 FQuartzTickableObject::AddCommandDelegate(const FOnQuartzCommandEventBP& InDelegate, TArray<TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>>& TargetSubscriberArray)
+{
+	TargetSubscriberArray.Add(CommandQueue);
+
+	const int32 Num = QuantizedCommandDelegates.Num();
+	int32 SlotId = 0;
+
+	for (; SlotId < Num; ++SlotId)
+	{
+		if (!QuantizedCommandDelegates[SlotId].MulticastDelegate.IsBound())
+		{
+			QuantizedCommandDelegates[SlotId].MulticastDelegate.AddUnique(InDelegate);
+			return SlotId;
+		}
+	}
+
+	// need a new slot
+	QuantizedCommandDelegates.AddDefaulted_GetRef().MulticastDelegate.AddUnique(InDelegate);
+	return SlotId;
+}
+
+UQuartzSubsystem* FQuartzTickableObject::GetQuartzSubsystem() const
+{
+	if (ensureAlwaysMsgf(GCObjectMembers.IsValid(), TEXT("FQUartzTickableObject::GetQuartzSubsystem called when it has not been initialized")))
+	{
+		return GCObjectMembers.QuartzSubsystem;
+	}
+	
+	return nullptr;
+}
+
+void FQuartzTickableObject::ExecCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data)
+{
+	checkSlow(Data.DelegateSubType < EQuartzCommandDelegateSubType::Count);
+	if (GCObjectMembers.QuartzSubsystem)
+	{
+		GCObjectMembers.QuartzSubsystem->PushLatencyTrackerResult(Data.RequestRecieved());
+	}
+
+	// Broadcast to the BP delegate if we have one bound
+	if (Data.DelegateID >= 0 && Data.DelegateID < QuantizedCommandDelegates.Num()
+		&& ensure(QuantizedCommandDelegates[Data.DelegateID].MulticastDelegate.IsBound()))
+	{
+		FCommandDelegateGameThreadData& GameThreadEntry = QuantizedCommandDelegates[Data.DelegateID];
+
+		GameThreadEntry.MulticastDelegate.Broadcast(Data.DelegateSubType, "Sample Payload");
+
+		// track the number of active QuantizedCommands that may be sending info back to us.
+		// this is a bit of a hack because sound cues can play multiple wave instances
+		// and each of those wave instances is sending a delegate back to us.
+		// todo: clean this up at the wave-instance level to avoid ref counting here.
+		// (new command)
+		if (Data.DelegateSubType == EQuartzCommandDelegateSubType::CommandOnQueued)
+		{
+			GameThreadEntry.RefCount.Increment();
+		}
+
+		// (end of a command)
+		if (Data.DelegateSubType == EQuartzCommandDelegateSubType::CommandOnCanceled)
+		{
+			// are all the commands done?
+			if (GameThreadEntry.RefCount.Decrement() == 0)
+			{
+				GameThreadEntry.MulticastDelegate.Clear();
+			}
+		}
+	}
+
+	// call base-class method
+	ProcessCommand(Data);
+}
+
+void FQuartzTickableObject::ExecCommand(const Audio::FQuartzMetronomeDelegateData& Data)
+{
+	if (GCObjectMembers.QuartzSubsystem)
+	{
+		GCObjectMembers.QuartzSubsystem->PushLatencyTrackerResult(Data.RequestRecieved());
+	}
+
+	MetronomeDelegates[static_cast<int32>(Data.Quantization)].MulticastDelegate.Broadcast(Data.ClockName, Data.Quantization, Data.Bar, Data.Beat, Data.BeatFraction);
+
+	// call base-class method
+	ProcessCommand(Data);
+}
+
+void FQuartzTickableObject::ExecCommand(const Audio::FQuartzQueueCommandData& Data)
+{
+	// call base-class method
+	ProcessCommand(Data);
+}
+
+TWeakPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> FQuartzTickableObject::GetCommandQueue()
+{
+	if (!CommandQueue.IsValid())
+	{
+		CommandQueue = MakeShared<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>();
+	}
+
+	return CommandQueue;
+}
+
+void FQuartzTickableObject::QuartzTick(float DeltaTime)
+{
+	CommandQueue->PumpCommandQueue(this);
+}
+
+bool FQuartzTickableObject::QuartzIsTickable() const
+{
+	return CommandQueue.IsValid();
+}
+
+void FQuartzTickableObject::AddMetronomeBpDelegate(EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+{
+	MetronomeDelegates[static_cast<int32>(InQuantizationBoundary)].MulticastDelegate.AddUnique(OnQuantizationEvent);
+}

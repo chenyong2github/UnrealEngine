@@ -5,7 +5,9 @@
 #include "Core/Public/CoreGlobals.h"
 #include "Core/Public/Math/NumericLimits.h"
 #include "Core/Public/Math/UnrealMathUtility.h"
+
 #include "AudioMixerDevice.h"
+#include "Sound/QuartzSubscription.h"
 
 #define INVALID_DURATION -1
 
@@ -18,23 +20,18 @@ EQuartzCommandQuantization TimeSignatureQuantizationToCommandQuantization(const 
 	{
 		case EQuartzTimeSignatureQuantization::HalfNote :
 			return EQuartzCommandQuantization::HalfNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::QuarterNote :
 			return EQuartzCommandQuantization::QuarterNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::EighthNote :
 			return EQuartzCommandQuantization::EighthNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::SixteenthNote :
 			return EQuartzCommandQuantization::SixteenthNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::ThirtySecondNote :
 			return EQuartzCommandQuantization::ThirtySecondNote;
-			break;
 
 		default:
 			return EQuartzCommandQuantization::Count;
@@ -73,7 +70,7 @@ bool FQuartzTimeSignature::operator==(const FQuartzTimeSignature& Other) const
 			const bool NumPulsesMatch = (OptionalPulseOverride[i].NumberOfPulses == Other.OptionalPulseOverride[i].NumberOfPulses);
 			const bool DurationsMatch = (OptionalPulseOverride[i].PulseDuration == Other.OptionalPulseOverride[i].PulseDuration);
 
-			if (!(NumPulseEntries && DurationsMatch))
+			if (!(NumPulsesMatch && DurationsMatch))
 			{
 				Result = false;
 				break;
@@ -404,7 +401,7 @@ namespace Audio
 		return nullptr;
 	}
 
-	void IQuartzQuantizedCommand::AddSubscriber(TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> InSubscriber)
+	void IQuartzQuantizedCommand::AddSubscriber(TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> InSubscriber)
 	{
 		GameThreadSubscribers.AddUnique(InSubscriber);
 	}
@@ -412,8 +409,8 @@ namespace Audio
 	void IQuartzQuantizedCommand::OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzQuantizedCommand::OnQueued);
-		Audio::FMixerDevice* MixerDevice = InCommandInitInfo.OwningClockPointer->GetMixerDevice();
-		if (MixerDevice)
+
+		if (Audio::FMixerDevice* MixerDevice = InCommandInitInfo.OwningClockPointer->GetMixerDevice())
 		{
 			MixerDevice->QuantizedEventClockManager.PushLatencyTrackerResult(FQuartzCrossThreadMessage::RequestRecieved());
 		}
@@ -456,7 +453,6 @@ namespace Audio
 			Data.CommandType = GetCommandType();
 			Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnFailedToQueue;
 			Data.DelegateID = GameThreadDelegateID;
-
 
 			for (auto& SubscriberQueue : GameThreadSubscribers)
 			{

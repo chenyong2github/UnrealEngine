@@ -547,10 +547,10 @@ private:
 
 	TArray<FAudioComponentPendingQuartzCommandData> PendingQuartzCommandData;
 
-public:
 	//For if this is being played through a sound queued through Quartz
 	virtual void PlayQueuedQuantizedInternal(const UObject* WorldContextObject, FAudioComponentCommandInfo InCommandInfo);
 
+public:
 	/** Stop an audio component's sound, issue any delegates if needed */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Stop();
