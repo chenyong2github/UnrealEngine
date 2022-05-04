@@ -814,6 +814,18 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture3D(FRHITextureCreateDesc cons
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = 0;
 
+	if (EnumHasAnyFlags(Flags, TexCreate_Shared))
+	{
+		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
+		{
+			TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+		}
+		else
+		{
+			TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		}
+	}
+
 	if (EnumHasAnyFlags(Flags, TexCreate_GenerateMipCapable))
 	{
 		// Set the flag that allows us to call GenerateMips on this texture later
