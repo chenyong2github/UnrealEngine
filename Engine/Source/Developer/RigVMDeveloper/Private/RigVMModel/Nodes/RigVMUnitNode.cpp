@@ -19,9 +19,9 @@ void URigVMUnitNode::PostLoad()
 			if(Function->TemplateIndex != INDEX_NONE)
 			{
 				const FRigVMTemplate& Template = FRigVMRegistry::Get().GetTemplates()[Function->TemplateIndex];
-				TemplateNotation = Template.GetNotation();
-				ResolvedFunctionName = Function->GetName();
-			}	
+				TemplateNotation = Template.GetNotation();				
+			}
+			ResolvedFunctionName = Function->GetName();
 		}
 	}
 }
