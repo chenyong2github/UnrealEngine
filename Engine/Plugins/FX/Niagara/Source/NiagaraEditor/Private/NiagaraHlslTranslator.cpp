@@ -2693,10 +2693,11 @@ void FHlslNiagaraTranslator::DefineDataSetWriteFunction(FString &HlslOutputStrin
 
 	HlslOutput += TEXT("}\n\n");
 }
+
 void FHlslNiagaraTranslator::ConvertCompileInfoToParamInfo(const FNiagaraScriptDataInterfaceCompileInfo& Info, FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo)
 {
 	FString OwnerIDString = Info.Name.ToString();
-	FString SanitizedOwnerIDString = GetSanitizedSymbolName(OwnerIDString, true);
+	FString SanitizedOwnerIDString = GetSanitizedSymbolName(OwnerIDString.Replace(TEXT("."), TEXT("_")));
 
 	DIInstanceInfo.DataInterfaceHLSLSymbol = SanitizedOwnerIDString;
 	DIInstanceInfo.DIClassName = Info.Type.GetClass()->GetName();
