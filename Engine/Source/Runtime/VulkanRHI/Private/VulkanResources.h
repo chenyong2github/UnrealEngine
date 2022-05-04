@@ -385,7 +385,6 @@ public:
 	bool CanEvict() const override { return false; }
 	void Evict(FVulkanDevice& Device) override; ///evict to system memory
 	void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation) override; //move to a full new allocation
-	void OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset) override; //called when compacting an allocation. Old image can still be used as a copy source.
 	FVulkanTexture* GetEvictableTexture() override { return this; }
 	
 	void AttachView(VulkanRHI::FVulkanViewBase* View);
@@ -763,7 +762,7 @@ struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 	bool bVolatile;
 };
 
-struct FVulkanRingBuffer : public FVulkanEvictable, public VulkanRHI::FDeviceChild
+struct FVulkanRingBuffer : public VulkanRHI::FDeviceChild
 {
 public:
 	FVulkanRingBuffer(FVulkanDevice* InDevice, uint64 TotalSize, VkFlags Usage, VkMemoryPropertyFlags MemPropertyFlags);
@@ -1269,7 +1268,7 @@ public:
 
 protected:
 	FVulkanCmdBuffer*	CmdBuffer = nullptr;
-	uint64				FenceSignaledCounter = 0;
+	uint64				FenceSignaledCounter = MAX_uint64;
 
 	friend class FVulkanCommandListContext;
 };

@@ -2021,33 +2021,6 @@ void FVulkanTexture::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Co
 	InvalidateViews(InDevice);
 }
 
-void FVulkanTexture::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset)
-{
-	uint64 Size = GetMemorySize();
-	static uint64 TotalSize = 0;
-	TotalSize += Size;
-	if (GVulkanLogDefrag)
-	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("Moving Surface, %p <<-- %p    :::: %s\n"), NewOffset, 42, *GetName().ToString());
-		UE_LOG(LogVulkanRHI, Display, TEXT("Defragged %8.4fkb %8.4fkb   TB %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, Image, *GetName().ToString());
-	}
-
-	{
-		const ETextureCreateFlags UEFlags = GetDesc().Flags;
-		const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
-		const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
-		checkf(bRenderTarget || bUAV, TEXT("Surface must be a RenderTarget or a UAV in order to be defragged.  UEFlags=0x%x"), (int32)UEFlags);
-		checkf(Tiling == VK_IMAGE_TILING_OPTIMAL, TEXT("Tiling [%d] is not supported for defrag, only VK_IMAGE_TILING_OPTIMAL"), (int32)Tiling);
-
-		Allocation.Offset = NewOffset;
-		InternalMoveSurface(InDevice, Context, Allocation);
-
-		//note: this exploits that the unmoved image is still bound to the old allocation, which is freed by the caller in this case.
-	}
-
-	InvalidateViews(InDevice);
-}
-
 void FVulkanTexture::Evict(FVulkanDevice& InDevice)
 {
 	check(AliasedTexture == nullptr); //can't evict textures we don't own

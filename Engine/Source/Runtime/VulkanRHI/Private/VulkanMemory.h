@@ -6,6 +6,7 @@
 
 #pragma once 
 
+#include "Misc/ScopeRWLock.h"
 
 //enable to store FILE/LINE, and optionally a stacktrace via r.vulkan.backtrace
 #if !UE_BUILD_SHIPPING
@@ -93,7 +94,6 @@ public:
 	virtual bool CanEvict() const { return false; }
 	virtual void Evict(FVulkanDevice& Device) { checkNoEntry(); }
 	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& Allocation) { checkNoEntry(); }
-	virtual void OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset) { checkNoEntry(); }
 	virtual FVulkanTexture* GetEvictableTexture() { return nullptr; }
 };
 
@@ -434,6 +434,8 @@ namespace VulkanRHI
 		TArray<FHeapInfo> HeapInfos;
 
 		int32 PrimaryHeapIndex; // memory usage of this heap will decide when to evict.
+
+		FCriticalSection DeviceMemLock;
 	};
 
 	struct FRange
@@ -627,7 +629,6 @@ namespace VulkanRHI
 	protected:
 		void SetIsDefragging(bool bInIsDefragging){ bIsDefragging = bInIsDefragging; }
 		void DumpFullHeap();
-		bool DefragFull(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap);
 		int32 DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap, uint32 Count);
 		bool CanDefrag();
 		uint64 EvictToHost(FVulkanDevice& Device);
@@ -676,8 +677,7 @@ namespace VulkanRHI
 #endif
 		TArray<FVulkanAllocationInternal> InternalData;
 		int32 InternalFreeList= -1;
-		FCriticalSection CS;
-
+		FCriticalSection SubresourceAllocatorCS;
 	};
 
 
@@ -730,7 +730,7 @@ namespace VulkanRHI
 		uint32 GetPageSize();
 		FMemoryManager* Owner;
 		uint16 MemoryTypeIndex;
-		uint16 HeapIndex;
+		const uint16 HeapIndex;
 
 		bool bIsHostCachedSupported;
 		bool bIsLazilyAllocatedSupported;
@@ -742,6 +742,7 @@ namespace VulkanRHI
 		uint64 UsedMemory;
 		uint32 PageIDCounter;
 
+		FCriticalSection PagesLock;
 		TArray<FVulkanSubresourceAllocator*> ActivePages[MAX_BUCKETS];
 		TArray<FVulkanSubresourceAllocator*> UsedDedicatedImagePages;
 
@@ -789,7 +790,7 @@ namespace VulkanRHI
 
 		void RegisterSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
 		void UnregisterSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
-		void ReleaseSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
+		bool ReleaseSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
 
 
 		void ReleaseFreedPages(FVulkanCommandListContext& Context);
@@ -872,17 +873,23 @@ namespace VulkanRHI
 			return PoolSize;
 		}
 
+		FCriticalSection UsedFreeBufferAllocationsLock;
 		TArray<FVulkanSubresourceAllocator*> UsedBufferAllocations[(int32)EPoolSizes::SizesCount + 1];
 		TArray<FVulkanSubresourceAllocator*> FreeBufferAllocations[(int32)EPoolSizes::SizesCount + 1];
+
+		FRWLock AllBufferAllocationsLock;  // protects against resizing of array (RenderThread<->RHIThread)
 		TArray<FVulkanSubresourceAllocator*> AllBufferAllocations;
 		PTRINT AllBufferAllocationsFreeListHead = (PTRINT)-1;
+		inline FVulkanSubresourceAllocator* GetSubresourceAllocator(const uint32 AllocatorIndex)
+		{
+			FRWScopeLock ScopedReadLock(AllBufferAllocationsLock, SLT_ReadOnly);
+			return AllBufferAllocations[AllocatorIndex];
+		}
 
 		uint64 PendingEvictBytes = 0;
 		bool bIsEvicting = false;
 		bool bWantEviction = false;
 
-
-		friend FVulkanSubresourceAllocator* GetSubresourceAllocator(FVulkanDevice* Device, const FVulkanAllocation& Allocation);
 		friend class FVulkanResourceHeap;
 
 		void ReleaseFreedResources(bool bImmediately);
@@ -904,7 +911,7 @@ namespace VulkanRHI
 		void ProcessPendingUBFrees(bool bForce);
 	};
 
-	class FStagingBuffer : public FVulkanEvictable, public FRefCount
+	class FStagingBuffer : public FRefCount
 	{
 	public:
 		FStagingBuffer(FVulkanDevice* InDevice);
@@ -981,6 +988,8 @@ namespace VulkanRHI
 
 			TArray<FPendingItems> PendingItems;
 		};
+
+		FCriticalSection StagingLock;
 
 		TArray<FStagingBuffer*> UsedStagingBuffers;
 		TArray<FPendingItemsPerCmdBuffer> PendingFreeStagingBuffers;
@@ -1079,6 +1088,7 @@ namespace VulkanRHI
 
 	protected:
 		FVulkanDevice* Device;
+		FCriticalSection FenceLock;
 		TArray<FFence*> FreeFences;
 		TArray<FFence*> UsedFences;
 
