@@ -63,6 +63,10 @@ private:
 	/** Manages the session browser */
 	TSharedPtr<FConcertServerSessionBrowserController> SessionBrowserController;
 	
+
+	/** Additional external concert components */
+	TArray<TSharedRef<IConcertComponent>> AdditionalConcertComponents;
+	
 	void InitComponents(const TSharedRef<FTabManager::FArea>& MainArea);
 
 	/** Gets the manager for a session tab if the session ID is valid */

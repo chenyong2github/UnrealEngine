@@ -5,7 +5,7 @@
 #include "ConcertServerEvents.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
-#include "Widgets/Browser//ConcertServerSessionBrowserController.h"
+#include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Widgets/SessionTabs/Archived/ArchivedConcertSessionTab.h"
 #include "Widgets/SessionTabs/Live/LiveConcertSessionTab.h"
 
@@ -24,6 +24,7 @@
 
 FConcertServerWindowController::FConcertServerWindowController(const FConcertServerWindowInitParams& Params)
 	: MultiUserServerLayoutIni(Params.MultiUserServerLayoutIni)
+	, AdditionalConcertComponents(Params.AdditionalConcertComponents)
 {
 	ServerInstance = Params.Server;
 	SessionBrowserController = MakeShared<FConcertServerSessionBrowserController>();
@@ -122,6 +123,11 @@ void FConcertServerWindowController::InitComponents(const TSharedRef<FTabManager
 {
 	const FConcertComponentInitParams Params { ServerInstance.ToSharedRef(), SharedThis(this), MainArea };
 	SessionBrowserController->Init(Params);
+	
+	for (const TSharedRef<IConcertComponent>& ConcertComponent : AdditionalConcertComponents)
+	{
+		ConcertComponent->Init(Params);
+	}
 }
 
 void FConcertServerWindowController::RegisterForSessionDestructionEvents()
