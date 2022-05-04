@@ -2887,7 +2887,9 @@ public:
 #if RHI_RAYTRACING
 	/** Persistently-allocated ray tracing scene data. */
 	FRayTracingScene RayTracingScene;
-	TArray<FLightSceneInfo*, TInlineAllocator<4>> RayTracedLights;
+
+	bool bHasRayTracedLights = false;
+	void UpdateRayTracedLights();
 #endif // RHI_RAYTRACING
 
 	/** Distance field object scene data. */

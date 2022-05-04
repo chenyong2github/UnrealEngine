@@ -1974,13 +1974,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 
 	ProcessAtmosphereLightAddition_RenderThread(LightSceneInfo);
 
-#if RHI_RAYTRACING
-	if (ShouldRenderRayTracingShadowsForLight(LightSceneInfo))
-	{
-		RayTracedLights.Add(LightSceneInfo);
-	}
 	InvalidatePathTracedOutput();
-#endif 
 
 	// Add the light to the scene.
 	LightSceneInfo->AddToScene();
@@ -3200,13 +3194,6 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 
 		ProcessAtmosphereLightRemoval_RenderThread(LightSceneInfo);
 
-
-#if RHI_RAYTRACING
-		if (ShouldRenderRayTracingShadowsForLight(LightSceneInfo))
-		{
-			RayTracedLights.Remove(LightSceneInfo);
-		}
-#endif 
 		// Remove the light from the scene.
 		LightSceneInfo->RemoveFromScene();
 

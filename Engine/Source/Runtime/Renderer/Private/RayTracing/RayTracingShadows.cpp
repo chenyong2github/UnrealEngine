@@ -188,10 +188,10 @@ float GetRaytracingMaxNormalBias()
 void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Ray tracing shadows shaders should be properly configured even if r.RayTracing.Shadows is 0 because lights can have raytracing shadows enabled independently of that CVar
-	// We have to check if ray tracing is enabled on any of the scene lights. The RayTracedLights array is populated using ShouldRenderRayTracingShadowsForLight() helper, 
+	// We have to check if ray tracing is enabled on any of the scene lights. The Scene.bHasRayTracedLights is computed using ShouldRenderRayTracingShadowsForLight() helper, 
 	// which handles various override conditions.
 
-	if (Scene.RayTracedLights.IsEmpty())
+	if (Scene.bHasRayTracedLights == false)
 	{
 		return;
 	}

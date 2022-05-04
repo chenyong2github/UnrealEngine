@@ -693,6 +693,30 @@ void FScene::RefreshRayTracingInstances()
 	FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(this, Primitives);
 }
 
+void FScene::UpdateRayTracedLights()
+{
+	// Whether a light can use ray traced shadows depends on CVars that may be changed at runtime.
+	// It is not enough to check the light shadow mode when light is added to the scene. This must be done during rendering.
+
+	bHasRayTracedLights = false;
+
+	if (!IsRayTracingEnabled())
+	{
+		return;
+	}
+
+	// We currently don't need a full list of RT lights, only whether there are any RT lights at all.
+	for (auto LightIt = Lights.CreateConstIterator(); LightIt; ++LightIt)
+	{
+		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
+		if (ShouldRenderRayTracingShadowsForLight(LightSceneInfoCompact))
+		{
+			bHasRayTracedLights = true;
+			break;
+		}
+	}
+}
+
 void FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
 	if (IsRayTracingEnabled())
