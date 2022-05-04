@@ -17,6 +17,7 @@
 #include "Widgets/SMediaPlateEditorDetails.h"
 #include "Widgets/SMediaPlateEditorMediaDetails.h"
 #include "Widgets/SMediaPlayerEditorViewer.h"
+#include "Widgets/SMediaPlaylistEditorTracks.h"
 
 #define LOCTEXT_NAMESPACE "FMediaPlateEditorToolkit"
 
@@ -25,6 +26,7 @@ namespace MediaPlateEditorToolkit
 	static const FName AppIdentifier("MediaPlateEditorApp");
 	static const FName DetailsTabId("Details");
 	static const FName MediaDetailsTabId("MediaDetails");
+	static const FName PlaylistTabId("Playlist");
 	static const FName ViewerTabId("Viewer");
 }
 
@@ -64,15 +66,16 @@ void FMediaPlateEditorToolkit::Initialize(UMediaPlateComponent* InMediaPlate, co
 	BindCommands();
 
 	// create tab layout
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaPlateEditor_v1.2")
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaPlateEditor_v1.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
-				->SetOrientation(Orient_Horizontal)
+				->SetOrientation(Orient_Vertical)
 				->Split
 				(
 					FTabManager::NewSplitter()
 						->SetOrientation(Orient_Horizontal)
+						->SetSizeCoefficient(0.7f)
 						->Split
 						(
 							// viewer
@@ -101,6 +104,13 @@ void FMediaPlateEditorToolkit::Initialize(UMediaPlateComponent* InMediaPlate, co
 								->SetSizeCoefficient(0.8f)
 							)
 						)
+				)
+				->Split
+				(
+					// Details tab.
+					FTabManager::NewStack()
+						->AddTab(MediaPlateEditorToolkit::PlaylistTabId, ETabState::OpenedTab)
+						->SetSizeCoefficient(0.3f)
 				)
 		);
 
@@ -161,6 +171,12 @@ void FMediaPlateEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
+	// Playlist tab.
+	InTabManager->RegisterTabSpawner(MediaPlateEditorToolkit::PlaylistTabId, FOnSpawnTab::CreateSP(this, &FMediaPlateEditorToolkit::HandleTabManagerSpawnTab, MediaPlateEditorToolkit::PlaylistTabId))
+		.SetDisplayName(LOCTEXT("PlaylistTabName", "Playlist"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
 	// Viewer tab.
 	InTabManager->RegisterTabSpawner(MediaPlateEditorToolkit::ViewerTabId, FOnSpawnTab::CreateSP(this, &FMediaPlateEditorToolkit::HandleTabManagerSpawnTab, MediaPlateEditorToolkit::ViewerTabId))
 		.SetDisplayName(LOCTEXT("PlayerTabName", "Player"))
@@ -173,6 +189,7 @@ void FMediaPlateEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTab
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
 	InTabManager->UnregisterTabSpawner(MediaPlateEditorToolkit::ViewerTabId);
+	InTabManager->UnregisterTabSpawner(MediaPlateEditorToolkit::PlaylistTabId);
 	InTabManager->UnregisterTabSpawner(MediaPlateEditorToolkit::MediaDetailsTabId);
 	InTabManager->UnregisterTabSpawner(MediaPlateEditorToolkit::DetailsTabId);
 }
@@ -381,6 +398,10 @@ TSharedRef<SDockTab> FMediaPlateEditorToolkit::HandleTabManagerSpawnTab(const FS
 	else if (TabIdentifier == MediaPlateEditorToolkit::MediaDetailsTabId)
 	{
 		TabWidget = SNew(SMediaPlateEditorMediaDetails, *MediaPlate, Style);
+	}
+	else if (TabIdentifier == MediaPlateEditorToolkit::PlaylistTabId)
+	{
+		TabWidget = SNew(SMediaPlaylistEditorTracks, MediaPlate->MediaPlaylist, Style);
 	}
 	else if (TabIdentifier == MediaPlateEditorToolkit::ViewerTabId)
 	{
