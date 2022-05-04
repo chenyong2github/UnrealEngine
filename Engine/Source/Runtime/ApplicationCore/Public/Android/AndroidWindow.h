@@ -75,9 +75,9 @@ protected:
 private:
 	/** called from GetScreenRect function */
 	/** test cached values from the latest computations stored by CacheRect to decide their validity with the provided arguments */
-	static bool IsCachedRectValid(bool bUseEventThreadWindow, const float RequestedContentScaleFactor, ANativeWindow* Window);
+	static bool IsCachedRectValid(bool bUseEventThreadWindow, const float RequestedContentScaleFactor, const int32 RequestedMobileResX, const int32 RequestedMobileResY, ANativeWindow* Window);
 	/** caches some values used to compute the size of the window by GetScreenRect function */
-	static void CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, ANativeWindow* Window);
+	static void CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const int32 RequestedMobileResX, const int32 RequestedMobileResY, ANativeWindow* Window);
 
 	/**
 	 * Protect the constructor; only TSharedRefs of this class can be made.

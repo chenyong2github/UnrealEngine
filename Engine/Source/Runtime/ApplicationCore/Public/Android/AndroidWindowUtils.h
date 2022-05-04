@@ -20,12 +20,14 @@ namespace AndroidWindowUtils
 {
 	static void ApplyContentScaleFactor(int32& InOutScreenWidth, int32& InOutScreenHeight)
 	{
-		const float AspectRatio = (float)InOutScreenWidth / (float)InOutScreenHeight;
-
 		// CSF is a multiplier to 1280x720
-		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));		
+		static IConsoleVariable* CVarScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));		
+		float RequestedContentScaleFactor = CVarScale->GetFloat();
 
-		float RequestedContentScaleFactor = CVar->GetFloat();
+		static IConsoleVariable* CVarResX = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResX"));
+		static IConsoleVariable* CVarResY = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResY"));
+		int32 RequestedResX = CVarResX->GetInt();
+		int32 RequestedResY = CVarResY->GetInt();
 
 		FString CmdLineCSF;
 		if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
@@ -33,8 +35,18 @@ namespace AndroidWindowUtils
 			RequestedContentScaleFactor = FCString::Atof(*CmdLineCSF);
 		}
 
+		FString CmdLineMDRes;
+		if (FParse::Value(FCommandLine::Get(), TEXT("mobileresx="), CmdLineMDRes, false))
+		{
+			RequestedResX = FCString::Atoi(*CmdLineMDRes);
+		}
+		if (FParse::Value(FCommandLine::Get(), TEXT("mobileresy="), CmdLineMDRes, false))
+		{
+			RequestedResY = FCString::Atoi(*CmdLineMDRes);
+		}
+
 		// 0 means to use native size
-		if (RequestedContentScaleFactor == 0.0f)
+		if (RequestedContentScaleFactor == 0.0f && RequestedResX <= 0 && RequestedResY <= 0)
 		{
 			UE_LOG(LogAndroidWindowUtils, Log, TEXT("Setting Width=%d and Height=%d (requested scale = 0 = auto)"), InOutScreenWidth, InOutScreenHeight);
 		}
@@ -43,17 +55,52 @@ namespace AndroidWindowUtils
 			int32 Width = InOutScreenWidth;
 			int32 Height = InOutScreenHeight;
 
-			if (InOutScreenHeight > InOutScreenWidth)
+			if (RequestedResX > 0)
 			{
-				Height = 1280 * RequestedContentScaleFactor;
+				// set long side for orientation to requested X (height > width == GAndroidIsPortrait)
+				if (InOutScreenHeight > InOutScreenWidth)
+				{
+					Height = RequestedResX;
+					Width = (Height * ((float)InOutScreenWidth / (float)InOutScreenHeight) + 0.5f);
+				}
+				else
+				{
+					Width = RequestedResX;
+					Height = (Width * ((float)InOutScreenHeight / (float)InOutScreenWidth) + 0.5f);
+				}
+			}
+			else if (RequestedResY > 0)
+			{
+				// set short side for orientation to requested Y (height > width == GAndroidIsPortrait)
+				if (InOutScreenHeight > InOutScreenWidth)
+				{
+					Width = RequestedResY;
+					Height = (Width * ((float)InOutScreenHeight / (float)InOutScreenWidth) + 0.5f);
+				}
+				else
+				{
+					Height = RequestedResY;
+					Width = (Height * ((float)InOutScreenWidth / (float)InOutScreenHeight) + 0.5f);
+				}
 			}
 			else
 			{
-				Height = 720 * RequestedContentScaleFactor;
+				const float AspectRatio = (float)InOutScreenWidth / (float)InOutScreenHeight;
+
+				// set resolution relative to 1280x720 ((height > width == GAndroidIsPortrait)
+				if (InOutScreenHeight > InOutScreenWidth)
+				{
+					Height = 1280 * RequestedContentScaleFactor;
+				}
+				else
+				{
+					Height = 720 * RequestedContentScaleFactor;
+				}
+
+				// apply the aspect ration to get the width
+				Width = (Height * AspectRatio + 0.5f);
 			}
 
-			// apply the aspect ration to get the width
-			Width = (Height * AspectRatio + 0.5f);
 			// ensure Width and Height is multiple of 8
 			Width = (Width / 8) * 8;
 			Height = (Height / 8) * 8;

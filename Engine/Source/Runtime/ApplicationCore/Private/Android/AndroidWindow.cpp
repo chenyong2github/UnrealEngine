@@ -18,7 +18,7 @@ int GAndroidPropagateAlpha = 0;
 
 struct FCachedWindowRect
 {
-	FCachedWindowRect() : WindowWidth(-1), WindowHeight(-1), WindowInit(false), ContentScaleFactor(-1.0f), Window_EventThread(nullptr)
+	FCachedWindowRect() : WindowWidth(-1), WindowHeight(-1), WindowInit(false), ContentScaleFactor(-1.0f), MobileResX(-1), MobileResY(-1), Window_EventThread(nullptr)
 	{
 	}
 
@@ -26,6 +26,8 @@ struct FCachedWindowRect
 	int32 WindowHeight;
 	bool WindowInit;
 	float ContentScaleFactor;
+	int32 MobileResX;
+	int32 MobileResY;
 	ANativeWindow* Window_EventThread;
 };
 
@@ -269,7 +271,7 @@ void* FAndroidWindow::WaitForHardwareWindow()
 extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
-bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const float RequestedContentScaleFactor, ANativeWindow* Window)
+bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const float RequestedContentScaleFactor, const int32 RequestedMobileResX, const int32 RequestedMobileResY, ANativeWindow* Window)
 {
 	// window must be valid when bUseEventThreadWindow and null when !bUseEventThreadWindow.
 	check((Window != nullptr) == bUseEventThreadWindow);
@@ -289,6 +291,18 @@ bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const float R
 		bValidCache = false;
 	}
 
+	if (CachedRect.MobileResX != RequestedMobileResX)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** RequestedMobileResX different %d != %d, not using res cache (%d)"), RequestedMobileResX, CachedWindowRect.MobileResX, (int32)bUseEventThreadWindow);
+		bValidCache = false;
+	}
+
+	if (CachedRect.MobileResY != RequestedMobileResY)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** RequestedMobileResY different %d != %d, not using res cache (%d)"), RequestedMobileResY, CachedWindowRect.MobileResY, (int32)bUseEventThreadWindow);
+		bValidCache = false;
+	}
+
 	if (CachedRect.Window_EventThread != Window)
 	{
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** Window different, not using res cache (%d)"), (int32)bUseEventThreadWindow);
@@ -304,7 +318,7 @@ bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const float R
 	return bValidCache;
 }
 
-void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, ANativeWindow* Window)
+void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const int32 RequestedMobileResX, const int32 RequestedMobileResY, ANativeWindow* Window)
 {
 	check(Window != nullptr || !bUseEventThreadWindow);
 
@@ -314,6 +328,8 @@ void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, co
 	CachedRect.WindowHeight = Height;
 	CachedRect.WindowInit = true;
 	CachedRect.ContentScaleFactor = RequestedContentScaleFactor;
+	CachedRect.MobileResX = RequestedMobileResX;
+	CachedRect.MobileResY = RequestedMobileResY;
 	CachedRect.Window_EventThread = Window;
 }
 
@@ -341,9 +357,9 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 	static const bool bIsOculusMobileApp = AndroidThunkCpp_IsOculusMobileApplication();
 
 	// CSF is a multiplier to 1280x720
-	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
+	static IConsoleVariable* CVarScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
 	// If the app is for Oculus Mobile then always use 0 as ScaleFactor (to match window size).
-	float RequestedContentScaleFactor = bIsOculusMobileApp ? 0.0f : CVar->GetFloat();
+	float RequestedContentScaleFactor = bIsOculusMobileApp ? 0.0f : CVarScale->GetFloat();
 
 	FString CmdLineCSF;
 	if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
@@ -351,9 +367,24 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 		RequestedContentScaleFactor = FCString::Atof(*CmdLineCSF);
 	}
 
+	static IConsoleVariable* CVarResX = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResX"));
+	static IConsoleVariable* CVarResY = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResY"));
+	int32 RequestedResX = bIsOculusMobileApp ? 0 : CVarResX->GetInt();
+	int32 RequestedResY = bIsOculusMobileApp ? 0 : CVarResY->GetInt();
+
+	FString CmdLineMDRes;
+	if (FParse::Value(FCommandLine::Get(), TEXT("mobileresx="), CmdLineMDRes, false))
+	{
+		RequestedResX = FCString::Atoi(*CmdLineMDRes);
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("mobileresy="), CmdLineMDRes, false))
+	{
+		RequestedResY = FCString::Atoi(*CmdLineMDRes);
+	}
+
 	// since orientation won't change on Android, use cached results if still valid. Different cache is maintained for event_thread flavor.
 	ANativeWindow* Window = bUseEventThreadWindow ? (ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread() : nullptr;
-	bool bComputeRect = !IsCachedRectValid(bUseEventThreadWindow, RequestedContentScaleFactor, Window);
+	bool bComputeRect = !IsCachedRectValid(bUseEventThreadWindow, RequestedContentScaleFactor, RequestedResX, RequestedResY, Window);
 	if (bComputeRect)
 	{
 		// currently hardcoding resolution
@@ -372,7 +403,7 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 		}
 
 		// save for future calls
-		CacheRect(bUseEventThreadWindow, ScreenWidth, ScreenHeight, RequestedContentScaleFactor, Window);
+		CacheRect(bUseEventThreadWindow, ScreenWidth, ScreenHeight, RequestedContentScaleFactor, RequestedResX, RequestedResY, Window);
 	}
 
 	const FCachedWindowRect& CachedRect = bUseEventThreadWindow ? CachedWindowRect_EventThread : CachedWindowRect;
@@ -399,7 +430,7 @@ void FAndroidWindow::CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& Surfac
 	// too much of the following code needs JNI things, just assume override
 #if !USE_ANDROID_JNI
 
-	UE_LOG(LogAndroid, Fatal, TEXT("FAndroidWindow::CalculateSurfaceSize currently expedcts non-JNI platforms to override resolution"));
+	UE_LOG(LogAndroid, Fatal, TEXT("FAndroidWindow::CalculateSurfaceSize currently expects non-JNI platforms to override resolution"));
 
 #else
 

@@ -2964,6 +2964,18 @@ static TAutoConsoleVariable<float> CVarMobileContentScaleFactor(
 	TEXT("Content scale multiplier (equates to iOS's contentScaleFactor to support Retina displays"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarMobileDesiredResX(
+	TEXT("r.Mobile.DesiredResX"),
+	0,
+	TEXT("Desired mobile X resolution (longest axis) (non-zero == use for X, calculate Y to retain aspect ratio)"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarMobileDesiredResY(
+	TEXT("r.Mobile.DesiredResY"),
+	0,
+	TEXT("Desired mobile Y resolution (shortest axis) (non-zero == use for Y, calculate X to retain aspect ratio)"),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> CVarMobileTonemapperUpscale(
 	TEXT("r.MobileTonemapperUpscale"),
 	0,
