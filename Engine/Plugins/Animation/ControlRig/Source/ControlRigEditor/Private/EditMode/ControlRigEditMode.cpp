@@ -297,7 +297,7 @@ void FControlRigEditMode::SetObjects_Internal()
 			RuntimeControlRig->GetHierarchy()->OnModified().RemoveAll(this);
 
 			RuntimeControlRig->ControlModified().AddSP(this, &FControlRigEditMode::OnControlModified);
-			RuntimeControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified);
+			RuntimeControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified_AnyThread);
 			if (USkeletalMeshComponent* MeshComponent = Cast<USkeletalMeshComponent>(GetHostingSceneComponent(RuntimeControlRig)))
 			{
 				TStrongObjectPtr<UControlRigEditModeDelegateHelper>* DelegateHelper = DelegateHelpers.Find(RuntimeControlRig);
@@ -3221,6 +3221,28 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 	}
 }
 
+void FControlRigEditMode::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+	FRigElementKey Key;
+	if(InElement)
+	{
+		Key = InElement->GetKey();
+	}
+
+	TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
+	
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
+	{
+		if(!WeakHierarchy.IsValid())
+		{
+			return;
+		}
+		const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
+		OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+		
+	}, TStatId(), NULL, ENamedThreads::GameThread);
+}
+
 void FControlRigEditMode::OnControlModified(UControlRig* Subject, FRigControlElement* InControlElement, const FRigControlModifiedContext& Context)
 {
 	//this makes sure the details panel ui get's updated, don't remove
@@ -3668,7 +3690,7 @@ void FControlRigEditMode::AddControlRigInternal(UControlRig* InControlRig)
 	InControlRig->SetControlsVisible(true);
 	InControlRig->PostInitInstanceIfRequired();
 	InControlRig->GetHierarchy()->OnModified().RemoveAll(this);
-	InControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified);
+	InControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified_AnyThread);
 
 	//needed for the control rig track editor delegates to get hooked up
 	if (WeakSequencer.IsValid())

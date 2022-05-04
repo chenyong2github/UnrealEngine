@@ -902,11 +902,14 @@ void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* Contr
 
 void UControlRigDetailPanelControlProxies::ProxyChanged(UControlRig* ControlRig, const FName& Name)
 {
-	UControlRigControlsProxy* Proxy = FindProxy(ControlRig,Name);
-	if (Proxy)
+	if (IsInGameThread())
 	{
-		Modify();
-		Proxy->ValueChanged();
+		UControlRigControlsProxy* Proxy = FindProxy(ControlRig,Name);
+		if (Proxy)
+		{
+			Modify();
+			Proxy->ValueChanged();
+		}
 	}
 }
 
