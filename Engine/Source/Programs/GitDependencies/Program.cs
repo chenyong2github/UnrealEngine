@@ -587,18 +587,8 @@ namespace GitDependencies
 					Log.WriteError("The following file(s) have been modified:");
 					foreach (WorkingFile TamperedFile in TamperedFiles)
 					{
-						Log.WriteError("  {0}", TamperedFile.Name);
-					}
-				}
-
-				if (ReadOnlyFiles.Any())
-				{
-					PromptForOverwrite = true;
-					// List the files that are read only
-					Log.WriteError("The following file(s) are flagged as read only:");
-					foreach (WorkingFile ReadOnlyFile in ReadOnlyFiles)
-					{
-						Log.WriteError("  {0}", ReadOnlyFile.Name);
+						bool readOnly = ReadOnlyFiles.Any(x => string.Equals(x.Name, TamperedFile.Name));
+						Log.WriteError("  {0}{1}", TamperedFile.Name, readOnly ? " (read only)" : "");
 					}
 				}
 
@@ -625,17 +615,9 @@ namespace GitDependencies
 			{
 				foreach(WorkingFile TamperedFile in TamperedFiles)
 				{
-					if(!SafeDeleteFile(Path.Combine(RootPath, TamperedFile.Name)))
-					{
-						return false;
-					}
-				}
-
-				foreach (WorkingFile ReadOnlyFile in ReadOnlyFiles)
-				{
-					string FilePath = Path.Combine(RootPath, ReadOnlyFile.Name);
+					string FilePath = Path.Combine(RootPath, TamperedFile.Name);
 					File.SetAttributes(FilePath, File.GetAttributes(FilePath) & ~FileAttributes.ReadOnly);
-					if (!SafeDeleteFile(FilePath))
+					if (!SafeDeleteFile(Path.Combine(RootPath, TamperedFile.Name)))
 					{
 						return false;
 					}
