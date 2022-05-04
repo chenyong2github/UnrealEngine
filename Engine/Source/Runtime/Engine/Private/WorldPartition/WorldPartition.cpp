@@ -50,7 +50,7 @@
 #include "GameDelegates.h"
 
 static int32 GLoadingRangeBugItGo = 12800;
-static FAutoConsoleVariableRef CVarGDefaultLoadingRangeHLOD0(
+static FAutoConsoleVariableRef CVarLoadingRangeBugItGo(
 	TEXT("wp.Editor.LoadingRangeBugItGo"),
 	GLoadingRangeBugItGo,
 	TEXT("Loading range for BugItGo command."),
