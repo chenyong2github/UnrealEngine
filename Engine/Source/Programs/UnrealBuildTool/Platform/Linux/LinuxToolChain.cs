@@ -181,10 +181,10 @@ namespace UnrealBuildTool
 			// refuse to use compilers that we know won't work
 
 			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 110 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 100)
+			if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 130 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 100)
 			{
 				throw new BuildException(
-					string.Format("This version of the Unreal Engine can only be compiled with clang 11.0, and 10.0. clang {0} may not build it - please use a different version.",
+					string.Format("This version of the Unreal Engine can only be compiled with clang 13.0, 12.0, 11.0, and 10.0. clang {0} may not build it - please use a different version.",
 						CompilerVersionString)
 					);
 			}
