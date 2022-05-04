@@ -1687,7 +1687,43 @@ bool ULevelExporterFBX::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 				Exporter->ExportBSP(World->GetModel(), true);
 			}
 
-			INodeNameAdapter NodeNameAdapter;
+			class FLevelExporterFBXNodeNameAdapter : public INodeNameAdapter
+			{
+			public:
+				virtual FString GetActorNodeName(const AActor* InActor) override
+				{
+					if (ActorNames.Contains(InActor))
+					{
+						return ActorNames[InActor].ToString();
+					}
+
+					FString ActorNodeName = InActor->GetActorLabel();
+
+					if (UniqueActorNames.Contains(ActorNodeName))
+					{
+						FString ActorNodeNamePrefix = ActorNodeName;
+						int32 ActorNodeNameIndex = 1;
+						FActorLabelUtilities::SplitActorLabel(ActorNodeNamePrefix, ActorNodeNameIndex);
+
+						do
+						{
+							ActorNodeName = FString::Printf(TEXT("%s%d"), *ActorNodeNamePrefix, ++ActorNodeNameIndex);
+						}
+						while (UniqueActorNames.Contains(ActorNodeName));
+					}
+
+					UniqueActorNames.Add(ActorNodeName);
+					ActorNames.Add(InActor) = FName(ActorNodeName);
+
+					return ActorNodeName;
+				}
+
+			private:
+				TSet<FString> UniqueActorNames;
+				TMap<const AActor*, FName> ActorNames;
+			};
+
+			FLevelExporterFBXNodeNameAdapter NodeNameAdapter;
 
 			Exporter->ExportLevelMesh(Level, bSelectedOnly, NodeNameAdapter);
 

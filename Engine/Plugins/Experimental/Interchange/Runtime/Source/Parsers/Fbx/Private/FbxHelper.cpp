@@ -16,6 +16,11 @@ namespace UE
 		{
 			FString FFbxHelper::GetMeshName(FbxGeometryBase* Mesh)
 			{
+				if (!Mesh)
+				{
+					return {};
+				}
+
 				FString DefaultPrefix;
 				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
 				{
