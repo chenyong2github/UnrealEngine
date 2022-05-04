@@ -67,7 +67,8 @@ FInputRayHit UGizmoElementGroup::LineTrace(const FVector Start, const FVector Di
 					Hit = NewHit;
 					if (bHitOwner)
 					{
-						Hit.HitOwner = this;
+						Hit.SetHitObject(this);
+						Hit.HitIdentifier = PartIdentifier;
 					}
 				}
 			}
@@ -110,6 +111,45 @@ void UGizmoElementGroup::Remove(UGizmoElementBase* InElement)
 		if (Elements.Find(InElement, Index))
 		{
 			Elements.RemoveAtSwap(Index);
+		}
+	}
+}
+
+void UGizmoElementGroup::UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier)
+{
+	Super::UpdatePartVisibleState(bVisible, InPartIdentifier);
+
+	for (UGizmoElementBase* Element : Elements)
+	{
+		if (Element)
+		{
+			Element->UpdatePartVisibleState(bVisible, InPartIdentifier);
+		}
+	}
+}
+
+void UGizmoElementGroup::UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier)
+{
+	Super::UpdatePartHittableState(bHittable, InPartIdentifier);
+
+	for (UGizmoElementBase* Element : Elements)
+	{
+		if (Element)
+		{
+			Element->UpdatePartHittableState(bHittable, InPartIdentifier);
+		}
+	}
+}
+
+void UGizmoElementGroup::UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier)
+{
+	Super::UpdatePartInteractionState(InInteractionState, InPartIdentifier);
+
+	for (UGizmoElementBase* Element : Elements)
+	{
+		if (Element)
+		{
+			Element->UpdatePartInteractionState(InInteractionState, InPartIdentifier);
 		}
 	}
 }

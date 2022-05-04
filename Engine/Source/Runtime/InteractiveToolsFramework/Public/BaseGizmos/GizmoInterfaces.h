@@ -119,7 +119,108 @@ public:
 	virtual void UpdateInteractingState(bool bInteracting) = 0;
 };
 
+UINTERFACE()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoClickMultiTarget : public UInterface
+{
+	GENERATED_BODY()
+};
+/**
+ * IGizmoClickMultiTarget is an interface used to provide a ray-object hit test against a target which
+ * supports hitting parts of the target.
+ *
+ * For a gizmo with multiple parts, the part identifier establishes a correspondence between a gizmo part 
+ * and the elements representing that part within the hit target. The valid part identifiers should 
+ * be defined in the gizmo. Identifier 0 is reserved for the default ID which should be assigned to 
+ * elements that do not correspond to any gizmo part, such as non-hittable decorative elements.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API IGizmoClickMultiTarget
+{
+	GENERATED_BODY()
+public:
+	/**
+	 * @return FInputRayHit indicating whether or not the target object was hit by the device-ray at ClickPos
+	 *         The ray hit contains client-defined ID, HitOwner and HitObject which are used to identify the hit part.
+	 */
+	 //UFUNCTION()    // FInputDeviceRay is not USTRUCT because FRay is not USTRUCT
+	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const = 0;
 
+	/*
+	 * Updates the hover state of the specified gizmo part, indicating whether the input device is currently hovering 
+	 * over the Standard gizmo.
+	 */
+	UFUNCTION()
+	virtual void UpdateHoverState(bool bHovering, uint32 InPartIdentifier) = 0;
+
+	/*
+	 * Updates the interacting state of the specified gizmo part, indicating when interaction with the 
+	 * Standard gizmo is actively occurring, typically upon the input device clicking and dragging the Standard gizmo. 
+	 */
+	UFUNCTION()
+	virtual void UpdateInteractingState(bool bInteracting, uint32 InPartIdentifier) = 0;
+
+	/*
+	 * Updates the hittable state of the specified gizmo part. 
+	 */
+	UFUNCTION()
+	virtual void UpdateHittableState(bool bHittable, uint32 InPartIdentifier) = 0;
+
+};
+
+
+
+
+UINTERFACE()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoRenderTarget : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * UGizmoRenderTarget is an interface used to provide rendering of a target
+ */
+class INTERACTIVETOOLSFRAMEWORK_API IGizmoRenderTarget
+{
+	GENERATED_BODY()
+public:
+	/**
+	 * Renders the target using the current tools context.
+	 */
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) const = 0;
+};
+
+
+
+
+UINTERFACE()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoRenderMultiTarget : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * IGizmoRenderMultiTarget is an interface used to provide rendering of a target and the 
+ * ability to specify which part of a target should be visible.
+ * 
+ * For a gizmo with multiple parts, the part identifier establishes a correspondence between a gizmo part 
+ * and the elements representing that part within the hit target. The valid part identifiers should 
+ * be defined in the gizmo. Identifier 0 is reserved for the default ID which should be assigned to 
+ * elements that do not correspond to any gizmo part, such as non-hittable decorative elements.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API IGizmoRenderMultiTarget
+{
+	GENERATED_BODY()
+public:
+	/**
+	 * Renders the target using the current tools context.
+	 */
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) const = 0;
+
+	/*
+	 * Updates the visibility state of the specified gizmo part.
+	 */
+	UFUNCTION()
+	virtual void UpdateVisibilityState(bool bVisible, uint32 InPartIdentifier) = 0;
+};
 
 
 UINTERFACE()

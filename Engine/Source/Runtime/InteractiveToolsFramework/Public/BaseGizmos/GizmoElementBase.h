@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BaseGizmos/GizmoInterfaces.h"
 #include "InputState.h"
 #include "ToolContextInterfaces.h"
 #include "UObject/GCObject.h"
@@ -62,6 +63,8 @@ public:
 
 	static constexpr float DefaultViewAlignAngleTol = 0.052f;				// ~3 degrees
 	static constexpr float DefaultViewAlignMaxCosAngleTol = 0.998f;			// Cos(DefaultViewAlignAngleTol)
+
+	static constexpr uint32 DefaultPartIdentifier = 0;						// Default part ID, used for elements that are not associated with any gizmo part
 
 	// Helper struct used to store traversal state during render
 	struct FRenderTraversalState
@@ -129,6 +132,14 @@ public:
 	virtual void SetEnabled(bool InEnabled);
 	virtual bool GetEnabled() const;
 
+	// For an element hierarchy representing multiple parts of a single gizmo, the part identifier establishes 
+	// a correspondence between a gizmo part and the elements that represent that part. The recognized
+	// part identifier values should be defined in the gizmo. Gizmo part identifiers must be greater than or 
+	// equal to one. Identifier 0 is reserved for the default ID which should be assigned to elements
+	// that do not correspond to any gizmo part, such as non-hittable decorative elements.
+	virtual void SetPartIdentifier(uint32 InPartId);
+	virtual uint32 GetPartIdentifier();
+
 	// Object type bitmask indicating whether this object is visible or hittable or both
 	virtual void SetElementState(EGizmoElementState InElementState);
 	virtual EGizmoElementState GetElementState() const;
@@ -136,6 +147,15 @@ public:
 	// Object interaction state - None, Hovering or Interacting
 	virtual void SetElementInteractionState(EGizmoElementInteractionState InInteractionState);
 	virtual EGizmoElementInteractionState GetElementInteractionState() const;
+
+	// Update element's visibility state if element is associated with the specified gizmo part.
+	virtual void UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
+
+	// Update element's hittable state if element is associated with the specified gizmo part.
+	virtual void UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+
+	// Update element's interaction state if element is associated with the specified gizmo part.
+	virtual void UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
 
 	// View-dependent type - None, Axis or Plane. 
 	virtual void SetViewDependentType(EGizmoElementViewDependentType ViewDependentType);
@@ -194,6 +214,10 @@ protected:
 	// Render and LineTrace should only occur when bEnabled is true.
 	UPROPERTY()
 	bool bEnabled = true;
+
+	// Part identifier
+	UPROPERTY()
+	uint32 PartIdentifier = DefaultPartIdentifier;
 
 	// Element state - indicates whether object is visible or hittable
 	UPROPERTY()

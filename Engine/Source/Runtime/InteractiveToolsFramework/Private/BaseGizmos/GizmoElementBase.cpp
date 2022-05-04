@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "BaseGizmos/GizmoElementBase.h"
+#include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Materials/MaterialInterface.h"
 
@@ -228,6 +229,15 @@ bool UGizmoElementBase::GetEnabled() const
 {
 	return bEnabled;
 }
+void UGizmoElementBase::SetPartIdentifier(uint32 InPartIdentifier)
+{
+	PartIdentifier = InPartIdentifier;
+}
+
+uint32 UGizmoElementBase::GetPartIdentifier()
+{
+	return PartIdentifier;
+}
 
 void UGizmoElementBase::SetElementState(EGizmoElementState InElementState)
 {
@@ -247,6 +257,36 @@ void UGizmoElementBase::SetElementInteractionState(EGizmoElementInteractionState
 EGizmoElementInteractionState UGizmoElementBase::GetElementInteractionState() const
 {
 	return ElementInteractionState;
+}
+
+void UGizmoElementBase::UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier)
+{
+	if (InPartIdentifier == PartIdentifier)
+	{
+		uint8 State = static_cast<uint8>(ElementState);
+		uint8 HittableMask = static_cast<uint8>(EGizmoElementState::Hittable);
+		uint8 NewState = (bHittable ? State | HittableMask : State & (~HittableMask));
+		ElementState = static_cast<EGizmoElementState>(NewState);
+	}
+}
+
+void UGizmoElementBase::UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier)
+{
+	if (InPartIdentifier == PartIdentifier)
+	{
+		uint8 State = static_cast<uint8>(ElementState);
+		uint8 VisibleMask = static_cast<uint8>(EGizmoElementState::Visible);
+		uint8 NewState = (bVisible ? State | VisibleMask : State & (~VisibleMask));
+		ElementState = static_cast<EGizmoElementState>(NewState);
+	}
+}
+
+void UGizmoElementBase::UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier)
+{
+	if (InPartIdentifier == PartIdentifier)
+	{
+		ElementInteractionState = InInteractionState;
+	}
 }
 
 void UGizmoElementBase::SetViewDependentType(EGizmoElementViewDependentType InViewDependentType)

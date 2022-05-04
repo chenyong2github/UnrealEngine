@@ -31,6 +31,15 @@ public:
 	// Remove object from group, if it exists
 	virtual void Remove(UGizmoElementBase* InElement);
 
+	// Update group and contained elements' visibility state for elements in specified gizmo parts.
+	virtual void UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
+
+	// Update group and contained elements' hittable state for elements in specified gizmo parts.
+	virtual void UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+
+	// Update group and contained elements' interaction state for elements in specified gizmo parts.
+	virtual void UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
+
 	// Reset cached render state
 	virtual void ResetCachedRenderState();
 

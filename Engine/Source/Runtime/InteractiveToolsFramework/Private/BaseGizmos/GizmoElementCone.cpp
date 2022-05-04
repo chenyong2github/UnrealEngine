@@ -71,7 +71,8 @@ FInputRayHit UGizmoElementCone::LineTrace(const FVector RayOrigin, const FVector
 		if (bIntersects)
 		{
 			FInputRayHit RayHit(RayParam);
-			RayHit.HitOwner = this;
+			RayHit.SetHitObject(this);
+			RayHit.HitIdentifier = PartIdentifier;
 			return RayHit;
 		}
 	}

@@ -70,7 +70,8 @@ FInputRayHit UGizmoElementCylinder::LineTrace(const FVector RayOrigin, const FVe
 		if (bIntersects)
 		{
 			FInputRayHit RayHit(RayParam);
-			RayHit.HitOwner = this;
+			RayHit.SetHitObject(this);
+			RayHit.HitIdentifier = PartIdentifier;
 			return RayHit;
 		}
 	}

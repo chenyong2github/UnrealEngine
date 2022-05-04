@@ -88,7 +88,8 @@ FInputRayHit UGizmoElementArrow::LineTrace(const FVector RayOrigin, const FVecto
 
 	if (Hit.bHit)
 	{
-		Hit.HitOwner = this;
+		Hit.SetHitObject(this);
+		Hit.HitIdentifier = PartIdentifier;
 	}
 
 	return Hit;
