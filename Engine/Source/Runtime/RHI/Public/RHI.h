@@ -500,6 +500,10 @@ extern RHI_API bool GRHISupportsRWTextureBuffers;
 /** Whether a raw (ByteAddress) buffer view can be created for any buffer, regardless of its EBufferUsageFlags::ByteAddressBuffer flag. */
 extern RHI_API bool GRHISupportsRawViewsForAnyBuffer;
 
+/** Whether depth or stencil can individually be set to CopySrc/Dest access. */
+extern RHI_API bool GRHISupportsSeparateDepthStencilCopyAccess;
+
+
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;

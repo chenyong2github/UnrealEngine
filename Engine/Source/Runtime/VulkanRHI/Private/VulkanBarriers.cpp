@@ -418,24 +418,6 @@ static void GetDepthStencilStageAndAccessFlags(ERHIAccess DepthAccess, ERHIAcces
 		return;
 	}
 
-	// If one of the source states has copy and the other doesn't, a cache lookup will be necessary
-	const ERHIAccess AnyCopy = ERHIAccess::CopySrc | ERHIAccess::CopyDest;
-	if (!EnumHasAnyFlags(DepthAccess, StencilAccess) &&
-		(EnumHasAnyFlags(DepthAccess, AnyCopy) || EnumHasAnyFlags(StencilAccess, AnyCopy)))
-	{
-		if (bIsSourceState)
-		{
-			StageFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-			AccessFlags = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-			Layout = VK_IMAGE_LAYOUT_UNDEFINED;
-			return;
-		}
-		else
-		{
-			checkf(!EnumHasAnyFlags(StencilAccess, AnyCopy), TEXT("Only the Stencil being transitioned to Copy state, this is not supported."));
-		}
-	}
-
 	Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
 	if (EnumHasAnyFlags(DepthAccess, ERHIAccess::CopySrc))
@@ -887,6 +869,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 			return EnumHasAnyFlags(ExplicitAspectAccess, DepthStencilFlags) ? ERHIAccess::DSVRead : ExplicitAspectAccess;
 		};
 
+		const ERHIAccess CopyAccess = ERHIAccess::CopySrc | ERHIAccess::CopyDest;
 		ERHIAccess SrcDepthAccess, SrcStencilAccess, DstDepthAccess, DstStencilAccess;
 		VkImageAspectFlags AspectMask;
 		if (PendingTransition.bDepthAccessSet)
@@ -896,6 +879,9 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 			SrcStencilAccess = GetOtherAspectAccess(SrcDepthAccess);
 			DstStencilAccess = GetOtherAspectAccess(DstDepthAccess);
 			AspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+			check(!EnumHasAnyFlags(PendingTransition.SrcDepthAccess, CopyAccess));
+			check(!EnumHasAnyFlags(PendingTransition.DestDepthAccess, CopyAccess));
 		}
 		else
 		{
@@ -904,6 +890,9 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 			SrcDepthAccess = GetOtherAspectAccess(SrcStencilAccess);
 			DstDepthAccess = GetOtherAspectAccess(DstStencilAccess);
 			AspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+
+			check(!EnumHasAnyFlags(PendingTransition.SrcStencilAccess, CopyAccess));
+			check(!EnumHasAnyFlags(PendingTransition.DestStencilAccess, CopyAccess));
 		}
 
 		GetDepthStencilStageAndAccessFlags(SrcDepthAccess, SrcStencilAccess, SrcStageMask, SrcAccessFlags, SrcLayout, true);

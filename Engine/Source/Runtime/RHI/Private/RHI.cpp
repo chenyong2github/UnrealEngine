@@ -1478,6 +1478,8 @@ bool GRHISupportsAsyncPipelinePrecompile = true;
 
 bool GRHISupportsMapWriteNoOverwrite = false;
 
+bool GRHISupportsSeparateDepthStencilCopyAccess = true;
+
 bool GRHISupportsBindless = false;
 
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;

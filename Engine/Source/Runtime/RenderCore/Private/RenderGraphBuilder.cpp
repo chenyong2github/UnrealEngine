@@ -1858,6 +1858,16 @@ FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 			return;
 		}
 
+		// Use the whole texture range for copy states on RHI's that don't track them separately
+		if (!GRHISupportsSeparateDepthStencilCopyAccess)
+		{
+			const ERHIAccess AnyCopyAccess = ERHIAccess::CopySrc | ERHIAccess::CopyDest;
+			if ((Texture->Desc.Format == PF_DepthStencil) && EnumHasAnyFlags(Access, AnyCopyAccess))
+			{
+				Range = Texture->GetSubresourceRange();  // WholeRange
+			}
+		}
+
 		const FRDGViewHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(TextureView);
 		const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(TextureView, Texture);
 
@@ -2715,6 +2725,63 @@ void FRDGBuilder::AddTransition(FRDGPassHandle PassHandle, FRDGTextureRef Textur
 	const FRDGTextureSubresourceRange WholeRange = Texture->GetSubresourceRange();
 	const FRDGTextureSubresourceLayout Layout = Texture->Layout;
 	FRDGTextureSubresourceState& StateBefore = Texture->GetState();
+
+
+	// Use the entire texture for copy states on RHI's that don't track them separately
+	if (!GRHISupportsSeparateDepthStencilCopyAccess)
+	{
+		if ((Texture->Desc.Format == PF_DepthStencil) && !IsWholeResource(StateAfter))
+		{
+			const ERHIAccess AnyCopyAccess = ERHIAccess::CopySrc | ERHIAccess::CopyDest;
+
+			uint32 TotalTransitionCount = 0;
+			uint32 CopyTransitionCount = 0;
+			WholeRange.EnumerateSubresources([&](FRDGTextureSubresource Subresource)
+			{
+				if (FRDGSubresourceState* SubresourceStateAfter = GetSubresource(StateAfter, Layout, Subresource))
+				{
+					++TotalTransitionCount;
+					if (EnumHasAnyFlags(SubresourceStateAfter->Access, AnyCopyAccess))
+					{
+						++CopyTransitionCount;
+					}
+				}
+			});
+
+			// Use a common FRDGSubresourceState to keep the transitions of depth/stencil together in the same pass
+			if ((CopyTransitionCount > 0) && !IsWholeResource(StateBefore))
+			{
+				checkf((CopyTransitionCount == TotalTransitionCount), TEXT("Depth/Stencil Copy transitions on this platform are supposed to touch all subresources."));
+
+				const FRDGTextureSubresource MaxSubresource = WholeRange.GetMaxSubresource();
+				const FRDGTextureSubresource MinSubresource = WholeRange.GetMinSubresource();
+
+				for (uint32 LocalArraySlice = MinSubresource.ArraySlice; LocalArraySlice < MaxSubresource.ArraySlice; ++LocalArraySlice)
+				{
+					for (uint32 LocalMipIndex = MinSubresource.MipIndex; LocalMipIndex < MaxSubresource.MipIndex; ++LocalMipIndex)
+					{
+						FRDGSubresourceState* LatestSubresourceStateBefore = nullptr;
+						for (uint32 LocalPlaneSlice = MinSubresource.PlaneSlice; LocalPlaneSlice < MaxSubresource.PlaneSlice; ++LocalPlaneSlice)
+						{
+							FRDGSubresourceState& OtherStateBefore = GetSubresource(StateBefore, Layout, FRDGTextureSubresource(LocalMipIndex, LocalArraySlice, LocalPlaneSlice));
+							if (LatestSubresourceStateBefore == nullptr)
+							{
+								LatestSubresourceStateBefore = &OtherStateBefore;
+							}
+							else if (LatestSubresourceStateBefore->GetLastPass() < OtherStateBefore.GetLastPass())
+							{
+								*LatestSubresourceStateBefore = OtherStateBefore;
+							}
+							else if (LatestSubresourceStateBefore->GetLastPass() > OtherStateBefore.GetLastPass())
+							{
+								OtherStateBefore = *LatestSubresourceStateBefore;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	const auto AddSubresourceTransition = [&] (
 		const FRDGSubresourceState& SubresourceStateBefore,
