@@ -32,6 +32,132 @@
 namespace UE::Virtualization
 {
 
+/** 
+ * Implementation of the IPayloadProvider interface so that payloads can be requested on demand
+ * when they are being virtualized.
+ * 
+ * This implementation is not optimized. If a package holds many payloads that are all virtualized
+ * we will end up loading the same trailer over and over, as well as opening the same package file
+ * for read many times.
+ * 
+ * So far this has shown to be a rounding error compared to the actual cost of virtualization 
+ * and so implementing any level of caching has been left as a future task.
+ */
+class FWorkspaceDomainPayloadProvider final : public IPayloadProvider
+{
+public: 
+	FWorkspaceDomainPayloadProvider() = default;
+	virtual ~FWorkspaceDomainPayloadProvider() = default;
+
+	/** Register the payload with it's trailer and package name so that we can access it later as needed */
+	void RegisterPayload(const FIoHash& PayloadId, uint64 SizeOnDisk, const FString& PackageName)
+	{
+		if (!PayloadId.IsZero())
+		{
+			PayloadLookupTable.Emplace(PayloadId, FPayloadData(SizeOnDisk, PackageName));
+		}
+	}
+
+private:
+	virtual FCompressedBuffer RequestPayload(const FIoHash& Identifier) override
+	{
+		if (Identifier.IsZero())
+		{
+			return FCompressedBuffer();
+		}
+
+		const FPayloadData* Data = PayloadLookupTable.Find(Identifier);
+		if (Data == nullptr)
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was unable to find a payload with the identifier '%s'"), 
+				*LexToString(Identifier));
+
+			return FCompressedBuffer();
+		}
+		
+		TUniquePtr<FArchive> PackageAr = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, *Data->PackageName);
+
+		if (!PackageAr.IsValid())
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was unable to open the package '%s' for reading"), 
+				*Data->PackageName);
+
+			return FCompressedBuffer();
+		}
+			
+		PackageAr->Seek(PackageAr->TotalSize());
+
+		FPackageTrailer Trailer;
+		if (!Trailer.TryLoadBackwards(*PackageAr))
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider failed to load the package trailer from the package '%s'"), 
+				*Data->PackageName);
+
+			return FCompressedBuffer();
+		}
+
+		FCompressedBuffer Payload = Trailer.LoadLocalPayload(Identifier, *PackageAr);
+		
+		if (!Payload)
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was uanble to load the payload '%s' from the package '%s'"),
+				*LexToString(Identifier),
+				*Data->PackageName);
+
+			return FCompressedBuffer();
+		}
+
+		if (Identifier != FIoHash(Payload.GetRawHash()))
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider loaded an incorrect payload from the package '%s'. Expected '%s' Loaded  '%s'"), 
+				*Data->PackageName,
+				*LexToString(Identifier),
+				*LexToString(Payload.GetRawHash()));
+
+			return FCompressedBuffer();
+		}
+
+		return Payload;
+	}
+
+	virtual uint64 GetPayloadSize(const FIoHash& Identifier) override
+	{
+		if (Identifier.IsZero())
+		{
+			return 0;
+		}
+
+		const FPayloadData* Data = PayloadLookupTable.Find(Identifier);
+		if (Data != nullptr)
+		{
+			return Data->SizeOnDisk;
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was unable to find a payload with the identifier '%s'"),
+				*LexToString(Identifier));
+
+			return 0;
+		}
+	}
+
+	/* This structure holds additional info about the payload that we might need later */
+	struct FPayloadData
+	{
+		FPayloadData(uint64 InSizeOnDisk, const FString& InPackageName)
+			: SizeOnDisk(InSizeOnDisk)
+			, PackageName(InPackageName)
+		{
+
+		}
+
+		uint64 SizeOnDisk;
+		FString PackageName;
+	};
+
+	TMap<FIoHash, FPayloadData> PayloadLookupTable;
+};
+
 /**
  * Check that the given package ends with PACKAGE_FILE_TAG. Intended to be used to make sure that
  * we have truncated a package correctly when removing the trailers.
@@ -269,10 +395,12 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 	// TODO Optimization: In theory we could have many packages sharing the same payload and we only need to push once
 	Progress.EnterProgressFrame(1.0f);
 
+	// Build up the info in the payload provider and the final array of payload push requests
+
+	FWorkspaceDomainPayloadProvider PayloadProvider;
 	TArray<Virtualization::FPushRequest> PayloadsToSubmit;
 	PayloadsToSubmit.Reserve(TotalPayloadsToVirtualize);
 
-	// Push any remaining local payload to the persistent backends
 	for (FPackageInfo& PackageInfo : Packages)
 	{
 		if (PackageInfo.LocalPayloads.IsEmpty())
@@ -280,50 +408,19 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 			continue;
 		}
 
-		TUniquePtr<FArchive> PackageAr = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackageInfo.Path.GetPackageName());
-
-		if (!PackageAr.IsValid())
-		{
-			FText Message = FText::Format(	LOCTEXT("Virtualization_PkgOpen", "Failed to open the package '{1}' for reading"),
-											FText::FromString(PackageInfo.Path.GetDebugName()));
-			OutErrors.Add(Message);
-			return;
-		}
-
 		PackageInfo.PayloadIndex = PayloadsToSubmit.Num();
 
 		for (const FIoHash& PayloadId : PackageInfo.LocalPayloads)
 		{
-			checkf(!PayloadId.IsZero(), TEXT("PackageTrailer for package '%s' should not contain invalid FIoHashs"), *PackageInfo.Path.GetDebugName());
-			
-			FCompressedBuffer Payload = PackageInfo.Trailer.LoadLocalPayload(PayloadId, *PackageAr);
+			const uint64 SizeOnDisk = PackageInfo.Trailer.FindPayloadSizeOnDisk(PayloadId);
 
-			if (PayloadId != FIoHash(Payload.GetRawHash()))
-			{
-				FText Message = FText::Format(	LOCTEXT("Virtualization_WrongPayload", "Package {0} loaded an incorrect payload from the trailer. Expected '{1}' Loaded  '{2}'"),
-												FText::FromString(PackageInfo.Path.GetDebugName()),
-												FText::FromString(LexToString(PayloadId)),
-												FText::FromString(LexToString(Payload.GetRawHash())));
-				OutErrors.Add(Message);
-				return;
-			}
-
-			if (!Payload)
-			{
-				FText Message = FText::Format(	LOCTEXT("Virtualization_MissingPayload", "Unable to find the payload '{0}' in the local storage of package '{1}'"),
-												FText::FromString(LexToString(PayloadId)),
-												FText::FromString(PackageInfo.Path.GetDebugName()));
-				OutErrors.Add(Message);
-				return;
-
-			}
-
-			PayloadsToSubmit.Emplace(PayloadId, MoveTemp(Payload), PackageInfo.Path.GetDebugName());
+			PayloadProvider.RegisterPayload(PayloadId, SizeOnDisk, PackageInfo.Path.GetPackageName());
+			PayloadsToSubmit.Emplace(PayloadId, PayloadProvider, PackageInfo.Path.GetPackageName());
 		}
 	}
 
 	Progress.EnterProgressFrame(1.0f);
-
+	// Push any remaining local payload to the persistent backends
 	if (!System.PushData(PayloadsToSubmit, EStorageType::Persistent))
 	{
 		FText Message = LOCTEXT("Virtualization_PushFailure", "Failed to push payloads");
@@ -334,7 +431,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 	int64 TotalPayloadsVirtualized = 0;
 	for (const Virtualization::FPushRequest& Request : PayloadsToSubmit)
 	{
-		TotalPayloadsVirtualized += Request.Status == FPushRequest::EStatus::Success ? 1 : 0;
+		TotalPayloadsVirtualized += Request.GetStatus() == FPushRequest::EStatus::Success ? 1 : 0;
 	}
 	UE_LOG(LogVirtualization, Display, TEXT("Pushed %" INT64_FMT " payload(s) to persistent virtualized storage"), TotalPayloadsVirtualized);
 
@@ -344,18 +441,18 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		for (int32 Index = 0; Index < PackageInfo.LocalPayloads.Num(); ++Index)
 		{
 			const Virtualization::FPushRequest& Request = PayloadsToSubmit[PackageInfo.PayloadIndex + Index];
-			check(Request.Identifier == PackageInfo.LocalPayloads[Index]);
+			check(Request.GetIdentifier() == PackageInfo.LocalPayloads[Index]);
 
-			if (Request.Status == Virtualization::FPushRequest::EStatus::Success)
+			if (Request.GetStatus() == Virtualization::FPushRequest::EStatus::Success)
 			{
-				if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(Request.Identifier))
+				if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(Request.GetIdentifier()))
 				{
 					PackageInfo.bWasTrailerUpdated = true;
 				}
 				else
 				{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
-													FText::FromString(LexToString(Request.Identifier)),
+													FText::FromString(LexToString(Request.GetIdentifier())),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
 					OutErrors.Add(Message);
 					return;

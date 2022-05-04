@@ -68,7 +68,41 @@ enum class FPayloadStatus : int8
 	FoundAll
 };
 
-/** Data structure representing a request to push a payload to a backend storage system */
+/** 
+ * This interface can be implemented and passed to a FPushRequest as a way of providing the payload 
+ * to the virtualization system for a push operation but deferring the loading of the payload from 
+ * disk until it is actually needed. In some cases this allows the loading of the payload to be 
+ * skipped entirely (if the payload is already in all backends for example) or can prevent memory
+ * spikes caused by loading a large number of payloads for a batched push request.
+ * 
+ * Note that if the backend graph contains multiple backends then payloads may be requested 
+ * multiple times. It will be up to the provider implementation to decide if a requested
+ * payload should be cached in case of future access or not. The methods are not const in order
+ * to make it easier for derived classes to cache the results if needed without the use of
+ * mutable.
+ */
+class IPayloadProvider
+{
+public:
+	IPayloadProvider() = default;
+	virtual ~IPayloadProvider() = default;
+
+	/** 
+	 * Should return the payload for the given FIoHash. If the provider fails to find the payload
+	 * then it should return a null FCompressedBuffer to indicate the error.
+	 */
+	virtual FCompressedBuffer RequestPayload(const FIoHash& Identifier) = 0;
+
+	/** Returns the current size of the payload on disk. */
+	virtual uint64 GetPayloadSize(const FIoHash& Identifier) = 0;
+};
+
+/** 
+ * Data structure representing a request to push a payload to a backend storage system. 
+ * Note that a request can either before for payload already in memory (in which case the
+ * payload should be passed into the constructor as a FCompressedBuffer) or by a 
+ * IPayloadProvider which will provide the payload on demand.
+*/
 struct FPushRequest
 {
 	enum class EStatus
@@ -85,6 +119,16 @@ struct FPushRequest
 		Success
 	};
 
+	FPushRequest() = delete;
+	~FPushRequest() = default;
+
+	/** 
+	 * Create a request for a payload already in memory 
+	 *
+	 * @param InIdentifier	The hash of the payload in its uncompressed form
+	 * @param InPayload		The payload, this can be in any compressed format that the caller wishes.
+	 * @param InContext		Content showing where the payload came from. If it comes from a package then this should be the package path
+	 */
 	FPushRequest(const FIoHash& InIdentifier, const FCompressedBuffer& InPayload, const FString& InContext)
 		: Identifier(InIdentifier)
 		, Payload(InPayload)
@@ -93,6 +137,13 @@ struct FPushRequest
 
 	}
 
+	/**
+	 * Create a request for a payload already in memory
+	 *
+	 * @param InIdentifier	The hash of the payload in its uncompressed form
+	 * @param InPayload		The payload, this can be in any compressed format that the caller wishes.
+	 * @param InContext		Content showing where the payload came from. If it comes from a package then this should be the package path
+	 */
 	FPushRequest(const FIoHash& InIdentifier, FCompressedBuffer&& InPayload, FString&& InContext)
 		: Identifier(InIdentifier)
 		, Payload(InPayload)
@@ -101,10 +152,81 @@ struct FPushRequest
 
 	}
 
+	/**
+	 * Create a request for a payload to be loaded on demand
+	 *
+	 * @param InIdentifier	The hash of the payload in its uncompressed form
+	 * @param InProvider	The provider that will load the payload when requested. The providers lifespan must exceed that of the FPushRequest
+	 * @param InContext		Content showing where the payload came from. If it comes from a package then this should be the package path
+	 */
+	FPushRequest(const FIoHash& InIdentifier, IPayloadProvider& InProvider, FString&& InContext)
+		: Identifier(InIdentifier)
+		, Provider(&InProvider)
+		, Context(InContext)
+	{
+
+	}
+
+	/** Return the identifer used in the request */
+	FIoHash GetIdentifier() const
+	{
+		return Identifier;
+	}
+
+	/** Returns the current status of the request */
+	EStatus GetStatus() const
+	{
+		return Status;
+	}
+
+	/** Returns the size of the payload when it was on disk */
+	uint64 GetPayloadSize() const
+	{
+		if (Provider != nullptr)
+		{
+			return Provider->GetPayloadSize(Identifier);
+		}
+		else
+		{
+			return Payload.GetCompressedSize();
+		}
+	}
+	
+	/** Returns the payload */
+	FCompressedBuffer GetPayload() const
+	{
+		if (Provider != nullptr)
+		{
+			return Provider->RequestPayload(Identifier);
+		}
+		else
+		{
+			return Payload;
+		}
+	}
+
+	/** Returns the context of the payload */
+	const FString& GetContext() const
+	{
+		return Context;
+	}
+
+	/** Allows the status of the request to be set, this should only be done by the virtualization backends */
+	void SetStatus(EStatus InStatus)
+	{
+		Status = InStatus;
+	}
+
+private:
 	/** The identifier of the payload */
 	FIoHash Identifier;
+
 	/** The payload data */
 	FCompressedBuffer Payload;
+
+	/** Provider to retrieve the payload from */
+	IPayloadProvider* Provider = nullptr;
+
 	/** A string containing context for the payload, typically a package name */
 	FString Context;
 

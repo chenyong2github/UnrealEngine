@@ -176,7 +176,7 @@ static void CreateDescription(const FString& ProjectName, const TArray<const FPu
 
 	for (const FPushRequest* Request : FileRequests)
 	{
-		if (!Request->Context.IsEmpty())
+		if (!Request->GetContext().IsEmpty())
 		{
 			if (!bInitialNewline)
 			{
@@ -184,7 +184,7 @@ static void CreateDescription(const FString& ProjectName, const TArray<const FPu
 				bInitialNewline = true;
 			}
 
-			OutDescription << TEXT("\n") << Request->Identifier << "\t: " << Request->Context;
+			OutDescription << TEXT("\n") << Request->GetIdentifier() << "\t: " << Request->GetContext();
 		}
 	}
 }
@@ -437,12 +437,23 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		for (const FPushRequest& Request : Requests)
 		{
 			TStringBuilder<52> LocalPayloadPath;
-			Utils::PayloadIdToPath(Request.Identifier, LocalPayloadPath);
+			Utils::PayloadIdToPath(Request.GetIdentifier(), LocalPayloadPath);
 
 			TStringBuilder<260> PayloadFilePath;
 			FPathViews::Append(PayloadFilePath, SessionDirectory, LocalPayloadPath);
 
 			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Writing payload to '%s' for submission"), *GetDebugName(), PayloadFilePath.ToString());
+
+			FCompressedBuffer Payload = Request.GetPayload();
+			if (Payload.IsNull())
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to acquire payload '%s' contents to '%s' for writing"),
+					*GetDebugName(),
+					*LexToString(Request.GetIdentifier()),
+					PayloadFilePath.ToString());
+
+				return false;
+			}
 
 			TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(PayloadFilePath.ToString()));
 			if (!FileAr)
@@ -452,14 +463,14 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
 					*GetDebugName(),
-					*LexToString(Request.Identifier),
+					*LexToString(Request.GetIdentifier()),
 					PayloadFilePath.ToString(),
 					SystemErrorMsg.ToString());
 
 				return false;
 			}
 
-			Request.Payload.Save(*FileAr);
+			Payload.Save(*FileAr);
 
 			if (!FileAr->Close())
 			{
@@ -468,7 +479,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
 					*GetDebugName(),
-					*LexToString(Request.Identifier),
+					*LexToString(Request.GetIdentifier()),
 					*PayloadFilePath,
 					SystemErrorMsg.
 					ToString());
@@ -578,7 +589,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		{
 			// TODO: Maybe check if the data is the same (could be different if the compression algorithm has changed)
 			// TODO: Should we respect if the file is deleted as technically we can still get access to it?
-			Requests[Index].Status = FPushRequest::EStatus::Success;
+			Requests[Index].SetStatus(FPushRequest::EStatus::Success);
 		}
 		else if (FileStates[Index]->CanAdd())
 		{
@@ -630,7 +641,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 	// TODO: We really should be setting a more fine grain status for each request, or not bother with the status at all
 	for (FPushRequest& Request : Requests)
 	{
-		Request.Status = FPushRequest::EStatus::Success;
+		Request.SetStatus(FPushRequest::EStatus::Success);
 	}
 
 	return true;

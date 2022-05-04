@@ -363,31 +363,31 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		OriginalToValidatedRequest[Index] = INDEX_NONE;
 
 		FPushRequest& Request = Requests[Index];
-		if (Request.Identifier.IsZero() || Request.Payload.GetCompressedSize() == 0)
+		if (Request.GetIdentifier().IsZero() || Request.GetPayloadSize() == 0)
 		{
-			Request.Status = FPushRequest::EStatus::Invalid;
+			Request.SetStatus(FPushRequest::EStatus::Invalid);
 			continue;
 		}
 
-		if ((int64)Request.Payload.GetCompressedSize() < MinPayloadLength)
+		if ((int64)Request.GetPayloadSize() < MinPayloadLength)
 		{
 			UE_LOG(	LogVirtualization, Verbose, TEXT("Pushing payload (id: %s) with context ('%s') was prevented as it is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
-					*LexToString(Request.Identifier),
-					*Request.Context,
-					Request.Payload.GetCompressedSize(),
+					*LexToString(Request.GetIdentifier()),
+					*Request.GetContext(),
+					Request.GetPayloadSize(),
 					MinPayloadLength);
 
-			Request.Status = FPushRequest::EStatus::BelowMinSize;
+			Request.SetStatus(FPushRequest::EStatus::BelowMinSize);
 			continue;
 		}
 
-		if (!ShouldVirtualize(Request.Context))
+		if (!ShouldVirtualize(Request.GetContext()))
 		{
 			UE_LOG(	LogVirtualization, Verbose, TEXT("Pushing payload (id: %s) with context ('%s') was prevented by filtering"),
-					*LexToString(Request.Identifier), 
-					*Request.Context);
+					*LexToString(Request.GetIdentifier()), 
+					*Request.GetContext());
 			
-			Request.Status = FPushRequest::EStatus::ExcludedByPackagPath;
+			Request.SetStatus(FPushRequest::EStatus::ExcludedByPackagPath);
 			continue;
 		}
 
@@ -434,11 +434,11 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		{
 			for (FPushRequest& Request : ValidatedRequests)
 			{
-				FCompressedBuffer ValidationPayload = PullDataFromBackend(*Backend, Request.Identifier);
-				checkf(	Request.Payload.GetRawHash() == ValidationPayload.GetRawHash(),
+				FCompressedBuffer ValidationPayload = PullDataFromBackend(*Backend, Request.GetIdentifier());
+				checkf(	Request.GetIdentifier() == ValidationPayload.GetRawHash(),
 						TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"),
 						*Backend->GetDebugName(),
-						*LexToString(Request.Identifier));
+						*LexToString(Request.GetIdentifier()));
 			}
 		}
 	}
@@ -451,7 +451,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		const int32 MappingIndex = OriginalToValidatedRequest[Index];
 		if (MappingIndex != INDEX_NONE)
 		{
-			Requests[Index].Status = ValidatedRequests[MappingIndex].Status;
+			Requests[Index].SetStatus(ValidatedRequests[MappingIndex].GetStatus());
 		}
 	}
 
@@ -1201,10 +1201,10 @@ bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backen
 		for (const FPushRequest& Request : Requests)
 		{
 			// TODO: Don't add a hit if the payload was already uploaded
-			if (Request.Status == FPushRequest::EStatus::Success)
+			if (Request.GetStatus() == FPushRequest::EStatus::Success)
 			{
 				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread);	
-				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, Request.Payload.GetCompressedSize(), bIsInGameThread);
+				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, Request.GetPayloadSize(), bIsInGameThread);
 			}
 		}
 	}

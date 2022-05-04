@@ -95,21 +95,21 @@ public:
 		// TODO: Improve the error codes in the future
 		for (FPushRequest& Request : Requests)
 		{
-			EPushResult Result = PushData(Request.Identifier, Request.Payload, Request.Context);
+			EPushResult Result = PushData(Request.GetIdentifier(), Request.GetPayload(), Request.GetContext());
 			switch (Result)
 			{
 			case EPushResult::Failed:
-				Request.Status = FPushRequest::EStatus::Failed;
+				Request.SetStatus(FPushRequest::EStatus::Failed);
 				return false;
 
 			case EPushResult::PayloadAlreadyExisted:
 				// falls through
 			case EPushResult::Success:
-				Request.Status = FPushRequest::EStatus::Success;
+				Request.SetStatus(FPushRequest::EStatus::Success);
 				break;
 
 			default:
-				Request.Status = FPushRequest::EStatus::Failed;
+				Request.SetStatus(FPushRequest::EStatus::Failed);
 				checkNoEntry();
 				break;
 			}
