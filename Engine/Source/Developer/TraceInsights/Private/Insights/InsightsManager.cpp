@@ -1144,9 +1144,11 @@ bool FInsightsManager::HandleResponseFileCmd(const TCHAR* ResponseFile, FOutputD
 		if (EndOfLine > 0)
 		{
 			const uint32 LineLen = uint32(CrtPos - StartPos);
-			StartPos[LineLen] = TEXT('\0');
-
-			TraceInsightsModule.Exec(StartPos, Ar);
+			if (LineLen > 0 && *StartPos != TEXT('#'))
+			{
+				StartPos[LineLen] = TEXT('\0');
+				TraceInsightsModule.Exec(StartPos, Ar);
+			}
 
 			CrtPos += EndOfLine;
 			StartPos = CrtPos;
@@ -1155,6 +1157,12 @@ bool FInsightsManager::HandleResponseFileCmd(const TCHAR* ResponseFile, FOutputD
 		{
 			++CrtPos;
 		}
+	}
+	const uint32 LineLen = uint32(CrtPos - StartPos);
+	if (LineLen > 0 && *StartPos != TEXT('#'))
+	{
+		StartPos[LineLen] = TEXT('\0');
+		TraceInsightsModule.Exec(StartPos, Ar);
 	}
 
 	return true;

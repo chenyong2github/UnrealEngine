@@ -140,6 +140,7 @@ int32 FTimingExporter::ExportThreadsAsText(const FString& Filename, FExportThrea
 		StringBuilder.Append(UTF8TEXT("GPU"));
 		StringBuilder.AppendChar(LineEnd);
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+		++ThreadCount;
 
 		StringBuilder.Reset();
 		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu2ThreadId);
@@ -149,6 +150,7 @@ int32 FTimingExporter::ExportThreadsAsText(const FString& Filename, FExportThrea
 		StringBuilder.Append(UTF8TEXT("GPU"));
 		StringBuilder.AppendChar(LineEnd);
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+		++ThreadCount;
 
 		// Iterate the CPU threads.
 		{
