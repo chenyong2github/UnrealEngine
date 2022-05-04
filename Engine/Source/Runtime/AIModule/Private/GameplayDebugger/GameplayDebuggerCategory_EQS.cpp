@@ -107,6 +107,7 @@ FDebugRenderSceneProxy* FGameplayDebuggerCategory_EQS::CreateDebugSceneProxy(con
 		FEQSSceneProxy* EQSSceneProxy = new FEQSSceneProxy(*InComponent, ViewFlagName, QueryData.SolidSpheres, QueryData.Texts);
 
 		auto* OutDelegateHelper2 = new FEQSRenderingDebugDrawDelegateHelper();
+		OutDelegateHelper2->SetupFromProxy(EQSSceneProxy);
 		OutDelegateHelper2->InitDelegateHelper(EQSSceneProxy);
 		OutDelegateHelper = OutDelegateHelper2;
 
