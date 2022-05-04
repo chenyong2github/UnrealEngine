@@ -244,7 +244,7 @@ void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (all(DispatchThreadId == 0))
 	{
 		const uint TileCount = TileDrawIndirectDataBuffer[0].x;
-		const uint DispatchX = min(TileCount, OverflowTileCount.x);
+		const uint DispatchX = min(TileCount, uint(OverflowTileCount.x));
 		const uint DispatchY = DivideAndRoundUp(TileCount, OverflowTileCount.x);
 
 		TileDispatchIndirectDataBuffer[0] = DispatchX;

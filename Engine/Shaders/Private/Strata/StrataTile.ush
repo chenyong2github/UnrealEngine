@@ -113,7 +113,6 @@ FStrataBSDFOffset UnpackBSDFOffset(uint In, uint InBSDFCount)
 		Out.BSDFCount = min(InBSDFCount, STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET);
 		Out.BSDFOffsets[0] = (In & 0x7);
 
-		FStrataBSDFOffset Out = (FStrataBSDFOffset)0;
 		UNROLL_N(STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET)
 		for (uint i = 1; i < Out.BSDFCount; i++)
 		{
