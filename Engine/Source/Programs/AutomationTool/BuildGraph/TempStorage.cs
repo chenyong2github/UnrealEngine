@@ -1459,11 +1459,27 @@ namespace AutomationTool
 			CommandUtils.LogInformation("Found {0} builds; {1} to delete.", NumBuilds, BuildsToDelete.Count);
 
 			// Loop through them all, checking for files older than the delete time
-			for (int Idx = 0; Idx < BuildsToDelete.Count; Idx++)
+			int Idx = BuildsToDelete.Count;
+			while (Idx-- > 0)
 			{
 				try
 				{
-					CommandUtils.LogInformation("[{0}/{1}] Deleting {2}...", Idx + 1, BuildsToDelete.Count, BuildsToDelete[Idx].FullName);
+					// Done if something already cleaned up this folder.
+					if (!BuildsToDelete[Idx].Exists)
+					{
+						continue;
+					}
+
+					// Check if there is a marker file, if so skip this folder unless it has been twenty minutes.
+					FileInfo DeleteInProgressFile = BuildsToDelete[Idx].GetFiles("DeleteInProgress.tmp").FirstOrDefault();
+					if (DeleteInProgressFile != null && DeleteInProgressFile.LastWriteTimeUtc < (DateTimeOffset.UtcNow - TimeSpan.FromMinutes(20)))
+					{
+						CommandUtils.LogInformation("[{0}/{1}] {2} flagged as delete in progress, skipping...", BuildsToDelete.Count - Idx, BuildsToDelete.Count, BuildsToDelete[Idx].FullName);
+						continue;
+					}
+
+					File.WriteAllBytes(Path.Combine(BuildsToDelete[Idx].FullName, "DeleteInProgress.tmp"), Array.Empty<byte>());
+					CommandUtils.LogInformation("[{0}/{1}] Deleting {2}...", BuildsToDelete.Count - Idx, BuildsToDelete.Count, BuildsToDelete[Idx].FullName);
 					BuildsToDelete[Idx].Delete(true);
 				}
 				catch (Exception Ex)
