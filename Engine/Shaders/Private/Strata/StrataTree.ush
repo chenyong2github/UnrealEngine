@@ -218,6 +218,10 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.VerticalTop_ThroughputAlongV		= OpA.ThroughputAlongV;
 		Op.VerticalTop_TransmittanceAlongN	= OpA.TransmittanceAlongN;
 
+		Op.VerticalBot_Coverage				= OpB.Coverage;
+		Op.VerticalBot_ThroughputAlongV		= OpB.ThroughputAlongV;
+		Op.VerticalBot_TransmittanceAlongN	= OpB.TransmittanceAlongN;
+
 		// Project top lob through bottom layer assuming medium have same IOR.
 		{
 			const float TopDownInterfaceEta = 1.0f;
@@ -370,6 +374,7 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
 	CurrentBSDF.LuminanceWeightV		*= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_ThroughputAlongV;
 	CurrentBSDF.TransmittanceAboveAlongN*= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_TransmittanceAlongN;
+	CurrentBSDF.TransmittanceBelowAlongN*= PreviousIsInputA ==0 ? 1.0f : saturate(1.0f - Op.VerticalBot_Coverage) + saturate(Op.VerticalBot_Coverage) * Op.VerticalBot_TransmittanceAlongN;
 
 	// If the BSDF is from the bottom, we reduce its contribution according to the top layer coverage only.
 	CurrentBSDF.TopLayerDataWeight *= PreviousIsInputA ? 1.0 : saturate(1.0f - Op.VerticalTop_Coverage);

@@ -648,6 +648,11 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Print(Context, BSDF.TransmittanceAboveAlongN.g, FontLightGreen, 5, 2);
 			Print(Context, BSDF.TransmittanceAboveAlongN.b, FontLightBlue, 5, 2);
 			Newline(Context);
+			Print(Context, TEXT("BotTrans = "), BSDFFont);
+			Print(Context, BSDF.TransmittanceBelowAlongN.r, FontLightRed, 5, 2);
+			Print(Context, BSDF.TransmittanceBelowAlongN.g, FontLightGreen, 5, 2);
+			Print(Context, BSDF.TransmittanceBelowAlongN.b, FontLightBlue, 5, 2);
+			Newline(Context);
 			Print(Context, TEXT("Diffuse  = "), BSDFFont);
 			const float3 BSDFDiffuse = StrataGetBSDFDiffuseColor(BSDF);
 			Print(Context, BSDFDiffuse.r, FontLightRed, 5, 2);
@@ -864,6 +869,7 @@ void EvaluateLighting(
 	// Patch the BSDF to appear as a top layer
 	BSDF.LuminanceWeightV = 1.0f;
 	BSDF.TransmittanceAboveAlongN = 1.0f;
+	BSDF.TransmittanceBelowAlongN = 1.0f;
 	BSDF.bIsBottom = true;
 	BSDF.bIsTop = true;
 	BSDF.Coverage = 1.0f;

@@ -100,8 +100,8 @@ struct FStrataBSDF
 	int					OperatorIndex;
 	float3				LuminanceWeightV;
 
-	float3				TransmittanceAboveAlongN;	// The transmittance towards the top of the material along the normal ignoring this BSDF, e.g. only accumulating matter above it.
-//	float3				TransmittanceBelow;			// TODO
+	float3				TransmittanceAboveAlongN;	// The transmittance towards the top of the material along the normal and ignoring this BSDF, e.g. only accumulating matter above it.
+	float3				TransmittanceBelowAlongN;	// The transmittance towards the bottom of the material along the normal and ignoring this BSDF, e.g. only accumulating matter below it.
 
 	int					bIsBottom;
 	int					bIsTop;
@@ -747,6 +747,10 @@ struct FStrataOperator
 	float3 VerticalTop_ThroughputAlongV;				// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree, and towards the view).
 	float3 VerticalTop_TransmittanceAlongN;				// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree, and along the normal of the surface).
 
+	float  VerticalBot_Coverage;						// Analoguous to VerticalTop_ data but for the bottom layer.
+	float3 VerticalBot_ThroughputAlongV;				// Idem.
+	float3 VerticalBot_TransmittanceAlongN;				// Idem.
+
 	// Rough refraction
 	float3				 TopDownRefractionWorldNormal;	// The normal used for the single refracted direction
 	FStrataLobeStatistic TopDownRefractionLobeStat;		// The lobe used for the scene rough refraction from front to back, e.g. used for translucent rough refraciton
@@ -828,6 +832,7 @@ void StrataPackOutStrataTree(
 		WRITE_INT(StrataTree.BSDFs[i].OperatorIndex);
 		WRITE_FLOAT3(StrataTree.BSDFs[i].LuminanceWeightV);
 		WRITE_FLOAT3(StrataTree.BSDFs[i].TransmittanceAboveAlongN);
+		WRITE_FLOAT3(StrataTree.BSDFs[i].TransmittanceBelowAlongN);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsBottom);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsTop);
 
@@ -915,7 +920,7 @@ FStrataBSDF StrataUnpackInStrataTreeBSDF(
 	inout FStrataTreeHeader StrataTreeHeader,
 	in int SliceStoringDebugStrataTree)
 {
-	int OutCoord = BSDFIndex * (STRATA_INLINE_SHADING ? 39 : 30);		// Skip BSDFs
+	int OutCoord = BSDFIndex * (STRATA_INLINE_SHADING ? 42 : 33);		// Skip BSDFs
 	int OutCoordY= 1;
 
 	FStrataBSDF BSDF = (FStrataBSDF)0;
@@ -924,6 +929,7 @@ FStrataBSDF StrataUnpackInStrataTreeBSDF(
 	READ_INT(BSDF.OperatorIndex);
 	READ_FLOAT3(BSDF.LuminanceWeightV);
 	READ_FLOAT3(BSDF.TransmittanceAboveAlongN);
+	READ_FLOAT3(BSDF.TransmittanceBelowAlongN);
 	READ_UINT(BSDF.bIsBottom);
 	READ_UINT(BSDF.bIsTop);
 
