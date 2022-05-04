@@ -274,12 +274,12 @@ public:
 
 	float At(int I, int J, int K) const
 	{
-		return Grid.At(I, J, K);
+		return Grid.GetValue(I, J, K);
 	}
 
 	float operator[](const FVector3i& Idx) const
 	{
-		return Grid[Idx];
+		return Grid.GetValue(Idx);
 	}
 
 	FVector3f CellCenter(int I, int J, int K) const
@@ -289,7 +289,7 @@ public:
 
 	float GetValue(FVector3i Idx) const // TTriLinearGridInterpolant interface 
 	{
-		return Grid[Idx];
+		return Grid.GetValue(Idx);
 	}
 
 private:

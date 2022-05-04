@@ -130,7 +130,7 @@ public:
 
 		if (bEnableValueCaching)
 		{
-			BlockedCornerValuesGrid = FBlockedDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
+			BlockedCornerValuesGrid.Reset(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
 		}
 		InitHashTables();
 		ResetMesh();
@@ -170,11 +170,11 @@ public:
 		{
 			if (bEnableValueCaching)
 			{
-				BlockedCornerValuesGrid = FBlockedDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
+				BlockedCornerValuesGrid.Reset(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
 			}
 			if (bParallelCompute)
 			{
-				BlockedDoneCells = FBlockedDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
+				BlockedDoneCells.Reset(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
 			}
 		}
 		else
@@ -605,7 +605,7 @@ protected:
 		FGridCell Cell;
 		int vertTArray[12];
 
-		BlockedDoneCells = FBlockedDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
+		BlockedDoneCells.Reset(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
 
 		TArray<FVector3i> stack;
 

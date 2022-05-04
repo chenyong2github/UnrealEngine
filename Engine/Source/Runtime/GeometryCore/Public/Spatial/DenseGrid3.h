@@ -117,6 +117,65 @@ public:
 	}
 
 
+
+	/**
+	* @return the grid value at (X,Y,Z)
+	*/
+	ElemType GetValue(int32 X, int32 Y, int32 Z) const
+	{
+		return Buffer[X + Dimensions.X * (Y + Dimensions.Y * Z)];
+	}
+
+	/**
+	* @return the grid value at (X,Y,Z)
+	*/
+	ElemType GetValue(const FVector3i& CellCoords) const
+	{
+		return Buffer[CellCoords.X + Dimensions.X * (CellCoords.Y + Dimensions.Y * CellCoords.Z)];
+	}
+
+	/**
+	* Set the grid value at (X,Y,Z)
+	*/
+	void SetValue(int32 X, int32 Y, int32 Z, ElemType NewValue)
+	{
+		Buffer[X + Dimensions.X * (Y + Dimensions.Y * Z)] = NewValue;
+	}
+
+	/**
+	* Set the grid value at (X,Y,Z)
+	*/
+	void SetValue(const FVector3i& CellCoords, ElemType NewValue)
+	{
+		Buffer[CellCoords.X + Dimensions.X * (CellCoords.Y + Dimensions.Y * CellCoords.Z)] = NewValue;
+	}
+
+	/**
+	* Call an external lambda with a reference to the grid value at (X,Y,Z).
+	* Called as Func(ElemType&), so the caller can both read and write the grid cell
+	*/
+	template<typename ProcessFunc>
+	void ProcessValue(int32 X, int32 Y, int32 Z, ProcessFunc Func)
+	{
+		int32 Index = X + Dimensions.X * (Y + Dimensions.Y * Z);
+		ElemType& CurValue = Buffer[Index];
+		Func(CurValue);
+	}
+
+	/**
+	* Call an external lambda with a reference to the grid value at (X,Y,Z).
+	* Called as Func(ElemType&), so the caller can both read and write the grid cell
+	*/
+	template<typename ProcessFunc>
+	void ProcessValue(const FVector3i& CellCoords, ProcessFunc Func)
+	{
+		int32 Index = CellCoords.X + Dimensions.X * (CellCoords.Y + Dimensions.Y * CellCoords.Z);
+		ElemType& CurValue = Buffer[Index];
+		Func(CurValue);
+	}
+
+
+
 	void GetXPair(int X0, int Y, int Z, ElemType& AOut, ElemType& BOut) const
 	{
 		int Offset = Dimensions.X * (Y + Dimensions.Y * Z);
