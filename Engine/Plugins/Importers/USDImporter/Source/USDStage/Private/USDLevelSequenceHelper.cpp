@@ -364,8 +364,8 @@ private:
 	static const TCHAR* TimeTrackName;
 	static const double EmptySubSectionRange; // How many frames should an empty subsection cover, only needed so that the subsection is visible and the user can edit it
 
-	TWeakObjectPtr<AUsdStageActor> StageActor;
-	UUsdAssetCache* AssetCache;  // We keep a pointer to this directly because we may be called via the USDStageImporter directly, when we don't have an available actor
+	TWeakObjectPtr<AUsdStageActor> StageActor = nullptr;
+	UUsdAssetCache* AssetCache = nullptr;  // We keep a pointer to this directly because we may be called via the USDStageImporter directly, when we don't have an available actor
 	FGuid StageActorBinding;
 
 	// Only when this is zero we write LevelSequence object (tracks, moviescene, sections, etc.) transactions back to the USD stage
