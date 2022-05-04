@@ -6,9 +6,8 @@
 #include "ConcertFrontendStyle.h"
 #include "ConcertServerStyle.h"
 #include "ConcertSyncServerLoopInitArgs.h"
-#include "ModalWindowManager.h"
-
-#include "Widgets/ConcertServerWindowController.h"
+#include "Window/ModalWindowManager.h"
+#include "Window/ConcertServerWindowController.h"
 
 #include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"

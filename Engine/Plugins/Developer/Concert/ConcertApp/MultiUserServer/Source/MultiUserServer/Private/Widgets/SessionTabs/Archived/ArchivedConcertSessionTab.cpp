@@ -4,8 +4,8 @@
 
 #include "ArchivedSessionHistoryController.h"
 #include "ConcertLogGlobal.h"
-#include "ModalWindowManager.h"
 #include "MultiUserServerModule.h"
+#include "Window/ModalWindowManager.h"
 
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"

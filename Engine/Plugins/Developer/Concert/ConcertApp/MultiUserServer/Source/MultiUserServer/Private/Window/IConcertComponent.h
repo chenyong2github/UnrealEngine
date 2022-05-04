@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Docking/TabManager.h"
 
 class FConcertServerWindowController;
 class IConcertSyncServer;
@@ -15,9 +16,13 @@ struct FConcertComponentInitParams
 	/** Manages the server slate application */
 	TSharedRef<FConcertServerWindowController> WindowController;
 
-	FConcertComponentInitParams(TSharedRef<IConcertSyncServer> Server, TSharedRef<FConcertServerWindowController> WindowController)
+	/** The root area of the main window layout. Add tabs to this. */
+	TSharedRef<FTabManager::FArea> MainWindowArea;
+
+	FConcertComponentInitParams(TSharedRef<IConcertSyncServer> Server, TSharedRef<FConcertServerWindowController> WindowController, TSharedRef<FTabManager::FArea> MainWindowArea)
 		: Server(MoveTemp(Server))
 		, WindowController(MoveTemp(WindowController))
+		, MainWindowArea(MoveTemp(MainWindowArea))
 	{}
 };
 

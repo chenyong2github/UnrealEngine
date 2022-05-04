@@ -8,14 +8,13 @@
 #include "IConcertSyncServer.h"
 #include "Framework/Docking/TabManager.h"
 #include "SConcertServerSessionBrowser.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Session/Browser/ConcertSessionItem.h"
 #include "Textures/SlateIcon.h"
-#include "Widgets/ConcertServerTabs.h"
-#include "Widgets/ConcertServerWindowController.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Window/ConcertServerTabs.h"
+#include "Window/ConcertServerWindowController.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
@@ -37,13 +36,20 @@ void FConcertServerSessionBrowserController::Init(const FConcertComponentInitPar
 {
 	ServerInstance = Params.Server;
 	Owner = Params.WindowController;
+	
 	FGlobalTabmanager::Get()->RegisterTabSpawner(
 			ConcertServerTabs::GetSessionBrowserTabId(),
 			FOnSpawnTab::CreateRaw(this, &FConcertServerSessionBrowserController::SpawnSessionBrowserTab)
 		)
 		.SetDisplayName(LOCTEXT("SessionBrowserTabTitle", "Session Browser"))
 		.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "A section to browse, start, archive, and restore server sessions."))
-		.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.MultiUser")));
+		.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.MultiUser"))
+	);
+	Params.MainWindowArea->Split(
+		FTabManager::NewStack()
+			->AddTab(ConcertServerTabs::GetSessionBrowserTabId(), ETabState::OpenedTab)
+			->SetForegroundTab(ConcertServerTabs::GetSessionBrowserTabId())
+		);
 
 	ConcertServerEvents::OnLiveSessionCreated().AddSP(this, &FConcertServerSessionBrowserController::OnLiveSessionCreated);
 	ConcertServerEvents::OnLiveSessionDestroyed().AddSP(this, &FConcertServerSessionBrowserController::OnLiveSessionDestroyed);

@@ -4,7 +4,7 @@
 
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
-#include "Widgets/ConcertServerTabs.h"
+#include "Window/ConcertServerTabs.h"
 
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"

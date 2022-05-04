@@ -3,13 +3,11 @@
 #include "ConcertServerWindowController.h"
 
 #include "ConcertServerEvents.h"
-
-#include "Browser/ConcertServerSessionBrowserController.h"
-#include "ConcertServerTabs.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
-#include "SessionTabs/Archived/ArchivedConcertSessionTab.h"
-#include "SessionTabs/Live/LiveConcertSessionTab.h"
+#include "Widgets/Browser//ConcertServerSessionBrowserController.h"
+#include "Widgets/SessionTabs/Archived/ArchivedConcertSessionTab.h"
+#include "Widgets/SessionTabs/Live/LiveConcertSessionTab.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
@@ -38,8 +36,6 @@ FConcertServerWindowController::~FConcertServerWindowController()
 
 TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 {
-	InitComponents();
-
 	FDisplayMetrics DisplayMetrics;
 	FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
@@ -63,19 +59,12 @@ TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 	FSlateApplication::Get().AddWindow(RootWindowRef, bShowRootWindowImmediately);
 	FGlobalTabmanager::Get()->SetRootWindow(RootWindowRef);
 	FGlobalTabmanager::Get()->SetAllowWindowMenuBar(true);
-
 	FSlateNotificationManager::Get().SetRootWindow(RootWindowRef);
+	
 	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealMultiUserServerLayout_v1.0");
-	DefaultLayout->AddArea
-	(
-		FTabManager::NewPrimaryArea()
-		->Split
-		(
-			FTabManager::NewStack()
-				->AddTab(ConcertServerTabs::GetSessionBrowserTabId(), ETabState::OpenedTab)
-				->SetForegroundTab(ConcertServerTabs::GetSessionBrowserTabId())
-		)
-	);
+	TSharedRef<FTabManager::FArea> MainWindowArea = FTabManager::NewPrimaryArea();
+	InitComponents(MainWindowArea);
+	DefaultLayout->AddArea(MainWindowArea);
 	
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(MultiUserServerLayoutIni, DefaultLayout);
 	TSharedPtr<SWidget> Content = FGlobalTabmanager::Get()->RestoreFrom(PersistentLayout.ToSharedRef(), RootWindow, bEmbedTitleAreaContent, EOutputCanBeNullptr::Never);
@@ -129,9 +118,9 @@ TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegister
 	return nullptr;
 }
 
-void FConcertServerWindowController::InitComponents()
+void FConcertServerWindowController::InitComponents(const TSharedRef<FTabManager::FArea>& MainArea)
 {
-	const FConcertComponentInitParams Params { ServerInstance.ToSharedRef(), SharedThis(this) };
+	const FConcertComponentInitParams Params { ServerInstance.ToSharedRef(), SharedThis(this), MainArea };
 	SessionBrowserController->Init(Params);
 }
 

@@ -2,19 +2,19 @@
 
 #include "SConcertServerSessionBrowser.h"
 
-#include "ModalWindowManager.h"
 #include "MultiUserServerModule.h"
 #include "MultiUserServerUserSettings.h"
-
-#include "Dialog/SMessageDialog.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
 #include "Session/Browser/SConcertSessionBrowser.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
-#include "Widgets/ConcertServerTabs.h"
+#include "Widgets/StatusBar/SConcertStatusBar.h"
+#include "Window/ConcertServerTabs.h"
+#include "Window/ModalWindowManager.h"
+
+#include "Dialog/SMessageDialog.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

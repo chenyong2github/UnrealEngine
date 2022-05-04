@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
 
+class IConcertComponent;
 class IConcertServer;
 class FConcertSessionTabBase;
 class FLiveConcertSessionTab;
@@ -21,6 +22,9 @@ struct FConcertServerWindowInitParams
 	
 	/** Config path for server layout ini */
 	FString MultiUserServerLayoutIni;
+	
+	/** Additional modular concert features to enable */
+	TArray<TSharedRef<IConcertComponent>> AdditionalConcertComponents;
 	
 	FConcertServerWindowInitParams(TSharedRef<IConcertSyncServer> Server, FString MultiUserServerLayoutIni = FString())
 		: Server(Server)
@@ -59,7 +63,7 @@ private:
 	/** Manages the session browser */
 	TSharedPtr<FConcertServerSessionBrowserController> SessionBrowserController;
 	
-	void InitComponents();
+	void InitComponents(const TSharedRef<FTabManager::FArea>& MainArea);
 
 	/** Gets the manager for a session tab if the session ID is valid */
 	TSharedPtr<FConcertSessionTabBase> GetOrRegisterSessionTab(const FGuid& SessionId);

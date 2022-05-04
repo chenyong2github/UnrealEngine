@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Session/Browser/IConcertSessionBrowserController.h"
-#include "Widgets/IConcertComponent.h"
+#include "Window/IConcertComponent.h"
 
 class IConcertServerSession;
 class IConcertServer;
