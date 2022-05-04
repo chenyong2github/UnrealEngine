@@ -2585,7 +2585,7 @@ FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& Dra
 
 			if(ParentKey.IsValid())
 			{
-				Controller->SetParent(DraggedKey, ParentKey, true, true);
+				Controller->SetParent(DraggedKey, ParentKey, true, true, true);
 			}
 			else
 			{

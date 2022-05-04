@@ -1362,11 +1362,12 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 TArray<FString> URigHierarchyController::GeneratePythonCommands()
 {
 	TArray<FString> Commands;
-	Hierarchy->ForEach([&](FRigBaseElement* Element) -> bool
+	Hierarchy->Traverse([&](FRigBaseElement* Element, bool& bContinue)
 	{
 		Commands.Append(GetAddElementPythonCommands(Element));
 		
-		return true;
+		bContinue = true;
+		return;
 	});
 
 	return Commands;
