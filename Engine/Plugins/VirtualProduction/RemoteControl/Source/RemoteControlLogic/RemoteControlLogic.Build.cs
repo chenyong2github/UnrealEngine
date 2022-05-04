@@ -2,17 +2,14 @@
 
 using UnrealBuildTool;
 
-public class RemoteControl : ModuleRules
+public class RemoteControlLogic : ModuleRules
 {
-	public RemoteControl(ReadOnlyTargetRules Target) : base(Target)
+	public RemoteControlLogic(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"RemoteControlCommon",
-				"StructUtils"
 			}
 		);
 
@@ -20,23 +17,16 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Cbor",
 				"Engine",
-				"RemoteControlInterception",
-				"Serialization"
+				"RemoteControl",
+				"Serialization",
+				"StructUtils"
 			}
 		);
-
+		
 		if (Target.bBuildEditor)
 		{
-			PublicDependencyModuleNames.AddRange(
-				new string[] {
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"AssetTools",
-					"DeveloperSettings",
-					"MessageLog",
 					"UnrealEd",
 				}
 			);

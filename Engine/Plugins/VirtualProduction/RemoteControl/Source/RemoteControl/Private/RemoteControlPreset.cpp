@@ -10,6 +10,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "IRemoteControlModule.h"
+#include "RCVirtualPropertyContainer.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ITransaction.h"
 #include "Misc/Optional.h"
@@ -34,6 +35,7 @@
 #endif
 
 URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPostLoadRemoteControlPreset;
+URemoteControlPreset::FOnPostInitPropertiesRemoteControlPreset URemoteControlPreset::OnPostInitPropertiesRemoteControlPreset;
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset"
 
@@ -662,6 +664,8 @@ void URemoteControlPreset::PostInitProperties()
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		RegisterDelegates();
+
+		OnPostInitPropertiesRemoteControlPreset.Broadcast(this);
 	}
 }
 

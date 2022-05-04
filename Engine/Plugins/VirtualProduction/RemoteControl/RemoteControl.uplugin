@@ -14,18 +14,27 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"Plugins": [
-		{
+		{ 
 			"Name": "WebSocketNetworking",
 			"Enabled": true
 		},
 		{
 			"Name": "RemoteControlInterception",
 			"Enabled": true
+		},
+		{
+			"Name": "StructUtils",
+			"Enabled": true
 		}
 	],
 	"Modules": [
 		{
 			"Name": "RemoteControl",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RemoteControlLogic",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},

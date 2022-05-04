@@ -12,6 +12,7 @@
 
 #include "RemoteControlPreset.generated.h"
 
+class URCVirtualPropertyContainerBase;
 class AActor;
 class IStructSerializerBackend;
 class IStructDeserializerBackend;
@@ -452,6 +453,10 @@ public:
 	/** Callback for post remote control preset load, called by URemoteControlPreset::PostLoad function */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostLoadRemoteControlPreset, URemoteControlPreset* /* InPreset */);
 	static FOnPostLoadRemoteControlPreset OnPostLoadRemoteControlPreset;
+
+	/** Callback for post init properties of remote control preset, called by URemoteControlPreset::PostInitProperties function */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostInitPropertiesRemoteControlPreset, URemoteControlPreset* /* InPreset */);
+	static FOnPostInitPropertiesRemoteControlPreset OnPostInitPropertiesRemoteControlPreset;
 	
 	URemoteControlPreset();
 
@@ -806,6 +811,10 @@ public:
 	/** This preset's list of objects that are exposed or that have exposed fields. */
 	UPROPERTY(EditAnywhere, Category = "Remote Control Preset")
 	TArray<URemoteControlBinding*> Bindings;
+
+	/** Holds virtual controllers properties, behaviours and actions */
+	UPROPERTY(Instanced)
+	TObjectPtr<URCVirtualPropertyContainerBase> ControllerContainer;
 
 private:
 	/** Generate a unique alias for this target. */
