@@ -1423,6 +1423,19 @@ void UEngine::TickPerformanceMonitoring(float DeltaSeconds)
 		{
 			Consumer->ProcessFrame(FrameData);
 		}
+
+#if CSV_PROFILER && CSV_PROFILER_USE_CUSTOM_FRAME_TIMINGS
+		// When custom timings are enabled and there are data consumers then
+		// UFortEngine::TickCSVProfilerFrameTimings() expects the data consumer
+		// code to handle EndFrame / BeginFrame calls. We do this after the
+		// ProcessFrame calls for deterministic behavior and to handle the case
+		// where none of the consumers call EndFrame / BeginFrame.
+		// If CSV_PROFILER_USE_CUSTOM_FRAME_TIMINGS isn't set, then
+		// Csv EndFrame is handled by FCoreDelegates::OnBegin/EndFrame calls in
+		// the FCsvProfiler constructor.
+		FCsvProfiler::Get()->EndFrame();
+		FCsvProfiler::Get()->BeginFrame();
+#endif
 	}
 }
 
@@ -1437,6 +1450,8 @@ void UEngine::AddPerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer> Co
 	}
 
 	Consumer->StartCharting();
+
+	UE_LOG(LogChartCreation, Verbose, TEXT("AddPerformanceDataConsumer DataConsumers Count:%d"), ActivePerformanceDataConsumers.Num());
 }
 
 void UEngine::RemovePerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer> Consumer)
@@ -1449,6 +1464,8 @@ void UEngine::RemovePerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer>
 	{
 		GPerformanceTrackingSystem.StopCharting();
 	}
+
+	UE_LOG(LogChartCreation, Verbose, TEXT("RemovePerformanceDataConsumer DataConsumers Count:%d"), ActivePerformanceDataConsumers.Num());
 }
 
 

@@ -2927,6 +2927,8 @@ void FCsvProfiler::EndFrame()
 			}
 			else
 			{
+				UE_LOG(LogCsvProfiler, Display, TEXT("Capture Stop requested"));
+
 				// signal external profiler that we are done
 				OnCSVProfileEndDelegate.Broadcast();
 
