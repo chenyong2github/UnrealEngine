@@ -52,10 +52,10 @@ class ENGINE_API URectLightComponent : public ULocalLightComponent
 	TObjectPtr<class UTexture> SourceTexture;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetSourceTexture(UTexture* bNewValue);
+	void SetSourceTexture(UTexture* NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetSourceWidth(float bNewValue);
+	void SetSourceWidth(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetSourceHeight(float NewValue);
