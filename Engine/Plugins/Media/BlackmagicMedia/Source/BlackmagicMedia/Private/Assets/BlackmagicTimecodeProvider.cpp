@@ -184,7 +184,7 @@ bool UBlackmagicTimecodeProvider::Initialize(class UEngine* InEngine)
 	ChannelInfo.DeviceIndex = MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
 
 	check(EventCallback == nullptr);
-	EventCallback = new BlackmagicTimecodeProviderHelpers::FEventCallback(ChannelInfo, GetFrameRate());
+	EventCallback = new BlackmagicTimecodeProviderHelpers::FEventCallback(ChannelInfo, MediaConfiguration.MediaMode.FrameRate);
 
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
 	ChannelOptions.CallbackPriority = 5;
