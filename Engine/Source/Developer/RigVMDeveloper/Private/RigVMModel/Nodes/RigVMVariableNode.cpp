@@ -40,6 +40,11 @@ bool URigVMVariableNode::IsGetter() const
 	return ValuePin->GetDirection() == ERigVMPinDirection::Output;
 }
 
+bool URigVMVariableNode::IsExternalVariable() const
+{
+	return !IsLocalVariable() && !IsInputArgument();
+}
+
 bool URigVMVariableNode::IsLocalVariable() const
 {
 	const FName CurrentVariableName = GetVariableName();

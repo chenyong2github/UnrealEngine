@@ -261,18 +261,8 @@ TArray<FRigVMExternalVariable> URigVMGraph::GetExternalVariables() const
 		}
 		else if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 		{
-			// Make sure it is not a local variable
-			bool bFoundLocalVariable = false;
-			for (FRigVMGraphVariableDescription& LocalVariable : Node->GetGraph()->LocalVariables)
-			{
-				if (LocalVariable.Name == VariableNode->GetVariableName())
-				{
-					bFoundLocalVariable = true;
-					break;
-				}
-			}
-
-			if (!bFoundLocalVariable)
+			// Make sure it is not a local variable or input argument
+			if (VariableNode->IsExternalVariable())
 			{
 				FRigVMExternalVariable::MergeExternalVariable(Variables, VariableNode->GetVariableDescription().ToExternalVariable());
 			}

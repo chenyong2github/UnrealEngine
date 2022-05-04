@@ -34,6 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMVariableNode)
 	bool IsGetter() const;
 
+	// Returns true if this variable is an external variable
+	UFUNCTION(BlueprintCallable, Category = RigVMVariableNode)
+	bool IsExternalVariable() const;
+
 	// Returns true if this variable is a local variable
 	UFUNCTION(BlueprintCallable, Category = RigVMVariableNode)
 	bool IsLocalVariable() const;
