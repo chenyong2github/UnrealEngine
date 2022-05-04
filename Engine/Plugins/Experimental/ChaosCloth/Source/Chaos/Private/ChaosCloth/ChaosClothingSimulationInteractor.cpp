@@ -81,11 +81,11 @@ void UChaosClothingInteractor::SetBackstop(bool bEnabled)
 		Cloth->SetBackstopProperties(bEnabled);
 	}));
 }
-void UChaosClothingInteractor::SetDamping(float DampingCoefficient)
+void UChaosClothingInteractor::SetDamping(float DampingCoefficient, float LocalDampingCoefficient)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DampingCoefficient](Chaos::FClothingSimulationCloth* Cloth)
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DampingCoefficient, LocalDampingCoefficient](Chaos::FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetDampingProperties(DampingCoefficient);
+		Cloth->SetDampingProperties(DampingCoefficient, LocalDampingCoefficient);
 	}));
 }
 

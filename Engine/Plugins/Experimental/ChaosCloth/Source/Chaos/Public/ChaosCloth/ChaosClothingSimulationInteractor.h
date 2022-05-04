@@ -43,7 +43,7 @@ public:
 	void SetBackstop(bool bEnabled = true);
 
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation, Meta = (Keywords = "Chaos Coefficient"))
-	void SetDamping(float DampingCoefficient = 0.01f);
+	void SetDamping(float DampingCoefficient = 0.01f, float LocalDampingCoefficient = 0.f);
 
 	// Deprecated. This function cannot set different Low and High values for the Drag and Lift weight maps. Use SetWind instead.
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation, Meta = (Keywords = "Chaos Wind Drag Lift Coefficient"))
