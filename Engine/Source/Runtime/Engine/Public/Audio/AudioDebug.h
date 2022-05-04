@@ -19,8 +19,24 @@ class FSoundSource;
 class USoundWave;
 class UWorld;
 
+
 namespace Audio
 {
+	namespace DebugStatNames
+	{
+		ENGINE_API extern const FName SoundWaves;
+		ENGINE_API extern const FName SoundCues;
+		ENGINE_API extern const FName Sounds;
+		ENGINE_API extern const FName SoundMixes;
+		ENGINE_API extern const FName SoundModulation;
+		ENGINE_API extern const FName SoundReverb;
+		ENGINE_API extern const FName AudioStreaming;
+
+		// TODO: Move to console variables
+		ENGINE_API extern const FName DebugSounds;
+		ENGINE_API extern const FName LongSoundNames;
+	}
+
 	class ENGINE_API FAudioDebugger
 	{
 	public:
@@ -58,6 +74,7 @@ namespace Audio
 		static int32 RenderStatReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
 		static int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
 		static int32 RenderStatWaves(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
+		static int32 RenderStatStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 		static void RemoveDevice(const FAudioDevice& AudioDevice);
 		static void ResolveDesiredStats(FViewportClient* ViewportClient);
 		static void SendUpdateResultsToGameThread(const FAudioDevice& AudioDevice, const int32 FirstActiveIndex);
@@ -68,8 +85,8 @@ namespace Audio
 		static bool ToggleStatWaves(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		static void UpdateAudibleInactiveSounds(const uint32 FirstIndex, const TArray<FWaveInstance*>& WaveInstances);
 		static void LogSubtitle(const TCHAR* InCmd, USoundWave& InSoundWave);
-		static void ClearStats(const uint32 StatsToToggle, UWorld* InWorld);
-		static void SetStats(const uint32 StatsToToggle, UWorld* InWorld);
+		static void ClearStats(const FName StatsToToggle, UWorld* InWorld);
+		static void SetStats(const TSet<FName>& StatsToToggle, UWorld* InWorld);
 
 		void ClearMutesAndSolos();
 		void DumpActiveSounds() const;
@@ -125,9 +142,9 @@ namespace Audio
 			const FString& Name, const TArray<FName>& Solos, const TArray<FName>& Mutes,
 			bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
 
-		void ClearStats(FDeviceId DeviceId, const uint32 StatsToClear);
+		void ClearStats(FDeviceId DeviceId, FName StatsToClear);
 
-		void SetStats(FDeviceId DeviceId, const uint32 StatsToSet);
+		void SetStats(FDeviceId DeviceId, const TSet<FName>& StatsToSet);
 
 		static bool ToggleStats(UWorld* World, const uint32 StatToToggle);
 		void ToggleStats(FDeviceId DeviceId, const uint32 StatsToToggle);
