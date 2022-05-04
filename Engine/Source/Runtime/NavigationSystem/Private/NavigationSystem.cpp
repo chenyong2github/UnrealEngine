@@ -2421,24 +2421,9 @@ void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink
 		UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), LinkId);
 		CustomLink.UpdateLinkId(LinkId);
 
-		UObject* CustomLinkOb = CustomLink.GetLinkOwner();
-		UActorComponent* OwnerComp = Cast<UActorComponent>(CustomLinkOb);
-		AActor* OwnerActor = OwnerComp ? OwnerComp->GetOwner() : Cast<AActor>(CustomLinkOb);
-
-		if (OwnerActor)
+		const FBox LinkBounds = ComputeCustomLinkBounds(CustomLink);
+		if (LinkBounds.IsValid)
 		{
-			ENavLinkDirection::Type DummyDir = ENavLinkDirection::BothWays;
-			FVector RelativePtA, RelativePtB;
-			CustomLink.GetLinkData(RelativePtA, RelativePtB, DummyDir);
-
-			const FTransform OwnerActorTM = OwnerActor->GetTransform();
-			const FVector WorldPtA = OwnerActorTM.TransformPosition(RelativePtA);
-			const FVector WorldPtB = OwnerActorTM.TransformPosition(RelativePtB);
-
-			FBox LinkBounds(ForceInitToZero);
-			LinkBounds += WorldPtA;
-			LinkBounds += WorldPtB;
-
 			AddDirtyArea(LinkBounds, FNavigationOctreeController::OctreeUpdate_Modifiers);
 		}
 	}
@@ -2495,6 +2480,29 @@ void UNavigationSystemV1::RequestCustomLinkUnregistering(INavLinkCustomInterface
 		FScopeLock AccessLock(&CustomLinkRegistrationSection);
 		PendingCustomLinkRegistration.Remove(&CustomLink);
 	}
+}
+
+FBox UNavigationSystemV1::ComputeCustomLinkBounds(const INavLinkCustomInterface& CustomLink)
+{
+	const UObject* CustomLinkOb = CustomLink.GetLinkOwner();
+	const UActorComponent* OwnerComp = Cast<UActorComponent>(CustomLinkOb);
+	const AActor* OwnerActor = OwnerComp ? OwnerComp->GetOwner() : Cast<AActor>(CustomLinkOb);
+
+	FBox LinkBounds(ForceInitToZero);
+	if (OwnerActor)
+	{
+		ENavLinkDirection::Type DummyDir = ENavLinkDirection::BothWays;
+		FVector RelativePtA, RelativePtB;
+		CustomLink.GetLinkData(RelativePtA, RelativePtB, DummyDir);
+
+		const FTransform OwnerActorTM = OwnerActor->GetTransform();
+		const FVector WorldPtA = OwnerActorTM.TransformPosition(RelativePtA);
+		const FVector WorldPtB = OwnerActorTM.TransformPosition(RelativePtB);
+
+		LinkBounds += WorldPtA;
+		LinkBounds += WorldPtB;
+	}
+	return LinkBounds;
 }
 
 void UNavigationSystemV1::RequestAreaUnregistering(UClass* NavAreaClass)

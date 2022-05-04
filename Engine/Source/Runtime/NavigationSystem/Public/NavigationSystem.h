@@ -809,6 +809,9 @@ public:
 	/** updates custom link for all active navigation data instances */
 	void UpdateCustomLink(const INavLinkCustomInterface* CustomLink);
 
+	/** Return a Bounding Box containing the navlink points */
+	static FBox ComputeCustomLinkBounds(const INavLinkCustomInterface& CustomLink);
+
 	//----------------------------------------------------------------------//
 	// Areas
 	//----------------------------------------------------------------------//
