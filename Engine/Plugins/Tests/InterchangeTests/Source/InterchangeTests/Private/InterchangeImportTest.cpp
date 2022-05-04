@@ -128,7 +128,7 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 	const bool bDeleteRecursively = true;
 	IFileManager::Get().DeleteDirectory(*BaseFilePath, bRequireExists, bDeleteRecursively);
 
-	TArray<UE::Interchange::FAssetImportResultPtr> Results;
+	TArray<TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResultPtr>> Results;
 
 	int32 StepIndex = 0;
 	bool bFoundValidSteps = true;
@@ -172,9 +172,14 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 
 			for (int32 PlanIndex = 0; PlanIndex < TestPlans.Num(); PlanIndex++)
 			{
-				if (Results[PlanIndex])
+				if (Results[PlanIndex].Get<0>())
 				{
-					Results[PlanIndex]->WaitUntilDone();
+					Results[PlanIndex].Get<0>()->WaitUntilDone();
+				}
+
+				if (Results[PlanIndex].Get<1>())
+				{
+					Results[PlanIndex].Get<1>()->WaitUntilDone();
 				}
 			}
 
@@ -193,24 +198,44 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 
 						// Fill out list of result objects in the data object.
 						// These are the UObject* results corresponding to imported assets.
-						for (UObject* ImportedObject : Results[PlanIndex]->GetImportedObjects())
+						if (Results[PlanIndex].Get<0>())
 						{
-							Data.ResultObjects.AddUnique(ImportedObject);
+							for (UObject* ImportedObject : Results[PlanIndex].Get<0>()->GetImportedObjects())
+							{
+								Data.ResultObjects.AddUnique(ImportedObject);
+							}
+
+							// Also add the InterchangeResultsContainer to the data so that tests can be run on it
+							// (e.g. to check whether something imported with a specific expected error)
+							Data.InterchangeResults = Results[PlanIndex].Get<0>()->GetResults();
+
+							// Fill out list of imported assets as FAssetData
+							for (UObject* Object : Results[PlanIndex].Get<0>()->GetImportedObjects())
+							{
+								Data.ImportedAssets.Emplace(Object);
+							}
 						}
 
-						// Also add the InterchangeResultsContainer to the data so that tests can be run on it
-						// (e.g. to check whether something imported with a specific expected error)
-						Data.InterchangeResults = Results[PlanIndex]->GetResults();
-
-						// Fill out list of imported assets as FAssetData
-						for (UObject* Object : Results[PlanIndex]->GetImportedObjects())
+						if (Results[PlanIndex].Get<1>())
 						{
-							Data.ImportedAssets.Emplace(Object);
+							for (UObject* ImportedObject : Results[PlanIndex].Get<1>()->GetImportedObjects())
+							{
+								Data.ResultObjects.AddUnique(ImportedObject);
+							}
+
+							if (Data.InterchangeResults)
+							{
+								Data.InterchangeResults->Append(Results[PlanIndex].Get<1>()->GetResults());
+							}
+							else
+							{
+								Data.InterchangeResults = Results[PlanIndex].Get<1>()->GetResults();
+							}
 						}
 
 						// We don't need the Interchange results object any more, as we've already taken everything from it that we need.
 						// If we don't reset it, it will hold on to the trashed versions of the imported assets during GC.
-						Results[PlanIndex].Reset();
+						Results[PlanIndex] = {};
 
 						Data.TestPlan->Steps[StepIndex]->FinishStep(Data, ExecutionInfo);
 
@@ -254,10 +279,23 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 	TArray<UObject*> ObjectsToDelete;
 	for (FInterchangeImportTestData& Data : TestPlans)
 	{
-		ObjectsToDelete.Append(Data.ResultObjects);
+		ObjectsToDelete.Reserve(ObjectsToDelete.Max() + Data.ResultObjects.Num());
+
+		for (UObject* ResultObject : Data.ResultObjects)
+		{
+			if (AActor* Actor = Cast<AActor>(ResultObject))
+			{
+				constexpr bool bShouldModifyLevel = false;
+				Actor->GetWorld()->RemoveActor(Actor, bShouldModifyLevel);
+			}
+			else
+			{
+				ObjectsToDelete.Add(ResultObject);
+			}
+		}
 	}
 
-	bool bShowConfirmation = false;
+	constexpr bool bShowConfirmation = false;
 	ObjectTools::ForceDeleteObjects(ObjectsToDelete, bShowConfirmation);
 
 	return bSuccess;

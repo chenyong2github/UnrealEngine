@@ -6,7 +6,7 @@
 #include "UObject/SavePackage.h"
 
 
-UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepReimport::StartStep(FInterchangeImportTestData& Data)
+TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResultPtr> UInterchangeImportTestStepReimport::StartStep(FInterchangeImportTestData& Data)
 {
 	// Find the object we wish to reimport
 	TArray<UObject*> PotentialObjectsToReimport;
@@ -40,7 +40,7 @@ UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepReimport::Start
 
 	if (AssetToReimport == nullptr)
 	{
-		return UE::Interchange::FAssetImportResultPtr();
+		return {nullptr, nullptr};
 	}
 
 	// Start the Interchange import
@@ -51,7 +51,8 @@ UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepReimport::Start
 	Params.ReimportAsset = AssetToReimport;
 
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-	return InterchangeManager.ImportAssetAsync(Data.DestAssetPackagePath, ScopedSourceData.GetSourceData(), Params);
+	UE::Interchange::FAssetImportResultPtr AssetImportResult = InterchangeManager.ImportAssetAsync(Data.DestAssetPackagePath, ScopedSourceData.GetSourceData(), Params);
+	return {AssetImportResult, nullptr};
 }
 
 

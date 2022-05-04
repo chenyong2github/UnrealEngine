@@ -9,7 +9,7 @@
 #include "Editor.h"
 
 
-UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepImport::StartStep(FInterchangeImportTestData& Data)
+TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResultPtr> UInterchangeImportTestStepImport::StartStep(FInterchangeImportTestData& Data)
 {
 	// Empty the destination folder here if requested
 	if (bEmptyDestinationFolderPriorToImport)
@@ -35,7 +35,16 @@ UE::Interchange::FAssetImportResultPtr UInterchangeImportTestStepImport::StartSt
 	Params.bIsAutomated = true;
 
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-	return InterchangeManager.ImportAssetAsync(Data.DestAssetPackagePath, ScopedSourceData.GetSourceData(), Params);
+
+	if (bImportIntoLevel)
+	{
+		return InterchangeManager.ImportSceneAsync(Data.DestAssetPackagePath, ScopedSourceData.GetSourceData(), Params);
+	}
+	else
+	{
+		UE::Interchange::FAssetImportResultPtr AssetImportResult = InterchangeManager.ImportAssetAsync(Data.DestAssetPackagePath, ScopedSourceData.GetSourceData(), Params);
+		return {AssetImportResult, nullptr};
+	}
 }
 
 
@@ -44,7 +53,8 @@ FTestStepResults UInterchangeImportTestStepImport::FinishStep(FInterchangeImport
 	FTestStepResults Results;
 
 	// If we need to perform a save and fresh reload of everything we imported, do it here
-	if (bSaveThenReloadImportedAssets)
+	// Incompatible with bImportIntoLevel for now, since we'd need to patch all references to the assets
+	if (bSaveThenReloadImportedAssets && !bImportIntoLevel)
 	{
 		// First save
 		for (const FAssetData& AssetData : Data.ImportedAssets)

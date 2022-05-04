@@ -29,12 +29,17 @@ public:
 	bool bEmptyDestinationFolderPriorToImport = true;
 
 	/** Whether imported assets should be saved and freshly reloaded after import */
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General, Meta=(EditCondition="!bImportIntoLevel"))
 	bool bSaveThenReloadImportedAssets = true;
+
+	/** Whether we should use the import into level workflow */
+	UPROPERTY(EditAnywhere, Category = General)
+	bool bImportIntoLevel = false;
 
 public:
 	// UInterchangeImportTestStepBase interface
-	virtual UE::Interchange::FAssetImportResultPtr StartStep(FInterchangeImportTestData& Data) override;
+	virtual TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResultPtr>
+		StartStep(FInterchangeImportTestData& Data) override;
 	virtual FTestStepResults FinishStep(FInterchangeImportTestData& Data, FAutomationTestExecutionInfo& ExecutionInfo) override;
 	virtual FString GetContextString() const override;
 };
