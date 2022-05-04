@@ -656,7 +656,6 @@ void FRDGBuilder::UseInternalAccessMode(FRDGViewableResource* Resource)
 	}
 
 	AccessModeState.Mode = FRDGViewableResource::EAccessMode::Internal;
-	Resource->EpilogueAccess = FRDGViewableResource::DefaultEpilogueAccess;
 }
 
 void FRDGBuilder::FlushAccessModeQueue()
