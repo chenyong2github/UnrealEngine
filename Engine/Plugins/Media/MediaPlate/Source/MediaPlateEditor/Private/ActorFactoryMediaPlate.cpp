@@ -61,7 +61,11 @@ void UActorFactoryMediaPlate::SetUpActor(UObject* Asset, AActor* Actor)
 			UMediaPlaylist* Playlist = MediaPlate->MediaPlateComponent->MediaPlaylist;
 			if (Playlist != nullptr)
 			{
-				Playlist->Add(MediaSource);
+				// This gets called twice so only add the media source once.
+				if (Playlist->Num() == 0)
+				{
+					Playlist->Add(MediaSource);
+				}
 			}
 		}
 	}
