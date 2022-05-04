@@ -640,15 +640,6 @@ void TraceVoxels(
 			else
 #endif
 			{
-#if TRACE_DISTANT_SCENE
-				if (TraceResult.Transparency > .01f)
-				{
-					FConeTraceResult DistantTraceResult;
-					ConeTraceLumenDistantScene(TraceInput, DistantTraceResult);
-					TraceResult.Lighting += DistantTraceResult.Lighting * TraceResult.Transparency;
-					TraceResult.Transparency *= DistantTraceResult.Transparency;
-				}
-#endif
 				if (TraceResult.Transparency > .5f)
 				{
 					TraceHitDistance = MaxTraceDistance;

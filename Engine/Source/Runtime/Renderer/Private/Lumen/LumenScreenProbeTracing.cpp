@@ -263,8 +263,26 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
 	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FStructuredImportanceSampling, FHairStrands, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
 
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		// FOffsetDataStructure is only used for mesh SDFs
+		if (!PermutationVector.Get<FTraceMeshSDFs>())
+		{
+			PermutationVector.Set<FOffsetDataStructure>(0);
+		}
+
+		return PermutationVector;
+	}
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (RemapPermutation(PermutationVector) != PermutationVector)
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
@@ -299,13 +317,11 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
-	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
-	class FTraceDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
 	class FTraceVoxels : SHADER_PERMUTATION_BOOL("TRACE_VOXELS");
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FDynamicSkyLight, FTraceDistantScene, FRadianceCache, FStructuredImportanceSampling, FHairStrands, FTraceVoxels>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FRadianceCache, FStructuredImportanceSampling, FHairStrands, FTraceVoxels>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -642,6 +658,7 @@ void TraceScreenProbes(
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(bTraceHeightfields);
 				extern int32 GDistanceFieldOffsetDataStructure;
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
+				PermutationVector = FScreenProbeTraceMeshSDFsCS::RemapPermutation(PermutationVector);
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(
@@ -682,8 +699,6 @@ void TraceScreenProbes(
 
 		FScreenProbeTraceVoxelsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FThreadGroupSize32 >(Lumen::UseThreadGroupSize32());
-		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
-		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FRadianceCache >(bRadianceCache);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FHairStrands>(bNeedTraceHairVoxel);

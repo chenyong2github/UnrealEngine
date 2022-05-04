@@ -179,8 +179,26 @@ class FMeshSDFObjectCullPS : public FGlobalShader
 	
 	using FPermutationDomain = TShaderPermutationDomain<FCullToFroxelGrid, FCullMeshTypeSDF, FCullMeshTypeHeightfield, FOffsetDataStructure>;
 
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		// FOffsetDataStructure is only used for mesh SDFs
+		if (!PermutationVector.Get<FCullMeshTypeSDF>())
+		{
+			PermutationVector.Set<FOffsetDataStructure>(0);
+		}
+
+		return PermutationVector;
+	}
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (RemapPermutation(PermutationVector) != PermutationVector)
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 };
@@ -916,6 +934,7 @@ void CullObjectsToGrid(
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
 	extern int32 GDistanceFieldOffsetDataStructure;
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
+	PermutationVectorPS = FMeshSDFObjectCullPS::RemapPermutation(PermutationVectorPS);
 	auto PixelShader = View.ShaderMap->GetShader<FMeshSDFObjectCullPS>(PermutationVectorPS);
 
 	ClearUnusedGraphResources(VertexShader, &PassParameters->VS);

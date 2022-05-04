@@ -306,8 +306,26 @@ class FReflectionTraceMeshSDFsCS : public FGlobalShader
 	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
 	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FHairStrands, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
 
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		// FOffsetDataStructure is only used for mesh SDFs
+		if (!PermutationVector.Get<FTraceMeshSDFs>())
+		{
+			PermutationVector.Set<FOffsetDataStructure>(0);
+		}
+
+		return PermutationVector;
+	}
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (RemapPermutation(PermutationVector) != PermutationVector)
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
@@ -732,6 +750,7 @@ void TraceReflections(
 					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceHeightfields >(bTraceHeightfields);
 					extern int32 GDistanceFieldOffsetDataStructure;
 					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
+					PermutationVector = FReflectionTraceMeshSDFsCS::RemapPermutation(PermutationVector);
 					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(
