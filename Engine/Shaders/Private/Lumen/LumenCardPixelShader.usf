@@ -66,7 +66,7 @@ void Main(
 	const float3 L = MaterialParameters.WorldNormal;
 
 	float3 DiffuseColor  = 0;
-	float  SpecularColor = 0;
+	float3 SpecularColor = 0;
 	float3 WorldNormal   = 0;
 	float3 Emissive      = 0;
 	float TotalCoverage  = 1.f;
