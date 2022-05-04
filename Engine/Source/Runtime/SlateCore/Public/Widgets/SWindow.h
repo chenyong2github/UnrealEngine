@@ -94,7 +94,7 @@ enum class ESizingRule : uint8
 namespace SWindowDefs
 {
 	/** Height of a Slate window title bar, in pixels */
-	static const float DefaultTitleBarSize = 24.0f;
+	static const float DefaultTitleBarSize = 34.0f;
 }
 
 /** Proxy structure to handle deprecated construction from bool */
