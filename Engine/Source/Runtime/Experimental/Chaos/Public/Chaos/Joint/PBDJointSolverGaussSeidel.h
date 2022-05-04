@@ -183,7 +183,7 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void SetInvMassScales(
+		void SetShockPropagationScales(
 			const FReal InvMScale0, 
 			const FReal InvMScale1);
 

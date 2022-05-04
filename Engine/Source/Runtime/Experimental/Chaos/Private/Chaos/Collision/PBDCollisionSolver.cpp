@@ -93,17 +93,17 @@ namespace Chaos
 			bool bInvMassUpdated = false;
 			if (Body0.Level() < Body1.Level())
 			{
-				if (Body0.InvMScale() != InvMassScale)
+				if (Body0.ShockPropagationScale() != InvMassScale)
 				{
-					Body0.SetInvMScale(InvMassScale);
+					Body0.SetShockPropagationScale(InvMassScale);
 					bInvMassUpdated = true;
 				}
 			}
 			else
 			{
-				if (Body1.InvMScale() != InvMassScale)
+				if (Body1.ShockPropagationScale() != InvMassScale)
 				{
-					Body1.SetInvMScale(InvMassScale);
+					Body1.SetShockPropagationScale(InvMassScale);
 					bInvMassUpdated = true;
 				}
 			}

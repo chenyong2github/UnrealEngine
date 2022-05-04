@@ -205,11 +205,10 @@ namespace Chaos
 			State.Stiffness = InStiffness;
 		}
 
-		void SetSolverBodies(FSolverBody* SolverBody0, FSolverBody* SolverBody1)
+		void SetSolverBodies(FSolverBody& SolverBody0, FSolverBody& SolverBody1)
 		{
-			// @todo(chaos): change FConstraintSolverBody to take a pointer because it supports null
-			State.SolverBodies[0] = (SolverBody0 != nullptr) ? FConstraintSolverBody(*SolverBody0) : FConstraintSolverBody();
-			State.SolverBodies[1] = (SolverBody1 != nullptr) ? FConstraintSolverBody(*SolverBody1) : FConstraintSolverBody();
+			State.SolverBodies[0] = FConstraintSolverBody(SolverBody0);
+			State.SolverBodies[1] = FConstraintSolverBody(SolverBody1);
 		}
 
 		void ResetSolverBodies()

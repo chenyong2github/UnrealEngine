@@ -232,7 +232,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDJointSolver::SetInvMassScales(const FReal InvMScale0, const FReal InvMScale1)
+	void FPBDJointSolver::SetShockPropagationScales(const FReal InvMScale0, const FReal InvMScale1)
 	{
 		if (InvMScales[0] != InvMScale0)
 		{

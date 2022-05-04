@@ -175,7 +175,7 @@ namespace Chaos
 				Body1->SetX(PosBody1);
 				check(Body1->InvM() == 0);
 
-				Solver->SetSolverBodies(Body0, Body1);
+				Solver->SetSolverBodies(*Body0, *Body1);
 				Solver->SetNumManifoldPoints(1);
 				Solver->SetFriction(0, 0, 0);
 
@@ -230,7 +230,7 @@ namespace Chaos
 			}
 
 			ConstraintSolverBodies[ConstraintIndex] = nullptr;
-			CollisionSolvers[ConstraintIndex]->SetSolverBodies(nullptr, nullptr);
+			CollisionSolvers[ConstraintIndex]->ResetSolverBodies();
 		}
 	}
 

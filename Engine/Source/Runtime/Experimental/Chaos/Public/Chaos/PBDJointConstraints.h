@@ -317,8 +317,6 @@ namespace Chaos
 		void ApplyBreakThreshold(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse);
 		void ApplyPlasticityLimits(const int32 ConstraintIndex);
 
-		void UpdateConstraintProjection(const int32 It, const int32 NumIts, const FPBDIslandSolverData& SolverData);
-
 		FPBDJointSolverSettings Settings;
 
 		TArray<FPBDJointSettings> ConstraintSettings;

@@ -76,7 +76,7 @@ namespace Chaos
 		}
 
 		/**
-		 * @brief Initialize the data required for the solver, and bind to the bodies
+		 * @brief Initialize the data required for the solver and bind to the bodies
 		*/
 		void GatherInput(
 			const FReal Dt,
@@ -126,7 +126,11 @@ namespace Chaos
 
 			Solver.SetStiffness(FSolverReal(Constraint->GetStiffness()));
 
-			Solver.SetSolverBodies(Body0, Body1);
+			Solver.SetSolverBodies(*Body0, *Body1);
+			Solver.SolverBody0().SetInvMScale(Constraint->GetInvMassScale0());
+			Solver.SolverBody0().SetInvIScale(Constraint->GetInvInertiaScale0());
+			Solver.SolverBody1().SetInvMScale(Constraint->GetInvMassScale1());
+			Solver.SolverBody1().SetInvIScale(Constraint->GetInvInertiaScale1());
 
 			if (!bChaos_PBDCollisionSolver_VectorRegister)
 			{

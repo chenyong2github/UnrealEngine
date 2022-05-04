@@ -467,6 +467,10 @@ namespace ChaosTest
 					int32 NumContacts = PairModifier.GetNumContacts();
 					for (int32 PointIdx = 0; PointIdx < NumContacts; ++PointIdx)
 					{
+						// Make sure that values are not held between frames
+						// @todo(chaos): this test actually has zero restitution
+						//EXPECT_GT(PairModifier.GetRestitution(), 0);
+
 						// Remove restitution
 						PairModifier.ModifyRestitution(0);
 					}
@@ -627,6 +631,10 @@ namespace ChaosTest
 				if ((UniqueIndices[0] == Idx0 && UniqueIndices[1] == Idx1) ||
 					(UniqueIndices[0] == Idx1 && UniqueIndices[1] == Idx0))
 				{
+					// Make sure that values are not held between frames
+					EXPECT_LT(PairModifier.GetDynamicFriction(), 1);
+					EXPECT_LT(PairModifier.GetStaticFriction(), 1);
+
 					PairModifier.ModifyDynamicFriction(1);
 					PairModifier.ModifyStaticFriction(1);
 				}
@@ -914,4 +922,81 @@ namespace ChaosTest
 		Solver->UnregisterObject(FloorProxy);
 		Module->DestroySolver(Solver);
 	}
+
+
+	// Drop a dynamic cube onto a kinematic cube with an offset so the dynamic cube would start to
+	// rotate, except that we have set the inertia scale to zero so it shouldn't rotate. It should actually 
+	// just stop when it hits, and never tip off.
+	GTEST_TEST(AllTraits, ContactModification_ModifyParticleInertiaZero)
+	{
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
+		InitSolverSettings(Solver);
+		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+
+		// We use contact mod to rotate cube and maintain angular velocity of 0.
+
+		// simulated cube dropped from just above the floor
+		FSingleParticlePhysicsProxy* ModifiedCubeProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+		auto& ModifiedCubeParticle = ModifiedCubeProxy->GetGameThreadAPI();
+		auto ModifiedCubeGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100), FVec3(100)));
+		ModifiedCubeParticle.SetGeometry(ModifiedCubeGeom);
+		Solver->RegisterObject(ModifiedCubeProxy);
+		ModifiedCubeParticle.SetGravityEnabled(true);
+		ModifiedCubeParticle.SetX(FVec3(0, 0, 150));
+		SetCubeInertiaTensor(ModifiedCubeParticle, /*Dimension=*/200, /*Mass=*/1);
+		ChaosTest::SetParticleSimDataToCollide({ ModifiedCubeProxy->GetParticle_LowLevel() });
+
+		// static floor at origin, occupying Z = [-100,0]
+		FSingleParticlePhysicsProxy* FloorProxy = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
+		auto& FloorParticle = FloorProxy->GetGameThreadAPI();
+		auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-500, -500, -100), FVec3(-90, 500, 0)));
+		FloorParticle.SetGeometry(FloorGeom);
+		Solver->RegisterObject(FloorProxy);
+		FloorParticle.SetX(FVec3(0, 0, 0));
+		ChaosTest::SetParticleSimDataToCollide({ FloorProxy->GetParticle_LowLevel() });
+
+		FContactModificationTestCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FContactModificationTestCallback>(true);
+		Callback->TestLambda = [](Chaos::FCollisionContactModifier& Modifier)
+		{
+			for (FContactPairModifier& PairModifier : Modifier)
+			{
+				TVec2<FGeometryParticleHandle*> Particles = PairModifier.GetParticlePair();
+				int32 DynamicParticleIdx = (Particles[0]->ObjectState() == EObjectStateType::Dynamic) ? 0 : 1;
+
+				// Make sure that the values were not held over from the last call
+				EXPECT_NEAR(PairModifier.GetInvInertiaScale(0), 1.0, UE_SMALL_NUMBER);
+				EXPECT_NEAR(PairModifier.GetInvInertiaScale(1), 1.0, UE_SMALL_NUMBER);
+
+				PairModifier.ModifyRestitution(0);
+				PairModifier.ModifyInvInertiaScale(0, DynamicParticleIdx);
+			}
+		};
+
+
+		const float Dt = .1f;
+		const int32 Steps = 20;
+		for (int Step = 0; Step < Steps; ++Step)
+		{
+			Solver->AdvanceAndDispatch_External(Dt);
+			Solver->UpdateGameThreadStructures();
+		}
+
+		// Do we have rotation applied in contact mod?
+		EXPECT_NEAR(ModifiedCubeParticle.R().X, 0.0, 0.001);
+		EXPECT_NEAR(ModifiedCubeParticle.R().Y, 0.0, 0.001);
+		EXPECT_NEAR(ModifiedCubeParticle.R().Z, 0.0, 0.001);
+		EXPECT_NEAR(ModifiedCubeParticle.R().W, 1.0, 0.001);
+
+		// Body should be sat on the floor even though it is hanging off the edge
+		EXPECT_NEAR(ModifiedCubeParticle.X().X, 0.0, 0.001);
+		EXPECT_NEAR(ModifiedCubeParticle.X().Y, 0.0, 0.001);
+		EXPECT_NEAR(ModifiedCubeParticle.X().Z, 100.0, 0.001);
+
+		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
+		Solver->UnregisterObject(ModifiedCubeProxy);
+		Solver->UnregisterObject(FloorProxy);
+		Module->DestroySolver(Solver);
+	}
+
 }

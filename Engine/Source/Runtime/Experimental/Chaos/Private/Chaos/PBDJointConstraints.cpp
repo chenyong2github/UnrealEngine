@@ -1092,33 +1092,12 @@ namespace Chaos
 			PreparePhase3Serial(Dt, SolverData);
 		}
 
-		// UpdateConstraintProjection(It, NumIts, SolverData);
 		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
 		{
 			ApplyPhase3Single(Dt, ConstraintIndex, It, NumIts);
 		}
 
 		return true;
-	}
-
-	void FPBDJointConstraints::UpdateConstraintProjection(const int32 It, const int32 NumIts, const FPBDIslandSolverData& SolverData)
-	{
-		const bool bUseProjection = It == NumIts - 1;
-		if (bUseProjection)
-		{
-			for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
-			{
-				const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-				if (Settings.bUseLinearSolver)
-				{
-					if (JointSettings.bProjectionEnabled)
-					{
-						FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
-						Solver.EnableProjection();
-					}
-				}
-			}
-		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1245,7 +1224,7 @@ namespace Chaos
 
 			// Set parent inverse mass scale based on current shock propagation state
 			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1), Dt);
+			Solver.SetShockPropagationScales(ShockPropagationInvMassScale, FReal(1), Dt);
 
 			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
 			for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
@@ -1285,7 +1264,7 @@ namespace Chaos
 				}
 				else
 				{
-					Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+					Solver.SetShockPropagationScales(ShockPropagationInvMassScale, FReal(1));
 				}
 
 				Solver.ApplyConstraints(Dt, IterationStiffness, Settings, JointSettings);
@@ -1357,7 +1336,7 @@ namespace Chaos
 			
 			// Set parent inverse mass scale based on current shock propagation state
 			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1), Dt);
+			Solver.SetShockPropagationScales(ShockPropagationInvMassScale, FReal(1), Dt);
 
 			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
 			Solver.ApplyVelocityConstraints(Dt, IterationStiffness, Settings, JointSettings);
@@ -1376,7 +1355,7 @@ namespace Chaos
 
 			// Set parent inverse mass scale based on current shock propagation state
 			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+			Solver.SetShockPropagationScales(ShockPropagationInvMassScale, FReal(1));
 
 			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
 			Solver.ApplyVelocityConstraints(Dt, IterationStiffness, Settings, JointSettings);

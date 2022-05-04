@@ -104,11 +104,11 @@ namespace Chaos
 	{
 	public:
 		FPBDCollisionConstraintMaterial()
-			: MaterialStaticFriction(0)
-			, MaterialDynamicFriction(0)
+			: MaterialDynamicFriction(0)
+			, MaterialStaticFriction(0)
 			, MaterialRestitution(0)
-			, Friction(0)
-			, AngularFriction(0)
+			, DynamicFriction(0)
+			, StaticFriction(0)
 			, Restitution(0)
 			, RestitutionPadding(0)
 			, RestitutionThreshold(0)
@@ -120,13 +120,13 @@ namespace Chaos
 		}
 
 		// Material properties pulled from the materials of the two shapes involved in the contact
-		FReal MaterialStaticFriction;
 		FReal MaterialDynamicFriction;
+		FReal MaterialStaticFriction;
 		FReal MaterialRestitution;
 
 		// Final material properties (post modifier) used by the solver. These get reset every frame to the material values above
-		FReal Friction;			// @todo(chaos): rename DynamicFriction
-		FReal AngularFriction;	// @todo(chaos): rename StaticFriction
+		FReal DynamicFriction;
+		FReal StaticFriction;
 		FReal Restitution;
 
 		FReal RestitutionPadding; // For StandardPBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
@@ -139,9 +139,13 @@ namespace Chaos
 		// Reset the material properties to those pulled from the shape's materials (i.e., back to the state before any contact modification)
 		void ResetMaterialModifications()
 		{
-			Friction = MaterialDynamicFriction;
-			AngularFriction = MaterialStaticFriction;
+			DynamicFriction = MaterialDynamicFriction;
+			StaticFriction = MaterialStaticFriction;
 			Restitution = MaterialRestitution;
+			InvMassScale0 = FReal(1);
+			InvMassScale1 = FReal(1);
+			InvInertiaScale0 = FReal(1);
+			InvInertiaScale1 = FReal(1);
 		}
 
 		// @todo(chaos): remove this
@@ -392,11 +396,11 @@ namespace Chaos
 		void SetRestitutionPadding(const FReal InRestitutionPadding) { Material.RestitutionPadding = InRestitutionPadding; }
 		FReal GetRestitutionPadding() const { return Material.RestitutionPadding; }
 
-		void SetStaticFriction(const FReal InStaticFriction) { Material.AngularFriction = InStaticFriction; }
-		FReal GetStaticFriction() const { return FMath::Max(Material.AngularFriction, Material.Friction); }
+		void SetStaticFriction(const FReal InStaticFriction) { Material.StaticFriction = InStaticFriction; }
+		FReal GetStaticFriction() const { return FMath::Max(Material.StaticFriction, Material.DynamicFriction); }
 
-		void SetDynamicFriction(const FReal InDynamicFriction) { Material.Friction = InDynamicFriction; }
-		FReal GetDynamicFriction() const { return Material.Friction; }
+		void SetDynamicFriction(const FReal InDynamicFriction) { Material.DynamicFriction = InDynamicFriction; }
+		FReal GetDynamicFriction() const { return Material.DynamicFriction; }
 
 		EContactShapesType GetShapesType() const { return ShapesType; }
 

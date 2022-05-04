@@ -465,30 +465,43 @@ namespace Chaos
 		inline const FSolverBody& SolverBody() const { check(IsValid()); return *Body; }
 
 		/**
-		 * @brief A scale applied to both inverse mass and inverse inertia
+		 * @brief A scale applied to inverse mass
 		*/
-		inline FSolverReal InvMScale() const { return State.InvMassScale; }
-		inline void SetInvMScale(FReal InInvMassScale) { State.InvMassScale = FSolverReal(InInvMassScale); }
+		inline FSolverReal InvMScale() const { return State.InvMScale; }
+		inline void SetInvMScale(FReal InValue) { State.InvMScale = FSolverReal(InValue); }
 
 		/**
-		 * @brief The scaled inverse mass
+		 * @brief A scale applied to inverse inertia
 		*/
-		FSolverReal InvM() const { return State.InvMassScale * Body->InvM(); }
+		inline FSolverReal InvIScale() const { return State.InvIScale; }
+		inline void SetInvIScale(FReal InValue) { State.InvIScale = FSolverReal(InValue); }
+
 
 		/**
-		 * @brief The scaled inverse inertia
+		 * @brief Shock propagation mass and inertia scaling (0 for infinite mass, 1 for no effect)
 		*/
-		FSolverMatrix33 InvI() const { return State.InvMassScale * Body->InvI(); }
+		inline FSolverReal ShockPropagationScale() const { return State.ShockPropagationScale; }
+		inline void SetShockPropagationScale(FReal InValue) { State.ShockPropagationScale = FSolverReal(InValue); }
 
 		/**
-		 * @brief The scaled local space inverse inertia
+		 * @brief The net scaled inverse mass
 		*/
-		FSolverVec3 InvILocal() const { return State.InvMassScale * Body->InvILocal(); }
+		FSolverReal InvM() const { return (State.ShockPropagationScale * State.InvMScale) * Body->InvM(); }
 
 		/**
-		 * @brief Whether the body is dynamic (i.e., has a finite mass) after InvMassScale is applied
+		 * @brief The net scaled inverse inertia
 		*/
-		inline bool IsDynamic() const { return (Body->InvM() != 0) && (InvMScale() != 0); }
+		FSolverMatrix33 InvI() const { return (State.ShockPropagationScale * State.InvIScale) * Body->InvI(); }
+
+		/**
+		 * @brief The net scaled local space inverse inertia
+		*/
+		FSolverVec3 InvILocal() const { return (State.ShockPropagationScale * State.InvIScale) * Body->InvILocal(); }
+
+		/**
+		 * @brief Whether the body is dynamic (i.e., has a finite mass) after scaling is applied
+		*/
+		inline bool IsDynamic() const { return (InvM() > TNumericLimits<FSolverReal>::Min()); }
 
 		//
 		// From here all methods just forward to the FSolverBody
@@ -524,9 +537,13 @@ namespace Chaos
 		struct FState
 		{
 			FState() 
-				: InvMassScale(FSolverReal(1))
+				: InvMScale(FSolverReal(1))
+				, InvIScale(FSolverReal(1))
+				, ShockPropagationScale(FSolverReal(1))
 			{}
-			FSolverReal InvMassScale;
+			FSolverReal InvMScale;
+			FSolverReal InvIScale;
+			FSolverReal ShockPropagationScale;
 		};
 
 		// The body we decorate

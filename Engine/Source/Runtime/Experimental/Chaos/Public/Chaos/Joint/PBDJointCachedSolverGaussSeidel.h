@@ -262,9 +262,7 @@ struct FAxisConstraintDatas
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void EnableProjection();
-
-		void SetInvMassScales(
+		void SetShockPropagationScales(
 			const FReal InvMScale0,
 			const FReal InvMScale1,
 			const FReal Dt);
@@ -591,10 +589,7 @@ struct FAxisConstraintDatas
 		FVec3 InitConnectorXs[MaxConstrainedBodies];		// World-space joint connector positions
 		FRotation3 InitConnectorRs[MaxConstrainedBodies];	// World-space joint connector rotations
 
-		// Conditioned InvM and InvI
-		FReal InvMScales[MaxConstrainedBodies];
-		FReal ConditionedInvMs[MaxConstrainedBodies];
-		FVec3 ConditionedInvILs[MaxConstrainedBodies];		// Local-space
+		// Inverse Mass and Inertia
 		FReal InvMs[MaxConstrainedBodies];
 		FMatrix33 InvIs[MaxConstrainedBodies];				// World-space
 
