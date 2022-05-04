@@ -113,7 +113,9 @@ FEvent* FHoloLensProcess::CreateSynchEvent(bool bIsManualReset /*= false*/)
 		Event = new FSingleThreadEvent();
 	}
 	// If the internal create fails, delete the instance and return NULL
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!Event->Create(bIsManualReset))
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		delete Event;
 		Event = NULL;
