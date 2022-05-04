@@ -305,9 +305,6 @@ void FDataLayerHierarchy::OnLevelActorsRemoved(const TArray<AActor*>& InActors)
 			{
 				if (Actor != nullptr && Actor->HasDataLayers())
 				{
-					// While exiting PIE/SIE, The actors in cells do not have a valid OwningWorld anymore, so AActor::GetDataLayerInstance() wont resolve below.
-					check(CurrentWorld->bIsTearingDown || Actor->GetWorld() != nullptr);
-
 					const TArray<const UDataLayerInstance*> DataLayerInstances = Actor->GetDataLayerInstances();
 					EventData.ItemIDs.Reserve(DataLayerInstances.Num());
 					for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)

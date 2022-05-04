@@ -5980,17 +5980,7 @@ bool AActor::HasDataLayers() const
 bool AActor::UseWorldPartitionRuntimeCellDataLayers() const
 {
 	ULevel* Level = GetLevel();
-	bool bIsActorInCell = Level != nullptr && Level->IsWorldPartitionRuntimeCell();
-
-#if WITH_EDITOR
-	// In PIE, SIE & -game, use the WorldPartitionRuntimeCell's data layers to emulate the behavior of a Cooked Game.
-	UWorld* World = GetWorld();
-	bool bShouldUseCell = (World != nullptr && World->IsGameWorld()) || UWorldPartition::IsSimulating();
-
-	return bIsActorInCell && bShouldUseCell;
-#else
-	return bIsActorInCell;
-#endif
+	return Level != nullptr && Level->IsWorldPartitionRuntimeCell();
 }
 
 
