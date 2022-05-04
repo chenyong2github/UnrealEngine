@@ -37,10 +37,11 @@ public:
 
 	virtual ~FPBDCollisionSpringConstraintsBase() {}
 
-	UE_DEPRECATED(5.0, "Use Init(Particles, BVH, GIAColors) instead.")
+	UE_DEPRECATED(5.0, "Use Init(Particles, Spatial, GIAColors) instead.")
 	void Init(const FSolverParticles& Particles);
 
-	void Init(const FSolverParticles& Particles, const FTriangleMesh::TBVHType<FSolverReal>& BVH, const TConstArrayView<FPBDTriangleMeshCollisions::FGIAColor>& VertexGIAColors, const TArray<FPBDTriangleMeshCollisions::FGIAColor>& TriangleGIAColors);
+	template<typename SpatialAccelerator>
+	void Init(const FSolverParticles& Particles, const SpatialAccelerator& Spatial, const TConstArrayView<FPBDTriangleMeshCollisions::FGIAColor>& VertexGIAColors, const TArray<FPBDTriangleMeshCollisions::FGIAColor>& TriangleGIAColors);
 
 	FSolverVec3 GetDelta(const FSolverParticles& InParticles, const int32 i) const;
 

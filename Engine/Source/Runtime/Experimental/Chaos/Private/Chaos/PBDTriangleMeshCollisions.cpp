@@ -22,7 +22,8 @@ struct FEdgeFaceIntersection
 };
 
 // Returned array has NOT been shrunk
-static TArray<FEdgeFaceIntersection> FindEdgeFaceIntersections(const FTriangleMesh& TriangleMesh, const FTriangleMesh::TBVHType<FSolverReal>& BVH, const FSolverParticles& Particles)
+template<typename SpatialAccelerator>
+static TArray<FEdgeFaceIntersection> FindEdgeFaceIntersections(const FTriangleMesh& TriangleMesh, const SpatialAccelerator& Spatial, const FSolverParticles& Particles)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosFPBDTriangleMeshCollisions_IntersectionQuery);
 
@@ -41,7 +42,7 @@ static TArray<FEdgeFaceIntersection> FindEdgeFaceIntersections(const FTriangleMe
 	TArray<FEdgeFaceIntersection> ExtraIntersections;
 	FCriticalSection CriticalSection;
 	PhysicsParallelFor(SegmentMesh.GetNumElements(),
-		[&BVH, &TriangleMesh, &Particles, &SegmentMesh, &EdgeToFaces, &Elements, &IntersectionIndex, &Intersections, PreallocatedIntersectionsPerEdge, &ExtraIntersections, &CriticalSection](int32 EdgeIndex)
+		[&Spatial, &TriangleMesh, &Particles, &SegmentMesh, &EdgeToFaces, &Elements, &IntersectionIndex, &Intersections, PreallocatedIntersectionsPerEdge, &ExtraIntersections, &CriticalSection](int32 EdgeIndex)
 		{
 
 			TArray< TTriangleCollisionPoint<FSolverReal> > Result;
@@ -52,7 +53,7 @@ static TArray<FEdgeFaceIntersection> FindEdgeFaceIntersections(const FTriangleMe
 			const FSolverVec3& EdgePosition1 = Particles.X(EdgePointIndex1);
 
 
-			if (TriangleMesh.EdgeIntersectionQuery(BVH, static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), EdgeIndex, EdgePosition0, EdgePosition1,
+			if (TriangleMesh.EdgeIntersectionQuery(Spatial, static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), EdgeIndex, EdgePosition0, EdgePosition1,
 				[&Elements, EdgePointIndex0, EdgePointIndex1](int32 EdgeIndex, int32 TriangleIndex)
 				{
 					if (EdgePointIndex0 == Elements[TriangleIndex][0] || EdgePointIndex0 == Elements[TriangleIndex][1] || EdgePointIndex0 == Elements[TriangleIndex][2] ||
@@ -1160,10 +1161,9 @@ void FPBDTriangleMeshCollisions::Init(const FSolverParticles& Particles)
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosFPBDTriangleMeshCollisions_BuildBVH);
-		TriangleMesh.BuildBVH(static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), BVH);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosFPBDTriangleMeshCollisions_BuildSpatialHash);
+		TriangleMesh.BuildSpatialHash(static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), SpatialHash);
 	}
-
 	ContourMinimizationIntersections.Reset();
 	VertexGIAColors.Reset();
 	VertexGIAColors.SetNumZeroed(NumParticles);
@@ -1178,7 +1178,7 @@ void FPBDTriangleMeshCollisions::Init(const FSolverParticles& Particles)
 	}
 
 	// Detect all EdgeFace Intersections
-	TArray<FEdgeFaceIntersection> Intersections = FindEdgeFaceIntersections(TriangleMesh, BVH, Particles);
+	TArray<FEdgeFaceIntersection> Intersections = FindEdgeFaceIntersections(TriangleMesh, SpatialHash, Particles);
 	if (Intersections.Num() == 0)
 	{
 		return;

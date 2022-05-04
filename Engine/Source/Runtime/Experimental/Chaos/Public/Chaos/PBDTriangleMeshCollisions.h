@@ -4,6 +4,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/TriangleMesh.h"
+#include "Chaos/HierarchicalSpatialHash.h"
 
 
 // This does initialization for PBDCollisionSpringConstraints and PBDTriangleMeshIntersections, 
@@ -116,7 +117,7 @@ public:
 	void SetGlobalIntersectionAnalysis(bool bInGlobalIntersectionAnalysis) { bGlobalIntersectionAnalysis = bInGlobalIntersectionAnalysis; }
 	void SetContourMinimization(bool bInContourMinimization) { bContourMinimization = bInContourMinimization; }
 
-	const FTriangleMesh::TBVHType<FSolverReal>& GetBVH() const { return BVH; }
+	const FTriangleMesh::TSpatialHashType<FSolverReal>& GetSpatialHash() const { return SpatialHash; }
 	const TArray<FContourMinimizationIntersection>& GetContourMinimizationIntersections() const { return ContourMinimizationIntersections; }
 	const TConstArrayView<FGIAColor> GetVertexGIAColors() const { return bGlobalIntersectionAnalysis && VertexGIAColors.Num() == NumParticles ? TConstArrayView<FGIAColor>(VertexGIAColors.GetData() - Offset, NumParticles + Offset) : TConstArrayView<FGIAColor>(); }
 	const TArray<FGIAColor>& GetTriangleGIAColors() const { return TriangleGIAColors; }
@@ -130,7 +131,7 @@ private:
 	bool bGlobalIntersectionAnalysis;
 	bool bContourMinimization;
 
-	FTriangleMesh::TBVHType<FSolverReal> BVH;
+	FTriangleMesh::TSpatialHashType<FSolverReal> SpatialHash;
 	TArray<FContourMinimizationIntersection> ContourMinimizationIntersections;
 	TArray<FGIAColor> VertexGIAColors;
 	TArray<FGIAColor> TriangleGIAColors;
