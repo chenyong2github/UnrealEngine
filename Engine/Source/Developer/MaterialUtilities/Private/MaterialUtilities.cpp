@@ -153,7 +153,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 			SwitchParameter.ParameterInfo.Name = *(TEXT("Use") + TrimmedPropertyName);
 			SwitchParameter.Value = true;
 			SwitchParameter.bOverride = true;
-			NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
+			NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
 		}
 		else
 		{
@@ -188,10 +188,10 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 		SwitchParameter.ParameterInfo.Name = TEXT("UseCustomUV");
 		SwitchParameter.Value = true;
 		SwitchParameter.bOverride = true;
-		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
 
 		SwitchParameter.ParameterInfo.Name = *(TEXT("UseUV") + FString::FromInt(MeshData.TextureCoordinateIndex));
-		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
 	}
 
 	Material->UpdateStaticPermutation(NewStaticParameterSet);
@@ -1022,6 +1022,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 	Material->SetShadingModel(MSM_DefaultLit);
 	OutGeneratedAssets.Add(Material);
 
+	UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
+
 	int32 MaterialNodeY = -150;
 	int32 MaterialNodeStepY = 180;
 
@@ -1040,8 +1042,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		BasecolorExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 		BasecolorExpression->MaterialExpressionEditorX = -400;
 		BasecolorExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(BasecolorExpression);
-		Material->BaseColor.Expression = BasecolorExpression;
+		Material->GetExpressionCollection().AddExpression(BasecolorExpression);
+		MaterialEditorOnly->BaseColor.Expression = BasecolorExpression;
 
 		MaterialNodeY += MaterialNodeStepY;
 	}
@@ -1053,8 +1055,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		BaseColorExpression->Constant = BaseColor;
 		BaseColorExpression->MaterialExpressionEditorX = -400;
 		BaseColorExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(BaseColorExpression);
-		Material->BaseColor.Expression = BaseColorExpression;
+		Material->GetExpressionCollection().AddExpression(BaseColorExpression);
+		MaterialEditorOnly->BaseColor.Expression = BaseColorExpression;
 
 		MaterialNodeY += MaterialNodeStepY;
 	}
@@ -1120,39 +1122,39 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		MergedExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 		MergedExpression->MaterialExpressionEditorX = -400;
 		MergedExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(MergedExpression);
+		Material->GetExpressionCollection().AddExpression(MergedExpression);
 
 		// Metallic
 		if (bHasMetallic)
 		{
-			Material->Metallic.Expression = MergedExpression;
-			Material->Metallic.Mask = Material->Metallic.Expression->GetOutputs()[0].Mask;
-			Material->Metallic.MaskR = 1;
-			Material->Metallic.MaskG = 0;
-			Material->Metallic.MaskB = 0;
-			Material->Metallic.MaskA = 0;
+			MaterialEditorOnly->Metallic.Expression = MergedExpression;
+			MaterialEditorOnly->Metallic.Mask = MaterialEditorOnly->Metallic.Expression->GetOutputs()[0].Mask;
+			MaterialEditorOnly->Metallic.MaskR = 1;
+			MaterialEditorOnly->Metallic.MaskG = 0;
+			MaterialEditorOnly->Metallic.MaskB = 0;
+			MaterialEditorOnly->Metallic.MaskA = 0;
 		}
 
 		// Specular
 		if (bHasSpecular)
 		{
-			Material->Specular.Expression = MergedExpression;
-			Material->Specular.Mask = Material->Specular.Expression->GetOutputs()[0].Mask;
-			Material->Specular.MaskR = 0;
-			Material->Specular.MaskG = 1;
-			Material->Specular.MaskB = 0;
-			Material->Specular.MaskA = 0;
+			MaterialEditorOnly->Specular.Expression = MergedExpression;
+			MaterialEditorOnly->Specular.Mask = MaterialEditorOnly->Specular.Expression->GetOutputs()[0].Mask;
+			MaterialEditorOnly->Specular.MaskR = 0;
+			MaterialEditorOnly->Specular.MaskG = 1;
+			MaterialEditorOnly->Specular.MaskB = 0;
+			MaterialEditorOnly->Specular.MaskA = 0;
 		}
 
 		// Roughness
 		if (bHasRoughness)
 		{
-			Material->Roughness.Expression = MergedExpression;
-			Material->Roughness.Mask = Material->Roughness.Expression->GetOutputs()[0].Mask;
-			Material->Roughness.MaskR = 0;
-			Material->Roughness.MaskG = 0;
-			Material->Roughness.MaskB = 1;
-			Material->Roughness.MaskA = 0;
+			MaterialEditorOnly->Roughness.Expression = MergedExpression;
+			MaterialEditorOnly->Roughness.Mask = MaterialEditorOnly->Roughness.Expression->GetOutputs()[0].Mask;
+			MaterialEditorOnly->Roughness.MaskR = 0;
+			MaterialEditorOnly->Roughness.MaskG = 0;
+			MaterialEditorOnly->Roughness.MaskB = 1;
+			MaterialEditorOnly->Roughness.MaskA = 0;
 		}
 
 		MaterialNodeY += MaterialNodeStepY;
@@ -1172,8 +1174,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 			MetallicExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 			MetallicExpression->MaterialExpressionEditorX = -400;
 			MetallicExpression->MaterialExpressionEditorY = MaterialNodeY;
-			Material->Expressions.Add(MetallicExpression);
-			Material->Metallic.Expression = MetallicExpression;
+			Material->GetExpressionCollection().AddExpression(MetallicExpression);
+			MaterialEditorOnly->Metallic.Expression = MetallicExpression;
 
 			MaterialNodeY += MaterialNodeStepY;
 		}
@@ -1191,8 +1193,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 			SpecularExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 			SpecularExpression->MaterialExpressionEditorX = -400;
 			SpecularExpression->MaterialExpressionEditorY = MaterialNodeY;
-			Material->Expressions.Add(SpecularExpression);
-			Material->Specular.Expression = SpecularExpression;
+			Material->GetExpressionCollection().AddExpression(SpecularExpression);
+			MaterialEditorOnly->Specular.Expression = SpecularExpression;
 
 			MaterialNodeY += MaterialNodeStepY;
 		}
@@ -1210,8 +1212,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 			RoughnessExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 			RoughnessExpression->MaterialExpressionEditorX = -400;
 			RoughnessExpression->MaterialExpressionEditorY = MaterialNodeY;
-			Material->Expressions.Add(RoughnessExpression);
-			Material->Roughness.Expression = RoughnessExpression;
+			Material->GetExpressionCollection().AddExpression(RoughnessExpression);
+			MaterialEditorOnly->Roughness.Expression = RoughnessExpression;
 
 			MaterialNodeY += MaterialNodeStepY;
 		}
@@ -1223,8 +1225,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		MetallicExpression->R = MaterialProxySettings.bMetallicMap ? FLinearColor(InFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Metallic)[0]).R : MaterialProxySettings.MetallicConstant;
 		MetallicExpression->MaterialExpressionEditorX = -400;
 		MetallicExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(MetallicExpression);
-		Material->Metallic.Expression = MetallicExpression;
+		Material->GetExpressionCollection().AddExpression(MetallicExpression);
+		MaterialEditorOnly->Metallic.Expression = MetallicExpression;
 
 		MaterialNodeY += MaterialNodeStepY;
 	}
@@ -1236,8 +1238,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		SpecularExpression->R = MaterialProxySettings.bSpecularMap ? FLinearColor(InFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Specular)[0]).R : MaterialProxySettings.SpecularConstant;
 		SpecularExpression->MaterialExpressionEditorX = -400;
 		SpecularExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(SpecularExpression);
-		Material->Specular.Expression = SpecularExpression;
+		Material->GetExpressionCollection().AddExpression(SpecularExpression);
+		MaterialEditorOnly->Specular.Expression = SpecularExpression;
 
 		MaterialNodeY += MaterialNodeStepY;
 	}
@@ -1249,8 +1251,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		RoughnessExpression->R = MaterialProxySettings.bRoughnessMap ? FLinearColor(InFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Roughness)[0]).R : MaterialProxySettings.RoughnessConstant;
 		RoughnessExpression->MaterialExpressionEditorX = -400;
 		RoughnessExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(RoughnessExpression);
-		Material->Roughness.Expression = RoughnessExpression;
+		Material->GetExpressionCollection().AddExpression(RoughnessExpression);
+		MaterialEditorOnly->Roughness.Expression = RoughnessExpression;
 
 		MaterialNodeY += MaterialNodeStepY;
 	}
@@ -1268,8 +1270,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		NormalExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Normal;
 		NormalExpression->MaterialExpressionEditorX = -400;
 		NormalExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(NormalExpression);
-		Material->Normal.Expression = NormalExpression;
+		Material->GetExpressionCollection().AddExpression(NormalExpression);
+		MaterialEditorOnly->Normal.Expression = NormalExpression;
 
 		MaterialNodeY+= MaterialNodeStepY;
 	}
@@ -1285,8 +1287,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 			EmissiveColorExpression->Constant = EmissiveColor.ReinterpretAsLinear() * InFlattenMaterial.EmissiveScale;
 			EmissiveColorExpression->MaterialExpressionEditorX = -400;
 			EmissiveColorExpression->MaterialExpressionEditorY = MaterialNodeY;
-			Material->Expressions.Add(EmissiveColorExpression);
-			Material->EmissiveColor.Expression = EmissiveColorExpression;
+			Material->GetExpressionCollection().AddExpression(EmissiveColorExpression);
+			MaterialEditorOnly->EmissiveColor.Expression = EmissiveColorExpression;
 
 			MaterialNodeY += MaterialNodeStepY;
 		}
@@ -1304,16 +1306,16 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		EmissiveColorExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 		EmissiveColorExpression->MaterialExpressionEditorX = -400;
 		EmissiveColorExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(EmissiveColorExpression);
+		Material->GetExpressionCollection().AddExpression(EmissiveColorExpression);
 
 		UMaterialExpressionMultiply* EmissiveColorScale = NewObject<UMaterialExpressionMultiply>(Material);
 		EmissiveColorScale->A.Expression = EmissiveColorExpression;
 		EmissiveColorScale->ConstB = InFlattenMaterial.EmissiveScale;
 		EmissiveColorScale->MaterialExpressionEditorX = -200;
 		EmissiveColorScale->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(EmissiveColorScale);
+		Material->GetExpressionCollection().AddExpression(EmissiveColorScale);
 
-		Material->EmissiveColor.Expression = EmissiveColorScale;
+		MaterialEditorOnly->EmissiveColor.Expression = EmissiveColorScale;
 		MaterialNodeY += MaterialNodeStepY;
 	}
 
@@ -1325,8 +1327,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		OpacityExpression->R = Opacity.R;
 		OpacityExpression->MaterialExpressionEditorX = -400;
 		OpacityExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(OpacityExpression);
-		Material->Opacity.Expression = OpacityExpression;
+		Material->GetExpressionCollection().AddExpression(OpacityExpression);
+		MaterialEditorOnly->Opacity.Expression = OpacityExpression;
 
 		MaterialNodeY += MaterialNodeStepY;
 	}
@@ -1343,8 +1345,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		OpacityExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 		OpacityExpression->MaterialExpressionEditorX = -400;
 		OpacityExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(OpacityExpression);
-		Material->Opacity.Expression = OpacityExpression;
+		Material->GetExpressionCollection().AddExpression(OpacityExpression);
+		MaterialEditorOnly->Opacity.Expression = OpacityExpression;
 		MaterialNodeY += MaterialNodeStepY;
 	}
 
@@ -1360,8 +1362,8 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 			SubSurfaceColorExpression->Constant = (SubSurfaceColor.ReinterpretAsLinear());
 			SubSurfaceColorExpression->MaterialExpressionEditorX = -400;
 			SubSurfaceColorExpression->MaterialExpressionEditorY = MaterialNodeY;
-			Material->Expressions.Add(SubSurfaceColorExpression);
-			Material->SubsurfaceColor.Expression = SubSurfaceColorExpression;
+			Material->GetExpressionCollection().AddExpression(SubSurfaceColorExpression);
+			MaterialEditorOnly->SubsurfaceColor.Expression = SubSurfaceColorExpression;
 
 			MaterialNodeY += MaterialNodeStepY;
 		}
@@ -1382,9 +1384,9 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 		SubSurfaceColorExpression->SamplerType = EMaterialSamplerType::SAMPLERTYPE_Color;
 		SubSurfaceColorExpression->MaterialExpressionEditorX = -400;
 		SubSurfaceColorExpression->MaterialExpressionEditorY = MaterialNodeY;
-		Material->Expressions.Add(SubSurfaceColorExpression);
+		Material->GetExpressionCollection().AddExpression(SubSurfaceColorExpression);
 
-		Material->SubsurfaceColor.Expression = SubSurfaceColorExpression;
+		MaterialEditorOnly->SubsurfaceColor.Expression = SubSurfaceColorExpression;
 		MaterialNodeY += MaterialNodeStepY;
 
 		Material->SetShadingModel(MSM_Subsurface);
@@ -2281,8 +2283,8 @@ bool FMaterialUtilities::ExportMaterial(struct FMaterialMergeData& InMaterialDat
 
 	// Determine whether or not certain properties can be rendered
 	const bool bRenderNormal = (Material->GetMaterial()->HasNormalConnected() || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Normal);
-	const bool bRenderTangent = (Material->GetMaterial()->Tangent.IsConnected() || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Tangent);
-	const bool bRenderEmissive = (Material->GetMaterial()->EmissiveColor.IsConnected() || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Emissive);
+	const bool bRenderTangent = (Material->GetMaterial()->IsPropertyConnected(MP_Tangent) || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Tangent);
+	const bool bRenderEmissive = (Material->GetMaterial()->IsPropertyConnected(MP_EmissiveColor) || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Emissive);
 	const bool bRenderOpacityMask = Material->IsPropertyActive(MP_OpacityMask) && Material->GetBlendMode() == BLEND_Masked && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Opacity);
 	const bool bRenderOpacity = Material->IsPropertyActive(MP_Opacity) && IsTranslucentBlendMode(Material->GetBlendMode()) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Opacity);
 	const bool bRenderSubSurface = Material->IsPropertyActive(MP_SubsurfaceColor) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::SubSurface);

@@ -24,7 +24,6 @@ class UMaterialExpressionParameter : public UMaterialExpression
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-#if WITH_EDITORONLY_DATA
 	/** The name of the parameter Group to display in MaterialInstance Editor. Default is None group */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionParameter)
 	FName Group;
@@ -32,7 +31,7 @@ class UMaterialExpressionParameter : public UMaterialExpression
 	/** Controls where the this parameter is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionParameter)
 	int32 SortPriority = 32;
-#endif
+
 	static FName ParameterDefaultName;
 
 
@@ -55,6 +54,7 @@ class UMaterialExpressionParameter : public UMaterialExpression
 		OutMeta.ExpressionGuid = ExpressionGUID;
 		OutMeta.Group = Group;
 		OutMeta.SortPriority = SortPriority;
+		OutMeta.AssetPath = GetAssetPathName();
 		return true;
 	}
 

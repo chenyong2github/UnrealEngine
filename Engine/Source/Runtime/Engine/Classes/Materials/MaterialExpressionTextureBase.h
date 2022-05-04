@@ -23,14 +23,12 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)
 	TObjectPtr<class UTexture> Texture;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)
 	TEnumAsByte<enum EMaterialSamplerType> SamplerType;
 	
 	/** Is default selected texture when using mesh paint mode texture painting */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureBase)
 	uint8 IsDefaultMeshpaintTexture:1;
-#endif // WITH_EDITORONLY_DATA
 	
 	//~ Begin UObject Interface
 #if WITH_EDITOR

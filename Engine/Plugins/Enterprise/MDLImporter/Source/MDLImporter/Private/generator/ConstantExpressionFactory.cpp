@@ -183,7 +183,7 @@ namespace Generator
 		{
 			if (!ExpressionHandle.Expression->UserCount)
 			{
-				CurrentMaterial->Expressions.Remove(ExpressionHandle.GetMaterialExpression());
+				CurrentMaterial->GetExpressionCollection().RemoveExpression(ExpressionHandle.GetMaterialExpression());
 				ExpressionHandle.DestroyExpression();
 			}
 		}

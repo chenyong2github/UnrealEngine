@@ -410,6 +410,9 @@ struct FMaterialParameterMetadata
 	/** Description of the parameter, typically taken from the 'Desc' field of the parameter's UMaterialExpression */
 	FString Description;
 
+	/** Path to the asset (UMaterial or UMaterialFunction) that introduced this parameter */
+	FString AssetPath;
+
 	/** Name of the parameter's group */
 	FName Group;
 

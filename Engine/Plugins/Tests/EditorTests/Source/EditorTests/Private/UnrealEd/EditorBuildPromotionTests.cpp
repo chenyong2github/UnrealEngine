@@ -1495,9 +1495,9 @@ namespace BuildPromotionTestHelper
 
 				//Get the editor material
 				UMaterial* EditorMaterial = Cast<UMaterial>(MaterialEditor->GetMaterialInterface());
-				for (int32 i = 0; i < EditorMaterial->Expressions.Num(); ++i)
+				for (UMaterialExpression* Expression : EditorMaterial->GetExpressions())
 				{
-					UMaterialExpressionConstant3Vector* ColorParam = Cast<UMaterialExpressionConstant3Vector>(EditorMaterial->Expressions[i]);
+					UMaterialExpressionConstant3Vector* ColorParam = Cast<UMaterialExpressionConstant3Vector>(Expression);
 					if (ColorParam)
 					{
 						EditorMaterial->Modify();

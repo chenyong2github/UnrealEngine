@@ -194,7 +194,7 @@ FMatExpressionPreview::FMatExpressionPreview(UMaterialExpression* InExpression)
 	FMaterial::AddEditorLoadedMaterialResource(this);
 	FPlatformMisc::CreateGuid(Id);
 
-	check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
+	check(InExpression->Material && InExpression->Material->GetExpressions().Contains(InExpression));
 	SetQualityLevelProperties(GMaxRHIFeatureLevel);
 
 	UMaterial* BaseMaterial = InExpression->Material;
@@ -462,15 +462,8 @@ void FMaterialEditor::InitEditorForMaterial(UMaterial* InMaterial)
 												
 	Material->bAllowDevelopmentShaderCompile = CVarMaterialEdUseDevShaders.GetValueOnGameThread();
 
-	// Remove NULL entries, so the rest of the material editor can assume all entries of Material->Expressions are valid
-	// This can happen if an expression class was removed
-	for (int32 ExpressionIndex = Material->Expressions.Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
-	{
-		if (!Material->Expressions[ExpressionIndex])
-		{
-			Material->Expressions.RemoveAt(ExpressionIndex);
-		}
-	}
+	// Ensure there are no null entries
+	check(Material->GetExpressions().Find(nullptr) == INDEX_NONE);
 
 	TArray<FString> Groups;
 	GetAllMaterialExpressionGroups(&Groups);
@@ -641,24 +634,14 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 		MaterialFunction->MaterialGraph = Material->MaterialGraph;
 		MaterialFunction->EditorMaterial = Material;
 
-		Material->Expressions = MaterialFunction->FunctionExpressions;
-		Material->EditorComments = MaterialFunction->FunctionEditorComments;
-		Material->ExpressionExecBegin = MaterialFunction->ExpressionExecBegin;
-		Material->ExpressionExecEnd = MaterialFunction->ExpressionExecEnd;
+		Material->AssignExpressionCollection(MaterialFunction->GetExpressionCollection());
 		Material->bEnableExecWire = MaterialFunction->IsUsingControlFlow();
 		Material->bEnableNewHLSLGenerator = MaterialFunction->IsUsingNewHLSLGenerator();
 
-		// Remove NULL entries, so the rest of the material editor can assume all entries of Material->Expressions are valid
-		// This can happen if an expression class was removed
-		for (int32 ExpressionIndex = Material->Expressions.Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
-		{
-			if (!Material->Expressions[ExpressionIndex])
-			{
-				Material->Expressions.RemoveAt(ExpressionIndex);
-			}
-		}
+		// Ensure there are no null entries
+		check(Material->GetExpressions().Find(nullptr) == INDEX_NONE);
 
-		if (Material->Expressions.Num() == 0)
+		if (Material->GetExpressions().Num() == 0)
 		{
 			// If this is an empty function, create an output by default and start previewing it
 			if (FocusedGraphEdPtr.IsValid())
@@ -759,9 +742,9 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 		{
 			bool bSetPreviewExpression = false;
 			UMaterialExpressionFunctionOutput* FirstOutput = NULL;
-			for (int32 ExpressionIndex = Material->Expressions.Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
+			for (int32 ExpressionIndex = Material->GetExpressions().Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
 			{
-				UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
+				UMaterialExpression* Expression = Material->GetExpressions()[ExpressionIndex];
 
 				// Setup the expression to be used with the preview material instead of the function
 				Expression->Function = NULL;
@@ -906,17 +889,19 @@ FMaterialEditor::~FMaterialEditor()
 
 void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 {
-	TArray<FParameterGroupData> UpdatedGroups;
-	for (int32 MaterialExpressionIndex = 0; MaterialExpressionIndex < Material->Expressions.Num(); ++MaterialExpressionIndex)
+	UMaterialEditorOnlyData* EditorOnlyData = Material->GetEditorOnlyData();
+	if (!EditorOnlyData)
 	{
-		UMaterialExpression* MaterialExpression = Material->Expressions[ MaterialExpressionIndex ];
-		UMaterialExpressionParameter* Param = Cast<UMaterialExpressionParameter>(MaterialExpression);
-		UMaterialExpressionTextureSampleParameter* TextureS = Cast<UMaterialExpressionTextureSampleParameter>(MaterialExpression);
-		UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTS = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(MaterialExpression);
-		UMaterialExpressionFontSampleParameter* FontS = Cast<UMaterialExpressionFontSampleParameter>(MaterialExpression);
-		if (Param)
+		return;
+	}
+
+	TArray<FParameterGroupData> UpdatedGroups;
+	for (const UMaterialExpression* MaterialExpression : Material->GetExpressions())
+	{
+		FMaterialParameterMetadata ParameterMeta;
+		if (MaterialExpression->GetParameterValue(ParameterMeta))
 		{
-			const FString& GroupName = Param->Group.ToString();
+			const FString GroupName = ParameterMeta.Group.ToString();
 			OutGroups->AddUnique(GroupName);
 			if (Material->AttemptInsertNewGroupName(GroupName))
 			{
@@ -924,58 +909,7 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 			}
 			else
 			{
-				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
-				{
-					return GroupName == DataElement.GroupName;
-				});
-				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
-			}
-		}
-		else if (TextureS)
-		{
-			const FString& GroupName = TextureS->Group.ToString();
-			OutGroups->AddUnique(GroupName);
-			if (Material->AttemptInsertNewGroupName(GroupName))
-			{
-				UpdatedGroups.Add(FParameterGroupData(GroupName, 0));
-			}
-			else
-			{
-				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
-				{
-					return GroupName == DataElement.GroupName;
-				});
-				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
-			}
-		}
-		else if (RVTS)
-		{
-			const FString& GroupName = RVTS->Group.ToString();
-			OutGroups->AddUnique(GroupName);
-			if (Material->AttemptInsertNewGroupName(GroupName))
-			{
-				UpdatedGroups.Add(FParameterGroupData(GroupName, 0));
-			}
-			else
-			{
-				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
-					{
-						return GroupName == DataElement.GroupName;
-					});
-				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
-			}
-		}
-		else if (FontS)
-		{
-			const FString& GroupName = FontS->Group.ToString();
-			OutGroups->AddUnique(GroupName);
-			if (Material->AttemptInsertNewGroupName(GroupName))
-			{
-				UpdatedGroups.Add(FParameterGroupData(GroupName, 0));
-			}
-			else
-			{
-				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
+				FParameterGroupData* ParameterGroupDataElement = EditorOnlyData->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
 				{
 					return GroupName == DataElement.GroupName;
 				});
@@ -983,7 +917,7 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 			}
 		}
 	}
-	Material->ParameterGroupData = UpdatedGroups;
+	EditorOnlyData->ParameterGroupData = UpdatedGroups;
 }
 
 void FMaterialEditor::UpdatePreviewViewportsVisibility()
@@ -1278,7 +1212,7 @@ void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourc
 	{
 		UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(Cast<UMaterialGraphNode>(Entry)->MaterialExpression);
 		PinBase->DeleteReroutePins();
-		Material->Expressions.Remove(PinBase);
+		Material->GetExpressionCollection().RemoveExpression(PinBase);
 		PinBase->MarkAsGarbage();
 		Entry->DestroyNode();
 		bPreviewExpressionDeleted |= PinBase == PreviewExpression;
@@ -1288,7 +1222,7 @@ void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourc
 	{
 		UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(Cast<UMaterialGraphNode>(Result)->MaterialExpression);
 		PinBase->DeleteReroutePins();
-		Material->Expressions.Remove(PinBase);
+		Material->GetExpressionCollection().RemoveExpression(PinBase);
 		PinBase->MarkAsGarbage();
 		Result->DestroyNode();
 		bPreviewExpressionDeleted |= PinBase == PreviewExpression;
@@ -1304,7 +1238,7 @@ void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourc
 	// Remove the gateway node and source graph
 	UMaterialExpression* CompositeExpression = Cast<UMaterialGraphNode>(InNodeToExpand)->MaterialExpression;
 	CompositeExpression->Modify();
-	Material->Expressions.Remove(CompositeExpression);
+	Material->GetExpressionCollection().RemoveExpression(CompositeExpression);
 	CompositeExpression->MarkAsGarbage();
 	InNodeToExpand->DestroyNode();
 	bPreviewExpressionDeleted |= CompositeExpression == PreviewExpression;
@@ -2316,9 +2250,9 @@ void FMaterialEditor::RecenterEditor()
 	{
 		bool bSetPreviewExpression = false;
 		UMaterialExpressionFunctionOutput* FirstOutput = NULL;
-		for (int32 ExpressionIndex = Material->Expressions.Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
+		for (int32 ExpressionIndex = Material->GetExpressions().Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
 		{
-			UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
+			UMaterialExpression* Expression = Material->GetExpressions()[ExpressionIndex];
 
 			UMaterialExpressionFunctionOutput* FunctionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression);
 			if (FunctionOutput)
@@ -2500,9 +2434,7 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 
 		// The preview material's expressions array must stay up to date before recompiling 
 		// So that RebuildMaterialFunctionInfo will see all the nested material functions that may need to be updated
-		ExpressionPreviewMaterial->Expressions = Material->Expressions;
-		ExpressionPreviewMaterial->ExpressionExecBegin = Material->ExpressionExecBegin;
-		ExpressionPreviewMaterial->ExpressionExecEnd = Material->ExpressionExecEnd;
+		ExpressionPreviewMaterial->AssignExpressionCollection(Material->GetExpressionCollection());
 		ExpressionPreviewMaterial->bEnableExecWire = Material->IsUsingControlFlow();
 		ExpressionPreviewMaterial->bEnableNewHLSLGenerator = Material->IsUsingNewHLSLGenerator();
 
@@ -2608,8 +2540,7 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 	if (MaterialFunction)
 	{
 		// Copy the expressions back from the preview material
-		MaterialFunction->FunctionExpressions = Material->Expressions;
-		MaterialFunction->FunctionEditorComments = Material->EditorComments;
+		MaterialFunction->AssignExpressionCollection(Material->GetExpressionCollection());
 
 		// Preserve the thumbnail info
 		UThumbnailInfo* OriginalThumbnailInfo = MaterialFunction->ParentFunction->ThumbnailInfo;
@@ -2642,10 +2573,9 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 		// Restore RF_Standalone on the original material function, as it had been removed from the preview material so that it could be GC'd.
 		MaterialFunction->ParentFunction->SetFlags( RF_Standalone );
 
-		for (int32 ExpressionIndex = 0; ExpressionIndex < MaterialFunction->ParentFunction->FunctionExpressions.Num(); ExpressionIndex++)
+		for (UMaterialExpression* CurrentExpression : MaterialFunction->ParentFunction->GetExpressions())
 		{
-			UMaterialExpression* CurrentExpression = MaterialFunction->ParentFunction->FunctionExpressions[ExpressionIndex];
-			ensureMsgf(CurrentExpression, TEXT("Invalid expression at index [%i] whilst saving material function."), ExpressionIndex);
+			ensureMsgf(CurrentExpression, TEXT("Invalid expression whilst saving material function."));
 
 			// Link the expressions back to their function
 			if (CurrentExpression)
@@ -2654,10 +2584,9 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 				CurrentExpression->Function = MaterialFunction->ParentFunction;
 			}	
 		}
-		for (int32 ExpressionIndex = 0; ExpressionIndex < MaterialFunction->ParentFunction->FunctionEditorComments.Num(); ExpressionIndex++)
+		for (UMaterialExpressionComment* CurrentExpression : MaterialFunction->ParentFunction->GetEditorComments())
 		{
-			UMaterialExpressionComment* CurrentExpression = MaterialFunction->ParentFunction->FunctionEditorComments[ExpressionIndex];
-			ensureMsgf(CurrentExpression, TEXT("Invalid comment at index [%i] whilst saving material function."), ExpressionIndex);
+			ensureMsgf(CurrentExpression, TEXT("Invalid comment whilst saving material function."));
 
 			// Link the expressions back to their function
 			if (CurrentExpression)
@@ -2767,7 +2696,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 				if (MaterialFunction->GetMaterialFunctionUsage() == EMaterialFunctionUsage::MaterialLayer)
 				{
 					// Material layers must have a single MA input and output only
-					for (UMaterialExpression* Expression : *MaterialFunction->GetFunctionExpressions())
+					for (UMaterialExpression* Expression : MaterialFunction->GetExpressions())
 					{
 						if (UMaterialExpressionFunctionInput* InputExpression = Cast<UMaterialExpressionFunctionInput>(Expression))
 						{
@@ -2799,7 +2728,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 				else if (MaterialFunction->GetMaterialFunctionUsage() == EMaterialFunctionUsage::MaterialLayerBlend)
 				{
 					// Material layer blends can have two MA inputs and single MA output only
-					for (UMaterialExpression* Expression : *MaterialFunction->GetFunctionExpressions())
+					for (UMaterialExpression* Expression : MaterialFunction->GetExpressions())
 					{
 						if (UMaterialExpressionFunctionInput* InputExpression = Cast<UMaterialExpressionFunctionInput>(Expression))
 						{
@@ -2838,9 +2767,9 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 					}
 
 					bool bFoundFunctionOutput = false;
-					for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ExpressionIndex++)
+					for (UMaterialExpression* MaterialExpression : Material->GetExpressions())
 					{
-						if (Material->Expressions[ExpressionIndex]->IsA(UMaterialExpressionFunctionOutput::StaticClass()))
+						if (MaterialExpression->IsA(UMaterialExpressionFunctionOutput::StaticClass()))
 						{
 							bFoundFunctionOutput = true;
 							break;
@@ -3049,9 +2978,9 @@ void FMaterialEditor::UpdateMaterialInfoList()
 		CompileErrors = ExpressionPreviewMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->GetCompileErrors();
 
 		bool bFoundFunctionOutput = false;
-		for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ExpressionIndex++)
+		for (UMaterialExpression* MaterialExpression : Material->GetExpressions())
 		{
-			if (Material->Expressions[ExpressionIndex]->IsA(UMaterialExpressionFunctionOutput::StaticClass()))
+			if (MaterialExpression->IsA(UMaterialExpressionFunctionOutput::StaticClass()))
 			{
 				bFoundFunctionOutput = true;
 				break;
@@ -3123,14 +3052,14 @@ void FMaterialEditor::UpdateGraphNodeStates()
 	FStaticParameterSet StaticSwitchSet;
 	if (bPreviewFeaturesChanged && bPreviewStaticSwitches)
 	{
-		for (UMaterialExpression* Expression : Material->Expressions)
+		for (UMaterialExpression* Expression : Material->GetExpressions())
 		{
 			if (UMaterialExpressionStaticSwitchParameter* StaticSwitch = Cast<UMaterialExpressionStaticSwitchParameter>(Expression))
 			{
 				FStaticSwitchParameter SwitchParam;
 				SwitchParam.Value = StaticSwitch->DefaultValue;
 				SwitchParam.ExpressionGUID = StaticSwitch->ExpressionGUID;
-				StaticSwitchSet.StaticSwitchParameters.Add(SwitchParam);
+				StaticSwitchSet.EditorOnly.StaticSwitchParameters.Add(SwitchParam);
 			}
 		}
 	}
@@ -4154,7 +4083,7 @@ void FMaterialEditor::OnSelectNamedRerouteUsages()
 			{
 				UMaterialExpression* CurrentSelectedExpression = GraphNode->MaterialExpression;
 				UMaterialExpressionNamedRerouteDeclaration* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(CurrentSelectedExpression);
-				for(UMaterialExpression* Expression : Material->Expressions)
+				for(UMaterialExpression* Expression : Material->GetExpressions())
 				{
 					auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression);
 					if (Usage && Usage->Declaration == Declaration)
@@ -4303,7 +4232,7 @@ void FMaterialEditor::OnConvertNamedRerouteToReroute()
 				}
 				DeclarationGraphNode->DestroyNode();
 
-				for(UMaterialExpression* Expression : Material->Expressions)
+				for(UMaterialExpression* Expression : Material->GetExpressions())
 				{
 					auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression);
 					if (Usage && Usage->Declaration == Declaration)
@@ -5089,7 +5018,7 @@ void FMaterialEditor::SetPreviewExpression(UMaterialExpression* NewPreviewExpres
 		}
 		// If we are already previewing the selected expression toggle previewing off
 		PreviewExpression = NULL;
-		ExpressionPreviewMaterial->Expressions.Empty();
+		ExpressionPreviewMaterial->GetExpressionCollection().Empty();
 		SetPreviewMaterial( Material );
 		// Recompile the preview material to get changes that might have been made during previewing
 		UpdatePreviewMaterial();
@@ -5129,9 +5058,7 @@ void FMaterialEditor::SetPreviewExpression(UMaterialExpression* NewPreviewExpres
 
 		// The expression preview material's expressions array must stay up to date before recompiling 
 		// So that RebuildMaterialFunctionInfo will see all the nested material functions that may need to be updated
-		ExpressionPreviewMaterial->Expressions = Material->Expressions;
-		ExpressionPreviewMaterial->ExpressionExecBegin = Material->ExpressionExecBegin;
-		ExpressionPreviewMaterial->ExpressionExecEnd = Material->ExpressionExecEnd;
+		ExpressionPreviewMaterial->AssignExpressionCollection(Material->GetExpressionCollection());
 
 		// The preview window should now show the expression preview material
 		SetPreviewMaterial( ExpressionPreviewMaterial );
@@ -5331,7 +5258,7 @@ UMaterialExpressionComment* FMaterialEditor::CreateNewMaterialExpressionComment(
 		NewComment = NewObject<UMaterialExpressionComment>(ExpressionOuter, NAME_None, RF_Transactional);
 
 		// Add to the list of comments associated with this material.
-		Material->EditorComments.Add( NewComment );
+		Material->GetExpressionCollection().AddComment( NewComment );
 
 		FSlateRect Bounds;
 		if (FocusedGraphEd && FocusedGraphEd->GetBoundsForSelectedNodes(Bounds, 50.0f))
@@ -5612,7 +5539,7 @@ void FMaterialEditor::DeleteNodesInternal(const TArray<class UEdGraphNode*>& Nod
 				if(MaterialExpression)
 				{
 					MaterialExpression->Modify();
-					Material->Expressions.Remove( MaterialExpression );
+					Material->GetExpressionCollection().RemoveExpression( MaterialExpression );
 					Material->RemoveExpressionParameter(MaterialExpression);
 					// Make sure the deleted expression is caught by gc
 					MaterialExpression->MarkAsGarbage();
@@ -5623,7 +5550,7 @@ void FMaterialEditor::DeleteNodesInternal(const TArray<class UEdGraphNode*>& Nod
 				CommentNode->Modify();
 				CommentNode->BreakAllNodeLinks();
 				CommentNode->MaterialExpressionComment->Modify();
-				Material->EditorComments.Remove( CommentNode->MaterialExpressionComment );
+				Material->GetExpressionCollection().RemoveComment( CommentNode->MaterialExpressionComment );
 			}
 
 			// Now that we are done with the node, remove it
@@ -5807,7 +5734,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdG
 			}
 
 			NewMaterialExpressions.Add(NewExpression);
-			Material->Expressions.Add(NewExpression);
+			Material->GetExpressionCollection().AddExpression(NewExpression);
 
 			ensure(NewExpression->GraphNode == GraphNode);
 			PostPasteMaterialExpression(NewExpression);
@@ -5820,7 +5747,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdG
 				CommentNode->MaterialExpressionComment->Material = Material;
 				CommentNode->MaterialExpressionComment->Function = MaterialFunction;
 				CommentNode->MaterialExpressionComment->SubgraphExpression = ExpressionGraph->SubgraphExpression;
-				Material->EditorComments.Add(CommentNode->MaterialExpressionComment);
+				Material->GetExpressionCollection().AddComment(CommentNode->MaterialExpressionComment);
 			}
 		}
 
@@ -6035,10 +5962,10 @@ void FMaterialEditor::UndoGraphAction()
 {
 	FlushRenderingCommands();
 	
-	int32 NumExpressions = Material->Expressions.Num();
+	int32 NumExpressions = Material->GetExpressions().Num();
 	GEditor->UndoTransaction();
 
-	if(NumExpressions != Material->Expressions.Num())
+	if(NumExpressions != Material->GetExpressions().Num())
 	{
 		Material->BuildEditorParameterList();
 	}
@@ -6048,7 +5975,7 @@ void FMaterialEditor::RedoGraphAction()
 {
 	FlushRenderingCommands();
 
-	int32 NumExpressions = Material->Expressions.Num();
+	int32 NumExpressions = Material->GetExpressions().Num();
 	GEditor->RedoTransaction();
 
 	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
@@ -6067,7 +5994,7 @@ void FMaterialEditor::RedoGraphAction()
 		FocusedGraphEdPtr.Pin()->NotifyGraphChanged();
 	}
 
-	if(NumExpressions != Material->Expressions.Num())
+	if(NumExpressions != Material->GetExpressions().Num())
 	{
 		Material->BuildEditorParameterList();
 	}
@@ -6477,10 +6404,8 @@ void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*
 		// Refresh all expression previews.
 		FMaterial::DeferredDeleteArray(ExpressionPreviews);
 
-		for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ++ExpressionIndex)
+		for (UMaterialExpression* MaterialExpression : Material->GetExpressions())
 		{
-			UMaterialExpression* MaterialExpression = Material->Expressions[ExpressionIndex];
-
 			UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(MaterialExpression->GraphNode);
 			if (GraphNode)
 			{
@@ -6491,10 +6416,9 @@ void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*
 	else
 	{
 		// Only refresh expressions that are marked for realtime update.
-		for ( int32 ExpressionIndex = 0 ; ExpressionIndex < Material->Expressions.Num() ; ++ExpressionIndex )
+		for (UMaterialExpression* MaterialExpression : Material->GetExpressions())
 		{
-			UMaterialExpression* MaterialExpression = Material->Expressions[ ExpressionIndex ];
-			RefreshExpressionPreview( MaterialExpression, false );
+			RefreshExpressionPreview(MaterialExpression, false);
 		}
 	}
 
@@ -6502,9 +6426,8 @@ void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*
 	ExpressionPreviewsBeingCompiled.Empty(50);
 
 	// Go through all expression previews and create new ones as needed, and maintain a list of previews that are being compiled
-	for( int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ++ExpressionIndex )
+	for (UMaterialExpression* MaterialExpression : Material->GetExpressions())
 	{
-		UMaterialExpression* MaterialExpression = Material->Expressions[ ExpressionIndex ];
 		if (MaterialExpression && !MaterialExpression->IsA(UMaterialExpressionComment::StaticClass()) )
 		{
 			bool bNewlyCreated;
@@ -6964,7 +6887,7 @@ void FMaterialEditor::CleanUnusedExpressions()
 				}
 
 				MaterialExpression->Modify();
-				Material->Expressions.Remove(MaterialExpression);
+				Material->GetExpressionCollection().RemoveExpression(MaterialExpression);
 				Material->RemoveExpressionParameter(MaterialExpression);
 				// Make sure the deleted expression is caught by gc
 				MaterialExpression->MarkAsGarbage();
@@ -7328,7 +7251,7 @@ void FMaterialEditor::UpdateStatsMaterials()
 		FString EmptyMaterialName = FString(TEXT("MEStatsMaterial_Empty_")) + Material->GetName();
 		EmptyMaterial = (UMaterial*)StaticDuplicateObject(Material, GetTransientPackage(), *EmptyMaterialName, ~RF_Standalone, UPreviewMaterial::StaticClass());
 
-		EmptyMaterial->Expressions.Empty();
+		EmptyMaterial->GetExpressionCollection().Empty();
 
 		//Disconnect all properties from the expressions
 		for (int32 PropIdx = 0; PropIdx < MP_MAX; ++PropIdx)

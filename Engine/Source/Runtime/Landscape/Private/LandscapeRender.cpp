@@ -3338,10 +3338,8 @@ void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
 	const UMaterial* Material = GetMaterial();
 	if (Material)
 	{
-		int32 NumExpressions = Material->Expressions.Num();
-		for (int32 ExpressionIndex = 0; ExpressionIndex < NumExpressions; ExpressionIndex++)
+		for (UMaterialExpression* Expression : Material->GetExpressions())
 		{
-			UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
 			UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression);
 
 			// TODO: This is only works for direct Coordinate Texture Sample cases

@@ -56,20 +56,20 @@ FMaterialLayersFunctionsCustomization::FMaterialLayersFunctionsCustomization(con
 	//Fixup for adding new bool arrays to the class
 	if (MaterialLayersFunctions)
 	{
-		if (MaterialLayersFunctions->Layers.Num() != MaterialLayersFunctions->RestrictToLayerRelatives.Num())
+		if (MaterialLayersFunctions->Layers.Num() != MaterialLayersFunctions->EditorOnly.RestrictToLayerRelatives.Num())
 		{
-			int32 OriginalSize = MaterialLayersFunctions->RestrictToLayerRelatives.Num();
+			int32 OriginalSize = MaterialLayersFunctions->EditorOnly.RestrictToLayerRelatives.Num();
 			for (int32 LayerIt = 0; LayerIt < MaterialLayersFunctions->Layers.Num() - OriginalSize; LayerIt++)
 			{
-				MaterialLayersFunctions->RestrictToLayerRelatives.Add(false);
+				MaterialLayersFunctions->EditorOnly.RestrictToLayerRelatives.Add(false);
 			}
 		}
-		if (MaterialLayersFunctions->Blends.Num() != MaterialLayersFunctions->RestrictToBlendRelatives.Num())
+		if (MaterialLayersFunctions->Blends.Num() != MaterialLayersFunctions->EditorOnly.RestrictToBlendRelatives.Num())
 		{
-			int32 OriginalSize = MaterialLayersFunctions->RestrictToBlendRelatives.Num();
+			int32 OriginalSize = MaterialLayersFunctions->EditorOnly.RestrictToBlendRelatives.Num();
 			for (int32 BlendIt = 0; BlendIt < MaterialLayersFunctions->Blends.Num() - OriginalSize; BlendIt++)
 			{
-				MaterialLayersFunctions->RestrictToBlendRelatives.Add(false);
+				MaterialLayersFunctions->EditorOnly.RestrictToBlendRelatives.Add(false);
 			}
 		}
 	}
@@ -250,7 +250,7 @@ void FMaterialLayersFunctionsCustomization::OnNameChanged(const FText& InText, E
 {
 	const FScopedTransaction Transaction(LOCTEXT("RenamedSection", "Renamed layer and blend section"));
 	SavedStructPropertyHandle->NotifyPreChange();
-	MaterialLayersFunctions->LayerNames[Counter] = InText;
+	MaterialLayersFunctions->EditorOnly.LayerNames[Counter] = InText;
 	SavedStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 };
 #endif

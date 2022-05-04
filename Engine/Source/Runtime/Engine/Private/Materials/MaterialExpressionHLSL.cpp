@@ -1627,7 +1627,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 	{
 		UMaterialFunctionInterface* LayerFunction = MaterialLayers.Layers[LayerIndex];
 		const FExpression* LayerExpression = nullptr;
-		if (LayerFunction && MaterialLayers.LayerStates[LayerIndex])
+		if (LayerFunction && MaterialLayers.EditorOnly.LayerStates[LayerIndex])
 		{
 			const EMaterialFunctionUsage Usage = LayerFunction->GetMaterialFunctionUsage();
 			if (Usage != EMaterialFunctionUsage::MaterialLayer)
@@ -1670,7 +1670,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 			return Generator.Errorf(TEXT("Invalid number of layers (%d) and blends (%d)"), MaterialLayers.Layers.Num(), MaterialLayers.Blends.Num());
 		}
 
-		if (MaterialLayers.Layers[LayerIndex] && MaterialLayers.LayerStates[LayerIndex])
+		if (MaterialLayers.Layers[LayerIndex] && MaterialLayers.EditorOnly.LayerStates[LayerIndex])
 		{
 			const FExpression* LayerExpression = LayerExpressions[LayerIndex];
 			if (!LayerExpression)
@@ -1709,7 +1709,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 		}
 	}
 
-	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionMaterialLayers>(BottomLayerExpression, &MaterialLayers);
+	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionMaterialLayers>(BottomLayerExpression, MaterialLayers);
 	return true;
 }
 

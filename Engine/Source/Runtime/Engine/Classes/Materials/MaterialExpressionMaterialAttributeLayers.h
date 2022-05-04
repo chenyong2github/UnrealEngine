@@ -38,27 +38,27 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 #if WITH_EDITOR
 	const TArray<FText>& GetLayerNames() const
 	{
-		return ParamLayers ? ParamLayers->LayerNames : DefaultLayers.LayerNames;
+		return ParamLayers ? ParamLayers->EditorOnly.LayerNames : DefaultLayers.EditorOnly.LayerNames;
 	}
 
 	const TArray<bool>& GetShouldFilterLayers() const
 	{
-		return ParamLayers ? ParamLayers->RestrictToLayerRelatives : DefaultLayers.RestrictToLayerRelatives;
+		return ParamLayers ? ParamLayers->EditorOnly.RestrictToLayerRelatives : DefaultLayers.EditorOnly.RestrictToLayerRelatives;
 	}
 
 	const TArray<bool>& GetShouldFilterBlends() const
 	{
-		return ParamLayers ? ParamLayers->RestrictToBlendRelatives : DefaultLayers.RestrictToBlendRelatives;
+		return ParamLayers ? ParamLayers->EditorOnly.RestrictToBlendRelatives : DefaultLayers.EditorOnly.RestrictToBlendRelatives;
 	}
 
 	const TArray<FGuid>& GetLayerGuids() const
 	{
-		return ParamLayers ? ParamLayers->LayerGuids : DefaultLayers.LayerGuids;
+		return ParamLayers ? ParamLayers->EditorOnly.LayerGuids : DefaultLayers.EditorOnly.LayerGuids;
 	}
 
 	const TArray<bool>& GetLayerStates() const
 	{
-		return ParamLayers ? ParamLayers->LayerStates : DefaultLayers.LayerStates;
+		return ParamLayers ? ParamLayers->EditorOnly.LayerStates : DefaultLayers.EditorOnly.LayerStates;
 	}
 #endif // WITH_EDITOR
 

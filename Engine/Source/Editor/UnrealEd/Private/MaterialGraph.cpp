@@ -53,11 +53,11 @@ void UMaterialGraph::RebuildGraph()
 	// Pre-group expressions & comments per subgraph to avoid unnecessary iteration over all material expressions
 	TMap<UMaterialExpression*, TArray<UMaterialExpression*>> SubgraphExpressionMap;
 	TMap<UMaterialExpression*, TArray<UMaterialExpressionComment*>> SubgraphCommentMap;
-	for (UMaterialExpression* Expression : Material->Expressions)
+	for (UMaterialExpression* Expression : Material->GetExpressions())
 	{
 		SubgraphExpressionMap.FindOrAdd(Expression->SubgraphExpression).Add(Expression);
 	}
-	for (UMaterialExpressionComment* Comment : Material->EditorComments)
+	for (UMaterialExpressionComment* Comment : Material->GetEditorComments())
 	{
 		if (Comment)
 		{
@@ -250,7 +250,7 @@ void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArra
 		MaterialInputs.Add(FMaterialInputInfo(FMaterialAttributeDefinitionMap::GetDisplayNameForMaterial(MP_AmbientOcclusion, Material), MP_AmbientOcclusion, LOCTEXT("AmbientOcclusionToolTip", "Simulate the self-shadowing that happens within crevices of a surface, or of a volume for volumetric clouds only")));
 		MaterialInputs.Add(FMaterialInputInfo(FMaterialAttributeDefinitionMap::GetDisplayNameForMaterial(MP_Refraction, Material), MP_Refraction, LOCTEXT("RefractionToolTip", "Takes in a texture or value that simulates the index of refraction of the surface")));
 
-		for (int32 UVIndex = 0; UVIndex < UE_ARRAY_COUNT(Material->CustomizedUVs); UVIndex++)
+		for (int32 UVIndex = 0; UVIndex < UE_ARRAY_COUNT(Material->GetEditorOnlyData()->CustomizedUVs); UVIndex++)
 		{
 			//@todo - localize
 			MaterialInputs.Add(FMaterialInputInfo(FText::FromString(FString::Printf(TEXT("Customized UV%u"), UVIndex)), (EMaterialProperty)(MP_CustomizedUVs0 + UVIndex), FText::FromString(FString::Printf(TEXT("CustomizedUV%uToolTip"), UVIndex))));
@@ -274,18 +274,18 @@ void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArra
 
 	if (Material->IsUsingControlFlow())
 	{
-		if (ensure(Material->ExpressionExecBegin))
+		if (ensure(Material->GetExpressionExecBegin()))
 		{
-			InitExpressionNewNode<UMaterialGraphNode>(this, Material->ExpressionExecBegin, false);
+			InitExpressionNewNode<UMaterialGraphNode>(this, Material->GetExpressionExecBegin(), false);
 		}
 		
 		if (MaterialFunction)
 		{
-			check(MaterialFunction->ExpressionExecBegin == Material->ExpressionExecBegin);
-			check(MaterialFunction->ExpressionExecEnd == Material->ExpressionExecEnd);
-			if (ensure(Material->ExpressionExecEnd))
+			check(MaterialFunction->GetExpressionExecBegin() == Material->GetExpressionExecBegin());
+			check(MaterialFunction->GetExpressionExecEnd() == Material->GetExpressionExecEnd());
+			if (ensure(Material->GetExpressionExecEnd()))
 			{
-				InitExpressionNewNode<UMaterialGraphNode>(this, Material->ExpressionExecEnd, false);
+				InitExpressionNewNode<UMaterialGraphNode>(this, Material->GetExpressionExecEnd(), false);
 			}
 		}
 	}
@@ -479,9 +479,8 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 		}
 	}
 
-	for (int32 Index = 0; Index < Material->Expressions.Num(); Index++)
+	for (UMaterialExpression* Expression : Material->GetExpressions())
 	{
-		UMaterialExpression* Expression = Material->Expressions[Index];
 		if (!Expression)
 		{
 			continue;
@@ -541,7 +540,7 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 				UMaterialExpression* ConnectedExpression = ExecOutput->GetExpression();
 				if (ConnectedExpression)
 				{
-					if (ConnectedExpression == Material->ExpressionExecEnd && RootNode)
+					if (ConnectedExpression == Material->GetExpressionExecEnd() && RootNode)
 					{
 						// Exec end point is the root node (assuming there is a RootNode)
 						// MaterialFunctions currently do not have a RootNode, and instead have the ExecEnd node as a stand-alone
@@ -674,7 +673,7 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 										bModifiedExpression = true;
 										Expression->Modify();
 									}
-									ExpressionOutput->Connect(Material->ExpressionExecEnd);
+									ExpressionOutput->Connect(Material->GetExpressionExecEnd());
 								}
 								else
 								{

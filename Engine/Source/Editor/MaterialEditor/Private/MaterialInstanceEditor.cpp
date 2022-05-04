@@ -304,26 +304,23 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 	FunctionMaterialProxy->SetFlags(RF_Transactional);
 	FunctionMaterialProxy->bIsFunctionPreviewMaterial = true;
 
-	UMaterialFunctionInterface* BaseFunction = MaterialFunctionInstance;
-	while (UMaterialFunctionInstance* Instance = Cast<UMaterialFunctionInstance>(BaseFunction))
+	UMaterialFunctionInterface* BaseFunctionInterface = MaterialFunctionInstance;
+	while (UMaterialFunctionInstance* Instance = Cast<UMaterialFunctionInstance>(BaseFunctionInterface))
 	{
-		BaseFunction = Instance->GetBaseFunction();
+		BaseFunctionInterface = Instance->GetBaseFunction();
 	}
-	const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = BaseFunction ? BaseFunction->GetFunctionExpressions() : nullptr;
-	FunctionMaterialProxy->Expressions = FunctionExpressions ? *FunctionExpressions : TArray<TObjectPtr<UMaterialExpression>>();
+	if (UMaterialFunction* BaseFunction = Cast<UMaterialFunction>(BaseFunctionInterface))
+	{
+		FunctionMaterialProxy->AssignExpressionCollection(BaseFunction->GetExpressionCollection());
+	}
 
 	// Set expressions to be used with preview material
 	bool bSetPreviewExpression = false;
 	UMaterialExpressionFunctionOutput* FirstOutput = NULL;
-	for (int32 ExpressionIndex = FunctionMaterialProxy->Expressions.Num() - 1; ExpressionIndex >= 0; --ExpressionIndex)
+	for (int32 ExpressionIndex = FunctionMaterialProxy->GetExpressions().Num() - 1; ExpressionIndex >= 0; --ExpressionIndex)
 	{
-		UMaterialExpression* Expression = FunctionMaterialProxy->Expressions[ExpressionIndex];
-
-		if (!Expression)
-		{
-			FunctionMaterialProxy->Expressions.RemoveAt(ExpressionIndex);
-			continue;
-		}
+		UMaterialExpression* Expression = FunctionMaterialProxy->GetExpressions()[ExpressionIndex];
+		check(Expression);
 
 		Expression->Function = NULL;
 		Expression->Material = FunctionMaterialProxy;
@@ -529,8 +526,8 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		TArray<FFontParameterValue> FontParameterValues = FunctionInstanceProxy->FontParameterValues;
 
 		const FStaticParameterSet& OldStaticParameters = FunctionInstanceProxy->GetStaticParameters();
-		TArray<FStaticSwitchParameter> StaticSwitchParameters = OldStaticParameters.StaticSwitchParameters;
-		TArray<FStaticComponentMaskParameter> StaticComponentMaskParameters = OldStaticParameters.StaticComponentMaskParameters;
+		TArray<FStaticSwitchParameter> StaticSwitchParameters = OldStaticParameters.EditorOnly.StaticSwitchParameters;
+		TArray<FStaticComponentMaskParameter> StaticComponentMaskParameters = OldStaticParameters.EditorOnly.StaticComponentMaskParameters;
 
 		// Regenerate proxies
 		InitEditorForMaterialFunction(MaterialFunctionOriginal);
@@ -605,26 +602,26 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		FStaticParameterSet StaticParametersOverride = FunctionInstanceProxy->GetStaticParameters();
 
 		FunctionInstanceProxy->GetAllStaticSwitchParameterInfo(OutParameterInfo, Guids);
-		StaticParametersOverride.StaticSwitchParameters.Empty();
+		StaticParametersOverride.EditorOnly.StaticSwitchParameters.Empty();
 		for (FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
 		{
 			int32 Index = Guids.Find(StaticSwitchParameter.ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				StaticParametersOverride.StaticSwitchParameters.Add(StaticSwitchParameter);
-				StaticParametersOverride.StaticSwitchParameters.Last().ParameterInfo = OutParameterInfo[Index];
+				StaticParametersOverride.EditorOnly.StaticSwitchParameters.Add(StaticSwitchParameter);
+				StaticParametersOverride.EditorOnly.StaticSwitchParameters.Last().ParameterInfo = OutParameterInfo[Index];
 			}
 		}
 
 		FunctionInstanceProxy->GetAllStaticComponentMaskParameterInfo(OutParameterInfo, Guids);
-		StaticParametersOverride.StaticComponentMaskParameters.Empty();
+		StaticParametersOverride.EditorOnly.StaticComponentMaskParameters.Empty();
 		for (FStaticComponentMaskParameter& StaticComponentMaskParameter : StaticComponentMaskParameters)
 		{
 			int32 Index = Guids.Find(StaticComponentMaskParameter.ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				StaticParametersOverride.StaticComponentMaskParameters.Add(StaticComponentMaskParameter);
-				StaticParametersOverride.StaticComponentMaskParameters.Last().ParameterInfo = OutParameterInfo[Index];
+				StaticParametersOverride.EditorOnly.StaticComponentMaskParameters.Add(StaticComponentMaskParameter);
+				StaticParametersOverride.EditorOnly.StaticComponentMaskParameters.Last().ParameterInfo = OutParameterInfo[Index];
 			}
 		}
 

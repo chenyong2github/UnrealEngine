@@ -50,9 +50,9 @@ void FMaterialExpressionIndexer::IndexParameters(const UObject* InAssetObject, F
 	const UMaterialFunction* MaterialFunction = Cast<UMaterialFunction>(InAssetObject);
 	const UMaterial* Material = Cast<UMaterial>(InAssetObject);
 
-	TArray<UMaterialExpression*> Expressions;
-	Expressions = MaterialFunction ? MaterialFunction->FunctionExpressions : Expressions;
-	Expressions = Material ? Material->Expressions : Expressions;
+	TConstArrayView<TObjectPtr<UMaterialExpression>> Expressions;
+	Expressions = MaterialFunction ? MaterialFunction->GetExpressions() : Expressions;
+	Expressions = Material ? Material->GetExpressions() : Expressions;
 
 	for (const UMaterialExpression* Expression : Expressions)
 	{

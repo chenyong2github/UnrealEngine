@@ -54,7 +54,7 @@ bool FMaterialCachedHLSLTree::GenerateTree(UMaterial* Material, const FMaterialL
 {
 	const EMaterialShadingModel DefaultShadingModel = Material->GetShadingModels().GetFirstShadingModel();
 
-	for (UMaterialExpression* Expression : Material->Expressions)
+	for (UMaterialExpression* Expression : Material->GetExpressions())
 	{
 		UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
 		// We don't want anything with HasCustomSourceOutput() here (VertexInterpolators)

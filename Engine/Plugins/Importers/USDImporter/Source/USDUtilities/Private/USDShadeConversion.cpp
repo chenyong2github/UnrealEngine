@@ -1010,7 +1010,7 @@ namespace UE
 					FStaticParameterSet StaticParameters;
 					Constant->GetStaticParameterValues( StaticParameters );
 
-					for ( FStaticSwitchParameter& StaticSwitchParameter : StaticParameters.StaticSwitchParameters )
+					for ( FStaticSwitchParameter& StaticSwitchParameter : StaticParameters.EditorOnly.StaticSwitchParameters )
 					{
 						if ( StaticSwitchParameter.ParameterInfo.Name == ParameterName )
 						{
@@ -1288,13 +1288,13 @@ namespace UE
 						}
 						break;
 					case MP_Tangent:
-						if ( !Material.GetMaterial()->Tangent.IsConnected() && !Material.GetMaterial()->bUseMaterialAttributes )
+						if ( !Material.GetMaterial()->GetEditorOnlyData()->Tangent.IsConnected() && !Material.GetMaterial()->bUseMaterialAttributes )
 						{
 							continue;
 						}
 						break;
 					case MP_EmissiveColor:
-						if ( !Material.GetMaterial()->EmissiveColor.IsConnected() && !Material.GetMaterial()->bUseMaterialAttributes )
+						if ( !Material.GetMaterial()->GetEditorOnlyData()->EmissiveColor.IsConnected() && !Material.GetMaterial()->bUseMaterialAttributes )
 						{
 							continue;
 						}
@@ -1943,6 +1943,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		}
 	};
 
+	UMaterialEditorOnlyData* EditorOnly = Material.GetEditorOnlyData();
+
 	// Base color
 	{
 		const bool bIsNormalMap = false;
@@ -1950,8 +1952,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		{
 			if (UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue(Material, ParameterValue))
 			{
-				Material.BaseColor.Expression = Expression;
-				SetOutputIndex(ParameterValue, Material.BaseColor.OutputIndex);
+				EditorOnly->BaseColor.Expression = Expression;
+				SetOutputIndex(ParameterValue, EditorOnly->BaseColor.OutputIndex);
 
 				bHasMaterialInfo = true;
 			}
@@ -1965,8 +1967,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		{
 			if (UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue(Material, ParameterValue))
 			{
-				Material.EmissiveColor.Expression = Expression;
-				SetOutputIndex(ParameterValue, Material.EmissiveColor.OutputIndex);
+				EditorOnly->EmissiveColor.Expression = Expression;
+				SetOutputIndex(ParameterValue, EditorOnly->EmissiveColor.OutputIndex);
 
 				bHasMaterialInfo = true;
 			}
@@ -1978,8 +1980,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Metallic.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.Metallic.OutputIndex );
+			EditorOnly->Metallic.Expression = Expression;
+			SetOutputIndex( ParameterValue, EditorOnly->Metallic.OutputIndex );
 
 			bHasMaterialInfo = true;
 		}
@@ -1990,8 +1992,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Roughness.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.Roughness.OutputIndex );
+			EditorOnly->Roughness.Expression = Expression;
+			SetOutputIndex( ParameterValue, EditorOnly->Roughness.OutputIndex );
 
 			bHasMaterialInfo = true;
 		}
@@ -2002,8 +2004,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Opacity.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.Opacity.OutputIndex );
+			EditorOnly->Opacity.Expression = Expression;
+			SetOutputIndex( ParameterValue, EditorOnly->Opacity.OutputIndex );
 
 			Material.BlendMode = BLEND_Translucent;
 			bHasMaterialInfo = true;
@@ -2017,8 +2019,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		{
 			if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 			{
-				Material.Normal.Expression = Expression;
-				SetOutputIndex(ParameterValue, Material.Normal.OutputIndex);
+				EditorOnly->Normal.Expression = Expression;
+				SetOutputIndex(ParameterValue, EditorOnly->Normal.OutputIndex);
 
 				bHasMaterialInfo = true;
 			}
@@ -2031,8 +2033,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
-			Material.Refraction.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.Refraction.OutputIndex );
+			EditorOnly->Refraction.Expression = Expression;
+			SetOutputIndex( ParameterValue, EditorOnly->Refraction.OutputIndex );
 
 			bHasMaterialInfo = true;
 		}

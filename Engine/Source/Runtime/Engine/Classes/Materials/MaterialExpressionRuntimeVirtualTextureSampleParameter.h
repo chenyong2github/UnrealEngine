@@ -23,11 +23,9 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 	UPROPERTY(EditAnywhere, Category = MaterialParameter)
 	FName Group;
 
-#if WITH_EDITORONLY_DATA
 	/** Controls where the this parameter is displayed in a material instance parameter list. The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category = MaterialParameter)
 	int32 SortPriority = 32;
-#endif
 
 #if WITH_EDITOR
 	/** If this is the named parameter from this material expression, then set its value. */
@@ -58,6 +56,7 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 		OutMeta.ExpressionGuid = ExpressionGUID;
 		OutMeta.Group = Group;
 		OutMeta.SortPriority = SortPriority;
+		OutMeta.AssetPath = GetAssetPathName();
 		return true;
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override

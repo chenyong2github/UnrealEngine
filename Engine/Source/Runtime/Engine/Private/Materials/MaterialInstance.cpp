@@ -482,27 +482,35 @@ void UMaterialInstance::SwapLayerParameterIndices(int32 OriginalIndex, int32 New
 {
 	if (OriginalIndex != NewIndex)
 	{
+		UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
 		SwapLayerParameterIndicesArray(ScalarParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(VectorParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(DoubleVectorParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(TextureParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(FontParameterValues, OriginalIndex, NewIndex);
-		SwapLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, OriginalIndex, NewIndex);
-		SwapLayerParameterIndicesArray(StaticParameters.StaticComponentMaskParameters, OriginalIndex, NewIndex);
+		if (EditorOnly)
+		{
+			SwapLayerParameterIndicesArray(EditorOnly->StaticParameters.StaticSwitchParameters, OriginalIndex, NewIndex);
+			SwapLayerParameterIndicesArray(EditorOnly->StaticParameters.StaticComponentMaskParameters, OriginalIndex, NewIndex);
+		}
 	}
 }
 
 void UMaterialInstance::RemoveLayerParameterIndex(int32 Index)
 {
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
 	RemoveLayerParameterIndicesArray(ScalarParameterValues, Index);
 	RemoveLayerParameterIndicesArray(VectorParameterValues, Index);
 	RemoveLayerParameterIndicesArray(DoubleVectorParameterValues, Index);
 	RemoveLayerParameterIndicesArray(TextureParameterValues, Index);
 	RemoveLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, Index);
 	RemoveLayerParameterIndicesArray(FontParameterValues, Index);
-	RemoveLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, Index);
-	RemoveLayerParameterIndicesArray(StaticParameters.StaticComponentMaskParameters, Index);
+	if (EditorOnly)
+	{
+		RemoveLayerParameterIndicesArray(EditorOnly->StaticParameters.StaticSwitchParameters, Index);
+		RemoveLayerParameterIndicesArray(EditorOnly->StaticParameters.StaticComponentMaskParameters, Index);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -511,7 +519,8 @@ bool UMaterialInstance::UpdateParameters()
 	bool bDirty = false;
 
 #if WITH_EDITOR
-	if(IsTemplate(RF_ClassDefaultObject)==false)
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	if(IsTemplate(RF_ClassDefaultObject)==false && EditorOnly)
 	{
 		// Get a pointer to the parent material.
 		UMaterial* ParentMaterial = NULL;
@@ -550,27 +559,37 @@ bool UMaterialInstance::UpdateParameters()
 			bDirty = UpdateParameterSet<FFontParameterValue, UMaterialExpressionFontSampleParameter>(FontParameterValues, ParentMaterial) || bDirty;
 
 			// Static switch parameters
-			bDirty = UpdateParameterSet<FStaticSwitchParameter, UMaterialExpressionStaticBoolParameter>(StaticParameters.StaticSwitchParameters, ParentMaterial) || bDirty;
+			bDirty = UpdateParameterSet<FStaticSwitchParameter, UMaterialExpressionStaticBoolParameter>(EditorOnly->StaticParameters.StaticSwitchParameters, ParentMaterial) || bDirty;
 
 			// Static component mask parameters
-			bDirty = UpdateParameterSet<FStaticComponentMaskParameter, UMaterialExpressionStaticComponentMaskParameter>(StaticParameters.StaticComponentMaskParameters, ParentMaterial) || bDirty;
+			bDirty = UpdateParameterSet<FStaticComponentMaskParameter, UMaterialExpressionStaticComponentMaskParameter>(EditorOnly->StaticParameters.StaticComponentMaskParameters, ParentMaterial) || bDirty;
 
 			// Custom parameters
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			for (const auto& CustomParameterSetUpdater : CustomParameterSetUpdaters)
+			if (CustomParameterSetUpdaters.Num() > 0)
 			{
-				bDirty |= CustomParameterSetUpdater.Execute(StaticParameters, ParentMaterial);
+				FStaticParameterSet LocalStaticParameters = GetStaticParameters();
+				for (const auto& CustomParameterSetUpdater : CustomParameterSetUpdaters)
+				{
+					bDirty |= CustomParameterSetUpdater.Execute(LocalStaticParameters, ParentMaterial);
+				}
+				StaticParametersRuntime = LocalStaticParameters.GetRuntime();
+				EditorOnly->StaticParameters = LocalStaticParameters.EditorOnly;
 			}
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
-		if (StaticParameters.bHasMaterialLayers && Parent)
+		if (StaticParametersRuntime.bHasMaterialLayers && Parent)
 		{
 			FMaterialLayersFunctions ParentLayers;
 			if (Parent->GetMaterialLayers(ParentLayers))
 			{
 				TArray<int32> RemapLayerIndices;
-				if (StaticParameters.MaterialLayers.ResolveParent(ParentLayers, RemapLayerIndices))
+				if (FMaterialLayersFunctions::ResolveParent(ParentLayers,
+					ParentLayers.EditorOnly,
+					StaticParametersRuntime.MaterialLayers,
+					EditorOnly->StaticParameters.MaterialLayers,
+					RemapLayerIndices))
 				{
 					RemapLayerParameterIndicesArray(ScalarParameterValues, RemapLayerIndices);
 					RemapLayerParameterIndicesArray(VectorParameterValues, RemapLayerIndices);
@@ -578,8 +597,8 @@ bool UMaterialInstance::UpdateParameters()
 					RemapLayerParameterIndicesArray(TextureParameterValues, RemapLayerIndices);
 					RemapLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, RemapLayerIndices);
 					RemapLayerParameterIndicesArray(FontParameterValues, RemapLayerIndices);
-					RemapLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, RemapLayerIndices);
-					RemapLayerParameterIndicesArray(StaticParameters.StaticComponentMaskParameters, RemapLayerIndices);
+					RemapLayerParameterIndicesArray(EditorOnly->StaticParameters.StaticSwitchParameters, RemapLayerIndices);
+					RemapLayerParameterIndicesArray(EditorOnly->StaticParameters.StaticComponentMaskParameters, RemapLayerIndices);
 					bDirty = true;
 				}
 			}
@@ -855,8 +874,12 @@ bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, c
 	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, OutResult); break;
 #if WITH_EDITORONLY_DATA
-	case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticParameters.StaticSwitchParameters, ParameterInfo, OutResult); break;
-	case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticParameters.StaticComponentMaskParameters, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::StaticSwitch:
+		bResult = GameThread_GetParameterValue(GetEditorOnlyData()->StaticParameters.StaticSwitchParameters, ParameterInfo, OutResult);
+		break;
+	case EMaterialParameterType::StaticComponentMask:
+		bResult = GameThread_GetParameterValue(GetEditorOnlyData()->StaticParameters.StaticComponentMaskParameters, ParameterInfo, OutResult);
+		break;
 #endif // WITH_EDITORONLY_DATA
 	default: checkNoEntry(); break;
 	}
@@ -871,7 +894,7 @@ bool UMaterialInstance::GetParameterValue(EMaterialParameterType Type, const FMe
 	bool bResult = false;
 	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
-		bResult = InstanceChain.GetCachedExpressionData().Parameters.GetParameterValue(Type, ParameterInfo, OutResult);
+		bResult = InstanceChain.GetCachedExpressionData().GetParameterValue(Type, ParameterInfo, OutResult);
 	}
 
 	const bool bCheckInstanceOverrides = EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckInstanceOverrides);
@@ -1681,7 +1704,10 @@ void UMaterialInstance::SetStaticSwitchParameterValueEditorOnly(const FMaterialP
 {
 	check(GIsEditor || IsRunningCommandlet());
 
-	for (FStaticSwitchParameter& StaticSwitches : StaticParameters.StaticSwitchParameters)
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	check(EditorOnly);
+
+	for (FStaticSwitchParameter& StaticSwitches : EditorOnly->StaticParameters.StaticSwitchParameters)
 	{
 		if (StaticSwitches.ParameterInfo == ParameterInfo)
 		{
@@ -1691,7 +1717,7 @@ void UMaterialInstance::SetStaticSwitchParameterValueEditorOnly(const FMaterialP
 		}
 	}
 
-	new(StaticParameters.StaticSwitchParameters) FStaticSwitchParameter(ParameterInfo, Value, true, FGuid());
+	new(EditorOnly->StaticParameters.StaticSwitchParameters) FStaticSwitchParameter(ParameterInfo, Value, true, FGuid());
 }
 
 void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticParameters)
@@ -1719,9 +1745,21 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 		}
 	}
 
-	OutStaticParameters.TerrainLayerWeightParameters = StaticParameters.TerrainLayerWeightParameters;
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	if (EditorOnly)
+	{
+		OutStaticParameters.EditorOnly.TerrainLayerWeightParameters = EditorOnly->StaticParameters.TerrainLayerWeightParameters;
+	}
 
-	OutStaticParameters.bHasMaterialLayers = GetMaterialLayers(OutStaticParameters.MaterialLayers);
+	FMaterialLayersFunctions MaterialLayers;
+	OutStaticParameters.bHasMaterialLayers = GetMaterialLayers(MaterialLayers);
+	if (OutStaticParameters.bHasMaterialLayers)
+	{
+		OutStaticParameters.MaterialLayers = MoveTemp(MaterialLayers.GetRuntime());
+		OutStaticParameters.EditorOnly.MaterialLayers = MoveTemp(MaterialLayers.EditorOnly);
+	}
+
+	OutStaticParameters.Validate();
 
 	// Custom parameters.
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1759,7 +1797,7 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap
 	GetMaterialInheritanceChain(InstanceChain);
 
 	OutParameters.Reset();
-	InstanceChain.GetCachedExpressionData().Parameters.GetAllParametersOfType(Type, OutParameters);
+	InstanceChain.GetCachedExpressionData().GetAllParametersOfType(Type, OutParameters);
 
 	TArray<int32, TInlineAllocator<16>> LayerIndexRemap;
 	LayerIndexRemap.Empty(GetCachedInstanceData().ParentLayerIndexRemap.Num());
@@ -1775,7 +1813,6 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap
 	for (int32 Index = 0; Index < InstanceChain.MaterialInstances.Num(); ++Index)
 	{
 		const UMaterialInstance* Instance = InstanceChain.MaterialInstances[Index];
-
 		const bool bSetOverride = (Index == 0); // Only set the override flag for parameters overriden by the current material (always at slot0)
 		switch (Type)
 		{
@@ -1786,8 +1823,12 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap
 		case EMaterialParameterType::RuntimeVirtualTexture: GameThread_ApplyParameterOverrides(Instance->RuntimeVirtualTextureParameterValues, LayerIndexRemap, bSetOverride, OverridenParameters, OutParameters); break;
 		case EMaterialParameterType::Font: GameThread_ApplyParameterOverrides(Instance->FontParameterValues, LayerIndexRemap, bSetOverride, OverridenParameters, OutParameters); break;
 #if WITH_EDITORONLY_DATA
-		case EMaterialParameterType::StaticSwitch: GameThread_ApplyParameterOverrides(Instance->StaticParameters.StaticSwitchParameters, LayerIndexRemap, bSetOverride, OverridenParameters, OutParameters); break;
-		case EMaterialParameterType::StaticComponentMask: GameThread_ApplyParameterOverrides(Instance->StaticParameters.StaticComponentMaskParameters, LayerIndexRemap, bSetOverride, OverridenParameters, OutParameters); break;
+		case EMaterialParameterType::StaticSwitch:
+			GameThread_ApplyParameterOverrides(Instance->GetEditorOnlyData()->StaticParameters.StaticSwitchParameters, LayerIndexRemap, bSetOverride, OverridenParameters, OutParameters);
+			break;
+		case EMaterialParameterType::StaticComponentMask:
+			GameThread_ApplyParameterOverrides(Instance->GetEditorOnlyData()->StaticParameters.StaticComponentMaskParameters, LayerIndexRemap, bSetOverride, OverridenParameters, OutParameters);
+			break;
 #endif // WITH_EDITORONLY_DATA
 		default: checkNoEntry();
 		}
@@ -1805,9 +1846,9 @@ bool UMaterialInstance::IterateDependentFunctions(TFunctionRef<bool(UMaterialFun
 {
 	// Important that local function references are listed first so that traversing for a parameter
 	// value we always hit the highest material in the hierarchy that can give us a valid value
-	if (StaticParameters.bHasMaterialLayers)
+	if (StaticParametersRuntime.bHasMaterialLayers)
 	{
-		for (UMaterialFunctionInterface* Layer : StaticParameters.MaterialLayers.Layers)
+		for (UMaterialFunctionInterface* Layer : StaticParametersRuntime.MaterialLayers.Layers)
 		{
 			if (Layer)
 			{
@@ -1822,7 +1863,7 @@ bool UMaterialInstance::IterateDependentFunctions(TFunctionRef<bool(UMaterialFun
 			}
 		}
 
-		for (UMaterialFunctionInterface* Blend : StaticParameters.MaterialLayers.Blends)
+		for (UMaterialFunctionInterface* Blend : StaticParametersRuntime.MaterialLayers.Blends)
 		{
 			if (Blend)
 			{
@@ -1863,8 +1904,10 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 {
 	UpdateOverridableBaseProperties();
 
+#if WITH_EDITORONLY_DATA
 	// Update bHasStaticPermutationResource in case the parent was not found
-	bHasStaticPermutationResource = (!StaticParameters.IsEmpty() || HasOverridenBaseProperties()) && Parent;
+	bHasStaticPermutationResource = (HasStaticParameters() || HasOverridenBaseProperties()) && Parent;
+#endif // WITH_EDITORONLY_DATA
 
 	FMaterialResourceDeferredDeletionArray ResourcesToFree;
 
@@ -2186,9 +2229,17 @@ void UMaterialInstance::CacheGivenTypesForCooking(EShaderPlatform ShaderPlatform
 
 bool UMaterialInstance::GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard RecursionGuard) const
 {
-	if (StaticParameters.bHasMaterialLayers)
+	if (StaticParametersRuntime.bHasMaterialLayers)
 	{
-		OutLayers = StaticParameters.MaterialLayers;
+		OutLayers.GetRuntime() = StaticParametersRuntime.MaterialLayers;
+#if WITH_EDITORONLY_DATA
+		const UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+		if (EditorOnly)
+		{
+			OutLayers.EditorOnly = EditorOnly->StaticParameters.MaterialLayers;
+		}
+		OutLayers.Validate();
+#endif // WITH_EDITORONLY_DATA
 		return true;
 	}
 
@@ -2239,8 +2290,13 @@ bool UMaterialInstance::IsComplete() const
 #if WITH_EDITOR
 bool UMaterialInstance::SetMaterialLayers(const FMaterialLayersFunctions& LayersValue)
 {
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	check(EditorOnly);
+
 	bool bUpdatedLayers = false;
-	if (!StaticParameters.bHasMaterialLayers || StaticParameters.MaterialLayers != LayersValue)
+	if (!StaticParametersRuntime.bHasMaterialLayers ||
+		StaticParametersRuntime.MaterialLayers != LayersValue.GetRuntime() ||
+		EditorOnly->StaticParameters.MaterialLayers != LayersValue.EditorOnly)
 	{
 		bool bMatchesParentLayers = false;
 		if (Parent)
@@ -2254,16 +2310,19 @@ bool UMaterialInstance::SetMaterialLayers(const FMaterialLayersFunctions& Layers
 
 		if (bMatchesParentLayers)
 		{
-			bUpdatedLayers = StaticParameters.bHasMaterialLayers; // if we previously had layers, but are now clearing them to match parent
-			StaticParameters.bHasMaterialLayers = false;
-			StaticParameters.MaterialLayers.Empty();
+			bUpdatedLayers = StaticParametersRuntime.bHasMaterialLayers; // if we previously had layers, but are now clearing them to match parent
+			StaticParametersRuntime.bHasMaterialLayers = false;
+			StaticParametersRuntime.MaterialLayers.Empty();
+			EditorOnly->StaticParameters.MaterialLayers.Empty();
 		}
 		else
 		{
 			bUpdatedLayers = true;
-			StaticParameters.bHasMaterialLayers = true;
-			StaticParameters.MaterialLayers = LayersValue;
+			StaticParametersRuntime.bHasMaterialLayers = true;
+			StaticParametersRuntime.MaterialLayers = LayersValue.GetRuntime();
+			EditorOnly->StaticParameters.MaterialLayers = LayersValue.EditorOnly;
 		}
+		FStaticParameterSet::Validate(StaticParametersRuntime, EditorOnly->StaticParameters);
 	}
 	return bUpdatedLayers;
 }
@@ -2350,6 +2409,7 @@ void UMaterialInstance::ClearAllCachedCookedPlatformData()
 
 #endif
 
+PRAGMA_DISABLE_OPTIMIZATION
 void UMaterialInstance::Serialize(FArchive& Ar)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
@@ -2366,8 +2426,9 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #endif
 
 	Super::Serialize(Ar);
-		
+
 #if WITH_EDITOR
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MaterialAttributeLayerParameters)
 	{
 		// Material attribute layers parameter refactor fix-up
@@ -2391,13 +2452,21 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::MaterialLayerStacksAreNotParameters)
 	{
-		StaticParameters.UpdateLegacyMaterialLayersData();
+		StaticParameters_DEPRECATED.UpdateLegacyMaterialLayersData();
 	}
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::TerrainLayerWeightsAreNotParameters)
 	{
-		StaticParameters.UpdateLegacyTerrainLayerWeightData();
+		StaticParameters_DEPRECATED.UpdateLegacyTerrainLayerWeightData();
 	}
+
+	if (!StaticParameters_DEPRECATED.IsEmpty())
+	{
+		StaticParametersRuntime = MoveTemp(StaticParameters_DEPRECATED.GetRuntime());
+		EditorOnly->StaticParameters = MoveTemp(StaticParameters_DEPRECATED.EditorOnly);
+		StaticParameters_DEPRECATED.Empty();
+	}
+
 #endif // WITH_EDITOR
 
 	bool bSavedCachedData = false;
@@ -2451,7 +2520,9 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 			if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MaterialAttributeLayerParameters)
 			{
-				StaticParameters.SerializeLegacy(Ar);
+				StaticParameters_DEPRECATED.SerializeLegacy(Ar);
+				StaticParametersRuntime = MoveTemp(StaticParameters_DEPRECATED.GetRuntime());
+				EditorOnly->StaticParameters = MoveTemp(StaticParameters_DEPRECATED.EditorOnly);
 			}
 
 			static_assert(!STORE_ONLY_ACTIVE_SHADERMAPS, "Only discard unused SMs in cooked build");
@@ -2478,12 +2549,12 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			FMaterialShaderMapId LegacyId;
 			LegacyId.Serialize(Ar, bLoadedByCookedMaterial);
 
-			StaticParameters.StaticSwitchParameters = LegacyId.GetStaticSwitchParameters();
-			StaticParameters.StaticComponentMaskParameters = LegacyId.GetStaticComponentMaskParameters();
-			StaticParameters.TerrainLayerWeightParameters = LegacyId.GetTerrainLayerWeightParameters();
+			EditorOnly->StaticParameters.StaticSwitchParameters = LegacyId.GetStaticSwitchParameters();
+			EditorOnly->StaticParameters.StaticComponentMaskParameters = LegacyId.GetStaticComponentMaskParameters();
+			EditorOnly->StaticParameters.TerrainLayerWeightParameters = LegacyId.GetTerrainLayerWeightParameters();
 
-			TrimToOverriddenOnly(StaticParameters.StaticSwitchParameters);
-			TrimToOverriddenOnly(StaticParameters.StaticComponentMaskParameters);
+			TrimToOverriddenOnly(EditorOnly->StaticParameters.StaticSwitchParameters);
+			TrimToOverriddenOnly(EditorOnly->StaticParameters.StaticComponentMaskParameters);
 		}
 #endif // WITH_EDITOR
 	}
@@ -2543,6 +2614,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 		ValidateTextureOverrides(GMaxRHIFeatureLevel);
 	}
 }
+PRAGMA_ENABLE_OPTIMIZATION
 
 void UMaterialInstance::PostLoad()
 {
@@ -2637,17 +2709,18 @@ void UMaterialInstance::PostLoad()
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
 	// And any material layers parameter's functions
-	if (StaticParameters.bHasMaterialLayers)
+	if (StaticParametersRuntime.bHasMaterialLayers)
 	{
-		for (UMaterialFunctionInterface* Dependency : StaticParameters.MaterialLayers.Layers)
+		for (UMaterialFunctionInterface* Dependency : StaticParametersRuntime.MaterialLayers.Layers)
 		{
 			if (Dependency)
 			{
 				Dependency->ConditionalPostLoad();
 			}
 		}
-		for (UMaterialFunctionInterface* Dependency : StaticParameters.MaterialLayers.Blends)
+		for (UMaterialFunctionInterface* Dependency : StaticParametersRuntime.MaterialLayers.Blends)
 		{
 			if (Dependency)
 			{
@@ -2655,6 +2728,7 @@ void UMaterialInstance::PostLoad()
 			}
 		}
 	}
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	UpdateCachedData();
@@ -2931,7 +3005,9 @@ void FMaterialInstanceParameterUpdateContext::SetBasePropertyOverrides(const FMa
 void FMaterialInstanceParameterUpdateContext::SetMaterialLayers(const FMaterialLayersFunctions& InValue)
 {
 	StaticParameters.bHasMaterialLayers = true;
-	StaticParameters.MaterialLayers = InValue;
+	StaticParameters.MaterialLayers = InValue.GetRuntime();
+	StaticParameters.EditorOnly.MaterialLayers = InValue.EditorOnly;
+	StaticParameters.Validate();
 }
 #endif // WITH_EDITORONLY_DATA
 
@@ -3261,8 +3337,16 @@ void UMaterialInstance::ClearParameterValuesInternal(EMaterialInstanceClearParam
 
 	if (EnumHasAnyFlags(Flags, EMaterialInstanceClearParameterFlag::Static))
 	{
-		StaticParameters.Empty();
+		StaticParametersRuntime.Empty();
+#if WITH_EDITORONLY_DATA
+		UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+		if (EditorOnly)
+		{
+			EditorOnly->StaticParameters.Empty();
+		}
+#endif // WITH_EDITORONLY_DATA
 	}
+
 
 	if (Resource && bUpdateResource)
 	{
@@ -3284,10 +3368,11 @@ void UMaterialInstance::ClearParameterValuesInternal(EMaterialInstanceClearParam
 #if WITH_EDITOR
 void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewParameters, FMaterialInstanceBasePropertyOverrides& NewBasePropertyOverrides, const bool bForceStaticPermutationUpdate /*= false*/, FMaterialUpdateContext* MaterialUpdateContext)
 {
+	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
 	FStaticParameterSet CompareParameters = NewParameters;
 
-	TrimToOverriddenOnly(CompareParameters.StaticSwitchParameters);
-	TrimToOverriddenOnly(CompareParameters.StaticComponentMaskParameters);
+	TrimToOverriddenOnly(CompareParameters.EditorOnly.StaticSwitchParameters);
+	TrimToOverriddenOnly(CompareParameters.EditorOnly.StaticComponentMaskParameters);
 
 	// Check to see if the material layers being assigned match values from the parent
 	if (CompareParameters.bHasMaterialLayers && Parent)
@@ -3295,7 +3380,11 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		FMaterialLayersFunctions ParentLayers;
 		if (Parent->GetMaterialLayers(ParentLayers))
 		{
-			if (CompareParameters.MaterialLayers.MatchesParent(ParentLayers))
+			if (FMaterialLayersFunctions::MatchesParent(
+				CompareParameters.MaterialLayers,
+				CompareParameters.EditorOnly.MaterialLayers,
+				ParentLayers,
+				ParentLayers.EditorOnly))
 			{
 				CompareParameters.bHasMaterialLayers = false;
 				CompareParameters.MaterialLayers.Empty();
@@ -3303,7 +3392,8 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		}
 	}
 
-	const bool bParamsHaveChanged = StaticParameters != CompareParameters;
+	const FStaticParameterSet CurrentParameters = GetStaticParameters();
+	const bool bParamsHaveChanged = CurrentParameters != CompareParameters;
 	const bool bBasePropertyOverridesHaveChanged = BasePropertyOverrides != NewBasePropertyOverrides;
 
 	BasePropertyOverrides = NewBasePropertyOverrides;
@@ -3321,7 +3411,8 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		FlushRenderingCommands();
 
 		bHasStaticPermutationResource = bWantsStaticPermutationResource;
-		StaticParameters = CompareParameters;
+		StaticParametersRuntime = CompareParameters.GetRuntime();
+		EditorOnly->StaticParameters = CompareParameters.EditorOnly;
 
 		UpdateCachedData();
 		CacheResourceShadersForRendering(EMaterialShaderPrecompileMode::None);
@@ -3378,7 +3469,7 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 void UMaterialInstance::UpdateStaticPermutation(FMaterialUpdateContext* MaterialUpdateContext)
 {
 	// Force the update, since we aren't technically changing anything
-	UpdateStaticPermutation(StaticParameters, BasePropertyOverrides, true, MaterialUpdateContext);
+	UpdateStaticPermutation(GetStaticParameters(), BasePropertyOverrides, true, MaterialUpdateContext);
 }
 
 void UMaterialInstance::UpdateParameterNames()
@@ -3416,7 +3507,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	// Force UpdateStaticPermutation when change type is Redirected as this probably means a Material or MaterialInstance parent asset was deleted.
 	const bool bForceStaticPermutationUpdate = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected;
-	UpdateStaticPermutation(StaticParameters, BasePropertyOverrides, bForceStaticPermutationUpdate);
+	UpdateStaticPermutation(GetStaticParameters(), BasePropertyOverrides, bForceStaticPermutationUpdate);
 
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::Unspecified || PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
 	{
@@ -3872,17 +3963,48 @@ bool UMaterialInstance::IsPropertyActive(EMaterialProperty InProperty) const
 	return Material ? Material->IsPropertyActiveInDerived(InProperty, this) : false;
 }
 
+bool UMaterialInstance::HasStaticParameters() const
+{
+	if (!StaticParametersRuntime.IsEmpty())
+	{
+		return true;
+	}
+#if WITH_EDITOR
+	const UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	if (EditorOnly && !EditorOnly->StaticParameters.IsEmpty())
+	{
+		return true;
+	}
+#endif // WITH_EDITOR
+	return false;
+}
+
+FStaticParameterSet UMaterialInstance::GetStaticParameters() const
+{
+	FStaticParameterSet Result;
+	Result.GetRuntime() = StaticParametersRuntime;
+#if WITH_EDITORONLY_DATA
+	const UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	if (EditorOnly)
+	{
+		Result.EditorOnly = EditorOnly->StaticParameters;
+	}
+#endif // WITH_EDITORONLY_DATA
+	return Result;
+}
+
 #if WITH_EDITOR
 int32 UMaterialInstance::CompilePropertyEx( class FMaterialCompiler* Compiler, const FGuid& AttributeID )
 {
 	return Parent ? Parent->CompilePropertyEx(Compiler, AttributeID) : INDEX_NONE;
 }
-#endif // WITH_EDITOR
 
-const FStaticParameterSet& UMaterialInstance::GetStaticParameters() const
+const FStaticParameterSetEditorOnlyData& UMaterialInstance::GetEditorOnlyStaticParameters() const
 {
-	return StaticParameters;
+	const UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
+	return EditorOnly->StaticParameters;
 }
+#endif // WITH_EDITOR
 
 void UMaterialInstance::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const
 {
@@ -3958,10 +4080,12 @@ bool UMaterialInstance::Equivalent(const UMaterialInstance* CompareTo) const
 		return false;
 	}
 
-	if (!StaticParameters.Equivalent(CompareTo->StaticParameters))
+	const FStaticParameterSet LocalStaticParameters = GetStaticParameters();
+	if (!LocalStaticParameters.Equivalent(CompareTo->GetStaticParameters()))
 	{
 		return false;
 	}
+
 	return true;
 }
 
@@ -4242,58 +4366,6 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 #endif
 }
-
-#if WITH_EDITOR
-
-void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<TObjectPtr<UMaterialExpression>>& InMaterialExpression)
-{
-	for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
-	{
-		if (const UMaterialExpressionCollectionParameter* CollectionPtr = Cast<UMaterialExpressionCollectionParameter>(InMaterialExpression[ExpressionIndex]))
-		{
-			if (CollectionPtr->Collection)
-			{
-				OutGuidList.Add(CollectionPtr->Collection->StateId);
-			}
-			return;
-		}
-		else if (const UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(InMaterialExpression[ExpressionIndex]))
-		{
-			if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = MaterialFunctionCall->MaterialFunction ? MaterialFunctionCall->MaterialFunction->GetFunctionExpressions() : nullptr)
-			{
-				FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
-			}
-		}
-		else if (const UMaterialExpressionMaterialAttributeLayers* MaterialLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(InMaterialExpression[ExpressionIndex]))
-		{
-			const TArray<UMaterialFunctionInterface*>& Layers = MaterialLayers->GetLayers();
-			const TArray<UMaterialFunctionInterface*>& Blends = MaterialLayers->GetBlends();
-
-			for (const UMaterialFunctionInterface* Layer : Layers)
-			{
-				if (Layer)
-				{
-					if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->GetFunctionExpressions())
-					{
-						FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
-					}
-				}
-			}
-
-			for (const UMaterialFunctionInterface* Blend : Blends)
-			{
-				if (Blend)
-				{
-					if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->GetFunctionExpressions())
-					{
-						FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
-					}
-				}
-			}
-		}
-	}
-}
-#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

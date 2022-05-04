@@ -102,11 +102,11 @@ bool SMaterialLayersFunctionsInstanceTreeItem::GetFilterState(SMaterialLayersFun
 {
 	if (InStackData->ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter)
 	{
-		return InTree->FunctionInstance->RestrictToLayerRelatives[InStackData->ParameterInfo.Index];
+		return InTree->FunctionInstance->EditorOnly.RestrictToLayerRelatives[InStackData->ParameterInfo.Index];
 	}
 	if (InStackData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
 	{
-		return InTree->FunctionInstance->RestrictToBlendRelatives[InStackData->ParameterInfo.Index];
+		return InTree->FunctionInstance->EditorOnly.RestrictToBlendRelatives[InStackData->ParameterInfo.Index];
 	}
 	return false;
 }
@@ -115,11 +115,11 @@ void SMaterialLayersFunctionsInstanceTreeItem::FilterClicked(const ECheckBoxStat
 {
 	if (InStackData->ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter)
 	{
-		InTree->FunctionInstance->RestrictToLayerRelatives[InStackData->ParameterInfo.Index] = !InTree->FunctionInstance->RestrictToLayerRelatives[InStackData->ParameterInfo.Index];
+		InTree->FunctionInstance->EditorOnly.RestrictToLayerRelatives[InStackData->ParameterInfo.Index] = !InTree->FunctionInstance->EditorOnly.RestrictToLayerRelatives[InStackData->ParameterInfo.Index];
 	}
 	if (InStackData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
 	{
-		InTree->FunctionInstance->RestrictToBlendRelatives[InStackData->ParameterInfo.Index] = !InTree->FunctionInstance->RestrictToBlendRelatives[InStackData->ParameterInfo.Index];
+		InTree->FunctionInstance->EditorOnly.RestrictToBlendRelatives[InStackData->ParameterInfo.Index] = !InTree->FunctionInstance->EditorOnly.RestrictToBlendRelatives[InStackData->ParameterInfo.Index];
 	}
 }
 
@@ -137,7 +137,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::OnNameChanged(const FText& InText
 {
 	const FScopedTransaction Transaction(LOCTEXT("RenamedSection", "Renamed layer and blend section"));
 	InTree->FunctionInstanceHandle->NotifyPreChange();
-	InTree->FunctionInstance->LayerNames[Counter] = InText;
+	InTree->FunctionInstance->EditorOnly.LayerNames[Counter] = InText;
 	InTree->FunctionInstance->UnlinkLayerFromParent(Counter);
 	InTree->MaterialEditorInstance->CopyToSourceInstance(true);
 	InTree->FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
@@ -210,7 +210,7 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 
 bool SMaterialLayersFunctionsInstanceTree::IsOverriddenExpression(class UDEditorParameterValue* Parameter, int32 InIndex)
 {
-	return FMaterialPropertyHelpers::IsOverriddenExpression(Parameter) && FunctionInstance->LayerStates[InIndex];
+	return FMaterialPropertyHelpers::IsOverriddenExpression(Parameter) && FunctionInstance->EditorOnly.LayerStates[InIndex];
 }
 
 bool SMaterialLayersFunctionsInstanceTree::IsOverriddenExpression(TObjectPtr<UDEditorParameterValue> Parameter, int32 InIndex)
@@ -400,8 +400,8 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			.TransformPolicy(ETextTransformPolicy::ToUpper);
 		const int32 LayerStateIndex = StackParameterData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter ? StackParameterData->ParameterInfo.Index + 1 : StackParameterData->ParameterInfo.Index;
-		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->LayerStates[LayerStateIndex]);
-		RightSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->LayerStates[LayerStateIndex]);
+		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->EditorOnly.LayerStates[LayerStateIndex]);
+		RightSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->EditorOnly.LayerStates[LayerStateIndex]);
 	}
 // END GROUP
 
@@ -542,7 +542,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 				.ToolTipText(LOCTEXT("SaveToChildInstance", "Save To Child Instance"))
 			];
 			
-		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->LayerStates[LayerStateIndex]);
+		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->EditorOnly.LayerStates[LayerStateIndex]);
 	}
 // END ASSET
 
@@ -927,7 +927,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 		StackParameterData->ParameterNode->CreatePropertyHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(Tree, &SMaterialLayersFunctionsInstanceTree::UpdateThumbnailMaterial, StackParameterData->ParameterInfo.Association, StackParameterData->ParameterInfo.Index, false));
 		StackParameterData->ParameterNode->CreatePropertyHandle()->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(Tree, &SMaterialLayersFunctionsInstanceTree::UpdateThumbnailMaterial, StackParameterData->ParameterInfo.Association, StackParameterData->ParameterInfo.Index, false));
 
-		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->LayerStates[LayerStateIndex]);
+		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->EditorOnly.LayerStates[LayerStateIndex]);
 	}
 // END PROPERTY
 
@@ -939,10 +939,10 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 		RightSideWidget = NodeWidgets.ValueWidget.ToSharedRef();
 
 		const int32 LayerStateIndex = StackParameterData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter ? StackParameterData->ParameterInfo.Index + 1 : StackParameterData->ParameterInfo.Index;
-		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->LayerStates[LayerStateIndex]);
+		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->EditorOnly.LayerStates[LayerStateIndex]);
 		TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create([this, LayerStateIndex]() -> bool
 			{
-				return FMaterialPropertyHelpers::IsOverriddenExpression(StackParameterData->Parameter) && Tree->FunctionInstance->LayerStates[LayerStateIndex];
+				return FMaterialPropertyHelpers::IsOverriddenExpression(StackParameterData->Parameter) && Tree->FunctionInstance->EditorOnly.LayerStates[LayerStateIndex];
 			});
 		RightSideWidget->SetEnabled(EnabledAttribute);
 	}
@@ -1149,20 +1149,20 @@ void SMaterialLayersFunctionsInstanceTree::Construct(const FArguments& InArgs)
 	//Fixup for adding new bool arrays to the class
 	if (FunctionInstance)
 	{
-		if (FunctionInstance->Layers.Num() != FunctionInstance->RestrictToLayerRelatives.Num())
+		if (FunctionInstance->Layers.Num() != FunctionInstance->EditorOnly.RestrictToLayerRelatives.Num())
 		{
-			int32 OriginalSize = FunctionInstance->RestrictToLayerRelatives.Num();
+			int32 OriginalSize = FunctionInstance->EditorOnly.RestrictToLayerRelatives.Num();
 			for (int32 LayerIt = 0; LayerIt < FunctionInstance->Layers.Num() - OriginalSize; LayerIt++)
 			{
-				FunctionInstance->RestrictToLayerRelatives.Add(false);
+				FunctionInstance->EditorOnly.RestrictToLayerRelatives.Add(false);
 			}
 		}
-		if (FunctionInstance->Blends.Num() != FunctionInstance->RestrictToBlendRelatives.Num())
+		if (FunctionInstance->Blends.Num() != FunctionInstance->EditorOnly.RestrictToBlendRelatives.Num())
 		{
-			int32 OriginalSize = FunctionInstance->RestrictToBlendRelatives.Num();
+			int32 OriginalSize = FunctionInstance->EditorOnly.RestrictToBlendRelatives.Num();
 			for (int32 BlendIt = 0; BlendIt < FunctionInstance->Blends.Num() - OriginalSize; BlendIt++)
 			{
-				FunctionInstance->RestrictToBlendRelatives.Add(false);
+				FunctionInstance->EditorOnly.RestrictToBlendRelatives.Add(false);
 			}
 		}
 	}
@@ -1332,7 +1332,7 @@ FReply SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility(int32 Index)
 			FunctionInstance->SetBlendedLayerVisibility(Index, true);
 			bLayerIsolated = false;
 		}
-		for (int32 LayerIt = 1; LayerIt < FunctionInstance->LayerStates.Num(); LayerIt++)
+		for (int32 LayerIt = 1; LayerIt < FunctionInstance->EditorOnly.LayerStates.Num(); LayerIt++)
 		{
 			if (LayerIt != Index)
 			{
@@ -2634,20 +2634,20 @@ void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 	//Fixup for adding new bool arrays to the class
 	if (FunctionInstance)
 	{
-		if (FunctionInstance->Layers.Num() != FunctionInstance->RestrictToLayerRelatives.Num())
+		if (FunctionInstance->Layers.Num() != FunctionInstance->EditorOnly.RestrictToLayerRelatives.Num())
 		{
-			int32 OriginalSize = FunctionInstance->RestrictToLayerRelatives.Num();
+			int32 OriginalSize = FunctionInstance->EditorOnly.RestrictToLayerRelatives.Num();
 			for (int32 LayerIt = 0; LayerIt < FunctionInstance->Layers.Num() - OriginalSize; LayerIt++)
 			{
-				FunctionInstance->RestrictToLayerRelatives.Add(false);
+				FunctionInstance->EditorOnly.RestrictToLayerRelatives.Add(false);
 			}
 		}
-		if (FunctionInstance->Blends.Num() != FunctionInstance->RestrictToBlendRelatives.Num())
+		if (FunctionInstance->Blends.Num() != FunctionInstance->EditorOnly.RestrictToBlendRelatives.Num())
 		{
-			int32 OriginalSize = FunctionInstance->RestrictToBlendRelatives.Num();
+			int32 OriginalSize = FunctionInstance->EditorOnly.RestrictToBlendRelatives.Num();
 			for (int32 BlendIt = 0; BlendIt < FunctionInstance->Blends.Num() - OriginalSize; BlendIt++)
 			{
-				FunctionInstance->RestrictToBlendRelatives.Add(false);
+				FunctionInstance->EditorOnly.RestrictToBlendRelatives.Add(false);
 			}
 		}
 	}

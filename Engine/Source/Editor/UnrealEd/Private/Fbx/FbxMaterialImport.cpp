@@ -324,7 +324,7 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 
 						// and link it to the material 
 						UMaterialExpressionTextureSample* UnrealTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
-						UnrealMaterial->Expressions.Add( UnrealTextureExpression );
+						UnrealMaterial->GetExpressionCollection().AddExpression( UnrealTextureExpression );
 						MaterialInput.Expression = UnrealTextureExpression;
 						UnrealTextureExpression->Texture = UnrealTexture;
 						UnrealTextureExpression->SamplerType = bSetupAsNormalMap ? 
@@ -346,7 +346,7 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 						{
 							// Create a texture coord node for the texture sample
 							UMaterialExpressionTextureCoordinate* MyCoordExpression = NewObject<UMaterialExpressionTextureCoordinate>(UnrealMaterial);
-							UnrealMaterial->Expressions.Add(MyCoordExpression);
+							UnrealMaterial->GetExpressionCollection().AddExpression(MyCoordExpression);
 							MyCoordExpression->CoordinateIndex = (SetIndex >= 0) ? SetIndex : 0;
 							MyCoordExpression->UTiling = ScaleU;
 							MyCoordExpression->VTiling = ScaleV;
@@ -382,14 +382,15 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 //-------------------------------------------------------------------------
 void UnFbx::FFbxImporter::FixupMaterial( const FbxSurfaceMaterial& FbxMaterial, UMaterial* UnrealMaterial )
 {
+	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
 	// add a basic diffuse color if no texture is linked to diffuse
-	if (UnrealMaterial->BaseColor.Expression == NULL)
+	if (UnrealMaterialEditorOnly->BaseColor.Expression == NULL)
 	{
 		FbxDouble3 DiffuseColor;
 		
 		UMaterialExpressionVectorParameter* MyColorExpression = NewObject<UMaterialExpressionVectorParameter>(UnrealMaterial);
-		UnrealMaterial->Expressions.Add( MyColorExpression );
-		UnrealMaterial->BaseColor.Expression = MyColorExpression;
+		UnrealMaterial->GetExpressionCollection().AddExpression( MyColorExpression );
+		UnrealMaterialEditorOnly->BaseColor.Expression = MyColorExpression;
 
 		bool bFoundDiffuseColor = true;
 		if( FbxMaterial.GetClassId().Is(FbxSurfacePhong::ClassId) )
@@ -419,13 +420,13 @@ void UnFbx::FFbxImporter::FixupMaterial( const FbxSurfaceMaterial& FbxMaterial, 
 			MyColorExpression->DefaultValue.B = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
 		}
 
-		TArray<FExpressionOutput> Outputs = UnrealMaterial->BaseColor.Expression->GetOutputs();
+		TArray<FExpressionOutput> Outputs = UnrealMaterialEditorOnly->BaseColor.Expression->GetOutputs();
 		FExpressionOutput* Output = Outputs.GetData();
-		UnrealMaterial->BaseColor.Mask = Output->Mask;
-		UnrealMaterial->BaseColor.MaskR = Output->MaskR;
-		UnrealMaterial->BaseColor.MaskG = Output->MaskG;
-		UnrealMaterial->BaseColor.MaskB = Output->MaskB;
-		UnrealMaterial->BaseColor.MaskA = Output->MaskA;
+		UnrealMaterialEditorOnly->BaseColor.Mask = Output->Mask;
+		UnrealMaterialEditorOnly->BaseColor.MaskR = Output->MaskR;
+		UnrealMaterialEditorOnly->BaseColor.MaskG = Output->MaskG;
+		UnrealMaterialEditorOnly->BaseColor.MaskB = Output->MaskB;
+		UnrealMaterialEditorOnly->BaseColor.MaskA = Output->MaskA;
 	}
 }
 
@@ -799,19 +800,20 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 				UE_LOG(LogFbxMaterialImport, Display, TEXT("-------------------------------"));
 			}
 #endif
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sDiffuse, UnrealMaterial->BaseColor, false, OutUVSets, FVector2D(240, -320));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sEmissive, UnrealMaterial->EmissiveColor, false, OutUVSets, FVector2D(240, -64));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecular, UnrealMaterial->Specular, false, OutUVSets, FVector2D(240, -128));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecularFactor, UnrealMaterial->Roughness, false, OutUVSets, FVector2D(240, -180));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sShininess, UnrealMaterial->Metallic, false, OutUVSets, FVector2D(240, -210));
-			if (!CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sNormalMap, UnrealMaterial->Normal, true, OutUVSets, FVector2D(240, 256)))
+			UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sDiffuse, UnrealMaterialEditorOnly->BaseColor, false, OutUVSets, FVector2D(240, -320));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sEmissive, UnrealMaterialEditorOnly->EmissiveColor, false, OutUVSets, FVector2D(240, -64));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecular, UnrealMaterialEditorOnly->Specular, false, OutUVSets, FVector2D(240, -128));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecularFactor, UnrealMaterialEditorOnly->Roughness, false, OutUVSets, FVector2D(240, -180));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sShininess, UnrealMaterialEditorOnly->Metallic, false, OutUVSets, FVector2D(240, -210));
+			if (!CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sNormalMap, UnrealMaterialEditorOnly->Normal, true, OutUVSets, FVector2D(240, 256)))
 			{
-				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sBump, UnrealMaterial->Normal, true, OutUVSets, FVector2D(240, 256)); // no bump in unreal, use as normal map
+				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sBump, UnrealMaterialEditorOnly->Normal, true, OutUVSets, FVector2D(240, 256)); // no bump in unreal, use as normal map
 			}
-			if (CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparentColor, UnrealMaterial->Opacity, false, OutUVSets, FVector2D(200, 256)))
+			if (CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparentColor, UnrealMaterialEditorOnly->Opacity, false, OutUVSets, FVector2D(200, 256)))
 			{
 				UnrealMaterial->BlendMode = BLEND_Translucent;
-				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparencyFactor, UnrealMaterial->OpacityMask, false, OutUVSets, FVector2D(150, 256));
+				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparencyFactor, UnrealMaterialEditorOnly->OpacityMask, false, OutUVSets, FVector2D(150, 256));
 
 			}
 			FixupMaterial(FbxMaterial, UnrealMaterial); // add random diffuse if none exists

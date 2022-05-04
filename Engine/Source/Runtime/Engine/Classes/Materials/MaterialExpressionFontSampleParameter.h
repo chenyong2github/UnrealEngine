@@ -29,11 +29,9 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionFontSampleParameter)
 	FName Group;
 
-#if WITH_EDITORONLY_DATA
 	/** Controls where the this parameter is displayed in a material instance parameter list. The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionFontSampleParameter)
 	int32 SortPriority = 32;
-#endif
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -55,6 +53,7 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 		OutMeta.ExpressionGuid = ExpressionGUID;
 		OutMeta.Group = Group;
 		OutMeta.SortPriority = SortPriority;
+		OutMeta.AssetPath = GetAssetPathName();
 		return true;
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
