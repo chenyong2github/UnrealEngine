@@ -692,6 +692,11 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		FActorParentComponentSetter::Set(Actor, SpawnParameters.OverrideParentComponent);
 	}
 
+	if (SpawnParameters.CustomPreSpawnInitalization)
+	{
+		SpawnParameters.CustomPreSpawnInitalization(Actor);
+	}
+
 	if ( GUndo )
 	{
 		ModifyLevel( LevelToSpawnIn );

@@ -682,7 +682,10 @@ public:
 	ESpawnActorNameMode NameMode;
 
 	/* Flags used to describe the spawned actor/object instance. */
-	EObjectFlags ObjectFlags;		
+	EObjectFlags ObjectFlags;
+
+	/* Custom function allowing the caller to specific a function to execute post actor construction but before other systems see this actor spawn. */
+	TFunction<void(AActor*)> CustomPreSpawnInitalization;
 };
 
 /* World actors spawmning helper functions */
