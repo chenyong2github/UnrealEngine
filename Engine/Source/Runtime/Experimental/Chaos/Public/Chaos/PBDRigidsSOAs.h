@@ -779,6 +779,13 @@ public:
 	const FPBDRigidParticles& GetDynamicParticles() const { return *DynamicParticles; }
 	FPBDRigidParticles& GetDynamicParticles() { return *DynamicParticles; }
 
+	const FPBDRigidParticles& GetDynamicKinematicParticles() const { return *DynamicKinematicParticles; }
+	FPBDRigidParticles& GetDynamicKinematicParticles() { return *DynamicKinematicParticles; }
+
+	// Disabled Dynamic and DynamicKinematic Particles
+	const FPBDRigidParticles& GetDynamicDisabledParticles() const { return *DynamicDisabledParticles; }
+	FPBDRigidParticles& GetDynamicDisabledParticles() { return *DynamicDisabledParticles; }
+
 	const FGeometryParticles& GetNonDisabledStaticParticles() const { return *StaticParticles; }
 	FGeometryParticles& GetNonDisabledStaticParticles() { return *StaticParticles; }
 

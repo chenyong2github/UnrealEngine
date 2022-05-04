@@ -505,7 +505,13 @@ namespace Chaos
 
 			NonConstSolver->Particles.GetDynamicParticles().ClearSleepData();
 
+			// We don't care about sleep data added to these
+			NonConstSolver->Particles.GetDynamicKinematicParticles().ClearSleepData();
+			NonConstSolver->Particles.GetDynamicDisabledParticles().ClearSleepData();
 
+			// Sleep data is not supported for these particles yet, clear the buffers here so that we don't leak memory
+			NonConstSolver->Particles.GetClusteredParticles().ClearSleepData();
+			NonConstSolver->Particles.GetGeometryCollectionParticles().ClearSleepData(); 
 		});
 	}
 
