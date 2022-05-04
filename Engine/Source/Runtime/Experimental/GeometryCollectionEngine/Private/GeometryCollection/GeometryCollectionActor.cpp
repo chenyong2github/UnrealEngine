@@ -38,6 +38,7 @@ AGeometryCollectionActor::AGeometryCollectionActor(const FObjectInitializer& Obj
 	SetActorTickEnabled(true);
 
 	bReplicates = true;
+	NetDormancy = DORM_Initial;
 }
 
 

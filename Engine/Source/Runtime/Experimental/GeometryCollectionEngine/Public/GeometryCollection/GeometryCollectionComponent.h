@@ -782,14 +782,14 @@ protected:
 
 
 	/* Per-instance override to enable/disable replication for the geometry collection */
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category=Network)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Network)
 	bool bEnableReplication;
 
 	/** 
 	 * Enables use of ReplicationAbandonClusterLevel to stop providing network updates to
 	 * clients when the updated particle is of a level higher then specified.
 	 */
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Network)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Network)
 	bool bEnableAbandonAfterLevel;
 
 	/**
@@ -798,7 +798,7 @@ protected:
 	 * gameplay relevant to cut down on required bandwidth to update a collection.
 	 * @see bEnableAbandonAfterLevel
 	 */ 
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Network)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Network)
 	int32 ReplicationAbandonClusterLevel;
 
 	UPROPERTY(Replicated)

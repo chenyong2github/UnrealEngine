@@ -245,6 +245,9 @@ public:
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
 
+	void SetInitializedForReplication() { bInitializedForReplication = true; }
+	bool GetInitializedForReplication() const { return bInitializedForReplication; }
+
 protected:
 	/**
 	* Compute damage threshold for a specific transform
@@ -307,6 +310,8 @@ private:
 	bool IsObjectDynamic; // Records current dynamic state
 	bool IsObjectLoading; // Indicate when loaded
 	bool IsObjectDeleting; // Indicatge when pending deletion
+
+	bool bInitializedForReplication = false;	//Indicates that initialization for replication has finished
 
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 	FCollisionFilterData SimFilter;
