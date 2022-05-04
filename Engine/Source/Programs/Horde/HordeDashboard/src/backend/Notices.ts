@@ -49,9 +49,7 @@ class Notices extends PollBase {
             return undefined;
         }
 
-        if (notice.scheduledDowntime) {
-
-            console.log(notice.finishTime?.toString());
+        if (notice.scheduledDowntime) {            
 
             let time = "";
             if (notice.finishTime) {
