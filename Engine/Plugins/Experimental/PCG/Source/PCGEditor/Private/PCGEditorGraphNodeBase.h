@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
 
+#include "PCGCommon.h"
+
 #include "PCGEditorGraphNodeBase.generated.h"
 
 class UPCGNode;
@@ -38,6 +40,7 @@ public:
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	virtual void ReconstructNode() override;
 	virtual FLinearColor GetNodeTitleColor() const;
+	virtual void PostPasteNode() override;
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
@@ -50,7 +53,7 @@ public:
 protected:
 	void RebuildEdgesFromPins();
 
-	void OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged);
+	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);
 	void OnPickColor();
 	void OnColorPicked(FLinearColor NewColor);
 
@@ -59,4 +62,6 @@ protected:
 
  	UPROPERTY()
  	EPCGEditorGraphNodeType NodeType = EPCGEditorGraphNodeType::Settings;
+
+	bool bDisableReconstructFromNode = false;
 };

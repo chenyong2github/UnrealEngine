@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "PCGCommon.h"
+#include "PCGPin.h"
 #include "PCGNode.generated.h"
 
 class UPCGSettings;
@@ -12,7 +13,7 @@ class UPCGEdge;
 class IPCGElement;
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGNodeSettingsChanged, UPCGNode*, bool);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGNodeChanged, UPCGNode*, EPCGChangeType);
 #endif
 
 UCLASS(ClassGroup = (Procedural))
@@ -52,21 +53,11 @@ public:
 	/** Returns the node title, based either on the current node label, or defaulted to its settings */
 	FName GetNodeTitle() const;
 
-	/** Returns true if one of the input pins matches with the given name */
-	bool HasInLabel(const FName& Label) const;
-
-	/** Returns true if one of the output pins matches with the given name */
-	bool HasOutLabel(const FName& Label) const;
-
 	/** Returns all the input labels */
 	TArray<FName> InLabels() const;
 
 	/** Returns all the output labels */
 	TArray<FName> OutLabels() const;
-
-	/** Returns true if we want the default In/Out labels */
-	bool HasDefaultInLabel() const;
-	bool HasDefaultOutLabel() const;
 
 	/** Returns true if the input pin is connected */
 	bool IsInputPinConnected(const FName& Label) const;
@@ -77,7 +68,14 @@ public:
 	/** Changes the default settings in the node */
 	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings);
 
-	const TArray<TObjectPtr<UPCGEdge>>& GetOutboundEdges() const { return OutboundEdges; }
+	UPCGPin* GetInputPin(const FName& Label);
+	const UPCGPin* GetInputPin(const FName& Label) const;
+	UPCGPin* GetOutputPin(const FName& Label);
+	const UPCGPin* GetOutputPin(const FName& Label) const;
+	bool HasInboundEdges() const;
+
+	const TArray<TObjectPtr<UPCGPin>>& GetInputPins() const { return InputPins; }
+	const TArray<TObjectPtr<UPCGPin>>& GetOutputPins() const { return OutputPins; }
 
 	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))
@@ -92,7 +90,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	FOnPCGNodeSettingsChanged OnNodeSettingsChangedDelegate;
+	FOnPCGNodeChanged OnNodeChangedDelegate;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -104,26 +102,27 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 protected:
-	bool HasEdgeTo(UPCGNode* InNode) const;
-
-	void RemoveInboundEdge(UPCGEdge* InEdge);
-	void RemoveOutboundEdge(UPCGEdge* InEdge);
-	UPCGEdge* GetOutboundEdge(const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
-
 #if WITH_EDITOR
+	bool UpdatePins();
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OnSettingsChanged(UPCGSettings* InSettings);
+	void OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType);
 #endif
 
 	UPROPERTY()
 	TArray<TObjectPtr<UPCGNode>> OutboundNodes_DEPRECATED;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node, TextExportTransient)
-	TArray<TObjectPtr<UPCGEdge>> InboundEdges;
+	UPROPERTY(TextExportTransient)
+	TArray<TObjectPtr<UPCGEdge>> InboundEdges_DEPRECATED;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node, TextExportTransient)
-	TArray<TObjectPtr<UPCGEdge>> OutboundEdges;
+	UPROPERTY(TextExportTransient)
+	TArray<TObjectPtr<UPCGEdge>> OutboundEdges_DEPRECATED;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node)
+	TArray<TObjectPtr<UPCGPin>> InputPins;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node)
+	TArray<TObjectPtr<UPCGPin>> OutputPins;
 
 	// TODO: add this information:
 	// - Ability to run on non-game threads (here or element)

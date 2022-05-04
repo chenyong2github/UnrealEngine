@@ -20,7 +20,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 	// Prime the node queue with all nodes that have no inbound edges
 	for (const UPCGNode* Node : InGraph->GetNodes())
 	{
-		if (Node->InboundEdges.IsEmpty())
+		if(!Node->HasInboundEdges())
 		{
 			NodeQueue.Add(Node);
 		}
@@ -71,16 +71,26 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			PreTask.Node = Node;
 			PreTask.NodeId = PreId;
 
-			for (const UPCGEdge* InboundEdge : Node->InboundEdges)
+			for (const UPCGPin* InputPin : Node->InputPins)
 			{
-				check(InboundEdge);
-				PreTask.Inputs.Emplace(IdMapping[InboundEdge->InboundNode], InboundEdge->InboundLabel, InboundEdge->OutboundLabel);
+				check(InputPin);
+				for (const UPCGEdge* InboundEdge : InputPin->Edges)
+				{
+					if (InboundEdge->IsValid())
+					{
+						PreTask.Inputs.Emplace(IdMapping[InboundEdge->InputPin->Node], InboundEdge->InputPin, InboundEdge->OutputPin);
+					}
+					else
+					{
+						UE_LOG(LogPCG, Warning, TEXT("Invalid inbound edge on subgraph"));
+					}
+				}
 			}
 
 			// Add pre-task as input to subgraph input node task
 			if (InputNodeTask)
 			{
-				InputNodeTask->Inputs.Emplace(PreId, NAME_None, NAME_None);
+				InputNodeTask->Inputs.Emplace(PreId, nullptr, nullptr);
 			}
 
 			// Merge subgraph tasks into current tasks.
@@ -95,7 +105,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			// Add subgraph output node task as input to the post-task
 			if (OutputNodeTask)
 			{
-				PostTask.Inputs.Emplace(OutputNodeTask->NodeId, NAME_None, NAME_None);
+				PostTask.Inputs.Emplace(OutputNodeTask->NodeId, nullptr, nullptr);
 			}
 
 			IdMapping.Add(Node, PostId);
@@ -103,7 +113,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			// Prime any input-less nodes from the subgraph
 			for (const UPCGNode* SubNode : Subgraph->GetNodes())
 			{
-				if (SubNode->InboundEdges.IsEmpty())
+				if(!SubNode->HasInboundEdges())
 				{
 					NodeQueue.Add(SubNode);
 				}
@@ -116,16 +126,25 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			Task.Node = Node;
 			Task.NodeId = NodeId;
 
-			for (const UPCGEdge* InboundEdge : Node->InboundEdges)
+			for (const UPCGPin* InputPin : Node->InputPins)
 			{
-				if (FPCGTaskId* InboundId = IdMapping.Find(InboundEdge->InboundNode))
+				for (const UPCGEdge* InboundEdge : InputPin->Edges)
 				{
-					Task.Inputs.Emplace(IdMapping[InboundEdge->InboundNode], InboundEdge->InboundLabel, InboundEdge->OutboundLabel);
-				}
-				else
-				{
-					UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage between node %s and node %s"), *Node->GetFName().ToString(), (InboundEdge->InboundNode ? *InboundEdge->InboundNode->GetFName().ToString() : TEXT("null")));
-					return TArray<FPCGGraphTask>();
+					if (!InboundEdge->IsValid())
+					{
+						UE_LOG(LogPCG, Warning, TEXT("Unbound inbound edge"));
+						continue;
+					}
+
+					if (FPCGTaskId* InboundId = IdMapping.Find(InboundEdge->InputPin->Node))
+					{
+						Task.Inputs.Emplace(IdMapping[InboundEdge->InputPin->Node], InboundEdge->InputPin, InboundEdge->OutputPin); 
+					}
+					else
+					{
+						UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage on node %s"), *Node->GetFName().ToString());
+						return TArray<FPCGGraphTask>();
+					}
 				}
 			}
 
@@ -133,20 +152,35 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 		}
 
 		// Push next ready nodes on the queue
-		for (const UPCGEdge* OutboundEdge : Node->OutboundEdges)
+		for (const UPCGPin* OutPin : Node->OutputPins)
 		{
-			const UPCGNode* Outbound = OutboundEdge->OutboundNode;
-
-			bool bAllPrerequisitesMet = true;
-			for (const UPCGEdge* InboundEdge : Outbound->InboundEdges)
+			for (const UPCGEdge* OutboundEdge : OutPin->Edges)
 			{
-				const UPCGNode* Inbound = InboundEdge->InboundNode;
-				bAllPrerequisitesMet &= IdMapping.Contains(Inbound);
-			}
+				if (!OutboundEdge->IsValid())
+				{
+					UE_LOG(LogPCG, Warning, TEXT("Unbound outbound edge"));
+					continue;
+				}
 
-			if (bAllPrerequisitesMet)
-			{
-				NodeQueue.Add(Outbound);
+				const UPCGNode* OutboundNode = OutboundEdge->OutputPin->Node;
+				check(OutboundNode);
+				bool bAllPrerequisitesMet = true;
+
+				for (const UPCGPin* OutboundNodeInputPin : OutboundNode->InputPins)
+				{
+					for (const UPCGEdge* OutboundNodeInboundEdge : OutboundNodeInputPin->Edges)
+					{
+						if (OutboundNodeInboundEdge->IsValid())
+						{
+							bAllPrerequisitesMet &= IdMapping.Contains(OutboundNodeInboundEdge->InputPin->Node);
+						}
+					}
+				}
+
+				if (bAllPrerequisitesMet)
+				{
+					NodeQueue.Add(OutboundNode);
+				}
 			}
 		}
 	}
@@ -267,7 +301,7 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 		FPCGGraphTask& Task = CompiledTasks[TaskIndex];
 		if (Task.Inputs.IsEmpty())
 		{
-			Task.Inputs.Emplace(PreExecuteTaskId, NAME_None, NAME_None);
+			Task.Inputs.Emplace(PreExecuteTaskId, nullptr, nullptr);
 		}
 	}
 
@@ -287,7 +321,7 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 		const FPCGGraphTask& Task = CompiledTasks[TaskIndex];
 		if (!TasksWithSuccessors.Contains(Task.NodeId))
 		{
-			PostExecuteTask.Inputs.Emplace(Task.NodeId, NAME_None, NAME_None);
+			PostExecuteTask.Inputs.Emplace(Task.NodeId, nullptr, nullptr);
 		}
 
 		for (const FPCGGraphTaskInput& Input : Task.Inputs)

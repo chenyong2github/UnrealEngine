@@ -13,16 +13,11 @@ FText UPCGEditorGraphNodeInput::GetNodeTitle(ENodeTitleType::Type TitleType) con
 
 void UPCGEditorGraphNodeInput::AllocateDefaultPins()
 {
-	if (!PCGNode || PCGNode->HasDefaultOutLabel())
-	{
-		CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")));
-	}
-
 	if (PCGNode)
 	{
-		for (const FName& OutLabel : PCGNode->OutLabels())
+		for (const UPCGPin* OutPin : PCGNode->GetOutputPins())
 		{
-			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, OutLabel);
+			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, OutPin->Label);
 		}
 	}
 }

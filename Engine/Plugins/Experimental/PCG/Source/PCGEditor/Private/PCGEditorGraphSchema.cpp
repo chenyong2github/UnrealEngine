@@ -95,10 +95,7 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 		UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
 		check(PCGGraph);
 
-		const FName& NodeAPinName = ((A->PinName == TEXT("Out") && PCGNodeA->HasDefaultOutLabel()) ? NAME_None : A->PinName);
-		const FName& NodeBPinName = ((B->PinName == TEXT("In") && PCGNodeB->HasDefaultInLabel()) ? NAME_None : B->PinName);
-
-		PCGGraph->AddLabeledEdge(PCGNodeA, NodeAPinName, PCGNodeB, NodeBPinName);
+		PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
 	}
 
 	return bModified;
@@ -122,13 +119,11 @@ void UPCGEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNod
 
 	if (TargetPin.Direction == EEdGraphPinDirection::EGPD_Input)
 	{
-		const FName& PinName = (TargetPin.PinName == TEXT("In") && PCGNode->HasDefaultInLabel()) ? NAME_None : TargetPin.PinName;
-		PCGGraph->RemoveInboundEdges(PCGNode, PinName);
+		PCGGraph->RemoveInboundEdges(PCGNode, TargetPin.PinName);
 	}
 	else if (TargetPin.Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		const FName& PinName = (TargetPin.PinName == TEXT("Out") && PCGNode->HasDefaultOutLabel()) ? NAME_None : TargetPin.PinName;
-		PCGGraph->RemoveOutboundEdges(PCGNode, PinName);
+		PCGGraph->RemoveOutboundEdges(PCGNode, TargetPin.PinName);
 	}
 }
 
@@ -148,11 +143,8 @@ void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphP
 	UPCGNode* TargetPCGNode = TargetPCGGraphNode->GetPCGNode();
 	check(SourcePCGNode && TargetPCGNode);
 
-	const FName& SourcePinName = (SourcePin->PinName == TEXT("Out") && SourcePCGNode->HasDefaultOutLabel()) ? NAME_None : SourcePin->PinName;
-	const FName& TargetPinName = (TargetPin->PinName == TEXT("In") && TargetPCGNode->HasDefaultInLabel()) ? NAME_None : TargetPin->PinName;
-
 	UPCGGraph* PCGGraph = SourcePCGNode->GetGraph();
-	PCGGraph->RemoveEdge(SourcePCGNode, SourcePinName, TargetPCGNode, TargetPinName);
+	PCGGraph->RemoveEdge(SourcePCGNode, SourcePin->PinName, TargetPCGNode, TargetPin->PinName);
 }
 
 FPCGEditorConnectionDrawingPolicy::FPCGEditorConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraph)

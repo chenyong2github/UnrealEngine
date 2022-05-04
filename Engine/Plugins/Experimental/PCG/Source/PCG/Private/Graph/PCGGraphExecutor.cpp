@@ -89,7 +89,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 		check(ScheduledTask.Tasks.Num() >= 2 && ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Node == nullptr);
 		for (FPCGTaskId ExternalDependency : ExternalDependencies)
 		{
-			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, NAME_None, NAME_None);
+			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, nullptr, nullptr);
 		}
 #endif
 
@@ -105,7 +105,7 @@ FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, con
 	FPCGGraphTask Task;
 	for (FPCGTaskId TaskDependency : TaskDependencies)
 	{
-		Task.Inputs.Emplace(TaskDependency, NAME_None, NAME_None);
+		Task.Inputs.Emplace(TaskDependency, nullptr, nullptr);
 	}
 	Task.Element = MakeShared<FPCGGenericElement>(InOperation);
 
@@ -450,22 +450,25 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		const FPCGDataCollection& InputCollection = OutputData[Input.TaskId];
 
 		TaskInput.bCancelExecution |= InputCollection.bCancelExecution;
-		
-		// Trivial case : take everything
-		if (Input.InboundLabel == NAME_None && Input.OutboundLabel == NAME_None)
+
+		// Get input data at the given pin (or everything)
+		const int32 TaggedDataOffset = TaskInput.TaggedData.Num();
+		if (Input.InPin)
+		{
+			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Label));
+		}
+		else
 		{
 			TaskInput.TaggedData.Append(InputCollection.TaggedData);
 		}
-		// Non-trivial case: take all matches from OutputData[Id]
-		// And apply the out label on it
-		else
-		{
-			const int32 TaggedDataOffset = TaskInput.TaggedData.Num();
-			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InboundLabel));
 
+		// Apply labelling on data; technically, we should ensure that we do this only for pass-through nodes,
+		// Otherwise we could also null out the label on the input...
+		if (Input.OutPin)
+		{
 			for (int32 TaggedDataIndex = TaggedDataOffset; TaggedDataIndex < TaskInput.TaggedData.Num(); ++TaggedDataIndex)
 			{
-				TaskInput.TaggedData[TaggedDataIndex].Pin = Input.OutboundLabel;
+				TaskInput.TaggedData[TaggedDataIndex].Pin = Input.OutPin->Label;
 			}
 		}
 	}
@@ -577,7 +580,7 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
 		TaggedData.Data = PCGData;
-		TaggedData.Pin = PCGInputOutputConstants::DefaultInLabel;
+		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
 	if (UPCGData* InputPCGData = Component->GetInputPCGData())

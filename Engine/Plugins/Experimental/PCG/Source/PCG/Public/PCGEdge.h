@@ -7,6 +7,7 @@
 #include "PCGEdge.generated.h"
 
 class UPCGNode;
+class UPCGPin;
 
 UCLASS(ClassGroup = (Procedural))
 class PCG_API UPCGEdge : public UObject
@@ -14,17 +15,25 @@ class PCG_API UPCGEdge : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Edge)
-	FName InboundLabel = NAME_None;
+	UPROPERTY()
+	FName InboundLabel_DEPRECATED = NAME_None;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Edge)
-	TObjectPtr<UPCGNode> InboundNode;
+	UPROPERTY()
+	TObjectPtr<UPCGNode> InboundNode_DEPRECATED;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Edge)
-	FName OutboundLabel = NAME_None;
+	UPROPERTY()
+	FName OutboundLabel_DEPRECATED = NAME_None;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Edge)
-	TObjectPtr<UPCGNode> OutboundNode;
+	UPROPERTY()
+	TObjectPtr<UPCGNode> OutboundNode_DEPRECATED;
 
-	void BreakEdge();
+	UPROPERTY()
+	TObjectPtr<UPCGPin> InputPin;
+
+	UPROPERTY()
+	TObjectPtr<UPCGPin> OutputPin;
+
+	bool IsValid() const;
+	UPCGPin* GetOtherPin(const UPCGPin* Pin);
+	const UPCGPin* GetOtherPin(const UPCGPin* Pin) const;
 };

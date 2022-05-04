@@ -129,8 +129,6 @@ public:
 	virtual FName AdditionalTaskName() const override;
 	virtual TArray<FName> InLabels() const override;
 	virtual TArray<FName> OutLabels() const override;
-	virtual bool HasDefaultInLabel() const override;
-	virtual bool HasDefaultOutLabel() const override;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

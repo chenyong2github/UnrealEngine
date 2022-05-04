@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGCommon.h"
 #include "PCGData.h"
 #include "PCGElement.h"
 #include "PCGDebug.h"
@@ -38,7 +39,7 @@ enum class EPCGSettingsType : uint8
 };
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGSettingsChanged, UPCGSettings*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGSettingsChanged, UPCGSettings*, EPCGChangeType);
 #endif
 
 /**
@@ -54,12 +55,8 @@ public:
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
 
-	virtual bool HasInLabel(const FName& Label) const;
-	virtual bool HasOutLabel(const FName& Label) const;
-	virtual TArray<FName> InLabels() const { return TArray<FName>(); }
-	virtual TArray<FName> OutLabels() const { return TArray<FName>(); }
-	virtual bool HasDefaultInLabel() const { return true; }
-	virtual bool HasDefaultOutLabel() const { return true; }
+	virtual TArray<FName> InLabels() const;
+	virtual TArray<FName> OutLabels() const;
 	
 	bool operator==(const UPCGSettings& Other) const;
 	uint32 GetCrc32() const;

@@ -9,11 +9,6 @@ class UPCGGraph;
 
 #include "PCGSubgraph.generated.h"
 
-#if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGStructuralSettingsChanged, UPCGSettings*);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGNodeStructuralSettingsChanged, UPCGNode*);
-#endif
-
 UCLASS(Abstract)
 class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 {
@@ -34,10 +29,6 @@ protected:
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
 #endif
 
-	virtual bool HasInLabel(const FName& Label) const override;
-	virtual bool HasOutLabel(const FName& Label) const override;
-	virtual bool HasDefaultInLabel() const override;
-	virtual bool HasDefaultOutLabel() const override;
 	virtual TArray<FName> InLabels() const override;
 	virtual TArray<FName> OutLabels() const override;
 	//~End UPCGSettings interface
@@ -46,11 +37,6 @@ protected:
 	void OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural);
 
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }
-#endif
-
-public:
-#if WITH_EDITOR
-	FOnPCGStructuralSettingsChanged OnStructuralSettingsChangedDelegate;
 #endif
 };
 
@@ -106,25 +92,9 @@ class PCG_API UPCGSubgraphNode : public UPCGBaseSubgraphNode
 	GENERATED_BODY()
 
 public:
-#if WITH_EDITOR
-	FOnPCGNodeStructuralSettingsChanged OnNodeStructuralSettingsChangedDelegate;
-#endif
-
 	/** ~Begin UPCGBaseSubgraphNode interface */
-	TObjectPtr<UPCGGraph> GetSubgraph() const override;
+	virtual TObjectPtr<UPCGGraph> GetSubgraph() const override;
 	/** ~End UPCGBaseSubgraphNode interface */
-
-protected:	
-	/** ~Begin UObject interface */
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
-	/** ~End UObject interface */
-
-#if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OnStructuralSettingsChanged(UPCGSettings* InSettings);
-#endif
 };
 
 struct PCG_API FPCGSubgraphContext : public FPCGContext

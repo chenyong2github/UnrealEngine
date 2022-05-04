@@ -43,29 +43,16 @@ void UPCGEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, class UGrap
 
 void UPCGEditorGraphNode::AllocateDefaultPins()
 {
-	if (!PCGNode || PCGNode->HasDefaultOutLabel())
-	{
-		CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")));
-	}
-
 	if (PCGNode)
 	{
-		for (const FName& OutLabel : PCGNode->OutLabels())
+		for (const UPCGPin* InputPin : PCGNode->GetInputPins())
 		{
-			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, OutLabel);
+			CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, InputPin->Label);
 		}
-	}
 
-	if (!PCGNode || PCGNode->HasDefaultInLabel())
-	{
-		CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")));
-	}
-
-	if (PCGNode)
-	{
-		for (const FName& InLabel : PCGNode->InLabels())
+		for (const UPCGPin* OutputPin : PCGNode->GetOutputPins())
 		{
-			CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, InLabel);
+			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, OutputPin->Label);
 		}
 	}
 }

@@ -13,6 +13,7 @@
 #include "WorldPartition/WorldPartitionHandle.h" // Needed for FWorldPartitonReference
 #endif
 
+class UPCGPin;
 class UPCGGraph;
 class UPCGNode;
 class UPCGComponent;
@@ -20,16 +21,16 @@ class FPCGGraphCompiler;
 
 struct FPCGGraphTaskInput
 {
-	FPCGGraphTaskInput(FPCGTaskId InTaskId, const FName& InInboundLabel, const FName& InOutboundLabel)
+	FPCGGraphTaskInput(FPCGTaskId InTaskId, const UPCGPin* InInboundPin, const UPCGPin* InOutboundPin)
 		: TaskId(InTaskId)
-		, InboundLabel(InInboundLabel)
-		, OutboundLabel(InOutboundLabel)		
+		, InPin(InInboundPin)
+		, OutPin(InOutboundPin)
 	{
 	}
 
 	FPCGTaskId TaskId;
-	FName InboundLabel;
-	FName OutboundLabel;
+	const UPCGPin* InPin;
+	const UPCGPin* OutPin;
 };
 
 struct FPCGGraphTask

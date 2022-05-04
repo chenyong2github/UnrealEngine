@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDifferenceElement.h"
+
+#include "PCGCommon.h"
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
@@ -12,7 +14,7 @@ namespace PCGDifferenceConstants
 
 TArray<FName> UPCGDifferenceSettings::InLabels() const
 {
-	return { PCGDifferenceConstants::SourceLabel, PCGDifferenceConstants::DifferencesLabel };
+	return { PCGPinConstants::DefaultInputLabel, PCGDifferenceConstants::SourceLabel, PCGDifferenceConstants::DifferencesLabel };
 }
 
 FPCGElementPtr UPCGDifferenceSettings::CreateElement() const

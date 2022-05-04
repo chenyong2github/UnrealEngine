@@ -26,8 +26,8 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 #endif
 
 #if WITH_EDITOR
-	InputNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-	OutputNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
+	InputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
+	OutputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 #endif 
 
 	// Note: default connection from input to output
@@ -43,25 +43,12 @@ void UPCGGraph::PostLoad()
 
 #if WITH_EDITOR
 	// Deprecation
-	InputNode->ApplyDeprecation();
-
 	if (!Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings))
 	{
 		InputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
 	}
 
 	Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings)->SetInput(true);
-
-	// Fixup edges on the input node
-	for (UPCGEdge* Edge : InputNode->OutboundEdges)
-	{
-		if (Edge->InboundLabel == NAME_None)
-		{
-			Edge->InboundLabel = TEXT("In");
-		}
-	}
-
-	OutputNode->ApplyDeprecation();
 
 	if (!Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings))
 	{
@@ -70,42 +57,19 @@ void UPCGGraph::PostLoad()
 
 	Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings)->SetInput(false);
 
-	// Fixup edges on the output node
-	for (UPCGEdge* Edge : OutputNode->InboundEdges)
-	{
-		if (Edge->OutboundLabel == NAME_None)
-		{
-			Edge->OutboundLabel = TEXT("Out");
-		}
-	}
+	// Additional deprecation
+	InputNode->ApplyDeprecation();
+	OutputNode->ApplyDeprecation();
 
-	// Fixup edges on subgraph nodes
 	for (UPCGNode* Node : Nodes)
 	{
-		if(Cast<UPCGBaseSubgraphSettings>(Node->DefaultSettings))
-		{
-			for (UPCGEdge* Edge : Node->InboundEdges)
-			{
-				if (Edge->OutboundLabel == NAME_None)
-				{
-					Edge->OutboundLabel = TEXT("In");
-				}
-			}
-
-			for (UPCGEdge* Edge : Node->OutboundEdges)
-			{
-				if (Edge->InboundLabel == NAME_None)
-				{
-					Edge->InboundLabel = TEXT("Out");
-				}
-			}
-		}
+		Node->ApplyDeprecation();
 	}
 #endif
 
 #if WITH_EDITOR
-	InputNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-	OutputNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
+	InputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
+	OutputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 
 	for (UPCGNode* Node : Nodes)
 	{
@@ -122,8 +86,8 @@ void UPCGGraph::BeginDestroy()
 		OnNodeRemoved(Node);
 	}
 
-	OutputNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
-	InputNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
+	OutputNode->OnNodeChangedDelegate.RemoveAll(this);
+	InputNode->OnNodeChangedDelegate.RemoveAll(this);
 
 	// Notify the compiler to remove this graph from its cache
 	UWorld* World = GEditor->GetEditorWorldContext().World();
@@ -147,8 +111,15 @@ void UPCGGraph::InitializeFromTemplate()
 
 	auto ResetDefaultNode = [](UPCGNode* InNode) {
 		check(InNode);
-		InNode->OutboundEdges.Reset();
-		InNode->InboundEdges.Reset();
+		for (UPCGPin* InputPin : InNode->InputPins)
+		{
+			InputPin->BreakAllEdges();
+		}
+
+		for (UPCGPin* OutputPin : InNode->OutputPins)
+		{
+			OutputPin->BreakAllEdges();
+		}
 
 		// Reset settings as well
 		InNode->SetDefaultSettings(NewObject<UPCGTrivialSettings>(InNode));
@@ -256,13 +227,7 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 void UPCGGraph::OnNodeAdded(UPCGNode* InNode)
 {
 #if WITH_EDITOR
-	InNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-
-	if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InNode))
-	{
-		SubgraphNode->OnNodeStructuralSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnStructuralSettingsChanged);
-	}
-
+	InNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 	NotifyGraphChanged(/*bIsStructural=*/true);
 #endif
 }
@@ -272,13 +237,7 @@ void UPCGGraph::OnNodeRemoved(UPCGNode* InNode)
 #if WITH_EDITOR
 	if (InNode)
 	{
-		InNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
-		
-		if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InNode))
-		{
-			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.RemoveAll(this);
-		}
-
+		InNode->OnNodeChangedDelegate.RemoveAll(this);
 		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
@@ -297,29 +256,24 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 		return To;
 	}
 
-	if (!From->HasOutLabel(InboundLabel))
+	UPCGPin* FromPin = From->GetOutputPin(InboundLabel);
+
+	if(!FromPin)
 	{
 		UE_LOG(LogPCG, Error, TEXT("From node %s does not have the %s label"), *From->GetName(), *InboundLabel.ToString());
+		return To;
 	}
 
-	if (!To->HasInLabel(OutboundLabel))
+	UPCGPin* ToPin = To->GetInputPin(OutboundLabel);
+
+	if(!ToPin)
 	{
 		UE_LOG(LogPCG, Error, TEXT("To node %s does not have the %s label"), *To->GetName(), *OutboundLabel.ToString());
+		return To;
 	}
 
-	Modify();
-	From->Modify();
-	To->Modify();
-
 	// Create edge
-	UPCGEdge* Edge = NewObject<UPCGEdge>(this);
-	Edge->InboundLabel = InboundLabel;
-	Edge->InboundNode = From;
-	Edge->OutboundLabel = OutboundLabel;
-	Edge->OutboundNode = To;
-
-	From->OutboundEdges.Add(Edge);
-	To->InboundEdges.Add(Edge);
+	FromPin->AddEdgeTo(ToPin);
 	
 #if WITH_EDITOR
 	NotifyGraphChanged(/*bIsStructural=*/true);
@@ -360,16 +314,14 @@ void UPCGGraph::RemoveNode(UPCGNode* InNode)
 
 	Modify();
 
-	for (int32 EdgeIndex = InNode->InboundEdges.Num() - 1; EdgeIndex >= 0; --EdgeIndex)
+	for (UPCGPin* InputPin : InNode->InputPins)
 	{
-		UPCGEdge* Edge = InNode->InboundEdges[EdgeIndex];
-		Edge->BreakEdge();
+		InputPin->BreakAllEdges();
 	}
 
-	for (int32 EdgeIndex = InNode->OutboundEdges.Num() - 1; EdgeIndex >= 0; --EdgeIndex)
+	for (UPCGPin* OutputPin : InNode->OutputPins)
 	{
-		UPCGEdge* Edge = InNode->OutboundEdges[EdgeIndex];
-		Edge->BreakEdge();
+		OutputPin->BreakAllEdges();
 	}
 
 	Nodes.Remove(InNode);
@@ -384,17 +336,10 @@ bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 		return false;
 	}
 
-	bool bChanged = false;
+	UPCGPin* OutPin = From->GetOutputPin(FromLabel);
+	UPCGPin* InPin = To->GetInputPin(ToLabel);
 
-	if (UPCGEdge* Edge = From->GetOutboundEdge(FromLabel, To, ToLabel))
-	{
-		Edge->BreakEdge();
-		bChanged = true;
-	}
-	else
-	{
-		UE_LOG(LogPCG, Warning, TEXT("Edge does not exist with labels %s and %s"), *FromLabel.ToString(), *ToLabel.ToString());
-	}
+	const bool bChanged = OutPin && OutPin->BreakEdgeTo(InPin);
 
 #if WITH_EDITOR
 	if (bChanged)
@@ -409,11 +354,11 @@ bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 bool UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 {
 	check(InNode);
-	const bool bChanged = !InNode->InboundEdges.IsEmpty();
+	bool bChanged = false;
 
-	for (int32 i = InNode->InboundEdges.Num() - 1; i >= 0; --i)
+	for (UPCGPin* InputPin : InNode->InputPins)
 	{
-		InNode->InboundEdges[i]->BreakEdge();
+		bChanged |= InputPin->BreakAllEdges();
 	}
 
 #if WITH_EDITOR
@@ -429,11 +374,10 @@ bool UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 bool UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
 {
 	check(InNode);
-	const bool bChanged = !InNode->OutboundEdges.IsEmpty();
-
-	for (int32 i = InNode->OutboundEdges.Num() - 1; i >= 0; --i)
+	bool bChanged = false;
+	for (UPCGPin* OutputPin : InNode->OutputPins)
 	{
-		InNode->OutboundEdges[i]->BreakEdge();
+		bChanged |= OutputPin->BreakAllEdges();
 	}
 
 #if WITH_EDITOR
@@ -451,13 +395,9 @@ bool UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
 	check(InNode);
 	bool bChanged = false;
 
-	for (int32 i = InNode->InboundEdges.Num() - 1; i >= 0; --i)
+	if (UPCGPin* InputPin = InNode->GetInputPin(InboundLabel))
 	{
-		if (InNode->InboundEdges[i]->OutboundLabel == InboundLabel)
-		{
-			InNode->InboundEdges[i]->BreakEdge();
-			bChanged = true;
-		}
+		bChanged = InputPin->BreakAllEdges();
 	}
 
 #if WITH_EDITOR
@@ -475,13 +415,9 @@ bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel
 	check(InNode);
 	bool bChanged = false;
 
-	for (int32 i = InNode->OutboundEdges.Num() - 1; i >= 0; --i)
+	if (UPCGPin* OutputPin = InNode->GetOutputPin(OutboundLabel))
 	{
-		if (InNode->OutboundEdges[i]->InboundLabel == OutboundLabel)
-		{
-			InNode->OutboundEdges[i]->BreakEdge();
-			bChanged = true;
-		}
+		bChanged = OutputPin->BreakAllEdges();
 	}
 
 #if WITH_EDITOR
@@ -499,12 +435,7 @@ void UPCGGraph::PreNodeUndo(UPCGNode* InPCGNode)
 {
 	if (InPCGNode)
 	{
-		InPCGNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
-
-		if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InPCGNode))
-		{
-			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.RemoveAll(this);
-		}
+		InPCGNode->OnNodeChangedDelegate.RemoveAll(this);
 	}
 }
 
@@ -512,12 +443,7 @@ void UPCGGraph::PostNodeUndo(UPCGNode* InPCGNode)
 {
 	if (InPCGNode)
 	{
-		InPCGNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-
-		if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InPCGNode))
-		{
-			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnStructuralSettingsChanged);
-		}
+		InPCGNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 	}
 }
 #endif
@@ -581,16 +507,11 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	OnGraphChangedDelegate.Broadcast(this, /*bIsStructural=*/bIsStructural);
 }
 
-void UPCGGraph::OnSettingsChanged(UPCGNode* InNode, bool bSettingsChanged)
+void UPCGGraph::OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType)
 {
-	if (bSettingsChanged)
+	if((ChangeType & ~EPCGChangeType::Cosmetic) != EPCGChangeType::None)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/false);
+		NotifyGraphChanged(/*bIsStructural=*/(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Edge)) != EPCGChangeType::None);
 	}
-}
-
-void UPCGGraph::OnStructuralSettingsChanged(UPCGNode* InNode)
-{
-	NotifyGraphChanged(/*bIsStructural=*/true);
 }
 #endif // WITH_EDITOR

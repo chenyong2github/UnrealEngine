@@ -162,12 +162,11 @@ void IPCGElement::CleanupAndValidateOutputLabels(FPCGContext* Context) const
 		// Cleanup any residual labels if the node isn't supposed to produce them
 		// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
 		TArray<FName> OutLabels = Settings->OutLabels();
-		if ((Settings->HasDefaultOutLabel() && OutLabels.Num() == 0) || (!Settings->HasDefaultOutLabel() && OutLabels.Num() == 1))
+		if (OutLabels.Num() == 1)
 		{
-			const FName& DefaultLabel = Settings->HasDefaultOutLabel() ? NAME_None : OutLabels[0];
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
-				TaggedData.Pin = DefaultLabel;
+				TaggedData.Pin = OutLabels[0];
 			}
 		}
 

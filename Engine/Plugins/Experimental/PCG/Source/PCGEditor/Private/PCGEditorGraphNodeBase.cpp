@@ -24,7 +24,7 @@ void UPCGEditorGraphNodeBase::BeginDestroy()
 {
 	if (PCGNode)
 	{
-		PCGNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
+		PCGNode->OnNodeChangedDelegate.RemoveAll(this);
 	}
 
 	Super::BeginDestroy();
@@ -34,7 +34,7 @@ void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode, EPCGEditorGraphNode
 {
 	check(InPCGNode);
 	PCGNode = InPCGNode;
-	InPCGNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
+	InPCGNode->OnNodeChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
 
 	NodePosX = InPCGNode->PositionX;
 	NodePosY = InPCGNode->PositionY;
@@ -91,26 +91,23 @@ void UPCGEditorGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)
 {
 	if (FromPin->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		FName InPinName = TEXT("In");
-		if (PCGNode && !PCGNode->HasDefaultInLabel() && !PCGNode->InLabels().IsEmpty())
+		if (PCGNode && PCGNode->GetInputPins().Num() > 0)
 		{
-			InPinName = PCGNode->InLabels()[0];
+			const FName& InPinName = PCGNode->GetInputPins()[0]->Label;
+			UEdGraphPin* ToPin = FindPinChecked(InPinName, EEdGraphPinDirection::EGPD_Input);
+			GetSchema()->TryCreateConnection(FromPin, ToPin);
 		}
-
-		UEdGraphPin* ToPin = FindPinChecked(InPinName, EEdGraphPinDirection::EGPD_Input);
-		GetSchema()->TryCreateConnection(FromPin, ToPin);
 	}
 	else if (FromPin->Direction == EEdGraphPinDirection::EGPD_Input)
 	{
-		FName OutPinName = TEXT("Out");
-		if (PCGNode && !PCGNode->HasDefaultOutLabel() && !PCGNode->OutLabels().IsEmpty())
+		if (PCGNode && PCGNode->GetOutputPins().Num() > 0)
 		{
-			OutPinName = PCGNode->OutLabels()[0];
+			const FName& OutPinName = PCGNode->GetOutputPins()[0]->Label;
+			UEdGraphPin* ToPin = FindPinChecked(OutPinName, EEdGraphPinDirection::EGPD_Output);
+			GetSchema()->TryCreateConnection(FromPin, ToPin);
 		}
-
-		UEdGraphPin* ToPin = FindPinChecked(OutPinName, EEdGraphPinDirection::EGPD_Output);
-		GetSchema()->TryCreateConnection(FromPin, ToPin);
 	}
+
 	NodeConnectionListChanged();
 }
 
@@ -139,21 +136,29 @@ void UPCGEditorGraphNodeBase::PostCopy()
 	}
 }
 
+void UPCGEditorGraphNodeBase::PostPasteNode()
+{
+	bDisableReconstructFromNode = true;
+}
+
 void UPCGEditorGraphNodeBase::PostPaste()
 {
 	if (PCGNode)
 	{
 		RebuildEdgesFromPins();
 
-		PCGNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
+		PCGNode->OnNodeChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
 		PCGNode->PositionX = NodePosX;
 		PCGNode->PositionY = NodePosY;
 	}
+
+	bDisableReconstructFromNode = false;
 }
 
 void UPCGEditorGraphNodeBase::RebuildEdgesFromPins()
 {
 	check(PCGNode);
+	check(bDisableReconstructFromNode);
 
 	if (PCGNode->GetGraph())
 	{
@@ -171,10 +176,7 @@ void UPCGEditorGraphNodeBase::RebuildEdgesFromPins()
 
 				if (UPCGNode* ConnectedPCGNode = ConnectedPCGGraphNode->GetPCGNode())
 				{
-					const FName& NodeAPinName = ((Pin->PinName == TEXT("Out") && PCGNode->HasDefaultOutLabel()) ? NAME_None : Pin->PinName);
-					const FName& NodeBPinName = ((ConnectedPin->PinName == TEXT("In") && ConnectedPCGNode->HasDefaultInLabel()) ? NAME_None : ConnectedPin->PinName);
-
-					PCGNode->AddEdgeTo(NodeAPinName, ConnectedPCGNode, NodeBPinName);
+					PCGNode->AddEdgeTo(Pin->PinName, ConnectedPCGNode, ConnectedPin->PinName);
 				}
 			}
 		}
@@ -186,7 +188,7 @@ void UPCGEditorGraphNodeBase::RebuildEdgesFromPins()
 	}
 }
 
-void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged)
+void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType)
 {
 	if (InNode == PCGNode)
 	{
@@ -216,126 +218,35 @@ void UPCGEditorGraphNodeBase::OnColorPicked(FLinearColor NewColor)
 
 void UPCGEditorGraphNodeBase::ReconstructNode()
 {
-	if (!PCGNode)
+	// In copy-paste cases, we don't want to remove the pins
+	if (bDisableReconstructFromNode)
 	{
 		return;
 	}
 
-	TArray<FName> InLabels = PCGNode->InLabels();
-	TArray<FName> OutLabels = PCGNode->OutLabels();
+	// Remove all current pins
+	TArray<UEdGraphPin*> OldPins = Pins;
 
-	TArray<UEdGraphPin*> InputPins;
-	TArray<UEdGraphPin*> OutputPins;
-
-	// Reallocate the default pins if they had been removed previously
-	if ((NodeType == EPCGEditorGraphNodeType::Output || NodeType == EPCGEditorGraphNodeType::Settings) && PCGNode->HasDefaultInLabel() && !FindPin(TEXT("In"), EEdGraphPinDirection::EGPD_Input))
+	for (UEdGraphPin* OldPin : OldPins)
 	{
-		FCreatePinParams FirstPinParams;
-		FirstPinParams.Index = 0;
-		CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")), FirstPinParams);
+		OldPin->BreakAllPinLinks();
+		RemovePin(OldPin);
 	}
+	check(Pins.IsEmpty());
 
-	if ((NodeType == EPCGEditorGraphNodeType::Input || NodeType == EPCGEditorGraphNodeType::Settings) && PCGNode->HasDefaultOutLabel() && !FindPin(TEXT("Out"), EEdGraphPinDirection::EGPD_Output))
+	// Generate new pins
+	AllocateDefaultPins();
+
+	// Generate new links
+	// TODO: we should either keep a map in the PCGEditorGraph or do this elsewhere
+	// TODO: this will not work if we have non-PCG nodes in the graph
+	if (PCGNode)
 	{
-		FCreatePinParams FirstPinParams;
-		FirstPinParams.Index = 0;
-		CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")), FirstPinParams);
-	}
-
-	for (UEdGraphPin* Pin : Pins)
-	{
-		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && (Pin->PinName != TEXT("In") || !PCGNode->HasDefaultInLabel()))
-		{
-			InputPins.Add(Pin);
-		}
-		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output && (Pin->PinName != TEXT("Out") || !PCGNode->HasDefaultOutLabel()))
-		{
-			OutputPins.Add(Pin);
-		}
-	}
-
-	auto UpdatePins = [this](TArray<UEdGraphPin*>& InPins, const TArray<FName>& InNames, EEdGraphPinDirection InPinDirection)
-	{
-		TArray<UEdGraphPin*> UnmatchedPins;
-
-		for (UEdGraphPin* InPin : InPins)
-		{
-			if (!InNames.Contains(InPin->PinName))
-			{
-				UnmatchedPins.Add(InPin);
-			}
-		}
-
-		TArray<FName> UnmatchedNames;
-
-		for (const FName& InName : InNames)
-		{
-			if (InPins.FindByPredicate([&InName](UEdGraphPin* InPin) { return InPin->PinName == InName; }) == nullptr)
-			{
-				UnmatchedNames.Add(InName);
-			}
-		}
-
-		// Use cases:
-		// - Removing pin(s) : remove pin(s) & break links
-		// - Remove all pins : remove all pins
-		// - Adding new pin(s) : create new pin(s)
-		// - Renaming a pin : find unmatched pin, unmatched name, rename
-		// - Complete change : match on names
-		if (UnmatchedNames.Num() == 1 && UnmatchedPins.Num() == 1)
-		{
-			UnmatchedPins[0]->PinName = UnmatchedNames[0];
-		}
-		else
-		{
-			if (PCGNode->GetGraph())
-			{
-				PCGNode->GetGraph()->DisableNotificationsForEditor();
-			}
-
-			for (UEdGraphPin* UnmatchedPin : UnmatchedPins)
-			{
-				UnmatchedPin->BreakAllPinLinks();
-
-				if (PCGNode->GetGraph())
-				{
-					if (InPinDirection == EEdGraphPinDirection::EGPD_Input)
-					{
-						PCGNode->GetGraph()->RemoveInboundEdges(PCGNode, (UnmatchedPin->PinName == "In" && PCGNode->HasDefaultInLabel()) ? NAME_None : UnmatchedPin->PinName);
-					}
-					else
-					{
-						PCGNode->GetGraph()->RemoveOutboundEdges(PCGNode, (UnmatchedPin->PinName == "Out" && PCGNode->HasDefaultOutLabel()) ? NAME_None : UnmatchedPin->PinName);
-					}
-				}
-
-				RemovePin(UnmatchedPin);
-			}
-
-			if (PCGNode->GetGraph())
-			{
-				PCGNode->GetGraph()->EnableNotificationsForEditor();
-			}
-
-			for (const FName& UnmatchedName : UnmatchedNames)
-			{
-				CreatePin(InPinDirection, NAME_None, UnmatchedName);
-			}
-		}
-
-		return UnmatchedNames.Num() > 0 || UnmatchedPins.Num() > 0;
-	};
-
-	if (NodeType == EPCGEditorGraphNodeType::Output || NodeType == EPCGEditorGraphNodeType::Settings)
-	{
-		UpdatePins(InputPins, InLabels, EEdGraphPinDirection::EGPD_Input);
+		UPCGEditorGraph* PCGEditorGraph = CastChecked<UPCGEditorGraph>(GetGraph());
+		PCGEditorGraph->CreateLinks(this, /*bCreateInbound=*/true, /*bCreateOutbound=*/true);
 	}
 	
-	if (NodeType == EPCGEditorGraphNodeType::Input || NodeType == EPCGEditorGraphNodeType::Settings)
-	{
-		UpdatePins(OutputPins, OutLabels, EEdGraphPinDirection::EGPD_Output);
-	}
-
+	// Notify editor
 	OnNodeChangedDelegate.ExecuteIfBound();
 }
 

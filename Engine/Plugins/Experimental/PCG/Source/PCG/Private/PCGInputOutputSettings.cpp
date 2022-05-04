@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGInputOutputSettings.h"
+#include "PCGCommon.h"
 
 bool FPCGInputOutputElement::ExecuteInternal(FPCGContext* Context) const
 {
@@ -12,11 +13,11 @@ bool FPCGInputOutputElement::ExecuteInternal(FPCGContext* Context) const
 UPCGGraphInputOutputSettings::UPCGGraphInputOutputSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	StaticInLabels.Add(PCGInputOutputConstants::DefaultInLabel);
+	StaticInLabels.Add(PCGPinConstants::DefaultInputLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultInputLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultActorLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultOriginalActorLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultExcludedActorsLabel);
 	
-	StaticOutLabels.Add(PCGInputOutputConstants::DefaultOutLabel);
+	StaticOutLabels.Add(PCGPinConstants::DefaultOutputLabel);
 }

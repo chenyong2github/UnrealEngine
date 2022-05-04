@@ -104,8 +104,7 @@ protected:
 #if WITH_EDITOR
 private:
 	void NotifyGraphChanged(bool bIsStructural);
-	void OnSettingsChanged(UPCGNode* InNode, bool bSettingsChanged);
-	void OnStructuralSettingsChanged(UPCGNode* InNode);
+	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);
 
 	int32 GraphChangeNotificationsDisableCounter = 0;
 	bool bDelayedChangeNotification = false;

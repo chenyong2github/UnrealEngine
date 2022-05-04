@@ -3,16 +3,19 @@
 #include "PCGEdge.h"
 #include "PCGNode.h"
 
-void UPCGEdge::BreakEdge()
+bool UPCGEdge::IsValid() const
 {
-	Modify();
-	if(InboundNode)
-	{
-		InboundNode->RemoveOutboundEdge(this);
-	}
+	return InputPin.Get() && OutputPin.Get();
+}
 
-	if(OutboundNode)
-	{
-		OutboundNode->RemoveInboundEdge(this);
-	}
+UPCGPin* UPCGEdge::GetOtherPin(const UPCGPin* Pin)
+{
+	check(Pin == InputPin || Pin == OutputPin);
+	return Pin == InputPin ? OutputPin : InputPin;
+}
+
+const UPCGPin* UPCGEdge::GetOtherPin(const UPCGPin* Pin) const
+{
+	check(Pin == InputPin || Pin == OutputPin);
+	return Pin == InputPin ? OutputPin : InputPin;
 }

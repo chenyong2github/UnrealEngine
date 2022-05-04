@@ -226,7 +226,7 @@ void UPCGBlueprintSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
 	TeardownBlueprintElementEvent();
 	SetupBlueprintElementEvent();
 
-	OnSettingsChangedDelegate.Broadcast(this);
+	OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
 }
 
 void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InElement)
@@ -236,7 +236,7 @@ void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InEl
 		// When a data dependency is changed, this means we have to dirty the cache, otherwise it will not register as a change.
 		DirtyCache();
 
-		OnSettingsChangedDelegate.Broadcast(this);
+		OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
 	}
 }
 #endif // WITH_EDITOR
@@ -328,22 +328,36 @@ FName UPCGBlueprintSettings::AdditionalTaskName() const
 
 TArray<FName> UPCGBlueprintSettings::InLabels() const
 {
-	return BlueprintElementInstance ? BlueprintElementInstance->InputPinLabels.Array() : TArray<FName>();
+	TArray<FName> InputLabels;
+
+	if (BlueprintElementInstance)
+	{
+		if (BlueprintElementInstance->bHasDefaultInPin)
+		{
+			InputLabels.Add(PCGPinConstants::DefaultInputLabel);
+		}
+
+		InputLabels.Append(BlueprintElementInstance->InputPinLabels.Array());
+	}
+
+	return InputLabels;
 }
 
 TArray<FName> UPCGBlueprintSettings::OutLabels() const
 {
-	return BlueprintElementInstance ? BlueprintElementInstance->OutputPinLabels.Array() : TArray<FName>();
-}
+	TArray<FName> OutputLabels;
+	
+	if (BlueprintElementInstance)
+	{
+		if (BlueprintElementInstance->bHasDefaultOutPin)
+		{
+			OutputLabels.Add(PCGPinConstants::DefaultOutputLabel);
+		}
 
-bool UPCGBlueprintSettings::HasDefaultInLabel() const
-{
-	return !BlueprintElementInstance || BlueprintElementInstance->bHasDefaultInPin;
-}
+		OutputLabels.Append(BlueprintElementInstance->OutputPinLabels.Array());
+	}
 
-bool UPCGBlueprintSettings::HasDefaultOutLabel() const
-{
-	return !BlueprintElementInstance || BlueprintElementInstance->bHasDefaultOutPin;
+	return OutputLabels;
 }
 
 FPCGElementPtr UPCGBlueprintSettings::CreateElement() const

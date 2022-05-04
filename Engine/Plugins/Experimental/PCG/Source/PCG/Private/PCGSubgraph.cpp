@@ -72,65 +72,10 @@ void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStr
 {
 	if (InGraph == GetSubgraph())
 	{
-		if (bIsStructural)
-		{
-			OnStructuralSettingsChangedDelegate.Broadcast(this);
-		}
-		else
-		{
-			OnSettingsChangedDelegate.Broadcast(this);
-		}
+		OnSettingsChangedDelegate.Broadcast(this, ((bIsStructural ? EPCGChangeType::Structural : EPCGChangeType::None) | EPCGChangeType::Settings));
 	}
 }
 #endif // WITH_EDITOR
-
-bool UPCGBaseSubgraphSettings::HasInLabel(const FName& Label) const
-{
-	if (UPCGGraph* Subgraph = GetSubgraph())
-	{
-		return Subgraph->GetInputNode()->HasInLabel(Label);
-	}
-	else
-	{
-		return false;
-	}
-}
-
-bool UPCGBaseSubgraphSettings::HasOutLabel(const FName& Label) const
-{
-	if (UPCGGraph* Subgraph = GetSubgraph())
-	{
-		return Subgraph->GetOutputNode()->HasOutLabel(Label);
-	}
-	else
-	{
-		return false;
-	}
-}
-
-bool UPCGBaseSubgraphSettings::HasDefaultInLabel() const
-{
-	if (UPCGGraph* Subgraph = GetSubgraph())
-	{
-		return Subgraph->GetInputNode()->HasDefaultInLabel();
-	}
-	else
-	{
-		return Super::HasDefaultInLabel();
-	}
-}
-
-bool UPCGBaseSubgraphSettings::HasDefaultOutLabel() const
-{
-	if (UPCGGraph* Subgraph = GetSubgraph())
-	{
-		return Subgraph->GetOutputNode()->HasDefaultOutLabel();
-	}
-	else
-	{
-		return Super::HasDefaultOutLabel();
-	}
-}
 
 TArray<FName> UPCGBaseSubgraphSettings::InLabels() const
 {
@@ -190,72 +135,6 @@ TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetSubgraph() const
 	TObjectPtr<UPCGSubgraphSettings> Settings = Cast<UPCGSubgraphSettings>(DefaultSettings);
 	return Settings ? Settings->Subgraph : nullptr;
 }
-
-void UPCGSubgraphNode::PostLoad()
-{
-	Super::PostLoad();
-
-#if WITH_EDITOR
-	if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
-	{
-		SubgraphSettings->OnStructuralSettingsChangedDelegate.AddUObject(this, &UPCGSubgraphNode::OnStructuralSettingsChanged);
-	}
-#endif
-}
-
-void UPCGSubgraphNode::BeginDestroy()
-{
-#if WITH_EDITOR
-	if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
-	{
-		SubgraphSettings->OnStructuralSettingsChangedDelegate.RemoveAll(this);
-	}
-#endif
-
-	Super::BeginDestroy();
-}
-
-#if WITH_EDITOR
-void UPCGSubgraphNode::PreEditChange(FProperty* PropertyAboutToChange)
-{
-	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings))
-	{
-		if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
-		{
-			SubgraphSettings->OnStructuralSettingsChangedDelegate.RemoveAll(this);
-		}
-	}
-
-	Super::PreEditChange(PropertyAboutToChange);
-}
-
-void UPCGSubgraphNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	// Implementation note:
-	// We must process structural changes before the parent class' otherwise the graph might be rescheduled with its tasks
-	// before it is appropriately dirtied (which will trigger a recompilation)
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings))
-	{
-		if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
-		{
-			SubgraphSettings->OnStructuralSettingsChangedDelegate.AddUObject(this, &UPCGSubgraphNode::OnStructuralSettingsChanged);
-
-			// Changing the default settings should trigger immediately a structural change
-			OnStructuralSettingsChanged(DefaultSettings);
-		}
-	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-void UPCGSubgraphNode::OnStructuralSettingsChanged(UPCGSettings* InSettings)
-{
-	if (InSettings == DefaultSettings)
-	{
-		OnNodeStructuralSettingsChangedDelegate.Broadcast(this);
-	}
-}
-#endif // WITH_EDITOR
 
 FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
 {

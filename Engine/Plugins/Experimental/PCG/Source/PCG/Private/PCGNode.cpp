@@ -4,6 +4,9 @@
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGSettings.h"
+#include "PCGSubgraph.h"
+
+#include "Algo/Transform.h"
 
 UPCGNode::UPCGNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -34,14 +37,79 @@ void UPCGNode::PostLoad()
 #if WITH_EDITOR
 void UPCGNode::ApplyDeprecation()
 {
+	UpdatePins();
+
+	UPCGPin* DefaultOutputPin = OutputPins.IsEmpty() ? nullptr : OutputPins[0];
 	for (TObjectPtr<UPCGNode> OutboundNode : OutboundNodes_DEPRECATED)
 	{
-		if (!HasEdgeTo(OutboundNode))
+		OutboundNode->UpdatePins();
+		UPCGPin* OtherNodeInputPin = OutboundNode->InputPins.IsEmpty() ? nullptr : OutboundNode->InputPins[0];
+
+		if (DefaultOutputPin && OtherNodeInputPin)
 		{
-			AddEdgeTo(NAME_None, OutboundNode, NAME_None);
+			DefaultOutputPin->AddEdgeTo(OtherNodeInputPin);
+		}
+		else
+		{
+			UE_LOG(LogPCG, Error, TEXT("Unable to apply deprecation on outbound nodes"));
 		}
 	}
 	OutboundNodes_DEPRECATED.Reset();
+
+	// Deprecated edges -> pins & edges
+	// Inbound edges will be taken care of by other nodes outbounds
+	InboundEdges_DEPRECATED.Reset();
+
+	for (UPCGEdge* OutboundEdge : OutboundEdges_DEPRECATED)
+	{
+		check(OutboundEdge->InboundNode_DEPRECATED == this);
+		check(OutboundEdge->OutboundNode_DEPRECATED);
+
+		UPCGPin* OutputPin = nullptr;
+		if (OutboundEdge->InboundLabel_DEPRECATED == NAME_None)
+		{
+			OutputPin = OutputPins.IsEmpty() ? nullptr : OutputPins[0];
+		}
+		else
+		{
+			OutputPin = GetOutputPin(OutboundEdge->InboundLabel_DEPRECATED);
+		}
+
+		if (!OutputPin)
+		{
+			UE_LOG(LogPCG, Error, TEXT("Unable to apply deprecation on outbound edge on node %s - can't find output pin %s"), *GetFName().ToString(), *OutboundEdge->InboundLabel_DEPRECATED.ToString());
+			continue;
+		}
+
+		UPCGNode* OtherNode = OutboundEdge->OutboundNode_DEPRECATED;
+		if (!OtherNode)
+		{
+			UE_LOG(LogPCG, Error, TEXT("Unable to apply deprecation on outbound edge on node %s - can't find other node"), *GetFName().ToString());
+			continue;
+		}
+
+		OtherNode->UpdatePins();
+
+		UPCGPin* OtherNodeInputPin = nullptr;
+		if (OutboundEdge->OutboundLabel_DEPRECATED == NAME_None)
+		{
+			OtherNodeInputPin = OtherNode->InputPins.IsEmpty() ? nullptr : OtherNode->InputPins[0];
+		}
+		else
+		{
+			OtherNodeInputPin = OtherNode->GetInputPin(OutboundEdge->OutboundLabel_DEPRECATED);
+		}
+
+		if (OtherNodeInputPin)
+		{
+			OutputPin->AddEdgeTo(OtherNodeInputPin);
+		}
+		else
+		{
+			UE_LOG(LogPCG, Error, TEXT("Unable to apply deprecation on outbound edge on node %s output pin %s - can't find node %s input pin %s"), *GetFName().ToString(), *OutboundEdge->InboundLabel_DEPRECATED.ToString(), *OtherNode->GetFName().ToString(), *OutboundEdge->OutboundLabel_DEPRECATED.ToString());
+		}
+	}
+	OutboundEdges_DEPRECATED.Reset();
 }
 #endif
 
@@ -141,56 +209,114 @@ FName UPCGNode::GetNodeTitle() const
 	return TEXT("Unnamed node");
 }
 
-bool UPCGNode::HasInLabel(const FName& Label) const
-{
-	return DefaultSettings && DefaultSettings->HasInLabel(Label);
-}
-
-bool UPCGNode::HasOutLabel(const FName& Label) const
-{
-	return DefaultSettings && DefaultSettings->HasOutLabel(Label);
-}
-
 TArray<FName> UPCGNode::InLabels() const
 {
-	return DefaultSettings ? DefaultSettings->InLabels() : TArray<FName>();
+	TArray<FName> Labels;
+	for (UPCGPin* InputPin : InputPins)
+	{
+		Labels.Add(InputPin->Label);
+	}
+
+	return Labels;
 }
 
 TArray<FName> UPCGNode::OutLabels() const
 {
-	return DefaultSettings ? DefaultSettings->OutLabels() : TArray<FName>();
+	TArray<FName> Labels;
+	for (UPCGPin* OutputPin : OutputPins)
+	{
+		Labels.Add(OutputPin->Label);
+	}
+
+	return Labels;
 }
 
-bool UPCGNode::HasDefaultInLabel() const
+UPCGPin* UPCGNode::GetInputPin(const FName& Label)
 {
-	return !DefaultSettings || DefaultSettings->HasDefaultInLabel();
+	for (UPCGPin* InputPin : InputPins)
+	{
+		if (InputPin->Label == Label)
+		{
+			return InputPin;
+		}
+	}
+
+	return nullptr;
 }
 
-bool UPCGNode::HasDefaultOutLabel() const
+const UPCGPin* UPCGNode::GetInputPin(const FName& Label) const
 {
-	return !DefaultSettings || DefaultSettings->HasDefaultOutLabel();
+	for (const UPCGPin* InputPin : InputPins)
+	{
+		if (InputPin->Label == Label)
+		{
+			return InputPin;
+		}
+	}
+
+	return nullptr;
+}
+
+UPCGPin* UPCGNode::GetOutputPin(const FName& Label)
+{
+	for (UPCGPin* OutputPin : OutputPins)
+	{
+		if (OutputPin->Label == Label)
+		{
+			return OutputPin;
+		}
+	}
+
+	return nullptr;
+}
+
+const UPCGPin* UPCGNode::GetOutputPin(const FName& Label) const
+{
+	for (const UPCGPin* OutputPin : OutputPins)
+	{
+		if (OutputPin->Label == Label)
+		{
+			return OutputPin;
+		}
+	}
+
+	return nullptr;
 }
 
 bool UPCGNode::IsInputPinConnected(const FName& Label) const
 {
-	for (const UPCGEdge* InboundEdge : InboundEdges)
+	if (const UPCGPin* InputPin = GetInputPin(Label))
 	{
-		if (InboundEdge->OutboundLabel == Label)
-		{
-			return true;
-		}
+		return InputPin->IsConnected();
 	}
-
-	return false;
+	else
+	{
+		return false;
+	}
 }
 
 bool UPCGNode::IsOutputPinConnected(const FName& Label) const
 {
-	for (const UPCGEdge* OutboundEdge : OutboundEdges)
+	if (const UPCGPin* OutputPin = GetOutputPin(Label))
 	{
-		if (OutboundEdge->InboundLabel == Label)
+		return OutputPin->IsConnected();
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool UPCGNode::HasInboundEdges() const
+{
+	for (const UPCGPin* InputPin : InputPins)
+	{
+		for (const UPCGEdge* InboundEdge : InputPin->Edges)
 		{
-			return true;
+			if (InboundEdge->IsValid())
+			{
+				return true;
+			}
 		}
 	}
 
@@ -215,46 +341,6 @@ void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
 #endif
-}
-
-UPCGEdge* UPCGNode::GetOutboundEdge(const FName& FromLabel, UPCGNode* To, const FName& ToLabel)
-{
-	for (UPCGEdge* OutboundEdge : OutboundEdges)
-	{
-		if (OutboundEdge->OutboundNode == To &&
-			OutboundEdge->InboundLabel == FromLabel &&
-			OutboundEdge->OutboundLabel == ToLabel)
-		{
-			return OutboundEdge;
-		}
-	}
-
-	return nullptr;
-}
-
-bool UPCGNode::HasEdgeTo(UPCGNode* InNode) const
-{
-	for (const UPCGEdge* OutboundEdge : OutboundEdges)
-	{
-		if (OutboundEdge->OutboundNode == InNode)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void UPCGNode::RemoveInboundEdge(UPCGEdge* InEdge)
-{
-	Modify();
-	InboundEdges.Remove(InEdge);
-}
-
-void UPCGNode::RemoveOutboundEdge(UPCGEdge* InEdge)
-{
-	Modify();
-	OutboundEdges.Remove(InEdge);
 }
 
 #if WITH_EDITOR
@@ -282,20 +368,120 @@ void UPCGNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChan
 		if (DefaultSettings)
 		{
 			DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
-			OnSettingsChanged(DefaultSettings);
+			UpdatePins();
+			OnNodeChangedDelegate.Broadcast(this, ((Cast<UPCGBaseSubgraphSettings>(DefaultSettings) ? EPCGChangeType::Structural : EPCGChangeType::None) | EPCGChangeType::Settings));
 		}
 	}
 	else if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, NodeTitle))
 	{
-		OnNodeSettingsChangedDelegate.Broadcast(this, /*bSettingsChanged=*/false);
+		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Cosmetic);
 	}
 }
 
-void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings)
+bool UPCGNode::UpdatePins()
+{
+	if (!DefaultSettings)
+	{
+		bool bChanged = !InputPins.IsEmpty() || !OutputPins.IsEmpty();
+
+		if (bChanged)
+		{
+			Modify();
+		}
+
+		InputPins.Reset();
+		OutputPins.Reset();
+		return bChanged;
+	}
+
+	TArray<FName> InboundLabels = DefaultSettings->InLabels();
+	TArray<FName> OutboundLabels = DefaultSettings->OutLabels();
+
+	auto UpdatePins = [this](TArray<UPCGPin*>& Pins, const TArray<FName>& Labels)
+	{
+		TArray<FName> OldLabels;
+		Algo::Transform(Pins, OldLabels, [](UPCGPin* Pin) { return Pin->Label; });
+
+		auto GetUnmatched = [](const TArray<FName>& InA, const TArray<FName>& InB)
+		{
+			TArray<FName> Unmatched;
+			for (const FName& A : InA)
+			{
+				if (!InB.Contains(A))
+				{
+					Unmatched.Add(A);
+				}
+			}
+
+			return Unmatched;
+		};
+
+		TArray<FName> UnmatchedLabels = GetUnmatched(Labels, OldLabels);
+		TArray<FName> UnmatchedOldLabels = GetUnmatched(OldLabels, Labels);
+
+		const bool bRenameUnmatchedPin = UnmatchedLabels.Num() == 1 && UnmatchedOldLabels.Num() == 1;
+		if (bRenameUnmatchedPin)
+		{
+			for (UPCGPin* Pin : Pins)
+			{
+				if (Pin->Label == UnmatchedOldLabels[0])
+				{
+					Pin->Modify();
+					Pin->Label = UnmatchedLabels[0];
+				}
+			}
+
+			return false;
+		}
+		else
+		{
+			if (!UnmatchedOldLabels.IsEmpty() || !UnmatchedLabels.IsEmpty())
+			{
+				Modify();
+			}
+
+			bool bAppliedEdgeChanges = false;
+
+			// Remove old pins
+			if (UnmatchedOldLabels.Num() > 0)
+			{
+				for (int32 PinIndex = Pins.Num() - 1; PinIndex >= 0; --PinIndex)
+				{
+					if (UnmatchedOldLabels.Contains(Pins[PinIndex]->Label))
+					{
+						bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
+						Pins.RemoveAt(PinIndex);
+					}
+				}
+			}
+
+			// Add new pins
+			for (const FName& UnmatchedLabel : UnmatchedLabels)
+			{
+				const int32 InsertIndex = Labels.IndexOfByKey(UnmatchedLabel);
+				UPCGPin* NewPin = NewObject<UPCGPin>(this);
+				NewPin->Node = this;
+				NewPin->Label = UnmatchedLabel;
+				Pins.Insert(NewPin, InsertIndex);
+			}
+
+			return bAppliedEdgeChanges;
+		}
+	};
+
+	bool bChanged = false;
+	bChanged |= UpdatePins(InputPins, InboundLabels);
+	bChanged |= UpdatePins(OutputPins, OutboundLabels);
+
+	return bChanged;
+}
+
+void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType)
 {
 	if (InSettings == DefaultSettings)
 	{
-		OnNodeSettingsChangedDelegate.Broadcast(this, /*bSettingsChanged=*/true);
+		const bool bUpdatedPins = UpdatePins();
+		OnNodeChangedDelegate.Broadcast(this, ((bUpdatedPins ? EPCGChangeType::Edge : EPCGChangeType::None) | ChangeType));
 	}
 }
 

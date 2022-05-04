@@ -43,14 +43,14 @@ uint32 UPCGSettings::GetCrc32() const
 	return Ar.Crc32(const_cast<UPCGSettings*>(this));
 }
 
-bool UPCGSettings::HasInLabel(const FName& Label) const
+TArray<FName> UPCGSettings::InLabels() const
 {
-	return (Label == NAME_None && HasDefaultInLabel()) || InLabels().Contains(Label);
+	return { PCGPinConstants::DefaultInputLabel };
 }
 
-bool UPCGSettings::HasOutLabel(const FName& Label) const
+TArray<FName> UPCGSettings::OutLabels() const
 {
-	return (Label == NAME_None && HasDefaultOutLabel()) || OutLabels().Contains(Label);
+	return { PCGPinConstants::DefaultOutputLabel };
 }
 
 FPCGElementPtr UPCGSettings::GetElement() const
@@ -79,7 +79,7 @@ UPCGNode* UPCGSettings::CreateNode() const
 void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	OnSettingsChangedDelegate.Broadcast(this);
+	OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
 }
 
 void UPCGSettings::DirtyCache()
