@@ -647,6 +647,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	TArray<FPrimitiveSceneInfo*> DirtyCachedRayTracingPrimitives;
 	DirtyCachedRayTracingPrimitives.Reserve(Scene->PrimitiveSceneProxies.Num());
 
+	const bool bGameView = View.bIsGameView || View.Family->EngineShowFlags.Game;
+
 	int32 VisiblePrimitives = 0;
 	bool bPerformRayTracing = View.State != nullptr && !View.bIsReflectionCapture && View.bAllowRayTracing;
 	if (bPerformRayTracing)
@@ -688,6 +690,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			}
 
 			if (!View.bIsSceneCapture && SceneInfo->bIsVisibleInSceneCapturesOnly)
+			{
+				continue;
+			}
+
+			// Some primitives should only be visible editor mode, however far field geometry 
+			// and hidden shadow casters must still always be added to the RT scene.
+			if (bGameView && !SceneInfo->bDrawInGame && !SceneInfo->bRayTracingFarField)
 			{
 				continue;
 			}
