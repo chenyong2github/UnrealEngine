@@ -181,7 +181,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 
 	//SharedParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	checkf(View.HasRayTracingScene(), TEXT("TLAS does not exist. Verify that the current pass is represented in Lumen::AnyLumenHardwareRayTracingPassEnabled()."));
-	SharedParameters->TLAS = View.GetRayTracingSceneViewChecked();
+	SharedParameters->TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 
 	// Lighting data
 	SharedParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;

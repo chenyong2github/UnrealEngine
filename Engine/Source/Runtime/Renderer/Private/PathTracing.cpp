@@ -1921,7 +1921,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 					for (int Bounce = 0, MaxBounces = CompactionType == 1 ? Config.PathTracingData.MaxBounces : 0; Bounce <= MaxBounces; Bounce++)
 					{
 						FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
-						PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
+						PassParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
 						PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 						PassParameters->PathTracingData = Config.PathTracingData;
 						if (PreviousPassParameters == nullptr)

@@ -28,11 +28,17 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
 
+	// Round up buffer sizes to some multiple to avoid pathological growth reallocations.
+	static constexpr uint32 AllocationGranularity = 8 * 1024;
+	static constexpr uint64 BufferAllocationGranularity = 16 * 1024 * 1024;
+
 	WaitForTasks();
+
+	static const uint8 NumLayers = uint32(ERayTracingSceneLayer::NUM);
 
 	FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances = CreateRayTracingSceneWithGeometryInstances(
 		Instances,
-		1,
+		NumLayers,
 		RAY_TRACING_NUM_SHADER_SLOTS,
 		RAY_TRACING_NUM_MISS_SHADER_SLOTS);
 
@@ -40,29 +46,28 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 
 	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingSceneRHI->GetInitializer();
 
-	// Round up number of instances to some multiple to avoid pathological growth reallocations.
-	static constexpr uint32 AllocationGranularity = 8 * 1024;
-	const uint32 NumNativeInstancesAligned = FMath::DivideAndRoundUp(FMath::Max(SceneInitializer.NumNativeInstancesPerLayer[0], 1U), AllocationGranularity) * AllocationGranularity;
+	const uint32 NumNativeInstances = SceneWithGeometryInstances.NumNativeGPUSceneInstances + SceneWithGeometryInstances.NumNativeGPUInstances + SceneWithGeometryInstances.NumNativeCPUInstances;
+	const uint32 NumNativeInstancesAligned = FMath::DivideAndRoundUp(FMath::Max(NumNativeInstances, 1U), AllocationGranularity) * AllocationGranularity;
 	const uint32 NumTransformsAligned = FMath::DivideAndRoundUp(FMath::Max(SceneWithGeometryInstances.NumNativeCPUInstances, 1U), AllocationGranularity) * AllocationGranularity;
 
-	SizeInfo = RHICalcRayTracingSceneSize(SceneInitializer.NumNativeInstancesPerLayer[0], ERayTracingAccelerationStructureFlags::FastTrace);
-	FRayTracingAccelerationStructureSize SizeInfoAligned = RHICalcRayTracingSceneSize(NumNativeInstancesAligned, ERayTracingAccelerationStructureFlags::FastTrace);
-	SizeInfo.ResultSize = FMath::Max(SizeInfo.ResultSize, SizeInfoAligned.ResultSize);
-	SizeInfo.BuildScratchSize = FMath::Max(SizeInfo.BuildScratchSize, SizeInfoAligned.BuildScratchSize);
-
-	check(SizeInfo.ResultSize < ~0u);
+	FRayTracingAccelerationStructureSize SizeInfo = RayTracingSceneRHI->GetSizeInfo();
+	SizeInfo.ResultSize = FMath::DivideAndRoundUp(FMath::Max(SizeInfo.ResultSize, 1ull), BufferAllocationGranularity) * BufferAllocationGranularity;
 
 	// Allocate GPU buffer if current one is too small or significantly larger than what we need.
 	if (!RayTracingSceneBuffer.IsValid() 
 		|| SizeInfo.ResultSize > RayTracingSceneBuffer->GetSize() 
 		|| SizeInfo.ResultSize < RayTracingSceneBuffer->GetSize() / 2)
 	{
-		RayTracingSceneSRV = nullptr;
-		RayTracingSceneBuffer = nullptr;
-
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::SceneBuffer"));
 		RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
-		RayTracingSceneSRV = RHICreateShaderResourceView(RayTracingSceneBuffer);
+	}
+
+	LayerSRVs.SetNum(NumLayers);
+
+	for (uint32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		FShaderResourceViewInitializer ViewInitializer(RayTracingSceneBuffer, RayTracingSceneRHI->GetLayerBufferOffset(LayerIndex), 0);
+		LayerSRVs[LayerIndex] = RHICreateShaderResourceView(ViewInitializer);
 	}
 
 	{
@@ -114,9 +119,9 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 	}
 
 	{
-		// Create/resize transform upload buffer (if necessary)
 		const uint32 UploadBufferSize = NumTransformsAligned * sizeof(FVector4f) * 3;
 
+		// Create/resize transform upload buffer (if necessary)
 		if (!TransformUploadBuffer.IsValid()
 			|| UploadBufferSize > TransformUploadBuffer->GetSize()
 			|| UploadBufferSize < TransformUploadBuffer->GetSize() / 2)
@@ -127,9 +132,9 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 		}
 	}
 
-	if (SceneInitializer.NumNativeInstancesPerLayer[0] > 0)
+	if (NumNativeInstances > 0)
 	{
-		const uint32 InstanceUploadBytes = SceneInitializer.NumNativeInstancesPerLayer[0] * sizeof(FRayTracingInstanceDescriptorInput);
+		const uint32 InstanceUploadBytes = NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
 		const uint32 TransformUploadBytes = SceneWithGeometryInstances.NumNativeCPUInstances * 3 * sizeof(FVector4f);
 
 		FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHILockBuffer(InstanceUploadBuffer, 0, InstanceUploadBytes, RLM_WriteOnly);
@@ -137,7 +142,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 
 		// Fill instance upload buffer on separate thread since results are only needed in RHI thread
 		FillInstanceUploadBufferTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[InstanceUploadData = MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstancesPerLayer[0]),
+			[InstanceUploadData = MakeArrayView(InstanceUploadData, NumNativeInstances),
 			TransformUploadData = MakeArrayView(TransformUploadData, SceneWithGeometryInstances.NumNativeCPUInstances * 3),
 			NumNativeGPUSceneInstances = SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,
@@ -251,20 +256,20 @@ FRHIRayTracingScene* FRayTracingScene::GetRHIRayTracingScene() const
 FRHIRayTracingScene* FRayTracingScene::GetRHIRayTracingSceneChecked() const
 {
 	FRHIRayTracingScene* Result = GetRHIRayTracingScene();
-	checkf(Result, TEXT("Ray tracing scene was not created. Perhaps BeginCreate() was not called."));
+	checkf(Result, TEXT("Ray tracing scene was not created. Perhaps Create() was not called."));
 	return Result;
-}
-
-FRHIShaderResourceView* FRayTracingScene::GetShaderResourceViewChecked() const
-{
-	checkf(RayTracingSceneSRV.IsValid(), TEXT("Ray tracing scene SRV was not created. Perhaps BeginCreate() was not called."));
-	return RayTracingSceneSRV.GetReference();
 }
 
 FRHIBuffer* FRayTracingScene::GetBufferChecked() const
 {
-	checkf(RayTracingSceneBuffer.IsValid(), TEXT("Ray tracing scene buffer was not created. Perhaps BeginCreate() was not called."));
+	checkf(RayTracingSceneBuffer.IsValid(), TEXT("Ray tracing scene buffer was not created. Perhaps Create() was not called."));
 	return RayTracingSceneBuffer.GetReference();
+}
+
+FRHIShaderResourceView* FRayTracingScene::GetLayerSRVChecked(ERayTracingSceneLayer Layer) const
+{
+	checkf(LayerSRVs[uint8(Layer)].IsValid(), TEXT("Ray tracing scene SRV was not created. Perhaps Create() was not called."));
+	return LayerSRVs[uint8(Layer)].GetReference();
 }
 
 void FRayTracingScene::Reset()
@@ -285,7 +290,6 @@ void FRayTracingScene::ResetAndReleaseResources()
 	Reset();
 
 	Instances.Empty();
-	RayTracingSceneSRV = nullptr;
 	RayTracingSceneBuffer = nullptr;
 	RayTracingSceneRHI = nullptr;
 }

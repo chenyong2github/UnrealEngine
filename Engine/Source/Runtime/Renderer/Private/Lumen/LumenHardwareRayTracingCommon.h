@@ -289,7 +289,6 @@ static void AddLumenRayTraceDispatchPass(
 {
 	ClearUnusedGraphResources(RayGenerationShader, Parameters);
 
-	FRHIRayTracingScene* RayTracingSceneRHI_TEST = View.GetRayTracingSceneChecked();
 	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(PassName),
 		Parameters,

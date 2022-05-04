@@ -675,7 +675,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SkyLightDecoupleSampleGeneration = GetRayTracingSkyLightDecoupleSampleGenerationCVarValue();
 	CommonParameters.SampleMode = (int32)ESamplePhase::Monlithic;
 
-	CommonParameters.TLAS = View.GetRayTracingSceneViewChecked();
+	CommonParameters.TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	CommonParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	CommonParameters.LightDataBuffer = View.RayTracingLightData.LightBufferSRV;

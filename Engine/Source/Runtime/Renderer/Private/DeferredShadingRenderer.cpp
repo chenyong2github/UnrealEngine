@@ -1623,19 +1623,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			BuildParams.InstanceBuffer = InstanceBuffer;
 			BuildParams.InstanceBufferOffset = 0;
 
-			// Sanity check acceleration structure buffer sizes
-		#if DO_CHECK
-			{
-				FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(
-					RayTracingSceneRHI->GetInitializer().NumNativeInstancesPerLayer[0], ERayTracingAccelerationStructureFlags::FastTrace);
-
-				check(SizeInfo.ResultSize <= Scene->RayTracingScene.SizeInfo.ResultSize);
-				check(SizeInfo.BuildScratchSize <= Scene->RayTracingScene.SizeInfo.BuildScratchSize);
-				check(SizeInfo.ResultSize <= AccelerationStructureBuffer->GetSize());
-				check(SizeInfo.BuildScratchSize <= ScratchBuffer->GetSize());
-			}
-		#endif // DO_CHECK
-
 			RHICmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, AccelerationStructureBuffer, 0);
 			RHICmdList.BuildAccelerationStructure(BuildParams);
 

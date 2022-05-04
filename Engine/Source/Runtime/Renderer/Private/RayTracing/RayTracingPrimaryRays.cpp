@@ -144,7 +144,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
 	PassParameters->ShouldUsePreExposure = View.Family->EngineShowFlags.Tonemapper;
 	PassParameters->PrimaryRayFlags = (uint32)Flags;
-	PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
+	PassParameters->TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	PassParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;

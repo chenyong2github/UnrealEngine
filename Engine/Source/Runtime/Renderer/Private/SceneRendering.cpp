@@ -1063,7 +1063,7 @@ FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
 	return nullptr;
 }
 
-FRHIShaderResourceView* FViewInfo::GetRayTracingSceneViewChecked() const
+FRHIShaderResourceView* FViewInfo::GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer Layer) const
 {
 	FRHIShaderResourceView* Result = nullptr;
 	check(Family);
@@ -1071,7 +1071,7 @@ FRHIShaderResourceView* FViewInfo::GetRayTracingSceneViewChecked() const
 	{
 		if (FScene* Scene = Family->Scene->GetRenderScene())
 		{
-			Result = Scene->RayTracingScene.GetShaderResourceViewChecked();
+			Result = Scene->RayTracingScene.GetLayerSRVChecked(Layer);
 		}
 	}
 	checkf(Result, TEXT("Ray tracing scene SRV is expected to be created at this point."));

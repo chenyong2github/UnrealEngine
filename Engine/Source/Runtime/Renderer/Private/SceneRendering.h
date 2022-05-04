@@ -59,6 +59,7 @@ struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 enum class EVelocityPass : uint32;
+enum class ERayTracingSceneLayer : uint8;
 class FTransientLightFunctionTextureAtlas;
 struct FSceneTexturesConfig;
 struct FMinimalSceneTextures;
@@ -1478,7 +1479,7 @@ public:
 #if RHI_RAYTRACING
 	bool HasRayTracingScene() const;
 	FRHIRayTracingScene* GetRayTracingSceneChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
-	FRHIShaderResourceView* GetRayTracingSceneViewChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
+	FRHIShaderResourceView* GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer Layer) const; // Soft-deprecated method, use FScene.RayTracingScene instead.
 
 	// Primary pipeline state object to be used with the ray tracing scene for this view.
 	// Material shaders are only available when using this pipeline.

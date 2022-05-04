@@ -20,6 +20,13 @@ class FRHIShaderResourceView;
 class FRayTracingGeometry;
 class FRDGBuilder;
 
+enum class ERayTracingSceneLayer : uint8
+{
+	Base,
+
+	NUM
+};
+
 /**
 * Persistent representation of the scene for ray tracing.
 * Manages top level acceleration structure instances, memory and build process.
@@ -60,10 +67,11 @@ public:
 	// Similar to GetRayTracingScene, but checks that ray tracing scene RHI object is valid.
 	RENDERER_API  FRHIRayTracingScene* GetRHIRayTracingSceneChecked() const;
 
-	// Returns Buffer and SRV for this ray tracing scene.
-	// Valid to call immediately after BeginCreate() and does not block.
-	RENDERER_API FRHIShaderResourceView* GetShaderResourceViewChecked() const;
+	// Returns Buffer for this ray tracing scene.
+	// Valid to call immediately after Create() and does not block.
 	RENDERER_API FRHIBuffer* GetBufferChecked() const;
+	
+	RENDERER_API FRHIShaderResourceView* GetLayerSRVChecked(ERayTracingSceneLayer Layer) const;
 
 public:
 
@@ -82,8 +90,6 @@ public:
 	// Used coarse mesh streaming handles during the last TLAS build
 	TArray<Nanite::CoarseMeshStreamingHandle> UsedCoarseMeshStreamingHandles;
 
-	FRayTracingAccelerationStructureSize SizeInfo = {};
-
 	FRDGBufferRef InstanceBuffer;
 	FRDGBufferRef BuildScratchBuffer;
 
@@ -96,8 +102,8 @@ private:
 	// Persistently allocated buffer that holds the built TLAS
 	FBufferRHIRef RayTracingSceneBuffer;
 
-	// View for the TLAS buffer that should be used in ray tracing shaders
-	FShaderResourceViewRHIRef RayTracingSceneSRV;
+	// Per-layer views for the TLAS buffer that should be used in ray tracing shaders
+	TArray<FShaderResourceViewRHIRef> LayerSRVs;
 
 	// Transient memory allocator
 	FMemStackBase Allocator;
