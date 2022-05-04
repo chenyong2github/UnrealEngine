@@ -49,7 +49,7 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 		if (WorldDataLayers)
 		{
 			TArray<FName> Result;
-			for (const FName& DataLayerInstanceName : InActorDesc->DataLayers)
+			for (const FName& DataLayerInstanceName : InActorDesc->GetDataLayers())
 			{
 				if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName))
 				{
@@ -62,7 +62,7 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 		else if (InWorldDataLayersActorDesc)
 		{
 			TArray<FName> Result;
-			for (const FName& DataLayerInstanceName : InActorDesc->DataLayers)
+			for (const FName& DataLayerInstanceName : InActorDesc->GetDataLayers())
 			{
 				if (const FDataLayerInstanceDesc* DataLayerInstanceDesc = InWorldDataLayersActorDesc->GetDataLayerInstanceFromInstanceName(DataLayerInstanceName))
 				{
@@ -78,7 +78,7 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 		if (WorldDataLayers)
 		{
 			TArray<FName> Result;
-			for (const FName& DataLayerAssetPath : InActorDesc->DataLayers)
+			for (const FName& DataLayerAssetPath : InActorDesc->GetDataLayers())
 			{
 				WorldDataLayers->ForEachDataLayer([DataLayerAssetPath, &Result](UDataLayerInstance* DataLayerInstance)
 				{
@@ -98,7 +98,7 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 		else if (InWorldDataLayersActorDesc)
 		{
 			TArray<FName> Result;
-			for (const FName& DataLayerAssetPath : InActorDesc->DataLayers)
+			for (const FName& DataLayerAssetPath : InActorDesc->GetDataLayers())
 			{
 				if (const FDataLayerInstanceDesc* DataLayerInstanceDesc = InWorldDataLayersActorDesc->GetDataLayerInstanceFromAssetPath(DataLayerAssetPath))
 				{
@@ -110,7 +110,7 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 	}
 
 	bIsSuccess = false;
-	return InActorDesc->DataLayers;
+	return InActorDesc->GetDataLayers();
 }
 
 // For performance reasons, this function assumes that InActorDesc's DataLayerInstanceNames was already resolved.

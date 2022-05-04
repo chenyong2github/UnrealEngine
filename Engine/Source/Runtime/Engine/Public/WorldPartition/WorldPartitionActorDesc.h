@@ -39,8 +39,6 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class UWorldPartition;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
-	friend class UDataLayerSubsystem;
-	friend class FDataLayerUtils;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
@@ -57,7 +55,9 @@ public:
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	inline FName GetHLODLayer() const { return HLODLayer; }
+	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayerInstanceNames; }
+	inline void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames) { DataLayerInstanceNames = InDataLayerInstanceNames; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
