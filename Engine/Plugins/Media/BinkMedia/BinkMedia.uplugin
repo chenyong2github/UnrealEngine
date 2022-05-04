@@ -31,7 +31,6 @@
 			"Type" : "Editor",
 			"TargetDenyList": [ "Server" ],
 			"PlatformDenyList": [ 
-				"Linux"
 			]
 		}
     ]
