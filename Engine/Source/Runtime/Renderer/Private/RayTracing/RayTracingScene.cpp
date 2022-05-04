@@ -32,6 +32,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 
 	FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances = CreateRayTracingSceneWithGeometryInstances(
 		Instances,
+		1,
 		RAY_TRACING_NUM_SHADER_SLOTS,
 		RAY_TRACING_NUM_MISS_SHADER_SLOTS);
 

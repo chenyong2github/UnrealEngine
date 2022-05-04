@@ -20,6 +20,8 @@ class FGPUScene;
 * This way native GPUScene and CPU instance descriptors can be built in a single dispatch per type.
 * Followed by one dispatch per GPU instance (since GPU transforms of each GPU instance are stored in separate buffers).
 * 
+* If the raytracing scene contains multiple layers, the instance buffer is divided into multiple subranges as expected by the RHI.
+* 
 */
 
 struct FRayTracingInstanceDescriptorInput
@@ -55,6 +57,13 @@ struct FRayTracingSceneWithGeometryInstances
 
 // Helper function to create FRayTracingSceneRHI using array of high level instances
 // Also outputs data required to build the instance buffer
+RENDERER_API FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(
+	TArrayView<FRayTracingGeometryInstance> Instances,
+	uint8 NumLayers,
+	uint32 NumShaderSlotsPerGeometrySegment,
+	uint32 NumMissShaderSlots);
+
+UE_DEPRECATED(5.1, "Specify NumLayers instead.")
 RENDERER_API FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(
 	TArrayView<FRayTracingGeometryInstance> Instances,
 	uint32 NumShaderSlotsPerGeometrySegment,

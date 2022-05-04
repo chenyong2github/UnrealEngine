@@ -118,6 +118,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	FRayTracingSceneWithGeometryInstances RayTracingScene = CreateRayTracingSceneWithGeometryInstances(
 		Instances,
+		1,
 		RAY_TRACING_NUM_SHADER_SLOTS,
 		1);
 

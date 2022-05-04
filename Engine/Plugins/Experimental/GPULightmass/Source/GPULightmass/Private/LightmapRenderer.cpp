@@ -1063,6 +1063,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 			FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances = CreateRayTracingSceneWithGeometryInstances(
 				RayTracingGeometryInstances,
+				1,
 				RAY_TRACING_NUM_SHADER_SLOTS,
 				1);
 

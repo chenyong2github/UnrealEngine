@@ -21,6 +21,7 @@
 
 FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(
 	TArrayView<FRayTracingGeometryInstance> Instances,
+	uint8 NumLayers,
 	uint32 NumShaderSlotsPerGeometrySegment,
 	uint32 NumMissShaderSlots)
 {
@@ -40,7 +41,7 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 	Initializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
 	Initializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
 	Initializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
-	Initializer.NumNativeInstancesPerLayer.SetNumZeroed(1);
+	Initializer.NumNativeInstancesPerLayer.SetNumZeroed(NumLayers);
 	Initializer.NumTotalSegments = 0;
 
 	Experimental::TSherwoodMap<FRHIRayTracingGeometry*, uint32> UniqueGeometries;
@@ -105,13 +106,26 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 			Output.NumNativeGPUInstances += InstanceDesc.NumTransforms;
 		}
 
-		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstancesPerLayer[0];
-		Initializer.NumNativeInstancesPerLayer[0] += InstanceDesc.NumTransforms;
+		checkf(InstanceDesc.LayerIndex < NumLayers, 
+			TEXT("FRayTracingGeometryInstance is assigned to layer %d but raytracing scene being created only has %d layers."),
+			InstanceDesc.LayerIndex, NumLayers);
+
+		// Can't support same instance in multiple layers because BaseInstancePrefixSum would be different per layer
+		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstancesPerLayer[InstanceDesc.LayerIndex];
+		Initializer.NumNativeInstancesPerLayer[InstanceDesc.LayerIndex] += InstanceDesc.NumTransforms;
 	}
 
 	Output.Scene = RHICreateRayTracingScene(MoveTemp(Initializer));
 
 	return MoveTemp(Output);
+}
+
+FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(
+	TArrayView<FRayTracingGeometryInstance> Instances,
+	uint32 NumShaderSlotsPerGeometrySegment,
+	uint32 NumMissShaderSlots)
+{
+	return CreateRayTracingSceneWithGeometryInstances(Instances, 1, NumShaderSlotsPerGeometrySegment, NumMissShaderSlots);
 }
 
 void FillRayTracingInstanceUploadBuffer(
@@ -126,6 +140,16 @@ void FillRayTracingInstanceUploadBuffer(
 	TArrayView<FVector4f> OutTransformData)
 {
 	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingSceneRHI->GetInitializer();
+	const uint32 NumLayers = SceneInitializer.NumNativeInstancesPerLayer.Num();
+
+	TArray<uint32> LayerBaseIndices;
+	LayerBaseIndices.SetNumUninitialized(NumLayers);
+	LayerBaseIndices[0] = 0;
+
+	for (uint32 LayerIndex = 1; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		LayerBaseIndices[LayerIndex] = LayerBaseIndices[LayerIndex - 1] + SceneInitializer.NumNativeInstancesPerLayer[LayerIndex - 1];
+	}
 
 	int32 NumInactiveNativeInstances = 0;
 
@@ -139,6 +163,7 @@ void FillRayTracingInstanceUploadBuffer(
 			Instances,
 			InstanceGeometryIndices,
 			BaseUploadBufferOffsets,
+			LayerBaseIndices,
 			PreViewTranslation,
 			&SceneInitializer,
 			&NumInactiveNativeInstances
@@ -162,6 +187,7 @@ void FillRayTracingInstanceUploadBuffer(
 			checkf(bGpuSceneInstance + bGpuInstance + bCpuInstance == 1, TEXT("Instance can only get transforms from one of GPUScene, GPUTransformsSRV, or Transforms array."));
 
 			const uint32 AccelerationStructureIndex = InstanceGeometryIndices[SceneInstanceIndex];
+			const uint32 LayerBaseIndex = LayerBaseIndices[SceneInstance.LayerIndex];
 			const uint32 BaseInstanceIndex = SceneInitializer.BaseInstancePrefixSum[SceneInstanceIndex];
 			const uint32 BaseTransformIndex = bCpuInstance ? BaseUploadBufferOffsets[SceneInstanceIndex] : 0;
 
@@ -186,7 +212,7 @@ void FillRayTracingInstanceUploadBuffer(
 				InstanceDesc.InstanceMaskAndFlags = SceneInstance.Mask | ((uint32)SceneInstance.Flags << 8);
 				InstanceDesc.InstanceContributionToHitGroupIndex = SceneInitializer.SegmentPrefixSum[SceneInstanceIndex] * SceneInitializer.ShaderSlotsPerGeometrySegment;
 				InstanceDesc.InstanceId = bUseUniqueUserData ? SceneInstance.UserData[TransformIndex] : SceneInstance.DefaultUserData;
-				InstanceDesc.OutputDescriptorIndex = BaseInstanceIndex + TransformIndex;
+				InstanceDesc.OutputDescriptorIndex = LayerBaseIndex + BaseInstanceIndex + TransformIndex;
 
 				if (bGpuSceneInstance)
 				{
@@ -231,7 +257,15 @@ void FillRayTracingInstanceUploadBuffer(
 #endif
 		});
 
-	SET_DWORD_STAT(STAT_RayTracingInstances, SceneInitializer.NumNativeInstancesPerLayer[0] - NumInactiveNativeInstances);
+#if STATS
+	uint32 TotalNumNativeInstances = 0;
+	for (uint32 NumNativeInstances : SceneInitializer.NumNativeInstancesPerLayer)
+	{
+		TotalNumNativeInstances += NumNativeInstances;
+	}
+
+	SET_DWORD_STAT(STAT_RayTracingInstances, TotalNumNativeInstances - NumInactiveNativeInstances);
+#endif
 }
 
 struct FRayTracingBuildInstanceBufferCS : public FGlobalShader

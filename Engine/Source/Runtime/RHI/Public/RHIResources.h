@@ -2556,6 +2556,8 @@ struct FRayTracingGeometryInstance
 	// If binary AND of instance mask with ray mask is zero, then the instance is considered not intersected / invisible.
 	uint8 Mask = 0xFF;
 
+	uint8 LayerIndex = 0;
+
 	// Flags to control triangle back face culling, whether to allow any-hit shaders, etc.
 	ERayTracingInstanceFlags Flags = ERayTracingInstanceFlags::None;
 };
