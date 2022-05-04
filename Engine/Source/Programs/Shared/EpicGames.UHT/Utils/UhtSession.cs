@@ -1459,6 +1459,11 @@ namespace EpicGames.UHT.Utils
 		/// <param name="message">Message being added</param>
 		public void AddMessage(UhtMessage message)
 		{
+			if (message.MessageType == UhtMessageType.Deprecation && !Config!.ShowDeprecations)
+			{
+				return;
+			}
+
 			lock (this._messages)
 			{
 				this._messages.Add(message);
@@ -1484,6 +1489,7 @@ namespace EpicGames.UHT.Utils
 
 				case UhtMessageType.Info:
 				case UhtMessageType.Trace:
+				case UhtMessageType.Deprecation:
 					break;
 			}
 		}
@@ -1544,6 +1550,10 @@ namespace EpicGames.UHT.Utils
 
 				case UhtMessageType.Warning:
 					logLevel = LogLevel.Warning;
+					break;
+
+				case UhtMessageType.Deprecation:
+					logLevel = LogLevel.Information;
 					break;
 
 				case UhtMessageType.Info:
@@ -1659,6 +1669,8 @@ namespace EpicGames.UHT.Utils
 					return $"{filePath}({lineNumber}){fragmentPath}: Info: {message.Message}";
 				case UhtMessageType.Trace:
 					return $"{filePath}({lineNumber}){fragmentPath}: Trace: {message.Message}";
+				case UhtMessageType.Deprecation:
+					return $"{filePath}({lineNumber}){fragmentPath}: Deprecation: {message.Message}";
 				default:
 				case UhtMessageType.Ice:
 					return $"{filePath}({lineNumber}){fragmentPath}:  Error: Internal Compiler Error - {message.Message}";

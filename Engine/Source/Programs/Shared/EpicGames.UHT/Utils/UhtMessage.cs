@@ -35,6 +35,11 @@ namespace EpicGames.UHT.Utils
 		Trace,
 
 		/// <summary>
+		/// The message is an informational message about deprecated patterns
+		/// </summary>
+		Deprecation,
+
+		/// <summary>
 		/// The message is an internal error and goes to the log and console
 		/// </summary>
 		Ice,
@@ -418,15 +423,15 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
-		/// Log information
+		/// Log a message directly to the log
 		/// </summary>
 		/// <param name="messageSite">Message site associated with the message</param>
 		/// <param name="lineNumber">Line number of the information</param>
 		/// <param name="message">Text of the information</param>
 		/// <param name="extraContext">Addition context to be appended to the error message</param>
-		public static void LogInfo(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
+		public static void LogTrace(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Info, messageSite, lineNumber, message, extraContext);
+			LogMessage(UhtMessageType.Trace, messageSite, lineNumber, message, extraContext);
 		}
 
 		/// <summary>
@@ -441,15 +446,15 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
-		/// Log a message directly to the log
+		/// Log information
 		/// </summary>
 		/// <param name="messageSite">Message site associated with the message</param>
 		/// <param name="lineNumber">Line number of the information</param>
 		/// <param name="message">Text of the information</param>
 		/// <param name="extraContext">Addition context to be appended to the error message</param>
-		public static void LogLog(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
+		public static void LogInfo(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Trace, messageSite, lineNumber, message, extraContext);
+			LogMessage(UhtMessageType.Info, messageSite, lineNumber, message, extraContext);
 		}
 
 		/// <summary>
@@ -461,6 +466,29 @@ namespace EpicGames.UHT.Utils
 		public static void LogInfo(this IUhtMessageSite messageSite, string message, object? extraContext = null)
 		{
 			LogMessage(UhtMessageType.Info, messageSite, -1, message, extraContext);
+		}
+
+		/// <summary>
+		/// Log deprecation
+		/// </summary>
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="lineNumber">Line number of the information</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogDeprecation(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
+		{
+			LogMessage(UhtMessageType.Deprecation, messageSite, lineNumber, message, extraContext);
+		}
+
+		/// <summary>
+		/// Log a deprecation
+		/// </summary>
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogDeprecation(this IUhtMessageSite messageSite, string message, object? extraContext = null)
+		{
+			LogMessage(UhtMessageType.Deprecation, messageSite, -1, message, extraContext);
 		}
 
 		/// <summary>

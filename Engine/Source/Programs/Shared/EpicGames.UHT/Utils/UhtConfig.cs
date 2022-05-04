@@ -60,6 +60,11 @@ namespace EpicGames.UHT.Utils
 		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior { get; }
 
 		/// <summary>
+		/// If true, deprecation warnings should be shown
+		/// </summary>
+		public bool ShowDeprecations { get; }
+
+		/// <summary>
 		/// If true, UObject properties are enabled in RigVM
 		/// </summary>
 		public bool AreRigVMUObjectProeprtiesEnabled { get; }

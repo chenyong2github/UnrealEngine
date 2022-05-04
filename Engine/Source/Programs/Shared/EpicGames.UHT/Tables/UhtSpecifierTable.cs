@@ -397,7 +397,7 @@ namespace EpicGames.UHT.Tables
 		{
 			if (value != null)
 			{
-				specifierContext.Scope.TokenReader.LogInfo($"Specifier '{this.Name}' has a value which is unused, future versions of UnrealHeaderTool will flag this as an error.");
+				specifierContext.Scope.TokenReader.LogDeprecation($"Specifier '{this.Name}' has a value which is unused, future versions of UnrealHeaderTool will flag this as an error.");
 			}
 			this._delegate(specifierContext);
 			return UhtSpecifierDispatchResults.Known;
