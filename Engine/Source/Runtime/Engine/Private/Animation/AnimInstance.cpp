@@ -32,6 +32,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Animation/AnimSubsystem.h"
 #include "Animation/AnimSubsystem_Tag.h"
+#include "Animation/AnimStateMachineTypes.h"
 #if WITH_EDITOR
 #include "Animation/DebugSkelMeshComponent.h"
 #endif
@@ -3782,6 +3783,31 @@ const FBoneContainer& UAnimInstance::GetRequiredBonesOnAnyThread() const
 void UAnimInstance::QueueRootMotionBlend(const FTransform& RootTransform, const FName& SlotName, float Weight)
 {
 	RootMotionBlendQueue.Add(FQueuedRootMotionBlend(RootTransform, SlotName, Weight));
+}
+
+bool UAnimInstance::RequestTransitionEvent(const FName EventName, const double RequestTimeout, const ETransitionRequestQueueMode QueueMode, const ETransitionRequestOverwriteMode OverwriteMode)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().RequestTransitionEvent(EventName, RequestTimeout, QueueMode, OverwriteMode);
+}
+
+void UAnimInstance::ClearTransitionEvents(const FName EventName)
+{
+	GetProxyOnAnyThread<FAnimInstanceProxy>().ClearTransitionEvents(EventName);
+}
+
+void UAnimInstance::ClearAllTransitionEvents()
+{
+	GetProxyOnAnyThread<FAnimInstanceProxy>().ClearAllTransitionEvents();
+}
+
+bool UAnimInstance::QueryTransitionEvent(int32 MachineIndex, int32 TransitionIndex, FName EventName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().QueryTransitionEvent(MachineIndex, TransitionIndex, EventName);
+}
+
+bool UAnimInstance::QueryAndMarkTransitionEvent(int32 MachineIndex, int32 TransitionIndex, FName EventName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().QueryAndMarkTransitionEvent(MachineIndex, TransitionIndex, EventName);
 }
 
 #undef LOCTEXT_NAMESPACE 

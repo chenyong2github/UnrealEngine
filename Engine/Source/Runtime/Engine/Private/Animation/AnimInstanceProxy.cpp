@@ -26,6 +26,7 @@
 #include "Animation/AnimNotifyStateMachineInspectionLibrary.h"
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimStateMachineTypes.h"
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
 #include "Animation/AnimMTStats.h"
@@ -2555,6 +2556,69 @@ bool FAnimInstanceProxy::WasAnimNotifyNameTriggeredInStateMachine(int32 MachineI
 	return false;
 }
 
+bool FAnimInstanceProxy::RequestTransitionEvent(const FName& EventName, const double RequestTimeout, const ETransitionRequestQueueMode& QueueMode, const ETransitionRequestOverwriteMode& OverwriteMode)
+{
+	FTransitionEvent NewTransitionEvent(EventName, RequestTimeout, QueueMode, OverwriteMode);
+
+	if (!NewTransitionEvent.IsValidRequest())
+	{
+		return false;
+	}
+	
+	ForEachStateMachine([NewTransitionEvent](FAnimNode_StateMachine& StateMachine)
+	{
+		StateMachine.RequestTransitionEvent(NewTransitionEvent);
+	});
+
+	return true;
+}
+
+bool FAnimInstanceProxy::QueryTransitionEvent(int32 MachineIndex, int32 TransitionIndex, const FName& EventName) const
+{
+	const FAnimNode_StateMachine* StateMachine = GetStateMachineInstance(MachineIndex);
+	if (StateMachine)
+	{
+		return StateMachine->QueryTransitionEvent(TransitionIndex, EventName);
+	}
+	return false;
+}
+
+void FAnimInstanceProxy::ClearTransitionEvents(const FName& EventName)
+{
+	ForEachStateMachine([EventName](FAnimNode_StateMachine& StateMachine)
+	{
+		StateMachine.ClearTransitionEvents(EventName);
+	});
+}
+
+void FAnimInstanceProxy::ClearAllTransitionEvents()
+{
+	ForEachStateMachine([](FAnimNode_StateMachine& StateMachine)
+	{
+		StateMachine.ClearAllTransitionEvents();
+	});
+}
+
+bool FAnimInstanceProxy::QueryAndMarkTransitionEvent(int32 MachineIndex, int32 TransitionIndex, const FName& EventName)
+{
+	if (AnimClassInterface)
+	{
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+
+		FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
+		if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
+		{
+			FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+			if (StateMachine)
+			{
+				return StateMachine->QueryAndMarkTransitionEvent(TransitionIndex, EventName);
+			}
+		}
+	}
+
+	return false;
+}
+
 const FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const
 {
 	if(const FAnimNode_StateMachine* StateMachine = GetStateMachineInstance(MachineIndex))
@@ -3362,6 +3426,26 @@ void FAnimInstanceProxy::ResetCounterInputProxy(FAnimInstanceProxy* InputProxy)
 		InputProxy->UpdateCounter.Reset();
 		InputProxy->EvaluationCounter.Reset();
 		InputProxy->CachedBonesCounter.Reset();
+	}
+}
+
+void FAnimInstanceProxy::ForEachStateMachine(const TFunctionRef<void(FAnimNode_StateMachine&)>& Functor)
+{
+	if (AnimClassInterface)
+	{
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		for (int32 MachineIndex = 0; MachineIndex < AnimNodeProperties.Num(); MachineIndex++)
+		{
+			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
+			if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
+			{
+				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+				if (StateMachine)
+				{
+					Functor(*StateMachine);
+				}
+			}
+		}
 	}
 }
 

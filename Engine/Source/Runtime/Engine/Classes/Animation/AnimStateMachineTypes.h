@@ -11,6 +11,22 @@
 #include "AnimStateMachineTypes.generated.h"
 
 class UCurveFloat;
+class UAnimStateTransitionNode;
+
+UENUM(BlueprintType)
+enum class ETransitionRequestQueueMode : uint8
+{
+	Shared			UMETA(ToolTip = "Only one transition can handle this request"),
+	Unique			UMETA(ToolTip = "Allows multiple transitions to handle the same request"),
+};
+
+UENUM(BlueprintType)
+enum class ETransitionRequestOverwriteMode : uint8
+{
+	Append			UMETA(ToolTip = "This request is added whether or not another with the same name is already queued"),
+	Ignore			UMETA(ToolTip = "This request is ignored if another request with the same name is already queued"),
+	Overwrite		UMETA(ToolTip = "This request overwrites another request with the same name if one exists")
+};
 
 //@TODO: Document
 UENUM()
@@ -34,6 +50,60 @@ namespace ETransitionLogicType
 		TLT_Custom UMETA(DisplayName="Custom")
 	};
 }
+
+struct FTransitionEvent
+{
+	TArray<int32, TInlineAllocator<8>> ConsumedTransitions;
+	FName EventName;
+	double CreationTime;
+	double TimeToLive;
+	ETransitionRequestQueueMode QueueMode;
+	ETransitionRequestOverwriteMode OverwriteMode;
+
+	FTransitionEvent(const FName& InEventName, const double InTimeToLive, const ETransitionRequestQueueMode& InQueueMode, const ETransitionRequestOverwriteMode& InOverwriteMode)
+		: EventName(InEventName)
+		, TimeToLive(InTimeToLive)
+		, QueueMode(InQueueMode)
+		, OverwriteMode(InOverwriteMode)
+	{
+		CreationTime = FPlatformTime::Seconds();
+	}
+
+	bool IsValidRequest() const
+	{
+		return TimeToLive > 0.0;
+	}
+
+	double GetRemainingTime() const
+	{
+		return TimeToLive - (FPlatformTime::Seconds() - CreationTime);
+	}
+
+	bool HasExpired() const
+	{
+		return GetRemainingTime() <= 0.0;
+	}
+
+	bool ToBeConsumed() const
+	{
+		if (QueueMode == ETransitionRequestQueueMode::Shared && ConsumedTransitions.Num() > 0)
+		{
+			return true;
+		}
+		return false;
+	}
+
+	bool HasBeenHandled() const
+	{
+		return ConsumedTransitions.Num() > 0;
+	}
+
+	FString ToDebugString() const
+	{
+		FString HandledByString = *FString::JoinBy(ConsumedTransitions, TEXT(", "), [](const int32& TransitionIndex) { return FString::Printf(TEXT("%d"), TransitionIndex); });
+		return FString::Printf(TEXT("%s (%.2fs) [Handled by: %s]"), *EventName.ToString(), GetRemainingTime(), *HandledByString);
+	}
+};
 
 // This structure represents a baked transition rule inside a state
 USTRUCT()

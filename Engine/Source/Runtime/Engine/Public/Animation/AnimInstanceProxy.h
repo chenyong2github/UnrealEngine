@@ -45,6 +45,8 @@ struct FCompactPose;
 struct FNodeDebugData;
 struct FPoseContext;
 struct FPoseSnapshot;
+enum class ETransitionRequestQueueMode : uint8;
+enum class ETransitionRequestOverwriteMode : uint8;
 
 namespace UE::Anim
 {
@@ -838,7 +840,22 @@ protected:
 	
 	/** Get whether the given state machine triggered the animation notify with the specified name last tick. */
     bool WasAnimNotifyNameTriggeredInStateMachine(int32 MachineIndex, FName NotifyName);
+
+	/** Attempts to queue a transition request, returns true if successful */
+	bool RequestTransitionEvent(const FName& EventName, const double RequestTimeout, const ETransitionRequestQueueMode& QueueMode, const ETransitionRequestOverwriteMode& OverwriteMode);
 	
+	/** Removes all queued transition requests with the given event name */
+	void ClearTransitionEvents(const FName& EventName);
+
+	/** Removes all queued transition requests */
+	void ClearAllTransitionEvents();
+
+	/** Returns whether or not the given event transition request has been queued */
+	bool QueryTransitionEvent(int32 MachineIndex, int32 TransitionIndex, const FName& EventName) const;
+
+	/** Behaves like QueryTransitionEvent but additionally marks the event for consumption */
+	bool QueryAndMarkTransitionEvent(int32 MachineIndex, int32 TransitionIndex, const FName& EventName);
+
 	// Sets up a native transition delegate between states with PrevStateName and NextStateName, in the state machine with name MachineName.
 	// Note that a transition already has to exist for this to succeed
 	void AddNativeTransitionBinding(const FName& MachineName, const FName& PrevStateName, const FName& NextStateName, const FCanTakeTransition& NativeTransitionDelegate, const FName& TransitionName = NAME_None);
@@ -912,6 +929,10 @@ protected:
 	static void ResetCounterInputProxy(FAnimInstanceProxy* InputProxy);
 
 private:
+
+	/** Executes the provided functor on each valid state machine on this anim instance */
+	void ForEachStateMachine(const TFunctionRef<void(FAnimNode_StateMachine&)>& Functor);
+
 	/** Evaluate the slot when there are blend spaces involved in any of the active anim montages. */
 	void SlotEvaluatePoseWithBlendProfiles(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight);
 

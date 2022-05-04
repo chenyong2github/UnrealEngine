@@ -12,12 +12,16 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/ActiveStateMachineScope.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimStateMachineTypes.h"
+#include "Logging/LogMacros.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Animation/AnimBlueprint.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AnimNode_StateMachine"
+
+DEFINE_LOG_CATEGORY_STATIC(LogAnimTransitionRequests, NoLogging, All);
 
 DECLARE_CYCLE_STAT(TEXT("StateMachine SetState"), Stat_StateMachineSetState, STATGROUP_Anim);
 
@@ -257,6 +261,7 @@ void FAnimNode_StateMachine::Initialize_AnyThread(const FAnimationInitializeCont
 			// Reset transition related variables
 			StatesUpdated.Reset();
 			ActiveTransitionArray.Reset();
+			QueuedTransitionEvents.Reset(MaxTransitionsRequests);
 
 			StateCacheBoneCounters.Reset(Machine->States.Num());
 			StateCacheBoneCounters.AddDefaulted(Machine->States.Num());
@@ -370,6 +375,20 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 		Initialize_AnyThread(InitializationContext);
 	}
 	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
+
+	// Remove expired transition requests
+#if WITH_EDITORONLY_DATA
+	HandledTransitionEvents.Reset();
+#endif
+	for (int32 RequestIndex = QueuedTransitionEvents.Num() - 1; RequestIndex >= 0; --RequestIndex)
+	{
+		if (QueuedTransitionEvents[RequestIndex].HasExpired())
+		{
+			UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("'%s' expired (Machine: %s)"), *QueuedTransitionEvents[RequestIndex].EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+			QueuedTransitionEvents.RemoveAt(RequestIndex, 1, false);
+		}
+	}
+	QueuedTransitionEvents.Shrink();
 
 	const FBakedAnimationStateMachine* Machine = GetMachineDescription();
 	if (Machine != nullptr)
@@ -519,7 +538,19 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 #if ANIM_TRACE_ENABLED
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), GetMachineDescription()->MachineName);
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Current State"), GetStateInfo().StateName);
-#endif
+	TRACE_ANIM_NODE_VALUE(
+		Context,
+		TEXT("Queued Transition Requests"), 
+		*FString::JoinBy(QueuedTransitionEvents, TEXT(",\n"), [](const FTransitionEvent& TransitionEvent) { return TransitionEvent.ToDebugString(); })
+	);
+#if WITH_EDITORONLY_DATA
+	TRACE_ANIM_NODE_VALUE(
+		Context,
+		TEXT("Consumed Transition Requests"),
+		*FString::JoinBy(HandledTransitionEvents, TEXT(",\n"), [](const FTransitionEvent& TransitionEvent) { return TransitionEvent.EventName.ToString(); })
+	);
+#endif //WITH_EDITORONLY_DATA
+#endif //ANIM_TRACE_ENABLED
 }
 
 const FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const
@@ -1119,6 +1150,7 @@ void FAnimNode_StateMachine::TransitionToState(const FAnimationUpdateContext& Co
 		}
 	}
 
+	ConsumeMarkedTransitionEvents();
 	SetState(Context, NextState);
 }
 
@@ -1174,6 +1206,115 @@ bool FAnimNode_StateMachine::IsTransitionActive(int32 TransIndex) const
 	}
 
 	return false;
+}
+
+bool FAnimNode_StateMachine::RequestTransitionEvent(const FTransitionEvent& InTransitionEvent)
+{
+	if (!InTransitionEvent.IsValidRequest() || MaxTransitionsRequests <= 0)
+	{
+		return false;
+	}
+	
+	const int32 ExistingEventIndex = QueuedTransitionEvents.IndexOfByPredicate([InTransitionEvent](const FTransitionEvent& Transition)
+	{
+		return Transition.EventName.IsEqual(InTransitionEvent.EventName);
+	});
+
+	if (ExistingEventIndex == INDEX_NONE || InTransitionEvent.OverwriteMode == ETransitionRequestOverwriteMode::Append)
+	{
+		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Creating new '%s' request (Machine: %s)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+
+		ensure(QueuedTransitionEvents.Num() <= MaxTransitionsRequests);
+		if (QueuedTransitionEvents.Num() == MaxTransitionsRequests)
+		{
+			UE_LOG(LogAnimTransitionRequests, Warning, TEXT("Transition request cap reached, dropping old requests (Machine: %s)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+			QueuedTransitionEvents.Pop(false);
+		}
+		QueuedTransitionEvents.Insert(InTransitionEvent, 0);
+
+		return true;
+	}
+	else if (InTransitionEvent.OverwriteMode == ETransitionRequestOverwriteMode::Ignore)
+	{
+		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Ignoring new '%s' request (Machine %s, Transition %d)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+		return false;
+	}
+	else if (InTransitionEvent.OverwriteMode == ETransitionRequestOverwriteMode::Overwrite)
+	{
+		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Overwriting '%s' request (Machine %s, Transition %d)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+		QueuedTransitionEvents[ExistingEventIndex] = InTransitionEvent;
+		return true;
+	}
+	else
+	{
+		ensure(false);
+	}
+
+	return false;
+}
+
+void FAnimNode_StateMachine::ClearTransitionEvents(const FName& EventName)
+{
+	for (int32 RequestIndex = QueuedTransitionEvents.Num() - 1; RequestIndex >= 0; --RequestIndex)
+	{
+		if (QueuedTransitionEvents[RequestIndex].EventName.IsEqual(EventName))
+		{
+			UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Clearing '%s' request (Machine %s)"), *EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+			QueuedTransitionEvents.RemoveAt(RequestIndex, 1, false);
+		}
+	}
+	QueuedTransitionEvents.Shrink();
+}
+
+void FAnimNode_StateMachine::ClearAllTransitionEvents()
+{
+	UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Clearing all request (Machine %s)"), *GetMachineDescription()->MachineName.ToString());
+	QueuedTransitionEvents.Reset(MaxTransitionsRequests);
+}
+
+bool FAnimNode_StateMachine::QueryTransitionEvent(const int32 TransitionIndex, const FName& EventName) const
+{
+	// Assumes QueuedTransitionEvents is sorted by request creation time, i.e. index 0 is newest request, and that
+	// ContainsByPredicate returns the first (newest) request
+	return QueuedTransitionEvents.ContainsByPredicate([EventName, TransitionIndex](const FTransitionEvent& Transition)
+	{
+		return Transition.EventName.IsEqual(EventName) && !Transition.ConsumedTransitions.Contains(TransitionIndex);
+	});
+}
+
+bool FAnimNode_StateMachine::QueryAndMarkTransitionEvent(const int32 TransitionIndex, const FName& EventName)
+{
+	// Assumes QueuedTransitionEvents is sorted by request creation time, i.e. index 0 is newest request, and that
+	// IndexOfByPredicate returns the first (newest) request
+	const int32 EventIndex = QueuedTransitionEvents.IndexOfByPredicate([EventName, TransitionIndex](const FTransitionEvent& Transition)
+	{
+		return Transition.EventName.IsEqual(EventName) && !Transition.ConsumedTransitions.Contains(TransitionIndex);
+	});
+
+	if (EventIndex != INDEX_NONE)
+	{
+		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Marking '%s' (Machine: %s, Transition: %d)"), *EventName.ToString(), *GetMachineDescription()->MachineName.ToString(), TransitionIndex);
+		ensure(!QueuedTransitionEvents[EventIndex].ConsumedTransitions.Contains(TransitionIndex));
+		QueuedTransitionEvents[EventIndex].ConsumedTransitions.Add(TransitionIndex);
+		return true;
+	}
+	return false;
+}
+
+void FAnimNode_StateMachine::ConsumeMarkedTransitionEvents()
+{
+	for (int32 RequestIndex = QueuedTransitionEvents.Num() - 1; RequestIndex >= 0; --RequestIndex)
+	{
+		if (QueuedTransitionEvents[RequestIndex].ToBeConsumed())
+		{
+			UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Consuming '%s' (Machine: %s)"), *QueuedTransitionEvents[RequestIndex].EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+#if WITH_EDITORONLY_DATA
+			HandledTransitionEvents.Add(QueuedTransitionEvents[RequestIndex]);
+#endif
+			QueuedTransitionEvents.RemoveAt(RequestIndex, 1, false);
+		}
+	}
+	QueuedTransitionEvents.Shrink();
 }
 
 void FAnimNode_StateMachine::UpdateState(int32 StateIndex, const FAnimationUpdateContext& Context)

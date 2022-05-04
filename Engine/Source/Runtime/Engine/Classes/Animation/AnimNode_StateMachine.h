@@ -131,6 +131,11 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	int32 MaxTransitionsPerFrame;
 
+	// The maximum number of transition requests that can be buffered at any time.
+	// The oldest transition requests are dropped to accommodate for newly created requests.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (ClampMin = "0"))
+	int32 MaxTransitionsRequests = 32;
+
 	// When the state machine becomes relevant, it is initialized into the Entry state.
 	// It then tries to take any valid transitions to possibly end up in a different state on that same frame.
 	// - if true, that new state starts full weight.
@@ -200,6 +205,14 @@ protected:
 
 	// Delegates that native code can hook into to handle state exits
 	TArray<FOnGraphStateChanged> OnGraphStatesExited;
+
+	// All alive transition requests that have been queued
+	TArray<FTransitionEvent> QueuedTransitionEvents;
+
+#if WITH_EDITORONLY_DATA
+	// The set of transition requests handled this update
+	TArray<FTransitionEvent> HandledTransitionEvents;
+#endif
 
 private:
 	TArray<FPoseContext*> StateCachedPoses;
@@ -286,6 +299,24 @@ protected:
 	}
 
 	void LogInertializationRequestError(const FAnimationUpdateContext& Context, int32 PreviousState, int32 NextState);
+
+	/** Queues a new transition request, returns true if the transition request was successfully queued */
+	bool RequestTransitionEvent(const FTransitionEvent& InTransitionEvent);
+
+	/** Removes all queued transition requests with the given event name */
+	void ClearTransitionEvents(const FName& EventName);
+
+	/** Removes all queued transition requests*/
+	void ClearAllTransitionEvents();
+
+	/** Returns whether or not the given event transition request has been queued */
+	bool QueryTransitionEvent(const int32 TransitionIndex, const FName& EventName) const;
+
+	/** Behaves like QueryTransitionEvent but additionally marks the event for consumption */
+	bool QueryAndMarkTransitionEvent(const int32 TransitionIndex, const FName& EventName);
+
+	/** Removes all marked events that are queued */
+	void ConsumeMarkedTransitionEvents();
 
 public:
 	friend struct FAnimInstanceProxy;

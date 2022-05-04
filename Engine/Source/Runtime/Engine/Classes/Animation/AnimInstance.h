@@ -33,6 +33,8 @@ struct FBakedAnimationStateMachine;
 class FCompilerResultsLog;
 struct FBoneContainer;
 struct FAnimNode_LinkedAnimLayer;
+enum class ETransitionRequestQueueMode : uint8;
+enum class ETransitionRequestOverwriteMode : uint8;
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -1162,6 +1164,26 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SyncGroup", meta=(BlueprintThreadSafe))
 	FMarkerSyncAnimPosition GetSyncGroupPosition(FName InSyncGroupName) const;
+
+	/** Attempts to queue a transition request, returns true if the request was successful */
+	UFUNCTION(BlueprintCallable, Category="Animation", meta = (BlueprintThreadSafe, Keywords = "Event,Request,Transition"))
+	bool RequestTransitionEvent(const FName EventName, const double RequestTimeout, const ETransitionRequestQueueMode QueueMode, const ETransitionRequestOverwriteMode OverwriteMode);
+
+	/** Removes all queued transition requests with the given event name */
+	UFUNCTION(BlueprintCallable, Category = "Animation", meta = (BlueprintThreadSafe, Keywords = "Event,Request,Transition"))
+	void ClearTransitionEvents(const FName EventName);
+
+	/** Removes all queued transition requests */
+	UFUNCTION(BlueprintCallable, Category = "Animation", meta = (BlueprintThreadSafe, Keywords = "Event,Request,Transition"))
+	void ClearAllTransitionEvents();
+
+	/** Returns whether or not the given event transition request has been queued */
+	UFUNCTION(BlueprintPure, Category = "Transitions", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", BlueprintThreadSafe, Keywords = "Event,Request,Transition"))
+	bool QueryTransitionEvent(int32 MachineIndex, int32 TransitionIndex, FName EventName);
+
+	/** Behaves like QueryTransitionEvent but additionally marks the event for consumption */
+	UFUNCTION(BlueprintPure, Category = "Transitions", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", BlueprintThreadSafe, Keywords = "Event,Request,Transition"))
+	bool QueryAndMarkTransitionEvent(int32 MachineIndex, int32 TransitionIndex, FName EventName);
 
 public:
 	//~ Begin UObject Interface
