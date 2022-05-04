@@ -598,12 +598,12 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FRDGBuilder::UseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUseExternalAccessMode(Resource, ReadOnlyAccess, Pipelines));
-
 	if (!GRDGAsyncCompute || !GSupportsEfficientAsyncCompute || IsImmediateMode())
 	{
 		Pipelines = ERHIPipeline::Graphics;
 	}
+
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUseExternalAccessMode(Resource, ReadOnlyAccess, Pipelines));
 
 	auto& AccessModeState = Resource->AccessModeState;
 
@@ -661,12 +661,12 @@ void FRDGBuilder::UseInternalAccessMode(FRDGViewableResource* Resource)
 
 void FRDGBuilder::FlushAccessModeQueue()
 {
-	if (AccessModeQueue.IsEmpty() || bSkipAuxiliaryPasses)
+	if (AccessModeQueue.IsEmpty() || bInFlushExternalAccess)
 	{
 		return;
 	}
 
-	bSkipAuxiliaryPasses = true;
+	bInFlushExternalAccess = true;
 
 	FAccessModePassParameters* ParametersByPipeline[] =
 	{
@@ -750,7 +750,7 @@ void FRDGBuilder::FlushAccessModeQueue()
 
 	AccessModeQueue.Reset();
 
-	bSkipAuxiliaryPasses = false;
+	bInFlushExternalAccess = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1485,11 +1485,7 @@ void FRDGBuilder::Execute()
 	}
 
 	// Create the epilogue pass at the end of the graph just prior to compilation.
-	{
-		bSkipAuxiliaryPasses = true;
-		SetupEmptyPass(EpiloguePass = Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Epilogue")));
-		bSkipAuxiliaryPasses = false;
-	}
+	SetupEmptyPass(EpiloguePass = Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Epilogue")));
 
 	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
 	const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
@@ -1504,8 +1500,6 @@ void FRDGBuilder::Execute()
 		BeginFlushResourcesRHI();
 
 		Compile();
-
-		SetupBufferUploads();
 
 		IF_RDG_GPU_SCOPES(GPUScopeStacks.ReserveOps(Passes.Num()));
 		IF_RDG_CPU_SCOPES(CPUScopeStacks.ReserveOps());
@@ -1524,6 +1518,8 @@ void FRDGBuilder::Execute()
 
 			}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
 		}
+
+		SetupBufferUploads();
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_RDG_CollectResourcesTime);
@@ -1829,7 +1825,7 @@ void FRDGBuilder::Execute()
 
 FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, bSkipAuxiliaryPasses));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, InAuxiliaryPass()));
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_SetupPass, GRDGVerboseCSVStats != 0);
 
 	const FRDGParameterStruct PassParameters = Pass->GetParameters();
@@ -2096,11 +2092,6 @@ void FRDGBuilder::SetupBufferUploads()
 
 	for (FUploadedBuffer& UploadedBuffer : UploadedBuffers)
 	{
-		if (UploadedBuffer.Buffer->bCulled)
-		{
-			continue;
-		}
-
 		if (UploadedBuffer.bUseDataCallbacks)
 		{
 			UploadedBuffer.Data = UploadedBuffer.DataCallback();
@@ -2121,11 +2112,6 @@ void FRDGBuilder::SubmitBufferUploads()
 
 	for (const FUploadedBuffer& UploadedBuffer : UploadedBuffers)
 	{
-		if (UploadedBuffer.Buffer->bCulled)
-		{
-			continue;
-		}
-
 		if (UploadedBuffer.Data && UploadedBuffer.DataSize)
 		{
 #if PLATFORM_NEEDS_GPU_UAV_RESOURCE_INIT_WORKAROUND
@@ -2378,9 +2364,7 @@ void FRDGBuilder::CreateUniformBuffers()
 
 void FRDGBuilder::AddProloguePass()
 {
-	bSkipAuxiliaryPasses = true;
 	ProloguePass = SetupEmptyPass(Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Prologue (Graphics)")));
-	bSkipAuxiliaryPasses = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3411,13 +3395,12 @@ void FRDGBuilder::EndResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buffer
 void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
-	if (bSkipAuxiliaryPasses)
+	if (bInVisualizePassOutputs)
 	{
 		return;
 	}
 
-	bSkipAuxiliaryPasses = true;
-
+	bInVisualizePassOutputs = true;
 
 	Pass->GetParameters().EnumerateTextures([&](FRDGParameter Parameter)
 	{
@@ -3484,22 +3467,18 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		}
 	});
 
-	bSkipAuxiliaryPasses = false;
+	bInVisualizePassOutputs = false;
 #endif
 }
 
 void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 {
-	if (!GRDGClobberResources)
+	if (!GRDGClobberResources || bInClobberPassOutputs)
 	{
 		return;
 	}
 
-	if (bSkipAuxiliaryPasses)
-	{
-		return;
-	}
-	bSkipAuxiliaryPasses = true;
+	bInClobberPassOutputs = true;
 
 	RDG_EVENT_SCOPE(*this, "RDG ClobberResources");
 
@@ -3594,7 +3573,7 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 		}
 	});
 
-	bSkipAuxiliaryPasses = false;
+	bInClobberPassOutputs = false;
 }
 
 #endif //! RDG_ENABLE_DEBUG

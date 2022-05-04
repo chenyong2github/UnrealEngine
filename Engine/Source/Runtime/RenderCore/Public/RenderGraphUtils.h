@@ -1121,17 +1121,30 @@ public:
 
 	void Add(FRDGViewableResource* Resource, ERHIAccess Access = ERHIAccess::SRVMask, ERHIPipeline Pipelines = ERHIPipeline::Graphics)
 	{
+		if (!Resource)
+		{
+			return;
+		}
+
 		Validate(Resource, Access, Pipelines);
 		Resources.Emplace(Resource, Access, Pipelines);
 	}
 
 	void AddUnique(FRDGViewableResource* Resource, ERHIAccess Access = ERHIAccess::SRVMask, ERHIPipeline Pipelines = ERHIPipeline::Graphics)
 	{
-		Validate(Resource, Access, Pipelines);
-		if (!Contains(Resource))
+		if (!Resource)
 		{
-			Resources.Emplace(Resource, Access, Pipelines);
+			return;
 		}
+
+		Validate(Resource, Access, Pipelines);
+
+		if (Contains(Resource))
+		{
+			return;
+		}
+
+		Resources.Emplace(Resource, Access, Pipelines);
 	}
 
 	void Submit(FRDGBuilder& GraphBuilder)
@@ -1180,7 +1193,6 @@ public:
 private:
 	void Validate(FRDGViewableResource* Resource, ERHIAccess Access, ERHIPipeline Pipelines)
 	{
-		checkf(Resource, TEXT("Added a null resource to FRDGExternalAccessQueue"));
 		checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize texture %s with an invalid access %s."), Resource->Name, *GetRHIAccessName(Access));
 		check(Pipelines != ERHIPipeline::None);
 	}

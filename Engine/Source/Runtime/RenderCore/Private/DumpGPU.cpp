@@ -173,8 +173,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDumpBufferPass, )
 	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
 END_SHADER_PARAMETER_STRUCT()
 
-struct FRDGResourceDumpContext
+}
+
+class FRDGResourceDumpContext
 {
+public:
 	static constexpr const TCHAR* kBaseDir = TEXT("Base/");
 	static constexpr const TCHAR* kPassesDir = TEXT("Passes/");
 	static constexpr const TCHAR* kResourcesDir = TEXT("Resources/");
@@ -1151,6 +1154,13 @@ struct FRDGResourceDumpContext
 			return;
 		}
 
+		const FRDGViewableResource::FAccessModeState AccessModeState = SubresourceDesc.Texture->AccessModeState;
+
+		if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::External)
+		{
+			GraphBuilder.UseInternalAccessMode(SubresourceDesc.Texture);
+		}
+
 		// Dump the resource's binary to a .bin file.
 		{
 			FString DumpFilePath = kResourcesDir / FString::Printf(TEXT("%s.v%016x.bin"), *UniqueResourceSubResourceName, PtrToUint(bIsOutputResource ? Pass : nullptr));
@@ -1201,6 +1211,11 @@ struct FRDGResourceDumpContext
 			});
 
 			ResourcesDumpPasses++;
+		}
+
+		if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::External)
+		{
+			GraphBuilder.UseExternalAccessMode(SubresourceDesc.Texture, AccessModeState.Access, AccessModeState.Pipelines);
 		}
 	}
 
@@ -1440,6 +1455,13 @@ struct FRDGResourceDumpContext
 				return;
 			}
 
+			const FRDGViewableResource::FAccessModeState AccessModeState = Buffer->AccessModeState;
+
+			if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::External)
+			{
+				GraphBuilder.UseInternalAccessMode(Buffer);
+			}
+
 			FDumpBufferPass* PassParameters = GraphBuilder.AllocParameters<FDumpBufferPass>();
 			PassParameters->Buffer = Buffer;
 
@@ -1488,6 +1510,11 @@ struct FRDGResourceDumpContext
 				this->UpdatePassProgress();
 			});
 
+			if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::External)
+			{
+				GraphBuilder.UseExternalAccessMode(Buffer, AccessModeState.Access, AccessModeState.Pipelines);
+			}
+
 			ResourcesDumpPasses++;
 		}
 	}
@@ -1534,9 +1561,7 @@ struct FRDGResourceDumpContext
 
 // 0 = not dumping, MAX_uint64 dump request for next frame, otherwise dump frame counter
 static uint64 DumpingFrameCounter_GameThread = 0;
-FRDGResourceDumpContext* GRDGResourceDumpContext = nullptr;
-
-}
+static FRDGResourceDumpContext* GRDGResourceDumpContext = nullptr;
 
 bool IsDumpingRDGResources()
 {
@@ -1892,7 +1917,7 @@ static const TCHAR* GetPassEventNameWithGPUMask(const FRDGPass* Pass, FString& O
 
 void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 {
-	if (bSkipAuxiliaryPasses)
+	if (bInDumpPassOutputs)
 	{
 		return;
 	}
@@ -1908,7 +1933,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 		return;
 	}
 
-	bSkipAuxiliaryPasses = true;
+	bInDumpPassOutputs = true;
 
 	TArray<TSharedPtr<FJsonValue>> InputResourceNames;
 	TArray<TSharedPtr<FJsonValue>> OutputResourceNames;
@@ -2160,7 +2185,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 
 	GRDGResourceDumpContext->PassesCount++;
 
-	bSkipAuxiliaryPasses = false;
+	bInDumpPassOutputs = false;
 }
 
 #if RDG_DUMP_RESOURCES_AT_EACH_DRAW

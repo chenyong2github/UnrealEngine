@@ -680,7 +680,12 @@ private:
 #endif
 
 	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
-	bool bSkipAuxiliaryPasses = false;
+	bool bInClobberPassOutputs = false;
+	bool bInVisualizePassOutputs = false;
+	bool bInDumpPassOutputs = false;
+	bool bInFlushExternalAccess = false;
+
+	bool InAuxiliaryPass() const { return bInClobberPassOutputs || bInVisualizePassOutputs || bInDumpPassOutputs || bInFlushExternalAccess; }
 
 #if WITH_MGPU
 	/** Name for the temporal effect used to synchronize multi-frame resources. */

@@ -1547,7 +1547,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 					FComputeShaderUtils::GetGroupCount(FIntVector(DistanceField::BrickSize, DistanceField::BrickSize, NumBrickUploadsThisPass * DistanceField::BrickSize), FScatterUploadDistanceFieldAtlasCS::GetGroupSize()));
 			}
 
-			DistanceFieldBrickVolumeTexture = GraphBuilder.ConvertToExternalTexture(DistanceFieldBrickVolumeTextureRDG);
+			DistanceFieldBrickVolumeTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, DistanceFieldBrickVolumeTextureRDG);
 		}
 	}
 	

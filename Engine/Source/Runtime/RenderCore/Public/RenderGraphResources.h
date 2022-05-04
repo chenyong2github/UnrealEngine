@@ -386,6 +386,7 @@ private:
 	friend FRDGBuilder;
 	friend FRDGUserValidation;
 	friend FRDGBarrierBatchBegin;
+	friend FRDGResourceDumpContext;
 	friend FRDGTrace;
 };
 
