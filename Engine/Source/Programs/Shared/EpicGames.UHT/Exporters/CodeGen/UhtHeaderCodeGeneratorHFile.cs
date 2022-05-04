@@ -665,9 +665,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					continue;
 				}
-				if (!function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ImplFound))
+				if (!function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ValidationImplFound))
 				{
 					AppendNetValidateDeclaration(builder, function);
+				}
+				if (!function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ImplFound))
+				{
 					AppendNativeFunctionHeader(builder, function, UhtPropertyTextType.ClassFunctionArgOrRetVal, true, null, null, UhtFunctionExportFlags.None, "; \\\r\n");
 				}
 			}
