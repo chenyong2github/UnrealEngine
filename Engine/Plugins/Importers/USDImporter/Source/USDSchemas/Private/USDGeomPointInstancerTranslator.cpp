@@ -224,12 +224,10 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomPointInstancerTranslator::CreateComponents );
 
-	// If we're going to be collapsing ourselves, just make a static mesh component that can receive the collapsed mesh
+	// If we're collapsing ourselves, we're really just a collapsed Xform prim, so let that translator handle it
 	if ( Context->bCollapseTopLevelPointInstancers )
 	{
-		USceneComponent* MeshComponent = CreateComponentsEx( { UStaticMeshComponent::StaticClass() }, {} );
-		UpdateComponents( MeshComponent );
-		return MeshComponent;
+		return FUsdGeomXformableTranslator::CreateComponents();
 	}
 
 	// Otherwise, the plan here is to create an USceneComponent that corresponds to the PointInstancer prim itself, and then spawn a child

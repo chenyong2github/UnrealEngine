@@ -20,7 +20,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
-#include "StaticMeshAttributes.h"
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdGeomXformable.h"
@@ -36,6 +35,7 @@
 	#include "pxr/usd/usd/primRange.h"
 	#include "pxr/usd/usd/variantSets.h"
 	#include "pxr/usd/usdGeom/mesh.h"
+	#include "pxr/usd/usdGeom/pointInstancer.h"
 	#include "pxr/usd/usdGeom/subset.h"
 	#include "pxr/usd/usdGeom/xformable.h"
 	#include "pxr/usd/usdShade/materialBindingAPI.h"
@@ -321,6 +321,12 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 					{
 						ComponentType = UStaticMeshComponent::StaticClass();
 					}
+				}
+				// If this is a component for a point instancer that just collapsed itself into a static mesh, just make
+				// a static mesh component that can receive it
+				else if ( Context->bCollapseTopLevelPointInstancers && pxr::UsdPrim{ Prim }.IsA<pxr::UsdGeomPointInstancer>() )
+				{
+					ComponentType = UStaticMeshComponent::StaticClass();
 				}
 			}
 		}
