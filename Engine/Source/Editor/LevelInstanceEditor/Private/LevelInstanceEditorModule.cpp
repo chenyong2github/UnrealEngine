@@ -209,7 +209,7 @@ namespace LevelInstanceMenuUtils
 				});
 
 				FToolMenuSection& Section = CreateLevelSection(Menu);
-				Section.AddMenuEntry(NAME_None, LOCTEXT("LevelInstanceSetCurrent", "Set Current Level"), TAttribute<FText>(), FSlateIcon(), LevelInstanceSetCurrentAction);
+				Section.AddMenuEntry(TEXT("LevelInstanceSetCurrent"), LOCTEXT("LevelInstanceSetCurrent", "Set Current Level"), TAttribute<FText>(), FSlateIcon(), LevelInstanceSetCurrentAction);
 			}
 		}
 	}
@@ -251,7 +251,7 @@ namespace LevelInstanceMenuUtils
 					});
 
 				FToolMenuSection& Section = CreateLevelSection(Menu);
-				Section.AddMenuEntry(NAME_None, LOCTEXT("LevelInstanceMoveSelectionTo", "Move Selection to"), TAttribute<FText>(), FSlateIcon(), LevelInstanceMoveSelectionAction);
+				Section.AddMenuEntry(TEXT("LevelInstanceMoveSelectionTo"), LOCTEXT("LevelInstanceMoveSelectionTo", "Move Selection to"), TAttribute<FText>(), FSlateIcon(), LevelInstanceMoveSelectionAction);
 
 			}
 		}
@@ -327,7 +327,7 @@ namespace LevelInstanceMenuUtils
 				if (GetDefault<UEditorExperimentalSettings>()->bLevelInstance)
 				{
 					Section.AddMenuEntry(
-						NAME_None,
+						TEXT("CreateLevelInstance"),
 						FText::Format(LOCTEXT("CreateFromSelectionLabel", "Create {0}..."), StaticEnum<ELevelInstanceCreationType>()->GetDisplayNameTextByValue((int64)ELevelInstanceCreationType::LevelInstance)),
 						TAttribute<FText>(),
 						FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.LevelInstance"),
@@ -337,7 +337,7 @@ namespace LevelInstanceMenuUtils
 				if (GetDefault<UEditorExperimentalSettings>()->bPackedLevelActor)
 				{
 					Section.AddMenuEntry(
-						NAME_None,
+						TEXT("CreatePackedLevelBlueprint"),
 						FText::Format(LOCTEXT("CreateFromSelectionLabel", "Create {0}..."), StaticEnum<ELevelInstanceCreationType>()->GetDisplayNameTextByValue((int64)ELevelInstanceCreationType::PackedLevelActor)),
 						TAttribute<FText>(),
 						FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PackedLevelActor"),

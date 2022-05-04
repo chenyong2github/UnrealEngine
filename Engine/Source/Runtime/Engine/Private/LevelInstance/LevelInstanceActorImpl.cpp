@@ -351,6 +351,12 @@ void FLevelInstanceActorImpl::PushLevelInstanceEditingStateToProxies(bool bInEdi
 
 void FLevelInstanceActorImpl::CheckForErrors()
 {
+	AActor* Actor = CastChecked<AActor>(LevelInstance);
+	if (Actor->IsTemplate())
+	{
+		return;
+	}
+
 	TArray<TPair<FText, TSoftObjectPtr<UWorld>>> LoopInfo;
 	const ILevelInstanceInterface* LoopStart = nullptr;
 	if (!ULevelInstanceSubsystem::CheckForLoop(LevelInstance, LevelInstance->GetWorldAsset(), & LoopInfo, &LoopStart))

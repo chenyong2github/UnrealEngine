@@ -145,10 +145,11 @@ public:
 	 * @param	InTemplateWorld						If valid, the new level will be a copy of the template world.
 	 * @param	bInUseSaveAs						If true, show SaveAs dialog instead of Save with DefaultFilename
 	 * @param	InPreSaveLevelOperation				Optional function to call before saving the created level
+	 * @param	InTransform							The transform to apply to the streaming level.
 	 * 
 	 * @return	Returns the newly created level, or NULL on failure
 	 */
-	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""), bool bMoveSelectedActorsIntoNewLevel = false, UWorld* InTemplateWorld = nullptr, bool bInUseSaveAs = true, TFunction<void(ULevel*)> InPreSaveLevelOperation = TFunction<void(ULevel*)>());
+	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""), bool bMoveSelectedActorsIntoNewLevel = false, UWorld* InTemplateWorld = nullptr, bool bInUseSaveAs = true, TFunction<void(ULevel*)> InPreSaveLevelOperation = TFunction<void(ULevel*)>(), const FTransform& InTransform = FTransform::Identity);
 
 	/**
 	 * Creates a new streaming level and adds it to a world
@@ -162,10 +163,11 @@ public:
 	 * @param	bInUseSaveAs						If true, show SaveAs dialog instead of Save with DefaultFilename
 	 * @param	bIsPartitioned						If level should be partitioned (has precedence over bUseExternalActors).
 	 * @param	InPreSaveLevelOperation				Optional function to call before saving the created level
+	 * @param	InTransform							The transform to apply to the streaming level.
 	 *
 	 * @return	Returns the newly created level, or NULL on failure
 	 */
-	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, bool bUseExternalActors, const FString& DefaultFilename, const TArray<AActor*>* ActorsToMove = nullptr, UWorld* InTemplateWorld = nullptr, bool bInUseSaveAs = true, bool bIsPartitioned = false, TFunction<void(ULevel*)> InPreSaveLevelOperation = TFunction<void(ULevel*)>());
+	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, bool bUseExternalActors, const FString& DefaultFilename, const TArray<AActor*>* ActorsToMove = nullptr, UWorld* InTemplateWorld = nullptr, bool bInUseSaveAs = true, bool bIsPartitioned = false, TFunction<void(ULevel*)> InPreSaveLevelOperation = TFunction<void(ULevel*)>(), const FTransform& InTransform = FTransform::Identity);
 
 	/**
 	 * Adds the named level packages to the world.  Does nothing if all the levels already exist in the world.
