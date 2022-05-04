@@ -122,10 +122,7 @@ struct FHierarchyNodeSlice
 struct FInstanceDynamicData
 {
 	float4x4	LocalToTranslatedWorld;
-	float4x4	LocalToClip;
-	float4x4	ClipToLocal;
 	float4x4	PrevLocalToTranslatedWorld;
-	float4x4 	PrevLocalToClip;
 	float3		ViewPosScaledLocal;
 	float3		ViewForwardScaledLocal;
 	bool		bHasMoved;
@@ -307,12 +304,9 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 
 	FInstanceDynamicData DynamicData;
 	DynamicData.LocalToTranslatedWorld = LocalToTranslatedWorld;
-	DynamicData.LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
-	DynamicData.ClipToLocal = LWCMultiply( NaniteView.ClipToWorld, WorldToLocal );
 
 	DynamicData.PrevLocalToTranslatedWorld = PrevLocalToTranslatedWorld;
-	DynamicData.PrevLocalToClip	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
-
+	
 	DynamicData.ViewPosScaledLocal = LWCMultiply( NaniteView.WorldCameraOrigin, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
 	DynamicData.ViewForwardScaledLocal = LWCMultiplyVector( NaniteView.ViewForward.xyz, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
 

@@ -873,7 +873,8 @@ void MicropolyRasterize(
 		#if IS_NANITE_PROGRAMMABLE
 			GroupVerts[VertIndex] = PointLocal;
 		#else
-			float4 PointClip = mul(float4( PointLocal, 1 ), InstanceDynamicData.LocalToClip);
+			float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+			float4 PointClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToClip);
 			GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointClip);
 		#endif
 		}

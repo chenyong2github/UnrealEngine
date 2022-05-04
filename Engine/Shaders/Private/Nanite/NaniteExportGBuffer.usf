@@ -130,7 +130,8 @@ void EmitSceneDepthPS(
 		const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
 		const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
 
-		const float4 ScreenPosPrev = mul(float4(LocalPos.xyz, 1), InstanceDynamicData.PrevLocalToClip);
+		const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
+		const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
 		
 		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
 		OutVelocity = EncodeVelocityToTexture(Velocity);
@@ -213,7 +214,8 @@ void EmitSceneDepthStencilPS
 		const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
 		const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
 
-		const float4 ScreenPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToClip);
+		const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
+		const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
 		
 		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
 		OutVelocity = EncodeVelocityToTexture(Velocity);

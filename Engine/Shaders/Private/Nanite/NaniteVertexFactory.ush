@@ -199,7 +199,6 @@ struct FNaniteVertTransforms
 {
 	float4x4 LocalToTranslatedWorld;
 	float4x4 PrevLocalToTranslatedWorld;
-	float4x4 LocalToClip;
 	float4x4 TranslatedWorldToClip;
 	float3x3 LocalToWorldNoScale;
 	float3x3 PrevLocalToWorldNoScale;
@@ -225,7 +224,6 @@ FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData Instanc
 {
 	const float4x4 LocalToTranslatedWorld = InstanceDynamicData.LocalToTranslatedWorld;
 	const float4x4 PrevLocalToTranslatedWorld = InstanceDynamicData.PrevLocalToTranslatedWorld;
-	const float4x4 LocalToClip = InstanceDynamicData.LocalToClip;
 	const float4x4 TranslatedWorldToClip = NaniteView.TranslatedWorldToClip;
 	const float3 InvNonUniformScale = InstanceData.InvNonUniformScale;
 
@@ -253,7 +251,6 @@ FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData Instanc
 	FNaniteVertTransforms Transforms;
 	Transforms.LocalToTranslatedWorld		= LocalToTranslatedWorld;
 	Transforms.PrevLocalToTranslatedWorld	= PrevLocalToTranslatedWorld;
-	Transforms.LocalToClip					= LocalToClip;
 	Transforms.TranslatedWorldToClip		= TranslatedWorldToClip;
 	Transforms.LocalToWorldNoScale			= LocalToWorldNoScale;
 	Transforms.PrevLocalToWorldNoScale		= PrevLocalToWorldNoScale;
@@ -314,7 +311,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.PointLocal[i]		= PointLocalNoWPO[i];
 			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i];
 			Tri.PointWorld[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToTranslatedWorld).xyz;
-			Tri.PointClip[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToClip);
+			Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
 
 		#if NUM_TEX_COORD_INTERPOLATORS
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
@@ -379,7 +376,8 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 #endif
 
 	const float3 PrevPointLocal = Barycentrics.UVW.x * Tri.PrevPointLocal[0] + Barycentrics.UVW.y * Tri.PrevPointLocal[1] + Barycentrics.UVW.z * Tri.PrevPointLocal[2];
-	Result.PrevScreenPosition = mul( float4(PrevPointLocal, 1), InstanceDynamicData.PrevLocalToClip );
+	const float3 PrevPointWorld = mul(float4(PrevPointLocal.xyz, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
+	Result.PrevScreenPosition = mul(float4(PrevPointWorld, 1), NaniteView.PrevTranslatedWorldToClip);
 	//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );
 
 	const float3 PointWorld = Barycentrics.UVW.x * Tri.PointWorld[0] + Barycentrics.UVW.y * Tri.PointWorld[1] + Barycentrics.UVW.z * Tri.PointWorld[2];
