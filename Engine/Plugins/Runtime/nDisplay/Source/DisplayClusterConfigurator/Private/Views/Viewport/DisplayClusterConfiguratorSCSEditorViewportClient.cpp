@@ -12,6 +12,7 @@
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/LineBatchComponent.h"
 
 #include "AssetViewerSettings.h"
 #include "CanvasItem.h"
@@ -289,6 +290,12 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::Draw(const FSceneView* 
 {
 	FEditorViewportClient::Draw(View, PDI);
 
+	// mimic the behaviour of the FEditorViewportClient call used in editor viewport
+	if (PreviewScene->GetWorld()->LineBatcher != NULL && (PreviewScene->GetWorld()->LineBatcher->BatchedLines.Num() || PreviewScene->GetWorld()->LineBatcher->BatchedPoints.Num() || PreviewScene->GetWorld()->LineBatcher->BatchedMeshes.Num()))
+	{
+		PreviewScene->GetWorld()->LineBatcher->Flush();
+	}
+	
 	bool bHitTesting = PDI->IsHitTesting();
 	AActor* PreviewActor = GetPreviewActor();
 	if (PreviewActor)
