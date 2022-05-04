@@ -6,6 +6,10 @@
 #include "Common/TargetPlatformBase.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/MemoryLayout.h"
+#include "Logging/LogMacros.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogSteamDeckDevice, Log, All);
+DEFINE_LOG_CATEGORY(LogSteamDeckDevice);
 
 // Extend from either WIndows or Linux device, since there will be a lot of shared functionality
 template<class ParentDeviceClass>
@@ -58,22 +62,32 @@ public:
 		{
 			FString IpAddr;
 			FString Name;
-			FString UserName;
+			FString ConfigUserName;
+			
+			// As of SteamOS version 3.1, "deck" is the required UserName to be used when making a remote connection
+			// to the device. Eventually it will be configurable, so we will allow users to set it via the config. 
+			static const FString DefaultUserName = TEXT("deck");
+			
 			if (!FParse::Value(*Device, TEXT("IpAddr="), IpAddr))
 			{
+				UE_LOG(LogSteamDeckDevice, Error, TEXT("You must specify the 'IpAddr' field to connect to a SteamDeck!"));
 				continue;
 			}
+			
 			// Name is not required, if not set use the IpAddr. This is what is displayed in the Editor
 			if (!FParse::Value(*Device, TEXT("Name="), Name))
 			{
-				Name = IpAddr;
-			}
-			if (!FParse::Value(*Device, TEXT("UserName="), UserName))
-			{
-				continue;
+				static const FString DefaultNamePrefix = "[SteamDeck] ";
+				Name = DefaultNamePrefix + IpAddr;
 			}
 
-			SteamDevices.Add(MakeShareable(new TSteamDeckDevice<ParentDeviceClass>(IpAddr, Name, UserName, TargetPlatform, RuntimeOSName)));
+			// If the user has not specified a UserName in the config, fallback to the default user name for the SteamDeck
+			if (!FParse::Value(*Device, TEXT("UserName="), ConfigUserName))
+			{
+				ConfigUserName = DefaultUserName;
+			}
+
+			SteamDevices.Add(MakeShareable(new TSteamDeckDevice<ParentDeviceClass>(IpAddr, Name, ConfigUserName, TargetPlatform, RuntimeOSName)));
 		}
 
 		return SteamDevices;

@@ -15,6 +15,7 @@ public static class SteamDeckSupport
 	static string DevKitRSAPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"steamos-devkit\steamos-devkit\devkit_rsa");
 	static string KnownHostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".ssh\known_hosts");
 	static string SteamDeckScripts = Path.Combine(Unreal.RootDirectory.FullName, "Engine\\Build\\SteamDeck");
+	static string DefaultUserName = "deck";
 	
 	#region Devices
 
@@ -34,7 +35,11 @@ public static class SteamDeckSupport
 			{
 				string IpAddr = ConfigHierarchy.GetStructEntry(DeckDevice, "IpAddr", false);
 				string DeviceName = ConfigHierarchy.GetStructEntry(DeckDevice, "Name", false);
-				string UserName = ConfigHierarchy.GetStructEntry(DeckDevice, "UserName", false);
+				string ConfigUserName = ConfigHierarchy.GetStructEntry(DeckDevice, "UserName", false);
+
+				// As of SteamOS version 3.1, "deck" is the required UserName to be used when making a remote connection
+				// to the device. Eventually it will be configurable, so we will allow users to set it via the config.
+				string UserName = string.IsNullOrEmpty(ConfigUserName) ? DefaultUserName : ConfigUserName;
 
 				if (RuntimePlatform == UnrealTargetPlatform.Win64)
 				{
@@ -48,7 +53,7 @@ public static class SteamDeckSupport
 				// Name is optional, if its empty/not found lets just use the IpAddr for the Name
 				if (string.IsNullOrEmpty(DeviceName))
 				{
-					DeviceName = IpAddr;
+					DeviceName = "[SteamDeck] " + IpAddr;
 				}
 
 				if (!string.IsNullOrEmpty(IpAddr))
@@ -59,6 +64,10 @@ public static class SteamDeckSupport
 					SteamDeck.PlatformValues["UserName"] = UserName;
 
 					Devices.Add(SteamDeck);
+				}
+				else
+				{
+					CommandUtils.LogError("You must specify the 'IpAddr' field to connect to a SteamDeck!");
 				}
 			}
 		}
