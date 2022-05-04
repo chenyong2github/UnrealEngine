@@ -165,6 +165,7 @@ struct FInstances: FNoncopyable
 
 	// Datasmith mesh conversion results
 	FMeshConverted Converted;
+	Interval ValidityInterval;
 
 	bool HasMesh()
 	{
@@ -2179,6 +2180,11 @@ public:
 			}
 			break;
 		}
+
+		for (FNodeTracker* NodeTrackerPtr : Instances.NodeTrackers)
+		{
+			NodeTrackerPtr->Validity.NarrowValidityToInterval(Instances.ValidityInterval);
+		}
 	}
 
 	void UpdateNodeMetadata(FNodeTracker& NodeTracker)
@@ -2454,15 +2460,16 @@ public:
 	void UpdateInstancesGeometry(FInstances& Instances, FNodeTracker& NodeTracker)
 	{
 		INode* Node = NodeTracker.Node;
-		Object* Obj = Instances.EvaluatedObj;
 
 		FString MeshName = FString::FromInt(Node->GetHandle());
 
 		FMeshConverterSource MeshSource = {
 			Node, MeshName,
-			GeomUtils::GetMeshForGeomObject(CurrentSyncPoint.Time, Node, Obj), false,
+			GeomUtils::GetMeshForGeomObject(CurrentSyncPoint.Time, Node), false,
 			GeomUtils::GetMeshForCollision(CurrentSyncPoint.Time, *this, Node),
 		};
+
+		Instances.ValidityInterval = MeshSource.RenderMesh.GetValidityInterval() & MeshSource.CollisionMesh.GetValidityInterval();
 
 		if (MeshSource.RenderMesh.GetMesh())
 		{

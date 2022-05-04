@@ -26,13 +26,43 @@ namespace GeomUtils
 class FRenderMeshForConversion: FNoncopyable
 {
 public:
-	explicit FRenderMeshForConversion(){}
-	explicit FRenderMeshForConversion(INode* InNode, Mesh* InMaxMesh, bool bInNeedsDelete, FTransform InPivot=FTransform::Identity)
+	explicit FRenderMeshForConversion()
+		: Node(nullptr)
+		, MaxMesh(nullptr)
+		, bNeedsDelete(false)
+		, Pivot(FTransform::Identity)
+	{
+		ValidityInterval.SetInfinite();
+	}
+
+	explicit FRenderMeshForConversion(INode* InNode, Mesh* InMaxMesh, bool bInNeedsDelete)
 		: Node(InNode)
 		, MaxMesh(InMaxMesh)
 		, bNeedsDelete(bInNeedsDelete)
-		, Pivot(InPivot)
-	{}
+		, Pivot(FTransform::Identity)
+	{
+		ValidityInterval.SetInfinite();
+	}
+
+	FRenderMeshForConversion(FRenderMeshForConversion&& Other)
+	{
+		Node = Other.Node;
+		Other.Node = nullptr;
+
+		MaxMesh = Other.MaxMesh;
+		Other.MaxMesh = nullptr;
+
+		Pivot = Other.Pivot;
+		Other.Pivot = FTransform::Identity;
+
+		ValidityInterval = Other.ValidityInterval;
+		Other.ValidityInterval.SetInfinite();
+
+		//Transfer ownership
+		bNeedsDelete = Other.bNeedsDelete;
+		Other.bNeedsDelete = false;
+	}
+
 	~FRenderMeshForConversion()
 	{
 		if (bNeedsDelete)
@@ -61,19 +91,33 @@ public:
 		return Pivot;
 	}
 
+	void SetPivot(const FTransform& InPivot)
+	{
+		Pivot = InPivot;
+	}
 
+	void SetValidityInterval(const Interval& Interval)
+	{
+		ValidityInterval = Interval;
+	}
+
+	Interval GetValidityInterval()
+	{
+		return ValidityInterval;
+	}
 private:
-	INode* Node = nullptr;
-	Mesh* MaxMesh = nullptr;
-	bool bNeedsDelete = false;
+	INode* Node;
+	Mesh* MaxMesh;
+	bool bNeedsDelete;
 	FTransform Pivot;
+	Interval ValidityInterval;
 };
 
 bool ConvertRailClone(DatasmithMaxDirectLink::ISceneTracker& SceneTracker, DatasmithMaxDirectLink::FNodeTracker& NodeTracker);
 bool ConvertForest(DatasmithMaxDirectLink::ISceneTracker& Scene, DatasmithMaxDirectLink::FNodeTracker& NodeTracker);
 
-Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, BOOL& bNeedsDelete);
-FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node, Object* Obj); // Extract mesh using already evaluated object
+Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, Interval& ValidityInterval, BOOL& bNeedsDelete);
+FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node); // Extract mesh using already evaluated object
 FRenderMeshForConversion GetMeshForNode(TimeValue CurrentTime, INode* Node, FTransform Pivot); // Extract mesh evaluating node object
 
 FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, DatasmithMaxDirectLink::ISceneTracker& SceneTracker, INode* Node);

@@ -194,11 +194,9 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker)
 		{
 			INode* GeometryNode = Instances.GeometryNode;
 
-			Object* GeomObj = GeometryNode->EvalWorldState(GetCOREInterface()->GetTime()).obj;
-
 			FMeshConverterSource MeshSource = {
 				GeometryNode, TEXT(""),
-				GetMeshForGeomObject(CurrentTime, GeometryNode, GeomObj), false,
+				GetMeshForGeomObject(CurrentTime, GeometryNode), false,
 				FRenderMeshForConversion()
 			};
 

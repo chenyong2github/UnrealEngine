@@ -45,27 +45,20 @@ public:
 	}
 };
 
-FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node, Object* Obj)
+FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node)
 {
 	// todo: baseline exporter uses GetBaseObject which takes result of EvalWorldState
 	// and searched down DerivedObject pipeline(by taking GetObjRef) 
 	// This is STRANGE as EvalWorldState shouldn't return DerivedObject in the first place(it should return result of pipeline evaluation)
 
 	BOOL bNeedsDelete;
-	Mesh* RenderMesh = GetMeshFromRenderMesh(CurrentTime, Node, bNeedsDelete);
+	Interval ValidityInterval;
+	ValidityInterval.SetInfinite();
+	Mesh* RenderMesh = GetMeshFromRenderMesh(CurrentTime, Node, ValidityInterval, bNeedsDelete);
 
-	return FRenderMeshForConversion(Node, RenderMesh, bNeedsDelete);
-}
-
-FRenderMeshForConversion GetMeshForNode(TimeValue CurrentTime, INode* Node, FTransform Pivot)
-{
-	if (!Node)
-	{
-		return FRenderMeshForConversion();
-	}
-	BOOL bNeedsDelete;
-	Mesh* RenderMesh = GetMeshFromRenderMesh(CurrentTime, Node, bNeedsDelete);
-	return FRenderMeshForConversion(Node, RenderMesh, bNeedsDelete, Pivot);
+	FRenderMeshForConversion Result(Node, RenderMesh, bNeedsDelete);
+	Result.SetValidityInterval(ValidityInterval);
+	return MoveTemp(Result);
 }
 
 /** Convert Max to UE coordinates, handle scene master unit
@@ -158,7 +151,13 @@ FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, ISceneTracke
 			CollisionPivot = BakedTransform;
 		}
 	}
-	return GetMeshForNode(CurrentTime, CollisionNode, CollisionPivot);
+	if (!CollisionNode)
+	{
+		return FRenderMeshForConversion();
+	}
+	FRenderMeshForConversion RenderMesh = GetMeshForGeomObject(CurrentTime, CollisionNode);
+	RenderMesh.SetPivot(CollisionPivot);
+	return MoveTemp(RenderMesh);
 }
 
 
@@ -319,30 +318,24 @@ bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& Dat
 	}
 	FDatasmithConverter Converter;
 
-	BOOL bNeedsDelete;
+	FRenderMeshForConversion MaxMesh = GetMeshForGeomObject(CurrentTime, ExportNode);
 
-	Mesh* MaxMesh = GetMeshFromRenderMesh(CurrentTime, ExportNode, bNeedsDelete);
-
-	if (!MaxMesh)
+	if (!MaxMesh.IsValid())
 	{
 		return false;
 	}
 
-	if (MaxMesh->getNumFaces() == 0)
+	if (MaxMesh.GetMesh()->getNumFaces() == 0)
 	{
-		if (bNeedsDelete)
-		{
-			MaxMesh->DeleteThis();
-		}
 		return false;
 	}
 
-	if (MaxMesh->getBoundingBox().IsEmpty())
+	if (MaxMesh.GetMesh()->getBoundingBox().IsEmpty())
 	{
-		MaxMesh->buildBoundingBox();
+		MaxMesh.GetMesh()->buildBoundingBox();
 	}
 
-	Box3 BoundingBox = MaxMesh->getBoundingBox();
+	Box3 BoundingBox = MaxMesh.GetMesh()->getBoundingBox();
 
 	DatasmithMesh.SetVerticesCount(8);
 	DatasmithMesh.SetFacesCount(12);
@@ -411,11 +404,6 @@ bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& Dat
 	SetNormalForAFace(DatasmithMesh, 10, NormalVector);
 	SetNormalForAFace(DatasmithMesh, 11, NormalVector);
 
-	if (bNeedsDelete)
-	{
-		MaxMesh->DeleteThis();
-	}
-
 	return true;
 }
 
@@ -439,7 +427,6 @@ bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, const MeshCon
 
 		if (CachedMesh.getNumFaces() > 0)
 		{
-			// todo: pivot
 			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Params.Node, Params.bConsolidateMaterialIds, SupportedChannels, UVChannelsMap, Params.RenderMesh.GetPivot());
 
 			bResult = true; // Set to true, don't care what ExportToUObject does here - we need to move it to a thread anyway
@@ -501,9 +488,10 @@ int SetObjectParamValue(TimeValue CurrentTime, Object *Obj, const FString& Param
 }
 
 
-Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, BOOL& bNeedsDelete)
+Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, Interval& ValidityInterval, BOOL& bNeedsDelete)
 {
 	Object* Obj = GetBaseObject(Node, CurrentTime);
+
 	const Class_ID& ObjectClassID = Obj->ClassID();
 	const FString VRayProxyParamName(TEXT("display"));
 	const FString BodyObjectViewportMeshParamName(TEXT("RenderViewportMeshRA"));
@@ -539,6 +527,10 @@ Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, BOOL& bNeedsDele
 		SetObjectParamValue(CurrentTime, Obj, BodyObjectViewportMeshParamName, PreviousMeshDisplayValue);
 	}
 
+	if (RenderMesh)
+	{
+		ValidityInterval &= Obj->ObjectValidity(CurrentTime); // Update validity only when actual mesh is returned
+	}
 	return RenderMesh;
 }
 
