@@ -25,6 +25,7 @@
 #include "PerPlatformProperties.h"
 #include "ContentStreaming.h"
 #include "IAudioProxyInitializer.h"
+#include "IWaveformTransformation.h"
 #include "SoundWave.generated.h"
 
 class FSoundWaveData;
@@ -807,6 +808,11 @@ public:
 
 	UE::Serialization::FEditorBulkData RawData;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Instanced, Category = "Transformations")
+	TArray<TObjectPtr<class UWaveformTransformationBase>> Transformations;
+#endif
+
 	/** GUID used to uniquely identify this node so it can be found in the DDC */
 	FGuid CompressedDataGuid;
 
@@ -857,6 +863,11 @@ private:
 
 public:
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	TArray<Audio::FTransformationPtr> CreateTransformations() const;
+#endif // WITH_EDITORONLY_DATA
+	
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual FName GetExporterName() override;
 	virtual FString GetDesc() override;

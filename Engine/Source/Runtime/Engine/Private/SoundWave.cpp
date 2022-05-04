@@ -2416,6 +2416,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	static const FName SoundAssetCompressionTypeFName = GET_MEMBER_NAME_CHECKED(USoundWave, SoundAssetCompressionType);
 	static const FName LoadingBehaviorFName = GET_MEMBER_NAME_CHECKED(USoundWave, LoadingBehavior);
 	static const FName InitialChunkSizeFName = GET_MEMBER_NAME_CHECKED(USoundWave, InitialChunkSize);
+	static const FName TransformationsFName = GET_MEMBER_NAME_CHECKED(USoundWave, Transformations);
 
 	// force proxy flags to be up to date
 	SoundWaveDataPtr->bIsSeekable = IsSeekable();
@@ -2453,7 +2454,8 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				|| Name == StreamingFName
 				|| Name == SoundAssetCompressionTypeFName
 				|| Name == LoadingBehaviorFName
-				|| Name == InitialChunkSizeFName)
+				|| Name == InitialChunkSizeFName
+				|| Name == TransformationsFName)
 			{
 				UpdateAsset();
 			}
@@ -2470,7 +2472,26 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		}
 	}
 }
+
+
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+TArray<Audio::FTransformationPtr> USoundWave::CreateTransformations() const
+{
+	TArray<Audio::FTransformationPtr> TransformationPtrs;
+
+	for(UWaveformTransformationBase* Transformation : Transformations)
+	{
+		if(Transformation)
+		{
+			TransformationPtrs.Add(Transformation->CreateTransformation());
+		}
+	}
+	
+	return TransformationPtrs;
+}
+#endif // WITH_EDITORONLY_DATA
 
 void USoundWave::FreeResources(bool bStopSoundsUsingThisResource)
 {

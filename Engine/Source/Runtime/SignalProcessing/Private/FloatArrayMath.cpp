@@ -2382,6 +2382,82 @@ namespace Audio
 			}
 		}
 	}
+	
+	void ArrayInterleave(const TArray<FAlignedFloatBuffer>& InBuffers, FAlignedFloatBuffer& OutBuffer)
+	{
+		if(InBuffers.Num() == 0)
+		{
+			return;
+		}
+		
+		const int32 NumChannels = InBuffers.Num();
+		const int32 NumFrames = InBuffers[0].Num();
+
+		OutBuffer.SetNumUninitialized(NumChannels * NumFrames);
+		
+		TArray<const float*> BufferPtrArray;
+		BufferPtrArray.Reset(NumChannels);
+		
+		for(const FAlignedFloatBuffer& Buffer : InBuffers)
+		{
+			const float* BufferPtr = Buffer.GetData();
+			BufferPtrArray.Add(BufferPtr);
+		}
+		
+		const float** InBufferPtr = BufferPtrArray.GetData();
+		
+		ArrayInterleave(InBufferPtr, OutBuffer.GetData(), NumFrames, NumChannels);
+	}
+
+	void ArrayInterleave(const float** RESTRICT InBuffers, float* RESTRICT OutBuffer, const int32 InFrames, const int32 InChannels)
+	{
+		for(int32 ChannelIdx = 0; ChannelIdx < InChannels; ChannelIdx++)
+		{
+			const float* InBuffer = InBuffers[ChannelIdx];
+			
+			for(int32 SampleIdx = 0; SampleIdx < InFrames; SampleIdx++)
+			{
+				OutBuffer[ChannelIdx + (SampleIdx * InChannels)] = InBuffer[SampleIdx];
+			}
+		}
+	}
+
+	void ArrayDeinterleave(const FAlignedFloatBuffer& InBuffer, TArray<FAlignedFloatBuffer>& OutBuffers, const int32 InChannels)
+	{
+		check(InChannels > 0);
+		
+		const int32 NumFrames = InBuffer.Num() / InChannels;
+
+		TArray<float*> BufferPtrArray;
+		BufferPtrArray.Reset(InChannels);
+
+		OutBuffers.SetNum(InChannels);
+		
+		for(FAlignedFloatBuffer& Buffer : OutBuffers)
+		{
+			Buffer.SetNumUninitialized(NumFrames);
+			
+			float* BufferPtr = Buffer.GetData();
+			BufferPtrArray.Add(BufferPtr);
+		}
+		
+		float** OutBufferPtr = BufferPtrArray.GetData();
+		
+		ArrayDeinterleave(InBuffer.GetData(), OutBufferPtr, NumFrames, InChannels);
+	}
+
+	void ArrayDeinterleave(const float* RESTRICT InBuffer, float** RESTRICT OutBuffers, const int32 InFrames, const int32 InChannels)
+	{
+		for(int32 ChannelIdx = 0; ChannelIdx < InChannels; ChannelIdx++)
+		{
+			float* OutBuffer = OutBuffers[ChannelIdx];
+			
+			for(int32 SampleIdx = 0; SampleIdx < InFrames; SampleIdx++)
+			{
+				OutBuffer[SampleIdx] = InBuffer[ChannelIdx + (SampleIdx * InChannels)];
+			}
+		}
+	}
 
 	FContiguousSparse2DKernelTransform::FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements)
 	:	NumIn(NumInElements)
