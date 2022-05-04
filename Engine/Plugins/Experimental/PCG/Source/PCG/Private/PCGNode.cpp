@@ -340,9 +340,9 @@ void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
 	{
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
-#endif
 
 	UpdatePins();
+#endif
 }
 
 #if WITH_EDITOR
