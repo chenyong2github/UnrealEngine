@@ -8,7 +8,6 @@
 #include "NiagaraParameterMapHistory.h"
 #include "NiagaraShaderCompilationManager.h"
 #include "NiagaraDataInterface.h"
-#include "TickableEditorObject.h"
 #include "NiagaraScriptSource.h"
 
 class Error;
@@ -32,12 +31,23 @@ enum class ENiagaraDataSetAccessMode : uint8
 	Num UMETA(Hidden),
 };
 
+struct FNiagaraCustomHlslInclude
+{
+	bool bIsVirtual = false;
+	FString FilePath;
+
+	bool operator==(const FNiagaraCustomHlslInclude& Other) const 
+	{ 
+		return bIsVirtual == Other.bIsVirtual && FilePath == Other.FilePath; 
+	}
+};
+
 
 /** Defines information about the results of a Niagara script compile. */
 struct FNiagaraTranslateResults
 {
 	/** Whether or not HLSL generation was successful */
-	bool bHLSLGenSucceeded;
+	bool bHLSLGenSucceeded = false;;
 
 	/** A results log with messages, warnings, and errors which occurred during the compile. */
 	TArray<FNiagaraCompileEvent> CompileEvents;
@@ -125,8 +135,8 @@ public:
 	bool bUseRapidIterationParams = true;
 	bool bDisableDebugSwitches = false;
 
-	UEnum* ENiagaraScriptCompileStatusEnum;
-	UEnum* ENiagaraScriptUsageEnum;
+	UEnum* ENiagaraScriptCompileStatusEnum = nullptr;
+	UEnum* ENiagaraScriptUsageEnum = nullptr;
 
 	TArray<FNiagaraVariable> RapidIterationParams;
 
@@ -477,12 +487,14 @@ protected:
 	};
 
 	TMap<FNiagaraFunctionSignature, FNiagaraFunctionBody> Functions;
-	TMap<FNiagaraFunctionSignature, TArray<FName> > FunctionStageWriteTargets;
+	TArray<FNiagaraCustomHlslInclude> FunctionIncludeFilePaths;
+	TMap<FNiagaraFunctionSignature, TArray<FName>> FunctionStageWriteTargets;
 	TArray<TArray<FName>> ActiveStageWriteTargets;
 
-	void RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, const FString& InFunctionNameSuffix, UNiagaraScriptSource* Source, FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
+	void RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, const FString& InFunctionNameSuffix, UNiagaraScriptSource* Source, FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, const TArray<FNiagaraCustomHlslInclude>& InCustomHlslIncludeFilePaths, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
 		FNiagaraFunctionSignature& OutSignature);
 	void GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
+	FString GetFunctionIncludeStatement(const FNiagaraCustomHlslInclude& Include) const;
 	FString GetFunctionSignature(const FNiagaraFunctionSignature& Sig);
 
 	/** Compiles an output Pin on a graph node. Caches the result for any future inputs connected to it. */
@@ -600,8 +612,6 @@ public:
 	void GatherVariableForDataSetAccess(const FNiagaraVariable& Variable, FString Format, int32& RegisterIdxInt, int32& RegisterIdxFloat, int32& RegisterIdxHalf, int32 DataSetIndex, FString InstanceIdxSymbol, FString &HlslOutput, bool bWriteHLSL = true);
 	void GatherComponentsForDataSetAccess(UScriptStruct* Struct, FString VariableSymbol, bool bMatrixRoot, TArray<FString>& Components, TArray<ENiagaraBaseTypes>& Types);
 
-	FString CompileDataInterfaceFunction(UNiagaraDataInterface* DataInterface, FNiagaraFunctionSignature& Signature);
-
 	virtual void FunctionCall(UNiagaraNodeFunctionCall* FunctionNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
 	void EnterFunctionCallNode(const TSet<FName>& UnusedInputs);
 	void ExitFunctionCallNode();
@@ -697,7 +707,7 @@ private:
 	FString ComputeMatrixRowAccess(const FString& Name);
 
 	bool ParseDIFunctionSpecifiers(UNiagaraNode* NodeForErrorReporting, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx);
-	void HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
+	void HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl, TArray<FNiagaraCustomHlslInclude>& OutCustomHlslIncludeFilePaths,
 		FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs);
 	void ProcessCustomHlsl(const FString& InCustomHlsl, ENiagaraScriptUsage InUsage, const FNiagaraFunctionSignature& InSignature, const TArray<int32>& Inputs, UNiagaraNode* NodeForErrorReporting, FString& OutCustomHlsl, FNiagaraFunctionSignature& OutSignature);
 	void HandleSimStageSetupAndTeardown(int32 InWhichStage, FString& OutHlsl);
@@ -739,8 +749,6 @@ private:
 	bool ValidateTypePins(const UNiagaraNode* NodeToValidate);
 	void GenerateFunctionSignature(ENiagaraScriptUsage ScriptUsage, FString InName, const FString& InFullName, const FString& InFunctionNameSuffix, UNiagaraGraph* FuncGraph, TArray<int32>& Inputs, 
 		bool bHadNumericInputs, bool bHasParameterMapParameters, TArray<UEdGraphPin*> StaticSwitchValues, FNiagaraFunctionSignature& OutSig) const;
-
-	UNiagaraGraph* CloneGraphAndPrepareForCompilation(const UNiagaraScript* InScript, const UNiagaraScriptSource* InSource, bool bClearErrors);
 
 	bool ShouldInterpolateParameter(const FNiagaraVariable& Parameter);
 

@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeCustomHlsl.h"
-#include "NiagaraCustomVersion.h"
 #include "SNiagaraGraphNodeCustomHlsl.h"
 #include "EdGraphSchema_Niagara.h"
 #include "ScopedTransaction.h"
-#include "EdGraphSchema_Niagara.h"
 #include "NiagaraGraph.h"
+#include "Misc/FileHelper.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeCustomHlsl"
 
@@ -36,6 +35,24 @@ void UNiagaraNodeCustomHlsl::SetCustomHlsl(const FString& InCustomHlsl)
 		// This is needed to guard against a crash when setting this value before the node has actually been
 		// added to a graph.
 		MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	}
+}
+
+void UNiagaraNodeCustomHlsl::GetIncludeFilePaths(TArray<FNiagaraCustomHlslInclude>& OutCustomHlslIncludeFilePaths) const
+{
+	for (const FString& FilePath : VirtualIncludeFilePaths)
+	{
+		if (!FilePath.IsEmpty())
+		{			
+			OutCustomHlslIncludeFilePaths.Add({true, FilePath});
+		}
+	}
+	for (const auto& [FilePath] : AbsoluteIncludeFilePaths)
+	{
+		if (!FilePath.IsEmpty())
+		{			
+			OutCustomHlslIncludeFilePaths.Add({false, FilePath});
+		}
 	}
 }
 
@@ -174,17 +191,33 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeComments) const
 {
 	FString HlslData = *CustomHlsl;
-	return UNiagaraNodeCustomHlsl::GetTokensFromString(HlslData, OutTokens, IncludeComments);
+	return GetTokensFromString(HlslData, OutTokens, IncludeComments);
 }
 
-
-#if WITH_EDITOR
-
-void UNiagaraNodeCustomHlsl::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UNiagaraNodeCustomHlsl::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraNodeCustomHlsl, CustomHlsl))
+	bool bRequiresRecompilation = false;
+
+	if (PropertyChangedEvent.Property)
+	{
+		const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraNodeCustomHlsl, CustomHlsl))
+		{
+			bRequiresRecompilation = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraNodeCustomHlsl, AbsoluteIncludeFilePaths))
+		{
+			bRequiresRecompilation = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraNodeCustomHlsl, VirtualIncludeFilePaths))
+		{
+			bRequiresRecompilation = true;
+		}
+	}
+
+	if (bRequiresRecompilation)
 	{
 		RefreshFromExternalChanges();
 		GetNiagaraGraph()->NotifyGraphNeedsRecompile();
@@ -199,8 +232,6 @@ void UNiagaraNodeCustomHlsl::InitAsCustomHlslDynamicInput(const FNiagaraTypeDefi
 	RequestNewTypedPin(EGPD_Output, OutputType, FName("CustomHLSLOutput"));
 	ScriptUsage = ENiagaraScriptUsage::DynamicInput;
 }
-
-#endif
 
 bool UNiagaraNodeCustomHlsl::IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const
 {
@@ -340,10 +371,10 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 	GetOutputPins(OutputPins);
 
 	int32 ParamMapIdx = INDEX_NONE;
-	TArray<FNiagaraVariable> LocalVars;
 	// This only works currently if the input pins are in the same order as the signature pins.
 	if (InputPins.Num() == Signature.Inputs.Num() + 1 && OutputPins.Num() == Signature.Outputs.Num() + 1)// the add pin is extra
 	{
+		TArray<FNiagaraVariable> LocalVars;
 		bool bHasParamMapInput = false;
 		bool bHasParamMapOutput = false;
 		for (int32 i = 0; i < InputPins.Num(); i++)
@@ -407,12 +438,56 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 						// There is one possible path here, one where we're using the namespace as-is from the valid list.
 						if (Tokens[i].StartsWith(ValidNamespace, ESearchCase::CaseSensitive))
 						{
-							bool bUsedDefault = false;
 							OutHistory.HandleExternalVariableRead(ParamMapIdx, *Tokens[i]);
 						}
 					}
 				}
 			}
+		}
+	}
+}
+
+FNiagaraCompileHash GetFileContentHash(const FString& FileContents)
+{
+	FSHA1 CompileHash;
+	CompileHash.UpdateWithString(*FileContents, FileContents.Len());
+	CompileHash.Final();
+
+	TArray<uint8> DataHash;
+	DataHash.AddUninitialized(FSHA1::DigestSize);
+	CompileHash.GetHash(DataHash.GetData());
+
+	return FNiagaraCompileHash(DataHash);
+}
+
+void UNiagaraNodeCustomHlsl::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
+{
+	for (const auto& [IncludePath] : AbsoluteIncludeFilePaths)
+	{
+		if (IncludePath.IsEmpty())
+		{
+			continue;
+		}
+
+		if (FString FileContents; FFileHelper::LoadFileToString(FileContents, *IncludePath))
+		{
+			InReferencedObjs.AddUnique(IncludePath);
+			InReferencedCompileHashes.AddUnique(GetFileContentHash(FileContents));
+		}
+	}
+
+	for (const FString& IncludePath : VirtualIncludeFilePaths)
+	{
+		if (IncludePath.IsEmpty())
+		{
+			continue;
+		}
+		
+		FString FileContents;
+		if(LoadShaderSourceFile(*IncludePath, SP_PCD3D_SM5, &FileContents, nullptr))
+		{
+			InReferencedObjs.AddUnique(IncludePath);
+			InReferencedCompileHashes.AddUnique(GetFileContentHash(FileContents));
 		}
 	}
 }
@@ -443,17 +518,14 @@ uint32 UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(TArray<FString>& Tokens, 
 
 bool UNiagaraNodeCustomHlsl::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
 {
-	if (Super::AllowNiagaraTypeForAddPin(InType) || InType.IsDataInterface())
-		return true;
-	else
-		return false;
+	return Super::AllowNiagaraTypeForAddPin(InType) || InType.IsDataInterface();
 }
 
 bool UNiagaraNodeCustomHlsl::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const
 {
 	if (AllowNiagaraTypeForAddPin(InType))
 	{
-		if (InType.IsStatic() && InDirection == EEdGraphPinDirection::EGPD_Output)
+		if (InType.IsStatic() && InDirection == EGPD_Output)
 			return false;
 		else
 			return true;

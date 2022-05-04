@@ -39,11 +39,11 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraTrace.h"
 #include "ShaderCore.h"
+#include "Misc/FileHelper.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Translate"), STAT_NiagaraEditor_HlslTranslator_Translate, STATGROUP_NiagaraEditor);
-DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - CloneGraphAndPrepareForCompilation"), STAT_NiagaraEditor_HlslTranslator_CloneGraphAndPrepareForCompilation, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - BuildParameterMapHlslDefinitions"), STAT_NiagaraEditor_HlslTranslator_BuildParameterMapHlslDefinitions, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Emitter"), STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_Emitter, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - MapGet"), STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_MapGet, STATGROUP_NiagaraEditor);
@@ -75,8 +75,6 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - GenerateFunctionSignature_In
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - GenerateFunctionSignature_FindInputNodes"), STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionSignature_FindInputNodes, STATGROUP_NiagaraEditor);
 
 #define NIAGARA_SCOPE_CYCLE_COUNTER(x) //SCOPE_CYCLE_COUNTER(x)
-
-static FNiagaraShaderQueueTickable NiagaraShaderQueueProcessor;
 
 // not pretty. TODO: refactor
 // this will be called via a delegate from UNiagaraScript's cache for cook function,
@@ -565,7 +563,6 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 
 FHlslNiagaraTranslator::FHlslNiagaraTranslator()
 	: Schema(GetDefault<UEdGraphSchema_Niagara>())
-	, TranslateResults()
 	, CurrentBodyChunkMode(ENiagaraCodeChunkMode::Body)
 	, ActiveStageIdx(-1)
 	, bInitializedDefaults(false)
@@ -579,6 +576,12 @@ FString FHlslNiagaraTranslator::GetFunctionDefinitions()
 {
 	FString FwdDeclString;
 	FString DefinitionsString;
+
+	// add includes from custom hlsl nodes
+	for (const FNiagaraCustomHlslInclude& Include : FunctionIncludeFilePaths)
+	{
+		DefinitionsString += GetFunctionIncludeStatement(Include);
+	}
 
 	for (const auto& FuncPair : Functions)
 	{
@@ -5820,7 +5823,7 @@ FString FHlslNiagaraTranslator::GetParameterMapInstanceName(int32 ParamMapHistor
 	return ParameterMapInstanceName;
 }
 
-void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TArray<int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::Emitter(UNiagaraNodeEmitter* EmitterNode, TArray<int32>& Inputs, TArray<int32>& Outputs)
 {
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_Emitter);
 
@@ -5896,7 +5899,7 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 	}
 
 	// We act like a function call here as the semantics are identical.
-	RegisterFunctionCall(ScriptUsage, Name, FullName, EmitterNode->NodeGuid, EmitterNode->GetEmitterHandleId().ToString(EGuidFormats::Digits), Source, Signature, false, FString(), Inputs, CallInputs, CallOutputs, Signature);
+	RegisterFunctionCall(ScriptUsage, Name, FullName, EmitterNode->NodeGuid, EmitterNode->GetEmitterHandleId().ToString(EGuidFormats::Digits), Source, Signature, false, FString(), {}, Inputs, CallInputs, CallOutputs, Signature);
 	GenerateFunctionCall(ScriptUsage, Signature, Inputs, Outputs);
 
 	// Clear out the parameter map writes to emitter module parameters as they should not be shared across emitters.
@@ -5948,8 +5951,8 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 		for (int32 i = 0; i < Outputs.Num(); i++)
 		{
 			Outputs[i] = INDEX_NONE;
-			return;
 		}
+		return;
 	}
 	else if (ParamMapHistoryIdx >= ParamMapHistories.Num())
 	{
@@ -5957,8 +5960,8 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 		for (int32 i = 0; i < Outputs.Num(); i++)
 		{
 			Outputs[i] = INDEX_NONE;
-			return;
 		}
+		return;
 	}
 
 	FString ParameterMapInstanceName = GetParameterMapInstanceName(ParamMapHistoryIdx);
@@ -6507,8 +6510,8 @@ void FHlslNiagaraTranslator::ReadDataSet(const FNiagaraDataSetID DataSet, const 
 		for (int32 i = 0; i < Outputs.Num(); i++)
 		{
 			Outputs[i] = INDEX_NONE;
-			return;
 		}
+		return;
 	}
 	else if (ParamMapHistoryIdx >= ParamMapHistories.Num())
 	{
@@ -6516,8 +6519,8 @@ void FHlslNiagaraTranslator::ReadDataSet(const FNiagaraDataSetID DataSet, const 
 		for (int32 i = 0; i < Outputs.Num(); i++)
 		{
 			Outputs[i] = INDEX_NONE;
-			return;
 		}
+		return;
 	}
 
 	TMap<int32, FDataSetAccessInfo>& Reads = DataSetReadInfo[(int32)AccessMode].FindOrAdd(DataSet);
@@ -6572,8 +6575,8 @@ void FHlslNiagaraTranslator::WriteDataSet(const FNiagaraDataSetID DataSet, const
 		for (int32 i = 0; i < Outputs.Num(); i++)
 		{
 			Outputs[i] = INDEX_NONE;
-			return;
 		}
+		return;
 	}
 	else if (ParamMapHistoryIdx >= ParamMapHistories.Num())
 	{
@@ -6581,8 +6584,8 @@ void FHlslNiagaraTranslator::WriteDataSet(const FNiagaraDataSetID DataSet, const
 		for (int32 i = 0; i < Outputs.Num(); i++)
 		{
 			Outputs[i] = INDEX_NONE;
-			return;
 		}
+		return;
 	}
 
 	if (DataSetWriteInfo[(int32)AccessMode].Find(DataSet))
@@ -6692,7 +6695,7 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 	return Idx;
 }
 
-void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::Operation(UNiagaraNodeOp* Operation, TArray<int32>& Inputs, TArray<int32>& Outputs)
 {
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_Operation);
 
@@ -6849,7 +6852,6 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 	if (!FunctionNode->IsNodeEnabled())
 	{
 		int32 InputPinIdx = INDEX_NONE;
-		int32 OutputPinIdx = INDEX_NONE;
 
 		for (int32 i = 0; i < CallInputs.Num(); i++)
 		{
@@ -6936,6 +6938,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 	UNiagaraScriptSource* Source = nullptr;
 	bool bCustomHlsl = false;
 	FString CustomHlsl;
+	TArray<FNiagaraCustomHlslInclude> CustomHlslIncludeFilePaths;
 	FNiagaraFunctionSignature Signature = FunctionNode->Signature;
 
 	if (FunctionNode->FunctionScript)
@@ -6998,7 +7001,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 						ResolvedVariable = FNiagaraVariable(TypeDef, *Prefix);
 					}
 
-					Signature.FunctionSpecifiers.Add(TEXT("CompilerTagKey")) =  ResolvedVariable.GetName();
+					Signature.FunctionSpecifiers.Add(FName("CompilerTagKey")) =  ResolvedVariable.GetName();
 
 					break;
 				}
@@ -7016,14 +7019,13 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		}
 	}
 
-	UNiagaraNodeCustomHlsl* CustomFunctionHlsl = Cast<UNiagaraNodeCustomHlsl>(FunctionNode);
-	if (CustomFunctionHlsl != nullptr)
+	if (UNiagaraNodeCustomHlsl* CustomFunctionHlsl = Cast<UNiagaraNodeCustomHlsl>(FunctionNode))
 	{
 		// All of the arguments here are resolved withing the HandleCustomHlsl function..
-		HandleCustomHlslNode(CustomFunctionHlsl, ScriptUsage, Name, FullName, bCustomHlsl, CustomHlsl, Signature, Inputs);
+		HandleCustomHlslNode(CustomFunctionHlsl, ScriptUsage, Name, FullName, bCustomHlsl, CustomHlsl, CustomHlslIncludeFilePaths, Signature, Inputs);
 	}
 
-	RegisterFunctionCall(ScriptUsage, Name, FullName, FunctionNode->NodeGuid, FString(), Source, Signature, bCustomHlsl, CustomHlsl, Inputs, CallInputs, CallOutputs, OutputSignature);
+	RegisterFunctionCall(ScriptUsage, Name, FullName, FunctionNode->NodeGuid, FString(), Source, Signature, bCustomHlsl, CustomHlsl, CustomHlslIncludeFilePaths, Inputs, CallInputs, CallOutputs, OutputSignature);
 
 	if (OutputSignature.IsValid() == false)
 	{
@@ -7619,7 +7621,7 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 	OutCustomHlsl = TEXT("\n") + OutCustomHlsl + TEXT("\n");
 }
 
-void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
+void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl, TArray<FNiagaraCustomHlslInclude>& OutCustomHlslIncludeFilePaths,
 	FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs)
 {
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_CustomHLSL);
@@ -7636,10 +7638,10 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 	OutSignature.Name = *OutName; // Force the name to be set to include the node guid for safety...
 	bOutCustomHlsl = true;
 	OutCustomHlsl = CustomFunctionHlsl->GetCustomHlsl();
+	CustomFunctionHlsl->GetIncludeFilePaths(OutCustomHlslIncludeFilePaths);
 
 	FNiagaraFunctionSignature InSignature = CustomFunctionHlsl->Signature;
 	ProcessCustomHlsl(CustomFunctionHlsl->GetCustomHlsl(), OutScriptUsage, InSignature, Inputs, CustomFunctionHlsl, OutCustomHlsl, OutSignature);
-	
 }
 
 void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterfaceCompileInfo& Info, const FNiagaraFunctionSignature& InMatchingSignature)
@@ -7702,7 +7704,7 @@ bool IsVariableWriteBeforeRead(const TArray<FNiagaraParameterMapHistory::FReadHi
 }
 
 void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, const FString& InFunctionNameSuffix, UNiagaraScriptSource* Source,
-                                                  FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
+                                                  FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, const TArray<FNiagaraCustomHlslInclude>& InCustomHlslIncludeFilePaths, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
                                                   FNiagaraFunctionSignature& OutSignature)
 {
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_RegisterFunctionCall);
@@ -7992,6 +7994,11 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				}
 
 				FunctionStageWriteTargets.Add(OutSignature, ActiveStageWriteTargets.Top());
+
+				for (const FNiagaraCustomHlslInclude& FileInclude : InCustomHlslIncludeFilePaths)
+				{
+					FunctionIncludeFilePaths.AddUnique(FileInclude);
+				}
 
 				ExitFunction();
 			}
@@ -8360,6 +8367,24 @@ FName FHlslNiagaraTranslator::GetDataInterfaceName(FName BaseName, const FString
 	return BaseName;
 }
 
+FString FHlslNiagaraTranslator::GetFunctionIncludeStatement(const FNiagaraCustomHlslInclude& Include) const
+{
+	TStringBuilder<128> IncludeStatement;
+
+	if (Include.bIsVirtual)
+	{
+		IncludeStatement.Appendf(TEXT("#include \"%s\"\n"), *Include.FilePath);
+	}
+	else if (FString FileContents; FFileHelper::LoadFileToString(FileContents, *Include.FilePath))
+	{
+		IncludeStatement.Appendf(TEXT("\n// included from %s\n"), *Include.FilePath);
+		IncludeStatement.Append(FileContents);
+		IncludeStatement.Append("\n");
+	}
+
+	return IncludeStatement.ToString();
+}
+
 FString FHlslNiagaraTranslator::GetFunctionSignature(const FNiagaraFunctionSignature& Sig)
 {
 	FString SigStr = TEXT("void ") + GetFunctionSignatureSymbol(Sig);
@@ -8540,7 +8565,6 @@ FString FHlslNiagaraTranslator::NamePathToString(const FString& Prefix, const FN
 	FString Value = Prefix;
 	FNiagaraTypeDefinition CurrentType = RootType;
 	bool bParentWasMatrix = (RootType == FNiagaraTypeDefinition::GetMatrix4Def());
-	int32 ParentMatrixRow = -1;
 	for (int32 i = 0; i < NamePath.Num(); i++)
 	{
 		FString Name = NamePath[i].ToString();
@@ -8582,7 +8606,7 @@ FString FHlslNiagaraTranslator::GenerateAssignment(const FNiagaraTypeDefinition&
 	return DestinationDefinition + " = " + SourceDefinition;
 }
 
-void FHlslNiagaraTranslator::Convert(class UNiagaraNodeConvert* Convert, TArrayView<const int32> Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::Convert(UNiagaraNodeConvert* Convert, TArrayView<const int32> Inputs, TArray<int32>& Outputs)
 {
 	if (ValidateTypePins(Convert) == false)
 	{
@@ -9456,7 +9480,6 @@ FString FHlslNiagaraTranslator::BuildHLSLStructDecl(const FNiagaraTypeDefinition
 		FString Decl = "struct " + GetStructHlslTypeName(Type) + "\n{\n";
 
 		int32 StructSize = 0;
-		int32 DummyIndex = 0;
 		for (TFieldIterator<FProperty> PropertyIt(Type.GetStruct(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
 			FProperty* Property = *PropertyIt;
