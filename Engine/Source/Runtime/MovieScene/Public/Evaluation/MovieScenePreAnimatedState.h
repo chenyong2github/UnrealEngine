@@ -27,11 +27,7 @@ namespace MovieScene
 {
 
 struct FPreAnimatedStateEntry;
-struct FPreAnimatedStateExtension;
 struct FPreAnimatedTemplateCaptureSources;
-struct FAnimTypePreAnimatedStateObjectStorage;
-struct FAnimTypePreAnimatedStateMasterStorage;
-struct FPreAnimatedTrackInstanceCaptureSources;
 struct FPreAnimatedEvaluationHookCaptureSources;
 
 }
@@ -127,8 +123,6 @@ private:
 
 	void ConditionalInitializeEntityStorage(bool bOverrideWantsRestoreState);
 
-	void InitializeStorage(TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> Extension);
-
 	void AddSourceMetaData(const UE::MovieScene::FPreAnimatedStateEntry& Entry);
 
 private:
@@ -137,11 +131,6 @@ private:
 
 	/** Weak pointer to the linker that we're associated with */
 	TWeakObjectPtr<UMovieSceneEntitySystemLinker> WeakLinker;
-
-	/** Pointers to the storage for state bound to objects, organized by FMovieSceneAnimTypeID */
-	TWeakPtr<UE::MovieScene::FAnimTypePreAnimatedStateObjectStorage> WeakObjectStorage;
-	/** Pointers to the storage for state created from master tracks, or otherwise not bound to objects */
-	TWeakPtr<UE::MovieScene::FAnimTypePreAnimatedStateMasterStorage> WeakMasterStorage;
 
 	/** Meta-data ledger for any pre-animated state that originates from track templates */
 	TSharedPtr<UE::MovieScene::FPreAnimatedTemplateCaptureSources> TemplateMetaData;

@@ -59,8 +59,6 @@ void FMovieScenePreAnimatedState::Initialize(UMovieSceneEntitySystemLinker* Link
 
 	bCapturingGlobalPreAnimatedState = false;
 
-	WeakObjectStorage = nullptr;
-	WeakMasterStorage = nullptr;
 	TemplateMetaData = nullptr;
 	EvaluationHookMetaData = nullptr;
 
@@ -207,7 +205,13 @@ void FMovieScenePreAnimatedState::RestorePreAnimatedState(UObject& Object, TFunc
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FAnimTypePreAnimatedStateObjectStorage> ObjectStorage = WeakObjectStorage.Pin();
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
+	{
+		return;
+	}
+
+	TSharedPtr<FAnimTypePreAnimatedStateObjectStorage> ObjectStorage = Linker->PreAnimatedState.FindStorage(FAnimTypePreAnimatedStateObjectStorage::StorageID);
 	if (!ObjectStorage)
 	{
 		return;
