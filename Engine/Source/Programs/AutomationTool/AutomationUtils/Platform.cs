@@ -620,6 +620,13 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Modify or override the list of file host addresses for this platform.
+		/// </summary>
+		public virtual void ModifyFileHostAddresses(List<string> HostAddresses)
+		{
+		}
+
+		/// <summary>
 		/// True if this platform can write to the abslog path that's on the host desktop.
 		/// </summary>
 		public virtual bool UseAbsLog

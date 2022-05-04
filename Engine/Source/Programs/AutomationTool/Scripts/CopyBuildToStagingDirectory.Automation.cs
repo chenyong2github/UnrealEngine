@@ -4089,7 +4089,7 @@ namespace AutomationScripts
 				CommandLineBuilder.AppendFormat("{0} ", Params.RunCommandline.Trim(new char[] { '\"' }));
 			}
 
-			String FileHostCommandline = GetFileHostCommandline(Params, SC).Trim();
+			String FileHostCommandline = GetFileHostCommandline(Params, SC);
 			if (!string.IsNullOrEmpty(FileHostCommandline))
 			{
 				CommandLineBuilder.AppendFormat("{0} ", FileHostCommandline);

@@ -3737,6 +3737,11 @@ public class AndroidPlatform : Platform
 		return true;
 	}
 
+	public override void ModifyFileHostAddresses(List<string> HostAddresses)
+	{
+		HostAddresses.Insert(0, "127.0.0.1");
+	}
+
 	public override IProcessResult RunClient(ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 	{
 		IProcessResult Result = null;

@@ -693,145 +693,106 @@ namespace AutomationScripts
 			}
 		}
 
+		private static List<string> GetFileHostAddresses(DeploymentContext SC)
+		{
+			List<string> HostAddresses = new List<string>();
+
+			// Add localhost first for host platforms and skip it completely for other platforms.
+			// Any Platform can implement ModifyFileHostAddresses to tweak this default behavior.
+			string LocalHost = "127.0.0.1";
+			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == SC.StageTargetPlatform.PlatformType)
+			{
+				HostAddresses.Add(LocalHost);
+			}
+
+			bool bIsMac = UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac;
+			NetworkInterface[] Interfaces = NetworkInterface.GetAllNetworkInterfaces();
+			foreach (NetworkInterface Adapter in Interfaces)
+			{
+				if (bIsMac)
+				{
+					if (Adapter.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+					{
+						continue;
+					}
+				}
+				else
+				{
+					if (Adapter.OperationalStatus != OperationalStatus.Up)
+					{
+						continue;
+					}
+				}
+
+				IPInterfaceProperties IP = Adapter.GetIPProperties();
+				foreach (UnicastIPAddressInformation UnicastAddress in IP.UnicastAddresses)
+				{
+					if (!InternalUtils.IsDnsEligible(UnicastAddress))
+					{
+						continue;
+					}
+
+					if (UnicastAddress.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+					{
+						continue;
+					}
+
+					string HostAddress = UnicastAddress.Address.ToString();
+					if (HostAddress == LocalHost)
+					{
+						continue;
+					}
+					HostAddresses.Add(HostAddress);
+				}
+			}
+			return HostAddresses.ToList();
+		}
+
 		private static string GetFileHostCommandline(ProjectParams Params, DeploymentContext SC)
 		{
 			string FileHostParams = "";
-			if (Params.CookOnTheFly || Params.FileServer)
+			if (!Params.CookOnTheFly && !Params.FileServer)
 			{
-				if (Params.ZenStore)
-				{
-					if (Params.CookOnTheFly)
-					{
-						FileHostParams += "-cookonthefly ";
-					}
-					FileHostParams += "-zenstoreproject=" + ProjectUtils.GetProjectPathId(SC.RawProjectPath) + " ";
-					FileHostParams += "-zenstorehost=";
-				}
-				else
-				{
-					FileHostParams += "-filehostip=";
-				}
+				return FileHostParams;
+			}
 
-				// add localhost first for platforms using redirection
-				const string LocalHost = "127.0.0.1";
-				if (!IsNullOrEmpty(Params.Port))
+			List<string> HostAddresses = GetFileHostAddresses(SC);
+			SC.StageTargetPlatform.ModifyFileHostAddresses(HostAddresses);
+
+			if (!IsNullOrEmpty(Params.Port))
+			{
+				foreach (var Port in Params.Port)
 				{
-					bool FirstParam = true;
-					foreach (var Port in Params.Port)
+					string[] PortProtocol = Port.Split(new char[] { ':' });
+					for (int I = 0; I < HostAddresses.Count; I++)
 					{
-						if (!FirstParam)
-						{
-							FileHostParams += "+";
-						}
-						FirstParam = false;
-						string[] PortProtocol = Port.Split(new char[] { ':' });
 						if (PortProtocol.Length > 1)
 						{
-							FileHostParams += String.Format("{0}://{1}:{2}", PortProtocol[0], LocalHost, PortProtocol[1]);
+							HostAddresses[I] = String.Format("{0}://{1}:{2}", PortProtocol[0], HostAddresses[I], PortProtocol[1]);
 						}
 						else
 						{
-							FileHostParams += LocalHost;
-							FileHostParams += ":";
-							FileHostParams += Params.Port;
-						}
-
-					}
-				}
-				else
-				{
-					// use default port
-					FileHostParams += LocalHost;
-				}
-
-				if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
-				{
-					NetworkInterface[] Interfaces = NetworkInterface.GetAllNetworkInterfaces();
-					foreach (NetworkInterface adapter in Interfaces)
-					{
-						if (adapter.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-						{
-							IPInterfaceProperties IP = adapter.GetIPProperties();
-							for (int Index = 0; Index < IP.UnicastAddresses.Count; ++Index)
-							{
-								if (InternalUtils.IsDnsEligible(IP.UnicastAddresses[Index]) && IP.UnicastAddresses[Index].Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-								{
-									if (!IsNullOrEmpty(Params.Port))
-									{
-										foreach (var Port in Params.Port)
-										{
-											FileHostParams += "+";
-											string[] PortProtocol = Port.Split(new char[] { ':' });
-											if (PortProtocol.Length > 1)
-											{
-												FileHostParams += String.Format("{0}://{1}:{2}", PortProtocol[0], IP.UnicastAddresses[Index].Address.ToString(), PortProtocol[1]);
-											}
-											else
-											{
-												FileHostParams += IP.UnicastAddresses[Index].Address.ToString();
-												FileHostParams += ":";
-												FileHostParams += Params.Port;
-											}
-
-										}
-									}
-									else
-									{
-										FileHostParams += "+";
-										// use default port
-										FileHostParams += IP.UnicastAddresses[Index].Address.ToString();
-									}
-								}
-							}
+							HostAddresses[I] = String.Format("{0}:{1}", HostAddresses[I], Port);
 						}
 					}
 				}
-				else
-				{
-					NetworkInterface[] Interfaces = NetworkInterface.GetAllNetworkInterfaces();
-					foreach (NetworkInterface adapter in Interfaces)
-					{
-						if (adapter.OperationalStatus == OperationalStatus.Up)
-						{
-							IPInterfaceProperties IP = adapter.GetIPProperties();
-							for (int Index = 0; Index < IP.UnicastAddresses.Count; ++Index)
-							{
-								if (InternalUtils.IsDnsEligible(IP.UnicastAddresses[Index]))
-								{
-									if (!IsNullOrEmpty(Params.Port))
-									{
-										foreach (var Port in Params.Port)
-										{
-											FileHostParams += "+";
-											string[] PortProtocol = Port.Split(new char[] { ':' });
-											if (PortProtocol.Length > 1)
-											{
-												FileHostParams += String.Format("{0}://{1}:{2}", PortProtocol[0], IP.UnicastAddresses[Index].Address.ToString(), PortProtocol[1]);
-											}
-											else
-											{
-												FileHostParams += IP.UnicastAddresses[Index].Address.ToString();
-												FileHostParams += ":";
-												FileHostParams += Params.Port;
-											}
-										}
-									}
-									else
-									{
-										FileHostParams += "+";
-										// use default port
-										FileHostParams += IP.UnicastAddresses[Index].Address.ToString();
-									}
-								}
-							}
-						}
-					}
-				}
-
-				FileHostParams += " ";
 			}
 
-			return FileHostParams.Trim();
+			if (Params.ZenStore)
+			{
+				if (Params.CookOnTheFly)
+				{
+					FileHostParams += "-cookonthefly ";
+				}
+				FileHostParams += "-zenstoreproject=" + ProjectUtils.GetProjectPathId(SC.RawProjectPath) + " ";
+				FileHostParams += "-zenstorehost=";
+			}
+			else
+			{
+				FileHostParams += "-filehostip=";
+			}
+			FileHostParams += String.Join("+", HostAddresses);
+			return FileHostParams;
 		}
 
 		private static void ClientLogReaderProc(object ArgsContainer)
