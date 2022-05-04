@@ -445,7 +445,7 @@ private:
 	class FStringTableFromFileMacroDescriptor : public FMacroDescriptor
 	{
 	public:
-		FStringTableFromFileMacroDescriptor(FString InName, FString InRootPath) : FMacroDescriptor(MoveTemp(InName), 2), RootPath(MoveTemp(InRootPath)) {}
+		FStringTableFromFileMacroDescriptor(FString InName, FString InRootPath) : FMacroDescriptor(MoveTemp(InName), 3), RootPath(MoveTemp(InRootPath)) {}
 
 		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
 
