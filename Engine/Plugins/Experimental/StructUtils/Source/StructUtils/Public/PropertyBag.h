@@ -38,6 +38,53 @@ enum class EPropertyBagResult : uint8
 	PropertyNotFound,	// Could not find property of specified name.
 };
 
+USTRUCT()
+struct STRUCTUTILS_API FPropertyBagPropertyDescMetaData
+{
+	GENERATED_BODY()
+	
+	FPropertyBagPropertyDescMetaData() = default;
+	FPropertyBagPropertyDescMetaData(const FName InKey, const FString& InValue)
+		: Key(InKey)
+		, Value(InValue)
+	{
+	}
+	
+	UPROPERTY()
+	FName Key;
+
+	UPROPERTY()
+	FString Value;
+
+	void Serialize(FArchive& Ar);
+
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FPropertyBagPropertyDescMetaData& PropertyDescMetaData)
+	{
+		PropertyDescMetaData.Serialize(Ar);
+		return Ar;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FPropertyBagPropertyDescMetaData& PropertyDescMetaData)
+	{
+		return HashCombine(GetTypeHash(PropertyDescMetaData.Key), GetTypeHash(PropertyDescMetaData.Value));
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const TArrayView<const FPropertyBagPropertyDescMetaData>& MetaData)
+	{
+		uint32 Hash = GetTypeHash(MetaData.Num());
+		for (const FPropertyBagPropertyDescMetaData& PropertyDescMetaData : MetaData)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(PropertyDescMetaData));
+		}
+		return Hash;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const TArray<FPropertyBagPropertyDescMetaData>& MetaData)
+	{
+		return GetTypeHash(TArrayView<const FPropertyBagPropertyDescMetaData>(MetaData.GetData(), MetaData.Num()));
+	}
+};
+
 /** Describes a property in the property bag. */
 USTRUCT()
 struct STRUCTUTILS_API FPropertyBagPropertyDesc
@@ -45,6 +92,7 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 	GENERATED_BODY()
 
 	FPropertyBagPropertyDesc() = default;
+	FPropertyBagPropertyDesc(const FName InName, const FProperty* InSourceProperty);
 	FPropertyBagPropertyDesc(const FName InName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr)
 		: ValueTypeObject(InValueTypeObject)
 		, Name(InName)
@@ -67,7 +115,6 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 	/** @return true if the property type is class or soft class */
 	bool IsClassType() const;
 
-	
 	/** Pointer to object that defines the Enum, Struct, or Class. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	TObjectPtr<const UObject> ValueTypeObject = nullptr;
@@ -83,6 +130,12 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 	/** Type of the value described by this property. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	EPropertyBagPropertyType ValueType = EPropertyBagPropertyType::None;
+
+#if WITH_EDITORONLY_DATA
+	/** Editor-only meta data for CachedProperty */
+	UPROPERTY(EditAnywhere, Category="Default")
+	TArray<FPropertyBagPropertyDescMetaData> MetaData;
+#endif
 
 	/** Cached property pointer, set in UPropertyBag::GetOrCreateFromDescs. */
 	const FProperty* CachedProperty = nullptr;
@@ -166,6 +219,9 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 */
 	void CopyMatchingValuesByID(const FInstancedPropertyBag& NewDescs) const;
 
+	/** Returns number of the Properties in this Property Bag */
+	int32 GetNumPropertiesInBag() const;
+
 	/**
 	 * Adds properties to the bag. If property of same name already exists, it will be replaced with the new type.
 	 * Numeric property values will be converted if possible, when a property's type changes.
@@ -179,6 +235,12 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 * @param Descs Descriptors of new properties to add.
 	 */
 	void AddProperty(const FName InName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr);
+
+	/**
+	 * Adds a new property to the bag. Property type duplicated from source property to. If property of same name already exists, it will be replaced with the new type.
+	 * @param Descs Descriptors of new properties to add.
+	 */
+	void AddProperty(const FName InName, const FProperty* InSourceProperty);
 
 	/**
 	 * Removes properties from the bag by name if they exists.
@@ -330,6 +392,12 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 		static_assert(TIsDerivedFrom<T, UObject>::Value, "Should only call this with object types");
 		return SetValueObject(Name, (UObject*)InValue);
 	}
+
+	/**
+	 * Sets property value from given source property and source container address
+	 * A property must exists in that bag before it can be set. 
+	 */
+	EPropertyBagResult SetValue(const FName Name, const FProperty* InSourceProperty, const void* InSourceContainerAddress) const;
 
 	bool Serialize(FArchive& Ar);
 

@@ -21,7 +21,11 @@ namespace UE::StructUtils::Private
 
 	uint64 CalcPropertyDescHash(const FPropertyBagPropertyDesc& Desc)
 	{
+#if WITH_EDITORONLY_DATA
+		const uint32 Hashes[] = { GetTypeHash(Desc.ID), GetTypeHash(Desc.Name), GetTypeHash(Desc.ValueType), GetTypeHash(Desc.MetaData) };
+#else
 		const uint32 Hashes[] = { GetTypeHash(Desc.ID), GetTypeHash(Desc.Name), GetTypeHash(Desc.ValueType) };
+#endif
 		return CityHash64WithSeed((const char*)Hashes, sizeof(Hashes), GetObjectHash(Desc.ValueTypeObject));
 	}
 
@@ -33,6 +37,109 @@ namespace UE::StructUtils::Private
 			Hash = CityHash128to64(Uint128_64(Hash, CalcPropertyDescHash(Desc)));
 		}
 		return Hash;
+	}
+
+	EPropertyBagPropertyType GetValueTypeFromProperty(const FProperty* InSourceProperty)
+	{
+		if (CastField<FBoolProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Bool;
+		}
+		if (const FByteProperty* ByteProperty = CastField<FByteProperty>(InSourceProperty))
+		{
+			return ByteProperty->IsEnum() ? EPropertyBagPropertyType::Enum : EPropertyBagPropertyType::Byte;
+		}
+		if (CastField<FIntProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Int32;
+		}
+		if (CastField<FInt64Property>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Int64;
+		}
+		if (CastField<FFloatProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Float;
+		}
+		if (CastField<FDoubleProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Double;
+		}
+		if (CastField<FNameProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Name;
+		}
+		if (CastField<FStrProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::String;
+		}
+		if (CastField<FTextProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Text;
+		}
+		if (CastField<FEnumProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Enum;
+		}
+		if (CastField<FStructProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Struct;
+		}
+		if (CastField<FObjectProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Object;
+		}
+		if (CastField<FSoftObjectProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::SoftObject;
+		}
+		if (CastField<FClassProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::Class;
+		}
+		if (CastField<FSoftClassProperty>(InSourceProperty))
+		{
+			return EPropertyBagPropertyType::SoftClass;
+		}
+
+		return EPropertyBagPropertyType::None;
+	}
+
+	UObject* GetValueTypeObjectFromProperty(const FProperty* InSourceProperty)
+	{
+		if (const FByteProperty* ByteProperty = CastField<FByteProperty>(InSourceProperty))
+		{
+			if (ByteProperty->IsEnum())
+			{
+				return ByteProperty->Enum;
+			}
+		}
+		if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(InSourceProperty))
+		{
+			return EnumProp->GetEnum();
+		}
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(InSourceProperty))
+		{
+			return StructProperty->Struct;
+		}
+		if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InSourceProperty))
+		{
+			return ObjectProperty->PropertyClass;
+		}
+		if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(InSourceProperty))
+		{
+			return SoftObjectProperty->PropertyClass;
+		}
+		if (const FClassProperty* ClassProperty = CastField<FClassProperty>(InSourceProperty))
+		{
+			return ClassProperty->PropertyClass;
+		}
+		if (const FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(InSourceProperty))
+		{
+			return SoftClassProperty->PropertyClass;
+		}
+
+		return nullptr;
 	}
 
 	FProperty* CreatePropertyFromDesc(const FPropertyBagPropertyDesc& Desc, UScriptStruct* PropertyScope)
@@ -590,12 +697,55 @@ namespace UE::StructUtils::Private
 //  FPropertyBagPropertyDesc
 //----------------------------------------------------------------//
 
+void FPropertyBagPropertyDescMetaData::Serialize(FArchive& Ar)
+{
+	Ar << Key;
+	Ar << Value;
+}
+
+FPropertyBagPropertyDesc::FPropertyBagPropertyDesc(const FName InName, const FProperty* InSourceProperty)
+	: Name(InName)
+{
+	ValueType = UE::StructUtils::Private::GetValueTypeFromProperty(InSourceProperty);
+	ValueTypeObject = UE::StructUtils::Private::GetValueTypeObjectFromProperty(InSourceProperty);
+
+#if WITH_EDITORONLY_DATA
+	if (const TMap<FName, FString>* SourcePropertyMetaData = InSourceProperty->GetMetaDataMap())
+	{
+		for (const TPair<FName, FString>& MetaDataPair : *SourcePropertyMetaData)
+		{
+			MetaData.Add({ MetaDataPair.Key, MetaDataPair.Value });
+		}
+	}
+#endif
+}
+
 static FArchive& operator<<(FArchive& Ar, FPropertyBagPropertyDesc& Bag)
 {
 	Ar << Bag.ValueTypeObject;
 	Ar << Bag.ID;
 	Ar << Bag.Name;
 	Ar << Bag.ValueType;
+
+	bool bHasMetaData = false;
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsSaving())
+	{
+		bHasMetaData = !Ar.IsCooking() && Bag.MetaData.Num() > 0;
+	}
+#endif
+	Ar << bHasMetaData;
+
+	if (bHasMetaData)
+	{
+#if WITH_EDITORONLY_DATA
+		Ar << Bag.MetaData;
+#else
+		TArray<FPropertyBagPropertyDescMetaData> TempMetaData; 
+		Ar << TempMetaData;
+#endif
+	}	
+	
 	return Ar;
 }
 
@@ -682,6 +832,16 @@ void FInstancedPropertyBag::CopyMatchingValuesByID(const FInstancedPropertyBag& 
 	UE::StructUtils::Private::CopyMatchingValuesByID(Other.Value, Value);
 }
 
+int32 FInstancedPropertyBag::GetNumPropertiesInBag() const
+{
+	if (const UPropertyBag* BagStruct = GetPropertyBagStruct())
+	{
+		return BagStruct->PropertyDescs.Num();
+	}
+
+	return 0;
+}
+
 void FInstancedPropertyBag::AddProperties(const TConstArrayView<FPropertyBagPropertyDesc> NewDescs)
 {
 	TArray<FPropertyBagPropertyDesc> Descs;
@@ -711,6 +871,11 @@ void FInstancedPropertyBag::AddProperties(const TConstArrayView<FPropertyBagProp
 void FInstancedPropertyBag::AddProperty(const FName InName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
 {
 	AddProperties({ FPropertyBagPropertyDesc(InName, InValueType, InValueTypeObject) });
+}
+
+void FInstancedPropertyBag::AddProperty(const FName InName, const FProperty* InSourceProperty)
+{
+	AddProperties({ FPropertyBagPropertyDesc(InName, InSourceProperty ) });
 }
 
 void FInstancedPropertyBag::RemovePropertiesByName(const TConstArrayView<FName> PropertiesToRemove)
@@ -1062,6 +1227,30 @@ EPropertyBagResult FInstancedPropertyBag::SetValueClass(const FName Name, UClass
 	return EPropertyBagResult::Success;
 }
 
+EPropertyBagResult FInstancedPropertyBag::SetValue(const FName Name, const FProperty* InSourceProperty, const void* InSourceContainerAddress) const
+{
+	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
+	if (Desc == nullptr || InSourceProperty == nullptr || InSourceContainerAddress == nullptr)
+	{
+		return EPropertyBagResult::PropertyNotFound;
+	}
+	check(Desc->CachedProperty);
+
+	void* TargetAddress = Value.GetMutableMemory() + Desc->CachedProperty->GetOffset_ForInternal();
+	void const* SourceAddress = InSourceProperty->ContainerPtrToValuePtr<void>(InSourceContainerAddress);
+
+	if (InSourceProperty->GetClass() == Desc->CachedProperty->GetClass())
+	{
+		Desc->CachedProperty->CopyCompleteValue(TargetAddress, SourceAddress);
+	}
+	else
+	{
+		return EPropertyBagResult::TypeMismatch;
+	}
+
+	return EPropertyBagResult::Success;
+}
+
 bool FInstancedPropertyBag::Serialize(FArchive& Ar)
 {
 	enum class EVersion : uint8
@@ -1182,9 +1371,18 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 		{
 			Desc.ID = FGuid::NewGuid();
 		}
-		
+
+
 		if (FProperty* NewProperty = UE::StructUtils::Private::CreatePropertyFromDesc(Desc, NewBag))
 		{
+#if WITH_EDITORONLY_DATA
+			// Add metadata
+			for (const FPropertyBagPropertyDescMetaData& PropertyDescMetaData : Desc.MetaData)
+			{
+				NewProperty->SetMetaData(*PropertyDescMetaData.Key.ToString(), *PropertyDescMetaData.Value);
+			}
+#endif
+			
 			NewProperty->SetPropertyFlags(CPF_Edit);
 			NewBag->AddCppProperty(NewProperty);
 			Desc.CachedProperty = NewProperty; 
