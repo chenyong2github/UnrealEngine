@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneDirectLighting.cpp
-=============================================================================*/
-
 #include "LumenSceneLighting.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
@@ -399,6 +395,7 @@ class FInitializeLightTileIndirectArgsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocatorPerLight)
 		SHADER_PARAMETER(uint32, VertexCountPerInstanceIndirect)
+		SHADER_PARAMETER(uint32, PerLightDispatchFactor)
 		SHADER_PARAMETER(uint32, NumLights)
 		SHADER_PARAMETER(uint32, NumViews)
 	END_SHADER_PARAMETER_STRUCT()
@@ -599,11 +596,12 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, ForceOffscreenShadowing)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
 	class FDynamicallyShadowed : SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
 	class FVirtualShadowMap : SHADER_PERMUTATION_BOOL("VIRTUAL_SHADOW_MAP");
 	class FDenseShadowMap : SHADER_PERMUTATION_BOOL("DENSE_SHADOW_MAP");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
-	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FVirtualShadowMap, FDenseShadowMap>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FLightType, FDynamicallyShadowed, FVirtualShadowMap, FDenseShadowMap>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -613,13 +611,8 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-
-	static int32 GetGroupSize()
-	{
-		return 8;
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
 };
 
@@ -655,12 +648,13 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER(int32, HeightfieldMaxTracingSteps)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF");
 	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
 	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS");
 	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
-	using FPermutationDomain = TShaderPermutationDomain<FLightType, FTraceGlobalSDF, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FLightType, FTraceGlobalSDF, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -675,6 +669,12 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		if (PermutationVector.Get<FTraceMeshSDFs>() || PermutationVector.Get<FTraceHeightfields>())
 		{
 			PermutationVector.Set<FTraceGlobalSDF>(false);
+		}
+
+		// FOffsetDataStructure is only used for mesh SDFs
+		if (!PermutationVector.Get<FTraceMeshSDFs>())
+		{
+			PermutationVector.Set<FOffsetDataStructure>(0);
 		}
 
 		return PermutationVector;
@@ -695,12 +695,7 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 	FORCENOINLINE static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) 
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-
-	static int32 GetGroupSize()
-	{
-		return 8;
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
 };
 
@@ -1057,6 +1052,7 @@ void SampleShadowMap(
 	}
 
 	FLumenDirectLightingSampleShadowMapCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FThreadGroupSize32>(Lumen::UseThreadGroupSize32());
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FVirtualShadowMap>(bUseVirtualShadowMap);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDynamicallyShadowed>(bUseDenseShadowMap);
@@ -1183,6 +1179,7 @@ void TraceDistanceFieldShadows(
 	}
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FThreadGroupSize32>(Lumen::UseThreadGroupSize32());
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
@@ -1428,8 +1425,8 @@ void CullDirectLightingTiles(
 
 	enum class EDispatchTilesIndirectArgOffset
 	{
-		GroupPerTile = 0 * sizeof(FRHIDispatchIndirectParameters),
-		ThreadPerTile = 0 * sizeof(FRHIDispatchIndirectParameters),
+		NumTilesDiv1 = 0 * sizeof(FRHIDispatchIndirectParameters),
+		NumTilesDiv64 = 1 * sizeof(FRHIDispatchIndirectParameters),
 		MAX = 2,
 	};
 
@@ -1445,6 +1442,7 @@ void CullDirectLightingTiles(
 		PassParameters->LightTileAllocator = GraphBuilder.CreateSRV(LightTileAllocator);
 		PassParameters->LightTileAllocatorPerLight = GraphBuilder.CreateSRV(LightTileAllocatorPerLight);
 		PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
+		PassParameters->PerLightDispatchFactor = Lumen::UseThreadGroupSize32() ? 2 : 1;
 		PassParameters->NumLights = GatheredLights.Num();
 		PassParameters->NumViews = Views.Num();
 
@@ -1484,7 +1482,7 @@ void CullDirectLightingTiles(
 			ComputeShader,
 			PassParameters,
 			DispatchLightTilesIndirectArgs,
-			(int32)EDispatchTilesIndirectArgOffset::ThreadPerTile);
+			(int32)EDispatchTilesIndirectArgOffset::NumTilesDiv64);
 
 		LightTiles = CompactedLightTiles;
 	}

@@ -64,6 +64,7 @@ namespace Lumen
 	float GetFirstClipmapWorldExtent();
 
 	// Features
+	bool UseThreadGroupSize32();
 	bool IsRadiosityEnabled(const FSceneViewFamily& ViewFamily);
 	uint32 GetRadiosityAtlasDownsampleFactor();
 
@@ -88,7 +89,6 @@ namespace Lumen
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 
 	int32 GetMaxTranslucentSkipCount();
-
 	bool UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily);
 
 	enum class EHardwareRayTracingLightingMode

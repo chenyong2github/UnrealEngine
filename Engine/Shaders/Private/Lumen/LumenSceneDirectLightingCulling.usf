@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneDirectLightingCulling.usf
-=============================================================================*/
-
 #include "../Common.ush"
 #define SUPPORT_CONTACT_SHADOWS 0
 #include "../DeferredLightingCommon.ush"
@@ -305,6 +301,7 @@ RWBuffer<uint> RWDrawTilesPerLightIndirectArgs;
 RWBuffer<uint> RWDispatchTilesPerLightIndirectArgs;
 
 uint VertexCountPerInstanceIndirect;
+uint PerLightDispatchFactor;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void InitializeLightTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -316,12 +313,12 @@ void InitializeLightTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThrea
 	{
 		uint NumLightTiles = LightTileAllocator[0];
 
-		// One group per tile
+		// NumTilesDiv1
 		RWDispatchLightTilesIndirectArgs[0] = NumLightTiles;
 		RWDispatchLightTilesIndirectArgs[1] = 1;
 		RWDispatchLightTilesIndirectArgs[2] = 1;
 
-		// One thread per tile
+		// NumTilesDiv64
 		RWDispatchLightTilesIndirectArgs[3 + 0] = (NumLightTiles + 63) / 64;
 		RWDispatchLightTilesIndirectArgs[3 + 1] = 1;
 		RWDispatchLightTilesIndirectArgs[3 + 2] = 1;
@@ -333,7 +330,7 @@ void InitializeLightTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThrea
 		uint NumLightTilesPerLight = LightTileAllocatorPerLight[PerViewLightIndex];
 
 		// FRHIDispatchIndirectParameters
-		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 0] = NumLightTilesPerLight;
+		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 0] = PerLightDispatchFactor * NumLightTilesPerLight;
 		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 1] = 1;
 		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 2] = 1;
 

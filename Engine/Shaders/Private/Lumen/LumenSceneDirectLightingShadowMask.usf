@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneDirectLightingShadowMask.usf
-=============================================================================*/
-
 #ifndef VIRTUAL_SHADOW_MAP
 	#define VIRTUAL_SHADOW_MAP 0
 #endif
@@ -52,22 +48,78 @@ uint LightIndex;
 uint ViewIndex;
 uint NumViews;
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+#if THREADGROUP_SIZE_32
+	groupshared uint SharedShadowMask[2];
+#else
+	groupshared uint SharedShadowMask[4];
+#endif
+
+void ReadSharedShadowMaskRay(uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
+{
+	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
+
+	uint ShadowMask = SharedShadowMask[BitOffset / 32];
+	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
+
+	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
+	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
+}
+
+void WriteSharedShadowMaskRay(FShadowMaskRay Ray, uint2 CoordInCardTile)
+{
+	if (Ray.bShadowFactorComplete)
+	{
+		uint Mask = 0;
+		if (Ray.ShadowFactor <= 0.5f)
+		{
+			// Set first bit
+			Mask |= 0x1;
+		}
+		if (Ray.bShadowFactorComplete)
+		{
+			// Set second bit
+			Mask |= 0x2;
+		}
+
+		uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
+		InterlockedOr(SharedShadowMask[BitOffset / 32], Mask << (BitOffset % 32));
+	}
+}
+
+#if THREADGROUP_SIZE_32
+	#define THREADGROUP_SIZE_X 8
+	#define THREADGROUP_SIZE_Y 4
+#else
+	#define THREADGROUP_SIZE_X 8
+	#define THREADGROUP_SIZE_Y 8
+#endif
+
+[numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void LumenSceneDirectLightingSampleShadowMapCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
+#if THREADGROUP_SIZE_32
+	uint LocalLightTileIndex = GroupId.x / 2;
+	uint2 CoordInCardTile = GroupThreadId.xy + uint2(0, GroupId.x % 2 ? 0 : 4);
+	uint ShadowMaskSize = 2;
+	uint ShadowMaskOffset = GroupId.x % 2 ? 0 : 1;
+#else
+	uint LocalLightTileIndex = GroupId.x;
+	uint2 CoordInCardTile = GroupThreadId.xy;
+	uint ShadowMaskSize = 4;
+	uint ShadowMaskOffset = 0;
+#endif
+
+	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
 		SharedShadowMask[GroupThreadId.x] = 0;
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint LocalLightTileIndex = GroupId.x;
 	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex];
-	uint2 CoordInCardTile = GroupThreadId.xy;
 	FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
 	uint2 TexelInCardPageCoord = LightTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
@@ -206,9 +258,9 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
+	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
-		RWShadowMaskTiles[4 * LightTileIndex + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
+		RWShadowMaskTiles[4 * LightTileIndex + 2 * ShadowMaskOffset + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
 	}
 }
 
@@ -331,23 +383,33 @@ float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float
 	return ShadowFactor;
 }
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+[numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+#if THREADGROUP_SIZE_32
+	uint LocalLightTileIndex = GroupId.x / 2;
+	uint2 CoordInCardTile = GroupThreadId.xy + uint2(0, GroupId.x % 2 ? 0 : 4);
+	uint ShadowMaskSize = 2;
+	uint ShadowMaskOffset = GroupId.x % 2 ? 0 : 1;
+#else
 	uint LocalLightTileIndex = GroupId.x;
+	uint2 CoordInCardTile = GroupThreadId.xy;
+	uint ShadowMaskSize = 4;
+	uint ShadowMaskOffset = 0;
+#endif
+
 	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex];
 
-	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
+	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
-		SharedShadowMask[GroupThreadId.x] = RWShadowMaskTiles[4 * LightTileIndex + GroupThreadId.x];
+		SharedShadowMask[GroupThreadId.x] = RWShadowMaskTiles[4 * LightTileIndex + 2 * ShadowMaskOffset + GroupThreadId.x];
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint2 CoordInCardTile = GroupThreadId.xy;
 	FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
 	uint2 TexelInCardPageCoord = LightTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
@@ -390,8 +452,8 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
+	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
-		RWShadowMaskTiles[4 * LightTileIndex + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
+		RWShadowMaskTiles[4 * LightTileIndex + 2 * ShadowMaskOffset + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
 	}
 }

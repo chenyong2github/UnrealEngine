@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneDirectLighting.ush
-=============================================================================*/
-
 #pragma once
 
 #include "LumenSceneLighting.ush"
@@ -14,8 +10,6 @@
 #define LIGHT_TYPE_SPOT 2
 #define LIGHT_TYPE_RECT 3
 
-groupshared uint SharedShadowMask[4];
-
 RWStructuredBuffer<uint> RWShadowMaskTiles;
 StructuredBuffer<uint> ShadowMaskTiles;
 
@@ -24,17 +18,6 @@ struct FShadowMaskRay
 	float ShadowFactor;
 	bool bShadowFactorComplete;
 };
-
-void ReadSharedShadowMaskRay(uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
-{
-	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
-
-	uint ShadowMask = SharedShadowMask[BitOffset / 32];
-	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
-
-	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
-	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
-}
 
 void ReadShadowMaskRayRW(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
 {
@@ -56,27 +39,6 @@ void ReadShadowMaskRay(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowM
 
 	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
 	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
-}
-
-void WriteSharedShadowMaskRay(FShadowMaskRay Ray, uint2 CoordInCardTile)
-{
-	if (Ray.bShadowFactorComplete)
-	{
-		uint Mask = 0;
-		if (Ray.ShadowFactor <= 0.5f)
-		{
-			// Set first bit
-			Mask |= 0x1;
-		}
-		if (Ray.bShadowFactorComplete)
-		{
-			// Set second bit
-			Mask |= 0x2;
-		}
-
-		uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
-		InterlockedOr(SharedShadowMask[BitOffset / 32], Mask << (BitOffset % 32));
-	}
 }
 
 void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCardTile)

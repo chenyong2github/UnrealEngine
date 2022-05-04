@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenScene.cpp
-=============================================================================*/
-
 #include "LumenMeshCards.h"
 #include "RendererPrivate.h"
 #include "Lumen.h"
@@ -25,9 +21,21 @@ TAutoConsoleVariable<int32> CVarLumenSceneUpdateViewOrigin(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenThreadGroupSize32(
+	TEXT("r.Lumen.ThreadGroupSize32"),
+	1,
+	TEXT("Whether to to prefer dispatches in groups of 32 threads on HW which supports it (instead of standard 64)."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 bool Lumen::ShouldUpdateLumenSceneViewOrigin()
 {
 	return CVarLumenSceneUpdateViewOrigin.GetValueOnRenderThread() != 0;
+}
+
+bool Lumen::UseThreadGroupSize32()
+{
+	return GRHISupportsWaveOperations && GRHIMinimumWaveSize <= 32 && CVarLumenThreadGroupSize32.GetValueOnRenderThread() != 0;
 }
 
 class FLumenCardPageGPUData

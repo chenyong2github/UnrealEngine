@@ -397,9 +397,15 @@ void SetupCompactedTracesIndirectArgsCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	RWScreenProbeCompactTracingIndirectArgs[0] = (CompactedTraceTexelAllocator[0] + PROBE_THREADGROUP_SIZE_1D - 1) / PROBE_THREADGROUP_SIZE_1D;
-	RWScreenProbeCompactTracingIndirectArgs[1] = 1;
-	RWScreenProbeCompactTracingIndirectArgs[2] = 1;
+	// THREADGROUP_SIZE_64
+	RWScreenProbeCompactTracingIndirectArgs[0 + 0] = (CompactedTraceTexelAllocator[0] + 64 - 1) / 64;
+	RWScreenProbeCompactTracingIndirectArgs[0 + 1] = 1;
+	RWScreenProbeCompactTracingIndirectArgs[0 + 2] = 1;
+
+	// THREADGROUP_SIZE_32
+	RWScreenProbeCompactTracingIndirectArgs[3 + 0] = (CompactedTraceTexelAllocator[0] + 32 - 1) / 32;
+	RWScreenProbeCompactTracingIndirectArgs[3 + 1] = 1;
+	RWScreenProbeCompactTracingIndirectArgs[3 + 2] = 1;
 }
 
 uint CardGridPixelSizeShift;
@@ -518,7 +524,13 @@ void TraceMeshSDFs(
 	}
 }
 
-[numthreads(PROBE_THREADGROUP_SIZE_1D, 1, 1)]
+#if THREADGROUP_SIZE_32
+	#define PROBE_TRACE_THREADGROUP_SIZE_1D 32
+#else
+	#define PROBE_TRACE_THREADGROUP_SIZE_1D 64
+#endif
+
+[numthreads(PROBE_TRACE_THREADGROUP_SIZE_1D, 1, 1)]
 void ScreenProbeTraceMeshSDFsCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
@@ -663,7 +675,7 @@ void TraceVoxels(
 	}
 }
 
-[numthreads(PROBE_THREADGROUP_SIZE_1D, 1, 1)]
+[numthreads(PROBE_TRACE_THREADGROUP_SIZE_1D, 1, 1)]
 void ScreenProbeTraceVoxelsCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,

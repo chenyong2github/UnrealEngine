@@ -293,11 +293,12 @@ IMPLEMENT_GLOBAL_SHADER(FBuildRadiosityTilesCS, "/Engine/Private/Lumen/Radiosity
 
 enum class ERadiosityIndirectArgs
 {
-	ThreadPerTrace = 0 * sizeof(FRHIDispatchIndirectParameters),
-	ThreadPerProbe = 1 * sizeof(FRHIDispatchIndirectParameters),
-	ThreadPerRadiosityTexel = 2 * sizeof(FRHIDispatchIndirectParameters),
-	HardwareRayTracingThreadPerTrace = 3 * sizeof(FRHIDispatchIndirectParameters),
-	MAX = 4
+	NumTracesDiv64 = 0 * sizeof(FRHIDispatchIndirectParameters),
+	NumTracesDiv32 = 1 * sizeof(FRHIDispatchIndirectParameters),
+	ThreadPerProbe = 2 * sizeof(FRHIDispatchIndirectParameters),
+	ThreadPerRadiosityTexel = 3 * sizeof(FRHIDispatchIndirectParameters),
+	HardwareRayTracingThreadPerTrace = 4 * sizeof(FRHIDispatchIndirectParameters),
+	MAX = 5
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenRadiosityTexelTraceParameters, )
@@ -364,8 +365,9 @@ class FLumenRadiosityDistanceFieldTracingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceHitDistanceAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
-	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FTraceGlobalSDF>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -375,14 +377,8 @@ class FLumenRadiosityDistanceFieldTracingCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
 		OutEnvironment.SetDefine(TEXT("ENABLE_DYNAMIC_SKY_LIGHT"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
-	}
-
-	static int32 GetGroupSize()
-	{
-		return 64;
 	}
 };
 
@@ -854,6 +850,7 @@ void LumenRadiosity::AddRadiosityPass(
 			PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 
 			FLumenRadiosityDistanceFieldTracingCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FLumenRadiosityDistanceFieldTracingCS::FThreadGroupSize32>(Lumen::UseThreadGroupSize32());
 			PermutationVector.Set<FLumenRadiosityDistanceFieldTracingCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
 			auto ComputeShader = GlobalShaderMap->GetShader<FLumenRadiosityDistanceFieldTracingCS>(PermutationVector);
 
@@ -863,7 +860,7 @@ void LumenRadiosity::AddRadiosityPass(
 				ComputeShader,
 				PassParameters,
 				RadiosityIndirectArgs,
-				(uint32)ERadiosityIndirectArgs::ThreadPerTrace + ViewIndex * (uint32)ERadiosityIndirectArgs::MAX * sizeof(FRHIDispatchIndirectParameters));
+				(uint32)(Lumen::UseThreadGroupSize32() ? ERadiosityIndirectArgs::NumTracesDiv32 : ERadiosityIndirectArgs::NumTracesDiv64) + ViewIndex * (uint32)ERadiosityIndirectArgs::MAX * sizeof(FRHIDispatchIndirectParameters));
 		}
 	}
 
@@ -901,7 +898,7 @@ void LumenRadiosity::AddRadiosityPass(
 				ComputeShader,
 				PassParameters,
 				RadiosityIndirectArgs,
-				(uint32)ERadiosityIndirectArgs::ThreadPerTrace + ViewIndex * (uint32)ERadiosityIndirectArgs::MAX * sizeof(FRHIDispatchIndirectParameters));
+				(uint32)ERadiosityIndirectArgs::NumTracesDiv64 + ViewIndex * (uint32)ERadiosityIndirectArgs::MAX * sizeof(FRHIDispatchIndirectParameters));
 		}
 
 		RadiosityTexelTraceParameters.TraceRadianceAtlas = FilteredTraceRadianceAtlas;

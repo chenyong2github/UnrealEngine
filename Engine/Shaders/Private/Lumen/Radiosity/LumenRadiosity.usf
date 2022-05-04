@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenRadiosityProbeGather.usf
-=============================================================================*/
-
 #include "../../Common.ush"
 #include "../../MonteCarlo.ush"
 #include "../LumenCardCommon.ush"
@@ -12,23 +8,27 @@
 #include "LumenRadiosity.ush"
 #include "../../RayTracing/RayGenUtils.ush"
 
+#ifndef THREADGROUP_SIZE
+	#define THREADGROUP_SIZE 1
+#endif
+
 RWBuffer<uint> RWIndirectArgs;
 uint HardwareRayTracingThreadGroupSize;
 
-void SetIndirectArgs(uint ArgIndex, uint NumThreads)
+void SetIndirectArgs(uint ArgIndex, uint NumThreads, uint ThreadGroupSize)
 {
 	uint BaseOffset = ArgIndex * 3;
-	RWIndirectArgs[BaseOffset + 0] = (NumThreads + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[BaseOffset + 0] = (NumThreads + ThreadGroupSize - 1) / ThreadGroupSize;
 	RWIndirectArgs[BaseOffset + 1] = 1;
 	RWIndirectArgs[BaseOffset + 2] = 1;
 }
 
-void SetHardwareRayTracingIndirectArgs(uint ArgIndex, uint NumThreads)
+void SetHardwareRayTracingIndirectArgs(uint ArgIndex, uint NumThreads, uint ThreadGroupSize)
 {
 	uint NumGroups = (NumThreads + HardwareRayTracingThreadGroupSize - 1) / HardwareRayTracingThreadGroupSize;
 
 	uint BaseOffset = ArgIndex * 3;
-	int3 DispatchDimension = GetRayTracingThreadCountWrapped(NumGroups, THREADGROUP_SIZE);
+	int3 DispatchDimension = GetRayTracingThreadCountWrapped(NumGroups, ThreadGroupSize);
 	RWIndirectArgs[BaseOffset + 0] = DispatchDimension.x;
 	RWIndirectArgs[BaseOffset + 1] = DispatchDimension.y;
 	RWIndirectArgs[BaseOffset + 2] = DispatchDimension.z;
@@ -41,19 +41,25 @@ void LumenRadiosityIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	if (ViewIndex < NumViews)
 	{
-		// ERadiosityIndirectArgs::ThreadPerTrace
-		uint ThreadPerTrace = CardTileAllocator[ViewIndex] * RadiosityTileSize * RadiosityTileSize * NumTracesPerProbe;
-		uint BaseOffset = ViewIndex * 4;
-		SetIndirectArgs(BaseOffset + 0, ThreadPerTrace);
+		// View offset
+		uint BaseOffset = ViewIndex * 5;
+
+		uint NumTraces = CardTileAllocator[ViewIndex] * RadiosityTileSize * RadiosityTileSize * NumTracesPerProbe;
+
+		// ERadiosityIndirectArgs::NumTracesDiv64
+		SetIndirectArgs(BaseOffset + 0, NumTraces, /*ThreadGroupSize*/ 64);
+
+		// ERadiosityIndirectArgs::NumTracesDiv32
+		SetIndirectArgs(BaseOffset + 1, NumTraces, /*ThreadGroupSize*/ 32);
 
 		// ERadiosityIndirectArgs::ThreadPerProbe
-		SetIndirectArgs(BaseOffset + 1, CardTileAllocator[ViewIndex] * RadiosityTileSize * RadiosityTileSize);
+		SetIndirectArgs(BaseOffset + 2, CardTileAllocator[ViewIndex] * RadiosityTileSize * RadiosityTileSize, /*ThreadGroupSize*/ 32);
 
 		// ERadiosityIndirectArgs::ThreadPerRadiosityTexel
-		SetIndirectArgs(BaseOffset + 2, CardTileAllocator[ViewIndex] * CARD_TILE_SIZE * CARD_TILE_SIZE);
+		SetIndirectArgs(BaseOffset + 3, CardTileAllocator[ViewIndex] * CARD_TILE_SIZE * CARD_TILE_SIZE, /*ThreadGroupSize*/ 32);
 
 		// ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace
-		SetHardwareRayTracingIndirectArgs(BaseOffset + 3, ThreadPerTrace);
+		SetHardwareRayTracingIndirectArgs(BaseOffset + 4, NumTraces, /*ThreadGroupSize*/ 64);
 	}
 }
 
@@ -67,7 +73,13 @@ float MaxTraceDistance;
 float MaxMeshSDFTraceDistance;
 float MaxRayIntensity;
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
+#if THREADGROUP_SIZE_32
+	#define RADIOSITY_TRACE_THREADGROUP_SIZE 32
+#else
+	#define RADIOSITY_TRACE_THREADGROUP_SIZE 64
+#endif
+
+[numthreads(RADIOSITY_TRACE_THREADGROUP_SIZE, 1, 1)]
 void LumenRadiosityDistanceFieldTracingCS(
 	uint DispatchThreadId : SV_DispatchThreadID)
 {

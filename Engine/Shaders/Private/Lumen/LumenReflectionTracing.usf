@@ -366,9 +366,15 @@ RWBuffer<uint> RWReflectionCompactRayTraceDispatchIndirectArgs;
 [numthreads(1, 1, 1)]
 void SetupCompactedTracesIndirectArgsCS()
 {
-	RWReflectionCompactTracingIndirectArgs[0] = (CompactedTraceTexelAllocator[0] + REFLECTION_THREADGROUP_SIZE_1D - 1) / REFLECTION_THREADGROUP_SIZE_1D;
-	RWReflectionCompactTracingIndirectArgs[1] = 1;
-	RWReflectionCompactTracingIndirectArgs[2] = 1;
+	// THREADGROUP_SIZE_64
+	RWReflectionCompactTracingIndirectArgs[0 + 0] = (CompactedTraceTexelAllocator[0] + 64 - 1) / 64;
+	RWReflectionCompactTracingIndirectArgs[0 + 1] = 1;
+	RWReflectionCompactTracingIndirectArgs[0 + 2] = 1;
+
+	// THREADGROUP_SIZE_32
+	RWReflectionCompactTracingIndirectArgs[3 + 0] = (CompactedTraceTexelAllocator[0] + 32 - 1) / 32;
+	RWReflectionCompactTracingIndirectArgs[3 + 1] = 1;
+	RWReflectionCompactTracingIndirectArgs[3 + 2] = 1;
 
 	// Ray tracing dispatch dimensions are defined simply in terms of threads/rays, not thread groups.
 	RWReflectionCompactRayTraceDispatchIndirectArgs[0] = CompactedTraceTexelAllocator[0];
@@ -473,7 +479,13 @@ void TraceMeshSDFs(
 	RWTraceHit[ReflectionTracingCoord.CoordFlatten] = EncodeRayDistance(TraceHitDistance, bHit);
 }
 
-[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+#if THREADGROUP_SIZE_32
+	#define REFLECTION_TRACE_THREADGROUP_SIZE_1D 32
+#else
+	#define REFLECTION_TRACE_THREADGROUP_SIZE_1D 64
+#endif
+
+[numthreads(REFLECTION_TRACE_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTraceMeshSDFsCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId < CompactedTraceTexelAllocator[0])
@@ -584,7 +596,7 @@ void TraceVoxels(
 	RWTraceHit[ReflectionTracingCoord.CoordFlatten] = EncodeRayDistance(TraceHitDistance, bHit);
 }
 
-[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+[numthreads(REFLECTION_TRACE_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTraceVoxelsCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId < CompactedTraceTexelAllocator[0])
