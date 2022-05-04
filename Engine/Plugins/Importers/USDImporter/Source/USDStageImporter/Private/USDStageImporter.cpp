@@ -1344,12 +1344,8 @@ namespace UsdStageImporterImpl
 			EventAttributes.Emplace( TEXT( "NumGeometryCaches" ), LexToString( NumGeometryCaches ) );
 
 			FString RootLayerIdentifier = ImportContext.FilePath;
-			double NumberOfFrames = 0;
-
 			if ( ImportContext.Stage )
 			{
-				NumberOfFrames = ImportContext.Stage.GetEndTimeCode() - ImportContext.Stage.GetStartTimeCode();
-
 				if ( RootLayerIdentifier.IsEmpty() )
 				{
 					RootLayerIdentifier = ImportContext.Stage.GetRootLayer().GetIdentifier();
@@ -1361,7 +1357,7 @@ namespace UsdStageImporterImpl
 				EventName,
 				ImportContext.bIsAutomated,
 				ElapsedSeconds,
-				NumberOfFrames,
+				UsdUtils::GetUsdStageNumFrames( ImportContext.Stage ),
 				FPaths::GetExtension( RootLayerIdentifier )
 			);
 		}

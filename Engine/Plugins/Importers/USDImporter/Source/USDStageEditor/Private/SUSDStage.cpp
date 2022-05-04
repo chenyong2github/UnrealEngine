@@ -6,6 +6,7 @@
 #include "SUSDPrimInfo.h"
 #include "SUSDStageTreeView.h"
 #include "UnrealUSDWrapper.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
@@ -30,6 +31,7 @@
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
 #include "Engine/World.h"
+#include "EngineAnalytics.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
@@ -1403,6 +1405,8 @@ void SUsdStage::OnExportAll()
 	}
 	TargetFolderPath = FPaths::ConvertRelativePathToFull( TargetFolderPath );
 
+	double StartTime = FPlatformTime::Cycles64();
+
 	// Manually load any layer that is referenced by any of the stage's layers, but not currently loaded.
 	// This can happen if e.g. an unselected variant appends a reference or has a payload.
 	// We will need to actually load these as opposed to just copy-paste the files as we may need to update references/paths
@@ -1493,6 +1497,26 @@ void SUsdStage::OnExportAll()
 			OutputLayer.Save( bForce );
 		}
 	}
+
+	// Send analytics
+	if ( FEngineAnalytics::IsAvailable() )
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+
+		EventAttributes.Emplace( TEXT( "NumLayersExported" ), LayerStack.Num() );
+
+		bool bAutomated = false;
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		FString Extension = FPaths::GetExtension( UsdStage.GetRootLayer().GetDisplayName() );
+		IUsdClassesModule::SendAnalytics(
+			MoveTemp( EventAttributes ),
+			TEXT( "ExportStageLayers" ),
+			bAutomated,
+			ElapsedSeconds,
+			UsdUtils::GetUsdStageNumFrames( UsdStage ),
+			Extension
+		);
+	}
 }
 
 void SUsdStage::OnExportFlattened()
@@ -1515,7 +1539,25 @@ void SUsdStage::OnExportFlattened()
 		return;
 	}
 
+	double StartTime = FPlatformTime::Cycles64();
+
 	UsdStage.Export( *( UsdFilePath.GetValue() ) );
+
+	// Send analytics
+	if ( FEngineAnalytics::IsAvailable() )
+	{
+		bool bAutomated = false;
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		FString Extension = FPaths::GetExtension( UsdFilePath.GetValue() );
+		IUsdClassesModule::SendAnalytics(
+			{},
+			TEXT( "ExportStageFlattened" ),
+			bAutomated,
+			ElapsedSeconds,
+			UsdUtils::GetUsdStageNumFrames( UsdStage ),
+			Extension
+		);
+	}
 }
 
 void SUsdStage::OnReloadStage()

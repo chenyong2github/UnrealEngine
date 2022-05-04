@@ -1,3 +1,4 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDStageActor.h"
@@ -1826,9 +1827,14 @@ void AUsdStageActor::LoadUsdStage()
 
 	UE_LOG( LogUsd, Log, TEXT("%s %s in [%d min %.3f s]"), TEXT("Stage loaded"), *FPaths::GetBaseFilename( RootLayer.FilePath ), ElapsedMin, ElapsedSeconds );
 
-	double NumberOfFrames = UsdStage ? (UsdStage.GetEndTimeCode() - UsdStage.GetStartTimeCode()) : 0.0;
-
-	FUsdStageActorImpl::SendAnalytics( this, ElapsedSeconds, NumberOfFrames, FPaths::GetExtension( RootLayer.FilePath ) );
+#if USE_USD_SDK
+	FUsdStageActorImpl::SendAnalytics(
+		this,
+		ElapsedSeconds,
+		UsdUtils::GetUsdStageNumFrames( UsdStage ),
+		FPaths::GetExtension( RootLayer.FilePath )
+	);
+#endif // #if USE_USD_SDK
 }
 
 void AUsdStageActor::UnloadUsdStage()

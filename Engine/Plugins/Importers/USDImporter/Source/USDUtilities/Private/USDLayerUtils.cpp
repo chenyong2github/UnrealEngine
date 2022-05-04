@@ -736,6 +736,17 @@ void UsdUtils::ConvertAssetRelativePathsToAbsolute( UE::FSdfLayer& LayerToConver
 	);
 }
 
+int32 UsdUtils::GetSdfLayerNumFrames( const pxr::SdfLayerRefPtr& Layer )
+{
+	if ( !Layer )
+	{
+		return 0;
+	}
+
+	// USD time code range is inclusive on both ends
+	return FMath::Abs( FMath::CeilToInt32( Layer->GetEndTimeCode() ) - FMath::FloorToInt32( Layer->GetStartTimeCode() ) + 1 );
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

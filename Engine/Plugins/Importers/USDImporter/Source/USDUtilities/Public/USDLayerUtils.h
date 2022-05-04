@@ -115,6 +115,8 @@ namespace UsdUtils
 	 * updates them to be absolute with respect to AnchorLayer. LayerToConvert and AnchorLayer can be the same layer, but they don't have to
 	 */
 	USDUTILITIES_API void ConvertAssetRelativePathsToAbsolute( UE::FSdfLayer& LayerToConvert, const UE::FSdfLayer& AnchorLayer );
+
+	USDUTILITIES_API int32 GetSdfLayerNumFrames( const pxr::SdfLayerRefPtr& Layer );
 }
 
 #endif // #if USE_USD_SDK

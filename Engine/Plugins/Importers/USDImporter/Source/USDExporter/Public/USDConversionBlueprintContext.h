@@ -163,4 +163,8 @@ public:
 	 */
 	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
 	bool RemoveUnrealSurfaceOutput( const FString& PrimPath, const FFilePath& LayerToAuthorIn );
+
+	/** Returns how many frames of animation the stage would generate if imported */
+	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
+	int32 GetUsdStageNumFrames();
 };

@@ -266,7 +266,14 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		FString Extension = FPaths::GetExtension( UExporter::CurrentFilename );
 
-		UE::AnimSequenceExporterUSD::Private::SendAnalytics( Object, Options, bAutomated, ElapsedSeconds, EndTimeCode - StartTimeCode, Extension );
+		UE::AnimSequenceExporterUSD::Private::SendAnalytics(
+			Object,
+			Options,
+			bAutomated,
+			ElapsedSeconds,
+			UsdUtils::GetUsdStageNumFrames( AssetStage ),
+			Extension
+		);
 	}
 
 	return true;

@@ -465,3 +465,17 @@ bool UUsdConversionBlueprintContext::RemoveUnrealSurfaceOutput( const FString& P
 #endif // USE_USD_SDK
 }
 
+int32 UUsdConversionBlueprintContext::GetUsdStageNumFrames()
+{
+#if USE_USD_SDK
+	if ( !Stage )
+	{
+		return 0;
+	}
+
+	return UsdUtils::GetUsdStageNumFrames( Stage );
+#else
+	return 0;
+#endif // USE_USD_SDK
+}
+

@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"UnrealEd",
 					"UnrealUSDWrapper",
+					"USDClasses",
 					"USDSchemas",
 					"USDStage",
 					"USDStageEditorViewModels",

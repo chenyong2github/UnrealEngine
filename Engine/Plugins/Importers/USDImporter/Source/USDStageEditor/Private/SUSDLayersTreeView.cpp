@@ -3,6 +3,7 @@
 #include "SUSDLayersTreeView.h"
 
 #include "SUSDStageEditorStyle.h"
+#include "USDClassesModule.h"
 #include "USDLayersViewModel.h"
 #include "USDLayerUtils.h"
 #include "USDMemory.h"
@@ -16,6 +17,7 @@
 #include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
+#include "EngineAnalytics.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDesktopPlatform.h"
 #include "Modules/ModuleManager.h"
@@ -447,6 +449,9 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 		LayersToExport.Add( SelectedLayer );
 	}
 
+	double StartTime = FPlatformTime::Cycles64();
+	FString Extension;
+
 	// Single layer -> Allow picking the target layer filename
 	if ( LayersToExport.Num() == 1 )
 	{
@@ -456,10 +461,13 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 			return;
 		}
 
+		StartTime = FPlatformTime::Cycles64();
+		Extension = FPaths::GetExtension( UsdFilePath.GetValue() );
+
 		UE::USDLayersTreeViewImpl::Private::ExportLayerToPath( LayersToExport[ 0 ], UsdFilePath.GetValue() );
 	}
 	// Multiple layers -> Pick folder and export them with the same name
-	if ( LayersToExport.Num() > 1 )
+	else if ( LayersToExport.Num() > 1 )
 	{
 		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
 		if ( !DesktopPlatform )
@@ -479,6 +487,9 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 		}
 		TargetFolderPath = FPaths::ConvertRelativePathToFull( TargetFolderPath );
 
+		StartTime = FPlatformTime::Cycles64();
+		Extension = FPaths::GetExtension( LayersToExport[ 0 ].GetDisplayName() );
+
 		if ( FPaths::DirectoryExists( TargetFolderPath ) )
 		{
 			for ( const UE::FSdfLayer& LayerToExport : LayersToExport )
@@ -496,6 +507,25 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 				UE::USDLayersTreeViewImpl::Private::ExportLayerToPath( LayerToExport, FinalFullPath );
 			}
 		}
+	}
+
+	// Send analytics
+	if ( FEngineAnalytics::IsAvailable() )
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+
+		EventAttributes.Emplace( TEXT( "NumLayersExported" ), LayersToExport.Num() );
+
+		bool bAutomated = false;
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		IUsdClassesModule::SendAnalytics(
+			MoveTemp( EventAttributes ),
+			TEXT( "ExportSelectedLayers" ),
+			bAutomated,
+			ElapsedSeconds,
+			LayersToExport.Num() > 0 ? UsdUtils::GetSdfLayerNumFrames( LayersToExport[ 0 ] ) : 0,
+			Extension
+		);
 	}
 }
 
