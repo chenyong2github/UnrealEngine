@@ -69,12 +69,14 @@ struct FScopedPreAnimatedCaptureSource
 
 private:
 
+	friend class FMovieSceneEntitySystemRunner;
+	friend struct UE::MovieScene::FPreAnimatedStateExtension;
+
 	static FScopedPreAnimatedCaptureSource*& GetCaptureSourcePtr();
 
 	void BeginTracking(const UE::MovieScene::FPreAnimatedStateMetaData& MetaData, UMovieSceneEntitySystemLinker* Linker);
 	UE::MovieScene::FRootInstanceHandle GetRootInstanceHandle(UMovieSceneEntitySystemLinker* Linker) const;
 
-	friend UE::MovieScene::FPreAnimatedStateExtension;
 	struct FEvalHookType
 	{
 		const UObject* EvalHook;
@@ -83,6 +85,7 @@ private:
 	using CaptureSourceType = TVariant<FMovieSceneEvaluationKey, FEvalHookType, UMovieSceneTrackInstance*, FMovieSceneTrackInstanceInput>;
 
 	CaptureSourceType Variant;
+	TWeakObjectPtr<UMovieSceneEntitySystemLinker> WeakLinker;
 	FMovieScenePreAnimatedState* OptionalSequencePreAnimatedState;
 	FScopedPreAnimatedCaptureSource* PrevCaptureSource;
 	bool bWantsRestoreState;
