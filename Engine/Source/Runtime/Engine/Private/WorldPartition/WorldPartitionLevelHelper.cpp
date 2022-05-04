@@ -22,32 +22,60 @@
 #include "Templates/SharedPointer.h"
 #include "ActorFolder.h"
 
-TMap<FName, FWorldPartitionLevelHelper::FPackageReference> FWorldPartitionLevelHelper::PackageReferences;
+FWorldPartitionLevelHelper& FWorldPartitionLevelHelper::Get()
+{
+	static FWorldPartitionLevelHelper Instance;
+	return Instance;
+}
+
+FWorldPartitionLevelHelper::FWorldPartitionLevelHelper()
+{
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FWorldPartitionLevelHelper::PreGarbageCollect);
+}
+
+void FWorldPartitionLevelHelper::PreGarbageCollect()
+{
+	for (TWeakObjectPtr<UPackage>& PackageToUnload : PreGCPackagesToUnload)
+	{
+		check(PackageToUnload.IsValid());
+		FWorldPartitionPackageHelper::UnloadPackage(PackageToUnload.Get());
+	}
+	PreGCPackagesToUnload.Reset();
+}
+
+void FWorldPartitionLevelHelper::AddReference(UPackage* InPackage, FPackageReferencer* InReferencer)
+{
+	check(InPackage);
+	FPackageReference& RefInfo = PackageReferences.FindOrAdd(InPackage->GetFName());
+	check(RefInfo.Package == nullptr || RefInfo.Package == InPackage);
+	RefInfo.Package = InPackage;
+	RefInfo.Referencers.Add(InReferencer);
+	PreGCPackagesToUnload.Remove(InPackage);
+}
+
+void FWorldPartitionLevelHelper::RemoveReferences(FPackageReferencer* InReferencer)
+{
+	for (auto It = PackageReferences.CreateIterator(); It; ++It)
+	{
+		FPackageReference& RefInfo = It->Value;
+		RefInfo.Referencers.Remove(InReferencer);
+		if (RefInfo.Referencers.Num() == 0)
+		{
+			check(RefInfo.Package.IsValid());
+			PreGCPackagesToUnload.Add(RefInfo.Package);
+			It.RemoveCurrent();
+		}
+	}
+}
 
 void FWorldPartitionLevelHelper::FPackageReferencer::AddReference(UPackage* InPackage)
 {
-	check(InPackage);
-	FPackageReference& RefInfo = FWorldPartitionLevelHelper::PackageReferences.FindOrAdd(InPackage->GetFName());
-	check(RefInfo.Package == nullptr || RefInfo.Package == InPackage);
-	RefInfo.Package = InPackage;
-	RefInfo.Referencers.Add(this);
+	FWorldPartitionLevelHelper::Get().AddReference(InPackage, this);
 }
 
 void FWorldPartitionLevelHelper::FPackageReferencer::RemoveReferences()
 {
-	for (auto It = FWorldPartitionLevelHelper::PackageReferences.CreateIterator(); It; ++It)
-	{
-		FPackageReference& RefInfo = It->Value;
-		RefInfo.Referencers.Remove(this);
-		if (RefInfo.Referencers.Num() == 0)
-		{
-			if (UPackage* Package = RefInfo.Package.Get())
-			{
-				FWorldPartitionPackageHelper::UnloadPackage(Package);
-			}
-			It.RemoveCurrent();
-		}
-	}
+	FWorldPartitionLevelHelper::Get().RemoveReferences(this);
 }
 
 

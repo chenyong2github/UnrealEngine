@@ -21,6 +21,8 @@ struct FActorContainerID;
 class FWorldPartitionLevelHelper
 {
 public:
+	static FWorldPartitionLevelHelper& Get();
+
 	struct FPackageReferencer
 	{
 		~FPackageReferencer() { RemoveReferences(); }
@@ -38,7 +40,14 @@ public:
 	
 	static FString AddActorContainerIDToActorPath(const FActorContainerID& InContainerID, const FString& InActorPath);
 	static FString AddActorContainerIDToSubPathString(const FActorContainerID& InContainerID, const FString& InSubPathString);
+
 private:
+	FWorldPartitionLevelHelper();
+
+	void AddReference(UPackage* InPackage, FPackageReferencer* InReferencer);
+	void RemoveReferences(FPackageReferencer* InReferencer);
+	void PreGarbageCollect();
+
 	static UWorld::InitializationValues GetWorldInitializationValues();
 
 	struct FPackageReference
@@ -46,7 +55,12 @@ private:
 		TSet<FPackageReferencer*> Referencers;
 		TWeakObjectPtr<UPackage> Package;
 	};
-	static TMap<FName, FPackageReference> PackageReferences;
+
+	friend struct FPackageReferencer;
+
+	TMap<FName, FPackageReference> PackageReferences;
+
+	TSet<TWeakObjectPtr<UPackage>> PreGCPackagesToUnload;
 };
 
 #endif
