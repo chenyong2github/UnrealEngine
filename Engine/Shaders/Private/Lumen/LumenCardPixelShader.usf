@@ -62,7 +62,7 @@ void Main(
 	#endif
 
 #if TEMPLATE_USES_STRATA
-	const float3 V = MaterialParameters.CameraVector;
+	const float3 V = MaterialParameters.WorldNormal; // Use the normal to avoid view dependent transmittance effects when baking non directional card data.
 	const float3 L = MaterialParameters.WorldNormal;
 
 	float3 DiffuseColor  = 0;
