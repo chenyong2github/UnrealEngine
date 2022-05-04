@@ -106,6 +106,11 @@ namespace UnrealIdentifiers
 	const TfToken UnrealNaniteOverrideEnable = TfToken("enable");
 	const TfToken UnrealNaniteOverrideDisable = TfToken("disable");
 
+	const TfToken LiveLinkAPI = TfToken("LiveLinkAPI");
+	const TfToken UnrealLiveLinkAnimBlueprintPath = TfToken("unrealLiveLink:animBlueprintPath");
+	const TfToken UnrealLiveLinkSubjectName = TfToken("unrealLiveLink:subjectName");
+	const TfToken UnrealLiveLinkEnabled = TfToken("unrealLiveLink:enabled");
+
 	const TfToken DiffuseColor = TfToken("diffuseColor");
 	const TfToken EmissiveColor = TfToken("emissiveColor");
 	const TfToken Metallic = TfToken("metallic");

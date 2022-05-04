@@ -15,6 +15,7 @@
 #include "UsdWrappers/UsdStage.h"
 
 #include "Algo/Copy.h"
+#include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "CineCameraActor.h"
@@ -1045,6 +1046,18 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 		if ( USkeletalMesh* SkMesh = Skeleton->GetPreviewMesh() )
 		{
 			ImportData = Cast<UUsdAssetImportData>( SkMesh->GetAssetImportData() );
+		}
+	}
+	else if ( UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>( Asset ) )
+	{
+		// We will always have a skeleton, but not necessarily we will have a preview mesh directly
+		// on the UAnimBlueprint
+		if ( USkeleton* AnimBPSkeleton = AnimBP->TargetSkeleton.Get() )
+		{
+			if ( USkeletalMesh* SkMesh = AnimBPSkeleton->GetPreviewMesh() )
+			{
+				ImportData = Cast<UUsdAssetImportData>( SkMesh->GetAssetImportData() );
+			}
 		}
 	}
 	else if ( USkeletalMesh* SkMesh = Cast<USkeletalMesh>( Asset ) )

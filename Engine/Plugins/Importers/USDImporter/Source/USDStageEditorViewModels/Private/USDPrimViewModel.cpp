@@ -237,6 +237,113 @@ void FUsdPrimViewModel::TogglePayload()
 	}
 }
 
+void FUsdPrimViewModel::SetUpLiveLink()
+{
+#if USE_USD_SDK
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim Prim{ UsdPrim };
+	if ( !Prim )
+	{
+		return;
+	}
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
+	ensure( static_cast< bool >( Schema ) );
+
+	if ( Prim.HasAPI( Schema ) )
+	{
+		return;
+	}
+
+	ensure( Prim.ApplyAPI( Schema ) );
+
+	// It seems codeless schemas can't have fallback values, so just create the attributes here, and set some
+	// sensible defaults
+	const bool bCustom = false;
+
+	if ( pxr::UsdAttribute SubjectNameAttr = Prim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkSubjectName, pxr::SdfValueTypeNames->String, bCustom, pxr::SdfVariabilityUniform ) )
+	{
+		if ( !SubjectNameAttr.HasAuthoredValue() )
+		{
+			SubjectNameAttr.Set( UnrealToUsd::ConvertString( TEXT( "root" ) ).Get(), pxr::UsdTimeCode::Default() );
+		}
+	}
+
+	if ( pxr::UsdAttribute AnimBPPathAttr = Prim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath, pxr::SdfValueTypeNames->String, bCustom, pxr::SdfVariabilityUniform ) )
+	{
+		if ( !AnimBPPathAttr.HasAuthoredValue() )
+		{
+			AnimBPPathAttr.Set( UnrealToUsd::ConvertString( TEXT( "/USDImporter/Blueprint/DefaultLiveLinkAnimBP.DefaultLiveLinkAnimBP" ) ).Get(), pxr::UsdTimeCode::Default() );
+		}
+	}
+
+	if ( pxr::UsdAttribute EnabledAttr = Prim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkEnabled, pxr::SdfValueTypeNames->Bool, bCustom, pxr::SdfVariabilityUniform ) )
+	{
+		if ( !EnabledAttr.HasAuthoredValue() )
+		{
+			EnabledAttr.Set( true, pxr::UsdTimeCode::Default() );
+		}
+	}
+
+#endif // #if USE_USD_SDK
+}
+
+bool FUsdPrimViewModel::CanSetUpLiveLink() const
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrim Prim{ UsdPrim };
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
+	if ( !ensure( static_cast< bool >( Schema ) ) )
+	{
+		return false;
+	}
+
+	return !Prim.HasAPI( Schema ) && Prim.CanApplyAPI( Schema );
+#endif // #if USE_USD_SDK
+}
+
+void FUsdPrimViewModel::RemoveLiveLink()
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
+	ensure( static_cast< bool >( Schema ) );
+
+	ensure( pxr::UsdPrim( UsdPrim ).RemoveAPI( Schema ) );
+#endif // #if USE_USD_SDK
+}
+
+bool FUsdPrimViewModel::CanRemoveLiveLink() const
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrim Prim{ UsdPrim };
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
+	if ( !ensure( static_cast< bool >( Schema ) ) )
+	{
+		return false;
+	}
+
+	return Prim.HasAPI( Schema );
+#endif // #if USE_USD_SDK
+}
+
 void FUsdPrimViewModel::DefinePrim( const TCHAR* PrimName )
 {
 #if USE_USD_SDK

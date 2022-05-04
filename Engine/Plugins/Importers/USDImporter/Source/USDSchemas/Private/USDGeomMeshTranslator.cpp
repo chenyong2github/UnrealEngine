@@ -1585,7 +1585,7 @@ bool FUsdGeomMeshTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) co
 		return false;
 	}
 
-	return !UsdGeomMeshTranslatorImpl::IsAnimated( Prim );
+	return Super::CanBeCollapsed( CollapsingType );
 }
 
 #endif // #if USE_USD_SDK

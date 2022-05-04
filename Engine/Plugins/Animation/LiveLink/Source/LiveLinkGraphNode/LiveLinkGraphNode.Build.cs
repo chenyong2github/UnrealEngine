@@ -33,13 +33,19 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor == true)
 			{
+				PublicDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"AnimGraph",
+					}
+				);
+
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
 						"EditorFramework",
 						"UnrealEd",
 						"Kismet",
-						"AnimGraph",
 						"BlueprintGraph",
 					}
 				);

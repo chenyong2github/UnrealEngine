@@ -9,8 +9,6 @@
 
 #if USE_USD_SDK
 
-class AUsdStageActor;
-
 class SUsdPrimInfo : public SCompoundWidget
 {
 public:
@@ -18,18 +16,13 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
-
 	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
-
-protected:
-	TSharedRef< SWidget > GenerateVariantSetsWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
-	TSharedRef< SWidget > GenerateReferencesListWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 private:
 	TSharedPtr< class SUsdPrimPropertiesList > PropertiesList;
+	TSharedPtr< class SUsdIntegrationsPanel > IntegrationsPanel;
 	TSharedPtr< class SVariantsList > VariantsList;
-	TSharedPtr< class SBox > VariantSetsBox;
-	TSharedPtr< class SBox > ReferencesBox;
+	TSharedPtr< class SUsdReferencesList > ReferencesList;
 };
 
 #endif // #if USE_USD_SDK

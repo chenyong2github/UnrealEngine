@@ -96,6 +96,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "LiveLink",
+			"Enabled": true
+		},
+		{
 			"Name": "MDLImporter",
 			"Enabled": true
 		},

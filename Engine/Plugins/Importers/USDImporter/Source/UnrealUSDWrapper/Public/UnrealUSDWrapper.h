@@ -193,7 +193,7 @@ public:
 
 	/**
 	 * Returns the file extensions of all file formats supported by USD.
-	 * 
+	 *
 	 * These include the extensions for the file formats built into USD as
 	 * well as those for any other file formats introduced through the USD
 	 * plugin system (e.g. "abc" for the Alembic file format of the usdAbc
@@ -203,7 +203,7 @@ public:
 
 	/**
 	 * Returns the file extensions that are native to USD.
-	 * 
+	 *
 	 * These are the extensions for the file formats built into USD (i.e. "usd", "usda", "usdc", and "usdz").
 	 */
 	UNREALUSDWRAPPER_API static TArray<FString> GetNativeFileFormats();
@@ -346,6 +346,11 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverride;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverrideEnable;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverrideDisable;
+
+	extern UNREALUSDWRAPPER_API const pxr::TfToken LiveLinkAPI;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealLiveLinkAnimBlueprintPath;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealLiveLinkSubjectName;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealLiveLinkEnabled;
 
 	extern UNREALUSDWRAPPER_API const pxr::TfToken DiffuseColor;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken EmissiveColor;

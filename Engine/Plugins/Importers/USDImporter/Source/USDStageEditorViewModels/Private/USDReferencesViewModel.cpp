@@ -31,23 +31,24 @@ void FUsdReferencesViewModel::UpdateReferences( const UE::FUsdStageWeak& UsdStag
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdPrim Prim( UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) ) );
-
-	pxr::UsdPrimCompositionQuery PrimCompositionQuery = pxr::UsdPrimCompositionQuery::GetDirectReferences( Prim );
-
-	for ( const pxr::UsdPrimCompositionQueryArc& CompositionArc : PrimCompositionQuery.GetCompositionArcs() )
+	if ( pxr::UsdPrim Prim{ UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) ) } )
 	{
-		if ( CompositionArc.GetArcType() == pxr::PcpArcTypeReference )
+		pxr::UsdPrimCompositionQuery PrimCompositionQuery = pxr::UsdPrimCompositionQuery::GetDirectReferences( Prim );
+
+		for ( const pxr::UsdPrimCompositionQueryArc& CompositionArc : PrimCompositionQuery.GetCompositionArcs() )
 		{
-			pxr::SdfReferenceEditorProxy ReferenceEditor;
-			pxr::SdfReference UsdReference;
-
-			if ( CompositionArc.GetIntroducingListEditor( &ReferenceEditor, &UsdReference ) )
+			if ( CompositionArc.GetArcType() == pxr::PcpArcTypeReference )
 			{
-				FUsdReference Reference;
-				Reference.AssetPath = UsdToUnreal::ConvertString( UsdReference.GetAssetPath() );
+				pxr::SdfReferenceEditorProxy ReferenceEditor;
+				pxr::SdfReference UsdReference;
 
-				References.Add( MakeSharedUnreal< FUsdReference >( MoveTemp( Reference ) ) );
+				if ( CompositionArc.GetIntroducingListEditor( &ReferenceEditor, &UsdReference ) )
+				{
+					FUsdReference Reference;
+					Reference.AssetPath = UsdToUnreal::ConvertString( UsdReference.GetAssetPath() );
+
+					References.Add( MakeSharedUnreal< FUsdReference >( MoveTemp( Reference ) ) );
+				}
 			}
 		}
 	}

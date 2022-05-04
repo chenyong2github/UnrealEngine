@@ -21,6 +21,8 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"InputCore",
 					"LevelEditor",
+					"LiveLinkEditor", // For SLiveLinkSubjectRepresentationPicker
+					"LiveLinkInterface", // For the ULiveLinkAnimation/TransformRole classes
 					"Projects", // So that we can use the IPluginManager, required for our custom style
 					"SceneOutliner",
 					"Slate",

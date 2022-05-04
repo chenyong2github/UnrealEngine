@@ -57,8 +57,6 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 
 void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
-	ViewModel.UpdateReferences( UsdStage, PrimPath );
-
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
 	+SHeaderRow::Column( FName( TEXT("AssetPath") ) )
@@ -72,6 +70,8 @@ void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStag
 		.OnGenerateRow( this, &SUsdReferencesList::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
+
+	SetPrimPath( UsdStage, PrimPath );
 }
 
 TSharedRef< ITableRow > SUsdReferencesList::OnGenerateRow( TSharedPtr< FUsdReference > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
@@ -82,6 +82,20 @@ TSharedRef< ITableRow > SUsdReferencesList::OnGenerateRow( TSharedPtr< FUsdRefer
 void SUsdReferencesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	ViewModel.UpdateReferences( UsdStage, PrimPath );
+
+	EVisibility NewVisibility = EVisibility::Collapsed;
+	if ( UsdStage )
+	{
+		if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath{ PrimPath } ) )
+		{
+			if ( UsdPrim.HasAuthoredReferences() )
+			{
+				NewVisibility = EVisibility::Visible;
+			}
+		}
+	}
+	SetVisibility( NewVisibility );
+
 	RequestListRefresh();
 }
 

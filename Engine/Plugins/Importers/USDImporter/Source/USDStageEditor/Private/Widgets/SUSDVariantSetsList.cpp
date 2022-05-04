@@ -86,10 +86,6 @@ void SUsdVariantRow::OnSelectionChanged( TSharedPtr< FString > NewValue, ESelect
 
 void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
-	PrimPath = InPrimPath;
-
-	ViewModel.UpdateVariantSets( UsdStage, InPrimPath );
-
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
 	+SHeaderRow::Column( FName( TEXT("VariantSetName") ) )
@@ -107,6 +103,8 @@ void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak
 		.OnGenerateRow( this, &SVariantsList::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
+
+	SetPrimPath( UsdStage, InPrimPath );
 }
 
 TSharedRef< ITableRow > SVariantsList::OnGenerateRow( TSharedPtr< FUsdVariantSetViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
@@ -119,6 +117,20 @@ void SVariantsList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR*
 {
 	PrimPath = InPrimPath;
 	ViewModel.UpdateVariantSets( UsdStage, *PrimPath );
+
+	EVisibility NewVisibility = EVisibility::Collapsed;
+	if ( UsdStage )
+	{
+		if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath{ InPrimPath } ) )
+		{
+			if ( UsdPrim.HasVariantSets() )
+			{
+				NewVisibility = EVisibility::Visible;
+			}
+		}
+	}
+	SetVisibility( NewVisibility );
+
 	RequestListRefresh();
 }
 

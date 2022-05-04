@@ -10,6 +10,7 @@
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
+#include "USDIntegrationUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
@@ -20,6 +21,7 @@
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 
+#include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "AnimationUtils.h"
@@ -32,6 +34,14 @@
 #include "Serialization/BufferArchive.h"
 
 #if WITH_EDITOR
+	#include "AnimGraphNode_LiveLinkPose.h"
+	#include "AnimNode_LiveLinkPose.h"
+	#include "BlueprintCompilationManager.h"
+	#include "EdGraph/EdGraph.h"
+	#include "EdGraph/EdGraphNode.h"
+	#include "K2Node_VariableGet.h"
+	#include "Kismet2/BlueprintEditorUtils.h"
+	#include "Kismet2/CompilerResultsLog.h"
 	#include "MaterialEditingLibrary.h"
 #endif // WITH_EDITOR
 
@@ -944,6 +954,247 @@ namespace UsdSkelRootTranslatorImpl
 				return true;
 			});
 	}
+
+	void UpdateLiveLinkProperties( const FUsdSchemaTranslationContext& Context, USkeletalMeshComponent* Component, const pxr::UsdPrim& Prim )
+	{
+		if ( !Component || !Component->SkeletalMesh || !Prim )
+		{
+			return;
+		}
+
+		FString PrimName = UsdToUnreal::ConvertString( Prim.GetName() );
+
+		USkeleton* Skeleton = Component->SkeletalMesh->GetSkeleton();
+		if ( !Skeleton )
+		{
+			return;
+		}
+
+		// Fetch relevant attributes from prim, since we know it has the schema
+		FString SubjectName;
+		FString AnimBPPath;
+		{
+			FScopedUsdAllocs Allocs;
+
+			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealLiveLinkSubjectName ) )
+			{
+				std::string SubjectNameString;
+				if ( Attr.Get( &SubjectNameString ) )
+				{
+					SubjectName = UsdToUnreal::ConvertString( SubjectNameString );
+				}
+			}
+
+			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath ) )
+			{
+				std::string PathString;
+				if ( Attr.Get( &PathString ) )
+				{
+					AnimBPPath = UsdToUnreal::ConvertString( PathString );
+				}
+			}
+		}
+
+		UAnimBlueprint* ExistingAnimBP = nullptr;
+		if ( Component->AnimClass )
+		{
+			ExistingAnimBP = Cast<UAnimBlueprint>( Component->AnimClass->ClassGeneratedBy );
+		}
+
+		bool bNeedRecompile = false;
+
+		// Fetch AnimBP to use
+		UAnimBlueprint* AnimBP = ExistingAnimBP;
+		if ( !AnimBPPath.IsEmpty() && ( !ExistingAnimBP || ExistingAnimBP->GetPathName() != AnimBPPath ) )
+		{
+			const static FString DefaultAnimBPPath = TEXT( "/USDImporter/Blueprint/DefaultLiveLinkAnimBP.DefaultLiveLinkAnimBP" );
+
+			AnimBP = Cast<UAnimBlueprint>( FSoftObjectPath( AnimBPPath ).TryLoad() );
+			if ( AnimBP )
+			{
+				// Create transient AnimBP based on our template, so that we can assign it a proper skeleton
+				if ( DefaultAnimBPPath == AnimBPPath )
+				{
+					// Check if we can use the AnimBP we currently have
+					bool bAlreadyHasTransientAnimBP = false;
+					if ( ExistingAnimBP )
+					{
+						if ( ExistingAnimBP->GetOutermost() == GetTransientPackage() && ExistingAnimBP->TargetSkeleton == Skeleton )
+						{
+							AnimBP = ExistingAnimBP;
+							bAlreadyHasTransientAnimBP = true;
+						}
+					}
+
+					FString CacheKey = UsdToUnreal::ConvertPath( Prim.GetPrimPath() ) + TEXT( "_DefaultAnimBlueprint" );
+
+					// Check if we can find an AnimBP for this prim in the asset cache (useful when doing Action->Import)
+					if ( !bAlreadyHasTransientAnimBP )
+					{
+						if ( UAnimBlueprint* CachedAnimBP = Cast< UAnimBlueprint >( Context.AssetCache->GetCachedAsset( CacheKey ) ) )
+						{
+							if ( CachedAnimBP->TargetSkeleton == Skeleton )
+							{
+								AnimBP = CachedAnimBP;
+								bAlreadyHasTransientAnimBP = true;
+							}
+						}
+					}
+
+					// We have to generate a new transient AnimBP
+					if ( !bAlreadyHasTransientAnimBP )
+					{
+						FName UniqueName = MakeUniqueObjectName(
+							GetTransientPackage(),
+							UAnimBlueprint::StaticClass(),
+							*( PrimName + TEXT( "_DefaultAnimBlueprint" ) )
+						);
+
+						// Duplicate and never reuse these so that they can be assigned independent subject names if desired.
+						// Its not as if scenes will have thousands of these anyway.
+						AnimBP = DuplicateObject( AnimBP, GetTransientPackage(), UniqueName );
+
+						// Patch up the flags here or else the rest of the engine code (and our plugin code) will get confused
+						// as to what a non-transient asset in the transient package even means. It can lead to some crashes
+						// when saving after import if we don't do this
+						AnimBP->ClearFlags( AnimBP->GetFlags() );
+						AnimBP->SetFlags( Skeleton->GetFlags() );
+
+						AnimBP->TargetSkeleton = Skeleton;
+						AnimBP->bIsTemplate = false;
+
+						bNeedRecompile = true;
+
+						Context.AssetCache->CacheAsset( CacheKey, AnimBP );
+					}
+				}
+				// Path is pointing to an existing, persistent AnimBP
+				else
+				{
+					// Force skeletons to be compatible
+					AnimBP->TargetSkeleton->AddCompatibleSkeleton( Skeleton );
+
+					// Check ExistingAnimBP so that we only emit this warning when we first set up the component (when we'll realistically not have an ExistingAnimBP yet),
+					// to try and prevent some warning spam
+					if ( AnimBP->TargetSkeleton->GetReferenceSkeleton().GetRefBoneInfo() != Skeleton->GetReferenceSkeleton().GetRefBoneInfo() && !ExistingAnimBP )
+					{
+						UE_LOG(LogUsd, Warning, TEXT("Forcing AnimBlueprint '%s's Skeleton '%s' to be compatible with the Skeleton generated for prim '%s', but they may be different!"),
+							*AnimBP->GetPathName(),
+							*AnimBP->TargetSkeleton->GetPathName(),
+							*PrimName
+						);
+					}
+				}
+			}
+		}
+
+		// Apply subject name to live link pose AnimBlueprint node
+		// Reference: UAnimationBlueprintLibrary::AddNodeAssetOverride
+		if ( AnimBP )
+		{
+			TArray<UBlueprint*> BlueprintHierarchy;
+			AnimBP->GetBlueprintHierarchyFromClass( AnimBP->GetAnimBlueprintGeneratedClass(), BlueprintHierarchy );
+
+			TArray<UAnimGraphNode_LiveLinkPose*> LiveLinkNodes;
+
+			for ( int32 BlueprintIndex = 0; BlueprintIndex < BlueprintHierarchy.Num(); ++BlueprintIndex )
+			{
+				UBlueprint* CurrentBlueprint = BlueprintHierarchy[ BlueprintIndex ];
+
+				TArray<UEdGraph*> Graphs;
+				CurrentBlueprint->GetAllGraphs( Graphs );
+
+				for ( UEdGraph* Graph : Graphs )
+				{
+					for ( UEdGraphNode* Node : Graph->Nodes )
+					{
+						if ( UAnimGraphNode_LiveLinkPose* AnimNode = Cast<UAnimGraphNode_LiveLinkPose>( Node ) )
+						{
+							LiveLinkNodes.Add( AnimNode );
+						}
+					}
+				}
+			}
+
+			if ( LiveLinkNodes.Num() > 1 && !ExistingAnimBP )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Found more than one LiveLinkPose blueprint node on AnimBlueprint '%s's graphs."
+					"Note that all of those nodes will have their LiveLink SubjectName's updated to '%s', as described for prim '%s'!" ),
+					*AnimBP->GetPathName(),
+					*SubjectName,
+					*UsdToUnreal::ConvertPath( Prim.GetPrimPath() )
+				);
+			}
+
+			for ( UAnimGraphNode_LiveLinkPose* Node : LiveLinkNodes )
+			{
+				const UEdGraphSchema* Schema = Node->GetSchema();
+				if ( !Schema )
+				{
+					continue;
+				}
+
+				UEdGraphPin* SubjectNamePin = nullptr;
+				for ( UEdGraphPin* Pin : Node->Pins )
+				{
+					if ( Pin->GetName() == GET_MEMBER_NAME_STRING_CHECKED( FAnimNode_LiveLinkPose, LiveLinkSubjectName ) )
+					{
+						SubjectNamePin = Pin;
+						break;
+					}
+				}
+
+				// The subject name pin is already connected to something...
+				if ( SubjectNamePin->LinkedTo.Num() != 0 )
+				{
+					if ( !ExistingAnimBP )
+					{
+						UE_LOG( LogUsd, Warning, TEXT( "Failed to update a LiveLinkPose node's 'Subject Name' to '%s' on AnimBlueprint '%s', "
+							"because the pin is already connected to some other node. Disconnect it if you want it to be updated automatically." ),
+							*SubjectName,
+							*AnimBP->GetPathName()
+						);
+					}
+
+					continue;
+				}
+
+				if ( SubjectNamePin )
+				{
+					// The pin type is FLiveLinkSubjectName, so we must create an instance of it and serialize it using
+					// UScriptStruct::ExportText to generate a proper default value string
+					FLiveLinkSubjectName Dummy;
+					Dummy.Name = *SubjectName;
+
+					FString ValueString;
+					const void* Defaults = nullptr;
+					const UObject* OwnerObject = nullptr;
+					const int32 PortFlags = EPropertyPortFlags::PPF_None;
+					const UObject* ExportRootScope = nullptr;
+					FLiveLinkSubjectName::StaticStruct()->ExportText( ValueString, &Dummy, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr );
+
+					if ( !Schema->DoesDefaultValueMatch( *SubjectNamePin, ValueString ) )
+					{
+						SubjectNamePin->Modify();
+						Schema->TrySetDefaultValue( *SubjectNamePin, ValueString );
+
+						FBlueprintEditorUtils::MarkBlueprintAsModified( AnimBP );
+						bNeedRecompile = true;
+					}
+				}
+			}
+
+			if ( bNeedRecompile )
+			{
+				FCompilerResultsLog Results;
+				FBPCompileRequest Request( AnimBP, EBlueprintCompileOptions::None, &Results );
+				FBlueprintCompilationManager::CompileSynchronously( Request );
+			}
+
+			Component->SetAnimInstanceClass( AnimBP->GeneratedClass );
+		}
+	}
+
 #endif // WITH_EDITOR
 }
 
@@ -961,11 +1212,8 @@ void FUsdSkelRootTranslator::CreateAssets()
 
 USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 {
-	USceneComponent* RootComponent = FUsdGeomXformableTranslator::CreateComponents();
-
-	UpdateComponents( RootComponent );
-
-	return RootComponent;
+	// Don't need to call UpdateComponents as FUsdGeomXformableTranslator will already do that for us
+	return FUsdGeomXformableTranslator::CreateComponents();
 }
 
 void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
@@ -976,10 +1224,28 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		return;
 	}
 
+	UE::FUsdPrim Prim = GetPrim();
+
+	const bool bPrimHasLiveLinkSchema = UsdUtils::PrimHasLiveLinkSchema( Prim );
+	bool bPrimHasLiveLinkEnabled = bPrimHasLiveLinkSchema;
+	if ( bPrimHasLiveLinkSchema )
+	{
+		FScopedUsdAllocs Allocs;
+
+		if ( pxr::UsdAttribute Attr = pxr::UsdPrim{ Prim }.GetAttribute( UnrealIdentifiers::UnrealLiveLinkEnabled ) )
+		{
+			bool bEnabled = true;
+			if ( Attr.Get( &bEnabled ) )
+			{
+				bPrimHasLiveLinkEnabled = bEnabled;
+			}
+		}
+	}
+
 	UE::FUsdPrim SkelAnimPrim;
 	if ( SkeletalMeshComponent->AnimationData.AnimToPlay == nullptr )
 	{
-		SkelAnimPrim = UsdUtils::FindFirstAnimationSource( GetPrim() );
+		SkelAnimPrim = UsdUtils::FindFirstAnimationSource( Prim );
 		if ( SkelAnimPrim )
 		{
 			if ( UAnimSequence* TargetAnimSequence = Cast< UAnimSequence >( Context->AssetCache->GetAssetForPrim( SkelAnimPrim.GetPrimPath().GetString() ) ) )
@@ -988,13 +1254,16 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 				SkeletalMeshComponent->AnimationData.bSavedLooping = false;
 				SkeletalMeshComponent->AnimationData.bSavedPlaying = false;
 				SkeletalMeshComponent->SetUpdateAnimationInEditor( true );
-				SkeletalMeshComponent->SetAnimationMode( EAnimationMode::AnimationSingleNode );
 				SkeletalMeshComponent->SetAnimation( TargetAnimSequence );
 			}
 		}
 	}
 
 	Super::UpdateComponents( SceneComponent );
+
+	// We always want this, but need to be registered for this to work (Super::UpdateComponents should register us)
+	const bool bNewUpdateState = true;
+	SkeletalMeshComponent->SetUpdateAnimationInEditor( bNewUpdateState );
 
 #if WITH_EDITOR
 	// Re-set the skeletal mesh if we created a new one (maybe the hash changed, a skinned UsdGeomMesh was hidden, etc.)
@@ -1013,7 +1282,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			}
 
 			UsdSkelRootTranslatorImpl::SetMaterialOverrides(
-				GetPrim(),
+				Prim,
 				ExistingAssignments,
 				*SkeletalMeshComponent,
 				*Context->AssetCache.Get(),
@@ -1025,15 +1294,20 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		}
 	}
 
+	if ( bPrimHasLiveLinkSchema )
+	{
+		UsdSkelRootTranslatorImpl::UpdateLiveLinkProperties( Context.Get(), SkeletalMeshComponent, Prim );
+	}
+
 	// Update the animation state
-	if( SkeletalMeshComponent->SkeletalMesh )
+	if ( SkeletalMeshComponent->SkeletalMesh && !bPrimHasLiveLinkEnabled )
 	{
 		if ( UAnimSequence* AnimSequence = Cast<UAnimSequence>( SkeletalMeshComponent->AnimationData.AnimToPlay.Get() ) )
 		{
 			UE::FSdfLayerOffset CombinedOffset;
 			if ( !SkelAnimPrim )
 			{
-				SkelAnimPrim = UsdUtils::FindFirstAnimationSource( GetPrim() );
+				SkelAnimPrim = UsdUtils::FindFirstAnimationSource( Prim );
 			}
 			if ( SkelAnimPrim )
 			{

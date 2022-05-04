@@ -48,6 +48,12 @@ public:
 	void ToggleVisibility();
 	void TogglePayload();
 
+	void SetUpLiveLink();
+	bool CanSetUpLiveLink() const;
+
+	void RemoveLiveLink();
+	bool CanRemoveLiveLink() const;
+
 	void DefinePrim( const TCHAR* PrimName );
 
 	/** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */

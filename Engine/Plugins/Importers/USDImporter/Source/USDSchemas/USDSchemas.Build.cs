@@ -20,6 +20,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"GeometryCache",
+					"LiveLinkAnimationCore",
+					"LiveLinkComponents",
+					"LiveLinkInterface",
 					"MeshDescription",
 					"RenderCore",
 					"RHI", // For FMaterialUpdateContext and the right way of updating material instance constants
@@ -37,7 +40,10 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
+						"BlueprintGraph",
 						"GeometryCacheUSD",
+						"Kismet",
+						"LiveLinkGraphNode",
 						"MaterialEditor",
 						"MDLImporter",
 						"MeshUtilities",

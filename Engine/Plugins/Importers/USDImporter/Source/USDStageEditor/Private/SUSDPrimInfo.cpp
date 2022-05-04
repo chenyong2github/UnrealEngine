@@ -2,43 +2,36 @@
 
 #include "SUSDPrimInfo.h"
 
+#include "USDIntegrationUtils.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
-
-#include "UsdWrappers/SdfPath.h"
-#include "UsdWrappers/UsdPrim.h"
-#include "UsdWrappers/UsdStage.h"
-
-#include "Algo/Find.h"
-#include "EditorStyleSet.h"
-#include "Engine/World.h"
-#include "Modules/ModuleManager.h"
-
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/SUSDIntegrationsPanel.h"
 #include "Widgets/SUSDPrimPropertiesList.h"
 #include "Widgets/SUSDReferencesList.h"
 #include "Widgets/SUSDVariantSetsList.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/SdfPath.h"
+
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Modules/ModuleManager.h"
+#include "Engine/World.h"
+#include "EditorStyleSet.h"
+#include "Algo/Find.h"
 
 #if USE_USD_SDK
 
 #define LOCTEXT_NAMESPACE "SUSDPrimInfo"
 
-namespace UsdPrimInfoWidgetConstants
-{
-	const FMargin CategoryHeaderPadding( 4.0f, 4.0f, 4.0f, 4.0f );
-}
-
 void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
-	TSharedRef< SWidget > VariantSetsWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
-	TSharedRef< SWidget > ReferencesListWidget = GenerateReferencesListWidget( UsdStage, PrimPath );
-
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -56,25 +49,33 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak&
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SAssignNew( VariantSetsBox, SBox )
+			SNew( SBox )
 			.Content()
 			[
-				VariantSetsWidget
+				SAssignNew( IntegrationsPanel, SUsdIntegrationsPanel, UsdStage, PrimPath )
 			]
 		]
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SAssignNew( ReferencesBox, SBox )
+			SNew( SBox )
 			.Content()
 			[
-				ReferencesListWidget
+				SAssignNew( VariantsList, SVariantsList, UsdStage, PrimPath )
+			]
+		]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew( SBox )
+			.Content()
+			[
+				SAssignNew( ReferencesList, SUsdReferencesList, UsdStage, PrimPath )
 			]
 		]
 	];
-
-	SetPrimPath( UsdStage, PrimPath );
 }
 
 void SUsdPrimInfo::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
@@ -84,70 +85,20 @@ void SUsdPrimInfo::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* 
 		PropertiesList->SetPrimPath( UsdStage, PrimPath );
 	}
 
+	if ( IntegrationsPanel )
+	{
+		IntegrationsPanel->SetPrimPath( UsdStage, PrimPath );
+	}
+
 	if ( VariantsList )
 	{
 		VariantsList->SetPrimPath( UsdStage, PrimPath );
 	}
 
-	if ( VariantSetsBox )
+	if ( ReferencesList )
 	{
-		VariantSetsBox->SetContent( GenerateVariantSetsWidget( UsdStage, PrimPath ) );
+		ReferencesList->SetPrimPath( UsdStage, PrimPath );
 	}
-
-	if ( ReferencesBox )
-	{
-		ReferencesBox->SetContent( GenerateReferencesListWidget( UsdStage, PrimPath ) );
-	}
-}
-
-TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
-{
-	TSharedRef< SWidget > VariantSetsWidget = SNullWidget::NullWidget;
-
-	if ( !UsdStage )
-	{
-		return VariantSetsWidget;
-	}
-
-	UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) );
-
-	if ( UsdPrim && UsdPrim.HasVariantSets() )
-	{
-		SAssignNew( VariantSetsWidget, SVerticalBox )
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew( VariantsList, SVariantsList, UsdStage, PrimPath )
-		];
-	}
-
-	return VariantSetsWidget;
-}
-
-TSharedRef< SWidget > SUsdPrimInfo::GenerateReferencesListWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
-{
-	TSharedRef< SWidget > ReferencesListWidget = SNullWidget::NullWidget;
-
-	if ( !UsdStage )
-	{
-		return ReferencesListWidget;
-	}
-
-	UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) );
-
-	if ( UsdPrim && UsdPrim.HasAuthoredReferences() )
-	{
-		SAssignNew( ReferencesListWidget, SVerticalBox )
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew( SUsdReferencesList, UsdStage, PrimPath )
-		];
-	}
-
-	return ReferencesListWidget;
 }
 
 #undef LOCTEXT_NAMESPACE

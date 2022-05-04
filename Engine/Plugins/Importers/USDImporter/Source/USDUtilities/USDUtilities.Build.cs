@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"GeometryCache", // Just so that we can fetch its AssetImportData
 					"IntelTBB",
 					"Landscape", // So that GetSchemaNameForComponent knows what to do with landscape proxies
+					"LiveLinkComponents", // For converting LiveLinkComponentController properties to USD
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",

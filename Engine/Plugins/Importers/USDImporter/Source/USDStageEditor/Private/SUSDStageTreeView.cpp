@@ -665,6 +665,34 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 	}
 	PrimOptions.EndSection();
 
+	PrimOptions.BeginSection( "Integrations", LOCTEXT( "Integrations", "Integrations" ) );
+	{
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "SetUpLiveLink", "Set up Live Link" ),
+			LOCTEXT( "SetUpLiveLink_ToolTip", "Sets up the generated component for Live Link and store the connection details to the USD Stage" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnSetUpLiveLink ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanSetUpLiveLink )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "RemoveLiveLink", "Remove Live Link" ),
+			LOCTEXT( "RemoveLiveLink_ToolTip", "Reverses the Live Link configuration on the component and removes the connection details from the USD Stage" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemoveLiveLink ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanRemoveLiveLink )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	PrimOptions.EndSection();
+
 	MenuWidget = PrimOptions.MakeWidget();
 
 	return MenuWidget;
@@ -789,6 +817,44 @@ void SUsdStageTreeView::OnClearReferences()
 	}
 }
 
+void SUsdStageTreeView::OnSetUpLiveLink()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "SetUpLiveLinkTransaction", "Set up Live Link for selected prims" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	UE::FSdfChangeBlock Block;
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->SetUpLiveLink();
+	}
+}
+
+void SUsdStageTreeView::OnRemoveLiveLink()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "RemoveLiveLinkTransaction", "Reverses the Live Link configuration for selected prims" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	UE::FSdfChangeBlock Block;
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->RemoveLiveLink();
+	}
+}
+
 bool SUsdStageTreeView::CanAddPrim() const
 {
 	if ( !UsdStageActor.IsValid() )
@@ -833,6 +899,58 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 	}
 
 	return bHasPrimSpec;
+}
+
+bool SUsdStageTreeView::CanSetUpLiveLink() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanSetUpLiveLink() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanRemoveLiveLink() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanRemoveLiveLink() )
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void SUsdStageTreeView::RequestListRefresh()

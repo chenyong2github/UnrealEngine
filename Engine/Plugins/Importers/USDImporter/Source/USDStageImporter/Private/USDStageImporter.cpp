@@ -19,6 +19,7 @@
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/UsdTyped.h"
 
+#include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -664,7 +665,7 @@ namespace UsdStageImporterImpl
 				{
 					// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
 					// as we'll always have at least the skeletal mesh and the skeleton
-					if ( Asset->IsA( USkeletalMesh::StaticClass() ) || Asset->IsA( USkeleton::StaticClass() ) || Asset->IsA( UAnimSequence::StaticClass() ) )
+					if ( Asset->IsA( USkeletalMesh::StaticClass() ) || Asset->IsA( USkeleton::StaticClass() ) || Asset->IsA( UAnimSequence::StaticClass() ) || Asset->IsA( UAnimBlueprint::StaticClass() ) )
 					{
 						AssetTypeFolder = ImportData->PrimPath;
 					}
@@ -692,7 +693,7 @@ namespace UsdStageImporterImpl
 				{
 					AssetTypeFolder = TEXT("Textures");
 				}
-				else if (Asset->IsA(USkeletalMesh::StaticClass()) || Asset->IsA(USkeleton::StaticClass()) || Asset->IsA(UAnimSequence::StaticClass()))
+				else if (Asset->IsA(USkeletalMesh::StaticClass()) || Asset->IsA(USkeleton::StaticClass()) || Asset->IsA(UAnimSequence::StaticClass()) || Asset->IsA(UAnimBlueprint::StaticClass()))
 				{
 					AssetTypeFolder = TEXT("SkeletalMeshes");
 				}
@@ -1200,6 +1201,10 @@ namespace UsdStageImporterImpl
 				else if ( USkeleton* Skeleton = Cast<USkeleton>( Asset ) )
 				{
 					// Do nothing. Skeletons have no additional dependencies
+				}
+				else if ( UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>( Asset ) )
+				{
+					// Do nothing. AnimBlueprints have no additional dependencies
 				}
 				else
 				{

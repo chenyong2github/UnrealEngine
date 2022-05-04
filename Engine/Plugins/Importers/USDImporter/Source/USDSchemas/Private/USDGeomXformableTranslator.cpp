@@ -8,6 +8,7 @@
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDGeomMeshTranslator.h"
+#include "USDIntegrationUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
@@ -16,10 +17,15 @@
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "LiveLinkComponentController.h"
+#include "LiveLinkRole.h"
 #include "Modules/ModuleManager.h"
+#include "Roles/LiveLinkTransformRole.h"
+#include "StaticMeshAttributes.h"
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdGeomXformable.h"
@@ -58,6 +64,135 @@ static FAutoConsoleVariableRef CVarEnableCollision(
 	TEXT( "USD.EnableCollision" ),
 	GEnableCollision,
 	TEXT( "Whether to have collision enabled for spawned components and generated meshes" ) );
+
+namespace UE::UsdXformableTranslatorImpl::Private
+{
+	void SetUpSceneComponentForLiveLink( const FUsdSchemaTranslationContext& Context, USceneComponent* Component, const pxr::UsdPrim& Prim )
+	{
+		if ( !Component || !Prim )
+		{
+			return;
+		}
+
+		AActor* Parent = Component->GetOwner();
+		if ( !Parent )
+		{
+			return;
+		}
+
+		USceneComponent* RootComponent = Parent->GetRootComponent();
+		if ( !RootComponent )
+		{
+			return;
+		}
+
+		ULiveLinkComponentController* Controller = nullptr;
+		{
+			// We would have to traverse all top-level actor components to know if our component is set up for live link already
+			// or not, so this just helps us make that a little bit faster. Its important because UpdateComponents (which calls us)
+			// is the main function that is called to animate components, so it can be spammed in case this prim has animations
+			static TMap<TWeakObjectPtr<USceneComponent>, TWeakObjectPtr<ULiveLinkComponentController>> LiveLinkEnabledComponents;
+			if ( ULiveLinkComponentController* ExistingController = LiveLinkEnabledComponents.FindRef( Component ).Get() )
+			{
+				// We found an existing controller we created to track this component, so use that
+				Controller = ExistingController;
+			}
+			// We don't know of any controllers handling this component yet, get a new one
+			else
+			{
+				TArray<ULiveLinkComponentController*> LiveLinkComponents;
+				Parent->GetComponents< ULiveLinkComponentController >( LiveLinkComponents );
+
+				for ( ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents )
+				{
+					if ( LiveLinkComponent->ComponentToControl.GetComponent( Parent ) == Component )
+					{
+						// We found some other controller handling this component somehow, use that
+						Controller = LiveLinkComponent;
+						break;
+					}
+				}
+
+				if ( !Controller )
+				{
+					// We'll get a warning from the live link controller component in case the component its controlling is not movable
+					Component->Mobility = EComponentMobility::Movable;
+
+					Controller = NewObject<ULiveLinkComponentController>( Parent, NAME_None, Context.ObjectFlags );
+					Controller->bUpdateInEditor = true;
+					Controller->ComponentToControl.PathToComponent = Component->GetPathName( Parent );
+
+					// Important because of how ULiveLinkComponentController::TickComponent also checks for the sequencer
+					// tag to try and guess if the controlled component is a spawnable
+					Controller->bDisableEvaluateLiveLinkWhenSpawnable = false;
+
+					Parent->AddInstanceComponent( Controller );
+					Controller->RegisterComponent();
+				}
+
+				if ( Controller )
+				{
+					LiveLinkEnabledComponents.Add( Component, Controller );
+				}
+			}
+		}
+
+		// Configure controller with our desired parameters
+		if ( Controller )
+		{
+			FScopedUsdAllocs Allocs;
+
+			FLiveLinkSubjectRepresentation SubjectRepresentation;
+			SubjectRepresentation.Role = ULiveLinkTransformRole::StaticClass();
+
+			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealLiveLinkSubjectName ) )
+			{
+				std::string SubjectName;
+				if ( Attr.Get( &SubjectName ) )
+				{
+					SubjectRepresentation.Subject = FName{ *UsdToUnreal::ConvertString( SubjectName ) };
+				}
+			}
+			Controller->SetSubjectRepresentation( SubjectRepresentation );
+
+			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealLiveLinkEnabled ) )
+			{
+				bool bEnabled = true;
+				if ( Attr.Get( &bEnabled ) )
+				{
+					Controller->bEvaluateLiveLink = bEnabled;
+				}
+			}
+		}
+	}
+
+	void RemoveLiveLinkFromComponent( USceneComponent* Component )
+	{
+		if ( !Component )
+		{
+			return;
+		}
+
+		AActor* Parent = Component->GetOwner();
+		if ( !Parent )
+		{
+			return;
+		}
+
+		TArray<ULiveLinkComponentController*> LiveLinkComponents;
+		Parent->GetComponents< ULiveLinkComponentController >( LiveLinkComponents );
+
+		for ( ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents )
+		{
+			if ( LiveLinkComponent->ComponentToControl.GetComponent( Parent ) == Component )
+			{
+				LiveLinkComponent->ComponentToControl.ComponentProperty = NAME_None;
+				Parent->RemoveInstanceComponent( LiveLinkComponent );
+				break;
+			}
+		}
+	}
+}
 
 class FUsdGeomXformableCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
@@ -440,17 +575,33 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 			}
 		}
 
+		UE::FUsdPrim Prim = GetPrim();
+
+		// Handle LiveLink, but only i we're not a skeletal mesh component: The SkelRootTranslator will deal with the
+		// skeletal version of the LiveLink configuration, we only handle setting up LiveLink for simple transforms
+		if ( !SceneComponent->IsA<USkeletalMeshComponent>() )
+		{
+			if ( UsdUtils::PrimHasLiveLinkSchema( Prim ) )
+			{
+				UE::UsdXformableTranslatorImpl::Private::SetUpSceneComponentForLiveLink( Context.Get(), SceneComponent, Prim );
+			}
+			else
+			{
+				UE::UsdXformableTranslatorImpl::Private::RemoveLiveLinkFromComponent( SceneComponent );
+			}
+		}
+
 		// Only put the transform into the component if we haven't parsed LODs for our static mesh: The Mesh transforms will already be baked
 		// into the mesh at that case, as each LOD could technically have a separate transform
 		if ( !Context->bAllowInterpretingLODs || !bHasMultipleLODs )
 		{
-			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
+			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( Prim ), *SceneComponent, Context->Time );
 		}
 
 		// Note how we should only register if we unregistered ourselves: If we did this every time we would
 		// register too early during the process of duplicating into PIE, and that would prevent a future RegisterComponent
 		// call from naturally creating the required render state
-		if ( bStaticMobility && !SceneComponent->IsRegistered() )
+		if ( !SceneComponent->IsRegistered() )
 		{
 			SceneComponent->RegisterComponent();
 		}
@@ -592,7 +743,27 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 bool FUsdGeomXformableTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
 {
-	return !UsdUtils::IsAnimated( GetPrim() );
+	FScopedUsdAllocs UsdAllocs;
+
+	FString PrimPathStr = PrimPath.GetString();
+
+	pxr::UsdPrim UsdPrim{ GetPrim() };
+	if ( !UsdPrim )
+	{
+		return false;
+	}
+
+	if ( UsdUtils::IsAnimated( UsdPrim ) )
+	{
+		return false;
+	}
+
+	if ( UsdUtils::PrimHasLiveLinkSchema( UsdPrim ) )
+	{
+		return false;
+	}
+
+	return true;
 }
 
 #endif // #if USE_USD_SDK

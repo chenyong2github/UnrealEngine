@@ -12,7 +12,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"USDSchemas" // Has to be a public dependency because the stage actor has a collapsing cache member
+					"USDSchemas" // Has to be a public dependency because the stage actor has an FUsdInfoCache member
 				}
 			);
 
@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"LevelSequence",
+					"LiveLinkComponents", // For tracking edits to LiveLinkComponentController properties and writing to USD
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",
