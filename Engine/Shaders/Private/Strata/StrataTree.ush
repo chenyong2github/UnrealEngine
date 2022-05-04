@@ -97,22 +97,21 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, Settings);
 
 	float CurrentBSDFCoverage		= CurrentBSDF.Coverage;
-	float3 CurrentBSDFTransmittanceV = BSDFEvaluate.ThroughputV;
-	float3 CurrentBSDFTransmittanceL = BSDFEvaluate.ThroughputL;
 
 	// We multiply this weight with coverage:
 	//  - Because when coming from parameter blending, we need to scale the output down according to coverage resulting from parameter blending.
 	//  - That will be applied on emissive and reflected light, so we do not need to apply that anywhere else.
 	//  - When coming from non parameter blending, this is equal identity 1 and the operator parsing will continue to correctly weight the BSDF according to the tree.
 	CurrentBSDF.LuminanceWeightV = float3(1.0f, 1.0f, 1.0f) * CurrentBSDFCoverage;
-	CurrentBSDF.LuminanceWeightL = float3(1.0f, 1.0f, 1.0f); // Don't weight by CurrentBSDFCoverage, otherwise coverage would be applied twice
+
+	CurrentBSDF.TransmittanceAboveAlongN = float3(1.0f, 1.0f, 1.0f); // Initialise to "no matter above"
 
 	// All BSDF are considered for contribution as the top BSDF can have their coverage dip to 0 and then another BSDF need to be considered for the top layer representation.
 	CurrentBSDF.TopLayerDataWeight = 1.0f;
 
-	Op.Coverage = CurrentBSDFCoverage;
-	Op.TransmittanceV = CurrentBSDFTransmittanceV;
-	Op.TransmittanceL = CurrentBSDFTransmittanceL;
+	Op.Coverage				= CurrentBSDFCoverage;
+	Op.ThroughputAlongV		= BSDFEvaluate.ThroughputV;
+	Op.TransmittanceAlongN	= BSDFEvaluate.TransmittanceAlongN;
 
 	// Evaluate refraction lobes.
 	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(Roughness, StrataBSDFContext.SatNoV, StrataGetBSDFSpecularColor(CurrentBSDF), StrataGetBSDFSpecularF90(CurrentBSDF));
@@ -120,7 +119,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 		const float TopDownInterfaceEta = CurrentBSDF.bIsTop ? AIR_IOR / WATER_IOR : 1.0f;
 		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetDiracLobe(V), EnergyTerms.E, Roughness, TopDownInterfaceEta);
 		// Account for transmittance of the medium (but ignoring scattering for now)
-		RefractedLobe.E *= CurrentBSDFTransmittanceV;
+		RefractedLobe.E *= BSDFEvaluate.ThroughputV;
 		// Reduce according to coverage. It is a approximation to handle rough refraction reduction according to coverage when relying on a single lob.
 		RefractedLobe = StrataWeightLobe(RefractedLobe, CurrentBSDFCoverage);
 		Op.TopDownRefractionLobeStat = RefractedLobe;
@@ -132,7 +131,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 		const float3 NormalDown = float3(0, 0, -1);
 		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetDiracLobe(NormalDown), EnergyTerms.E, Roughness, BottomUpInterfaceEta);
 		// Account for transmittance of the medium (but ignoring scattering for now)
-		RefractedLobe.E *= CurrentBSDFTransmittanceV;
+		RefractedLobe.E *= BSDFEvaluate.ThroughputV;
 		// Reduce according to coverage. It is a approximation to handle rough refraction reduction according to coverage when relying on a single lob.
 		RefractedLobe = StrataWeightLobe(RefractedLobe, CurrentBSDFCoverage);
 		Op.BottomUpRefractionLobeStat = RefractedLobe;
@@ -166,9 +165,9 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 	case STRATA_OPERATOR_WEIGHT:
 	{
 		const float Weight = saturate(Op.Weight);
-		Op.Coverage = Weight * OpA.Coverage;
-		Op.TransmittanceV = OpA.TransmittanceV;
-		Op.TransmittanceL = OpA.TransmittanceL;
+		Op.Coverage				= Weight * OpA.Coverage;
+		Op.ThroughputAlongV		= OpA.ThroughputAlongV;
+		Op.TransmittanceAlongN	= OpA.TransmittanceAlongN;
 
 		Op.TopDownRefractionLobeStat = StrataWeightLobe(OpA.TopDownRefractionLobeStat, Weight);
 		Op.TopDownRefractionWorldNormal = OpA.TopDownRefractionWorldNormal * Weight;
@@ -184,10 +183,10 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 	case STRATA_OPERATOR_VERTICAL:
 	{
-		const float3 TopTransmittanceV = OpA.TransmittanceV;
-		const float3 TopTransmittanceL = OpA.TransmittanceL;
-		const float3 BotTransmittanceV = OpB.TransmittanceV;
-		const float3 BotTransmittanceL = OpB.TransmittanceL;
+		const float3 TopThroughputAlongV	= OpA.ThroughputAlongV;
+		const float3 TopTransmittanceAlongN = OpA.TransmittanceAlongN;
+		const float3 BotThroughputAlongV	= OpB.ThroughputAlongV;
+		const float3 BotTransmittanceAlongN = OpB.TransmittanceAlongN;
 		const float TopCoverage = OpA.Coverage;
 		const float BotCoverage = OpB.Coverage;
 
@@ -198,36 +197,36 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 		// If a layer has a lower coverage than the other, we account for that when compuing the Transmittance.
 		const float TransmittanceOne = 1.0f;
-		const float3 TopTransmittanceAdjustedV = lerp(TransmittanceOne, TopTransmittanceV, TopCoverage * LayerMaxCoverageInv);
-		const float3 TopTransmittanceAdjustedL = lerp(TransmittanceOne, TopTransmittanceL, TopCoverage * LayerMaxCoverageInv);
-		const float3 BotTransmittanceAdjustedV = lerp(TransmittanceOne, BotTransmittanceV, BotCoverage * LayerMaxCoverageInv);
-		const float3 BotTransmittanceAdjustedL = lerp(TransmittanceOne, BotTransmittanceL, BotCoverage * LayerMaxCoverageInv);
+		const float3 TopTransmittanceAdjustedV = lerp(TransmittanceOne, TopThroughputAlongV,	TopCoverage * LayerMaxCoverageInv);
+		const float3 TopTransmittanceAdjustedL = lerp(TransmittanceOne, TopTransmittanceAlongN, TopCoverage * LayerMaxCoverageInv);
+		const float3 BotTransmittanceAdjustedV = lerp(TransmittanceOne, BotThroughputAlongV,	BotCoverage * LayerMaxCoverageInv);
+		const float3 BotTransmittanceAdjustedL = lerp(TransmittanceOne, BotTransmittanceAlongN, BotCoverage * LayerMaxCoverageInv);
 
 		// Now we update the material transmittance and coverage
 		Op.Coverage = LayerMaxCoverage;
-		Op.TransmittanceV = TopTransmittanceAdjustedV * BotTransmittanceAdjustedV;
-		Op.TransmittanceL = TopTransmittanceAdjustedL * BotTransmittanceAdjustedL;
+		Op.ThroughputAlongV		= TopTransmittanceAdjustedV * BotTransmittanceAdjustedV;
+		Op.TransmittanceAlongN	= TopTransmittanceAdjustedL * BotTransmittanceAdjustedL;
 #else
 		FVerticalLayeringInfo Info = GetVerticalLayeringInfo(TopCoverage, BotCoverage);
 
-		Op.Coverage					= Info.Coverage;
-		Op.TransmittanceV			= Info.TransmittanceOnlyTop * TopTransmittanceV + Info.TransmittanceOnlyBottom * BotTransmittanceV + Info.TransmittanceTopAndBottom * TopTransmittanceV * BotTransmittanceV;
-		Op.TransmittanceL			= Info.TransmittanceOnlyTop * TopTransmittanceL + Info.TransmittanceOnlyBottom * BotTransmittanceL + Info.TransmittanceTopAndBottom * TopTransmittanceL * BotTransmittanceL;
+		Op.Coverage				= Info.Coverage;
+		Op.ThroughputAlongV		= Info.TransmittanceOnlyTop * TopThroughputAlongV +		Info.TransmittanceOnlyBottom * BotThroughputAlongV +	Info.TransmittanceTopAndBottom * TopThroughputAlongV * BotThroughputAlongV;
+		Op.TransmittanceAlongN	= Info.TransmittanceOnlyTop * TopTransmittanceAlongN +	Info.TransmittanceOnlyBottom * BotTransmittanceAlongN + Info.TransmittanceTopAndBottom * TopTransmittanceAlongN * BotTransmittanceAlongN;
 #endif
 
-		Op.VerticalTop_Coverage		  = OpA.Coverage;
-		Op.VerticalTop_TransmittanceV = OpA.TransmittanceV;
-		Op.VerticalTop_TransmittanceL = OpA.TransmittanceL;
+		Op.VerticalTop_Coverage				= OpA.Coverage;
+		Op.VerticalTop_ThroughputAlongV		= OpA.ThroughputAlongV;
+		Op.VerticalTop_TransmittanceAlongN	= OpA.TransmittanceAlongN;
 
 		// Project top lob through bottom layer assuming medium have same IOR.
 		{
 			const float TopDownInterfaceEta = 1.0f;
 			Op.TopDownRefractionLobeStat = StrataGetRefractedLobe(StrataOppositeLobe(OpA.TopDownRefractionLobeStat), 
 				/*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpB.TopDownRefractionLobeStat.Sigma), TopDownInterfaceEta);
-			Op.TopDownRefractionLobeStat.E *= saturate(OpB.TransmittanceV + (1.0f - OpB.Coverage)); // Combine with botton layer medium and specular transmittance
+			Op.TopDownRefractionLobeStat.E *= saturate(OpB.ThroughputAlongV + (1.0f - OpB.Coverage)); // Combine with botton layer medium and specular transmittance
 
 			// The ratio of BottomSurfaceOnlyVisibile and visible through top layer (with a scale of 0.5 because at maximum both surfaces will be visible) as a fonction of the total coverage.
-			const float RefractionNormalMix = saturate((Info.SurfaceBottom + 0.5f * Info.TransmittanceTopAndBottom * dot(TopTransmittanceV, 0.33.xxx)) / max(STRATA_EPSILON, Info.Coverage));
+			const float RefractionNormalMix = saturate((Info.SurfaceBottom + 0.5f * Info.TransmittanceTopAndBottom * dot(TopThroughputAlongV, 0.33.xxx)) / max(STRATA_EPSILON, Info.Coverage));
 			Op.TopDownRefractionWorldNormal = lerp(OpA.TopDownRefractionWorldNormal, OpB.TopDownRefractionWorldNormal, RefractionNormalMix);
 		}
 
@@ -237,7 +236,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 			const float BottomUpInterfaceEta = bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
 			Op.BottomUpRefractionLobeStat = StrataGetRefractedLobe(StrataOppositeLobe(OpB.BottomUpRefractionLobeStat), 
 				/*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpA.BottomUpRefractionLobeStat.Sigma), BottomUpInterfaceEta);
-			Op.BottomUpRefractionLobeStat.E *= saturate(OpA.TransmittanceV + (1.0f - OpA.Coverage)); // Combine with top layer medium and specular transmittance
+			Op.BottomUpRefractionLobeStat.E *= saturate(OpA.ThroughputAlongV + (1.0f - OpA.Coverage)); // Combine with top layer medium and specular transmittance
 		}
 
 		// Vertical layering accumulates both operators thickness and only keep the top layer roughness and coverage, see OpaqueRoughRefractTopRoughness declaration for the details.
@@ -257,8 +256,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		const float BMix = Mix;
 
 		Op.Coverage = AMix * OpA.Coverage + BMix * OpB.Coverage;
-		Op.TransmittanceV = (AMix * OpA.Coverage * OpA.TransmittanceV + BMix * OpB.Coverage * OpB.TransmittanceV) / max(STRATA_EPSILON, AMix * OpA.Coverage + BMix * OpB.Coverage);
-		Op.TransmittanceL = (AMix * OpA.Coverage * OpA.TransmittanceL + BMix * OpB.Coverage * OpB.TransmittanceL) / max(STRATA_EPSILON, AMix * OpA.Coverage + BMix * OpB.Coverage);
+		Op.ThroughputAlongV    = (AMix * OpA.Coverage * OpA.ThroughputAlongV    + BMix * OpB.Coverage * OpB.ThroughputAlongV)    / max(STRATA_EPSILON, AMix * OpA.Coverage + BMix * OpB.Coverage);
+		Op.TransmittanceAlongN = (AMix * OpA.Coverage * OpA.TransmittanceAlongN + BMix * OpB.Coverage * OpB.TransmittanceAlongN) / max(STRATA_EPSILON, AMix * OpA.Coverage + BMix * OpB.Coverage);
 
 		Op.TopDownRefractionLobeStat = StrataHorizontalMixLobes(OpA.TopDownRefractionLobeStat, OpB.TopDownRefractionLobeStat, BMix);
 		Op.TopDownRefractionWorldNormal = lerp(OpA.TopDownRefractionWorldNormal, OpB.TopDownRefractionWorldNormal, BMix);
@@ -279,8 +278,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		const float AMixFactor = SafeABSDFCoverage / max(STRATA_EPSILON, SafeABSDFCoverage + SafeBBSDFCoverage);
 
 		Op.Coverage = saturate(OpA.Coverage + OpB.Coverage);
-		Op.TransmittanceV = lerp(OpB.TransmittanceV, OpA.TransmittanceV, AMixFactor);
-		Op.TransmittanceL = lerp(OpB.TransmittanceL, OpA.TransmittanceL, AMixFactor);
+		Op.ThroughputAlongV    = lerp(OpB.ThroughputAlongV,    OpA.ThroughputAlongV,    AMixFactor);
+		Op.TransmittanceAlongN = lerp(OpB.TransmittanceAlongN, OpA.TransmittanceAlongN, AMixFactor);
 
 		Op.TopDownRefractionLobeStat = StrataHorizontalMixLobes(OpA.TopDownRefractionLobeStat, OpB.TopDownRefractionLobeStat, 0.5f);
 		Op.TopDownRefractionWorldNormal = lerp(OpA.TopDownRefractionWorldNormal, OpB.TopDownRefractionWorldNormal, 0.5f);
@@ -297,8 +296,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 	{
 		// Thin-film does not affect these property
 		Op.Coverage = OpA.Coverage;
-		Op.TransmittanceV = OpA.TransmittanceV;
-		Op.TransmittanceL = OpA.TransmittanceL;
+		Op.ThroughputAlongV = OpA.ThroughputAlongV;
+		Op.TransmittanceAlongN = OpA.TransmittanceAlongN;
 		Op.TopDownRefractionLobeStat = OpA.TopDownRefractionLobeStat;
 		Op.TopDownRefractionWorldNormal = OpA.TopDownRefractionWorldNormal;
 		Op.BottomUpRefractionLobeStat = OpA.BottomUpRefractionLobeStat;
@@ -332,7 +331,6 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Weight(
 
 	const float Weight = saturate(Op.Weight);
 	CurrentBSDF.LuminanceWeightV *= Weight;
-	//CurrentBSDF.LuminanceWeightL *= Weight; A weight affecting the coverage of a BSDF won't affect the weight to light. Only the LuminanceWeightV to simulate a change of coverage.
 	CurrentBSDF.Coverage *= Weight;
 
 	CurrentBSDF.TopLayerDataWeight *= Weight;
@@ -353,7 +351,6 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(
 	const float BMix = Mix;
 	const float Weight = PreviousIsInputA > 0 ? AMix : BMix;
 	CurrentBSDF.LuminanceWeightV *= Weight;
-	//CurrentBSDF.LuminanceWeightL *= Weight; A weight affecting the coverage of a BSDF won't affect the weight to light. Only the LuminanceWeightV to simulate a change of coverage.
 	CurrentBSDF.Coverage *= Weight;
 
 	CurrentBSDF.TopLayerDataWeight *= Weight;
@@ -371,8 +368,8 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 
 	// PreviousIsInputA > 0 means it is a BSDF affecting the top layer so we do not affect it by anything for this vertical layering.
 	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
-	CurrentBSDF.LuminanceWeightV *= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_TransmittanceV;
-	CurrentBSDF.LuminanceWeightL *= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_TransmittanceL;
+	CurrentBSDF.LuminanceWeightV		*= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_ThroughputAlongV;
+	CurrentBSDF.TransmittanceAboveAlongN*= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_TransmittanceAlongN;
 
 	// If the BSDF is from the bottom, we reduce its contribution according to the top layer coverage only.
 	CurrentBSDF.TopLayerDataWeight *= PreviousIsInputA ? 1.0 : saturate(1.0f - Op.VerticalTop_Coverage);

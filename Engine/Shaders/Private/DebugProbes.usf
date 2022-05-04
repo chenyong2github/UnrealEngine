@@ -307,7 +307,7 @@ void MainPS(
 
 		FStrataData StrataData = PromoteParameterBlendedBSDFToOperator(StrataSlabData, StrataPixelHeader.StrataTree, /*int OperatorIndex*/0, /*int BSDFIndex*/0, /*int LayerDepth*/0, /*int bIsBottom*/1);
 		StrataPixelHeader.StrataTree.BSDFs[0].LuminanceWeightV = 1.0f;
-		StrataPixelHeader.StrataTree.BSDFs[0].LuminanceWeightL = 1.0f;
+		StrataPixelHeader.StrataTree.BSDFs[0].TransmittanceAboveAlongN = 1.0f;
 		StrataPixelHeader.StrataTree.BSDFs[0].TopLayerDataWeight = 1.0f;
 
 		FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;

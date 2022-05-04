@@ -134,9 +134,9 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
-			const bool bWeightL = BSDF_GETHASWEIGHT_L(BSDF);
+			const bool bWeightL = BSDF_GETHASTRANSABOVE(BSDF);
 			const bool bGreyWeightV = BSDF_GETHASGREYWEIGHT_V(BSDF);
-			const bool bGreyWeightL = BSDF.LuminanceWeightL.x == BSDF.LuminanceWeightL.y && BSDF.LuminanceWeightL.x == BSDF.LuminanceWeightL.z;
+			const bool bGreyTopTrans = BSDF.TransmittanceAboveAlongN.x == BSDF.TransmittanceAboveAlongN.y && BSDF.TransmittanceAboveAlongN.x == BSDF.TransmittanceAboveAlongN.z;
 
 			Print(Context, TEXT("Slab "), FontBSDFType);
 			Newline(Context);
@@ -174,18 +174,18 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			}
 
 			// Lighy weight
-			if (bWeightL)
+			if (bGreyTopTrans)
 			{
 				Print(Context, TEXT(" "), FontSilver);
-				if (bGreyWeightL)
+				if (bGreyTopTrans)
 				{
-					Print(Context, BSDF.LuminanceWeightL.x, FontSilver);
+					Print(Context, BSDF.TransmittanceAboveAlongN.x, FontSilver);
 				}
 				else	
 				{
-					Print(Context, BSDF.LuminanceWeightL.r, FontLightRed,   6, 4);
-					Print(Context, BSDF.LuminanceWeightL.g, FontLightGreen, 6, 4);
-					Print(Context, BSDF.LuminanceWeightL.b, FontLightBlue,  6, 4);
+					Print(Context, BSDF.TransmittanceAboveAlongN.r, FontLightRed,   6, 4);
+					Print(Context, BSDF.TransmittanceAboveAlongN.g, FontLightGreen, 6, 4);
+					Print(Context, BSDF.TransmittanceAboveAlongN.b, FontLightBlue,  6, 4);
 				}
 			}
 			Newline(Context);
@@ -643,10 +643,10 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Print(Context, BSDF.LuminanceWeightV.g, FontLightGreen, 5, 2);
 			Print(Context, BSDF.LuminanceWeightV.b, FontLightBlue, 5, 2);
 			Newline(Context);
-			Print(Context, TEXT("LumWghtL = "), BSDFFont);
-			Print(Context, BSDF.LuminanceWeightL.r, FontLightRed, 5, 2);
-			Print(Context, BSDF.LuminanceWeightL.g, FontLightGreen, 5, 2);
-			Print(Context, BSDF.LuminanceWeightL.b, FontLightBlue, 5, 2);
+			Print(Context, TEXT("TopTrans = "), BSDFFont);
+			Print(Context, BSDF.TransmittanceAboveAlongN.r, FontLightRed, 5, 2);
+			Print(Context, BSDF.TransmittanceAboveAlongN.g, FontLightGreen, 5, 2);
+			Print(Context, BSDF.TransmittanceAboveAlongN.b, FontLightBlue, 5, 2);
 			Newline(Context);
 			Print(Context, TEXT("Diffuse  = "), BSDFFont);
 			const float3 BSDFDiffuse = StrataGetBSDFDiffuseColor(BSDF);
@@ -863,7 +863,7 @@ void EvaluateLighting(
 
 	// Patch the BSDF to appear as a top layer
 	BSDF.LuminanceWeightV = 1.0f;
-	BSDF.LuminanceWeightL = 1.0f;
+	BSDF.TransmittanceAboveAlongN = 1.0f;
 	BSDF.bIsBottom = true;
 	BSDF.bIsTop = true;
 	BSDF.Coverage = 1.0f;
