@@ -989,3 +989,16 @@ public:
 	using type = typename TTupleElement<N, TTuple<ArgTypes...>>::Type;
 };
 #endif
+
+template <typename T> constexpr bool TIsTuple_V = false;
+
+template <typename... Types> constexpr bool TIsTuple_V<               TTuple<Types...>> = true;
+template <typename... Types> constexpr bool TIsTuple_V<const          TTuple<Types...>> = true;
+template <typename... Types> constexpr bool TIsTuple_V<      volatile TTuple<Types...>> = true;
+template <typename... Types> constexpr bool TIsTuple_V<const volatile TTuple<Types...>> = true;
+
+template <typename T>
+struct TIsTuple
+{
+	enum { Value = TIsTuple_V<T> };
+};

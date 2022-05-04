@@ -240,6 +240,13 @@ static_assert(TTupleIndex<double, const volatile TTuple<double, float&, char&&>>
 static_assert(TTupleIndex<float&, const volatile TTuple<double, float&, char&&>>::Value == 1, "");
 static_assert(TTupleIndex<char&&, const volatile TTuple<double, float&, char&&>>::Value == 2, "");
 
+// Check that TIsTuple works for values, lvalue references and rvalue references, even with qualifiers on the tuple
+static_assert(!TIsTuple<double>::Value										, "");
+static_assert(TIsTuple<               TTuple<double, float&, char&&>>::Value, "");
+static_assert(TIsTuple<const          TTuple<double, float&, char&&>>::Value, "");
+static_assert(TIsTuple<      volatile TTuple<double, float&, char&&>>::Value, "");
+static_assert(TIsTuple<const volatile TTuple<double, float&, char&&>>::Value, "");
+
 // These shouldn't compile - ideally giving a meaningful error message
 #if 0
 	// TTupleElement passed a non-tuple
@@ -256,4 +263,7 @@ static_assert(TTupleIndex<char&&, const volatile TTuple<double, float&, char&&>>
 
 	// Type appears multiple times in tuple
 	static_assert(TTupleIndex<int, TTuple<int, float&, int>>::Value == 0, "");
+
+	// Multiple arguments
+	static_assert(TIsTuple<double, double>::Value, "");
 #endif
