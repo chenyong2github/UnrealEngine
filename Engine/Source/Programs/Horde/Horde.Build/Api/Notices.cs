@@ -72,12 +72,12 @@ namespace Horde.Build.Api
 	}
 
 	/// <summary>
-	/// Notice informtation
+	/// Notice information
 	/// </summary>
 	public class GetNoticeResponse
 	{
 		/// <summary>
-		/// Object id of notice
+		/// The id of the notice to update
 		/// </summary>
 		public string? Id { get; set; }
 
@@ -92,15 +92,24 @@ namespace Horde.Build.Api
 		public DateTime? FinishTime { get; set; }
 
 		/// <summary>
-		/// User id who created the notice, otherwise null if a system message
+		/// Whether this notice is for scheduled downtime
 		/// </summary>
-		public GetThinUserInfoResponse? CreatedByUser { get; set; }
+		public bool ScheduledDowntime { get; set; } = false;
+
+		/// <summary>
+		/// Whether the notice is currently active
+		/// </summary>
+		public bool Active { get; set; }
 
 		/// <summary>
 		/// Message to display
 		/// </summary>
-		[Required]
-		public string Message { get; set; } = String.Empty;
+		public string? Message { get; set; }
+
+		/// <summary>
+		/// User id who created the notice, otherwise null if a system message
+		/// </summary>
+		public GetThinUserInfoResponse? CreatedByUser { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -110,16 +119,5 @@ namespace Horde.Build.Api
 
 		}
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public GetNoticeResponse(INotice notice, GetThinUserInfoResponse? createByUser = null)
-		{
-			Id = notice.Id.ToString();
-			StartTime = notice.StartTime;
-			FinishTime = notice.FinishTime;
-			Message = notice.Message;
-			CreatedByUser = createByUser;
-		}
 	}
 }

@@ -15,12 +15,12 @@ namespace Horde.Build.Models
 	public interface INotice
 	{
 		/// <summary>
-		/// Unique id for this reservation
+		/// Unique id for this notice
 		/// </summary>
 		public ObjectId Id { get; }
 
 		/// <summary>
-		/// User id for who created this notice, null for system created notices
+		/// User id of who created this notice, null for system created notices
 		/// </summary>
 		[BsonIgnoreIfNull]
 		public UserId? UserId { get; }

@@ -87,7 +87,7 @@ export abstract class PollBase {
 
     private timeoutId: any;
 
-    private pollTime: number;
+    protected pollTime: number;
 
     private canceled = new Set<number>();
     private cancelId = 0;

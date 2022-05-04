@@ -3859,13 +3859,77 @@ export type GetAgentSoftwareChannelResponse = {
 /// Jira issue information
 export type GetJiraIssueResponse = {
 
+	/** The jira key */
 	key: string;
+
+	/** Link to the issue on jira */
 	jiraLink: string;
+
+	/** The current status of the issue */
 	statusName?: string;
+
+	/** The current priority of the issue */
 	priorityName?: string;
+
+	/** The resolution of the issue */
 	resolutionName?: string;
+
+	/** Jira username of assignee */
 	assigneeName?: string;
+
+	/** Jira display name of assignee */
 	assigneeDisplayName?: string;
+
+	/** Email address of assignee */
 	assigneeEmailAddress?: string;
+
+}
+
+/// Create a notice which will display on the dashboard
+export type CreateNoticeRequest = {
+		
+	/**  Message to display	*/
+	message: string;	
+}
+
+/// Parameters required to update a notice
+export type UpdateNoticeRequest = {
+
+	/** The id of the notice to update */
+	id: string;
+
+	/** Start time to display this message */
+	startTime?: Date | string;
+
+	/** Finish time to display this message */
+	finishTime?: Date | String;
+
+	/** Message to display */
+	message?: string;
+}
+
+
+export type GetNoticeResponse = {
+
+	/** The id of the notice for user created notices */
+	id?: string;
+
+	/** Start time to display this message */
+	startTime?: Date | String;
+
+	/** Finish time to display this message */
+	finishTime?: Date | String;
+
+	/** Whether this notice is for scheduled downtime */
+	scheduledDowntime: boolean;
+
+	/** Whether the notice is currently active */
+	active: boolean;
+
+	/** Message to display */
+	message?: string;
+
+	/** User id who created the notice, otherwise null if a system message */
+	createdByUser?: GetThinUserInfoResponse;
 
 }

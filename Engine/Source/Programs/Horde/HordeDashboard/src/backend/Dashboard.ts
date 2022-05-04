@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+import { getTheme } from "@fluentui/react";
 import { action, observable } from 'mobx';
 import backend from '.';
-import { UserClaim, DashboardPreference, GetUserResponse } from './Api';
-import { getTheme } from "@fluentui/react";
+import { DashboardPreference, GetUserResponse, UserClaim } from './Api';
 
 const theme = getTheme();
 
@@ -366,7 +366,7 @@ export class Dashboard {
 
             if (this.updating) {
                 clearTimeout(this.updateTimeoutId);
-                this.updateTimeoutId = setTimeout(() => { this.update(); }, 4000);
+                this.updateTimeoutId = setTimeout(() => { this.update(); }, this.pollMS);
                 return;
             }
 
@@ -376,9 +376,11 @@ export class Dashboard {
 
                 const cancelId = this.cancelId++;
 
-                const response = await backend.getCurrentUser();
+                const responses = await Promise.all([backend.getCurrentUser()]);
 
-                // check for canceled during graph request
+                const response = responses[0] as GetUserResponse;
+
+                // check for canceled during request
                 if (!this.canceled.has(cancelId)) {
 
                     this.data = response;
@@ -415,7 +417,7 @@ export class Dashboard {
         } finally {
             this.updating = false;
             clearTimeout(this.updateTimeoutId);
-            this.updateTimeoutId = setTimeout(() => { this.update(); }, 4000);
+            this.updateTimeoutId = setTimeout(() => { this.update(); }, this.pollMS);
         }
     }
 
@@ -489,8 +491,7 @@ export class Dashboard {
         return success;
 
     }
-
-
+    
     requestLogout = false;
 
     serverSettingsChanged: boolean = false;
@@ -505,6 +506,8 @@ export class Dashboard {
 
     private canceled = new Set<number>();
     private cancelId = 0;
+
+    private pollMS = 4 * 1000;
 
 }
 

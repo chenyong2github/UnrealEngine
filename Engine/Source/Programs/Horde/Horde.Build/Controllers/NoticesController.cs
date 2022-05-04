@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
@@ -14,7 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using TimeZoneConverter;
+using Horde.Build.Server;
 
 namespace Horde.Build.Controllers
 {
@@ -27,24 +26,29 @@ namespace Horde.Build.Controllers
 	public class NoticesController : ControllerBase
 	{
 		/// <summary>
-		/// 
-		/// </summary>
-		readonly NoticeService _noticeService;
-
-		/// <summary>
 		/// The acl service singleton
 		/// </summary>
 		readonly AclService _aclService;
 
 		/// <summary>
-		/// Reference to the globals singleton
-		/// </summary>
-		readonly ISingletonDocument<Globals> _globals;
-
-		/// <summary>
 		/// Reference to the user collection
 		/// </summary>
 		private readonly IUserCollection _userCollection;
+
+		/// <summary>
+		/// Notice service
+		/// </summary>
+		private readonly NoticeService _noticeService;
+
+		/// <summary>
+		/// cached globals
+		/// </summary>
+		readonly LazyCachedValue<Task<Globals>> _cachedGlobals;
+
+		/// <summary>
+		/// cached notices
+		/// </summary>
+		readonly LazyCachedValue<Task<List<INotice>>> _cachedNotices;
 
 		/// <summary>
 		/// Server settings
@@ -55,17 +59,18 @@ namespace Horde.Build.Controllers
 		/// Constructor
 		/// </summary>
 		/// <param name="settings">The server settings</param>
+		/// <param name="mongoService">The mongo service singleton</param>
 		/// <param name="noticeService">The notice service singleton</param>
 		/// <param name="aclService">The acl service singleton</param>
 		/// <param name="userCollection">The user collection singleton</param>
-		/// <param name="globals">The global singleton</param>
-		public NoticesController(IOptionsMonitor<ServerSettings> settings, NoticeService noticeService, AclService aclService, IUserCollection userCollection, ISingletonDocument<Globals> globals)
-		{
+		public NoticesController(IOptionsMonitor<ServerSettings> settings, MongoService mongoService, NoticeService noticeService, AclService aclService, IUserCollection userCollection)
+		{			
 			_settings = settings;
-			_noticeService = noticeService;
 			_aclService = aclService;
 			_userCollection = userCollection;
-			_globals = globals;
+			_noticeService = noticeService;
+			_cachedGlobals = new LazyCachedValue<Task<Globals>>(() => mongoService.GetGlobalsAsync(), TimeSpan.FromSeconds(30.0));
+			_cachedNotices = new LazyCachedValue<Task<List<INotice>>>(() => noticeService.GetNoticesAsync(), TimeSpan.FromMinutes(1));
 		}
 
 		/// <summary>
@@ -126,50 +131,22 @@ namespace Horde.Build.Controllers
 		/// <returns>The status messages</returns>
 		[HttpGet("/api/v1/notices")]
 		public async Task<List<GetNoticeResponse>> GetNoticesAsync()
-		{			
-			string? scheduleTimeZone = _settings.CurrentValue.ScheduleTimeZone;
-			TimeZoneInfo timeZone = (scheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(scheduleTimeZone);
-			
-			Globals globalsValue = await _globals.GetAsync();
+		{
 			List<GetNoticeResponse> messages = new List<GetNoticeResponse>();
 
-			// Add system downtime notices
-			for (int idx = 0; idx < globalsValue.ScheduledDowntime.Count; idx++)
+			Globals globals = await _cachedGlobals.GetCached();
+
+			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
+						
+			foreach (ScheduledDowntime schedule in globals.ScheduledDowntime)
 			{
-				ScheduledDowntime downtime = globalsValue.ScheduledDowntime[idx];
-
-				// @todo: handle this, though likely will have a custom message
-				if (downtime.Frequency == ScheduledDowntimeFrequency.Once)
-				{
-					continue;
-				}
-
-				DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
-				
-				// @todo: this time and formatting should be on client
-				if (downtime.IsActive(now))
-				{
-					(DateTimeOffset startTime, DateTimeOffset finishTime) = downtime.GetNext(now);
-					string finishTimeString = String.Format(CultureInfo.CurrentCulture, "{0:t}", TimeZoneInfo.ConvertTime(finishTime, timeZone));
-					messages.Add(new GetNoticeResponse() { StartTime = startTime.UtcDateTime, FinishTime = finishTime.UtcDateTime, Message = $"Horde is currently in scheduled downtime. Jobs will resume execution at {finishTimeString} {timeZone.Id}." });
-				}
-				else 
-				{
-					// add a week to get the actual next scheduled time
-					if (downtime.Frequency == ScheduledDowntimeFrequency.Weekly)
-					{
-						now += TimeSpan.FromDays(7);
-					}
-
-					(DateTimeOffset startTime, DateTimeOffset finishTime) = downtime.GetNext(now);
-					string startTimeString = String.Format(CultureInfo.CurrentCulture, "{0:g}", startTime);
-					string finishTimeString = String.Format(CultureInfo.CurrentCulture, "{0:g}", finishTime);
-					messages.Add(new GetNoticeResponse() { StartTime = startTime.UtcDateTime, FinishTime = finishTime.UtcDateTime, Message = $"Downtime is scheduled from {startTimeString} to {finishTimeString} {timeZone.Id}. No jobs will run during this time." });
-				}
+				DateTimeOffset start = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(schedule.GetNext(now).StartTime, "UTC");
+				DateTimeOffset finish = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(schedule.GetNext(now).FinishTime, "UTC");
+				messages.Add(new GetNoticeResponse() { ScheduledDowntime = true, StartTime = new DateTime(start.Ticks, DateTimeKind.Utc), FinishTime = new DateTime(finish.Ticks, DateTimeKind.Utc), Active = schedule.IsActive(now) });
 			}
 
 			// Add user notices
-			List<INotice> notices = await _noticeService.GetNoticesAsync();
+			List<INotice> notices = await _cachedNotices.GetCached();
 
 			for (int i = 0; i < notices.Count; i++)
 			{
@@ -179,12 +156,13 @@ namespace Horde.Build.Controllers
 				if (notice.UserId != null)
 				{
 					userInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(notice.UserId));
-				}								
+				}
 
-				messages.Add(new GetNoticeResponse(notice, userInfo));
+				messages.Add(new GetNoticeResponse() { Id = notice.Id.ToString(), Active = true, Message = notice.Message, CreatedByUser = userInfo});
 			}
 
 			return messages;
+			
 		}
 	}
 }
