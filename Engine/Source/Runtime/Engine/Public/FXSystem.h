@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "RenderUtils.h"
 #include "RenderGraphDefinitions.h"
+#include "SceneView.h"
 
 class FCanvas;
 class FGPUSortManager;
