@@ -6,32 +6,31 @@
 
 namespace Audio
 {
-	using MetronomeCommandQueuePtr = TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>;
+	using MetronomeCommandQueuePtr = TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>;
 
 	// Class to track the passage of musical time, and allow subscribers to be notified when these musical events take place
 	class FQuartzMetronome
 	{
 	public:
 		// ctor
-		FQuartzMetronome(FName InClockName = {});
-		FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature, FName InClockName = {});
+		FQuartzMetronome();
+		FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature);
 
 		// dtor
 		~FQuartzMetronome();
 
-		// Transport Control:
+		// called by owning FQuartzClock
 		void Tick(int32 InNumSamples, int32 FramesOfLatency = 0);
 
+		// called by owning FQuartzClock
 		void SetTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft = 0);
+
+		FQuartzClockTickRate GetTickRate() const { return CurrentTickRate; }
 
 		void SetSampleRate(float InNewSampleRate);
 
+		// affects bars/beats values we send back to the game thread
 		void SetTimeSignature(const FQuartzTimeSignature& InNewTimeSignature);
-
-		void ResetTransport();
-
-		// Getters
-		FQuartzClockTickRate GetTickRate() const { return CurrentTickRate; }
 
 		double GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const;
 
@@ -41,7 +40,6 @@ namespace Audio
 
 		double GetTimeSinceStart() const { return TimeSinceStart; }
 
-		// Event Subscription
 		void SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
 
 		void SubscribeToAllTimeDivisions(MetronomeCommandQueuePtr InListenerQueue);
@@ -50,10 +48,9 @@ namespace Audio
 
 		void UnsubscribeFromAllTimeDivisions(MetronomeCommandQueuePtr InListenerQueue);
 
+		void ResetTransport();
 
 	private:
-
-		// Helpers:
 		void RecalculateDurations();
 
 		void FireEvents(int32 EventFlags);
@@ -72,6 +69,7 @@ namespace Audio
 
 		FQuartzClockTickRate CurrentTickRate;
 
+		// (Subtract one because Tick and 1/32 are the same.)
 		TArray<MetronomeCommandQueuePtr> MetronomeSubscriptionMatrix[static_cast<int32>(EQuartzCommandQuantization::Count)];
 		
 		// wrapper around our array so it can be indexed into by different Enums that represent musical time
@@ -119,8 +117,6 @@ namespace Audio
 
 		//Keeps track of time in seconds since the Clock was last reset
 		double TimeSinceStart;
-
-		FName ClockName;
 
 	}; // class QuartzMetronome
 } // namespace Audio

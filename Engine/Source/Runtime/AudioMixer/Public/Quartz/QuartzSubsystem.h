@@ -17,13 +17,11 @@ namespace Audio
 {
 	class FMixerDevice;
 	class FQuartzClockManager;
-
-	template<class ListenerType>
-	class TQuartzShareableCommandQueue;
+	class FShareableQuartzCommandQueue;
 }
-
 class FQuartzTickableObject;
-using MetronomeCommandQueuePtr = TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>;
+
+using MetronomeCommandQueuePtr = TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe>;
 
 // GetManagerForClock() logic will need to be updated if more entries are present
 UENUM(BlueprintType)
@@ -54,37 +52,26 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override;
 	virtual TStatId GetStatId() const override;
+	//~ End FTickableGameObject Interface
 
+	// if we have another stakeholder later we can use polymorphism here.
+	// in the mean time, we are avoiding the virtual overhead
 	void SubscribeToQuartzTick(FQuartzTickableObject* InObjectToTick);
 	void UnsubscribeFromQuartzTick(FQuartzTickableObject* InObjectToTick);
-	//~ End FTickableGameObject Interface
 
 	// static methods
 	static UQuartzSubsystem* Get(UWorld* World);
 
 	// create a new command queue to be shared between ClockHandles and other threads
-	static TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> CreateQuartzCommandQueue();
+	static TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> CreateQuartzCommandQueue();
 
 	// Helper functions for initializing quantized command initialization struct (to consolidate eyesore)
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
-
-	// DEPRECATED HELPERS: non-static versions of the above CreateDataFor...() functions
-	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
 	Audio::FQuartzQuantizedRequestData CreateDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
-
-	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
 	Audio::FQuartzQuantizedRequestData CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
-	
-	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
 	Audio::FQuartzQuantizedRequestData CreateDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
-
-	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
 	Audio::FQuartzQuantizedRequestData CreateDataDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
 
-	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (DeprecatedFunction, DeprecationMessage = "Quartz is always enabled. This function will always return true"))
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle")
 	bool IsQuartzEnabled();
 
 	// Clock Creation
@@ -109,7 +96,7 @@ public:
 	bool DoesClockExist(const UObject* WorldContextObject, FName ClockName);
 
 	// returns true if the clock is running
-	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject", DeprecatedFunction, DeprecationMessage = "Obtain and Query a UQuartzClockHandle instead"))
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
 	bool IsClockRunning(const UObject* WorldContextObject, FName ClockName);
 
 	/** Returns the duration in seconds of the given Quantization Type
@@ -118,15 +105,15 @@ public:
 	 * @param The quantity of the Quantization Type to calculate the time of
 	 * @return The duration, in seconds, of a multiplier amount of the Quantization Type, or -1 in the case the clock is invalid
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject", DeprecatedFunction, DeprecationMessage = "Obtain and Query a UQuartzClockHandle instead"))
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
 	float GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, FName ClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier = 1.0f);
 
 	// Retrieves a timestamp for the clock
-	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject", DeprecatedFunction, DeprecationMessage = "Obtain and Query a UQuartzClockHandle instead"))
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
 	FQuartzTransportTimeStamp GetCurrentClockTimestamp(const UObject* WorldContextObject, const FName& InClockName);
 
 	// Returns the amount of time, in seconds, the clock has been running. Caution: due to latency, this will not be perfectly accurate
-	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject", DeprecatedFunction, DeprecationMessage = "Obtain and Query a UQuartzClockHandle instead"))
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
 	float GetEstimatedClockRunTime(const UObject* WorldContextObject, const FName& InClockName);
 
 	// latency data (Game thread -> Audio Render Thread)
@@ -159,10 +146,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
 	float GetRoundTripMaxLatency(const UObject* WorldContextObject);
 
-	UE_DEPRECATED(5.1, "Obtain and use a UQuartzClockHandle / FQuartzClockProxy instead")
 	void AddCommandToClock(const UObject* WorldContextObject, Audio::FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo, FName ClockName);
 
-	// maxtodo: deprecate this? or make private?
 	Audio::FQuartzClockManager* GetManagerForClock(const UObject* WorldContextObject, FName ExistingClockName = FName());
 
 private:

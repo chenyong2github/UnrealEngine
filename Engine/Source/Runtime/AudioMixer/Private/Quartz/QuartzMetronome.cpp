@@ -5,14 +5,13 @@
 
 namespace Audio
 {
-	FQuartzMetronome::FQuartzMetronome(FName InClockName)
-		: TimeSinceStart(0), ClockName(InClockName)
+	FQuartzMetronome::FQuartzMetronome() : TimeSinceStart(0)
 	{
 		SetTickRate(CurrentTickRate);
 	}
 
-	FQuartzMetronome::FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature, FName InClockName)
-		: CurrentTimeSignature(InTimeSignature), TimeSinceStart(0), ClockName(InClockName)
+	FQuartzMetronome::FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature)
+		: CurrentTimeSignature(InTimeSignature), TimeSinceStart(0)
 	{
 		SetTickRate(CurrentTickRate);
 	}
@@ -418,17 +417,16 @@ namespace Audio
 
 	void FQuartzMetronome::FireEvents(int32 EventFlags)
 	{
+		FQuartzMetronomeDelegateData Data;
+		Data.Bar = (CurrentTimeStamp.Bars);
+		Data.Beat = (CurrentTimeStamp.Beat);
+		Data.BeatFraction = (CurrentTimeStamp.BeatFraction);
+
 		if (!(EventFlags &= ListenerFlags))
 		{
 			// no events occurred that we have listeners for
 			return;
 		}
-
-		FQuartzMetronomeDelegateData Data;
-		Data.Bar = (CurrentTimeStamp.Bars);
-		Data.Beat = (CurrentTimeStamp.Beat);
-		Data.BeatFraction = (CurrentTimeStamp.BeatFraction);
-		Data.ClockName = ClockName;
 
 		// loop through quantization boundaries
 		int32 i = -1;

@@ -52,7 +52,7 @@ namespace Audio
 		}
 	}
 
-	FQuartzClockProxy FQuartzClockManager::GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists)
+	TSharedPtr<FQuartzClock> FQuartzClockManager::GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists)
 	{
 		FScopeLock Lock(&ActiveClockCritSec);
 
@@ -70,25 +70,11 @@ namespace Audio
 				Clock->ChangeTimeSignature(NewSettings.TimeSignature);
 			}
 
-			return FQuartzClockProxy(Clock);
+			return Clock;
 		}
 
 		// doesn't exist, create new clock
-		return FQuartzClockProxy(ActiveClocks.Emplace_GetRef(MakeShared<FQuartzClock>(InClockName, NewSettings, this)));
-	}
-
-	FQuartzClockProxy FQuartzClockManager::GetClock(const FName& InClockName)
-	{
-		FScopeLock Lock(&ActiveClockCritSec);
-		TSharedPtr<FQuartzClock> ClockPtr = FindClock(InClockName);
-
-		if (ClockPtr)
-		{
-			return FQuartzClockProxy(ClockPtr);
-		}
-
-		UE_LOG(LogAudioQuartz, Warning, TEXT("Could not find Clock: %s (returning empty handle)"), *ClockPtr->GetName().ToString());
-		return {};
+		return ActiveClocks.Emplace_GetRef(MakeShared<FQuartzClock>(InClockName, NewSettings, this));
 	}
 
 	bool FQuartzClockManager::DoesClockExist(const FName& InClockName)
@@ -303,6 +289,11 @@ namespace Audio
 
 	void FQuartzClockManager::Shutdown()
 	{
+		if (MixerDevice)
+		{
+			check(MixerDevice->IsAudioRenderingThread());
+		}
+
 		FScopeLock Lock(&ActiveClockCritSec);
 		ActiveClocks.Reset();
 	}
