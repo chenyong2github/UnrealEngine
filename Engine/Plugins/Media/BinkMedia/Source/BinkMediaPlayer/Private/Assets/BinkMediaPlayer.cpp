@@ -2,6 +2,7 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaPlayer.h"
+#include "binkplugin.h"
 #include "BinkMediaPlayerPCH.h"
 #include "BinkMediaTexture.h"
 #include "BinkFunctionLibrary.h"
@@ -547,4 +548,26 @@ void UBinkMediaPlayer::Draw(UTexture *texture, bool tonemap, int out_nits, float
 	{ 
 		parms.player->UpdateTexture(RHICmdList, parms.ref, parms.native, parms.width, parms.height, false, parms.tonemap, parms.out_nits, parms.alpha, parms.srgb_decode, parms.hdr);
 	});
+}
+
+FIntPoint UBinkMediaPlayer::GetDimensions() const
+{
+	if (bnk)
+	{
+		BINKPLUGININFO bpinfo = {};
+		BinkPluginInfo(bnk, &bpinfo);
+		return FIntPoint(bpinfo.Width, bpinfo.Height);
+	}
+	return FIntPoint(0, 0);
+}
+
+float UBinkMediaPlayer::GetFrameRate() const
+{
+	if (bnk)
+	{
+		BINKPLUGININFO bpinfo = {};
+		BinkPluginInfo(bnk, &bpinfo);
+		return (float)(((double)bpinfo.FrameRate) / ((double)bpinfo.FrameRateDiv));
+	}
+	return 0;
 }

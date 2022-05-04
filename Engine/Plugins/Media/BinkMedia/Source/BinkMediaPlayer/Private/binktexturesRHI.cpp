@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #define BINKRHIFUNCTIONS
-#include "../../SDK/include/egttypes.h"
-#include "../../SDK/include/binktiny.h"
-#include "../../SDK/include/binktextures.h"
+#include "../../BinkMediaPlayerSDK/include/egttypes.h"
+#include "../../BinkMediaPlayerSDK/include/binktiny.h"
+#include "../../BinkMediaPlayerSDK/include/binktextures.h"
 
 #include "CoreMinimal.h"
 #include "UObject/ConstructorHelpers.h"

@@ -7,15 +7,6 @@ using UnrealBuildTool;
 
 public class BinkMediaPlayer : ModuleRules 
 {
-	// Platform Extensions need to override these
-	protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
-	protected virtual string LibName { get { return null; } }
-
-	protected virtual string SdkBaseDirectory { get { return Path.Combine(LibRootDirectory, "..", "SDK"); } }
-	protected virtual string LibDirectory { get { return Path.Combine(SdkBaseDirectory, "lib"); } }
-
-	protected virtual string IncDirectory { get { return Path.Combine(ModuleDirectory, "..", "SDK", "include"); } }
-
     public BinkMediaPlayer(ReadOnlyTargetRules Target) : base(Target)
     {
 		bAllowConfidentialPlatformDefines = true;
@@ -29,6 +20,8 @@ public class BinkMediaPlayer : ModuleRules
         PublicDependencyModuleNames.Add("MoviePlayer");
         //PublicDependencyModuleNames.Add("MediaAssets");
         PublicDependencyModuleNames.Add("Projects");
+
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "BinkMediaPlayerSDK");
 
         PrivatePCHHeaderFile = "Private/BinkMediaPlayerPCH.h";
 
@@ -45,56 +38,12 @@ public class BinkMediaPlayer : ModuleRules
             PublicDefinitions.Add("BINKPLUGIN_UE4_EDITOR=0");
         }
 
-		PublicDefinitions.Add("BUILDING_FOR_UNREAL_ONLY=1");
-		PublicDefinitions.Add("__RADNOEXPORTS__=1");
-		PublicDefinitions.Add("__RADINSTATICLIB__=1");
 		RuntimeDependencies.Add("$(ProjectDir)/Content/Movies/..."); // For chunked streaming
 
-		string Lib = LibName;
-		string Platform = Target.Platform.ToString();
-
-		if(Lib == null)
+		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Microsoft))
-			{
-				Lib = "BinkUnreal" + Platform + ".lib";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Mac)
-			{
-				Lib = "BinkUnreal" + Platform + ".a";
-				PublicDependencyModuleNames.Add("MetalRHI");
-				PublicFrameworks.Add("AudioToolbox");
-			}
-            else if (Target.Platform == UnrealTargetPlatform.IOS)
-            {
-                Lib = "libBinkUnreal" + Platform + ".a";
-                PublicDependencyModuleNames.Add("MetalRHI");
-            }
-            else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Apple))
-			{
-				Lib = "BinkUnreal" + Platform + ".a";
-				PublicDependencyModuleNames.Add("MetalRHI");
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Android)
-			{
-				PublicDependencyModuleNames.Add("Launch");
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "armv7", "libBinkUnrealAndroid.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "arm64", "libBinkUnrealAndroid.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "x86", "libBinkUnrealAndroid.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "x64", "libBinkUnrealAndroid.a"));
-				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "BinkMediaPlayer_APL.xml"));
-			}
-			else
-			{
-				Lib = "BinkUnreal" + Platform + ".a";
-			}
+			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "BinkMediaPlayer_APL.xml"));
 		}
-
-		if (Lib != null)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, Lib));
-		}
-        PublicIncludePaths.Add(IncDirectory);
 	}
 }
