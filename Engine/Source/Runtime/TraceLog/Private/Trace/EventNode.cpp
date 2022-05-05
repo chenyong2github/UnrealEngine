@@ -108,6 +108,9 @@ void FEventNode::Describe() const
 {
 	const FLiteralName& LoggerName = Info->LoggerName;
 	const FLiteralName& EventName = Info->EventName;
+	
+	// Definition events adds an extra field containing the definition id to the end.
+	const uint32 DefinitionIdFieldIdx = Info->FieldCount - ((Info->Flags & FEventInfo::DefinitionBits) ? 1 : 0);
 
 	// Calculate the number of fields and size of name data.
 	uint32 NamesSize = LoggerName.Length + EventName.Length;
@@ -133,10 +136,11 @@ void FEventNode::Describe() const
 	Event.EventNameSize = EventName.Length;
 	Event.Flags = 0;
 
-	uint32 Flags = Info->Flags;
+	const uint32 Flags = Info->Flags;
 	if (Flags & FEventInfo::Flag_Important)		Event.Flags |= uint8(EEventFlags::Important);
 	if (Flags & FEventInfo::Flag_MaybeHasAux)	Event.Flags |= uint8(EEventFlags::MaybeHasAux);
 	if (Flags & FEventInfo::Flag_NoSync)		Event.Flags |= uint8(EEventFlags::NoSync);
+	if (Flags & FEventInfo::DefinitionBits)		Event.Flags |= uint8(EEventFlags::Definition);
 
 	// Write details about event's fields
 	Event.FieldCount = uint8(Info->FieldCount);
@@ -144,10 +148,29 @@ void FEventNode::Describe() const
 	{
 		const FFieldDesc& Field = Info->Fields[i];
 		auto& Out = Event.Fields[i];
-		Out.Offset = Field.ValueOffset;
-		Out.Size = Field.ValueSize;
-		Out.TypeInfo = Field.TypeInfo;
-		Out.NameSize = Field.NameSize;
+		if (i == DefinitionIdFieldIdx)
+		{
+			Out.FieldType = EFieldFamily::DefinitionId;
+			Out.DefinitionId.Offset = Field.ValueOffset;
+			Out.DefinitionId.TypeInfo = Field.TypeInfo;
+		}
+		else if (Field.Reference)
+		{
+			Out.FieldType = EFieldFamily::Reference;
+			// todo: What if the referenced type has not been initialized yet?
+			Out.Reference.Offset = Field.ValueOffset;
+			Out.Reference.TypeInfo = Field.TypeInfo;
+			Out.Reference.NameSize = Field.NameSize;
+			Out.Reference.RefUid = uint16(Field.Reference->GetUid()) >> EKnownEventUids::_UidShift;
+		}
+		else
+		{
+			Out.FieldType = EFieldFamily::Regular;
+			Out.Regular.Offset = Field.ValueOffset;
+			Out.Regular.Size = Field.ValueSize;
+			Out.Regular.TypeInfo = Field.TypeInfo;
+			Out.Regular.NameSize = Field.NameSize;
+		}
 	}
 
 	// Write names

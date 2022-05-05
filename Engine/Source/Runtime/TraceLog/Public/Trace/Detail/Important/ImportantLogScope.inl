@@ -200,6 +200,16 @@ struct FImportantLogScope::FFieldSet<FieldMeta, WideString>
 	}
 };
 
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta, typename DefinitionType>
+struct FImportantLogScope::FFieldSet<FieldMeta, TEventRef<DefinitionType>>
+{
+	static void Impl(FImportantLogScope* Scope, const TEventRef<DefinitionType>& Reference)
+	{
+		FFieldSet<FieldMeta, DefinitionType>::Impl(Scope, Reference.Id);
+	}
+};
+
 } // namespace Private
 } // namespace Trace
 } // namespace UE

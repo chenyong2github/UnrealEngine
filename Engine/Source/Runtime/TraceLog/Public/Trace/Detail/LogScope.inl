@@ -306,6 +306,16 @@ struct FLogScope::FFieldSet<FieldMeta, WideString>
 	}
 };
 
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta, typename DefinitionType>
+struct FLogScope::FFieldSet<FieldMeta, TEventRef<DefinitionType>>
+{
+	static void Impl(FLogScope* Scope, const TEventRef<DefinitionType>& Reference)
+	{
+		FFieldSet<FieldMeta, DefinitionType>::Impl(Scope, Reference.Id);
+	}
+};
+
 } // namespace Private
 } // namespace Trace
 } // namespace UE

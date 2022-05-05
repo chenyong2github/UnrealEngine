@@ -21,6 +21,62 @@ namespace Trace {
 enum AnsiString {};
 enum WideString {};
 
+// Reference to a definition event.
+template<typename IdType>	
+struct TEventRef 
+{
+	using ReferenceType = IdType;
+	
+	TEventRef(IdType InId, uint32 InTypeId)
+		: Id(InId)
+		, RefTypeId(InTypeId)
+	{
+	}
+
+	IdType Id;
+	uint32 RefTypeId;
+
+	uint64 GetHash() const;
+	
+private:
+	TEventRef() = delete;
+};
+
+template <>
+inline uint64 TEventRef<uint8>::GetHash() const
+{
+	return (uint64(RefTypeId) << 32) | Id;
+}
+	
+template <>
+inline uint64 TEventRef<uint16>::GetHash() const
+{
+	return (uint64(RefTypeId) << 32) | Id;
+}
+	
+template <>
+inline uint64 TEventRef<uint32>::GetHash() const
+{
+	return (uint64(RefTypeId) << 32) | Id;
+}
+
+template <>
+inline uint64 TEventRef<uint64>::GetHash() const
+{
+	return (uint64(RefTypeId) << 32) ^ Id;
+}
+
+typedef TEventRef<uint8> FEventRef8;
+typedef TEventRef<uint16> FEventRef16;	
+typedef TEventRef<uint32> FEventRef32;
+typedef TEventRef<uint64> FEventRef64;
+
+template<typename IdType>
+TEventRef<IdType> MakeEventRef(IdType InId, uint32 InTypeId)
+{
+	return TEventRef<IdType>(InId, InTypeId);
+}
+
 struct FInitializeDesc
 {
 	uint32			TailSizeBytes		= 4 << 20;
@@ -66,10 +122,13 @@ UE_TRACE_API void	ThreadGroupEnd() UE_TRACE_IMPL();
 #define UE_TRACE_EVENT_BEGIN(LoggerName, EventName, ...)				TRACE_PRIVATE_EVENT_BEGIN(LoggerName, EventName, ##__VA_ARGS__)
 #define UE_TRACE_EVENT_BEGIN_EXTERN(LoggerName, EventName, ...)			TRACE_PRIVATE_EVENT_BEGIN_EXTERN(LoggerName, EventName, ##__VA_ARGS__)
 #define UE_TRACE_EVENT_FIELD(FieldType, FieldName)						TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName)
+#define UE_TRACE_EVENT_REFERENCE_FIELD(RefLogger, RefEvent, FieldName)	TRACE_PRIVATE_EVENT_REFFIELD(RefLogger, RefEvent, FieldName)
 #define UE_TRACE_EVENT_END()											TRACE_PRIVATE_EVENT_END()
 #define UE_TRACE_LOG(LoggerName, EventName, ChannelsExpr, ...)			TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__)
 #define UE_TRACE_LOG_SCOPED(LoggerName, EventName, ChannelsExpr, ...)	TRACE_PRIVATE_LOG_SCOPED(LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__)
 #define UE_TRACE_LOG_SCOPED_T(LoggerName, EventName, ChannelsExpr, ...)	TRACE_PRIVATE_LOG_SCOPED_T(LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__)
+#define UE_TRACE_GET_DEFINITION_TYPE_ID(LoggerName, EventName)			TRACE_PRIVATE_GET_DEFINITION_TYPE_ID(LoggerName, EventName)
+#define UE_TRACE_LOG_DEFINITION(LoggerName, EventName, Id, ChannelsExpr, ...) TRACE_PRIVATE_LOG_DEFINITION(LoggerName, EventName, Id, ChannelsExpr, ##__VA_ARGS__)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_TRACE_CHANNEL(ChannelName, ...)				TRACE_PRIVATE_CHANNEL(ChannelName, ##__VA_ARGS__)

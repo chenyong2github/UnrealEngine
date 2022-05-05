@@ -28,11 +28,16 @@ UE_TRACE_API void Field_WriteStringAnsi(uint32, const ANSICHAR*, int32);
 UE_TRACE_API void Field_WriteStringAnsi(uint32, const WIDECHAR*, int32);
 UE_TRACE_API void Field_WriteStringWide(uint32, const WIDECHAR*, int32);
 
+class FEventNode;
+
 } // namespace Private
 
 ////////////////////////////////////////////////////////////////////////////////
+enum DisabledField {};
+	
 template <typename Type> struct TFieldType;
 
+template <> struct TFieldType<DisabledField>{ enum { Tid = 0,						Size = 0 }; };
 template <> struct TFieldType<bool>			{ enum { Tid = int(EFieldType::Bool),	Size = sizeof(bool) }; };
 template <> struct TFieldType<int8>			{ enum { Tid = int(EFieldType::Int8),	Size = sizeof(int8) }; };
 template <> struct TFieldType<int16>		{ enum { Tid = int(EFieldType::Int16),	Size = sizeof(int16) }; };
@@ -91,12 +96,13 @@ struct FLiteralName
 ////////////////////////////////////////////////////////////////////////////////
 struct FFieldDesc
 {
-	FFieldDesc(const FLiteralName& Name, uint8 Type, uint16 Offset, uint16 Size)
+	FFieldDesc(const FLiteralName& Name, uint8 Type, uint16 Offset, uint16 Size, Private::FEventNode* ReferenceEvent = nullptr)
 	: Name(Name.Ptr)
 	, ValueOffset(Offset)
 	, ValueSize(Size)
 	, NameSize(Name.Length)
 	, TypeInfo(Type)
+	, Reference(ReferenceEvent)
 	{
 	}
 
@@ -105,6 +111,7 @@ struct FFieldDesc
 	uint16			ValueSize;
 	uint8			NameSize;
 	uint8			TypeInfo;
+	Private::FEventNode* Reference;
 };
 
 
@@ -137,7 +144,7 @@ enum class EIndexPack
 		: FieldDesc(Name, Tid, Offset, Size) \
 		{ \
 		}
-
+	
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset, typename Type>
 struct TField<InIndex, InOffset, Type[]>
@@ -168,6 +175,18 @@ struct TField<InIndex, InOffset, WideString>
 	TRACE_PRIVATE_FIELD(InIndex + int(EIndexPack::AuxFieldCounter), InOffset, WideString);
 };
 
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset, typename DefinitionType>
+struct TField<InIndex, InOffset, TEventRef<DefinitionType>>
+{
+	TRACE_PRIVATE_FIELD(InIndex, InOffset, DefinitionType);
+public:
+	TField(const FLiteralName& Name, Private::FEventNode* ReferenceEvent)
+		: FieldDesc(Name, Tid, Offset, Size, ReferenceEvent)
+	{
+	}
+};
+	
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset, typename Type>
 struct TField

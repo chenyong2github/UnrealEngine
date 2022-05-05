@@ -65,9 +65,19 @@ class FChannel;
 		{ \
 			Important			= UE::Trace::Private::FEventInfo::Flag_Important, \
 			NoSync				= UE::Trace::Private::FEventInfo::Flag_NoSync, \
+			Definition8bit		= UE::Trace::Private::FEventInfo::Flag_Definition8, \
+			Definition16bit		= UE::Trace::Private::FEventInfo::Flag_Definition16, \
+			Definition32bit		= UE::Trace::Private::FEventInfo::Flag_Definition32, \
+			Definition64bit		= UE::Trace::Private::FEventInfo::Flag_Definition64, \
+			DefinitionBits		= UE::Trace::Private::FEventInfo::DefinitionBits, \
 			PartialEventFlags	= (0, ##__VA_ARGS__), \
 		}; \
-		enum : bool { bIsImportant = ((0, ##__VA_ARGS__) & Important) != 0, }; \
+		enum : bool { bIsImportant = ((0, ##__VA_ARGS__) & Important) != 0, bIsDefinition = ((0, ##__VA_ARGS__) & DefinitionBits) != 0,\
+		bIsDefinition8 = ((0, ##__VA_ARGS__) & Definition8bit) != 0, \
+		bIsDefinition16 = ((0, ##__VA_ARGS__) & Definition16bit) != 0,\
+		bIsDefinition32 = ((0, ##__VA_ARGS__) & Definition32bit) != 0, \
+		bIsDefinition64 = ((0, ##__VA_ARGS__) & Definition64bit) != 0,}; \
+		typedef std::conditional_t<bIsDefinition8, UE::Trace::FEventRef8, std::conditional_t<bIsDefinition16, UE::Trace::FEventRef16 , std::conditional_t<bIsDefinition64, UE::Trace::FEventRef64, UE::Trace::FEventRef32>>> DefinitionType;\
 		static constexpr uint32 GetSize() { return EventProps_Meta::Size; } \
 		static uint32 GetUid() { static uint32 Uid = 0; return (Uid = Uid ? Uid : Initialize()); } \
 		static uint32 FORCENOINLINE Initialize() \
@@ -81,7 +91,7 @@ class FChannel;
 					FLiteralName(#LoggerName), \
 					FLiteralName(#EventName), \
 					(FFieldDesc*)(&Fields), \
-					uint16(sizeof(Fields) / sizeof(FFieldDesc)), \
+					EventProps_Meta::NumFields, \
 					uint16(EventFlags), \
 				}; \
 				return LoggerName##EventName##Event.Initialize(&Info); \
@@ -101,8 +111,29 @@ class FChannel;
 			FieldName##_Meta::Index + 1, \
 			FieldName##_Meta::Offset + FieldName##_Meta::Size,
 
+#define TRACE_PRIVATE_EVENT_REFFIELD(RefLogger, RefEventType, FieldName) \
+		F##RefLogger##RefEventType##Fields::DefinitionType> FieldName##_Meta; \
+		FieldName##_Meta const FieldName##_Field = FieldName##_Meta(UE::Trace::FLiteralName(#FieldName), &RefLogger##RefEventType##Event); \
+		template <typename DefinitionType> auto FieldName(UE::Trace::TEventRef<DefinitionType> Reference) const { \
+			checkfSlow(Reference.RefTypeId == F##RefLogger##RefEventType##Fields::GetUid(), TEXT("Incorrect reference type passed to event. Field expected %s with uid %u but got a reference with uid %u"), TEXT(#RefEventType), F##RefLogger##RefEventType##Fields::GetUid(), Reference.RefTypeId);\
+			LogScopeType::FFieldSet<FieldName##_Meta, F##RefLogger##RefEventType##Fields::DefinitionType>::Impl((LogScopeType*)this, Reference); \
+			return true; \
+		} \
+		typedef UE::Trace::TField< \
+			FieldName##_Meta::Index + 1, \
+			FieldName##_Meta::Offset + FieldName##_Meta::Size,
+
 #define TRACE_PRIVATE_EVENT_END() \
-		UE::Trace::EventProps> EventProps_Meta; \
+		std::conditional<bIsDefinition, DefinitionType, UE::Trace::DisabledField>::type> DefinitionId_Meta;\
+		DefinitionId_Meta const DefinitionId_Field = UE::Trace::FLiteralName("");\
+		static constexpr uint16 NumDefinitionFields = bIsDefinition ? 1 : 0;\
+		template<typename RefType>\
+		auto SetDefinitionId(const RefType& Id) const \
+		{ \
+			LogScopeType::FFieldSet<DefinitionId_Meta, RefType>::Impl((LogScopeType*)this, Id); \
+			return true; \
+		} \
+		typedef UE::Trace::TField<DefinitionId_Meta::Index + NumDefinitionFields, DefinitionId_Meta::Offset + DefinitionId_Meta::Size, UE::Trace::EventProps> EventProps_Meta; \
 		EventProps_Meta const EventProps_Private = {}; \
 		typedef std::conditional<bIsImportant, UE::Trace::Private::FImportantLogScope, UE::Trace::Private::FLogScope>::type LogScopeType; \
 		explicit operator bool () const { return true; } \
@@ -137,6 +168,14 @@ class FChannel;
 	TRACE_PRIVATE_LOG_PRELUDE(ScopedStampedEnter, LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__) \
 		PREPROCESSOR_JOIN(TheScope, __LINE__).SetActive(), \
 		TRACE_PRIVATE_LOG_EPILOG()
+
+#define TRACE_PRIVATE_GET_DEFINITION_TYPE_ID(LoggerName, EventName) \
+	F##LoggerName##EventName##Fields::GetUid()
+
+#define TRACE_PRIVATE_LOG_DEFINITION(LoggerName, EventName, Id, ChannelsExpr, ...) \
+	UE::Trace::MakeEventRef(Id, TRACE_PRIVATE_GET_DEFINITION_TYPE_ID(LoggerName, EventName)); \
+	TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__) \
+		<< EventName.SetDefinitionId(UE::Trace::MakeEventRef(Id, F##LoggerName##EventName##Fields::GetUid()))
 
 #else
 
@@ -173,6 +212,9 @@ class FChannel;
 #define TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName) \
 		const FTraceDisabled& FieldName;
 
+#define TRACE_PRIVATE_EVENT_REFFIELD(RefLogger, RefEventType, FieldName) \
+		const FTraceDisabled& FieldName;
+
 #define TRACE_PRIVATE_EVENT_END() \
 	};
 
@@ -187,5 +229,12 @@ class FChannel;
 #define TRACE_PRIVATE_LOG_SCOPED_T(LoggerName, EventName, ...) \
 	if (const auto& EventName = *(F##LoggerName##EventName##Dummy*)1) \
 		EventName
+
+#define TRACE_PRIVATE_GET_DEFINITION_TYPE_ID(LoggerName, EventName) \
+	0
+
+#define TRACE_PRIVATE_LOG_DEFINITION(LoggerName, EventName, Id, ChannelsExpr, ...) \
+	UE::Trace::MakeEventRef(Id, 0); \
+	TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__) \
 
 #endif // UE_TRACE_ENABLED

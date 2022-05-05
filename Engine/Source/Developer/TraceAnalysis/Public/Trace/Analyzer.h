@@ -51,7 +51,7 @@ public:
 
 	struct TRACEANALYSIS_API FEventFieldInfo
 	{
-		enum class EType { None, Integer, Float, AnsiString, WideString };
+		enum class EType { None, Integer, Float, AnsiString, WideString, Reference8, Reference16, Reference32, Reference64 };
 
 		/** Returns the name of the field. */
 		const ANSICHAR* GetName() const;
@@ -156,6 +156,18 @@ public:
 		bool GetString(const ANSICHAR* FieldName, FWideStringView& Out) const;
 		bool GetString(const ANSICHAR* FieldName, FString& Out) const;
 
+		/** Returns a value of a reference field.
+		 * @param FieldName Name of field
+		 * @return Reference value
+		 */
+		template<typename DefinitionType>
+		TEventRef<DefinitionType> GetReferenceValue(const ANSICHAR* FieldName) const;
+
+		/** If this is a spec event, gets the unique Id for this spec.
+		 * @return A valid spec id if the event is valid, otherwise an empty id.
+		 */
+		template<typename DefinitionType> TEventRef<DefinitionType> GetDefinitionId() const;
+
 		/** The size of the event in uncompressed bytes excluding the header */
 		uint32 GetSize() const;
 
@@ -172,6 +184,8 @@ public:
 		uint32 GetAttachmentSize() const;
 
 	private:
+		bool IsDefinitionImpl(uint32& OutTypeId) const;
+		const void* GetReferenceValueImpl(const char* FieldName, uint16& OutSizeType, uint32& OutTypeUid) const;
 		const void* GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const;
 		const FArrayReader* GetArrayImpl(const ANSICHAR* FieldName) const;
 	};
@@ -371,6 +385,33 @@ const ValueType* IAnalyzer::TArrayReader<ValueType>::GetData() const
 	}
 
 	return (const ValueType*)Addr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<typename DefinitionType>
+TEventRef<DefinitionType> IAnalyzer::FEventData::GetDefinitionId() const
+{
+	uint32 TypeUid;
+	if (IsDefinitionImpl(TypeUid))
+	{
+		//todo: Emit warning when trying to access id of incorrect type?
+		return MakeEventRef(GetValue<DefinitionType>("DefinitionId", 0), TypeUid);
+	}
+	return MakeEventRef<DefinitionType>(0,0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<typename DefinitionType>
+TEventRef<DefinitionType> IAnalyzer::FEventData::GetReferenceValue(const ANSICHAR* FieldName) const
+{
+	uint32 TypeUid;
+	uint16 SizeAndType;
+	const void* Value = GetReferenceValueImpl(FieldName, SizeAndType, TypeUid);
+	if (Value)
+	{
+		return MakeEventRef<DefinitionType>(CoerceValue<DefinitionType>(Value, SizeAndType), TypeUid);
+	}
+	return MakeEventRef<DefinitionType>(0,0);
 }
 
 } // namespace Trace
