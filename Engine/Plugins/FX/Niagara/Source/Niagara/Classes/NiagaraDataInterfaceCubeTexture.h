@@ -14,10 +14,14 @@ UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "Cube Texture 
 class NIAGARA_API UNiagaraDataInterfaceCubeTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FIntPoint,				TextureSize)
+		SHADER_PARAMETER_TEXTURE(TextureCube,	Texture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,	TextureSampler)
+	END_SHADER_PARAMETER_STRUCT()
+
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	TObjectPtr<UTextureCube> Texture;
 
@@ -48,14 +52,13 @@ public:
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
-
-	//FRWBuffer& GetGPUBuffer();
-	static const FString TextureName;
-	static const FString SamplerName;
-	static const FString DimensionsBaseName;
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	void SetTexture(UTextureCube* InTexture);
 
@@ -63,6 +66,7 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 protected:
+	static const TCHAR* TemplateShaderFilePath;
 	static const FName SampleCubeTextureName;
 	static const FName TextureDimsName;
 };
