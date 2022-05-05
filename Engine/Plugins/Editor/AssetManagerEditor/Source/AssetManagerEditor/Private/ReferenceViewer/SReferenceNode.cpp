@@ -9,6 +9,7 @@
 #include "AssetThumbnail.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SCommentBubble.h"
+#include "ReferenceViewerStyle.h"
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 
@@ -36,6 +37,7 @@ void SReferenceNode::Construct( const FArguments& InArgs, UEdGraphNode_Reference
 	UpdateGraphNode();
 }
 
+// UpdateGraphNode is similar to the base, but adds the option to hide the thumbnail */
 void SReferenceNode::UpdateGraphNode()
 {
 	OutputPins.Empty();
@@ -59,12 +61,22 @@ void SReferenceNode::UpdateGraphNode()
 	//
 	TSharedPtr<SVerticalBox> MainVerticalBox;
 	TSharedPtr<SErrorText> ErrorText;
-	TSharedPtr<SNodeTitle> NodeTitle = SNew(SNodeTitle, GraphNode);
+	TSharedPtr<SNodeTitle> NodeTitle = SNew(SNodeTitle, GraphNode).StyleSet(&FReferenceViewerStyle::Get());
+
+	// Get node icon
+	IconColor = FLinearColor::White;
+	const FSlateBrush* IconBrush = nullptr;
+	if (GraphNode != NULL && GraphNode->ShowPaletteIconOnNode())
+	{
+		IconBrush = GraphNode->GetIconAndTint(IconColor).GetOptionalIcon();
+	}
+
 
 	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
+	UEdGraphNode_Reference* RefGraphNode = CastChecked<UEdGraphNode_Reference>(GraphNode);
+	bool bIsADuplicate = RefGraphNode->IsADuplicate();
 	if ( AssetThumbnail.IsValid() )
 	{
-		UEdGraphNode_Reference* RefGraphNode = CastChecked<UEdGraphNode_Reference>(GraphNode);
 
 		FAssetThumbnailConfig ThumbnailConfig;
 		ThumbnailConfig.bAllowFadeIn = RefGraphNode->UsesThumbnail();
@@ -89,39 +101,56 @@ void SReferenceNode::UpdateGraphNode()
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.Node.Body" ) )
+			.BorderImage( FReferenceViewerStyle::Get().GetBrush( "Graph.Node.BodyBackground" ) )
 			.Padding(0)
 			[
+
+			SNew(SBorder)
+			.BorderImage( FReferenceViewerStyle::Get().GetBrush( "Graph.Node.BodyBorder" ) )
+			.BorderBackgroundColor( this, &SReferenceNode::GetNodeTitleColor )
+			.Padding(0)
+			[
+
+			SNew(SBorder)
+			.BorderImage( FReferenceViewerStyle::Get().GetBrush( "Graph.Node.Body" ) )
+			.Padding(0)
+			[
+
 				SNew(SVerticalBox)
-				. ToolTipText( this, &SReferenceNode::GetNodeTooltip )
+				.ToolTipText( this, &SReferenceNode::GetNodeTooltip )
+
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Top)
+				.Padding(0)
 				[
-					SNew(SOverlay)
-					+SOverlay::Slot()
+					SNew(SBorder)
+					.BorderImage( FReferenceViewerStyle::Get().GetBrush("Graph.Node.ColorSpill") )
+					.Padding( FMargin(10.0f, 4.0f, 6.0f, 4.0f) )
+					.BorderBackgroundColor( this, &SReferenceNode::GetNodeTitleColor )
 					[
-						SNew(SImage)
-						.Image( FEditorStyle::GetBrush("Graph.Node.TitleGloss") )
-					]
-					+SOverlay::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("Graph.Node.ColorSpill") )
-						// The extra margin on the right
-						// is for making the color spill stretch well past the node title
-						.Padding( FMargin(10,5,30,3) )
-						.BorderBackgroundColor( this, &SReferenceNode::GetNodeTitleColor )
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+						.AutoWidth()
+						[
+							SNew(SImage)
+							.Image(IconBrush)
+							.DesiredSizeOverride(FVector2D(24.0, 24.0))
+							.ColorAndOpacity(this, &SGraphNode::GetNodeTitleIconColor)
+						]
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0)
 						[
 							SNew(SVerticalBox)
 							+SVerticalBox::Slot()
-								.AutoHeight()
+							.AutoHeight()
+							.Padding(FMargin(0.f))
 							[
 								SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-								.Style( FEditorStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
+								.Style( FReferenceViewerStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
 								.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 								.OnVerifyTextChanged(this, &SReferenceNode::OnVerifyNameTextChanged)
 								.OnTextCommitted(this, &SReferenceNode::OnNameTextCommited)
@@ -129,21 +158,25 @@ void SReferenceNode::UpdateGraphNode()
 								.IsSelected(this, &SReferenceNode::IsSelectedExclusively)
 							]
 							+SVerticalBox::Slot()
-								.AutoHeight()
+							.AutoHeight()
+							.Padding(FMargin(0.f))
 							[
 								NodeTitle.ToSharedRef()
 							]
 						]
-					]
-					+SOverlay::Slot()
-					.VAlign(VAlign_Top)
-					[
-						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
-						.Visibility(EVisibility::HitTestInvisible)			
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Right)
+						.VAlign(VAlign_Bottom)
+						.Padding(FMargin(0.f, 0.f, 0.f, 1.f))
 						[
-							SNew(SSpacer)
-							.Size(FVector2D(20,20))
+							SNew(SImage)
+							.Visibility(bIsADuplicate ? EVisibility::Visible : EVisibility::Hidden)
+							.ToolTipText(LOCTEXT("DuplicateAsset", "This asset is referenced multiple times. Only the first occurance shows its decendants."))
+							.DesiredSizeOverride(FVector2D(12.0, 12.0))
+							.Image(FReferenceViewerStyle::Get().GetBrush("Graph.Node.Duplicate"))
+							.ColorAndOpacity(FAppStyle::Get().GetColor("Colors.Foreground"))
 						]
 					]
 				]
@@ -203,7 +236,10 @@ void SReferenceNode::UpdateGraphNode()
 						]
 					]
 				]
-			]
+
+			] // Inner Background 
+			] // Outline Border
+			] // Background 
 		]
 	];
 	// Create comment bubble if comment text is valid

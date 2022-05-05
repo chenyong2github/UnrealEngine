@@ -19,6 +19,8 @@
 #include "EdGraph/EdGraphNodeUtils.h"
 #include "SNodePanel.h"
 #include "Widgets/Notifications/SErrorText.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/AppStyle.h"
 
 class FActorDragDropOp;
 class IToolTip;
@@ -34,9 +36,12 @@ class GRAPHEDITOR_API SNodeTitle : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNodeTitle)
-		: _Style(TEXT("Graph.Node.NodeTitle"))
+		: _StyleSet(&FAppStyle::Get())
+		, _Style(TEXT("Graph.Node.NodeTitle"))
 		, _ExtraLineStyle(TEXT("Graph.Node.NodeTitleExtraLines"))
 		{}
+
+		SLATE_ARGUMENT(const ISlateStyle*, StyleSet)
 
 		// The style of the text block, which dictates the font, color, and shadow options. Style overrides all other properties!
 		SLATE_ARGUMENT(FName, Style)
@@ -67,6 +72,7 @@ protected:
 	TWeakObjectPtr<UEdGraphNode> GraphNode;
 	FNodeTextCache NodeTitleCache;
 	FName ExtraLineStyle;
+	const ISlateStyle* StyleSet;
 
 	/** The cached head title to return */
 	FText CachedHeadTitle;

@@ -34,6 +34,8 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 	virtual FText GetTooltipText() const override;
 	virtual void AllocateDefaultPins() override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
+	virtual bool ShowPaletteIconOnNode() const override { return true; }
 	// End UEdGraphNode implementation
 
 	void SetAllowThumbnail(bool bInAllow) { bAllowThumbnail = bInAllow; }
@@ -41,6 +43,7 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 	bool UsesThumbnail() const;
 	bool IsPackage() const;
 	bool IsCollapsed() const;
+	bool IsADuplicate() const { return bIsADuplicate; }
 	FAssetData GetAssetData() const;
 
 	UEdGraphPin* GetDependencyPin();
@@ -48,7 +51,7 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 
 private:
 	void CacheAssetData(const FAssetData& AssetData);
-	void SetupReferenceNode(const FIntPoint& NodeLoc, const TArray<FAssetIdentifier>& NewIdentifiers, const FAssetData& InAssetData, bool bInAllowThumbnail);
+	void SetupReferenceNode(const FIntPoint& NodeLoc, const TArray<FAssetIdentifier>& NewIdentifiers, const FAssetData& InAssetData, bool bInAllowThumbnail, bool bInIsADuplicate);
 	void SetReferenceNodeCollapsed(const FIntPoint& NodeLoc, int32 InNumReferencesExceedingMax);
 	void AddReferencer(class UEdGraphNode_Reference* ReferencerNode);
 
@@ -60,7 +63,11 @@ private:
 	bool bIsPackage;
 	bool bIsPrimaryAsset;
 	bool bIsCollapsed;
+	bool bIsADuplicate;
+
 	FAssetData CachedAssetData;
+	FLinearColor AssetTypeColor;
+	FSlateIcon AssetBrush;
 
 	UEdGraphPin* DependencyPin;
 	UEdGraphPin* ReferencerPin;

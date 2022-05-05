@@ -38,6 +38,8 @@ void SNodeTitle::Construct(const FArguments& InArgs, UEdGraphNode* InNode)
 
 	ExtraLineStyle = InArgs._ExtraLineStyle;
 
+	StyleSet = InArgs._StyleSet;
+
 	CachedSize = FVector2D::ZeroVector;
 
 	// If the user set the text, use it, otherwise use the node title by default
@@ -141,7 +143,7 @@ void SNodeTitle::RebuildWidget()
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.TextStyle( FEditorStyle::Get(), ExtraLineStyle )
+			.TextStyle( StyleSet, ExtraLineStyle )
 			.Text(FText::FromString(Lines[Index]))
 		];
 	}

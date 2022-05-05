@@ -39,6 +39,12 @@
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 
+static bool GShowToggleDeprecatedReferenceViewerLayout = false;
+static FAutoConsoleCommand CVarShowToggleDeprecatedReferenceViewerLayout(
+	TEXT("ReferenceViewer.ShowToggleDeprecatedLayout"),
+	TEXT("Displays the toggle allowing the user to toggle back to the former layout algorithm."),
+	FConsoleCommandDelegate::CreateLambda([] { GShowToggleDeprecatedReferenceViewerLayout = !GShowToggleDeprecatedReferenceViewerLayout; }));
+
 bool IsPackageNamePassingFilter(FName InPackageName, const TArray<FString>& InSearchWords)
 {
 	// package name must match all words
@@ -281,19 +287,9 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 						.Padding(2.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("SearchDepthLabelText", "Search Depth Limit"))
+							.Text(LOCTEXT("SearchDepthReferencersLabelText", "Search Referencers Depth"))
 						]
 
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(2.f)
-						[
-							SNew(SCheckBox)
-							.OnCheckStateChanged( this, &SReferenceViewer::OnSearchDepthEnabledChanged )
-							.IsChecked( this, &SReferenceViewer::IsSearchDepthEnabledChecked )
-						]
-					
 						+SHorizontalBox::Slot()
 						.AutoWidth()
 						.VAlign(VAlign_Center)
@@ -303,9 +299,41 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 							.WidthOverride(100)
 							[
 								SNew(SSpinBox<int32>)
-								.Value(this, &SReferenceViewer::GetSearchDepthCount)
-								.OnValueChanged(this, &SReferenceViewer::OnSearchDepthCommitted)
-								.MinValue(1)
+								.Value(this, &SReferenceViewer::GetSearchReferencerDepthCount)
+								.OnValueChanged(this, &SReferenceViewer::OnSearchReferencerDepthCommitted)
+								.MinValue(0)
+								.MaxValue(50)
+								.MaxSliderValue(12)
+							]
+						]
+					]
+
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (FixAndHideSearchDepthLimit > 0 ? EVisibility::Collapsed : EVisibility::Visible); })
+
+						+SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("SearchDepthDependenciesLabelText", "Search Dependencies Depth"))
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(SBox)
+							.WidthOverride(100)
+							[
+								SNew(SSpinBox<int32>)
+								.Value(this, &SReferenceViewer::GetSearchDependencyDepthCount)
+								.OnValueChanged(this, &SReferenceViewer::OnSearchDependencyDepthCommitted)
+								.MinValue(0)
 								.MaxValue(50)
 								.MaxSliderValue(12)
 							]
@@ -575,6 +603,63 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 							.IsChecked(this, &SReferenceViewer::IsCompactModeChecked)
 						]
 					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("DuplicateAssets", "Show Duplicate Assets"))
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(SCheckBox)
+							.OnCheckStateChanged(this, &SReferenceViewer::OnShowDuplicatesChanged)
+							.IsChecked(this, &SReferenceViewer::IsShowDuplicatesChecked)
+						]
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						.Visibility_Lambda([]() { return (GShowToggleDeprecatedReferenceViewerLayout ? EVisibility::Visible : EVisibility::Collapsed); })
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("UseOldLayoutMechanism", "Use Deprecated Layout"))
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(SCheckBox)
+							.OnCheckStateChanged_Lambda( [this] (ECheckBoxState NewState) { 
+								if (GraphObj) 
+								{ 	
+									GraphObj->SetUseNodeInfos(NewState != ECheckBoxState::Checked); 
+									RebuildGraph();} 
+								} 
+							)
+							.IsChecked_Lambda([this] () 
+							{
+								return (GraphObj && GraphObj->GetUseNodeInfos()) ? ECheckBoxState::Unchecked: ECheckBoxState::Checked;
+							})
+						]
+					]
 				]
 			]
 
@@ -610,7 +695,8 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 	FixAndHideSearchDepthLimit = ReferenceViewerParams.FixAndHideSearchDepthLimit;
 	if (FixAndHideSearchDepthLimit > 0)
 	{
-		GraphObj->SetSearchDepthLimit(FixAndHideSearchDepthLimit);
+		GraphObj->SetSearchDependencyDepthLimit(FixAndHideSearchDepthLimit);
+		GraphObj->SetSearchReferencerDepthLimit(FixAndHideSearchDepthLimit);
 		GraphObj->SetSearchDepthLimitEnabled(true);
 	}
 	FixAndHideSearchBreadthLimit = ReferenceViewerParams.FixAndHideSearchBreadthLimit;
@@ -895,11 +981,11 @@ ECheckBoxState SReferenceViewer::IsSearchDepthEnabledChecked() const
 	}
 }
 
-int32 SReferenceViewer::GetSearchDepthCount() const
+int32 SReferenceViewer::GetSearchDependencyDepthCount() const
 {
 	if ( GraphObj )
 	{
-		return GraphObj->GetSearchDepthLimit();
+		return GraphObj->GetSearchDependencyDepthLimit();
 	}
 	else
 	{
@@ -907,11 +993,32 @@ int32 SReferenceViewer::GetSearchDepthCount() const
 	}
 }
 
-void SReferenceViewer::OnSearchDepthCommitted(int32 NewValue)
+int32 SReferenceViewer::GetSearchReferencerDepthCount() const
 {
 	if ( GraphObj )
 	{
-		GraphObj->SetSearchDepthLimit(NewValue);
+		return GraphObj->GetSearchReferencerDepthLimit();
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+void SReferenceViewer::OnSearchDependencyDepthCommitted(int32 NewValue)
+{
+	if ( GraphObj )
+	{
+		GraphObj->SetSearchDependencyDepthLimit(NewValue);
+		RebuildGraph();
+	}
+}
+
+void SReferenceViewer::OnSearchReferencerDepthCommitted(int32 NewValue)
+{
+	if ( GraphObj )
+	{
+		GraphObj->SetSearchReferencerDepthLimit(NewValue);
 		RebuildGraph();
 	}
 }
@@ -1158,6 +1265,29 @@ ECheckBoxState SReferenceViewer::IsCompactModeChecked() const
 	if (GraphObj)
 	{
 		return GraphObj->IsCompactMode() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
+}
+
+void SReferenceViewer::OnShowDuplicatesChanged(ECheckBoxState NewState)
+{
+	if (GraphObj)
+	{
+		GraphObj->SetShowDuplicatesEnabled(NewState == ECheckBoxState::Checked);
+	}
+	
+	RebuildGraph();
+}
+
+
+ECheckBoxState SReferenceViewer::IsShowDuplicatesChecked() const
+{
+	if (GraphObj)
+	{
+		return GraphObj->IsShowDuplicates() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 	else
 	{

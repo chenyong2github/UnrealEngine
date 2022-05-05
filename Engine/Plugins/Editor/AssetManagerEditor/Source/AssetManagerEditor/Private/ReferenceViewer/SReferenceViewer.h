@@ -103,8 +103,12 @@ private:
 	
 	void OnSearchDepthEnabledChanged( ECheckBoxState NewState );
 	ECheckBoxState IsSearchDepthEnabledChecked() const;
-	int32 GetSearchDepthCount() const;
-	void OnSearchDepthCommitted(int32 NewValue);
+
+	int32 GetSearchReferencerDepthCount() const;
+	int32 GetSearchDependencyDepthCount() const;
+
+	void OnSearchReferencerDepthCommitted(int32 NewValue);
+	void OnSearchDependencyDepthCommitted(int32 NewValue);
 
 	void OnSearchBreadthEnabledChanged( ECheckBoxState NewState );
 	ECheckBoxState IsSearchBreadthEnabledChecked() const;
@@ -129,6 +133,9 @@ private:
 
 	void OnCompactModeChanged(ECheckBoxState NewState);
 	ECheckBoxState IsCompactModeChecked() const;
+
+	void OnShowDuplicatesChanged(ECheckBoxState NewState);
+	ECheckBoxState IsShowDuplicatesChecked() const;
 
 	EVisibility GetManagementReferencesVisibility() const;
 	void OnShowManagementReferencesChanged(ECheckBoxState NewState);
