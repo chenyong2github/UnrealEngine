@@ -339,6 +339,10 @@ TArray<FName> UPCGBlueprintSettings::InLabels() const
 
 		InputLabels.Append(BlueprintElementInstance->InputPinLabels.Array());
 	}
+	else
+	{
+		InputLabels = Super::InLabels();
+	}
 
 	return InputLabels;
 }
@@ -355,6 +359,10 @@ TArray<FName> UPCGBlueprintSettings::OutLabels() const
 		}
 
 		OutputLabels.Append(BlueprintElementInstance->OutputPinLabels.Array());
+	}
+	else
+	{
+		OutputLabels = Super::OutLabels();
 	}
 
 	return OutputLabels;

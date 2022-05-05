@@ -85,7 +85,7 @@ TArray<FName> UPCGBaseSubgraphSettings::InLabels() const
 	}
 	else
 	{
-		return TArray<FName>();
+		return Super::InLabels();
 	}
 }
 
@@ -97,7 +97,7 @@ TArray<FName> UPCGBaseSubgraphSettings::OutLabels() const
 	}
 	else
 	{
-		return TArray<FName>();
+		return Super::OutLabels();
 	}
 }
 
