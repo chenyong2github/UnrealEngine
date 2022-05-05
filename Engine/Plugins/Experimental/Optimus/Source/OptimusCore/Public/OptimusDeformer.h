@@ -45,9 +45,6 @@ struct FOptimusComputeGraphInfo
 	UPROPERTY()
 	FName GraphName;
 
-	UPROPERTY(transient)
-	bool bExecuteTrigger = false;
-
 	UPROPERTY()
 	TObjectPtr<UOptimusComputeGraph> ComputeGraph = nullptr;
 };

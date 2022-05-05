@@ -114,6 +114,7 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	
 	// (Re)Create and bind data providers.
 	ComputeGraphExecInfos.Reset();
+	GraphsToRunOnNextTick.Reset();
 
 	for (const FOptimusComputeGraphInfo& ComputeGraphInfo : InDeformer->ComputeGraphs)
 	{
@@ -121,6 +122,14 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 		BindingObjects.Add(MeshComponent.Get());
 
 		FOptimusDeformerInstanceExecInfo Info;
+		Info.GraphName = ComputeGraphInfo.GraphName;
+		Info.GraphType = ComputeGraphInfo.GraphType;
+		// Schedule the setup and update graphs to run. The flag for the update graph is never
+		// cleared.
+		if (Info.GraphType == EOptimusNodeGraphType::Setup)
+		{
+			GraphsToRunOnNextTick.Add(Info.GraphName);
+		}
 		Info.ComputeGraph = ComputeGraphInfo.ComputeGraph;
 		Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, BindingObjects);
 		ComputeGraphExecInfos.Add(Info);
@@ -129,7 +138,7 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	// Create local storage for deformer graph variables.
 	Variables = NewObject<UOptimusVariableContainer>(this);
 	Variables->Descriptions.Reserve(InDeformer->GetVariables().Num());
-	for (UOptimusVariableDescription* VariableDescription : InDeformer->GetVariables())
+	for (const UOptimusVariableDescription* VariableDescription : InDeformer->GetVariables())
 	{
 		UOptimusVariableDescription* VariableDescriptionCopy = NewObject<UOptimusVariableDescription>();
 		VariableDescriptionCopy->Guid = VariableDescription->Guid;
@@ -180,9 +189,18 @@ bool UOptimusDeformerInstance::IsActive() const
 
 void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName)
 {
+	TSet<FName> GraphsToRun;
+	{
+		UE::TScopeLock<FCriticalSection> Lock(GraphsToRunOnNextTickLock);
+		Swap(GraphsToRunOnNextTick, GraphsToRun);
+	}
+	
 	for (FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
 	{
-		Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene, InOwnerName);
+		if (Info.GraphType == EOptimusNodeGraphType::Update || GraphsToRun.Contains(Info.GraphName))
+		{
+			Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene, InOwnerName);
+		}
 	}
 }
 
@@ -243,6 +261,23 @@ const TArray<UOptimusVariableDescription*>& UOptimusDeformerInstance::GetVariabl
 {
 	return Variables->Descriptions;
 }
+
+
+bool UOptimusDeformerInstance::EnqueueTriggerGraph(FName InTriggerGraphName)
+{
+	for(FOptimusDeformerInstanceExecInfo& ExecInfo: ComputeGraphExecInfos)
+	{
+		if (ExecInfo.GraphType == EOptimusNodeGraphType::ExternalTrigger && ExecInfo.GraphName == InTriggerGraphName)
+		{
+			UE::TScopeLock<FCriticalSection> Lock(GraphsToRunOnNextTickLock);
+			GraphsToRunOnNextTick.Add(ExecInfo.GraphName);
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 
 void UOptimusDeformerInstance::SetConstantValueDirect(FString const& InVariableName, TArray<uint8> const& InValue)
 {

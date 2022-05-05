@@ -8,6 +8,7 @@
 
 #include "OptimusDeformerInstance.generated.h"
 
+enum class EOptimusNodeGraphType;
 class UMeshComponent;
 class UOptimusComputeDataInterface;
 class UOptimusVariableDescription;
@@ -78,6 +79,12 @@ USTRUCT()
 struct FOptimusDeformerInstanceExecInfo
 {
 	GENERATED_BODY()
+
+	/** The name of the graph */
+	FName GraphName;
+
+	/** The graph type. */ 
+	EOptimusNodeGraphType GraphType;
 	
 	/** The ComputeGraph asset. */
 	UPROPERTY()
@@ -137,6 +144,12 @@ public:
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusVariableDescription*>& GetVariables() const;
 
+	/** Trigger a named trigger graph to run on the next tick */
+	UFUNCTION(BlueprintCallable, Category="Deformer")
+	bool EnqueueTriggerGraph(FName InTriggerGraphName);
+	
+	
+	
 	/** Directly set a graph constant value. */
 	void SetConstantValueDirect(FString const& InVariableName, TArray<uint8> const& InValue);
 
@@ -165,6 +178,9 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UOptimusComputeDataInterface>> RetainedDataInterfaces;
 
+	// List of graphs that should be run on the next tick. 
+	TSet<FName> GraphsToRunOnNextTick;
+	FCriticalSection GraphsToRunOnNextTickLock;
 
 	FOptimusPersistentBufferPoolPtr BufferPool;
 };

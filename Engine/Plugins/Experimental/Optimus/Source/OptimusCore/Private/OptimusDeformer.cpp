@@ -902,13 +902,6 @@ bool UOptimusDeformer::Compile()
 
 	for (const UOptimusNodeGraph* Graph: Graphs)
 	{
-		// HACK: Only do update graphs, until we can validate passing trigger information to
-		// the deformer instance.
-		if (Graph->GetGraphType() != EOptimusNodeGraphType::Update)
-		{
-			continue;
-		}
-		
 		FOptimusCompileResult Result = CompileNodeGraphToComputeGraph(Graph);
 		if (Result.IsType<UOptimusComputeGraph*>())
 		{
