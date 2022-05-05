@@ -23,7 +23,7 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	 *
 	 * @return (Boolean)  status of HMD
 	 */
-	UFUNCTION(BlueprintPure, Category="Input|HeadMountedDisplay")
+	UFUNCTION(BlueprintPure, Category="Input|HeadMountedDisplay", meta = (KeyWords = "HMD"))
 	static bool IsHeadMountedDisplayEnabled();
 
 	/**
@@ -31,7 +31,7 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	*
 	* @return (Boolean)  status whether the HMD hardware is connected and ready to use.  It may or may not actually be in use. 
 	*/
-	UFUNCTION(BlueprintPure, Category = "Input|HeadMountedDisplay")
+	UFUNCTION(BlueprintPure, Category = "Input|HeadMountedDisplay", meta = (KeyWords = "HMD"))
 	static bool IsHeadMountedDisplayConnected();
 
 	/**
