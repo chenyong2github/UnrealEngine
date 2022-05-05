@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 class FGeometryCollection;
 
 class CHAOS_API FGeometryCollectionProximityUtility
