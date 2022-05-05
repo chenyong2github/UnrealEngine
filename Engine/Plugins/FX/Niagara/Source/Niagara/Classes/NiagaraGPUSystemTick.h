@@ -36,6 +36,7 @@ struct FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo SpawnInfo;
 	uint8* EmitterParamData = nullptr;
 	uint8* ExternalParamData = nullptr;
+	uint32 ExternalParamDataSize = 0;
 	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 	TArray<FNiagaraDataInterfaceProxyRW*> IterationDataInterfaceProxies;

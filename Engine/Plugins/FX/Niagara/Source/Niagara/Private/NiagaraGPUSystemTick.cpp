@@ -152,13 +152,12 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			}
 			InstanceData->ParticleCountFence = GPUContext->ParticleCountReadFence;
 
-			int32 ParmSize = GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
-
 			InstanceData->EmitterParamData = ParamDataBufferPtr;
 			ParamDataBufferPtr += InterpFactor * sizeof(FNiagaraEmitterParameters);
 
 			InstanceData->ExternalParamData = ParamDataBufferPtr;
-			ParamDataBufferPtr += ParmSize;
+			InstanceData->ExternalParamDataSize = GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
+			ParamDataBufferPtr += InstanceData->ExternalParamDataSize;
 
 			// actually copy all of the data over
 			FMemory::Memcpy(InstanceData->EmitterParamData, &InSystemInstance->GetEmitterParameters(EmitterIdx), sizeof(FNiagaraEmitterParameters));
@@ -167,7 +166,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(EmitterIdx, true), sizeof(FNiagaraEmitterParameters));
 			}
 
-			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
+			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, InstanceData->ExternalParamDataSize);
 
 			// Calling PostTick will push current -> previous parameters this must be done after copying the parameter data
 			GPUContext->PostTick();
@@ -309,7 +308,9 @@ const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Ty
 		{
 			// External parameters are pushed from the combined parameters store, split into two where first half is current second is previous
 			check(Instance && Instance->Context);
-			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayoutSize);
+			check((Current ? 0 : Instance->Context->ExternalCBufferLayout->ConstantBufferSize) + Instance->Context->ExternalCBufferLayout->ConstantBufferSize <= Instance->ExternalParamDataSize);
+
+			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout->ConstantBufferSize);
 		}
 	}
 
