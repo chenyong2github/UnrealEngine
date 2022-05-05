@@ -23,7 +23,7 @@
 #include "FolderTreeItem.h"
 #include "WorldTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerModule"
@@ -254,11 +254,10 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 			{
 				const UActorDescContainer* ActorDescContainer = ActorDescItem->ActorDescHandle.Container.Get();
 				const UWorld* World = ActorDescContainer ? ActorDescContainer->GetWorld() : nullptr;
-				const AWorldDataLayers* WorldDataLayers = World ? World->GetWorldDataLayers() : nullptr;
-			
-				if (WorldDataLayers)
+				
+				if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World))
 				{
-					DataLayerInstances = WorldDataLayers->GetDataLayerInstances(ActorDesc->GetDataLayerInstanceNames());
+					DataLayerInstances = DataLayerSubsystem->GetDataLayerInstances(ActorDesc->GetDataLayerInstanceNames());
 				}
 			}
 		}

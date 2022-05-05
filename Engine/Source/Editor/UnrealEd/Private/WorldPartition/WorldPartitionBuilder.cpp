@@ -13,7 +13,6 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Math/IntVector.h"
@@ -168,38 +167,37 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 
 	// Properly Setup DataLayers for Builder
-	if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
-	{
-		// Load Data Layers
-		bool bUpdateEditorCells = false;
-		WorldDataLayers->ForEachDataLayer([&bUpdateEditorCells, this](UDataLayerInstance* DataLayer)
-		{
-			const FName DataLayerShortName(DataLayer->GetDataLayerShortName());
-
-			// Load all Non Excluded Data Layers + Non DynamicallyLoaded Data Layers + Initially Active Data Layers + Data Layers provided by builder
-			const bool bLoadedInEditor = !ExcludedDataLayerShortNames.Contains(DataLayerShortName) && ((bLoadNonDynamicDataLayers && !DataLayer->IsRuntime()) ||
-										 (bLoadInitiallyActiveDataLayers && DataLayer->GetInitialRuntimeState() == EDataLayerRuntimeState::Activated) ||
-										DataLayerShortNames.Contains(DataLayerShortName));
-			if (DataLayer->IsLoadedInEditor() != bLoadedInEditor)
-			{
-				bUpdateEditorCells = true;
-				DataLayer->SetIsLoadedInEditor(bLoadedInEditor, /*bFromUserChange*/false);
-				if (RequiresCommandletRendering() && bLoadedInEditor)
-				{
-					DataLayer->SetIsInitiallyVisible(true);
-				}
-			}
-			
-			UE_LOG(LogWorldPartitionBuilder, Display, TEXT("DataLayer '%s' Loaded: %d"), *UDataLayerInstance::GetDataLayerText(DataLayer).ToString(), bLoadedInEditor ? 1 : 0);
-			
-			return true;
-		});
+	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World);
 	
-		if (bUpdateEditorCells)
+	// Load Data Layers
+	bool bUpdateEditorCells = false;
+	DataLayerSubsystem->ForEachDataLayer([&bUpdateEditorCells, this](UDataLayerInstance* DataLayer)
+	{
+		const FName DataLayerShortName(DataLayer->GetDataLayerShortName());
+
+		// Load all Non Excluded Data Layers + Non DynamicallyLoaded Data Layers + Initially Active Data Layers + Data Layers provided by builder
+		const bool bLoadedInEditor = !ExcludedDataLayerShortNames.Contains(DataLayerShortName) && ((bLoadNonDynamicDataLayers && !DataLayer->IsRuntime()) ||
+										(bLoadInitiallyActiveDataLayers && DataLayer->GetInitialRuntimeState() == EDataLayerRuntimeState::Activated) ||
+									DataLayerShortNames.Contains(DataLayerShortName));
+		if (DataLayer->IsLoadedInEditor() != bLoadedInEditor)
 		{
-			UE_LOG(LogWorldPartitionBuilder, Display, TEXT("DataLayer load state changed refreshing editor cells"));
-			FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged(false);
+			bUpdateEditorCells = true;
+			DataLayer->SetIsLoadedInEditor(bLoadedInEditor, /*bFromUserChange*/false);
+			if (RequiresCommandletRendering() && bLoadedInEditor)
+			{
+				DataLayer->SetIsInitiallyVisible(true);
+			}
 		}
+			
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("DataLayer '%s' Loaded: %d"), *UDataLayerInstance::GetDataLayerText(DataLayer).ToString(), bLoadedInEditor ? 1 : 0);
+			
+		return true;
+	});
+	
+	if (bUpdateEditorCells)
+	{
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("DataLayer load state changed refreshing editor cells"));
+		FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged(false);
 	}
 
 	const ELoadingMode LoadingMode = GetLoadingMode();

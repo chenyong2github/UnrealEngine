@@ -15,7 +15,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionNavigationDataBuilder, Log, All);
@@ -28,21 +28,19 @@ UWorldPartitionNavigationDataBuilder::UWorldPartitionNavigationDataBuilder(const
 bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	// Set runtime data layer to be included in the base navmesh generation.
-	if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
+	for (const TObjectPtr<UDataLayerAsset> DataLayer : World->GetWorldSettings()->BaseNavmeshDataLayers)
 	{
-		for(const TObjectPtr<UDataLayerAsset> DataLayer : World->GetWorldSettings()->BaseNavmeshDataLayers)
+		if (DataLayer != nullptr)
 		{
-			if (DataLayer != nullptr)
+			const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayer);
+			if (DataLayerInstance == nullptr)
 			{
-				const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayer);
-				if(DataLayerInstance == nullptr)
-				{
-					UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Missing UDataLayerInstance for %s."), *DataLayer->GetName());	
-				}
-				else if (DataLayerInstance->IsRuntime())
-				{
-					DataLayerShortNames.Add(FName(DataLayerInstance->GetDataLayerShortName()));
-				}
+				UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Missing UDataLayerInstance for %s."), *DataLayer->GetName());
+			}
+			else if (DataLayerInstance->IsRuntime())
+			{
+				DataLayerShortNames.Add(FName(DataLayerInstance->GetDataLayerShortName()));
 			}
 		}
 	}

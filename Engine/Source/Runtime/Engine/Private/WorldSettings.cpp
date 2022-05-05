@@ -39,7 +39,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 #include "Rendering/StaticLightingSystemInterface.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #endif 
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
@@ -512,9 +512,10 @@ void AWorldSettings::SaveDefaultWorldPartitionSettings()
 	if (WorldPartition)
 	{
 		DefaultWorldPartitionSettings.LoadedEditorGridCells = WorldPartition->GetUserLoadedEditorGridCells();		
-		if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+
+		if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 		{
-			WorldDataLayers->GetUserLoadedInEditorStates(DefaultWorldPartitionSettings.LoadedDataLayers, DefaultWorldPartitionSettings.NotLoadedDataLayers);
+			DataLayerSubsystem->GetUserLoadedInEditorStates(DefaultWorldPartitionSettings.LoadedDataLayers, DefaultWorldPartitionSettings.NotLoadedDataLayers);
 		}
 	}
 }

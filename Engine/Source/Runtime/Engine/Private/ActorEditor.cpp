@@ -13,7 +13,8 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/TokenizedMessage.h"
@@ -1367,11 +1368,11 @@ bool AActor::RemoveAllDataLayers()
 
 bool AActor::HasValidDataLayers() const
 {
-	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 	{
 		for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : DataLayerAssets)
 		{
-			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerAsset))
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset))
 			{
 				return true;
 			}
@@ -1379,7 +1380,7 @@ bool AActor::HasValidDataLayers() const
 
 		for (const FActorDataLayer& ActorDataLayer : DataLayers)
 		{
-			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(ActorDataLayer.Name))
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(ActorDataLayer.Name))
 			{
 				return true;
 			}
@@ -1392,13 +1393,12 @@ TArray<FName> AActor::GetDataLayerInstanceNames() const
 {
 	TArray<FName> DataLayerInstanceNames;
 	
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-	if (WorldDataLayers != nullptr)
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 	{
-		DataLayerInstanceNames += WorldDataLayers->GetDataLayerInstanceNames(DataLayerAssets);
+		DataLayerInstanceNames += DataLayerSubsystem->GetDataLayerInstanceNames(DataLayerAssets);
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstanceNames += WorldDataLayers->GetDataLayerInstanceNames(DataLayers);
+		DataLayerInstanceNames += DataLayerSubsystem->GetDataLayerInstanceNames(DataLayers);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return DataLayerInstanceNames;
@@ -1415,62 +1415,64 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 			return;
 		}
 
-		if (GetWorld())
+		if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 		{
-			if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+			if (!DataLayerSubsystem->CanResolveDataLayers())
 			{
-				if (bRevertChangesOnLockedDataLayer)
-				{
-					// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
-					TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
-					TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
+				return;
+			}
 
-					auto DifferenceContainsLockedDataLayers = [WorldDataLayers](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
+			if (bRevertChangesOnLockedDataLayer)
+			{
+				// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
+				TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
+				TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
+
+				auto DifferenceContainsLockedDataLayers = [DataLayerSubsystem](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
+				{
+					TSet<const UDataLayerAsset*> Diff = A.Difference(B);
+					for (const UDataLayerAsset* DataLayerAsset : Diff)
 					{
-						TSet<const UDataLayerAsset*> Diff = A.Difference(B);
-						for (const UDataLayerAsset* DataLayerAsset : Diff)
+						const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset);
+						if (DataLayerInstance && DataLayerInstance->IsLocked())
 						{
-							const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerAsset);
-							if (DataLayerInstance && DataLayerInstance->IsLocked())
-							{
-								return true;
-							}
+							return true;
 						}
-						return false;
-					};
+					}
+					return false;
+				};
 					
-					if (DifferenceContainsLockedDataLayers(PreEdit, PostEdit) || 
-						DifferenceContainsLockedDataLayers(PostEdit, PreEdit))
+				if (DifferenceContainsLockedDataLayers(PreEdit, PostEdit) || 
+					DifferenceContainsLockedDataLayers(PostEdit, PreEdit))
+				{
+					DataLayerAssets = PreEditChangeDataLayers;
+				}
+			}
+
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			auto CleanupDataLayers = [this, DataLayerSubsystem](auto& DataLayerArray)
+			{
+				using ArrayType = typename TRemoveReference<decltype(DataLayerArray)>::Type;
+					
+				ArrayType ExistingDataLayer;
+				for (int32 Index = 0; Index < DataLayerArray.Num();)
+				{
+					auto& DataLayer = DataLayerArray[Index];
+					if (!DataLayerSubsystem->GetDataLayerInstance(DataLayer) || ExistingDataLayer.Contains(DataLayer))
 					{
-						DataLayerAssets = PreEditChangeDataLayers;
+						DataLayerArray.RemoveAtSwap(Index);
+					}
+					else
+					{
+						ExistingDataLayer.Add(DataLayer);
+						++Index;
 					}
 				}
+			};
 
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				auto CleanupDataLayers = [this, WorldDataLayers](auto& DataLayerArray)
-				{
-					using ArrayType = typename TRemoveReference<decltype(DataLayerArray)>::Type;
-					
-					ArrayType ExistingDataLayer;
-					for (int32 Index = 0; Index < DataLayerArray.Num();)
-					{
-						auto& DataLayer = DataLayerArray[Index];
-						if (!WorldDataLayers->GetDataLayerInstance(DataLayer) || ExistingDataLayer.Contains(DataLayer))
-						{
-							DataLayerArray.RemoveAtSwap(Index);
-						}
-						else
-						{
-							ExistingDataLayer.Add(DataLayer);
-							++Index;
-						}
-					}
-				};
-
-				CleanupDataLayers(DataLayerAssets);
-				CleanupDataLayers(DataLayers);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			}
+			CleanupDataLayers(DataLayerAssets);
+			CleanupDataLayers(DataLayers);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 }

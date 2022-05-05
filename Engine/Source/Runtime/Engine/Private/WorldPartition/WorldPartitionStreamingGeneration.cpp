@@ -9,7 +9,7 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationNullErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationLogErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
@@ -431,16 +431,17 @@ class FWorldPartitionStreamingGenerator
 			FContainerDescriptor& ContainerDescriptor = ContainerIt.Value();
 			if (ContainerID.IsMainContainer() && ContainerDescriptor.Container->GetWorld())
 			{
-				if (AWorldDataLayers* WorldDataLayers = ContainerDescriptor.Container->GetWorld()->GetWorldDataLayers())
+				UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(ContainerDescriptor.Container->GetWorld());
+				if(DataLayerSubsystem != nullptr)
 				{
-					WorldDataLayers->ForEachDataLayer([this](const UDataLayerInstance* DataLayerInstance) 
-					{
-						DataLayerInstance->Validate(ErrorHandler);
-						return true;
-					});
-				}
+					DataLayerSubsystem->ForEachDataLayer([this](const UDataLayerInstance* DataLayerInstance)
+						{
+							DataLayerInstance->Validate(ErrorHandler);
+							return true;
+						});
 
-				break;
+					break;
+				}
 			}
 		}
 	}

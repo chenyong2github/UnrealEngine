@@ -64,7 +64,7 @@
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -5916,19 +5916,16 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
 	}
 
 #if WITH_EDITOR
-	if (UWorld* World = GetWorld())
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 	{
-		if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
-		{
-			TArray<const UDataLayerInstance*> DataLayerInstances;
-			DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
+		TArray<const UDataLayerInstance*> DataLayerInstances;
+		DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayerAssets);
 
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayers);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-				return DataLayerInstances;
-		}
+		return DataLayerInstances;
 	}
 #endif
 	

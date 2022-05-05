@@ -20,6 +20,7 @@ struct FWorldPartitionActorDescInitData
 };
 
 class UActorDescContainer;
+class UDataLayerSubsystem;
 struct FActorContainerID;
 
 enum class EContainerClusterMode : uint8

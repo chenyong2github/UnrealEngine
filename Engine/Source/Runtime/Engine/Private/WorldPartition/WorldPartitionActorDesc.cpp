@@ -17,7 +17,7 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "Engine/Public/ActorReferencesUtils.h"
@@ -68,22 +68,21 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	{
 		TArray<FName> LocalDataLayerAssetPaths;
 		TArray<FName> LocalDataLayerInstanceNames;
-		const AWorldDataLayers* WorldDataLayers = InActor->GetWorld()->GetWorldDataLayers();
-		if (WorldDataLayers)
+		UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InActor->GetWorld());
+		
+		LocalDataLayerAssetPaths.Reserve(InActor->GetDataLayerAssets().Num());
+		for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : InActor->GetDataLayerAssets())
 		{
-			LocalDataLayerAssetPaths.Reserve(InActor->GetDataLayerAssets().Num());
-			for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : InActor->GetDataLayerAssets())
+			if (DataLayerAsset && DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset))
 			{
-				if (DataLayerAsset && WorldDataLayers->GetDataLayerInstance(DataLayerAsset))
-				{
-					LocalDataLayerAssetPaths.Add(*DataLayerAsset->GetPathName());
-				}
+				LocalDataLayerAssetPaths.Add(*DataLayerAsset->GetPathName());
 			}
-
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			LocalDataLayerInstanceNames = WorldDataLayers->GetDataLayerInstanceNames(InActor->GetActorDataLayers());
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		LocalDataLayerInstanceNames = DataLayerSubsystem->GetDataLayerInstanceNames(InActor->GetActorDataLayers());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		
 		// Validation
 		const bool bHasDataLayerAssets = LocalDataLayerAssetPaths.Num() > 0;
 		const bool bHasDeprecatedDataLayers = LocalDataLayerInstanceNames.Num() > 0;
@@ -94,7 +93,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		DataLayers = bIsUsingDataLayerAsset ? MoveTemp(LocalDataLayerAssetPaths) : MoveTemp(LocalDataLayerInstanceNames);
 
 		// Init DataLayers transient info
-		DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(this, WorldDataLayers);
+		DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(this);
 	}
 
 	ActorPackage = InActor->GetPackage()->GetFName();

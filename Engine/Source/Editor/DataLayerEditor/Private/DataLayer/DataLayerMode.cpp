@@ -7,7 +7,7 @@
 #include "ContentBrowserModule.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "DataLayer/DataLayerOutlinerDeleteButtonColumn.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "DataLayer/SDataLayerOutliner.h"
 #include "DataLayerHierarchy.h"
@@ -914,15 +914,15 @@ void FDataLayerMode::RegisterContextMenu()
 
 			bool bHasActorEditorContextDataLayers = false;			
 			TArray<const UDataLayerInstance*> AllDataLayers;
-			if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
+			if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(RepresentingWorld.Get()))
 			{
-				WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayerInstance* DataLayerInstance)
+				DataLayerSubsystem->ForEachDataLayer([&AllDataLayers](UDataLayerInstance* DataLayerInstance)
 				{
 					AllDataLayers.Add(DataLayerInstance);
 					return true;
 				});
 
-				bHasActorEditorContextDataLayers = !WorldDataLayers->GetActorEditorContextDataLayers().IsEmpty();
+				bHasActorEditorContextDataLayers = !DataLayerSubsystem->GetActorEditorContextDataLayers().IsEmpty();
 			}
 
 			{
@@ -1293,9 +1293,9 @@ void FDataLayerMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 	);
 
 	TArray<UDataLayerInstance*> AllDataLayers;
-	if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
+	if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(RepresentingWorld.Get()))
 	{
-		WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayerInstance* DataLayer)
+		DataLayerSubsystem->ForEachDataLayer([&AllDataLayers](UDataLayerInstance* DataLayer)
 		{
 			AllDataLayers.Add(DataLayer);
 			return true;

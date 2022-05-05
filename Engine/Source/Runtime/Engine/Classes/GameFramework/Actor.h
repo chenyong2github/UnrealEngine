@@ -1218,6 +1218,9 @@ public:
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use GetDataLayerAssets() instead")
 	TArray<FActorDataLayer> const& GetActorDataLayers() const { return DataLayers; }
 
+	UE_DEPRECATED(5.1, "Use GetDataLayerInstances() with no parameters instead")
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const { return TArray<const UDataLayerInstance*>(); }
+
 	//~ End Deprecated
 #endif
 

@@ -38,7 +38,7 @@ FString JoinDataLayerShortNamesFromInstanceNames(AWorldDataLayers* InWorldDataLa
 }
 
 AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
+	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, bAllowRuntimeDataLayerEditing(true)
 #endif
@@ -413,44 +413,6 @@ TUniquePtr<class FWorldPartitionActorDesc> AWorldDataLayers::CreateClassActorDes
 {
 	return TUniquePtr<FWorldPartitionActorDesc>(new FWorldDataLayersActorDesc());
 }
-
-void AWorldDataLayers::GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const
-{
-	const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
-	const TArray<FName>& SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
-
-	OutDataLayersNotLoadedInEditor.Empty();
-	OutDataLayersLoadedInEditor.Empty();
-	ForEachDataLayer([&OutDataLayersNotLoadedInEditor, &OutDataLayersLoadedInEditor, &SettingsDataLayersNotLoadedInEditor, &SettingsDataLayersLoadedInEditor](UDataLayerInstance* DataLayer)
-	{
-		if (DataLayer->IsLoadedInEditorChangedByUserOperation())
-		{
-			if (!DataLayer->IsLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
-			{
-				OutDataLayersNotLoadedInEditor.Add(DataLayer->GetDataLayerFName());
-			}
-			else if (DataLayer->IsLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
-			{
-				OutDataLayersLoadedInEditor.Add(DataLayer->GetDataLayerFName());
-			}
-			
-			DataLayer->ClearLoadedInEditorChangedByUserOperation();
-		}
-		else
-		{
-			if (SettingsDataLayersNotLoadedInEditor.Contains(DataLayer->GetDataLayerFName()))
-			{
-				OutDataLayersNotLoadedInEditor.Add(DataLayer->GetDataLayerFName());
-			}
-			else if (SettingsDataLayersLoadedInEditor.Contains(DataLayer->GetDataLayerFName()))
-			{
-				OutDataLayersLoadedInEditor.Add(DataLayer->GetDataLayerFName());
-			}
-		}
-		return true;
-	});
-}
-
 
 AWorldDataLayers* AWorldDataLayers::Create(UWorld* World, FName InWorldDataLayerName)
 {

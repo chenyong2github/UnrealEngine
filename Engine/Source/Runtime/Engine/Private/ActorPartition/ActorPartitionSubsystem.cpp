@@ -416,9 +416,9 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 	
 	auto WrappedInActorCreated = [World, InActorCreated](APartitionActor* PartitionActor)
 	{
-		if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+		if(UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
 		{
-			for (UDataLayerInstance* DataLayer : WorldDataLayers->GetActorEditorContextDataLayers())
+			for (UDataLayerInstance* DataLayer : DataLayerSubsystem->GetActorEditorContextDataLayers())
 			{
 				PartitionActor->AddDataLayer(DataLayer);
 			}
