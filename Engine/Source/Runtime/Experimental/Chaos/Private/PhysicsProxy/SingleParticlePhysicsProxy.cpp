@@ -119,6 +119,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 		//shape properties
 		bool bUpdateCollisionData = false;
 		bool bHasCollision = false;
+		bool bHasMaterial = false;
 		for(int32 ShapeDataIdx : Dirty.ShapeDataIndices)
 		{
 			const FShapeDirtyData& ShapeData = ShapesData[ShapeDataIdx];
@@ -135,10 +136,15 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			if(auto NewData = ShapeData.FindMaterials(Manager, ShapeDataIdx))
 			{
 				Handle->ShapesArray()[ShapeIdx]->SetMaterialData(*NewData);
+				bHasMaterial = true;
 			}
-
 		}
 		
+		if (bHasMaterial)
+		{
+			// If materials changed, collisions need to recache their material data
+			Evolution.ParticleMaterialChanged(Handle);
+		}
 
 		if(bUpdateCollisionData && !ForceNoCollisionIntoSQ)
 		{

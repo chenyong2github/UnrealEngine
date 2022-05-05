@@ -313,11 +313,11 @@ public:
 
 	FCollisionConstraintAllocator& GetConstraintAllocator() { return ConstraintAllocator; }
 
+	void UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Contact);
+
 protected:
 	FPBDCollisionConstraint& GetConstraint(int32 Index);
 	FPBDCollisionSolverContainer& GetConstraintSolverContainer(FPBDIslandSolverData& SolverData);
-
-	void UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Contact);
 
 	Collisions::FContactParticleParameters GetContactParticleParameters(const FReal Dt);
 	Collisions::FContactIterationParameters GetContactIterationParameters(const FReal Dt, const int32 Iteration, const int32 NumIterations, const int32 NumPairIterations, bool& bNeedsAnotherIteration);

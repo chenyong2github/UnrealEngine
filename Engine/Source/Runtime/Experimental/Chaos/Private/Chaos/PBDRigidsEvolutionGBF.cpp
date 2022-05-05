@@ -1055,6 +1055,16 @@ void FPBDRigidsEvolutionGBF::DestroyParticleCollisionsInAllocator(FGeometryParti
 	}
 }
 
+void FPBDRigidsEvolutionGBF::ParticleMaterialChanged(FGeometryParticleHandle* Particle)
+{
+	Particle->ParticleCollisions().VisitCollisions([this](FPBDCollisionConstraint& Collision)
+	{
+		CollisionConstraints.UpdateConstraintMaterialProperties(Collision);
+		return ECollisionVisitorResult::Continue;
+	});
+}
+
+
 void FPBDRigidsEvolutionGBF::UpdateInertiaConditioning()
 {
 	// The maximum contribution to error correction from rotation

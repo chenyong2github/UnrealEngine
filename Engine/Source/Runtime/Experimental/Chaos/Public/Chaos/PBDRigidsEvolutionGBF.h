@@ -164,6 +164,9 @@ namespace Chaos
 			});
 		}
 
+		// Called when a the material changes one or more shapes on a particle. Required because collisions cache material properties
+		void ParticleMaterialChanged(FGeometryParticleHandle* Particle);
+
 		template<typename TParticleView>
 		void Integrate(const TParticleView& InParticles, FReal Dt)
 		{
