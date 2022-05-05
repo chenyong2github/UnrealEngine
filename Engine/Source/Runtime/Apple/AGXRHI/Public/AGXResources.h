@@ -515,7 +515,7 @@ public:
 	inline FAGXResourceMultiBuffer* GetSourceBuffer () const { check(!bTexture); return SourceBuffer; }
 
 	inline FAGXSurface*             GetSourceTexture() const { check(bTexture); return SourceTexture; }
-	inline FAGXTexture const&       GetTextureView  () const { check(bTexture); return TextureView;   }
+	inline id<MTLTexture>           GetTextureView  () const { check(bTexture); return TextureView;   }
 
 private:
 	// Needed for RHIUpdateShaderResourceView
@@ -528,7 +528,7 @@ private:
 	};
 
 	TUniquePtr<FAGXLinearTextureDescriptor> LinearTextureDesc = nullptr;
-	FAGXTexture TextureView = nullptr;
+	id<MTLTexture> TextureView = nil;
 
 public:
 	uint8 const bTexture : 1;

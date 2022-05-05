@@ -1457,7 +1457,7 @@ void FAGXStateCache::SetShaderResourceView(FAGXContext* Context, EAGXShaderStage
 	{
 		if (SRV->bTexture)
 		{
-			FAGXTexture const& View = SRV->GetTextureView();
+			FAGXTexture View(SRV->GetTextureView());
 			if (View)
 			{
 				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
@@ -1519,7 +1519,7 @@ void FAGXStateCache::SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, 
 		if (UAV->bTexture)
 		{
 			FAGXSurface* Surface = UAV->GetSourceTexture();
-			FAGXTexture const& View = UAV->GetTextureView();
+			FAGXTexture  View(UAV->GetTextureView());
 
 			if (View)
 			{
