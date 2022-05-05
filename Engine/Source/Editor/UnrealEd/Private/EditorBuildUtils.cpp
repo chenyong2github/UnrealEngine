@@ -499,8 +499,7 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 
 	// It's possible the world was unloaded & reloaded if external commands were run.
 	// To work around this, reassign the initial world from it's soft object path.
-	check(World.IsValid());
-	InWorld = World.Get();
+	InWorld = World.IsValid() ? World.Get() : GEditor->GetEditorWorldContext().World();
 
 	// Check map for errors (only if build operation happened)
 	if ( bShouldMapCheck && bDoBuild && !GEditor->GetMapBuildCancelled() )
@@ -1169,8 +1168,7 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 	{
 		// It's possible the world was unloaded & reloaded if external commands were run.
 		// To work around this, reassign the initial world from it's soft object path.
-		check(World.IsValid());
-		CurrentWorld = World.Get();
+		CurrentWorld = World.IsValid() ? World.Get() : GEditor->GetEditorWorldContext().World();
 
 		if (GEditor->GetMapBuildCancelled())
 		{
