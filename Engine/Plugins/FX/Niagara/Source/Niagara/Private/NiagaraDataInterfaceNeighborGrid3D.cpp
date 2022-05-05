@@ -9,11 +9,11 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceNeighborGrid3D"
 
-static const FString MaxNeighborsPerCellName(TEXT("MaxNeighborsPerCellValue_"));
-static const FString ParticleNeighborsName(TEXT("ParticleNeighbors_"));
-static const FString ParticleNeighborCountName(TEXT("ParticleNeighborCount_"));
-static const FString OutputParticleNeighborsName(TEXT("OutputParticleNeighbors_"));
-static const FString OutputParticleNeighborCountName(TEXT("OutputParticleNeighborCount_"));
+static const FString MaxNeighborsPerCellName(TEXT("_MaxNeighborsPerCellValue"));
+static const FString ParticleNeighborsName(TEXT("_ParticleNeighbors"));
+static const FString ParticleNeighborCountName(TEXT("_ParticleNeighborCount"));
+static const FString OutputParticleNeighborsName(TEXT("_OutputParticleNeighbors"));
+static const FString OutputParticleNeighborCountName(TEXT("_OutputParticleNeighborCount"));
 
 
 const FName UNiagaraDataInterfaceNeighborGrid3D::SetNumCellsFunctionName("SetNumCells");
@@ -44,18 +44,18 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		NumCellsParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		UnitToUVParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::UnitToUVName + ParameterInfo.DataInterfaceHLSLSymbol));
-		CellSizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumCellsParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumCellsName));
+		UnitToUVParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::UnitToUVName));
+		CellSizeParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::CellSizeName));
 
-		MaxNeighborsPerCellParam.Bind(ParameterMap, *(MaxNeighborsPerCellName + ParameterInfo.DataInterfaceHLSLSymbol));
-		WorldBBoxSizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
+		MaxNeighborsPerCellParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + MaxNeighborsPerCellName));
+		WorldBBoxSizeParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::WorldBBoxSizeName));
 		
-		ParticleNeighborsGridParam.Bind(ParameterMap,  *(ParticleNeighborsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleNeighborCountGridParam.Bind(ParameterMap,  *(ParticleNeighborCountName + ParameterInfo.DataInterfaceHLSLSymbol));
+		ParticleNeighborsGridParam.Bind(ParameterMap,  *(ParameterInfo.DataInterfaceHLSLSymbol + ParticleNeighborsName));
+		ParticleNeighborCountGridParam.Bind(ParameterMap,  *(ParameterInfo.DataInterfaceHLSLSymbol + ParticleNeighborCountName));
 
-		OutputParticleNeighborsGridParam.Bind(ParameterMap, *(OutputParticleNeighborsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		OutputParticleNeighborCountGridParam.Bind(ParameterMap, *(OutputParticleNeighborCountName + ParameterInfo.DataInterfaceHLSLSymbol));
+		OutputParticleNeighborsGridParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + OutputParticleNeighborsName));
+		OutputParticleNeighborCountGridParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + OutputParticleNeighborCountName));
 	}
 
 	// #todo(dmp): make resource transitions batched
@@ -428,11 +428,11 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(const FNiag
 		RWBuffer<int> RW{OutputParticleNeighborCountName};
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("MaxNeighborsPerCellName"),  MaxNeighborsPerCellName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("ParticleNeighborsName"),    ParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("ParticleNeighborCountName"),    ParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("OutputParticleNeighborsName"),    OutputParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("OutputParticleNeighborCountName"),    OutputParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("MaxNeighborsPerCellName"),  ParamInfo.DataInterfaceHLSLSymbol + MaxNeighborsPerCellName },
+		{ TEXT("ParticleNeighborsName"),    ParamInfo.DataInterfaceHLSLSymbol + ParticleNeighborsName },
+		{ TEXT("ParticleNeighborCountName"),    ParamInfo.DataInterfaceHLSLSymbol + ParticleNeighborCountName },
+		{ TEXT("OutputParticleNeighborsName"),    ParamInfo.DataInterfaceHLSLSymbol + OutputParticleNeighborsName },
+		{ TEXT("OutputParticleNeighborCountName"),    ParamInfo.DataInterfaceHLSLSymbol + OutputParticleNeighborCountName },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
@@ -457,8 +457,8 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		TMap<FString, FStringFormatArg> FormatArgs =
 		{
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("NumCellsName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumCellsName},
+			{TEXT("UnitToUVName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::UnitToUVName},
 		};
 		OutHLSL += FString::Format(FormatHLSL, FormatArgs);
 	}
@@ -472,7 +472,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		)");
 		TMap<FString, FStringFormatArg> ArgsSample = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("MaxNeighborsPerCellName"), MaxNeighborsPerCellName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("MaxNeighborsPerCellName"), ParamInfo.DataInterfaceHLSLSymbol + MaxNeighborsPerCellName},
 
 		};
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -488,9 +488,9 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("MaxNeighborsPerCellName"), MaxNeighborsPerCellName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("MaxNeighborsPerCellName"), ParamInfo.DataInterfaceHLSLSymbol + MaxNeighborsPerCellName},
+			{TEXT("NumCellsName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumCellsName},
+			{TEXT("UnitToUVName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::UnitToUVName},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -505,7 +505,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("ParticleNeighbors"), ParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("ParticleNeighbors"), ParamInfo.DataInterfaceHLSLSymbol + ParticleNeighborsName},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -521,7 +521,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("OutputParticleNeighbors"), OutputParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("OutputParticleNeighbors"), ParamInfo.DataInterfaceHLSLSymbol + OutputParticleNeighborsName},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -536,7 +536,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("ParticleNeighborCount"), ParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("ParticleNeighborCount"), ParamInfo.DataInterfaceHLSLSymbol + ParticleNeighborCountName},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -551,7 +551,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("OutputParticleNeighborCount"), OutputParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("OutputParticleNeighborCount"), ParamInfo.DataInterfaceHLSLSymbol + OutputParticleNeighborCountName},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;

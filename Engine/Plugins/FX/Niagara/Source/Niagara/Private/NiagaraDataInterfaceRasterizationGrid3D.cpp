@@ -9,14 +9,14 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRasterizationGrid3D"
 
-static const FString IntGridName(TEXT("IntGrid_"));
-static const FString OutputIntGridName(TEXT("OutputIntGrid_"));
-static const FString PrecisionName(TEXT("Precision_"));
+static const FString IntGridName(TEXT("_IntGrid"));
+static const FString OutputIntGridName(TEXT("_OutputIntGrid"));
+static const FString PrecisionName(TEXT("_Precision"));
 
 const FName UNiagaraDataInterfaceRasterizationGrid3D::SetNumCellsFunctionName("SetNumCells");
 const FName UNiagaraDataInterfaceRasterizationGrid3D::SetFloatResetValueFunctionName("SetFloatResetValue");
 
-const FString UNiagaraDataInterfaceRasterizationGrid3D::PerAttributeDataName(TEXT("PerAttributeDataName_"));
+const FString UNiagaraDataInterfaceRasterizationGrid3D::PerAttributeDataName(TEXT("_PerAttributeDataName"));
 
 // Global VM function names, also used by the shaders code generation methods.
 
@@ -58,16 +58,16 @@ struct FNiagaraDataInterfaceParametersCS_RasterizationGrid3D : public FNiagaraDa
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		NumAttributesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumAttributesName + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumCellsParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		UnitToUVParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::UnitToUVName + ParameterInfo.DataInterfaceHLSLSymbol));		
-		PrecisionParam.Bind(ParameterMap, *(PrecisionName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumAttributesParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumAttributesName));
+		NumCellsParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumCellsName));
+		UnitToUVParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::UnitToUVName));
+		PrecisionParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + PrecisionName));
 				
-		IntGridParam.Bind(ParameterMap,  *(IntGridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		IntGridParam.Bind(ParameterMap,  *(ParameterInfo.DataInterfaceHLSLSymbol + IntGridName));
 		
-		OutputIntGridParam.Bind(ParameterMap, *(OutputIntGridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		OutputIntGridParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + OutputIntGridName));
 
-		PerAttributeDataParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRasterizationGrid3D::PerAttributeDataName + ParameterInfo.DataInterfaceHLSLSymbol));
+		PerAttributeDataParam.Bind(ParameterMap, *(ParameterInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRasterizationGrid3D::PerAttributeDataName));
 	}
 
 	// #todo(dmp): make resource transitions batched
@@ -607,11 +607,11 @@ void UNiagaraDataInterfaceRasterizationGrid3D::GetParameterDefinitionHLSL(const 
 		int {NumAttributesName};
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {				
-		{ TEXT("IntGridName"),    IntGridName + ParamInfo.DataInterfaceHLSLSymbol },		
-		{ TEXT("OutputIntGridName"),    OutputIntGridName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("Precision"), PrecisionName + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("PerAttributeDataName"), PerAttributeDataName + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("NumAttributesName"), UNiagaraDataInterfaceRWBase::NumAttributesName + ParamInfo.DataInterfaceHLSLSymbol},
+		{ TEXT("IntGridName"),    ParamInfo.DataInterfaceHLSLSymbol + IntGridName },
+		{ TEXT("OutputIntGridName"),    ParamInfo.DataInterfaceHLSLSymbol + OutputIntGridName},
+		{ TEXT("Precision"), ParamInfo.DataInterfaceHLSLSymbol + PrecisionName},
+		{ TEXT("PerAttributeDataName"), ParamInfo.DataInterfaceHLSLSymbol + PerAttributeDataName},
+		{ TEXT("NumAttributesName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumAttributesName},
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 
@@ -626,9 +626,9 @@ void UNiagaraDataInterfaceRasterizationGrid3D::GetParameterDefinitionHLSL(const 
 			)");
 		TMap<FString, FStringFormatArg> FormatArgs =
 		{
-			{ TEXT("IntToFloatFunction"), IntToFloatFunctionName.ToString() + ParamInfo.DataInterfaceHLSLSymbol},
-			{ TEXT("FloatToIntFunction"), FloatToIntFunctionName.ToString() + ParamInfo.DataInterfaceHLSLSymbol},
-			{ TEXT("Precision"), PrecisionName + ParamInfo.DataInterfaceHLSLSymbol},
+			{ TEXT("IntToFloatFunction"), ParamInfo.DataInterfaceHLSLSymbol + IntToFloatFunctionName.ToString()},
+			{ TEXT("FloatToIntFunction"), ParamInfo.DataInterfaceHLSLSymbol + FloatToIntFunctionName.ToString()},
+			{ TEXT("Precision"), ParamInfo.DataInterfaceHLSLSymbol + PrecisionName},
 		};
 		OutHLSL += FString::Format(FormatHLSL, FormatArgs);
 	}
@@ -643,9 +643,9 @@ void UNiagaraDataInterfaceRasterizationGrid3D::GetParameterDefinitionHLSL(const 
 
 		TMap<FString, FStringFormatArg> FormatArgs =
 		{
-			{ TEXT("IntToFloatFunction"), IntToFloatFunctionName.ToString() + ParamInfo.DataInterfaceHLSLSymbol},
-			{ TEXT("FloatToIntFunction"), FloatToIntFunctionName.ToString() + ParamInfo.DataInterfaceHLSLSymbol},
-			{ TEXT("Precision"), PrecisionName + ParamInfo.DataInterfaceHLSLSymbol},
+			{ TEXT("IntToFloatFunction"), ParamInfo.DataInterfaceHLSLSymbol + IntToFloatFunctionName.ToString()},
+			{ TEXT("FloatToIntFunction"), ParamInfo.DataInterfaceHLSLSymbol + FloatToIntFunctionName.ToString()},
+			{ TEXT("Precision"), ParamInfo.DataInterfaceHLSLSymbol + PrecisionName},
 		};
 		OutHLSL += FString::Format(FormatHLSL, FormatArgs);
 	}
@@ -659,15 +659,15 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::GetFunctionHLSL(const FNiagaraDat
 	TMap<FString, FStringFormatArg> ArgsBounds =
 	{
 		{ TEXT("FunctionName"), FunctionInfo.InstanceName},
-		{ TEXT("IntGrid"), IntGridName + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("OutputIntGrid"), OutputIntGridName + ParamInfo.DataInterfaceHLSLSymbol},		
-		{TEXT("NumAttributesName"), UNiagaraDataInterfaceRWBase::NumAttributesName + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},		
-		{ TEXT("IntToFloatFunctionName"), IntToFloatFunctionName.ToString() + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("FloatToIntFunctionName"), FloatToIntFunctionName.ToString() + ParamInfo.DataInterfaceHLSLSymbol},
-		{ TEXT("Precision"), PrecisionName + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("PerAttributeDataName"), PerAttributeDataName + ParamInfo.DataInterfaceHLSLSymbol},
+		{ TEXT("IntGrid"), ParamInfo.DataInterfaceHLSLSymbol + IntGridName},
+		{ TEXT("OutputIntGrid"), ParamInfo.DataInterfaceHLSLSymbol + OutputIntGridName},
+		{TEXT("NumAttributesName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumAttributesName},
+		{ TEXT("NumCellsName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::NumCellsName},
+		{ TEXT("UnitToUVName"), ParamInfo.DataInterfaceHLSLSymbol + UNiagaraDataInterfaceRWBase::UnitToUVName},
+		{ TEXT("IntToFloatFunctionName"), ParamInfo.DataInterfaceHLSLSymbol + IntToFloatFunctionName.ToString()},
+		{ TEXT("FloatToIntFunctionName"), ParamInfo.DataInterfaceHLSLSymbol + FloatToIntFunctionName.ToString()},
+		{ TEXT("Precision"), ParamInfo.DataInterfaceHLSLSymbol + PrecisionName},
+		{TEXT("PerAttributeDataName"), ParamInfo.DataInterfaceHLSLSymbol + PerAttributeDataName},
 	};
 
 	if (ParentRet)

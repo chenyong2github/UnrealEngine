@@ -20,8 +20,6 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3DCollectionReader : public UNiagaraD
 	GENERATED_UCLASS_BODY()
 
 public:
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	// Name of the emitter to read from
 	UPROPERTY(EditAnywhere, Category = "Reader")
 	FString EmitterName;

@@ -17,8 +17,6 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid3DCollectionReader"
 
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceGrid3DCollectionReader, FNiagaraDataInterfaceParametersCS_Grid3DCollection);
-
 UNiagaraDataInterfaceGrid3DCollectionReader::UNiagaraDataInterfaceGrid3DCollectionReader(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
