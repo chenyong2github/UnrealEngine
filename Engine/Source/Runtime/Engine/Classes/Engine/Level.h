@@ -76,6 +76,7 @@ private:
 	friend class UActorFolder;
 	friend class UWorldPartitionConvertCommandlet;
 	friend class FWorldPartitionLevelHelper;
+	friend class UWorldPartitionLevelStreamingDynamic;
 };
 
 class ENGINE_API FLevelPartitionOperationScope

@@ -383,11 +383,7 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 				// Duplicate Folder if needed (this will recreate a transient folder structure in InDestLevel if it doesn't exist (only used in PIE)
 				if (FGuid ActorFolderGuid = Actor->GetFolderGuid(); InDestLevel && ActorFolderGuid.IsValid())
 				{
-					// Make sure Dest level is properly setup
-					if (!InDestLevel->IsUsingActorFolders())
-					{
-						FLevelActorFoldersHelper::SetUseActorFolders(InDestLevel, true);
-					}
+					check(InDestLevel->IsUsingActorFolders());
 					InDestLevel->bFixupActorFoldersAtLoad = false;
 
 					// Make sure Source level actor folder fixup was called

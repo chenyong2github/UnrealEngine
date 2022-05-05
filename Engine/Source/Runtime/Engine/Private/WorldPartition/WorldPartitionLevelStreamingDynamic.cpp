@@ -134,6 +134,11 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(StreamingCell.Get(), World, GetWorldAsset().ToString());
 	check(RuntimeLevel);
 
+	if (World->PersistentLevel->IsUsingActorFolders())
+	{
+		FLevelActorFoldersHelper::SetUseActorFolders(RuntimeLevel, true);
+	}
+
 	UPackage* RuntimeLevelPackage = RuntimeLevel->GetPackage();
 	check(RuntimeLevelPackage);
 
