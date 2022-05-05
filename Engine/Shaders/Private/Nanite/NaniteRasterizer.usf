@@ -16,6 +16,8 @@
 #define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
 #define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
 
+#define REQUIRES_PER_PIXEL_EVAL		(MATERIALBLENDING_MASKED)	//TODO: Also test depth offset when it is supported
+
 #ifndef NANITE_MESH_SHADER
 #define NANITE_MESH_SHADER 0
 #endif
@@ -222,7 +224,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, boo
 	float MaterialMask = 1.0f;
 	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-#if IS_NANITE_PROGRAMMABLE
+#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
 	// Material parameter inputs
 	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
 	
@@ -779,6 +781,33 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 	return (bReverseInstanceCull != bRasterStateReverseCull);
 }
 
+#if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+float3 EvaluateWorldPositionOffset(FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FCluster Cluster, uint VertIndex, float3 PointLocal)
+{
+	float3 WorldPositionOffset = 0.0f;
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+	BRANCH
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	{
+		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
+
+		// Should be Pow2(InvScale) but that requires renormalization
+		float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
+		float3 InvScale = InstanceData.InvNonUniformScale;
+		LocalToWorld[0] *= InvScale.x;
+		LocalToWorld[1] *= InvScale.y;
+		LocalToWorld[2] *= InvScale.z;
+
+		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
+		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
+
+		WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+	}
+	return WorldPositionOffset;
+}
+#endif
+
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 Buffer<uint>				InClusterOffsetSWHW;
 
@@ -870,10 +899,14 @@ void MicropolyRasterize(
 		{
 			// Transform vertex and store in group shared memory.
 			float3 PointLocal = DecodePosition(VertIndex, Cluster);
-		#if IS_NANITE_PROGRAMMABLE
+		#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
 			GroupVerts[VertIndex] = PointLocal;
 		#else
-			float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+			float3 WorldPositionOffset = 0.0f;
+		#if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+			WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
+		#endif
+			float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
 			float4 PointClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToClip);
 			GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointClip);
 		#endif
@@ -906,7 +939,7 @@ void MicropolyRasterize(
 
 		float3 Verts[3];
 		FRasterInterpData InterpData;
-	#if IS_NANITE_PROGRAMMABLE
+	#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
 		// Transform the triangle from local space points
 		const float3 PointLocal[3] =
 		{
@@ -1023,26 +1056,8 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 
 	float3 WorldPositionOffset = 0.0f;
 #if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
-	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-	BRANCH
-	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
-	{
-		const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
-
-		// Should be Pow2(InvScale) but that requires renormalization
-		float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
-		float3 InvScale = InstanceData.InvNonUniformScale;
-		LocalToWorld[0] *= InvScale.x;
-		LocalToWorld[1] *= InvScale.y;
-		LocalToWorld[2] *= InvScale.z;
-
-		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
-		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
-
-		WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
-	}
+	const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+	WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
 #endif
 
 	const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
