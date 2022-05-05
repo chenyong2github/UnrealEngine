@@ -178,6 +178,7 @@ public:
 	void GatherImportanceVolumes();
 	
 	void BackgroundTick();
+	void AddRelevantStaticLightGUIDs(FQuantizedLightmapData* QuantizedLightmapData, const FBoxSphereBounds& WorldBounds);
 	void ApplyFinishedLightmapsToWorld();
 	void RemoveAllComponents();
 

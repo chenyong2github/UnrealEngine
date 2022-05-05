@@ -287,7 +287,9 @@ using FRectLightRenderStateRef = TEntityArray<FRectLightRenderState>::EntityRefT
 struct FSkyLightRenderState
 {
 	bool bStationary = false;
-	bool bCastShadow = true;
+	bool bCastShadow = true;	
+	bool CastsStationaryShadow() { return bStationary && bCastShadow; }
+	
 	FLinearColor Color;
 	FTextureRHIRef ProcessedTexture;
 	FSamplerStateRHIRef ProcessedTextureSampler;
@@ -306,6 +308,10 @@ struct FSkyLightRenderState
 struct FSkyLightBuildInfo
 {
 	USkyLightComponent* ComponentUObject = nullptr;
+
+	bool bStationary = false;
+	bool bCastShadow = true;	
+	bool CastsStationaryShadow() { return bStationary && bCastShadow; }
 };
 
 class FLightArrayBase
