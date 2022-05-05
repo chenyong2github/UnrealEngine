@@ -1728,8 +1728,11 @@ namespace HoloLens.Automation
 			}
 		}
 
-        private string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
+		private string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
 		{
+			List<DirectoryReference> SdkRootDirs = new List<DirectoryReference>();
+			WindowsExports.EnumerateSdkRootDirs(SdkRootDirs);
+			
 			string VCVersionFragment;
             switch (Compiler)
 			{
@@ -1747,25 +1750,56 @@ namespace HoloLens.Automation
 
 			List<string> Runtimes = new List<string>();
 
-			foreach(var Arch in ActualArchitectures)
+			bool foundVcLibs = false;
+			foreach (DirectoryReference SdkRootDir in SdkRootDirs)
 			{
-				string ArchitectureFragment = WindowsExports.GetArchitectureSubpath(Arch);
+				if (!foundVcLibs)
+				{
+					foreach (var Arch in ActualArchitectures)
+					{
+						string ArchitectureFragment = WindowsExports.GetArchitectureSubpath(Arch);
 
-				string RuntimePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-					"Microsoft SDKs",
-					"Windows Kits",
-					"10",
-					"ExtensionSDKs",
-					"Microsoft.VCLibs",
-					string.Format("{0}.0", VCVersionFragment),
-					"Appx",
-					UseDebugCrt ? "Debug" : "Retail",
-					ArchitectureFragment,
-					string.Format("Microsoft.VCLibs.{0}.{1}.00.appx", ArchitectureFragment, VCVersionFragment));
+						// For whatever reason, VCLibs are not in Windows Kits/, but Microsoft SDKs/Windows Kits, so go up two directories and start from there.
+						if (DirectoryExists(SdkRootDir.ParentDirectory.ToString()) && DirectoryExists(SdkRootDir.ParentDirectory.ParentDirectory.ToString()))
+						{
+							DirectoryReference Win64SDKsRootDir = SdkRootDir.ParentDirectory.ParentDirectory;
 
-				Runtimes.Add(RuntimePath);
+							string RuntimePath = Path.Combine(Win64SDKsRootDir.ToString(),
+								"Microsoft SDKs",
+								"Windows Kits",
+								"10",
+								"ExtensionSDKs",
+								"Microsoft.VCLibs",
+								string.Format("{0}.0", VCVersionFragment),
+								"Appx",
+								UseDebugCrt ? "Debug" : "Retail",
+								ArchitectureFragment,
+								string.Format("Microsoft.VCLibs.{0}.{1}.00.appx", ArchitectureFragment, VCVersionFragment));
 
+							if (FileExists(RuntimePath))
+							{
+								Runtimes.Add(RuntimePath);
+								LogLog("found vclibs, path: " + RuntimePath);
+								foundVcLibs = true;
+							}
+							else
+							{
+								LogLog("no vclib found, path: " + RuntimePath);
+							}
+						}
+						else
+						{
+							LogLog("Directory structure for VCLibs not present , SDK path: " + SdkRootDir.ToString());
+						}
+					}
+				}
 			}
+
+			if (!foundVcLibs)
+			{
+				LogError("no appropriate VCLibs found in any of the SDK locations");
+			}
+
 			return Runtimes.ToArray();
 		}
 

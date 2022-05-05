@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="RootDirs">Receives all the Windows 10 sdk root directories</param>
 		[SupportedOSPlatform("windows")]
-		private static void EnumerateSdkRootDirs(List<DirectoryReference> RootDirs)
+		public static void EnumerateSdkRootDirs(List<DirectoryReference> RootDirs)
 		{
 			DirectoryReference? RootDir;
 			if (TryReadInstallDirRegistryKey32("Microsoft\\Windows Kits\\Installed Roots", "KitsRoot10", out RootDir))

@@ -95,5 +95,16 @@ namespace UnrealBuildTool
 
 			return WindowsSdkDirs;
 		}
+
+		/// <summary>
+		/// Enumerates all the Windows 10 SDK root directories
+		/// </summary>
+		/// <param name="RootDirs">Receives all the Windows 10 sdk root directories</param>
+		[SupportedOSPlatform("windows")]
+		public static void EnumerateSdkRootDirs(List<DirectoryReference> RootDirs)
+		{
+			MicrosoftPlatformSDK.EnumerateSdkRootDirs(RootDirs);
+		}
+
 	}
 }
