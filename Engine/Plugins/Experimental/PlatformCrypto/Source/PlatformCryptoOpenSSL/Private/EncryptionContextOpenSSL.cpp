@@ -5,7 +5,69 @@
 #include "PlatformCryptoAesEncryptorsOpenSSL.h"
 #include "PlatformCryptoAesDecryptorsOpenSSL.h"
 
+#include "Misc/AssertionMacros.h"
+
 DEFINE_LOG_CATEGORY(LogPlatformCryptoOpenSSL);
+
+struct FSHA256HasherOpenSSL::FImplDetails
+{
+	SHA256_CTX Ctx;
+	enum class EState { NeedsInit, Ready, ReadyNeedsFinalize } State = EState::NeedsInit;
+};
+
+FSHA256HasherOpenSSL::FSHA256HasherOpenSSL() : Inner(MakePimpl<FSHA256HasherOpenSSL::FImplDetails>())
+{
+	check(Inner);
+	Init();
+}
+
+EPlatformCryptoResult FSHA256HasherOpenSSL::Init()
+{
+	if (Inner->State == FImplDetails::EState::ReadyNeedsFinalize)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FSHA256Hasher::Init was called while there was still a digest being computed."));
+		return EPlatformCryptoResult::Failure;
+	}
+	if (Inner->State == FImplDetails::EState::Ready)
+	{
+		return EPlatformCryptoResult::Success;
+	}
+
+	SHA256_Init(&Inner->Ctx);
+	Inner->State = FImplDetails::EState::Ready;
+	return EPlatformCryptoResult::Success;
+}
+
+EPlatformCryptoResult FSHA256HasherOpenSSL::Update(const TArrayView<const uint8> InDataBuffer)
+{
+	if (Inner->State == FImplDetails::EState::NeedsInit)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FSHA256Hasher::Update was called after the hasher was finalized without first calling Init"));
+		return EPlatformCryptoResult::Failure;
+	}
+
+	SHA256_Update(&Inner->Ctx, InDataBuffer.GetData(), static_cast<size_t>(InDataBuffer.Num()));
+	Inner->State = FImplDetails::EState::ReadyNeedsFinalize;
+	return EPlatformCryptoResult::Success;
+}
+
+EPlatformCryptoResult FSHA256HasherOpenSSL::Finalize(const TArrayView<uint8> OutDataBuffer)
+{
+	if (Inner->State == FImplDetails::EState::NeedsInit)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FSHA256Hasher::Finalize was called after the hasher was finalized without first calling Init"));
+		return EPlatformCryptoResult::Failure;
+	}
+	if (OutDataBuffer.Num() < (int32)OutputByteLength)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FSHA256Hasher::Finalize called with a buffer that is too small"));
+		return EPlatformCryptoResult::Failure;
+	}
+
+	SHA256_Final(reinterpret_cast<unsigned char*>(OutDataBuffer.GetData()), &Inner->Ctx);
+	Inner->State = FImplDetails::EState::NeedsInit;
+	return EPlatformCryptoResult::Success;
+}
 
 TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_ECB(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, EPlatformCryptoResult& OutResult)
 {
@@ -75,14 +137,14 @@ TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_CBC(const TArrayView<co
 	return Ciphertext;
 }
 
-TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_GCM(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, TArray<uint8>& OutAuthTag, EPlatformCryptoResult& OutResult)
+TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_GCM(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, const TArrayView<const uint8> Nonce, TArray<uint8>& OutAuthTag, EPlatformCryptoResult& OutResult)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 GCM Encrypt"), STAT_OpenSSL_AES256_GCM_Encrypt, STATGROUP_PlatformCrypto);
 
 	OutAuthTag.Reset();
 	OutResult = EPlatformCryptoResult::Failure;
 
-	TUniquePtr<IPlatformCryptoEncryptor> Encryptor = CreateEncryptor_AES_256_GCM(Key, InitializationVector);
+	TUniquePtr<IPlatformCryptoEncryptor> Encryptor = CreateEncryptor_AES_256_GCM(Key, Nonce);
 	if (!Encryptor.IsValid())
 	{
 		return TArray<uint8>();
@@ -189,13 +251,13 @@ TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_CBC(const TArrayView<co
 	return Plaintext;
 }
 
-TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_GCM(const TArrayView<const uint8> Ciphertext, const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, const TArrayView<const uint8> AuthTag, EPlatformCryptoResult& OutResult)
+TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_GCM(const TArrayView<const uint8> Ciphertext, const TArrayView<const uint8> Key, const TArrayView<const uint8> Nonce, const TArrayView<const uint8> AuthTag, EPlatformCryptoResult& OutResult)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 GCM Decrypt"), STAT_OpenSSL_AES256_GCM_Decrypt, STATGROUP_PlatformCrypto);
 
 	OutResult = EPlatformCryptoResult::Failure;
 
-	TUniquePtr<IPlatformCryptoDecryptor> Decryptor = CreateDecryptor_AES_256_GCM(Key, InitializationVector, AuthTag);
+	TUniquePtr<IPlatformCryptoDecryptor> Decryptor = CreateDecryptor_AES_256_GCM(Key, Nonce, AuthTag);
 	if (!Decryptor.IsValid())
 	{
 		return TArray<uint8>();
@@ -233,9 +295,9 @@ TUniquePtr<IPlatformCryptoEncryptor> FEncryptionContextOpenSSL::CreateEncryptor_
 	return FPlatformCryptoEncryptor_AES_256_CBC_OpenSSL::Create(Key, InitializationVector);
 }
 
-TUniquePtr<IPlatformCryptoEncryptor> FEncryptionContextOpenSSL::CreateEncryptor_AES_256_GCM(const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector)
+TUniquePtr<IPlatformCryptoEncryptor> FEncryptionContextOpenSSL::CreateEncryptor_AES_256_GCM(const TArrayView<const uint8> Key, const TArrayView<const uint8> Nonce)
 {
-	return FPlatformCryptoEncryptor_AES_256_GCM_OpenSSL::Create(Key, InitializationVector);
+	return FPlatformCryptoEncryptor_AES_256_GCM_OpenSSL::Create(Key, Nonce);
 }
 
 TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_AES_256_ECB(const TArrayView<const uint8> Key)
@@ -248,9 +310,17 @@ TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_
 	return FPlatformCryptoDecryptor_AES_256_CBC_OpenSSL::Create(Key, InitializationVector);
 }
 
-TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_AES_256_GCM(const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, const TArrayView<const uint8> AuthTag)
+TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_AES_256_GCM(const TArrayView<const uint8> Key, const TArrayView<const uint8> Nonce, const TArrayView<const uint8> AuthTag)
 {
-	return FPlatformCryptoDecryptor_AES_256_GCM_OpenSSL::Create(Key, InitializationVector, AuthTag);
+	return FPlatformCryptoDecryptor_AES_256_GCM_OpenSSL::Create(Key, Nonce, AuthTag);
+}
+
+bool FEncryptionContextOpenSSL::DigestSign_RS256(const TArrayView<const uint8> Message, TArray<uint8>& Signature, FRSAKeyHandle Key)
+{
+	Signature.SetNum(GetKeySize_RSA(Key));
+
+	unsigned int BytesWritten = 0;
+	return RSA_sign(NID_sha256, Message.GetData(), Message.Num(), Signature.GetData(), &BytesWritten, (RSA*)Key) == 1;
 }
 
 bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const char> Message, const TArrayView<const uint8> Signature, const TArrayView<const uint8> PKCS1Key)
@@ -274,6 +344,11 @@ bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const char> 
 	return EVP_DigestVerifyFinal(Context.Get(), const_cast<uint8*>(Signature.GetData()), Signature.Num()) == 1;
 }
 
+bool FEncryptionContextOpenSSL::DigestVerify_RS256(const TArrayView<const uint8> Message, const TArrayView<const uint8> Signature, FRSAKeyHandle Key)
+{
+	return RSA_verify(NID_sha256, Message.GetData(), Message.Num(), Signature.GetData(), Signature.Num(), (RSA*)Key) == 1;
+}
+
 // Some platforms were upgraded to OpenSSL 1.1.1 while the others were left on a previous version. There are some minor differences we have to account for
 // in the older version, so declare a handy define that we can use to gate the code
 #if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -281,6 +356,51 @@ bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const char> 
 #else
 #define USE_LEGACY_OPENSSL 0
 #endif
+
+void BigNumToArray(const int32 InKeySize, const BIGNUM* InNum, TArray<uint8>& OutBytes)
+{
+	int32 NumBytes = BN_num_bytes(InNum);
+	check(NumBytes <= InKeySize);
+	OutBytes.SetNumZeroed(NumBytes);
+
+	BN_bn2bin(InNum, OutBytes.GetData());
+	Algo::Reverse(OutBytes);
+}
+
+bool FEncryptionContextOpenSSL::GenerateKey_RSA(const int32 InNumKeyBits, TArray<uint8>& OutPublicExponent, TArray<uint8>& OutPrivateExponent, TArray<uint8>& OutModulus)
+{
+	if (InNumKeyBits % 8 != 0)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::GenerateKey_RSA failed because InNumKeyBits is not divisible by 8."));
+		return false;
+	}
+
+	int32 KeySize = InNumKeyBits;
+	int32 KeySizeInBytes = InNumKeyBits / 8;
+
+	RSA* RSAKey = RSA_new();
+	BIGNUM* E = BN_new();
+	BN_set_word(E, RSA_F4);
+	RSA_generate_key_ex(RSAKey, KeySize, E, nullptr);
+
+#if USE_LEGACY_OPENSSL
+	const BIGNUM* PublicModulus = RSAKey->n;
+	const BIGNUM* PublicExponent = RSAKey->e;
+	const BIGNUM* PrivateExponent = RSAKey->d;
+#else
+	const BIGNUM* PublicModulus = RSA_get0_n(RSAKey);
+	const BIGNUM* PublicExponent = RSA_get0_e(RSAKey);
+	const BIGNUM* PrivateExponent = RSA_get0_d(RSAKey);
+#endif
+
+	BigNumToArray(KeySizeInBytes, PublicModulus, OutModulus);
+	BigNumToArray(KeySizeInBytes, PublicExponent, OutPublicExponent);
+	BigNumToArray(KeySizeInBytes, PrivateExponent, OutPrivateExponent);
+
+	RSA_free(RSAKey);
+
+	return true;
+}
 
 static void LoadBinaryIntoBigNum(const uint8* InData, int64 InDataSize, BIGNUM* InBigNum)
 {
@@ -402,4 +522,9 @@ EPlatformCryptoResult FEncryptionContextOpenSSL::CreatePseudoRandomBytes(const T
 #else // OPENSSL_VERSION_NUMBER < 0x10100000L
 	return CreateRandomBytes(OutData);
 #endif // OPENSSL_VERSION_NUMBER < 0x10100000L
+}
+
+FSHA256Hasher FEncryptionContextOpenSSL::CreateSHA256Hasher()
+{
+	return FSHA256Hasher();
 }

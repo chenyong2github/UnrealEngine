@@ -35,8 +35,8 @@ public:
 	virtual EPlatformCryptoResult SetAuthTag(const TArrayView<const uint8> AuthTag) override final;
 	virtual int32 GetCipherBlockSizeBytes() const override final;
 	virtual int32 GetCipherInitializationVectorSizeBytes() const override final;
-	virtual EPlatformCryptoResult Update(const TArrayView<const uint8> Plaintext, const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten) override final;
-	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten) override final;
+	virtual EPlatformCryptoResult Update(const TArrayView<const uint8> Ciphertext, const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten) override final;
+	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten) override final;
 	//~ End IPlatformCryptoDecryptor Interface
 
 	/**

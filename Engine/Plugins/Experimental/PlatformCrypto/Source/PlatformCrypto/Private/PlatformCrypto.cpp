@@ -7,7 +7,7 @@
 #include "Features/IModularFeatures.h"
 #include "Misc/IEngineCrypto.h"
 
-class FPlatformCryptoModularFeature final : public IEngineCrypto
+class FPlatformCryptoModularFeature : public IEngineCrypto
 {
 public:
 
@@ -16,7 +16,7 @@ public:
 		IModularFeatures::Get().RegisterModularFeature(IEngineCrypto::GetFeatureName(), this);
 	}
 
-	~FPlatformCryptoModularFeature()
+	virtual ~FPlatformCryptoModularFeature()
 	{
 		Shutdown();
 	}

@@ -26,7 +26,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxArm64",
+				"LinuxArm64"
 			],
 			"PlatformDenyList": [
 				"TVOS"
@@ -43,7 +43,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxArm64",
+				"LinuxArm64"
 			],
 			"PlatformDenyList": [
 				"TVOS"
@@ -59,7 +59,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxArm64",
+				"LinuxArm64"
 			],
 			"PlatformDenyList": [
 				"TVOS"

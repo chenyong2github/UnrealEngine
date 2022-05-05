@@ -81,9 +81,9 @@ EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::SetAuthTag(cons
 	return EPlatformCryptoResult::Success;
 }
 
-EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update(const TArrayView<const uint8> Plaintext, const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten)
+EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update(const TArrayView<const uint8> Ciphertext, const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten)
 {
-	OutCiphertextBytesWritten = 0;
+	OutPlaintextBytesWritten = 0;
 
 	if (State != EDecryptorState::Initialized)
 	{
@@ -91,14 +91,14 @@ EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update(const TA
 		return EPlatformCryptoResult::Failure;
 	}
 
-	const int32 RequiredBufferSize = GetUpdateBufferSizeBytes(Plaintext);
-	if (OutCiphertext.Num() < RequiredBufferSize)
+	const int32 RequiredBufferSize = GetUpdateBufferSizeBytes(Ciphertext);
+	if (OutPlaintext.Num() < RequiredBufferSize)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update: Invalid buffer size. Was %d needed %d"), OutCiphertext.Num() ,RequiredBufferSize);
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update: Invalid buffer size. Was %d needed %d"), OutPlaintext.Num(), RequiredBufferSize);
 		return EPlatformCryptoResult::Failure;
 	}
 
-	const int UpdateResult = EVP_DecryptUpdate(EVPContext.Get(), OutCiphertext.GetData(), &OutCiphertextBytesWritten, Plaintext.GetData(), Plaintext.Num());
+	const int UpdateResult = EVP_DecryptUpdate(EVPContext.Get(), OutPlaintext.GetData(), &OutPlaintextBytesWritten, Ciphertext.GetData(), Ciphertext.Num());
 	if (UpdateResult != OPENSSL_CIPHER_SUCCESS)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update: EVP_DecryptInit_ex failed. Result=[%d]"), UpdateResult);
@@ -108,9 +108,9 @@ EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Update(const TA
 	return EPlatformCryptoResult::Success;
 }
 
-EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Finalize(const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten)
+EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Finalize(const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten)
 {
-	OutCiphertextBytesWritten = 0;
+	OutPlaintextBytesWritten = 0;
 
 	if (State != EDecryptorState::Initialized)
 	{
@@ -118,12 +118,12 @@ EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Finalize(const 
 		return EPlatformCryptoResult::Failure;
 	}
 
-	if (OutCiphertext.Num() < GetFinalizeBufferSizeBytes())
+	if (OutPlaintext.Num() < GetFinalizeBufferSizeBytes())
 	{
 		return EPlatformCryptoResult::Failure;
 	}
 
-	const int FinalizeResult = EVP_DecryptFinal_ex(EVPContext.Get(), OutCiphertext.GetData(), &OutCiphertextBytesWritten);
+	const int FinalizeResult = EVP_DecryptFinal_ex(EVPContext.Get(), OutPlaintext.GetData(), &OutPlaintextBytesWritten);
 	if (FinalizeResult != OPENSSL_CIPHER_SUCCESS)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Finalize: EVP_DecryptFinal_ex failed. Result=[%d]"), FinalizeResult);
@@ -153,7 +153,7 @@ TUniquePtr<IPlatformCryptoDecryptor> FPlatformCryptoDecryptor_AES_256_ECB_OpenSS
 	const EVP_CIPHER* Cipher = EVP_aes_256_ecb();
 
 	const int32 ExpectedKeyLength = EVP_CIPHER_key_length(Cipher);
-	if (Key.Num() < ExpectedKeyLength)
+	if (Key.Num() != ExpectedKeyLength)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("Invalid Key Size, failed to create Decryptor. KeySize=[%d] Expected=[%d]"), Key.Num(), ExpectedKeyLength);
 		return nullptr;
@@ -195,7 +195,7 @@ TUniquePtr<IPlatformCryptoDecryptor> FPlatformCryptoDecryptor_AES_256_CBC_OpenSS
 	const EVP_CIPHER* Cipher = EVP_aes_256_cbc();
 
 	const int32 ExpectedKeyLength = EVP_CIPHER_key_length(Cipher);
-	if (Key.Num() < ExpectedKeyLength)
+	if (Key.Num() != ExpectedKeyLength)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("Invalid Key Size, failed to create Decryptor. KeySize=[%d] Expected=[%d]"), Key.Num(), ExpectedKeyLength);
 		return nullptr;
@@ -244,7 +244,7 @@ TUniquePtr<IPlatformCryptoDecryptor> FPlatformCryptoDecryptor_AES_256_GCM_OpenSS
 	const EVP_CIPHER* Cipher = EVP_aes_256_gcm();
 
 	const int32 ExpectedKeyLength = EVP_CIPHER_key_length(Cipher);
-	if (Key.Num() < ExpectedKeyLength)
+	if (Key.Num() != ExpectedKeyLength)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("Invalid Key Size, failed to create Decryptor. KeySize=[%d] Expected=[%d]"), Key.Num(), ExpectedKeyLength);
 		return nullptr;

@@ -160,7 +160,7 @@ TUniquePtr<IPlatformCryptoEncryptor> FPlatformCryptoEncryptor_AES_256_ECB_OpenSS
 	const EVP_CIPHER* Cipher = EVP_aes_256_ecb();
 
 	const int32 ExpectedKeyLength = EVP_CIPHER_key_length(Cipher);
-	if (Key.Num() < ExpectedKeyLength)
+	if (Key.Num() != ExpectedKeyLength)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("Invalid Key Size, failed to create Encryptor. KeySize=[%d] Expected=[%d]"), Key.Num(), ExpectedKeyLength);
 		return nullptr;
@@ -203,7 +203,7 @@ TUniquePtr<IPlatformCryptoEncryptor> FPlatformCryptoEncryptor_AES_256_CBC_OpenSS
 	const EVP_CIPHER* Cipher = EVP_aes_256_cbc();
 
 	const int32 ExpectedKeyLength = EVP_CIPHER_key_length(Cipher);
-	if (Key.Num() < ExpectedKeyLength)
+	if (Key.Num() != ExpectedKeyLength)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("Invalid Key Size, failed to create Encryptor. KeySize=[%d] Expected=[%d]"), Key.Num(), ExpectedKeyLength);
 		return nullptr;
@@ -252,7 +252,7 @@ TUniquePtr<IPlatformCryptoEncryptor> FPlatformCryptoEncryptor_AES_256_GCM_OpenSS
 	const EVP_CIPHER* Cipher = EVP_aes_256_gcm();
 
 	const int32 ExpectedKeyLength = EVP_CIPHER_key_length(Cipher);
-	if (Key.Num() < ExpectedKeyLength)
+	if (Key.Num() != ExpectedKeyLength)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("Invalid Key Size, failed to create Encryptor. KeySize=[%d] Expected=[%d]"), Key.Num(), ExpectedKeyLength);
 		return nullptr;

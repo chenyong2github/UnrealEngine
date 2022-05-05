@@ -8,6 +8,7 @@ THIRD_PARTY_INCLUDES_START
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 THIRD_PARTY_INCLUDES_END
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPlatformCryptoOpenSSL, Warning, All);

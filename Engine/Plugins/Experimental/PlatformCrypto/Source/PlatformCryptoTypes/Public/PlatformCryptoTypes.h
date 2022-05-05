@@ -189,3 +189,42 @@ public:
 	 */
 	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten) = 0;
 };
+
+/**
+ * Helper class to ensure that only multiples of block-size get passed into our Encrypt/Decrypt functions.
+ * This class will hold onto the last-full or partial block until another call to Update or Finalize happens.
+ */
+class FAESBlockEncryptionHelper
+{
+public:
+	FAESBlockEncryptionHelper(const int32 BlockSize);
+
+	using FBlockHandlerFunctionSignature = EPlatformCryptoResult(const TArrayView<const uint8> /*InDataBuffer*/, const TArrayView<uint8> /*OutDataBuffer*/, int32& /*OutBytesWritten*/);
+
+	/**
+	 * Add text to potentialy be processed by the UpdateHandlingFunction. If there is not enough text, the UpdateHandlingFunction may not be called.
+	 *
+	 * @param InDataBuffer Buffer pointing to the data that needs to be encrypted/decrypted
+	 * @param UpdateHandlingFunction A function that can encrypt/decrypt a complete block of text
+	 * @param OutDataBuffer A buffer that can hold the complete encrypted/decrypted data from UpdateHandlingFunction
+	 * @param OutBytesWritten The amount of bytes written to OutDataBuffer
+	 * @return Success if the data could be successfully processed, or Failure otherwise.
+	 */
+	EPlatformCryptoResult Update(const TArrayView<const uint8> InDataBuffer, const TFunctionRef<FBlockHandlerFunctionSignature>& UpdateHandlingFunction, const TArrayView<uint8> OutDataBuffer, int32& OutBytesWritten);
+
+	/**
+	 * Process any remaining block of text that was previously sent to Update. If there are no blocks remaining, the FinalizeHandlingFunction may not be called.
+	 *
+	 * @param FinalizeHandlingFunction A function that can encrypt/decrypt a complete block of text
+	 * @param OutDataBuffer A buffer that can hold the complete encrypted/decrypted data from FinalizeHandlingFunction
+	 * @param OutBytesWritten The amount of bytes written to OutDataBuffer
+	 * @return Success if the data could be successfully processed, or Failure otherwise.
+	 */
+	EPlatformCryptoResult Finalize(const TFunctionRef<FBlockHandlerFunctionSignature>& FinalizeHandlingFunction, const TArrayView<uint8> OutDataBuffer, int32& OutBytesWritten);
+
+protected:
+	/** A buffer to store data waiting to be encrypted/decrypted */
+	TArray<uint8> LeftoverDataBuffer;
+	/** The size of a complete block of data */
+	int32 BlockSize = 0;
+};
