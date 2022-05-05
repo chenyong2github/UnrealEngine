@@ -37,7 +37,7 @@ FVisualEntry::FVisualEntry(const TWeakPtr<const SWidget>& InWidget, int32 InElem
 FVisualEntry::FVisualEntry(const TSharedRef<const SWidget>& InWidget, const FSlateDrawElement& InElement)
 {
 	const FSlateRenderTransform& Transform = InElement.GetRenderTransform();
-	const FVector2D& LocalSize = InElement.GetLocalSize();
+	const FVector2D LocalSize = InElement.GetLocalSize();
 
 	TopLeft = Transform.TransformPoint(FVector2D(0, 0));
 	TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));
@@ -60,7 +60,7 @@ void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 
 	const FSlateDrawElement& Element = ElementList.GetUncachedDrawElements()[ElementIndex];
 	const FSlateRenderTransform& Transform = Element.GetRenderTransform();
-	const FVector2D& LocalSize = Element.GetLocalSize();
+	const FVector2D LocalSize = Element.GetLocalSize();
 
 	TopLeft = Transform.TransformPoint(FVector2D(0, 0));
 	TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));

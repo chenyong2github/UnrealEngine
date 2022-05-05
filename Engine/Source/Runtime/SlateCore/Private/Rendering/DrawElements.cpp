@@ -128,7 +128,7 @@ FSlateWindowElementList::FSlateWindowElementList(const TSharedPtr<SWindow>& InPa
 {
 	if (InPaintWindow.IsValid())
 	{
-		WindowSize = InPaintWindow->GetSizeInScreen();
+		WindowSize = UE::Slate::CastToVector2f(InPaintWindow->GetSizeInScreen());
 	}
 
 	// Only keep UObject resources alive if this window element list is born on the game thread.
@@ -193,7 +193,12 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	}
 }
 
-void FSlateDrawElement::ApplyPositionOffset(const FVector2D& InOffset)
+void FSlateDrawElement::ApplyPositionOffset(FVector2d InOffset)
+{
+	ApplyPositionOffset(UE::Slate::CastToVector2f(InOffset));
+}
+
+void FSlateDrawElement::ApplyPositionOffset(FVector2f InOffset)
 {
 	SetPosition(GetPosition() + InOffset);
 	RenderTransform = Concatenate(RenderTransform, InOffset);

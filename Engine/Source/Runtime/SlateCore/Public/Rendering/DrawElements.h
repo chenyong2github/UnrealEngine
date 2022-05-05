@@ -13,6 +13,7 @@
 #include "Layout/SlateRect.h"
 #include "Layout/Clipping.h"
 #include "Types/PaintArgs.h"
+#include "Types/SlateVector2.h"
 #include "Layout/Geometry.h"
 #include "Rendering/ShaderResourceManager.h"
 #include "Rendering/RenderingCommon.h"
@@ -269,9 +270,27 @@ public:
 
 	FORCEINLINE const FSlateRenderTransform& GetRenderTransform() const { return RenderTransform; }
 	FORCEINLINE void SetRenderTransform(const FSlateRenderTransform& InRenderTransform) { RenderTransform = InRenderTransform; }
-	FORCEINLINE FVector2D GetPosition() const { return FVector2D(Position); }
-	FORCEINLINE void SetPosition(const FVector2D& InPosition) { Position = FVector2f(InPosition); }
-	FORCEINLINE FVector2D GetLocalSize() const { return FVector2D(LocalSize); }
+
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetPosition() const
+	{
+		return Position;
+	}
+
+	UE_DEPRECATED(5.1, "Slate rendering now use float instead of double. Use SetPosition(FVector2f)")
+	FORCEINLINE void SetPosition(FVector2d InPosition)
+	{
+		Position = UE::Slate::CastToVector2f(InPosition);
+	}
+	FORCEINLINE void SetPosition(FVector2f InPosition)
+	{
+		Position = InPosition;
+	}
+
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetLocalSize() const
+	{
+		return LocalSize;
+	}
+
 	FORCEINLINE float GetScale() const { return Scale; }
 	FORCEINLINE ESlateDrawEffect GetDrawEffects() const { return DrawEffects; }
 	FORCEINLINE ESlateBatchDrawFlag GetBatchFlags() const { return BatchFlags; }
@@ -289,18 +308,21 @@ public:
 
 	FORCEINLINE FSlateLayoutTransform GetInverseLayoutTransform() const
 	{
-		return Inverse(FSlateLayoutTransform(Scale, FVector2D(Position)));
+		return Inverse(FSlateLayoutTransform(Scale, Position));
 	}
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
+	UE_DEPRECATED(5.1, "Slate rendering now use float instead of double. Use ApplyPositionOffset(FVector2f)")
+	void ApplyPositionOffset(FVector2d InOffset);
+
 	/**
-	* Update element cached position with an arbitrary offset
-	*
-	* @param Element		   Element to update
-	* @param InOffset         Absolute translation delta
-	*/
-	void ApplyPositionOffset(const FVector2D& InOffset);
+	 * Update element cached position with an arbitrary offset
+	 *
+	 * @param Element		   Element to update
+	 * @param InOffset         Absolute translation delta
+	 */
+	void ApplyPositionOffset(FVector2f InOffset);
 
 	UE_DEPRECATED(4.23, "GetClippingIndex has been deprecated.  If you were using this please use GetPrecachedClippingIndex instead.")
 	FORCEINLINE const int32 GetClippingIndex() const { return GetPrecachedClippingIndex(); }
@@ -509,7 +531,7 @@ public:
 	}
 
 	/** @return Get the window size that we will be painting */
-	FVector2D GetWindowSize() const
+	UE::Slate::FDeprecateVector2D GetWindowSize() const
 	{
 		return WindowSize;
 	}
@@ -699,5 +721,5 @@ private:
 	// End Fast Path
 
 	/** Store the size of the window being used to paint */
-	FVector2D WindowSize;
+	FVector2f WindowSize;
 };

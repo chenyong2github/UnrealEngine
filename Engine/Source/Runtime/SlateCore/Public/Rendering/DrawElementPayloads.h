@@ -3,10 +3,11 @@
 #pragma once
 
 #include "SlateRenderBatch.h"
+#include "Types/SlateVector2.h"
 
 struct FSlateGradientStop
 {
-	FVector2D Position;
+	FVector2f Position;
 	FLinearColor Color;
 
 	/**
@@ -15,7 +16,12 @@ struct FSlateGradientStop
 						  A two stop gradient should go from (0,0), to (Width,Height).
 	 * @param InColor	- The color to lerp towards at this stop.
 	 */
-	FSlateGradientStop(const FVector2D& InPosition, const FLinearColor& InColor)
+	FSlateGradientStop(const FVector2d InPosition, const FLinearColor InColor)
+		: Position(UE::Slate::CastToVector2f(InPosition))
+		, Color(InColor)
+	{
+	}
+	FSlateGradientStop(const FVector2f InPosition, const FLinearColor InColor)
 		: Position(InPosition)
 		, Color(InColor)
 	{
@@ -51,20 +57,25 @@ struct FSlateTintableElement
 struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 {
 	FMargin Margin;
-	FBox2D UVRegion;
+	FBox2f UVRegion;
 	const FSlateShaderResourceProxy* ResourceProxy;
 	ESlateBrushTileType::Type Tiling;
 	ESlateBrushMirrorType::Type Mirroring;
 	ESlateBrushDrawType::Type DrawType;
 
 	const FMargin& GetBrushMargin() const { return Margin; }
-	const FBox2D& GetBrushUVRegion() const { return UVRegion; }
+	const FBox2f& GetBrushUVRegion() const { return UVRegion; }
 	ESlateBrushTileType::Type GetBrushTiling() const { return Tiling; }
 	ESlateBrushMirrorType::Type GetBrushMirroring() const { return Mirroring; }
 	ESlateBrushDrawType::Type GetBrushDrawType() const { return DrawType; }
 	const FSlateShaderResourceProxy* GetResourceProxy() const { return ResourceProxy; }
 
 	void SetBrush(const FSlateBrush* InBrush, FVector2D LocalSize, float DrawScale)
+	{
+		SetBrush(InBrush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+	}
+
+	void SetBrush(const FSlateBrush* InBrush, FVector2f LocalSize, float DrawScale)
 	{
 		check(InBrush);
 		ensureMsgf(InBrush->GetDrawType() != ESlateBrushDrawType::NoDrawType, TEXT("This should have been filtered out earlier in the Make... call."));
@@ -75,7 +86,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 		Tiling = InBrush->GetTiling();
 		Mirroring = InBrush->GetMirroring();
 		DrawType = InBrush->GetDrawType();
-		FSlateResourceHandle Handle = InBrush->GetRenderingResource(LocalSize, DrawScale);
+		FSlateResourceHandle Handle = InBrush->GetRenderingResource(FVector2D(LocalSize), DrawScale);
 		if (Handle.IsValid())
 		{
 			ResourceProxy = Handle.GetResourceProxy();
@@ -208,9 +219,9 @@ struct FSlateGradientPayload : public FSlateDataPayload
 	EOrientation GradientType;
 	FVector4f CornerRadius;
 
-	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType, FVector4f InCornerRadius)
+	void SetGradient(TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, FVector4f InCornerRadius)
 	{
-		GradientStops = InGradientStops;
+		GradientStops = MoveTemp(InGradientStops);
 		GradientType = InGradientType;
 		CornerRadius = InCornerRadius;
 	}
@@ -226,10 +237,10 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 	//     P0 *             * P3            P0 *   \   * P3
 	//                                              \ /
 	//                                               + P2	
-	FVector2D P0;
-	FVector2D P1;
-	FVector2D P2;
-	FVector2D P3;
+	FVector2f P0;
+	FVector2f P1;
+	FVector2f P2;
+	FVector2f P3;
 
 	float Thickness;
 
@@ -237,7 +248,18 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 	void SetThickness(float InThickness) { Thickness = InThickness; }
 	float GetThickness() const { return Thickness; }
 
-	void SetCubicBezier(const FVector2D& InP0, const FVector2D& InP1, const FVector2D& InP2, const FVector2D& InP3, float InThickness, const FLinearColor& InTint)
+	void SetCubicBezier(const FVector2d InP0, const FVector2d InP1, const FVector2d InP2, const FVector2d InP3, float InThickness, const FLinearColor InTint)
+	{
+		SetCubicBezier(
+			UE::Slate::CastToVector2f(InP0),
+			UE::Slate::CastToVector2f(InP1),
+			UE::Slate::CastToVector2f(InP2),
+			UE::Slate::CastToVector2f(InP3),
+			InThickness,
+			InTint);
+	}
+
+	void SetCubicBezier(const FVector2f InP0, const FVector2f InP1, const FVector2f InP2, const FVector2f InP3, float InThickness, const FLinearColor InTint)
 	{
 		Tint = InTint;
 		P0 = InP0;
@@ -247,7 +269,18 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 		Thickness = InThickness;
 	}
 
-	void SetHermiteSpline(const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, const FLinearColor& InTint)
+	void SetHermiteSpline(const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness, const FLinearColor InTint)
+	{
+		SetHermiteSpline(
+			UE::Slate::CastToVector2f(InStart),
+			UE::Slate::CastToVector2f(InStartDir),
+			UE::Slate::CastToVector2f(InEnd),
+			UE::Slate::CastToVector2f(InEndDir),
+			InThickness,
+			InTint);
+	}
+
+	void SetHermiteSpline(const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness, const FLinearColor InTint)
 	{
 		Tint = InTint;
 		P0 = InStart;
@@ -257,28 +290,39 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 		Thickness = InThickness;
 	}
 
-	void SetGradientHermiteSpline(const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, const TArray<FSlateGradientStop>& InGradientStops)
+	void SetGradientHermiteSpline(const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness, TArray<FSlateGradientStop> InGradientStops)
+	{
+		SetGradientHermiteSpline(
+			UE::Slate::CastToVector2f(InStart),
+			UE::Slate::CastToVector2f(InStartDir),
+			UE::Slate::CastToVector2f(InEnd),
+			UE::Slate::CastToVector2f(InEndDir),
+			InThickness,
+			MoveTemp(InGradientStops));
+	}
+
+	void SetGradientHermiteSpline(const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness, TArray<FSlateGradientStop> InGradientStops)
 	{
 		P0 = InStart;
 		P1 = InStart + InStartDir / 3.0f;
 		P2 = InEnd - InEndDir / 3.0f;
 		P3 = InEnd;
 		Thickness = InThickness;
-		GradientStops = InGradientStops;
+		GradientStops = MoveTemp(InGradientStops);
 	}
 };
 
 
 struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElement
 { 
-	TArray<FVector2D> Points;
+	TArray<FVector2f> Points;
 	TArray<FLinearColor> PointColors;
 	float Thickness;
 
 	bool bAntialias;
 
 	bool IsAntialiased() const { return bAntialias; }
-	const TArray<FVector2D>& GetPoints() const { return Points; }
+	const TArray<FVector2f>& GetPoints() const { return Points; }
 	const TArray<FLinearColor>& GetPointColors() const { return PointColors; }
 	float GetThickness() const { return Thickness; }
 
@@ -289,8 +333,20 @@ struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElemen
 
 	void SetLines(const TArray<FVector2D>& InPoints, bool bInAntialias, const TArray<FLinearColor>* InPointColors = nullptr)
 	{
+		TArray<FVector2f> NewPoints;
+		NewPoints.Reserve(InPoints.Num());
+		for (FVector2D Vect : InPoints)
+		{
+			NewPoints.Add(UE::Slate::CastToVector2f(Vect));
+		}
+		SetLines(MoveTemp(NewPoints), bInAntialias, InPointColors);
+	}
+
+
+	void SetLines(TArray<FVector2f> InPoints, bool bInAntialias, const TArray<FLinearColor>* InPointColors = nullptr)
+	{
 		bAntialias = bInAntialias;
-		Points = InPoints;
+		Points = MoveTemp(InPoints);
 		if (InPointColors)
 		{
 			PointColors = *InPointColors;
@@ -342,10 +398,15 @@ struct FSlateCachedBufferPayload : public FSlateDataPayload
 {
 	// Cached render data
 	class FSlateRenderDataHandle* CachedRenderData;
-	FVector2D CachedRenderDataOffset;
+	FVector2f CachedRenderDataOffset;
 
 	// Cached Buffers
-	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const FVector2D& Offset)
+	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const FVector2d Offset)
+	{
+		SetCachedBuffer(InRenderDataHandle, UE::Slate::CastToVector2f(Offset));
+	}
+
+	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const FVector2f Offset)
 	{
 		check(InRenderDataHandle);
 
@@ -366,12 +427,12 @@ struct FSlateCustomVertsPayload : public FSlateDataPayload
 	uint32 InstanceOffset;
 	uint32 NumInstances;
 
-	void SetCustomVerts(const FSlateShaderResourceProxy* InRenderProxy, const TArray<FSlateVertex>& InVerts, const TArray<SlateIndex>& InIndices, ISlateUpdatableInstanceBufferRenderProxy* InInstanceData, uint32 InInstanceOffset, uint32 InNumInstances)
+	void SetCustomVerts(const FSlateShaderResourceProxy* InRenderProxy, TArray<FSlateVertex> InVerts, TArray<SlateIndex> InIndices, ISlateUpdatableInstanceBufferRenderProxy* InInstanceData, uint32 InInstanceOffset, uint32 InNumInstances)
 	{
 		ResourceProxy = InRenderProxy;
 
-		Vertices = InVerts;
-		Indices = InIndices;
+		Vertices = MoveTemp(InVerts);
+		Indices = MoveTemp(InIndices);
 
 		InstanceData = InInstanceData;
 		InstanceOffset = InInstanceOffset;

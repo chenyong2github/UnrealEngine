@@ -133,8 +133,9 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			const FVector2D ScreenSpaceSize = WorldImageGeometry.GetLocalSize();
 			const FVector2D ViewportPositon = -WorldImageGeometry.GetAccumulatedRenderTransform().GetTranslation() + AllottedGeometry.GetAbsolutePosition();
 
-			const FVector2D UV0 = WorldMiniMapBrush.GetUVRegion().Min;
-			const FVector2D UV1 = WorldMiniMapBrush.GetUVRegion().Max;
+			FBox2D UVRegion = WorldMiniMapBrush.GetUVRegion();
+			const FVector2D UV0 = UVRegion.Min;
+			const FVector2D UV1 = UVRegion.Max;
 
 			const ERHIFeatureLevel::Type InFeatureLevel = GMaxRHIFeatureLevel;
 			const int32 MipLevel = -1;

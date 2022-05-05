@@ -752,7 +752,7 @@ private:
 		for (int i = 0; i < NewNumGradientStops; ++i)
 		{
 			// Note that the position is ignored by the spline
-			GradientStops.Add( FSlateGradientStop(FVector2D(static_cast<float>(i)/FMath::Max(1,NewNumGradientStops-1), 0.0f), i%2==0 ? ColorOne : ColorTwo) );
+			GradientStops.Add( FSlateGradientStop(FVector2f(static_cast<float>(i)/FMath::Max(1,NewNumGradientStops-1), 0.0f), i%2==0 ? ColorOne : ColorTwo) );
 		}
 		SplineWidget->SetGradient(GradientStops);
 	}
@@ -940,10 +940,10 @@ private:
 	{
 		TArray<FSlateGradientStop> GradientStops;
 
-		GradientStops.Add( FSlateGradientStop(FVector2D(InParams.Geometry.GetLocalSize().X*.1f, 0), FColor::Yellow) );
-		GradientStops.Add( FSlateGradientStop( FVector2D(InParams.Geometry.GetLocalSize().X*.25f,0), FColor::Magenta ) );
-		GradientStops.Add( FSlateGradientStop( FVector2D(InParams.Geometry.GetLocalSize().X*.75f,0), FColor::Blue ) );
-		GradientStops.Add( FSlateGradientStop( FVector2D(InParams.Geometry.GetLocalSize().X*0.9f,0), FColor::Green) );
+		GradientStops.Add( FSlateGradientStop(FVector2f(InParams.Geometry.GetLocalSize().X*.1f, 0), FColor::Yellow) );
+		GradientStops.Add( FSlateGradientStop( FVector2f(InParams.Geometry.GetLocalSize().X*.25f,0), FColor::Magenta ) );
+		GradientStops.Add( FSlateGradientStop( FVector2f(InParams.Geometry.GetLocalSize().X*.75f,0), FColor::Blue ) );
+		GradientStops.Add( FSlateGradientStop( FVector2f(InParams.Geometry.GetLocalSize().X*0.9f,0), FColor::Green) );
 
 		FSlateDrawElement::MakeGradient(
 			InParams.OutDrawElements,

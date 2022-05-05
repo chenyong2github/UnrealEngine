@@ -7,6 +7,8 @@
 #include "Styling/SlateColor.h"
 #include "Layout/Margin.h"
 #include "Textures/SlateShaderResource.h"
+#include "Types/SlateBox2.h"
+#include "Types/SlateVector2.h"
 #include "SlateBrush.generated.h"
 
 /**
@@ -366,9 +368,9 @@ public:
 	 *
 	 * @return UV region
 	 */
-	FBox2D GetUVRegion() const
+	UE::Slate::FDeprecateBox2D GetUVRegion() const
 	{
-		return FBox2D(UVRegion);
+		return UVRegion;
 	}
 
 	/**
@@ -376,9 +378,14 @@ public:
 	 *
 	 * @param InUVRegion When valid - overrides UV region specified in resource proxy
 	 */
-	void SetUVRegion(const FBox2D& InUVRegion)
+	void SetUVRegion(const FBox2d& InUVRegion)
 	{
 		UVRegion = FBox2f(InUVRegion);
+	}
+
+	void SetUVRegion(const FBox2f& InUVRegion)
+	{
+		UVRegion = InUVRegion;
 	}
 
 	/**
