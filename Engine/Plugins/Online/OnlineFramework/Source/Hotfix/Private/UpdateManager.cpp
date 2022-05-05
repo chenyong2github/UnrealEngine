@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UpdateManager.h"
+#include "Algo/Transform.h"
 #include "Misc/CommandLine.h"
 #include "Containers/Ticker.h"
 #include "HAL/IConsoleManager.h"
@@ -100,11 +101,26 @@ void UUpdateManager::StartCheck(bool bInCheckHotfixOnly)
 	StartCheckInternal(bInCheckHotfixOnly);
 }
 
+void UUpdateManager::StartUpdateCheck(const FString& ContextName)
+{
+	StartUpdateCheckInternal(GetContextDefinition(ContextName));
+}
+
 UUpdateManager::EUpdateStartResult UUpdateManager::StartCheckInternal(bool bInCheckHotfixOnly)
+{
+	FUpdateContextDefinition AdhocDefinition;
+	AdhocDefinition.Name = TEXT("Adhoc");
+	AdhocDefinition.bCheckAvailabilityOnly = bInCheckHotfixOnly;
+	return StartUpdateCheckInternal(AdhocDefinition);
+}
+
+UUpdateManager::EUpdateStartResult UUpdateManager::StartUpdateCheckInternal(const FUpdateContextDefinition& ContextDefinition)
 {
 	EUpdateStartResult Result = EUpdateStartResult::None;
 
-	if (!ChecksEnabled())
+	UE_LOG(LogHotfixManager, Log, TEXT("Starting update check using context \"%s\""), *ContextDefinition.Name);
+
+	if (!ChecksEnabled() || !ContextDefinition.bEnabled)
 	{
 		UE_LOG(LogHotfixManager, Display, TEXT("Update checks disabled!"));
 		bInitialUpdateFinished = true;
@@ -126,7 +142,9 @@ UUpdateManager::EUpdateStartResult UUpdateManager::StartCheckInternal(bool bInCh
 		CurrentUpdateState == EUpdateState::UpdatePending ||
 		CurrentUpdateState == EUpdateState::UpdateComplete))
 	{
-		bCheckHotfixAvailabilityOnly = bInCheckHotfixOnly;
+		bCheckHotfixAvailabilityOnly = ContextDefinition.bCheckAvailabilityOnly;
+		bCurrentUpdatePatchCheckEnabled = ContextDefinition.bPatchCheckEnabled;
+		bCurrentUpdatePlatformEnvironmentDetectionEnabled = ContextDefinition.bPlatformEnvironmentDetectionEnabled;
 
 		// Immediately move into a pending state so the UI state trigger fires
 		SetUpdateState(EUpdateState::UpdatePending);
@@ -226,6 +244,8 @@ void UUpdateManager::CheckComplete(EUpdateCompletionStatus Result, bool bUpdateT
 		}
 
 		bCheckHotfixAvailabilityOnly = false;
+		bCurrentUpdatePatchCheckEnabled = true;
+		bCurrentUpdatePlatformEnvironmentDetectionEnabled = true;
 		
 		OnUpdateCheckComplete().Broadcast(FinalResult);
 	};
@@ -247,7 +267,7 @@ void UUpdateManager::StartPatchCheck()
 	check(GameInstance);
 
 	SetUpdateState(EUpdateState::CheckingForPatch);
-	if (GameInstance->IsDedicatedServerInstance())
+	if (GameInstance->IsDedicatedServerInstance() || !bCurrentUpdatePatchCheckEnabled)
 	{
 		PatchCheckComplete(EPatchCheckResult::NoPatchRequired);
 		return;
@@ -353,7 +373,7 @@ void UUpdateManager::InstallBundlePatchCheckComplete(EInstallBundleManagerPatchC
 
 void UUpdateManager::StartPlatformEnvironmentCheck()
 {
-	if (!bPlatformEnvironmentDetected)
+	if (bCurrentUpdatePlatformEnvironmentDetectionEnabled && !bPlatformEnvironmentDetected)
 	{
 #if UPDATEMANAGER_PLATFORM_ENVIRONMENT_DETECTION
 		if (DetectPlatformEnvironment())
@@ -596,6 +616,26 @@ bool UUpdateManager::Tick(float InDeltaTime)
 	return true;
 }
 
+void UUpdateManager::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		PopulateContextDefinitions();
+	}
+}
+
+void UUpdateManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
+{
+	Super::PostReloadConfig(PropertyThatWasLoaded);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		PopulateContextDefinitions();
+	}
+}
+
 float UUpdateManager::GetLoadProgress() const
 {
 	const int32 CurrentNumFiles = GetNumAsyncPackages();
@@ -651,6 +691,30 @@ FTSTicker::FDelegateHandle UUpdateManager::DelayResponse(DelayCb&& Delegate, flo
 			Delegate();
 			return false;
 		}), Delay);
+}
+
+void UUpdateManager::PopulateContextDefinitions()
+{
+	ProcessedUpdateContextDefinitions.Empty();
+	ProcessedUpdateContextDefinitions.Reserve(UpdateContextDefinitions.Num());
+
+	// Elements later in the list will override elements with the same name which appear earlier.
+	Algo::Transform(UpdateContextDefinitions, ProcessedUpdateContextDefinitions,
+	[](const FUpdateContextDefinition& Definition)
+	{
+		return TTuple<FString, FUpdateContextDefinition>(Definition.Name, Definition);
+	});
+}
+
+const FUpdateContextDefinition& UUpdateManager::GetContextDefinition(const FString& ContextName) const
+{
+	if (const FUpdateContextDefinition* Definiton = ProcessedUpdateContextDefinitions.Find(ContextName))
+	{
+		return *Definiton;
+	}
+
+	UE_LOG(LogHotfixManager, Warning, TEXT("Failed to find update context \"%s\". Using \"Unknown\" definition."), *ContextName);
+	return UpdateContextDefinitionUnknown;
 }
 
 UWorld* UUpdateManager::GetWorld() const

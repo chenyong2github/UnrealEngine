@@ -106,6 +106,36 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateHotfixProcessedFile, const FString
 typedef FOnUpdateHotfixProcessedFile::FDelegate FOnUpdateHotfixProcessedFileDelegate;
 
 /**
+ * Update context definition loaded from config.
+ *
+ * Defines the behavior to use during an update check.
+ */ 
+USTRUCT()
+struct HOTFIX_API FUpdateContextDefinition
+{
+	GENERATED_BODY()
+public:
+	/** The name used to lookup the context definition. */
+	UPROPERTY(Config)
+	FString Name;
+	/** Whether to perform any checks. */
+	UPROPERTY(Config)
+	bool bEnabled = true;
+	/** Whether to perform an update, or to only check for the presence of an update. */
+	UPROPERTY(Config)
+	bool bCheckAvailabilityOnly = false;
+	/** Whether to check for patches during the update process. */
+	UPROPERTY(Config)
+	bool bPatchCheckEnabled = true;
+	/** Whether to attempt detection of the platforms environment. */
+	UPROPERTY(Config)
+	bool bPlatformEnvironmentDetectionEnabled = true;
+	/** Additional tags for extensibility. */
+	UPROPERTY(Config)
+	TSet<FString> AdditionalTags;
+};
+
+/**
  * Update manager
  *
  * Checks the system and/or backend for the possibility of a patch and hotfix
@@ -145,7 +175,15 @@ public:
 	 *
 	 * @param bInCheckHotfixOnly check for the availability of a hotfix only (does not apply)
 	 */
+	UE_DEPRECATED_FORGAME(5.1, "UUpdateManager::StartCheck is deprecated, please use StartUpdateCheck instead.")
 	virtual void StartCheck(bool bInCheckHotfixOnly = false);
+
+	/**
+	 * Start an update check using properties defined by context.
+	 *
+	 * @param ContextName The context definitions to use when updating.
+	 */
+	void StartUpdateCheck(const FString& ContextName);
 	
 	/**
 	 *  @return the load progress (0..1)
@@ -235,10 +273,21 @@ protected:
 	 *
 	 * @return whether or not the check started, returned a cached value, or did nothing (already in progress)
 	 */
+	UE_DEPRECATED_FORGAME(5.1, "UUpdateManager::StartCheckInternal is deprecated, please override StartCheckUpdateInternal instead.")
 	virtual EUpdateStartResult StartCheckInternal(bool bInCheckHotfixOnly);
+
+	/** 
+	 * Internal call for StartUpdateCheck
+	 *
+	 * @return whether or not the check started, returned a cached value, or did nothing (already in progress)
+	 */
+	virtual EUpdateStartResult StartUpdateCheckInternal(const FUpdateContextDefinition& ContextDefinition);
 
 	/** Tick function during initial preload */
 	virtual bool Tick(float DeltaTime);
+
+	virtual void PostInitProperties() override;
+	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
 
 	/** Amount of time to wait between the internal hotfix check completing and advancing to the next stage */
 	UPROPERTY(Config)
@@ -409,6 +458,23 @@ private:
 
 	friend bool SkipPatchCheck(UUpdateManager* UpdateManager);
 
+private:
+	void PopulateContextDefinitions();
+	const FUpdateContextDefinition& GetContextDefinition(const FString& ContextName) const;
+
+	// Definition to use when a context lookup fails.
+	UPROPERTY(Config)
+	FUpdateContextDefinition UpdateContextDefinitionUnknown;
+
+	// Definitions for update behavior.
+	UPROPERTY(Config)
+	TArray<FUpdateContextDefinition> UpdateContextDefinitions;
+
+	// Update context definitions which have been processed following a config update.
+	TMap<FString, FUpdateContextDefinition> ProcessedUpdateContextDefinitions;
+
+	bool bCurrentUpdatePatchCheckEnabled = true;
+	bool bCurrentUpdatePlatformEnvironmentDetectionEnabled = true;
 protected:
 
 	/** @return a pointer to the hotfix manager */
