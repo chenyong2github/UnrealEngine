@@ -74,9 +74,9 @@ void FContextualAnimViewModel::Initialize(UContextualAnimSceneAsset* InSceneAsse
 	RefreshSequencerTracks();
 }
 
-UAnimMontage* FContextualAnimViewModel::FindAnimationByGuid(const FGuid& Guid) const
+UAnimSequenceBase* FContextualAnimViewModel::FindAnimationByGuid(const FGuid& Guid) const
 {
-	return SceneInstance.IsValid() ? const_cast<UAnimMontage*>(SceneInstance->FindSceneActorDataByGuid(Guid)->GetAnimMontage()) : nullptr;
+	return SceneInstance.IsValid() ? SceneInstance->FindSceneActorDataByGuid(Guid)->GetAnimTrack().Animation : nullptr;
 }
 
 void FContextualAnimViewModel::CreateSequencer()
@@ -159,7 +159,7 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 {
 	// Remove movie scene tracks and destroy existing actors (if any)
 
-	for(UAnimMontage* Anim : AnimsBeingEdited)
+	for(UAnimSequenceBase* Anim : AnimsBeingEdited)
 	{
 		Anim->UnregisterOnNotifyChanged(this);
 	}
@@ -219,8 +219,8 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 
 			const FGuid& Guid = Guids[0];
 
-			UAnimMontage* AnimMontage = AnimTrack.Animation;
-			if (AnimMontage)
+			UAnimSequenceBase* Animation = AnimTrack.Animation;
+			if (Animation)
 			{
 				// Add Animation Track
 				{
@@ -228,14 +228,14 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 					UMovieSceneEventTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddTrack<UMovieSceneEventTrack>(Guid);
 					check(MovieSceneAnimTrack);
 
-					MovieSceneAnimTrack->SetDisplayName(FText::FromString(GetNameSafe(AnimMontage)));
+					MovieSceneAnimTrack->SetDisplayName(FText::FromString(GetNameSafe(Animation)));
 
 					UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(MovieSceneAnimTrack, UMovieSceneEventRepeaterSection::StaticClass(), NAME_None, RF_Transactional);
 					check(NewSection);
 
 					FFrameRate TickResolution = MovieSceneSequence->GetMovieScene()->GetTickResolution();
 					FFrameNumber StartFrame(0);
-					FFrameNumber EndFrame = (AnimMontage->GetPlayLength() * TickResolution).RoundToFrame();
+					FFrameNumber EndFrame = (Animation->GetPlayLength() * TickResolution).RoundToFrame();
 					NewSection->SetRange(TRange<FFrameNumber>::Exclusive(StartFrame, EndFrame));
 
 					MovieSceneAnimTrack->AddSection(*NewSection);
@@ -243,19 +243,19 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 
 				// Add Notify Tracks
 				{
-					for (const FAnimNotifyTrack& NotifyTrack : AnimMontage->AnimNotifyTracks)
+					for (const FAnimNotifyTrack& NotifyTrack : Animation->AnimNotifyTracks)
 					{
 						UContextualAnimMovieSceneNotifyTrack* Track = MovieSceneSequence->GetMovieScene()->AddTrack<UContextualAnimMovieSceneNotifyTrack>(Guid);
 						check(Track);
 
-						Track->Initialize(*AnimMontage, NotifyTrack);
+						Track->Initialize(*Animation, NotifyTrack);
 					}
 
 					// Listen for when the notifies in the animation changes, so we can refresh the notify sections here
-					AnimMontage->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FContextualAnimViewModel::OnAnimNotifyChanged, AnimMontage));
+					Animation->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FContextualAnimViewModel::OnAnimNotifyChanged, Animation));
 				}
 
-				AnimsBeingEdited.Add(AnimMontage);
+				AnimsBeingEdited.Add(Animation);
 			}
 
 			StartSceneParams.RoleToActorMap.Add(Role, PreviewActor);
@@ -366,7 +366,7 @@ void FContextualAnimViewModel::SequencerTimeChanged()
 	{
 		const USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(SceneActorData.GetActor());
 
-		const FTransform RootTransform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(SceneActorData.GetAnimMontage(), Time);
+		const FTransform RootTransform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(SceneActorData.GetAnimTrack().Animation, Time);
 		const FTransform StartTransform = SkelMeshComp->GetRelativeTransform().Inverse() * RootTransform;
 
 		SceneActorData.GetActor()->SetActorLocationAndRotation(StartTransform.GetLocation(), StartTransform.GetRotation());
@@ -462,7 +462,7 @@ void FContextualAnimViewModel::SequencerDataChanged(EMovieSceneDataChangeType Da
 	}
 }
 
-void FContextualAnimViewModel::OnAnimNotifyChanged(UAnimMontage* Animation)
+void FContextualAnimViewModel::OnAnimNotifyChanged(UAnimSequenceBase* Animation)
 {
 	// Do not refresh sequencer tracks if the change to the notifies came from us
 	if (bUpdatingAnimationFromSequencer)
@@ -475,7 +475,7 @@ void FContextualAnimViewModel::OnAnimNotifyChanged(UAnimMontage* Animation)
 	RefreshSequencerTracks();
 }
 
-void FContextualAnimViewModel::AnimationModified(UAnimMontage& Animation)
+void FContextualAnimViewModel::AnimationModified(UAnimSequenceBase& Animation)
 {
 	TGuardValue<bool> UpdateGuard(bUpdatingAnimationFromSequencer, true);
 

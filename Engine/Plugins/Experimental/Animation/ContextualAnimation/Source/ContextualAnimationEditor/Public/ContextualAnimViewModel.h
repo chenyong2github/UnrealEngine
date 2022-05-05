@@ -20,7 +20,7 @@ class UMovieSceneTrack;
 class UMovieSceneSection;
 class UContextualAnimMovieSceneNotifyTrack;
 class UContextualAnimMovieSceneNotifySection;
-class UAnimMontage;
+class UAnimSequenceBase;
 class IDetailsView;
 class IStructureDetailsView;
 struct FMovieSceneSectionMovedParams;
@@ -51,9 +51,9 @@ public:
 
 	void AddNewVariant(const FContextualAnimNewVariantParams& Params);
 
- 	UAnimMontage* FindAnimationByGuid(const FGuid& Guid) const;
+	UAnimSequenceBase* FindAnimationByGuid(const FGuid& Guid) const;
 
-	void AnimationModified(UAnimMontage& Animation);
+	void AnimationModified(UAnimSequenceBase& Animation);
 
 	void SetActiveSceneVariantIdx(int32 Index);
 
@@ -102,7 +102,7 @@ private:
 	FContextualAnimStartSceneParams StartSceneParams;
 
 	/** Container for the animations on the time line. Should be removed once we add a proper animation track */
-	TArray<UAnimMontage*> AnimsBeingEdited;
+	TArray<UAnimSequenceBase*> AnimsBeingEdited;
 
 	AActor* SpawnPreviewActor(const FContextualAnimTrack& AnimTrack);
 
@@ -114,7 +114,7 @@ private:
 
 	void SequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
-	void OnAnimNotifyChanged(UAnimMontage* Animation);
+	void OnAnimNotifyChanged(UAnimSequenceBase* Animation);
 
 	void CreateSequencer();
 };

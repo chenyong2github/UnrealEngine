@@ -329,7 +329,7 @@ void FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack(TArray<FGuid>
 
 	for (const FGuid& ObjectBinding : ObjectBindings)
 	{
-		UAnimMontage* Animation = GetMovieSceneSequence().GetViewModel().FindAnimationByGuid(ObjectBinding);
+		UAnimSequenceBase* Animation = GetMovieSceneSequence().GetViewModel().FindAnimationByGuid(ObjectBinding);
 		check(Animation);
 
 		// Copied from AnimTimelineTrack_Notifies.cpp/FAnimTimelineTrack_Notifies::AddTrack()
@@ -368,7 +368,7 @@ UContextualAnimMovieSceneNotifySection* FContextualAnimMovieSceneNotifyTrackEdit
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	if (SequencerPtr.IsValid())
 	{
-		UAnimMontage& Animation = Track->GetAnimation();
+		UAnimSequenceBase& Animation = Track->GetAnimation();
 
 		const FName TrackName = FName(Track->GetDisplayName().ToString());
 		const int32 TrackIndex = Animation.AnimNotifyTracks.IndexOfByPredicate([TrackName](const FAnimNotifyTrack& AnimNotifyTrack) { return AnimNotifyTrack.TrackName == TrackName; });

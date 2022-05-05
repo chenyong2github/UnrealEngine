@@ -140,7 +140,7 @@ void UContextualAnimSceneAsset::GenerateAlignmentTracks()
 				AnimTrack.AlignmentData.Tracks.AnimationTracks.AddZeroed();
 			}
 
-			if (const UAnimMontage* Animation = AnimTrack.Animation)
+			if (const UAnimSequenceBase* Animation = AnimTrack.Animation)
 			{
 				float Time = 0.f;
 				float EndTime = Animation->GetPlayLength();
@@ -199,7 +199,7 @@ void UContextualAnimSceneAsset::GenerateIKTargetTracks()
 				continue;
 			}
 
-			if (const UAnimMontage* Animation = AnimTrack.Animation)
+			if (const UAnimSequenceBase* Animation = AnimTrack.Animation)
 			{
 				UE_LOG(LogContextualAnim, Log, TEXT("%s Generating IK Target Tracks. Animation: %s"), *GetNameSafe(this), *GetNameSafe(Animation));
 
@@ -250,7 +250,7 @@ void UContextualAnimSceneAsset::GenerateIKTargetTracks()
 						// Find TargetBoneIndex. Note that we add TargetBoneIndex even if it is INDEX_NONE. In this case, my bone will be relative to the origin of the target actor. 
 						// This is to support cases where the target actor doesn't have animation or TargetBoneName is None
 						FName TargetBoneName = IKTargetDef.TargetBoneName;
-						const UAnimMontage* TargetAnimation = DataPtr->TargetAnimTrackPtr->Animation;
+						const UAnimSequenceBase* TargetAnimation = DataPtr->TargetAnimTrackPtr->Animation;
 						const int32 TargetBoneIndex = TargetAnimation ? TargetAnimation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(TargetBoneName) : INDEX_NONE;
 						if (TargetBoneIndex == INDEX_NONE)
 						{
@@ -298,7 +298,7 @@ void UContextualAnimSceneAsset::GenerateIKTargetTracks()
 							FCSPose<FCompactPose> OtherComponentSpacePose;
 							TArray<FBoneIndexType> OtherRequiredBoneIndexArray;
 							FBoneContainer OtherBoneContainer;
-							const UAnimMontage* OtherAnimation = Data.Value.TargetAnimTrackPtr->Animation;
+							const UAnimSequenceBase* OtherAnimation = Data.Value.TargetAnimTrackPtr->Animation;
 							if (OtherAnimation)
 							{
 								// Prepare array with the indices of the bones to extract from target animation
@@ -373,7 +373,7 @@ void UContextualAnimSceneAsset::UpdateRadius()
 		});
 }
 
-FName UContextualAnimSceneAsset::FindRoleByAnimation(const UAnimMontage* Animation) const
+FName UContextualAnimSceneAsset::FindRoleByAnimation(const UAnimSequenceBase* Animation) const
 {
 	FName Result = NAME_None;
 
@@ -524,6 +524,8 @@ const FContextualAnimTrack* UContextualAnimSceneAsset::FindAnimTrackForRoleWithC
 
 bool UContextualAnimSceneAsset::Query(FName Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
 {
+	//@TODO: Kept around only to do not break existing content. It will go away in the future.
+
 	FContextualAnimPrimaryActorData PrimaryActorData;
 	PrimaryActorData.Transform = ToWorldTransform;
 
@@ -533,7 +535,7 @@ bool UContextualAnimSceneAsset::Query(FName Role, FContextualAnimQueryResult& Ou
 	if(const FContextualAnimTrack* AnimTrack = FindFirstAnimTrackForRoleThatPassesSelectionCriteria(Role, PrimaryActorData, QuerierData))
 	{
 		OutResult.VariantIdx = AnimTrack->VariantIdx;
-		OutResult.Animation = AnimTrack->Animation;
+		OutResult.Animation = Cast<UAnimMontage>(AnimTrack->Animation); // Its ok to cast here to montage. Content using this function uses montage
 		OutResult.EntryTransform = AnimTrack->GetAlignmentTransformAtEntryTime() * ToWorldTransform;
 		OutResult.SyncTransform = AnimTrack->GetAlignmentTransformAtSyncTime() * ToWorldTransform;
 
@@ -576,7 +578,7 @@ FTransform UContextualAnimSceneAsset::GetIKTargetTransformForRoleAtTime(FName Ro
 	return FTransform::Identity;
 }
 
-int32 UContextualAnimSceneAsset::FindVariantIdx(FName Role, UAnimMontage* Animation) const
+int32 UContextualAnimSceneAsset::FindVariantIdx(FName Role, UAnimSequenceBase* Animation) const
 {
 	int32 Result = INDEX_NONE;
 

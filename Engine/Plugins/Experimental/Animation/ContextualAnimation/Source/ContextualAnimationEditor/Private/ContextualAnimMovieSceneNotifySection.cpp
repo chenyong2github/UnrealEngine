@@ -2,7 +2,7 @@
 
 #include "ContextualAnimMovieSceneNotifySection.h"
 #include "ContextualAnimMovieSceneNotifyTrack.h"
-#include "Animation/AnimMontage.h"
+#include "Animation/AnimSequenceBase.h"
 #include "MovieScene.h"
 
 UContextualAnimMovieSceneNotifyTrack* UContextualAnimMovieSceneNotifySection::GetOwnerTrack() const
@@ -22,7 +22,7 @@ void UContextualAnimMovieSceneNotifySection::Initialize(const FAnimNotifyEvent& 
 
 FAnimNotifyEvent* UContextualAnimMovieSceneNotifySection::GetAnimNotifyEvent() const
 {
-	UAnimMontage& Animation = GetOwnerTrack()->GetAnimation();
+	UAnimSequenceBase& Animation = GetOwnerTrack()->GetAnimation();
 	for (FAnimNotifyEvent& NotifyEvent : Animation.Notifies)
 	{
 		if (NotifyEvent.Guid == AnimNotifyEventGuid)
@@ -36,7 +36,7 @@ FAnimNotifyEvent* UContextualAnimMovieSceneNotifySection::GetAnimNotifyEvent() c
 
 UAnimNotifyState* UContextualAnimMovieSceneNotifySection::GetAnimNotifyState() const
 {
-	UAnimMontage& Animation = GetOwnerTrack()->GetAnimation();
+	UAnimSequenceBase& Animation = GetOwnerTrack()->GetAnimation();
 	if(const FAnimNotifyEvent* NotifyEventPtr = GetAnimNotifyEvent())
 	{
 		return NotifyEventPtr->NotifyStateClass;

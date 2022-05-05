@@ -10,7 +10,7 @@
 CONTEXTUALANIMATION_API DECLARE_LOG_CATEGORY_EXTERN(LogContextualAnim, Log, All);
 
 class AActor;
-class UAnimMontage;
+class UAnimSequenceBase;
 class UContextualAnimSelectionCriterion;
 
 namespace UE 
@@ -61,7 +61,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	UAnimMontage* Animation = nullptr;
+	UAnimSequenceBase* Animation = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	float AnimMaxStartTime = 0.f;

@@ -6,7 +6,7 @@
 #include "MovieSceneNameableTrack.h"
 #include "ContextualAnimMovieSceneNotifyTrack.generated.h"
 
-class UAnimMontage;
+class UAnimSequenceBase;
 struct FAnimNotifyTrack;
 class UContextualAnimMovieSceneNotifySection;
 class FContextualAnimViewModel;
@@ -25,7 +25,7 @@ public:
 	 * Initialize this track from a supplied animation and a notify track 
 	 * Adding all the FAnimNotifyEvents as sections in here and setting
 	 */
-	void Initialize(UAnimMontage& AnimationRef, const FAnimNotifyTrack& NotifyTrack);
+	void Initialize(UAnimSequenceBase& AnimationRef, const FAnimNotifyTrack& NotifyTrack);
 
 	/** Creates a new section for this track */
 	virtual UMovieSceneSection* CreateNewSection() override;
@@ -57,7 +57,7 @@ public:
 #endif
 
 	/** Returns a reference to the animation this track was created from */
-	UAnimMontage& GetAnimation() const;
+	UAnimSequenceBase& GetAnimation() const;
 
 private:
 
@@ -67,5 +67,5 @@ private:
 
 	/** Ptr to the animation this track was created from */
 	UPROPERTY()
-	TWeakObjectPtr<UAnimMontage> Animation;
+	TWeakObjectPtr<UAnimSequenceBase> Animation;
 };

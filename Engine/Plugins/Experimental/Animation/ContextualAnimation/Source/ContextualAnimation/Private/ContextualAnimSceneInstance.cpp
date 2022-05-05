@@ -38,21 +38,12 @@ USkeletalMeshComponent* FContextualAnimSceneActorData::GetSkeletalMeshComponent(
 
 FAnimMontageInstance* FContextualAnimSceneActorData::GetAnimMontageInstance() const
 {
-	if (const UAnimMontage* Animation = AnimTrackPtr->Animation)
+	if (UAnimInstance* AnimInstance = GetAnimInstance())
 	{
-		if (UAnimInstance* AnimInstance = GetAnimInstance())
-		{
-			return AnimInstance->GetActiveInstanceForMontage(Animation);
-		}
+		return AnimInstance->GetActiveMontageInstance();
 	}
 
 	return nullptr;
-}
-
-UAnimMontage* FContextualAnimSceneActorData::GetAnimMontage() const
-{
-	const FAnimMontageInstance* MontageInstance = GetAnimMontageInstance();
-	return MontageInstance ? MontageInstance->Montage : nullptr;
 }
 
 float FContextualAnimSceneActorData::GetAnimTime() const
@@ -88,7 +79,7 @@ const FContextualAnimIKTargetDefContainer& FContextualAnimSceneActorData::GetIKT
 void UContextualAnimSceneInstance::BreakContextualAnimSceneActorData(const FContextualAnimSceneActorData& SceneActorData, AActor*& Actor, UAnimMontage*& Montage, float& AnimTime, int32& CurrentSectionIndex, FName& CurrentSectionName)
 {
 	Actor = SceneActorData.GetActor();
-	Montage = const_cast<UAnimMontage*>(SceneActorData.GetAnimMontage());
+	Montage = Cast<UAnimMontage>(SceneActorData.GetAnimTrack().Animation);
 	AnimTime = SceneActorData.GetAnimTime();
 	CurrentSectionIndex = SceneActorData.GetCurrentSectionIndex();
 	CurrentSectionName = SceneActorData.GetCurrentSection();
@@ -125,16 +116,41 @@ AActor* UContextualAnimSceneInstance::GetActorByRole(FName Role) const
 void UContextualAnimSceneInstance::Join(FContextualAnimSceneActorData& SceneActorData)
 {
 	AActor* Actor = SceneActorData.GetActor();
-	if (UAnimInstance* AnimInstance = SceneActorData.GetAnimInstance())
+	if (Actor == nullptr)
 	{
-		UAnimMontage* Animation = SceneActorData.GetAnimTrack().Animation;
-		AnimInstance->Montage_Play(Animation, 1.f, EMontagePlayReturnType::MontageLength, SceneActorData.GetAnimStartTime());
+		return;
+	}
 
-		AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
-		AnimInstance->OnPlayMontageNotifyEnd.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
-		AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
+	if (UAnimSequenceBase* Animation = SceneActorData.GetAnimTrack().Animation)
+	{
+		if (UAnimInstance* AnimInstance = SceneActorData.GetAnimInstance())
+		{
+			// Keep montage support for now but might go away soon
+			if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(Animation))
+			{
+				AnimInstance->Montage_Play(AnimMontage, 1.f, EMontagePlayReturnType::MontageLength, SceneActorData.GetAnimStartTime());
+			}
+			else
+			{
+				//@TODO: Expose all these on the AnimTrack
+				const FName SlotName = FName(TEXT("DefaultSlot"));
+				const float BlendInTime = 0.25f;
+				const float BlendOutTime = 0.25f;
+				const float InPlayRate = 1.f;
+				const int32 LoopCount = 1;
+				const float BlendOutTriggerTime = -1.f;
+				const float InTimeToStartMontageAt = SceneActorData.GetAnimStartTime();
+				AnimInstance->PlaySlotAnimationAsDynamicMontage(SceneActorData.GetAnimTrack().Animation, SlotName, BlendInTime, BlendOutTime, InPlayRate, LoopCount, BlendOutTriggerTime, InTimeToStartMontageAt);
+			}
 
-		if(SceneActorData.GetAnimTrack().bRequireFlyingMode)
+			AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
+			AnimInstance->OnPlayMontageNotifyEnd.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
+			AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
+		}
+
+
+		//@TODO: Temp, until we have a way to switch between movement mode using AnimNotifyState
+		if (SceneActorData.GetAnimTrack().bRequireFlyingMode)
 		{
 			if (UCharacterMovementComponent* CharacterMovementComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
 			{
@@ -317,10 +333,32 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 	{
 		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
-			if(AnimInstance->Montage_IsPlaying(Binding.GetAnimTrack().Animation))
+			// Keep montage support for now but might go away soon
+			if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(Binding.GetAnimTrack().Animation))
 			{
-				bShouldEnd = false;
-				break;
+				if (AnimInstance->Montage_IsPlaying(AnimMontage))
+				{
+					bShouldEnd = false;
+					break;
+				}
+			}
+			else
+			{
+				for (const FAnimMontageInstance* MontageInstance : AnimInstance->MontageInstances)
+				{
+					// When the animation is not a Montage, we still play it as a Montage. This dynamically created Montage has a single slot and single segment.
+					if (MontageInstance && MontageInstance->IsPlaying())
+					{
+						if(MontageInstance->Montage->SlotAnimTracks.Num() > 0 && MontageInstance->Montage->SlotAnimTracks[0].AnimTrack.AnimSegments.Num() > 0)
+						{
+							if(MontageInstance->Montage->SlotAnimTracks[0].AnimTrack.AnimSegments[0].GetAnimReference() == Binding.GetAnimTrack().Animation)
+							{
+								bShouldEnd = false;
+								break;
+							}
+						}
+					}
+				}
 			}
 		}
 	}

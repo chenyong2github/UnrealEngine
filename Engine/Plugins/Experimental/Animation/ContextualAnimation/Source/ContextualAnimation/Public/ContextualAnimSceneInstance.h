@@ -53,9 +53,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneActorData
 	/** Returns the ActiveMontageInstance or null in the case of static actors */
 	FAnimMontageInstance* GetAnimMontageInstance() const;
 
-	/** Returns the Animation this actor is playing or null in the case of static actors */
-	UAnimMontage* GetAnimMontage() const;
-
 	UAnimInstance* GetAnimInstance() const;
 
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const;

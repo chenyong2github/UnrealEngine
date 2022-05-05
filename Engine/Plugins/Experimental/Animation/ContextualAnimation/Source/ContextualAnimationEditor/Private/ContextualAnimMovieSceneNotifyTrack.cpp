@@ -2,7 +2,7 @@
 
 #include "ContextualAnimMovieSceneNotifyTrack.h"
 #include "ContextualAnimMovieSceneNotifySection.h"
-#include "Animation/AnimMontage.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "ContextualAnimViewModel.h"
@@ -15,7 +15,7 @@ FContextualAnimViewModel& UContextualAnimMovieSceneNotifyTrack::GetViewModel() c
 	return GetTypedOuter<UMovieScene>()->GetTypedOuter<UContextualAnimMovieSceneSequence>()->GetViewModel();
 }
 
-void UContextualAnimMovieSceneNotifyTrack::Initialize(UAnimMontage& AnimationRef, const FAnimNotifyTrack& NotifyTrack)
+void UContextualAnimMovieSceneNotifyTrack::Initialize(UAnimSequenceBase& AnimationRef, const FAnimNotifyTrack& NotifyTrack)
 {
 	// Cache animation this track was created from
 	Animation = &AnimationRef;
@@ -38,7 +38,7 @@ void UContextualAnimMovieSceneNotifyTrack::Initialize(UAnimMontage& AnimationRef
 	}
 }
 
-UAnimMontage& UContextualAnimMovieSceneNotifyTrack::GetAnimation() const 
+UAnimSequenceBase& UContextualAnimMovieSceneNotifyTrack::GetAnimation() const
 { 
 	check(Animation.IsValid());
 	return *Animation.Get();
@@ -84,7 +84,7 @@ void UContextualAnimMovieSceneNotifyTrack::RemoveSection(UMovieSceneSection& Sec
 	// Remove Notify from the animation
 	UContextualAnimMovieSceneNotifySection* NotifySection = CastChecked<UContextualAnimMovieSceneNotifySection>(&Section);
 
-	UAnimMontage& Anim = GetAnimation();
+	UAnimSequenceBase& Anim = GetAnimation();
 
 	FGuid Guid = NotifySection->GetAnimNotifyEventGuid();
 	const int32 TotalRemoved = Anim.Notifies.RemoveAll([&Guid](const FAnimNotifyEvent& Event) { return Event.Guid == Guid; });
@@ -114,14 +114,14 @@ EMovieSceneSectionMovedResult UContextualAnimMovieSceneNotifyTrack::OnSectionMov
 
 		if (FAnimNotifyEvent* NotifyEventPtr = NotifySection->GetAnimNotifyEvent())
 		{
-			UAnimMontage* Anim = nullptr;
+			UAnimSequenceBase* Anim = nullptr;
 			if (NotifyEventPtr->NotifyStateClass)
 			{
-				Anim = NotifyEventPtr->NotifyStateClass->GetTypedOuter<UAnimMontage>();
+				Anim = NotifyEventPtr->NotifyStateClass->GetTypedOuter<UAnimSequenceBase>();
 			}
 			else if (NotifyEventPtr->Notify)
 			{
-				Anim = NotifyEventPtr->Notify->GetTypedOuter<UAnimMontage>();
+				Anim = NotifyEventPtr->Notify->GetTypedOuter<UAnimSequenceBase>();
 			}
 
 			if(Anim)

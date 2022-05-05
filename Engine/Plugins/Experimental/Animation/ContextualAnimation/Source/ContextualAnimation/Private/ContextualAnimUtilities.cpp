@@ -138,7 +138,7 @@ void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContex
 		{
 			const FTransform Transform = (SceneAsset->GetMeshToComponentForRole(AnimTrack.Role) * AnimTrack.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
 			
-			if (const UAnimMontage* Animation = AnimTrack.Animation)
+			if (const UAnimSequenceBase* Animation = AnimTrack.Animation)
 			{
 				DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
 			}

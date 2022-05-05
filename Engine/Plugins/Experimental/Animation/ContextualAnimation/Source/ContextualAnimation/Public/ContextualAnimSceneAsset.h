@@ -111,9 +111,9 @@ public:
 	const FContextualAnimTrack* GetAnimTrack(const FName& Role, int32 VariantIdx) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
-	int32 FindVariantIdx(FName Role, UAnimMontage* Animation) const;
+	int32 FindVariantIdx(FName Role, UAnimSequenceBase* Animation) const;
 
-	FName FindRoleByAnimation(const UAnimMontage* Animation) const;
+	FName FindRoleByAnimation(const UAnimSequenceBase* Animation) const;
 
 	const FContextualAnimTrack* FindFirstAnimTrackForRoleThatPassesSelectionCriteria(const FName& Role, const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const;
 	
@@ -141,6 +141,7 @@ public:
 		return AnimTrack ? *AnimTrack : FContextualAnimTrack::EmptyTrack;
 	}
 
+	//@TODO: Kept around only to do not break existing content. It will go away in the future.
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
 	bool Query(FName Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
 
