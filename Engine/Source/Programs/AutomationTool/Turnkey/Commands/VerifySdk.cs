@@ -103,7 +103,7 @@ namespace Turnkey.Commands
 						PlatformProperties.Add(SDKInfo.ToString("Allowed", ""));
 					}
 
-					PlatformProperties.Add($"Flags={ReportedState}");
+					PlatformProperties.Add($"Flags=\"{ReportedState}\"");
 
 					if (TurnkeyContext.ErrorMessages.Count() > 0)
 					{
