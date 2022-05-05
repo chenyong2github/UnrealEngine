@@ -41,6 +41,8 @@ public:
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
+	virtual bool IsValid() const;
+
 public:
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = SpatialData)
 	EPCGTextureDensityFunction DensityFunction = EPCGTextureDensityFunction::Multiply; 
