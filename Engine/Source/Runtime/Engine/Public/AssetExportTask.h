@@ -8,7 +8,7 @@
 #include "AssetExportTask.generated.h"
 
 /**
- * Contains data for a group of assets to import
+ * Contains data for a group of assets to export
  */ 
 UCLASS(Transient, BlueprintType)
 class ENGINE_API UAssetExportTask : public UObject
