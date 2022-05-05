@@ -66,7 +66,7 @@ public:
 	bool IsOutputPinConnected(const FName& Label) const;
 
 	/** Changes the default settings in the node */
-	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings);
+	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings, bool bUpdatePins = true);
 
 	UPCGPin* GetInputPin(const FName& Label);
 	const UPCGPin* GetInputPin(const FName& Label) const;
@@ -102,8 +102,10 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 protected:
-#if WITH_EDITOR
 	bool UpdatePins();
+	bool UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
+
+#if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType);

@@ -16,16 +16,27 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 	InputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultInputNode"));
 	InputNode->SetFlags(RF_Transactional);
 
+	// Since pins would be allocated after initializing the input/output nodes, we must make sure to allocate them using the object initializer
+	int NumAllocatedPins = 1;
+	auto PinAllocator = [&ObjectInitializer, &NumAllocatedPins](UPCGNode* Node)
+	{ 
+		FName DefaultPinName = TEXT("DefaultPin");
+		DefaultPinName.SetNumber(NumAllocatedPins++);
+		return ObjectInitializer.CreateDefaultSubobject<UPCGPin>(Node, DefaultPinName);
+	};
+
 	UPCGGraphInputOutputSettings* InputSettings = ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
 	InputSettings->SetInput(true);
-	InputNode->SetDefaultSettings(InputSettings);
+	InputNode->SetDefaultSettings(InputSettings, /*bUpdatePins=*/false);
+	InputNode->UpdatePins(PinAllocator);
 	
 	OutputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultOutputNode"));
 	OutputNode->SetFlags(RF_Transactional);
 
 	UPCGGraphInputOutputSettings* OutputSettings = ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings"));
 	OutputSettings->SetInput(false);
-	OutputNode->SetDefaultSettings(OutputSettings);
+	OutputNode->SetDefaultSettings(OutputSettings, /*bUpdatePins=*/false);
+	OutputNode->UpdatePins(PinAllocator);
 	
 #if WITH_EDITORONLY_DATA
 	OutputNode->PositionX = 200;

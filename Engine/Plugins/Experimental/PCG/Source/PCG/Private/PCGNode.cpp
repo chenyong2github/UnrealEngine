@@ -323,7 +323,7 @@ bool UPCGNode::HasInboundEdges() const
 	return false;
 }
 
-void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
+void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings, bool bUpdatePins)
 {
 #if WITH_EDITOR
 	const bool bDifferentSettings = (DefaultSettings != InSettings);
@@ -340,9 +340,12 @@ void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
 	{
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
-
-	UpdatePins();
 #endif
+
+	if (bUpdatePins)
+	{
+		UpdatePins();
+	}
 }
 
 #if WITH_EDITOR
@@ -380,7 +383,23 @@ void UPCGNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChan
 	}
 }
 
+void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType)
+{
+	if (InSettings == DefaultSettings)
+	{
+		const bool bUpdatedPins = UpdatePins();
+		OnNodeChangedDelegate.Broadcast(this, ((bUpdatedPins ? EPCGChangeType::Edge : EPCGChangeType::None) | ChangeType));
+	}
+}
+
+#endif // WITH_EDITOR
+
 bool UPCGNode::UpdatePins()
+{
+	return UpdatePins([](UPCGNode* Node){ return NewObject<UPCGPin>(Node); });
+}
+
+bool UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 {
 	if (!DefaultSettings)
 	{
@@ -399,7 +418,7 @@ bool UPCGNode::UpdatePins()
 	TArray<FName> InboundLabels = DefaultSettings->InLabels();
 	TArray<FName> OutboundLabels = DefaultSettings->OutLabels();
 
-	auto UpdatePins = [this](TArray<UPCGPin*>& Pins, const TArray<FName>& Labels)
+	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FName>& Labels)
 	{
 		TArray<FName> OldLabels;
 		Algo::Transform(Pins, OldLabels, [](UPCGPin* Pin) { return Pin->Label; });
@@ -461,7 +480,7 @@ bool UPCGNode::UpdatePins()
 			for (const FName& UnmatchedLabel : UnmatchedLabels)
 			{
 				const int32 InsertIndex = Labels.IndexOfByKey(UnmatchedLabel);
-				UPCGPin* NewPin = NewObject<UPCGPin>(this);
+				UPCGPin* NewPin = PinAllocator(this);
 				NewPin->Node = this;
 				NewPin->Label = UnmatchedLabel;
 				Pins.Insert(NewPin, InsertIndex);
@@ -477,14 +496,3 @@ bool UPCGNode::UpdatePins()
 
 	return bChanged;
 }
-
-void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType)
-{
-	if (InSettings == DefaultSettings)
-	{
-		const bool bUpdatedPins = UpdatePins();
-		OnNodeChangedDelegate.Broadcast(this, ((bUpdatedPins ? EPCGChangeType::Edge : EPCGChangeType::None) | ChangeType));
-	}
-}
-
-#endif // WITH_EDITOR
