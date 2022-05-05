@@ -5,7 +5,6 @@
 #include "IImgMediaModule.h"
 #include "ImgMediaGlobalCache.h"
 #include "ImgMediaMipMapInfo.h"
-#include "ImgMediaMipMapInfoManager.h"
 #include "ImgMediaPrivate.h"
 
 #include "HAL/FileManager.h"
@@ -56,18 +55,6 @@ void UImgMediaSource::SetSequencePath(const FString& Path)
 
 		SequencePath.Path = FullPath;
 	}
-}
-
-
-void UImgMediaSource::AddGlobalCamera(AActor* InActor)
-{
-	FImgMediaMipMapInfoManager::Get().AddCamera(InActor);
-}
-
-
-void UImgMediaSource::RemoveGlobalCamera(AActor* InActor)
-{
-	FImgMediaMipMapInfoManager::Get().RemoveCamera(InActor);
 }
 
 

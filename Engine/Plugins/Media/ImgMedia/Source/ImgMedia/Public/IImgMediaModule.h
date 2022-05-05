@@ -7,8 +7,10 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Templates/SharedPointer.h"
 #include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 
 class FImgMediaGlobalCache;
+struct FImgMediaMipMapCameraInfo;
 class FImgMediaPlayer;
 class IMediaEventSink;
 class IMediaPlayer;
@@ -27,6 +29,23 @@ class IMGMEDIA_API IImgMediaModule
 public:
 
 	/**
+	* Singleton-like access to this module's interface.  This is just for convenience!
+	* Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
+	*
+	* @return Returns singleton instance, loading the module on demand if needed
+	*/
+	static inline IImgMediaModule& Get()
+	{
+		static IImgMediaModule* ImgMediaModulePtr = nullptr;
+		if (!ImgMediaModulePtr)
+		{
+			ImgMediaModulePtr = FModuleManager::LoadModulePtr<IImgMediaModule>("ImgMedia");
+		}
+
+		return *ImgMediaModulePtr;
+	}
+
+	/**
 	 * Creates a media player for image sequences.
 	 *
 	 * @param EventHandler The object that will receive the player's events.
@@ -34,6 +53,12 @@ public:
 	 */
 	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventHandler) = 0;
 
+	/**
+	 * Get a copy of camera information cached by our local scene view extension, for mip & tile calculations.
+	 *
+	 * @return Array of info on each camera.
+	 */
+	virtual TArray<FImgMediaMipMapCameraInfo> GetCopyCameraInfos() const = 0;
 public:
 
 	/** Virtual destructor. */

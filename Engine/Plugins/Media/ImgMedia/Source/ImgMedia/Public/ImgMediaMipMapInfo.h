@@ -263,13 +263,6 @@ public:
 	TMap<int32, FImgMediaTileSelection> GetVisibleTiles();
 	
 	/**
-	 * Get information on all our cameras.
-	 *
-	 * @return Array of cameras.
-	 */
-	const TArray<FImgMediaMipMapCameraInfo>& GetCameraInfo() const { return CameraInfos; }
-
-	/**
 	 * Get information on objects that are using our textures.
 	 * 
 	 * @return Array of objects.

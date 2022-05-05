@@ -14,10 +14,14 @@
 
 #include "ImgMediaLoader.h"
 #include "ImgMediaMipMapInfo.h"
-#include "ImgMediaMipMapInfoManager.h"
 #include "ImgMediaScheduler.h"
 #include "ImgMediaSettings.h"
 #include "ImgMediaTextureSample.h"
+
+#include "MediaPlayer.h"
+#include "MediaPlayerFacade.h"
+#include "MediaTexture.h"
+#include "MediaTextureTracker.h"
 
 #define IMG_MEDIA_PLAYER_VERSION 2
 #define LOCTEXT_NAMESPACE "FImgMediaPlayer"
@@ -202,12 +206,29 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 			{
 				// Tell mipmipinfo about our media textures.
 				MipMapInfo->ClearAllObjects();
-				FImgMediaMipMapInfoManager& MipMapInfoManager = FImgMediaMipMapInfoManager::Get();
-				TArray<UMediaTexture*> MediaTextures;
-				MipMapInfoManager.GetMediaTexturesFromPlayer(MediaTextures, this);
-				for (UMediaTexture* MediaTexture : MediaTextures)
+
+				FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
+
+				// Look through all the media textures we know about.
+				for (TWeakObjectPtr<UMediaTexture> TexturePtr : TextureTracker.GetTextures())
 				{
-					MipMapInfo->AddObjectsUsingThisMediaTexture(MediaTexture);
+					UMediaTexture* Texture = TexturePtr.Get();
+					if (Texture != nullptr)
+					{
+						// Does this match the player?
+						UMediaPlayer* MediaPlayer = Texture->GetMediaPlayer();
+						if (MediaPlayer != nullptr)
+						{
+							TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> Player = MediaPlayer->GetPlayerFacade()->GetPlayer();
+							if (Player.IsValid())
+							{
+								if (Player.Get() == this)
+								{
+									MipMapInfo->AddObjectsUsingThisMediaTexture(Texture);
+								}
+							}
+						}
+					}
 				}
 			}
 		}

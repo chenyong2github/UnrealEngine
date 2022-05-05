@@ -2,7 +2,7 @@
 
 #include "ImgMediaMipMapInfo.h"
 
-#include "ImgMediaMipMapInfoManager.h"
+#include "IImgMediaModule.h"
 #include "ImgMediaPrivate.h"
 
 #include "Async/Async.h"
@@ -18,6 +18,14 @@
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("ImgMedia MipMap Update Cache"), STAT_ImgMedia_MipMapUpdateCache, STATGROUP_Media);
+
+static TAutoConsoleVariable<bool> CVarImgMediaMipMapDebugEnable(
+	TEXT("ImgMedia.MipMapDebug"),
+	0,
+	TEXT("Display debug on mipmaps used by the ImgMedia plugin.\n")
+	TEXT("   0: off (default)\n")
+	TEXT("   1: on\n"),
+	ECVF_Default);
 
 FImgMediaTileSelection::FImgMediaTileSelection(int32 NumTilesX, int32 NumTilesY, bool bDefaultVisibility)
 	: Tiles(bDefaultVisibility, NumTilesX * NumTilesY)
@@ -585,7 +593,6 @@ void FImgMediaMipMapInfo::RemoveObject(AActor* InActor)
 void FImgMediaMipMapInfo::AddObjectsUsingThisMediaTexture(UMediaTexture* InMediaTexture)
 {
 	// Get objects using this texture.
-	FImgMediaMipMapInfoManager& InfoManager = FImgMediaMipMapInfoManager::Get();
 	FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
 	const TArray<TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe>>* ObjectInfos = TextureTracker.GetObjects(InMediaTexture);
 	if (ObjectInfos != nullptr)
@@ -667,15 +674,13 @@ void FImgMediaMipMapInfo::Tick(float DeltaTime)
 {
 	FScopeLock Lock(&InfoCriticalSection);
 
-	// Get global info.
-	FImgMediaMipMapInfoManager& InfoManager = FImgMediaMipMapInfoManager::Get();
-	CameraInfos = InfoManager.GetCameraInfo();
+	CameraInfos = IImgMediaModule::Get().GetCopyCameraInfos();
 
 	// Let the cache update this frame.
 	bIsCacheValid = false;
 
 	// Display debug?
-	if (InfoManager.IsDebugEnabled())
+	if (CVarImgMediaMipMapDebugEnable.GetValueOnGameThread())
 	{
 		if (GEngine != nullptr)
 		{

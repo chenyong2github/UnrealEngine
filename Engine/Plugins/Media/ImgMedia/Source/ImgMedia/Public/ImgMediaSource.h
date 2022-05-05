@@ -111,22 +111,6 @@ public:
 	void SetSequencePath(const FString& Path);
 
 	/**
-	 * This camera could be looking at any img sequence.
-	 *
-	 * @param InActor Camera object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
-	void AddGlobalCamera(AActor* InActor);
-
-	/**
-	 * This camera is no longer looking at any img seqeunces.
-	 *
-	 * @param InActor Camera Object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
-	void RemoveGlobalCamera(AActor* InActor);
-
-	/**
 	 * This object is using our img sequence.
 	 *
 	 * @param InActor Object using our img sequence.

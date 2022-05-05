@@ -5,10 +5,10 @@
 #include "IMediaClock.h"
 #include "IMediaModule.h"
 #include "Misc/QueuedThreadPool.h"
-#include "Modules/ModuleManager.h"
 
 #include "ImgMediaGlobalCache.h"
 #include "ImgMediaPlayer.h"
+#include "ImgMediaSceneViewExtension.h"
 #include "ImgMediaScheduler.h"
 #include "ImgMediaSource.h"
 #include "IImgMediaModule.h"
@@ -122,6 +122,16 @@ public:
 		return Player;
 	}
 
+	TArray<FImgMediaMipMapCameraInfo> GetCopyCameraInfos() const override
+	{
+		if (SceneViewExtension.IsValid())
+		{
+			return SceneViewExtension->GetCameraInfos();
+		}
+
+		return {};
+	}
+
 public:
 
 	//~ IModuleInterface interface
@@ -135,6 +145,9 @@ public:
 		{
 			UMediaSource::RegisterSpawnFromFileExtension(Ext, SpawnDelegate);
 		}
+
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FImgMediaModule::OnPostEngineInit);
+		FCoreDelegates::OnEnginePreExit.AddRaw(this, &FImgMediaModule::OnEnginePreExit);
 	}
 
 	virtual void ShutdownModule() override
@@ -148,12 +161,25 @@ public:
 		Scheduler.Reset();
 		GlobalCache.Reset();
 
+		FCoreDelegates::OnEnginePreExit.RemoveAll(this);
+		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+
 #if USE_IMGMEDIA_DEALLOC_POOL
 		ImgMediaThreadPool.Reset();
 #endif
 	}
 
 private:
+
+	void OnPostEngineInit()
+	{
+		SceneViewExtension = FSceneViewExtensions::NewExtension<FImgMediaSceneViewExtension>();
+	}
+
+	void OnEnginePreExit()
+	{
+		SceneViewExtension.Reset();
+	}
 
 	void InitScheduler()
 	{
@@ -192,6 +218,9 @@ private:
 	}
 
 	TSharedPtr<FImgMediaScheduler, ESPMode::ThreadSafe> Scheduler;
+
+	/** Scene view extension used to track view/camera info. */
+	TSharedPtr<FImgMediaSceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
 
 	/** List of file extensions that we support. */
 	const TArray<FString> FileExtensions =
