@@ -952,17 +952,10 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		SceneInfo->CachedRayTracingInstance.NumTransforms = CachedRayTracingInstance.NumTransforms;
 		SceneInfo->CachedRayTracingInstance.BaseInstanceSceneDataOffset = SceneInfo->GetInstanceSceneDataOffset();
 
-		// Apply local offset to far-field object
-		FMatrix LocalToWorld = SceneInfo->Proxy->GetLocalToWorld();
-		if (SceneInfo->Proxy->IsRayTracingFarField())
-		{
-			LocalToWorld = LocalToWorld.ConcatTranslation(Lumen::GetFarFieldReferencePos());
-		}
-
 		SceneInfo->CachedRayTracingInstanceWorldBounds.Empty();
 		SceneInfo->CachedRayTracingInstanceWorldBounds.AddUninitialized(CachedRayTracingInstance.NumTransforms);
 
-		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(LocalToWorld);
+		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(SceneInfo->Proxy->GetLocalToWorld());
 
 		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
 

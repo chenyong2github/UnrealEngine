@@ -1955,14 +1955,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			Scene->RefreshRayTracingMeshCommandCache();
 		}
 
-		static FVector FarFieldReferencePosLast = Lumen::GetFarFieldReferencePos();
-		FVector FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
-		if (FarFieldReferencePosLast.Z != FarFieldReferencePos.Z)
-		{
-			FarFieldReferencePosLast = FarFieldReferencePos;
-			Scene->RefreshRayTracingInstances();
-		}
-
 		Scene->UpdateRayTracedLights();
 	}
 #endif
