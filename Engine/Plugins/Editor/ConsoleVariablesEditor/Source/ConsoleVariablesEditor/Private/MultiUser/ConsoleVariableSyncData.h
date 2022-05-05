@@ -110,5 +110,5 @@ struct FConcertSetListItemCheckStateEvent
 	FString Variable;
 	/** The checked state of the list item. */
 	UPROPERTY()
-	ECheckBoxState CheckState;
+	ECheckBoxState CheckState = ECheckBoxState::Checked;
 };
