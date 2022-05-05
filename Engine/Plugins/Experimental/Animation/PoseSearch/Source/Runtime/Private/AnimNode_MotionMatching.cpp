@@ -23,7 +23,7 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	MotionMatchingState.InitNewDatabaseSearch(Database, Settings.SearchThrottleTime, nullptr /*OutError*/);
+	MotionMatchingState.InitNewDatabaseSearch(Database, nullptr /*OutError*/);
 
 	CurrentAssetPlayerNode = &SequencePlayerNode;
 
@@ -70,18 +70,21 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	// If we just became relevant and haven't been initialized yet, then reset motion matching state, otherwise update the current time using the player.
+	// If we just became relevant and haven't been initialized yet, then reset motion matching state, otherwise update the asset time using the player node.
 	if (bResetOnBecomingRelevant && UpdateCounter.HasEverBeenUpdated() && !UpdateCounter.WasSynchronizedCounter(Context.AnimInstanceProxy->GetUpdateCounter()))
 	{
 		MotionMatchingState.Reset();
 	}
 	else
 	{
-		MotionMatchingState.AssetPlayerTime = CurrentAssetPlayerNode->GetAccumulatedTime();
+		// We adjust the motion matching state asset time to the current player node's asset time. This is done 
+		// because the player node may have ticked more or less time than we expected due to variable dt or the 
+		// dynamic playback rate adjustment and as such the motion matching state does not update by itself
+		MotionMatchingState.AdjustAssetTime(CurrentAssetPlayerNode->GetAccumulatedTime());
 	}
 	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
 
-	// Execute core motion matching algorithm and retain across frame state
+	// Execute core motion matching algorithm
 	UpdateMotionMatchingState(
 		Context,
 		Database,

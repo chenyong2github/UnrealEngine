@@ -13,28 +13,6 @@
 
 #include "PoseSearchLibrary.generated.h"
 
-namespace UE::PoseSearch
-{
-	struct FMotionMatchingPoseStepper
-	{
-		FSearchResult Result;
-		bool bJumpRequired = false;
-
-		bool CanContinue() const
-		{
-			return Result.IsValid();
-		}
-
-		void Reset()
-		{
-			Result = UE::PoseSearch::FSearchResult();
-			bJumpRequired = false;
-		}
-
-		void Update(const FAnimationUpdateContext& UpdateContext, const struct FMotionMatchingState& State);
-	};
-}
-
 UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class EMotionMatchingFlags : uint8
 {
@@ -80,10 +58,20 @@ struct POSESEARCH_API FMotionMatchingState
 	GENERATED_BODY()
 
 	// Initializes the minimum required motion matching state
-	bool InitNewDatabaseSearch(const UPoseSearchDatabase* Database, float SearchThrottleTime, FText* OutError);
+	bool InitNewDatabaseSearch(const UPoseSearchDatabase* Database, FText* OutError);
 
 	// Reset the state to a default state using the current Database
 	void Reset();
+
+	// Checks if the currently playing asset can advance and stay in bounds under the provided DeltaTime. If the 
+	// asset cannot advance but a follow up asset is provided by the database then this function will return true and 
+	// also set bAdvanceToFollowUpAsset to true, while providing the pose to jump to in the follow up asset in OutFollowUpAsset
+	bool CanAdvance(float DeltaTime, bool& bOutAdvanceToFollowUpAsset, UE::PoseSearch::FSearchResult& OutFollowUpAsset) const;
+
+	// Attempts to set the internal state to match the provided asset time including updating the internal DbPoseIdx. 
+	// If the provided asset time is out of bounds for the currently playing asset then this function will reset the 
+	// state back to the default state.
+	void AdjustAssetTime(float AssetTime);
 
 	// Adds trajectory prediction and history information to ComposedQuery
 	void ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory);
