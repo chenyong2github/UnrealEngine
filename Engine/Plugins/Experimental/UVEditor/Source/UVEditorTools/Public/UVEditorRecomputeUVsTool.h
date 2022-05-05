@@ -90,7 +90,7 @@ protected:
 
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
-	void UpdateActiveGroupLayer();
+	void UpdateActiveGroupLayer(bool bUpdateFactories = true);
 
 	//
 	// Analytics
