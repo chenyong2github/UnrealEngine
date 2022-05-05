@@ -902,6 +902,11 @@ extern RHI_API void RHISetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex,
 extern RHI_API void RHIInitializeFlipTracking();
 extern RHI_API void RHIShutdownFlipTracking();
 
+/** Sets the FrameIndex and InputTime for the current frame. */
+extern RHI_API float RHIGetFrameTime();
+
+extern RHI_API void RHICalculateFrameTime();
+
 struct FRHILockTracker
 {
 	struct FLockParams

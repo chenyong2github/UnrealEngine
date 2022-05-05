@@ -124,6 +124,9 @@ TAutoConsoleVariable<int32> CVarRHISyncAllowVariable(
 	ECVF_Default
 );
 
+float GRHIFrameTimeMS = 0.0f;
+double GLastRHITimeInSeconds = 0.0;
+
 int32 GEnableConsole120Fps = 0;
 int32 InternalEnableConsole120Fps = 0;
 static void OnEnableConsole120FpsCVarRHIChanged(IConsoleVariable* Variable)
@@ -393,6 +396,7 @@ uint32 FRHIFrameFlipTrackingRunnable::Run()
 			SyncTime = CurrentTimeInSeconds;
 		}
 
+		bool bUpdateRHIFrameTime = false;
 		// Complete any relevant task graph events.
 		FScopeLock Lock(&CS);
 		for (int32 PairIndex = FramePairs.Num() - 1; PairIndex >= 0; --PairIndex)
@@ -404,8 +408,14 @@ uint32 FRHIFrameFlipTrackingRunnable::Run()
 				Pair.Event->DispatchSubsequents();
 
 				FramePairs.RemoveAtSwap(PairIndex);
+				bUpdateRHIFrameTime = true;
 			}
 		}
+
+		if(bUpdateRHIFrameTime)
+		{
+			RHICalculateFrameTime();
+		}	
 	}
 
 	return 0;
@@ -549,6 +559,18 @@ RHI_API void RHIInitializeFlipTracking()
 	FRHIFrameOffsetThread::Initialize();
 #endif
 	FRHIFrameFlipTrackingRunnable::Initialize();
+}
+
+RHI_API void RHICalculateFrameTime()
+{
+	double CurrentTimeInSeconds = FPlatformTime::Seconds();
+	GRHIFrameTimeMS = (float)((CurrentTimeInSeconds - GLastRHITimeInSeconds) * 1000.0);
+	GLastRHITimeInSeconds = CurrentTimeInSeconds;
+}
+
+RHI_API float RHIGetFrameTime()
+{
+	return GRHIFrameTimeMS;
 }
 
 RHI_API void RHIShutdownFlipTracking()

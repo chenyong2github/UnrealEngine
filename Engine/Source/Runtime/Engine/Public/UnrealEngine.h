@@ -357,20 +357,8 @@ public:
 ENGINE_API FString appGetStartupMap(const TCHAR* CommandLine);
 
 // Calculate the average frame time by using the stats system.
-inline void CalculateFPSTimings()
-{
-	extern ENGINE_API float GAverageFPS;
-	extern ENGINE_API float GAverageMS;
-	// Calculate the average frame time via continued averaging.
-	static double LastTime = 0.0;
-	double CurrentTime = FPlatformTime::Seconds();
-	const float FrameTimeMS = (float)((CurrentTime - LastTime) * 1000.0);
-	// A 3/4, 1/4 split gets close to a simple 10 frame moving average
-	GAverageMS = GAverageMS * 0.75f + FrameTimeMS * 0.25f;
-	LastTime = CurrentTime;
-	// Calculate average framerate.
-	GAverageFPS = 1000.f / GAverageMS;
-}
+ENGINE_API void CalculateFPSTimings();
+
 
 /** @return The font to use for rendering stats display. */
 extern ENGINE_API UFont* GetStatsFont();

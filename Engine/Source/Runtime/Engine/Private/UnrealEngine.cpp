@@ -605,6 +605,30 @@ ENGINE_API float GAverageFPS = 0.0f;
 ENGINE_API float GAverageMS = 0.0f;
 ENGINE_API double GLastMemoryWarningTime = 0.f;
 
+
+void CalculateFPSTimings()
+{
+	// Calculate the average frame time via continued averaging.
+	static double LastTime = 0.0;
+	double CurrentTime = FPlatformTime::Seconds();
+	float FrameTimeMS = (float)((CurrentTime - LastTime) * 1000.0);
+
+	static auto CVarGTSyncType = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GTSyncType"));
+	static auto CVarVsync = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"));
+	if (CVarGTSyncType->GetInt() == 2 && CVarVsync->GetInt() != 0)
+	{
+		FrameTimeMS = RHIGetFrameTime();
+	}
+	
+	// A 3/4, 1/4 split gets close to a simple 10 frame moving average
+	GAverageMS = GAverageMS * 0.75f + FrameTimeMS * 0.25f;
+
+	LastTime = CurrentTime;
+
+	// Calculate average framerate.
+	GAverageFPS = 1000.f / GAverageMS;
+}
+
 static FCachedSystemScalabilityCVars GCachedScalabilityCVars;
 
 const FCachedSystemScalabilityCVars& GetCachedScalabilityCVars()
