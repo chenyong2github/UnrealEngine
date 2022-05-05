@@ -670,12 +670,14 @@ public:
 		: BaseVMScript(nullptr)
 		, GameThreadShaderMap(nullptr)
 		, RenderingThreadShaderMap(nullptr)
+		, ScriptParametersMetadata(MakeShared<FNiagaraShaderScriptParametersMetadata>())
 		, FeatureLevel(GMaxRHIFeatureLevel)
 		, ShaderPlatform(SP_NumPlatforms)
 		, bLoadedCookedShaderMapId(false)
 		, bLoadedFromCookedMaterial(false)
 		, bQueuedForRelease(false)
-	{}
+	{
+	}
 
 	/**
 	 * Destructor
