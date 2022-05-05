@@ -50,6 +50,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Animation")
 	static void GetAnimationTrackNames(const UAnimSequenceBase* AnimationSequenceBase, TArray<FName>& TrackNames);
 
+	/** Retrieves the Names of the Animation Slots used in the given Montage */
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Montage")
+	static void GetMontageSlotNames(const UAnimMontage* AnimationMontage, TArray<FName>& SlotNames);
+
 	/** Retrieves the Names of the individual float curves for the given Animation Sequence */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Animation")
 	static void GetAnimationCurveNames(const UAnimSequence* AnimationSequence, ERawCurveTrackTypes CurveType, TArray<FName>& CurveNames);

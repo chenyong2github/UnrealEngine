@@ -75,6 +75,23 @@ void UAnimationBlueprintLibrary::GetAnimationTrackNames(const UAnimSequenceBase*
 	}	
 }
 
+void UAnimationBlueprintLibrary::GetMontageSlotNames(const UAnimMontage* AnimationMontage, TArray<FName>& SlotNames)
+{
+	SlotNames.Empty();
+	if (AnimationMontage)
+	{
+		for (int32 SlotIdx = 0; SlotIdx < AnimationMontage->SlotAnimTracks.Num(); SlotIdx++)
+		{
+			const FSlotAnimationTrack& SlotAnimTrack = AnimationMontage->SlotAnimTracks[SlotIdx];
+			SlotNames.Add(SlotAnimTrack.SlotName);
+		}
+	}
+	else
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Montage supplied for GetMontageSlotNames"));
+	}
+}
+
 void UAnimationBlueprintLibrary::GetAnimationCurveNames(const UAnimSequence* AnimationSequence, ERawCurveTrackTypes CurveType, TArray<FName>& CurveNames)
 {
 	CurveNames.Empty();
