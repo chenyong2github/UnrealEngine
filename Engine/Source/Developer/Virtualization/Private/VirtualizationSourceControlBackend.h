@@ -40,6 +40,9 @@ class FSemaphore;
  *								in milliseconds. Remember that the max length of time that the process
  *								can stall attempting to download a payload file is 
  *								RetryCount * RetryWaitTime; [Default=100ms]
+ * BatchCount [int32]			The max number of payloads that can be pushed to source control in a
+ *								single submit. If the number of payloads in a request batch exceeds
+ *								this size then it will be split into multiple smaller batches. [Default=100]
  * 
  * Environment Variables:
  * UE-VirtualizationWorkingDir [string]:	This can be set to a valid directory path that the backend
@@ -92,6 +95,8 @@ private:
 
 	/** Should we try to make the temp client partitioned or not? */
 	bool bUsePartitionedClient = true;
+
+	int32 MaxBatchCount = 100;
 
 	/** A counted semaphore that will limit the number of concurrent connections that we can make */
 	TUniquePtr<UE::Virtualization::FSemaphore> ConcurrentConnectionLimit;
