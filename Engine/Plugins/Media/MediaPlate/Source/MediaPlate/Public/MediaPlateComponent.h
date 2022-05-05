@@ -81,7 +81,7 @@ public:
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
 
 	/** What media playlist to play. */
-	UPROPERTY(EditAnywhere, Category = "MediaPlate Playlist")
+	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	TObjectPtr<UMediaPlaylist> MediaPlaylist;
 
 	/** Enable smart caching for image sequences. */
