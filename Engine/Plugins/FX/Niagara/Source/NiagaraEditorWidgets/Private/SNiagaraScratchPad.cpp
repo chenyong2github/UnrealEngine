@@ -14,8 +14,6 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraScratchPadCommandContext.h"
 #include "Widgets/SNiagaraParameterPanel.h"
-#include "Widgets/SNiagaraParameterMapView.h"
-
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -830,22 +828,7 @@ private:
 		{
 			ScriptViewModelWeak = NewScriptViewModel;
 			if (NewScriptViewModel.IsValid())
-			{
-				TSharedPtr<SWidget> ParameterPanelWidget;
-				if (NewScriptViewModel->GetParameterPanelViewModel().IsValid())
-				{
-					ParameterPanelWidget = SNew(SNiagaraParameterPanel, NewScriptViewModel->GetParameterPanelViewModel(), NewScriptViewModel->GetParameterPanelCommands());
-				}
-				else
-				{
-					TSharedRef<FNiagaraObjectSelection> ScriptSelection = MakeShared<FNiagaraObjectSelection>();
-					const FVersionedNiagaraScript& EditScript = NewScriptViewModel->GetEditScript();
-					ScriptSelection->SetSelectedObject(EditScript.Script, &EditScript.Version);
-					TArray<TSharedRef<FNiagaraObjectSelection>> ParameterSelections;
-					ParameterSelections.Add(ScriptSelection);
-					ParameterSelections.Add(NewScriptViewModel->GetVariableSelection());
-					ParameterPanelWidget = SNew(SNiagaraParameterMapView, ParameterSelections, SNiagaraParameterMapView::EToolkitType::SCRIPT, NewScriptViewModel->GetParameterPanelCommands());
-				}
+			{				
 				ChildSlot
 				[
 					SNew(SVerticalBox)
@@ -859,7 +842,7 @@ private:
 					]
 					+ SVerticalBox::Slot()
 					[
-						ParameterPanelWidget.ToSharedRef()
+						SNew(SNiagaraParameterPanel, NewScriptViewModel->GetParameterPanelViewModel(), NewScriptViewModel->GetParameterPanelCommands())
 					]
 				];
 			}

@@ -3,10 +3,7 @@
 #pragma once
 
 #include "NiagaraBakerViewModel.h"
-#include "NiagaraScriptStatsViewModel.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
-#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Docking/SDockTab.h"
 
 class FNiagaraSystemToolkit;
@@ -25,7 +22,6 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Sequencer(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemScript(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemParameters(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_SystemParameters2(const FSpawnTabArgs& Args); //@todo(ng) cleanup
 	TSharedRef<SDockTab> SpawnTab_SystemParameterDefinitions(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectedEmitterStack(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectedEmitterGraph(const FSpawnTabArgs& Args);
@@ -48,7 +44,6 @@ public:
 	static const FName SystemScriptTabID;
 	static const FName SystemDetailsTabID;
 	static const FName SystemParametersTabID;
-	static const FName SystemParametersTabID2;
 	static const FName SystemParameterDefinitionsTabID;
 	static const FName SelectedEmitterStackTabID;
 	static const FName SelectedEmitterGraphTabID;

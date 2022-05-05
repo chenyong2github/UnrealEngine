@@ -229,8 +229,6 @@ private:
 	/** Baker preview */
 	TSharedPtr<FNiagaraBakerViewModel> BakerViewModel;
 
-	TSharedPtr<class SNiagaraParameterMapView> ParameterMapView;
-
 	TSharedPtr<FNiagaraSystemToolkitParameterPanelViewModel> ParameterPanelViewModel;
 	TSharedPtr<FNiagaraSystemToolkitParameterDefinitionsPanelViewModel> ParameterDefinitionsPanelViewModel;
 	TSharedPtr<class SNiagaraParameterPanel> ParameterPanel;

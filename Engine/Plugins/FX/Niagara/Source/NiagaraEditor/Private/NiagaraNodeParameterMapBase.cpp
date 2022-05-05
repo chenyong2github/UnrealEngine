@@ -3,28 +3,16 @@
 #include "NiagaraNodeParameterMapBase.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
-#include "SNiagaraGraphNodeConvert.h"
-#include "INiagaraCompiler.h"
 #include "NiagaraNodeOutput.h"
 #include "ScopedTransaction.h"
 #include "SNiagaraGraphPinAdd.h"
 #include "NiagaraGraph.h"
 #include "NiagaraComponent.h"
-#include "EdGraphSchema_Niagara.h"
 #include "NiagaraScript.h"
-#include "NiagaraScriptSource.h"
 #include "NiagaraConstants.h"
-#include "NiagaraParameterCollection.h"
-#include "Widgets/SNiagaraParameterMapView.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "ToolMenus.h"
 #include "NiagaraScriptVariable.h"
-#include "Widgets/SNiagaraParameterName.h"
-
-#include "IAssetTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapBase"
 

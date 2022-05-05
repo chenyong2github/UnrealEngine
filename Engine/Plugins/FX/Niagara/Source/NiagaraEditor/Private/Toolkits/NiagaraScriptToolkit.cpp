@@ -21,7 +21,6 @@
 #include "Widgets/SNiagaraParameterDefinitionsPanel.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraStandaloneScriptViewModel.h"
-#include "NiagaraSystem.h"
 #include "NiagaraVersionMetaData.h"
 #include "PropertyEditorModule.h"
 #include "SGraphActionMenu.h"
@@ -36,10 +35,8 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectIterator.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
-#include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/SNiagaraScriptGraph.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
@@ -107,11 +104,6 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 
 	InTabManager->RegisterTabSpawner(ParametersTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters))
 		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
-		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.Parameters"));
-
-	InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2)) //@todo(ng) remove this
-		.SetDisplayName(LOCTEXT("ParametersTab2", "Legacy Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.Parameters"));
 		
@@ -492,23 +484,6 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters(const FSpaw
 		SNew(SDockTab)
 		[
 			SNew(SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
-		];
-
-	return SpawnedTab;
-}
-
-TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters2(const FSpawnTabArgs& Args)
-{
-	checkf(Args.GetTabId().TabType == ParametersTabId2, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
-
-	TArray<TSharedRef<FNiagaraObjectSelection>> Array;
-	Array.Push(DetailsScriptSelection.ToSharedRef());
-	Array.Push(ScriptViewModel->GetVariableSelection());
-
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			SNew(SNiagaraParameterMapView, Array, SNiagaraParameterMapView::EToolkitType::SCRIPT, GetToolkitCommands())
 		];
 
 	return SpawnedTab;

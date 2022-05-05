@@ -21,7 +21,6 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SItemSelector.h"
 
