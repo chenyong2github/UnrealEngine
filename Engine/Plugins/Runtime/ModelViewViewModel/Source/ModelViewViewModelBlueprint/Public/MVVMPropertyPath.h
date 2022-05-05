@@ -33,7 +33,7 @@ private:
 
 	/** If we are referencing a UFunction or FProperty */
 	UPROPERTY()
-	EBindingKind BindingKind;
+	EBindingKind BindingKind = EBindingKind::Function;
 
 public:
 	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
