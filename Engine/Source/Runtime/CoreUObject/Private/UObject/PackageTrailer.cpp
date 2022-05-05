@@ -418,6 +418,12 @@ bool FPackageTrailer::TryLoadFromFile(const FString& Path, FPackageTrailer& OutT
 	}
 }
 
+bool FPackageTrailer::TryLoadFromArchive(FArchive& Ar, FPackageTrailer& OutTrailer)
+{
+	Ar.Seek(Ar.TotalSize());
+	return OutTrailer.TryLoadBackwards(Ar);
+}
+
 bool FPackageTrailer::TryLoad(FArchive& Ar)
 {
 	check(Ar.IsLoading());
