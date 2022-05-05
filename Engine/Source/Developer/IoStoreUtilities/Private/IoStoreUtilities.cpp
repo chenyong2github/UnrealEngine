@@ -443,6 +443,24 @@ struct FShaderInfo
 	uint64 DiskLayoutOrder = MAX_uint64;
 	TSet<struct FLegacyCookedPackage*> ReferencedByPackages;
 	TMap<FContainerTargetSpec*, EShaderType> TypeInContainer;
+
+	// This is used to ensure build determinism and such must be stable
+	// across builds.
+	static bool Sort(const FShaderInfo* A, const FShaderInfo* B)
+	{
+		if (A->DiskLayoutOrder == B->DiskLayoutOrder)
+		{
+			if (A->LoadOrderFactor == B->LoadOrderFactor)
+			{
+				// Shader chunk IDs are the hash of the shader so this is consistent across builds.
+				uint64 AHash = *(uint64*)A->ChunkId.GetData();
+				uint64 BHash = *(uint64*)B->ChunkId.GetData();
+				return AHash < BHash;
+			}
+			return A->LoadOrderFactor < B->LoadOrderFactor;
+		}
+		return A->DiskLayoutOrder < B->DiskLayoutOrder;
+	}
 };
 
 struct FLegacyCookedPackage
@@ -1216,6 +1234,10 @@ static void CreateDiskLayout(
 			if (TargetFile->ChunkType == EContainerChunkType::PackageData)
 			{
 				TArray<FContainerTargetFile*, TInlineAllocator<1024>> PackageInlineShaders;
+
+				// Since we are inserting in to a sorted array (on disk order), we have to be stably sorted
+				// beforehand
+				Algo::Sort(TargetFile->Package->Shaders, FShaderInfo::Sort);
 				for (FShaderInfo* Shader : TargetFile->Package->Shaders)
 				{
 					check(Shader->ReferencedByPackages.Num() > 0);
@@ -1248,21 +1270,7 @@ static void CreateDiskLayout(
 			if (!Shaders.IsEmpty())
 			{
 				TArray<FShaderInfo*> SortedShaders = Shaders.Array();
-				for (FShaderInfo* Shader : SortedShaders)
-				{
-					for (FLegacyCookedPackage* Package : Shader->ReferencedByPackages)
-					{
-						Shader->DiskLayoutOrder = FMath::Min(Shader->DiskLayoutOrder, Package->DiskLayoutOrder);
-					}
-				}
-				Algo::Sort(SortedShaders, [](const FShaderInfo* A, const FShaderInfo* B)
-				{
-					if (A->DiskLayoutOrder == B->DiskLayoutOrder)
-					{
-						return A->LoadOrderFactor < B->LoadOrderFactor;
-					}
-					return A->DiskLayoutOrder < B->DiskLayoutOrder;
-				});
+				Algo::Sort(SortedShaders, FShaderInfo::Sort);
 				TArray<FContainerTargetFile*> ShaderTargetFiles;
 				ShaderTargetFiles.Reserve(SortedShaders.Num());
 				for (const FShaderInfo* ShaderInfo : SortedShaders)
@@ -1862,6 +1870,16 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 						OutShaders.Add(ShaderInfo);
 						ChunkIdToShaderInfoMap.Add(ShaderChunkId, ShaderInfo);
 					}
+					else
+					{
+						// If we already exist, then we have two separate LoadOrderFactors,
+						// which one we got first affects build determinism. Take the lower.
+						if (CodeChunk.Get<2>() < ShaderInfo->LoadOrderFactor)
+						{
+							ShaderInfo->LoadOrderFactor = CodeChunk.Get<2>();
+						}
+					}
+
 
 					const FShaderInfo::EShaderType* CurrentShaderTypeInContainer = ShaderInfo->TypeInContainer.Find(ContainerTarget);
 					if (!CurrentShaderTypeInContainer || *CurrentShaderTypeInContainer != FShaderInfo::Global)
@@ -1885,10 +1903,13 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 				{
 					ShaderChunkIdsByShaderMapHash.Add(ShaderMap.Key, MoveTemp(ShaderMap.Value));
 				}
-			}
-		}
-	}
+			} // end if containerchunktype shadercodelibrary
+		} // end foreach targetfile
+	} // end foreach container
 
+	// 1. Update ShaderInfos with which packages we reference.
+	// 2. Add to packages which shaders we use.
+	// 3. Add to PackageStore what shaders we use.
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
 		for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
@@ -3364,13 +3385,29 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			{
 				IoOrderListArchive->SetIsTextFormat(true);
 
+				// The TargetFiles list is not the order written to disk - FIoStoreWriter sorts
+				// on the IdealOrder prior to writing.
+				TArray<const FContainerTargetFile*> SortedTargetFiles;
+				SortedTargetFiles.Reserve(ContainerTarget->TargetFiles.Num());
 				for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 				{
-					if (TargetFile.Package)
+					SortedTargetFiles.Add(&TargetFile);
+				}
+
+				Algo::SortBy(SortedTargetFiles, [](const FContainerTargetFile* TargetFile) { return TargetFile->IdealOrder; });
+
+				for (const FContainerTargetFile* TargetFile : SortedTargetFiles)
+				{
+					TStringBuilder<256> Line;
+					Line.Append(LexToString(TargetFile->ChunkId));
+
+					if (TargetFile->Package)
 					{
-						FString Line = FString::Printf(TEXT("%s"), *TargetFile.Package->FileName);
-						IoOrderListArchive->Logf(TEXT("%s"), *Line);
+						Line.Append(TEXT(" "));
+						Line.Append(TargetFile->Package->FileName);
 					}
+
+					IoOrderListArchive->Logf(TEXT("%s"), Line.ToString());
 				}
 
 				IoOrderListArchive->Close();

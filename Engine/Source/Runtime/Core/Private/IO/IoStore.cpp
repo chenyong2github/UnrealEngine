@@ -64,6 +64,16 @@ FString LexToString(const EIoChunkType Type)
 	}
 }
 
+FString LexToString(const FIoChunkId& Id)
+{
+	FString Output;
+	TArray<TCHAR, FString::AllocatorType>& CharArray = Output.GetCharArray();
+	CharArray.AddUninitialized(sizeof(FIoChunkId) * 2 + 1);
+	UE::String::BytesToHexLower(Id.Id, CharArray.GetData());
+	CharArray.Last() = TCHAR('\0');
+	return Output;
+}
+
 template<typename ArrayType>
 bool WriteArray(IFileHandle* FileHandle, const ArrayType& Array)
 {

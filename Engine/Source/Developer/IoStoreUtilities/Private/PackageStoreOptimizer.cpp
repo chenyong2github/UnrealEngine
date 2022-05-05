@@ -1816,6 +1816,9 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	Result.ExportInfo.ExportBundleCount = Package->GraphData.ExportBundles.Num();
 	Result.ImportedPackageIds = Package->ImportedPackageIds;
 	Result.ShaderMapHashes = Package->ShaderMapHashes.Array();
+	// Package->ShaderMapHashes is a TSet and is unsorted - we want this sorted as it's serialized
+	// in to the ContainerHeader, and if not sorted leads to staging non-determinism.
+	Algo::Sort(Result.ShaderMapHashes);
 	if (OptionalSegmentPackage)
 	{
 		Result.OptionalSegmentExportInfo.ExportCount = OptionalSegmentPackage->Exports.Num();

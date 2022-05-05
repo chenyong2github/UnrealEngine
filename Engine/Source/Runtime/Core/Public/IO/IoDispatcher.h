@@ -691,6 +691,8 @@ public:
 		return Builder;
 	}
 
+	friend CORE_API FString LexToString(const FIoChunkId& Id);
+
 	inline bool operator ==(const FIoChunkId& Rhs) const
 	{
 		return 0 == FMemory::Memcmp(Id, Rhs.Id, sizeof Id);

@@ -84,7 +84,7 @@ struct FPackageStoreEntryResource
 	FPackageStoreExportInfo ExportInfo;
 	/** Imported package IDs. */
 	TArray<FPackageId> ImportedPackageIds;
-	/** Referenced shader map hashes. */
+	/** Referenced shader map hashes - must be sorted in order to preserve determinism across builds. */
 	TArray<FSHAHash> ShaderMapHashes;
 	/** The editor data package export information. */
 	FPackageStoreExportInfo OptionalSegmentExportInfo;
