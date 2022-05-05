@@ -53,9 +53,18 @@ UOptimusDeformer::UOptimusDeformer()
 	UpdateGraph->SetGraphType(EOptimusNodeGraphType::Update);
 	Graphs.Add(UpdateGraph);
 
-	ActionStack = CreateDefaultSubobject<UOptimusActionStack>(TEXT("@ActionStack"));
 	Variables = CreateDefaultSubobject<UOptimusVariableContainer>(TEXT("@Variables"));
 	Resources = CreateDefaultSubobject<UOptimusResourceContainer>(TEXT("@Resources"));
+}
+
+
+UOptimusActionStack* UOptimusDeformer::GetActionStack()
+{
+	if (ActionStack == nullptr)
+	{
+		ActionStack = NewObject<UOptimusActionStack>(this, TEXT("@ActionStack"));
+	}
+	return ActionStack;
 }
 
 
@@ -383,7 +392,7 @@ bool UOptimusDeformer::RemoveVariableDirect(
 	)
 {
 	// Do we actually own this variable?
-	int32 ResourceIndex = Variables->Descriptions.Add(InVariableDesc);
+	int32 ResourceIndex = Variables->Descriptions.IndexOfByKey(InVariableDesc);
 	if (ResourceIndex == INDEX_NONE)
 	{
 		return false;

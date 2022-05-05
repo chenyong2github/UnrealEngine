@@ -99,7 +99,7 @@ class OPTIMUSCORE_API UOptimusDeformer :
 public:
 	UOptimusDeformer();
 
-	UOptimusActionStack *GetActionStack() const { return ActionStack; }
+	UOptimusActionStack *GetActionStack();
 
 	/** Returns the global delegate used to notify on global operations (e.g. graph, variable,
 	 *  resource lifecycle events).
