@@ -51,8 +51,12 @@ public:
 	 */
 	void Serialize(FArchive& Ar, int32 NavMeshVersion);
 
-	/** Debug rendering. */
-	void GetDebugGeometry(FRecastDebugGeometry& OutGeometry, int32 TileIndex = INDEX_NONE) const;
+	/* Gather debug geometry.
+	 * @params OutGeometry Output geometry.
+	 * @params TileIndex Used to collect geometry for a specific tile, INDEX_NONE will gather all tiles.
+	 * @return True if done collecting.
+	 */
+	bool GetDebugGeometryForTile(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const;
 	
 	/** Returns bounding box for the whole navmesh. */
 	FBox GetNavMeshBounds() const;

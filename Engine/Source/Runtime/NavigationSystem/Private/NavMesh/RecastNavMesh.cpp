@@ -1946,12 +1946,19 @@ bool ARecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, cons
 	return RecastNavMeshImpl && RecastNavMeshImpl->GetPolysWithinPathingDistance(StartLoc, PathingDistance, GetRightFilterRef(Filter), QueryOwner, FoundPolys, DebugData);
 }
 
+// Deprecated
 void ARecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const
+{
+	GetDebugGeometryForTile(OutGeometry, TileIndex);
+}
+
+bool ARecastNavMesh::GetDebugGeometryForTile(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const
 {
 	if (RecastNavMeshImpl)
 	{
-		RecastNavMeshImpl->GetDebugGeometry(OutGeometry, TileIndex);
+		return RecastNavMeshImpl->GetDebugGeometryForTile(OutGeometry, TileIndex);
 	}
+	return true;
 }
 
 void ARecastNavMesh::RequestDrawingUpdate(bool bForce)

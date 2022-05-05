@@ -1010,7 +1010,15 @@ public:
 	// Debug                                                                
 	//----------------------------------------------------------------------//
 	/** Debug rendering support. */
+	UE_DEPRECATED(5.1, "Please use the new signature of GetDebugGeometryForTile()")
 	void GetDebugGeometry(FRecastDebugGeometry& OutGeometry, int32 TileIndex = INDEX_NONE) const;
+
+	/* Gather debug geometry.
+	 * @params OutGeometry Output geometry.
+	 * @params TileIndex Used to collect geometry for a specific tile, INDEX_NONE will gather all tiles
+	 * @return True if done collecting.
+	 */
+	bool GetDebugGeometryForTile(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const;
 
 	// @todo docuement
 	void DrawDebugPathCorridor(NavNodeRef const* PathPolys, int32 NumPathPolys, bool bPersistent=true) const;

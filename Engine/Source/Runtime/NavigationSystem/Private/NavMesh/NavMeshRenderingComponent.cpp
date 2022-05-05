@@ -511,14 +511,15 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		NavMesh->BeginBatchQuery();
 		if (TileSet.Num() > 0)
 		{
-			for (int32 Idx = 0; Idx < TileSet.Num(); Idx++)
+			bool bDone = false;
+			for (int32 Idx = 0; Idx < TileSet.Num() && !bDone; Idx++)
 			{
-				NavMesh->GetDebugGeometry(NavMeshGeometry, TileSet[Idx]);
+				bDone = NavMesh->GetDebugGeometryForTile(NavMeshGeometry, TileSet[Idx]);
 			}
 		}
 		else
 		{
-			NavMesh->GetDebugGeometry(NavMeshGeometry);
+			NavMesh->GetDebugGeometryForTile(NavMeshGeometry, INDEX_NONE);
 		}
 
 		const TArray<FVector>& MeshVerts = NavMeshGeometry.MeshVerts;

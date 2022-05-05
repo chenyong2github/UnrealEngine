@@ -2718,17 +2718,13 @@ uint8 GetValidEnds(const dtNavMesh& NavMesh, const dtMeshTile& Tile, const dtPol
 	return ValidEnds;
 }
 
-/** 
- * @param PolyEdges			[out] Array of worldspace vertex locations for tile edges.  Edges are pairwise verts, i.e. [0,1], [2,3], etc
- * @param NavMeshEdges		[out] Array of worldspace vertex locations for the edge of the navmesh.  Edges are pairwise verts, i.e. [0,1], [2,3], etc
- * 
- * @todo PolyEdges and NavMeshEdges could probably be Index arrays into MeshVerts and be generated in the master loop instead of separate traversals. 
- */
-void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const
+bool FPImplRecastNavMesh::GetDebugGeometryForTile(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const
 {
+	bool bDone = false;
 	if (DetourNavMesh == nullptr || TileIndex >= DetourNavMesh->getMaxTiles())
 	{
-		return;
+		bDone = true;
+		return bDone;
 	}
 				
 	check(NavMeshOwner);
@@ -2791,6 +2787,8 @@ void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, in
 				}
 			}
 		}
+
+		bDone = true;
 	}
 	else
 	{
@@ -2827,7 +2825,14 @@ void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, in
 
 			VertBase += GetTilesDebugGeometry(Generator, *Tile, VertBase, OutGeometry, TileIdx, ForbiddenFlags);
 		}
+
+		if (TileIndex == INDEX_NONE)
+		{
+			bDone = true;
+		}
 	}
+
+	return bDone;
 }
 
 int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* Generator, const dtMeshTile& Tile, int32 VertBase, FRecastDebugGeometry& OutGeometry, int32 TileIdx, uint16 ForbiddenFlags) const
