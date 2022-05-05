@@ -1481,7 +1481,10 @@ namespace AutomationTool
 
 		[Help("stagingdirectory=Path", "Directory to copy the builds to, i.e. -stagingdirectory=C:\\Stage")]
 		public string StageDirectoryParam;
-        
+
+		[Help("optionalstagingdirectory=Path", "Directory to copy the optional files to, i.e. -optionalstagingdirectory=C:\\StageOptional")]
+		public string OptionalStageDirectory;
+
 		[Help("unrealexe=ExecutableName", "Name of the Unreal Editor executable, i.e. -unrealexe=UnrealEditor.exe")]
 		public string UnrealExe;
 

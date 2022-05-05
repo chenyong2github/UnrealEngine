@@ -286,6 +286,7 @@ struct FContainerSourceSpec
 {
 	FName Name;
 	FString OutputPath;
+	FString OptionalOutputPath;
 	TArray<FContainerSourceFile> SourceFiles;
 	FString PatchTargetFile;
 	TArray<FString> PatchSourceContainerFiles;
@@ -2280,7 +2281,15 @@ void InitializeContainerTargetsAndPackages(
 
 			if (bHasOptionalSegmentPackages)
 			{
-				ContainerTarget->OptionalSegmentOutputPath = ContainerTarget->OutputPath + FPackagePath::GetOptionalSegmentExtensionModifier();
+				if (ContainerSource.OptionalOutputPath.IsEmpty())
+				{
+					ContainerTarget->OptionalSegmentOutputPath = ContainerTarget->OutputPath + FPackagePath::GetOptionalSegmentExtensionModifier();
+				}
+				else
+				{
+					// if we have an optional output location, use that directory, combined with the name of the output path 
+					ContainerTarget->OptionalSegmentOutputPath = FPaths::Combine(ContainerSource.OptionalOutputPath, FPaths::GetCleanFilename(ContainerTarget->OutputPath) + FPackagePath::GetOptionalSegmentExtensionModifier());
+				}
 			}
 		}
 	}
@@ -5865,6 +5874,8 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 				return false;
 			}
 			ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
+
+			FParse::Value(*Command, TEXT("OptionalOutput="), ContainerSpec.OptionalOutputPath);
 
 			FString ContainerName;
 			if (FParse::Value(*Command, TEXT("ContainerName="), ContainerName))

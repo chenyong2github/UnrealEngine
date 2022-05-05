@@ -197,6 +197,11 @@ public class DeploymentContext //: ProjectParams
 	public DirectoryReference DebugStageDirectory;
 
 	/// <summary>
+	/// Directory to put all of the optional (ie editor only) files in: d:\stagedir\Windows
+	/// </summary>
+	public DirectoryReference OptionalFileStageDirectory = null;
+
+	/// <summary>
 	/// Directory name for staged projects
 	/// </summary>
 	public StagedDirectoryReference RelativeProjectRootForStage;
@@ -381,6 +386,7 @@ public class DeploymentContext //: ProjectParams
 		FileReference RawProjectPathOrName,
 		DirectoryReference InLocalRoot,
 		DirectoryReference BaseStageDirectory,
+		DirectoryReference OptionalStageDirectory,
 		DirectoryReference BaseArchiveDirectory,
 		Platform InSourcePlatform,
         Platform InTargetPlatform,
@@ -448,6 +454,7 @@ public class DeploymentContext //: ProjectParams
 			StageDirectory = DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform);
 			DebugStageDirectory = InSeparateDebugStageDirectory? DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform + "Debug") : StageDirectory;
 		}
+		OptionalFileStageDirectory = OptionalStageDirectory;
 
 		if (BaseArchiveDirectory != null)
 		{

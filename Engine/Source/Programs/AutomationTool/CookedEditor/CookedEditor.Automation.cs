@@ -375,6 +375,10 @@ public class MakeCookedEditor : BuildCommand
 	protected DirectoryReference CookedEditorStageDirectory = null;
 	protected DirectoryReference ReleaseStageDirectory = null;
 
+	// with -makerelease, this will have the location of optional editor only files, but a subclass can just set this if the optional files
+	// were made and saved off somewhere, it can point to this and the optional files will be automatically staged into Content/Paks
+	protected DirectoryReference ReleaseOptionalFileStageDirectory = null;
+
 	public override void ExecuteBuild()
 	{
 		LogInformation("************************* MakeCookedEditor");
@@ -493,6 +497,13 @@ public class MakeCookedEditor : BuildCommand
 			{
 				SC.StageFile(StagedFileType.UFS, EditorThumbnails, new StagedFileReference($"{Context.ProjectName}/CachedEditorThumbnails.bin"));
 			}
+		}
+
+		if (ReleaseOptionalFileStageDirectory != null)
+		{
+			// these files were already staged by the client/release build, so we stage them as NonUFS
+			// these could be just copied, but StageFiles handles copying easily
+			SC.StageFiles(StagedFileType.NonUFS, ReleaseOptionalFileStageDirectory, StageFilesSearch.AllDirectories, new StagedDirectoryReference($"{Context.ProjectName}/Content/Paks"));
 		}
 	}
 
@@ -650,7 +661,6 @@ public class MakeCookedEditor : BuildCommand
 
 	protected virtual void FinalizeRelease(ProjectParams ReleaseParams)
 	{
-
 	}
 
 	protected virtual void PreModifyDeploymentContext(ProjectParams Params, DeploymentContext SC)
@@ -1072,6 +1082,9 @@ public class MakeCookedEditor : BuildCommand
 
 		// copy off the staging dir
 		ReleaseParams.PreModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { ReleaseStageDirectory = SC.StageDirectory; });
+
+		ReleaseOptionalFileStageDirectory = DirectoryReference.Combine(MainParams.RawProjectPath.Directory, "Saved", "CookedEditor", "OptionalData");
+		ReleaseParams.OptionalStageDirectory = ReleaseOptionalFileStageDirectory.FullName;
 
 		ModifyReleaseParams(ReleaseParams);
 
