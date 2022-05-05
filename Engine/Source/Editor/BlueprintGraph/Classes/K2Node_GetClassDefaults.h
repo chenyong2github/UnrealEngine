@@ -88,7 +88,7 @@ private:
 	static FName ClassPinName;
 
 	/** Blueprint that we subscribed OnBlueprintChangedDelegate and OnBlueprintCompiledDelegate to */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TObjectPtr<UBlueprint> BlueprintSubscribedTo;
 
 	/** Blueprint.OnChanged delegate handle */
