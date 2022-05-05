@@ -35,7 +35,7 @@
 #define IS_SPOT_LIGHT 0 
 #endif 
 
-void FetchGBuffer(in float2 UV, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC, out float4 GBufferD, out float SceneDepth)
+void FetchGBuffer(in float2 UV, out half4 GBufferA, out half4 GBufferB, out half4 GBufferC, out half4 GBufferD, out float SceneDepth)
 {
 	GBufferD = 0;
 
@@ -75,33 +75,12 @@ void FetchGBuffer(in float2 UV, out float4 GBufferA, out float4 GBufferB, out fl
 FGBufferData FetchAndDecodeGBuffer(in float2 UV)
 {
 	float SceneDepth = 0;
-	float4 GBufferA = 0;
-	float4 GBufferB = 0;
-	float4 GBufferC = 0;
-	float4 GBufferD = 0;
+	half4 GBufferA = 0;
+	half4 GBufferB = 0;
+	half4 GBufferC = 0;
+	half4 GBufferD = 0;
 	FetchGBuffer(UV, GBufferA, GBufferB, GBufferC, GBufferD, SceneDepth);
-	
-	FGBufferData GBuffer = (FGBufferData)0;
-	GBuffer.WorldNormal = OctahedronToUnitVector( GBufferA.xy * 2.0f - 1.0f );
-	GBuffer.PrecomputedShadowFactors = GBufferA.z;
-	GBuffer.PerObjectGBufferData = GBufferA.a;  
-	GBuffer.Metallic	= GBufferB.r;
-	GBuffer.Specular	= GBufferB.g;
-	GBuffer.Roughness	= max(0.015625, GBufferB.b);
-	// Note: must match GetShadingModelId standalone function logic
-	// Also Note: SimpleElementPixelShader directly sets SV_Target2 ( GBufferB ) to indicate unlit.
-	// An update there will be required if this layout changes.
-	GBuffer.ShadingModelID = DecodeShadingModelId(GBufferB.a);
-	GBuffer.SelectiveOutputMask = DecodeSelectiveOutputMask(GBufferB.a);
-	GBuffer.BaseColor = DecodeBaseColor(GBufferC.rgb);
-#if ALLOW_STATIC_LIGHTING
-	GBuffer.GBufferAO = 1;
-	GBuffer.IndirectIrradiance = DecodeIndirectIrradiance(GBufferC.a);
-#else
-	GBuffer.GBufferAO = GBufferC.a;
-	GBuffer.IndirectIrradiance = 1;
-#endif
-	GBuffer.CustomData = HasCustomGBufferData(GBuffer.ShadingModelID) ? GBufferD : 0;
+	FGBufferData GBuffer = MobileDecodeGBuffer(GBufferA, GBufferB, GBufferC, GBufferD);
 	GBuffer.Depth = SceneDepth;
 	return GBuffer;
 }

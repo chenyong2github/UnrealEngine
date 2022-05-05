@@ -400,14 +400,9 @@ void Main(
 	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
 
 #if DEFERRED_SHADING_PATH
-	float4 OutGBufferE;
-	float4 OutGBufferF;
-	float4 OutGBufferVelocity = 0;
-
 	GBuffer.IndirectIrradiance = IndirectIrradiance;
 	GBuffer.PrecomputedShadowFactors.r = Shadow;
-
-	EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferF, OutGBufferVelocity);
+	MobileEncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD);
 #else
 
 	half4 DynamicShadowFactors = 1.0f;
