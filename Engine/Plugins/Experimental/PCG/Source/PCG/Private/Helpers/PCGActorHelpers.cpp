@@ -22,8 +22,11 @@
 #include "ObjectTools.h"
 #endif
 
-UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, const UPCGComponent* InSourceComponent, UStaticMesh* InMesh, const TArray<UMaterialInterface*>& InMaterials)
+UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, const UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
 {
+	UStaticMesh* InMesh = InParams.Mesh;
+	const TArray<UMaterialInterface*>& InMaterials = InParams.MaterialOverrides;
+
 	check(InTargetActor != nullptr && InMesh != nullptr);
 
 	TArray<UInstancedStaticMeshComponent*> ISMCs;
@@ -37,6 +40,14 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 			// If materials are provided, we'll make sure they match to the already set materials.
 			// If not provided, we'll make sure that the current materials aren't overriden
 			bool bMaterialsMatched = true;
+
+			// Check basic parameters
+			if (ISMC->Mobility != InParams.Mobility ||
+				(ISMC->bUseDefaultCollision && InParams.CollisionProfile != TEXT("Default")) ||
+				(!ISMC->bUseDefaultCollision && ISMC->GetCollisionProfileName() != InParams.CollisionProfile))
+			{
+				continue;
+			}
 
 			for (int32 MaterialIndex = 0; MaterialIndex < ISMC->GetNumMaterials() && bMaterialsMatched; ++MaterialIndex)
 			{
@@ -91,9 +102,16 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 	ISMC->RegisterComponent();
 	InTargetActor->AddInstanceComponent(ISMC);
-	ISMC->SetMobility(EComponentMobility::Static);
-	// TODO: add option for collision, or use a template
-	ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ISMC->SetMobility(InParams.Mobility);
+	if (InParams.CollisionProfile != TEXT("Default"))
+	{
+		ISMC->SetCollisionProfileName(InParams.CollisionProfile, /*bOverlaps=*/false);
+	}
+	else
+	{
+		ISMC->bUseDefaultCollision = true;
+	}
+	
 	ISMC->AttachToComponent(InTargetActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
 	if (InSourceComponent)

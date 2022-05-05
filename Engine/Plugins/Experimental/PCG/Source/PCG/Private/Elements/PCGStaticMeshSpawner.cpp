@@ -17,8 +17,12 @@ FPCGElementPtr UPCGStaticMeshSpawnerSettings::CreateElement() const
 
 struct FWeightedMeshAndInstances
 {
-	int Weight = 0;
-	UStaticMesh* Mesh = nullptr;
+	FWeightedMeshAndInstances(int InWeight, const FPCGStaticMeshSpawnerEntry& InEntry)
+		: Weight(InWeight), Entry(InEntry)
+	{}
+
+	int Weight;
+	const FPCGStaticMeshSpawnerEntry& Entry;
 	TArray<FTransform> Instances;
 };
 
@@ -38,11 +42,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 
 		TotalWeight += Entry.Weight;
-
-		FWeightedMeshAndInstances& WeightedEntry = WeightedEntries.Emplace_GetRef();
-		WeightedEntry.Weight = TotalWeight;
-		// Todo: we could likely pre-load these meshes asynchronously in the settings
-		WeightedEntry.Mesh = Entry.Mesh.LoadSynchronous();
+		FWeightedMeshAndInstances& WeightedEntry = WeightedEntries.Emplace_GetRef(TotalWeight, Entry);
 	}
 
 	if (TotalWeight <= 0)
@@ -114,12 +114,20 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 			// Second, add the instances
 			for (FWeightedMeshAndInstances& Instances : WeightedEntries)
 			{
-				if (!Instances.Mesh || Instances.Instances.Num() == 0)
+				if (!Instances.Entry.Mesh || Instances.Instances.Num() == 0)
 				{
 					continue;
 				}
 
-				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Instances.Mesh);
+				FPCGISMCBuilderParameters Params;
+				// Todo: we could likely pre-load these meshes asynchronously in the settings
+				Params.Mesh = Instances.Entry.Mesh.LoadSynchronous();
+				if (Instances.Entry.bOverrideCollisionProfile)
+				{
+					Params.CollisionProfile = Instances.Entry.CollisionProfile.Name;
+				}
+
+				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
 
 				// TODO: add scaling
 				// TODO: document these arguments
@@ -127,7 +135,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 				ISMC->AddInstances(Instances.Instances, false, true);
 				ISMC->UpdateBounds();
 
-				PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", Instances.Instances.Num(), *Instances.Mesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
+				PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", Instances.Instances.Num(), *Instances.Entry.Mesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
 			}
 		}
 	}

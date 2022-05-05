@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "PCGSettings.h"
 
+#include "Engine/CollisionProfile.h"
+
 #include "PCGStaticMeshSpawner.generated.h"
 
 class UStaticMesh;
@@ -19,6 +21,12 @@ struct PCG_API FPCGStaticMeshSpawnerEntry
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bOverrideCollisionProfile = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	FCollisionProfileName CollisionProfile;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

@@ -147,7 +147,10 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 				if (Mesh)
 				{
-					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh);
+					FPCGISMCBuilderParameters Params;
+					Params.Mesh = Mesh;
+
+					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
 					UEngine::CopyPropertiesForUnrelatedObjects(FirstSMC, ISMC);
 				}
 				else

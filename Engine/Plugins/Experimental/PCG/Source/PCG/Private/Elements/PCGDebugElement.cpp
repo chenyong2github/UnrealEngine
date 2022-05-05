@@ -124,7 +124,12 @@ namespace PCGDebugElement
 				InstanceTransform.SetScale3D(bIsRelative ? InstanceTransform.GetScale3D() * PointScale : FVector(PointScale));
 			}
 
-			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh, Materials);
+			FPCGISMCBuilderParameters Params;
+			Params.Mesh = Mesh;
+			Params.MaterialOverrides = Materials;
+			Params.CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
+
+			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
 			
 			ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
 			ISMC->NumCustomDataFloats = NumCustomData;
