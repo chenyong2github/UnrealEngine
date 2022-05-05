@@ -521,7 +521,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		}
 
 		Context = InitShaderPrintContext(true, uint2(50, BSDF_ELEMENT_STARTY));
-	#if COMPILER_DXC == 1
+	#if STRATA_COMPILER == 1
 		LOOP
 	#else
 		StrataTreeHeader.OperatorCount = min(StrataTreeHeader.OperatorCount, 2);
@@ -604,7 +604,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Newline(Context);
 		}
 
-	#if COMPILER_DXC == 1
+	#if STRATA_COMPILER == 1
 		LOOP
 	#else
 		StrataTreeHeader.BSDFCount = min(StrataTreeHeader.BSDFCount, 2);
@@ -669,7 +669,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		Print(Context, TEXT("Topology"), FontWhite);
 
 		// Debug print the strata tree only for DXC for the sake of compilation performance.
-	#if COMPILER_DXC
+	#if STRATA_COMPILER
 		uint NodeIndexStack[TREE_MAX_DEPTH];
 		uint ChildrenVisitedStack[TREE_MAX_DEPTH]; // 0:none, 1:left, 2:left&right
 		float2 PrintPosStack[TREE_MAX_DEPTH];
@@ -793,7 +793,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			}
 		}
 
-	#endif // COMPILER_DXC
+	#endif // STRATA_COMPILER
 
 	}
 }
@@ -1127,7 +1127,7 @@ void MaterialDebugStrataTreePS(
 		const float MaterialPanelSize = 200.0f;
 
 		// STRATA_TODO: read BSDF and Operators "on the fly".
-#if COMPILER_DXC == 1
+#if STRATA_COMPILER == 1
 		LOOP
 #else
 		StrataTreeHeader.BSDFCount = min(StrataTreeHeader.BSDFCount, 2);
@@ -1172,7 +1172,7 @@ void MaterialDebugStrataTreePS(
 		float2 MatTopLayerSize = float2(410, 100);
 		
 		// This is a really basic material topology debug. STRATA_TODO would be to draw the material graph itself with anottation
-#if COMPILER_DXC == 1
+#if STRATA_COMPILER == 1
 		LOOP
 #else
 		StrataTreeHeader.BSDFCount = min(StrataTreeHeader.BSDFCount, 2);

@@ -28,7 +28,8 @@
 // DXC has issue with unrolling certain part of the code. To address temporarly the warning-as-error issues, 
 // we redefine the unroll function and fall back to loop on DXC
 // To remove this, one must test PC + DX12 + RayTracing and make sure raytracing shaders compile.
-#if COMPILER_DXC == 1
+#define STRATA_COMPILER (COMPILER_DXC)
+#if STRATA_COMPILER == 1
 #define STRATA_UNROLL LOOP
 #define STRATA_UNROLL_N(X) LOOP
 #else
@@ -820,7 +821,7 @@ void StrataPackOutStrataTree(
 	OutCoord = 0;
 	OutCoordY = 1;
 
-#if COMPILER_DXC == 1
+#if STRATA_COMPILER == 1
 	LOOP
 #else
 	StrataTree.BSDFCount = min(StrataTree.BSDFCount, STRATA_MAX_BSDF_COUNT);
@@ -859,7 +860,7 @@ void StrataPackOutStrataTree(
 	OutCoord = 0;
 	OutCoordY = 2;
 
-#if COMPILER_DXC == 1
+#if STRATA_COMPILER == 1
 	LOOP
 #else
 	StrataTree.OperatorCount = min(StrataTree.OperatorCount, STRATA_MAX_OPERATOR_COUNT);
