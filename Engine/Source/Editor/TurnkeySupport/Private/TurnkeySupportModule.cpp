@@ -418,22 +418,21 @@ public:
 				BuildCookRunParams += TEXT(" -clean");
 			}
 
-			if (PackagingSettings->bCompressed)
-			{
-				BuildCookRunParams += TEXT(" -compressed");
-			}
-
-			if (PackagingSettings->bUseIoStore)
-			{
-				BuildCookRunParams += TEXT(" -iostore");
-
-				// Pak file(s) must be used when using container file(s)
-				PackagingSettings->UsePakFile = true;
-			}
+			// Pak file(s) must be used when using container file(s)
+			PackagingSettings->UsePakFile |= PackagingSettings->bUseIoStore;
 
 			if (PackagingSettings->UsePakFile)
 			{
 				BuildCookRunParams += TEXT(" -pak");
+				if (PackagingSettings->bUseIoStore)
+				{
+					BuildCookRunParams += TEXT(" -iostore");
+				}
+
+				if (PackagingSettings->bCompressed)
+				{
+					BuildCookRunParams += TEXT(" -compressed");
+				}
 			}
 
 			if (PackagingSettings->IncludePrerequisites)

@@ -635,11 +635,14 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			if (InProfile->IsPackingWithUnrealPak())
 			{
 				UATCommand += TEXT(" -pak");
-			}
-
-			if (InProfile->IsUsingIoStore())
-			{
-				UATCommand += TEXT(" -iostore");
+				if (InProfile->IsUsingIoStore())
+				{
+					UATCommand += TEXT(" -iostore");
+				}
+				if (InProfile->IsCompressed())
+				{
+					UATCommand += TEXT(" -compressed");
+				}
 			}
 
 			if (InProfile->MakeBinaryConfig())
@@ -782,10 +785,14 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		if (InProfile->IsPackingWithUnrealPak())
 		{
 			UATCommand += TEXT(" -pak");
-		}
-		if (InProfile->IsUsingIoStore())
-		{
-			UATCommand += TEXT(" -iostore");
+			if (InProfile->IsUsingIoStore())
+			{
+				UATCommand += TEXT(" -iostore");
+			}
+			if (InProfile->IsCompressed())
+			{
+				UATCommand += TEXT(" -compressed");
+			}
 		}
 		break;
 	case ELauncherProfileCookModes::DoNotCook:
@@ -811,11 +818,6 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 	if (InProfile->GetSkipCookingEditorContent())
 	{
 		UATCommand += TEXT(" -SkipCookingEditorContent");
-	}
-
-	if ( InProfile->IsCompressed() )
-	{
-		UATCommand += TEXT(" -compressed");
 	}
 
 	// stage/package/deploy
