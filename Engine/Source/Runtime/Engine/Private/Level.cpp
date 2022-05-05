@@ -2311,6 +2311,32 @@ bool ULevel::GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds)
 	});
 }
 
+FVector ULevel::GetLevelInstancePivotOffsetFromAsset(const FAssetData& Asset)
+{
+	static const FName NAME_LevelInstancePivotOffset(TEXT("LevelInstancePivotOffset"));
+	FString LevelInstancePivotOffsetStr;
+	if (Asset.GetTagValue(NAME_LevelInstancePivotOffset, LevelInstancePivotOffsetStr))
+	{
+		FVector LevelInstancePivotOffset;
+		if (LevelInstancePivotOffset.InitFromCompactString(LevelInstancePivotOffsetStr))
+		{
+			return LevelInstancePivotOffset;
+		}
+	}
+	return FVector::ZeroVector;
+}
+
+FVector ULevel::GetLevelInstancePivotOffsetFromPackage(FName LevelPackage)
+{
+	FVector LevelInstancePivot = FVector::ZeroVector;
+	LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [&LevelInstancePivot](const FAssetData& Asset)
+	{
+		LevelInstancePivot = GetLevelInstancePivotOffsetFromAsset(Asset);
+		return true;
+	});
+	return LevelInstancePivot;
+}
+
 bool ULevel::GetPromptWhenAddingToLevelOutsideBounds() const
 {
 	return !bIsPartitioned && bPromptWhenAddingToLevelOutsideBounds && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelOutsideBounds;

@@ -8466,6 +8466,16 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			static const FName NAME_LevelIsUsingActorFolders(TEXT("LevelIsUsingActorFolders"));
 			OutTags.Add(FAssetRegistryTag(NAME_LevelIsUsingActorFolders, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 		}
+
+		{
+			AWorldSettings* WorldSettings = GetWorldSettings();
+			FVector LevelInstancePivotOffset = WorldSettings ? WorldSettings->LevelInstancePivotOffset : FVector::ZeroVector;
+			if (!LevelInstancePivotOffset.IsNearlyZero())
+			{
+				static const FName NAME_LevelInstancePivotOffset(TEXT("LevelInstancePivotOffset"));
+				OutTags.Add(FAssetRegistryTag(NAME_LevelInstancePivotOffset, LevelInstancePivotOffset.ToCompactString(), FAssetRegistryTag::TT_Hidden));
+			}
+		}
 	}
 
 	// Get the full file path with extension

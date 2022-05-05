@@ -778,6 +778,8 @@ public:
 	ENGINE_API static bool GetIsStreamingDisabledFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(FName LevelPackage);
+	ENGINE_API static FVector GetLevelInstancePivotOffsetFromAsset(const FAssetData& Asset);
+	ENGINE_API static FVector GetLevelInstancePivotOffsetFromPackage(FName LevelPackage);
 	ENGINE_API static const FName LoadAllExternalObjectsTag;
 	ENGINE_API static const FName DontLoadExternalObjectsTag;
 

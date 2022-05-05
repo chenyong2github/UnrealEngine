@@ -184,7 +184,9 @@ bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& O
 	if (LevelInstanceContainer.IsValid())
 	{
 		OutLevelContainer = LevelInstanceContainer.Get();
-		OutLevelTransform = LevelInstanceTransform;
+		// Apply level instance pivot offset
+		FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelInstanceContainer->GetContainerPackage()));
+		OutLevelTransform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
 		OutClusterMode = EContainerClusterMode::Partitioned;
 		return true;
 	}
