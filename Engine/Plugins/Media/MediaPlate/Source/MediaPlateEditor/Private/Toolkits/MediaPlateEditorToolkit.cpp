@@ -16,8 +16,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SMediaPlateEditorDetails.h"
 #include "Widgets/SMediaPlateEditorMediaDetails.h"
+#include "Widgets/SMediaPlateEditorPlaylist.h"
 #include "Widgets/SMediaPlayerEditorViewer.h"
-#include "Widgets/SMediaPlaylistEditorTracks.h"
 
 #define LOCTEXT_NAMESPACE "FMediaPlateEditorToolkit"
 
@@ -401,7 +401,7 @@ TSharedRef<SDockTab> FMediaPlateEditorToolkit::HandleTabManagerSpawnTab(const FS
 	}
 	else if (TabIdentifier == MediaPlateEditorToolkit::PlaylistTabId)
 	{
-		TabWidget = SNew(SMediaPlaylistEditorTracks, MediaPlate->MediaPlaylist, Style);
+		TabWidget = SNew(SMediaPlateEditorPlaylist, *MediaPlate, Style);
 	}
 	else if (TabIdentifier == MediaPlateEditorToolkit::ViewerTabId)
 	{

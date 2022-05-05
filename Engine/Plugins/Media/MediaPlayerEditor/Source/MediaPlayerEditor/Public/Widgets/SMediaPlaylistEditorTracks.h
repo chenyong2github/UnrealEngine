@@ -32,10 +32,10 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, UMediaPlaylist* InMediaPlaylist, const TSharedRef<ISlateStyle>& InStyle);
 
-private:
+protected:
 
 	/** Pointer to the MediaPlaylist asset that is being viewed. */
-	TObjectPtr<UMediaPlaylist> MediaPlaylist;
+	TWeakObjectPtr<UMediaPlaylist> MediaPlaylistPtr;
 	/** Pointer to the container for the media sources. */
 	TSharedPtr<SVerticalBox> SourcesContainer;
 

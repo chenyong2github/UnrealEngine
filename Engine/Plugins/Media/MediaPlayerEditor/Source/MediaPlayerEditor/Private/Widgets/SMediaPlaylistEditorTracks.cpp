@@ -13,7 +13,7 @@
 
 void SMediaPlaylistEditorTracks::Construct(const FArguments& InArgs, UMediaPlaylist* InMediaPlaylist, const TSharedRef<ISlateStyle>& InStyle)
 {
-	MediaPlaylist = InMediaPlaylist;
+	MediaPlaylistPtr = InMediaPlaylist;
 
 	ChildSlot
 		[
@@ -63,6 +63,7 @@ void SMediaPlaylistEditorTracks::RefreshPlaylist()
 {
 	SourcesContainer->ClearChildren();
 
+	UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 	if (MediaPlaylist != nullptr)
 	{
 		// Add each item in the playlist.
@@ -95,6 +96,7 @@ void SMediaPlaylistEditorTracks::RefreshPlaylist()
 
 void SMediaPlaylistEditorTracks::AddToPlaylist()
 {
+	UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 	if (MediaPlaylist != nullptr)
 	{
 		MediaPlaylist->Insert(nullptr, MediaPlaylist->Num());
@@ -107,6 +109,7 @@ FString SMediaPlaylistEditorTracks::GetMediaSourcePath(int32 Index) const
 {
 	FString Path;
 
+	UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 	if (MediaPlaylist != nullptr)
 	{
 		UMediaSource* MediaSource = MediaPlaylist->Get(Index);
@@ -121,6 +124,7 @@ FString SMediaPlaylistEditorTracks::GetMediaSourcePath(int32 Index) const
 
 void SMediaPlaylistEditorTracks::OnMediaSourceChanged(const FAssetData& AssetData, int32 Index)
 {
+	UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 	if (MediaPlaylist != nullptr)
 	{
 		UMediaSource* MediaSource = Cast<UMediaSource>(AssetData.GetAsset());
