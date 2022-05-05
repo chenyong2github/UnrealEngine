@@ -35,6 +35,7 @@ public:
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* World) override;
 	virtual void EndScene() override;
+	virtual void PreTick(float DeltaSeconds) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

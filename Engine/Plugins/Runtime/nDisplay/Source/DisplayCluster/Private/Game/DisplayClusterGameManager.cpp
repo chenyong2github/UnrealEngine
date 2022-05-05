@@ -25,8 +25,10 @@
 
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerStart.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "EngineUtils.h"
+#include "LevelUtils.h"
 
 
 FDisplayClusterGameManager::FDisplayClusterGameManager()
@@ -144,6 +146,26 @@ void FDisplayClusterGameManager::EndScene()
 	FScopeLock Lock(&InternalsSyncScope);
 	DisplayClusterRootActorRef.ResetSceneActor();
 	CurrentWorld = nullptr;
+}
+
+void FDisplayClusterGameManager::PreTick(float DeltaSeconds)
+{
+	// Here we check if the active DCRA instance is in a sublevel, and whether
+	// the sublevel visibility is off. If so, we forcibly make the sublevel visible.
+	if (const AActor* const DCRA = DisplayClusterRootActorRef.GetOrFindSceneActor())
+	{
+		if (const ULevel* const Level = DCRA->GetLevel())
+		{
+			if (!Level->bIsVisible)
+			{
+				if (ULevelStreaming* const StreamingLevel = FLevelUtils::FindStreamingLevel(Level))
+				{
+					UE_LOG(LogDisplayClusterGame, Warning, TEXT("A streaming level containing the active DCRA instance is currently invisible. Forcing level visibility on."));
+					StreamingLevel->SetShouldBeVisible(true);
+				}
+			}
+		}
+	}
 }
 
 
