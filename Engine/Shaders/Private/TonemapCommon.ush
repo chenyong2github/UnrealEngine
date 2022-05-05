@@ -19,6 +19,14 @@
 #define TONEMAPPER_OUTPUT_NoToneCurve 8
 #define TONEMAPPER_OUTPUT_WithToneCurve 9
 
+/** Values of DIM_OUTPUT_DEVICE (matching C++'s EDisplayColorGamut) */
+#define TONEMAPPER_GAMUT_sRGB_D65 0
+#define TONEMAPPER_GAMUT_DCIP3_D65 1
+#define TONEMAPPER_GAMUT_Rec2020_D65 2
+#define TONEMAPPER_GAMUT_ACES_D60 3
+#define TONEMAPPER_GAMUT_ACEScg_D60 4
+
+
 // usually 1/2.2, the .y is used for inverse gamma when "gamma only" mode is not used
 half3 InverseGamma;
 
@@ -303,13 +311,13 @@ float3x3 OuputGamutMappingMatrix( uint OutputGamut )
 	// 3 = ACES AP0 - D60
 	// 4 = ACES AP1 - D60
 
-	if( OutputGamut == 1 )
+	if( OutputGamut == TONEMAPPER_GAMUT_DCIP3_D65)
 		return AP1_2_DCI_D65;
-	else if( OutputGamut == 2 )
+	else if( OutputGamut == TONEMAPPER_GAMUT_Rec2020_D65)
 		return AP1_2_Rec2020;
-	else if( OutputGamut == 3 )
+	else if( OutputGamut == TONEMAPPER_GAMUT_ACES_D60)
 		return AP1_2_AP0_MAT;
-	else if( OutputGamut == 4 )
+	else if( OutputGamut == TONEMAPPER_GAMUT_ACEScg_D60)
 		return GamutMappingIdentityMatrix;
 	else
 		return AP1_2_sRGB;
@@ -328,12 +336,14 @@ float3x3 OuputInverseGamutMappingMatrix( uint OutputGamut )
 	// 2 = Rec.2020 - D65
 	// 3 = ACES AP0 - D60
 	float3x3 GamutMappingMatrix = sRGB_2_AP1;
-	if( OutputGamut == 1 )
+	if( OutputGamut == TONEMAPPER_GAMUT_DCIP3_D65)
 		GamutMappingMatrix = DCI_D65_2_AP1;
-	else if( OutputGamut == 2 )
+	else if( OutputGamut == TONEMAPPER_GAMUT_Rec2020_D65)
 		GamutMappingMatrix = Rec2020_2_AP1;
-	else if( OutputGamut == 3 )
+	else if( OutputGamut == TONEMAPPER_GAMUT_ACES_D60)
 		GamutMappingMatrix = AP0_2_AP1_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACEScg_D60)
+		GamutMappingMatrix = GamutMappingIdentityMatrix;
 
 	return GamutMappingMatrix;
 }

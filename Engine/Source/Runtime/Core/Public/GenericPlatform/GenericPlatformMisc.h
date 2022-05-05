@@ -445,9 +445,23 @@ enum class EDisplayOutputFormat
 	HDR_LinearEXR = 7,
 	HDR_LinearNoToneCurve = 8,
 	HDR_LinearWithToneCurve = 9,
+
 	MAX
 };
 
+/**
+ * Display gamut, format, and chromacities. You must update values in TonemapCommon.ush when changing this enum + EHDRCaptureGamut
+ */
+enum class EDisplayColorGamut
+{
+	sRGB_D65 = 0,
+	DCIP3_D65 = 1,
+	Rec2020_D65 = 2,
+	ACES_D60 = 3,
+	ACEScg_D60 = 4,
+
+	MAX
+};
 
 /**
  * Different types of Context Switch stats
@@ -1663,7 +1677,7 @@ public:
 		return false;
 	}
 
-	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
+	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, EDisplayOutputFormat& OutputDevice, EDisplayColorGamut& ColorGamut)
 	{
 	}
 

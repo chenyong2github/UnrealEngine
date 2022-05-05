@@ -255,21 +255,21 @@ struct CORE_API FWindowsPlatformMisc
 	 */
 	static bool IsRunningOnBattery();
 
-	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
+	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, EDisplayOutputFormat& OutputDevice, EDisplayColorGamut& ColorGamut)
 	{
 		if (DeviceId == 0x1002 /*AMD*/ || DeviceId == 0x10DE /*NVIDIA*/)
 		{
 			// needs to match GRHIHDRDisplayOutputFormat chosen in FD3D12DynamicRHI::Init
 #if WITH_EDITOR
 		// ScRGB, 1000 or 2000 nits
-			OutputDevice = (DisplayNitLevel == 1000) ? (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB : (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB;
+			OutputDevice = (DisplayNitLevel == 1000) ? EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB : EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB;
 			// Rec709
-			ColorGamut = 0;
+			ColorGamut = EDisplayColorGamut::sRGB_D65;
 #else
 		// ST-2084, 1000 or 2000 nits
-			OutputDevice = (DisplayNitLevel == 1000) ? (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ST2084 : (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ST2084;
+			OutputDevice = (DisplayNitLevel == 1000) ? EDisplayOutputFormat::HDR_ACES_1000nit_ST2084 : EDisplayOutputFormat::HDR_ACES_2000nit_ST2084;
 			// Rec2020
-			ColorGamut = 2;
+			ColorGamut = EDisplayColorGamut::Rec2020_D65;
 #endif
 		}
 	}

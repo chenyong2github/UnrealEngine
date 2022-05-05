@@ -408,7 +408,7 @@ void FD3D12Viewport::EnableHDR()
 		// Ideally we can avoid setting TV meta data and instead the engine can do tone mapping based on the
 		// actual current display properties (display mapping).
 		static const auto CVarHDRColorGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-		const EDisplayGamut DisplayGamut = EDisplayGamut(CVarHDRColorGamut->GetValueOnAnyThread());
+		const EDisplayColorGamut DisplayGamut = EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread());
 		SetHDRTVMode(true,
 			DisplayGamut,
 			DisplayMaxOutputNits,
@@ -426,7 +426,7 @@ void FD3D12Viewport::ShutdownHDR()
 	if (GRHISupportsHDROutput)
 	{
 		// Default SDR display data
-		const EDisplayGamut DisplayGamut = DG_Rec709;
+		const EDisplayColorGamut DisplayGamut = EDisplayColorGamut::sRGB_D65;
 		const EDisplayOutputFormat OutputDevice = EDisplayOutputFormat::SDR_sRGB;
 
 		// Note: These values aren't actually used.
@@ -508,12 +508,12 @@ static const FString GetDXGIColorSpaceString(DXGI_COLOR_SPACE_TYPE ColorSpace)
 	return FString::FromInt(ColorSpace);
 };
 
-void FD3D12Viewport::EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayOutputFormat OutputDevice)
+void FD3D12Viewport::EnsureColorSpace(EDisplayColorGamut DisplayGamut, EDisplayOutputFormat OutputDevice)
 {
 	ensure(SwapChain4.GetReference());
 
 	DXGI_COLOR_SPACE_TYPE NewColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;	// sRGB;
-	const bool bPrimaries2020 = (DisplayGamut == DG_Rec2020);
+	const bool bPrimaries2020 = (DisplayGamut == EDisplayColorGamut::Rec2020_D65);
 
 	// See console variable r.HDR.Display.OutputDevice.
 	switch (OutputDevice)
@@ -552,22 +552,22 @@ void FD3D12Viewport::EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayOutput
 	}
 }
 
-void FD3D12Viewport::SetHDRTVMode(bool bEnableHDR, EDisplayGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
+void FD3D12Viewport::SetHDRTVMode(bool bEnableHDR, EDisplayColorGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
 {
 	ensure(SwapChain4.GetReference());
 
 	static const DisplayChromacities DisplayChromacityList[] =
 	{
-		{ 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // DG_Rec709
-		{ 0.68000f, 0.32000f, 0.26500f, 0.69000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // DG_DCI-P3 D65
-		{ 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // DG_Rec2020
-		{ 0.73470f, 0.26530f, 0.00000f, 1.00000f, 0.00010f,-0.07700f, 0.32168f, 0.33767f }, // DG_ACES
-		{ 0.71300f, 0.29300f, 0.16500f, 0.83000f, 0.12800f, 0.04400f, 0.32168f, 0.33767f }, // DG_ACEScg
+		{ 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // EDisplayColorGamut::sRGB_D65
+		{ 0.68000f, 0.32000f, 0.26500f, 0.69000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // EDisplayColorGamut::DCIP3_D65
+		{ 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // EDisplayColorGamut::Rec2020_D65
+		{ 0.73470f, 0.26530f, 0.00000f, 1.00000f, 0.00010f,-0.07700f, 0.32168f, 0.33767f }, // EDisplayColorGamut::ACES_D60
+		{ 0.71300f, 0.29300f, 0.16500f, 0.83000f, 0.12800f, 0.04400f, 0.32168f, 0.33767f }, // EDisplayColorGamut::ACEScg_D60
 	};
 
 	if (bEnableHDR)
 	{
-		const DisplayChromacities& Chroma = DisplayChromacityList[DisplayGamut];
+		const DisplayChromacities& Chroma = DisplayChromacityList[(int32)DisplayGamut];
 
 		// Set HDR meta data
 		DXGI_HDR_METADATA_HDR10 HDR10MetaData = {};

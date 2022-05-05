@@ -76,7 +76,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	BRANCH
 
 	// sRGB, user specified gamut
-	if( GetOutputDevice() == 0 )
+	if( GetOutputDevice() == TONEMAPPER_OUTPUT_sRGB)
 	{		
 		// Convert from sRGB to specified output gamut	
 		// float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
@@ -90,7 +90,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	}
 
 	// Rec 709, user specified gamut
-	else if( GetOutputDevice() == 1 )
+	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_Rec709)
 	{
 		// Convert from sRGB to specified output gamut
 		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
@@ -100,7 +100,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	}
 
 	// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
-	else if( GetOutputDevice() == 3 || GetOutputDevice() == 5 )
+	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitST2084 || GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{		
 		// 1000 nit ODT
 		float3 ODTColor = ACESOutputTransforms1000( FilmColor );
@@ -113,7 +113,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	}
 
 	// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
-	else if( GetOutputDevice() == 4 || GetOutputDevice() == 6 )
+	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitST2084 || GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{		
 		// 2000 nit ODT
 		float3 ODTColor = ACESOutputTransforms2000( FilmColor );
@@ -125,25 +125,25 @@ float4 DeviceEncodingOnlyCommonPS(
 		OutDeviceColor = LinearToST2084( ODTColor );
 	}	
 	
-	else if( GetOutputDevice() == 7 )
+	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_LinearEXR)
 	{
 		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
 		OutDeviceColor = LinearToST2084( OutputGamutColor );
 	}
 	// Linear HDR, including all color correction, but no tone curve
-	else if( GetOutputDevice() == 8 ) 
+	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_NoToneCurve)
 	{
 		OutDeviceColor = FilmColor;
 	}
 	// "Linear" including all color correction and the tone curve, but no device gamma
-	else if (GetOutputDevice() == 9)
+	else if (GetOutputDevice() == TONEMAPPER_OUTPUT_WithToneCurve)
 	{
 		float3 OutputGamutColor = mul(AP1_2_Output, mul(sRGB_2_AP1, SceneColor.rgb)); 
 
 		OutDeviceColor = OutputGamutColor;
 	}
 
-	// OutputDevice == 2
+	// OutputDevice == TONEMAPPER_OUTPUT_ExplicitGammaMapping
 	// Gamma 2.2, user specified gamut
 	else
 	{

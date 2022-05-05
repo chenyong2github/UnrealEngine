@@ -194,11 +194,11 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
     
-	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
+	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, EDisplayOutputFormat& OutputDevice, EDisplayColorGamut& ColorGamut)
 	{
 		// Linear output to Apple's specific format.
-		OutputDevice = (int32)EDisplayOutputFormat::HDR_LinearEXR;
-		ColorGamut = 0;
+		OutputDevice = EDisplayOutputFormat::HDR_LinearEXR;
+		ColorGamut = EDisplayColorGamut::sRGB_D65;
 	}
 
 	static int32 GetMaxRefreshRate();

@@ -209,12 +209,12 @@ bool UImageSequenceProtocol_EXR::SetupImpl()
 	IConsoleVariable* CVarDumpGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
 	IConsoleVariable* CVarDumpDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
 
-	RestoreColorGamut = CVarDumpGamut->GetInt();
-	RestoreOutputDevice = CVarDumpDevice->GetInt();
+	RestoreColorGamut = (EDisplayColorGamut)CVarDumpGamut->GetInt();
+	RestoreOutputDevice = (EDisplayOutputFormat)CVarDumpDevice->GetInt();
 
 	if (CaptureGamut == HCGM_Linear)
 	{
-		CVarDumpGamut->Set(1);
+		CVarDumpGamut->Set((int32)EDisplayColorGamut::DCIP3_D65);
 		CVarDumpDevice->Set((int32)EDisplayOutputFormat::HDR_LinearEXR);
 	}
 	else
@@ -232,8 +232,8 @@ void UImageSequenceProtocol_EXR::FinalizeImpl()
 	IConsoleVariable* CVarDumpGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
 	IConsoleVariable* CVarDumpDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
 
-	CVarDumpGamut->Set(RestoreColorGamut);
-	CVarDumpDevice->Set(RestoreOutputDevice);
+	CVarDumpGamut->Set((int32)RestoreColorGamut);
+	CVarDumpDevice->Set((int32)RestoreOutputDevice);
 }
 
 void UImageSequenceProtocol_EXR::AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const

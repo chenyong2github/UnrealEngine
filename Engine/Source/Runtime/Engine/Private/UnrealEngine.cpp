@@ -852,8 +852,8 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 			DisplayNitLevel = 1000;
 		}
 		
-		int32 OutputDevice = 0;
-		int32 ColorGamut = 0;
+		EDisplayOutputFormat OutputDevice = EDisplayOutputFormat::SDR_sRGB;
+		EDisplayColorGamut ColorGamut = EDisplayColorGamut::sRGB_D65;
 		
 		// If we are turning HDR on we must set the appropriate OutputDevice and ColorGamut.
 		// If we are turning it off, we'll reset back to 0/0
@@ -867,8 +867,8 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 		check(CVarHDROutputDevice);
 		check(CVarHDRColorGamut);
 		
-		CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
-		CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
+		CVarHDROutputDevice->Set((int32)OutputDevice, ECVF_SetByDeviceProfile);
+		CVarHDRColorGamut->Set((int32)ColorGamut, ECVF_SetByDeviceProfile);
 		
 		// Now set the HDR setting.
 		GRHIIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;

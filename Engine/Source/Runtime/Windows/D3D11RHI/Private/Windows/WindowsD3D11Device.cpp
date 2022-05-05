@@ -352,17 +352,6 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Mi
 	return false;
 }
 
-// Display gamut and chromaticities
-// Note: Must be kept in sync with CVars and Tonemapping shaders
-enum EDisplayGamut
-{
-	DG_Rec709,
-	DG_DCI_P3,
-	DG_Rec2020,
-	DG_ACES,
-	DG_ACEScg
-};
-
 struct DisplayChromacities
 {
 	float RedX, RedY;
@@ -373,14 +362,14 @@ struct DisplayChromacities
 
 const DisplayChromacities DisplayChromacityList[] =
 {
-	{ 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // DG_Rec709
-	{ 0.68000f, 0.32000f, 0.26500f, 0.69000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // DG_DCI-P3 D65
-	{ 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // DG_Rec2020
-	{ 0.73470f, 0.26530f, 0.00000f, 1.00000f, 0.00010f,-0.07700f, 0.32168f, 0.33767f }, // DG_ACES
-	{ 0.71300f, 0.29300f, 0.16500f, 0.83000f, 0.12800f, 0.04400f, 0.32168f, 0.33767f }, // DG_ACEScg
+	{ 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // EDisplayColorGamut::sRGB_D65
+	{ 0.68000f, 0.32000f, 0.26500f, 0.69000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // EDisplayColorGamut::DCIP3_D65
+	{ 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // EDisplayColorGamut::Rec2020_D65
+	{ 0.73470f, 0.26530f, 0.00000f, 1.00000f, 0.00010f,-0.07700f, 0.32168f, 0.33767f }, // EDisplayColorGamut::ACES_D60
+	{ 0.71300f, 0.29300f, 0.16500f, 0.83000f, 0.12800f, 0.04400f, 0.32168f, 0.33767f }, // EDisplayColorGamut::ACEScg_D60
 };
 
-static void SetHDRMonitorModeNVIDIA(uint32 IHVDisplayIndex, bool bEnableHDR, EDisplayGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
+static void SetHDRMonitorModeNVIDIA(uint32 IHVDisplayIndex, bool bEnableHDR, EDisplayColorGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
 {
 #ifdef NVAPI_INTERFACE
 	NvAPI_Status NvStatus = NVAPI_OK;
@@ -404,7 +393,7 @@ static void SetHDRMonitorModeNVIDIA(uint32 IHVDisplayIndex, bool bEnableHDR, EDi
 			HDRColorData.static_metadata_descriptor_id = NV_STATIC_METADATA_TYPE_1;
 			HDRColorData.hdrMode = bEnableHDR ? NV_HDR_MODE_UHDBD : NV_HDR_MODE_OFF;
 
-			const DisplayChromacities& Chroma = DisplayChromacityList[DisplayGamut];
+			const DisplayChromacities& Chroma = DisplayChromacityList[(int32)DisplayGamut];
 
 			HDRColorData.mastering_display_data.displayPrimary_x0 = NvU16(Chroma.RedX * 50000.0f);
 			HDRColorData.mastering_display_data.displayPrimary_y0 = NvU16(Chroma.RedY * 50000.0f);
@@ -433,7 +422,7 @@ static void SetHDRMonitorModeNVIDIA(uint32 IHVDisplayIndex, bool bEnableHDR, EDi
 #endif //NVAPI_INTERFACE
 }
 
-static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDisplayGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
+static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDisplayColorGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
 {
 #ifdef AMD_AGS_API
 	const int32 AmdHDRDeviceIndex = (IHVDisplayIndex & 0xffff0000) >> 16;
@@ -454,7 +443,7 @@ static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDispl
 
 		if (bEnableHDR)
 		{
-			const DisplayChromacities& Chroma = DisplayChromacityList[DisplayGamut];
+			const DisplayChromacities& Chroma = DisplayChromacityList[(int32)DisplayGamut];
 			HDRDisplaySettings.chromaticityRedX   = Chroma.RedX;
 			HDRDisplaySettings.chromaticityRedY   = Chroma.RedY;
 			HDRDisplaySettings.chromaticityGreenX = Chroma.GreenX;
@@ -488,9 +477,9 @@ void FD3D11DynamicRHI::EnableHDR()
 
 	if ( GRHISupportsHDROutput && IsHDREnabled() )
 	{
-		const int32 OutputDevice = CVarHDROutputDevice->GetValueOnAnyThread();
+		const EDisplayOutputFormat OutputDevice = (EDisplayOutputFormat)CVarHDROutputDevice->GetValueOnAnyThread();
 
-		const float DisplayMaxOutputNits = (OutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || OutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
+		const float DisplayMaxOutputNits = (OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
 		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
 		const float DisplayMaxCLL = 0.0f;			// Max content light level in lumens (0.0 == unknown)
 		const float DisplayFALL = 0.0f;				// Frame average light level (0.0 == unknown)
@@ -500,7 +489,7 @@ void FD3D11DynamicRHI::EnableHDR()
 			SetHDRMonitorModeNVIDIA(
 				HDRDetectedDisplayIHVIndex,
 				true,
-				EDisplayGamut(CVarHDRColorGamut->GetValueOnAnyThread()),
+				EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread()),
 				DisplayMaxOutputNits,
 				DisplayMinOutputNits,
 				DisplayMaxCLL,
@@ -511,7 +500,7 @@ void FD3D11DynamicRHI::EnableHDR()
 			SetHDRMonitorModeAMD(
 				HDRDetectedDisplayIHVIndex,
 				true,
-				EDisplayGamut(CVarHDRColorGamut->GetValueOnAnyThread()),
+				EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread()),
 				DisplayMaxOutputNits,
 				DisplayMinOutputNits,
 				DisplayMaxCLL,
@@ -540,7 +529,7 @@ void FD3D11DynamicRHI::ShutdownHDR()
 			SetHDRMonitorModeNVIDIA(
 				HDRDetectedDisplayIHVIndex,
 				false,
-				DG_Rec709,
+				EDisplayColorGamut::sRGB_D65,
 				DisplayMaxOutputNits,
 				DisplayMinOutputNits,
 				DisplayMaxCLL,
@@ -551,7 +540,7 @@ void FD3D11DynamicRHI::ShutdownHDR()
 			SetHDRMonitorModeAMD(
 				HDRDetectedDisplayIHVIndex,
 				false,
-				DG_Rec709,
+				EDisplayColorGamut::sRGB_D65,
 				DisplayMaxOutputNits,
 				DisplayMinOutputNits,
 				DisplayMaxCLL,

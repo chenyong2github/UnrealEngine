@@ -259,17 +259,6 @@ private:
 	FD3D12FramePacing* FramePacerRunnable;
 #endif //WITH_MGPU
 
-	// Display gamut, format, and chromacities
-	// Note: Must be kept in sync with CVars and Tonemapping shaders
-	enum EDisplayGamut
-	{
-		DG_Rec709,
-		DG_DCI_P3,
-		DG_Rec2020,
-		DG_ACES,
-		DG_ACEScg
-	};
-
 	struct DisplayChromacities
 	{
 		float RedX, RedY;
@@ -289,14 +278,14 @@ private:
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	/** Ensure the correct color space is set on the swap chain */
-	void EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayOutputFormat OutputDevice);
+	void EnsureColorSpace(EDisplayColorGamut DisplayGamut, EDisplayOutputFormat OutputDevice);
 
 	/** 
 	 * Set HDR meta data. 
 	 * Note: Meta data should only be provided for TVs, not monitors. 
 	 * This is because the TV is doing the work to display the colors correctly.
 	 */
-	void SetHDRTVMode(bool bEnableHDR, EDisplayGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL);
+	void SetHDRTVMode(bool bEnableHDR, EDisplayColorGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL);
 #endif
 };
 

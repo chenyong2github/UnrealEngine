@@ -148,7 +148,7 @@ private:
 	virtual void FinalizeImpl() override;
 	virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
 
-	int32 RestoreColorGamut;
-	int32 RestoreOutputDevice;
+	EDisplayColorGamut RestoreColorGamut;
+	EDisplayOutputFormat RestoreOutputDevice;
 };
 

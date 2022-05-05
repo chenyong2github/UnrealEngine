@@ -14,7 +14,7 @@ class UMaterialInterface;
 struct FMovieSceneCaptureSettings;
 struct FFrameCaptureViewExtension;
 
-/** Used by UCompositionGraphCaptureSettings. Matches gamut oreder in TonemapCommon.usf OuputGamutMappingMatrix()*/
+/** Used by UCompositionGraphCaptureSettings. Matches gamut order in EDisplayColorGamut */
 UENUM(BlueprintType)
 enum EHDRCaptureGamut
 {
@@ -26,6 +26,15 @@ enum EHDRCaptureGamut
 	HCGM_Linear UMETA(DisplayName = "Linear"),
 	HCGM_MAX,
 };
+
+static_assert(HCGM_Rec709 == (int32)EDisplayColorGamut::sRGB_D65, "EHDRCaptureGamut and EDisplayColorGamut not matching");
+static_assert(HCGM_P3DCI == (int32)EDisplayColorGamut::DCIP3_D65, "EHDRCaptureGamut and EDisplayColorGamut not matching");
+static_assert(HCGM_Rec2020 == (int32)EDisplayColorGamut::Rec2020_D65, "EHDRCaptureGamut and EDisplayColorGamut not matching");
+static_assert(HCGM_ACES == (int32)EDisplayColorGamut::ACES_D60, "EHDRCaptureGamut and EDisplayColorGamut not matching");
+static_assert(HCGM_ACEScg == (int32)EDisplayColorGamut::ACEScg_D60, "EHDRCaptureGamut and EDisplayColorGamut not matching");
+// HCGM_Linear gets remapped to DCIP3_D65 internally
+//static_assert(HCGM_Linear == (int32)EDisplayColorGamut::DCIP3_D65, "EHDRCaptureGamut and EDisplayColorGamut not matching")
+static_assert(HCGM_MAX == (int32)EDisplayColorGamut::MAX + 1, "EHDRCaptureGamut and EDisplayColorGamut not matching");
 
 USTRUCT(BlueprintType)
 struct MOVIESCENECAPTURE_API FCompositionGraphCapturePasses

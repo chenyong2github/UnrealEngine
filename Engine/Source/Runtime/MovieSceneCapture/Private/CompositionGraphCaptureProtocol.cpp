@@ -34,17 +34,17 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 
 		RestoreDumpHDR = CVarDumpFramesAsHDR->GetInt();
 		RestoreHDRCompressionQuality = CVarHDRCompressionQuality->GetInt();
-		RestoreDumpGamut = CVarDumpGamut->GetInt();
-		RestoreDumpDevice = CVarDumpDevice->GetInt();
+		RestoreDumpGamut = (EDisplayColorGamut)CVarDumpGamut->GetInt();
+		RestoreDumpDevice = (EDisplayOutputFormat)CVarDumpDevice->GetInt();
 
 		if (CaptureGamut == HCGM_Linear)
 		{
-			CVarDumpGamut->Set(1);
+			CVarDumpGamut->Set((int32)EDisplayColorGamut::DCIP3_D65);
 			CVarDumpDevice->Set((int32)EDisplayOutputFormat::HDR_LinearEXR);
 		}
 		else
 		{
-			CVarDumpGamut->Set(CaptureGamut);
+			CVarDumpGamut->Set((int32)CaptureGamut);
 		}
 
 		Disable();
@@ -54,8 +54,8 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 	{
 		Disable();
 
-		CVarDumpGamut->Set(RestoreDumpGamut);
-		CVarDumpDevice->Set(RestoreDumpDevice);
+		CVarDumpGamut->Set((int32)RestoreDumpGamut);
+		CVarDumpDevice->Set((int32)RestoreDumpDevice);
 	}
 
 	bool IsEnabled() const
@@ -166,8 +166,8 @@ private:
 
 	int32 RestoreDumpHDR;
 	int32 RestoreHDRCompressionQuality;
-	int32 RestoreDumpGamut;
-	int32 RestoreDumpDevice;
+	EDisplayColorGamut RestoreDumpGamut;
+	EDisplayOutputFormat RestoreDumpDevice;
 };
 
 bool UCompositionGraphCaptureProtocol::SetupImpl()
