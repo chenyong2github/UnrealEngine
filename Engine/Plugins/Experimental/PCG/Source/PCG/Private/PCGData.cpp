@@ -5,6 +5,45 @@
 #include "PCGParamData.h"
 #include "Data/PCGSpatialData.h"
 
+void FPCGRootSet::Clear()
+{
+	for (TPair<UObject*, int32>& Entry : RootSet)
+	{
+		Entry.Key->RemoveFromRoot();
+	}
+
+	RootSet.Reset();
+}
+
+void FPCGRootSet::Add(UObject* InObject)
+{
+	check(InObject);
+	if (int32* Found = RootSet.Find(InObject))
+	{
+		(*Found)++;
+	}
+	else if(!InObject->IsRooted())
+	{
+		InObject->AddToRoot();
+		RootSet.Emplace(InObject, 1);
+	}
+}
+void FPCGRootSet::Remove(UObject* InObject)
+{
+	check(InObject);
+	if (int32* Found = RootSet.Find(InObject))
+	{
+		check(InObject->IsRooted());
+		(*Found)--;
+
+		if (*Found == 0)
+		{
+			InObject->RemoveFromRoot();
+			RootSet.Remove(InObject);
+		}
+	}
+}
+
 bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 {
 	return Data == Other.Data &&
@@ -117,16 +156,26 @@ bool FPCGDataCollection::operator==(const FPCGDataCollection& Other) const
 	return true;
 }
 
-void FPCGDataCollection::RootUnrootedData(TSet<UObject*>& OutRootedData) const
+void FPCGDataCollection::AddToRootSet(FPCGRootSet& RootSet) const
 {
 	for (const FPCGTaggedData& Data : TaggedData)
 	{
-		if (Data.Data && !Data.Data->IsRooted())
+		if (Data.Data)
 		{
 			// This is technically a const_cast
-			UObject* DataToRoot = Cast<UObject>(Data.Data);
-			DataToRoot->AddToRoot();
-			OutRootedData.Add(DataToRoot);
+			RootSet.Add(Cast<UObject>(Data.Data));
+		}
+	}
+}
+
+void FPCGDataCollection::RemoveFromRootSet(FPCGRootSet& RootSet) const
+{
+	for (const FPCGTaggedData& Data : TaggedData)
+	{
+		if (Data.Data)
+		{
+			// This is technically a const_cast
+			RootSet.Remove(Cast<UObject>(Data.Data));
 		}
 	}
 }

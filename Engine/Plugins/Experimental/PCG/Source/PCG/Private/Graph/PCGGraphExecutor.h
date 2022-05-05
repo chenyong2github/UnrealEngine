@@ -119,7 +119,7 @@ private:
 	TArray<FPCGGraphTask> Tasks;
 	TArray<FPCGGraphTask> ReadyTasks;
 	TArray<FPCGGraphActiveTask> ActiveTasks;
-	TSet<UObject*> RootedData;
+	FPCGRootSet ResultsRootSet;
 	/** Map of node instances to their output, could be cleared once execution is done */
 	/** Note: this should at some point unload based on loaded/unloaded proxies, otherwise memory cost will be unbounded */
 	TMap<FPCGTaskId, FPCGDataCollection> OutputData;

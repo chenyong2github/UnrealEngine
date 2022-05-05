@@ -12,7 +12,7 @@ class AActor;
 struct FPCGGraphCacheEntry
 {
 	FPCGGraphCacheEntry() = default;
-	FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, TSet<UObject*>& OutRootedData);
+	FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, FPCGRootSet& OutRootSet);
 
 	bool Matches(const FPCGDataCollection& InInput, int32 InSettingsCrc32) const;
 
@@ -56,7 +56,7 @@ private:
 	TWeakObjectPtr<UObject> Owner = nullptr;
 
 	/** To prevent garbage collection on data in the cache, we'll need to root some data */
-	TSet<UObject*> RootedData;
+	FPCGRootSet RootSet;
 
 	mutable FRWLock CacheLock;
 };

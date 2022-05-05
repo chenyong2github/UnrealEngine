@@ -41,6 +41,16 @@ struct PCG_API FPCGTaggedData
 	bool operator!=(const FPCGTaggedData& Other) const;
 };
 
+struct FPCGRootSet
+{
+	~FPCGRootSet() { Clear(); }
+	void Clear();
+	void Add(UObject* InObject);
+	void Remove(UObject* InObject);
+
+	TMap<UObject*, int32> RootSet;
+};
+
 USTRUCT(BlueprintType)
 struct PCG_API FPCGDataCollection
 {
@@ -61,7 +71,8 @@ struct PCG_API FPCGDataCollection
 	const UPCGSettings* GetSettings(const UPCGSettings* InDefaultSettings) const;
 
 	bool operator==(const FPCGDataCollection& Other) const;
-	void RootUnrootedData(TSet<UObject*>& OutRootedData) const;
+	void AddToRootSet(FPCGRootSet& RootSet) const;
+	void RemoveFromRootSet(FPCGRootSet& RootSet) const;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TArray<FPCGTaggedData> TaggedData;

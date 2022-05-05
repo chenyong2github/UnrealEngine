@@ -482,7 +482,7 @@ void FPCGGraphExecutor::StoreResults(FPCGTaskId InTaskId, const FPCGDataCollecti
 	OutputData.Add(InTaskId, InTaskOutput);
 
 	// Root any non-rooted results, otherwise they'll get garbage-collected
-	InTaskOutput.RootUnrootedData(RootedData);
+	InTaskOutput.AddToRootSet(ResultsRootSet);
 }
 
 void FPCGGraphExecutor::ClearResults()
@@ -492,11 +492,7 @@ void FPCGGraphExecutor::ClearResults()
 	NextTaskId = 0;
 	OutputData.Reset();
 
-	for (UObject* Data : RootedData)
-	{
-		Data->RemoveFromRoot();
-	}
-	RootedData.Reset();
+	ResultsRootSet.Clear();
 
 	ScheduleLock.Unlock();
 }

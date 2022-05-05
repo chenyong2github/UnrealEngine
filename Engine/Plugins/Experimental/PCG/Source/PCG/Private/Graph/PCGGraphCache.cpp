@@ -7,20 +7,19 @@
 #include "Algo/AnyOf.h"
 #include "GameFramework/Actor.h"
 
-FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, TSet<UObject*>& OutRootedObjects)
+FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, FPCGRootSet& OutRootSet)
 	: Input(InInput)
 	, Output(InOutput)
 {
 	Settings = InSettings ? Cast<UPCGSettings>(StaticDuplicateObject(InSettings, InOwner.Get())) : nullptr;
 	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : 0;
 
-	Input.RootUnrootedData(OutRootedObjects);
-	Output.RootUnrootedData(OutRootedObjects);
+	Input.AddToRootSet(OutRootSet);
+	Output.AddToRootSet(OutRootSet);
 
-	if (Settings && !Settings->IsRooted())
+	if (Settings)
 	{
-		Settings->AddToRoot();
-		OutRootedObjects.Add(Settings);
+		OutRootSet.Add(Settings);
 	}
 }
 
@@ -84,7 +83,7 @@ void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGDataCo
 		Entries = &(CacheData.Add(InElement));
 	}
 
-	Entries->Emplace(InInput, InSettings, InOutput, Owner, RootedData);
+	Entries->Emplace(InInput, InSettings, InOutput, Owner, RootSet);
 }
 
 void FPCGGraphCache::ClearCache()
@@ -95,11 +94,7 @@ void FPCGGraphCache::ClearCache()
 	CacheData.Reset();
 
 	// Unroot all previously rooted data
-	for (UObject* Data : RootedData)
-	{
-		Data->RemoveFromRoot();
-	}
-	RootedData.Reset();
+	RootSet.Clear();
 }
 
 #if WITH_EDITOR
@@ -111,6 +106,22 @@ void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement)
 	}
 
 	FWriteScopeLock ScopeWriteLock(CacheLock);
+	FPCGGraphCacheEntries* Entries = CacheData.Find(InElement);
+	if (Entries)
+	{
+		for (FPCGGraphCacheEntry& Entry : *Entries)
+		{
+			Entry.Input.RemoveFromRootSet(RootSet);
+			Entry.Output.RemoveFromRootSet(RootSet);
+
+			if (Entry.Settings)
+			{
+				RootSet.Remove(Entry.Settings);
+			}
+		}
+	}
+
+	// Finally, remove all entries matching that element
 	CacheData.Remove(InElement);
 }
 #endif // WITH_EDITOR
