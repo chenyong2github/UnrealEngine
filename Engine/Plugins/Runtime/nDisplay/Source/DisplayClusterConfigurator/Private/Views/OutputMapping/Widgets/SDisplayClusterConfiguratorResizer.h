@@ -36,6 +36,7 @@ public:
 
 private:
 	float GetDPIScale() const;
+	bool IsAspectRatioFixed() const;
 
 private:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;

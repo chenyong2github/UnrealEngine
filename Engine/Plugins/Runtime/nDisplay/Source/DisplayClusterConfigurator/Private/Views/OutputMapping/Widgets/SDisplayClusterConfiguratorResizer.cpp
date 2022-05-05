@@ -95,7 +95,7 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 
 		FVector2D NewNodeSize = MouseEvent.GetScreenSpacePosition() - BaseNode->GetTickSpaceGeometry().GetAbsolutePosition();
 
-		bool bIsFixedAspectRatio = IsFixedAspectRatio.Get(false);
+		bool bIsFixedAspectRatio = IsAspectRatioFixed();
 		if (bIsFixedAspectRatio)
 		{
 			// If the aspect ratio is fixed, first get the node's current size to compute the ratio from,
@@ -145,6 +145,14 @@ float SDisplayClusterConfiguratorResizer::GetDPIScale() const
 	}
 
 	return DPIScale;
+}
+
+bool SDisplayClusterConfiguratorResizer::IsAspectRatioFixed() const
+{
+	bool bIsShiftPressed = FSlateApplication::Get().GetModifierKeys().IsShiftDown();
+	bool bIsFixedAspectRatio = IsFixedAspectRatio.Get(false);
+
+	return bIsFixedAspectRatio || bIsShiftPressed;
 }
 
 #undef LOCTEXT_NAMESPACE
