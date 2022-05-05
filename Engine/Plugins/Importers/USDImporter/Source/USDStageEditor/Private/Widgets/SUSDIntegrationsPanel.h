@@ -28,6 +28,8 @@ public:
 	UObject* AnimBPProperty;
 };
 
+#if USE_USD_SDK
+
 class SUsdIntegrationsPanelRow : public SMultiColumnTableRow< TSharedPtr<UE::FUsdAttribute> >
 {
 public:
@@ -65,3 +67,5 @@ private:
 	UE::FUsdStageWeak UsdStage;
 	FString PrimPath;
 };
+
+#endif // USE_USD_SDK

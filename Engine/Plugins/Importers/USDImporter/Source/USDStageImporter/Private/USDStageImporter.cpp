@@ -1258,6 +1258,7 @@ namespace UsdStageImporterImpl
 
 	void SendAnalytics( FUsdStageImportContext& ImportContext, UObject* Asset, const FString& Operation, const TSet<UObject*>& ImportedAssets, double ElapsedSeconds )
 	{
+#if USE_USD_SDK
 		if ( FEngineAnalytics::IsAvailable() )
 		{
 			TArray<FAnalyticsEventAttribute> EventAttributes;
@@ -1361,6 +1362,7 @@ namespace UsdStageImporterImpl
 				FPaths::GetExtension( RootLayerIdentifier )
 			);
 		}
+#endif // USE_USD_SDK
 	}
 
 	// Removes from AssetsToImport assets that are unwanted according to our import options, and adds entries to

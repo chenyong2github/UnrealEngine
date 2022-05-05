@@ -308,6 +308,8 @@ bool FUsdPrimViewModel::CanSetUpLiveLink() const
 	}
 
 	return !Prim.HasAPI( Schema ) && Prim.CanApplyAPI( Schema );
+#else
+	return false;
 #endif // #if USE_USD_SDK
 }
 
@@ -341,6 +343,8 @@ bool FUsdPrimViewModel::CanRemoveLiveLink() const
 	}
 
 	return Prim.HasAPI( Schema );
+#else
+	return false;
 #endif // #if USE_USD_SDK
 }
 

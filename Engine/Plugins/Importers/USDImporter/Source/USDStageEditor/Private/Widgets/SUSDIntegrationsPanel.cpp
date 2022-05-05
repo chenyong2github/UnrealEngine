@@ -2,6 +2,8 @@
 
 #include "SUSDIntegrationsPanel.h"
 
+#if USE_USD_SDK
+
 #include "SUSDStageEditorStyle.h"
 #include "USDIntegrationUtils.h"
 #include "USDTypesConversion.h"
@@ -317,3 +319,4 @@ TSharedRef< ITableRow > SUsdIntegrationsPanel::OnGenerateRow( TSharedPtr<UE::FUs
 }
 
 #undef LOCTEXT_NAMESPACE
+#endif // USE_USD_SDK
