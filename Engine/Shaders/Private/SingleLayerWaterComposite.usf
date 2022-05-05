@@ -54,6 +54,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	Output.Clip = 1.0f; // no clipping
 
 	float3 TransmittanceToScene = 1.0f;
+	float3 SeparatedMainDirLightContribution = 0.0f;
 
 #if STRATA_ENABLED
 
@@ -78,6 +79,12 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			const float3 F0 = ComputeF0(SLW_SPECULAR(SLWaterBSDF), SLW_BASECOLOR(SLWaterBSDF), SLW_METALLIC(SLWaterBSDF));
 			const float Roughness = SLW_ROUGHNESS(SLWaterBSDF);
 			const float SafeRoughness = MakeRoughnessSafe(SLW_ROUGHNESS(SLWaterBSDF));
+
+			if (UseSeparatedMainDirLightTexture > 0.0f)
+			{
+				// Also compose the separated main direction light luminance (separated to be able to combine it with DistanceFieldShadow)
+				SeparatedMainDirLightContribution = SLW_SEPARATEDMAINDIRLIGHT(SLWaterBSDF) * SeparatedMainDirLightTexture[PixelPos].rgb;
+			}
 
 			// Compute the sky reflection contribution
 			float3 Reflection = 0.0f;
@@ -178,6 +185,12 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			// BRDF/Fresnel is already applied for the under water part in the scene.
 			float3 EnvBrdfValue = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
 
+			if (UseSeparatedMainDirLightTexture > 0.0f)
+			{
+				// Also compose the separated main direction light luminance (separated to be able to combine it with DistanceFieldShadow)
+				SeparatedMainDirLightContribution = SeparatedMainDirLightTexture[PixelPos].rgb;
+			}
+
 #endif // STRATA_ENABLED
 
 			Reflection *= EnvBrdfValue;
@@ -199,13 +212,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 				TransmittanceToScene *= WaterMediumTransmittance;
 			}
 
-			Output.LuminanceTransmittance = float4(Reflection, dot(OneThird3, TransmittanceToScene));
-
-			if (UseSeparatedMainDirLightTexture)
-			{
-				// Also compose the separated main direction light luminance (separated to be able to combine it with DistanceFieldShadow)
-				Output.LuminanceTransmittance.rgb += SeparatedMainDirLightTexture[PixelPos].rgb;
-			}
+			Output.LuminanceTransmittance = float4(Reflection + SeparatedMainDirLightContribution, dot(OneThird3, TransmittanceToScene));
 		}
 		else
 		{

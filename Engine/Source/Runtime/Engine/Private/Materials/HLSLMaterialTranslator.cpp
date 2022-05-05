@@ -10117,6 +10117,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 				{
 					StrataMaterialRequestedSizeByte += UintByteSize;
 					StrataMaterialRequestedSizeByte += UintByteSize;
+					StrataMaterialRequestedSizeByte += UintByteSize;
 					break;
 				}
 				case STRATA_BSDF_TYPE_UNLIT:

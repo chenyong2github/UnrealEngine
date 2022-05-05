@@ -280,7 +280,8 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	check(SceneColorTexture);
 	check(SceneDepthTexture);
 
-	const bool bCopyColor = !SingleLayerWaterUsesSimpleShading(Views[0].GetShaderPlatform());
+	EShaderPlatform ShaderPlatform = Views[0].GetShaderPlatform();
+	const bool bCopyColor = !SingleLayerWaterUsesSimpleShading(ShaderPlatform);
 
 	const FRDGTextureDesc& SceneColorDesc = SceneColorTexture->Desc;
 	const FRDGTextureDesc& SceneDepthDesc = SceneColorTexture->Desc;
@@ -298,8 +299,14 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	const FRDGTextureDesc DepthDesc(FRDGTextureDesc::Create2D(RefractionResolution, ViewFamily.EngineShowFlags.SingleLayerWaterRefractionFullPrecision ? PF_R32_FLOAT : PF_R16F, SceneDepthDesc.ClearValue, TexCreate_ShaderResource | TexCreate_RenderTargetable));
 	FRDGTextureRef SceneDepthWithoutSingleLayerWaterTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("SLW.SceneDepthWithout"));
 
-	const FRDGTextureDesc SeparatedMainDirLightDesc(FRDGTextureDesc::Create2D(SceneColorDesc.Extent, PF_FloatR11G11B10, SceneDepthDesc.ClearValue, TexCreate_ShaderResource | TexCreate_RenderTargetable));
+	const FRDGTextureDesc SeparatedMainDirLightDesc(FRDGTextureDesc::Create2D(SceneColorDesc.Extent, PF_FloatR11G11B10, FClearValueBinding(FLinearColor::White), TexCreate_ShaderResource | TexCreate_RenderTargetable));
 	FRDGTextureRef SeparatedMainDirLightTexture = GraphBuilder.CreateTexture(SeparatedMainDirLightDesc, TEXT("SLW.SeparatedMainDirLight"));
+	if (IsWaterDistanceFieldShadowEnabled_Runtime(ShaderPlatform) && Strata::IsStrataEnabled())
+	{
+		// This clear is needed with strata because that texture will be modulated by DFShadows.
+		// STRATA_TODO: when strata is enabled, we can change RenderRayTracedDistanceFieldProjection to have a bForceNoBlending instead if bForceRGBModulation and remove that clear.
+		AddClearRenderTargetPass(GraphBuilder, SeparatedMainDirLightTexture);
+	}
 
 	FSceneWithoutWaterTextures Textures;
 	Textures.RefractionDownsampleFactor = float(RefractionDownsampleFactor);
@@ -814,7 +821,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
-	if(IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))
+	if(IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()) 
+		&& !Strata::IsStrataEnabled())	// We do not bind that texture if Strata is enabled as the data will go through the Strata material buffer.
 	{
 		const bool bNeverClear = true;
 		BasePassTextures[BasePassTextureCount++] = FTextureRenderTargetBinding(SceneWithoutWaterTextures.SeparatedMainDirLightTexture, bNeverClear);

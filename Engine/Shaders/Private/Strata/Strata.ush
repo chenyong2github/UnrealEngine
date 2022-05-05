@@ -431,6 +431,7 @@ struct FStrataBSDF
 #define SLW_SPECULAR(X)					X.VGPRs[1].y
 #define SLW_ROUGHNESS(X)				X.VGPRs[1].z
 #define SLW_TOPMATERIALOPACITY(X)		X.VGPRs[1].w
+#define SLW_SEPARATEDMAINDIRLIGHT(X)	X.VGPRs[2].xyz
 #if STRATA_INLINE_SINGLELAYERWATER
 #define SLW_WATERALBEDO(X)				X.InlineVGPRs[0].xyz
 #define SLW_WATEREXTINCTION(X)			X.InlineVGPRs[1].xyz
@@ -1241,6 +1242,7 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 	SLW_SPECULAR					(StrataData.InlinedBSDF) = Specular;
 	SLW_ROUGHNESS					(StrataData.InlinedBSDF) = Roughness;
 	SLW_TOPMATERIALOPACITY			(StrataData.InlinedBSDF) = TopMaterialOpacity;
+	SLW_SEPARATEDMAINDIRLIGHT		(StrataData.InlinedBSDF) = float3(0.0f, 0.0f, 0.0f);
 #if STRATA_INLINE_SINGLELAYERWATER
 	SLW_WATERALBEDO					(StrataData.InlinedBSDF) = WaterAlbedo;
 	SLW_WATEREXTINCTION				(StrataData.InlinedBSDF) = WaterExtinction;
@@ -3344,6 +3346,7 @@ void PackStrataOut(
 					{
 						STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
 						STRATA_STORE_UINT1(PackRGBA8(float4(SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF), SLW_ROUGHNESS(BSDF), SLW_TOPMATERIALOPACITY(BSDF))));
+						STRATA_STORE_UINT1(PackR11G11B10F(SLW_SEPARATEDMAINDIRLIGHT(BSDF)));	// STRATA_TODO make this an optional load/store base on if DistanceFieldShadow are enabled
 					}
 					break;
 					}
@@ -3644,7 +3647,8 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		SLW_SPECULAR(OutBSDF) = Data.y;
 		SLW_ROUGHNESS(OutBSDF) = Data.z;
 		SLW_TOPMATERIALOPACITY(OutBSDF) = Data.w;
-		// 8 bytes
+		StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLW_SEPARATEDMAINDIRLIGHT(OutBSDF));
+		// 12 bytes
 	}
 	break;
 	}

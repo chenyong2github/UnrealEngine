@@ -1705,6 +1705,9 @@ void FPixelShaderInOut_MainPS(
 	// Need to reset color to make sure strata material are only lit using Strata lighting passes.
 	// Except for water doing some specialised and simplified lighting during the base pass
 	Color = 0;
+#else
+	// Store the potential separated main dir light contribution into the water BSDF
+	SLW_SEPARATEDMAINDIRLIGHT(StrataPixelHeader.StrataTree.BSDFs[0]) = SeparatedWaterMainDirLightLuminance * View.PreExposure;
 #endif
 
 	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases
@@ -1983,20 +1986,6 @@ void FPixelShaderInOut_MainPS(
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = 0;
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = 0;
 			}
-
-		#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT && STRATA_ENABLED
-			if (bSeparateWaterMainDirLightLuminance)
-			{
-				// STRATA_TODO: we should have a define set to the correct output index.
-				#if PIXELSHADEROUTPUT_MRT2
-					Out.MRT[2] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 0.0f);
-				#elif PIXELSHADEROUTPUT_MRT1
-					Out.MRT[1] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 0.0f);
-				#else
-					Out.MRT[0] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 0.0f);
-				#endif
-			}
-		#endif
 
 		#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT && !STRATA_ENABLED
 			if (GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
