@@ -879,6 +879,54 @@ namespace Chaos
 			return BestPlaneIndex;
 		}
 
+		template<typename ConvexImplicitType>
+		bool CheckVertexIndex(const ConvexImplicitType& Convex, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid vertex index (type:%d) %d"), Convex.GetType(), VertexIndex);
+			return VertexIndex != INDEX_NONE;
+		}
+
+		template<>
+		bool CheckVertexIndex(const FTriangle& Triangle, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid Triangle VertexIndex %d"), VertexIndex);
+			return VertexIndex != INDEX_NONE;
+		}
+
+		template<>
+		bool CheckVertexIndex(const FImplicitCapsule3& Capsule, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid Capsule VertexIndex %d"), VertexIndex);
+			return VertexIndex != INDEX_NONE;
+		}
+
+		template<>
+		bool CheckVertexIndex(const FImplicitBox3& Box, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid Box VertexIndex %d"), VertexIndex);
+			return VertexIndex != INDEX_NONE;
+		}
+
+		template<>
+		bool CheckVertexIndex(const FImplicitConvex3& Convex, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid Convex VertexIndex %d [%d, %d, %d]"), VertexIndex, Convex.NumVertices(), Convex.NumEdges(), Convex.NumPlanes());
+			return VertexIndex != INDEX_NONE;
+		}
+
+		template<>
+		bool CheckVertexIndex(const TImplicitObjectInstanced<FImplicitConvex3>& Convex, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid InstancedConvex VertexIndex %d [%d, %d, %d]"), VertexIndex, Convex.NumVertices(), Convex.NumEdges(), Convex.NumPlanes());
+			return VertexIndex != INDEX_NONE;
+		}
+
+		template<>
+		bool CheckVertexIndex(const TImplicitObjectScaled<FImplicitConvex3>& Convex, const int32 VertexIndex)
+		{
+			ensureMsgf(VertexIndex != INDEX_NONE, TEXT("GJKContactPointMargin invalid ScaledConvex VertexIndex %d [%d, %d, %d]"), VertexIndex, Convex.NumVertices(), Convex.NumEdges(), Convex.NumPlanes());
+			return VertexIndex != INDEX_NONE;
+		}
 
 		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
 		void ConstructConvexConvexOneShotManifold(
@@ -911,6 +959,13 @@ namespace Chaos
 			int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 			FContactPoint GJKContactPoint = GJKContactPointMargin(Convex1, Convex2, Convex2ToConvex1Transform, Margin1, Margin2, Constraint.GetGJKWarmStartData(), MaxMarginDelta, VertexIndexA, VertexIndexB);
 			PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumManifoldsGJKCalled, 1, ECsvCustomStatOp::Accumulate);
+
+			// We are seeing very rare cases where the VertexIndex is not set from an FConvex, even though the convex has vertices
+			// @todo(chaos): track down this problem - there is no path through GJKContactPointMargin (for FConvex) which does not set the VertexIndex
+			if (!CheckVertexIndex(Convex1, VertexIndexA) || !CheckVertexIndex(Convex2, VertexIndexB))
+			{
+				return;
+			}
 
 			const bool bCanUpdateManifold = bChaos_Collision_EnableManifoldGJKReplace;
 			if (bCanUpdateManifold && Constraint.TryAddManifoldContact(GJKContactPoint))
