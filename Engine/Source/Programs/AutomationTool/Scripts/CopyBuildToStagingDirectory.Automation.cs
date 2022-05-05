@@ -4011,12 +4011,24 @@ namespace AutomationScripts
 					try
 					{
 						DeleteDirectory(SC.StageDirectory.FullName);
-						DeleteDirectory(SC.OptionalFileStageDirectory.FullName);
 					}
 					catch (Exception Ex)
 					{
 						// Delete cooked data (if any) as it may be incomplete / corrupted.
 						throw new AutomationException(ExitCode.Error_FailedToDeleteStagingDirectory, Ex, "Stage Failed. Failed to delete staging directory " + SC.StageDirectory.FullName);
+					}
+					if (SC.OptionalFileStageDirectory != null && DirectoryReference.Exists(SC.OptionalFileStageDirectory))
+					{
+						LogInformation("Cleaning Optional Stage Directory: {0}", SC.OptionalFileStageDirectory.FullName);
+						try
+						{
+							DeleteDirectory(SC.OptionalFileStageDirectory.FullName);
+						}
+						catch (Exception Ex)
+						{
+							// Delete cooked data (if any) as it may be incomplete / corrupted.
+							throw new AutomationException(ExitCode.Error_FailedToDeleteStagingDirectory, Ex, "Stage Failed. Failed to delete staging directory " + SC.OptionalFileStageDirectory.FullName);
+						}
 					}
 				}
 			}
