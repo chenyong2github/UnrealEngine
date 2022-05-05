@@ -645,9 +645,17 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Remaps the given content directory to its final location
+		/// Remaps the given content file to its final location
 		/// </summary>
 		public virtual StagedFileReference Remap(StagedFileReference Dest)
+		{
+			return Dest;
+		}
+
+		/// <summary>
+		/// Remaps the given content directory to its final location
+		/// </summary>
+		public virtual StagedDirectoryReference Remap(StagedDirectoryReference Dest)
 		{
 			return Dest;
 		}
