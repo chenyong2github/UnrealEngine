@@ -8,6 +8,7 @@
 struct FConcertSessionVersionInfo;
 
 DECLARE_DELEGATE_OneParam(FConcertSyncRemapObjectPath, FString& /*ObjectPath*/)
+DECLARE_DELEGATE_RetVal_OneParam(bool, FConcertSyncObjectPathBelongsToWorld, const FStringView /*ObjectPath*/)
 
 namespace ConcertSyncUtil
 {
@@ -33,6 +34,7 @@ public:
 	bool HasMapping() const;
 
 	FConcertSyncRemapObjectPath RemapDelegate;
+	FConcertSyncObjectPathBelongsToWorld ObjectPathBelongsToWorldDelegate;
 
 private:
 	FString SourceWorldPathName;
