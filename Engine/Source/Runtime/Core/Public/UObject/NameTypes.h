@@ -231,6 +231,7 @@ private:
 #endif // UE_FNAME_OUTLINE_NUMBER
 	};
 
+	FNameEntry(struct FClangKeepDebugInfo);
 	FNameEntry(const FNameEntry&) = delete;
 	FNameEntry(FNameEntry&&) = delete;
 	FNameEntry& operator=(const FNameEntry&) = delete;

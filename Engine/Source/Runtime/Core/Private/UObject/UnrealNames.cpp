@@ -1962,6 +1962,10 @@ static uint16 GetRawNonCasePreservingHash(const TCharType* Source)
 	FNameEntry
 -----------------------------------------------------------------------------*/
 
+// Make Clang keep FNameEntry type debug info needed for debug visualizers
+struct FClangKeepDebugInfo {};
+FNameEntry::FNameEntry(FClangKeepDebugInfo) {}
+
 void FNameEntry::StoreName(const ANSICHAR* InName, uint32 Len)
 {
 	FPlatformMemory::Memcpy(AnsiName, InName, sizeof(ANSICHAR) * Len);

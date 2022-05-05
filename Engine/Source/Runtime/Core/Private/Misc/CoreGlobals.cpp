@@ -248,9 +248,6 @@ uint8** CORE_API GNameBlocksDebug = FNameDebugVisualizer::GetBlocks();
 FChunkedFixedUObjectArray*& CORE_API GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
 UE::ObjectPath::Private::FStoredObjectPath*& GComplexObjectPathDebug = GCoreComplexObjectPathDebug;
 FObjectHandlePackageDebugData*& CORE_API GObjectHandlePackageDebug = GCoreObjectHandlePackageDebug;
-
-// Create a global to make sure FNameEntry symbol is around which is needed to dump FName info when debugging
-FNameEntry* CORE_API GFNameEntryPreserveSymbol = nullptr;
 #endif
 
 /** Game name, used for base game directory and ini among other things										*/
