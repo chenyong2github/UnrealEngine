@@ -136,7 +136,7 @@ private:
 		{
 			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
-				return FText::FromName(ActorDesc->GetActorClass()->GetFName());
+				return FText::FromName(ActorDesc->GetDisplayClassName());
 			}
 		}
 
@@ -156,7 +156,7 @@ private:
 		{
 			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
-				const FName IconName = ActorDesc->GetActorClass()->GetFName();
+				const FName IconName = ActorDesc->GetNativeClass();
 
 				const FSlateBrush* CachedBrush = WeakSceneOutliner.Pin()->GetCachedIconForClass(IconName);
 				if (CachedBrush != nullptr)
@@ -165,8 +165,7 @@ private:
 				}
 				else if (IconName != NAME_None)
 				{
-
-					const FSlateBrush* FoundSlateBrush = FSlateIconFinder::FindIconForClass(ActorDesc->GetActorClass()).GetIcon();
+					const FSlateBrush* FoundSlateBrush = FSlateIconFinder::FindIconForClass(ActorDesc->GetActorNativeClass()).GetIcon();
 					WeakSceneOutliner.Pin()->CacheIconForClass(IconName, FoundSlateBrush);
 					return FoundSlateBrush;
 				}

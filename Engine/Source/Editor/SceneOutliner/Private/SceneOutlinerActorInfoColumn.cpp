@@ -59,14 +59,10 @@ struct FGetInfo
 		}
 		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
 		{
-			const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get();
-
-			if (!ActorDesc)
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 			{
-				return FString();
+				return ActorDesc->GetDisplayClassName().ToString();
 			}
-
-			return ActorDesc->GetActorClass()->GetName();
 		}
 
 		return FString();

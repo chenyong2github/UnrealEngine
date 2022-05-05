@@ -95,7 +95,6 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	// Actor Class Filter
 	UClass* ActorClass = AActor::StaticClass();
 
-	// @todo_ow: support BP Classes when the ActorDesc have that information
 	if (!ActorClassName.IsEmpty())
 	{
 		if (bSwitchActorPackagingSchemeToReduced)
@@ -104,11 +103,28 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 			return false;
 		}
 
+		// Look for native classes
 		ActorClass = FindObject<UClass>(ANY_PACKAGE, *ActorClassName);
+
 		if (!ActorClass)
 		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to find Actor Class: %s."), *ActorClassName);
-			return false;
+			// Look for a fully qualified BP class
+			ActorClass = LoadClass<AActor>(nullptr, *ActorClassName, nullptr, LOAD_None, nullptr);
+
+			if (!ActorClass)
+			{
+				// Look for a package BP
+				if (FPackageName::DoesPackageExist(ActorClassName))
+				{
+					ActorClass = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("%s.%s_C"), *ActorClassName, *FPackageName::GetLongPackageAssetName(ActorClassName)), nullptr, LOAD_None, nullptr);
+				}
+
+				if (!ActorClass)
+				{
+					UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to find Actor Class: %s."), *ActorClassName);
+					return false;
+				}
+			}
 		}
 	}
 

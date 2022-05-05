@@ -37,14 +37,19 @@ const FGuid& FWorldPartitionActorDescView::GetGuid() const
 	return ActorDesc->GetGuid();
 }
 
-FName FWorldPartitionActorDescView::GetClass() const
+FName FWorldPartitionActorDescView::GetBaseClass() const
 {
-	return ActorDesc->GetClass();
+	return ActorDesc->GetBaseClass();
 }
 
-UClass* FWorldPartitionActorDescView::GetActorClass() const
+FName FWorldPartitionActorDescView::GetNativeClass() const
 {
-	return ActorDesc->GetActorClass();
+	return ActorDesc->GetNativeClass();
+}
+
+UClass* FWorldPartitionActorDescView::GetActorNativeClass() const
+{
+	return ActorDesc->GetActorNativeClass();
 }
 
 FVector FWorldPartitionActorDescView::GetOrigin() const

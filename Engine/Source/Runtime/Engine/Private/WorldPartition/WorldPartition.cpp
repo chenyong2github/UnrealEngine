@@ -99,7 +99,7 @@ FString GetActorDescDumpString(const FWorldPartitionActorDesc* ActorDesc, const 
 	return FString::Printf(
 		TEXT("%s, %s, %s, %s, %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %s") LINE_TERMINATOR,
 		*ActorDesc->GetGuid().ToString(),
-		*ActorDesc->GetClass().ToString(),
+		*ActorDesc->GetNativeClass().ToString(),
 		*ActorDesc->GetActorName().ToString(),
 		*ActorDesc->GetActorPackage().ToString(),
 		*ActorDesc->GetActorLabel().ToString(),
@@ -490,7 +490,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
 		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
-			if (ActorDescIterator->GetActorClass()->IsChildOf<AWorldDataLayers>())
+			if (ActorDescIterator->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
 			{
 				WorldDataLayersActor = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
 				break;

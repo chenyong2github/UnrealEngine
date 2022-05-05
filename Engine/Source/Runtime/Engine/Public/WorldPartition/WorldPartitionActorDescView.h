@@ -23,8 +23,9 @@ public:
 	FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc);
 
 	const FGuid& GetGuid() const;
-	FName GetClass() const;
-	UClass* GetActorClass() const;
+	FName GetBaseClass() const;
+	FName GetNativeClass() const;
+	UClass* GetActorNativeClass() const;
 	FVector GetOrigin() const;
 	FName GetRuntimeGrid() const;
 	bool GetIsSpatiallyLoaded() const;

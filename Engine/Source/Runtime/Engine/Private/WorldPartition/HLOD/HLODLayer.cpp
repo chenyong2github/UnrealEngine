@@ -67,7 +67,7 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDescView& InActor
 	}
 
 	// Only fallback to the default HLODLayer for the first level of HLOD
-	bool bIsHLOD0 = !InActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+	bool bIsHLOD0 = !InActorDesc.GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>();
 	if (bIsHLOD0)
 	{
 		// Fallback to the world partition default HLOD layer

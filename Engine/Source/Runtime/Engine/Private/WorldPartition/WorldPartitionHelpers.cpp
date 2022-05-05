@@ -9,14 +9,34 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHelpers, Log, All);
 
-
 #if WITH_EDITOR
+
+UClass* FWorldPartitionHelpers::ResolveActorDescClass(const FWorldPartitionActorDesc* ActorDesc)
+{
+	UClass* ActorNativeClass = ActorDesc->GetActorNativeClass();
+	UClass* ActorBaseClass = ActorNativeClass;
+
+	if (FName ActorBaseClassName = ActorDesc->GetBaseClass(); !ActorBaseClassName.IsNone())
+	{
+		ActorBaseClass = LoadClass<AActor>(nullptr, *ActorBaseClassName.ToString(), nullptr, LOAD_None, nullptr);
+
+		if (!ActorBaseClass)
+		{
+			UE_LOG(LogWorldPartitionHelpers, Warning, TEXT("Failed to find actor base class: %s."), *ActorBaseClassName.ToString());
+			ActorBaseClass = ActorNativeClass;
+		}
+	}
+
+	return ActorBaseClass;
+}
 
 void FWorldPartitionHelpers::ForEachIntersectingActorDesc(UWorldPartition* WorldPartition, const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
 {
 	WorldPartition->EditorHash->ForEachIntersectingActor(Box, [&ActorClass, Predicate](const FWorldPartitionActorDesc* ActorDesc)
 	{
-		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
+		UClass* ActorDescClass = ResolveActorDescClass(ActorDesc);
+
+		if (ActorDescClass->IsChildOf(ActorClass))
 		{
 			Predicate(ActorDesc);
 		}
@@ -25,11 +45,16 @@ void FWorldPartitionHelpers::ForEachIntersectingActorDesc(UWorldPartition* World
 
 void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
 {
-	for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition, ActorClass); ActorDescIterator; ++ActorDescIterator)
+	for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
-		if (!Predicate(*ActorDescIterator))
+		UClass* ActorDescClass = ResolveActorDescClass(*ActorDescIterator);
+
+		if (ActorDescClass->IsChildOf(ActorClass))
 		{
-			return;
+			if (!Predicate(*ActorDescIterator))
+			{
+				return;
+			}
 		}
 	}
 }
@@ -81,9 +106,16 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 {
 	TMap<FGuid, FWorldPartitionReference> ActorReferences;
 
-	ForEachActorDesc(WorldPartition, ActorClass, [&](const FWorldPartitionActorDesc* ActorDesc)
+	ForEachActorDesc(WorldPartition, [&](const FWorldPartitionActorDesc* ActorDesc)
 	{
-		return WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorDesc->GetGuid(), WorldPartition, Predicate, OnReleasingActorReferences, bGCPerActor, ActorReferences);
+		UClass* ActorDescClass = ResolveActorDescClass(ActorDesc);
+
+		if (ActorDescClass->IsChildOf(ActorClass))
+		{
+			return WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorDesc->GetGuid(), WorldPartition, Predicate, OnReleasingActorReferences, bGCPerActor, ActorReferences);
+		}
+
+		return true;
 	});
 
 	OnReleasingActorReferences();

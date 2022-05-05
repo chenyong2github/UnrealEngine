@@ -266,7 +266,7 @@ static TMap<UHLODLayer*, int32> GatherHLODLayers(UWorldPartition* WorldPartition
 	for (FActorDescList::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
 		const FWorldPartitionActorDesc& ActorDesc = **ActorDescIterator;
-		if (!ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+		if (!ActorDesc.GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
 		{
 			if (ActorDesc.GetActorIsHLODRelevant())
 			{

@@ -196,7 +196,7 @@ public:
 		bool bUnloadedActorExists = false;
 		auto FindActor = [&FoundActor, &bUnloadedActorExists, InCellCoord, InActorPartitionId, InGridSize, ThisWorld = World](const FWorldPartitionActorDesc* ActorDesc)
 		{
-			check(ActorDesc->GetActorClass()->IsChildOf(InActorPartitionId.GetClass()));
+			check(ActorDesc->GetActorNativeClass()->IsChildOf(InActorPartitionId.GetClass()));
 			FPartitionActorDesc* PartitionActorDesc = (FPartitionActorDesc*)ActorDesc;
 			if ((PartitionActorDesc->GridIndexX == InCellCoord.X) &&
 				(PartitionActorDesc->GridIndexY == InCellCoord.Y) &&

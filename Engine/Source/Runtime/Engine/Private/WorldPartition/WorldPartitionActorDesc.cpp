@@ -10,6 +10,7 @@
 #include "Algo/Transform.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
+#include "Misc/PackageName.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
@@ -41,9 +42,17 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	Guid = InActor->GetActorGuid();
 	check(Guid.IsValid());
 
+	UClass* ActorClass = InActor->GetClass();
+
 	// Get the first native class in the hierarchy
-	ActorClass = GetParentNativeClass(InActor->GetClass());
-	Class = ActorClass->GetFName();
+	ActorNativeClass = GetParentNativeClass(ActorClass);
+	NativeClass = ActorNativeClass->GetFName();
+	
+	// For native class, don't set this
+	if (!ActorClass->IsNative())
+	{
+		BaseClass = *InActor->GetClass()->GetPathName();
+	}
 
 	const FBox StreamingBounds = InActor->GetStreamingBounds();
 	StreamingBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
@@ -120,8 +129,8 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 {
 	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
-	ActorClass = DescData.NativeClass;
-	Class = DescData.NativeClass->GetFName();
+	ActorNativeClass = DescData.NativeClass;
+	NativeClass = DescData.NativeClass->GetFName();
 
 	// Serialize actor metadata
 	FMemoryReader MetadataAr(DescData.SerializedData, true);
@@ -140,7 +149,8 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 {
 	if (Guid == Other->Guid && 
-		Class == Other->Class && 
+		BaseClass == Other->BaseClass && 
+		NativeClass == Other->NativeClass && 
 		ActorPackage == Other->ActorPackage && 
 		ActorPath == Other->ActorPath && 
 		ActorLabel == Other->ActorLabel && 
@@ -214,9 +224,10 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 FString FWorldPartitionActorDesc::ToString() const
 {
 	return FString::Printf(
-		TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
+		TEXT("Guid:%s BaseClass:%s NativeClass:%s Name:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
 		*Guid.ToString(), 
-		*Class.ToString(), 
+		*BaseClass.ToString(), 
+		*NativeClass.ToString(), 
 		*GetActorName().ToString(),
 		bIsSpatiallyLoaded ? TEXT("true") : TEXT("false"),
 		*GetBounds().ToString(),
@@ -238,7 +249,12 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
 
-	Ar << Class << Guid;
+	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescNativeBaseClassSerialization)
+	{
+		Ar << BaseClass;
+	}
+
+	Ar << NativeClass << Guid;
 
 	if(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
 	{
@@ -336,6 +352,25 @@ FName FWorldPartitionActorDesc::GetActorName() const
 FName FWorldPartitionActorDesc::GetActorLabelOrName() const
 {
 	return GetActorLabel().IsNone() ? GetActorName() : GetActorLabel();
+}
+
+FName FWorldPartitionActorDesc::GetDisplayClassName() const
+{
+	if (BaseClass.IsNone())
+	{
+		return NativeClass;
+	}
+
+	int32 Index;
+	const FString BaseClassStr(BaseClass.ToString());
+	if (BaseClassStr.FindLastChar(TCHAR('.'), Index))
+	{
+		FString CleanClassName = BaseClassStr.Mid(Index + 1);
+		CleanClassName.RemoveFromEnd(TEXT("_C"));
+		return *CleanClassName;
+	}
+
+	return BaseClass;
 }
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const

@@ -648,7 +648,7 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 	// Preparation Phase :: Actor Clusters Creation
 	FActorClusterContext ActorClusterContext = StreamingGenerator.CreateActorClusters([](const FWorldPartitionActorDescView& ActorDescView)
 	{
-		return !ActorDescView.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+		return !ActorDescView.GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>();
 	});
 
 	RuntimeHash->GenerateHLOD(SourceControlHelper, ActorClusterContext, bCreateActorsOnly);

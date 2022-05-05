@@ -24,6 +24,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Remapped bEvaluateWorldPositionOffset to bEvaluateWorldPositionOffsetInRayTracing
 		RemappedEvaluateWorldPositionOffsetInRayTracing,
 
+		// Serialize native and base class for actor descriptors
+		WorldPartitionActorDescNativeBaseClassSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -45,8 +45,12 @@ public:
 
 	inline const FGuid& GetGuid() const { return Guid; }
 	
-	inline FName GetClass() const { return Class; }
-	inline UClass* GetActorClass() const { return ActorClass; }
+	UE_DEPRECATED(5.1, "GetClass is deprecated, GetBaseClass or GetNativeClass should be used instead.")
+	inline FName GetClass() const { return GetNativeClass(); }
+
+	inline FName GetBaseClass() const { return BaseClass; }
+	inline FName GetNativeClass() const { return NativeClass; }
+	inline UClass* GetActorNativeClass() const { return ActorNativeClass; }
 	inline FVector GetOrigin() const { return GetBounds().GetCenter(); }
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
 	inline bool GetIsSpatiallyLoaded() const { return bIsForcedNonSpatiallyLoaded ? false : bIsSpatiallyLoaded; }
@@ -69,6 +73,7 @@ public:
 
 	FName GetActorName() const;
 	FName GetActorLabelOrName() const;
+	FName GetDisplayClassName() const;
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
@@ -176,7 +181,8 @@ protected:
 
 	// Persistent
 	FGuid							Guid;
-	FName							Class;
+	FName							BaseClass;
+	FName							NativeClass;
 	FName							ActorPackage;
 	FName							ActorPath;
 	FName							ActorLabel;
@@ -199,7 +205,7 @@ protected:
 	// Transient
 	mutable uint32					SoftRefCount;
 	mutable uint32					HardRefCount;
-	UClass*							ActorClass;
+	UClass*							ActorNativeClass;
 	mutable TWeakObjectPtr<AActor>	ActorPtr;
 	UActorDescContainer*			Container;
 	TArray<FName>					DataLayerInstanceNames;

@@ -51,6 +51,7 @@ public:
 			: ActorsIterator(InActorDescList->ActorsByGuid)
 			, ActorClass(InActorClass)
 		{
+			check(ActorClass->IsNative());
 			check(ActorClass->IsChildOf(ActorType::StaticClass()));
 
 			if (ShouldSkip())
@@ -112,7 +113,7 @@ public:
 				return false;
 			}
 
-			return !ActorsIterator->Value->Get()->GetActorClass()->IsChildOf(ActorClass);
+			return !ActorsIterator->Value->Get()->GetActorNativeClass()->IsChildOf(ActorClass);
 		}
 
 		IteratorType ActorsIterator;

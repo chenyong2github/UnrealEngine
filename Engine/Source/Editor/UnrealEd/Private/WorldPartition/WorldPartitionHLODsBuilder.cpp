@@ -811,7 +811,7 @@ TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorkloads(int32 NumWor
 			if (SubActor.ContainerID.IsMainContainer())
 			{
 				FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActor.ActorGuid);
-				if (SubActorDesc && SubActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+				if (SubActorDesc && SubActorDesc->GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
 				{
 					ChildHLODs.Add(SubActor.ActorGuid);
 				}
@@ -893,7 +893,7 @@ bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload)
 			return false;
 		}
 
-		if (!ActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+		if (!ActorDesc->GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
 		{
 			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Unexpected actor guid found in HLOD workload, exiting..."));
 			return false;
@@ -910,7 +910,7 @@ bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload)
 				// Invalid sub actor guid found, this is unexpected when running distributed builds as the build step is always preceeded by the setup step.
 				check(SubActorDesc || !bDistributedBuild);
 
-				if (SubActorDesc && SubActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+				if (SubActorDesc && SubActorDesc->GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
 				{
 					if (!ProcessedHLOD.Contains(SubActor.ActorGuid))
 					{

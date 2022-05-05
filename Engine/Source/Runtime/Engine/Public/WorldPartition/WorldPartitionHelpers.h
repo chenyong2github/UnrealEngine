@@ -12,6 +12,8 @@ class FWorldPartitionActorDesc;
 
 class ENGINE_API FWorldPartitionHelpers
 {
+	static UClass* ResolveActorDescClass(const FWorldPartitionActorDesc* ActorDesc);
+
 public:
 	template <class ActorClass = AActor>
 	static void ForEachIntersectingActorDesc(UWorldPartition* WorldPartition, const FBox& Box, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
