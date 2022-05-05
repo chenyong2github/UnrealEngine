@@ -114,7 +114,14 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 			// Second, add the instances
 			for (FWeightedMeshAndInstances& Instances : WeightedEntries)
 			{
-				if (!Instances.Entry.Mesh || Instances.Instances.Num() == 0)
+				if (Instances.Instances.Num() == 0)
+				{
+					continue;
+				}
+
+				Instances.Entry.Mesh.LoadSynchronous();
+
+				if (!Instances.Entry.Mesh)
 				{
 					continue;
 				}

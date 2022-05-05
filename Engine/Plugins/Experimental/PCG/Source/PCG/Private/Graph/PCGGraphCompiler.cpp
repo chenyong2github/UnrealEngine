@@ -108,16 +108,8 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 				PostTask.Inputs.Emplace(OutputNodeTask->NodeId, nullptr, nullptr);
 			}
 
+			check(!IdMapping.Contains(Node));
 			IdMapping.Add(Node, PostId);
-
-			// Prime any input-less nodes from the subgraph
-			for (const UPCGNode* SubNode : Subgraph->GetNodes())
-			{
-				if(!SubNode->HasInboundEdges())
-				{
-					NodeQueue.Add(SubNode);
-				}
-			}
 		}
 		else
 		{
@@ -148,6 +140,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 				}
 			}
 
+			check(!IdMapping.Contains(Node));
 			IdMapping.Add(Node, NodeId);
 		}
 
@@ -164,6 +157,12 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 
 				const UPCGNode* OutboundNode = OutboundEdge->OutputPin->Node;
 				check(OutboundNode);
+
+				if (NodeQueue.Contains(OutboundNode))
+				{
+					continue;
+				}
+
 				bool bAllPrerequisitesMet = true;
 
 				for (const UPCGPin* OutboundNodeInputPin : OutboundNode->InputPins)
