@@ -17,6 +17,10 @@ StructuredBuffer<uint> CardPageIndexData;
 RWStructuredBuffer<uint> RWCardTileAllocator;
 RWStructuredBuffer<uint> RWCardTiles;
 
+groupshared uint SharedTileAllocator;
+groupshared uint SharedTiles[THREADGROUP_SIZE * THREADGROUP_SIZE];
+groupshared uint SharedGlobalTileOffset;
+
 /**
  * Splice card pages into N card tiles
  */
@@ -26,13 +30,26 @@ void SpliceCardPagesIntoTilesCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+	uint LinearThreadIndex = GroupThreadId.x + GroupThreadId.y * THREADGROUP_SIZE;
+	if (all(GroupThreadId == 0))
+	{
+		SharedTileAllocator = 0;
+		SharedGlobalTileOffset = 0;
+		SharedTiles[0] = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
 	// One thread per tile
 	uint LinearLightTileOffset = (GroupId.x % 4);
 	uint IndexInIndexBuffer = GroupId.x / 4;
 
+	// Improve tile coherency
+	uint2 TileOffset = ZOrder2D(LinearThreadIndex, log2(8));
+
 	uint2 TileCoord;
-	TileCoord.x = (LinearLightTileOffset % 2) * 8 + GroupThreadId.x;
-	TileCoord.y = (LinearLightTileOffset / 2) * 8 + GroupThreadId.y;
+	TileCoord.x = (LinearLightTileOffset % 2) * 8 + TileOffset.x;
+	TileCoord.y = (LinearLightTileOffset / 2) * 8 + TileOffset.y;
 
 	if (IndexInIndexBuffer < CardPageIndexAllocator[0])
 	{
@@ -51,10 +68,24 @@ void SpliceCardPagesIntoTilesCS(
 				CardTile.TileCoord = TileCoord;
 
 				uint CardTileIndex = 0;
-				InterlockedAdd(RWCardTileAllocator[0], 1, CardTileIndex);
-				RWCardTiles[CardTileIndex] = PackCardTileData(CardTile);
+				InterlockedAdd(SharedTileAllocator, 1, CardTileIndex);
+				SharedTiles[CardTileIndex] = PackCardTileData(CardTile);
 			}
 		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (all(GroupThreadId == 0) && SharedTileAllocator > 0)
+	{
+		InterlockedAdd(RWCardTileAllocator[0], SharedTileAllocator, SharedGlobalTileOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearThreadIndex < SharedTileAllocator)
+	{
+		RWCardTiles[SharedGlobalTileOffset + LinearThreadIndex] = SharedTiles[LinearThreadIndex];
 	}
 }
 

@@ -58,7 +58,7 @@ FAutoConsoleVariableRef CVarOffscreenShadowingTraceStepFactor(
 	GOffscreenShadowingTraceStepFactor,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
+);
 
 int32 GLumenDirectLightingCloudTransmittance = 1;
 FAutoConsoleVariableRef CVarLumenDirectLightingCloudTransmittance(
@@ -572,6 +572,8 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowTraceAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowTraces)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenLightTileScatterParameters, LightTileScatterParameters)
@@ -597,11 +599,12 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
+	class FCompactShadowTraces : SHADER_PERMUTATION_BOOL("COMPACT_SHADOW_TRACES");
+	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
 	class FDynamicallyShadowed : SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
 	class FVirtualShadowMap : SHADER_PERMUTATION_BOOL("VIRTUAL_SHADOW_MAP");
 	class FDenseShadowMap : SHADER_PERMUTATION_BOOL("DENSE_SHADOW_MAP");
-	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FLightType, FDynamicallyShadowed, FVirtualShadowMap, FDenseShadowMap>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FCompactShadowTraces, FLightType, FDynamicallyShadowed, FVirtualShadowMap, FDenseShadowMap>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -617,6 +620,35 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenDirectLightingSampleShadowMapCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "LumenSceneDirectLightingSampleShadowMapCS", SF_Compute);
+
+class FInitShadowTraceIndirectArgsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FInitShadowTraceIndirectArgsCS)
+	SHADER_USE_PARAMETER_STRUCT(FInitShadowTraceIndirectArgsCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWShadowTraceIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowTraceAllocator)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 64;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FInitShadowTraceIndirectArgsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "InitShadowTraceIndirectArgsCS", SF_Compute)
 
 class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShader
 {
@@ -996,7 +1028,9 @@ void SampleShadowMap(
 	const FLumenLightTileScatterParameters& LightTileScatterParameters,
 	int32 ViewIndex,
 	int32 NumViews,
-	FRDGBufferUAVRef ShadowMaskTilesUAV)
+	FRDGBufferUAVRef ShadowMaskTilesUAV,
+	FRDGBufferUAVRef ShadowTraceAllocatorUAV,
+	FRDGBufferUAVRef ShadowTracesUAV)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	check(Light.bHasShadows);
@@ -1016,6 +1050,8 @@ void SampleShadowMap(
 	{
 		PassParameters->IndirectArgBuffer = LightTileScatterParameters.DispatchIndirectArgs;
 		PassParameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
+		PassParameters->RWShadowTraceAllocator = ShadowTraceAllocatorUAV;
+		PassParameters->RWShadowTraces = ShadowTracesUAV;
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
@@ -1053,6 +1089,7 @@ void SampleShadowMap(
 
 	FLumenDirectLightingSampleShadowMapCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FThreadGroupSize32>(Lumen::UseThreadGroupSize32());
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FCompactShadowTraces>(ShadowTraceAllocatorUAV != nullptr);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FVirtualShadowMap>(bUseVirtualShadowMap);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDynamicallyShadowed>(bUseDenseShadowMap);
@@ -1554,11 +1591,25 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		const uint32 ShadowMaskTilesSize = FMath::Max(4 * CullContext.MaxCulledCardTiles, 1024u);
 		FRDGBufferRef ShadowMaskTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ShadowMaskTilesSize), TEXT("Lumen.DirectLighting.ShadowMaskTiles"));
 
+		// 1 uint per packed shadow trace
+		FRDGBufferRef ShadowTraceAllocator = nullptr;
+		FRDGBufferRef ShadowTraces = nullptr;
+		if (Lumen::UseHardwareRayTracedDirectLighting(*ActiveViewFamily))
+		{
+			const uint32 MaxShadowTraces = FMath::Max(Lumen::CardTileSize * Lumen::CardTileSize * CullContext.MaxCulledCardTiles, 1024u);
+
+			ShadowTraceAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.DirectLighting.ShadowTraceAllocator"));
+			ShadowTraces = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxShadowTraces), TEXT("Lumen.DirectLighting.ShadowTraces"));
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ShadowTraceAllocator), 0);
+		}
+
 		// Apply shadow map
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Shadow map");
 
 			FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
+			FRDGBufferUAVRef ShadowTraceAllocatorUAV = ShadowTraceAllocator ? GraphBuilder.CreateUAV(ShadowTraceAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
+			FRDGBufferUAVRef ShadowTracesUAV = ShadowTraces ? GraphBuilder.CreateUAV(ShadowTraces, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -1580,10 +1631,29 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 							CullContext.LightTileScatterParameters,
 							ViewIndex,
 							Views.Num(),
-							ShadowMaskTilesUAV);
+							ShadowMaskTilesUAV,
+							ShadowTraceAllocatorUAV,
+							ShadowTracesUAV);
 					}
 				}
 			}
+		}
+
+		FRDGBufferRef ShadowTraceIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.DirectLighting.CompactedShadowTraceIndirectArgs"));
+		if (ShadowTraceAllocator)
+		{
+			FInitShadowTraceIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitShadowTraceIndirectArgsCS::FParameters>();
+			PassParameters->RWShadowTraceIndirectArgs = GraphBuilder.CreateUAV(ShadowTraceIndirectArgs);
+			PassParameters->ShadowTraceAllocator = GraphBuilder.CreateSRV(ShadowTraceAllocator);
+
+			auto ComputeShader = Views[0].ShaderMap->GetShader<FInitShadowTraceIndirectArgsCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("InitShadowTraceIndirectArgs"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(1, 1, 1));
 		}
 
 		// Offscreen shadowing
@@ -1604,7 +1674,9 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						View,
 						ViewIndex,
 						TracingInputs,
-						CullContext.DispatchLightTilesIndirectArgs,
+						ShadowTraceIndirectArgs,
+						ShadowTraceAllocator,
+						ShadowTraces,
 						CullContext.LightTileAllocator,
 						CullContext.LightTiles,
 						LumenPackedLights,

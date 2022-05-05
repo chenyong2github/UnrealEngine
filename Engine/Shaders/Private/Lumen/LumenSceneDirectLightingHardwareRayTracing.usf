@@ -71,17 +71,23 @@ bool IsRayOccluded(FLumenMinimalRayResult Result)
 	return Result.bHit || !Result.bCompleted;
 }
 
+StructuredBuffer<uint> ShadowTraceAllocator;
+StructuredBuffer<uint> ShadowTraces;
+
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 {
-	uint2 CoordInCardTile = uint2(DispatchThreadIndex.x % CARD_TILE_SIZE, DispatchThreadIndex.x / CARD_TILE_SIZE);
+	uint ShadowTraceIndexOffset = DispatchThreadIndex.x % 64;
 
 #if DIM_INDIRECT_DISPATCH
-	uint LightTileIndex = DispatchThreadIndex.y;
+	uint ShadowTraceGroup = DispatchThreadIndex.y;
 #else
-	for (uint LightTileIndex = DispatchThreadIndex.y; LightTileIndex < LightTileAllocator[0]; LightTileIndex += GroupCount)
+	for (uint ShadowTraceGroup = DispatchThreadIndex.y; ShadowTraceGroup * 64 < ShadowTraceAllocator[0]; ShadowTraceGroup += GroupCount)
 #endif
 	{
-		const FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
+		uint ShadowTraceIndex = ShadowTraceGroup * 64 + ShadowTraceIndexOffset;
+		FShadowTrace ShadowTrace = UnpackShadowTrace(ShadowTraces[ShadowTraceIndex]);
+		uint2 CoordInCardTile = ShadowTrace.LightTileCoord;	
+		const FLightTile LightTile = UnpackLightTile(LightTiles[ShadowTrace.LightTileIndex]);
 
 		if (LightTile.ViewIndex != ViewIndex)
 		{
@@ -95,7 +101,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 		if (all(CoordInCardTile < CARD_TILE_SIZE))
 		{
 			FShadowMaskRay ShadowMaskRay;
-			ReadShadowMaskRayRW(LightTileIndex, CoordInCardTile, ShadowMaskRay);
+			ReadShadowMaskRayRW(ShadowTrace.LightTileIndex, CoordInCardTile, ShadowMaskRay);
 
 			// Trace visibility ray
 			if (!ShadowMaskRay.bShadowFactorComplete)
@@ -227,7 +233,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 				ShadowMaskRay.bShadowFactorComplete = true;
 
-				WriteShadowMaskRay(ShadowMaskRay, LightTileIndex, CoordInCardTile);
+				WriteShadowMaskRay(ShadowMaskRay, ShadowTrace.LightTileIndex, CoordInCardTile);
 			}
 		}
 	}

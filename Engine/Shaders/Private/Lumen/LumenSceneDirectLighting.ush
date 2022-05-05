@@ -13,6 +13,30 @@
 RWStructuredBuffer<uint> RWShadowMaskTiles;
 StructuredBuffer<uint> ShadowMaskTiles;
 
+struct FShadowTrace
+{
+	uint LightTileIndex;
+	uint2 LightTileCoord;
+};
+
+FShadowTrace UnpackShadowTrace(uint PackedValue)
+{
+	FShadowTrace ShadowTrace;
+	ShadowTrace.LightTileIndex = PackedValue & 0xFFFFFF;
+	ShadowTrace.LightTileCoord.x = (PackedValue >> 24) & 0xF;
+	ShadowTrace.LightTileCoord.y = (PackedValue >> 28) & 0xF;
+	return ShadowTrace;
+}
+
+uint PackShadowTrace(FShadowTrace ShadowTrace)
+{
+	uint PackedValue = 0;
+	PackedValue = ShadowTrace.LightTileIndex & 0xFFFFFF;
+	PackedValue |= (ShadowTrace.LightTileCoord.x & 0xF) << 24;
+	PackedValue |= (ShadowTrace.LightTileCoord.y & 0xF) << 28;
+	return PackedValue;
+}
+
 struct FShadowMaskRay
 {
 	float ShadowFactor;

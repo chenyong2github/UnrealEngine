@@ -87,6 +87,8 @@ class FLumenDirectLightingHardwareRayTracingBatched : public FLumenHardwareRayTr
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, LightTiles)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLumenPackedLight>, LumenPackedLights)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowTraceAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowTraces)
 
 		// Constants
 		SHADER_PARAMETER(float, PullbackBias)
@@ -216,7 +218,9 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	const FViewInfo& View,
 	int32 ViewIndex,
 	const FLumenCardTracingInputs& TracingInputs,
-	FRDGBufferRef DispatchLightTilesIndirectArgs,
+	FRDGBufferRef ShadowTraceIndirectArgs,
+	FRDGBufferRef ShadowTraceAllocator,
+	FRDGBufferRef ShadowTraces,
 	FRDGBufferRef LightTileAllocator,
 	FRDGBufferRef LightTiles,
 	FRDGBufferRef LumenPackedLights,
@@ -231,7 +235,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	{
 		FLumenDirectLightingHardwareRayTracingIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingHardwareRayTracingIndirectArgsCS::FParameters>();
 		{
-			PassParameters->DispatchLightTilesIndirectArgs = GraphBuilder.CreateSRV(DispatchLightTilesIndirectArgs, PF_R32_UINT);
+			PassParameters->DispatchLightTilesIndirectArgs = GraphBuilder.CreateSRV(ShadowTraceIndirectArgs, PF_R32_UINT);
 			PassParameters->RWHardwareRayTracingIndirectArgs = GraphBuilder.CreateUAV(HardwareRayTracingIndirectArgsBuffer, PF_R32_UINT);
 			PassParameters->OutputThreadGroupSize = bInlineRayTracing ? FLumenDirectLightingHardwareRayTracingBatchedCS::GetThreadGroupSize() : FLumenDirectLightingHardwareRayTracingBatchedRGS::GetThreadGroupSize();
 		}
@@ -258,6 +262,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 		HardwareRayTracingIndirectArgsBuffer,
 		PassParameters
 	);
+	PassParameters->ShadowTraceAllocator = ShadowTraceAllocator ? GraphBuilder.CreateSRV(ShadowTraceAllocator) : nullptr;
+	PassParameters->ShadowTraces = ShadowTraces ? GraphBuilder.CreateSRV(ShadowTraces) : nullptr;
 
 	FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));

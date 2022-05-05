@@ -6,6 +6,9 @@
 #ifndef DENSE_SHADOW_MAP
 	#define DENSE_SHADOW_MAP 0
 #endif
+#ifndef THREADGROUP_SIZE
+	#define THREADGROUP_SIZE 1
+#endif
 
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
@@ -48,11 +51,23 @@ uint LightIndex;
 uint ViewIndex;
 uint NumViews;
 
+RWStructuredBuffer<uint> RWShadowTraces;
+RWStructuredBuffer<uint> RWShadowTraceAllocator;
+
 #if THREADGROUP_SIZE_32
-	groupshared uint SharedShadowMask[2];
+	#define THREADGROUP_SIZE_X 8
+	#define THREADGROUP_SIZE_Y 4
 #else
-	groupshared uint SharedShadowMask[4];
+	#define THREADGROUP_SIZE_X 8
+	#define THREADGROUP_SIZE_Y 8
 #endif
+
+groupshared uint SharedNumShadowTraces;
+groupshared uint SharedShadowTraces[THREADGROUP_SIZE_X * THREADGROUP_SIZE_Y];
+groupshared uint SharedGlobalShadowTraceOffset;
+
+// 2 bits per texel
+groupshared uint SharedShadowMask[(2 * THREADGROUP_SIZE_X * THREADGROUP_SIZE_Y) / 32];
 
 void ReadSharedShadowMaskRay(uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
 {
@@ -86,20 +101,15 @@ void WriteSharedShadowMaskRay(FShadowMaskRay Ray, uint2 CoordInCardTile)
 	}
 }
 
-#if THREADGROUP_SIZE_32
-	#define THREADGROUP_SIZE_X 8
-	#define THREADGROUP_SIZE_Y 4
-#else
-	#define THREADGROUP_SIZE_X 8
-	#define THREADGROUP_SIZE_Y 8
-#endif
-
+#ifdef LIGHT_TYPE
 [numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void LumenSceneDirectLightingSampleShadowMapCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+	uint LinearGroupThreadId = GroupThreadId.x + GroupThreadId.y * THREADGROUP_SIZE_X;
+
 #if THREADGROUP_SIZE_32
 	uint LocalLightTileIndex = GroupId.x / 2;
 	uint2 CoordInCardTile = GroupThreadId.xy + uint2(0, GroupId.x % 2 ? 0 : 4);
@@ -115,6 +125,13 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
 		SharedShadowMask[GroupThreadId.x] = 0;
+	}
+
+	if (all(GroupThreadId.xy == 0))
+	{
+		SharedNumShadowTraces = 0;
+		SharedGlobalShadowTraceOffset = 0;
+		SharedShadowTraces[0] = 0;
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -144,9 +161,9 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 		float3 L = LightData.Direction;
 		float3 ToLight = L;
 
-#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
-		float CombinedAttenuation = 1;
-#else
+		float CombinedAttenuation = saturate(dot(WorldNormal, L));
+
+#if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
 		float LightMask = 1;
 		if (LightData.bRadialLight)
 		{
@@ -167,12 +184,15 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 			Attenuation = IntegrateLight(Capsule, LightData.bInverseSquared);
 		}
 
-		float CombinedAttenuation = Attenuation * LightMask;
+		CombinedAttenuation *= Attenuation * LightMask;
 #endif
 
 		if (CombinedAttenuation > 0)
 		{
-			if (dot(WorldNormal, L) > 0)
+			ShadowMaskRay.ShadowFactor = 1.0f;
+			ShadowMaskRay.bShadowFactorComplete = false;
+
+			if (ForceOffscreenShadowing == 0)
 			{
 				ShadowMaskRay.ShadowFactor = 1.0f;
 				ShadowMaskRay.bShadowFactorComplete = false;
@@ -244,6 +264,11 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 				}
 			}
 		}
+		else
+		{
+			ShadowMaskRay.ShadowFactor = 0.0f;
+			ShadowMaskRay.bShadowFactorComplete = true;
+		}
 	}
 
 	if (ForceShadowMaps != 0)
@@ -251,18 +276,52 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 		ShadowMaskRay.bShadowFactorComplete = true;
 	}
 
-	if (ForceOffscreenShadowing == 0)
+	WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy);
+
+	#if COMPACT_SHADOW_TRACES
 	{
-		WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy);
+		if (!ShadowMaskRay.bShadowFactorComplete)
+		{
+			uint ShadowTraceIndex = 0;
+			InterlockedAdd(SharedNumShadowTraces, 1, ShadowTraceIndex);
+
+			FShadowTrace ShadowTrace;
+			ShadowTrace.LightTileIndex = LightTileIndex;
+			ShadowTrace.LightTileCoord = CoordInCardTile;
+
+			SharedShadowTraces[ShadowTraceIndex] = PackShadowTrace(ShadowTrace);
+		}
 	}
+	#endif
 
 	GroupMemoryBarrierWithGroupSync();
+
+	#if COMPACT_SHADOW_TRACES
+	{
+		if (all(GroupThreadId == 0))
+		{
+			InterlockedAdd(RWShadowTraceAllocator[0], SharedNumShadowTraces, SharedGlobalShadowTraceOffset);
+		}
+	}
+	#endif
+
+	GroupMemoryBarrierWithGroupSync();
+
+	#if COMPACT_SHADOW_TRACES
+	{
+		if (LinearGroupThreadId < SharedNumShadowTraces)
+		{
+			RWShadowTraces[SharedGlobalShadowTraceOffset + LinearGroupThreadId] = SharedShadowTraces[LinearGroupThreadId];
+		}
+	}
+	#endif
 
 	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
 		RWShadowMaskTiles[4 * LightTileIndex + 2 * ShadowMaskOffset + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
 	}
 }
+#endif
 
 float MaxTraceDistance;
 float SDFSurfaceBiasScale;
@@ -383,6 +442,7 @@ float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float
 	return ShadowFactor;
 }
 
+#ifdef LIGHT_TYPE
 [numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	uint3 GroupId : SV_GroupID,
@@ -455,5 +515,26 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	if (GroupThreadId.x < ShadowMaskSize && GroupThreadId.y == 0)
 	{
 		RWShadowMaskTiles[4 * LightTileIndex + 2 * ShadowMaskOffset + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
+	}
+}
+#endif
+
+RWBuffer<uint> RWShadowTraceIndirectArgs;
+StructuredBuffer<uint> ShadowTraceAllocator;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void InitShadowTraceIndirectArgsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	if (all(DispatchThreadId.xyz == 0))
+	{
+		uint NumShadowTraces = ShadowTraceAllocator[0];
+
+		// One thread per card tile
+		RWShadowTraceIndirectArgs[0] = (NumShadowTraces + 64 - 1) / 64;
+		RWShadowTraceIndirectArgs[1] = 1;
+		RWShadowTraceIndirectArgs[2] = 1;
 	}
 }
