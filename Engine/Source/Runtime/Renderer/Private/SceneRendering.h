@@ -1897,6 +1897,11 @@ public:
 
 	FSceneTexturesConfig SceneTexturesConfig;
 
+#if WITH_MGPU
+	/** Fences for cross GPU transfers */
+	TArray<FTransferResourceFenceData*> CrossGPUTransferFences;
+#endif
+
 	/** Get scene textures associated with this view family -- asserts or checks that they have been initialized */
 	inline FSceneTextures& GetSceneTextures()
 	{
@@ -1975,6 +1980,7 @@ public:
 
 	/** Update the rendertarget with each view results.*/
 	void DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask RenderTargetGPUMask, FRDGTextureRef ViewFamilyTexture);
+	void FlushCrossGPUFences(FRDGBuilder& GraphBuilder);
 
 	bool DoOcclusionQueries() const;
 
@@ -1986,6 +1992,14 @@ public:
 	static FOcclusionSubmittedFenceState OcclusionSubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 
 	bool ShouldDumpMeshDrawCommandInstancingStats() const { return bDumpMeshDrawCommandInstancingStats; }
+
+	/**
+	  * Returns whether the active view family is the first being rendered in a given scene render call.  This is different from the
+	  * user facing bIsFirstViewInMultipleViewFamily flag, which defines whether it's the first view family rendered in the entire frame.
+	  * It's possible to call the scene renderer multiple times in a frame with individual view families, or pass in several view families
+	  * at once, and some code paths need to know the difference.
+	  */
+	bool IsFirstViewFamily() const { return ActiveViewFamily == ViewFamilies.GetData(); }
 
 	/** bound shader state for occlusion test prims */
 	static FGlobalBoundShaderState OcclusionTestBoundShaderState;

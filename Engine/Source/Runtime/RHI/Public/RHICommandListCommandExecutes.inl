@@ -115,6 +115,12 @@ void FRHICommandTransferResources::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHITransferResources)(Params);
 }
 
+void FRHICommandTransferResourceWait::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(TransferResourceWait);
+	INTERNAL_DECORATOR_COMPUTE(RHITransferResourceWait)(FenceDatas);
+}
+
 #endif // WITH_MGPU
 
 void FRHICommandSetStencilRef::Execute(FRHICommandListBase& CmdList)

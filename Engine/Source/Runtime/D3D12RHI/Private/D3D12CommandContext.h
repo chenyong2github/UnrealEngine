@@ -525,6 +525,7 @@ public:
 	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
 	virtual void RHITransferResources(const TArrayView<const FTransferResourceParams> Params) final override;
+	virtual void RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas) final override;
 
 	FORCEINLINE virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override
 	{

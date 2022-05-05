@@ -75,6 +75,37 @@ static FAutoConsoleVariableRef CVarDisplayClusterSingleRender(
 	ECVF_RenderThreadSafe
 );
 
+int32 GDisplayClusterSortViews = 1;
+static FAutoConsoleVariableRef CVarDisplayClusterSortViews(
+	TEXT("DC.SortViews"),
+	GDisplayClusterSortViews,
+	TEXT("Enable sorting of views by decreasing pixel count and decreasing GPU index.  Adds determinism, and tends to run inners first, which helps with scheduling, improving perf (default: enabled)."),
+	ECVF_RenderThreadSafe
+);
+
+struct FCompareViewFamilyBySizeAndGPU
+{
+	FORCEINLINE bool operator()(const FSceneViewFamilyContext& A, const FSceneViewFamilyContext& B) const
+	{
+		FIntPoint SizeA = A.RenderTarget->GetSizeXY();
+		FIntPoint SizeB = B.RenderTarget->GetSizeXY();
+		int32 AreaA = SizeA.X * SizeA.Y;
+		int32 AreaB = SizeB.X * SizeB.Y;
+
+		if (AreaA != AreaB)
+		{
+			// Decreasing area
+			return AreaA > AreaB;
+		}
+
+		int32 GPUIndexA = A.Views[0]->GPUMask.GetFirstIndex();
+		int32 GPUIndexB = B.Views[0]->GPUMask.GetFirstIndex();
+
+		// Decreasing GPU index
+		return GPUIndexA > GPUIndexB;
+	}
+};
+
 UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper)
 	: Super(Helper)
 {
@@ -418,18 +449,11 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		return Super::Draw(InViewport, SceneCanvas);
 	}
 
-	//Experimental code from render team, now always disabled
-	const bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
-	bool bIsFirstViewInMultipleViewFamily = true;
-
 	// Gather all view families first
 	TArray<FSceneViewFamilyContext*> ViewFamilies;
 
 	for (FDisplayClusterRenderFrame::FFrameRenderTarget& DCRenderTarget : RenderFrame.RenderTargets)
 	{
-		// Special flag, allow clear RTT surface only for first family
-		bool bAdditionalViewFamily = false;
-
 		for (FDisplayClusterRenderFrame::FFrameViewFamily& DCViewFamily : DCRenderTarget.ViewFamilies)
 		{
 			// Create the view family for rendering the world scene to the viewport's render target
@@ -437,13 +461,10 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				DCRenderTarget,
 				MyWorld->Scene,
 				EngineShowFlags,
-				bAdditionalViewFamily
+				false				// bAdditionalViewFamily  (filled in later, after list of families is known, and optionally reordered)
 			)));
 			FSceneViewFamilyContext& ViewFamily = *ViewFamilies.Last();
 			bool bIsFamilyVisible = false;
-
-			// Disable clean op for all next families on this render target
-			bAdditionalViewFamily = true;
 
 			// Configure family
 			RenderFrame.ViewportManager->ConfigureViewFamily(DCRenderTarget, DCViewFamily, ViewFamily);
@@ -764,22 +785,12 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				// Draw the player views.
 				if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560
 				{
-					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
-					ViewFamily.bIsMultipleViewFamily = true;
-					ViewFamily.bIsFirstViewInMultipleViewFamily = bIsFirstViewInMultipleViewFamily;
-					bIsFirstViewInMultipleViewFamily = false;
-
 					// If we reach here, the view family should be rendered
 					bIsFamilyVisible = true;
 				}
 			}
 
-			if (bIsFamilyVisible)
-			{
-				// Disable clean op for all next families on this render target
-				bAdditionalViewFamily = true;
-			}
-			else
+			if (!bIsFamilyVisible)
 			{
 				// Family didn't end up visible, remove last view family from the array
 				delete ViewFamilies.Pop();
@@ -790,6 +801,29 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	// We gathered all the view families, now render them
 	if (!ViewFamilies.IsEmpty())
 	{
+		if (ViewFamilies.Num() > 1)
+		{
+#if WITH_MGPU
+			if (GDisplayClusterSortViews)
+			{
+				ViewFamilies.StableSort(FCompareViewFamilyBySizeAndGPU());
+			}
+#endif  // WITH_MGPU
+
+			// Initialize some flags for which view family is which, now that any view family reordering has been handled.
+			ViewFamilies[0]->bAdditionalViewFamily = false;
+			ViewFamilies[0]->bIsFirstViewInMultipleViewFamily = true;
+			ViewFamilies[0]->bIsMultipleViewFamily = true;
+
+			for (int32 FamilyIndex = 1; FamilyIndex < ViewFamilies.Num(); FamilyIndex++)
+			{
+				FSceneViewFamily& ViewFamily = *ViewFamilies[FamilyIndex];
+				ViewFamily.bAdditionalViewFamily = true;
+				ViewFamily.bIsFirstViewInMultipleViewFamily = false;
+				ViewFamily.bIsMultipleViewFamily = true;
+			}
+		}
+
 		if (GDisplayClusterSingleRender)
 		{
 			GetRendererModule().BeginRenderingViewFamilies(

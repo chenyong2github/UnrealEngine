@@ -1264,9 +1264,41 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 		{
 			if (!Param.bPullData)
 			{
-				// The dest waits for the src to be at this place in the frame before using the data.
-				GPUFence->GpuWait(Param.DestGPUIndex, ED3D12CommandQueueType::Direct, GPUFence->GetLastSignaledFence(), Param.SrcGPUIndex);
+				if (Param.DelayedFence)
+				{
+					check(Param.DelayedFence->DeviceGPUIndex == INDEX_NONE);
+					Param.DelayedFence->LastSignal = GPUFence->GetLastSignaledFence();
+					Param.DelayedFence->DeviceGPUIndex = Param.DestGPUIndex;
+					Param.DelayedFence->FenceGPUIndex = Param.SrcGPUIndex;
+				}
+				else
+				{
+					// The dest waits for the src to be at this place in the frame before using the data.
+					GPUFence->GpuWait(Param.DestGPUIndex, ED3D12CommandQueueType::Direct, GPUFence->GetLastSignaledFence(), Param.SrcGPUIndex);
+				}
 			}
+		}
+	}
+#endif // WITH_MGPU
+}
+
+void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
+{
+#if WITH_MGPU
+	if (FenceDatas.Num() > 0)
+	{
+		FD3D12Fence* GPUFence = GetParentAdapter()->GetStagingFence();
+
+		RHISubmitCommandsHint();
+
+		for (FTransferResourceFenceData* FenceData : FenceDatas)
+		{
+			// It's possible to allocate fence data, but not actually do the transfer, in which case we treat this command as a nop.
+			if (FenceData->DeviceGPUIndex != INDEX_NONE)
+			{
+				GPUFence->GpuWait(FenceData->DeviceGPUIndex, ED3D12CommandQueueType::Direct, FenceData->LastSignal, FenceData->FenceGPUIndex);
+			}
+			delete FenceData;
 		}
 	}
 #endif // WITH_MGPU

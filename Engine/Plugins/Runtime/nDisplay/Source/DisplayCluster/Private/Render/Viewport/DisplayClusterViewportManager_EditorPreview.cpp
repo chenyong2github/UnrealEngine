@@ -120,9 +120,6 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 	FSceneInterface* PreviewScene = CurrentWorld->Scene;
 	FEngineShowFlags EngineShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
-	//Experimental code from render team, now always disabled
-	const bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
-
 	int32 ViewportIndex = 0;
 	bool bViewportsRenderPassDone = false;
 
@@ -219,8 +216,6 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 					// Screen percentage is still not supported in scene capture.
 					ViewFamily.EngineShowFlags.ScreenPercentage = false;
 					ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
-
-					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
 
 					FCanvas Canvas(RenderTargetIt.RenderTargetPtr, nullptr, PreviewScene->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
 					Canvas.Clear(FLinearColor::Black);

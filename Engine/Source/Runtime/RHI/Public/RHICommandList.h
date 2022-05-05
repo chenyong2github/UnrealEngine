@@ -886,6 +886,18 @@ FRHICOMMAND_MACRO(FRHICommandTransferResources)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandTransferResourceWait)
+{
+	TArray<FTransferResourceFenceData*, TInlineAllocator<4>> FenceDatas;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferResourceWait(TArrayView<FTransferResourceFenceData* const> InFenceDatas)
+		: FenceDatas(InFenceDatas)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
 #endif // WITH_MGPU
 
 FRHICOMMAND_MACRO(FRHICommandSetStencilRef)
@@ -2942,6 +2954,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		else
 		{
 			ALLOC_COMMAND(FRHICommandTransferResources)(Params);
+		}
+#endif // WITH_MGPU
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
+	{
+#if WITH_MGPU
+		if (Bypass())
+		{
+			GetComputeContext().RHITransferResourceWait(FenceDatas);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandTransferResourceWait)(FenceDatas);
 		}
 #endif // WITH_MGPU
 	}

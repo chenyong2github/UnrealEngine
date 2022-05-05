@@ -115,6 +115,22 @@ private:
 UE_DEPRECATED(5.0, "Please rename to FUniformBufferStaticBindings")
 typedef FUniformBufferStaticBindings FUniformBufferGlobalBindings;
 
+struct FTransferResourceFenceData
+{
+	uint64	LastSignal = 0;
+	int32	DeviceGPUIndex = INDEX_NONE;
+	int32	FenceGPUIndex = INDEX_NONE;
+};
+
+FORCEINLINE FTransferResourceFenceData* RHICreateTransferResourceFenceData()
+{
+#if WITH_MGPU
+	return new FTransferResourceFenceData;
+#else
+	return nullptr;
+#endif
+}
+
 /** Parameters for RHITransferResources, used to copy memory between GPUs */
 struct FTransferResourceParams
 {
@@ -155,6 +171,14 @@ struct FTransferResourceParams
 	// Whether the GPUs must handshake before and after the transfer. Required if the texture rect is being written to in several render passes.
 	// Otherwise, minimal synchronization will be used.
 	bool bLockStepGPUs = true;
+	/**
+	  * Optional pointer where fence data can be written if you want to delay waiting on the GPU fence for a resource transfer.
+	  * Should be created via "RHICreateTransferResourceFenceData", and must later be consumed via "TransferResourceWait" command.
+	  * Note that it is valid to consume the fence data, even if you don't end up implementing a transfer that uses it -- it will
+	  * behave as a nop in that case.  That can simplify cases where the transfer may be conditional, and you don't want to worry
+	  * about whether it occurred or not, but need to reserve the possibility.
+	  */
+	FTransferResourceFenceData* DelayedFence = nullptr;
 };
 
 /** Context that is capable of doing Compute work.  Can be async or compute on the gfx pipe. */
@@ -324,6 +348,17 @@ public:
 	virtual void RHITransferResources(const TArrayView<const FTransferResourceParams> Params)
 	{
 		/* empty default implementation */
+	}
+
+	virtual void RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
+	{
+		/* default noop implementation */
+#if WITH_MGPU
+		for (FTransferResourceFenceData* FenceData : FenceDatas)
+		{
+			delete FenceData;
+		}
+#endif
 	}
 
 	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)

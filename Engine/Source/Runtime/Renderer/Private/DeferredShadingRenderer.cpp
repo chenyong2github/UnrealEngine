@@ -1680,9 +1680,9 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer)
 {
 	bool bAnyRayTracingPassEnabled = false;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < AllFamilyViews.Num(); ViewIndex++)
 	{
-		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, AllFamilyViews[ViewIndex]);
 	}
 
 	if (!bAnyRayTracingPassEnabled)
@@ -1697,7 +1697,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	SetupRayTracingPipelineStates(GraphBuilder.RHICmdList);
 
 	bool bAnyInlineRayTracingPassEnabled = false;
-	for (const FViewInfo& View : Views)
+	for (const FViewInfo& View : AllFamilyViews)
 	{
 		bAnyInlineRayTracingPassEnabled |= Lumen::AnyLumenHardwareInlineRayTracingPassEnabled(Scene, View);
 	}
@@ -1705,7 +1705,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	if (bAnyInlineRayTracingPassEnabled)
 	{
 		const int32 ReferenceViewIndex = 0;
-		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+		FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
 
 		SetupLumenHardwareRayTracingHitGroupBuffer(ReferenceView);
 	}
@@ -1719,7 +1719,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		[this, PassParams](FRHICommandListImmediate& RHICmdList)
 	{
 		const int32 ReferenceViewIndex = 0;
-		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+		FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
 
 		const bool bIsPathTracing = ActiveViewFamily->EngineShowFlags.PathTracing;
 
@@ -1792,7 +1792,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 			TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
 			if (!IsForwardShadingEnabled(ShaderPlatform))
 			{
-				for (const FViewInfo& View : Views)
+				for (const FViewInfo& View : AllFamilyViews)
 				{
 					PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
 					PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
@@ -1817,7 +1817,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 			TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
 			if (DoesPlatformSupportLumenGI(ShaderPlatform))
 			{
-				for (const FViewInfo& View : Views)
+				for (const FViewInfo& View : AllFamilyViews)
 				{
 					PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 					PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
@@ -1837,9 +1837,9 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		}
 
 		// Send ray tracing resources from reference view to all others.
-		for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ++ViewIndex)
+		for (int32 ViewIndex = 1; ViewIndex < AllFamilyViews.Num(); ++ViewIndex)
 		{
-			FViewInfo& View = Views[ViewIndex];
+			FViewInfo& View = AllFamilyViews[ViewIndex];
 			View.RayTracingMaterialGatherPipeline = ReferenceView.RayTracingMaterialGatherPipeline;
 			View.LumenHardwareRayTracingMaterialPipeline = ReferenceView.LumenHardwareRayTracingMaterialPipeline;
 		}
@@ -2172,7 +2172,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 
-		if (!ActiveViewFamily->bIsRenderedImmediatelyAfterAnotherViewFamily)
+		if (IsFirstViewFamily())
 		{
 			GraphBuilder.SetFlushResourcesRHI();
 		}
@@ -2656,9 +2656,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 #if RHI_RAYTRACING
-	// Async AS builds can potentially overlap with BasePass
-	FRDGBufferRef DynamicGeometryScratchBuffer;
-	DispatchRayTracingWorldUpdates(GraphBuilder, DynamicGeometryScratchBuffer);
+	// Async AS builds can potentially overlap with BasePass.  We only need to update ray tracing scene for the first view family,
+	// if multiple are rendered in a single scene render call.
+	FRDGBufferRef DynamicGeometryScratchBuffer = nullptr;
+	if (IsFirstViewFamily())
+	{
+		DispatchRayTracingWorldUpdates(GraphBuilder, DynamicGeometryScratchBuffer);
+	}
+	else
+	{
+		bRayTracingSceneReady = true;
+	}
 #endif
 
 	{
@@ -2789,7 +2797,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
-		if (Lumen::UseHardwareRayTracedSceneLighting(*ActiveViewFamily))
+		if (!bRayTracingSceneReady && Lumen::UseHardwareRayTracedSceneLighting(*ActiveViewFamily))
 		{
 			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
 			bRayTracingSceneReady = true;
