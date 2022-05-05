@@ -5,8 +5,7 @@
 #include "Common/PagedArray.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
-#include "ProfilingDebugging/MemoryTrace.h"
-#include "TraceServices/Model/Callstack.h"
+#include "ProfilingDebugging/MemoryTrace.h" // for EMemoryTraceHeapFlags and EMemoryTraceHeapAllocationFlags
 #include "TraceServices/Model/AllocationsProvider.h"
 
 namespace TraceServices
@@ -14,6 +13,7 @@ namespace TraceServices
 
 class IAnalysisSession;
 class ILinearAllocator;
+class FMetadataProvider;
 class FSbTree;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,7 +311,7 @@ private:
 	static constexpr double DefaultTimelineSampleGranularity = 0.0001; // 0.1ms
 
 public:
-	explicit FAllocationsProvider(IAnalysisSession& InSession);
+	explicit FAllocationsProvider(IAnalysisSession& InSession, FMetadataProvider& InMetadataProvider);
 	virtual ~FAllocationsProvider();
 
 	virtual void BeginEdit() const override { Lock.BeginWrite(); }
@@ -389,6 +389,7 @@ private:
 
 private:
 	IAnalysisSession& Session;
+	FMetadataProvider& MetadataProvider;
 
 	mutable FAllocationsProviderLock Lock;
 

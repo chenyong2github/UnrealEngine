@@ -10,6 +10,7 @@ namespace TraceServices
 class IAnalysisSession;
 
 class FAllocationsProvider;
+class FMetadataProvider;
 
 class FAllocationsAnalyzer : public UE::Trace::IAnalyzer
 {
@@ -36,7 +37,7 @@ private:
 	};
 
 public:
-	FAllocationsAnalyzer(IAnalysisSession& Session, FAllocationsProvider& AllocationsProvider);
+	FAllocationsAnalyzer(IAnalysisSession& Session, FAllocationsProvider& AllocationsProvider, FMetadataProvider& MetadataProvider);
 	~FAllocationsAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override;
@@ -46,11 +47,13 @@ public:
 private:
 	IAnalysisSession& Session;
 	FAllocationsProvider& AllocationsProvider;
-	uint64 BaseCycle;
-	uint32 MarkerPeriod;
-	uint64 LastMarkerCycle;
-	double LastMarkerSeconds;
-	uint8 SizeShift;
+	FMetadataProvider& MetadataProvider;
+	uint64 BaseCycle = 0;
+	uint64 LastMarkerCycle = 0;
+	double LastMarkerSeconds = 0.0;
+	uint32 MarkerPeriod = 0;
+	uint16 TagIdMetadataType = ~0;
+	uint8 SizeShift = 0;
 };
 
 } // namespace TraceServices

@@ -7,6 +7,7 @@
 #include "Analyzers/ModuleAnalysis.h"
 #include "Model/AllocationsProvider.h"
 #include "Model/CallstacksProvider.h"
+#include "Model/MetadataProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
@@ -35,10 +36,14 @@ void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 	Session.AddProvider(GetCallstacksProviderName(), CallstacksProvider);
 	Session.AddAnalyzer(new FCallstacksAnalyzer(Session, CallstacksProvider));
 
+	// Metadata
+	FMetadataProvider* MetadataProvider = new FMetadataProvider(Session);
+	Session.AddProvider(GetMetadataProviderName(), MetadataProvider);
+
 	// Allocations
-	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session);
+	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session, *MetadataProvider);
 	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider);
-	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider));
+	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider, *MetadataProvider));
 }
 
 void FMemoryModule::GetLoggers(TArray<const TCHAR*>& OutLoggers)

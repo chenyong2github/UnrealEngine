@@ -2,16 +2,17 @@
 
 #include "AllocationsProvider.h"
 
-#include <limits>
-
 #include "AllocationsQuery.h"
-#include "SbTree.h"
 #include "Common/Utils.h"
 #include "Containers/ArrayView.h"
 #include "Misc/PathViews.h"
+#include "Model/MetadataProvider.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "SbTree.h"
 #include "TraceServices/Containers/Allocators.h"
 #include "TraceServices/Model/Callstack.h"
+
+#include <limits>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -40,6 +41,8 @@
 #define INSIGHTS_USE_LAST_ALLOC 1
 
 #define INSIGHTS_VALIDATE_ALLOC_EVENTS 0
+
+#define INSIGHTS_DEBUG_METADATA 0
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -184,7 +187,7 @@ void FTagTracker::AddTagSpec(TagIdType InTag, TagIdType InParentTag, const TCHAR
 				TagMap[ReferencingId].ParentTag = InTag;
 			}
 		}
-		
+
 		if (!InDisplay || *InDisplay == TEXT('\0'))
 		{
 			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Tag with id %u has invalid display name (ParentTag=%u)!"), InTag, InParentTag);
@@ -271,7 +274,7 @@ const TCHAR* FTagTracker::GetTagString(TagIdType InTag) const
 
 void FTagTracker::EnumerateTags(TFunctionRef<void (const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const
 {
-	for(const auto& EntryPair : TagMap)
+	for (const auto& EntryPair : TagMap)
 	{
 		const TagIdType Id = EntryPair.Get<0>();
 		const FTagEntry& Entry = EntryPair.Get<1>();
@@ -1113,8 +1116,9 @@ void FLiveAllocCollection::Enumerate(TFunctionRef<void(const FAllocationItem& Al
 // FAllocationsProvider
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession)
+FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession, FMetadataProvider& InMetadataProvider)
 	: Session(InSession)
+	, MetadataProvider(InMetadataProvider)
 	, TagTracker(InSession)
 	, Timeline(Session.GetLinearAllocator(), 1024)
 	, MinTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
@@ -1273,6 +1277,29 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 		AllocationPtr = LiveAllocs[RootHeap]->AddNew(Address);
 		FAllocationItem& Allocation = *AllocationPtr;
 
+		uint32 MetadataId = MetadataProvider.InvalidMetadataId;
+		{
+			FMetadataProvider::FEditScopeLock _(MetadataProvider);
+			MetadataId = MetadataProvider.PinAndGetId(CurrentSystemThreadId);
+#if INSIGHTS_DEBUG_METADATA
+			if (MetadataId != FMetadataProvider::InvalidMetadataId &&
+				!TagTracker.HasTagFromPtrScope(CurrentSystemThreadId, CurrentTracker))
+			{
+				const uint32 MetadataStackSize = MetadataProvider.GetMetadataStackSize(CurrentSystemThreadId, MetadataId);
+				check(MetadataStackSize > 0);
+				uint16 MetaType;
+				const void* MetaData;
+				uint32 MetaDataSize;
+				MetadataProvider.GetMetadata(CurrentSystemThreadId, MetadataId, MetadataStackSize - 1, MetaType, MetaData, MetaDataSize);
+				if (MetaType == 0) // "MemTagId"
+				{
+					TagIdType MetaMemTag = *(TagIdType*)MetaData;
+					ensure(MetaMemTag == Tag);
+				}
+			}
+#endif
+		}
+
 		INSIGHTS_SLOW_CHECK(Allocation.Address == Address);
 		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(InSize, InAlignment);
 		Allocation.StartEventIndex = EventIndex[RootHeap];
@@ -1281,7 +1308,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 		Allocation.EndTime = std::numeric_limits<double>::infinity();
 		Allocation.CallstackId = CallstackId;
 		Allocation.FreeCallstackId = 0; // no callstack yet
-		Allocation.MetadataId = 0; //TODO: MetadataProvider.PinAndGetId() // pins the metadata stack and returns an id for it
+		Allocation.MetadataId = MetadataId;
 		Allocation.Reserved = 0;
 		Allocation.Tag = Tag;
 		Allocation.RootHeap = RootHeap;
@@ -2034,7 +2061,7 @@ void FAllocationsProvider::EnumerateTags(TFunctionRef<void(const TCHAR*, const T
 
 void FAllocationsProvider::DebugPrint() const
 {
-	for(const FSbTree* Tree : SbTree)
+	for (const FSbTree* Tree : SbTree)
 	{
 		if (Tree)
 		{
@@ -2069,6 +2096,7 @@ const IAllocationsProvider::FQueryStatus FAllocationsProvider::PollQuery(FQueryH
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FAllocationsProvider::EnumerateLiveAllocs(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const
 {
 	ReadAccessCheck();
@@ -2082,17 +2110,19 @@ void FAllocationsProvider::EnumerateLiveAllocs(TFunctionRef<void(const FAllocati
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-FName GetAllocationsProviderName()
-{
-	static FName Name(TEXT("AllocationsProvider"));
-	return Name;
-}
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
 uint32 FAllocationsProvider::GetNumLiveAllocs() const
 {
 	ReadAccessCheck();
 	return TotalLiveAllocations;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName GetAllocationsProviderName()
+{
+	static FName Name(TEXT("AllocationsProvider"));
+	return Name;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2114,3 +2144,4 @@ const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Sess
 #undef INSIGHTS_SLA_USE_ADDRESS_MAP
 #undef INSIGHTS_USE_LAST_ALLOC
 #undef INSIGHTS_VALIDATE_ALLOC_EVENTS
+#undef INSIGHTS_DEBUG_METADATA

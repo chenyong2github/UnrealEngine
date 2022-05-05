@@ -2,23 +2,23 @@
 
 #include "AllocationsAnalysis.h"
 #include "Model/AllocationsProvider.h"
+#include "Model/MetadataProvider.h"
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Callstack.h"
 
 namespace TraceServices
 {
 
 #define INSIGHTS_MEM_TRACE_LEGACY_FORMAT 1 // backward compatibility with legacy memory trace format (5.0-EA)
+#define INSIGHTS_MEM_TRACE_METADATA_TEST 0
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FAllocationsAnalyzer::FAllocationsAnalyzer(IAnalysisSession& InSession, FAllocationsProvider& InAllocationsProvider)
+FAllocationsAnalyzer::FAllocationsAnalyzer(IAnalysisSession& InSession, FAllocationsProvider& InAllocationsProvider, FMetadataProvider& InMetadataProvider)
 	: Session(InSession)
 	, AllocationsProvider(InAllocationsProvider)
-	, BaseCycle(0)
-	, MarkerPeriod(0)
-	, LastMarkerCycle(0)
-	, LastMarkerSeconds(0.0)
+	, MetadataProvider(InMetadataProvider)
 {
 }
 
@@ -52,6 +52,13 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_HeapUnmarkAlloc,     "Memory", "HeapUnmarkAlloc");
 
 	Builder.RouteLoggerEvents(RouteId_MemScope, "Memory", true);
+
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
+	{
+		FMetadataProvider::FEditScopeLock _(MetadataProvider);
+		TagIdMetadataType = MetadataProvider.RegisterMetadataType(TEXT("MemTagId"), sizeof(TagIdType));
+	}
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -319,27 +326,53 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				if (FCStringAnsi::Strlen(Context.EventData.GetTypeInfo().GetName()) == 11) // "MemoryScope"
 				{
 					const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
-					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-					AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
+					{
+						FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+						AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
+					}
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
+					{
+						FMetadataProvider::FEditScopeLock _(MetadataProvider);
+						MetadataProvider.PushScopedMetadata(ThreadId, TagIdMetadataType, (void*)&Tag, sizeof(TagIdType));
+					}
+#endif
 				}
 				else // "MemoryScopePtr"
 				{
 					const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
-					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-					AllocationsProvider.EditPushTagFromPtr(ThreadId, Tracker, Ptr);
+					{
+						FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+						AllocationsProvider.EditPushTagFromPtr(ThreadId, Tracker, Ptr);
+					}
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
+					{
+						FMetadataProvider::FEditScopeLock _(MetadataProvider);
+						TagIdType Tag = 0; //TODO: AllocationsProvider.GetTagFromPtr(ThreadId, Tracker, Ptr);
+						MetadataProvider.PushScopedMetadata(ThreadId, TagIdMetadataType, (void*)&Tag, sizeof(TagIdType));
+					}
+#endif
 				}
 			}
 			else // EStyle::LeaveScope
 			{
-				FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-				if (AllocationsProvider.HasTagFromPtrScope(ThreadId, Tracker)) // Is TagFromPtr scope active?
 				{
-					AllocationsProvider.EditPopTagFromPtr(ThreadId, Tracker);
+					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+					if (AllocationsProvider.HasTagFromPtrScope(ThreadId, Tracker)) // Is TagFromPtr scope active?
+					{
+						AllocationsProvider.EditPopTagFromPtr(ThreadId, Tracker);
+					}
+					else
+					{
+						check(FCStringAnsi::Strlen(Context.EventData.GetTypeInfo().GetName()) == 11); // "MemoryScope"
+						AllocationsProvider.EditPopTag(ThreadId, Tracker);
+					}
 				}
-				else
+#if INSIGHTS_MEM_TRACE_METADATA_TEST
 				{
-					AllocationsProvider.EditPopTag(ThreadId, Tracker);
+					FMetadataProvider::FEditScopeLock _(MetadataProvider);
+					MetadataProvider.PopScopedMetadata(ThreadId, TagIdMetadataType);
 				}
+#endif
 			}
 			break;
 		}
@@ -357,6 +390,7 @@ double FAllocationsAnalyzer::GetCurrentTime() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#undef INSIGHTS_MEM_TRACE_METADATA_TEST
 #undef INSIGHTS_MEM_TRACE_LEGACY_FORMAT
 
 } // namespace TraceServices
