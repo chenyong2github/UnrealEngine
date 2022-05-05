@@ -43,7 +43,8 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 	// Mark all named external values as binding source
 	if (StateTree->Schema)
 	{
-		for (FStateTreeExternalDataDesc& Desc : StateTree->Schema->GetMutableNamedExternalDataDescs())
+		StateTree->NamedExternalDataDescs = StateTree->Schema->GetNamedExternalDataDescs();
+		for (FStateTreeExternalDataDesc& Desc : StateTree->NamedExternalDataDescs)
 		{
 			Desc.Handle.DataViewIndex = BindingsCompiler.AddSourceStruct({Desc.Name, Desc.Struct, EStateTreeBindableStructSource::TreeData, Desc.ID});
 		} 

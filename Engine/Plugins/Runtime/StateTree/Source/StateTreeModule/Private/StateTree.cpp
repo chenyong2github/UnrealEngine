@@ -22,6 +22,7 @@ void UStateTree::ResetCompiled()
 	Instances.Reset();
 	InstanceObjects.Reset();
 	ExternalDataDescs.Reset();
+	NamedExternalDataDescs.Reset();
 	PropertyBindings.Reset();
 
 	NumDataViews = 0;

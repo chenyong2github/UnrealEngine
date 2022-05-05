@@ -33,7 +33,7 @@ public:
 	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
 
 	/** @return List of named external data enforced by the schema that must be provided through the execution context. */
-	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const { return Schema ? Schema->GetNamedExternalDataDescs() : TConstArrayView<FStateTreeExternalDataDesc>(); }
+	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const { return NamedExternalDataDescs; }
 
 	/** @return List of default parameters of the state tree. Default parameter values can be overridden at runtime by the execution context. */
 	const FInstancedPropertyBag& GetDefaultParameters() const { return Parameters; }
@@ -101,10 +101,14 @@ private:
 	UPROPERTY(Transient)
 	FStateTreeInstanceData InstanceDataDefaultValue;
 
-	/** List of external data required by the state tree, creating during linking. */
+	/** List of external data required by the state tree, created during linking. */
 	UPROPERTY(Transient)
 	TArray<FStateTreeExternalDataDesc> ExternalDataDescs;
 
+	/** List of names external data enforced by the schema, created at compilation. */
+	UPROPERTY(Transient)
+	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
+	
 	UPROPERTY(Transient)
 	int32 NumDataViews = 0;
 
