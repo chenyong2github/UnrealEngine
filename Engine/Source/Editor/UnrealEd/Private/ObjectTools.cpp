@@ -2916,11 +2916,11 @@ namespace ObjectTools
 		// Mark its package as dirty as we're going to delete it.
 		ObjectToDelete->MarkPackageDirty();
 
-		// Remove standalone flag so garbage collection can delete the object.
-		ObjectToDelete->ClearFlags( RF_Standalone );
-
-		// Notify the asset registry
+		// Notify the asset registry. This done before the removal of the flags otherwise the content browser will ignore the update.
 		FAssetRegistryModule::AssetDeleted( ObjectToDelete );
+
+		// Remove standalone flag so garbage collection can delete the object and public flag so that the object is no longer considered to be an asset
+		ObjectToDelete->ClearFlags(RF_Standalone | RF_Public);
 
 		return true;
 	}
