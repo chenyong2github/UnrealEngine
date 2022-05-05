@@ -58,7 +58,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 	// Initialize Display Cluster
 	if (!GDisplayCluster->Init(OperationMode))
 	{
-		FDisplayClusterAppExit::ExitApplication(FString("Couldn't initialize DisplayCluster module"));
+		FDisplayClusterAppExit::ExitApplication(FString("Couldn't initialize DisplayCluster module"), FDisplayClusterAppExit::EExitType::KillImmediately);
 	}
 
 	// This is required to prevent GameThread dead-locking when Alt+F4 is used
@@ -99,7 +99,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		FString ConfigPath;
 		if (!ParseCommandArg(FCommandLine::Get(), DisplayClusterStrings::args::Config, ConfigPath))
 		{
-			FDisplayClusterAppExit::ExitApplication(FString("No config file specified. Cluster operation mode requires config file."));
+			FDisplayClusterAppExit::ExitApplication(FString("No config file specified. Cluster operation mode requires config file."), FDisplayClusterAppExit::EExitType::KillImmediately);
 		}
 
 		// Clean the file path before using it
@@ -109,14 +109,14 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		const EDisplayClusterConfigurationVersion ConfigVersion = IDisplayClusterConfiguration::Get().GetConfigVersion(ConfigPath);
 		if (!ValidateConfigFile(ConfigPath))
 		{
-			FDisplayClusterAppExit::ExitApplication(FString("An invalid or outdated configuration file was specified. Please consider using nDisplay configurator to update the config files."));
+			FDisplayClusterAppExit::ExitApplication(FString("An invalid or outdated configuration file was specified. Please consider using nDisplay configurator to update the config files."), FDisplayClusterAppExit::EExitType::KillImmediately);
 		}
 
 		// Load config data
 		UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath);
 		if (!ConfigData)
 		{
-			FDisplayClusterAppExit::ExitApplication(FString("An error occurred during loading the configuration file"));
+			FDisplayClusterAppExit::ExitApplication(FString("An error occurred during loading the configuration file"), FDisplayClusterAppExit::EExitType::KillImmediately);
 		}
 
 		// Extract node ID from command line
@@ -128,7 +128,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 			// Find node ID based on the host address
 			if (!GetResolvedNodeId(ConfigData, NodeId))
 			{
-				FDisplayClusterAppExit::ExitApplication(FString("Couldn't resolve node ID. Try to specify host addresses explicitly."));
+				FDisplayClusterAppExit::ExitApplication(FString("Couldn't resolve node ID. Try to specify host addresses explicitly."), FDisplayClusterAppExit::EExitType::KillImmediately);
 			}
 
 			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Node ID has been successfully resolved: %s"), *NodeId);
@@ -140,7 +140,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		// Start game session
 		if (!GDisplayCluster->StartSession(ConfigData, NodeId))
 		{
-			FDisplayClusterAppExit::ExitApplication(FString("Couldn't start DisplayCluster session"));
+			FDisplayClusterAppExit::ExitApplication(FString("Couldn't start DisplayCluster session"), FDisplayClusterAppExit::EExitType::KillImmediately);
 		}
 
 		// Initialize internals
