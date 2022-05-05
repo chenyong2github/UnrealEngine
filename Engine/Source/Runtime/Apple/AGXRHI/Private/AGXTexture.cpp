@@ -151,7 +151,7 @@ void AGXSafeReleaseMetalTexture(FAGXSurface* Surface, FAGXTexture& Texture)
 	}
 }
 
-#if !PLATFORM_IOS
+#if PLATFORM_MAC
 static MTLPixelFormat AGX_ToSRGBFormat_NonAppleMacGPU(MTLPixelFormat MTLFormat)
 {
 	switch (MTLFormat)
@@ -242,7 +242,7 @@ MTLPixelFormat AGXToSRGBFormat(MTLPixelFormat MTLFormat)
 	{
 		MTLFormat = AGX_ToSRGBFormat_AppleGPU(MTLFormat);
 	}
-#if !PLATFORM_IOS
+#if PLATFORM_MAC
 	else if([GMtlDevice supportsFamily:MTLGPUFamilyMac1])
 	{
 		MTLFormat = AGX_ToSRGBFormat_NonAppleMacGPU(MTLFormat);
@@ -1335,25 +1335,24 @@ uint32 FAGXSurface::GetNumFaces()
 	return GetDesc().Depth * GetDesc().ArraySize;
 }
 
-FAGXTexture FAGXSurface::GetDrawableTexture()
+void FAGXSurface::GetDrawableTexture()
 {
 	if (!Texture && EnumHasAnyFlags(GetDesc().Flags, TexCreate_Presentable))
 	{
 		check(Viewport);
 		Texture = Viewport->GetDrawableTexture(EAGXViewportAccessRHI);
 	}
-	return Texture;
 }
 
-ns::AutoReleased<FAGXTexture> FAGXSurface::GetCurrentTexture()
+id<MTLTexture> FAGXSurface::GetCurrentTexture()
 {
-	ns::AutoReleased<FAGXTexture> Tex;
+	id<MTLTexture> MtlTexture = nil;
 	if (Viewport && EnumHasAnyFlags(GetDesc().Flags, TexCreate_Presentable))
 	{
 		check(Viewport);
-		Tex = Viewport->GetCurrentTexture(EAGXViewportAccessRHI);
+		MtlTexture = Viewport->GetCurrentTexture(EAGXViewportAccessRHI);
 	}
-	return Tex;
+	return MtlTexture;
 }
 
 

@@ -220,8 +220,8 @@ public:
 	uint32 GetNumFaces();
 	
 	/** Gets the drawable texture if this is a back-buffer surface. */
-	FAGXTexture GetDrawableTexture();
-	ns::AutoReleased<FAGXTexture> GetCurrentTexture();
+	void GetDrawableTexture();
+	id<MTLTexture> GetCurrentTexture();
 
 	FAGXTexture Reallocate(FAGXTexture Texture, MTLTextureUsage UsageModifier);
 	void MakeAliasable(void);

@@ -38,8 +38,8 @@ public:
 	
 	TRefCountPtr<FAGXSurface> GetBackBuffer(EAGXViewportAccessFlag Accessor) const;
 	id<CAMetalDrawable> GetDrawable(EAGXViewportAccessFlag Accessor);
-	FAGXTexture GetDrawableTexture(EAGXViewportAccessFlag Accessor);
-	ns::AutoReleased<FAGXTexture> GetCurrentTexture(EAGXViewportAccessFlag Accessor);
+	id<MTLTexture> GetDrawableTexture(EAGXViewportAccessFlag Accessor);
+	id<MTLTexture> GetCurrentTexture(EAGXViewportAccessFlag Accessor) const;
 	void ReleaseDrawable(void);
 
 	// supports pulling the raw MTLTexture
@@ -47,8 +47,6 @@ public:
 	virtual void* GetNativeBackBufferRT() const override { return (const_cast<FAGXViewport *>(this))->GetDrawableTexture(EAGXViewportAccessRenderer); }
 	
 #if PLATFORM_MAC
-	NSWindow* GetWindow() const;
-	
 	virtual void SetCustomPresent(FRHICustomPresent* InCustomPresent) override
 	{
 		CustomPresent = InCustomPresent;
@@ -68,7 +66,7 @@ private:
 	TRefCountPtr<FAGXSurface> BackBuffer[2];
 	mutable FCriticalSection Mutex;
 	
-	ns::AutoReleased<FAGXTexture> DrawableTextures[2];
+	id<MTLTexture> DrawableTextures[2];
 	
 	uint32 DisplayID;
 	FAGXViewportPresentHandler Block;

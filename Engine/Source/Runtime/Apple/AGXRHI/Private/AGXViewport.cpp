@@ -32,12 +32,6 @@ static FAutoConsoleVariableRef CVarAGXEnablePresentPacing(
 
 #if PLATFORM_MAC
 
-// Quick way to disable availability warnings is to duplicate the definitions into a new type - gotta love ObjC dynamic-dispatch!
-@interface FCAMetalLayer : CALayer
-@property BOOL displaySyncEnabled;
-@property BOOL allowsNextDrawableTimeout;
-@end
-
 @implementation FAGXView
 
 - (id)initWithFrame:(NSRect)frameRect
@@ -70,7 +64,7 @@ FAGXViewport::FAGXViewport(void* WindowHandle, uint32 InSizeX, uint32 InSizeY, b
 	: Drawable{nil}
 	, BackBuffer{nullptr, nullptr}
 	, Mutex{}
-	, DrawableTextures{}
+	, DrawableTextures{nil, nil}
 	, DisplayID{0}
 	, Block{nullptr}
 	, FrameAvailable{0}
@@ -107,6 +101,8 @@ FAGXViewport::FAGXViewport(void* WindowHandle, uint32 InSizeX, uint32 InSizeY, b
 		[Layer removeAllAnimations];
 
 		[View setLayer:Layer];
+
+		[Layer release];
 
 		[Window setContentView:View];
 		[[Window standardWindowButton:NSWindowCloseButton] setAction:@selector(performClose:)];
@@ -370,9 +366,10 @@ id<CAMetalDrawable> FAGXViewport::GetDrawable(EAGXViewportAccessFlag Accessor)
 	return Drawable;
 }
 
-FAGXTexture FAGXViewport::GetDrawableTexture(EAGXViewportAccessFlag Accessor)
+id<MTLTexture> FAGXViewport::GetDrawableTexture(EAGXViewportAccessFlag Accessor)
 {
 	id<CAMetalDrawable> CurrentDrawable = GetDrawable(Accessor);
+
 #if METAL_DEBUG_OPTIONS
 	@autoreleasepool
 	{
@@ -390,11 +387,13 @@ FAGXTexture FAGXViewport::GetDrawableTexture(EAGXViewportAccessFlag Accessor)
 		}
 	}
 #endif
-	DrawableTextures[Accessor] = CurrentDrawable.texture;
-	return CurrentDrawable.texture;
+
+	DrawableTextures[Accessor] = [CurrentDrawable texture];
+
+	return DrawableTextures[Accessor];
 }
 
-ns::AutoReleased<FAGXTexture> FAGXViewport::GetCurrentTexture(EAGXViewportAccessFlag Accessor)
+id<MTLTexture> FAGXViewport::GetCurrentTexture(EAGXViewportAccessFlag Accessor) const
 {
 	return DrawableTextures[Accessor];
 }
@@ -416,13 +415,6 @@ void FAGXViewport::ReleaseDrawable()
 	}
 }
 
-#if PLATFORM_MAC
-NSWindow* FAGXViewport::GetWindow() const
-{
-	return [View window];
-}
-#endif
-
 void FAGXViewport::Present(FAGXCommandQueue& CommandQueue, bool bLockToVsync)
 {
 	FScopeLock Lock(&Mutex);
@@ -433,9 +425,8 @@ void FAGXViewport::Present(FAGXCommandQueue& CommandQueue, bool bLockToVsync)
 	DisplayID = ScreenId.unsignedIntValue;
 	bIsLiveResize = View.inLiveResize;
 	{
-		FCAMetalLayer* CurrentLayer = (FCAMetalLayer*)[View layer];
-		static bool sVSyncSafe = FPlatformMisc::MacOSXVersionCompare(10,13,4) >= 0;
-		CurrentLayer.displaySyncEnabled = bLockToVsync || (!sVSyncSafe && !(IsRunningGame() && bIsFullScreen));
+		CAMetalLayer* CurrentLayer = (CAMetalLayer*)[View layer];
+		CurrentLayer.displaySyncEnabled = bLockToVsync;
 	}
 #endif
 	
