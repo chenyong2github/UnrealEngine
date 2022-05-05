@@ -24,6 +24,7 @@ void SScrollBar::Construct(const FArguments& InArgs)
 	EVerticalAlignment VerticalAlignment = Orientation == Orient_Vertical ? VAlign_Fill : VAlign_Center;
 
 	bHideWhenNotInUse = InArgs._HideWhenNotInUse;
+	bPreventThrottling = InArgs._PreventThrottling;
 	bIsScrolling = false;
 	LastInteractionTime = 0;
 
@@ -146,7 +147,14 @@ FReply SScrollBar::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointe
 
 	if( bDraggingThumb )
 	{
-		return FReply::Handled().CaptureMouse(AsShared()).SetUserFocus(AsShared(), DragFocusCause);
+		FReply ReturnReply = FReply::Handled().CaptureMouse(AsShared()).SetUserFocus(AsShared(), DragFocusCause);
+
+		if (bPreventThrottling)
+		{
+			ReturnReply.PreventThrottling();
+		}
+
+		return ReturnReply;
 	}
 	else
 	{

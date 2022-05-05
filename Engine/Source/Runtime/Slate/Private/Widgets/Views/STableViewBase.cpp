@@ -50,7 +50,7 @@ FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation, const FVe
 	}
 }
 
-void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled, const FScrollBarStyle* InScrollBarStyle )
+void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled, const FScrollBarStyle* InScrollBarStyle, const bool bInPreventThrottling )
 {
 	bItemsNeedRefresh = true;
 	
@@ -92,7 +92,8 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 		ScrollBar = SNew(SScrollBar)
 			.OnUserScrolled(this, &STableViewBase::ScrollBar_OnUserScrolled)
 			.Orientation(Orientation)
-			.Style(InScrollBarStyle ? InScrollBarStyle : &FAppStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
+			.Style(InScrollBarStyle ? InScrollBarStyle : &FAppStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"))
+			.PreventThrottling(bInPreventThrottling);
 
 		const FOptionalSize ScrollBarSize(16.f);
 

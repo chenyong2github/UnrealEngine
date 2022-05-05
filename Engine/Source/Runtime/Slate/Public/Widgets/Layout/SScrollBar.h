@@ -38,6 +38,7 @@ public:
 #else
 		, _HideWhenNotInUse(false)
 #endif
+		, _PreventThrottling(false)
 		, _Orientation( Orient_Vertical )
 		, _DragFocusCause( EFocusCause::Mouse )
 		, _Thickness()
@@ -50,6 +51,7 @@ public:
 		SLATE_ARGUMENT( bool, AlwaysShowScrollbar )
 		SLATE_ARGUMENT( bool, AlwaysShowScrollbarTrack )
 		SLATE_ARGUMENT( bool, HideWhenNotInUse )
+		SLATE_ARGUMENT( bool, PreventThrottling )
 		SLATE_ARGUMENT( EOrientation, Orientation )
 		SLATE_ARGUMENT( EFocusCause, DragFocusCause )
 		/** The thickness of the scrollbar thumb */
@@ -168,6 +170,11 @@ protected:
 	bool bAlwaysShowScrollbarTrack;
 	EFocusCause DragFocusCause;
 	bool bHideWhenNotInUse;
+	/*
+	 * Holds whether or not to prevent throttling during mouse capture
+	 * When true, the viewport will be updated with every single change to the value during dragging
+	 */
+	bool bPreventThrottling;
 	bool bIsScrolling;
 	double LastInteractionTime;
 

@@ -236,6 +236,7 @@ protected:
 		EOrientation Orientation = Orient_Vertical;
 		const FTableViewStyle* ListViewStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView");
 		const FScrollBarStyle* ScrollBarStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
+		bool bPreventThrottling = false;
 	};
 
 	template <template<typename> class ListViewT = SListView, typename UListViewBaseT>
@@ -255,6 +256,7 @@ protected:
 			.Orientation(Args.Orientation)
 			.ListViewStyle(Args.ListViewStyle)
 			.ScrollBarStyle(Args.ScrollBarStyle)
+			.PreventThrottling(Args.bPreventThrottling)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
