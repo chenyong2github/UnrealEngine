@@ -678,16 +678,14 @@ void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 				&& GStripSkeletalMeshLodsDuringCooking != 0
 				&& CVarSkeletalMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 			{
-				if (Owner->IsMinLodQualityLevelEnable())
-				{
-					MinMobileLODIdx = Owner->GetQualityLevelMinLod().GetValueForQualityLevel(0/*Low*/) - FSkeletalMeshLODRenderData::GetPlatformMinLODIdx(Ar.CookingTarget(), Owner);
-				}
-				else
+				// Serialize 0 value when per quality level properties are used
+				if (!Owner->IsMinLodQualityLevelEnable())
 				{
 					MinMobileLODIdx = Owner->GetMinLod().GetValueForPlatform(TEXT("Mobile")) - Owner->GetMinLod().GetValueForPlatform(TEXT("Desktop"));
-				}
-				MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); // Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
-																		 // which can happen if the desktop min LOD is higher than the mobile setting
+					// Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
+					// which can happen if the desktop min LOD is higher than the mobile setting
+					MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); 
+				}													
 			}
 			else
 			{

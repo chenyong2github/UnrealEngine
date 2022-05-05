@@ -211,21 +211,7 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 #if PLATFORM_DESKTOP
 			if (GUseMobileLODBiasOnDesktopES31 != 0 && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 			{
-				if (RenderAssetType == EStreamableRenderAssetType::StaticMesh)
-				{
-					const UStaticMesh* StaticMesh = Cast<UStaticMesh>(RenderAsset);
-					if (StaticMesh)
-					{
-						int32 BiasModifier = ResourceState.LODBiasModifier;
-						int32 MinLODIdx = FMath::Max(StaticMesh->GetMinLODIdx(), 0);
-						BiasModifier = FMath::Max(BiasModifier - MinLODIdx, 0);
-						LODBias += BiasModifier;
-					}
-				}
-				else
-				{
-					LODBias += ResourceState.LODBiasModifier;
-				}
+				LODBias += ResourceState.LODBiasModifier;
 			}
 #endif
 		}

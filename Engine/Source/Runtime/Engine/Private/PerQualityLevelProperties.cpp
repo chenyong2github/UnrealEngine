@@ -259,6 +259,22 @@ bool FPerQualityLevelProperty<_StructType, _ValueType, _BasePropertyName>::IsQua
 }
 #endif
 
+template<typename _StructType, typename _ValueType, EName _BasePropertyName>
+_ValueType FPerQualityLevelProperty<_StructType, _ValueType, _BasePropertyName>::GetLowestValue() const
+{
+	const _StructType* This = StaticCast<const _StructType*>(this);
+	_ValueType Value = This->Default;
+
+	for (const TPair<int32, int32>& Pair : This->PerQuality)
+	{
+		if (Pair.Value < Value)
+		{
+			Value = Pair.Value;
+		}
+	}
+	return Value;
+}
+
 /** Serializer to cook out the most appropriate platform override */
 template<typename _StructType, typename _ValueType, EName _BasePropertyName>
 ENGINE_API FArchive& operator<<(FArchive& Ar, FPerQualityLevelProperty<_StructType, _ValueType, _BasePropertyName>& Property)
@@ -315,6 +331,7 @@ template FSupportedQualityLevelArray FPerQualityLevelProperty<FPerQualityLevelIn
 template void FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::StripQualtiyLevelForCooking(const TCHAR* InPlatformName);
 template bool FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::IsQualityLevelValid(int32 QualityLevel) const;
 #endif
+template int32 FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::GetLowestValue() const;
 
 FString FPerQualityLevelInt::ToString() const
 {

@@ -1248,7 +1248,7 @@ public:
 	static void OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable);
 
 	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UseSkeletalMeshMinLODPerQualityLevels*/
-	int32 GetMinLodIdx() const;
+	int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const;
 	int32 GetDefaultMinLod() const;
 	void SetMinLodIdx(int32 InMinLOD);
 

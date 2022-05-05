@@ -1020,7 +1020,7 @@ void USkeletalMesh::InitResources()
 
 		{
 			const int32 NumLODs = SkelMeshRenderData->LODRenderData.Num();
-			const int32 MinFirstLOD = GetMinLodIdx();
+			const int32 MinFirstLOD = GetMinLodIdx(true);
 
 			CachedSRRState.NumNonStreamingLODs = SkelMeshRenderData->NumInlinedLODs;
 			CachedSRRState.NumNonOptionalLODs = SkelMeshRenderData->NumNonOptionalLODs;
@@ -5740,11 +5740,11 @@ TArray<FString> USkeletalMesh::K2_GetAllMorphTargetNames() const
 	return Names;
 }
 
-int32 USkeletalMesh::GetMinLodIdx() const
+int32 USkeletalMesh::GetMinLodIdx(bool bForceLowestLODIdx) const
 {
 	if (IsMinLodQualityLevelEnable())
 	{
-		return GetQualityLevelMinLod().GetValue(GSkeletalMeshMinLodQualityLevel);
+		return bForceLowestLODIdx ? GetQualityLevelMinLod().GetLowestValue() : GetQualityLevelMinLod().GetValue(GSkeletalMeshMinLodQualityLevel);
 	}
 	else
 	{
@@ -5782,7 +5782,7 @@ bool USkeletalMesh::IsMinLodQualityLevelEnable() const
 }
 
 void USkeletalMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable) {
-#ifdef WITH_EDITOR
+#if WITH_EDITOR || PLATFORM_DESKTOP
 	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels)
 	{
 		for (TObjectIterator<USkeletalMesh> It; It; ++It)

@@ -101,6 +101,8 @@ struct ENGINE_API FPerQualityLevelProperty
 		return GetValueForQualityLevel(QualityLevel);
 	}
 
+	_ValueType GetLowestValue() const;
+
 	/* Load old properties that have been converted to FPerQualityLevel */
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FArchive& Ar)
 	{

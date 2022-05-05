@@ -1636,16 +1636,14 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 				&& CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0
 				&& CVarStaticMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 			{
-				if (Owner->IsMinLodQualityLevelEnable())
-				{
-					MinMobileLODIdx = Owner->GetQualityLevelMinLOD().GetValueForQualityLevel(0/*Low*/) - FStaticMeshLODResources::GetPlatformMinLODIdx(Ar.CookingTarget(), Owner);
-				}
-				else
+				// Serialize 0 value when per quality level properties are used
+				if (!Owner->IsMinLodQualityLevelEnable())
 				{
 					MinMobileLODIdx = Owner->GetMinLOD().GetValueForPlatform(TEXT("Mobile")) - FStaticMeshLODResources::GetPlatformMinLODIdx(Ar.CookingTarget(), Owner);
+					// Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
+					// which can happen if the desktop min LOD is higher than the mobile setting
+					MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255);
 				}
-				MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); // Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
-																		 // which can happen if the desktop min LOD is higher than the mobile setting
 			}
 			else
 			{
@@ -3220,7 +3218,7 @@ void UStaticMesh::InitResources()
 	{
 		{
 			const int32 NumLODs = GetNumLODs();
-			const int32 MinFirstLOD = GetMinLODIdx();
+			const int32 MinFirstLOD = GetMinLODIdx(true);
 
 			CachedSRRState.NumNonStreamingLODs = GetRenderData()->NumInlinedLODs;
 			CachedSRRState.NumNonOptionalLODs = GetRenderData()->GetNumNonOptionalLODs();
@@ -7799,11 +7797,19 @@ ENGINE_API int32 UStaticMesh::GetDefaultMinLOD() const
 	}
 }
 
-ENGINE_API int32 UStaticMesh::GetMinLODIdx() const
+ENGINE_API int32 UStaticMesh::GetMinLODIdx(bool bForceLowestLODIdx) const
 {
 	if (IsMinLodQualityLevelEnable())
 	{
-		return GetQualityLevelMinLOD().GetValue(GMinLodQualityLevel);
+		int32 CurrentMinLodQualityLevel = GMinLodQualityLevel;
+#if PLATFORM_DESKTOP
+		extern int32 GUseMobileLODBiasOnDesktopES31;
+		if (GUseMobileLODBiasOnDesktopES31 != 0 && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+		{
+			CurrentMinLodQualityLevel = (int32)QualityLevelProperty::EQualityLevels::Low;
+		}
+#endif
+		return bForceLowestLODIdx ? GetQualityLevelMinLOD().GetLowestValue() : GetQualityLevelMinLOD().GetValue(CurrentMinLodQualityLevel);
 	}
 	else
 	{
@@ -7830,7 +7836,7 @@ bool UStaticMesh::IsMinLodQualityLevelEnable() const
 }
 
 void UStaticMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable){
-#ifdef WITH_EDITOR
+#if WITH_EDITOR || PLATFORM_DESKTOP
 	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels)
 	{
 		for (TObjectIterator<UStaticMesh> It; It; ++It)
