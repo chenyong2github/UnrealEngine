@@ -312,6 +312,7 @@ enum ETextureSourceFormat
 	TSF_G16,
 	TSF_RGBA32F,
 	TSF_R16F,
+	TSF_R32F,
 
 	TSF_MAX,
 
@@ -331,7 +332,7 @@ enum TextureCompressionSettings
 	TC_Grayscale				UMETA(DisplayName = "Grayscale (R8, RGB8 sRGB)"),
 	TC_Displacementmap			UMETA(DisplayName = "Displacementmap (8/16bit)"),
 	TC_VectorDisplacementmap	UMETA(DisplayName = "VectorDisplacementmap (RGBA8)"),
-	TC_HDR						UMETA(DisplayName = "HDR (RGB, no sRGB)"),
+	TC_HDR						UMETA(DisplayName = "HDR (RGBA16F, no sRGB)"),
 	TC_EditorIcon				UMETA(DisplayName = "UserInterface2D (RGBA)"),
 	TC_Alpha					UMETA(DisplayName = "Alpha (no sRGB, BC4 on DX11)"),
 	TC_DistanceFieldFont		UMETA(DisplayName = "DistanceFieldFont (R8)"),

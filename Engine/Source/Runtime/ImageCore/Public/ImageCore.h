@@ -39,13 +39,14 @@ namespace ERawImageFormat
 	enum Type : uint8
 	{
 		G8,
-		BGRA8, // FColor
+		BGRA8,   // FColor
 		BGRE8,
 		RGBA16,
 		RGBA16F, // FFloat16Color
 		RGBA32F, // FLinearColor
-		G16,
+		G16,     // note G8/G16 = gray = replicate to 3 channels, R16F = just in red channel
 		R16F,
+		R32F,
 		Invalid = 0xFF
 	};
 	
@@ -470,6 +471,12 @@ public:
 		check(Format == ERawImageFormat::R16F);
 		return { (class FFloat16*)RawData.GetData(), int64(RawData.Num() / sizeof(FFloat16)) };
 	}
+	
+	TArrayView64<float> AsR32F()
+	{
+		check(Format == ERawImageFormat::R32F);
+		return { (float *)RawData.GetData(), int64(RawData.Num() / sizeof(float)) };
+	}
 
 	// Convenience accessors to const raw data
 
@@ -519,6 +526,12 @@ public:
 	{
 		check(Format == ERawImageFormat::R16F);
 		return { (const class FFloat16*)RawData.GetData(), int64(RawData.Num() / sizeof(FFloat16)) };
+	}
+	
+	TArrayView64<const float> AsR32F() const
+	{
+		check(Format == ERawImageFormat::R32F);
+		return { (const float*)RawData.GetData(), int64(RawData.Num() / sizeof(float)) };
 	}
 };
 

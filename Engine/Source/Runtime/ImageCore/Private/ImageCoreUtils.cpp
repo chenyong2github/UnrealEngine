@@ -40,6 +40,8 @@ EPixelFormat FImageCoreUtils::GetPixelFormatForRawImageFormat(ERawImageFormat::T
 		return PF_FloatRGBA;
 	case ERawImageFormat::R16F:	
 		return PF_R16F;
+	case ERawImageFormat::R32F:	
+		return PF_R32_FLOAT;
 	
 	default:
 		check(0);
@@ -61,6 +63,7 @@ IMAGECORE_API ERawImageFormat::Type FImageCoreUtils::ConvertToRawImageFormat(ETe
 	case TSF_G16: return ERawImageFormat::G16;
 	case TSF_RGBA32F: return ERawImageFormat::RGBA32F;
 	case TSF_R16F: return ERawImageFormat::R16F;
+	case TSF_R32F: return ERawImageFormat::R32F;
 
 	// these are mapped to TSF_BGRA8/TSF_BGRE8 on load, so the runtime will never see them :
 	case TSF_RGBA8_DEPRECATED:
@@ -87,6 +90,7 @@ IMAGECORE_API ETextureSourceFormat FImageCoreUtils::ConvertToTextureSourceFormat
 	case ERawImageFormat::RGBA32F: return TSF_RGBA32F;
 	case ERawImageFormat::G16: return TSF_G16;
 	case ERawImageFormat::R16F:	return TSF_R16F;
+	case ERawImageFormat::R32F:	return TSF_R32F;
 	
 	default:
 		check(0);

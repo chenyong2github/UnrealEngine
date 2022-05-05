@@ -1113,23 +1113,7 @@ bool FDDSFile::GetMipImage(const FImageView & ToImage, int MipIndex) const
 	// before BlitMip you should have done ConvertChannelOrder to BGRA and ConvertRGBXtoRGBA
 	// so we should only see BGRA (no RGBA or BGRX) here
 
-	if ( ToImage.Format == ERawImageFormat::R16F && DXGIFormat == EDXGIFormat::R32_FLOAT )
-	{
-		// no ERawImageFormat::R32F currently , have to convert to F16
-		
-		const float * FmPtr = (const float *) FromMip.Data;
-		uint16 * ToPtr = (uint16 *)ToImage.RawData;
-		int64 Count = ToImage.GetNumPixels();
-		check( ToImage.GetImageSizeBytes() == Count*sizeof(*ToPtr) );
-		check( FromMip.DataSize == Count*sizeof(*FmPtr) );
-		while(Count--)
-		{
-			FPlatformMath::StoreHalf(ToPtr, *FmPtr++);
-			ToPtr++;
-		}
-		return true;
-	}
-	else if ( ToImage.Format == ERawImageFormat::BGRA8 && DXGIFormat == EDXGIFormat::B8G8R8 )
+	if ( ToImage.Format == ERawImageFormat::BGRA8 && DXGIFormat == EDXGIFormat::B8G8R8 )
 	{
 		const uint8 * FmPtr = FromMip.Data;
 		uint8 * ToPtr = (uint8 *)ToImage.RawData;
@@ -1237,7 +1221,7 @@ FDXGIFormatRawFormatMapping DXGIRawFormatMap[] =
 {
 	{ EDXGIFormat::R32G32B32A32_FLOAT, ERawImageFormat::RGBA32F, true },
 	{ EDXGIFormat::R16G16B16A16_FLOAT, ERawImageFormat::RGBA16F, true },
-	{ EDXGIFormat::R32_FLOAT,  ERawImageFormat::R16F, false },
+	{ EDXGIFormat::R32_FLOAT,  ERawImageFormat::R32F, true },
 	{ EDXGIFormat::R16_FLOAT,  ERawImageFormat::R16F, true },
 
 	// R32G32B32_FLOAT not supported
@@ -1329,6 +1313,7 @@ EDXGIFormat DXGIFormatFromRawFormat(ERawImageFormat::Type RawFormat,EGammaSpace 
 	case ERawImageFormat::RGBA32F:	return EDXGIFormat::R32G32B32A32_FLOAT;
 	case ERawImageFormat::G16:		return EDXGIFormat::R16_UNORM;
 	case ERawImageFormat::R16F:		return EDXGIFormat::R16_FLOAT;
+	case ERawImageFormat::R32F:		return EDXGIFormat::R32_FLOAT;
 	default:
 		return EDXGIFormat::UNKNOWN;
 	}

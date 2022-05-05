@@ -44,6 +44,7 @@ class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
 	op(RGBA8) \
 	op(POTERROR) \
 	op(R16F) \
+	op(R32F) \
 	op(R5G6B5) \
 	op(A1RGB555) \
 	op(RGB555A1)
@@ -94,6 +95,10 @@ class FTextureFormatUncompressed : public ITextureFormat
 		{
 			return TEXT("R16F");
 		}
+		else if (InBuildSettings.TextureFormatName == GTextureFormatNameR32F)
+		{
+			return TEXT("R32F");
+		}
 		else
 		{
 			// default implementation of GetDerivedDataKeyString returns empty string
@@ -143,6 +148,10 @@ class FTextureFormatUncompressed : public ITextureFormat
 		{
 			return PF_R16F;
 		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameR32F)
+		{
+			return PF_R32_FLOAT;
+		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNamePOTERROR)
 		{
 			return PF_B8G8R8A8;
@@ -169,6 +178,9 @@ class FTextureFormatUncompressed : public ITextureFormat
 		) const override
 	{
 		OutCompressedImage.PixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
+
+		// @todo Oodle : fix me : lots of pointless code dupe here
+		//	most of these should just map the Name to an ERawImageFormat and do CopyImage
 
 		if (BuildSettings.TextureFormatName == GTextureFormatNameG8)
 		{
@@ -239,6 +251,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 
+			// BGRA to RGBA : @todo Oodle : just use ImageCore CopyImageRGBABGRA
 			// swizzle each texel
 			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 4);
@@ -303,7 +316,19 @@ class FTextureFormatUncompressed : public ITextureFormat
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
-			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
+			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
+
+			return true;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameR32F)
+		{
+			FImage Image;
+			InImage.CopyTo(Image, ERawImageFormat::R32F, EGammaSpace::Linear);
+
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
+			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;

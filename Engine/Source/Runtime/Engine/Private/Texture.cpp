@@ -2879,6 +2879,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
 	static FName NameR16F(TEXT("R16F"));
+	static FName NameR32F(TEXT("R32F"));
 	static FName NameBC6H(TEXT("BC6H"));
 	static FName NameBC7(TEXT("BC7"));
 	static FName NameR5G6B5(TEXT("R5G6B5"));
@@ -2970,6 +2971,9 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			// note if bIsTCThatMapsToUncompressed , this might change the mapping :
 			bNoCompression = true;
 		}
+
+		// @todo Oodle : the conditions that trigger bNoCompression should be detected earlier
+		//   and shown in the GUI so the artist can see it
 	}
 
 	bool bUseDXT5NormalMap = false;
@@ -2997,7 +3001,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 		if (Texture->HasHDRSource(LayerIndex))
 		{
-			// R16F is available but not used here
+			// R16F and R32F is available but not used here even if their TC_ would have chosen them!
 			TextureFormatName = NameRGBA16F;
 		}
 		else if (SourceFormat == TSF_G16)
@@ -3159,6 +3163,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
 	static FName NameR16F(TEXT("R16F"));
+	static FName NameR32F(TEXT("R32F"));
 	static FName NameBC6H(TEXT("BC6H"));
 	static FName NameBC7(TEXT("BC7"));
 
@@ -3176,6 +3181,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	OutFormats.Add(NameVU8);
 	OutFormats.Add(NameRGBA16F);
 	OutFormats.Add(NameR16F);
+	OutFormats.Add(NameR32F);
 	if (bSupportDX11TextureFormats)
 	{
 		OutFormats.Add(NameBC6H);

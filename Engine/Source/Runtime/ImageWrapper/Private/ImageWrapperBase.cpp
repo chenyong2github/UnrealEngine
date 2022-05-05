@@ -275,9 +275,8 @@ ERawImageFormat::Type IImageWrapper::ConvertRGBFormat(ERGBFormat RGBFormat,int B
 		}
 		else if ( BitDepth == 32 )
 		{
-			*bIsExactMatch = false; // no single channel F32
-			return ERawImageFormat::RGBA32F; // promote F32 to 4xF32 for no quality loss (alternative is 1xF16)
-			//@todo Oodle: add ERawImageFormat::R32F ?
+			*bIsExactMatch = true;
+			return ERawImageFormat::R32F;
 		}
 		break;
 
@@ -326,6 +325,10 @@ void IImageWrapper::ConvertRawImageFormat(ERawImageFormat::Type RawFormat, ERGBF
 	case ERawImageFormat::R16F:
 		OutFormat = ERGBFormat::GrayF;
 		OutBitDepth = 16;
+		break;
+	case ERawImageFormat::R32F:
+		OutFormat = ERGBFormat::GrayF;
+		OutBitDepth = 32;
 		break;
 	default:
 		check(0);
@@ -393,37 +396,6 @@ bool IImageWrapper::GetRawImage(FImage & OutImage)
 			check( BitDepth == 16 );
 			check( RawFormat == ERawImageFormat::RGBA16 );
 			FImageCore::CopyImageRGBABGRA(SrcImage, OutImage );
-			break;
-		}
-
-		case ERGBFormat::GrayF:
-		{
-			/*
-			// 1 channel F32 -> F16 :
-			//  because ERawImageFormat has no 1 channel F32 currently
-			check( BitDepth == 32 );
-			check( RawFormat == ERawImageFormat::R16F );
-			const float * Src = (const float *)OutRawData.GetData();
-			uint16 * Dst = (uint16 *)OutImage.RawData.GetData();
-			int64 NumPixels = OutImage.GetNumPixels();
-			for(int64 i=0;i<NumPixels;i++)
-			{
-				// clamp in F16 range? does StoreHalf do that?
-				FPlatformMath::StoreHalf(&Dst[i], Src[i]);
-			}
-			*/
-
-			// 1 channel F32 -> 4xF32 :
-			check( BitDepth == 32 );
-			check( RawFormat == ERawImageFormat::RGBA32F );
-			const float * Src = (const float *)OutRawData.GetData();
-			FLinearColor * Dst = (FLinearColor *)OutImage.RawData.GetData();
-			int64 NumPixels = OutImage.GetNumPixels();
-			for(int64 i=0;i<NumPixels;i++)
-			{
-				Dst[i] = FLinearColor( Src[i],Src[i],Src[i],1.f );
-			}
-
 			break;
 		}
 

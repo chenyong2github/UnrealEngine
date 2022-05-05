@@ -2727,7 +2727,8 @@ static bool DetectAlphaChannel(const FImage& InImage)
 	else if ( InImage.Format == ERawImageFormat::G8 ||
 		InImage.Format == ERawImageFormat::BGRE8 ||
 		InImage.Format == ERawImageFormat::G16 ||
-		InImage.Format == ERawImageFormat::R16F )
+		InImage.Format == ERawImageFormat::R16F||
+		InImage.Format == ERawImageFormat::R32F )
 	{
 		// source image formats don't have alpha
 	}

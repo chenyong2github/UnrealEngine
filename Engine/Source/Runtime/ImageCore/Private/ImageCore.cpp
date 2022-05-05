@@ -243,6 +243,8 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 		{
 		case ERawImageFormat::G8:
 			{
+				// NOTE : blit from RGBA to G8 does NOT grab the gray, it just take the R
+				//	this makes blits from R16F/R32F go to G8/G16 and just take the single channel
 				uint8* DestLum = (uint8 *) DestImage.RawData;
 				if (bDestIsGammaCorrected)
 				{
@@ -263,6 +265,8 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 
 		case ERawImageFormat::G16:
 			{
+				// NOTE : blit from RGBA to G16 does NOT grab the gray, it just take the R
+				//	this makes blits from R16F/R32F go to G8/G16 and just take the single channel
 				uint16* DestLum = (uint16 *) DestImage.RawData;
 				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestLum, SrcColors](int64 TexelIndex)
 				{
@@ -392,6 +396,16 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 			}
 			break;
 			
+		case ERawImageFormat::R32F:
+			{
+				float* DestColors = (float*) DestImage.RawData;
+				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
+				{
+					DestColors[TexelIndex] = SrcColors[TexelIndex].R;
+				});
+			}
+			break;
+
 		default:
 			check(0);
 			break;
@@ -558,6 +572,16 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 				});
 			}
 			break;
+			
+		case ERawImageFormat::R32F:
+			{
+				const float* SrcColors = (const float*) SrcImage.RawData;
+				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
+				{
+					DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex], 0, 0, 1);
+				});
+			}
+			break;
 
 		default:
 			check(0);
@@ -651,6 +675,8 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImage.TempLinear);
 
 		// Arbitrary conversion, use 32-bit linear float as an intermediate format.
+		// this is unnecessarily expensive to do something like G8 to R16F, but rare
+		// if this shows up as a hot spot, identify the formats using this path and add direct conversions between them
 		FImage TempImage(SrcImage.SizeX, SrcImage.SizeY, SrcImage.NumSlices, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 		FImageCore::CopyImage(SrcImage, TempImage);
 		FImageCore::CopyImage(TempImage, DestImage);
@@ -1072,6 +1098,18 @@ void FImage::Linearize(uint8 SourceEncoding, FImage& DestImage) const
 			});
 			break;
 		}
+		
+		case ERawImageFormat::R32F:
+		{
+			const float* SrcColors = SrcImage.AsR32F().GetData();
+			ParallelLoop(TEXT("Texture.Linearize.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors, DecodeFunction](int64 TexelIndex)
+			{
+				FLinearColor Color(SrcColors[TexelIndex], 0, 0, 1);
+				Color = DecodeFunction(Color);
+				DestColors[TexelIndex] = SaturateToHalfFloat(Color);
+			});
+			break;
+		}
 	}
 }
 
@@ -1082,6 +1120,7 @@ IMAGECORE_API const TCHAR * ERawImageFormat::GetName(Type Format)
 	case ERawImageFormat::G8:  return TEXT("G8");
 	case ERawImageFormat::G16: return TEXT("G16");
 	case ERawImageFormat::R16F: return TEXT("R16F");
+	case ERawImageFormat::R32F: return TEXT("R32F");
 	case ERawImageFormat::BGRA8: return TEXT("BGRA8");
 	case ERawImageFormat::BGRE8: return TEXT("BGRE8");
 	case ERawImageFormat::RGBA16: return TEXT("RGBA16");
@@ -1106,7 +1145,8 @@ IMAGECORE_API int32 ERawImageFormat::GetBytesPerPixel(Type Format)
 	case ERawImageFormat::R16F:
 		BytesPerPixel = 2;
 		break;
-
+		
+	case ERawImageFormat::R32F:
 	case ERawImageFormat::BGRA8:
 	case ERawImageFormat::BGRE8:
 		BytesPerPixel = 4;
@@ -1131,7 +1171,7 @@ IMAGECORE_API int32 ERawImageFormat::GetBytesPerPixel(Type Format)
 
 IMAGECORE_API bool ERawImageFormat::IsHDR(Type Format)
 {
-	return Format == RGBA16F || Format == RGBA32F || Format == R16F || Format == BGRE8;
+	return Format == RGBA16F || Format == RGBA32F || Format == R16F || Format == R32F || Format == BGRE8;
 }
 
 IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * PixelData,Type Format,bool bSRGB)
@@ -1146,6 +1186,12 @@ IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * Pixel
 			return FLinearColor::FromSRGBColor(Color);
 		else
 			return Color.ReinterpretAsLinear();
+	}
+	case G16:
+	{
+		const uint16 * Samples = (const uint16 *)PixelData;
+		float Gray = Samples[0]/65535.f;
+		return FLinearColor(Gray,Gray,Gray,1.f);
 	}
 	case BGRA8:
 	{
@@ -1176,18 +1222,17 @@ IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * Pixel
 	}
 	case RGBA32F:
 	{
-		return *((FLinearColor *)PixelData);
-	}
-	case G16:
-	{
-		const uint16 * Samples = (const uint16 *)PixelData;
-		float Gray = Samples[0]/65535.f;
-		return FLinearColor(Gray,Gray,Gray,1.f);
+		return *((const FLinearColor *)PixelData);
 	}
 	case R16F:
 	{
-		float Gray = FPlatformMath::LoadHalf((const uint16 *)PixelData);
-		return FLinearColor(Gray,Gray,Gray,1.f);
+		float R = FPlatformMath::LoadHalf((const uint16 *)PixelData);
+		return FLinearColor(R,0,0,1.f);
+	}
+	case R32F:
+	{
+		float R = *((const float *)PixelData);
+		return FLinearColor(R,0,0,1.f);
 	}
 	
 	default:

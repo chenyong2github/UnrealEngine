@@ -132,7 +132,7 @@ struct FTextureSource
 	// should match ERawImageFormat::GetBytesPerPixel
 	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
 	// should match ERawImageFormat::IsHDR
-	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F || Format == TSF_R16F || Format == TSF_RGBA32F); }
+	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F || Format == TSF_R16F || Format == TSF_R32F || Format == TSF_RGBA32F); }
 	
 	enum class ELockState : uint8
 	{

@@ -7,6 +7,14 @@
 #include "HAL/PlatformTime.h"
 #include "Math/Float16.h"
 
+/**
+
+@todo Oodle : this is a flawed EXR importer
+it crashes on many images in the OpenEXR test set
+Blobbies.exr and spirals.exr among others
+
+**/
+
 #if WITH_UNREALEXR
 
 FExrImageWrapper::FExrImageWrapper()
@@ -150,7 +158,8 @@ private:
 
 const char* cChannelNamesRGBA[] = { "R", "G", "B", "A" };
 const char* cChannelNamesBGRA[] = { "B", "G", "R", "A" };
-const char* cChannelNamesGray[] = { "G" };
+//const char* cChannelNamesGray[] = { "G" }; // is that green or gray ?
+const char* cChannelNamesGray[] = { "Y" }; // pretty sure "Y" is more standard for gray
 
 int32 GetChannelNames(ERGBFormat InRGBFormat, const char* const*& OutChannelNames)
 {
@@ -196,6 +205,7 @@ ERawImageFormat::Type FExrImageWrapper::GetSupportedRawFormat(const ERawImageFor
 	case ERawImageFormat::RGBA16F:
 	case ERawImageFormat::RGBA32F:
 	case ERawImageFormat::R16F:
+	case ERawImageFormat::R32F:
 		return InFormat; // directly supported
 	case ERawImageFormat::G8:
 		return ERawImageFormat::R16F; // needs conversion
@@ -281,13 +291,25 @@ bool FExrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 		Height = ImfDataWindow.max.y - ImfDataWindow.min.y + 1;
 
 		bool bHasOnlyHALFChannels = true;
-		bool bMatchesGrayOrder = true;
+		bool bHasAlphaChannel = false;
 		int32 ChannelCount = 0;
 
-		for (Imf::ChannelList::Iterator Iter = ImfChannels.begin(); Iter != ImfChannels.end(); ++Iter, ++ChannelCount)
+		for (Imf::ChannelList::Iterator Iter = ImfChannels.begin(); Iter != ImfChannels.end(); ++Iter)
 		{
+			++ChannelCount;
+
 			bHasOnlyHALFChannels = bHasOnlyHALFChannels && Iter.channel().type == Imf::HALF;
-			bMatchesGrayOrder = bMatchesGrayOrder && ChannelCount < UE_ARRAY_COUNT(cChannelNamesGray) && !strcmp(Iter.name(), cChannelNamesGray[ChannelCount]);
+
+			// check for bMatchesGrayOrder disabled
+			// treat any 1-channel import as gray
+			// don't try to match the channel names, which are not standardized
+			//  (we incorrectly used "G" before, we now use "Y", TinyEXR uses "A" for 1-channel EXR)
+			//bMatchesGrayOrder = bMatchesGrayOrder && ChannelCount < UE_ARRAY_COUNT(cChannelNamesGray) && !strcmp(Iter.name(), cChannelNamesGray[ChannelCount]);
+
+			if ( strcmp(Iter.name(),"A") == 0 )
+			{
+				bHasAlphaChannel = true;
+			}
 		}
 
 		BitDepth = (ChannelCount && bHasOnlyHALFChannels) ? 16 : 32;
@@ -295,7 +317,19 @@ bool FExrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 		// EXR uint32 channels are currently not supported, therefore input channels are always treated as float channels.
 		// Channel combinations which don't match the ERGBFormat::GrayF pattern are qualified as ERGBFormat::RGBAF.
 		// Note that channels inside the EXR file are indexed by name, therefore can be decoded in any RGB order.
-		Format = (ChannelCount == UE_ARRAY_COUNT(cChannelNamesGray) && bMatchesGrayOrder) ? ERGBFormat::GrayF : ERGBFormat::RGBAF;
+
+		// NOTE: TinyEXR writes 1-channel EXR as an "A" named channel
+		//  this cannot be loaded as a 1-channel image (you would just get all zeros)
+		// it must be loaded as RGBA here
+		// @todo Oodle : load that as RGBA then move A to R and convert back to 1 channel ?
+		if (ChannelCount == 1 && !bHasAlphaChannel)
+		{
+			Format = ERGBFormat::GrayF;
+		}
+		else
+		{
+			Format = ERGBFormat::RGBAF;
+		}
 	}
 	catch (const std::exception& Exception)
 	{

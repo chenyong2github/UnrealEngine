@@ -139,6 +139,7 @@ ERawImageFormat::Type FPngImageWrapper::GetSupportedRawFormat(const ERawImageFor
 	case ERawImageFormat::RGBA16F:
 	case ERawImageFormat::RGBA32F:
 	case ERawImageFormat::R16F:
+	case ERawImageFormat::R32F:
 		return ERawImageFormat::RGBA16; // needs conversion
 	default:
 		check(0);

@@ -74,7 +74,8 @@ public:
 	/** Convert from Fp16 to Fp32. */
 	float GetFloat() const;
 
-	/** Is the float negative without converting */
+	/** Is the float negative without converting
+	NOTE: returns true for negative zero! */
 	bool IsNegative() const
 	{
 		// negative if sign bit is on
