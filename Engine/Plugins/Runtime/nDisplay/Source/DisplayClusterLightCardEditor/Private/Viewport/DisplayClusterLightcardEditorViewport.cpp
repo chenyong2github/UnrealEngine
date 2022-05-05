@@ -231,6 +231,10 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal));
 
+	CommandList->MapAction(
+		Commands.ResetCamera,
+		FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera, false));
+	
 	SEditorViewport::BindCommands();
 }
 

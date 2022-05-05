@@ -155,6 +155,9 @@ public:
 	/** Sets the field of view of the specified projection mode */
 	void SetProjectionModeFOV(EDisplayClusterMeshProjectionType InProjectionMode, float NewFOV);
 
+	/** Resets the camera to the initial rotation / position */
+	void ResetCamera(bool bLocationOnly = false);
+	
 private:
 	/** Initiates a transaction. */
 	void BeginTransaction(const FText& Description);
@@ -209,12 +212,18 @@ private:
 
 	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
 	bool CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection, FTransform& WidgetTransformAfterMapProjection);
-
+	
 	/** Renders the viewport's normal map and stores the texture data to be used later */
 	void RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection);
 
 	/** Invalidates the viewport's normal map, forcing it to be rerendered on the next draw call */
 	void InvalidateNormalMap();
+
+	/** Checks if the location is approaching the edge of the view space */
+	bool IsLocationCloseToEdge(const FVector& InPosition, const FViewport* InViewport = nullptr, const FSceneView* InView = nullptr, FVector2D* OutPercentageToEdge = nullptr);
+
+	/** Resets the camera FOVs */
+	void ResetFOVs();
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
@@ -258,6 +267,18 @@ private:
 
 	/** The offset between the widget's origin and the place it was clicked when a drag action was started */
 	FVector DragWidgetOffset;
+
+	/** The location the camera should be looking at */
+	TOptional<FVector> DesiredLookAtLocation;
+
+	/** The current speed to use when looking at a location */
+	float DesiredLookAtSpeed = 1.f;
+
+	/** The maximum speed to use when looking at a location */
+	float MaxDesiredLookAtSpeed = 5.f;
+
+	/** The percentage to the edge of the view which should trigger auto tilt and auto pan */
+	float EdgePercentageLookAtThreshold = 0.1f;
 
 	/** The current projection mode the 3D viewport is being displayed with */
 	EDisplayClusterMeshProjectionType ProjectionMode = EDisplayClusterMeshProjectionType::Azimuthal;

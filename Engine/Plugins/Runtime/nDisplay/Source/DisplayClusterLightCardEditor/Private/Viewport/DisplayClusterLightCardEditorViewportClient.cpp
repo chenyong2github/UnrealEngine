@@ -38,6 +38,8 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "CameraController.h"
 #include "ImageUtils.h"
+#include "Kismet/KismetMathLibrary.h"
+
 
 #include "Renderer/Private/SceneRendering.h"
 
@@ -205,9 +207,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	SetRealtime(true);
 	SetShowStats(true);
 
-	ProjectionFOVs.AddZeroed(2);
-	ProjectionFOVs[(int32)EDisplayClusterMeshProjectionType::Perspective] = 90.0f;
-	ProjectionFOVs[(int32)EDisplayClusterMeshProjectionType::Azimuthal] = 130.0f;
+	ResetFOVs();
 
 	//This seems to be needed to get the correct world time in the preview.
 	SetIsSimulateInEditorViewport(true);
@@ -236,13 +236,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	// Camera position is locked to a specific location
-	FVector Location = FVector::ZeroVector;
-	if (ProjectionOriginComponent.IsValid())
-	{
-		Location = ProjectionOriginComponent->GetComponentLocation();
-	}
-
-	SetViewLocation(Location);
+	ResetCamera(/* bLocationOnly */ true);
 
 	CalcEditorWidgetTransform(CachedEditorWidgetTransformBeforeMapProjection, CachedEditorWidgetTransformAfterMapProjection);
 
@@ -289,6 +283,19 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 		SetRequiredCursorOverride(true, EMouseCursor::CardinalCross);
 
 		ApplyRequiredCursorVisibility(true);
+	}
+
+	if (DesiredLookAtLocation.IsSet())
+	{
+		const FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetViewLocation(), *DesiredLookAtLocation);
+		const FRotator NewRotation = FMath::RInterpTo(GetViewRotation(), LookAtRotation, DeltaSeconds, DesiredLookAtSpeed);
+		SetViewRotation(NewRotation);
+
+		if (NewRotation.Equals(LookAtRotation, 2.f) ||
+			!IsLocationCloseToEdge(CachedEditorWidgetTransformAfterMapProjection.GetTranslation()))
+		{
+			DesiredLookAtLocation.Reset();
+		}
 	}
 }
 
@@ -571,6 +578,8 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 
 		BeginTransaction(LOCTEXT("MoveLightCard", "Move Light Card"));
 		bDraggingActor = true;
+		
+		DesiredLookAtLocation.Reset();
 
 		// Compute and store the delta between the widget's origin and the place the user clicked on it,
 		// in order to factor it out when transforming the selected actor
@@ -962,6 +971,26 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionModeFOV(EDisplay
 
 	Viewport->InvalidateHitProxy();
 	bShouldCheckHitProxy = true;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::ResetCamera(bool bLocationOnly)
+{
+	FVector Location = FVector::ZeroVector;
+	if (ProjectionOriginComponent.IsValid())
+	{
+		Location = ProjectionOriginComponent->GetComponentLocation();
+	}
+
+	SetViewLocation(Location);
+
+	if (bLocationOnly)
+	{
+		return;
+	}
+	
+	SetProjectionMode(GetProjectionMode());
+
+	ResetFOVs();
 }
 
 void FDisplayClusterLightCardEditorViewportClient::BeginTransaction(const FText& Description)
@@ -1437,6 +1466,18 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 
 			PropagateLightCardTransform(LightCard.Get());
 		}
+
+		FVector LightCardWorldLocation = CachedEditorWidgetTransformAfterMapProjection.GetTranslation();
+		FVector2D ScreenPercentage;
+		if (IsLocationCloseToEdge(LightCardWorldLocation, InViewport, View, &ScreenPercentage))
+		{
+			DesiredLookAtSpeed = FMath::Max(ScreenPercentage.X, ScreenPercentage.Y) * MaxDesiredLookAtSpeed;
+			DesiredLookAtLocation = LightCardWorldLocation;
+		}
+		else
+		{
+			DesiredLookAtLocation.Reset();
+		}
 	}
 }
 
@@ -1679,6 +1720,77 @@ void FDisplayClusterLightCardEditorViewportClient::RenderNormalMap(FNormalMap& N
 void FDisplayClusterLightCardEditorViewportClient::InvalidateNormalMap()
 {
 	bNormalMapInvalid = true;
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::IsLocationCloseToEdge(const FVector& InPosition, const FViewport* InViewport,
+                                                                         const FSceneView* InView, FVector2D* OutPercentageToEdge)
+{
+	if (InViewport == nullptr)
+	{
+		InViewport = Viewport;
+	}
+
+	check(InViewport);
+	const FIntPoint ViewportSize = InViewport->GetSizeXY();
+
+	FPlane Projection;
+	if (InView == nullptr)
+	{
+		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		Viewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime()));
+		
+		InView = CalcSceneView(&ViewFamily);
+		Projection = InView->Project(InPosition);
+
+		// InView will be deleted here
+	}
+	else
+	{
+		Projection = InView->Project(InPosition);
+	}
+	
+	if (Projection.W > 0)
+	{
+		const float HighThreshold = 1.f - EdgePercentageLookAtThreshold;
+		
+		const int32 HalfX = 0.5f * Viewport->GetSizeXY().X;
+		const int32 HalfY = 0.5f * Viewport->GetSizeXY().Y;
+		const int32 XPos = HalfX + (HalfX * Projection.X);
+		const int32 YPos = HalfY + (HalfY * (Projection.Y * -1));
+			
+		auto GetPercentToEdge = [&](int32 CurrentPos, int32 MaxPos) -> float
+		{
+			const float Center = static_cast<float>(MaxPos) / 2.f;
+			const float RelativePosition = FMath::Abs(CurrentPos - Center);
+			return RelativePosition / Center;
+		};
+			
+		const float XPercent = GetPercentToEdge(XPos, ViewportSize.X);
+		const float YPercent = GetPercentToEdge(YPos, ViewportSize.Y);
+			
+		if (OutPercentageToEdge)
+		{
+			*OutPercentageToEdge = FVector2D(XPercent, YPercent);
+		}
+			
+		return XPercent >= HighThreshold || YPercent >= HighThreshold;
+	}
+
+	return false;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::ResetFOVs()
+{
+	constexpr int32 MaxFOVs = 2;
+	if (ProjectionFOVs.Num() < MaxFOVs)
+	{
+		ProjectionFOVs.AddDefaulted(MaxFOVs - ProjectionFOVs.Num());
+	}
+	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Perspective)] = 90.0f;
+	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Azimuthal)] = 130.0f;
 }
 
 #undef LOCTEXT_NAMESPACE
