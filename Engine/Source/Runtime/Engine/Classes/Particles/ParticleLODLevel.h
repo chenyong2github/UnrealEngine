@@ -15,6 +15,7 @@
 class UInterpCurveEdSetup;
 class UParticleModule;
 class UMaterialInterface;
+struct FStreamingRenderAssetPrimitiveInfo;
 
 UCLASS(collapsecategories, hidecategories=Object, editinlinenew, MinimalAPI)
 class UParticleLODLevel : public UObject
