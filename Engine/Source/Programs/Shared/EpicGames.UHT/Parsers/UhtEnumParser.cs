@@ -13,17 +13,8 @@ namespace EpicGames.UHT.Parsers
 	/// UENUM parser
 	/// </summary>
 	[UnrealHeaderTool]
-	public class UhtEnumParser : UhtEnum
+	public static class UhtEnumParser
 	{
-		/// <summary>
-		/// Construct a new enum parser
-		/// </summary>
-		/// <param name="outer">Outer type</param>
-		/// <param name="lineNumber">Line number</param>
-		public UhtEnumParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
-		{
-		}
-
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
@@ -36,7 +27,7 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUEnum(UhtParsingScope parentScope, UhtToken keywordToken)
 		{
-			UhtEnumParser enumObject = new(parentScope.ScopeType, keywordToken.InputLine);
+			UhtEnum enumObject = new(parentScope.ScopeType, keywordToken.InputLine);
 			{
 				using UhtParsingScope topScope = new(parentScope, enumObject, parentScope.Session.GetKeywordTable(UhtTableNames.Enum), UhtAccessSpecifier.Public);
 				const string ScopeName = "UENUM";

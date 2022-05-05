@@ -14,68 +14,9 @@ namespace EpicGames.UHT.Parsers
 	/// Interface class parser
 	/// </summary>
 	[UnrealHeaderTool]
-	public class UhtInterfaceClassParser : UhtClassBaseParser
+	public static class UhtInterfaceClassParser
 	{
-		/// <summary>
-		/// Construct a new interface class parser
-		/// </summary>
-		/// <param name="outer">Outer object</param>
-		/// <param name="lineNumber">Line number</param>
-		public UhtInterfaceClassParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
-		{
-		}
 
-		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
-		{
-			base.ResolveSuper(resolvePhase);
-			switch (resolvePhase)
-			{
-				case UhtResolvePhase.Bases:
-					UhtClass? superClass = this.SuperClass;
-					if (superClass != null)
-					{
-						this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit;
-						if (!superClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
-						{
-							throw new UhtException(this, $"Native classes cannot extend non-native classes");
-						}
-						this.ClassWithin = superClass.ClassWithin;
-					}
-					else
-					{
-						this.ClassWithin = this.Session.UObject;
-					}
-					break;
-			}
-		}
-
-		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
-		{
-			bool result = base.ResolveSelf(resolvePhase);
-
-			switch (resolvePhase)
-			{
-				case UhtResolvePhase.InvalidCheck:
-					{
-						string nativeInterfaceName = "I" + this.EngineName;
-						UhtType? nativeInterface = this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, nativeInterfaceName);
-						if (nativeInterface == null)
-						{
-							this.LogError($"UInterface '{this.SourceName}' parsed without a corresponding '{nativeInterfaceName}'");
-						}
-						else
-						{
-							// Copy the children
-							this.AddChildren(nativeInterface.DetachChildren());
-						}
-					}
-					break;
-			}
-
-			return result;
-		}
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
@@ -108,7 +49,7 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUInterface(UhtParsingScope parentScope, ref UhtToken token)
 		{
-			UhtInterfaceClassParser classObj = new(parentScope.ScopeType, token.InputLine);
+			UhtClass classObj = new(parentScope.ScopeType, token.InputLine);
 			classObj.ClassType = UhtClassType.Interface;
 
 			{

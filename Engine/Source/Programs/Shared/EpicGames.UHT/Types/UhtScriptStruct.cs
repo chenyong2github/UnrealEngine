@@ -622,6 +622,26 @@ namespace EpicGames.UHT.Types
 		{
 		}
 
+		#region Resolution support
+		/// <inheritdoc/>
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
+		{
+			base.ResolveSuper(resolvePhase);
+
+			switch (resolvePhase)
+			{
+				case UhtResolvePhase.Bases:
+					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.ScriptStruct);
+
+					// if we have a base struct, propagate inherited struct flags now
+					UhtScriptStruct? superScriptStruct = this.SuperScriptStruct;
+					if (superScriptStruct != null)
+					{
+						this.ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
+					}
+					break;
+			}
+		}
 		/// <inheritdoc/>
 		protected override void ResolveChildren(UhtResolvePhase phase)
 		{
@@ -703,6 +723,7 @@ namespace EpicGames.UHT.Types
 
 			return base.ScanForInstancedReferenced(deepScan);
 		}
+		#endregion
 
 		#region Validation support
 		/// <inheritdoc/>

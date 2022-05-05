@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
+using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
@@ -89,6 +91,19 @@ namespace EpicGames.UHT.Types
 		public IReadOnlyList<UhtStruct> Bases => _bases ?? s_emptyBases;
 
 		/// <summary>
+		/// Super identifier
+		/// </summary>
+		[JsonIgnore]
+		public UhtToken SuperIdentifier { get; set; }
+
+		/// <summary>
+		/// Base identifiers
+		/// </summary>
+		[JsonIgnore]
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "<Pending>")]
+		public List<UhtToken[]>? BaseIdentifiers { get; set; } = null;
+
+		/// <summary>
 		/// Super struct type
 		/// </summary>
 		[JsonIgnore]
@@ -142,6 +157,20 @@ namespace EpicGames.UHT.Types
 			}
 
 			base.ResolveSuper(resolvePhase);
+		}
+
+		/// <inheritdoc/>
+		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
+		{
+			bool result = base.ResolveSelf(resolvePhase);
+
+			switch (resolvePhase)
+			{
+				case UhtResolvePhase.Properties:
+					UhtPropertyParser.ResolveChildren(this, UhtPropertyParseOptions.AddModuleRelativePath);
+					break;
+			}
+			return result;
 		}
 
 		/// <summary>

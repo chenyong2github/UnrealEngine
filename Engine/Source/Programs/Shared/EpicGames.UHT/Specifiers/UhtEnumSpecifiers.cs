@@ -13,10 +13,10 @@ namespace EpicGames.UHT.Parsers
 	/// Collection of UENUM specifiers
 	/// </summary>
 	[UnrealHeaderTool]
+	[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 	public static class UhtEnumSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Enum, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void FlagsSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtEnum enumObj = (UhtEnum)specifierContext.Scope.ScopeType;

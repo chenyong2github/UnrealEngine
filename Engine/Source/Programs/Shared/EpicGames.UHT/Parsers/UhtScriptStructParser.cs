@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
@@ -16,63 +15,8 @@ namespace EpicGames.UHT.Parsers
 	/// USTRUCT parser object
 	/// </summary>
 	[UnrealHeaderTool]
-	public class UhtScriptStructParser : UhtScriptStruct
+	public static class UhtScriptStructParser
 	{
-		/// <summary>
-		/// Super identifier
-		/// </summary>
-		[JsonIgnore]
-		public UhtToken SuperIdentifier { get; set; }
-
-		/// <summary>
-		/// Base identifiers
-		/// </summary>
-		[JsonIgnore]
-		[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "<Pending>")]
-		public List<UhtToken[]>? BaseIdentifiers { get; set; } = null;
-
-		/// <summary>
-		/// Construct a new instance
-		/// </summary>
-		/// <param name="outer">Output type</param>
-		/// <param name="lineNumber">Line number of declaration</param>
-		public UhtScriptStructParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
-		{
-		}
-
-		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
-		{
-			base.ResolveSuper(resolvePhase);
-
-			switch (resolvePhase)
-			{
-				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.ScriptStruct);
-
-					// if we have a base struct, propagate inherited struct flags now
-					UhtScriptStruct? superScriptStruct = this.SuperScriptStruct;
-					if (superScriptStruct != null)
-					{
-						this.ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
-					}
-					break;
-			}
-		}
-
-		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
-		{
-			bool result = base.ResolveSelf(resolvePhase);
-
-			switch (resolvePhase)
-			{
-				case UhtResolvePhase.Properties:
-					UhtPropertyParser.ResolveChildren(this, UhtPropertyParseOptions.AddModuleRelativePath);
-					break;
-			}
-			return result;
-		}
 
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
@@ -121,7 +65,7 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUScriptStruct(UhtParsingScope parentScope, UhtToken keywordToken)
 		{
-			UhtScriptStructParser scriptStruct = new(parentScope.ScopeType, keywordToken.InputLine);
+			UhtScriptStruct scriptStruct = new(parentScope.ScopeType, keywordToken.InputLine);
 			{
 				using UhtParsingScope topScope = new(parentScope, scriptStruct, parentScope.Session.GetKeywordTable(UhtTableNames.ScriptStruct), UhtAccessSpecifier.Public);
 

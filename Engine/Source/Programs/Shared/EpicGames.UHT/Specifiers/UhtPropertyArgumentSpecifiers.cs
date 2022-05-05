@@ -13,11 +13,11 @@ namespace EpicGames.UHT.Parsers
 	/// Collection of property argument specifiers
 	/// </summary>
 	[UnrealHeaderTool]
+	[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 	public static class UhtPropertyArgumentSpecifiers
 	{
 		#region Argument Property Specifiers
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConstSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -25,7 +25,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void RefSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -33,7 +32,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotReplicatedSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;

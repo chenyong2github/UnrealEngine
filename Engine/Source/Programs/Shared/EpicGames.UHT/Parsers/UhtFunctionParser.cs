@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
@@ -94,90 +93,8 @@ namespace EpicGames.UHT.Parsers
 	/// UFUNCTION parser
 	/// </summary>
 	[UnrealHeaderTool]
-	public class UhtFunctionParser : UhtFunction
+	public static class UhtFunctionParser
 	{
-		/// <summary>
-		/// Construct a new function parser
-		/// </summary>
-		/// <param name="outer">Outer object</param>
-		/// <param name="lineNumber">Line number</param>
-		public UhtFunctionParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
-		{
-		}
-
-		/// <summary>
-		/// True if the function specifier has a getter/setter specified
-		/// </summary>
-		public bool SawPropertyAccessor { get; set; } = false;
-
-		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
-		{
-			bool result = base.ResolveSelf(resolvePhase);
-			switch (resolvePhase)
-			{
-				case UhtResolvePhase.Properties:
-					UhtPropertyParser.ResolveChildren(this, GetPropertyParseOptions(false));
-					foreach (UhtProperty property in this.Properties)
-					{
-						if (property.DefaultValueTokens != null)
-						{
-							string key = "CPP_Default_" + property.EngineName;
-							if (!this.MetaData.ContainsKey(key))
-							{
-								bool parsed = false;
-								try
-								{
-									// All tokens MUST be consumed from the reader
-									StringBuilder builder = new();
-									IUhtTokenReader defaultValueReader = UhtTokenReplayReader.GetThreadInstance(property, this.HeaderFile.Data.Memory, property.DefaultValueTokens.ToArray(), UhtTokenType.EndOfDefault);
-									parsed = property.SanitizeDefaultValue(defaultValueReader, builder) && defaultValueReader.IsEOF;
-									if (parsed)
-									{
-										this.MetaData.Add(key, builder.ToString());
-									}
-								}
-								catch (Exception)
-								{
-									// Ignore the exception for now
-								}
-
-								if (!parsed)
-								{
-									StringView defaultValueText = new(this.HeaderFile.Data, property.DefaultValueTokens.First().InputStartPos,
-										property.DefaultValueTokens.Last().InputEndPos - property.DefaultValueTokens.First().InputStartPos);
-									property.LogError($"C++ Default parameter not parsed: {property.SourceName} '{defaultValueText}'");
-								}
-							}
-						}
-					}
-					break;
-			}
-			return result;
-		}
-
-		private UhtPropertyParseOptions GetPropertyParseOptions(bool returnValue)
-		{
-			switch (this.FunctionType)
-			{
-				case UhtFunctionType.Delegate:
-				case UhtFunctionType.SparseDelegate:
-					return (returnValue ? UhtPropertyParseOptions.None : UhtPropertyParseOptions.CommaSeparatedName) | UhtPropertyParseOptions.DontAddReturn;
-
-				case UhtFunctionType.Function:
-					UhtPropertyParseOptions options = UhtPropertyParseOptions.DontAddReturn; // Fetch the function name
-					options |= returnValue ? UhtPropertyParseOptions.FunctionNameIncluded : UhtPropertyParseOptions.NameIncluded;
-					if (this.FunctionFlags.HasAllFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Native))
-					{
-						options |= UhtPropertyParseOptions.NoAutoConst;
-					}
-					return options;
-
-				default:
-					throw new UhtIceException("Unknown enumeration value");
-			}
-		}
-
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[UhtKeyword(Extends = UhtTableNames.Class)]
@@ -212,7 +129,7 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUDelegate(UhtParsingScope parentScope, UhtToken token, bool hasSpecifiers)
 		{
-			UhtFunctionParser function = new(parentScope.ScopeType, token.InputLine);
+			UhtFunction function = new(parentScope.ScopeType, token.InputLine);
 
 			{
 				using UhtParsingScope topScope = new(parentScope, function, parentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public);
@@ -382,7 +299,7 @@ namespace EpicGames.UHT.Parsers
 
 		private static UhtParseResult ParseUFunction(UhtParsingScope parentScope, UhtToken token)
 		{
-			UhtFunctionParser function = new(parentScope.ScopeType, token.InputLine);
+			UhtFunction function = new(parentScope.ScopeType, token.InputLine);
 
 			{
 				using UhtParsingScope topScope = new(parentScope, function, parentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public);

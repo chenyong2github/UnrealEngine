@@ -14,56 +14,8 @@ namespace EpicGames.UHT.Parsers
 	/// Parser object for native interfaces
 	/// </summary>
 	[UnrealHeaderTool]
-	public class UhtParserNativeInterfaceClass : UhtClassBaseParser
-	{
-		/// <summary>
-		/// Construct a new native interface
-		/// </summary>
-		/// <param name="outer">Outer object</param>
-		/// <param name="lineNumber">Line number of declaration</param>
-		public UhtParserNativeInterfaceClass(UhtType outer, int lineNumber) : base(outer, lineNumber)
-		{
-		}
-
-		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
-		{
-			bool result = base.ResolveSelf(resolvePhase);
-
-			switch (resolvePhase)
-			{
-				case UhtResolvePhase.InvalidCheck:
-					string interfaceName = "U" + this.EngineName;
-					UhtClass? interfaceObj = (UhtClass?)this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, interfaceName);
-					if (interfaceObj == null)
-					{
-						if (this.HasGeneratedBody || this.Children.Count != 0)
-						{
-							this.LogError($"Native interface '{this.SourceName}' parsed without a corresponding '{interfaceName}'");
-						}
-						else
-						{
-							this.VisibleType = false;
-							result = false;
-						}
-					}
-					else
-					{
-						this.AlternateObject = interfaceObj;
-						interfaceObj.NativeInterface = this;
-						//COMPATIBILITY-TODO - Use the native interface access specifier
-						interfaceObj.GeneratedBodyAccessSpecifier = this.GeneratedBodyAccessSpecifier;
-
-						if (this.GeneratedBodyLineNumber == -1)
-						{
-							this.LogError("Expected a GENERATED_BODY() at the start of the native interface");
-						}
-					}
-					break;
-			}
-
-			return result;
-		}
+	public static class UhtNativeInterfaceClassParser
+	{ 
 
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global, Keyword = "class", DisableUsageError = true)]
@@ -152,7 +104,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			IUhtTokenReader tokenReader = parentScope.TokenReader;
 
-			UhtParserNativeInterfaceClass classObj = new(parentScope.ScopeType, token.InputLine);
+			UhtClass classObj = new(parentScope.ScopeType, token.InputLine);
 			classObj.ClassType = UhtClassType.NativeInterface;
 			classObj.SourceName = sourceName.Value.ToString();
 			classObj.ClassFlags |= EClassFlags.Native | EClassFlags.Interface;

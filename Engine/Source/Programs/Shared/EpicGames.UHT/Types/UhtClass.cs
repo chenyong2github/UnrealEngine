@@ -356,6 +356,93 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public bool HasGeneratedBody { get; set; } = false;
 
+		#region Class specifier parse time values (not interfaces)
+		/// <summary>
+		/// Engine class flags removed
+		/// </summary>
+		public EClassFlags RemovedClassFlags { get; set; } = EClassFlags.None;
+
+		/// <summary>
+		/// Class within identifier
+		/// </summary>
+		[JsonIgnore]
+		public string ClassWithinIdentifier { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Collection of show categories
+		/// </summary>
+		[JsonIgnore]
+		public List<string> ShowCategories { get; } = new List<string>();
+
+		/// <summary>
+		/// Collection of hide categories
+		/// </summary>
+		[JsonIgnore]
+		public List<string> HideCategories { get; } = new List<string>();
+
+		/// <summary>
+		/// Collection of auto expand categories
+		/// </summary>
+		[JsonIgnore]
+		public List<string> AutoExpandCategories { get; } = new List<string>();
+
+		/// <summary>
+		/// Collection of auto collapse categories
+		/// </summary>
+		[JsonIgnore]
+		public List<string> AutoCollapseCategories { get; } = new List<string>();
+
+		/// <summary>
+		/// Collection of prioritize categories
+		/// </summary>
+		[JsonIgnore]
+		public List<string> PrioritizeCategories { get; } = new List<string>();
+
+		/// <summary>
+		/// Collection of show functions
+		/// </summary>
+		[JsonIgnore]
+		public List<string> ShowFunctions { get; } = new List<string>();
+
+		/// <summary>
+		/// Collection of hide functions
+		/// </summary>
+		[JsonIgnore]
+		public List<string> HideFunctions { get; } = new List<string>();
+
+		/// <summary>
+		/// Sparse class data types
+		/// </summary>
+		[JsonIgnore]
+		public List<string> SparseClassDataTypes { get; } = new List<string>();
+
+		/// <summary>
+		/// Class group names
+		/// </summary>
+		[JsonIgnore]
+		public List<string> ClassGroupNames { get; } = new List<string>();
+
+		/// <summary>
+		/// Add the given class flags
+		/// </summary>
+		/// <param name="flags">Flags to add</param>
+		public void AddClassFlags(EClassFlags flags)
+		{
+			this.ClassFlags |= flags;
+			this.RemovedClassFlags &= ~flags;
+		}
+
+		/// <summary>
+		/// Remove the given class flags
+		/// </summary>
+		/// <param name="flags">Flags to remove</param>
+		public void RemoveClassFlags(EClassFlags flags)
+		{
+			this.RemovedClassFlags |= flags;
+			this.ClassFlags &= ~flags;
+		}
+		#endregion
+
 		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType
@@ -540,12 +627,176 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
+		{
+			base.ResolveSuper(resolvePhase);
+
+			// Make sure the class within is resolved.  We have to make sure we don't try to resolve ourselves.
+			if (this.ClassWithin != null && this.ClassWithin != this)
+			{
+				this.ClassWithin.Resolve(resolvePhase);
+			}
+
+			switch (resolvePhase)
+			{
+				case UhtResolvePhase.Bases:
+					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.Class);
+					BindAndResolveBases(this.BaseIdentifiers, UhtFindOptions.Class);
+
+					// Force the MatchedSerializers on for anything being exported
+					if (!this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
+					{
+						this.ClassFlags |= EClassFlags.MatchedSerializers;
+					}
+
+					switch (this.ClassType)
+					{
+						case UhtClassType.Class:
+							{
+								UhtClass? superClass = this.SuperClass;
+
+								// Merge the super class flags
+								if (superClass != null)
+								{
+									this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+								}
+
+								foreach (UhtStruct baseStruct in this.Bases)
+								{
+									if (baseStruct is UhtClass baseClass)
+									{
+										if (!baseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+										{
+											this.LogError($"Class '{baseClass.SourceName}' is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces");
+										}
+										this.ClassFlags |= baseClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+									}
+								}
+
+								// These following collections only inherit from he parent if they are empty in this class
+								if (this.SparseClassDataTypes.Count == 0)
+								{
+									AppendStringListMetaData(this.SuperClass, UhtNames.SparseClassDataTypes, this.SparseClassDataTypes);
+								}
+								if (this.PrioritizeCategories.Count == 0)
+								{
+									AppendStringListMetaData(this.SuperClass, UhtNames.PrioritizeCategories, this.PrioritizeCategories);
+								}
+
+								// Merge with categories inherited from the parent.
+								MergeCategories();
+
+								SetAndValidateWithinClass(resolvePhase);
+								SetAndValidateConfigName();
+
+								// Copy all of the lists back to the meta data
+								this.MetaData.AddIfNotEmpty(UhtNames.ClassGroupNames, this.ClassGroupNames);
+								this.MetaData.AddIfNotEmpty(UhtNames.AutoCollapseCategories, this.AutoCollapseCategories);
+								this.MetaData.AddIfNotEmpty(UhtNames.AutoExpandCategories, this.AutoExpandCategories);
+								this.MetaData.AddIfNotEmpty(UhtNames.PrioritizeCategories, this.PrioritizeCategories);
+								this.MetaData.AddIfNotEmpty(UhtNames.HideCategories, this.HideCategories);
+								this.MetaData.AddIfNotEmpty(UhtNames.ShowCategories, this.ShowCategories);
+								this.MetaData.AddIfNotEmpty(UhtNames.SparseClassDataTypes, this.SparseClassDataTypes);
+								this.MetaData.AddIfNotEmpty(UhtNames.HideFunctions, this.HideFunctions);
+
+								this.MetaData.Add(UhtNames.IncludePath, this.HeaderFile.IncludeFilePath);
+							}
+							break;
+
+						case UhtClassType.Interface:
+							{
+								UhtClass? superClass = this.SuperClass;
+								if (superClass != null)
+								{
+									this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit;
+									if (!superClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
+									{
+										throw new UhtException(this, $"Native classes cannot extend non-native classes");
+									}
+									this.ClassWithin = superClass.ClassWithin;
+								}
+								else
+								{
+									this.ClassWithin = this.Session.UObject;
+								}
+							}
+							break;
+
+						case UhtClassType.NativeInterface:
+							break;
+
+						default:
+							throw new UhtIceException("Unexpected class type");
+					}
+					break;
+			}
+		}
+
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
 			bool result = base.ResolveSelf(phase);
 
 			switch (phase)
 			{
+				case UhtResolvePhase.InvalidCheck:
+					switch (this.ClassType)
+					{
+						case UhtClassType.Class:
+							break;
+
+						case UhtClassType.Interface:
+							{
+								string nativeInterfaceName = "I" + this.EngineName;
+								UhtType? nativeInterface = this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, nativeInterfaceName);
+								if (nativeInterface == null)
+								{
+									this.LogError($"UInterface '{this.SourceName}' parsed without a corresponding '{nativeInterfaceName}'");
+								}
+								else
+								{
+									// Copy the children
+									this.AddChildren(nativeInterface.DetachChildren());
+								}
+							}
+							break;
+
+						case UhtClassType.NativeInterface:
+							{
+								string interfaceName = "U" + this.EngineName;
+								UhtClass? interfaceObj = (UhtClass?)this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, interfaceName);
+								if (interfaceObj == null)
+								{
+									if (this.HasGeneratedBody || this.Children.Count != 0)
+									{
+										this.LogError($"Native interface '{this.SourceName}' parsed without a corresponding '{interfaceName}'");
+									}
+									else
+									{
+										this.VisibleType = false;
+										result = false;
+									}
+								}
+								else
+								{
+									this.AlternateObject = interfaceObj;
+									interfaceObj.NativeInterface = this;
+									//COMPATIBILITY-TODO - Use the native interface access specifier
+									interfaceObj.GeneratedBodyAccessSpecifier = this.GeneratedBodyAccessSpecifier;
+
+									if (this.GeneratedBodyLineNumber == -1)
+									{
+										this.LogError("Expected a GENERATED_BODY() at the start of the native interface");
+									}
+								}
+							}
+							break;
+
+						default:
+							throw new UhtIceException("Unexpected class type");
+					}
+					break;
+
 				case UhtResolvePhase.Bases:
 
 					// Check to see if this class matches an entry in the ClassCastFlags.  If it does, that
@@ -721,6 +972,204 @@ namespace EpicGames.UHT.Types
 			}
 
 			return base.ScanForInstancedReferenced(deepScan);
+		}
+
+		private void MergeCategories()
+		{
+			MergeShowCategories();
+
+			// Merge ShowFunctions and HideFunctions
+			AppendStringListMetaData(this.SuperClass, UhtNames.HideFunctions, this.HideFunctions);
+			foreach (string value in this.ShowFunctions)
+			{
+				this.HideFunctions.RemoveSwap(value);
+			}
+			this.ShowFunctions.Clear();
+
+			// Merge AutoExpandCategories and AutoCollapseCategories (we still want to keep AutoExpandCategories though!)
+			List<string> parentAutoExpandCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoExpandCategories);
+			List<string> parentAutoCollapseCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoCollapseCategories);
+
+			foreach (string value in this.AutoExpandCategories)
+			{
+				this.AutoCollapseCategories.RemoveSwap(value);
+				parentAutoCollapseCategories.RemoveSwap(value);
+			}
+
+			// Do the same as above but the other way around
+			foreach (string value in this.AutoCollapseCategories)
+			{
+				this.AutoExpandCategories.RemoveSwap(value);
+				parentAutoExpandCategories.RemoveSwap(value);
+			}
+
+			// Once AutoExpandCategories and AutoCollapseCategories for THIS class have been parsed, add the parent inherited categories
+			this.AutoCollapseCategories.AddRange(parentAutoCollapseCategories);
+			this.AutoExpandCategories.AddRange(parentAutoExpandCategories);
+		}
+
+		private void MergeShowCategories()
+		{
+
+			// Add the super class hide categories and prime the output show categories with the parent
+			List<string> outShowCategories = GetStringListMetaData(this.SuperClass, UhtNames.ShowCategories);
+			AppendStringListMetaData(this.SuperClass, UhtNames.HideCategories, this.HideCategories);
+
+			// If this class has new show categories, then merge them
+			if (this.ShowCategories.Count != 0)
+			{
+				StringBuilder subCategoryPath = new();
+				foreach (string value in this.ShowCategories)
+				{
+
+					// if we didn't find this specific category path in the HideCategories metadata
+					if (!this.HideCategories.RemoveSwap(value))
+					{
+						string[] subCategories = value.ToString().Split('|', StringSplitOptions.RemoveEmptyEntries);
+
+						subCategoryPath.Clear();
+						// look to see if any of the parent paths are excluded in the HideCategories list
+						for (int categoryPathIndex = 0; categoryPathIndex < subCategories.Length - 1; ++categoryPathIndex)
+						{
+							subCategoryPath.Append(subCategories[categoryPathIndex]);
+							// if we're hiding a parent category, then we need to flag this sub category for show
+							if (HideCategories.Contains(subCategoryPath.ToString()))
+							{
+								outShowCategories.AddUnique(value);
+								break;
+							}
+							subCategoryPath.Append('|');
+						}
+					}
+				}
+			}
+
+			// Replace the show categories
+			this.ShowCategories.Clear();
+			this.ShowCategories.AddRange(outShowCategories);
+		}
+
+		private void SetAndValidateWithinClass(UhtResolvePhase resolvePhase)
+		{
+			// The class within must be a child of any super class within
+			UhtClass expectedClassWithin = this.SuperClass != null ? this.SuperClass.ClassWithin : this.Session.UObject;
+
+			// Process all of the class specifiers
+			if (!String.IsNullOrEmpty(this.ClassWithinIdentifier))
+			{
+				UhtClass? specifiedClassWithin = (UhtClass?)this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.Class, this.ClassWithinIdentifier);
+				if (specifiedClassWithin == null)
+				{
+					this.LogError($"Within class '{this.ClassWithinIdentifier}' not found");
+				}
+				else
+				{
+
+					// Make sure the class within has been resolved to this phase.  We don't need to worry about the super since we know 
+					// that it has already been resolved.
+					if (specifiedClassWithin != this)
+					{
+						specifiedClassWithin.Resolve(resolvePhase);
+					}
+
+					if (specifiedClassWithin.IsChildOf(this.Session.UInterface))
+					{
+						this.LogError("Classes cannot be 'within' interfaces");
+					}
+					else if (!specifiedClassWithin.IsChildOf(expectedClassWithin))
+					{
+						this.LogError($"Cannot override within class with '{specifiedClassWithin.SourceName}' since it isn't a child of parent class's expected within '{expectedClassWithin.SourceName}'");
+					}
+					else
+					{
+						this.ClassWithin = specifiedClassWithin;
+					}
+				}
+			}
+
+			// If we don't have a class within set, then just use the expected within
+			else
+			{
+				this.ClassWithin = expectedClassWithin;
+			}
+		}
+
+		private void SetAndValidateConfigName()
+		{
+			// Since this flag is computed in this method, we have to re-propagate the flag from the super
+			// just in case they were defined in this source file.
+			if (this.SuperClass != null)
+			{
+				this.ClassFlags |= this.SuperClass.ClassFlags & EClassFlags.Config;
+			}
+
+			// Set the class config flag if any properties have config
+			if (!this.ClassFlags.HasAnyFlags(EClassFlags.Config))
+			{
+				foreach (UhtProperty property in this.Properties)
+				{
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.Config))
+					{
+						this.ClassFlags |= EClassFlags.Config;
+						break;
+					}
+				}
+			}
+
+			if (this.Config.Length > 0)
+			{
+				// if the user specified "inherit", we're just going to use the parent class's config filename
+				// this is not actually necessary but it can be useful for explicitly communicating config-ness
+				if (this.Config.Equals("inherit", StringComparison.OrdinalIgnoreCase))
+				{
+					if (this.SuperClass == null)
+					{
+						this.LogError($"Cannot inherit config filename for class '{this.SourceName}' when it has no super class");
+					}
+					else if (this.SuperClass.Config.Length == 0)
+					{
+						this.LogError($"Cannot inherit config filename for class '{this.SourceName}' when parent class '{this.SuperClass.SourceName}' has no config filename");
+					}
+					else
+					{
+						this.Config = this.SuperClass.Config;
+					}
+				}
+			}
+			else if (this.ClassFlags.HasAnyFlags(EClassFlags.Config) && this.SuperClass != null)
+			{
+				this.Config = this.SuperClass.Config;
+			}
+
+			if (this.ClassFlags.HasAnyFlags(EClassFlags.Config) && this.Config.Length == 0)
+			{
+				this.LogError("Classes with config / globalconfig member variables need to specify config file.");
+				this.Config = "Engine";
+			}
+		}
+
+		private static List<string> GetStringListMetaData(UhtType? type, string key)
+		{
+			List<string> outStrings = new();
+			AppendStringListMetaData(type, key, outStrings);
+			return outStrings;
+		}
+
+		private static void AppendStringListMetaData(UhtType? type, string key, List<string> stringList)
+		{
+			if (type != null)
+			{
+				string[]? values = type.MetaData.GetStringArray(key);
+				if (values != null)
+				{
+					foreach (string value in values)
+					{
+						//COMPATIBILITY-TODO - TEST - This preserves duplicates that are in old UHT
+						//StringList.AddUnique(Value);
+						stringList.Add(value);
+					}
+				}
+			}
 		}
 
 		/// <summary>

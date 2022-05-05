@@ -14,10 +14,10 @@ namespace EpicGames.UHT.Parsers
 	/// Collection of property member specifiers
 	/// </summary>
 	[UnrealHeaderTool]
+	[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 	public static class UhtPropertyMemberSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditAnywhereSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -30,7 +30,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditInstanceOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -43,7 +42,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditDefaultsOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -56,7 +54,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void VisibleAnywhereSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -69,7 +66,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void VisibleInstanceOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -82,7 +78,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void VisibleDefaultsOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -95,7 +90,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintReadWriteSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -120,7 +114,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintReadOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -145,7 +138,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.SingleString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintSetterSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -166,7 +158,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.SingleString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintGetterSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -182,7 +173,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -190,7 +180,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void GlobalConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -198,7 +187,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void LocalizedSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -206,7 +194,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void TransientSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -214,7 +201,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DuplicateTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -222,7 +208,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void TextExportTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -230,7 +215,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NonPIETransientSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -239,7 +223,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NonPIEDuplicateTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -247,7 +230,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ExportSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -255,7 +237,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditInlineSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -263,7 +244,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NoClearSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -271,7 +251,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditFixedSizeSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -279,7 +258,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ReplicatedSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -291,7 +269,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.SingleString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ReplicatedUsingSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -310,7 +287,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotReplicatedSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -322,7 +298,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void RepRetrySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -330,7 +305,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void InterpSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -338,7 +312,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NonTransactionalSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -346,7 +319,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void InstancedSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -355,7 +327,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintAssignableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -363,7 +334,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintCallableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -371,7 +341,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -379,7 +348,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AssetRegistrySearchableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -387,7 +355,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SimpleDisplaySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -395,7 +362,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AdvancedDisplaySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -403,7 +369,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SaveGameSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -411,7 +376,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SkipSerializationSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -419,7 +383,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.OptionalString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void GetterSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -446,7 +409,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.OptionalString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SetterSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
@@ -473,7 +435,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.None)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void FieldNotifySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;

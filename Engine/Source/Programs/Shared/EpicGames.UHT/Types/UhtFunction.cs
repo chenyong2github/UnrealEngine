@@ -2,10 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
+using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
@@ -108,6 +111,11 @@ namespace EpicGames.UHT.Types
 		/// Generate the entry for the FieldNotificationClassDescriptor
 		/// </summary>
 		FieldNotify = 1 << 16,
+
+		/// <summary>
+		/// True if the function specifier has a getter/setter specified
+		/// </summary>
+		SawPropertyAccessor = 1 << 17,
 	}
 
 	/// <summary>
@@ -408,6 +416,43 @@ namespace EpicGames.UHT.Types
 						if (outerClass.ClassFlags.HasAnyFlags(EClassFlags.Const))
 						{
 							this.FunctionFlags |= EFunctionFlags.Const;
+						}
+					}
+					break;
+
+				case UhtResolvePhase.Properties:
+					UhtPropertyParser.ResolveChildren(this, GetPropertyParseOptions(false));
+					foreach (UhtProperty property in this.Properties)
+					{
+						if (property.DefaultValueTokens != null)
+						{
+							string key = "CPP_Default_" + property.EngineName;
+							if (!this.MetaData.ContainsKey(key))
+							{
+								bool parsed = false;
+								try
+								{
+									// All tokens MUST be consumed from the reader
+									StringBuilder builder = new();
+									IUhtTokenReader defaultValueReader = UhtTokenReplayReader.GetThreadInstance(property, this.HeaderFile.Data.Memory, property.DefaultValueTokens.ToArray(), UhtTokenType.EndOfDefault);
+									parsed = property.SanitizeDefaultValue(defaultValueReader, builder) && defaultValueReader.IsEOF;
+									if (parsed)
+									{
+										this.MetaData.Add(key, builder.ToString());
+									}
+								}
+								catch (Exception)
+								{
+									// Ignore the exception for now
+								}
+
+								if (!parsed)
+								{
+									StringView defaultValueText = new(this.HeaderFile.Data, property.DefaultValueTokens.First().InputStartPos,
+										property.DefaultValueTokens.Last().InputEndPos - property.DefaultValueTokens.First().InputStartPos);
+									property.LogError($"C++ Default parameter not parsed: {property.SourceName} '{defaultValueText}'");
+								}
+							}
 						}
 					}
 					break;
@@ -1050,6 +1095,34 @@ namespace EpicGames.UHT.Types
 			foreach (UhtType child in this.Children)
 			{
 				child.CollectReferences(collector);
+			}
+		}
+
+		/// <summary>
+		/// Return the property parse options for the given function
+		/// </summary>
+		/// <param name="returnValue">If true, return property parse options for the return value</param>
+		/// <returns>Property parse options</returns>
+		/// <exception cref="UhtIceException"></exception>
+		protected internal UhtPropertyParseOptions GetPropertyParseOptions(bool returnValue)
+		{
+			switch (this.FunctionType)
+			{
+				case UhtFunctionType.Delegate:
+				case UhtFunctionType.SparseDelegate:
+					return (returnValue ? UhtPropertyParseOptions.None : UhtPropertyParseOptions.CommaSeparatedName) | UhtPropertyParseOptions.DontAddReturn;
+
+				case UhtFunctionType.Function:
+					UhtPropertyParseOptions options = UhtPropertyParseOptions.DontAddReturn; // Fetch the function name
+					options |= returnValue ? UhtPropertyParseOptions.FunctionNameIncluded : UhtPropertyParseOptions.NameIncluded;
+					if (this.FunctionFlags.HasAllFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Native))
+					{
+						options |= UhtPropertyParseOptions.NoAutoConst;
+					}
+					return options;
+
+				default:
+					throw new UhtIceException("Unknown enumeration value");
 			}
 		}
 	}

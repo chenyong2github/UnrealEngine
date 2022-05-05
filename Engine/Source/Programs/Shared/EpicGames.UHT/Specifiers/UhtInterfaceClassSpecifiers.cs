@@ -9,17 +9,16 @@ using EpicGames.UHT.Utils;
 namespace EpicGames.UHT.Parsers
 {
 	[UnrealHeaderTool]
+	[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 	class UhtInterfaceClassSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DependsOnSpecifier(UhtSpecifierContext specifierContext)
 		{
 			throw new UhtException(specifierContext.MessageSite, $"The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void MinimalAPISpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtClass clasObj = (UhtClass)specifierContext.Scope.ScopeType;
@@ -27,7 +26,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConversionRootSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;

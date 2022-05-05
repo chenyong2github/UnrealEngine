@@ -15,10 +15,11 @@ namespace EpicGames.UHT.Parsers
 	/// Collection of UFUNCTION/UDELEGATE specifiers
 	/// </summary>
 	[UnrealHeaderTool]
+	[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+	[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 	public static class UhtFunctionSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -26,7 +27,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintCallableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -34,7 +34,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintCosmeticSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -42,27 +41,25 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintGetterSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
 				specifierContext.MessageSite.LogError("Function cannot be a blueprint event and a blueprint getter.");
 			}
 
-			function.SawPropertyAccessor = true;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.SawPropertyAccessor;
 			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
 			function.FunctionFlags |= EFunctionFlags.BlueprintPure;
 			function.MetaData.Add(UhtNames.BlueprintGetter, "");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintImplementableEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
@@ -73,7 +70,7 @@ namespace EpicGames.UHT.Parsers
 				// already a BlueprintNativeEvent
 				specifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and BlueprintImplementableEvent!");
 			}
-			else if (function.SawPropertyAccessor)
+			else if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.SawPropertyAccessor))
 			{
 				specifierContext.MessageSite.LogError("A function cannot be both BlueprintImplementableEvent and a Blueprint Property accessor!");
 			}
@@ -88,10 +85,9 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintNativeEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
@@ -102,7 +98,7 @@ namespace EpicGames.UHT.Parsers
 				// already a BlueprintImplementableEvent
 				specifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and BlueprintImplementableEvent!");
 			}
-			else if (function.SawPropertyAccessor)
+			else if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.SawPropertyAccessor))
 			{
 				specifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and a Blueprint Property accessor!");
 			}
@@ -116,7 +112,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintPureSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -135,23 +130,21 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintSetterSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
 				specifierContext.MessageSite.LogError("Function cannot be a blueprint event and a blueprint setter.");
 			}
 
-			function.SawPropertyAccessor = true;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.SawPropertyAccessor;
 			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
 			function.MetaData.Add(UhtNames.BlueprintSetter, "");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ClientSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -176,7 +169,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void CustomThunkSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -184,7 +176,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ExecSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -196,7 +187,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NetMulticastSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -210,7 +200,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ReliableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -218,7 +207,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SealedEventSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -226,7 +214,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ServerSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -251,10 +238,9 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalEqualsKeyValuePairList)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ServiceRequestSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
@@ -275,10 +261,9 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalEqualsKeyValuePairList)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ServiceResponseSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
@@ -299,7 +284,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void UnreliableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -307,7 +291,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.StringList)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void WithValidationSpecifier(UhtSpecifierContext specifierContext, List<StringView>? value)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -320,7 +303,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.None)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void FieldNotifySpecifier(UhtSpecifierContext specifierContext)
 		{
 			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
@@ -328,8 +310,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Function)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static void BlueprintProtectedSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			UhtFunction function = (UhtFunction)type;
@@ -357,8 +337,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Function)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static void CommutativeAssociativeBinaryOperatorSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			UhtFunction function = (UhtFunction)type;
@@ -373,8 +351,6 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtSpecifierValidator(Name = "ExpandBoolAsExecs", Extends = UhtTableNames.Function)]
 		[UhtSpecifierValidator(Name = "ExpandEnumAsExecs", Extends = UhtTableNames.Function)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static void ExpandsSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			// multiple entry parsing in the same format as eg SetParam.
@@ -414,7 +390,7 @@ namespace EpicGames.UHT.Parsers
 		private static void ParseNetServiceIdentifiers(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> identifiers)
 		{
 			IUhtTokenReader tokenReader = specifierContext.Scope.TokenReader;
-			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			foreach (KeyValuePair<StringView, StringView> kvp in identifiers)
 			{

@@ -15,6 +15,8 @@ namespace EpicGames.UHT.Parsers
 	/// Collection of default specifiers that apply to everything
 	/// </summary>
 	[UnrealHeaderTool]
+	[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+	[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 	public static class UhtDefaultSpecifiers
 	{
 		private static void SetMetaData(UhtSpecifierContext specifierContext, StringView key, StringView value)
@@ -81,7 +83,6 @@ namespace EpicGames.UHT.Parsers
 
 		#region Specifiers
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.KeyValuePairList, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void MetaSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
 			foreach (KeyValuePair<StringView, StringView> kvp in (List<KeyValuePair<StringView, StringView>>)value)
@@ -91,21 +92,18 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DisplayNameSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			SetMetaData(specifierContext, "DisplayName", value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void FriendlyNameSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			SetMetaData(specifierContext, "FriendlyName", value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintInternalUseOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "BlueprintInternalUseOnly", true);
@@ -113,7 +111,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintInternalUseOnlyHierarchicalSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "BlueprintInternalUseOnlyHierarchical", true);
@@ -122,14 +119,12 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintTypeSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "BlueprintType", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotBlueprintTypeSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "NotBlueprintType", true);
@@ -137,7 +132,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void BlueprintableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "IsBlueprintBase", true);
@@ -145,14 +139,12 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void CallInEditorSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "CallInEditor", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotBlueprintableSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "IsBlueprintBase", false);
@@ -160,35 +152,30 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void CategorySpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			SetMetaData(specifierContext, "Category", value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ExperimentalSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "DevelopmentStatus", "Experimental");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EarlyAccessPreviewSpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, "DevelopmentStatus", "EarlyAccess");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DocumentationPolicySpecifier(UhtSpecifierContext specifierContext)
 		{
 			SetMetaData(specifierContext, UhtNames.DocumentationPolicy, "Strict");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SparseClassDataTypeSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
 			SetMetaData(specifierContext, "SparseClassDataType", value);
@@ -200,8 +187,6 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifierValidator(Name = "UIMax", Extends = UhtTableNames.Default)]
 		[UhtSpecifierValidator(Name = "ClampMin", Extends = UhtTableNames.Default)]
 		[UhtSpecifierValidator(Name = "ClampMax", Extends = UhtTableNames.Default)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static void ValidateNumeric(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			if (!UhtFCString.IsNumeric(value.Span))
@@ -211,8 +196,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Default)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static void DevelopmentStatusSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			string[] allowedValues = { "EarlyAccess", "Experimental" };
@@ -227,7 +210,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Default)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DocumentationPolicySpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			const string StrictValue = "Strict";
@@ -238,8 +220,6 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Default)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static void UnitsSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			// Check for numeric property
