@@ -6,6 +6,8 @@
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/StyleColors.h"
+#include "Styling/CoreStyle.h"
+
 
 FName FReferenceViewerStyle::StyleName("ReferenceViewerStyle");
 
