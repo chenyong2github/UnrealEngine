@@ -38,7 +38,7 @@ FString JoinDataLayerShortNamesFromInstanceNames(AWorldDataLayers* InWorldDataLa
 }
 
 AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
 #if WITH_EDITORONLY_DATA
 	, bAllowRuntimeDataLayerEditing(true)
 #endif
