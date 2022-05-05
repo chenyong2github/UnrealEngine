@@ -157,8 +157,8 @@ TArray<FRigVMUserWorkflow> URigVMUnitNode::GetSupportedWorkflows(ERigVMUserWorkf
 bool URigVMUnitNode::IsAggregate() const
 {
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
-	TArray<URigVMPin*> AggregateInputs = GetAggregateInputs();
-	TArray<URigVMPin*> AggregateOutputs = GetAggregateOutputs();
+	const TArray<URigVMPin*> AggregateInputs = GetAggregateInputs();
+	const TArray<URigVMPin*> AggregateOutputs = GetAggregateOutputs();
 
 	if ((AggregateInputs.Num() == 2 && AggregateOutputs.Num() == 1) ||
 		(AggregateInputs.Num() == 1 && AggregateOutputs.Num() == 2))
@@ -184,8 +184,8 @@ bool URigVMUnitNode::IsAggregate() const
 URigVMPin* URigVMUnitNode::GetFirstAggregatePin() const
 {
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
-	TArray<URigVMPin*> Inputs = GetAggregateInputs();
-	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	const TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	const TArray<URigVMPin*> Outputs = GetAggregateOutputs();
 	if (Inputs.Num() == 2 && Outputs.Num() == 1)
 	{
 		return Inputs[0];
@@ -201,8 +201,8 @@ URigVMPin* URigVMUnitNode::GetFirstAggregatePin() const
 URigVMPin* URigVMUnitNode::GetSecondAggregatePin() const
 {
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
-	TArray<URigVMPin*> Inputs = GetAggregateInputs();
-	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	const TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	const TArray<URigVMPin*> Outputs = GetAggregateOutputs();
 	if (Inputs.Num() == 2 && Outputs.Num() == 1)
 	{
 		return Inputs[1];
@@ -218,8 +218,8 @@ URigVMPin* URigVMUnitNode::GetSecondAggregatePin() const
 URigVMPin* URigVMUnitNode::GetOppositeAggregatePin() const
 {
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
-	TArray<URigVMPin*> Inputs = GetAggregateInputs();
-	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	const TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	const TArray<URigVMPin*> Outputs = GetAggregateOutputs();
 	if (Inputs.Num() == 2 && Outputs.Num() == 1)
 	{
 		return Outputs[0];
@@ -241,13 +241,13 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateInputs() const
 {
 	TArray<URigVMPin*> AggregateInputs;
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
-	if (UScriptStruct* Struct = GetScriptStruct())
+	if (const UScriptStruct* Struct = GetScriptStruct())
 	{
 		for (URigVMPin* Pin : GetPins())
 		{
 			if (Pin->GetDirection() == ERigVMPinDirection::Input)
 			{
-				if (FProperty* Property = Struct->FindPropertyByName(Pin->GetFName()))
+				if (const FProperty* Property = Struct->FindPropertyByName(Pin->GetFName()))
 				{
 					if (Property->HasMetaData(FRigVMStruct::AggregateMetaName))
 					{
@@ -265,13 +265,13 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateOutputs() const
 {
 	TArray<URigVMPin*> AggregateOutputs;
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED	
-	if (UScriptStruct* Struct = GetScriptStruct())
+	if (const UScriptStruct* Struct = GetScriptStruct())
 	{
 		for (URigVMPin* Pin : GetPins())
 		{
 			if (Pin->GetDirection() == ERigVMPinDirection::Output)
 			{
-				if (FProperty* Property = Struct->FindPropertyByName(Pin->GetFName()))
+				if (const FProperty* Property = Struct->FindPropertyByName(Pin->GetFName()))
 				{
 					if (Property->HasMetaData(FRigVMStruct::AggregateMetaName))
 					{
@@ -288,7 +288,7 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateOutputs() const
 FName URigVMUnitNode::GetNextAggregateName(const FName& InLastAggregatePinName) const
 {
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED	
-	if(UScriptStruct* Struct = GetScriptStruct())
+	if(const UScriptStruct* Struct = GetScriptStruct())
 	{
 		check(Struct->IsChildOf(FRigVMStruct::StaticStruct()));
 
@@ -311,7 +311,7 @@ UScriptStruct* URigVMUnitNode::GetScriptStruct() const
 
 bool URigVMUnitNode::IsLoopNode() const
 {
-	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
+	const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
 	if (StructOnScope.IsValid())
 	{
 		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();

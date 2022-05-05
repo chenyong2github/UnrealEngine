@@ -436,6 +436,24 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*NodeName));
 		}
 	}
+	else if (const URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(Node))
+	{
+		TArray<FString> InnerNodeCommands = GetAddNodePythonCommands(AggregateNode->GetFirstInnerNode());
+		Commands.Append(InnerNodeCommands);
+
+		// add commands for any additional aggregate pin
+		const TArray<URigVMPin*> AggregatePins = AggregateNode->IsInputAggregate() ? AggregateNode->GetAggregateInputs() : AggregateNode->GetAggregateOutputs();
+
+		for(int32 Index = 2; Index < AggregatePins.Num(); Index++)
+		{
+			// add_aggregate_pin(node_name, pin_name)
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_aggregate_pin('%s', '%s')"),
+					*GraphName,
+					*AggregateNode->GetName(),
+					*AggregatePins[Index]->GetName()
+				));
+		}
+	}
 	else if (const URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 	{
 		if (!VariableNode->IsInjected())
@@ -2069,8 +2087,8 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 			return nullptr;
 		}
 
-		URigVMUnitNode* NewUnitNode = AddUnitNode(UpgradeInfo.GetNewStruct(), MethodName, NodePosition, NodeName, bSetupUndoRedo, false);
-		if(NewUnitNode == nullptr)
+		URigVMNode* NewNode = AddUnitNode(UpgradeInfo.GetNewStruct(), MethodName, NodePosition, NodeName, bSetupUndoRedo, false);
+		if(NewNode == nullptr)
 		{
 			if(bSetupUndoRedo)
 			{
@@ -2080,7 +2098,15 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 			return nullptr;
 		}
 
-		for(URigVMPin* Pin : NewUnitNode->GetPins())
+		const TArray<FString>& AggregatePins = UpgradeInfo.GetAggregatePins();
+		for(const FString& AggregatePinName : AggregatePins)
+		{
+			const FName PreviousName = NewNode->GetFName();
+			AddAggregatePin(PreviousName.ToString(), AggregatePinName, FString(), bSetupUndoRedo, false);
+			NewNode = GetGraph()->FindNodeByName(PreviousName);
+		}
+
+		for(URigVMPin* Pin : NewNode->GetPins())
 		{
 			const FString DefaultValue = UpgradeInfo.GetDefaultValueForPin(Pin->GetFName());
 			if(!DefaultValue.IsEmpty())
@@ -2106,7 +2132,7 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 		}
 
 
-		UpgradedNode = NewUnitNode;
+		UpgradedNode = NewNode;
 	}
 	else
 	{
@@ -3969,35 +3995,15 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	if (bIsAggregate)
 	{
-		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNodes[0]))
+		if(InNodes.Num() != 1)
 		{
-			for (int32 i=1; i<InNodes.Num(); ++i)
-			{
-				if (URigVMUnitNode* OtherUnitNode = Cast<URigVMUnitNode>(InNodes[i]))
-				{
-					if (UnitNode->GetScriptStruct() == OtherUnitNode->GetScriptStruct())
-					{
-						continue;
-					}
-				}
-				ReportError(TEXT("Cannot aggregate nodes of different types."));
-				return nullptr;
-			}
+			return nullptr;
 		}
-		else if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(InNodes[0]))
+
+		if(!InNodes[0]->IsAggregate())
 		{
-			for (int32 i=1; i<InNodes.Num(); ++i)
-			{
-				if (URigVMFunctionReferenceNode* OtherFunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(InNodes[i]))
-				{
-					if(FunctionReferenceNode->GetReferencedNode() == OtherFunctionReferenceNode->GetReferencedNode())
-					{
-						continue;
-					}
-				}
-				ReportError(TEXT("Cannot aggregate nodes of different types."));
-				return nullptr;
-			}
+			ReportError(TEXT("Cannot aggregate the given node."));
+			return nullptr;
 		}
 	}
 #endif
@@ -4300,7 +4306,7 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 		}, false, true);
 
 		URigVMPin* CollapsedPin = NewObject<URigVMPin>(CollapseNode, PinName);
-		ConfigurePinFromPin(CollapsedPin, PinToCollapse);
+		ConfigurePinFromPin(CollapsedPin, PinToCollapse, true);
 
 		if (CollapsedPin->IsExecuteContext())
 		{
@@ -7583,8 +7589,13 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 	}
 
 	URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(InNode);
-	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode);
-	URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(InNode);
+	if (AggregateNode == nullptr)
+	{
+		if(!InNode->IsAggregate())
+		{
+			return FString();
+		}
+	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMBaseAction Action;
@@ -7594,52 +7605,37 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		ActionStack->BeginAction(Action);
 	}
 
-	if (UnitNode || FunctionReferenceNode)
+	if (AggregateNode == nullptr)
 	{
-		if (UnitNode && !UnitNode->IsAggregate())
+		bool bAggregateInputs = false;
+		URigVMPin* Arg1 = nullptr;
+		URigVMPin* Arg2 = nullptr;
+		URigVMPin* ArgOpposite = nullptr;
+
+		const TArray<URigVMPin*> AggregateInputs = InNode->GetAggregateInputs();
+		const TArray<URigVMPin*> AggregateOutputs = InNode->GetAggregateOutputs();
+
+		if (AggregateInputs.Num() == 2 && AggregateOutputs.Num() == 1)
+		{
+			bAggregateInputs = true;
+			Arg1 = AggregateInputs[0];
+			Arg2 = AggregateInputs[1];
+			ArgOpposite = AggregateOutputs[0];
+		}
+		else if (AggregateInputs.Num() == 1 && AggregateOutputs.Num() == 2)
+		{
+			bAggregateInputs = false;
+			Arg1 = AggregateOutputs[0];
+			Arg2 = AggregateOutputs[1];
+			ArgOpposite = AggregateInputs[0];
+		}
+		else
 		{
 			if (bSetupUndoRedo)
 			{
 				ActionStack->CancelAction(Action, this);
 			}
-			return FString();
-		}
-
-		bool bAggregateInputs = false;
-		URigVMPin* Arg1 = nullptr;
-		URigVMPin* Arg2 = nullptr;
-		URigVMPin* ArgOpposite = nullptr;
-		if (UnitNode)
-		{
-			const TArray<URigVMPin*> AggregateInputs = UnitNode->GetAggregateInputs();
-			const TArray<URigVMPin*> AggregateOutputs = UnitNode->GetAggregateOutputs();
-
-			if (AggregateInputs.Num() == 2 && AggregateOutputs.Num() == 1)
-			{
-				bAggregateInputs = true;
-				Arg1 = AggregateInputs[0];
-				Arg2 = AggregateInputs[1];
-				ArgOpposite = AggregateOutputs[0];
-			}
-			else if (AggregateInputs.Num() == 1 && AggregateOutputs.Num() == 2)
-			{
-				bAggregateInputs = false;
-				Arg1 = AggregateOutputs[0];
-				Arg2 = AggregateOutputs[1];
-				ArgOpposite = AggregateInputs[0];
-			}
-			else
-			{
-				if (bSetupUndoRedo)
-				{
-					ActionStack->CancelAction(Action, this);
-				}
-				return FString();	
-			}
-		}
-		else if (FunctionReferenceNode)
-		{
-			
+			return FString();	
 		}
 
 		if (!Arg1 || !Arg2 || !ArgOpposite)
@@ -7664,9 +7660,9 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		const FString AggregateArg1 = Arg1->GetName();
 		const FString AggregateArg2 = Arg2->GetName();
 		const FString AggregateOppositeArg = ArgOpposite->GetName();
-	
-		TArray<URigVMNode*> Nodes = {InNode};
-		URigVMCollapseNode* CollapseNode = CollapseNodes(Nodes, InNode->GetName(), bSetupUndoRedo, true);
+
+		const FName PreviousNodeName = InNode->GetFName();
+		URigVMCollapseNode* CollapseNode = CollapseNodes({InNode}, InNode->GetName(), bSetupUndoRedo, true);
 		if (!CollapseNode)
 		{
 			if (bSetupUndoRedo)
@@ -7676,40 +7672,53 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 			return FString();
 		}
 
+		InNode = CollapseNode->GetContainedGraph()->FindNodeByName(PreviousNodeName);
+
 		AggregateNode = Cast<URigVMAggregateNode>(CollapseNode);
 		if (AggregateNode)
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
 			TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
-			if (UnitNode)
-			{
-				uint16 Index = 0;
-				for (TFieldIterator<FProperty> It(UnitNode->GetScriptStruct()); It; ++It, ++Index)
-				{
-					FName PropertyName = It->GetFName();
-					if (URigVMPin* AggregatePin = AggregateNode->FindPin(PropertyName.ToString()))
-					{
-						SetExposedPinIndex(PropertyName, Index, bSetupUndoRedo);
-						continue;
-					}
 
-					URigVMPin* Pin = UnitNode->FindPin(PropertyName.ToString());
-					AddExposedPin(PropertyName, Pin->GetDirection(), Pin->GetCPPType(), *Pin->GetCPPTypeObject()->GetPathName(), Pin->GetDefaultValue());
-
-					FString PropertyNameStr = PropertyName.ToString();
-					if (Pin->GetDirection() == ERigVMPinDirection::Input)
-					{
-						AddLink(FString::Printf(TEXT("Entry.%s"), *PropertyNameStr), FString::Printf(TEXT("%s.%s"), *InNode->GetName(), *PropertyNameStr), bSetupUndoRedo);
-					}
-					else
-					{
-						AddLink(FString::Printf(TEXT("%s.%s"), *InNode->GetName(), *PropertyNameStr), FString::Printf(TEXT("Return.%s"), *PropertyNameStr), bSetupUndoRedo);
-					}
-				}
-			}
-			else if (FunctionReferenceNode)
+			for(int32 Index = 0; Index < InNode->GetPins().Num(); Index++)
 			{
+				URigVMPin* Pin = InNode->GetPins()[Index];
+				const FName PinName = Pin->GetFName();
 				
+				if (URigVMPin* AggregatePin = AggregateNode->FindPin(PinName.ToString()))
+				{
+					SetExposedPinIndex(PinName, Index, bSetupUndoRedo);
+					continue;
+				}
+
+				const FName ExposedPinName = AddExposedPin(PinName, Pin->GetDirection(), Pin->GetCPPType(), *Pin->GetCPPTypeObject()->GetPathName(), Pin->GetDefaultValue());
+
+				const FString PinNameStr = PinName.ToString();
+				const FString ExposedPinNameStr = ExposedPinName.ToString();
+
+				if(URigVMPin* ExposedPin = AggregateNode->FindPin(ExposedPinNameStr))
+				{
+					ExposedPin->SetDisplayName(Pin->GetDisplayName());
+				}
+
+				if(URigVMPin* ExposedPin = AggregateNode->GetEntryNode()->FindPin(ExposedPinNameStr))
+				{
+					ExposedPin->SetDisplayName(Pin->GetDisplayName());
+				}
+
+				if(URigVMPin* ExposedPin = AggregateNode->GetReturnNode()->FindPin(ExposedPinNameStr))
+				{
+					ExposedPin->SetDisplayName(Pin->GetDisplayName());
+				}
+
+				if (Pin->GetDirection() == ERigVMPinDirection::Input)
+				{
+					AddLink(FString::Printf(TEXT("Entry.%s"), *ExposedPinNameStr), FString::Printf(TEXT("%s.%s"), *InNode->GetName(), *PinNameStr), bSetupUndoRedo);
+				}
+				else
+				{
+					AddLink(FString::Printf(TEXT("%s.%s"), *InNode->GetName(), *PinNameStr), FString::Printf(TEXT("Return.%s"), *ExposedPinNameStr), bSetupUndoRedo);
+				}
 			}
 		}
 		else
@@ -7736,19 +7745,12 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
 		TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
 
-		URigVMNode* InnerNode = (AggregateNode == nullptr) ?
-									((UnitNode == nullptr) ? (URigVMNode*) FunctionReferenceNode : UnitNode)
-								: AggregateNode->GetFirstInnerNode();
-		URigVMNode* NewNode = nullptr;
-		if (URigVMUnitNode* InnerUnitNode = Cast<URigVMUnitNode>(InnerNode))
-		{		
-			NewNode = AddUnitNode(InnerUnitNode->GetScriptStruct(), InnerUnitNode->GetMethodName(), FVector2D::ZeroVector, FString(), bSetupUndoRedo);		
-		}
-		else if (URigVMFunctionReferenceNode* InnerReferenceNode = Cast<URigVMFunctionReferenceNode>(InnerNode))
-		{
-			NewNode = AddFunctionReferenceNode(FunctionReferenceNode->GetReferencedNode(), FVector2D::ZeroVector, FString(), bSetupUndoRedo);
-		}
-		else
+		URigVMNode* InnerNode = (AggregateNode == nullptr) ? InNode : AggregateNode->GetFirstInnerNode();
+
+		const FString InnerNodeContent = ExportNodesToText({InnerNode->GetFName()});
+		const TArray<FName> NewNodeNames = ImportNodesFromText(InnerNodeContent);
+		
+		if(NewNodeNames.IsEmpty())
 		{
 			if (bSetupUndoRedo)
 			{
@@ -7757,8 +7759,10 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 			return FString();
 		}
 
-		FName NewName = *InPinName;
-		if (NewName.IsNone())
+		URigVMNode* NewNode = AggregateNode->GetContainedGraph()->FindNodeByName(NewNodeNames[0]);
+
+		FName NewPinName = *InPinName;
+		if (NewPinName.IsNone())
 		{
 			URigVMNode* LastInnerNode = AggregateNode->GetLastInnerNode();
 			URigVMPin* SecondAggregateInnerPin = LastInnerNode->GetSecondAggregatePin();
@@ -7780,19 +7784,17 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 				}
 			}
 
-			if (URigVMUnitNode* InnerUnitNode = Cast<URigVMUnitNode>(LastInnerNode))
-			{
-				NewName = InnerUnitNode->GetNextAggregateName(*LastAggregateName);
-			}
+			NewPinName = InnerNode->GetNextAggregateName(*LastAggregateName);
 		}
-		if (NewName.IsNone())
+		
+		if (NewPinName.IsNone())
 		{
-			NewName = InnerNode->GetSecondAggregatePin()->GetFName();
+			NewPinName = InnerNode->GetSecondAggregatePin()->GetFName();
 		}
 		
 		const URigVMPin* Arg1 = AggregateNode->GetFirstAggregatePin();
-		FName NewPinName = AddExposedPin(NewName, Arg1->GetDirection(), Arg1->GetCPPType(), *Arg1->GetCPPTypeObject()->GetPathName(), InDefaultValue, bSetupUndoRedo);
-		NewPin = AggregateNode->FindPin(NewPinName.ToString());
+		FName NewExposedPinName = AddExposedPin(NewPinName, Arg1->GetDirection(), Arg1->GetCPPType(), *Arg1->GetCPPTypeObject()->GetPathName(), InDefaultValue, bSetupUndoRedo);
+		NewPin = AggregateNode->FindPin(NewExposedPinName.ToString());
 		URigVMPin* NewUnitPinArg1 = NewNode->GetFirstAggregatePin();
 		URigVMPin* NewUnitPinArg2 = NewNode->GetSecondAggregatePin();
 		URigVMPin* NewUnitPinOppositeArg = NewNode->GetOppositeAggregatePin();
@@ -7800,7 +7802,7 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		if(AggregateNode->IsInputAggregate())
 		{		
 			URigVMFunctionEntryNode* EntryNode = AggregateNode->GetEntryNode();
-			URigVMPin* EntryPin = EntryNode->FindPin(NewPinName.ToString());
+			URigVMPin* EntryPin = EntryNode->FindPin(NewExposedPinName.ToString());
 			URigVMPin* ReturnPin = AggregateNode->GetReturnNode()->FindPin(NewUnitPinOppositeArg->GetName());
 			URigVMPin* PreviousReturnPin = ReturnPin->GetLinkedSourcePins()[0];
 			PreviousNode = PreviousReturnPin->GetNode();
@@ -7813,7 +7815,7 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		else
 		{
 			URigVMFunctionReturnNode* ReturnNode = AggregateNode->GetReturnNode();
-			URigVMPin* NewReturnPin = ReturnNode->FindPin(NewPinName.ToString());
+			URigVMPin* NewReturnPin = ReturnNode->FindPin(NewExposedPinName.ToString());
 			URigVMPin* OldReturnPin = ReturnNode->GetPins()[ReturnNode->GetPins().Num()-2];
 			URigVMPin* PreviousReturnPin = OldReturnPin->GetLinkedSourcePins()[0];
 			PreviousNode = PreviousReturnPin->GetNode();
@@ -9484,34 +9486,21 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 			ReportError(TEXT("Cannot expose pins of wildcard type."));
 			return NAME_None;
 		}
-		
-		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+	}
+
+	// only allow one IO / input exposed pin of type execute context per direction
+	if(InDirection != ERigVMPinDirection::Output)
+	{
+		if(const UScriptStruct* CPPTypeStruct = Cast<UScriptStruct>(CPPTypeObject))
 		{
-			if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			if(CPPTypeStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 			{
-				for (URigVMPin* ExistingPin : LibraryNode->Pins)
+				for(URigVMPin* ExistingPin : LibraryNode->Pins)
 				{
-					if (ExistingPin->IsExecuteContext())
+					if(ExistingPin->IsExecuteContext())
 					{
 						return NAME_None;
 					}
-				}
-
-				InDirection = ERigVMPinDirection::IO;
-			}
-		}
-	}
-
-	// only allow one exposed pin of type execute context per direction
-	if(const UScriptStruct* CPPTypeStruct = Cast<UScriptStruct>(CPPTypeObject))
-	{
-		if(CPPTypeStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-		{
-			for(URigVMPin* ExistingPin : LibraryNode->Pins)
-			{
-				if(ExistingPin->IsExecuteContext())
-				{
-					return NAME_None;
 				}
 			}
 		}
@@ -10391,6 +10380,7 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 	{
 		UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
 		URigVMPin* ExecutePin = NewObject<URigVMPin>(CollapseNode, FRigVMStruct::ExecuteContextName);
+		ExecutePin->DisplayName = FRigVMStruct::ExecuteName;
 		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
 		ExecutePin->CPPTypeObject = ExecuteContextStruct;
 		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
@@ -13039,7 +13029,7 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 	InOutPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InOutPin->CPPType, InOutPin->GetCPPTypeObject());
 }
 
-void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin)
+void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin, bool bCopyDisplayName)
 {
 	// it is important we copy things that define the identity of the pin
 	// things that defines the state of the pin is copied during GetPinState()
@@ -13051,6 +13041,10 @@ void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin
 	InOutPin->CPPTypeObject = InPin->CPPTypeObject;
 	InOutPin->DefaultValue = InPin->DefaultValue;
 	InOutPin->bIsDynamicArray = InPin->bIsDynamicArray;
+	if(bCopyDisplayName)
+	{
+		InOutPin->SetDisplayName(InPin->GetDisplayName());
+	}
 }
 
 bool URigVMController::ShouldStructBeUnfolded(const UStruct* Struct)
@@ -13844,7 +13838,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 				}
 
 				URigVMPin* ExposedPin = NewObject<URigVMPin>(InNode, LibraryPin->GetFName());
-				ConfigurePinFromPin(ExposedPin, LibraryPin);
+				ConfigurePinFromPin(ExposedPin, LibraryPin, true);
 
 				if (bIsEntryNode)
 				{
@@ -13881,7 +13875,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		for (URigVMPin* RootPin : InNode->Pins)
 		{
 			URigVMPin* NewRootPin = NewObject<URigVMPin>(InNode);
-			ConfigurePinFromPin(NewRootPin, RootPin);
+			ConfigurePinFromPin(NewRootPin, RootPin, true);
 			EnsurePinValidity(NewRootPin, false);
 		
 			NewRootPinInfos.Add(TTuple<URigVMPin*, FName>(NewRootPin, RootPin->GetFName()));
@@ -13934,7 +13928,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			for (URigVMPin* ReferencedPin : ReferencedNode->Pins)
 			{
 				URigVMPin* NewPin = NewObject<URigVMPin>(InNode, ReferencedPin->GetFName());
-				ConfigurePinFromPin(NewPin, ReferencedPin);
+				ConfigurePinFromPin(NewPin, ReferencedPin, true);
 				EnsurePinValidity(NewPin, false);
 				
 				AddNodePin(InNode, NewPin);
@@ -13960,7 +13954,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		for (URigVMPin* RootPin : InNode->Pins)
 		{
 			URigVMPin* NewRootPin = NewObject<URigVMPin>(InNode);
-			ConfigurePinFromPin(NewRootPin, RootPin);
+			ConfigurePinFromPin(NewRootPin, RootPin, true);
 			EnsurePinValidity(NewRootPin, false);
 		
 			NewRootPinInfos.Add(TTuple<URigVMPin*, FName>(NewRootPin, RootPin->GetFName()));

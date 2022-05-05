@@ -1799,11 +1799,22 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 					
 					// Add Exposed Pins
 					{
+
+						bool bHitFirstExecute = false;
 						for (auto Pin : EntryNode->GetPins())
 						{
 							if (Pin->GetDirection() != ERigVMPinDirection::Output)
 							{
 								continue;
+							}
+
+							if(Pin->IsExecuteContext())
+							{
+								if(!bHitFirstExecute)
+								{
+									bHitFirstExecute = true;
+									continue;
+								}
 							}
 
 							// FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);
@@ -1815,11 +1826,21 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 									*Pin->GetDefaultValue()));
 						}
 
+						bHitFirstExecute = false;
 						for (auto Pin : ReturnNode->GetPins())
 						{
 							if (Pin->GetDirection() != ERigVMPinDirection::Input)
 							{
 								continue;
+							}
+
+							if(Pin->IsExecuteContext())
+							{
+								if(!bHitFirstExecute)
+								{
+									bHitFirstExecute = true;
+									continue;
+								}
 							}
 
 							// FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);

@@ -36,10 +36,9 @@ public:
 	virtual URigVMPin* GetSecondAggregatePin() const override;
 	virtual URigVMPin* GetOppositeAggregatePin() const override;
 	virtual bool IsInputAggregate() const override;
-	
-	TArray<URigVMPin*> GetAggregateInputs() const;
-	TArray<URigVMPin*> GetAggregateOutputs() const;
-	FName GetNextAggregateName(const FName& InLastAggregatePinName)const;
+	virtual TArray<URigVMPin*> GetAggregateInputs() const override;
+	virtual TArray<URigVMPin*> GetAggregateOutputs() const override;
+	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const override;
 
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;

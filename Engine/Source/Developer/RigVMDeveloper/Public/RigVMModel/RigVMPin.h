@@ -426,6 +426,7 @@ private:
 
 	void UpdateTypeInformationIfRequired() const;
 	void SetNameFromIndex();
+	void SetDisplayName(const FName& InDisplayName);
 
 	void GetExposedPinChainImpl(TArray<const URigVMPin*>& OutExposedPins, TArray<const URigVMPin*>& VisitedPins) const;
 

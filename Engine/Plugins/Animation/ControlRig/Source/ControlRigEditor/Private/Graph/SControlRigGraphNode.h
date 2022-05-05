@@ -53,8 +53,7 @@ public:
 	virtual bool IsHidingPinWidgets() const override { return UseLowDetailNodeContent(); }
 	virtual bool UseLowDetailPinNames() const override;
 
-	virtual void CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputBox) override;
-	virtual void CreateOutputSideAddButton(TSharedPtr<SVerticalBox> InputBox) override;
+	void CreateAggregateAddPinButton();
 
 	/** Callback function executed when Add pin button is clicked */
 	virtual FReply OnAddPin() override;

@@ -239,7 +239,16 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual bool IsInputAggregate() const { return false; }
-	
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+	virtual TArray<URigVMPin*> GetAggregateInputs() const { return {}; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+	virtual TArray<URigVMPin*> GetAggregateOutputs() const { return {}; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const { return NAME_None; }
+
 private:
 
 	static const FString NodeColorName;

@@ -25,6 +25,7 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "ControlRigDeveloper.h"
 #include "ControlRigObjectVersion.h"
+#include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
@@ -90,8 +91,11 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 			else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(ModelNode))
 			{
-				static const FString CollapseNodeString = TEXT("Collapsed Graph");
-				SubTitle = CollapseNodeString;
+				if(!CollapseNode->IsA<URigVMAggregateNode>())
+				{
+					static const FString CollapseNodeString = TEXT("Collapsed Graph");
+					SubTitle = CollapseNodeString;
+				}
 			}
 
 			else if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(ModelNode))
@@ -799,11 +803,16 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 			return EventIcon;
 		}
 
+		while(const URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(ModelNode))
+		{
+			ModelNode = AggregateNode->GetFirstInnerNode();
+		}
+
 		if (ModelNode->IsA<URigVMFunctionReferenceNode>())
 		{ 
 			return FunctionIcon;
 		}
-		
+
 		if (ModelNode->IsA<URigVMCollapseNode>())
 		{
 			return CollapsedNodeIcon;

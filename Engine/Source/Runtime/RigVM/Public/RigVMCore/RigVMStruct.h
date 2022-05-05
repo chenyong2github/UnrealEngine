@@ -172,6 +172,12 @@ public:
 	// remaps a pin path based on our internals
 	FString RemapPin(const FString& InPinPath, bool bIsInput, bool bContainsNodeName) const;
 
+	// adds a new aggregate pin
+	FString AddAggregatePin(FString InPinName = FString());
+
+	// returns the aggregate pins to add
+	const TArray<FString>& GetAggregatePins() const { return AggregatePins; }
+
 private:
 	
 	// The complete node path including models / collapse node.
@@ -194,6 +200,9 @@ private:
 
 	// New sets of default values
 	TMap<FName, FString> DefaultValues;
+
+	// Aggregate pins to add
+	TArray<FString> AggregatePins;
 
 	// sets the default values from the new struct.
 	void SetDefaultValues(const FRigVMStruct* InNewStructMemory);
@@ -257,7 +266,7 @@ public:
 
 	FString ExportToFullyQualifiedText(const UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer = nullptr) const;
 	
-	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const { return FName(); }
+	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const;
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
 
 	static const FName DeprecatedMetaName;

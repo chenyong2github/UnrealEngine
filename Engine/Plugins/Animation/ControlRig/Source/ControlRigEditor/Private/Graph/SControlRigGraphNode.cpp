@@ -32,6 +32,7 @@
 #include "DetailLayoutBuilder.h"
 #include "EditorStyleSet.h"
 #include "SControlRigGraphPinVariableBinding.h"
+#include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "Slate/SlateTextures.h"
 
 #if WITH_EDITOR
@@ -513,6 +514,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			];
 		}
 	}
+
+	CreateAggregateAddPinButton();
 	
 	// add spacer widget at the end
 	LeftNodeBox->AddSlot()
@@ -580,55 +583,31 @@ bool SControlRigGraphNode::UseLowDetailPinNames() const
 	return false;
 }
 
-void SControlRigGraphNode::CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputBox)
+void SControlRigGraphNode::CreateAggregateAddPinButton()
 {
-	if (ModelNode.IsValid() && ModelNode->IsAggregate() && ModelNode->IsInputAggregate())
+	if (LeftNodeBox.IsValid() && ModelNode.IsValid() && (ModelNode->IsAggregate() || ModelNode->IsA<URigVMAggregateNode>()))
 	{
-		TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
-		   NSLOCTEXT("ControlRigAggregateNode", "ControlRigAggregateNodeAddPinButton", "Add pin"),
-		   NSLOCTEXT("ControlRigAggregateNode", "ControlRigAggregateNodeAddPinButton_Tooltip", "Adds a input pin to the node"),
-		   false);
+		const bool bInputAggregate = ModelNode->IsInputAggregate();
+		const TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
+		   LOCTEXT("ControlRigAggregateNodeAddPinButton", "Add pin"),
+		   bInputAggregate ? 
+			LOCTEXT("ControlRigAggregateNodeAddInputPinButton_Tooltip", "Adds an input pin to the node") :
+			LOCTEXT("ControlRigAggregateNodeAddOutputPinButton_Tooltip", "Adds an output pin to the node"),
+		   !bInputAggregate);
 
-		FMargin AddPinPadding = Settings->GetInputPinPadding();
-		AddPinPadding.Top += 6.0f;
+		FMargin AddPinPadding = bInputAggregate ? Settings->GetInputPinPadding() : Settings->GetOutputPinPadding();
+		AddPinPadding.Top += 2.0f;
+		AddPinPadding.Left -= bInputAggregate ? 2.f : 0.f;
+		AddPinPadding.Right -= bInputAggregate ? 0.f : 2.f;
 
-		InputBox->AddSlot()
+		LeftNodeBox->AddSlot()
 			.AutoHeight()
 			.VAlign(VAlign_Center)
+			.HAlign(bInputAggregate ? HAlign_Left : HAlign_Right)
 			.Padding(AddPinPadding)
 			[
 				AddPinButton
 			];
-	}
-	else
-	{
-		SGraphNode::CreateInputSideAddButton(InputBox);
-	}
-}
-
-void SControlRigGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> InputBox)
-{
-	if (ModelNode.IsValid() && ModelNode->IsAggregate() && !ModelNode->IsInputAggregate())
-	{
-		TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
-		   NSLOCTEXT("LayeredBoneBlendNode", "LayeredBoneBlendNodeAddPinButton", "Add pin"),
-		   NSLOCTEXT("LayeredBoneBlendNode", "LayeredBoneBlendNodeAddPinButton_Tooltip", "Adds a output pin to the node"),
-		   false);
-
-		FMargin AddPinPadding = Settings->GetOutputPinPadding();
-		AddPinPadding.Top += 6.0f;
-
-		InputBox->AddSlot()
-			.AutoHeight()
-			.VAlign(VAlign_Center)
-			.Padding(AddPinPadding)
-			[
-				AddPinButton
-			];
-	}
-	else
-	{
-		SGraphNode::CreateOutputSideAddButton(InputBox);
 	}
 }
 

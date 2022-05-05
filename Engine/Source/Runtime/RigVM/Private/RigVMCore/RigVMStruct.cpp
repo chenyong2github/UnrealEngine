@@ -171,6 +171,51 @@ FString FRigVMStructUpgradeInfo::RemapPin(const FString& InPinPath, bool bIsInpu
 	return PinPath;
 }
 
+FString FRigVMStructUpgradeInfo::AddAggregatePin(FString InPinName)
+{
+	if(InPinName.IsEmpty())
+	{
+		FString LastPinName;
+		
+		FStructOnScope StructOnScope(GetNewStruct());
+		const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope.GetStructMemory();
+
+		if(AggregatePins.IsEmpty())
+		{
+#if WITH_EDITOR
+			FString LastInputPinName;
+			FString LastOutputPinName;
+			for (TFieldIterator<FProperty> It(GetNewStruct()); It; ++It)
+			{
+				if(It->HasMetaData(FRigVMStruct::AggregateMetaName))
+				{
+					FString& LastDeterminedPinName = It->HasMetaData(FRigVMStruct::InputMetaName) ?
+						LastInputPinName : LastOutputPinName;
+
+					if(!LastDeterminedPinName.IsEmpty())
+					{
+						LastPinName = It->GetName();
+						break;
+					}
+
+					LastDeterminedPinName = It->GetName();
+				}
+			}
+#else
+			LastPinName = TEXT("B");
+#endif
+		}
+		else
+		{
+			LastPinName = AggregatePins.Last();
+		}
+
+		InPinName = StructMemory->GetNextAggregateName(*LastPinName).ToString();
+	}
+	AggregatePins.Add(InPinName);
+	return AggregatePins.Last();
+}
+
 void FRigVMStructUpgradeInfo::SetDefaultValues(const FRigVMStruct* InNewStructMemory)
 {
 	check(NewStruct);
@@ -579,6 +624,41 @@ FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InScriptSt
 
 	const uint8* StructMemberMemoryPtr = Property->ContainerPtrToValuePtr<uint8>(InStructMemoryPointer);
 	return ExportToFullyQualifiedText(Property, StructMemberMemoryPtr);
+}
+
+FName FRigVMStruct::GetNextAggregateName(const FName& InLastAggregatePinName) const
+{
+	if(InLastAggregatePinName.IsNone())
+	{
+		return InLastAggregatePinName;
+	}
+
+	const FString PinName = InLastAggregatePinName.ToString();
+	if(PinName.IsNumeric())
+	{
+		const int32 Index = FCString::Atoi(*PinName);
+		return *FString::FormatAsNumber(Index+1);
+	}
+
+	if(PinName.Len() == 1)
+	{
+		const TCHAR C = PinName[0];
+		if((C >='a' && C < 'z') || (C >='A' && C <'Z'))
+		{
+			FString Result;
+			Result.AppendChar(C + 1);
+			return *Result;
+		}
+	}
+
+	if(PinName.Contains(TEXT("_")))
+	{
+		const FString Left = PinName.Left(PinName.Find(TEXT("_"), ESearchCase::IgnoreCase, ESearchDir::FromEnd));
+		const FString Right = PinName.Mid(PinName.Find(TEXT("_"), ESearchCase::IgnoreCase, ESearchDir::FromEnd)+1);
+		return *FString::Printf(TEXT("%s_%s"), *Left, *GetNextAggregateName(*Right).ToString());
+	}
+
+	return *FString::Printf(TEXT("%s_1"), *PinName);
 }
 
 TMap<FName, FString> FRigVMStruct::GetDefaultValues(UScriptStruct* InScriptStruct) const

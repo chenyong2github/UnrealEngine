@@ -571,6 +571,18 @@ void URigVMPin::SetNameFromIndex()
 	LowLevelRename(*FString::FormatAsNumber(GetPinIndex()));
 }
 
+void URigVMPin::SetDisplayName(const FName& InDisplayName)
+{
+	if(InDisplayName == GetFName())
+	{
+		DisplayName = NAME_None;
+	}
+	else
+	{
+		DisplayName = InDisplayName;
+	}
+}
+
 int32 URigVMPin::GetArraySize() const
 {
 	return SubPins.Num();

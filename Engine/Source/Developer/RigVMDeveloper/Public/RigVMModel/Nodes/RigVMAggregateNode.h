@@ -25,20 +25,24 @@ public:
 
 	// URigVMUnitNode interface
 	virtual FString GetNodeTitle() const override;
+	virtual FLinearColor GetNodeColor() const override;
 	virtual FName GetMethodName() const;
 	virtual  FText GetToolTipText() const override;
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
 
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
-	virtual bool IsAggregate() const override { return true; };
+	virtual bool IsAggregate() const override { return false; };
 #endif
 	virtual bool IsInputAggregate() const override;
 
 	URigVMNode* GetFirstInnerNode() const;
 	URigVMNode* GetLastInnerNode() const;
-	URigVMPin* GetFirstAggregatePin() const;
-	URigVMPin* GetSecondAggregatePin() const;
-	URigVMPin* GetOppositeAggregatePin() const;
+	
+	virtual URigVMPin* GetFirstAggregatePin() const override;
+	virtual URigVMPin* GetSecondAggregatePin() const override;
+	virtual URigVMPin* GetOppositeAggregatePin() const override;
+	virtual TArray<URigVMPin*> GetAggregateInputs() const override;
+	virtual TArray<URigVMPin*> GetAggregateOutputs() const override;
 
 private:
 
