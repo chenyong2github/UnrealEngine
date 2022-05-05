@@ -468,6 +468,25 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 	}
 }
 
+void UNiagaraMeshRendererProperties::GetStreamingMeshInfo(const FBoxSphereBounds& OwnerBounds, const FNiagaraEmitterInstance* InEmitter, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
+{
+	for (const FNiagaraMeshRendererMeshProperties& MeshProperties : Meshes)
+	{
+		UStaticMesh* Mesh = MeshProperties.ResolveStaticMesh(InEmitter);
+
+		if (Mesh && Mesh->RenderResourceSupportsStreaming() && Mesh->GetRenderAssetType() == EStreamableRenderAssetType::StaticMesh)
+		{
+			const FBoxSphereBounds MeshBounds = Mesh->GetBounds();
+			const FBoxSphereBounds StreamingBounds = FBoxSphereBounds(
+				OwnerBounds.Origin + MeshBounds.Origin,
+				MeshBounds.BoxExtent * MeshProperties.Scale,
+				MeshBounds.SphereRadius * MeshProperties.Scale.GetMax());
+			const float MeshTexelFactor = MeshBounds.SphereRadius * 2.0f;
+
+			new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Mesh, StreamingBounds, MeshTexelFactor);
+		}
+	}
+}
 
 bool UNiagaraMeshRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
 {

@@ -7739,6 +7739,29 @@ void UParticleLODLevel::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 	}
 }
 
+void UParticleLODLevel::GetStreamingMeshInfo(const FBoxSphereBounds& Bounds, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
+{
+	if (bEnabled)
+	{
+		const UParticleModuleTypeDataMesh* MeshTypeData = Cast<UParticleModuleTypeDataMesh>(TypeDataModule);
+
+		if (UStaticMesh* Mesh = MeshTypeData ? MeshTypeData->Mesh : nullptr)
+		{
+			if (Mesh->RenderResourceSupportsStreaming() && Mesh->GetRenderAssetType() == EStreamableRenderAssetType::StaticMesh)
+			{
+				const FBoxSphereBounds MeshBounds = Mesh->GetBounds();
+				const FBoxSphereBounds StreamingBounds = FBoxSphereBounds(
+					Bounds.Origin + MeshBounds.Origin,
+					MeshBounds.BoxExtent * MeshTypeData->LODSizeScale,
+					MeshBounds.SphereRadius * MeshTypeData->LODSizeScale);
+				const float MeshTexelFactor = MeshBounds.SphereRadius * 2.0f;
+
+				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Mesh, StreamingBounds, MeshTexelFactor);
+			}
+		}
+	}
+}
+
 void UParticleSystemComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials ) const
 {
 	if (Template)
@@ -7814,6 +7837,8 @@ void UParticleSystemComponent::GetStreamingRenderAssetInfo(FStreamingTextureLeve
 				LODLevelMaterials.Reset();
 				LOD->GetUsedMaterials(LODLevelMaterials, Template->NamedMaterialSlots, EmitterMaterials);
 				AddMaterials(MaterialWithScales, LODLevelMaterials, (float)FMath::Max<int32>(LOD->RequiredModule->SubImages_Horizontal, LOD->RequiredModule->SubImages_Vertical));
+
+				LOD->GetStreamingMeshInfo(Bounds, OutStreamingRenderAssets);
 			}
 		}
 

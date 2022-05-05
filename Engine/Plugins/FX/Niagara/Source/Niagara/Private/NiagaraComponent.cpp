@@ -1977,6 +1977,17 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 	}
 }
 
+void UNiagaraComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
+{
+	// UPrimitiveComponent::GetStreamingRenderAssetInfo takes care of getting the referenced textures
+	Super::GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
+
+	if (SystemInstanceController.IsValid())
+	{
+		SystemInstanceController->GetStreamingMeshInfo(Bounds, LevelContext, OutStreamingRenderAssets);
+	}
+}
+
 bool UNiagaraComponent::ResolveOwnerAllowsScalability(bool bRegister)
 {
 	bOwnerAllowsScalabiltiy = true;

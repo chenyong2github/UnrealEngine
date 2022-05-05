@@ -142,6 +142,13 @@ class UParticleLODLevel : public UObject
  	 * @param EmitterMaterials - the material slot materials.
 	 */
 	void GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, const TArray<struct FNamedEmitterMaterial>& NamedMaterialSlots, const TArray<UMaterialInterface*>& EmitterMaterials) const;
+
+	/**
+	 * Appends information on streaming meshes
+	 * @param Bounds - the bounds of the parent particle system component
+	 * @param OutStreamingRenderAssets - where the streaming mesh information will be added
+	 */
+	void GetStreamingMeshInfo(const FBoxSphereBounds& Bounds, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const;
 };
 
 
