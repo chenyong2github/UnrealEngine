@@ -303,6 +303,22 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("`AttributeStorage` must handle add and retrieve FRandomStream attribute"), StoredRandomStream.RandHelper(RandHelperUInt8), TestStoredSeed);
 	}
 
+	//Store an enum class
+	{
+		enum class EAttributeStorageEnumTest : uint8
+		{
+			EnumValue0 = 0,
+			EnumValue23 = 23,
+			EnumValue35 = 35,
+			EnumValue255 = 255,
+		};
+
+		ADD_ATTRIBUTE_STORAGE(EAttributeStorageEnumTest, EAttributeStorageEnumTest::EnumValue0);
+		ADD_ATTRIBUTE_STORAGE(EAttributeStorageEnumTest, EAttributeStorageEnumTest::EnumValue23);
+		ADD_ATTRIBUTE_STORAGE(EAttributeStorageEnumTest, EAttributeStorageEnumTest::EnumValue35);
+		ADD_ATTRIBUTE_STORAGE(EAttributeStorageEnumTest, EAttributeStorageEnumTest::EnumValue255);
+	}
+
 	//Get the Hash we will use it later to do some test
 	FGuid HashGuidRef = TestStorage.GetStorageHash();
 
