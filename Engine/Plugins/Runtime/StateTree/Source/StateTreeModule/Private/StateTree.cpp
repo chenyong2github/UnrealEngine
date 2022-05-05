@@ -83,8 +83,8 @@ bool UStateTree::Link()
 	{
 		if (State.Type == EStateTreeStateType::Subtree)
 		{
-			if (State.ParameterInstanceIndex != INDEX_NONE
-				|| State.ParameterDataViewIndex != INDEX_NONE)
+			if (State.ParameterInstanceIndex == MAX_uint16
+				|| State.ParameterDataViewIndex == MAX_uint16)
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
 				return false;
@@ -99,8 +99,8 @@ bool UStateTree::Link()
 		{
 			const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
 
-			if (State.ParameterInstanceIndex != INDEX_NONE
-				|| LinkedState.ParameterInstanceIndex != INDEX_NONE)
+			if (State.ParameterInstanceIndex == MAX_uint16
+				|| LinkedState.ParameterInstanceIndex == MAX_uint16)
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
 				return false;

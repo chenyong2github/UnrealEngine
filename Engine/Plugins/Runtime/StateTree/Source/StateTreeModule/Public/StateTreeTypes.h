@@ -374,9 +374,9 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	uint16 EvaluatorsBegin = 0;							// Index to first evaluator
 
 	UPROPERTY()
-	uint16 ParameterInstanceIndex = INDEX_NONE;			// Index to state instance data
+	uint16 ParameterInstanceIndex = MAX_uint16;			// Index to state instance data
 	UPROPERTY()
-	uint16 ParameterDataViewIndex = INDEX_NONE;			// Data view index of the input parameters
+	uint16 ParameterDataViewIndex = MAX_uint16;			// Data view index of the input parameters
 
 	UPROPERTY()
 	uint8 EnterConditionsNum = 0;						// Number of enter conditions

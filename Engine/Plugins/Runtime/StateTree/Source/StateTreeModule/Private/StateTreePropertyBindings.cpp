@@ -504,22 +504,22 @@ bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 		}
 		
 		const FStateTreeDataView SourceStructView = SourceStructViews[Copy.SourceStructIndex];
-		check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct || (SourceStructView.GetStruct() && SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex].Struct)));
-			
-		const FStateTreePropertyAccess& SourceAccess = PropertyAccesses[Copy.SourceAccessIndex];
-		const FStateTreePropertyAccess& TargetAccess = PropertyAccesses[Copy.TargetAccessIndex];
-		
-		const uint8* SourceAddress = GetAddress(SourceStructView, SourceAccess);
-		uint8* TargetAddress = GetAddress(TargetStructView, TargetAccess);
-		
-		if (SourceAddress != nullptr && TargetAddress != nullptr)
+		if (SourceStructView.IsValid())
 		{
+			check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct || (SourceStructView.GetStruct() && SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex].Struct)));
+				
+			const FStateTreePropertyAccess& SourceAccess = PropertyAccesses[Copy.SourceAccessIndex];
+			const FStateTreePropertyAccess& TargetAccess = PropertyAccesses[Copy.TargetAccessIndex];
+			
+			const uint8* SourceAddress = GetAddress(SourceStructView, SourceAccess);
+			uint8* TargetAddress = GetAddress(TargetStructView, TargetAccess);
+			
+			check (SourceAddress != nullptr && TargetAddress != nullptr);
 			PerformCopy(Copy, SourceAccess.LeafProperty, SourceAddress, TargetAccess.LeafProperty, TargetAddress);
 		}
 		else
 		{
 			bResult = false;
-			break;
 		}
 	}
 
