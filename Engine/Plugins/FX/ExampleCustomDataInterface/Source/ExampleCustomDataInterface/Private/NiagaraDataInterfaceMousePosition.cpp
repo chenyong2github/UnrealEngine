@@ -10,6 +10,7 @@
 #include "NiagaraTypes.h"
 #include "ShaderParameterUtils.h"
 #include "Internationalization/Internationalization.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
 #include "ShaderCompilerCore.h"
@@ -211,6 +212,7 @@ bool UNiagaraDataInterfaceMousePosition::AppendCompileHash(FNiagaraCompileHashVi
 
 	FSHAHash Hash = GetShaderFileHash(MouseDITemplateShaderFile, SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceMousePositionHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return true;
 }
 
@@ -237,40 +239,23 @@ void UNiagaraDataInterfaceMousePosition::GetParameterDefinitionHLSL(const FNiaga
 
 #endif
 
-//////////////////////////////////////////////////////////////////////////
-// Compute Shader Binding
-struct FNiagaraDataInterfaceParametersCS_MousePosition : public FNiagaraDataInterfaceParametersCS
+// This fills in the expected parameter bindings we use to send data to the GPU
+void UNiagaraDataInterfaceMousePosition::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_MousePosition, NonVirtual);
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
 
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		MousePositionParam.Bind(ParameterMap, *(MousePositionParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
+// This fills in the parameters to send to the GPU
+void UNiagaraDataInterfaceMousePosition::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNDIMousePositionProxy& DataInterfaceProxy = Context.GetProxy<FNDIMousePositionProxy>();
+	FNDIMousePositionInstanceData& InstanceData = DataInterfaceProxy.SystemInstancesToInstanceData_RT.FindChecked(Context.GetSystemInstanceID());
 
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-		
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNDIMousePositionProxy* DataInterfaceProxy = static_cast<FNDIMousePositionProxy*>(Context.DataInterface);
-		FNDIMousePositionInstanceData* InstanceData = DataInterfaceProxy->SystemInstancesToInstanceData_RT.Find(Context.SystemInstanceID);
-		check(InstanceData != nullptr);
-
-		FVector4f ShaderData(InstanceData->MousePos.X, InstanceData->MousePos.Y, InstanceData->ScreenSize.X, InstanceData->ScreenSize.Y);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MousePositionParam, ShaderData);
-	}
-
-private:
-	// Mouse position from game thread
-	LAYOUT_FIELD(FShaderParameter, MousePositionParam);
-
-	static const FString MousePositionParamName;
-};
-
-const FString FNiagaraDataInterfaceParametersCS_MousePosition::MousePositionParamName(TEXT("MousePosition_"));
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_MousePosition);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceMousePosition, FNiagaraDataInterfaceParametersCS_MousePosition);
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->MousePosition.X = InstanceData.MousePos.X;
+	ShaderParameters->MousePosition.Y = InstanceData.MousePos.Y;
+	ShaderParameters->MousePosition.Z = InstanceData.ScreenSize.X;
+	ShaderParameters->MousePosition.W = InstanceData.ScreenSize.Y;
+}
 
 #undef LOCTEXT_NAMESPACE
