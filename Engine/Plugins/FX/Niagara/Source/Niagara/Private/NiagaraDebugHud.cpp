@@ -1045,13 +1045,17 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	float CurrTime = WorldManager->GetWorld()->GetRealTimeSeconds();
 	DeltaSeconds = CurrTime - LastDrawTime;
 
-	// Draw in world components
-	DrawComponents(WorldManager, Canvas);
+	// We may want to use the HUD to pause / step but not actually display anything on screen
+	if (Settings.bHudRenderingEnabled)
+	{
+		// Draw in world components
+		DrawComponents(WorldManager, Canvas);
 
-	DrawDebugGeomerty(WorldManager, Canvas);
+		DrawDebugGeomerty(WorldManager, Canvas);
 
-	// Draw overview
-	DrawOverview(WorldManager, Canvas->Canvas);
+		// Draw overview
+		DrawOverview(WorldManager, Canvas->Canvas);
+	}
 
 	// Scrub any gpu cached emitters we haven't used in a while
 	{

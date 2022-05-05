@@ -431,6 +431,10 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(EditAnywhere, Category = "Debug General", meta = (DisplayName = "Debug HUD Enabled"))
 	bool bHudEnabled = true;
 
+	/** Master control for HUD rendering. */
+	UPROPERTY(EditAnywhere, Category = "Debug General", meta = (DisplayName = "Debug HUD Rendering Enabled"))
+	bool bHudRenderingEnabled = true;
+
 	/**
 	When enabled all Niagara systems that pass the filter will have the simulation data buffers validation.
 	i.e. we will look for NaN or other invalidate data  inside it
