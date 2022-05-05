@@ -54,6 +54,7 @@ namespace AutomationScripts
 			}
 
 			LogInformation("********** ARCHIVE COMMAND STARTED **********");
+			var StartTime = DateTime.UtcNow;
 
 			LogInformation("Archiving to {0}", Params.ArchiveDirectoryParam);
 
@@ -79,6 +80,7 @@ namespace AutomationScripts
 					SC.StageTargetPlatform.ProcessArchivedProject(Params, SC);
 				}
 			}
+			LogInformation("Archive command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 			LogInformation("********** ARCHIVE COMMAND COMPLETED **********");
 		}
 	}

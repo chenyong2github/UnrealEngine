@@ -315,6 +315,7 @@ namespace AutomationToolDriver
 		{
 			// Initialize the log system, buffering the output until we can create the log file
 			Log.AddTraceListener(StartupListener);
+			Log.TraceInformation("Starting AutomationTool...");
 
 			// Populate AutomationToolCommandLine and CommandsToExecute
 			try
@@ -409,6 +410,8 @@ namespace AutomationToolDriver
 
 		static async Task<ExitCode> MainProc()
 		{
+			Log.TraceInformation("Initializing script modules...");
+			var StartTime = DateTime.UtcNow;
 			string ScriptsForProject = (string)AutomationToolCommandLine.GetValueUnchecked("-ScriptsForProject");
 			List<string> AdditionalScriptDirs = (List<string>) AutomationToolCommandLine.GetValueUnchecked("-ScriptDir");
 			bool bForceCompile = AutomationToolCommandLine.IsSetGlobal("-Compile");
@@ -449,6 +452,7 @@ namespace AutomationToolDriver
 
 			Type AutomationTools_Automation = AutomationUtilsAssembly.GetType("AutomationTool.Automation");
 			MethodInfo Automation_Process = AutomationTools_Automation.GetMethod("ProcessAsync");
+			Log.TraceInformation("Total script module initialization time: {0:0.00} s.", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 			return await (Task<ExitCode>) Automation_Process.Invoke(null,
 				new object[] {AutomationToolCommandLine, StartupListener, ScriptModuleAssemblyPaths});
 		}

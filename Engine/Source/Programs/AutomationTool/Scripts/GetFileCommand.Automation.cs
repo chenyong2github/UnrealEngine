@@ -22,6 +22,7 @@ namespace AutomationScripts
 			}
 
 			LogInformation("********** GETFILE COMMAND STARTED **********");
+			var StartTime = DateTime.UtcNow;
 
 			var FileName = Path.GetFileName(Params.GetFile);
 			var LocalFile = CombinePaths(CmdEnv.EngineSavedFolder, FileName);
@@ -34,6 +35,7 @@ namespace AutomationScripts
 
 			SC[0].StageTargetPlatform.GetTargetFile(Params.GetFile, LocalFile, Params);
 
+			LogInformation("GetFile command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 			LogInformation("********** GETFILE COMMAND COMPLETED **********");
 		}
 	}

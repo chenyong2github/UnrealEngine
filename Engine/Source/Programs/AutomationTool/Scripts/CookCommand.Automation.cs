@@ -252,6 +252,7 @@ namespace AutomationScripts
 			Params.ValidateAndLog();
 
 			LogInformation("********** COOK COMMAND STARTED **********");
+			var StartTime = DateTime.UtcNow;
 
 			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
 			if (!FileExists(UEEditorExe))
@@ -327,6 +328,7 @@ namespace AutomationScripts
 			}
 
 
+			LogInformation("Cook command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 			LogInformation("********** COOK COMMAND COMPLETED **********");
 		}
 

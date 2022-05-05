@@ -461,6 +461,7 @@ namespace EpicGames.MsBuild
 
 		private static bool BuildProjects(ProjectGraph ProjectGraph, Dictionary<string, string> GlobalProperties)
 		{
+			var StartTime = DateTime.UtcNow;
 			var Logger = new MLogger();
 
 			string[] TargetsToBuild = { "Restore", "Build" };
@@ -502,7 +503,7 @@ namespace EpicGames.MsBuild
 					Result = false;
 				}
 			}
-			Log.TraceInformation(" build complete.");
+			Log.TraceInformation("Build projects time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 
 			return Result;
 		}

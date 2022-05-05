@@ -26,9 +26,20 @@ namespace AutomationScripts
 					DeployContextList.AddRange(CreateDeploymentContext(Params, true, false));
 				}
 
-				if (DeployContextList.Count > 0)
+				bool bShouldPackage = false; 
+				foreach (var SC in DeployContextList)
+				{
+					if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy && Params.Deploy))
+					{
+						bShouldPackage = true;
+						break;
+					}
+				}
+
+				if (bShouldPackage)
 				{
 					LogInformation("********** PACKAGE COMMAND STARTED **********");
+					var StartTime = DateTime.UtcNow;
 
 					foreach (var SC in DeployContextList)
 					{
@@ -38,6 +49,7 @@ namespace AutomationScripts
 						}
 					}
 
+					LogInformation("Package command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 					LogInformation("********** PACKAGE COMMAND COMPLETED **********");
 				}
 			}

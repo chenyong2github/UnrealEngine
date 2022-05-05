@@ -150,6 +150,7 @@ namespace AutomationScripts
 			}
 
 			LogInformation("********** RUN COMMAND STARTED **********");
+			var StartTime = DateTime.UtcNow;
 
 			var LogFolderOutsideOfSandbox = GetLogFolderOutsideOfSandbox();
 			if (!Unreal.IsEngineInstalled() && CookServerProcess == null)
@@ -188,6 +189,7 @@ namespace AutomationScripts
 				CopyLogsBackToLogFolder();
 			}
 
+			LogInformation("Run command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 			LogInformation("********** RUN COMMAND COMPLETED **********");
 		}
 

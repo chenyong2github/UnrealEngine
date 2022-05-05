@@ -24,6 +24,8 @@ public class BuildCookRun : BuildCommand
 {
 	public override void ExecuteBuild()
 	{
+		var StartTime = DateTime.UtcNow;
+
 		// these need to be done first
 		var bForeign = ParseParam("foreign");
 		var bForeignCode = ParseParam("foreigncode");
@@ -38,6 +40,8 @@ public class BuildCookRun : BuildCommand
 		var Params = SetupParams();
 
 		DoBuildCookRun(Params);
+
+		LogInformation("BuildCookRun time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 	}
 
 	protected ProjectParams SetupParams()

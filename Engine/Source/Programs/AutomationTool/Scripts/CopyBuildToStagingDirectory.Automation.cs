@@ -4453,6 +4453,7 @@ namespace AutomationScripts
 				Params.ValidateAndLog();
 
 				LogInformation("********** STAGE COMMAND STARTED **********");
+				var StartTime = DateTime.UtcNow;
 
 				if (!Params.NoClient)
 				{
@@ -4526,6 +4527,7 @@ namespace AutomationScripts
 						ApplyStagingManifest(Params, SC);
 					}
 				}
+				LogInformation("Stage command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 				LogInformation("********** STAGE COMMAND COMPLETED **********");
 			}
 		}

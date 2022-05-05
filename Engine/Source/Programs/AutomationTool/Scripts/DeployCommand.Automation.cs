@@ -20,6 +20,7 @@ namespace AutomationScripts
 			}
 
 			LogInformation("********** DEPLOY COMMAND STARTED **********");
+			var StartTime = DateTime.UtcNow;
 
 			if (!Params.NoClient)
 			{
@@ -68,6 +69,7 @@ namespace AutomationScripts
 				}
 			}
 
+			LogInformation("Deploy command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 			LogInformation("********** DEPLOY COMMAND COMPLETED **********");
 		}
 	}
