@@ -285,7 +285,7 @@ namespace UE
 			*
 			* @return	The ptr to the added entry, to be used for populating the data, nullptr if adding it failed
 			*/
-			uint8* Add(const UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
+			uint8* Add(UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
 			{
 				const int32 TypeIndex = FindOrAddTypeIndex(InScriptStruct);
 
@@ -337,7 +337,7 @@ namespace UE
 			*
 			* @return	The ptr to the added/existing entry, to be used for populating the data, nullptr if adding it failed
 			*/
-			uint8* FindOrAdd(const UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
+			uint8* FindOrAdd(UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
 			{
 				const int32 TypeIndex = FindOrAddTypeIndex(InScriptStruct);
 				TArray<FAttributeId>& AttributeIds = AttributeIdentifiers[TypeIndex];
@@ -672,7 +672,7 @@ namespace UE
 			/*
 			* @return Array of all the contained attribute types (UScriptStruct)
 			*/
-			const TArray<TWeakObjectPtr<const UScriptStruct>>& GetUniqueTypes() const { return UniqueTypes; }
+			const TArray<TWeakObjectPtr<UScriptStruct>>& GetUniqueTypes() const { return UniqueTypes; }
 
 			/*
 			* Populate out parameter OutAttributeKeyNames for all contained attribute key names
@@ -702,6 +702,20 @@ namespace UE
 		* @return Unique bone indices for all contained entries of a specific attribute type
 		*/
 		const TArray<int32>& GetUniqueTypedBoneIndices(int32 TypeIndex) const { return UniqueTypedBoneIndices[TypeIndex]; }
+
+		/*
+		* @return total number of attributes
+		*/
+		int32 Num() const
+		{
+			int32 NumAttributes = 0;
+			for (const TArray<FAttributeId>& AttributesPerType : AttributeIdentifiers)
+			{
+				NumAttributes += AttributesPerType.Num();
+			}
+				
+			return NumAttributes;
+		}
 
 		public:
 			/* Deprecated API */
@@ -770,7 +784,7 @@ namespace UE
 			TArray<FAttributeId>& GetKeysInternal(int32 TypeIndex) { return AttributeIdentifiers[TypeIndex]; }
 			
 			/** Find or add a new root-level entry for the provided attribute data type, returning the index into the arrays representing the type */
-			int32 FindOrAddTypeIndex(const UScriptStruct* InScriptStruct)
+			int32 FindOrAddTypeIndex(UScriptStruct* InScriptStruct)
 			{
 				const int32 OldNum = UniqueTypes.Num();
 				const int32 TypeIndex = UniqueTypes.AddUnique(InScriptStruct);
@@ -792,7 +806,7 @@ namespace UE
 			TArray<TArray<int32>> UniqueTypedBoneIndices;
 			TArray<TArray<FAttributeId>> AttributeIdentifiers;
 			TArray<TArray<TWrappedAttribute<InAllocator>>> Values;
-			TArray<TWeakObjectPtr<const UScriptStruct>> UniqueTypes;
+			TArray<TWeakObjectPtr<UScriptStruct>> UniqueTypes;
 
 			template <typename OtherBoneIndexType, typename OtherAllocator>
 			friend struct TAttributeContainer;

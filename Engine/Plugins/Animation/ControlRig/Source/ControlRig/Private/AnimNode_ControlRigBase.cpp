@@ -485,6 +485,10 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 {
 	if (UControlRig* ControlRig = GetControlRig())
 	{
+		// temporarily give control rig access to the stack allocated attribute container
+		// control rig may have rig units that can add/get attributes to/from this container
+		UControlRig::FAnimAttributeContainerPtrScope AttributeScope(ControlRig, InOutput.CustomAttributes);
+		
 		// first update input to the system
 		UpdateInput(ControlRig, InOutput);
 

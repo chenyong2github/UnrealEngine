@@ -63,6 +63,9 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, ControlRigLog(nullptr)
 	, bEnableControlRigLogging(true)
 #endif
+#if WITH_EDITOR
+	, bEnableAnimAttributeTrace(false)
+#endif 
 	, DataSourceRegistry(nullptr)
 	, EventQueue()
 #if WITH_EDITOR
@@ -372,6 +375,20 @@ TArray<FRigVMExternalVariable> UControlRig::GetExternalVariablesImpl(bool bFallb
 	return ExternalVariables;
 }
 
+UControlRig::FAnimAttributeContainerPtrScope::FAnimAttributeContainerPtrScope(UControlRig* InControlRig,
+	UE::Anim::FStackAttributeContainer& InExternalContainer)
+{
+	ControlRig = InControlRig;
+	ControlRig->ExternalAnimAttributeContainer = &InExternalContainer;
+}
+
+UControlRig::FAnimAttributeContainerPtrScope::~FAnimAttributeContainerPtrScope()
+{
+	// control rig should not hold on to this container since it is stack allocated
+	// and should not be used outside of stack, see FPoseContext
+	ControlRig->ExternalAnimAttributeContainer = nullptr;
+}
+
 TArray<FRigVMExternalVariable> UControlRig::GetPublicVariables() const
 {
 	TArray<FRigVMExternalVariable> PublicVariables;
@@ -670,6 +687,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	DrawInterface.Reset();
 	Context.DrawInterface = &DrawInterface;
 
+	Context.AnimAttributeContainer = ExternalAnimAttributeContainer;
+
 	// draw container contains persistent draw instructions, 
 	// so we cannot call Reset(), which will clear them,
 	// instead, we re-initialize them from the CDO
@@ -881,7 +900,14 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			// Transform Overrride is generated using a Transient Control 
 			ApplyTransformOverrideForUserCreatedBones();
 #endif
-
+			
+#if WITH_EDITOR
+			if (bEnableAnimAttributeTrace && ExternalAnimAttributeContainer != nullptr)
+			{
+				InputAnimAttributeSnapshot.CopyFrom(*ExternalAnimAttributeContainer);
+			}
+#endif
+			
 			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
 			{
 				if (PreForwardsSolveEvent.IsBound())
@@ -892,6 +918,13 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			}
 
 			ExecuteUnits(Context, InEventName);
+
+#if WITH_EDITOR
+			if (bEnableAnimAttributeTrace && ExternalAnimAttributeContainer != nullptr)
+			{
+				OutputAnimAttributeSnapshot.CopyFrom(*ExternalAnimAttributeContainer);
+			}
+#endif
 
 			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
 			{

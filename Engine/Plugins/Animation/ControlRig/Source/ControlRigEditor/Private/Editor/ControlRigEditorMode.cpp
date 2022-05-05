@@ -11,6 +11,7 @@
 #include "RigCurveContainerTabSummoner.h"
 #include "RigInfluenceMapTabSummoner.h"
 #include "RigValidationTabSummoner.h"
+#include "RigAnimAttributeTabSummoner.h"
 #include "ToolMenus.h"
 
 FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>& InControlRigEditor)
@@ -24,6 +25,7 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 	TabFactories.RegisterFactory(MakeShared<FRigCurveContainerTabSummoner>(InControlRigEditor));
 	//TabFactories.RegisterFactory(MakeShared<FRigInfluenceMapTabSummoner>(InControlRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FRigValidationTabSummoner>(InControlRigEditor));
+	TabFactories.RegisterFactory(MakeShared<FRigAnimAttributeTabSummoner>(InControlRigEditor));
 
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 
@@ -110,6 +112,7 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 						->SetSizeCoefficient(1.f)
 						->AddTab(FBlueprintEditorTabs::DetailsID, ETabState::OpenedTab)
 						->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
+						->AddTab(FRigAnimAttributeTabSummoner::TabID, ETabState::OpenedTab)
 						->SetForegroundTab(FBlueprintEditorTabs::DetailsID)
 					)
 				)

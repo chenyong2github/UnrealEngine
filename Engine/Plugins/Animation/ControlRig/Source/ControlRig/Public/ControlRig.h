@@ -21,6 +21,7 @@
 #include "Interfaces/Interface_AssetUserData.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AttributesRuntime.h"
 
 #if WITH_EDITOR
 #include "RigVMModel/RigVMPin.h"
@@ -516,9 +517,31 @@ private:
 		}
 		return nullptr;
 	}
+public:
+	class FAnimAttributeContainerPtrScope
+	{
+	public:
+		FAnimAttributeContainerPtrScope(UControlRig* InControlRig, UE::Anim::FStackAttributeContainer& InExternalContainer);
+		~FAnimAttributeContainerPtrScope();
 
+		UControlRig* ControlRig;
+	};
+	
 private:
+	UE::Anim::FStackAttributeContainer* ExternalAnimAttributeContainer;
 
+#if WITH_EDITOR
+	void SetEnableAnimAttributeTrace(bool bInEnable)
+	{
+		bEnableAnimAttributeTrace = bInEnable;
+	};
+	
+	bool bEnableAnimAttributeTrace;
+	
+	UE::Anim::FHeapAttributeContainer InputAnimAttributeSnapshot;
+	UE::Anim::FHeapAttributeContainer OutputAnimAttributeSnapshot;
+#endif
+	
 	UPROPERTY()
 	FControlRigDrawContainer DrawContainer;
 
@@ -874,6 +897,7 @@ private:
 	friend class FControlRigEditor;
 	friend class SRigCurveContainer;
 	friend class SRigHierarchy;
+	friend class SControlRigAnimAttributeView;
 	friend class UEngineTestControlRig;
  	friend class FControlRigEditMode;
 	friend class UControlRigBlueprint;

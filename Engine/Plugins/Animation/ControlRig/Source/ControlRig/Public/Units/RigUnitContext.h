@@ -8,6 +8,7 @@
 #include "Rigs/RigNameCache.h"
 #include "ControlRigLog.h"
 #include "AnimationDataSource.h"
+#include "Animation/AttributesRuntime.h"
 #include "Drawing/ControlRigDrawInterface.h"
 #include "GameFramework/Actor.h"
 #include "Components/SceneComponent.h"
@@ -41,7 +42,8 @@ struct FRigUnitContext
 {
 	/** default constructor */
 	FRigUnitContext()
-		: DrawInterface(nullptr)
+		: AnimAttributeContainer(nullptr)
+		, DrawInterface(nullptr)
 		, DrawContainer(nullptr)
 		, DataSourceRegistry(nullptr)
 		, DeltaTime(0.f)
@@ -61,6 +63,9 @@ struct FRigUnitContext
 	{
 	}
 
+	/** An external anim attribute container */
+	UE::Anim::FStackAttributeContainer* AnimAttributeContainer;
+	
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
 

@@ -44,13 +44,13 @@ void Attributes::BlendAttributes(const TArrayView<const FStackAttributeContainer
 
 	if (SourceAttributes.Num())
 	{
-		TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+		TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 		for (const FStackAttributeContainer& CustomAttributes : SourceAttributes)
 		{
 			UniqueStructs.Append(CustomAttributes.GetUniqueTypes());
 		}
 		
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 			FAttributeBlendData AttributeBlendData = FAttributeBlendData::PerContainerWeighted(SourceAttributes, SourceWeights, WeakScriptStruct.Get());
@@ -65,13 +65,13 @@ void Attributes::BlendAttributes(const TArrayView<const FStackAttributeContainer
 
 	if (SourceAttributes.Num())
 	{
-		TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+		TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 		for (const FStackAttributeContainer* CustomAttributes : SourceAttributes)
 		{
 			UniqueStructs.Append(CustomAttributes->GetUniqueTypes());
 		}
 
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 			FAttributeBlendData AttributeBlendData = FAttributeBlendData::PerContainerPtrWeighted(SourceAttributes, SourceWeights, WeakScriptStruct.Get());
@@ -86,13 +86,13 @@ void Attributes::BlendAttributes(const TArrayView<const FStackAttributeContainer
 
 	if (SourceAttributes.Num())
 	{
-		TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+		TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 		for (const FStackAttributeContainer& CustomAttributes : SourceAttributes)
 		{
 			UniqueStructs.Append(CustomAttributes.GetUniqueTypes());
 		}
 
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 			FAttributeBlendData AttributeBlendData = FAttributeBlendData::PerContainerRemappedWeighted(SourceAttributes, SourceWeights, SourceWeightsIndices, WeakScriptStruct.Get());
@@ -105,12 +105,12 @@ void Attributes::OverrideAttributes(const FStackAttributeContainer& SourceAttrib
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_OverrideAttributes_Weighted);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	UniqueStructs.Append(SourceAttributes.GetUniqueTypes());
 	UniqueStructs.Append(OutAttributes.GetUniqueTypes());
 
 	const TArray<const FStackAttributeContainer*> Array = { &SourceAttributes };
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 	{
 		const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 
@@ -124,12 +124,12 @@ void Attributes::AccumulateAttributes(const FStackAttributeContainer& SourceAttr
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AccumulateAttributes);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	UniqueStructs.Append(SourceAttributes.GetUniqueTypes());
 	UniqueStructs.Append(OutAttributes.GetUniqueTypes());
 
 	const TArray<const FStackAttributeContainer*> Array = { &SourceAttributes };
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 	{
 		const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 		FAttributeBlendData AttributeBlendData = FAttributeBlendData::SingleAdditiveContainerUniformWeighted(Array, Weight, AdditiveType, WeakScriptStruct.Get());
@@ -141,11 +141,11 @@ void Attributes::ConvertToAdditive(const FStackAttributeContainer& BaseAttribute
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SubtractAttributes);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	UniqueStructs.Append(BaseAttributes.GetUniqueTypes());
 
 	const TArray<const FStackAttributeContainer*> Array = { &BaseAttributes };
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 	{
 		const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 
@@ -159,9 +159,9 @@ void Attributes::CopyAndRemapAttributes(const FMeshAttributeContainer& SourceAtt
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CopyAndRemapAttributes);
 
-	for (const TWeakObjectPtr<const UScriptStruct> WeakScriptStruct : SourceAttributes.GetUniqueTypes())
+	for (const TWeakObjectPtr<UScriptStruct> WeakScriptStruct : SourceAttributes.GetUniqueTypes())
 	{
-		const UScriptStruct* ScriptStruct = WeakScriptStruct.Get();
+		UScriptStruct* ScriptStruct = WeakScriptStruct.Get();
 		const int32 TypeIndex = SourceAttributes.FindTypeIndex(ScriptStruct);
 		if (TypeIndex != INDEX_NONE)
 		{
@@ -196,12 +196,12 @@ void Attributes::InterpolateAttributes(FMeshAttributeContainer& FromAttributes, 
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_InterpolateAttributes);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>> FromUniqueStructs;
-	TSet<TWeakObjectPtr<const UScriptStruct>> ToUniqueStructs;
-	TSet<TWeakObjectPtr<const UScriptStruct>> OverlappingStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>> FromUniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>> ToUniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>> OverlappingStructs;
 	{
-		const TArray<TWeakObjectPtr<const UScriptStruct>, FDefaultAllocator>& SourceUniqueTypes = FromAttributes.GetUniqueTypes();
-		const TArray<TWeakObjectPtr<const UScriptStruct>, FDefaultAllocator>& OutUniqueTypes = ToAttributes.GetUniqueTypes();
+		const TArray<TWeakObjectPtr<UScriptStruct>, FDefaultAllocator>& SourceUniqueTypes = FromAttributes.GetUniqueTypes();
+		const TArray<TWeakObjectPtr<UScriptStruct>, FDefaultAllocator>& OutUniqueTypes = ToAttributes.GetUniqueTypes();
 
 		for (const auto& Type : SourceUniqueTypes)
 		{
@@ -227,7 +227,7 @@ void Attributes::InterpolateAttributes(FMeshAttributeContainer& FromAttributes, 
 	// Handle unique types first
 	{
 		// From
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : FromUniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : FromUniqueStructs)
 		{
 			const int32 TypeIndex = FromAttributes.FindTypeIndex(WeakScriptStruct.Get());
 			const TArray<FAttributeId, FDefaultAllocator>& Identifiers = FromAttributes.GetKeys(TypeIndex);
@@ -246,7 +246,7 @@ void Attributes::InterpolateAttributes(FMeshAttributeContainer& FromAttributes, 
 		}
 
 		// To 
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : ToUniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : ToUniqueStructs)
 		{
 			const int32 TypeIndex = ToAttributes.FindTypeIndex(WeakScriptStruct.Get());
 			const TArray<FAttributeId, FDefaultAllocator>& Identifiers = ToAttributes.GetKeys(TypeIndex);
@@ -267,7 +267,7 @@ void Attributes::InterpolateAttributes(FMeshAttributeContainer& FromAttributes, 
 	}
 
 	// Overlapping types	
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : OverlappingStructs)
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : OverlappingStructs)
 	{
 		const int32 FromTypeIndex = FromAttributes.FindTypeIndex(WeakScriptStruct.Get());
 		const TArray<FAttributeId, FDefaultAllocator>& FromIdentifiers = FromAttributes.GetKeys(FromTypeIndex);
@@ -330,11 +330,11 @@ void Attributes::BlendAttributesPerBone(const FStackAttributeContainer& SourceAt
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BlendAttributesPerBone);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	UniqueStructs.Append(SourceAttributes1.GetUniqueTypes());
 	UniqueStructs.Append(SourceAttributes2.GetUniqueTypes());
 
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 	{
 		const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 		FAttributeBlendData AttributeBlendData = FAttributeBlendData::PerBoneSingleContainerWeighted(SourceAttributes1, SourceAttributes2, WeightsOfSource2, WeakScriptStruct.Get());
@@ -346,7 +346,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BlendAttributesPerBoneBlendSample);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	for (const FStackAttributeContainer& CustomAttributes : SourceAttributes)
 	{
 		UniqueStructs.Append(CustomAttributes.GetUniqueTypes());
@@ -356,7 +356,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 	const bool bContainsPerBoneWeights = BlendSampleDataCache[0].PerBoneBlendData.Num() > 0;
 	if (bContainsPerBoneWeights)
 	{
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 
@@ -372,7 +372,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 			Weights.Add(SampleData.GetClampedWeight());
 		}
 
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 
@@ -386,7 +386,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BlendAttributesPerBoneBlendSample);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	for (const FStackAttributeContainer& CustomAttributes : SourceAttributes)
 	{
 		UniqueStructs.Append(CustomAttributes.GetUniqueTypes());
@@ -396,7 +396,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 	const bool bContainsPerBoneWeights = BlendSampleDataCache[0].PerBoneBlendData.Num() > 0;
 	if (bContainsPerBoneWeights)
 	{
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 
@@ -413,7 +413,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 			Weights.Add(SampleData.GetClampedWeight());
 		}
 
-		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+		for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 		{
 			const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 
@@ -427,7 +427,7 @@ void Attributes::BlendAttributesPerBoneFilter(const FStackAttributeContainer& Ba
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BlendAttributesPerBoneFilter);
 
-	TSet<TWeakObjectPtr<const UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<const UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
+	TSet<TWeakObjectPtr<UScriptStruct>, DefaultKeyFuncs<TWeakObjectPtr<UScriptStruct>>, TInlineSetAllocator<4>> UniqueStructs;
 	for (const FStackAttributeContainer& CustomAttributes : BlendAttributes)
 	{
 		UniqueStructs.Append(CustomAttributes.GetUniqueTypes());
@@ -435,7 +435,7 @@ void Attributes::BlendAttributesPerBoneFilter(const FStackAttributeContainer& Ba
 
 	UniqueStructs.Append(BaseAttributes.GetUniqueTypes());
 
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : UniqueStructs)
 	{
 		const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 		FAttributeBlendData AttributeBlendData = FAttributeBlendData::PerBoneFilteredWeighted(BaseAttributes, BlendAttributes, BoneBlendWeights, WeakScriptStruct.Get());
@@ -476,7 +476,7 @@ void Attributes::MirrorAttributes(FStackAttributeContainer& CustomAttributes, co
 		return true;
 	};
 
-	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : CustomAttributes.GetUniqueTypes())
+	for (const TWeakObjectPtr<UScriptStruct>& WeakScriptStruct : CustomAttributes.GetUniqueTypes())
 	{
 		const int32 TypeIndex = CustomAttributes.FindTypeIndex(WeakScriptStruct.Get());
 		if (TypeIndex != INDEX_NONE)
