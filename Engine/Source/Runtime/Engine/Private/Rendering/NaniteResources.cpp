@@ -272,23 +272,29 @@ void FResources::DropBulkData()
 
 void FResources::RebuildBulkDataFromDDC(const UObject* Owner)
 {
+	BeginRebuildBulkDataFromCache(Owner);
+	EndRebuildBulkDataFromCache();
+}
+
+void FResources::BeginRebuildBulkDataFromCache(const UObject* Owner)
+{
 	if (!HasStreamingData())
 	{
 		return;
 	}
 
-	if((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) == 0u)
+	if ((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) == 0u)
 	{
 		return;
 	}
 
 	using namespace UE::DerivedData;
-	
+
 	FCacheKey Key;
 	Key.Bucket = FCacheBucket(TEXT("StaticMesh"));
 	Key.Hash = DDCKeyHash;
 	check(!DDCKeyHash.IsZero());
-	
+
 	FCacheGetChunkRequest Request;
 	Request.Name = Owner->GetPathName();
 	Request.Id = FValueId::FromName("NaniteStreamingData");
@@ -297,21 +303,39 @@ void FResources::RebuildBulkDataFromDDC(const UObject* Owner)
 	check(!DDCRawHash.IsZero());
 
 	FSharedBuffer SharedBuffer;
-	FRequestOwner RequestOwner(EPriority::Blocking);
-	GetCache().GetChunks(MakeArrayView(&Request, 1), RequestOwner,
-		[&SharedBuffer](FCacheGetChunkResponse&& Response)
+	*DDCRequestOwner = MakePimpl<FRequestOwner>(EPriority::Normal);
+	GetCache().GetChunks(MakeArrayView(&Request, 1), **DDCRequestOwner,
+		[this](FCacheGetChunkResponse&& Response)
 		{
-			check(Response.Status == EStatus::Ok);
-			SharedBuffer = MoveTemp(Response.RawData);
+			check(Response.Status != EStatus::Error);
+			if (Response.Status == EStatus::Ok)
+			{
+				StreamablePages.Lock(LOCK_READ_WRITE);
+				uint8* Ptr = (uint8*)StreamablePages.Realloc(Response.RawData.GetSize());
+				FMemory::Memcpy(Ptr, Response.RawData.GetData(), Response.RawData.GetSize());
+				StreamablePages.Unlock();
+				StreamablePages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+			}
 		});
+}
 
-	RequestOwner.Wait();
+bool FResources::PollRebuildBulkDataFromCache() const
+{
+	return !(*DDCRequestOwner) || (*DDCRequestOwner)->Poll();
+}
 
-	StreamablePages.Lock(LOCK_READ_WRITE);
-	uint8* Ptr = (uint8*)StreamablePages.Realloc(SharedBuffer.GetSize());
-	FMemory::Memcpy(Ptr, SharedBuffer.GetData(), SharedBuffer.GetSize());
-	StreamablePages.Unlock();
-	StreamablePages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+void FResources::EndRebuildBulkDataFromCache()
+{
+	if (*DDCRequestOwner)
+	{
+		(*DDCRequestOwner)->Wait();
+		(*DDCRequestOwner).Reset();
+	}
+}
+
+bool FResources::IsRebuildingBulkDataFromCache() const
+{
+	return (*DDCRequestOwner).IsValid();
 }
 #endif
 

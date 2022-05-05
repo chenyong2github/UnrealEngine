@@ -12,6 +12,8 @@
 #include "Serialization/BulkData.h"
 #include "Misc/MemoryReadStream.h"
 #include "NaniteDefinitions.h"
+#include "Templates/DontCopy.h"
+#include "Templates/PimplPtr.h"
 
 /** Whether Nanite::FSceneProxy should store data and enable codepaths needed for debug rendering. */
 #if PLATFORM_WINDOWS
@@ -34,6 +36,8 @@ class UStaticMeshComponent;
 class UInstancedStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 class FVertexFactory;
+
+namespace UE::DerivedData { class FRequestOwner; }
 
 namespace Nanite
 {
@@ -268,9 +272,23 @@ struct FResources
 	FString							ResourceName;
 	FIoHash							DDCKeyHash;
 	FIoHash							DDCRawHash;
+private:
+	TDontCopy<TPimplPtr<UE::DerivedData::FRequestOwner>> DDCRequestOwner;
 
+public:
 	ENGINE_API void DropBulkData();
+
+	UE_DEPRECATED(5.1, "Call the Begin/Poll/End versions of this function.")
 	ENGINE_API void RebuildBulkDataFromDDC(const UObject* Owner);
+
+	/** Begins an async rebuild of the bulk data from the cache. Must be paired with EndRebuildBulkDataFromCache. */
+	ENGINE_API void BeginRebuildBulkDataFromCache(const UObject* Owner);
+	/** Polls the async rebuild and returns true when EndRebuildBulkDataFromCache can be called without blocking. */
+	ENGINE_API bool PollRebuildBulkDataFromCache() const;
+	/** Ends an async rebuild of the bulk data from the cache. May block if poll has not returned true. */
+	ENGINE_API void EndRebuildBulkDataFromCache();
+	/** Returns true when rebuilding the bulk data from the cache. */
+	ENGINE_API bool IsRebuildingBulkDataFromCache() const;
 #endif
 
 	ENGINE_API void InitResources(const UObject* Owner);
