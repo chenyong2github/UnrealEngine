@@ -906,6 +906,7 @@ struct FTSRHistory
 	FIntRect InputViewportRect;
 	FIntRect OutputViewportRect;
 
+	uint32 FormatBit = 0;
 
 	void SafeRelease()
 	{
