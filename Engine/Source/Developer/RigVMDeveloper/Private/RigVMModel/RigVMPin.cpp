@@ -157,8 +157,8 @@ TArray<FString> URigVMPin::SplitDefaultValue(const FString& InDefaultValue)
 
 	if (!Content.IsEmpty())
 	{
-		// ignore whitespaces
-		Parts.Add(Content.Mid(LastPartStartIndex).Replace(TEXT(" "), TEXT("")));
+		// ignore whitespaces from the start and end of the string
+		Parts.Add(Content.Mid(LastPartStartIndex).TrimStartAndEnd());
 	}
 	return Parts;
 }
