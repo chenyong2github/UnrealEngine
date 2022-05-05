@@ -251,7 +251,7 @@ public:
 	{
 		CheckInvariants();
 
-		checkf((Index >= 0) & (Index < ArrayNum),TEXT("Array index out of bounds: %i from an array of size %i"),Index,ArrayNum); // & for one branch
+		checkf((Index >= 0) & (Index < ArrayNum),TEXT("Array index out of bounds: %lld from an array of size %lld"), (long long)Index, (long long)ArrayNum); // & for one branch
 	}
 
 	/**
@@ -263,9 +263,9 @@ public:
 	 */
 	FORCEINLINE void SliceRangeCheck(SizeType Index, SizeType InNum) const
 	{
-		checkf(Index >= 0, TEXT("Invalid index (%d)"), Index);
-		checkf(InNum >= 0, TEXT("Invalid count (%d)"), InNum);
-		checkf(Index + InNum <= ArrayNum, TEXT("Range (index: %d, count: %d) lies outside the view of %d elements"), Index, InNum, ArrayNum);
+		checkf(Index >= 0, TEXT("Invalid index (%lld)"), (long long)Index);
+		checkf(InNum >= 0, TEXT("Invalid count (%lld)"), (long long)InNum);
+		checkf(Index + InNum <= ArrayNum, TEXT("Range (index: %lld, count: %lld) lies outside the view of %lld elements"), (long long)Index, (long long)InNum, (long long)ArrayNum);
 	}
 
 	/**
