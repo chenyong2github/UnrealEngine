@@ -121,6 +121,20 @@ bool UDataLayerInstance::SetParent(UDataLayerInstance* InParent)
 	}
 
 	Modify();
+
+	// If we find ourself in the parent chain of the provided parent
+	UDataLayerInstance* CurrentInstance = InParent;
+	while (CurrentInstance)
+	{
+		if (CurrentInstance == this)
+		{
+			// Detach the parent from its parent
+			InParent->SetParent(nullptr);
+			break;
+		}
+		CurrentInstance = CurrentInstance->GetParent();
+	};
+
 	if (Parent)
 	{
 		Parent->RemoveChild(this);
