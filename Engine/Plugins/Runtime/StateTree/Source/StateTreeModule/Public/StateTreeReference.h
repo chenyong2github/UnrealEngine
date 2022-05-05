@@ -19,8 +19,8 @@ struct FStateTreeReference
 	UPROPERTY(EditDefaultsOnly, Category="")
 	TObjectPtr<UStateTree> StateTree = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, Category="")
-	FStateTreeParameters Parameters;
+	UPROPERTY(EditDefaultsOnly, Category="", meta=(FixedLayout))
+	FInstancedPropertyBag Parameters;
 
 #if WITH_EDITOR
 	/**
@@ -46,7 +46,7 @@ public:
 
 protected:
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;

@@ -9,6 +9,8 @@
 void UStateTreeEditorData::PostInitProperties()
 {
 	Super::PostInitProperties();
+
+	RootParameters.ID = FGuid::NewGuid();
 }
 
 #if WITH_EDITOR
@@ -26,32 +28,8 @@ void UStateTreeEditorData::PostEditChangeProperty(struct FPropertyChangedEvent& 
 		{			
 			UE::StateTree::Delegates::OnSchemaChanged.Broadcast(*StateTree);
 		}
-		else if (MemberName == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, Parameters))
+		else if (MemberName == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, RootParameters))
 		{
-			TArray<FStateTreeParameterDesc>& Params = Parameters.Parameters;
-			const FName PropertyName = PropertyChangedEvent.Property->GetFName();
-			
-			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
-			{
-				// Ensure unique ID on duplicated items.
-				const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
-				if (Params.IsValidIndex(ArrayIndex))
-				{
-					Params[ArrayIndex].Name = FName(Params[ArrayIndex].Name.ToString() + TEXT(" Duplicate"));
-					Params[ArrayIndex].ID = FGuid::NewGuid();
-				}
-			}
-			else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
-					|| PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-			{
-				// Create unique ID on added items or ensure on set ones (maybe a copy/paste) 
-				const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
-				if (Params.IsValidIndex(ArrayIndex))
-				{
-					Params[ArrayIndex].ID = FGuid::NewGuid();
-				}
-			}
-
 			UE::StateTree::Delegates::OnParametersChanged.Broadcast(*StateTree);
 		}
 	}
@@ -83,9 +61,9 @@ void UStateTreeEditorData::GetAccessibleStructs(const TConstArrayView<const USta
 	checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
 	
 	// All parameters are accessible
-	for (const FStateTreeParameterDesc& Desc : Parameters.Parameters)
+	if (const UScriptStruct* PropertyBagStruct = RootParameters.Parameters.GetPropertyBagStruct())
 	{
-		OutStructDescs.Emplace(Desc.Name, Desc.Parameter.GetScriptStruct(), EStateTreeBindableStructSource::TreeParameter, Desc.ID);
+		OutStructDescs.Emplace(TEXT("Parameters"), PropertyBagStruct, EStateTreeBindableStructSource::TreeParameter, RootParameters.ID);
 	}
 
 	// All named external data items declared by the schema are accessible
@@ -232,10 +210,7 @@ void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStruc
 	checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
 
 	// All parameters
-	for (const FStateTreeParameterDesc& Desc : Parameters.Parameters)
-	{
-		AllStructs.Emplace(Desc.ID, Desc.Parameter.GetScriptStruct());
-	}
+	AllStructs.Emplace(RootParameters.ID, RootParameters.Parameters.GetPropertyBagStruct());
 
 	// All named external data items declared by the schema
 	if (Schema != nullptr)

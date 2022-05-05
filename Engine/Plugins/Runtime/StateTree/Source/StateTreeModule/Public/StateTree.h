@@ -35,8 +35,8 @@ public:
 	/** @return List of named external data enforced by the schema that must be provided through the execution context. */
 	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const { return Schema ? Schema->GetNamedExternalDataDescs() : TConstArrayView<FStateTreeExternalDataDesc>(); }
 
-	/** @return List of parameters of the state tree. Default parameter values can be overridden at runtime by the execution context. */
-	TConstArrayView<FStateTreeParameterDesc> GetParameterDescs() const { return Parameters.Parameters; }
+	/** @return List of default parameters of the state tree. Default parameter values can be overridden at runtime by the execution context. */
+	const FInstancedPropertyBag& GetDefaultParameters() const { return Parameters; }
 
 	/** @return true if the tree asset can be used at runtime. */
 	bool IsReadyToRun() const;
@@ -84,7 +84,7 @@ private:
 	 * @see FStateTreeReference
 	 */
 	UPROPERTY()
-	FStateTreeParameters Parameters;	
+	FInstancedPropertyBag Parameters;
 
 	/** Evaluators, Tasks, and Condition items */
 	UPROPERTY()
@@ -111,6 +111,10 @@ private:
 	UPROPERTY(Transient)
 	int32 ExternalDataBaseIndex = 0;
 
+	/** Data view index of the tree parameters */
+	UPROPERTY()
+	int32 DefaultParametersDataViewIndex = INDEX_NONE;
+	
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;
 

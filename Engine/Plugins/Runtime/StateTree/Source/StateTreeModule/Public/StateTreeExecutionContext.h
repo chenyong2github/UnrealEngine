@@ -64,14 +64,14 @@ public:
 	/** Initializes the StateTree instance to be used with specific owner and StateTree asset. */
 	bool Init(UObject& InOwner, const UStateTree& InStateTree, const EStateTreeStorage InStorageType);
 
-	/** Updates data views of all parameters by using the default values defined in the StateTree asset. */
+	/** Updates data view of the parameters by using the default values defined in the StateTree asset. */
 	void SetDefaultParameters();
 
 	/**
-	 * Updates data views of the matching parameters by replacing the default values defined in the StateTree asset by the provided values.
+	 * Updates data view of the parameters by replacing the default values defined in the StateTree asset by the provided values.
 	 * Note: caller is responsible to make sure external parameters lifetime matches the context.
 	 */
-	void SetParameters(const FStateTreeParameters& Parameters);
+	void SetParameters(const FInstancedPropertyBag& Parameters);
 	
 	/** Resets the instance to initial empty state. Note: Does not call ExitState(). */
 	void Reset();

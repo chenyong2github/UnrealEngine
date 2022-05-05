@@ -79,6 +79,12 @@ bool UStateTree::Link()
 	// Update property bag structs before resolving binding.
 	TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
 	TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
+
+	if (DefaultParametersDataViewIndex != INDEX_NONE)
+	{
+		SourceStructs[DefaultParametersDataViewIndex].Struct = Parameters.GetPropertyBagStruct();
+	}
+	
 	for (const FCompactStateTreeState& State : States)
 	{
 		if (State.Type == EStateTreeStateType::Subtree)

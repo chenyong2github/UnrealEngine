@@ -34,13 +34,11 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 	StateTree->Schema = DuplicateObject(TreeData->Schema, StateTree);
 
 	// Copy parameters from EditorData	
-	StateTree->Parameters = TreeData->Parameters;
+	StateTree->Parameters = TreeData->RootParameters.Parameters;
 	
-	// Mark all parameters as binding source
-	for (FStateTreeParameterDesc& Desc : StateTree->Parameters.Parameters)
-	{
-		Desc.DataViewIndex = BindingsCompiler.AddSourceStruct({Desc.Name, Desc.Parameter.GetScriptStruct(), EStateTreeBindableStructSource::TreeParameter, Desc.ID});
-	}	
+	// Mark parameters as binding source
+	StateTree->DefaultParametersDataViewIndex = BindingsCompiler.AddSourceStruct(
+		{ TEXT("Parameters"), StateTree->Parameters.GetPropertyBagStruct(), EStateTreeBindableStructSource::TreeParameter, TreeData->RootParameters.ID });
 	
 	// Mark all named external values as binding source
 	if (StateTree->Schema)

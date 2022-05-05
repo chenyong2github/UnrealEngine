@@ -61,52 +61,21 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 
 void FStateTreeExecutionContext::SetDefaultParameters()
 {
-	for (const FStateTreeParameterDesc& Desc : StateTree->GetParameterDescs())
+	if (ensureMsgf(StateTree != nullptr, TEXT("Execution context must be initialized before calling %s"), ANSI_TO_TCHAR(__FUNCTION__)))
 	{
-		check(DataViews.IsValidIndex(Desc.DataViewIndex));
-		DataViews[Desc.DataViewIndex] = FStateTreeDataView(Desc.Parameter);
+		check(DataViews.IsValidIndex(StateTree->DefaultParametersDataViewIndex));
+		DataViews[StateTree->DefaultParametersDataViewIndex] = FStateTreeDataView(StateTree->GetDefaultParameters().GetMutableValue());	
 	}
 }
 
-void FStateTreeExecutionContext::SetParameters(const FStateTreeParameters& Parameters)
+void FStateTreeExecutionContext::SetParameters(const FInstancedPropertyBag& Parameters)
 {
-	const TConstArrayView<FStateTreeParameterDesc> TreeDescs = StateTree->GetParameterDescs();
-	const int32 NumTreeDescs = TreeDescs.Num();
-	if (NumTreeDescs == 0)
+	if (ensureMsgf(StateTree != nullptr, TEXT("Execution context must be initialized before calling %s"), ANSI_TO_TCHAR(__FUNCTION__))
+		&& ensureMsgf(StateTree->GetDefaultParameters().GetPropertyBagStruct() == Parameters.GetPropertyBagStruct(),
+			TEXT("Parameters must be of the same struct type. Make sure to migrate the provided parameters to the same type as the StateTree default parameters.")))
 	{
-		return;
-	}
-
-	// The current implementation golden path is based on an expected 1:1 match between the 2 parameter lists
-	// In case they mismatch then we search for matching parameter. 
-	int32 TreeDescIndex = 0;
-	for (const FStateTreeParameterDesc& ExternalDesc : Parameters.Parameters)
-	{
-		if (!TreeDescs[TreeDescIndex].IsMatching(ExternalDesc))
-		{
-			// The parameter was not found where we expected it to be, search for it starting from last matching index
-			bool bMatchFound = false;
-			for (int32 Index = 0; Index < NumTreeDescs; Index++)
-			{
-				TreeDescIndex = (TreeDescIndex + 1) % NumTreeDescs;
-				if (TreeDescs[TreeDescIndex].IsMatching(ExternalDesc))
-				{
-					bMatchFound = true;
-					break;
-				}
-			}
-
-			if (!bMatchFound)
-			{
-				STATETREE_LOG(Warning, TEXT("Parameter '%s' doesn't match any expected parameters of StateTree '%s'."), *LexToString(ExternalDesc), *GetNameSafe(StateTree));
-				continue;
-			}
-		}
-
-		const uint16 DataViewIndex = TreeDescs[TreeDescIndex].DataViewIndex;
-		check(DataViewIndex != FStateTreeParameterDesc::InvalidIndex && DataViews.IsValidIndex(DataViewIndex));
-		DataViews[DataViewIndex] = FStateTreeDataView(ExternalDesc.Parameter);
-		TreeDescIndex = (TreeDescIndex + 1) % NumTreeDescs;
+		check(DataViews.IsValidIndex(StateTree->DefaultParametersDataViewIndex));
+		DataViews[StateTree->DefaultParametersDataViewIndex] = FStateTreeDataView(Parameters.GetMutableValue());
 	}
 }
 

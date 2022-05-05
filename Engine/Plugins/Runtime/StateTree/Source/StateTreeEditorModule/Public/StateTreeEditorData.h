@@ -118,10 +118,10 @@ public:
 	/** Schema describing which inputs, evaluators, and tasks a StateTree can contain */	
 	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
 	TObjectPtr<UStateTreeSchema> Schema = nullptr;
-	
+
 	/** Public parameters that could be used for bindings within the Tree. */
-	UPROPERTY(EditDefaultsOnly, Category = Common, meta=(ShowOnlyInnerProperties))
-	FStateTreeParameters Parameters;
+	UPROPERTY(EditDefaultsOnly, Category = Common)
+	FStateTreeStateParameters RootParameters;
 	
 	UPROPERTY(meta = (ExcludeFromHash))
 	FStateTreeEditorPropertyBindings EditorBindings;

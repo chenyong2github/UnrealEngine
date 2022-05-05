@@ -73,69 +73,18 @@ void UStateTreeReferenceWrapper::BeginDestroy()
 
 bool FStateTreeReference::SyncParameters()
 {
-	TArray<FStateTreeParameterDesc>& Params = Parameters.Parameters;
 	if (StateTree == nullptr)
 	{
-		const bool bHadParameters = !Params.IsEmpty();
-		Params.Reset();
+		const bool bHadParameters = Parameters.IsValid();
+		Parameters.Reset();
 		return bHadParameters;
 	}
 
-	// First implementation is to make sure that the StateTreeReference holds values for each parameter of the StateTree.
-	// This is the easiest way to expose them to the user but that also means that user can't specify only a subset of parameters
-	// and use default value for the others.
-	const TConstArrayView<FStateTreeParameterDesc> AssetParameters = StateTree ? StateTree->GetParameterDescs() : TConstArrayView<FStateTreeParameterDesc>();
-	bool bAreParametersSynced = AssetParameters.Num() == Params.Num();
-	if (bAreParametersSynced)
-	{
-		for (int32 i = 0; i < Params.Num(); ++i)
-		{
-			if (!Params[i].IsMatching(AssetParameters[i]))
-			{
-				// Ok to mismatch only by the name if both ID and Type match. Simply update it since
-				// it must also match when passed to the ExecutionContext at runtime.
-				if (Params[i].ID == AssetParameters[i].ID && Params[i].IsSameType(AssetParameters[i]))
-				{
-					UE_LOG(LogStateTree, Warning, TEXT("StateTree parameter '%s' name was updated to match StateTree parameter '%s'."),
-						*LexToString(Params[i]), *LexToString(AssetParameters[i]));
-					
-					Params[i].Name = AssetParameters[i].Name;
-					checkf(Params[i].IsMatching(AssetParameters[i]),
-						TEXT("After fixing the name the parameters should match."
-							 " If this fails it indicates that same ID+Type is no longer the only required condition."));
-				}
-				else
-				{
-					bAreParametersSynced = false;
-					break;	
-				}
-			}
-		}
-	}
-
+	const FInstancedPropertyBag& DefaultParameters = StateTree->GetDefaultParameters();
+	const bool bAreParametersSynced = DefaultParameters.GetPropertyBagStruct() == Parameters.GetPropertyBagStruct();
 	if (!bAreParametersSynced)
 	{
-		TArray<FStateTreeParameterDesc> DeprecatedParameters = MoveTemp(Params);
-		Params = AssetParameters;
-
-		for (int32 i = 0; i < Params.Num(); ++i)
-		{
-			FStateTreeParameterDesc& ParameterDesc = Params[i];
-
-			// Find parameter corresponding index in the deprecated parameters using 'Type' and 'Id'.
-			// Not using IsMatching() here since 'Name' might have change in addition to parameters added/removed since the last sync.
-			const int32 IndexInDeprecated = DeprecatedParameters.IndexOfByPredicate([&ParameterDesc](const FStateTreeParameterDesc& DeprecatedDesc)
-				{
-					return DeprecatedDesc.ID == ParameterDesc.ID && DeprecatedDesc.IsSameType(ParameterDesc);
-				});
-
-			if (IndexInDeprecated != INDEX_NONE)
-			{
-				// Only update value
-				ParameterDesc.Parameter = DeprecatedParameters[IndexInDeprecated].Parameter;
-				DeprecatedParameters.RemoveAtSwap(IndexInDeprecated);
-			}
-		}
+		Parameters.MigrateToNewBagInstance(DefaultParameters);	
 	}
 
 	return !bAreParametersSynced;
