@@ -426,15 +426,12 @@ private:
 	TArray<FPropertyAccessCopyBatch> CopyBatchArray;
 	
 	// All source property accesses
-	UPROPERTY(Transient)
 	TArray<FPropertyAccessIndirectionChain> SrcAccesses;
 
 	// All destination accesses (that are copied to our instances).
-	UPROPERTY(Transient)
 	TArray<FPropertyAccessIndirectionChain> DestAccesses;
 
 	// Indirections
-	UPROPERTY(Transient)
 	TArray<FPropertyAccessIndirection> Indirections;
 	
 	// Whether this library has been post-loaded
