@@ -81,13 +81,13 @@ namespace UnrealBuildTool
 
 				DirectoryReference MarketplaceDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Plugins", "Marketplace");
 				foreach (PluginInfo PluginInfo in Plugins.ReadEnginePlugins(Unreal.EngineDirectory))
-		{
+				{
 					if (PluginInfo.File.IsUnderDirectory(MarketplaceDirectory))
-			{
+					{
 						MarketplacePlugins.Add(PluginInfo);
 					}
 					else
-				{
+					{
 						EnginePlugins.Add(PluginInfo);
 					}
 				}
