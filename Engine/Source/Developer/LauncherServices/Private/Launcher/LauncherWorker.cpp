@@ -420,6 +420,13 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			bUATClosesAfterLaunch |= PlatformInfo->DataDrivenPlatformInfo->bUATClosesAfterLaunch;
 		}
 	}
+
+	// If both Client and Server are desired to be built avoid Server causing clients to not be built PlatformInfo wise
+	if (OptionalParams.Contains(TEXT("-client")) && OptionalParams.Contains(TEXT("-noclient")))
+	{
+		OptionalParams = OptionalParams.Replace(TEXT("-noclient"), TEXT(""));
+	}
+
 	if (ServerPlatforms.Len() > 0)
 	{
 		ServerCommand = TEXT(" -server -serverplatform=") + ServerPlatforms.RightChop(1);
