@@ -23,14 +23,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	FMemberReference BindingReference;
 
-	/** The path of the property (either the getter or the get action). */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FString GetterPropertyPath;
-
-	/** The path of the property (either the setter or the set action). */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FString SetterPropertyPath;
-
 	/** If we are referencing a UFunction or FProperty */
 	UPROPERTY()
 	EBindingKind BindingKind = EBindingKind::Function;
@@ -82,19 +74,26 @@ public:
 
 	void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField)
 	{
-		BindingReference = InField.CreateMemberReference();
-
-		if (InField.IsProperty())
+		if (InField.IsEmpty())
 		{
-			BindingKind = EBindingKind::Property;
-		}
-		else if (InField.IsFunction())
-		{
-			BindingKind = EBindingKind::Function;
+			Reset();
 		}
 		else
 		{
-			ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
+			BindingReference = InField.CreateMemberReference();
+
+			if (InField.IsProperty())
+			{
+				BindingKind = EBindingKind::Property;
+			}
+			else if (InField.IsFunction())
+			{
+				BindingKind = EBindingKind::Function;
+			}
+			else
+			{
+				ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
+			}
 		}
 	}
 
@@ -105,19 +104,17 @@ public:
 
 	FString GetGetterPropertyPath() const
 	{
-		return !GetterPropertyPath.IsEmpty() ? GetterPropertyPath : GetBindingName().ToString();
+		return GetBindingName().ToString();
 	}
 
 	FString GetSetterPropertyPath() const
 	{
-		return !SetterPropertyPath.IsEmpty() ? SetterPropertyPath : GetBindingName().ToString();
+		return GetBindingName().ToString();
 	}
 
 	bool operator==(const FMVVMPropertyPathBase& Other) const
 	{
-		return BindingReference.GetMemberName() == Other.BindingReference.GetMemberName() &&
-			GetterPropertyPath == Other.GetterPropertyPath &&
-			SetterPropertyPath == Other.SetterPropertyPath;
+		return BindingReference.GetMemberName() == Other.BindingReference.GetMemberName();
 	}
 	bool operator!=(const FMVVMPropertyPathBase& Other) const
 	{

@@ -614,7 +614,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		}
 
 		FMVVMViewBlueprintCompiler* Self = this;
-		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<FString> Getters, const FString& Setter, const FString& ConversionFunction) -> TValueOrError<FCompilerBinding, FString>
+		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<FString> Getters, const FString& Setter, const FMemberReference& ConversionFunctionReference) -> TValueOrError<FCompilerBinding, FString>
 		{
 			FCompilerBinding Result;
 
@@ -642,13 +642,21 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				Result.DestinationWrite = FieldPathResult.GetValue();
 			}
 
-			if (!ConversionFunction.IsEmpty())
+
+			if (!ConversionFunctionReference.GetMemberName().IsNone())
 			{
+				const UFunction* ConversionFunction = ConversionFunctionReference.ResolveMember<UFunction>(Class);
+				if (ConversionFunction == nullptr)
+				{
+					return MakeError(FString::Printf(TEXT("The Conversion Function '%s' could not be resolved.")
+						, *ConversionFunctionReference.GetMemberName().ToString()));
+				}
+
 				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddConversionFunctionFieldPath(Class, ConversionFunction);
 				if (FieldPathResult.HasError())
 				{
 					return MakeError(FString::Printf(TEXT("Couldn't create the conversion function field path '%s'. %s")
-						, *ConversionFunction
+						, *ConversionFunction->GetPathName()
 						, *FieldPathResult.GetError()));
 				}
 				Result.ConversionFunction = FieldPathResult.GetValue();
@@ -730,7 +738,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				}
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.SourceToDestinationFunctionPath);
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.SourceToDestinationFunction);
 			if (AddBindingResult.HasError())
 			{
 				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
@@ -815,14 +823,14 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				if (!Binding.ViewModelPath.GetSetterPropertyPath().IsEmpty())
 				{
 					Setter.AppendChar(TEXT('.'));
-					Setter.Append(Binding.WidgetPath.GetSetterPropertyPath());
+					Setter.Append(Binding.ViewModelPath.GetSetterPropertyPath());
 				}
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.DestinationToSourceFunctionPath);
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.DestinationToSourceFunction);
 			if (AddBindingResult.HasError())
 			{
-				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding '%d' could not be created. %s"), *AddBindingResult.GetError()));
+				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
 				bIsBindingsValid = false;
 				continue;
 			}

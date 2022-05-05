@@ -93,21 +93,21 @@ FString SMVVMConversionPath::GetFunctionPath() const
 	TArray<FMVVMBlueprintViewBinding*> ViewBindings = Bindings.Get(TArray<FMVVMBlueprintViewBinding*>());
 
 	bool bFirst = true;
-	FString FunctionPath;
+	FMemberReference MemberReference;
 	for (const FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		FString ThisPath = bSourceToDestination ? Binding->Conversion.SourceToDestinationFunctionPath : Binding->Conversion.DestinationToSourceFunctionPath;
+		const FMemberReference& CurrentFunction = bSourceToDestination ? Binding->Conversion.SourceToDestinationFunction : Binding->Conversion.DestinationToSourceFunction;
 		if (bFirst)
 		{
-			FunctionPath = ThisPath;
+			MemberReference = CurrentFunction;
 		}
-		else if (FunctionPath != ThisPath)
+		else if (!MemberReference.IsSameReference(CurrentFunction))
 		{
 			return TEXT("Multiple Values");
 		}
 	}
 
-	return FunctionPath;
+	return MemberReference.GetMemberName().IsNone() ? TEXT("") : MemberReference.GetMemberName().ToString();
 }
 
 FText SMVVMConversionPath::GetFunctionToolTip() const
@@ -156,18 +156,29 @@ void SMVVMConversionPath::SetConversionFunction(const UFunction* Function)
 	{
 		if (bSourceToDestination)
 		{
-			Binding->Conversion.SourceToDestinationFunctionPath = Function != nullptr ? Function->GetPathName() : FString();
+			if (Function)
+			{
+				Binding->Conversion.SourceToDestinationFunction.SetFromField<UFunction>(Function, WidgetBlueprint->SkeletonGeneratedClass);
+			}
+			else
+			{
+				Binding->Conversion.SourceToDestinationFunction = FMemberReference();
+			}
 		}
 		else
 		{
-			Binding->Conversion.DestinationToSourceFunctionPath = Function != nullptr ? Function->GetPathName() : FString();
+			if (Function)
+			{
+				Binding->Conversion.DestinationToSourceFunction.SetFromField<UFunction>(Function, WidgetBlueprint->SkeletonGeneratedClass);
+			}
+			else
+			{
+				Binding->Conversion.DestinationToSourceFunction = FMemberReference();
+			}
 		}
 	}
 
-	if (OnFunctionChanged.IsBound())
-	{
-		OnFunctionChanged.Execute(Function != nullptr ? Function->GetPathName() : FString());
-	}
+	OnFunctionChanged.ExecuteIfBound(Function);
 }
 
 TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()

@@ -19,8 +19,8 @@ UE::MVVM::FConversionPathCustomization::FConversionPathCustomization(UWidgetBlue
 
 void UE::MVVM::FConversionPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	SourceToDestinationProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, SourceToDestinationFunctionPath));
-	DestinationToSourceProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, DestinationToSourceFunctionPath));
+	SourceToDestinationProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, SourceToDestinationFunction));
+	DestinationToSourceProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, DestinationToSourceFunction));
 
 	HeaderRow.NameContent()
 	[
@@ -34,12 +34,12 @@ void UE::MVVM::FConversionPathCustomization::CustomizeHeader(TSharedRef<IPropert
 
 FText UE::MVVM::FConversionPathCustomization::GetSourceToDestinationPath() const
 {
-	FString Value;
-	FPropertyAccess::Result Result = SourceToDestinationProperty->GetValue(Value);
+	void* Value;
+	FPropertyAccess::Result Result = SourceToDestinationProperty->GetValueData(Value);
 
 	if (Result == FPropertyAccess::Success)
 	{
-		return FText::FromString(Value);
+		return FText::FromName(reinterpret_cast<FMemberReference*>(Value)->GetMemberName());
 	}
 
 	if (Result == FPropertyAccess::MultipleValues)
@@ -52,12 +52,12 @@ FText UE::MVVM::FConversionPathCustomization::GetSourceToDestinationPath() const
 
 FText UE::MVVM::FConversionPathCustomization::GetDestinationToSourcePath() const
 {
-	FString Value;
-	FPropertyAccess::Result Result = DestinationToSourceProperty->GetValue(Value);
+	void* Value;
+	FPropertyAccess::Result Result = DestinationToSourceProperty->GetValueData(Value);
 
 	if (Result == FPropertyAccess::Success)
 	{
-		return FText::FromString(Value);
+		return FText::FromName(reinterpret_cast<FMemberReference*>(Value)->GetMemberName());
 	}
 
 	if (Result == FPropertyAccess::MultipleValues)
@@ -71,13 +71,38 @@ FText UE::MVVM::FConversionPathCustomization::GetDestinationToSourcePath() const
 void UE::MVVM::FConversionPathCustomization::OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bSourceToDestination)
 {
 	FString NewString = NewValue.ToString();
-	OnFunctionPathChanged(NewString, bSourceToDestination);
+
+	UFunction* FoundFunction = nullptr;
+	if (WidgetBlueprint)
+	{
+		FoundFunction = WidgetBlueprint->GetBlueprintClass()->FindFunctionByName(*NewString);
+	}
+	if (FoundFunction == nullptr)
+	{
+		FoundFunction = FindObject<UFunction>(nullptr, *NewString, true);
+	}
+	OnFunctionPathChanged(FoundFunction, bSourceToDestination);
 }
 
-void UE::MVVM::FConversionPathCustomization::OnFunctionPathChanged(const FString& NewPath, bool bSourceToDestination)
+void UE::MVVM::FConversionPathCustomization::OnFunctionPathChanged(const UFunction* NewFunction, bool bSourceToDestination)
 {
 	TSharedPtr<IPropertyHandle> Handle = bSourceToDestination ? SourceToDestinationProperty : DestinationToSourceProperty;
-	Handle->SetValue(NewPath);
+
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Handle->GetProperty());
+	check(StructProperty);
+
+	void* PreviousValue;
+	Handle->GetValueData(PreviousValue);
+
+	FMemberReference NewReference;
+	if (NewFunction)
+	{
+		NewReference.SetFromField<UFunction>(NewFunction, WidgetBlueprint ? WidgetBlueprint->SkeletonGeneratedClass : nullptr);
+	}
+
+	FString TextValue;
+	StructProperty->Struct->ExportText(TextValue, &NewReference, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+	ensure(Handle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
 }
 
 void UE::MVVM::FConversionPathCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)

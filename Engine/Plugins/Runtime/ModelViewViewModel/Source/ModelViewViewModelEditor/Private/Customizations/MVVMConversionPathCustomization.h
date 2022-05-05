@@ -26,7 +26,7 @@ namespace UE::MVVM
 		FText GetDestinationToSourcePath() const;
 
 		void OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bSourceToDestination);
-		void OnFunctionPathChanged(const FString& NewPath, bool bSourceToDestination);
+		void OnFunctionPathChanged(const UFunction* NewPath, bool bSourceToDestination);
 
 	private:
 		UWidgetBlueprint* WidgetBlueprint = nullptr;

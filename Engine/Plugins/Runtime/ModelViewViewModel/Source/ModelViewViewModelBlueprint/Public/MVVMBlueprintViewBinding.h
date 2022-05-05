@@ -19,11 +19,11 @@ struct FMVVMBlueprintViewConversionPath
 
 	/** The Conversion function when converting the value from the destination to the source. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
-	FString DestinationToSourceFunctionPath;
+	FMemberReference DestinationToSourceFunction;
 
 	/** The Conversion function when converting the value from the source to the destination. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
-	FString SourceToDestinationFunctionPath;
+	FMemberReference SourceToDestinationFunction;
 };
 
 /**

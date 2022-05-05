@@ -11,7 +11,7 @@ class UWidgetBlueprint;
 class SMVVMConversionPath : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnFunctionChanged, const FString&);
+	DECLARE_DELEGATE_OneParam(FOnFunctionChanged, const UFunction*);
 
 	SLATE_BEGIN_ARGS(SMVVMConversionPath)
 		{
