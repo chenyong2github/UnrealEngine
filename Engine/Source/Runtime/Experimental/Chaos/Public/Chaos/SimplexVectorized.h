@@ -229,13 +229,13 @@ namespace Chaos
 
 		if (VectorMaskBits(IsBC))
 		{
-			const VectorRegister4Float w = VectorDivide(d4MinusD3, NormalizationDenominatorBC);
 			constexpr VectorRegister4Int two = MakeVectorRegisterIntConstant(2, 2, 2, 2);
 			NumVerts = two;
-			const VectorRegister4Float OneMinusW = VectorSubtract(GlobalVectorConstants::FloatOne, w);
-			// b0	a1	a2	a3
+			const VectorRegister4Float w = VectorDivide(d4MinusD3, NormalizationDenominatorBC);
 			if (CalculatExtraInformation)
 			{
+				const VectorRegister4Float OneMinusW = VectorSubtract(GlobalVectorConstants::FloatOne, w);
+				// b0	a1	a2	a3
 				OutBarycentric = VectorUnpackLo(OneMinusW, w);
 			}
 			const VectorRegister4Float CMinusB = VectorSubtract(C, B);
@@ -259,12 +259,12 @@ namespace Chaos
 		constexpr VectorRegister4Int three = MakeVectorRegisterIntConstant(3, 3, 3, 3);
 		NumVerts = three;
 
-		const VectorRegister4Float OneMinusVMinusW = VectorSubtract(VectorSubtract(GlobalVectorConstants::FloatOne, v), w);
-		// b0	a1	a2	a3
-		const VectorRegister4Float OneMinusVMinusW_W = VectorUnpackLo(OneMinusVMinusW, w);
-		// a0	b0	a1	b1
 		if (CalculatExtraInformation)
 		{
+			const VectorRegister4Float OneMinusVMinusW = VectorSubtract(VectorSubtract(GlobalVectorConstants::FloatOne, v), w);
+			// b0	a1	a2	a3
+			const VectorRegister4Float OneMinusVMinusW_W = VectorUnpackLo(OneMinusVMinusW, w);
+			// a0	b0	a1	b1
 			OutBarycentric = VectorUnpackLo(OneMinusVMinusW_W, v);
 		}
 
@@ -347,10 +347,12 @@ namespace Chaos
 													MakeVectorRegisterIntConstant(3, 3, 3, 3)
 		};
 
+		 VectorRegister4Float Eps = VectorMultiply(GlobalVectorConstants::KindaSmallNumber, VectorDivide(DetM, VectorSet1(4.0f)));
+
 		bool bInside = true;
 		for (int Idx = 0; Idx < 4; ++Idx)
 		{
-			bSignMatch[Idx] = VectorSignMatch(DetM, Cofactors[Idx]);
+			bSignMatch[Idx] = VectorSignMatch(DetM, VectorSubtract(Cofactors[Idx], Eps));
 			if (!bSignMatch[Idx])
 			{
 				bInside = false;
@@ -371,19 +373,18 @@ namespace Chaos
 
 		if (bInside)
 		{
-			VectorRegister4Float OutBarycentricVectors[4];
-			const VectorRegister4Float  InvDetM = VectorDivide(GlobalVectorConstants::FloatOne, DetM);
-			OutBarycentricVectors[0] = VectorDivide(Cofactors[0], InvDetM);
-			OutBarycentricVectors[1] = VectorDivide(Cofactors[1], InvDetM);
-			OutBarycentricVectors[2] = VectorDivide(Cofactors[2], InvDetM);
-			OutBarycentricVectors[3] = VectorDivide(Cofactors[3], InvDetM);
-
-			// a0	b0	a1	b1
-			const VectorRegister4Float OutBarycentric0101 = VectorUnpackLo(OutBarycentricVectors[0], OutBarycentricVectors[1]);
-			const VectorRegister4Float OutBarycentric2323 = VectorUnpackLo(OutBarycentricVectors[2], OutBarycentricVectors[3]);
-			// a0	a1	b0	b1
 			if (CalculatExtraInformation)
 			{
+				VectorRegister4Float OutBarycentricVectors[4];
+				const VectorRegister4Float  InvDetM = VectorDivide(GlobalVectorConstants::FloatOne, DetM);
+				OutBarycentricVectors[0] = VectorDivide(Cofactors[0], InvDetM);
+				OutBarycentricVectors[1] = VectorDivide(Cofactors[1], InvDetM);
+				OutBarycentricVectors[2] = VectorDivide(Cofactors[2], InvDetM);
+				OutBarycentricVectors[3] = VectorDivide(Cofactors[3], InvDetM);
+				// a0	b0	a1	b1
+				const VectorRegister4Float OutBarycentric0101 = VectorUnpackLo(OutBarycentricVectors[0], OutBarycentricVectors[1]);
+				const VectorRegister4Float OutBarycentric2323 = VectorUnpackLo(OutBarycentricVectors[2], OutBarycentricVectors[3]);
+				// a0	a1	b0	b1
 				OutBarycentric = VectorMoveLh(OutBarycentric0101, OutBarycentric2323);
 			}
 

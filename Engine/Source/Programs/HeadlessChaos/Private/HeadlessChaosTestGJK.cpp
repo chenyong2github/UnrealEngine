@@ -1994,4 +1994,30 @@ namespace ChaosTest
 		EXPECT_NEAR(ClosestB.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
 
 	}
+
+
+	GTEST_TEST(GJKTests, GJKBug_BadBarycentricCoords)
+	{
+		FImplicitBox3 BoxA({ -31.999998092651367, -0.73166346549987793, -47.015655517578125 },
+			{ 31.999998092651367, 0.73166346549987793, 47.015655517578125 });
+		FImplicitBox3 BoxB({ -64.202491760253906, -64.269241333007812, 0.27499961853027344 },
+			{ -0.20249176025390625, -0.18923950195312500, 38.524999618530273 });
+
+		const FRigidTransform3 Transform(FVec3(4.28251314, -16.3213539, 32.0828743), FQuat(0.360390902, 0.00000000, 0.00000000, 0.932801366));
+
+		const FVec3 RayDir(0.00000000, 0.672346294, -0.740236819);
+		const FRealDouble Length = 37.388404846191406;
+		FRealDouble OutTime = 0;
+		FVec3 OutPosition(0);
+		FVec3 OutNormal(0);
+		const FRealDouble Thickness = 0;
+		const bool bComputeMTD = true;
+		const FVec3 Offset(-4.2825129036202441, -9.4891323727604799, -34.722524278655456);
+
+		bool bResult = GJKRaycast2<FRealDouble, FImplicitBox3, FImplicitBox3>(BoxA, BoxB, Transform, RayDir, Length, OutTime, OutPosition, OutNormal, Thickness, bComputeMTD, Offset, Thickness);
+		EXPECT_TRUE(bResult);
+		EXPECT_NEAR(OutPosition.X, -13.95, 1e-1);
+		EXPECT_NEAR(OutPosition.Y, -0.73, 1e-1);
+		EXPECT_NEAR(OutPosition.Z, 14.63, 1e-1);
+	}
 }
