@@ -357,6 +357,87 @@ struct FTriangleMeshOverlapVisitor
 	TArray<int32>& CollectedResults;
 };
 
+template <typename QueryGeomType>
+struct FTriangleMeshOverlapVisitorNoMTD
+{
+	FTriangleMeshOverlapVisitorNoMTD(const TRigidTransform<FReal, 3>& WorldScaleQueryTM, const QueryGeomType& InQueryGeom, FReal InThickness, const FVec3& InTriMeshScale, const FTriangleMeshImplicitObject* InTriMesh)
+		: QueryGeom(InQueryGeom)
+		, TriMeshScale(InTriMeshScale)
+		, Thickness(InThickness)
+		, TriMesh(InTriMesh)
+		, bFoundIntersection(false)
+	{
+		const UE::Math::TQuat<FReal>& RotationDouble = WorldScaleQueryTM.GetRotation();
+		Rotation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
+		// Normalize rotation
+		Rotation = VectorNormalizeSafe(Rotation, GlobalVectorConstants::Float0001);
+
+		const UE::Math::TVector<FReal>& TranslationDouble = WorldScaleQueryTM.GetTranslation();
+		Translation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
+	}
+	
+	bool VisitOverlap(int32 TriIdx)
+	{
+		FVec3 A, B, C;
+		if (TriMesh->MElements.RequiresLargeIndices())
+		{
+			TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, TriMesh->MParticles, TriMesh->MElements.GetLargeIndexBuffer(), A, B, C);
+		}
+		else
+		{
+			TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, TriMesh->MParticles, TriMesh->MElements.GetSmallIndexBuffer(), A, B, C);
+		}
+
+		const VectorRegister4Float ASimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(A.X, A.Y, A.Z, 0.0));
+		const VectorRegister4Float BSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(B.X, B.Y, B.Z, 0.0));
+		const VectorRegister4Float CSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(C.X, C.Y, C.Z, 0.0));
+
+		const VectorRegister4Float AB = VectorSubtract(BSimd, ASimd);
+		const VectorRegister4Float AC = VectorSubtract(CSimd, ASimd);
+
+		//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
+		//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
+		const VectorRegister4Float InitialDir = VectorCross(AB, AC);
+
+		FTriangleRegister Tri(ASimd, BSimd, CSimd);
+
+		if (GJKIntersectionSimd(Tri, QueryGeom, Translation, Rotation, Thickness, InitialDir))
+		{
+			bFoundIntersection = true;
+			return false;
+		}
+		return true;		
+	}
+
+	bool VisitSweep(int32 Instance, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+	bool VisitRaycast(int32 Instance, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+
+	VectorRegister4Float Rotation;
+	VectorRegister4Float Translation;
+	const QueryGeomType& QueryGeom;
+	const FVec3 TriMeshScale;
+	FReal Thickness;
+	const FTriangleMeshImplicitObject* TriMesh;
+	bool bFoundIntersection;
+};
+
+template <typename QueryGeomType>
+bool FTrimeshBVH::FindAllIntersectionsNoMTD(const FAABB3& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const
+{
+	FTriangleMeshOverlapVisitorNoMTD Visitor(Transform, QueryGeom, Thickness, TriMeshScale, TriMesh);
+	Overlap(FAABBVectorized(Intersection), Visitor);
+	return Visitor.bFoundIntersection;
+}
+
+
 TArray<int32> FTrimeshBVH::FindAllIntersections (const FAABB3& Intersection) const
 {
 	TArray<int32> Results;
@@ -424,7 +505,7 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 	ensure(TriMeshScale != FVec3(0.0f));
 	bool bResult = false;
 
-	const auto& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+	const GeomType& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 	const FVec3 InvTriMeshScale = FReal(1) / TriMeshScale;
 
 	// IMPORTANT QueryTM comes with a invscaled translation so we need a version of the TM with world space translation to properly compute the bounds
@@ -544,13 +625,13 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	ensure(TriMeshScale != FVec3(0.0f));
 	bool bResult = false;
 
-	const auto& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+	const QueryGeomType& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 	const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 
 	// IMPORTANT QueryTM comes with a invscaled translation so we need a version of the TM with world space translation to properly compute the bounds
 	FRigidTransform3 TriMeshToGeomNoScale{ QueryTM };
 	TriMeshToGeomNoScale.SetTranslation(TriMeshToGeomNoScale.GetTranslation() * TriMeshScale);
-	// NOTE: BVH test is done in tri-mesh local space (whereas collision detection is done in world space becaused you can't non-uniformly scale all shapes)
+	// NOTE: BVH test is done in tri-mesh local space (whereas collision detection is done in world space because you can't non-uniformly scale all shapes)
 	FAABB3 QueryBounds = WorldScaleGeom.BoundingBox();
 	QueryBounds = QueryBounds.TransformedAABB(TriMeshToGeomNoScale);
 	QueryBounds.ThickenSymmetrically(FVec3(WorldThickness));
@@ -806,12 +887,13 @@ void FTriangleMeshImplicitObject::VisitTriangle(const int32 TriangleIndex, const
 	}
 }
 
+
 template <typename QueryGeomType>
 bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD, FVec3 TriMeshScale) const
 {
 	bool bResult = false;
 
-	const auto& WorldScaleQueryGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+	const QueryGeomType& WorldScaleQueryGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 
 	const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 
@@ -824,20 +906,19 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 	QueryBounds.ThickenSymmetrically(FVec3(Thickness));
 	QueryBounds.ScaleWithNegative(InvTriMeshScale);
 
-	const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 
 	if (OutMTD)
 	{
+		const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
+
 		OutMTD->Normal = FVec3(0.0);
 		OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
-	}
 
-	TRigidTransform<FReal, 3> WorldScaleQueryTM;
-	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
 
-	auto LambdaHelper = [&](const auto& Elements, FMTDInfo* InnerMTD)
-	{
-		if (InnerMTD)
+		TRigidTransform<FReal, 3> WorldScaleQueryTM;
+		ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
+
+		auto LambdaHelper = [&](const auto& Elements, FMTDInfo* InnerMTD)
 		{
 			bool bOverlap = false;
 			for (int32 TriIdx : PotentialIntersections)
@@ -864,54 +945,22 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 			}
 
 			return bOverlap;
+		};
+
+		if (MElements.RequiresLargeIndices())
+		{
+			return LambdaHelper(MElements.GetLargeIndexBuffer(), OutMTD);
 		}
 		else
 		{
-
-			const UE::Math::TQuat<FReal>& RotationDouble = WorldScaleQueryTM.GetRotation();
-			VectorRegister4Float Rotation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
-			// Normalize rotation
-			Rotation = VectorNormalizeSafe(Rotation, GlobalVectorConstants::Float0001);
-
-			const UE::Math::TVector<FReal>& TranslationDouble = WorldScaleQueryTM.GetTranslation();
-			const VectorRegister4Float Translation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
-		
-
-			for (int32 TriIdx : PotentialIntersections)
-			{
-				FVec3 A, B, C;
-				TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
-
-				const VectorRegister4Float ASimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(A.X, A.Y, A.Z, 0.0));
-				const VectorRegister4Float BSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(B.X, B.Y, B.Z, 0.0));
-				const VectorRegister4Float CSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(C.X, C.Y, C.Z, 0.0));
-
-				const VectorRegister4Float AB = VectorSubtract(BSimd, ASimd);
-				const VectorRegister4Float AC = VectorSubtract(CSimd, ASimd);
-
-				//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
-				//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
-				const VectorRegister4Float InitialDir = VectorCross(AB, AC);
-				
-				FTriangleRegister Tri(ASimd, BSimd, CSimd);
-
-				if (GJKIntersectionSimd(Tri, WorldScaleQueryGeom, Translation, Rotation, Thickness, InitialDir))
-				{
-					return true;
-				}
-			}
-
-			return false;
+			return LambdaHelper(MElements.GetSmallIndexBuffer(), OutMTD);
 		}
-	};
-
-	if(MElements.RequiresLargeIndices())
-	{
-		return LambdaHelper(MElements.GetLargeIndexBuffer(), OutMTD);
 	}
 	else
 	{
-		return LambdaHelper(MElements.GetSmallIndexBuffer(), OutMTD);
+		TRigidTransform<FReal, 3> WorldScaleQueryTM;
+		ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
+		return FastBVH.FindAllIntersectionsNoMTD(QueryBounds, WorldScaleQueryTM, WorldScaleQueryGeom, Thickness, TriMeshScale, this);
 	}
 }
 

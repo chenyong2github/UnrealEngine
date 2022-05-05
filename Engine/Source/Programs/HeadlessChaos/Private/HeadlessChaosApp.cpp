@@ -27,6 +27,7 @@
 #include "HeadlessChaosTestBP.h"
 #include "HeadlessChaosTestRaycast.h"
 #include "HeadlessChaosTestSweep.h"
+#include "HeadlessChaosTestOverlap.h"
 #include "HeadlessChaosTestGJK.h"
 #include "HeadlessChaosTestEPA.h"
 #include "HeadlessChaosTestBroadphase.h"
@@ -201,6 +202,12 @@ TEST(SweepTests, Sweep) {
 TEST(SweepTests, DISABLED_LargeSweep)
 {
 	ChaosTest::GJKLargeDistanceCapsuleSweep();
+
+	SUCCEED();
+}
+
+TEST(OverlapTests, Overlap) {
+	ChaosTest::OverlapTriMesh();
 
 	SUCCEED();
 }

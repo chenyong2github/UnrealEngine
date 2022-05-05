@@ -24,6 +24,9 @@ namespace Chaos
 	extern CHAOS_API bool TriMeshPerPolySupport;
 
 	struct FMTDInfo;
+	template <typename QueryGeomType>
+	struct FTriangleMeshOverlapVisitorNoMTD;
+	class FTriangleMeshImplicitObject;
 	class FContactPoint;
 	FArchive& operator<<(FArchive& Ar, FAABBVectorized& Bounds);
 
@@ -182,8 +185,9 @@ namespace Chaos
 			VisitTree(BoundsFilter, FaceVisitor);
 		}
 
+		template <typename QueryGeomType>
+		bool FindAllIntersectionsNoMTD(const FAABB3& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const;
 		TArray<int32> FindAllIntersections(const FAABB3& Intersection) const;
-
 
 		template <typename BoundsFilterType, typename FaceVisitorType>
 		FORCEINLINE_DEBUGGABLE EVisitorResult VisitFaces(int32 StartIndex, int32 IndexCount, BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const
@@ -739,6 +743,8 @@ namespace Chaos
 
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;
+		template <typename QueryGeomType> 
+		friend struct FTriangleMeshOverlapVisitorNoMTD;
 
 		template<bool bRequiresLargeIndex>
 		struct FBvEntry
