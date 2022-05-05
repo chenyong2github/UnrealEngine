@@ -220,6 +220,9 @@ public:
 	/** Adds a new emitter to the System. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitter(UNiagaraEmitter& Emitter);
 
+	/** Adds an empty emitter to the system. */
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmptyEmitter();
+
 	/** Deletes the emitters with the supplied ids from the system */
 	NIAGARAEDITOR_API void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
 

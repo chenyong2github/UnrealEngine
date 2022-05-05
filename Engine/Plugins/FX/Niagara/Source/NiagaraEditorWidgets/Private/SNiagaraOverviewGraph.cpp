@@ -255,7 +255,11 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 		MenuBuilder.BeginSection(TEXT("NiagaraOverview_EditGraph"), LOCTEXT("EditGraph", "Edit Graph"));
 		{
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenAddEmitterMenu);
-
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("EmptyEmitterLabel", "Add empty emitter"),
+				LOCTEXT("CommentsToolTip", "Adds an empty emitter without any modules or renderers."),
+				FSlateIcon(),
+				FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateEmptyEmitter));
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("CommentsLabel", "Add Comment"),
 				LOCTEXT("CommentsToolTip", "Add a comment box"),
@@ -288,6 +292,11 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 		return FActionMenuContent(ActionMenu, ActionMenu);
 	}
 	return FActionMenuContent(SNullWidget::NullWidget, SNullWidget::NullWidget);
+}
+
+void SNiagaraOverviewGraph::OnCreateEmptyEmitter()
+{
+	ViewModel->GetSystemViewModel()->AddEmptyEmitter();
 }
 
 void SNiagaraOverviewGraph::OnCreateComment()

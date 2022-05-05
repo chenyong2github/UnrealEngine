@@ -302,7 +302,7 @@ bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScript
 void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraParameterStore& RapidIterationParameters, const TArray<FNiagaraVariable>& OldRapidIterationVariables, const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage) const
 {
 	UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(Node);
-	if (FunctionCallNode == nullptr || FunctionCallNode->FunctionScript == nullptr)
+	if (FunctionCallNode == nullptr || FunctionCallNode->HasValidScriptAndGraph() == false)
 	{
 		return;
 	}

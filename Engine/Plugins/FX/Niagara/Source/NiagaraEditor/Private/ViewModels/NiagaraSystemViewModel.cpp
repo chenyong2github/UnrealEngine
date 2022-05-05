@@ -36,6 +36,7 @@
 #include "EdGraphUtilities.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 #include "NiagaraParameterDefinitions.h"
+#include "NiagaraEmitterFactoryNew.h"
 
 #include "Editor.h"
 
@@ -447,6 +448,18 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(U
 	bForceAutoCompileOnce = true;
 
 	return NewEmitterHandleViewModel;
+}
+
+NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmptyEmitter()
+{
+	UNiagaraEmitter* EmptyEmitter = NewObject<UNiagaraEmitter>(GetTransientPackage());
+	bool bAddDefaultModulesAndRenderers = false;
+	UNiagaraEmitterFactoryNew::InitializeEmitter(EmptyEmitter, bAddDefaultModulesAndRenderers);
+	EmptyEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
+	FName EmptyEmitterName = FNiagaraEditorUtilities::GetUniqueObjectName<UNiagaraEmitter>(GetTransientPackage(), TEXT("Empty"));
+	EmptyEmitter->SetUniqueEmitterName(EmptyEmitterName.ToString());
+	EmptyEmitter->SetFlags(RF_Transactional);
+	return AddEmitter(*EmptyEmitter);
 }
 
 void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate)

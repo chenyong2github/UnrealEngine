@@ -42,7 +42,10 @@ UObject* UNiagaraScriptFactoryNew::FactoryCreateNew(UClass* Class, UObject* InPa
 
 	UNiagaraScript* NewScript;
 	const FSoftObjectPath& SettingDefaultScript = GetDefaultScriptFromSettings(Settings);
-	if (UNiagaraScript* Default = Cast<UNiagaraScript>(SettingDefaultScript.TryLoad()))
+	UNiagaraScript* Default = Cast<UNiagaraScript>(SettingDefaultScript.TryLoad());
+	if (Default != nullptr &&
+		Cast<UNiagaraScriptSource>(Default->GetLatestSource()) != nullptr &&
+		Cast<UNiagaraScriptSource>(Default->GetLatestSource())->NodeGraph != nullptr)
 	{
 		NewScript = Cast<UNiagaraScript>(StaticDuplicateObject(Default, InParent, Name, Flags, Class));
 	}

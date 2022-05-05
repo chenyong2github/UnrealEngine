@@ -19,6 +19,7 @@
 #include "NiagaraClipboard.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraScriptFactoryNew.h"
 
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
@@ -402,7 +403,9 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	case ENiagaraScriptUsage::DynamicInput:
 	{
 		UNiagaraScript* DefaultDynamicInput = Cast<UNiagaraScript>(GetDefault<UNiagaraEditorSettings>()->DefaultDynamicInputScript.TryLoad());
-		if (DefaultDynamicInput != nullptr)
+		if (DefaultDynamicInput != nullptr &&
+			Cast<UNiagaraScriptSource>(DefaultDynamicInput->GetLatestSource()) != nullptr &&
+			Cast<UNiagaraScriptSource>(DefaultDynamicInput->GetLatestSource())->NodeGraph != nullptr)
 		{
 			NewScript = CastChecked<UNiagaraScript>(StaticDuplicateObject(DefaultDynamicInput, ScriptOuter, GetUniqueScriptName(ScriptOuter, TEXT("ScratchDynamicInput"))));
 			TArray<UNiagaraNodeOutput*> OutputNodes;
@@ -429,7 +432,9 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	case ENiagaraScriptUsage::Module:
 	{
 		UNiagaraScript* DefaultModule = Cast<UNiagaraScript>(GetDefault<UNiagaraEditorSettings>()->DefaultModuleScript.TryLoad());
-		if (DefaultModule != nullptr)
+		if (DefaultModule != nullptr &&
+			Cast<UNiagaraScriptSource>(DefaultModule->GetLatestSource()) != nullptr &&
+			Cast<UNiagaraScriptSource>(DefaultModule->GetLatestSource())->NodeGraph != nullptr)
 		{
 			NewScript = CastChecked<UNiagaraScript>(StaticDuplicateObject(DefaultModule, ScriptOuter, GetUniqueScriptName(ScriptOuter, TEXT("ScratchModule"))));
 		}
@@ -437,15 +442,19 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	}
 	}
 
-	if (NewScript != nullptr)
+	if (NewScript == nullptr)
 	{
-		NewScript->ClearFlags(RF_Public | RF_Standalone);
-		ScriptOuter->Modify();
-		TargetScripts->Add(NewScript);
-		NewScript->GetLatestScriptData()->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
-		RefreshScriptViewModels();
-		UpdateChangeId(GetSystemViewModel());
+		NewScript = NewObject<UNiagaraScript>(ScriptOuter);
+		NewScript->Usage = InScriptUsage;
+		UNiagaraScriptFactoryNew::InitializeScript(NewScript);
 	}
+
+	NewScript->ClearFlags(RF_Public | RF_Standalone);
+	ScriptOuter->Modify();
+	TargetScripts->Add(NewScript);
+	NewScript->GetLatestScriptData()->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
+	RefreshScriptViewModels();
+	UpdateChangeId(GetSystemViewModel());
 
 	return GetViewModelForScript(NewScript);
 }

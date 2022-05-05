@@ -58,7 +58,20 @@ void SNewEmitterDialog::Construct(const FArguments& InArgs)
 					bUseInheritance = false;
 				}),
 				CopyAssetPicker.ToSharedRef(), CopyAssetPicker->GetSearchBox()
-				)
+				),
+			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
+				LOCTEXT("CreateEmptyLabel", "Create an empty emitter"),
+				LOCTEXT("CreateEmptyDescription", "Create an empty emitter with no modules or renderers"),
+				LOCTEXT("EmptyLabel", "Empty Emitter"),
+				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker(),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
+				SNew(SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NoOptionsLabel", "No Options"))
+				])
 		});
 }
 

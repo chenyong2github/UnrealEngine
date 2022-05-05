@@ -74,7 +74,7 @@ bool UNiagaraEmitterFactoryNew::ConfigureProperties()
 	}
 	else
 	{
-		// User selected an empty emitter so set the emitter to copy to null, and disable creationg of default modules.
+		// User selected an empty emitter so set the emitter to copy to null, and disable creation of default modules.
 		EmitterToCopy = nullptr;
 		bAddDefaultModulesAndRenderersToEmptyEmitter = false;
 	}
@@ -141,6 +141,14 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 	{
 		// Create an empty emitter, source, and graph.
 		NewEmitter = NewObject<UNiagaraEmitter>(InParent, Class, Name, Flags | RF_Transactional);
+		InitializeEmitter(NewEmitter, bAddDefaultModulesAndRenderersToEmptyEmitter);
+	}
+	return NewEmitter;
+}
+
+void UNiagaraEmitterFactoryNew::InitializeEmitter(UNiagaraEmitter* NewEmitter, bool bAddDefaultModulesAndRenderers)
+{
+	{
 		NewEmitter->SimTarget = ENiagaraSimTarget::CPUSim;
 
 		UNiagaraScriptSource* Source = NewObject<UNiagaraScriptSource>(NewEmitter, NAME_None, RF_Transactional);
@@ -164,7 +172,7 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 		checkf(EmitterSpawnOutputNode != nullptr && EmitterUpdateOutputNode != nullptr && ParticleSpawnOutputNode != nullptr && ParticleUpdateOutputNode != nullptr,
 			TEXT("Failed to create output nodes for emitter scripts."));
 
-		if (bAddDefaultModulesAndRenderersToEmptyEmitter)
+		if (bAddDefaultModulesAndRenderers)
 		{
 			NewEmitter->AddRenderer(NewObject<UNiagaraSpriteRendererProperties>(NewEmitter, "Renderer"));
 
@@ -213,8 +221,6 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 		NewEmitter->SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated);
 	}
-	
-	return NewEmitter;
 }
 
 #undef LOCTEXT_NAMESPACE
