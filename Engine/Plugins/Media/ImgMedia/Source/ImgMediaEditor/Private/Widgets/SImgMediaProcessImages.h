@@ -121,6 +121,20 @@ private:
 	void RemoveAlphaChannel(TArray64<uint8>& Buffer);
 
 	/**
+	 * Tints a source buffer and outputs it to a destination.
+	 *
+	 * @param SourceData		Source image.
+	 * @param DestArray			Destination image.
+	 * @param InMipLevel		The mip level of this image.
+	 * @param InWidth			Width of source in pixels.
+	 * @param InHeight			Height of source in pixels.
+	 * @param InNumChannels		Number of channels in the image.
+	 */
+	void TintData(uint8* SourceData, TArray64<uint8>& DestArray, 
+		int32 InMipLevel, int32 InWidth, int32 InHeight,
+		int32 InNumChannels);
+
+	/**
 	 * Creates tiles from a source and outputs it to a destination.
 	 *
 	 * @param SourceData		Source image.

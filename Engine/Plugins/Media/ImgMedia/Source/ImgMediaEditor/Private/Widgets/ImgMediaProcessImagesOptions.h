@@ -54,4 +54,12 @@ public:
 	/** Number of tiles in the Y direction. If 0, then there are no tiles. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Tiles)
 	int32 NumTilesY = 0;
+
+	/** Tint each mip level a different colour to help with debugging. */
+	UPROPERTY(EditAnywhere, Transient, Category = Debug)
+	bool bEnableMipLevelTint = false;
+
+	/** Colour to tint each mip level. */
+	UPROPERTY(EditAnywhere, Transient, Category = Debug)
+	TArray<FLinearColor> MipLevelTints;
 };

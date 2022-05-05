@@ -471,6 +471,7 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 	}
 
 	TArray64<uint8> TileBuffer;
+	TArray64<uint8> TintBuffer;
 	bool bIsTiled = (NumTilesX > 1) || (NumTilesY > 1);
 	if (bIsTiled)
 	{
@@ -590,6 +591,15 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 			}
 		}
 
+		// Tint mip levels?
+		if (Options->bEnableMipLevelTint)
+		{
+			TintData(CurrentBuffer, TintBuffer,
+				MipLevel, MipWidth, MipHeight,
+				NumChannels);
+			CurrentBuffer = TintBuffer.GetData();
+		}
+
 		// Do we need to tile this mip?
 		// Need to also check that this is actually a valid mip level.
 		if ((bIsTiled) && (MipSourceWidth > 0) && (MipSourceHeight > 0))
@@ -695,6 +705,43 @@ void SImgMediaProcessImages::RemoveAlphaChannel(TArray64<uint8>& Buffer)
 
 	// Don't bother shrinking as its just a waste and extra work.
 	Buffer.SetNum((BufferSize * 3) / 4, false);
+}
+
+void SImgMediaProcessImages::TintData(uint8* SourceData, TArray64<uint8>& DestArray,
+	int32 InMipLevel, int32 InWidth, int32 InHeight, int32 InNumChannels)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::TintData);
+
+	// Get tint colour.
+	FLinearColor TintColor = FLinearColor::White;
+	if (Options->MipLevelTints.Num() > 0)
+	{
+		TintColor = Options->MipLevelTints[InMipLevel % Options->MipLevelTints.Num()];
+	}
+
+	// Set up destination buffer.
+	DestArray.Reset();
+	DestArray.AddUninitialized(InWidth * InHeight * InNumChannels * 2);
+	FFloat16* Buffer = (FFloat16*)SourceData;
+	FFloat16* OutBuffer = (FFloat16*)DestArray.GetData();
+		
+	// Tint buffer.
+	for (int32 PixelY = 0; PixelY < InHeight; ++PixelY)
+	{
+		for (int32 PixelX = 0; PixelX < InWidth; ++PixelX)
+		{
+			OutBuffer[0] = (Buffer[0].GetFloat() + TintColor.R) * 0.5f;
+			OutBuffer[1] = (Buffer[1].GetFloat() + TintColor.G) * 0.5f;
+			OutBuffer[2] = (Buffer[2].GetFloat() + TintColor.B) * 0.5f;
+			if (InNumChannels == 4)
+			{
+				OutBuffer[3] = Buffer[3];
+			}
+				
+			Buffer += InNumChannels;
+			OutBuffer += InNumChannels;
+		}
+	}
 }
 
 void SImgMediaProcessImages::TileData(uint8* SourceData, TArray64<uint8>& DestArray,
