@@ -200,8 +200,7 @@ void FBitReader::ResetData(FBitReader& Src, int64 CountBits)
 	ClearError();
 
 	// Setup network version
-	this->SetEngineNetVer(Src.EngineNetVer());
-	this->SetGameNetVer(Src.GameNetVer());
+	this->SetNetVersionsFromArchive(Src);
 
 	Buffer.Reset();
 	Buffer.AddUninitialized((CountBits + 7) >> 3);

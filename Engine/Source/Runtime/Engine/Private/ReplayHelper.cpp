@@ -260,6 +260,13 @@ void FReplayHelper::WriteNetworkDemoHeader(UNetConnection* Connection)
 		DemoHeader.BuildConfig = FApp::GetBuildConfiguration();
 		DemoHeader.BuildTarget = FApp::GetBuildTargetType();
 
+		if (FNetworkReplayDelegates::GetOverridableVersionDataForHeaderWrite.IsBound())
+		{
+			FOverridableReplayVersionData OverridaleReplayVersionData(DemoHeader);
+			FNetworkReplayDelegates::GetOverridableVersionDataForHeaderWrite.Execute(OverridaleReplayVersionData);
+			OverridaleReplayVersionData.ApplyVersionDataToDemoHeader(DemoHeader);
+		}
+
 		// Write the header
 		(*FileAr) << DemoHeader;
 		FileAr->Flush();
@@ -418,6 +425,13 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 	bHasGameSpecificFrameData = EnumHasAnyFlags(PlaybackDemoHeader.HeaderFlags, EReplayHeaderFlags::GameSpecificFrameData);
 
 	FNetworkReplayDelegates::OnProcessGameSpecificDemoHeader.Broadcast(PlaybackDemoHeader.GameSpecificData, Error);
+
+	if (FNetworkReplayDelegates::GetOverridableVersionDataForHeaderRead.IsBound())
+	{
+		FOverridableReplayVersionData OverridaleReplayVersionData(PlaybackDemoHeader);
+		FNetworkReplayDelegates::GetOverridableVersionDataForHeaderRead.Execute(OverridaleReplayVersionData);
+		OverridaleReplayVersionData.ApplyVersionDataToDemoHeader(PlaybackDemoHeader);
+	}
 	
 	if (!Error.IsEmpty())
 	{

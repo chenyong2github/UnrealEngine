@@ -63,7 +63,7 @@ bool FRepMovement::SerializeQuantizedVector(FArchive& Ar, FVector& Vector, EVect
 bool FRepMovement::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	// pack bitfield with flags
-	const bool bServerFrameAndHandleSupported = Ar.EngineNetVer() >= HISTORY_REPMOVE_SERVERFRAME_AND_HANDLE;
+	const bool bServerFrameAndHandleSupported = Ar.EngineNetVer() >= HISTORY_REPMOVE_SERVERFRAME_AND_HANDLE && Ar.EngineNetVer() != HISTORY_21_AND_VIEWPITCH_ONLY_DO_NOT_USE;
 	uint8 Flags = (bSimulatedPhysicSleep << 0) | (bRepPhysics << 1) | ((ServerFrame > 0) << 2) | ((ServerPhysicsHandle != INDEX_NONE) << 3);
 	Ar.SerializeBits(&Flags, bServerFrameAndHandleSupported ? 4 : 2);
 	bSimulatedPhysicSleep = (Flags & (1 << 0)) ? 1 : 0;

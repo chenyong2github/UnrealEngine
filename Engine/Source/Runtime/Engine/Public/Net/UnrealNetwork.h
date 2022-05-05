@@ -23,6 +23,7 @@ class AActor;
 /*class	UNetDriver;*/
 class	UNetConnection;
 class	UPendingNetGame;
+struct  FOverridableReplayVersionData;
 
 /*-----------------------------------------------------------------------------
 	Types.
@@ -47,6 +48,10 @@ typedef TMap<FString, TArray<uint8>> FDemoFrameDataMap;
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWriteGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, FDemoFrameDataMap& /*Data*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnProcessGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, const FDemoFrameDataMap& /*Data*/);
 
+// Games can use these to override Version Data of Replay Headers
+DECLARE_DELEGATE_OneParam(FGetOverridableVersionDataForDemoHeaderReadDelegate, FOverridableReplayVersionData& /*OveridableReplayVersionData*/);
+DECLARE_DELEGATE_OneParam(FGetOverridableVersionDataForDemoHeaderWriteDelegate, FOverridableReplayVersionData& /*OveridableReplayVersionData*/);
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayStartedDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayStartFailureDelegate, UWorld* /*World*/, EDemoPlayFailure::Type /*Error*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayScrubCompleteDelegate, UWorld* /*World*/);
@@ -68,6 +73,10 @@ struct ENGINE_API FNetworkReplayDelegates
 	/** Game specific per frame data */
 	static FOnWriteGameSpecificFrameData OnWriteGameSpecificFrameData;
 	static FOnProcessGameSpecificFrameData OnProcessGameSpecificFrameData;
+
+	/** Game Overridable Header Version Data */
+	static FGetOverridableVersionDataForDemoHeaderReadDelegate  GetOverridableVersionDataForHeaderRead;
+	static FGetOverridableVersionDataForDemoHeaderWriteDelegate GetOverridableVersionDataForHeaderWrite;
 
 	/** Public delegate for external systems to be notified when a replay begins */
 	static FOnReplayStartedDelegate OnReplayStarted;

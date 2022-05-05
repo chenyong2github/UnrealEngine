@@ -579,3 +579,38 @@ public:
 
 // Using an indirect array here since FReplayExternalData stores an FBitReader, and it's not safe to store an FArchive directly in a TArray.
 typedef TIndirectArray<FReplayExternalData> FReplayExternalDataArray;
+
+
+// Can be used to override Version Data in a Replay's Header either Right Before Writing a Replay Header or Right After Reading a Replay Header.
+struct FOverridableReplayVersionData
+{
+public:
+	uint32 Version;                       // Version number to detect version mismatches.
+	uint32 EngineNetworkProtocolVersion;  // Version of the engine internal network format
+	uint32 GameNetworkProtocolVersion;    // Version of the game internal network format
+	FEngineVersion EngineVersion;         // Full engine version on which the replay was recorded
+	FPackageFileVersion PackageVersionUE; // Engine package version on which the replay was recorded
+	int32 PackageVersionLicenseeUE;       // Licensee package version on which the replay was recorded
+
+	// Init with Demo Header Version Data
+	FOverridableReplayVersionData(const FNetworkDemoHeader& DemoHeader)
+		: Version                     (DemoHeader.Version)
+		, EngineNetworkProtocolVersion(DemoHeader.EngineNetworkProtocolVersion)
+		, GameNetworkProtocolVersion  (DemoHeader.GameNetworkProtocolVersion)
+		, EngineVersion               (DemoHeader.EngineVersion)
+		, PackageVersionUE            (DemoHeader.PackageVersionUE)
+		, PackageVersionLicenseeUE    (DemoHeader.PackageVersionLicenseeUE)
+	{
+	}
+
+	// Apply Version Data to Demo Header Passed In
+	void ApplyVersionDataToDemoHeader(FNetworkDemoHeader& DemoHeader)
+	{
+		DemoHeader.Version                      = Version;
+		DemoHeader.EngineNetworkProtocolVersion = EngineNetworkProtocolVersion;
+		DemoHeader.GameNetworkProtocolVersion   = GameNetworkProtocolVersion;
+		DemoHeader.EngineVersion                = EngineVersion;
+		DemoHeader.PackageVersionUE             = PackageVersionUE;
+		DemoHeader.PackageVersionLicenseeUE     = PackageVersionLicenseeUE;
+	}
+};

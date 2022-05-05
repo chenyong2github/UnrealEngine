@@ -2,19 +2,21 @@
 
 #include "Net/UnrealNetwork.h"
 
-FPreReplayScrub FNetworkReplayDelegates::OnPreScrub;
-FOnWriteGameSpecificDemoHeader FNetworkReplayDelegates::OnWriteGameSpecificDemoHeader;
-FOnProcessGameSpecificDemoHeader FNetworkReplayDelegates::OnProcessGameSpecificDemoHeader;
-FOnWriteGameSpecificFrameData FNetworkReplayDelegates::OnWriteGameSpecificFrameData;
-FOnProcessGameSpecificFrameData FNetworkReplayDelegates::OnProcessGameSpecificFrameData;
-FOnReplayStartedDelegate FNetworkReplayDelegates::OnReplayStarted;
-FOnReplayStartFailureDelegate FNetworkReplayDelegates::OnReplayStartFailure;
-FOnReplayScrubCompleteDelegate FNetworkReplayDelegates::OnReplayScrubComplete;
-FOnReplayPlaybackCompleteDelegate FNetworkReplayDelegates::OnReplayPlaybackComplete;
-FOnReplayRecordingStartAttemptDelegate FNetworkReplayDelegates::OnReplayRecordingStartAttempt;
-FOnReplayRecordingCompleteDelegate FNetworkReplayDelegates::OnReplayRecordingComplete;
-FOnPauseChannelsChangedDelegate FNetworkReplayDelegates::OnPauseChannelsChanged;
-FOnReplayIDChangedDelegate FNetworkReplayDelegates::OnReplayIDChanged;
+FPreReplayScrub                                      FNetworkReplayDelegates::OnPreScrub;
+FOnWriteGameSpecificDemoHeader                       FNetworkReplayDelegates::OnWriteGameSpecificDemoHeader;
+FOnProcessGameSpecificDemoHeader                     FNetworkReplayDelegates::OnProcessGameSpecificDemoHeader;
+FOnWriteGameSpecificFrameData                        FNetworkReplayDelegates::OnWriteGameSpecificFrameData;
+FOnProcessGameSpecificFrameData                      FNetworkReplayDelegates::OnProcessGameSpecificFrameData;
+FGetOverridableVersionDataForDemoHeaderReadDelegate  FNetworkReplayDelegates::GetOverridableVersionDataForHeaderRead;
+FGetOverridableVersionDataForDemoHeaderWriteDelegate FNetworkReplayDelegates::GetOverridableVersionDataForHeaderWrite;
+FOnReplayStartedDelegate                             FNetworkReplayDelegates::OnReplayStarted;
+FOnReplayStartFailureDelegate                        FNetworkReplayDelegates::OnReplayStartFailure;
+FOnReplayScrubCompleteDelegate                       FNetworkReplayDelegates::OnReplayScrubComplete;
+FOnReplayPlaybackCompleteDelegate                    FNetworkReplayDelegates::OnReplayPlaybackComplete;
+FOnReplayRecordingStartAttemptDelegate               FNetworkReplayDelegates::OnReplayRecordingStartAttempt;
+FOnReplayRecordingCompleteDelegate                   FNetworkReplayDelegates::OnReplayRecordingComplete;
+FOnPauseChannelsChangedDelegate                      FNetworkReplayDelegates::OnPauseChannelsChanged;
+FOnReplayIDChangedDelegate                           FNetworkReplayDelegates::OnReplayIDChanged;
 
 // ----------------------------------------------------------------
 
