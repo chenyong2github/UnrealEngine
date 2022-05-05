@@ -11,7 +11,7 @@
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
 AWorldPartitionMiniMap::AWorldPartitionMiniMap(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
 	, MiniMapWorldBounds(ForceInit)
 	, MiniMapTexture(nullptr)
 {
