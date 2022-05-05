@@ -959,12 +959,12 @@ void ULevel::PostLoad()
 		}
 	}
 
-	const FLinkerLoad* Linker = GetLinker();
-	check(Linker || bWasDuplicated);
-
 	// if we use external actors, load dynamic actors here
 	if (IsUsingExternalActors())
 	{
+		const FLinkerLoad* Linker = GetLinker();
+		check(Linker || bWasDuplicated);
+
 		if (!bWasDuplicated &&
 			(!bIsPartitioned || Linker->GetInstancingContext().HasTag(ULevel::LoadAllExternalObjectsTag)) &&
 			!Linker->GetInstancingContext().HasTag(ULevel::DontLoadExternalObjectsTag))
