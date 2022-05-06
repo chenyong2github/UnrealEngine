@@ -72,7 +72,7 @@ void Main(
 		float3 ODS = OffsetODS(RasterizedWorldPosition.xyz, ResolvedView.TranslatedWorldCameraOrigin.xyz, ResolvedView.StereoIPD);
 		ClipSpacePosition = mul(float4(RasterizedWorldPosition.xyz + ODS, 1.0), ResolvedView.TranslatedWorldToClip);
 	#else
-		ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
+		ClipSpacePosition = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);
 	#endif
 		Output.Position = INVARIANT(ClipSpacePosition);
 	}
@@ -244,7 +244,7 @@ void Main(
 		}
 
 		// compute the old screen pos with the old world position and the old camera matrix
-		Output.BasePassInterpolants.VelocityPrevScreenPosition = PrevTranslatedWorldPosition; 
+		Output.BasePassInterpolants.VelocityPrevScreenPosition = INVARIANT(PrevTranslatedWorldPosition); 
 	}
 #endif	// WRITES_VELOCITY_TO_GBUFFER
 }

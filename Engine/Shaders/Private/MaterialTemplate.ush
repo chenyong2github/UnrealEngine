@@ -2735,18 +2735,6 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 }
 #endif
 
-// UE-102725: Workaround for precision issue that only occurs with world position offsets in D3D shaders.
-#if USE_WPO_PRECISE
-#define WPO_PRECISE(T) INVARIANT(T)
-#else
-#define WPO_PRECISE(T) T
-#endif
-
-float3 GetMaterialWorldPositionOffsetInternal(FMaterialVertexParameters Parameters)
-{
-%s;
-}
-
 float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
 #if IS_NANITE_PASS
@@ -2765,11 +2753,6 @@ float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 	}
 #endif
 
-	return WPO_PRECISE(GetMaterialWorldPositionOffsetInternal(Parameters));
-}
-
-float3 GetMaterialPreviousWorldPositionOffsetInternal(FMaterialVertexParameters Parameters)
-{
 %s;
 }
 
@@ -2791,9 +2774,8 @@ float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Paramete
 	}
 #endif
 
-	return WPO_PRECISE(GetMaterialPreviousWorldPositionOffsetInternal(Parameters));
+%s;
 }
-
 
 // .rgb:SubsurfaceColor, .a:SSProfileId in 0..1 range
 half4 GetMaterialSubsurfaceDataRaw(FPixelMaterialInputs PixelMaterialInputs)
