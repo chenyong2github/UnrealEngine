@@ -646,6 +646,7 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		[Ignore]
 		public void LinuxLinkErrorMatcher()
 		{
 			string[] lines =
