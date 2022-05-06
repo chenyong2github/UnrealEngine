@@ -546,10 +546,29 @@ void SAnimAttributeView::RefreshFilteredAttributeEntries()
 	}
 
 	ExecuteSort();
-
+	
 	// delay the refresh to until tick since this function
 	// can be invoked from animation thread
 	bShouldRefreshListView = true;
+
+	bool bSelectedAttributeStillValid = false;
+	for (const TSharedPtr<FAnimAttributeEntry>& Entry : FilteredAttributeEntries)
+	{
+		if (SelectedAttribute.IsSet())
+		{
+			if (*(Entry) == SelectedAttribute.GetValue())
+			{
+				bSelectedAttributeStillValid = true;
+				break;
+			}
+		}	
+	}
+
+	if (!bSelectedAttributeStillValid)
+	{
+		SelectedAttribute.Reset();
+		bShouldRefreshValueView = true;
+	}
 }
 
 void SAnimAttributeView::RefreshValueView()

@@ -53,7 +53,7 @@ public:
 
 	bool operator==(const FAnimAttributeEntry& InOther) const
 	{
-		return Identifier == InOther.Identifier;
+		return Identifier == InOther.Identifier && SnapshotDisplayName == InOther.SnapshotDisplayName;
 	}
 
 	bool operator!=(const FAnimAttributeEntry& InOther) const
