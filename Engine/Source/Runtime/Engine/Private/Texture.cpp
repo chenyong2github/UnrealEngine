@@ -3001,6 +3001,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 		if (Texture->HasHDRSource(LayerIndex))
 		{
+			// @todo Oodle : this is a very poor selection from SourceFormat
 			// R16F and R32F is available but not used here even if their TC_ would have chosen them!
 			TextureFormatName = NameRGBA16F;
 		}
@@ -3043,23 +3044,15 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		TextureFormatName = bUseDXT5NormalMap ? NameDXT5n : NameBC5;
 	}
-	else if (FormatSettings.CompressionSettings == TC_Displacementmap)
-	{
-		if (SourceFormat == TSF_G16)
-		{
-			TextureFormatName = NameG16;
-		}
-		else
-		{
-			TextureFormatName = NameG8;
-		}
-	}
 	else if (FormatSettings.CompressionSettings == TC_VectorDisplacementmap)
 	{
 		TextureFormatName = NameBGRA8;
 	}
-	else if (FormatSettings.CompressionSettings == TC_Grayscale)
+	else if (FormatSettings.CompressionSettings == TC_Grayscale || 
+		FormatSettings.CompressionSettings == TC_Displacementmap)
 	{
+		// @todo Oodle : this is a very poor selection from SourceFormat
+		// eg. doesn't use G16 if source is RGBA16 or float
 		if (SourceFormat == TSF_G16)
 		{
 			TextureFormatName = NameG16;
