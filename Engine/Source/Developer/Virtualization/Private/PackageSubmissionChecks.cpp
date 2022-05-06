@@ -250,6 +250,14 @@ bool TryCopyPackageWithoutTrailer(const FPackagePath PackagePath, const FString&
 	return true;
 }
 
+/** Tests if we would be able to write to the given file if we wanted to */
+bool CanWriteToFile(const FString& FilePath)
+{
+	TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*FilePath, FILEWRITE_Append | FILEWRITE_Silent));
+
+	return FileHandle.IsValid();
+}
+
 void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::VirtualizePackages);
@@ -327,10 +335,24 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 				PkgInfo.Trailer = MoveTemp(Trailer);
 				PkgInfo.LocalPayloads = PkgInfo.Trailer.GetPayloads(EPayloadFilter::Local);
 
-				TotalPayloadsToCheck += PkgInfo.LocalPayloads.Num();
-
 				if (!PkgInfo.LocalPayloads.IsEmpty())
-				{
+				{	
+					if (!CanWriteToFile(AbsoluteFilePath))
+					{
+						// Technically the package could have local payloads that won't be virtualized due to filtering or min payload sizes and so the
+						// following warning is misleading. This will be solved if we move that evaluation to the point of saving a package.
+						// If not then we probably need to extend QueryPayloadStatuses to test filtering etc as well, then check for potential package
+						// modification after that.
+						// Long term, the stand alone tool should be able to request the UnrealEditor relinquish the lock on the package file so this becomes 
+						// less of a problem.
+						FText Message = FText::Format(LOCTEXT("Virtualization_PkgLocked", "The package file '{0}' has local payloads but is locked for modification and cannot be virtualized, this package will be skipped!"),
+							FText::FromString(PkgInfo.Path.GetDebugName()));
+						UE_LOG(LogVirtualization, Warning, TEXT("%s"), *Message.ToString());
+						continue;
+					}
+
+					TotalPayloadsToCheck += PkgInfo.LocalPayloads.Num();
+
 					PkgInfo.PayloadIndex = AllLocalPayloads.Num();
 					AllLocalPayloads.Append(PkgInfo.LocalPayloads);
 
