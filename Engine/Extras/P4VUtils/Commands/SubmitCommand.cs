@@ -54,110 +54,103 @@ namespace P4VUtils.Commands
 			}
 
 			// First we need to find the packages in the changelist
-			// First we need to find the packages in the changelist
 			string[]? localFilePaths = await FindPackagesInChangelist(perforceConnection, changeNumber, logger);
 			if(localFilePaths == null)
 			{
 				return 1;
 			}
-			logger.LogInformation("Found {Amount} package(s) that may need virtualization", localFilePaths.Length);
 
-			// Now sort the package paths by their project (it is unlikely but a user could be submitting content
-			// from multiple projects that the same time)
-
-			Dictionary<string, List<string>> projects = SortPackagesIntoProjects(localFilePaths, logger);
-
-			logger.LogInformation("The packages are distributed between {Amount} project(s)", projects.Count);
-
-			// Find engine per project
-			IReadOnlyDictionary<string, string> engineInstalls = EnumerateEngineInstallations(logger);
-
-			foreach(KeyValuePair<string, List<string>> project in projects)
+			if (localFilePaths.Length > 0)
 			{
-				string engineRoot = GetEngineRootForProject(project.Key, logger);
-				if (!String.IsNullOrEmpty(engineRoot))
+				logger.LogInformation("Found {Amount} package(s) that may need virtualization", localFilePaths.Length);
+
+				// Now sort the package paths by their project (it is unlikely but a user could be submitting content
+				// from multiple projects that the same time)
+
+				Dictionary<string, List<string>> projects = SortPackagesIntoProjects(localFilePaths, logger);
+
+				logger.LogInformation("The packages are distributed between {Amount} project(s)", projects.Count);
+
+				// Find engine per project
+				IReadOnlyDictionary<string, string> engineInstalls = EnumerateEngineInstallations(logger);
+
+				foreach (KeyValuePair<string, List<string>> project in projects)
 				{
-					logger.LogInformation("\nAttempting to virtualize packages in project '{Project}' via the engine installation '{Engine}'", project.Key, engineRoot);
-					// @todo Many projects can share the same engine install, and technically UnrealVirtualizationTool
-					// supports the virtualization files from many projects at the same time. We could consider doing
-					// this pass per engine install rather than per project? At the very least we should only 'build'
-					// the tool once per engine
-
-					Task<bool> compileResult = BuildVirtualizationTool(engineRoot, logger);
-
-					string tempFilesPath = await WritePackageFileList(project.Value, logger);
-
-					// Check if the compilation of the tool succeeded or not
-					if (await compileResult == false)
+					string engineRoot = GetEngineRootForProject(project.Key, logger);
+					if (!String.IsNullOrEmpty(engineRoot))
 					{
+						logger.LogInformation("\nAttempting to virtualize packages in project '{Project}' via the engine installation '{Engine}'", project.Key, engineRoot);
+						// @todo Many projects can share the same engine install, and technically UnrealVirtualizationTool
+						// supports the virtualization files from many projects at the same time. We could consider doing
+						// this pass per engine install rather than per project? At the very least we should only 'build'
+						// the tool once per engine
+
+						Task<bool> compileResult = BuildVirtualizationTool(engineRoot, logger);
+
+						string tempFilesPath = await WritePackageFileList(project.Value, logger);
+
+						// Check if the compilation of the tool succeeded or not
+						if (await compileResult == false)
+						{
+							return 1;
+						}
+
+						// Even though this will have been done while we were waiting for BuildVirtualizationTool to complete 
+						// we want to log that it was done after so that the output log makes sense to the user, otherwise 
+						// they will end up thinking that they are waiting on the PackageList to be written rather than on
+						// the tool to be built.
+						logger.LogInformation("PackageList was written to '{Path}'", tempFilesPath);
+
+						if (await RunVirtualizationTool(engineRoot, clientSpec, tempFilesPath, logger) == false)
+						{
+							return 1;
+						};
+
+						// @todo Make sure this always gets cleaned up when we go out of scope
+						File.Delete(tempFilesPath);
+					}
+					else
+					{
+						logger.LogError("Failed to find engine root for project {Project}", project.Key);
 						return 1;
 					}
-
-					// Even though this will have been done while we were waiting for BuildVirtualizationTool to complete 
-					// we want to log that it was done after so that the output log makes sense to the user, otherwise 
-					// they will end up thinking that they are waiting on the PackageList to be written rather than on
-					// the tool to be built.
-					logger.LogInformation("PackageList was written to '{Path}'", tempFilesPath);
-
-					if (await RunVirtualizationTool(engineRoot, clientSpec, tempFilesPath, logger) == false)
-					{
-						return 1;
-					};
-
-					// @todo Make sure this always gets cleaned up when we go out of scope
-					File.Delete(tempFilesPath);
 				}
-				else
+
+				logger.LogInformation("\nAll packages have been virtualized");
+
+				//@todo ideally we should get the tags back from UnrealVirtualizationTool
+				ChangeRecord? changeRecord = await StampChangelistDescription(perforceConnection, changeNumber, logger);
+				if (changeRecord == null)
 				{
-					logger.LogError("Failed to find engine root for project {Project}", project.Key);
+					return 1;
+				}
+
+				logger.LogInformation("Attempting to submit changelist {Number}...", changeNumber);
+
+				// Submit
+				if (await SubmitChangelist(perforceConnection, changeNumber, logger) == false)
+				{
+					// If the final submit failed we remove the virtualization tag, even though the changelist is technically
+					// virtualized at this point and submitting it would be safe.
+					// This is to keep the behavior the same as the native code paths.
+					logger.LogInformation("Removing virtualization tags from the changelist...");
+					PerforceResponse updateResponse = await perforceConnection.TryUpdateChangeAsync(UpdateChangeOptions.None, changeRecord, CancellationToken.None);
+					if (!updateResponse.Succeeded)
+					{
+						logger.LogError("Failed to remove the virtualization tags!");
+					}
+
 					return 1;
 				}
 			}
-
-			logger.LogInformation("\nAll packages have been virtualized");
-
-			ChangeRecord? changeRecord = await StampChangelistDescription(perforceConnection, changeNumber, logger);
-			if (changeRecord == null)
-			{
-				return 1;
-			}
-
-			logger.LogInformation("Attempting to submit changelist {Number}...", changeNumber);
-
-			// Submit
-			//@todo ideally we should get the tags back from UnrealVirtualizationTool
-			PerforceResponseList<SubmitRecord> submitResponses = await TrySubmitAsync(perforceConnection, changeNumber, SubmitOptions.None, CancellationToken.None);
-
-			bool successfulSubmit = submitResponses.All(x => x.Succeeded);
-			if (successfulSubmit)
-			{
-				// @todo The submit API really should return the number that the changelist was finally submit as so that
-				// we can log that here instead.
-				logger.LogInformation("Successfully submited changelist {Change}", changeNumber);
-			}
 			else
 			{
-				// Log every response that was a failure and has an error message associated with it
-				logger.LogError("Submit failed due to:");
-				foreach (PerforceResponse<SubmitRecord> response in submitResponses)
+				logger.LogInformation("The changelist does not contain any package files, submitting as normal...");
+
+				if (await SubmitChangelist(perforceConnection, changeNumber, logger) == false)
 				{
-					if (response.Failed && response.Error != null)
-					{
-						logger.LogError("{Message}", response.Error.ToString());
-					}
+					return 1;
 				}
-
-				// If the final submit failed we remove the virtualization tag, even though the changelist is technically
-				// virtualized at this point and submitting it would be safe.
-				// This is to keep the behavior the same as the native code paths.
-				logger.LogInformation("Removing virtualization tags from the changelist...");
-				PerforceResponse updateResponse = await perforceConnection.TryUpdateChangeAsync(UpdateChangeOptions.None, changeRecord, CancellationToken.None);
-				if (!updateResponse.Succeeded)
-				{
-					logger.LogError("Failed to remove the virtualization tags!");
-				}		
-
-				return 1;
 			}
 		
 			return 0;
@@ -311,6 +304,34 @@ namespace P4VUtils.Commands
 			return projects;
 		}
 
+		private static async Task<bool> SubmitChangelist(IPerforceConnection perforceConnection, int changeNumber, ILogger logger)
+		{
+			PerforceResponseList<SubmitRecord> submitResponses = await TrySubmitAsync(perforceConnection, changeNumber, SubmitOptions.None, CancellationToken.None);
+
+			bool successfulSubmit = submitResponses.All(x => x.Succeeded);
+			if (successfulSubmit)
+			{
+				// @todo The submit API really should return the number that the changelist was finally submit as so that
+				// we can log that here instead.
+				logger.LogInformation("Successfully submited changelist {Change}", changeNumber);
+				return true;
+			}
+			else
+			{
+				// Log every response that was a failure and has an error message associated with it
+				logger.LogError("Submit failed due to:");
+				foreach (PerforceResponse<SubmitRecord> response in submitResponses)
+				{
+					if (response.Failed && response.Error != null)
+					{
+						logger.LogError("{Message}", response.Error.ToString());
+					}
+				}
+
+				return false;
+			}
+		}
+
 		/// <summary>
 		/// Adds the virtualization tags to a changelist description which is used to show that the virtualization
 		/// process has been run on it, before it was submitted.
@@ -379,6 +400,12 @@ namespace P4VUtils.Commands
 
 			// Find the depth paths in the changelist that point to package files
 			string[] depotPackagePaths = changeRecord.Files.Select(x => x.DepotFile).Where(x => IsPackagePath(x)).ToArray();
+
+			// We can early out if there are no packages in the changelist
+			if (depotPackagePaths.Length == 0)
+			{
+				return depotPackagePaths;
+			}
 
 			// Now convert from depot paths to local paths on the users machine
 			List<WhereRecord> whereRecords = await perforceConnection.WhereAsync(depotPackagePaths, CancellationToken.None).ToListAsync();
