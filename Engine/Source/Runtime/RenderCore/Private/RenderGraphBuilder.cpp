@@ -3332,7 +3332,7 @@ void FRDGBuilder::InitRHI(FRDGBufferSRVRef SRV)
 
 	FRHIBufferSRVCreateInfo SRVCreateInfo = SRV->Desc;
 
-	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	if (EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::StructuredBuffer))
 	{
 		// RDG allows structured buffer views to be typed, but the view creation logic requires that it
 		// be unknown (as do platform APIs -- structured buffers are not typed). This could be validated
@@ -3357,7 +3357,7 @@ void FRDGBuilder::InitRHI(FRDGBufferUAV* UAV)
 
 	FRHIBufferUAVCreateInfo UAVCreateInfo = UAV->Desc;
 
-	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	if (EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::StructuredBuffer))
 	{
 		// RDG allows structured buffer views to be typed, but the view creation logic requires that it
 		// be unknown (as do platform APIs -- structured buffers are not typed). This could be validated

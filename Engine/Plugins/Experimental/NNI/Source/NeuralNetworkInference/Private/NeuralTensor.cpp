@@ -666,8 +666,7 @@ void FNeuralTensor::InitPooledBufferForUEAndORTBackEnd_RenderThread(FRDGBuilder&
 	FRDGBufferDesc BufferDesc;
 	BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
 	BufferDesc.NumElements = Num();
-	BufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
-	BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
+	BufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
 	FRDGBufferRef BufferRef = GraphBuilder.CreateBuffer(BufferDesc, *GetName());
 
 	// Extract buffer immediately. Need this so that we can potentially bind to DirectML.
@@ -892,8 +891,7 @@ void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder,
 		FRDGBufferDesc BufferDesc;
 		BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
 		BufferDesc.NumElements = Num();
-		BufferDesc.Usage = InBufferUsageFlags;
-		BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
+		BufferDesc.Usage = InBufferUsageFlags | EBufferUsageFlags::VertexBuffer;
 		
 		BufferRef = bInShouldCopyFromCPU 
 			? CreateVertexBuffer(*InOutGraphBuilder, *Name, BufferDesc, UnderlyingUInt8ArrayData.GetData(), NumInBytes(),

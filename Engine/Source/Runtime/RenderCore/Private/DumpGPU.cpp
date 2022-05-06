@@ -716,7 +716,6 @@ public:
 		JsonObject->SetStringField(TEXT("UniqueResourceName"), UniqueResourceName);
 		JsonObject->SetNumberField(TEXT("ByteSize"), ResourceByteSize);
 		JsonObject->SetStringField(TEXT("Desc"), TEXT("FRDGBufferDesc"));
-		JsonObject->SetStringField(TEXT("Type"), GetBufferUnderlyingTypeName(Desc.UnderlyingType));
 		JsonObject->SetNumberField(TEXT("BytesPerElement"), Desc.BytesPerElement);
 		JsonObject->SetNumberField(TEXT("NumElements"), Desc.NumElements);
 		JsonObject->SetStringField(TEXT("Metadata"), *PtrToString(Desc.Metadata));
@@ -1431,13 +1430,6 @@ public:
 				Dump(Desc.Metadata);
 			}
 		}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
-		{
-			return;
-		}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Dump the resource's binary to a .bin file.
 		if (bDumpResourceBinary && DumpBufferMode == 2)

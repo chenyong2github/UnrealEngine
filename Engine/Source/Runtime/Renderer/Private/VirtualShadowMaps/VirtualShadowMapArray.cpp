@@ -337,8 +337,7 @@ static FRDGBufferRef CreateProjectionDataBuffer(
 	uint64 DataSize = InitialData.Num() * InitialData.GetTypeSize();
 
 	FRDGBufferDesc Desc;
-	Desc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
-	Desc.Usage = (EBufferUsageFlags)(BUF_UnorderedAccess | BUF_ShaderResource | BUF_ByteAddressBuffer);
+	Desc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::ByteAddressBuffer | EBufferUsageFlags::StructuredBuffer;
 	Desc.BytesPerElement = 4;
 	Desc.NumElements = DataSize / 4;
 

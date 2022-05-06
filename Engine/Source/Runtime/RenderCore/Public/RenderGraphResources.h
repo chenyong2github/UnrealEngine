@@ -849,12 +849,20 @@ private:
 /** Descriptor for render graph tracked Buffer. */
 struct FRDGBufferDesc
 {
-	enum class EUnderlyingType
+	enum class UE_DEPRECATED(5.1, "EUnderlying type has been deprecated.") EUnderlyingType
 	{
 		VertexBuffer,
 		StructuredBuffer,
-		AccelerationStructure UE_DEPRECATED(5.1, "AccelerationStructure is deprecated")
+		AccelerationStructure
 	};
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRDGBufferDesc() = default;
+	FRDGBufferDesc(FRDGBufferDesc&&) = default;
+	FRDGBufferDesc(const FRDGBufferDesc&) = default;
+	FRDGBufferDesc& operator=(FRDGBufferDesc&&) = default;
+	FRDGBufferDesc& operator=(const FRDGBufferDesc&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Create the descriptor for an indirect RHI call.
 	 *
@@ -867,8 +875,7 @@ struct FRDGBufferDesc
 	static FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
 	{
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
 		Desc.BytesPerElement = sizeof(IndirectParameterStruct);
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -877,8 +884,7 @@ struct FRDGBufferDesc
 	static FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
 	{
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
 		Desc.BytesPerElement = 4;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -887,8 +893,7 @@ struct FRDGBufferDesc
 	static FRDGBufferDesc CreateStructuredDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::StructuredBuffer;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -905,8 +910,7 @@ struct FRDGBufferDesc
 	static FRDGBufferDesc CreateBufferDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -924,8 +928,7 @@ struct FRDGBufferDesc
 	{
 		check(NumBytes % 4 == 0);
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::ByteAddressBuffer;
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::StructuredBuffer | EBufferUsageFlags::ByteAddressBuffer;
 		Desc.BytesPerElement = 4;
 		Desc.NumElements = NumBytes / 4;
 		return Desc;
@@ -942,8 +945,7 @@ struct FRDGBufferDesc
 	static FRDGBufferDesc CreateUploadDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags::ShaderResource;
+		Desc.Usage = EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -960,8 +962,7 @@ struct FRDGBufferDesc
 	static FRDGBufferDesc CreateStructuredUploadDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = EBufferUsageFlags::ShaderResource;
+		Desc.Usage = EBufferUsageFlags::ShaderResource | EBufferUsageFlags::StructuredBuffer;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -979,8 +980,7 @@ struct FRDGBufferDesc
 	{
 		check(NumBytes % 4 == 0);
 		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = EBufferUsageFlags::ShaderResource | EBufferUsageFlags::ByteAddressBuffer;
+		Desc.Usage = EBufferUsageFlags::ShaderResource | EBufferUsageFlags::ByteAddressBuffer | EBufferUsageFlags::StructuredBuffer;
 		Desc.BytesPerElement = 4;
 		Desc.NumElements = NumBytes / 4;
 		return Desc;
@@ -1011,18 +1011,16 @@ struct FRDGBufferDesc
 		uint32 Hash = GetTypeHash(Desc.BytesPerElement);
 		Hash = HashCombine(Hash, GetTypeHash(Desc.NumElements));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.Usage));
-		Hash = HashCombine(Hash, GetTypeHash(Desc.UnderlyingType));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.Metadata));
 		return Hash;
 	}
 
 	bool operator == (const FRDGBufferDesc& Other) const
 	{
-		return (
+		return
 			BytesPerElement == Other.BytesPerElement &&
 			NumElements == Other.NumElements &&
-			Usage == Other.Usage &&
-			UnderlyingType == Other.UnderlyingType);
+			Usage == Other.Usage;
 	}
 
 	bool operator != (const FRDGBufferDesc& Other) const
@@ -1040,25 +1038,20 @@ struct FRDGBufferDesc
 	EBufferUsageFlags Usage = EBufferUsageFlags::None;
 
 	/** The underlying RHI type to use. */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "EUnderlyingType has been deprecated. Use explicit EBufferUsageFlags instead.")
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Meta data of the layout of the buffer for debugging purposes. */
 	const FShaderParametersMetadata* Metadata = nullptr;
 };
 
-inline const TCHAR* GetBufferUnderlyingTypeName(FRDGBufferDesc::EUnderlyingType BufferType)
-{
-	switch (BufferType)
-	{
-	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
-		return TEXT("VertexBuffer");
-	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
-		return TEXT("StructuredBuffer");
+UE_DEPRECATED(5.1, "FRDGBuffer::EUnderylingType has been deprecated. Use EBufferCreateFlags instead.")
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	case FRDGBufferDesc::EUnderlyingType::AccelerationStructure:
-		return TEXT("AccelerationStructure");
+inline const TCHAR* GetBufferUnderlyingTypeName(FRDGBufferDesc::EUnderlyingType)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+{
 	return TEXT("");
 }
 

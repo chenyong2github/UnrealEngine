@@ -59,7 +59,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 		|| SizeInfo.ResultSize < RayTracingSceneBuffer->GetSize() / 2)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::SceneBuffer"));
-		RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
+		RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), EBufferUsageFlags::AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
 	}
 
 	LayerSRVs.SetNum(NumLayers);
@@ -73,8 +73,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 	{
 		const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 		FRDGBufferDesc ScratchBufferDesc;
-		ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
-		ScratchBufferDesc.Usage = BUF_UnorderedAccess;
+		ScratchBufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::StructuredBuffer;
 		ScratchBufferDesc.BytesPerElement = uint32(ScratchAlignment);
 		ScratchBufferDesc.NumElements = uint32(FMath::DivideAndRoundUp(SizeInfo.BuildScratchSize, ScratchAlignment));
 
@@ -83,8 +82,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 
 	{
 		FRDGBufferDesc InstanceBufferDesc;
-		InstanceBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
-		InstanceBufferDesc.Usage = BUF_UnorderedAccess | BUF_ShaderResource;
+		InstanceBufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::StructuredBuffer;
 		InstanceBufferDesc.BytesPerElement = GRHIRayTracingInstanceDescriptorSize;
 		InstanceBufferDesc.NumElements = NumNativeInstancesAligned;
 

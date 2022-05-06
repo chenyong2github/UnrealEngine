@@ -215,16 +215,13 @@ EResourceType GetBufferType(FRDGBuffer* Buffer)
 {
 	const FRDGBufferDesc& Desc = Buffer->Desc;
 
-	if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	if (EnumHasAnyFlags(Desc.Usage, EBufferUsageFlags::ByteAddressBuffer))
 	{
-		if (EnumHasAnyFlags(Desc.Usage, BUF_ByteAddressBuffer))
-		{
-			return EResourceType::BYTEBUFFER;
-		}
-		else
-		{
-			return EResourceType::STRUCTURED_BUFFER;
-		}
+		return EResourceType::BYTEBUFFER;
+	}
+	else if (EnumHasAnyFlags(Desc.Usage, EBufferUsageFlags::StructuredBuffer))
+	{
+		return EResourceType::STRUCTURED_BUFFER;
 	}
 	else
 	{

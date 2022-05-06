@@ -79,12 +79,13 @@ inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc)
 {
 	FRHIBufferCreateInfo CreateInfo;
 	CreateInfo.Size = InDesc.GetSize();
-	if (InDesc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+
+	if (EnumHasAnyFlags(InDesc.Usage, EBufferUsageFlags::VertexBuffer))
 	{
 		CreateInfo.Stride = 0;
 		CreateInfo.Usage = InDesc.Usage | BUF_VertexBuffer;
 	}
-	else if (InDesc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	else if (EnumHasAnyFlags(InDesc.Usage, EBufferUsageFlags::StructuredBuffer))
 	{
 		CreateInfo.Stride = InDesc.BytesPerElement;
 		CreateInfo.Usage = InDesc.Usage | BUF_StructuredBuffer;
@@ -186,31 +187,31 @@ inline FRDGTextureSubresourceRange FRDGTextureUAV::GetSubresourceRange() const
 inline FRDGBufferSRVDesc::FRDGBufferSRVDesc(FRDGBufferRef InBuffer)
 	: Buffer(InBuffer)
 {
-	if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_DrawIndirect))
+	if (EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::DrawIndirect))
 	{
 		BytesPerElement = 4;
 		Format = PF_R32_UINT;
 	}
-	else if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_AccelerationStructure))
+	else if (EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::AccelerationStructure))
 	{
 		// nothing special here
 	}
 	else
 	{
-		checkf(Buffer->Desc.UnderlyingType != FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("VertexBuffer %s requires a type when creating a SRV."), Buffer->Name);
+		checkf(!EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::VertexBuffer), TEXT("VertexBuffer %s requires a type when creating a SRV."), Buffer->Name);
 	}
 }
 
 inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
 	: Buffer(InBuffer)
 {
-	if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_DrawIndirect))
+	if (EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::DrawIndirect))
 	{
 		Format = PF_R32_UINT;
 	}
 	else
 	{
-		checkf(Buffer->Desc.UnderlyingType != FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("VertexBuffer %s requires a type when creating a UAV."), Buffer->Name);
+		checkf(!EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::VertexBuffer), TEXT("VertexBuffer %s requires a type when creating a UAV."), Buffer->Name);
 	}
 }
 

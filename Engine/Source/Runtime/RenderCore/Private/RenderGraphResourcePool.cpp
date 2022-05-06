@@ -117,34 +117,9 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(const FRDGBufferDe
 		TRACE_COUNTER_ADD(BufferPoolCreateCount, 1);
 		TRACE_COUNTER_ADD(BufferPoolSize, NumBytes);
 
+		const ERHIAccess InitialAccess = RHIGetDefaultResourceState(Desc.Usage, false);
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
-		TRefCountPtr<FRHIBuffer> BufferRHI;
-
-		ERHIAccess InitialAccess = ERHIAccess::Unknown;
-
-		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
-		{
-			const EBufferUsageFlags Usage = Desc.Usage | BUF_VertexBuffer;
-			InitialAccess = RHIGetDefaultResourceState(Usage, false);
-			BufferRHI = RHICreateVertexBuffer(NumBytes, Usage, InitialAccess, CreateInfo);
-		}
-		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
-		{
-			const EBufferUsageFlags Usage = Desc.Usage | BUF_StructuredBuffer;
-			InitialAccess = RHIGetDefaultResourceState(Usage, false);
-			BufferRHI = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Usage, InitialAccess, CreateInfo);
-		}
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
-		{
-			InitialAccess = ERHIAccess::BVHWrite;
-			BufferRHI = RHICreateBuffer(NumBytes, Desc.Usage, 0, InitialAccess, CreateInfo);
-		}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		else
-		{
-			check(0);
-		}
+		TRefCountPtr<FRHIBuffer> BufferRHI = RHICreateBuffer(NumBytes, Desc.Usage, Desc.BytesPerElement, InitialAccess, CreateInfo);
 
 	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		RHIBindDebugLabelName(BufferRHI, InDebugName);

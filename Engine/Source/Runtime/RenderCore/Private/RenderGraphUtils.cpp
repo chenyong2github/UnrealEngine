@@ -226,6 +226,11 @@ void AddCopyTexturePass(
 	FRDGTextureRef OutputTexture,
 	const FRHICopyTextureInfo& CopyInfo)
 {
+	if (InputTexture == OutputTexture)
+	{
+		return;
+	}
+
 	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
 	const FRDGTextureDesc& OutputDesc = OutputTexture->Desc;
 	checkf(InputDesc.Format == OutputDesc.Format, TEXT("This method does not support format conversion."));
@@ -251,6 +256,11 @@ RENDERCORE_API void AddDrawTexturePass(
 	FRDGTextureRef OutputTexture,
 	const FRDGDrawTextureInfo& DrawInfo)
 {
+	if (InputTexture == OutputTexture)
+	{
+		return;
+	}
+
 	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
 	const FRDGTextureDesc& OutputDesc = OutputTexture->Desc;
 
@@ -1002,7 +1012,7 @@ FRDGBufferRef CreateVertexBuffer(
 	ERDGInitialDataFlags InitialDataFlags)
 {
 	checkf(Name, TEXT("Buffer must have a name."));
-	checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("CreateVertexBuffer called with an FRDGBufferDesc underlying type that is not 'VertexBuffer'. Buffer: %s"), Name);
+	checkf(EnumHasAnyFlags(Desc.Usage, EBufferUsageFlags::VertexBuffer), TEXT("CreateVertexBuffer called with an FRDGBufferDesc underlying type that is not 'VertexBuffer'. Buffer: %s"), Name);
 
 	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, Name);
 	GraphBuilder.QueueBufferUpload(Buffer, InitialData, InitialDataSize, InitialDataFlags);

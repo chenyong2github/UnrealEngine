@@ -84,7 +84,7 @@ public:
 		const uint32 MaxBufferSize = GetMaxBufferSize();
 
 		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxBufferSize);
-		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
+		Desc.Usage |= EBufferUsageFlags::SourceCopy;
 		MessageBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("GPUMessageManager.MessageBuffer"));
 
 		FParameters& Parameters = GraphBuilder.Blackboard.Create<FParameters>();
