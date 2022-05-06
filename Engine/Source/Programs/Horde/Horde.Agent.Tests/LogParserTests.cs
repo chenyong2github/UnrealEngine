@@ -485,8 +485,8 @@ namespace Horde.Agent.Tests
 				Assert.AreEqual(LogLevel.Error, logEvents[0].Level);
 			}
 
-			/* Disabled until have faster regex, can operate on 2 million character lines :/
 			{
+				
 				string[] lines =
 				{
 					@"tool 19.50.0.12 (rel,tool,19.500 @527452 x64) D:\Workspaces\AutoSDK\HostWin64\9.508.001\9.500\host_tools\bin\tool.exe",
@@ -507,7 +507,6 @@ namespace Horde.Agent.Tests
 				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[3].Properties!["symbol"].ToString());
 
 			}
-			*/
 		}
 
 		[TestMethod]
