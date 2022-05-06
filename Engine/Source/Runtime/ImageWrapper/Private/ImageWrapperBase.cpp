@@ -57,6 +57,7 @@ bool FImageWrapperBase::GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArr
 
 	if ( ! LastError.IsEmpty())
 	{
+		UE_LOG(LogImageWrapper, Warning, TEXT("ImageWrapper GetRaw failed: %s"), *LastError);
 		return false;
 	}
 	
