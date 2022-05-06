@@ -40,8 +40,6 @@ public:
 	*/
 	/** Set the IK Rig to use as the source (to copy animation FROM) */
 	void SetSourceIKRig(UIKRigDefinition* SourceIKRig);
-	/** Set the IK Rig to use as the target (to copy animation TO) */
-	void SetTargetIKRig(UIKRigDefinition* TargetIKRig);
 	/** Get source skeletal mesh */
 	USkeletalMesh* GetSourcePreviewMesh() const;
 	/** Get target skeletal mesh */
