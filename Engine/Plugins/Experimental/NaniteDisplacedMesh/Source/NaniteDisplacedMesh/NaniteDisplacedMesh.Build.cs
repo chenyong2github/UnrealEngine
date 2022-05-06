@@ -22,14 +22,10 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"ImageCore",
 					"CoreUObject",
 					"Engine",
-					"ImageWrapper",
-					"MediaAssets",
 					"RenderCore",
 					"RHI",
-					"TimeManagement",
 					"SlateCore",
 				}
 			);

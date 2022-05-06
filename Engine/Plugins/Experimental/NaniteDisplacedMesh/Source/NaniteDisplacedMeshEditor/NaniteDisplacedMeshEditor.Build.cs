@@ -21,7 +21,6 @@ namespace UnrealBuildTool.Rules
 					"RHI",
 					"Slate",
 					"SlateCore",
-					"TimeManagement",
 					"UnrealEd",
 				}
 			);
@@ -29,7 +28,6 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"GeometryScriptingCore",
 					"EditorSubsystem",
 					"NaniteDisplacedMesh"
 				}
