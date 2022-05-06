@@ -70,8 +70,17 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
+	bool bNeedsReset =
+		bResetOnBecomingRelevant &&
+		UpdateCounter.HasEverBeenUpdated() &&
+		!UpdateCounter.WasSynchronizedCounter(Context.AnimInstanceProxy->GetUpdateCounter());
+
+#if WITH_EDITOR
+	bNeedsReset = bNeedsReset || MotionMatchingState.HasSearchIndexChanged();
+#endif
+
 	// If we just became relevant and haven't been initialized yet, then reset motion matching state, otherwise update the asset time using the player node.
-	if (bResetOnBecomingRelevant && UpdateCounter.HasEverBeenUpdated() && !UpdateCounter.WasSynchronizedCounter(Context.AnimInstanceProxy->GetUpdateCounter()))
+	if (bNeedsReset)
 	{
 		MotionMatchingState.Reset();
 	}

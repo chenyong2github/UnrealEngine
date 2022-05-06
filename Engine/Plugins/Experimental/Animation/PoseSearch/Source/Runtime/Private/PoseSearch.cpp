@@ -1739,6 +1739,16 @@ FIoHash UPoseSearchDatabase::GetSearchIndexHash() const
 
 	return PrivateDerivedData->DerivedDataKey.Hash;
 }
+
+bool UPoseSearchDatabase::IsDerivedDataBuildPending() const
+{
+	if (!PrivateDerivedData)
+	{
+		return true;
+	}
+
+	return PrivateDerivedData->DerivedDataKey.Hash != PrivateDerivedData->PendingDerivedDataKey;
+}
 #endif // WITH_EDITOR
 
 

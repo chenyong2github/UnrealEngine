@@ -354,6 +354,17 @@ void UpdateMotionMatchingState(
 		}
 	}
 
+#if WITH_EDITOR
+	if (InOutMotionMatchingState.CurrentDatabase->IsDerivedDataBuildPending())
+	{
+		InOutMotionMatchingState.Reset();
+		Context.LogMessage(
+			EMessageSeverity::Error, 
+			LOCTEXT("PendingDerivedData", "Derived data build pending."));
+		return;
+	}
+#endif
+
 	const float DeltaTime = Context.GetDeltaTime();
 
 	// Reset State Flags
@@ -626,5 +637,16 @@ bool FMotionMatchingState::IsCompatibleDatabase(const UPoseSearchDatabase* Datab
 
 	return true;
 }
+
+#if WITH_EDITOR
+bool FMotionMatchingState::HasSearchIndexChanged() const
+{
+	const bool bIsConsistent = 
+		!CurrentDatabase.IsValid() ||
+		CurrentDatabase->IsDerivedDataBuildPending() ||
+		CurrentDatabase->GetSearchIndexHash() != CurrentSearchIndexHash;
+	return bIsConsistent;
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

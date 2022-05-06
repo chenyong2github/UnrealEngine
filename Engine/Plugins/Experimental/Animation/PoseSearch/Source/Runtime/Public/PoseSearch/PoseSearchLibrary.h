@@ -85,6 +85,10 @@ struct POSESEARCH_API FMotionMatchingState
 
 	bool IsCompatibleDatabase(const UPoseSearchDatabase* Database) const;
 
+#if WITH_EDITOR
+	bool HasSearchIndexChanged() const;
+#endif 
+
 	// The current pose we're playing from the database
 	UPROPERTY(Transient)
 	int32 DbPoseIdx = INDEX_NONE;

@@ -857,6 +857,8 @@ public:
 	void BeginCacheDerivedData();
 
 	FIoHash GetSearchIndexHash() const;
+
+	bool IsDerivedDataBuildPending() const;
 #endif // WITH_EDITOR
 
 	bool IsDerivedDataValid();
