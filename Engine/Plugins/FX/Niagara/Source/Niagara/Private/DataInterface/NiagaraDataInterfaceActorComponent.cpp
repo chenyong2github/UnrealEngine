@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceActorComponent.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Components/SceneComponent.h"
@@ -79,52 +80,6 @@ namespace NDIActorComponentLocal
 		TMap<FNiagaraSystemInstanceID, FInstanceData_RenderThread> SystemInstancesToInstanceData_RT;
 	};
 }
-
-//////////////////////////////////////////////////////////////////////////
-// Compute Shader Binding
-struct FNDIActorComponentCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIActorComponentCS, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		using namespace NDIActorComponentLocal;
-
-		ValidParam.Bind(ParameterMap, *(NDIActorComponentLocal::ValidString + TEXT("_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		MatrixParam.Bind(ParameterMap, *(NDIActorComponentLocal::MatrixString + TEXT("_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		RotationParam.Bind(ParameterMap, *(NDIActorComponentLocal::RotationString + TEXT("_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		ScaleParam.Bind(ParameterMap, *(NDIActorComponentLocal::ScaleString + TEXT("_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		using namespace NDIActorComponentLocal;
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNDIProxy* DataInterfaceProxy = static_cast<FNDIProxy*>(Context.DataInterface);
-		FInstanceData_RenderThread* InstanceData = DataInterfaceProxy->SystemInstancesToInstanceData_RT.Find(Context.SystemInstanceID);
-		check(InstanceData != nullptr);
-
-		const FMatrix44f InstanceMatrix = (FMatrix44f)InstanceData->CachedTransform.ToMatrixWithScale();
-		const FQuat4f InstanceRotation = (FQuat4f)InstanceData->CachedTransform.GetRotation();
-		const FVector3f InstanceScale = (FVector3f)InstanceData->CachedTransform.GetScale3D();
-		SetShaderValue(RHICmdList, ComputeShaderRHI, ValidParam, InstanceData->bCachedValid ? 1 : 0);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MatrixParam, InstanceMatrix);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, RotationParam, InstanceRotation);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, ScaleParam, InstanceScale);
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, ValidParam);
-	LAYOUT_FIELD(FShaderParameter, MatrixParam);
-	LAYOUT_FIELD(FShaderParameter, RotationParam);
-	LAYOUT_FIELD(FShaderParameter, ScaleParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDIActorComponentCS);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceActorComponent, FNDIActorComponentCS);
 
 //////////////////////////////////////////////////////////////////////////
 // Data Interface
@@ -218,6 +173,7 @@ bool UNiagaraDataInterfaceActorComponent::AppendCompileHash(FNiagaraCompileHashV
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
 	FSHAHash Hash = GetShaderFileHash(NDIActorComponentLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceActorComponentTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return bSuccess;
 }
 
@@ -258,6 +214,25 @@ bool UNiagaraDataInterfaceActorComponent::UpgradeFunctionCall(FNiagaraFunctionSi
 	return false;
 }
 #endif
+
+void UNiagaraDataInterfaceActorComponent::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceActorComponent::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	using namespace NDIActorComponentLocal;
+
+	FNDIProxy& DIProxy = Context.GetProxy<FNDIProxy>();
+	FInstanceData_RenderThread& InstanceData = DIProxy.SystemInstancesToInstanceData_RT.FindChecked(Context.GetSystemInstanceID());
+
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->Valid		= InstanceData.bCachedValid ? 1 : 0;
+	ShaderParameters->Matrix	= (FMatrix44f)InstanceData.CachedTransform.ToMatrixWithScale();
+	ShaderParameters->Rotation	= (FQuat4f)InstanceData.CachedTransform.GetRotation();
+	ShaderParameters->Scale		= (FVector3f)InstanceData.CachedTransform.GetScale3D();
+}
 
 bool UNiagaraDataInterfaceActorComponent::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {

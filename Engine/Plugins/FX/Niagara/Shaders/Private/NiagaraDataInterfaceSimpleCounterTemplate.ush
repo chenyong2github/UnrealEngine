@@ -1,22 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 // RWInstanceCounts come from NiagaraEmitterInstanceSimulation.ush as we use counts from that buffer
 
-int CountOffset_{ParameterName};
+int {ParameterName}_CountOffset;
 
 void Get_{ParameterName}(out int CurrValue)
 {
-	CurrValue = RWInstanceCounts[CountOffset_{ParameterName}];
+	CurrValue = RWInstanceCounts[{ParameterName}_CountOffset];
 }
 
 void Exchange_{ParameterName}_UEImpureCall(in bool bExecute, in int NewValue, out int PrevValue)
 {
 	if ( bExecute )
 	{
-		InterlockedExchange(RWInstanceCounts[CountOffset_{ParameterName}], NewValue, PrevValue);
+		InterlockedExchange(RWInstanceCounts[{ParameterName}_CountOffset], NewValue, PrevValue);
 	}
 	else
 	{
-		PrevValue = RWInstanceCounts[CountOffset_{ParameterName}];
+		PrevValue = RWInstanceCounts[{ParameterName}_CountOffset];
 	}
 }
 
@@ -24,12 +24,12 @@ void Add_{ParameterName}_UEImpureCall(in bool bExecute, in int Amount, out int P
 {
 	if ( bExecute )
 	{
-		InterlockedAdd(RWInstanceCounts[CountOffset_{ParameterName}], Amount, PrevValue);
+		InterlockedAdd(RWInstanceCounts[{ParameterName}_CountOffset], Amount, PrevValue);
 		CurrValue = PrevValue + Amount;
 	}
 	else
 	{
-		PrevValue = RWInstanceCounts[CountOffset_{ParameterName}];
+		PrevValue = RWInstanceCounts[{ParameterName}_CountOffset];
 		CurrValue = PrevValue;
 	}
 }

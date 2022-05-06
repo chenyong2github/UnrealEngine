@@ -4,6 +4,7 @@
 #include "NiagaraClearCounts.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuReadbackManager.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
@@ -110,40 +111,6 @@ struct FNDISimpleCounterProxy : public FNiagaraDataInterfaceProxy
 	TMap<FNiagaraSystemInstanceID, FNDISimpleCounterInstanceData_RenderThread>	PerInstanceData_RenderThread;
 	TMap<FNiagaraSystemInstanceID, FNDISimpleCounterInstanceData_GameThread*>	PerInstanceData_GameThread;
 };
-
-struct FNDISimpleCounterCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDISimpleCounterCS, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		CountOffsetParam.Bind(ParameterMap, *(TEXT("CountOffset_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		using namespace NDISimpleCounterLocal;
-
-		check(IsInRenderingThread());
-
-		if (CountOffsetParam.IsBound())
-		{
-			FNDISimpleCounterProxy* DIProxy = static_cast<FNDISimpleCounterProxy*>(Context.DataInterface);
-			FNDISimpleCounterInstanceData_RenderThread* InstanceData = &DIProxy->PerInstanceData_RenderThread.FindOrAdd(Context.SystemInstanceID);
-			check(InstanceData->CountOffset != INDEX_NONE);
-
-			FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-			SetShaderValue(RHICmdList, ComputeShaderRHI, CountOffsetParam, InstanceData->CountOffset);
-		}
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, CountOffsetParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDISimpleCounterCS);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceSimpleCounter, FNDISimpleCounterCS);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -404,9 +371,26 @@ bool UNiagaraDataInterfaceSimpleCounter::AppendCompileHash(FNiagaraCompileHashVi
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
 	FSHAHash Hash = GetShaderFileHash(NDISimpleCounterLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceSimpleCounterTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return bSuccess;
 }
 #endif
+
+void UNiagaraDataInterfaceSimpleCounter::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceSimpleCounter::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	using namespace NDISimpleCounterLocal;
+
+	FNDISimpleCounterProxy& DIProxy = Context.GetProxy<FNDISimpleCounterProxy>();
+	FNDISimpleCounterInstanceData_RenderThread& InstanceData = DIProxy.PerInstanceData_RenderThread.FindOrAdd(Context.GetSystemInstanceID());
+
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->CountOffset = InstanceData.CountOffset;
+}
 
 void UNiagaraDataInterfaceSimpleCounter::PushToRenderThreadImpl()
 {

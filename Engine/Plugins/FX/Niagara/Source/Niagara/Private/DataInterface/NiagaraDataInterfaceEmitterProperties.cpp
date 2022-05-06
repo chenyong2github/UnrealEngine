@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceEmitterProperties.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
@@ -70,47 +71,6 @@ namespace NDIEmitterPropertiesLocal
 		TMap<FNiagaraSystemInstanceID, FInstanceData_RenderThread>	PerInstanceData_RenderThread;
 	};
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-struct FNDIEmitterPropertiesCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIEmitterPropertiesCS, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		using namespace NDIEmitterPropertiesLocal;
-
-		LocalSpaceParam.Bind(ParameterMap, *(TEXT("LocalSpace_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		FixedBoundsValidParam.Bind(ParameterMap, *(TEXT("FixedBoundsValid_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		FixedBoundsMinParam.Bind(ParameterMap, *(TEXT("FixedBoundsMin_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		FixedBoundsMaxParam.Bind(ParameterMap, *(TEXT("FixedBoundsMax_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		using namespace NDIEmitterPropertiesLocal;
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		const FNDIProxy* DIProxy = static_cast<FNDIProxy*>(Context.DataInterface);
-		const FInstanceData_RenderThread* InstanceData_RT = &DIProxy->PerInstanceData_RenderThread.FindChecked(Context.SystemInstanceID);
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, LocalSpaceParam, InstanceData_RT->bLocalSpace ? 1 : 0);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, FixedBoundsValidParam, InstanceData_RT->FixedBounds.IsValid ? 1 : 0);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, FixedBoundsMinParam, FVector3f(InstanceData_RT->FixedBounds.Min));
-		SetShaderValue(RHICmdList, ComputeShaderRHI, FixedBoundsMaxParam, FVector3f(InstanceData_RT->FixedBounds.Max));
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, LocalSpaceParam);
-	LAYOUT_FIELD(FShaderParameter, FixedBoundsValidParam);
-	LAYOUT_FIELD(FShaderParameter, FixedBoundsMinParam);
-	LAYOUT_FIELD(FShaderParameter, FixedBoundsMaxParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDIEmitterPropertiesCS);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceEmitterProperties, FNDIEmitterPropertiesCS);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -317,6 +277,7 @@ bool UNiagaraDataInterfaceEmitterProperties::AppendCompileHash(FNiagaraCompileHa
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
 	FSHAHash Hash = GetShaderFileHash(NDIEmitterPropertiesLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceEmitterPropertiesTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return bSuccess;
 }
 
@@ -346,6 +307,26 @@ bool UNiagaraDataInterfaceEmitterProperties::GetFunctionHLSL(const FNiagaraDataI
 	return false;
 }
 #endif
+
+void UNiagaraDataInterfaceEmitterProperties::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceEmitterProperties::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	using namespace NDIEmitterPropertiesLocal;
+
+	FNDIProxy& DIProxy = Context.GetProxy<FNDIProxy>();
+	FInstanceData_RenderThread& InstanceData_RT = DIProxy.PerInstanceData_RenderThread.FindChecked(Context.GetSystemInstanceID());
+
+	FShaderParameters* ShaderParameters	= Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->LocalSpace		= InstanceData_RT.bLocalSpace ? 1 : 0;
+	ShaderParameters->FixedBoundsValid	= InstanceData_RT.FixedBounds.IsValid;
+	ShaderParameters->FixedBoundsMin	= FVector3f(InstanceData_RT.FixedBounds.Min);
+	ShaderParameters->FixedBoundsMax	= FVector3f(InstanceData_RT.FixedBounds.Max);
+}
+
 #if WITH_EDITOR	
 void UNiagaraDataInterfaceEmitterProperties::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {

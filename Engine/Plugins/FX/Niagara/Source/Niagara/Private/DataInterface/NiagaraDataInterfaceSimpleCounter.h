@@ -16,9 +16,12 @@ UCLASS(EditInlineNew, Category = "Counting", meta = (DisplayName = "Simple Count
 class NIAGARA_API UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
-public:
-	DECLARE_NIAGARA_DI_PARAMETER();
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(int32,		CountOffset)
+	END_SHADER_PARAMETER_STRUCT();
+
+public:
 	// UObject Interface
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
@@ -43,6 +46,9 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	virtual void PushToRenderThreadImpl() override;
 	// UNiagaraDataInterface Interface End
 

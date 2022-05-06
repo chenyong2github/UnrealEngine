@@ -16,9 +16,14 @@ class UNiagaraDataInterfaceEmitterProperties : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
-public:
-	DECLARE_NIAGARA_DI_PARAMETER();
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(uint32,	LocalSpace)
+		SHADER_PARAMETER(uint32,	FixedBoundsValid)
+		SHADER_PARAMETER(FVector3f,	FixedBoundsMin)
+		SHADER_PARAMETER(FVector3f,	FixedBoundsMax)
+	END_SHADER_PARAMETER_STRUCT();
 
+public:
 	/** Selects which emitter the data interface will bind to, i.e the emitter we are contained within or a named emitter. */
 	UPROPERTY(EditAnywhere, Category = "Emitter")
 	FNiagaraDataInterfaceEmitterBinding EmitterBinding;
@@ -49,6 +54,9 @@ public:
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 #if WITH_EDITOR	
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
 #endif
