@@ -229,7 +229,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.Padding(2.0f, 24.0f, 2.0f, 2.0f)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.AutoWrapText(true)
 				.Justification(ETextJustify::Center)
 				.Text_Lambda([this]()
