@@ -90,6 +90,7 @@ DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftOb
 DECLARE_DELEGATE_RetVal_TwoParams(FString, FRigVMController_PinPathRemapDelegate, const FString& /* InPinPath */, bool /* bIsInput */);
 DECLARE_DELEGATE_OneParam(FRigVMController_RequestJumpToHyperlinkDelegate, const UObject* InSubject);
 DECLARE_DELEGATE_OneParam(FRigVMController_ConfigureWorkflowOptionsDelegate, URigVMUserWorkflowOptions* InOutOptions);
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_CheckPinComatibilityDelegate, URigVMPin*, URigVMPin*);
 
 UINTERFACE()
 class RIGVMDEVELOPER_API URigVMControllerHost : public UInterface
@@ -1090,6 +1091,23 @@ public:
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
 	static TArray<TPair<FString, FString>> GetLinkedPinPaths(URigVMNode* InNode, bool bIncludeInjectionNodes = false);
 	static TArray<TPair<FString, FString>> GetLinkedPinPaths(const TArray<URigVMNode*>& InNodes, bool bIncludeInjectionNodes = false);
+	bool BreakLinkedPaths(const TArray<TPair<FString, FString>>& InLinkedPaths, bool bSetupUndoRedo);
+	bool RestoreLinkedPaths(
+		const TArray<TPair<FString, FString>>& InLinkedPaths,
+		const TMap<FString, FString>& InNodeNameMap,
+		const TMap<FString,FRigVMController_PinPathRemapDelegate>& InRemapDelegates,
+		FRigVMController_CheckPinComatibilityDelegate InCompatibilityDelegate,
+		bool bSetupUndoRedo,
+		ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid);
+	bool RestoreLinkedPaths(
+		const TArray<TPair<FString, FString>>& InLinkedPaths,
+		const TMap<FString, FString>& InNodeNameMap,
+		const TMap<FString,FRigVMController_PinPathRemapDelegate>& InRemapDelegates,
+		bool bSetupUndoRedo,
+		ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid)
+	{
+		return RestoreLinkedPaths(InLinkedPaths, InNodeNameMap, InRemapDelegates, FRigVMController_CheckPinComatibilityDelegate(), bSetupUndoRedo, InUserDirection);
+	}
 
 private: 
 	UPROPERTY(transient)
