@@ -395,7 +395,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::ServerColName); })
 
 			+SHeaderRow::Column(ConcertBrowserUtils::ProjectColName)
-			.DefaultLabel(LOCTEXT("Project", "Project"))
+			.DefaultLabel(LOCTEXT("ProjectCol", "Project"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ProjectColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ProjectColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
