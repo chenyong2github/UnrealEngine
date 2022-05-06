@@ -2831,6 +2831,7 @@ private:
 
 	int32 ResetPoseHash;
 	TArray<bool> ResetPoseIsFilteredOut;
+	TArray<int32> ElementsToRetainLocalTransform;
 
 #if WITH_EDITOR
 
