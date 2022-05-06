@@ -16,7 +16,7 @@ FPCGDebugVisualizationSettings::FPCGDebugVisualizationSettings()
 
 TSoftObjectPtr<UMaterialInterface> FPCGDebugVisualizationSettings::GetMaterial() const
 {
-	if (!MaterialOverride.IsValid() && PointMesh.ToSoftObjectPath() == PCGDebugVisConstants::DefaultPointMesh)
+	if (MaterialOverride.IsNull() && PointMesh.ToSoftObjectPath() == PCGDebugVisConstants::DefaultPointMesh)
 	{
 		return TSoftObjectPtr<UMaterialInterface>(PCGDebugVisConstants::MaterialForDefaultPointMesh);
 	}

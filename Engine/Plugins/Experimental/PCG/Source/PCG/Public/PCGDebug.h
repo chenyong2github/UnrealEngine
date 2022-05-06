@@ -13,7 +13,8 @@ UENUM()
 enum class EPCGDebugVisScaleMethod : uint8
 {
 	Relative,
-	Absolute
+	Absolute,
+	Extents
 };
 
 USTRUCT(BlueprintType)
@@ -24,7 +25,7 @@ struct PCG_API FPCGDebugVisualizationSettings
 public:
 	FPCGDebugVisualizationSettings();
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug, meta=(ClampMin="0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug, meta=(ClampMin="0", EditCondition = "ScaleMethod != EPCGDebugVisScaleMethod::Extents"))
 	float PointScale = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)

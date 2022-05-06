@@ -45,9 +45,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
 	static UPCGComponent* GetOriginalComponent(UPARAM(ref) FPCGContext& Context);
 
-	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
 	static void SetExtents(UPARAM(ref) FPCGPoint& InPoint, const FVector& InExtents);
 
-	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
 	static FVector GetExtents(const FPCGPoint& InPoint);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
+	static void SetLocalCenter(UPARAM(ref) FPCGPoint& InPoint, const FVector& InLocalCenter);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
+	static FVector GetLocalCenter(const FPCGPoint& InPoint);
 };

@@ -72,3 +72,14 @@ FVector UPCGBlueprintHelpers::GetExtents(const FPCGPoint& InPoint)
 {
 	return InPoint.GetExtents();
 }
+
+void UPCGBlueprintHelpers::SetLocalCenter(FPCGPoint& InPoint, const FVector& InLocalCenter)
+{
+	InPoint.SetLocalCenter(InLocalCenter);
+}
+
+FVector UPCGBlueprintHelpers::GetLocalCenter(const FPCGPoint& InPoint)
+{
+	return InPoint.GetLocalCenter();
+}
+

@@ -57,5 +57,18 @@ public:
 	int64 MetadataEntry = -1;
 
 	FVector GetExtents() const { return (BoundsMax - BoundsMin) / 2.0; }
-	void SetExtents(const FVector& InExtents) { BoundsMin = -InExtents; BoundsMax = InExtents; }
+	void SetExtents(const FVector& InExtents)
+	{
+		const FVector Center = GetLocalCenter();
+		BoundsMin = Center - InExtents;
+		BoundsMax = Center + InExtents;
+	}
+
+	FVector GetLocalCenter() const { return (BoundsMax + BoundsMin) / 2.0; }
+	void SetLocalCenter(const FVector& InCenter)
+	{
+		const FVector Delta = InCenter - GetLocalCenter();
+		BoundsMin += Delta;
+		BoundsMax += Delta;
+	}
 };

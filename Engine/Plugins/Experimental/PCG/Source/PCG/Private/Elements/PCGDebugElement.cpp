@@ -117,11 +117,27 @@ namespace PCGDebugElement
 			// First, create target instance transforms
 			const float PointScale = DebugSettings.PointScale;
 			const bool bIsRelative = DebugSettings.ScaleMethod == EPCGDebugVisScaleMethod::Relative;
+			const bool bScaleWithExtents = DebugSettings.ScaleMethod == EPCGDebugVisScaleMethod::Extents;
+			const FVector MeshExtents = Mesh->GetBoundingBox().GetExtent();
+			const FVector MeshCenter = Mesh->GetBoundingBox().GetCenter();
 
 			for (const FPCGPoint& Point : Points)
 			{
 				FTransform& InstanceTransform = Instances.Add_GetRef(Point.Transform);
-				InstanceTransform.SetScale3D(bIsRelative ? InstanceTransform.GetScale3D() * PointScale : FVector(PointScale));
+				if (bIsRelative)
+				{
+					InstanceTransform.SetScale3D(InstanceTransform.GetScale3D() * PointScale);
+				}
+				else if (bScaleWithExtents)
+				{
+					const FVector ScaleWithExtents = Point.GetExtents() / MeshExtents;
+					InstanceTransform.SetTranslation(InstanceTransform.GetTranslation() + Point.GetLocalCenter() - MeshCenter * ScaleWithExtents);
+					InstanceTransform.SetScale3D(InstanceTransform.GetScale3D() * ScaleWithExtents);
+				}
+				else // absolute scaling only
+				{
+					InstanceTransform.SetScale3D(FVector(PointScale));
+				}
 			}
 
 			FPCGISMCBuilderParameters Params;
