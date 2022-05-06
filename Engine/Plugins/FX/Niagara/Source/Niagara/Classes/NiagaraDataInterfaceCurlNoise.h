@@ -12,10 +12,12 @@ UCLASS(EditInlineNew, Category = "Curl Noise LUT", meta = (DisplayName = "Curl N
 class NIAGARA_API UNiagaraDataInterfaceCurlNoise : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FVector3f, OffsetFromSeed)
+	END_SHADER_PARAMETER_STRUCT();
+
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	UPROPERTY(EditAnywhere, Category = "Curl Noise")
 	uint32 Seed;
 
@@ -42,9 +44,13 @@ public:
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

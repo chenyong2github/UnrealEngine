@@ -1,17 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
+float3 {ParameterName}_SystemLWCTile;
 
-#include "/Engine/Private/DeferredShadingCommon.ush"
-
-struct FNDIOcclusionContext
+void QueryOcclusionFactorWithRectangleGPU_{ParameterName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 {
-	float3 SystemLWCTile;
-};
-
-void DIOcclusion_Rectangle(in FNDIOcclusionContext DIContext, in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
-{
-	FLWCVector3 LwcSamplePos = MakeLWCVector3(DIContext.SystemLWCTile, In_SampleCenterWorldPos);
+	FLWCVector3 LwcSamplePos = MakeLWCVector3({ParameterName}_SystemLWCTile, In_SampleCenterWorldPos);
 	float CameraDistance = LWCToFloat(LWCAbs(LWCDot(LWCSubtract(LwcSamplePos, PrimaryView.WorldViewOrigin), View.ViewForward.xyz)));
 
 	float3 ResolvedLwcSamplePos = LWCToFloat(LWCAdd(LwcSamplePos, PrimaryView.PreViewTranslation));
@@ -62,11 +55,11 @@ void DIOcclusion_Rectangle(in FNDIOcclusionContext DIContext, in float3 In_Sampl
 	Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Steps * Steps));
 }
 
-void DIOcclusion_Circle(in FNDIOcclusionContext DIContext, in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)
+void QueryOcclusionFactorWithCircleGPU_{ParameterName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)
 {
 	const float PI = 3.14159265;
 	const float SPIRAL_TURN = 2 * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
-	FLWCVector3 LwcSamplePos = MakeLWCVector3(DIContext.SystemLWCTile, In_SampleCenterWorldPos);
+	FLWCVector3 LwcSamplePos = MakeLWCVector3({ParameterName}_SystemLWCTile, In_SampleCenterWorldPos);
 	float CameraDistance = LWCToFloat(LWCAbs(LWCDot(LWCSubtract(LwcSamplePos, PrimaryView.WorldViewOrigin), View.ViewForward.xyz)));
 
 	float3 ResolvedLwcSamplePos = LWCToFloat(LWCAdd(LwcSamplePos, PrimaryView.PreViewTranslation));
@@ -128,12 +121,3 @@ void DIOcclusion_Circle(in FNDIOcclusionContext DIContext, in float3 In_SampleCe
 	Out_VisibilityFraction = TotalSamples > 0 ? 1 - OccludedSamples / TotalSamples : 0;
 	Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Rays * Steps + 1));
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define NDIOCCLUSION_DECLARE_CONSTANTS(NAME) \
-	float3				SystemLWCTile_ ## NAME;
-
-#define NDIOCCLUSION_MAKE_CONTEXT(NAME) \
-	FNDIOcclusionContext DIContext; \
-	DIContext.SystemLWCTile = SystemLWCTile_ ## NAME;

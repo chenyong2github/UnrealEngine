@@ -6,6 +6,7 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "Engine/StaticMesh.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceMeshRendererInfo"
@@ -18,9 +19,6 @@ namespace NDIMeshRendererInfoInternal
 {
 	const FName GetNumMeshesName("GetNumMeshes");
 	const FName GetMeshLocalBoundsName("GetMeshLocalBounds");
-
-	const FString NumMeshesPrefix = TEXT("NumMeshes_");
-	const FString MeshDataBufferPrefix = TEXT("MeshDataBuffer_");
 }
 
 enum class ENDIMeshRendererInfoVersion : uint32
@@ -129,49 +127,6 @@ struct FNDIMeshRendererInfoProxy : public FNiagaraDataInterfaceProxy
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 };
-
-/** The parameters used by the data interface in GPU emitters */
-struct FNiagaraDataInterfaceParametersCS_MeshRendererInfo : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_MeshRendererInfo, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		NumMeshesParam.Bind(ParameterMap, *(NDIMeshRendererInfoInternal::NumMeshesPrefix + ParameterInfo.DataInterfaceHLSLSymbol));
-		MeshDataBuffer.Bind(ParameterMap, *(NDIMeshRendererInfoInternal::MeshDataBufferPrefix + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		auto Proxy = static_cast<FNDIMeshRendererInfoProxy*>(Context.DataInterface);
-		FShaderResourceViewRHIRef MeshDataBufferSRV;
-		uint32 NumMeshes = 0;
-		if (Proxy->GPUData.IsValid())
-		{
-			NumMeshes = Proxy->GPUData->GetNumMeshes();
-			MeshDataBufferSRV = Proxy->GPUData->GetMeshDataBufferSRV();
-		}
-
-		if (!MeshDataBufferSRV.IsValid())
-		{
-			MeshDataBufferSRV = FNiagaraRenderer::GetDummyFloatBuffer();
-		}
-		
-		SetShaderValue(RHICmdList, ComputeShaderRHI, NumMeshesParam, NumMeshes);
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshDataBuffer, MeshDataBufferSRV);
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, NumMeshesParam);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshDataBuffer);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_MeshRendererInfo);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceMeshRendererInfo, FNiagaraDataInterfaceParametersCS_MeshRendererInfo);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -426,16 +381,17 @@ bool UNiagaraDataInterfaceMeshRendererInfo::Equals(const UNiagaraDataInterface* 
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceMeshRendererInfo::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
+	return bSuccess;
+}
+
 void UNiagaraDataInterfaceMeshRendererInfo::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	const FStringFormatOrderedArguments Args = {
-		ParamInfo.DataInterfaceHLSLSymbol
-	};
-	OutHLSL += FString::Format(TEXT(R"(
-		uint NumMeshes_{0};
-		Buffer<float> MeshDataBuffer_{0};
-	)"),
-	Args);
+	OutHLSL.Appendf(TEXT("uint %s_NumMeshes;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("Buffer<float> %s_MeshDataBuffer;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
 }
 
 bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -450,7 +406,7 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 		OutHLSL += FString::Format(TEXT(R"(
 			void {FuncName}(out int OutNumMeshes)
 			{
-				OutNumMeshes = NumMeshes_{DIName};
+				OutNumMeshes = {DIName}_NumMeshes;
 			}
 			)"),
 			Args);
@@ -465,19 +421,19 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 				OutMinBounds = (float3)0;
 				OutMaxBounds = (float3)0;
 				OutSize = (float3)0;
-				if (NumMeshes_{DIName} > 0)
+				if ({DIName}_NumMeshes > 0)
 				{
 					const uint MeshDataNumFloats = 6;
-					const uint BufferOffs = clamp(MeshIndex, 0, int(NumMeshes_{DIName} - 1)) * MeshDataNumFloats;
+					const uint BufferOffs = clamp(MeshIndex, 0, int({DIName}_NumMeshes - 1)) * MeshDataNumFloats;
 					OutMinBounds = float3(
-						MeshDataBuffer_{DIName}[BufferOffs + 0],
-						MeshDataBuffer_{DIName}[BufferOffs + 1],
-						MeshDataBuffer_{DIName}[BufferOffs + 2]
+						{DIName}_MeshDataBuffer[BufferOffs + 0],
+						{DIName}_MeshDataBuffer[BufferOffs + 1],
+						{DIName}_MeshDataBuffer[BufferOffs + 2]
 					);
 					OutMaxBounds = float3(
-						MeshDataBuffer_{DIName}[BufferOffs + 3],
-						MeshDataBuffer_{DIName}[BufferOffs + 4],
-						MeshDataBuffer_{DIName}[BufferOffs + 5]
+						{DIName}_MeshDataBuffer[BufferOffs + 3],
+						{DIName}_MeshDataBuffer[BufferOffs + 4],
+						{DIName}_MeshDataBuffer[BufferOffs + 5]
 					);
 					OutSize = OutMaxBounds - OutMinBounds;
 				}
@@ -491,6 +447,27 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 	return false;
 }
 #endif
+
+void UNiagaraDataInterfaceMeshRendererInfo::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceMeshRendererInfo::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNDIMeshRendererInfoProxy& DIProxy = Context.GetProxy<FNDIMeshRendererInfoProxy>();
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	if (DIProxy.GPUData.IsValid())
+	{
+		ShaderParameters->NumMeshes			= DIProxy.GPUData->GetNumMeshes();
+		ShaderParameters->MeshDataBuffer	= DIProxy.GPUData->GetMeshDataBufferSRV();
+	}
+	else
+	{
+		ShaderParameters->NumMeshes			= 0;
+		ShaderParameters->MeshDataBuffer	= FNiagaraRenderer::GetDummyFloatBuffer();
+	}
+}
 
 #if WITH_EDITOR
 

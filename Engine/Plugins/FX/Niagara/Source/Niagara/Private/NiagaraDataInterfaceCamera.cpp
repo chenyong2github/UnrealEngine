@@ -6,6 +6,9 @@
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
 #include "Internationalization/Internationalization.h"
+#include "NiagaraGPUSystemTick.h"
+#include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "ShaderParameterUtils.h"
@@ -31,6 +34,7 @@ struct FNiagaraCameraDIFunctionVersion
     };
 };
 
+const TCHAR* UNiagaraDataInterfaceCamera::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCamera.ush");
 const FName UNiagaraDataInterfaceCamera::GetViewPropertiesName(TEXT("GetViewPropertiesGPU"));
 const FName UNiagaraDataInterfaceCamera::GetClipSpaceTransformsName(TEXT("GetClipSpaceTransformsGPU"));
 const FName UNiagaraDataInterfaceCamera::GetViewSpaceTransformsName(TEXT("GetViewSpaceTransformsGPU"));
@@ -276,83 +280,13 @@ void UNiagaraDataInterfaceCamera::GetFunctions(TArray<FNiagaraFunctionSignature>
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> ArgsSample =
+	if ((FunctionInfo.DefinitionName == GetViewPropertiesName) ||
+		(FunctionInfo.DefinitionName == GetFieldOfViewName) ||
+		(FunctionInfo.DefinitionName == GetClipSpaceTransformsName) ||
+		(FunctionInfo.DefinitionName == GetViewSpaceTransformsName) ||
+		(FunctionInfo.DefinitionName == GetCameraPropertiesName) ||
+		(FunctionInfo.DefinitionName == GetTAAJitterName))
 	{
-		{TEXT("FunctionName"), FunctionInfo.InstanceName},
-		{TEXT("NDIGetContextName"), TEXT("NDICAMERA_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
-	};
-	
-	if (FunctionInfo.DefinitionName == GetViewPropertiesName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float3 Out_ViewPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector, out float4 Out_ViewSizeAndInverseSize, out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter, out float3 Out_PreViewTranslation, out float4 Out_BufferSizeAndInverseSize, out float2 Out_ViewportOffset)
-			{
-				{NDIGetContextName}
-				DICamera_GetViewProperties(DIContext, Out_ViewPositionWorld, Out_ViewForwardVector, Out_ViewUpVector, Out_ViewRightVector, Out_ViewSizeAndInverseSize, Out_ScreenToViewSpace, Out_Current_TAAJitter, Out_Previous_TAAJitter, Out_PreViewTranslation, Out_BufferSizeAndInverseSize, Out_ViewportOffset);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == GetFieldOfViewName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float Out_FieldOfViewAngle)
-			{
-				Out_FieldOfViewAngle = degrees(View.FieldOfViewWideAngles.x);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == GetClipSpaceTransformsName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float4x4 Out_WorldToClipTransform, out float4x4 Out_TranslatedWorldToClipTransform, out float4x4 Out_ClipToWorldTransform, out float4x4 Out_ClipToViewTransform,
-				out float4x4 Out_ClipToTranslatedWorldTransform, out float4x4 Out_ScreenToWorldTransform, out float4x4 Out_ScreenToTranslatedWorldTransform, out float4x4 Out_ClipToPreviousClipTransform)
-			{
-				{NDIGetContextName}
-				DICamera_GetClipSpaceTransforms(DIContext, Out_WorldToClipTransform, Out_TranslatedWorldToClipTransform, Out_ClipToWorldTransform, Out_ClipToViewTransform, Out_ClipToTranslatedWorldTransform, Out_ScreenToWorldTransform, Out_ScreenToTranslatedWorldTransform, Out_ClipToPreviousClipTransform);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == GetViewSpaceTransformsName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float4x4 Out_TranslatedWorldToViewTransform, out float4x4 Out_ViewToTranslatedWorldTransform, out float4x4 Out_TranslatedWorldToCameraViewTransform,
-				out float4x4 Out_CameraViewToTranslatedWorldTransform, out float4x4 Out_ViewToClipTransform, out float4x4 Out_ViewToClipNoAATransform)
-			{
-				{NDIGetContextName}
-				DICamera_GetViewSpaceTransforms(DIContext, Out_TranslatedWorldToViewTransform, Out_ViewToTranslatedWorldTransform, Out_TranslatedWorldToCameraViewTransform, Out_CameraViewToTranslatedWorldTransform, Out_ViewToClipTransform, Out_ViewToClipNoAATransform);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == GetCameraPropertiesName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float3 Out_CameraPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector)
-			{
-				{NDIGetContextName}
-				DICamera_GetCameraProperties(DIContext, Out_CameraPositionWorld, Out_ViewForwardVector, Out_ViewUpVector, Out_ViewRightVector);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == GetTAAJitterName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float2 Out_CurrentJitter, out float2 Out_PreviousJitter)
-			{
-				Out_CurrentJitter = View.TemporalAAJitter.xy;
-				Out_PreviousJitter = View.TemporalAAJitter.zw;
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
 	return false;
@@ -412,22 +346,34 @@ bool UNiagaraDataInterfaceCamera::AppendCompileHash(FNiagaraCompileHashVisitor* 
 	{
 		return false;
 	}
-	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCamera.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceCameraHLSLSource"), Hash.ToString());
+	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceCameraHLSLSource"), GetShaderFileHash(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return true;
-}
-
-void UNiagaraDataInterfaceCamera::GetCommonHLSL(FString& OutHLSL)
-{
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCamera.ush\"\n");
 }
 
 void UNiagaraDataInterfaceCamera::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
-	OutHLSL += TEXT("NDICAMERA_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
+
+void UNiagaraDataInterfaceCamera::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceCamera::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->SystemLWCTile = Context.GetSystemTick().SystemGpuComputeProxy->GetSystemLWCTile();
+}
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCamera, GetClosestParticles);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCamera, CalculateParticleDistances);
@@ -613,35 +559,5 @@ bool UNiagaraDataInterfaceCamera::Equals(const UNiagaraDataInterface* Other) con
 	return OtherTyped->PlayerControllerIndex == PlayerControllerIndex &&
 		OtherTyped->bRequireCurrentFrameData == bRequireCurrentFrameData ;
 }
-
-struct FNiagaraDataInterfaceParametersCS_Camera : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Camera, NonVirtual);
-
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		SystemLWCTileParam.Bind(ParameterMap, *(SystemLWCTileName + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTileParam, Context.SystemLWCTile);
-	}
-
-private:
-	// LWC data
-	LAYOUT_FIELD(FShaderParameter, SystemLWCTileParam);
-
-	static const FString SystemLWCTileName;
-};
-
-// LWC
-const FString FNiagaraDataInterfaceParametersCS_Camera::SystemLWCTileName(TEXT("SystemLWCTile_"));
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Camera);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCamera, FNiagaraDataInterfaceParametersCS_Camera);
 
 #undef LOCTEXT_NAMESPACE

@@ -2,11 +2,11 @@
 
 #include "NiagaraDataInterfaceCurlNoise.h"
 #include "NiagaraShader.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "ShaderParameterUtils.h"
 #include "Math/IntVector.h"
 
 static const FName SampleNoiseFieldName(TEXT("SampleNoiseField"));
-static const FString OffsetFromSeedBaseName(TEXT("OffsetFromSeed_"));
 
 // ----------------------------------------------------- start noise helpers -----------------------------------------------------
 // Fairly straightforward CPU implementation of the equivalent HLSL code found in Engine/Shaders/Private/Random.ush
@@ -425,9 +425,16 @@ void UNiagaraDataInterfaceCurlNoise::SampleNoiseField(FVectorVMExternalFunctionC
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceCurlNoise::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
+	return bSuccess;
+}
+
 bool UNiagaraDataInterfaceCurlNoise::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	static const TCHAR *FormatSample = TEXT(R"(
+	static const TCHAR* FormatSample = TEXT(R"(
 		void {FunctionName}(float3 In_XYZ, out float3 Out_Value)
 		{
 			// NOTE(mv): The comments in random.ush claims that the unused part is optimized away, so it only uses 6 out of 12 values in our case.
@@ -437,22 +444,29 @@ bool UNiagaraDataInterfaceCurlNoise::GetFunctionHLSL(const FNiagaraDataInterface
 	)");
 	TMap<FString, FStringFormatArg> ArgsSample;
 	ArgsSample.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-	ArgsSample.Add(TEXT("OffsetFromSeedName"), OffsetFromSeedBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsSample.Add(TEXT("OffsetFromSeedName"), ParamInfo.DataInterfaceHLSLSymbol + TEXT("_OffsetFromSeed"));
 	OutHLSL += FString::Format(FormatSample, ArgsSample);
 	return true;
 }
 
 void UNiagaraDataInterfaceCurlNoise::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	static const TCHAR *FormatDeclarations = TEXT(R"(
-		float3 {OffsetFromSeedName};
-	)");
-
-	TMap<FString, FStringFormatArg> ArgsDeclarations;
-	ArgsDeclarations.Add(TEXT("OffsetFromSeedName"), OffsetFromSeedBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
+	OutHLSL.Appendf(TEXT("float3 %s_OffsetFromSeed;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
 }
 #endif
+
+void UNiagaraDataInterfaceCurlNoise::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceCurlNoise::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNiagaraDataInterfaceProxyCurlNoise& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyCurlNoise>();
+	
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->OffsetFromSeed = FVector3f(DIProxy.OffsetFromSeed);
+}
 
 void UNiagaraDataInterfaceCurlNoise::PushToRenderThreadImpl()
 {
@@ -467,32 +481,3 @@ void UNiagaraDataInterfaceCurlNoise::PushToRenderThreadImpl()
 		RT_Proxy->OffsetFromSeed = RT_Offset;
 	});
 }
-
-struct FNiagaraDataInterfaceParametersCS_CurlNoise : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CurlNoise, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		OffsetFromSeed.Bind(ParameterMap, *(OffsetFromSeedBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		// Get shader and DI
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNiagaraDataInterfaceProxyCurlNoise* CNDI = static_cast<FNiagaraDataInterfaceProxyCurlNoise*>(Context.DataInterface);
-
-		// Set parameters
-		SetShaderValue(RHICmdList, ComputeShaderRHI, OffsetFromSeed, (FVector3f)CNDI->OffsetFromSeed);
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, OffsetFromSeed);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CurlNoise);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCurlNoise, FNiagaraDataInterfaceParametersCS_CurlNoise);

@@ -5,10 +5,14 @@
 #include "NiagaraWorldManager.h"
 #include "ShaderParameterUtils.h"
 #include "Internationalization/Internationalization.h"
+#include "NiagaraGPUSystemTick.h"
+#include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstance.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceOcclusion"
 
+const TCHAR* UNiagaraDataInterfaceOcclusion::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush");
 const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionRectangleName(TEXT("QueryOcclusionFactorWithRectangleGPU"));
 const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionCircleName(TEXT("QueryOcclusionFactorWithCircleGPU"));
 
@@ -88,46 +92,21 @@ bool UNiagaraDataInterfaceOcclusion::AppendCompileHash(FNiagaraCompileHashVisito
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
-	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceOcclusionHLSLSource"), Hash.ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceOcclusionHLSLSource"), GetShaderFileHash(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return true;
 }
 
 void UNiagaraDataInterfaceOcclusion::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush\"\n");
+	OutHLSL += TEXT("#include \"/Engine/Private/DeferredShadingCommon.ush\"\n");
 }
 
 bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> ArgsSample =
+	if ((FunctionInfo.DefinitionName == GetCameraOcclusionRectangleName) ||
+		(FunctionInfo.DefinitionName == GetCameraOcclusionCircleName))
 	{
-		{TEXT("FunctionName"), FunctionInfo.InstanceName},
-		{TEXT("NDIGetContextName"), TEXT("NDIOCCLUSION_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
-	};
-
-	if (FunctionInfo.DefinitionName == GetCameraOcclusionRectangleName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
-			{
-				{NDIGetContextName}
-				DIOcclusion_Rectangle(DIContext, In_SampleCenterWorldPos, In_SampleWindowWidthWorld, In_SampleWindowHeightWorld, In_SampleSteps, Out_VisibilityFraction, Out_SampleFraction);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == GetCameraOcclusionCircleName)
-	{
-		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)
-			{
-				{NDIGetContextName}
-				DIOcclusion_Circle(DIContext, In_SampleCenterWorldPos, In_SampleWindowDiameterWorld, In_SampleRays, In_SampleStepsPerRay, Out_VisibilityFraction, Out_SampleFraction);
-			}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
 	return false;
@@ -156,38 +135,26 @@ void UNiagaraDataInterfaceOcclusion::GetParameterDefinitionHLSL(const FNiagaraDa
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
-	OutHLSL += TEXT("NDIOCCLUSION_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
 
-struct FNiagaraDataInterfaceParametersCS_Occlusion : public FNiagaraDataInterfaceParametersCS
+void UNiagaraDataInterfaceOcclusion::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Occlusion, NonVirtual);
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
 
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		SystemLWCTileParam.Bind(ParameterMap, *(SystemLWCTileName + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTileParam, Context.SystemLWCTile);
-	}
-
-private:
-	// LWC data
-	LAYOUT_FIELD(FShaderParameter, SystemLWCTileParam);
-
-	static const FString SystemLWCTileName;
-};
-
-// LWC
-const FString FNiagaraDataInterfaceParametersCS_Occlusion::SystemLWCTileName(TEXT("SystemLWCTile_"));
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Occlusion);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceOcclusion, FNiagaraDataInterfaceParametersCS_Occlusion);
+void UNiagaraDataInterfaceOcclusion::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->SystemLWCTile = Context.GetSystemTick().SystemGpuComputeProxy->GetSystemLWCTile();
+}
 
 #undef LOCTEXT_NAMESPACE

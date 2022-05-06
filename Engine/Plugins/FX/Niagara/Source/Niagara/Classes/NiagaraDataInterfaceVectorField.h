@@ -12,6 +12,15 @@ class NIAGARA_API UNiagaraDataInterfaceVectorField : public UNiagaraDataInterfac
 {
 	GENERATED_UCLASS_BODY()
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FVector3f,				TilingAxes)
+		SHADER_PARAMETER(FVector3f,				Dimensions)
+		SHADER_PARAMETER(FVector3f,				MinBounds)
+		SHADER_PARAMETER(FVector3f,				MaxBounds)
+		SHADER_PARAMETER_TEXTURE(Texture3D,		Texture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,	Sampler)
+	END_SHADER_PARAMETER_STRUCT();
+
 public:
 	/** Vector field to sample from. */
 	UPROPERTY(EditAnywhere, Category = VectorField)
@@ -26,9 +35,6 @@ public:
 
 public:
 	//~ UObject interface
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override; 
 #if WITH_EDITOR
@@ -52,9 +58,13 @@ public:
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	//~ UNiagaraDataInterface interface END
 
 	// VM functions
@@ -97,20 +107,4 @@ struct FNiagaraDataInterfaceProxyVectorField : public FNiagaraDataInterfaceProxy
 	{
 		return 0;
 	}
-};
-
-struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_VectorField, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap);
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, VectorFieldSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, VectorFieldTexture);
-	LAYOUT_FIELD(FShaderParameter, TilingAxes);
-	LAYOUT_FIELD(FShaderParameter, Dimensions);
-	LAYOUT_FIELD(FShaderParameter, MinBounds);
-	LAYOUT_FIELD(FShaderParameter, MaxBounds);
 };

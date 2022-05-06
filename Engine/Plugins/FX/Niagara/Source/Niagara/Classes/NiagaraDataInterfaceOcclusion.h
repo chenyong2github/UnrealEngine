@@ -11,10 +11,11 @@ class NIAGARA_API UNiagaraDataInterfaceOcclusion : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
-public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FVector3f, SystemLWCTile)
+	END_SHADER_PARAMETER_STRUCT();
 
-	DECLARE_NIAGARA_DI_PARAMETER();
-	
+public:
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	//UObject Interface End
@@ -28,11 +29,16 @@ public:
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::GPUComputeSim; }
 	virtual bool RequiresDepthBuffer() const override { return true; }
 	//UNiagaraDataInterface Interface
 	
 private:
+	static const TCHAR* TemplateShaderFilePath;
 	static const FName GetCameraOcclusionRectangleName;
 	static const FName GetCameraOcclusionCircleName;
 };
