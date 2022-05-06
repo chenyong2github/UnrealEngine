@@ -106,7 +106,7 @@ private:
 	TArray<FStateTreeExternalDataDesc> ExternalDataDescs;
 
 	/** List of names external data enforced by the schema, created at compilation. */
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
 	
 	UPROPERTY(Transient)
