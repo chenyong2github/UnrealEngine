@@ -2144,6 +2144,11 @@ namespace Audio
 		AudioDeviceStats_AudioThread.Remove(AudioDevice.DeviceID);
 	}
 
+
+
+
+
+
 	void FAudioDebugger::ClearStats(const FName StatsToClear, UWorld* InWorld)
 	{
 		if (!GEngine)
@@ -2235,6 +2240,10 @@ namespace Audio
 		
 		Stats.RequestedStats.Append(StatsToSet);
 	}
+		
+
+
+		
 
 	bool FAudioDebugger::PostStatModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
