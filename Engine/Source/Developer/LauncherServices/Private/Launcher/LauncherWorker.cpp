@@ -827,6 +827,16 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		UATCommand += TEXT(" -SkipCookingEditorContent");
 	}
 
+	FString StageAdditionalCommandLine;
+	if (InProfile->IsUsingIoStore() &&
+		InProfile->GetReferenceContainerGlobalFileName().Len())
+	{
+		StageAdditionalCommandLine += TEXT(" -ReferenceContainerGlobalFileName=\"") + InProfile->GetReferenceContainerGlobalFileName() + TEXT("\"");
+		if (InProfile->GetReferenceContainerCryptoKeysFileName().Len())
+		{
+			StageAdditionalCommandLine += TEXT(" -ReferenceContainerCryptoKeys=\"") + InProfile->GetReferenceContainerCryptoKeysFileName() + TEXT("\"") ;
+		}
+	}
 	// stage/package/deploy
 	if (InProfile->GetDeploymentMode() != ELauncherProfileDeploymentModes::DoNotDeploy)
 	{
@@ -867,6 +877,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				UATCommand += StageDirectory;
 				UATCommand += DeviceCommand;
 				UATCommand += AdditionalCommandLine;
+				UATCommand += StageAdditionalCommandLine;
 
 				FCommandDesc Desc;
 				FText Command = FText::Format(LOCTEXT("LauncherDeployDesc", "Deploying content for {0}"), FText::FromString(Platforms.RightChop(1)));
@@ -912,6 +923,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			UATCommand += StageDirectory;
 			UATCommand += CommandLine;
 			UATCommand += AdditionalCommandLine;
+			UATCommand += StageAdditionalCommandLine;
 
 			FCommandDesc Desc;
 			FText Command = FText::Format(LOCTEXT("LauncherPackageDesc", "Packaging content for {0}"), FText::FromString(Platforms.RightChop(1)));

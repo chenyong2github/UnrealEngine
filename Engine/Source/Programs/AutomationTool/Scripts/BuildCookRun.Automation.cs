@@ -80,6 +80,18 @@ public class BuildCookRun : BuildCommand
             Params.CulturesToCook = new ParamList<string>(CulturesToCook.Split('+'));
         }
 
+		var ReferenceContainerGlobalFileName = ParseParamValue("ReferenceContainerGlobalFileName");
+		if (!String.IsNullOrEmpty(ReferenceContainerGlobalFileName))
+		{
+			Params.ReferenceContainerGlobalFileName = ReferenceContainerGlobalFileName;
+		}
+
+		var ReferenceContainerCryptoKeys = ParseParamValue("ReferenceContainerCryptoKeys");
+		if (!String.IsNullOrEmpty(ReferenceContainerCryptoKeys))
+		{
+			Params.ReferenceContainerCryptoKeys = ReferenceContainerCryptoKeys;
+		}
+
 		if (Params.DedicatedServer)
 		{
 			foreach (var ServerPlatformInstance in Params.ServerTargetPlatformInstances)

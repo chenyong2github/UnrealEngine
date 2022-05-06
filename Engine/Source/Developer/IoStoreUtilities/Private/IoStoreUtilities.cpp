@@ -82,6 +82,134 @@ static const uint64 DefaultCompressionBlockSize = 64 << 10;
 static const uint64 DefaultCompressionBlockAlignment = 64 << 10;
 static const uint64 DefaultMemoryMappingAlignment = 16 << 10;
 
+static TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChain& KeyChain);
+
+class FIoStoreChunkDatabase : public IIoStoreWriterReferenceChunkDatabase
+{
+public:
+
+	TArray<TUniquePtr<FIoStoreReader>> Readers;
+	struct FReaderChunks
+	{
+		int32 ReaderIndex;
+		TMap<FIoChunkHash, FIoChunkId> Chunks;
+	};
+
+	TMap<FIoContainerId, FReaderChunks> ChunkDatabase;
+	int32 RequestCount = 0;
+	int32 FulfillCount = 0;
+	int32 ContainerNotFound = 0;
+	int64 FulfillBytes = 0;
+	
+
+	bool Init(const FString& InGlobalContainerFileName, const FKeyChain& InDecryptionKeychain)
+	{
+		double StartTime = FPlatformTime::Seconds();
+
+		TUniquePtr<FIoStoreReader> GlobalReader = CreateIoStoreReader(*InGlobalContainerFileName, InDecryptionKeychain);
+		if (GlobalReader.IsValid() == false)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to open reference chunk container %s"), *InGlobalContainerFileName);
+			return false;
+		}
+
+		FString Directory = FPaths::GetPath(InGlobalContainerFileName);
+		FPaths::NormalizeDirectoryName(Directory);
+
+		TArray<FString> FoundContainerFiles;
+		IFileManager::Get().FindFiles(FoundContainerFiles, *(Directory / TEXT("*.utoc")), true, false);
+		TArray<FString> ContainerFilePaths;
+		for (const FString& Filename : FoundContainerFiles)
+		{
+			ContainerFilePaths.Emplace(Directory / Filename);
+		}
+
+		int64 IoChunkCount = 0;		
+		for (const FString& ContainerFilePath : ContainerFilePaths)
+		{
+			TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*ContainerFilePath, InDecryptionKeychain);
+			if (Reader.IsValid() == false)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Failed to open reference chunk container %s"), *InGlobalContainerFileName);
+				return false;
+			}
+			FReaderChunks& ReaderChunks = ChunkDatabase.FindOrAdd(Reader->GetContainerId());
+
+			Reader->EnumerateChunks([&ReaderChunks](const FIoStoreTocChunkInfo& ChunkInfo)
+			{
+				ReaderChunks.Chunks.Add(TPair<FIoChunkHash, FIoChunkId>(ChunkInfo.Hash, ChunkInfo.Id));
+				return true;
+			});
+
+			IoChunkCount += ReaderChunks.Chunks.Num();
+			ReaderChunks.ReaderIndex = Readers.Num();
+			Readers.Add(MoveTemp(Reader));
+		}
+
+		UE_LOG(LogIoStore, Display, TEXT("Block reference loaded %d containers and %s chunks, in %.1f seconds"), Readers.Num(), *FText::AsNumber(IoChunkCount).ToString(), FPlatformTime::Seconds() - StartTime);
+		return true;
+	}
+
+	// Not thread safe, called from the BeginCompress dispatch thread.
+	virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, const FName& InCompressionMethod, uint64 InUncompressedSize, uint64 InNumChunkBlocks, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompleteCallback)
+	{
+		RequestCount++;
+
+		FReaderChunks* ReaderChunks = ChunkDatabase.Find(InChunkKey.Key);
+		if (ReaderChunks == nullptr)
+		{
+			// Container doesn't exist - likely provided the path to a different project. Mark this
+			// error as happening once so we can log at the end.
+			ContainerNotFound++;
+			return false;
+		}
+
+		FIoChunkId* ChunkId = ReaderChunks->Chunks.Find(InChunkKey.Value);
+		if (ChunkId == nullptr)
+		{
+			// No exact chunk data match - this is a normal exit condition for a changed block.
+			return false;
+		}
+
+		uint64 TotalCompressedSize = 0;
+		uint64 TotalUncompressedSize = 0;
+		uint32 CompressedBlockCount = 0;
+		Readers[ReaderChunks->ReaderIndex]->EnumerateCompressedBlocksForChunk(*ChunkId, [&TotalUncompressedSize, &CompressedBlockCount, &TotalCompressedSize](const FIoStoreTocCompressedBlockInfo& BlockInfo)
+		{			
+			TotalCompressedSize += BlockInfo.CompressedSize;
+			TotalUncompressedSize += BlockInfo.UncompressedSize;
+			CompressedBlockCount ++;
+			return true;
+		});
+
+		if (TotalUncompressedSize != InUncompressedSize)
+		{
+			// Shocked if this happens - hash match with different data!
+			return false;
+		}
+
+		if (CompressedBlockCount != InNumChunkBlocks)
+		{
+			// Different CompressionBlockSize between the builds
+			return false;
+		}
+
+		FulfillBytes += TotalCompressedSize;
+		FulfillCount++;
+
+		//
+		// At this point we know we can use the block so we can go async.
+		//
+		FFunctionGraphTask::CreateAndDispatchWhenReady([this, ChunkId, ReaderIndex = ReaderChunks->ReaderIndex, CompleteCallback = MoveTemp(InCompleteCallback)]()
+		{
+			TIoStatusOr<FIoStoreCompressedReadResult> Result = Readers[ReaderIndex]->ReadCompressed(*ChunkId, FIoReadOptions());
+			CompleteCallback(Result);
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadNormalTask);
+
+		return true;
+	}
+};
+
 struct FReleasedPackages
 {
 	TSet<FName> PackageNames;
@@ -771,6 +899,8 @@ struct FIoStoreArguments
 	FKeyChain PatchKeyChain;
 	FString DLCPluginPath;
 	FString DLCName;
+	FString ReferenceChunkGlobalContainerFileName;
+	FKeyChain ReferenceChunkKeys;
 	FReleasedPackages ReleasedPackages;
 	TUniquePtr<FCookedPackageStore> PackageStore;
 	TUniquePtr<FIoBuffer> ScriptObjects;
@@ -3169,6 +3299,17 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	ChunkIdCsv.CreateOutputFile(CookedDir);
 #endif
 
+	TSharedPtr<IIoStoreWriterReferenceChunkDatabase> ChunkDatabase;
+	if (Arguments.ReferenceChunkGlobalContainerFileName.Len())
+	{
+		ChunkDatabase = MakeShared<FIoStoreChunkDatabase>();
+		if (((FIoStoreChunkDatabase&)*ChunkDatabase).Init(Arguments.ReferenceChunkGlobalContainerFileName, Arguments.ReferenceChunkKeys) == false)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to initialize reference chunk store."));
+			return 1;
+		}
+	}
+
 	TArray<FLegacyCookedPackage*> Packages;
 	FPackageNameMap PackageNameMap;
 	FPackageIdMap PackageIdMap;
@@ -3228,6 +3369,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
 				ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
 				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
+				ContainerTarget->IoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 				if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
 				{
@@ -3552,6 +3694,25 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Packages without imports"), NoImportedPackagesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8d Public runtime script objects"), PackageStoreOptimizer.GetTotalScriptObjectCount());
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8.2lf MB InitialLoadData"), (double)InitialLoadSize / 1024.0 / 1024.0);
+
+	if (ChunkDatabase.IsValid())
+	{
+		uint64 TotalCompressedBytes = 0;
+		for (const FIoStoreWriterResult& Result : IoStoreWriterResults)
+		{
+			TotalCompressedBytes += Result.CompressedContainerSize;
+		}
+
+		FIoStoreChunkDatabase& ChunkDatabaseRef = (FIoStoreChunkDatabase&)*ChunkDatabase;
+		UE_LOG(LogIoStore, Display, TEXT("Reference Chunk: %s reused bytes out of %s possible: %.1f%%"), *FText::AsNumber(ChunkDatabaseRef.FulfillBytes).ToString(), *FText::AsNumber(TotalCompressedBytes).ToString(), 100.0 * ChunkDatabaseRef.FulfillBytes / TotalCompressedBytes);
+		UE_LOG(LogIoStore, Display, TEXT("Reference Chunk: %s chunks found / %s requests"), *FText::AsNumber(ChunkDatabaseRef.FulfillCount).ToString(), *FText::AsNumber(ChunkDatabaseRef.RequestCount).ToString());
+		if (ChunkDatabaseRef.ContainerNotFound)
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Reference Chunk had %s requests for a container that wasn't loaded. This means the "), *FText::AsNumber(ChunkDatabaseRef.ContainerNotFound).ToString());
+			UE_LOG(LogIoStore, Warning, TEXT("new output has a container that wasn't deployed before. If that doesn't sound right"));
+			UE_LOG(LogIoStore, Warning, TEXT("verify that you used reference containers from the same project."));
+		}
+	}
 
 	return 0;
 }
@@ -3967,6 +4128,223 @@ bool LegacyListIoStoreContainer(
 	UE_LOG(LogIoStore, Display, TEXT("%d files (%lld bytes)."), FileCount, FileSize);
 
 	return true;
+}
+
+int32 ProfileReadSpeed(const TCHAR* InCommandLine, const FKeyChain& InKeyChain)
+{
+	FString ContainerPath;
+	if (FParse::Value(InCommandLine, TEXT("Container="), ContainerPath) == false)
+	{
+		UE_LOG(LogIoStore, Display, TEXT(""));
+		UE_LOG(LogIoStore, Display, TEXT("ProfileReadSpeed"));
+		UE_LOG(LogIoStore, Display, TEXT(""));
+		UE_LOG(LogIoStore, Display, TEXT("Reads the given utoc file using given a read method. This uses FIoStoreReader, which is not"));
+		UE_LOG(LogIoStore, Display, TEXT("the system the runtime uses to load and stream iostore containers! It's for utility/debug use only."));
+		UE_LOG(LogIoStore, Display, TEXT(""));
+		UE_LOG(LogIoStore, Display, TEXT("Arguments:"));
+		UE_LOG(LogIoStore, Display, TEXT(""));
+		UE_LOG(LogIoStore, Display, TEXT("    -Container=path/to/utoc                      [required] The .utoc file to read."));
+		UE_LOG(LogIoStore, Display, TEXT("    -ReadType={Read, ReadAsync, ReadCompressed}  What read function to use on FIoStoreReader. Default: Read"));
+		UE_LOG(LogIoStore, Display, TEXT("    -cryptokeys=path/to/crypto.json              [required if encrypted] The keys to decrypt the container."));
+		UE_LOG(LogIoStore, Display, TEXT("    -MaxJobCount=#                               The number of outstanding read tasks to maintain. Default: 512."));
+		UE_LOG(LogIoStore, Display, TEXT("    -Validate                                    Whether to hash the reads and verify they match. Invalid for ReadCompressed. Default: disabled"));
+		return 1;
+	}
+
+	TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*ContainerPath, InKeyChain);
+	if (Reader.IsValid() == false)
+	{
+		return 1; // Already logged
+	}
+
+	TArray<FIoChunkId> Chunks;
+	Reader->EnumerateChunks([&Chunks](const FIoStoreTocChunkInfo& ChunkInfo)
+	{
+		Chunks.Add(ChunkInfo.Id);
+		return true;
+	});
+
+	enum class EReadType
+	{
+		Read,
+		ReadAsync,
+		ReadCompressed
+	};
+
+	auto ReadTypeToString = [](EReadType InReadType)
+	{
+		switch (InReadType)
+		{
+		case EReadType::Read: return TEXT("Read");
+		case EReadType::ReadAsync: return TEXT("ReadAsync");
+		case EReadType::ReadCompressed: return TEXT("ReadCompressed");
+		default: return TEXT("INVALID");
+		}
+	};
+
+	EReadType ReadType = EReadType::Read;
+	int32 MaxOutstandingJobs = 512;
+	bool bValidate = false;
+
+	bValidate = FParse::Param(InCommandLine, TEXT("Validate"));
+	FParse::Value(InCommandLine, TEXT("MaxJobCount="), MaxOutstandingJobs);
+
+	FString ReadTypeRaw;
+	if (FParse::Value(InCommandLine, TEXT("ReadType="), ReadTypeRaw))
+	{
+		if (ReadTypeRaw.Compare(TEXT("Read"), ESearchCase::IgnoreCase) == 0)
+		{
+			ReadType = EReadType::Read;
+		}
+		else if (ReadTypeRaw.Compare(TEXT("ReadAsync"), ESearchCase::IgnoreCase) == 0)
+		{
+			ReadType = EReadType::ReadAsync;
+		}
+		else if (ReadTypeRaw.Compare(TEXT("ReadCompressed"), ESearchCase::IgnoreCase) == 0)
+		{
+			ReadType = EReadType::ReadCompressed;
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Invalid -ReadType provided: %s. Valid are {Read, ReadAsync, ReadCompressed}"), *ReadTypeRaw);
+			return 1;
+		}
+	}
+
+	if (MaxOutstandingJobs <= 0)
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Invalid -MaxJobCount provided: %d. Specify a positive integer"), MaxOutstandingJobs);
+		return 1;
+	}
+
+	if (ReadType == EReadType::ReadCompressed && 
+		bValidate)
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Can't validate ReadCompressed as the data is not decompressed and thus can't be hashed"));
+		return 1;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("MaxJobCount:            %s"), *FText::AsNumber(MaxOutstandingJobs).ToString());
+	UE_LOG(LogIoStore, Display, TEXT("ReadType:               %s"), ReadTypeToString(ReadType));
+	UE_LOG(LogIoStore, Display, TEXT("Validation:             %s"), bValidate ? TEXT("Enabled") : TEXT("Disabled"));
+	UE_LOG(LogIoStore, Display, TEXT("Container Encrypted:    %s"), EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Encrypted) ? TEXT("Yes") : TEXT("No"));
+	
+	// We need a resettable event, so we can't use any of the task system events.
+	FEvent* JustGotSpaceEvent = FPlatformProcess::GetSynchEventFromPool();
+	UE::Tasks::FTaskEvent CompletedEvent(TEXT("ProfileReadDone"));
+
+	std::atomic_int32_t OutstandingJobs = 0;
+	std::atomic_int32_t TotalJobsRemaining = Chunks.Num();
+	std::atomic_int64_t BytesRead = 0;
+
+	double StartTime = FPlatformTime::Seconds();
+	UE_LOG(LogIoStore, Display, TEXT("Dispatching %s chunk reads (%s max at one time)"), *FText::AsNumber(Chunks.Num()).ToString(), *FText::AsNumber(MaxOutstandingJobs).ToString());
+
+	for (FIoChunkId& Id : Chunks)
+	{
+		for (;;)
+		{
+			int32 CurrentOutstanding = OutstandingJobs.load();
+			if (CurrentOutstanding == MaxOutstandingJobs)
+			{
+				// Wait for one to complete.
+				JustGotSpaceEvent->Wait();
+				continue;
+			}
+			else if (CurrentOutstanding > MaxOutstandingJobs)
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Synch error -- too many jobs oustanding %d"), CurrentOutstanding);
+			}
+			break;
+		}
+
+		OutstandingJobs++;
+		UE::Tasks::Launch(TEXT("IoStoreUtil::ReadJob"), [Id = Id, &OutstandingJobs, &JustGotSpaceEvent, &TotalJobsRemaining, &BytesRead, &Reader, &CompletedEvent, MaxOutstandingJobs, ReadType, bValidate]()
+		{
+			FIoChunkHash ReadHash;
+			bool bHashValid = false;
+
+			switch (ReadType)
+			{
+			case EReadType::ReadCompressed:
+				{
+					FIoStoreCompressedReadResult Result = Reader->ReadCompressed(Id, FIoReadOptions()).ValueOrDie();
+					BytesRead += Result.IoBuffer.GetSize();
+					break;
+				}
+			case EReadType::Read:
+				{
+					FIoBuffer Result = Reader->Read(Id, FIoReadOptions()).ValueOrDie();
+					BytesRead += Result.GetSize();
+
+					if (bValidate)
+					{
+						ReadHash = FIoChunkHash::HashBuffer(Result.GetData(), Result.GetSize());
+						bHashValid = true;
+					}
+
+					break;
+				}
+			case EReadType::ReadAsync:
+				{
+					UE::Tasks::TTask<TIoStatusOr<FIoBuffer>> Tasks = Reader->ReadAsync(Id, FIoReadOptions());
+					Tasks.BusyWait();
+					FIoBuffer Result = Tasks.GetResult().ValueOrDie();
+
+					BytesRead += Result.GetSize();
+
+					if (bValidate)
+					{
+						ReadHash = FIoChunkHash::HashBuffer(Result.GetData(), Result.GetSize());
+						bHashValid = true;
+					}
+					break;
+				}
+			}
+
+			if (bHashValid)
+			{
+				FIoChunkHash CheckAgainstHash = Reader->GetChunkInfo(Id).ValueOrDie().Hash;
+				if (ReadHash != CheckAgainstHash)
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Read hash mismatch: Chunk %s"), *LexToString(Id));
+				}
+			}
+
+			if (OutstandingJobs.fetch_add(-1) == MaxOutstandingJobs)
+			{
+				// We are the first to make space in our limit, so release the dispatch thread to add more.
+				JustGotSpaceEvent->Trigger();
+			}
+
+			int32 JobsRemaining = TotalJobsRemaining.fetch_add(-1);
+			if ((JobsRemaining % 1000) == 1)
+			{
+				UE_LOG(LogIoStore, Display, TEXT("Jobs Remaining: %d"), JobsRemaining - 1);
+			}
+
+			// Were we the last job issued?
+			if (JobsRemaining == 1)
+			{
+				CompletedEvent.Trigger();
+			}
+		});
+	}
+
+	{
+		double WaitStartTime = FPlatformTime::Seconds();
+		CompletedEvent.BusyWait();
+		UE_LOG(LogIoStore, Display, TEXT("Waited %.1f seconds"), FPlatformTime::Seconds() - WaitStartTime);
+	}
+
+	FPlatformProcess::ReturnSynchEventToPool(JustGotSpaceEvent);
+
+	double TotalTime = FPlatformTime::Seconds() - StartTime;
+
+	int64 BytesPerSecond = int64(BytesRead.load() / TotalTime);
+
+	UE_LOG(LogIoStore, Display, TEXT("%s bytes in %.1f seconds; %s bytes per second"), *FText::AsNumber((int64)BytesRead.load()).ToString(), TotalTime, *FText::AsNumber(BytesPerSecond).ToString());
+	return 0;
 }
 
 int32 Describe(
@@ -5486,15 +5864,20 @@ bool ExtractFilesFromIoStoreContainer(
 		}
 	};
 
-	TArray<TFuture<bool>> ExtractTasks;
-	ExtractTasks.SetNum(Entries.Num());
+	TArray<UE::Tasks::TTask<bool>> ExtractTasks;
+	ExtractTasks.Reserve(Entries.Num());
 	EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
 	for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
 	{
 		const FEntry& Entry = Entries[EntryIndex];
-		ExtractTasks[EntryIndex] = Reader->ReadAsync(Entry.ChunkId, FIoReadOptions())
-			.Next([&Entry, &WriteFile](TIoStatusOr<FIoBuffer> ReadChunkResult)
+
+		UE::Tasks::TTask<TIoStatusOr<FIoBuffer>> ReadTask = Reader->ReadAsync(Entry.ChunkId, FIoReadOptions());
+
+		// Once the read is done, write out the file.
+		ExtractTasks.Emplace(UE::Tasks::Launch(TEXT("IoStore_Extract"), 
+			[&Entry, &WriteFile, ReadTask]() mutable
 			{
+				TIoStatusOr<FIoBuffer> ReadChunkResult = ReadTask.GetResult();
 				if (!ReadChunkResult.IsOk())
 				{
 					UE_LOG(LogIoStore, Error, TEXT("Failed reading chunk for file \"%s\" (%s)."), *Entry.SourceFileName, *ReadChunkResult.Status().ToString());
@@ -5524,13 +5907,14 @@ bool ExtractFilesFromIoStoreContainer(
 					return false;
 				}
 				return true;
-			});
+			},
+			Prerequisites(ReadTask)));
 	}
 
 	int32 ErrorCount = 0;
 	for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
 	{
-		if (ExtractTasks[EntryIndex].Get())
+		if (ExtractTasks[EntryIndex].GetResult())
 		{
 			const FEntry& Entry = Entries[EntryIndex];
 			if (OutOrderMap != nullptr)
@@ -5832,6 +6216,26 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 		WriterSettings.CompressionBlockAlignment = BlockAlignment;
 	}
 
+	//
+	// If a filename to a global.utoc container is provided, all containers in that directory will have their compressed blocks be
+	// made available for the new containers to reuse. This provides two benefits:
+	//	1.	Saves compression time for the new blocks, as ssd/nvme io times are significantly faster.
+	//	2.	Prevents trivial bit changes in the compressor from causing patch changes down the line, 
+	//		allowing worry-free compressor upgrading.
+	//
+	// This should be a path to your last released containers. If those containers are encrypted, be sure to
+	// provide keys via -ReferenceContainerCryptoKeys.
+	//
+	FParse::Value(FCommandLine::Get(), TEXT("-ReferenceContainerGlobalFileName="), Arguments.ReferenceChunkGlobalContainerFileName);
+
+	FString CryptoKeysCacheFilename;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ReferenceContainerCryptoKeys="), CryptoKeysCacheFilename))
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Parsing reference container crypto keys from a crypto key cache file '%s'"), *CryptoKeysCacheFilename);
+		KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, Arguments.ReferenceChunkKeys);
+	}
+
+
 	uint64 PatchPaddingAlignment = 0;
 	if (ParseSizeArgument(FCommandLine::Get(), TEXT("-patchpaddingalign="), PatchPaddingAlignment))
 	{
@@ -6036,6 +6440,11 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
 		bool bIncludeExportHashes = FParse::Param(FCommandLine::Get(), TEXT("IncludeExportHashes"));
 		return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilter, OutPath, bIncludeExportHashes);
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("ProfileReadSpeed")))
+	{
+		// Load the .UTOC file provided and read it in its entirety, cmdline parsed in function
+		return ProfileReadSpeed(FCommandLine::Get(), Arguments.KeyChain);
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("Diff")))
 	{

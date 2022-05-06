@@ -161,6 +161,82 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 									.Text(LOCTEXT("MakeBinaryConfigCheckBoxText", "Make a binary config file for faster runtime startup times"))
 								]
 							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0, 4.0, 0.0, 0.0)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("RefBlockDbFileNameText", "Optional I/O Store Reference Block Database:"))
+							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0, 4.0, 0.0, 0.0)
+							[
+								SNew(SHorizontalBox)
+
+								+ SHorizontalBox::Slot()
+									.FillWidth(1.0)
+									.Padding(0.0, 0.0, 0.0, 3.0)
+									[
+										// path textbox for previously compressed containers.
+										SAssignNew(ReferenceContainerGlobalFileName, SEditableTextBox)
+										.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
+										.OnTextCommitted(this, &SProjectLauncherPackagingSettings::OnRefBlockDbFileNameTextCommitted)
+										.OnTextChanged(this, &SProjectLauncherPackagingSettings::OnRefBlockDbFileNameTextChanged)
+										.ToolTipText(LOCTEXT("RefBlockDbFileNameToolTip", "The path to a global.utoc in a directory of previously released iostore containers."))
+										.HintText(LOCTEXT("RefBlockDbFileNameHint", "<path/to/global.utoc>"))
+									]
+
+								+ SHorizontalBox::Slot()
+									.AutoWidth()
+									.HAlign(HAlign_Right)
+									.Padding(4.0, 0.0, 0.0, 0.0)
+									[
+										// browse button for the global.utoc for a previously staged game.
+										SNew(SButton)
+										.ContentPadding(FMargin(6.0, 2.0))
+										.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
+										.Text(LOCTEXT("BrowseButtonText", "Browse..."))
+										.ToolTipText(LOCTEXT("BrowseForRefDbButtonToolTip", "Browse for the global.utoc file from a previously staged/released game."))
+										.OnClicked(this, &SProjectLauncherPackagingSettings::HandleRefBlockDbBrowseButtonClicked)
+									]
+							] // end reference container line
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0, 4.0, 0.0, 0.0)
+							[
+								SNew(SHorizontalBox)
+
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0)
+								.Padding(0.0, 0.0, 0.0, 3.0)
+								[
+									// path textbox for previously compressed containers' crypto keys
+									SAssignNew(ReferenceContainerCryptoKeysFileName, SEditableTextBox)
+									.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
+									.OnTextCommitted(this, &SProjectLauncherPackagingSettings::OnRefBlockCryptoFileNameTextCommitted)
+									.OnTextChanged(this, &SProjectLauncherPackagingSettings::OnRefBlockCryptoFileNameTextChanged)
+									.ToolTipText(LOCTEXT("RefBlockDbFileNameToolTip", "The path to a crypto.json to decrypt the reference block containers, if needed."))
+									.HintText(LOCTEXT("RefBlockDbFileNameHint", "<path/to/crypto.json, optional>"))
+								]
+
+								+ SHorizontalBox::Slot()
+									.AutoWidth()
+									.HAlign(HAlign_Right)
+									.Padding(4.0, 0.0, 0.0, 0.0)
+									[
+										// browse button for the crypto.json to decrypt the ref block containers, if needed
+										SNew(SButton)
+										.ContentPadding(FMargin(6.0, 2.0))
+										.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
+										.Text(LOCTEXT("BrowseButtonText", "Browse..."))
+										.ToolTipText(LOCTEXT("BrowseForRefDbButtonToolTip", "Browse for the crypto.json file to decrypt the reference containers, if needed."))
+										.OnClicked(this, &SProjectLauncherPackagingSettings::HandleRefBlockCryptoBrowseButtonClicked)
+									]
+							] // end reference container crypto keys line
 					]
 			]
 	];
@@ -170,9 +246,16 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-void SProjectLauncherPackagingSettings::UpdateDirectoryPathText()
+void SProjectLauncherPackagingSettings::UpdatePackagingModeWidgets()
 {
 	DirectoryPathTextBox->SetText(HandleDirectoryPathText());
+
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	if (SelectedProfile.IsValid())
+	{
+		ReferenceContainerCryptoKeysFileName->SetText(FText::FromString(SelectedProfile->GetReferenceContainerCryptoKeysFileName()));
+		ReferenceContainerGlobalFileName->SetText(FText::FromString(SelectedProfile->GetReferenceContainerGlobalFileName()));
+	}
 }
 
 
@@ -321,7 +404,7 @@ FText SProjectLauncherPackagingSettings::HandleHintPathText() const
 
 void SProjectLauncherPackagingSettings::HandleProfileManagerProfileSelected(const ILauncherProfilePtr& SelectedProfile, const ILauncherProfilePtr& PreviousProfile)
 {
-	UpdateDirectoryPathText();
+	UpdatePackagingModeWidgets();
 }
 
 
@@ -398,5 +481,134 @@ void SProjectLauncherPackagingSettings::OnTextCommitted(const FText& InText, ETe
 	}
 }
 
+
+
+bool SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable() const
+{
+	if (IsEditable() == false)
+	{
+		return false;
+	}
+
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	if (SelectedProfile.IsValid())
+	{
+		return SelectedProfile->IsUsingIoStore();
+	}
+	return false;
+}
+
+void SProjectLauncherPackagingSettings::OnRefBlockDbFileNameTextChanged(const FText& InText)
+{
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	if (SelectedProfile.IsValid())
+	{
+		SelectedProfile->SetReferenceContainerGlobalFileName(InText.ToString());
+	}
+}
+
+
+void SProjectLauncherPackagingSettings::OnRefBlockDbFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnEnter)
+	{
+		ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+		if (SelectedProfile.IsValid())
+		{
+			SelectedProfile->SetReferenceContainerGlobalFileName(InText.ToString());
+		}
+	}
+}
+
+FReply SProjectLauncherPackagingSettings::HandleRefBlockDbBrowseButtonClicked()
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+		void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+		TArray<FString> SelectedFiles;
+		bool bFileSelected = DesktopPlatform->OpenFileDialog(
+			ParentWindowHandle, 
+			LOCTEXT("GlobalUtocTitle", "Select a global.utoc file").ToString(),
+			ReferenceContainerGlobalFileName->GetText().ToString(),
+			TEXT(""), 
+			TEXT("global.utoc files|global.utoc"),
+			EFileDialogFlags::None /* only single file selection */,
+			SelectedFiles
+			);
+
+		if (bFileSelected && SelectedFiles.Num())
+		{
+			ReferenceContainerGlobalFileName->SetText(FText::FromString(SelectedFiles[0]));
+
+			ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+			if (SelectedProfile.IsValid())
+			{
+				SelectedProfile->SetReferenceContainerGlobalFileName(SelectedFiles[0]);
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+
+void SProjectLauncherPackagingSettings::OnRefBlockCryptoFileNameTextChanged(const FText& InText)
+{
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	if (SelectedProfile.IsValid())
+	{
+		SelectedProfile->SetReferenceContainerCryptoKeysFileName(InText.ToString());
+	}
+}
+
+
+void SProjectLauncherPackagingSettings::OnRefBlockCryptoFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnEnter)
+	{
+		ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+		if (SelectedProfile.IsValid())
+		{
+			SelectedProfile->SetReferenceContainerCryptoKeysFileName(InText.ToString());
+		}
+	}
+}
+
+FReply SProjectLauncherPackagingSettings::HandleRefBlockCryptoBrowseButtonClicked()
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+		void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+		TArray<FString> SelectedFiles;
+		bool bFileSelected = DesktopPlatform->OpenFileDialog(
+			ParentWindowHandle,
+			LOCTEXT("GlobalUtocKeysTitle", "Select a crypto.json file").ToString(),
+			ReferenceContainerCryptoKeysFileName->GetText().ToString(),
+			TEXT(""),
+			TEXT("crypto.json files|crypto.json"),
+			EFileDialogFlags::None /* only single file selection */,
+			SelectedFiles
+		);
+
+		if (bFileSelected && SelectedFiles.Num())
+		{
+			ReferenceContainerCryptoKeysFileName->SetText(FText::FromString(SelectedFiles[0]));
+
+			ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+			if (SelectedProfile.IsValid())
+			{
+				SelectedProfile->SetReferenceContainerCryptoKeysFileName(SelectedFiles[0]);
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
 
 #undef LOCTEXT_NAMESPACE

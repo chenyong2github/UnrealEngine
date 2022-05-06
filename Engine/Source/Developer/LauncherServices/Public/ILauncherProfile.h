@@ -1118,6 +1118,15 @@ public:
 	virtual FString GetBasedOnReleaseVersionName() const = 0;
 
 	virtual void SetBasedOnReleaseVersionName(const FString& InBasedOnReleaseVersion) = 0;
+	 
+	/**
+	* Provides a database of compressed iostore chunks to reuse during the
+	* staging process. See IoStoreUtilities.cpp ReferenceContainerGlobalFileName.
+	*/
+	virtual FString GetReferenceContainerGlobalFileName() const = 0;
+	virtual void SetReferenceContainerGlobalFileName(const FString& InReferenceContainerGlobalFileName) = 0;
+	virtual FString GetReferenceContainerCryptoKeysFileName() const = 0;
+	virtual void SetReferenceContainerCryptoKeysFileName(const FString& InReferenceContainerCryptoKeysFileName) = 0;
 
 
 	/**

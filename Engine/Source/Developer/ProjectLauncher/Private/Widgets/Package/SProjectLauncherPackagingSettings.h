@@ -39,8 +39,8 @@ public:
 	 */
 	void Construct( const FArguments& InArgs, const TSharedRef<FProjectLauncherModel>& InModel );
 
-	// Changes the directory path to the correct packaging mode version
-	void UpdateDirectoryPathText();
+	// Update any widgets to reflect the change in packaging mode.
+	void UpdatePackagingModeWidgets();
 
 private:
 
@@ -55,6 +55,16 @@ private:
 
 	void HandleMakeBinaryConfigCheckStateChanged(ECheckBoxState NewState);
 	ECheckBoxState HandleMakeBinaryConfigCheckBoxIsChecked() const;
+
+	// Reference block database handlers.
+	bool IsReferenceBlockDbEditable() const;
+	void OnRefBlockDbFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
+	void OnRefBlockDbFileNameTextChanged(const FText& InText);
+	FReply HandleRefBlockDbBrowseButtonClicked();
+	void OnRefBlockCryptoFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
+	void OnRefBlockCryptoFileNameTextChanged(const FText& InText);
+	FReply HandleRefBlockCryptoBrowseButtonClicked();
+
 
 	// Callback for getting the content text of the 'Directory' label.
 	FText HandleDirectoryTitleText() const;
@@ -82,4 +92,7 @@ private:
 
 	// Holds the repository path text box.
 	TSharedPtr<SEditableTextBox> DirectoryPathTextBox;
+
+	TSharedPtr<SEditableTextBox> ReferenceContainerGlobalFileName;
+	TSharedPtr<SEditableTextBox> ReferenceContainerCryptoKeysFileName;
 };

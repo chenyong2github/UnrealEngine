@@ -3133,6 +3133,16 @@ namespace AutomationScripts
 				}
 
 
+				if (Params.ReferenceContainerGlobalFileName.Length != 0)
+				{
+					AdditionalArgs += " -ReferenceContainerGlobalFileName=\"" + Params.ReferenceContainerGlobalFileName + "\"";
+					if (Params.ReferenceContainerCryptoKeys.Length != 0)
+					{
+						AdditionalArgs += " -ReferenceContainerCryptoKeys=\"" + Params.ReferenceContainerCryptoKeys + "\"";
+					}
+				}
+
+
 				AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
 				RunIoStore(Params, SC, IoStoreCommandsFileName, FinalOrderFiles, AdditionalArgs);
@@ -4133,6 +4143,15 @@ namespace AutomationScripts
 			if (Params.IterativeDeploy)
 			{
 				CommandLineBuilder.Append("-iterative ");
+			}
+
+			if (!string.IsNullOrEmpty(Params.ReferenceContainerGlobalFileName))
+			{
+				CommandLineBuilder.AppendFormat("-ReferenceContainerGlobalFileName={0}", Params.ReferenceContainerGlobalFileName);
+				if (!string.IsNullOrEmpty(Params.ReferenceContainerCryptoKeys))
+				{
+					CommandLineBuilder.AppendFormat("-ReferenceContainerCryptoKeys={0}", Params.ReferenceContainerCryptoKeys);
+				}
 			}
 
 			String CompleteCommandLine = CommandLineBuilder.ToString().Trim();

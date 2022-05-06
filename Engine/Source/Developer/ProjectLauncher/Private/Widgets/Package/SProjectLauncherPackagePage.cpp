@@ -138,7 +138,7 @@ void SProjectLauncherPackagePage::HandlePackagingModeMenuEntryClicked(ELauncherP
 		SelectedProfile->SetPackagingMode(PackagingMode);
 
 		check(ProjectLauncherPackagingSettings.IsValid());
-		ProjectLauncherPackagingSettings->UpdateDirectoryPathText();
+		ProjectLauncherPackagingSettings->UpdatePackagingModeWidgets();
 	}
 }
 

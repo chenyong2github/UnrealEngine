@@ -49,7 +49,7 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_ADDEDBUILDMODE = 28,
 	LAUNCHERSERVICES_ADDEDUSEIOSTORE = 29,
 	LAUNCHERSERVICES_ADDEDMAKEBINARYCONFIG = 30,
-
+	LAUNCHERSERVICES_ADDEDREFERENCECONTAINERS = 31,
 	//ADD NEW STUFF HERE
 
 
@@ -536,7 +536,22 @@ public:
 		BasedOnReleaseVersionName = InBasedOnReleaseVersionName;
 	}
 
-
+	virtual FString GetReferenceContainerGlobalFileName() const override
+	{
+		return ReferenceContainerGlobalFileName;
+	}
+	virtual void SetReferenceContainerGlobalFileName(const FString& InReferenceContainerGlobalFileName) override
+	{
+		ReferenceContainerGlobalFileName = InReferenceContainerGlobalFileName;
+	}
+	virtual FString GetReferenceContainerCryptoKeysFileName() const override
+	{
+		return ReferenceContainerCryptoKeysFileName;
+	}
+	virtual void SetReferenceContainerCryptoKeysFileName(const FString& InReferenceContainerCryptoKeysFileName) override
+	{
+		ReferenceContainerCryptoKeysFileName = InReferenceContainerCryptoKeysFileName;
+	}
 
 	virtual ELauncherProfileDeploymentModes::Type GetDeploymentMode( ) const override
 	{
@@ -1031,6 +1046,12 @@ public:
 			Archive << bMakeBinaryConfig;
 		}
 
+		if (Version >= LAUNCHERSERVICES_ADDEDREFERENCECONTAINERS)
+		{
+			Archive << ReferenceContainerGlobalFileName;
+			Archive << ReferenceContainerCryptoKeysFileName;
+		}
+
 		else if(Archive.IsLoading())
 		{
 			BuildMode = BuildGame ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
@@ -1161,6 +1182,8 @@ public:
 		Writer.WriteValue("CreateReleaseVersion", CreateReleaseVersion);
 		Writer.WriteValue("CreateReleaseVersionName", CreateReleaseVersionName);
 		Writer.WriteValue("BasedOnReleaseVersionName", BasedOnReleaseVersionName);
+		Writer.WriteValue("ReferenceContainerGlobalFileName", ReferenceContainerGlobalFileName);
+		Writer.WriteValue("ReferenceContainerCryptoKeysFileName", ReferenceContainerCryptoKeysFileName);
 		Writer.WriteValue("CreateDLC", CreateDLC);
 		Writer.WriteValue("DLCName", DLCName);
 		Writer.WriteValue("GenerateChunks", bGenerateChunks);
@@ -1446,6 +1469,7 @@ public:
 		Writer.WriteValue("ForDistribution", IsForDistribution());
 
 		// stage/package/deploy
+		bool bIsStaging = false;
 		if (GetDeploymentMode() != ELauncherProfileDeploymentModes::DoNotDeploy)
 		{
 			switch (GetDeploymentMode())
@@ -1464,6 +1488,7 @@ public:
 			case ELauncherProfileDeploymentModes::FileServer:
 				{
 					Writer.WriteValue("stage", true);
+					bIsStaging = true;
 					Writer.WriteValue("deploy", true);
 				}
 				break;
@@ -1480,7 +1505,19 @@ public:
 			if (GetPackagingMode() == ELauncherProfilePackagingModes::Locally)
 			{
 				Writer.WriteValue("stage", true);
+				bIsStaging = true;
 				Writer.WriteValue("package", true);
+			}
+		}
+
+		if (bIsStaging &&
+			GetReferenceContainerGlobalFileName().Len())
+		{
+			// (only iostore uses this) - pass reference block database
+			Writer.WriteValue("ReferenceContainerGlobalFileName", GetReferenceContainerGlobalFileName());
+			if (GetReferenceContainerCryptoKeysFileName().Len())
+			{
+				Writer.WriteValue("ReferenceContainerCryptoKeys", GetReferenceContainerCryptoKeysFileName());
 			}
 		}
 
@@ -1795,6 +1832,8 @@ public:
 		CreateReleaseVersion = Object.GetBoolField("CreateReleaseVersion");
 		CreateReleaseVersionName = Object.GetStringField("CreateReleaseVersionName");
 		BasedOnReleaseVersionName = Object.GetStringField("BasedOnReleaseVersionName");
+		ReferenceContainerCryptoKeysFileName = Object.GetStringField("ReferenceContainerCryptoKeysFileName");
+		ReferenceContainerGlobalFileName = Object.GetStringField("ReferenceContainerGlobalFileName");
 		CreateDLC = Object.GetBoolField("CreateDLC");
 		DLCName = Object.GetStringField("DLCName");
 		bGenerateChunks = Object.GetBoolField("GenerateChunks");
@@ -2856,6 +2895,15 @@ private:
 	
 	// Version name of the HTTPChunkInstall data
 	FString HttpChunkDataReleaseName;
+
+	// if present, iostore container creation will try to use existing compressed blocks
+	// instead of compressing new ones, to avoid patches from compressor version changes,
+	// and to speed up iostore container creation time. See IoStoreUtilities.cpp ReferenceContainerGlobalFileName.
+	FString ReferenceContainerGlobalFileName;
+
+	// If ReferenceContainerGlobalFileName refers to encrypted containers, this is the filename of
+	// the json file containing the keys.
+	FString ReferenceContainerCryptoKeysFileName;
 
 	// create a release version of the content (this can be used to base dlc / patches from)
 	bool CreateReleaseVersion;
