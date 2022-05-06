@@ -93,7 +93,7 @@ namespace UE::RivermaxCore::Private
 		}
 
 		uint32 PacketDivider = 2; //Start with 2 packets per line as 1 is too big already
-		static constexpr uint32 MaxPacketCountPerLine = 10; 
+		static constexpr uint32 MaxPacketCountPerLine = 50; 
 		while (PacketDivider <= MaxPacketCountPerLine)
 		{
 			const uint32 TestPayloadSize = InBytesPerLine / PacketDivider;
@@ -111,7 +111,7 @@ namespace UE::RivermaxCore::Private
 
 	uint32 FindChunksPerLine(const FRivermaxStreamOptions& InOptions)
 	{
-		uint32 ChunksPerLine = 3; //Start with 3 chunks with line. Todo : Ask Nvidia
+		uint32 ChunksPerLine = 1; //Will need to revisit the impact of that
 		static constexpr uint32 MaxChunksPerLine = 10;
 		while (ChunksPerLine <= MaxChunksPerLine)
 		{
@@ -172,8 +172,8 @@ namespace UE::RivermaxCore::Private
 
 			rmax_buffer_attr BufferAttributes;
 			BufferAttributes.chunk_size_in_strides = StreamMemory.ChunkSizeInStrides;
-			BufferAttributes.data_stride_size = StreamMemory.DataStrideSize;
-			BufferAttributes.app_hdr_stride_size = StreamMemory.HeaderStrideSize; //Todo RTP header size
+			BufferAttributes.data_stride_size = StreamMemory.PayloadSize; //Stride between chunks. 
+			BufferAttributes.app_hdr_stride_size = StreamMemory.HeaderStrideSize; 
 			BufferAttributes.mem_block_array = StreamMemory.MemoryBlocks.GetData();
 			BufferAttributes.mem_block_array_len = StreamMemory.MemoryBlocks.Num();
 
@@ -232,7 +232,7 @@ namespace UE::RivermaxCore::Private
 	{
 		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
 		{
-			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, NewFrame.Height * NewFrame.Stride);
+			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, NewFrame.Height * Options.Stride);
 			AvailableFrame->bIsVideoBufferReady = true;
 
 			//If Frame ready to be sent
@@ -317,7 +317,7 @@ namespace UE::RivermaxCore::Private
 		for (int32 Index = 0; Index < Options.NumberOfBuffers; ++Index)
 		{
 			TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index);
-			Frame->VideoBuffer = static_cast<uint8*>(FMemory::Malloc(Options.Resolution.Y * Options.Resolution.X * 4)); //todo alignment + bytes per row
+			Frame->VideoBuffer = static_cast<uint8*>(FMemory::Malloc(Options.Resolution.Y * Options.Stride));
 			AvailableFrames.Add(MoveTemp(Frame));
 		}
 	}
@@ -327,14 +327,15 @@ namespace UE::RivermaxCore::Private
 		using namespace UE::RivermaxCore::Private::Utils;
 
 		//2110 stream type
-		const uint32 Groups = FMath::CeilToInt32(Options.Resolution.X / (float)PixelsPerGroup_422_8b); //This will need to be updated based on pixel format
-		const uint32 BytesPerLine = Groups * BytesPerGroup_422_8b;
+		//We need to use the fullframe allocated size to compute the payload size.
+
+		const uint32 EffectiveBytesPerLine = Options.Stride;
+		const uint32 BytesPerLine = Options.Stride;
 		StreamMemory.PayloadSize = FindPayloadSize(Options, BytesPerLine); 
-		StreamMemory.DataStrideSize = StreamMemory.PayloadSize;//todo align cache line?
+		StreamMemory.DataStrideSize = BytesPerLine;//todo align cache line?
 		StreamMemory.LinesInChunk = FindChunksPerLine(Options);
 
-
-		StreamMemory.PacketsInLine =  BytesPerLine / (float)StreamMemory.PayloadSize;
+		StreamMemory.PacketsInLine =  FMath::RoundToInt32(BytesPerLine / (float)StreamMemory.PayloadSize);
 		StreamMemory.ChunkSizeInStrides = StreamMemory.LinesInChunk * StreamMemory.PacketsInLine;
 
 		StreamMemory.FramesFieldPerMemoryBlock = 1;
@@ -342,7 +343,7 @@ namespace UE::RivermaxCore::Private
 		StreamMemory.PacketsPerMemoryBlock = StreamMemory.PacketsInFrameField * StreamMemory.FramesFieldPerMemoryBlock;
 		StreamMemory.ChunksPerFrameField = StreamMemory.PacketsInFrameField / StreamMemory.ChunkSizeInStrides;
 		StreamMemory.ChunksPerMemoryBlock = StreamMemory.FramesFieldPerMemoryBlock * StreamMemory.ChunksPerFrameField;
-		StreamMemory.MemoryBlockCount = Options.NumberOfBuffers; //todo
+		StreamMemory.MemoryBlockCount = Options.NumberOfBuffers;
 		StreamMemory.StridesPerMemoryBlock = StreamMemory.ChunkSizeInStrides * StreamMemory.ChunksPerMemoryBlock;
 
 		// Setup arrays with the right sizes so we can give pointers to rivermax
@@ -352,7 +353,15 @@ namespace UE::RivermaxCore::Private
 		StreamMemory.HeaderStrideSize = BytesPerHeader;
 		for (int32 PayloadSizeIndex = 0; PayloadSizeIndex < StreamMemory.PayloadSizes.Num(); ++PayloadSizeIndex)
 		{
-			StreamMemory.PayloadSizes[PayloadSizeIndex] = StreamMemory.PayloadSize;
+			//Go through each chunk to have effective payload size to be sent (last one of each line could be smaller)
+			if ((PayloadSizeIndex + 1) % StreamMemory.PacketsInLine == 0)
+			{
+				StreamMemory.PayloadSizes[PayloadSizeIndex] = EffectiveBytesPerLine - ((StreamMemory.PacketsInLine - 1) * StreamMemory.PayloadSize);
+			}
+			else
+			{
+				StreamMemory.PayloadSizes[PayloadSizeIndex] = StreamMemory.PayloadSize;
+			}
 			StreamMemory.HeaderSizes[PayloadSizeIndex] = StreamMemory.HeaderStrideSize;
 		}
 		StreamMemory.MemoryBlocks.SetNum(StreamMemory.MemoryBlockCount);
@@ -362,7 +371,7 @@ namespace UE::RivermaxCore::Private
 			Block.chunks_num = StreamMemory.ChunksPerMemoryBlock;
 			Block.app_hdr_size_arr = StreamMemory.HeaderSizes.GetData();
 			Block.data_size_arr = StreamMemory.PayloadSizes.GetData();
-			Block.data_ptr = AvailableFrames[BlockIndex]->VideoBuffer; //This doesn't work with more than 2 samples. Need to rethink how we preassign frame address in rivermax
+			Block.data_ptr = AvailableFrames[BlockIndex]->VideoBuffer;
 			Block.app_hdr_ptr = &StreamMemory.RTPHeaders[BlockIndex];
 		}
 	}
@@ -472,7 +481,8 @@ namespace UE::RivermaxCore::Private
 			OutHeader.RawHeader[12] = (StreamData.SequenceNumber >> 24) & 0xff;  // high 16 bit of seq Extended Sequence Number
 			OutHeader.RawHeader[13] = (StreamData.SequenceNumber >> 16) & 0xff;  // high 16 bit of seq Extended Sequence Number
 
-			*(uint16*)&OutHeader.RawHeader[14] = ByteSwap(StreamMemory.PayloadSize /*- 20*/);  // SRD Length
+			const uint16 CurrentPayloadSize = StreamMemory.PayloadSizes[StreamData.SequenceNumber % StreamMemory.PacketsInFrameField];
+			*(uint16*)&OutHeader.RawHeader[14] = ByteSwap(CurrentPayloadSize);  // SRD Length
 		
 			uint16 number_of_rows = Options.Resolution.Y; //todo divide by 2 if interlaced
 			uint16 srd_row_number = (CurrentFrame->LineNumber % number_of_rows);
@@ -481,7 +491,7 @@ namespace UE::RivermaxCore::Private
 
 			// we never have continuation
 			*(uint16*)&OutHeader.RawHeader[18] = ByteSwap(CurrentFrame->SRDOffset);  // SRD Offset
-			uint16 group_size = (uint16)((StreamMemory.PayloadSize /*- 20*/) / 2.5);
+			uint16 group_size = (uint16)((StreamMemory.PayloadSize /*- 20*/) / 2.5); // todo: need to support pgroup definition per sampling format to fully be compliant
 			CurrentFrame->SRDOffset = (CurrentFrame->SRDOffset + group_size) % (group_size * StreamMemory.PacketsInLine);
 		}
 

@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaShaders.h"
-#include "ShaderParameterUtils.h"
+#include "RenderGraphBuilder.h"
 #include "RHIStaticStates.h"
+#include "ShaderParameterUtils.h"
+
+
 
 
 TGlobalResource<FMediaVertexDeclaration> GMediaVertexDeclaration;
@@ -529,75 +532,6 @@ void FYVYUConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 }
 
 
-/* FRGB8toUYVY8ConvertPS shader
- *****************************************************************************/
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toUYVY8ConvertUB, )
-SHADER_PARAMETER(FMatrix44f, ColorTransform)
-SHADER_PARAMETER(uint32, LinearToSrgb)
-SHADER_PARAMETER(float, OnePixelDeltaX)
-SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
-SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toUYVY8ConvertUB, "RGB8toUYVY8ConvertUB");
-IMPLEMENT_SHADER_TYPE(, FRGB8toUYVY8ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("RGB8toUYVY8ConvertPS"), SF_Pixel);
-
-
-void FRGB8toUYVY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
-{
-	FRGB8toUYVY8ConvertUB UB;
-	{
-		UB.ColorTransform = (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
-		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
-		UB.LinearToSrgb = LinearToSrgb;
-		UB.Texture = RGBATexture;
-		UB.OnePixelDeltaX = 1.0f / float(RGBATexture->GetSizeX());
-	}
-
-	TUniformBufferRef<FRGB8toUYVY8ConvertUB> Data = TUniformBufferRef<FRGB8toUYVY8ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB8toUYVY8ConvertUB>(), Data);
-}
-
-
-/* FRGB10toYUVv210ConvertPS shader
- *****************************************************************************/
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB10toYUVv210ConvertUB, )
-SHADER_PARAMETER(FMatrix44f, ColorTransform)
-SHADER_PARAMETER(uint32, LinearToSrgb)
-SHADER_PARAMETER(float, OnePixelDeltaX)
-SHADER_PARAMETER(float, PaddingScale)
-SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
-SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB10toYUVv210ConvertUB, "RGB10toYUVv210ConvertUB");
-IMPLEMENT_SHADER_TYPE(, FRGB10toYUVv210ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("RGB10toYUVv210ConvertPS"), SF_Pixel);
-
-
-void FRGB10toYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
-{
-	FRGB10toYUVv210ConvertUB UB;
-	{
-		UB.ColorTransform = (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
-		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
-		UB.LinearToSrgb = LinearToSrgb;
-		UB.Texture = RGBATexture;
-
-		//Output texture will be based on a size dividable by 48 (i.e 1280 -> 1296) and divided by 6 (i.e 1296 / 6 = 216)
-		//To map output texture UVs, we get a scale from the source texture original size to the mapped output size
-		//And use the source texture size to get the pixel delta
-		const float PaddedResolution = float(uint32((RGBATexture->GetSizeX() + 47) / 48) * 48);
-		UB.OnePixelDeltaX = 1.0f / (float)RGBATexture->GetSizeX();
-		UB.PaddingScale = PaddedResolution / (float)RGBATexture->GetSizeX();
-	}
-
-	TUniformBufferRef<FRGB10toYUVv210ConvertUB> Data = TUniformBufferRef<FRGB10toYUVv210ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB10toYUVv210ConvertUB>(), Data);
-}
-
-
 /* FRGB8toY8ConvertPS shader
  *****************************************************************************/
 
@@ -641,7 +575,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReadTextureExternalUB, "ReadTextureExt
 IMPLEMENT_SHADER_TYPE(, FReadTextureExternalPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("ReadTextureExternalPS"), SF_Pixel);
 
 
-void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor & ScaleRotation, const FLinearColor & Offset)
+void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor& ScaleRotation, const FLinearColor& Offset)
 {
 	FReadTextureExternalUB UB;
 	{
@@ -655,27 +589,67 @@ void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextur
 	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FReadTextureExternalUB>(), Data);
 }
 
-
-/* FModifyAlphaSwizzleRgbaUB shader
+/* FRGB8toUYVY8ConvertPS shader
  *****************************************************************************/
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FModifyAlphaSwizzleRgbaUB, )
-SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
-SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
+IMPLEMENT_GLOBAL_SHADER(FRGB8toUYVY8ConvertPS, "/Engine/Private/MediaShaders.usf", "RGB8toUYVY8ConvertPS", SF_Pixel);
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FModifyAlphaSwizzleRgbaUB, "SwizzleRgbUB");
-IMPLEMENT_SHADER_TYPE(, FModifyAlphaSwizzleRgbaPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("SwizzleRgbPS"), SF_Pixel);
-
-
-void FModifyAlphaSwizzleRgbaPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> TextureExt)
+FRGB8toUYVY8ConvertPS::FParameters* FRGB8toUYVY8ConvertPS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture)
 {
-	FModifyAlphaSwizzleRgbaUB UniformBuffer;
-	{
-		UniformBuffer.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
-		UniformBuffer.Texture = TextureExt;
-	}
+	FRGB8toUYVY8ConvertPS::FParameters* Parameters = GraphBuilder.AllocParameters<FRGB8toUYVY8ConvertPS::FParameters>();
 
-	TUniformBufferRef<FModifyAlphaSwizzleRgbaUB> Data = TUniformBufferRef<FModifyAlphaSwizzleRgbaUB>::CreateUniformBufferImmediate(UniformBuffer, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FModifyAlphaSwizzleRgbaUB>(), Data);
+	Parameters->RGBToYUVConversion.InputTexture = RGBATexture;
+	Parameters->RGBToYUVConversion.InputSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	Parameters->RGBToYUVConversion.ColorTransform = (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
+	Parameters->RGBToYUVConversion.DoLinearToSrgb = bDoLinearToSrgb;
+	Parameters->RGBToYUVConversion.OnePixelDeltaX = 1.0f / (float)RGBATexture->Desc.Extent.X;
+	Parameters->RenderTargets[0] = FRenderTargetBinding{ OutputTexture, ERenderTargetLoadAction::ENoAction };
+
+	return Parameters;
 }
+
+
+/* FRGB10toYUVv210ConvertPS shader
+ *****************************************************************************/
+
+IMPLEMENT_GLOBAL_SHADER(FRGB10toYUVv210ConvertPS, "/Engine/Private/MediaShaders.usf", "RGB10toYUVv210ConvertPS", SF_Pixel);
+
+FRGB10toYUVv210ConvertPS::FParameters* FRGB10toYUVv210ConvertPS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture)
+{
+	FRGB10toYUVv210ConvertPS::FParameters* Parameters = GraphBuilder.AllocParameters<FRGB10toYUVv210ConvertPS::FParameters>();
+
+	Parameters->RGBToYUVConversion.InputTexture = RGBATexture;
+	Parameters->RGBToYUVConversion.InputSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	Parameters->RGBToYUVConversion.ColorTransform = (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
+	Parameters->RGBToYUVConversion.DoLinearToSrgb = bDoLinearToSrgb;
+	Parameters->RGBToYUVConversion.OnePixelDeltaX = 1.0f / (float)RGBATexture->Desc.Extent.X;
+
+	//Output texture will be based on a size dividable by 48 (i.e 1280 -> 1296) and divided by 6 (i.e 1296 / 6 = 216)
+	//To map output texture UVs, we get a scale from the source texture original size to the mapped output size
+	//And use the source texture size to get the pixel delta
+	const float PaddedResolution = float(uint32((RGBATexture->Desc.Extent.X + 47) / 48) * 48);
+	Parameters->PaddingScale = PaddedResolution / (float)RGBATexture->Desc.Extent.X;
+
+	Parameters->RenderTargets[0] = FRenderTargetBinding{ OutputTexture, ERenderTargetLoadAction::ENoAction };
+
+	return Parameters;
+}
+
+
+/* FModifyAlphaSwizzleRgbaPS shader
+ *****************************************************************************/
+
+IMPLEMENT_GLOBAL_SHADER(FModifyAlphaSwizzleRgbaPS, "/Engine/Private/MediaShaders.usf", "SwizzleRgbPS", SF_Pixel);
+
+FModifyAlphaSwizzleRgbaPS::FParameters* FModifyAlphaSwizzleRgbaPS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, FRDGTextureRef OutputTexture)
+{
+	FModifyAlphaSwizzleRgbaPS::FParameters* Parameters = GraphBuilder.AllocParameters<FModifyAlphaSwizzleRgbaPS::FParameters>();
+
+	Parameters->InputTexture = RGBATexture;
+	Parameters->InputSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	Parameters->RenderTargets[0] = FRenderTargetBinding{ OutputTexture, ERenderTargetLoadAction::ENoAction };
+
+	return Parameters;
+}
+
+

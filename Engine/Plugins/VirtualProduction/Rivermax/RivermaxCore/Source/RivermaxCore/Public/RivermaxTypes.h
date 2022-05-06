@@ -14,6 +14,7 @@ namespace UE::RivermaxCore
 		RMAX_8BIT_RGB,
 		RMAX_10BIT_YCBCR,
 		RMAX_10BIT_RGB,
+		RMAX_16F_RGB,
 	};
 
 	struct RIVERMAXCORE_API FRivermaxStreamOptions
@@ -38,6 +39,9 @@ namespace UE::RivermaxCore
 
 		/** Sample count to buffer. */
 		int32 NumberOfBuffers = 2;
+
+		/** Stride in bytes for a row */
+		uint32 Stride = 0;
 	};
 
 	enum class RIVERMAXCORE_API ERivermaxStreamType : uint8

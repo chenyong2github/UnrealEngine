@@ -1,0 +1,190 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	RivermaxShaders.usf
+=============================================================================*/
+
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/ColorUtils.ush"
+#include "/Engine/Private/GammaCorrectionCommon.ush"
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+float4x4 ColorTransform;
+uint DoLinearToSrgb;
+float OnePixelDeltaX;
+float OnePixelDeltaY;
+float InputPixelOffsetX;
+float InputPixelOffsetY;
+uint HorizontalElementCount;
+uint InputTexturePixelsPerThread;
+
+
+struct FYCbCr10Bit422
+{
+	uint DWord0;
+	uint DWord1;
+	uint DWord2;
+	uint DWord3;
+	uint DWord4;
+};
+RWStructuredBuffer<FYCbCr10Bit422>	OutYCbCrBuffer;
+
+struct FRGB8BitBuffer
+{
+	uint DWord0;
+	uint DWord1;
+	uint DWord2;
+};
+RWStructuredBuffer<FRGB8BitBuffer>	OutRGB8Buffer;
+
+struct FRGB10BitBuffer
+{
+	uint DWords[15];
+};
+RWStructuredBuffer<FRGB10BitBuffer>	OutRGB10Buffer;
+
+struct FRGB16fBuffer
+{
+	half Pixel0[3];
+	half Pixel1[3];
+};
+RWStructuredBuffer<FRGB16fBuffer> OutRGB16fBuffer;
+
+// Shader to convert from RGB to YUV 422 10 bits packed little endian
+
+[numthreads(8,8,1)]
+void RGBToYUV10Bit422(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
+{
+	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
+
+	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
+	float Y = (ThreadId.y + InputPixelOffsetY) * OnePixelDeltaY;
+
+	// We process 8 RGB pixels per thread
+	float3 RGB0 = InputTexture.SampleLevel(InputSampler, float2(((X + 0.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB1 = InputTexture.SampleLevel(InputSampler, float2(((X + 1.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB2 = InputTexture.SampleLevel(InputSampler, float2(((X + 2.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB3 = InputTexture.SampleLevel(InputSampler, float2(((X + 3.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB4 = InputTexture.SampleLevel(InputSampler, float2(((X + 4.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB5 = InputTexture.SampleLevel(InputSampler, float2(((X + 5.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB6 = InputTexture.SampleLevel(InputSampler, float2(((X + 6.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	float3 RGB7 = InputTexture.SampleLevel(InputSampler, float2(((X + 7.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+
+	// The 8 RGB needs to be converted to YUV. Each encoded pixel will use 2 RGB pixels (YnUnVnYn+1)
+	uint3 YUV0 = RgbToYuv(RGB0, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV1 = RgbToYuv(RGB1, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV2 = RgbToYuv(RGB2, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV3 = RgbToYuv(RGB3, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV4 = RgbToYuv(RGB4, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV5 = RgbToYuv(RGB5, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV6 = RgbToYuv(RGB6, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV7 = RgbToYuv(RGB7, ColorTransform, DoLinearToSrgb) * 1023;
+
+	// We write the 4 YUV pixels (40 bits * 4 = 160 bits = 5x32 bits) following the little endian packing 2110 expects
+	OutYCbCrBuffer[Index].DWord0 = ((YUV0.z & 0x3F) << 26) | ((YUV1.x >> 8) << 24) | ((YUV0.x & 0xF) << 20) | ((YUV0.z >> 6) << 16) | ((YUV0.y & 0x3) << 14) | ((YUV0.x >> 4) << 8) | (YUV0.y >> 2);
+	OutYCbCrBuffer[Index].DWord1 = ((YUV2.x & 0xF) << 28) | ((YUV2.z >> 6) << 24) | ((YUV2.y & 0x3) << 22) | ((YUV2.x >> 4) << 16) | ((YUV2.y >> 2) << 8) | (YUV1.x & 0xFF);
+	OutYCbCrBuffer[Index].DWord2 = ((YUV4.y & 0x3) << 30) | ((YUV4.x >> 4) << 24) | ((YUV4.y >> 2) << 16) | ((YUV3.x & 0xFF) << 8) | ((YUV2.z & 0x3F) << 2) | (YUV3.x >> 8);
+	OutYCbCrBuffer[Index].DWord3 = ((YUV6.y >> 2) << 24) | ((YUV5.x & 0xFF) << 16) | ((YUV4.z & 0x3F) << 10) | ((YUV5.x >> 8) << 8) | ((YUV4.x & 0xF) << 4) | (YUV4.z >> 6);
+	OutYCbCrBuffer[Index].DWord4 = ((YUV7.x & 0xFF) << 24) | ((YUV6.z & 0x3F) << 18) | ((YUV7.x >> 8) << 16) | ((YUV6.x & 0xF) << 12) | ((YUV6.z >> 6) << 8) | ((YUV6.y & 0x3) << 6) | (YUV6.x >> 4);
+}
+
+
+// Shader to convert from RGBA to RGB8
+
+[numthreads(8,8,1)]
+void RGBToRGB8BitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
+{
+	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
+
+	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
+	float Y = (ThreadId.y + InputPixelOffsetY) * OnePixelDeltaY;
+
+	// We process 4 RGB pixels per thread
+	uint3 RGB0 = InputTexture.SampleLevel(InputSampler, float2(((X + 0.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 255;
+	uint3 RGB1 = InputTexture.SampleLevel(InputSampler, float2(((X + 1.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 255;
+	uint3 RGB2 = InputTexture.SampleLevel(InputSampler, float2(((X + 2.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 255;
+	uint3 RGB3 = InputTexture.SampleLevel(InputSampler, float2(((X + 3.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 255;
+
+	// We write the 4 RGB pixels (24 bits * 4 = 96 bits = 3x32 bits) following the packing 2110 expects
+	OutRGB8Buffer[Index].DWord0 = (RGB1.x << 24) | (RGB0.z << 16) | (RGB0.y << 8) | (RGB0.x << 0);
+	OutRGB8Buffer[Index].DWord1 = (RGB2.y << 24) | (RGB2.x << 16) | (RGB1.z << 8) | (RGB1.y << 0);
+	OutRGB8Buffer[Index].DWord2 = (RGB3.z << 24) | (RGB3.y << 16) | (RGB3.x << 8) | (RGB2.z << 0);
+}
+
+// Shader to convert from RGBA to RGB10
+
+[numthreads(8,8,1)]
+void RGBToRGB10BitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
+{
+	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
+
+	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
+	float Y = (ThreadId.y + InputPixelOffsetY) * OnePixelDeltaY;
+
+	uint3 RGB00 = InputTexture.SampleLevel(InputSampler, float2(((X + 0.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB01 = InputTexture.SampleLevel(InputSampler, float2(((X + 1.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB02 = InputTexture.SampleLevel(InputSampler, float2(((X + 2.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB03 = InputTexture.SampleLevel(InputSampler, float2(((X + 3.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB04 = InputTexture.SampleLevel(InputSampler, float2(((X + 4.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB05 = InputTexture.SampleLevel(InputSampler, float2(((X + 5.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB06 = InputTexture.SampleLevel(InputSampler, float2(((X + 6.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB07 = InputTexture.SampleLevel(InputSampler, float2(((X + 7.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB08 = InputTexture.SampleLevel(InputSampler, float2(((X + 8.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB09 = InputTexture.SampleLevel(InputSampler, float2(((X + 9.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB10 = InputTexture.SampleLevel(InputSampler, float2(((X + 10.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB11 = InputTexture.SampleLevel(InputSampler, float2(((X + 11.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB12 = InputTexture.SampleLevel(InputSampler, float2(((X + 12.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB13 = InputTexture.SampleLevel(InputSampler, float2(((X + 13.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB14 = InputTexture.SampleLevel(InputSampler, float2(((X + 14.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+	uint3 RGB15 = InputTexture.SampleLevel(InputSampler, float2(((X + 15.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb * 1023;
+
+	// All this bit swizzling is to pack 3 channels of 10 bits with R being in LSB of the first 32 bits and subsequent channels following until we used all 16 pixels.
+	// Example : RGB = (0x123, 0x245, 0x0AB)
+	// Binary  : 0100 1000 1110 0100 0101 0011 0011 0100
+	// Bytes   : 0x48 0xE4 0x53 0x34
+	// 32 bits : 34 << 24 | 53 << 16 | E4 << 8 | 48 << 0
+	// The bits of each channel not being next to each other seems weird but when you look at the byte ordering you can see it
+	// The E in the second byte is the LSB of R and it's separated from the rest of R by the MSB of G.
+	// We want 48 at the first adress so it goes in LSB of the 32 bits as it's written as little endian. 
+	// 2110 on the wire will read it as big endian which will give us R going out first
+
+	OutRGB10Buffer[Index].DWords[0] = ((RGB00.z & 0x03F) << 26) | ((RGB01.x >> 8)   << 24)   | ((RGB00.y & 0xF)  << 20) | ((RGB00.z >> 6)   << 16) | ((RGB00.x & 0x3)  << 14) | ((RGB00.y >> 4)   << 8)								| (RGB00.x >> 2);
+	OutRGB10Buffer[Index].DWords[1] = ((RGB01.z & 0x00F) << 28) | ((RGB02.x >> 6)   << 24)   | ((RGB01.y & 0x3)  << 22) | ((RGB01.z >> 4)   << 16)							  | ((RGB01.y >> 2)   << 8)								| (RGB01.x & 0xFF);
+	OutRGB10Buffer[Index].DWords[2] = ((RGB02.z & 0x003) << 30) | ((RGB03.x >> 4)   << 24)								| ((RGB02.z >> 2)   << 16)							  | ((RGB02.y & 0xFF) << 8)  | ((RGB02.x & 0x3F) << 2)  | (RGB02.y >> 8);
+	OutRGB10Buffer[Index].DWords[3] =							  ((RGB04.x >> 2)   << 24)								| ((RGB03.z & 0xFF) << 16) | ((RGB03.y & 0x3F) << 10) | ((RGB03.z >> 8)   << 8)  | ((RGB03.x & 0xF)  << 4)  | (RGB03.y >> 6);
+	OutRGB10Buffer[Index].DWords[4] =							  ((RGB05.x & 0xFF) << 24)   | ((RGB04.z & 0x3F) << 18) | ((RGB05.x >> 8)   << 16) | ((RGB04.y & 0xF)  << 12) | ((RGB04.z >> 6)   << 8)  | ((RGB04.x & 0x3)  << 6)  | (RGB04.y >> 4);
+	
+	OutRGB10Buffer[Index].DWords[5] = ((RGB05.x & 0x03F) << 26) | ((RGB06.y >> 8)   << 24)   | ((RGB05.z & 0xF)  << 20) | ((RGB05.x >> 6)   << 16) | ((RGB05.y & 0x3)  << 14) | ((RGB05.z >> 4)   << 8)								| (RGB05.y >> 2);
+	OutRGB10Buffer[Index].DWords[6] = ((RGB06.x & 0x00F) << 28) | ((RGB07.y >> 6)   << 24)   | ((RGB06.z & 0x3)  << 22) | ((RGB06.x >> 4)   << 16)							  | ((RGB06.z >> 2)   << 8)								| (RGB06.y & 0xFF);
+	OutRGB10Buffer[Index].DWords[7] = ((RGB07.x & 0x003) << 30) | ((RGB08.y >> 4)   << 24)								| ((RGB07.x >> 2)   << 16)							  | ((RGB07.z & 0xFF) << 8)  | ((RGB07.y & 0x3F) << 2)  | (RGB07.z >> 8);
+	OutRGB10Buffer[Index].DWords[8] =							  ((RGB09.y >> 2)   << 24)								| ((RGB08.x & 0xFF) << 16) | ((RGB08.z & 0x3F) << 10) | ((RGB08.x >> 8)   << 8)  | ((RGB08.y & 0xF)  << 4)  | (RGB08.z >> 6);
+	OutRGB10Buffer[Index].DWords[9] =							  ((RGB10.y & 0xFF) << 24)   | ((RGB09.x & 0x3F) << 18) | ((RGB10.y >> 8)   << 16) | ((RGB09.z & 0xF)  << 12) | ((RGB09.x >> 6)   << 8)  | ((RGB09.y & 0x3)  << 6)  | (RGB09.z >> 4);
+
+	OutRGB10Buffer[Index].DWords[10] = ((RGB10.y & 0x03F) << 26) | ((RGB11.z >> 8)   << 24)  | ((RGB11.x & 0xF)  << 20) | ((RGB11.y >> 6)   << 16) | ((RGB10.z & 0x3)  << 14) | ((RGB10.x >> 4)   << 8)								| (RGB10.z >> 2);
+	OutRGB10Buffer[Index].DWords[11] = ((RGB11.y & 0x00F) << 28) | ((RGB12.z >> 6)   << 24)  | ((RGB12.x & 0x3)  << 22) | ((RGB12.y >> 4)   << 16)							  | ((RGB11.x >> 2)   << 8)								| (RGB11.z & 0xFF);
+	OutRGB10Buffer[Index].DWords[12] = ((RGB12.y & 0x003) << 30) | ((RGB13.z >> 4)   << 24)								| ((RGB13.y >> 2)   << 16)							  | ((RGB12.x & 0xFF) << 8)  | ((RGB12.z & 0x3F) << 2)  | (RGB12.x >> 8);
+	OutRGB10Buffer[Index].DWords[13] =							   ((RGB14.z >> 2)   << 24)								| ((RGB14.y & 0xFF) << 16) | ((RGB13.x & 0x3F) << 10) | ((RGB13.y >> 8)   << 8)  | ((RGB13.z & 0xF)  << 4)  | (RGB13.x >> 6);
+	OutRGB10Buffer[Index].DWords[14] =							   ((RGB15.z & 0xFF) << 24)  | ((RGB14.y & 0x3F) << 18) | ((RGB15.z >> 8)   << 16) | ((RGB14.x & 0xF)  << 12) | ((RGB14.y >> 6)   << 8)  | ((RGB14.z & 0x3)  << 6)  | (RGB14.x >> 4);
+}
+
+// Shader to convert from RGBA to RGB Float16
+
+[numthreads(8,8,1)]
+void RGBToRGB16fBitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
+{
+	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
+	float Y = (ThreadId.y + InputPixelOffsetY) * OnePixelDeltaY;
+
+	half3 RGB0 = InputTexture.SampleLevel(InputSampler, float2(((X + 0.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	half3 RGB1 = InputTexture.SampleLevel(InputSampler, float2(((X + 1.0) + 0.5) * OnePixelDeltaX, Y), 0).rgb;
+	
+	// Storage has been untested as no available supported that viewer. Will need to be validated. 
+	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
+	OutRGB16fBuffer[Index].Pixel0[0]  = RGB0.z;
+	OutRGB16fBuffer[Index].Pixel0[1]  = RGB0.y;
+	OutRGB16fBuffer[Index].Pixel0[2]  = RGB0.x;
+	OutRGB16fBuffer[Index].Pixel1[0]  = RGB1.z;
+	OutRGB16fBuffer[Index].Pixel1[1]  = RGB1.y;
+	OutRGB16fBuffer[Index].Pixel1[2]  = RGB1.x;
+}

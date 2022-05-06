@@ -21,7 +21,8 @@ public class RivermaxMedia : ModuleRules
 				"Engine",
 				"RenderCore",
 				"RHI",
-				"RivermaxCore"
+				"RivermaxCore",
+				"RivermaxRendering"
 			}
 		);
 

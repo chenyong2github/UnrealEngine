@@ -25,15 +25,15 @@ namespace UE::RivermaxCore::Private
 
 	struct FRivermaxOutputStreamMemory
 	{
-		uint16 PayloadSize = 0; 
-		uint32 DataStrideSize = 1280; 
+		uint16 PayloadSize = 0;
+		uint32 DataStrideSize = 1280;
 		uint32 HeaderStrideSize = 20;
 		uint32 LinesInChunk = 4;
 
 		uint32 PacketsInLine = 0;
 		uint32 ChunkSizeInStrides = 0;
 
-		uint32 FramesFieldPerMemoryBlock = 1;
+		uint32 FramesFieldPerMemoryBlock = 0;
 		uint32 PacketsInFrameField = 0;
 		uint32 PacketsPerMemoryBlock = 0;
 		uint32 ChunksPerFrameField = 0;

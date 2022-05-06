@@ -287,7 +287,7 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 			[this](FRHICommandListImmediate& RHICmdList) mutable
 			{
 				// Unregister texture before closing channel.
-				if (ShouldCaptureRHITexture())
+				if (ShouldCaptureRHIResource())
 				{
 					for (FTextureRHIRef& Texture : TexturesToRelease)
 					{
@@ -320,14 +320,14 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 	}
 }
 
-bool UAjaMediaCapture::ShouldCaptureRHITexture() const
+bool UAjaMediaCapture::ShouldCaptureRHIResource() const
 {
 	return bGPUTextureTransferAvailable && CVarAjaEnableGPUDirect.GetValueOnAnyThread() == 1;
 }
 
 void UAjaMediaCapture::BeforeFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
 {
-	if (ShouldCaptureRHITexture())
+	if (ShouldCaptureRHIResource())
 	{
 		if (!TexturesToRelease.Contains(InTexture))
 		{
@@ -406,7 +406,7 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 	FrameRate = InAjaMediaOutput->GetRequestedFrameRate();
 	PortName = FAjaDeviceProvider().ToText(InAjaMediaOutput->OutputConfiguration.MediaConfiguration.MediaConnection).ToString();
 
-	if (ShouldCaptureRHITexture())
+	if (ShouldCaptureRHIResource())
 	{
 		if (InAjaMediaOutput->OutputConfiguration.MediaConfiguration.MediaMode.Standard != EMediaIOStandardType::Progressive)
 		{
@@ -450,7 +450,7 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 	ChannelOptions.PixelFormat = AjaMediaCaptureUtils::ConvertPixelFormat(InAjaMediaOutput->PixelFormat, ChannelOptions.bUseKey);
 	ChannelOptions.TimecodeFormat =  AjaMediaCaptureUtils::ConvertTimecode(InAjaMediaOutput->TimecodeFormat);
 	ChannelOptions.OutputReferenceType = AjaMediaCaptureUtils::Convert(InAjaMediaOutput->OutputConfiguration.OutputReference);
-	ChannelOptions.bUseGPUDMA = ShouldCaptureRHITexture();
+	ChannelOptions.bUseGPUDMA = ShouldCaptureRHIResource();
 
 	bOutputAudio = InAjaMediaOutput->bOutputAudio;
 	
@@ -489,7 +489,7 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 		WakeUpEvent = FPlatformProcess::GetSynchEventFromPool(bIsManualReset);
 	}
 
-	if (ShouldCaptureRHITexture())
+	if (ShouldCaptureRHIResource())
 	{
 		UE_LOG(LogAjaMediaOutput, Display, TEXT("Aja capture started using GPU Direct"));
 	}
@@ -546,7 +546,7 @@ void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& I
 	}
 }
 
-void UAjaMediaCapture::OnRHITextureCaptured_RenderingThread(const FCaptureBaseData& InBaseData,	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
+void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData,	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread);
 	

@@ -102,8 +102,14 @@ namespace UE::RivermaxCore::Private
 		Options = InOptions;
 		Listener = &InListener;
 
-		Async(EAsyncExecution::TaskGraph, [this]()
+		InitTaskFuture = Async(EAsyncExecution::TaskGraph, [this]()
 		{
+			// If the stream is trying to shutdown before the init task has even started, don't bother
+			if (bIsShuttingDown)
+			{
+					return;
+			}
+
 			bool bWasSuccessful = false;
 			int32 FlowId = 0; //todo configure
 
@@ -192,6 +198,14 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxInputStream::Uninitialize()
 	{
+		bIsShuttingDown = true;
+
+		//If init task is ongoing, wait till it's done
+		if (InitTaskFuture.IsReady() == false)
+		{
+			InitTaskFuture.Wait();
+		}
+
 		if (RivermaxThread != nullptr)
 		{
 			Stop();

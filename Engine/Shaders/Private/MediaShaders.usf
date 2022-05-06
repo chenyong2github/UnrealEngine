@@ -332,52 +332,6 @@ void YVYUConvertPS(
 	OutColor.w = 1.0f;
 }
 
-// shader from 8 bits RGB to 8 bits UYVY
-void RGB8toUYVY8ConvertPS(
-	float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
-	out float4 OutColor : SV_Target0)
-{
-	float3 RGB0 = RGB8toUYVY8ConvertUB.Texture.Sample(RGB8toUYVY8ConvertUB.SamplerP, float2(InUV.x + 0.5f * RGB8toUYVY8ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
-	float3 RGB1 = RGB8toUYVY8ConvertUB.Texture.Sample(RGB8toUYVY8ConvertUB.SamplerP, float2(InUV.x + 1.5f * RGB8toUYVY8ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
-
-	float3 YUV0 = RgbToYuv(RGB0, RGB8toUYVY8ConvertUB.ColorTransform, RGB8toUYVY8ConvertUB.LinearToSrgb);
-	float3 YUV1 = RgbToYuv(RGB1, RGB8toUYVY8ConvertUB.ColorTransform, RGB8toUYVY8ConvertUB.LinearToSrgb);
-	
-	OutColor.xyzw = float4(YUV0.z, YUV0.x, YUV0.y, YUV1.x);
-}
-
-
-// shader to convert RGB to YUV v210
-void RGB10toYUVv210ConvertPS(
-	float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
-	out uint4 OutColor : SV_Target0)
-{
-	float X = (InUV.x * RGB10toYUVv210ConvertUB.PaddingScale) - RGB10toYUVv210ConvertUB.OnePixelDeltaX * 2.5f;
-
-	float3 RGB0 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X, InUV.y)).rgb;
-	float3 RGB1 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X + RGB10toYUVv210ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
-	float3 RGB2 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X + RGB10toYUVv210ConvertUB.OnePixelDeltaX * 2.0f, InUV.y)).rgb;
-	float3 RGB3 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X + RGB10toYUVv210ConvertUB.OnePixelDeltaX * 3.0f, InUV.y)).rgb;
-	float3 RGB4 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X + RGB10toYUVv210ConvertUB.OnePixelDeltaX * 4.0f, InUV.y)).rgb;
-	float3 RGB5 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X + RGB10toYUVv210ConvertUB.OnePixelDeltaX * 5.0f, InUV.y)).rgb;
-
-	uint3 YUV0 = RgbToYuv(RGB0, RGB10toYUVv210ConvertUB.ColorTransform, RGB10toYUVv210ConvertUB.LinearToSrgb) * 1023;
-	uint3 YUV1 = RgbToYuv(RGB1, RGB10toYUVv210ConvertUB.ColorTransform, RGB10toYUVv210ConvertUB.LinearToSrgb) * 1023;
-	uint3 YUV2 = RgbToYuv(RGB2, RGB10toYUVv210ConvertUB.ColorTransform, RGB10toYUVv210ConvertUB.LinearToSrgb) * 1023;
-	uint3 YUV3 = RgbToYuv(RGB3, RGB10toYUVv210ConvertUB.ColorTransform, RGB10toYUVv210ConvertUB.LinearToSrgb) * 1023;
-	uint3 YUV4 = RgbToYuv(RGB4, RGB10toYUVv210ConvertUB.ColorTransform, RGB10toYUVv210ConvertUB.LinearToSrgb) * 1023;
-	uint3 YUV5 = RgbToYuv(RGB5, RGB10toYUVv210ConvertUB.ColorTransform, RGB10toYUVv210ConvertUB.LinearToSrgb) * 1023;
-
-	uint W0 = (YUV0.z << 20) | (YUV0.x << 10) | YUV0.y;
-	uint W1 = (YUV2.x << 20) | (YUV2.y << 10) | YUV1.x;
-	uint W2 = (YUV4.y << 20) | (YUV3.x << 10) | YUV2.z;
-	uint W3 = (YUV5.x << 20) | (YUV4.z << 10) | YUV4.x;
-
-	OutColor.xyzw = uint4(W0, W1, W2, W3);
-}
-
 
 // shader to convert RGB to Y component of YUV
 void RGB8toY8ConvertPS(float4 InPosition : SV_POSITION,
@@ -410,6 +364,64 @@ void ReadTextureExternalPS(
     OutColor = float4(sRGBToLinear(InColor.xyz), InColor.w);
 }
 
+/* Media Capture Pixel shaders 
+=============================================================================*/
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+float4x4 ColorTransform;
+uint DoLinearToSrgb;
+float OnePixelDeltaX;
+float PaddingScale;
+float InputPixelOffsetX;
+
+
+// shader to convert from RGB to 8 bits UYVY
+void RGB8toUYVY8ConvertPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float3 RGB0 = InputTexture.Sample(InputSampler, float2(UV.x + 0.5f * OnePixelDeltaX, UV.y)).rgb;
+	float3 RGB1 = InputTexture.Sample(InputSampler, float2(UV.x + 1.5f * OnePixelDeltaX, UV.y)).rgb;
+
+	float3 YUV0 = RgbToYuv(RGB0, ColorTransform, DoLinearToSrgb);
+	float3 YUV1 = RgbToYuv(RGB1, ColorTransform, DoLinearToSrgb);
+	
+	OutColor.xyzw = float4(YUV0.z, YUV0.x, YUV0.y, YUV1.x);
+}
+
+
+// shader to convert from RGB to YUV v210
+void RGB10toYUVv210ConvertPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out uint4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float X = (UV.x * PaddingScale) - OnePixelDeltaX * 2.5f;
+
+	float3 RGB0 = InputTexture.Sample(InputSampler, float2(X, UV.y)).rgb;
+	float3 RGB1 = InputTexture.Sample(InputSampler, float2(X + OnePixelDeltaX, UV.y)).rgb;
+	float3 RGB2 = InputTexture.Sample(InputSampler, float2(X + OnePixelDeltaX * 2.0f, UV.y)).rgb;
+	float3 RGB3 = InputTexture.Sample(InputSampler, float2(X + OnePixelDeltaX * 3.0f, UV.y)).rgb;
+	float3 RGB4 = InputTexture.Sample(InputSampler, float2(X + OnePixelDeltaX * 4.0f, UV.y)).rgb;
+	float3 RGB5 = InputTexture.Sample(InputSampler, float2(X + OnePixelDeltaX * 5.0f, UV.y)).rgb;
+
+	uint3 YUV0 = RgbToYuv(RGB0, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV1 = RgbToYuv(RGB1, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV2 = RgbToYuv(RGB2, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV3 = RgbToYuv(RGB3, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV4 = RgbToYuv(RGB4, ColorTransform, DoLinearToSrgb) * 1023;
+	uint3 YUV5 = RgbToYuv(RGB5, ColorTransform, DoLinearToSrgb) * 1023;
+
+	uint W0 = (YUV0.z << 20) | (YUV0.x << 10) | YUV0.y;
+	uint W1 = (YUV2.x << 20) | (YUV2.y << 10) | YUV1.x;
+	uint W2 = (YUV4.y << 20) | (YUV3.x << 10) | YUV2.z;
+	uint W3 = (YUV5.x << 20) | (YUV4.z << 10) | YUV4.x;
+
+	OutColor.xyzw = uint4(W0, W1, W2, W3);
+}
+
 
 // Following defines must reflect values in EMediaCaptureConversionOperation in MediaOutput
 #define INVERT_ALPHA 3
@@ -417,11 +429,11 @@ void ReadTextureExternalPS(
 
 // Shader to swizzle rgba textures, set alpha to 1 or invert alpha
 void SwizzleRgbPS(
-	float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
+	noperspective float4 UVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
-	float4 Color = SwizzleRgbUB.Texture.Sample(SwizzleRgbUB.SamplerP, InUV);
+	float2 UV = UVAndScreenPos.xy;
+	float4 Color = InputTexture.Sample(InputSampler, UV);
 #if CONVERSION_OP == INVERT_ALPHA
 	OutColor.rgba = float4(Color.rgb, 1 - Color.a);
 #elif CONVERSION_OP == SET_ALPHA_ONE
@@ -430,4 +442,5 @@ void SwizzleRgbPS(
 	OutColor.rgba = Color.rgba;
 #endif
 }
+
 

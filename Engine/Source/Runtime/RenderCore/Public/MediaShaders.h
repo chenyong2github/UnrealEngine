@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "Shader.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
+#include "RenderResource.h"
+#include "RHI.h"
+#include "Shader.h"
+#include "ShaderParameterStruct.h"
 
 
 /** MAX number of conversion operations. Reflects MAX in EMediaCaptureConversionOperation */
@@ -539,60 +540,6 @@ public:
 
 
 /**
- * Pixel shader to convert RGB 8 bits to UYVY 8 bits
- *
- * This shader expects a single texture in PF_B8G8R8A8 format.
- */
-class FRGB8toUYVY8ConvertPS
-	: public FGlobalShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FRGB8toUYVY8ConvertPS, Global, RENDERCORE_API);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
-	FRGB8toUYVY8ConvertPS() { }
-
-	FRGB8toUYVY8ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb);
-};
-
-
-/**
- * Pixel shader to convert RGB 10 bits to YUV v210
- *
- * This shader expects a single texture in PF_A2B10G10R10 format.
- */
-class FRGB10toYUVv210ConvertPS
-	: public FGlobalShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FRGB10toYUVv210ConvertPS, Global, RENDERCORE_API);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
-	FRGB10toYUVv210ConvertPS() { }
-
-	FRGB10toYUVv210ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb);
-};
-
-
-/**
  * Pixel shader to convert RGB 8 bits to Y 8 bits
  *
  * This shader expects a single texture in PF_B8G8R8A8 format.
@@ -644,37 +591,118 @@ public:
 };
 
 
+/** Struct of common parameters used in media capture shaders to do RGB to YUV conversions */
+BEGIN_SHADER_PARAMETER_STRUCT(FRGBToYUVConversion, RENDERCORE_API)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture) 
+	SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+	SHADER_PARAMETER(FMatrix44f, ColorTransform)
+	SHADER_PARAMETER(uint32, DoLinearToSrgb)
+	SHADER_PARAMETER(float, OnePixelDeltaX)
+END_SHADER_PARAMETER_STRUCT()
+
+/**
+ * Pixel shader to convert RGB 8 bits to UYVY 8 bits
+ */
+	class RENDERCORE_API FRGB8toUYVY8ConvertPS : public FGlobalShader
+{
+public:
+
+	DECLARE_GLOBAL_SHADER(FRGB8toUYVY8ConvertPS);
+
+	SHADER_USE_PARAMETER_STRUCT(FRGB8toUYVY8ConvertPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FRGBToYUVConversion, RGBToYUVConversion)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
+	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
+	{
+	}
+
+	/** Allocates and setup shader parameter in the incoming graph builder */
+	FRGB8toUYVY8ConvertPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture);
+};
+
+
+/**
+ * Pixel shader to convert RGB 10 bits to YUV v210
+ */
+	class RENDERCORE_API FRGB10toYUVv210ConvertPS : public FGlobalShader
+{
+public:
+
+	DECLARE_GLOBAL_SHADER(FRGB10toYUVv210ConvertPS);
+
+	SHADER_USE_PARAMETER_STRUCT(FRGB10toYUVv210ConvertPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FRGBToYUVConversion, RGBToYUVConversion)
+		SHADER_PARAMETER(float, PaddingScale)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
+	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
+	{
+	}
+
+	/** Allocates and setup shader parameter in the incoming graph builder */
+	FRGB10toYUVv210ConvertPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture);
+};
+
 /**
  * Pixel shader to swizzle R G B A components, set alpha to 1 or inverts alpha
  *
  * General conversion shader that is only used to swizzle shaders that do not require any color conversion. RGB to BGR, RGB10A2 to RGBA8 etc
  */
-class FModifyAlphaSwizzleRgbaPS
-	: public FGlobalShader
+class RENDERCORE_API FModifyAlphaSwizzleRgbaPS	: public FGlobalShader
 {
 public:
-	DECLARE_EXPORTED_SHADER_TYPE(FModifyAlphaSwizzleRgbaPS, Global, RENDERCORE_API);
+
+	DECLARE_GLOBAL_SHADER(FModifyAlphaSwizzleRgbaPS);
+
+	SHADER_USE_PARAMETER_STRUCT(FModifyAlphaSwizzleRgbaPS, FGlobalShader);
 
 	class FConversionOp : SHADER_PERMUTATION_INT("CONVERSION_OP", NUM_MEDIA_SHADERS_CONVERSION_OP);
 	using FPermutationDomain = TShaderPermutationDomain<FConversionOp>;
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture) 
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
+	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture)
 	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	FModifyAlphaSwizzleRgbaPS() = default;
-
-	FModifyAlphaSwizzleRgbaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
+	/** Allocates and setup shader parameter in the incoming graph builder */
+	FModifyAlphaSwizzleRgbaPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, FRDGTextureRef OutputTexture);
 };
+
+
 

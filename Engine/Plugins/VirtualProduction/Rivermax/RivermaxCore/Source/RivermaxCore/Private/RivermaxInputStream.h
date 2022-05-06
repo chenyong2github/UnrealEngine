@@ -4,9 +4,12 @@
 
 #include "IRivermaxInputStream.h"
 
+#include <atomic>
+#include "Async/Future.h"
 #include "HAL/Runnable.h"
 #include "RivermaxHeader.h"
 #include "RivermaxTypes.h"
+
 
 
 namespace UE::RivermaxCore::Private
@@ -88,6 +91,8 @@ namespace UE::RivermaxCore::Private
 		ERivermaxStreamType RivermaxStreamType = ERivermaxStreamType::VIDEO_2110_20_STREAM;
 		FInputStreamData StreamData;
 		IRivermaxInputStreamListener* Listener;
+		std::atomic<bool> bIsShuttingDown;
+		TFuture<void> InitTaskFuture;
 	};
 }
 

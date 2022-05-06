@@ -14,7 +14,10 @@ UENUM()
 enum class ERivermaxMediaOutputPixelFormat : uint8
 {
 	PF_8BIT_YUV UMETA(DisplayName = "8bit YUV"),
-	//Todo add 10bit YUV, 8/10 bit RGB
+	PF_10BIT_YCBCR_422 UMETA(DisplayName = "10bit YCbCr 4:2:2"),
+	PF_8BIT_RGB UMETA(DisplayName = "8bit RGB"),
+	PF_10BIT_RGB UMETA(DisplayName = "10bit RGB"),
+	PF_FLOAT16_RGB UMETA(DisplayName = "16bit Float RGB")
 };
 
 
