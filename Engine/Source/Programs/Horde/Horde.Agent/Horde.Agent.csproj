@@ -22,8 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.Core" Version="3.5.1.49" />
-    <PackageReference Include="AWSSDK.EC2" Version="3.5.1.2" />
+    <PackageReference Include="AWSSDK.Core" Version="3.7.3.19" />
+    <PackageReference Include="AWSSDK.EC2" Version="3.7.4" />
+    <PackageReference Include="AWSSDK.SimpleSystemsManagement" Version="3.7.3.19" />
     <PackageReference Include="Datadog.Trace.OpenTracing" Version="1.18.0" />
     <PackageReference Include="Google.Protobuf" Version="3.20.1" />
     <PackageReference Include="Grpc.Net.Client" Version="2.45.0" />
@@ -120,6 +121,7 @@
     <Protobuf Include="..\Horde.Build\Protos\horde\messages\agent_requirements.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
     <Protobuf Include="..\Horde.Build\Protos\horde\messages\agent_workspace.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
     <Protobuf Include="..\Horde.Build\Protos\horde\messages\lease.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
+    <Protobuf Include="..\Horde.Build\Protos\horde\tasks\aws_lambda_compute_task.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
     <Protobuf Include="..\Horde.Build\Protos\horde\tasks\compute_task.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
     <Protobuf Include="..\Horde.Build\Protos\horde\tasks\conform_task.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
     <Protobuf Include="..\Horde.Build\Protos\horde\tasks\job_task.proto" ProtoRoot="..\Horde.Build\Protos" Access="Internal" />
