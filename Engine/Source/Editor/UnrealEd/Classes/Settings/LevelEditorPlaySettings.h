@@ -251,6 +251,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PlayInEditor, meta = (ToolTip = "Whether or not the editor is minimized on non-VR PIE"))
 	bool bShouldMinimizeEditorOnNonVRPIE;
 
+	/** Whether we should emulate stereo (helps checking VR rendering issues). */
+	UPROPERTY(config, EditAnywhere, Category = PlayInStandaloneGame)
+	bool bEmulateStereo;
+
 	/** Whether to automatically recompile blueprints on PIE */
 	UPROPERTY(config, EditAnywhere, Category=PlayInEditor, meta=(ToolTip="Automatically recompile blueprints used by the current level when initiating a Play In Editor session"))
 	bool AutoRecompileBlueprints;

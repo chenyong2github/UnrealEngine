@@ -181,6 +181,12 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 		GLog->CategorizedLogf(FName("LogHMD"), ELogVerbosity::Warning, TEXT("Standalone Game VR not supported, please use VR Preview."));
 	}
 
+	// if we had -emulatestereo on the commandline, also pass it to the new process
+	if (InParams.EditorPlaySettings->bEmulateStereo || FParse::Param(FCommandLine::Get(), TEXT("emulatestereo")))
+	{
+		CommandLine += TEXT(" -emulatestereo");
+	}
+
 	// Allow disabling the sound in the new clients.
 	if (InParams.EditorPlaySettings->DisableStandaloneSound)
 	{
