@@ -388,7 +388,7 @@ FReply SIKRetargetChainMapList::OnEditSettingsButtonClicked() const
 		return FReply::Unhandled();
 	}
 	
-	Controller->DetailsView->SetObject(RetargeterController->GetAsset()->RootSettings);
+	Controller->DetailsView->SetObject(RetargeterController->GetAsset()->GetRetargetRootSettings());
 	return FReply::Handled();
 }
 

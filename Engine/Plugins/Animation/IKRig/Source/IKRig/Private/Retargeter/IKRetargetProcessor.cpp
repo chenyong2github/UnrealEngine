@@ -1595,7 +1595,7 @@ void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 	}
 
 	// copy root settings
-	const URetargetRootSettings& RootSettings = *RetargeterAsset->RootSettings;
+	const URetargetRootSettings& RootSettings = *RetargeterAsset->GetRetargetRootSettings();
 	RootRetargeter.GlobalScaleHorizontal = RootSettings.GlobalScaleHorizontal;
 	RootRetargeter.GlobalScaleVertical = RootSettings.GlobalScaleVertical;
 	RootRetargeter.BlendToSource = RootSettings.BlendToSource;

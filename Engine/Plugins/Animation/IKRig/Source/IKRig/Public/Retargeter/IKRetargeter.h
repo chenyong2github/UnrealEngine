@@ -233,6 +233,8 @@ public:
 	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset.LoadSynchronous(); };
 	/** Get read-only access to the chain mapping */
 	const TArray<TObjectPtr<URetargetChainSettings>> GetAllChainSettings() const { return ChainSettings; };
+	/** Get access to the root settings */
+	URetargetRootSettings* GetRetargetRootSettings() const { return RootSettings; };
 	/** Get read-only access to a retarget pose */
 	const FIKRetargetPose* GetCurrentRetargetPose() const { return &RetargetPoses[CurrentRetargetPose]; };
 	/** Get the unique ID of this UObject as a name. */
@@ -283,6 +285,10 @@ private:
 	TSoftObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
 #endif
 
+	/** the retarget root settings */
+	UPROPERTY()
+	TObjectPtr<URetargetRootSettings> RootSettings;
+	
 public:
 	
 	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/
@@ -299,9 +305,6 @@ public:
 
 	/** log warnings and errors */
 	FIKRigLogger Log;
-
-	/** the retarget root settings */
-	TObjectPtr<URetargetRootSettings> RootSettings;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
