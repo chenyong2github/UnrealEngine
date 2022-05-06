@@ -11,6 +11,7 @@
 #include "Widgets/Scalability/SNiagaraSystemResolvedScalabilitySettings.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "Widgets/Scalability/SNiagaraScalabilityContext.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemToolkitMode_Scalability"
 
