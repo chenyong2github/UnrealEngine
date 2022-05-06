@@ -472,7 +472,13 @@ bool FPackageTrailer::TryLoadBackwards(FArchive& Ar)
 {
 	check(Ar.IsLoading());
 
-	Ar.Seek(Ar.Tell() - FFooter::SizeOnDisk);
+	const int64 FooterPos = Ar.Tell() - (int64)FFooter::SizeOnDisk;
+	if (FooterPos <= 0)
+	{
+		return false;
+	}
+
+	Ar.Seek(FooterPos);
 
 	FFooter Footer;
 
