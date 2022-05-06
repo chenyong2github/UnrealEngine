@@ -29,8 +29,8 @@ namespace Chaos::Softs
 			int32 ParticleCount,
 			const TArray<TVector<int32, 4>>& InMesh,
 			const bool bRecordMetricIn = true,
-			const FSolverReal& EMesh = (FReal)10.0,
-			const FSolverReal& NuMesh = (FReal).3,
+			const FSolverReal& EMesh = (FSolverReal)10.0,
+			const FSolverReal& NuMesh = (FSolverReal).3,
 			const FSolverVec3 InFiberDir = FSolverVec3((FSolverReal)1., (FSolverReal)0., (FSolverReal)0.),
 			const FSolverReal InSigmaMax = (FSolverReal)3e5
 		)
@@ -48,7 +48,7 @@ namespace Chaos::Softs
 			{
 				CurrentTime -= FinalTime;
 			}
-			AlphaActivation = (FReal)1. - (FReal)4. / FinalTime * FMath::Abs(CurrentTime - FinalTime / (FReal)2.);
+			AlphaActivation = (FSolverReal)1. - (FSolverReal)4. / FinalTime * FMath::Abs(CurrentTime - FinalTime / (FSolverReal)2.);
 		}
 
 		virtual void ApplyInSerial(FSolverParticles& Particles, const FSolverReal Dt, const int32 ElementIndex) const override
@@ -83,9 +83,9 @@ namespace Chaos::Softs
 
 		TVec4<FSolverVec3> GetFiberDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 ElementIndex, const FSolverReal Tol = 1e-3) const
 		{
-			const PMatrix<FReal, 3, 3> Fe = F(ElementIndex, Particles);
+			const PMatrix<FSolverReal, 3, 3> Fe = F(ElementIndex, Particles);
 
-			PMatrix<FReal, 3, 3> Re((FReal)0.), Se((FReal)0.);
+			PMatrix<FSolverReal, 3, 3> Re((FSolverReal)0.), Se((FSolverReal)0.);
 
 			Chaos::PolarDecomposition(Fe, Re, Se);
 
@@ -93,7 +93,7 @@ namespace Chaos::Softs
 			FSolverVec3 FeV = Fe.GetTransposed() * FiberDir;
 			FSolverVec3 DmInverseV = ElementDmInv(ElementIndex).GetTransposed() * FiberDir;
 			FSolverReal L = FeV.Size();
-			TVec4<FSolverVec3> dLdX(FSolverVec3((FReal)0.));
+			TVec4<FSolverVec3> dLdX(FSolverVec3((FSolverReal)0.));
 			for (int32 alpha = 0; alpha < 3; alpha++)
 			{
 				for (int32 s = 0; s < 3; s++)
@@ -110,49 +110,49 @@ namespace Chaos::Softs
 				}
 			}
 
-			FReal LambdaOFL = (FReal)1.4;
-			FReal P1 = (FReal)0.05;
-			FReal P2 = (FReal)6.6;
-			FReal FpIntegral = (FReal)0.;
-			FReal FaIntegral = (FReal)0.;
+			FSolverReal LambdaOFL = (FSolverReal)1.4;
+			FSolverReal P1 = (FSolverReal)0.05;
+			FSolverReal P2 = (FSolverReal)6.6;
+			FSolverReal FpIntegral = (FSolverReal)0.;
+			FSolverReal FaIntegral = (FSolverReal)0.;
 
-			FReal C3 = (FReal)0.;
-			FReal AlphaTilde = LambdaOFL / (SigmaMax * Dt * Dt * Measure[ElementIndex]);
-			FReal dFpdL = (FReal)0.;
-			FReal dFadL = (FReal)0.;
+			FSolverReal C3 = (FSolverReal)0.;
+			FSolverReal AlphaTilde = LambdaOFL / (SigmaMax * Dt * Dt * Measure[ElementIndex]);
+			FSolverReal dFpdL = (FSolverReal)0.;
+			FSolverReal dFadL = (FSolverReal)0.;
 
 			if (L > LambdaOFL)
 			{
-				FpIntegral = P1 * LambdaOFL / P2 * FMath::Exp(P2 * (L / LambdaOFL - (FReal)1.)) - P1 * (L - LambdaOFL);
-				dFpdL = P1 * FMath::Exp(P2 * (L / LambdaOFL - (FReal)1.)) - P1;
+				FpIntegral = P1 * LambdaOFL / P2 * FMath::Exp(P2 * (L / LambdaOFL - (FSolverReal)1.)) - P1 * (L - LambdaOFL);
+				dFpdL = P1 * FMath::Exp(P2 * (L / LambdaOFL - (FSolverReal)1.)) - P1;
 			}
-			if (L > (FReal)0.4 * LambdaOFL && L < (FReal)0.6 * LambdaOFL)
+			if (L > (FSolverReal)0.4 * LambdaOFL && L < (FSolverReal)0.6 * LambdaOFL)
 			{
-				FaIntegral = (FReal)3. * LambdaOFL * FMath::Pow((L / LambdaOFL - (FReal)0.4), 3);
-				dFadL = (FReal)9. * FMath::Pow((L / LambdaOFL - (FReal)0.4), 2);
+				FaIntegral = (FSolverReal)3. * LambdaOFL * FMath::Pow((L / LambdaOFL - (FSolverReal)0.4), 3);
+				dFadL = (FSolverReal)9. * FMath::Pow((L / LambdaOFL - (FSolverReal)0.4), 2);
 			}
-			else if (L >= (FReal)0.6 * LambdaOFL && L <= (FReal)1.4 * LambdaOFL)
+			else if (L >= (FSolverReal)0.6 * LambdaOFL && L <= (FSolverReal)1.4 * LambdaOFL)
 			{
-				FaIntegral = (FReal)3. * LambdaOFL * (FReal)0.008 + L - (FReal)4. / (FReal)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (FReal)1., 3) - (FReal)0.6 * LambdaOFL - (FReal)4. / (FReal)3. * LambdaOFL * FMath::Pow((FReal)0.4, 3);
-				dFadL = (FReal)1. - (FReal)4. * FMath::Pow(L / LambdaOFL - (FReal)1., 2);
+				FaIntegral = (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008 + L - (FSolverReal)4. / (FSolverReal)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (FSolverReal)1., 3) - (FSolverReal)0.6 * LambdaOFL - (FSolverReal)4. / (FSolverReal)3. * LambdaOFL * FMath::Pow((FSolverReal)0.4, 3);
+				dFadL = (FSolverReal)1. - (FSolverReal)4. * FMath::Pow(L / LambdaOFL - (FSolverReal)1., 2);
 			}
-			else if (L > (FReal)1.4 * LambdaOFL && L <= (FReal)1.6 * LambdaOFL)
+			else if (L > (FSolverReal)1.4 * LambdaOFL && L <= (FSolverReal)1.6 * LambdaOFL)
 			{
-				FaIntegral = (FReal)3. * LambdaOFL * (FReal)0.008 + (FReal)0.8 * LambdaOFL - (FReal)8. / (FReal)3. * LambdaOFL * FMath::Pow((FReal)0.4, 3) + (FReal)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (FReal)1.6, 3) + (FReal)3. * LambdaOFL * (FReal)0.008;
-				dFadL = (FReal)9. * FMath::Pow((L / LambdaOFL - (FReal)1.6), 2);
+				FaIntegral = (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008 + (FSolverReal)0.8 * LambdaOFL - (FSolverReal)8. / (FSolverReal)3. * LambdaOFL * FMath::Pow((FSolverReal)0.4, 3) + (FSolverReal)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (FSolverReal)1.6, 3) + (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008;
+				dFadL = (FSolverReal)9. * FMath::Pow((L / LambdaOFL - (FSolverReal)1.6), 2);
 
 			}
-			else if (L > (FReal)1.6 * LambdaOFL)
+			else if (L > (FSolverReal)1.6 * LambdaOFL)
 			{
-				FaIntegral = (FReal)3. * LambdaOFL * (FReal)0.008 + (FReal)0.8 * LambdaOFL - (FReal)8. / (FReal)3. * LambdaOFL * FMath::Pow((FReal)0.4, 3) + (FReal)3. * LambdaOFL * (FReal)0.008;
-				dFadL = (FReal)0.;
+				FaIntegral = (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008 + (FSolverReal)0.8 * LambdaOFL - (FSolverReal)8. / (FSolverReal)3. * LambdaOFL * FMath::Pow((FSolverReal)0.4, 3) + (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008;
+				dFadL = (FSolverReal)0.;
 			}
 
 
 			C3 = FMath::Sqrt(FpIntegral + AlphaActivation * FaIntegral);
 
 
-			FReal dC3dL = (FReal)0.5 * (dFpdL + AlphaActivation * dFadL);
+			FSolverReal dC3dL = (FSolverReal)0.5 * (dFpdL + AlphaActivation * dFadL);
 			if (C3 == 0)
 			{
 				return TVec4<FSolverVec3>(FSolverVec3((FSolverReal)0.));
@@ -162,7 +162,7 @@ namespace Chaos::Softs
 				dC3dL /= C3;
 			}
 
-			TVec4<FSolverVec3> dC3(FSolverVec3((FReal)0.));
+			TVec4<FSolverVec3> dC3(FSolverVec3((FSolverReal)0.));
 			for (int32 i = 0; i < 4; i++)
 			{
 				for (int32 j = 0; j < 3; j++)
@@ -171,9 +171,9 @@ namespace Chaos::Softs
 				}
 			}
 
-			FReal DLambda = -C3 - AlphaTilde * LambdaArray[2 * ElementIndex + 2];
+			FSolverReal DLambda = -C3 - AlphaTilde * LambdaArray[2 * ElementIndex + 2];
 
-			FReal Denom = AlphaTilde;
+			FSolverReal Denom = AlphaTilde;
 			for (int i = 0; i < 4; i++)
 			{
 				for (int j = 0; j < 3; j++)
@@ -183,7 +183,7 @@ namespace Chaos::Softs
 			}
 			DLambda /= Denom;
 			LambdaArray[2 * ElementIndex + 2] += DLambda;
-			TVec4<FSolverVec3> Delta(FSolverVec3((FReal)0.));
+			TVec4<FSolverVec3> Delta(FSolverVec3((FSolverReal)0.));
 			for (int i = 0; i < 4; i++)
 			{
 				for (int j = 0; j < 3; j++)
@@ -200,8 +200,8 @@ namespace Chaos::Softs
 	private:
 
 		//material constants calculated from E:
-		FReal SigmaMax;
-		mutable FReal AlphaActivation;
+		FSolverReal SigmaMax;
+		mutable FSolverReal AlphaActivation;
 		FSolverVec3 FiberDir;
 
 	};

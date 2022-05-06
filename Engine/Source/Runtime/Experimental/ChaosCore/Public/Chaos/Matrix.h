@@ -144,6 +144,55 @@ namespace Chaos
 	};
 
 	template<>
+	class PMatrix<FRealSingle, 2, 2>
+	{
+	public:
+		FRealSingle M[4];
+
+		PMatrix(const FRealSingle x00, const FRealSingle x10, const FRealSingle x01, const FRealSingle x11)
+		{
+			M[0] = x00;
+			M[1] = x10;
+			M[2] = x01;
+			M[3] = x11;
+		}
+
+		PMatrix(const FRealSingle x00, const FRealSingle x10, const FRealSingle x11)
+		{
+			M[0] = x00;
+			M[1] = x10;
+			M[2] = x10;
+			M[3] = x11;
+		}
+
+		PMatrix<FRealSingle, 2, 2> SubtractDiagonal(const FRealSingle Scalar) const
+		{
+			return PMatrix<FRealSingle, 2, 2>(
+				M[0] - Scalar,
+				M[1],
+				M[2],
+				M[3] - Scalar);
+		}
+
+		TVector<FRealSingle, 2> TransformPosition(const TVector<FRealSingle, 2>& Other) const
+		{
+			return TVector<FRealSingle, 2>(
+				M[0] * Other.X + M[2] * Other.Y,
+				M[1] * Other.X + M[3] * Other.Y);
+		}
+
+		PMatrix<FRealSingle, 2, 2> Inverse() const
+		{
+			const FRealSingle OneOverDeterminant = static_cast<FRealSingle>(1.0) / (M[0] * M[3] - M[1] * M[2]);
+			return PMatrix<FRealSingle, 2, 2>(
+				OneOverDeterminant * M[3],
+				-OneOverDeterminant * M[1],
+				-OneOverDeterminant * M[2],
+				OneOverDeterminant * M[0]);
+		}
+	};
+
+	template<>
 	class PMatrix<FRealSingle, 4, 4> : public UE::Math::TMatrix<FRealSingle>
 	{
 	public:
