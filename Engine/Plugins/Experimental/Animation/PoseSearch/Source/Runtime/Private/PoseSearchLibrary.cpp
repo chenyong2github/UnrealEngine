@@ -76,7 +76,16 @@ bool FMotionMatchingState::InitNewDatabaseSearch(
 	if (bValidDatabase)
 	{
 		CurrentDatabase = Database;
-		Reset();
+#if WITH_EDITOR
+		CurrentSearchIndexHash = Database->GetSearchIndexHash();
+#endif
+	}
+	else
+	{
+		CurrentDatabase = nullptr;
+#if WITH_EDITOR
+		CurrentSearchIndexHash = FIoHash::Zero;
+#endif	
 	}
 
 	if (!bValidDatabase && OutError)
@@ -90,6 +99,8 @@ bool FMotionMatchingState::InitNewDatabaseSearch(
 			*OutError = LOCTEXT("NoDatabase", "No database provided for motion matching.");
 		}
 	}
+
+	Reset();
 
 	return bValidDatabase;
 }
@@ -333,7 +344,7 @@ void UpdateMotionMatchingState(
 	}
 	
 	// Check for a switch in the database
-	if (InOutMotionMatchingState.CurrentDatabase != Database)
+	if (!InOutMotionMatchingState.IsCompatibleDatabase(Database))
 	{
 		FText InitError;
 		if (!InOutMotionMatchingState.InitNewDatabaseSearch(Database, &InitError))
@@ -597,6 +608,23 @@ float FMotionMatchingState::ComputeJumpBlendTime(
 	}
 
 	return JumpBlendTime;
+}
+
+bool FMotionMatchingState::IsCompatibleDatabase(const UPoseSearchDatabase* Database) const
+{
+	if (Database != CurrentDatabase)
+	{
+		return false;
+	}
+
+#if WITH_EDITOR
+	if (Database->GetSearchIndexHash() != CurrentSearchIndexHash)
+	{
+		return false;
+	}
+#endif
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

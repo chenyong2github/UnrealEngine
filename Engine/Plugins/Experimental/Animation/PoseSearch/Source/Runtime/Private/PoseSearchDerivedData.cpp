@@ -27,6 +27,12 @@ void FPoseSearchDatabaseDerivedData::Cache(UPoseSearchDatabase& Database, bool b
 	{
 		CreateDatabaseBuildTask(Database, bForceRebuild);
 	}
+	else
+	{
+		SearchIndex.Reset();
+		SearchIndex.Schema = Database.Schema;
+		DerivedDataKey = { UE::DerivedData::FCacheBucket(), FIoHash::Zero };
+	}
 }
 
 void FPoseSearchDatabaseDerivedData::CancelCache()

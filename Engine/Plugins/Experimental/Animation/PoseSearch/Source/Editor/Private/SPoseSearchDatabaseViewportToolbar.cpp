@@ -54,6 +54,7 @@ namespace UE::PoseSearch
 
 				SubMenuBuilder.BeginSection("Animations", LOCTEXT("ShowMenu_AnimationsLabel", "Animations"));
 				{
+					SubMenuBuilder.AddMenuEntry(Commands.ShowAnimationNone);
 					SubMenuBuilder.AddMenuEntry(Commands.ShowAnimationOriginalOnly);
 					SubMenuBuilder.AddMenuEntry(Commands.ShowAnimationOriginalAndMirrored);
 				}

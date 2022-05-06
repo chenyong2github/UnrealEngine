@@ -77,9 +77,11 @@ namespace UE::PoseSearch
 		// SWidget interface
 		virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 		virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+		virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 		// End SWidget interface
 	
 		void RefreshTreeView(bool bIsInitialSetup = false, bool bRecoverSelection = false);
+		void FinalizeTreeChanges(bool bRecoverSelection = false);
 
 	protected:
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;
@@ -114,13 +116,19 @@ namespace UE::PoseSearch
 		TSharedRef<SWidget> CreateAddNewMenuWidget();
 		TSharedPtr<SWidget> CreateContextMenu();
 		
-		void OnAddGroup();
-		void OnAddSequence();
-		void OnAddBlendSpace();
+		void OnAddGroup(bool bFinalizeChanges = true);
+		void OnAddSequence(bool bFinalizeChanges = true);
+		void OnAddBlendSpace(bool bFinalizeChanges = true);
 
-		void OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node);
-		void OnRemoveFromGroup(TSharedPtr<FDatabaseAssetTreeNode> Node);
-		void OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node);
+		void OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
+		void OnRemoveFromGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
+		void OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
+
+		void CreateCommandList();
+
+		/** Removes existing selected component nodes from the tree*/
+		bool CanDeleteNodes() const;
+		void OnDeleteNodes();
 
 		friend SDatabaseAssetListItem;
 

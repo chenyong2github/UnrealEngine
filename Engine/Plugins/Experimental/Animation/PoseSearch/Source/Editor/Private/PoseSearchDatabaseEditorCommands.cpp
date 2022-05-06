@@ -8,7 +8,6 @@ namespace UE::PoseSearch
 {
 	void FDatabaseEditorCommands::RegisterCommands()
 	{
-		UI_COMMAND(StopPreviewScene, "Stop Scene", "Stop Scene", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(ResetPreviewScene, "Reset Scene", "Reset Scene", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(BuildSearchIndex, "Build Index", "Build Index", EUserInterfaceActionType::Button, FInputChord());
 
@@ -19,6 +18,9 @@ namespace UE::PoseSearch
 			ShowPoseFeaturesAll, "All Features", "Show all features",
 			EUserInterfaceActionType::RadioButton, FInputChord());
 
+		UI_COMMAND(
+			ShowAnimationNone, "None", "Don't show animations",
+			EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(
 			ShowAnimationOriginalOnly, "Original Only", "Show only original animations",
 			EUserInterfaceActionType::RadioButton, FInputChord());

@@ -57,6 +57,18 @@ namespace UE::PoseSearch
 				EFeaturesDrawMode::All));
 
 		CommandList->MapAction(
+			Commands.ShowAnimationNone,
+			FExecuteAction::CreateSP(
+				ViewModelRef,
+				&FDatabaseViewModel::OnSetAnimationPreviewMode,
+				EAnimationPreviewMode::None),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(
+				ViewModelRef,
+				&FDatabaseViewModel::IsAnimationPreviewMode,
+				EAnimationPreviewMode::None));
+
+		CommandList->MapAction(
 			Commands.ShowAnimationOriginalOnly,
 			FExecuteAction::CreateSP(
 				ViewModelRef,

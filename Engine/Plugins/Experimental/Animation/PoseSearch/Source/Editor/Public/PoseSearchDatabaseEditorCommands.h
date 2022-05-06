@@ -24,8 +24,6 @@ namespace UE::PoseSearch
 		virtual void RegisterCommands() override;
 
 	public:
-		TSharedPtr<FUICommandInfo> StopPreviewScene;
-
 		TSharedPtr<FUICommandInfo> ResetPreviewScene;
 
 		TSharedPtr<FUICommandInfo> BuildSearchIndex;
@@ -33,6 +31,8 @@ namespace UE::PoseSearch
 		TSharedPtr<FUICommandInfo> ShowPoseFeaturesNone;
 
 		TSharedPtr<FUICommandInfo> ShowPoseFeaturesAll;
+
+		TSharedPtr<FUICommandInfo> ShowAnimationNone;
 
 		TSharedPtr<FUICommandInfo> ShowAnimationOriginalOnly;
 

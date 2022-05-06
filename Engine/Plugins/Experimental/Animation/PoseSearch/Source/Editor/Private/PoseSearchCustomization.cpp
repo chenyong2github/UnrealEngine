@@ -167,25 +167,25 @@ void FPoseSearchDatabaseSequenceCustomization::CustomizeChildren(TSharedRef<IPro
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// FPoseSearchDatabaseDetails
 
-//TSharedRef<IDetailCustomization> FPoseSearchDatabaseDetails::MakeInstance()
-//{
-//	return MakeShareable(new FPoseSearchDatabaseDetails);
-//}
-//
-//void FPoseSearchDatabaseDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
-//{
-//	//TSharedPtr<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty("Sequences", UPoseSearchDatabase::StaticClass());
-//	//if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
-//	//{
-//	//	auto Refresh = FSimpleDelegate::CreateLambda([&DetailBuilder]()
-//	//	{
-//	//		DetailBuilder.ForceRefreshDetails();
-//	//	});
-//
-//	//	PropertyHandle->SetOnPropertyValueChanged(Refresh);
-//	//	PropertyHandle->SetOnChildPropertyValueChanged(Refresh);
-//	//}
-//}
+TSharedRef<IDetailCustomization> FPoseSearchDatabaseDetails::MakeInstance()
+{
+	return MakeShareable(new FPoseSearchDatabaseDetails);
+}
+
+void FPoseSearchDatabaseDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TSharedPtr<IPropertyHandle>> HiddenHandles;
+	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, Sequences)));
+	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, BlendSpaces)));
+	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, Groups)));
+	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleSequences)));
+	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleBlendSpaces)));
+
+	for (TSharedPtr<IPropertyHandle> PropertyHandle : HiddenHandles)
+	{
+		DetailBuilder.HideProperty(PropertyHandle);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
 

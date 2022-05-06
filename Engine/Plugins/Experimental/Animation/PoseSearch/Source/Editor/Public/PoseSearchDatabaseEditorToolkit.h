@@ -58,7 +58,7 @@ namespace UE::PoseSearch
 		void ExtendToolbar();
 		void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
-		void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
+		void OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 		void OnAssetTreeSelectionChanged(
 			const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
 			ESelectInfo::Type SelectionType);
@@ -69,13 +69,11 @@ namespace UE::PoseSearch
 
 		TSharedPtr<IDetailsView> EditingAssetWidget;
 
-		TSharedPtr<IDetailsView> SelectionWidget;
+		TArray<TSharedPtr<IDetailsView>> SelectionWidgets;
 
 		TSharedPtr<FDatabasePreviewScene> PreviewScene;
 
 		TSharedPtr<FDatabaseViewModel> ViewModel;
-
-		TArray<TWeakObjectPtr<UObject>> SelectionReflection;
 	};
 }
 

@@ -83,6 +83,8 @@ struct POSESEARCH_API FMotionMatchingState
 
 	float ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const;
 
+	bool IsCompatibleDatabase(const UPoseSearchDatabase* Database) const;
+
 	// The current pose we're playing from the database
 	UPROPERTY(Transient)
 	int32 DbPoseIdx = INDEX_NONE;
@@ -102,6 +104,10 @@ struct POSESEARCH_API FMotionMatchingState
 	// When the database changes, the search parameters are reset
 	UPROPERTY(Transient)
 	TWeakObjectPtr<const UPoseSearchDatabase> CurrentDatabase = nullptr;
+
+#if WITH_EDITOR
+	FIoHash CurrentSearchIndexHash = FIoHash::Zero;
+#endif // _DEBUG
 
 	// Time since the last pose jump
 	UPROPERTY(Transient)

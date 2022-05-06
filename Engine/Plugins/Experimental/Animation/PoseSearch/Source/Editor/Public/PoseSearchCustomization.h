@@ -50,13 +50,13 @@ public:
 /**
  * Customizes UPoseSearchDatabase to improve workflow
  */
-//class FPoseSearchDatabaseDetails : public IDetailCustomization
-//{
-//public:
-//	// Creates an instance of FObjectDetails
-//	static TSharedRef<IDetailCustomization> MakeInstance();
-//
-//	// IDetailCustomization interface
-//	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
-//	// End of IDetailCustomization interface
-//};
+class FPoseSearchDatabaseDetails : public IDetailCustomization
+{
+public:
+	// Creates an instance of FObjectDetails
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	// IDetailCustomization interface
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+	// End of IDetailCustomization interface
+};

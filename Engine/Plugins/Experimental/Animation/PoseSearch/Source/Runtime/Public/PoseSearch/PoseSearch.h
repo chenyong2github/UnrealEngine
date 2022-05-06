@@ -855,6 +855,8 @@ public:
 	void NotifyGroupChange();
 
 	void BeginCacheDerivedData();
+
+	FIoHash GetSearchIndexHash() const;
 #endif // WITH_EDITOR
 
 	bool IsDerivedDataValid();

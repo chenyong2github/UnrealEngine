@@ -194,7 +194,7 @@ void FEditorModule::RegisterPropertyTypeCustomizations()
 
 void FEditorModule::RegisterObjectCustomizations()
 {
-//	RegisterCustomClassLayout("PoseSearchDatabase", FOnGetDetailCustomizationInstance::CreateStatic(&FPoseSearchDatabaseDetails::MakeInstance));
+	RegisterCustomClassLayout("PoseSearchDatabase", FOnGetDetailCustomizationInstance::CreateStatic(&FPoseSearchDatabaseDetails::MakeInstance));
 }
 
 void FEditorModule::UnregisterCustomizations()

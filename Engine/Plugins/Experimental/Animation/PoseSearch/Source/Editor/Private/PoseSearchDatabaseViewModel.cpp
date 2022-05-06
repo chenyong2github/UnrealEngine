@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseViewModel.h"
+#include "PoseSearchDatabasePreviewScene.h"
+#include "SPoseSearchDatabaseAssetList.h"
 #include "PoseSearchEditor.h"
 #include "PoseSearch/PoseSearch.h"
 #include "Modules/ModuleManager.h"
-#include "PoseSearchDatabasePreviewScene.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MirrorDataTable.h"
@@ -58,19 +59,46 @@ namespace UE::PoseSearch
 	void FDatabaseViewModel::RespawnPreviewActors()
 	{
 		RemovePreviewActors();
-		const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndex();
-		for (const FPoseSearchIndexAsset& IndexAsset : SearchIndex->Assets)
+
+		if (AnimationPreviewMode == EAnimationPreviewMode::None)
 		{
-			if (AnimationPreviewMode == EAnimationPreviewMode::OriginalAndMirrored || !IndexAsset.bMirrored)
+			return;
+		}
+
+		if (SelectedNodes.Num() > 0)
+		{
+			TSet<int32> AssociatedAssetIndices;
+			for (const TSharedPtr<FDatabaseAssetTreeNode>& SelectedNode : SelectedNodes)
 			{
-				FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAsset);
-				if (PreviewActor.IsValid())
+				if (SelectedNode->SourceAssetType == ESearchIndexAssetType::Sequence)
 				{
-					PreviewActors.Add(PreviewActor);
+					AssociatedAssetIndices.Add(SelectedNode->SourceAssetIdx);
 				}
 			}
+
+			const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			for (const FPoseSearchIndexAsset& IndexAsset : SearchIndex->Assets)
+			{
+				const bool bIsAssociatedToSelection =
+					IndexAsset.Type == ESearchIndexAssetType::Sequence &&
+					AssociatedAssetIndices.Contains(IndexAsset.SourceAssetIdx);
+
+				const bool bSpawn =
+					bIsAssociatedToSelection &&
+					(AnimationPreviewMode == EAnimationPreviewMode::OriginalAndMirrored ||
+					 !IndexAsset.bMirrored);
+				
+				if (bSpawn)
+				{
+					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAsset);
+					if (PreviewActor.IsValid())
+					{
+						PreviewActors.Add(PreviewActor);
+					}
+				}
+			}
+			UpdatePreviewActors();
 		}
-		UpdatePreviewActors();
 
 		// todo: do blendspaces afterwards
 	}
@@ -312,5 +340,11 @@ namespace UE::PoseSearch
 		}
 
 		PoseSearchDatabase->Groups.RemoveAt(GroupIdx);
+	}
+
+	void FDatabaseViewModel::SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes)
+	{
+		SelectedNodes = InSelectedNodes;
+		ResetPreviewActors();
 	}
 }

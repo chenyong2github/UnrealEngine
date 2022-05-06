@@ -51,7 +51,7 @@ class UPoseSearchDatabaseBlendSpaceReflection : public UPoseSearchDatabaseReflec
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Selected Sequence")
+	UPROPERTY(EditAnywhere, Category = "Selected Blend Space")
 	FPoseSearchDatabaseBlendSpace BlendSpace;
 
 #if WITH_EDITOR
@@ -65,7 +65,7 @@ class UPoseSearchDatabaseGroupReflection : public UPoseSearchDatabaseReflectionB
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Selected Sequence")
+	UPROPERTY(EditAnywhere, Category = "Selected Group")
 	FPoseSearchDatabaseGroup Group;
 
 #if WITH_EDITOR

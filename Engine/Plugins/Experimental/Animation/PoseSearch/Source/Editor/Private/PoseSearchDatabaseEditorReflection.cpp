@@ -25,7 +25,7 @@ void UPoseSearchDatabaseSequenceReflection::PostEditChangeProperty(
 	if (IsValid(Database))
 	{
 		Database->Sequences[WeakAssetTreeNode.Pin()->SourceAssetIdx] = Sequence;
-		AssetTreeWidget->RefreshTreeView(false, true);
+		AssetTreeWidget->FinalizeTreeChanges(true);
 	}
 }
 
@@ -40,7 +40,7 @@ void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(
 	if (IsValid(Database))
 	{
 		Database->BlendSpaces[WeakAssetTreeNode.Pin()->SourceAssetIdx] = BlendSpace;
-		AssetTreeWidget->RefreshTreeView(false, true);
+		AssetTreeWidget->FinalizeTreeChanges(true);
 	}
 }
 
@@ -55,7 +55,7 @@ void UPoseSearchDatabaseGroupReflection::PostEditChangeProperty(
 	if (IsValid(Database))
 	{
 		Database->Groups[WeakAssetTreeNode.Pin()->SourceAssetIdx] = Group;
-		AssetTreeWidget->RefreshTreeView(false, true);
+		AssetTreeWidget->FinalizeTreeChanges(true);
 	}
 }
 

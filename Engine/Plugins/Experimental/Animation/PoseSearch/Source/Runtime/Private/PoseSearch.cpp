@@ -1035,6 +1035,7 @@ TArrayView<const float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 void FPoseSearchIndex::Reset()
 {
 	NumPoses = 0;
+	Assets.Reset();
 	Values.Reset();
 	Schema = nullptr;
 }
@@ -1727,6 +1728,16 @@ void UPoseSearchDatabase::BeginCacheDerivedData()
 
 		PrivateDerivedData->Cache(*this, false);
 	}
+}
+
+FIoHash UPoseSearchDatabase::GetSearchIndexHash() const
+{
+	if (!PrivateDerivedData)
+	{
+		return FIoHash::Zero;
+	}
+
+	return PrivateDerivedData->DerivedDataKey.Hash;
 }
 #endif // WITH_EDITOR
 

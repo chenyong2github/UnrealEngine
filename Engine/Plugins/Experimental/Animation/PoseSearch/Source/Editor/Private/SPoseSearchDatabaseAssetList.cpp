@@ -13,8 +13,10 @@
 #include "AssetSelection.h"
 
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPositiveActionButton.h"
+
 
 #define LOCTEXT_NAMESPACE "PoseSearchDatabaseAssetList"
 
@@ -211,6 +213,18 @@ namespace UE::PoseSearch
 		}
 		else
 		{
+			TSharedPtr<SImage> ItemIconWidget;
+			if (Node->SourceAssetType == ESearchIndexAssetType::Sequence)
+			{
+				SAssignNew(ItemIconWidget, SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Minus"));
+			}
+			else
+			{
+				SAssignNew(ItemIconWidget, SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Plus"));
+			}
+
 			// it's an asset (sequence or blendspace)
 			SAssignNew(ItemWidget, SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -219,8 +233,7 @@ namespace UE::PoseSearch
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.Star"))
+				ItemIconWidget.ToSharedRef()
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
@@ -295,7 +308,8 @@ namespace UE::PoseSearch
 		TSharedRef<FDatabaseViewModel> InEditorViewModel)
 	{
 		EditorViewModel = InEditorViewModel;
-		CommandList = MakeShared<FUICommandList>();
+
+		CreateCommandList();
 
 		ChildSlot
 		[
@@ -384,6 +398,15 @@ namespace UE::PoseSearch
 	FReply SDatabaseAssetTree::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 	{
 		return OnAcceptDrop(DragDropEvent, EItemDropZone::OntoItem, nullptr);
+	}
+
+	FReply SDatabaseAssetTree::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+	{
+		if (CommandList->ProcessCommandBindings(InKeyEvent))
+		{
+			return FReply::Handled();
+		}
+		return FReply::Unhandled();
 	}
 
 	void SDatabaseAssetTree::RefreshTreeView(bool bIsInitialSetup, bool bRecoverSelection)
@@ -505,6 +528,10 @@ namespace UE::PoseSearch
 		{
 			RecoverSelection(PreviouslySelectedNodes);
 		}
+		else
+		{
+			TreeView->SetItemSelection(PreviouslySelectedNodes, false, ESelectInfo::Direct);
+		}
 	}
 
 	TSharedRef<ITableRow> SDatabaseAssetTree::MakeTableRowWidget(
@@ -617,7 +644,7 @@ namespace UE::PoseSearch
 			return FReply::Unhandled();
 		}
 
-		RefreshTreeView(false);
+		FinalizeTreeChanges(false);
 		return FReply::Handled();
 	}
 
@@ -646,7 +673,7 @@ namespace UE::PoseSearch
 			LOCTEXT("AddSequence", "Sequence"),
 			LOCTEXT("AddSequenceTooltip", "Add new sequence to the default group"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddSequence)),
+			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddSequence, true)),
 			NAME_None,
 			EUserInterfaceActionType::Button);
 
@@ -654,7 +681,7 @@ namespace UE::PoseSearch
 			LOCTEXT("AddBlendSpace", "Blend Space"),
 			LOCTEXT("AddBlendSpaceTooltip", "Add new blend space to the default group"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddBlendSpace)),
+			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddBlendSpace, true)),
 			NAME_None,
 			EUserInterfaceActionType::Button);
 		AddOptions.EndSection();
@@ -664,7 +691,7 @@ namespace UE::PoseSearch
 			LOCTEXT("AddBlendSpace", "Group"),
 			LOCTEXT("AddBlendSpaceTooltip", "Add new group"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddGroup)),
+			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddGroup, true)),
 			NAME_None,
 			EUserInterfaceActionType::Button);
 		AddOptions.EndSection();
@@ -691,7 +718,8 @@ namespace UE::PoseSearch
 						LOCTEXT("DeleteAsset", "Delete Asset"),
 						LOCTEXT("DeleteAssetTooltip", "Delete asset from database"),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteAsset, SelectedNode)),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteAsset, SelectedNode, true)),
 						NAME_None,
 						EUserInterfaceActionType::Button);
 				}
@@ -701,7 +729,8 @@ namespace UE::PoseSearch
 						LOCTEXT("RemoveFromGroup", "Remove From Group"),
 						LOCTEXT("RemoveFromGroupTooltip", "Remove asset from group"),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnRemoveFromGroup, SelectedNode)),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnRemoveFromGroup, SelectedNode, true)),
 						NAME_None,
 						EUserInterfaceActionType::Button);
 				}
@@ -713,7 +742,8 @@ namespace UE::PoseSearch
 					LOCTEXT("DeleteGroup", "Delete Group"),
 					LOCTEXT("DeleteGroupTooltip", "Delete group and remove it from the sequences in it"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteGroup, SelectedNode)),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteGroup, SelectedNode, true)),
 					NAME_None,
 					EUserInterfaceActionType::Button);
 			}
@@ -723,26 +753,46 @@ namespace UE::PoseSearch
 		return MenuBuilder.MakeWidget();
 	}
 
-	void SDatabaseAssetTree::OnAddGroup()
+	void SDatabaseAssetTree::OnAddGroup(bool bFinalizeChanges)
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddGroup", "Add Group"));
+
 		EditorViewModel.Pin()->AddGroupToDatabase();
-		RefreshTreeView(false);
+
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
 	}
 
-	void SDatabaseAssetTree::OnAddSequence()
+	void SDatabaseAssetTree::OnAddSequence(bool bFinalizeChanges)
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddSequence", "Add Sequence"));
+
 		EditorViewModel.Pin()->AddSequenceToDatabase(nullptr, INDEX_NONE);
-		RefreshTreeView(false);
+
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
 	}
 
-	void SDatabaseAssetTree::OnAddBlendSpace()
+	void SDatabaseAssetTree::OnAddBlendSpace(bool bFinalizeChanges)
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddBlendSpace", "Add Blend Space"));
+
 		EditorViewModel.Pin()->AddBlendSpaceToDatabase(nullptr, INDEX_NONE);
-		RefreshTreeView(false);
+
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
 	}
 
-	void SDatabaseAssetTree::OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node)
+	void SDatabaseAssetTree::OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges)
 	{
+		FScopedTransaction Transaction(LOCTEXT("DeleteAsset", "Delete Asset"));
+
 		if (Node->SourceAssetType == ESearchIndexAssetType::Sequence)
 		{
 			EditorViewModel.Pin()->DeleteSequenceFromDatabase(Node->SourceAssetIdx);
@@ -756,13 +806,19 @@ namespace UE::PoseSearch
 			checkNoEntry();
 		}
 
-		RefreshTreeView(false);
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
 	}
 
-	void SDatabaseAssetTree::OnRemoveFromGroup(TSharedPtr<FDatabaseAssetTreeNode> Node)
+	void SDatabaseAssetTree::OnRemoveFromGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges)
 	{
 		check(Node->Parent->SourceAssetType == ESearchIndexAssetType::Invalid);
+		
 		const int32 GroupIdx = Node->Parent->SourceAssetIdx;
+
+		FScopedTransaction Transaction(LOCTEXT("RemoveFromGroup", "Remove Asset From Group"));
 
 		if (Node->SourceAssetType == ESearchIndexAssetType::Sequence)
 		{
@@ -777,16 +833,25 @@ namespace UE::PoseSearch
 			checkNoEntry();
 		}
 
-		RefreshTreeView(false);
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
 	}
 
-	void SDatabaseAssetTree::OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node)
+	void SDatabaseAssetTree::OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges)
 	{
 		check(Node->SourceAssetType == ESearchIndexAssetType::Invalid);
+
+		FScopedTransaction Transaction(LOCTEXT("DeleteGroup", "Delete Group"));
+
 		const int32 GroupIdx = Node->SourceAssetIdx;
 		EditorViewModel.Pin()->DeleteGroup(GroupIdx);
 
-		RefreshTreeView(false);
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
 	}
 
 	void SDatabaseAssetTree::RegisterOnSelectionChanged(const FOnSelectionChanged& Delegate)
@@ -820,6 +885,83 @@ namespace UE::PoseSearch
 		}
 
 		TreeView->SetItemSelection(NewSelectedNodes, true, ESelectInfo::Direct);
+	}
+
+	void SDatabaseAssetTree::CreateCommandList()
+	{
+		CommandList = MakeShared<FUICommandList>();
+
+		CommandList->MapAction(
+			FGenericCommands::Get().Delete,
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteNodes),
+				FCanExecuteAction::CreateSP(this, &SDatabaseAssetTree::CanDeleteNodes)));
+	}
+
+	bool SDatabaseAssetTree::CanDeleteNodes() const
+	{
+		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
+		for (TSharedPtr<FDatabaseAssetTreeNode> SelectedNode : SelectedNodes)
+		{
+			if (SelectedNode->SourceAssetType != ESearchIndexAssetType::Invalid ||
+				SelectedNode->SourceAssetIdx != INDEX_NONE)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	void SDatabaseAssetTree::OnDeleteNodes()
+	{
+		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
+		if (!SelectedNodes.IsEmpty())
+		{
+			SelectedNodes.Sort(
+				[](const TSharedPtr<FDatabaseAssetTreeNode>& A, const TSharedPtr<FDatabaseAssetTreeNode>& B)
+			{
+				if (A->SourceAssetType != ESearchIndexAssetType::Invalid &&
+					B->SourceAssetType == ESearchIndexAssetType::Invalid)
+				{
+					return true;
+				}
+				if (B->SourceAssetType != ESearchIndexAssetType::Invalid &&
+					A->SourceAssetType == ESearchIndexAssetType::Invalid)
+				{
+					return false;
+				}
+				return B->SourceAssetIdx < A->SourceAssetIdx;
+			});
+
+			for (TSharedPtr<FDatabaseAssetTreeNode> SelectedNode : SelectedNodes)
+			{
+				if (SelectedNode->SourceAssetType != ESearchIndexAssetType::Invalid)
+				{
+					const int32 GroupIdx = SelectedNode->Parent->SourceAssetIdx;
+					if (GroupIdx == INDEX_NONE)
+					{
+						OnDeleteAsset(SelectedNode, false);
+					}
+					else
+					{
+						OnRemoveFromGroup(SelectedNode, false);
+					}
+				}
+				else if (SelectedNode->SourceAssetIdx != INDEX_NONE)
+				{
+					OnDeleteGroup(SelectedNode, false);
+				}
+			}
+
+			FinalizeTreeChanges();
+		}
+	}
+
+	void SDatabaseAssetTree::FinalizeTreeChanges(bool bRecoverSelection)
+	{
+		RefreshTreeView(false, bRecoverSelection);
+		EditorViewModel.Pin()->BuildSearchIndex();
 	}
 }
 

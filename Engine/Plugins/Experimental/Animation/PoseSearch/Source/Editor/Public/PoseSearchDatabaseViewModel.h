@@ -19,6 +19,8 @@ class UMirrorDataTable;
 
 namespace UE::PoseSearch
 {
+	class FDatabaseAssetTreeNode;
+
 	enum class EFeaturesDrawMode : uint8
 	{
 		None,
@@ -27,6 +29,7 @@ namespace UE::PoseSearch
 
 	enum class EAnimationPreviewMode : uint8
 	{
+		None,
 		OriginalOnly,
 		OriginalAndMirrored
 	};
@@ -92,6 +95,7 @@ namespace UE::PoseSearch
 		void RemoveBlendSpaceFromGroup(int32 BlendSpaceIdx, int32 GroupIdx);
 		void DeleteGroup(int32 GroupIdx);
 
+		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 
 	private:
 		float PlayTime = 0.0f;
@@ -110,6 +114,8 @@ namespace UE::PoseSearch
 
 		/** What animations to show in the viewport */
 		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalOnly;
+
+		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes;
 
 		UWorld* GetWorld() const;
 
