@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NaniteDisplacedMeshComponent.h"
+
+UNaniteDisplacedMeshComponent::UNaniteDisplacedMeshComponent(const FObjectInitializer& Init)
+: Super(Init)
+{
+}
+
+void UNaniteDisplacedMeshComponent::OnRegister()
+{
+	Super::OnRegister();
+}
+
+void UNaniteDisplacedMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+FPrimitiveSceneProxy* UNaniteDisplacedMeshComponent::CreateSceneProxy()
+{
+	return Super::CreateSceneProxy();
+}
+
+#if WITH_EDITOR
+
+void UNaniteDisplacedMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UNaniteDisplacedMeshComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+}
+
+#endif
