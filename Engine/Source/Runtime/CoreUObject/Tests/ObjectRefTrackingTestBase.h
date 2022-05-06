@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectHandle.h"
+#include "Misc/ScopeLock.h"
 
 
 class FObjectRefTrackingTestBase
