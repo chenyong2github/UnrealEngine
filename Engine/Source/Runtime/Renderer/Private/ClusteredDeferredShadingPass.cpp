@@ -294,10 +294,10 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::Strata,
-					EStrataTileType::ESimple,
+					EStrataTileType::EComplex,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
-					nullptr, 
+					nullptr,
 					StrataSceneData);
 
 				InternalAddClusteredDeferredShadingPass(
@@ -318,10 +318,10 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SceneTextures,
 					SortedLightsSet,
 					EClusterPassInputType::Strata,
-					EStrataTileType::EComplex,
+					EStrataTileType::ESimple,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
-					nullptr,
+					nullptr, 
 					StrataSceneData);
 			}
 			else

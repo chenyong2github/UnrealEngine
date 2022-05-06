@@ -1221,9 +1221,9 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			if (Strata::IsStrataEnabled() && ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 			{
-				ApplyDiffuseIndirect(EStrataTileType::ESimple);
-				ApplyDiffuseIndirect(EStrataTileType::ESingle);
 				ApplyDiffuseIndirect(EStrataTileType::EComplex);
+				ApplyDiffuseIndirect(EStrataTileType::ESingle);
+				ApplyDiffuseIndirect(EStrataTileType::ESimple);
 			}
 			else
 			{
@@ -1728,7 +1728,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
-					EStrataTileType::ESimple);
+					EStrataTileType::EComplex);
 
 				AddSkyReflectionPass(
 					GraphBuilder,
@@ -1756,7 +1756,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
-					EStrataTileType::EComplex);
+					EStrataTileType::ESimple);
 			}
 			else
 			{
