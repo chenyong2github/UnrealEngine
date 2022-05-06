@@ -7,32 +7,112 @@
 #include "String/BytesToHex.h"
 #include "Online/OnlineServicesEOSTypes.h"
 
-#include "eos_connect_types.h"
-#include "eos_connect.h"
-
 namespace UE::Online {
 
-FOnlineAccountIdRegistryEOS& FOnlineAccountIdRegistryEOS::Get()
+FString FOnlineAccountIdRegistryEOS::ToLogString(const FOnlineAccountIdHandle& Handle) const
 {
-	static FOnlineAccountIdRegistryEOS Instance;
-	return Instance;
+	FString Result;
+	if (ValidateOnlineId(Handle))
+	{
+		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(Handle);
+		Result = FString::Printf(TEXT("EAS=[%s] EOS=[%s]"), *LexToString(IdData.EpicAccountId), *LexToString(IdData.ProductUserId));
+	}
+	else
+	{
+		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+		Result = TEXT("Invalid");
+	}
+	return Result;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::Find(const EOS_EpicAccountId EpicAccountId) const
+enum class EEOSAccountIdElements : uint8
 {
-	FOnlineAccountIdHandle Handle;
-	if (EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE)
+	None = 0,
+	EAS = 1 << 0,
+	EOS = 1 << 1
+};
+ENUM_CLASS_FLAGS(EEOSAccountIdElements);
+const uint8 OnlineIdEOSUtf8BufferLength = 32;
+const uint8 OnlineIdEOSHexBufferLength = 16;
+
+TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
+{
+	TArray<uint8> ReplicationData;
+	if (ValidateOnlineId(Handle))
 	{
-		const FReadScopeLock ReadLock(Lock);
-		if (const FOnlineAccountIdHandle* Found = EpicAccountIdToHandle.Find(EpicAccountId))
+		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(Handle);
+		EEOSAccountIdElements Elements = EEOSAccountIdElements::None;
+
+		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
+		if (EOS_EpicAccountId_IsValid(IdData.EpicAccountId))
 		{
-			Handle = *Found;
+			int32 EasBufferLength = sizeof(EasBuffer);
+			const EOS_EResult EosResult = EOS_EpicAccountId_ToString(IdData.EpicAccountId, EasBuffer, &EasBufferLength);
+			if (ensure(EosResult == EOS_EResult::EOS_Success))
+			{
+				check(EasBufferLength - 1 == OnlineIdEOSUtf8BufferLength);
+				Elements |= EEOSAccountIdElements::EAS;
+			}
+		}
+
+		char EosBuffer[EOS_PRODUCTUSERID_MAX_LENGTH + 1] = { 0 };
+		if (EOS_ProductUserId_IsValid(IdData.ProductUserId))
+		{
+			int32 EosBufferLength = sizeof(EosBuffer);
+			const EOS_EResult EosResult = EOS_ProductUserId_ToString(IdData.ProductUserId, EosBuffer, &EosBufferLength);
+			if (ensure(EosResult == EOS_EResult::EOS_Success))
+			{
+				check(EosBufferLength - 1 == OnlineIdEOSUtf8BufferLength);
+				Elements |= EEOSAccountIdElements::EOS;
+			}
+		}
+
+		const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
+		const int EosHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EOS) ? OnlineIdEOSHexBufferLength : 0;
+		ReplicationData.SetNumUninitialized(1 + EasHexBufferLength + EosHexBufferLength);
+		ReplicationData[0] = uint8(Elements);
+		if (EasHexBufferLength > 0)
+		{
+			UE::String::HexToBytes(FUtf8StringView(EasBuffer, OnlineIdEOSUtf8BufferLength), ReplicationData.GetData() + 1);
+		}
+		if (EosHexBufferLength > 0)
+		{
+			UE::String::HexToBytes(FUtf8StringView(EosBuffer, OnlineIdEOSUtf8BufferLength), ReplicationData.GetData() + 1 + EasHexBufferLength);
 		}
 	}
-	return Handle;
+	else
+	{
+		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+	}
+	return ReplicationData;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::Find(const EOS_ProductUserId ProductUserId) const
+FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8>& ReplicationData)
+{
+	const EEOSAccountIdElements Elements = EEOSAccountIdElements(ReplicationData[0]);
+	const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
+	const int EosHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EOS) ? OnlineIdEOSHexBufferLength : 0;
+
+	EOS_EpicAccountId EpicAccountId = nullptr;
+	if (EasHexBufferLength > 0)
+	{
+		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
+		UE::String::BytesToHex(TConstArrayView<uint8>(ReplicationData.GetData() + 1, EasHexBufferLength), EasBuffer);
+		EpicAccountId = EOS_EpicAccountId_FromString(EasBuffer);
+	}
+
+	EOS_ProductUserId ProductUserId = nullptr;
+	if (EosHexBufferLength > 0)
+	{
+		char EosBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
+		UE::String::BytesToHex(TConstArrayView<uint8>(ReplicationData.GetData() + 1 + EasHexBufferLength, EosHexBufferLength), EosBuffer);
+		ProductUserId = EOS_ProductUserId_FromString(EosBuffer);
+	}
+
+	return FindOrAddAccountId(EpicAccountId, ProductUserId);
+}
+
+FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_ProductUserId ProductUserId) const
 {
 	FOnlineAccountIdHandle Handle;
 	if (EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE)
@@ -46,7 +126,42 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::Find(const EOS_ProductUserId
 	return Handle;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::Create(const EOS_EpicAccountId InEpicAccountId, const EOS_ProductUserId InProductUserId)
+EOS_ProductUserId FOnlineAccountIdRegistryEOS::GetProductUserId(const FOnlineAccountIdHandle& Handle) const
+{
+	return GetAccountIdData(Handle).ProductUserId;
+}
+
+FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_EpicAccountId EpicAccountId) const
+{
+	FOnlineAccountIdHandle Handle;
+	if (EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE)
+	{
+		const FReadScopeLock ReadLock(Lock);
+		if (const FOnlineAccountIdHandle* Found = EpicAccountIdToHandle.Find(EpicAccountId))
+		{
+			Handle = *Found;
+		}
+	}
+	return Handle;
+}
+
+FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetAccountIdData(const FOnlineAccountIdHandle& Handle) const
+{
+	if (ValidateOnlineId(Handle))
+	{
+		FReadScopeLock ScopeLock(Lock);
+		return AccountIdData[Handle.GetHandle() - 1];
+	}
+	return FOnlineAccountIdDataEOS();
+}
+
+FOnlineAccountIdRegistryEOS& FOnlineAccountIdRegistryEOS::Get()
+{
+	static FOnlineAccountIdRegistryEOS Instance;
+	return Instance;
+}
+
+FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccountId InEpicAccountId, const EOS_ProductUserId InProductUserId)
 {
 	FOnlineAccountIdHandle Result;
 	const bool bInEpicAccountIdValid = EOS_EpicAccountId_IsValid(InEpicAccountId) == EOS_TRUE;
@@ -138,122 +253,9 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::Create(const EOS_EpicAccount
 	return Result;
 }
 
-FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetIdData(const FOnlineAccountIdHandle& Handle) const
-{
-	if (ValidateOnlineId(Handle))
-	{
-		FReadScopeLock ScopeLock(Lock);
-		return AccountIdData[Handle.GetHandle() - 1];
-	}
-	return FOnlineAccountIdDataEOS();
-}
-
-FString FOnlineAccountIdRegistryEOS::ToLogString(const FOnlineAccountIdHandle& Handle) const
-{
-	FString Result;
-	if (ValidateOnlineId(Handle))
-	{
-		const FOnlineAccountIdDataEOS& IdData = GetIdData(Handle);
-		Result = FString::Printf(TEXT("EAS=[%s] EOS=[%s]"), *LexToString(IdData.EpicAccountId), *LexToString(IdData.ProductUserId));
-	}
-	else
-	{
-		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
-		Result = TEXT("Invalid");
-	}
-	return Result;
-}
-
-enum class EEOSAccountIdElements : uint8
-{	
-	None = 0,
-	EAS = 1 << 0,
-	EOS = 1 << 1
-};
-ENUM_CLASS_FLAGS(EEOSAccountIdElements);
-const uint8 OnlineIdEOSUtf8BufferLength = 32;
-const uint8 OnlineIdEOSHexBufferLength = 16;
-
-TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
-{
-	TArray<uint8> ReplicationData;
-	if (ValidateOnlineId(Handle))
-	{
-		const FOnlineAccountIdDataEOS& IdData = GetIdData(Handle);
-		EEOSAccountIdElements Elements = EEOSAccountIdElements::None;
-
-		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
-		if (EOS_EpicAccountId_IsValid(IdData.EpicAccountId))
-		{
-			int32 EasBufferLength = sizeof(EasBuffer);
-			const EOS_EResult EosResult = EOS_EpicAccountId_ToString(IdData.EpicAccountId, EasBuffer, &EasBufferLength);
-			if (ensure(EosResult == EOS_EResult::EOS_Success))
-			{
-				check(EasBufferLength-1 == OnlineIdEOSUtf8BufferLength);
-				Elements |= EEOSAccountIdElements::EAS;
-			}
-		}
-
-		char EosBuffer[EOS_PRODUCTUSERID_MAX_LENGTH + 1] = { 0 };
-		if (EOS_ProductUserId_IsValid(IdData.ProductUserId))
-		{
-			int32 EosBufferLength = sizeof(EosBuffer);
-			const EOS_EResult EosResult = EOS_ProductUserId_ToString(IdData.ProductUserId, EosBuffer, &EosBufferLength);
-			if (ensure(EosResult == EOS_EResult::EOS_Success))
-			{
-				check(EosBufferLength-1 == OnlineIdEOSUtf8BufferLength);
-				Elements |= EEOSAccountIdElements::EOS;
-			}
-		}
-
-		const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
-		const int EosHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EOS) ? OnlineIdEOSHexBufferLength : 0;
-		ReplicationData.SetNumUninitialized(1 + EasHexBufferLength + EosHexBufferLength);
-		ReplicationData[0] = uint8(Elements);
-		if (EasHexBufferLength > 0)
-		{
-			UE::String::HexToBytes(FUtf8StringView(EasBuffer, OnlineIdEOSUtf8BufferLength), ReplicationData.GetData() + 1);
-		}
-		if (EosHexBufferLength > 0)
-		{
-			UE::String::HexToBytes(FUtf8StringView(EosBuffer, OnlineIdEOSUtf8BufferLength), ReplicationData.GetData() + 1 + EasHexBufferLength);
-		}
-	}
-	else
-	{
-		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
-	}
-	return ReplicationData;
-}
-
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8>& ReplicationData)
-{
-	const EEOSAccountIdElements Elements = EEOSAccountIdElements(ReplicationData[0]);
-	const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
-	const int EosHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EOS) ? OnlineIdEOSHexBufferLength : 0;
-
-	EOS_EpicAccountId EpicAccountId = nullptr;
-	if (EasHexBufferLength > 0)
-	{
-		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
-		UE::String::BytesToHex(TConstArrayView<uint8>(ReplicationData.GetData() + 1, EasHexBufferLength), EasBuffer);
-		EpicAccountId = EOS_EpicAccountId_FromString(EasBuffer);
-	}
-
-	EOS_ProductUserId ProductUserId = nullptr;
-	if (EosHexBufferLength > 0)
-	{
-		char EosBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
-		UE::String::BytesToHex(TConstArrayView<uint8>(ReplicationData.GetData() + 1 + EasHexBufferLength, EosHexBufferLength), EosBuffer);
-		ProductUserId = EOS_ProductUserId_FromString(EosBuffer);
-	}
-	
-	return Create(EpicAccountId, ProductUserId);
-}
-
 EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle)
 {
-	return FOnlineAccountIdRegistryEOS::Get().GetIdData(Handle).EpicAccountId;
+	return FOnlineAccountIdRegistryEOS::Get().GetAccountIdData(Handle).EpicAccountId;
 }
 
 EOS_EpicAccountId GetEpicAccountIdChecked(const FOnlineAccountIdHandle& Handle)
@@ -263,26 +265,9 @@ EOS_EpicAccountId GetEpicAccountIdChecked(const FOnlineAccountIdHandle& Handle)
 	return EpicAccountId;
 }
 
-EOS_ProductUserId GetProductUserId(const FOnlineAccountIdHandle& Handle)
-{
-	return FOnlineAccountIdRegistryEOS::Get().GetIdData(Handle).ProductUserId;
-}
-
-EOS_ProductUserId GetProductUserIdChecked(const FOnlineAccountIdHandle& Handle)
-{
-	EOS_ProductUserId ProductUserId = GetProductUserId(Handle);
-	check(EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE);
-	return ProductUserId;
-}
-
 FOnlineAccountIdHandle FindAccountId(const EOS_EpicAccountId EpicAccountId)
 {
-	return FOnlineAccountIdRegistryEOS::Get().Find(EpicAccountId);
-}
-
-FOnlineAccountIdHandle FindAccountId(const EOS_ProductUserId ProductUserId)
-{
-	return FOnlineAccountIdRegistryEOS::Get().Find(ProductUserId);
+	return FOnlineAccountIdRegistryEOS::Get().FindAccountId(EpicAccountId);
 }
 
 FOnlineAccountIdHandle FindAccountIdChecked(const EOS_EpicAccountId EpicAccountId)
@@ -290,18 +275,6 @@ FOnlineAccountIdHandle FindAccountIdChecked(const EOS_EpicAccountId EpicAccountI
 	FOnlineAccountIdHandle Result = FindAccountId(EpicAccountId);
 	check(Result.IsValid());
 	return Result;
-}
-
-FOnlineAccountIdHandle FindAccountIdChecked(const EOS_ProductUserId ProductUserId)
-{
-	FOnlineAccountIdHandle Result = FindAccountId(ProductUserId);
-	check(Result.IsValid());
-	return Result;
-}
-
-FOnlineAccountIdHandle CreateAccountId(const EOS_EpicAccountId EpicAccountId, const EOS_ProductUserId ProductUserId)
-{
-	return FOnlineAccountIdRegistryEOS::Get().Create(EpicAccountId, ProductUserId);
 }
 
 /* UE::Online */ }

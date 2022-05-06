@@ -1,10 +1,10 @@
 {
 	"FileVersion": 3,
 
-	"FriendlyName": "Online Services EOS",
+	"FriendlyName": "Online Services EOS (Game Services)",
 	"Version": 1,
 	"VersionName": "1.0",
-	"Description": "Online Services implementation for EOS Account and Game services.",
+	"Description": "Online Services implementation for EOS Game services only.",
 	"Category": "Online Platform",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -12,7 +12,7 @@
 
 	"Modules": [
 		{
-			"Name": "OnlineServicesEOS",
+			"Name": "OnlineServicesEOSGS",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformDenyList": [
@@ -24,7 +24,7 @@
 	],
 	"LocalizationTargets": [
 		{
-			"Name": "OnlineSubsystemEOS",
+			"Name": "OnlineSubsystemEOSGS",
 			"LoadingPolicy": "Always"
 		}
 	],
@@ -34,11 +34,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "OnlineServicesEOSGS",
+			"Name": "EOSShared",
 			"Enabled": true
 		},
 		{
-			"Name": "EOSShared",
+			"Name": "SocketSubsystemEOS",
 			"Enabled": true
 		}
 	]

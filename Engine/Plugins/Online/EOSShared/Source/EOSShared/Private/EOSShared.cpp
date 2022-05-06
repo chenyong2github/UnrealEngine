@@ -3,9 +3,15 @@
 #include "EOSShared.h"
 #include "EOSSharedTypes.h"
 
+#include "eos_auth_types.h"
 #include "eos_friends_types.h"
 
 DEFINE_LOG_CATEGORY(LogEOSSDK);
+
+FString LexToString(const EOS_EResult EosResult)
+{
+	return UTF8_TO_TCHAR(EOS_EResult_ToString(EosResult));
+}
 
 FString LexToString(const EOS_ProductUserId UserId)
 {
@@ -49,4 +55,113 @@ const TCHAR* LexToString(const EOS_EFriendsStatus FriendStatus)
 		case EOS_EFriendsStatus::EOS_FS_InviteReceived: return TEXT("InviteReceived");
 		case EOS_EFriendsStatus::EOS_FS_Friends:		return TEXT("Friends");
 	}
-} 
+}
+
+bool LexFromString(EOS_EExternalCredentialType& OutEnum, const TCHAR* InString)
+{
+	if (FCString::Stricmp(InString, TEXT("Steam")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_STEAM_APP_TICKET;
+	}
+	else if (FCString::Stricmp(InString, TEXT("PSN")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_PSN_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Xbox")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_XBL_XSTS_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Nintendo")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_NINTENDO_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("NSA")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_NINTENDO_NSA_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Apple")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_APPLE_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Google")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_GOOGLE_ID_TOKEN;
+	}
+	else
+	{
+		// Unknown means OpenID
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_OPENID_ACCESS_TOKEN;
+	}
+
+	return true;
+}
+
+bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const TCHAR* InString)
+{
+	if (FCString::Stricmp(InString, TEXT("BasicProfile")) == 0)
+	{
+		OutEnum = EOS_EAuthScopeFlags::EOS_AS_BasicProfile;
+	}
+	else if (FCString::Stricmp(InString, TEXT("FriendsList")) == 0)
+	{
+		OutEnum = EOS_EAuthScopeFlags::EOS_AS_FriendsList;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Presence")) == 0)
+	{
+		OutEnum = EOS_EAuthScopeFlags::EOS_AS_Presence;
+	}
+	else if (FCString::Stricmp(InString, TEXT("FriendsManagement")) == 0)
+	{
+		OutEnum = EOS_EAuthScopeFlags::EOS_AS_FriendsManagement;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Email")) == 0)
+	{
+		OutEnum = EOS_EAuthScopeFlags::EOS_AS_Email;
+	}
+	else if (FCString::Stricmp(InString, TEXT("NoFlags")) == 0 || FCString::Stricmp(InString, TEXT("None")) == 0)
+	{
+		OutEnum = EOS_EAuthScopeFlags::EOS_AS_NoFlags;
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}
+
+bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* InString)
+{
+	if (FCString::Stricmp(InString, TEXT("ExchangeCode")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_ExchangeCode;
+	}
+	else if (FCString::Stricmp(InString, TEXT("PersistentAuth")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_PersistentAuth;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Password")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_Password;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Developer")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_Developer;
+	}
+	else if (FCString::Stricmp(InString, TEXT("RefreshToken")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_RefreshToken;
+	}
+	else if (FCString::Stricmp(InString, TEXT("AccountPortal")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_AccountPortal;
+	}
+	else if (FCString::Stricmp(InString, TEXT("ExternalAuth")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Online/LobbiesCommon.h"
-#include "OnlineServicesEOSTypes.h"
+#include "OnlineServicesEOSGSTypes.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
@@ -13,21 +13,19 @@
 
 namespace UE::Online {
 
-class FAuthEOS;
 struct FLobbyPrerequisitesEOS;
 class FLobbyDataEOS;
 class FLobbyDataRegistryEOS;
-class FLobbyDetailsEOS;
 class FLobbyInviteDataEOS;
-class FOnlineServicesEOS;
+class FOnlineServicesEOSGS;
 class FLobbySearchEOS;
 struct FClientLobbyDataChanges;
 struct FClientLobbyMemberDataChanges;
 	
-class FLobbiesEOS : public FLobbiesCommon
+class FLobbiesEOSGS : public FLobbiesCommon
 {
 public:
-	FLobbiesEOS(FOnlineServicesEOS& InServices);
+	FLobbiesEOSGS(FOnlineServicesEOSGS& InServices);
 
 	virtual void Initialize() override;
 	virtual void PreShutdown() override;

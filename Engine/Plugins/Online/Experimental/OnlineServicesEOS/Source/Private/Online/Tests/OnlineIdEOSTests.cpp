@@ -21,7 +21,7 @@ bool FAccountIdReplicationTest::RunTest(const FString& Parameters)
 
 		{
 			FOnlineAccountIdRegistryEOS Registry;
-			const FOnlineAccountIdHandle Handle = Registry.Create(EasId, EosId);
+			const FOnlineAccountIdHandle Handle = Registry.FindOrAddAccountId(EasId, EosId);
 			TArray<uint8> RepData = Registry.ToReplicationData(Handle);
 			const FOnlineAccountIdHandle Handle2 = Registry.FromReplicationData(RepData);
 			UTEST_EQUAL(TEXT(""), Handle, Handle2);
@@ -29,7 +29,7 @@ bool FAccountIdReplicationTest::RunTest(const FString& Parameters)
 
 		{
 			FOnlineAccountIdRegistryEOS Registry;
-			const FOnlineAccountIdHandle Handle = Registry.Create(EasId, nullptr);
+			const FOnlineAccountIdHandle Handle = Registry.FindOrAddAccountId(EasId, nullptr);
 			TArray<uint8> RepData = Registry.ToReplicationData(Handle);
 			const FOnlineAccountIdHandle Handle2 = Registry.FromReplicationData(RepData);
 			UTEST_EQUAL(TEXT(""), Handle, Handle2);
@@ -37,7 +37,7 @@ bool FAccountIdReplicationTest::RunTest(const FString& Parameters)
 
 		{
 			FOnlineAccountIdRegistryEOS Registry;
-			const FOnlineAccountIdHandle Handle = Registry.Create(nullptr, EosId);
+			const FOnlineAccountIdHandle Handle = Registry.FindOrAddAccountId(nullptr, EosId);
 			TArray<uint8> RepData = Registry.ToReplicationData(Handle);
 			const FOnlineAccountIdHandle Handle2 = Registry.FromReplicationData(RepData);
 			UTEST_EQUAL(TEXT(""), Handle, Handle2);

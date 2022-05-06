@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_ENGINE
-#include "SocketSubsystemEOSUtils_OnlineServicesEOS.h"
+#include "SocketSubsystemEOSUtils_OnlineServicesEOSGS.h"
 
-#include "Online/OnlineServicesEOS.h"
-#include "Online/OnlineServicesEOSTypes.h"
-#include "Online/AuthEOS.h"
-#include "Online/LobbiesEOS.h"
-#include "Online/OnlineIdEOS.h"
+#include "Online/AuthEOSGS.h"
+#include "Online/LobbiesEOSGS.h"
+#include "Online/OnlineIdEOSGS.h"
+#include "Online/OnlineServicesEOSGS.h"
+#include "Online/OnlineServicesEOSGSTypes.h"
 
 namespace UE::Online {
 
-FSocketSubsystemEOSUtils_OnlineServicesEOS::FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOS& InServicesEOS)
-	: ServicesEOS(InServicesEOS)
+FSocketSubsystemEOSUtils_OnlineServicesEOS::FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOSGS& InServicesEOSGS)
+	: ServicesEOSGS(InServicesEOSGS)
 {
 }
 
@@ -24,7 +24,7 @@ EOS_ProductUserId FSocketSubsystemEOSUtils_OnlineServicesEOS::GetLocalUserId()
 {
 	EOS_ProductUserId Result = nullptr;
 
-	IAuthPtr AuthEOS = ServicesEOS.GetAuthInterface();
+	IAuthPtr AuthEOS = ServicesEOSGS.GetAuthInterface();
 	check(AuthEOS);
 
 	FAuthGetAccountByPlatformUserId::Params AuthParams;
@@ -48,7 +48,7 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 {
 	FString Result;
 
-	IAuthPtr AuthEOS = ServicesEOS.GetAuthInterface();
+	IAuthPtr AuthEOS = ServicesEOSGS.GetAuthInterface();
 	check(AuthEOS);
 
 	FAuthGetAccountByPlatformUserId::Params AuthParams;
@@ -58,7 +58,7 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 	{
 		FAuthGetAccountByPlatformUserId::Result* AuthOkValue = AuthResult.TryGetOkValue();
 
-		ILobbiesPtr LobbiesEOS = ServicesEOS.GetLobbiesInterface();
+		ILobbiesPtr LobbiesEOS = ServicesEOSGS.GetLobbiesInterface();
 		check(LobbiesEOS);
 
 		FGetJoinedLobbies::Params LobbiesParams;
@@ -90,7 +90,7 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 
 FName FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSubsystemInstanceName()
 {
-	return ServicesEOS.GetInstanceName();
+	return ServicesEOSGS.GetInstanceName();
 }
 
 /* UE::Online */}

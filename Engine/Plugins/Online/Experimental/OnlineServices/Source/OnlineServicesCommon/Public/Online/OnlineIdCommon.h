@@ -9,73 +9,76 @@ namespace UE::Online {
 /**
  * A net id registry suitable for use with trivial immutable keys
  */
-template<typename IdType, typename IdValueType, EOnlineServices SubsystemType>
+template<typename IdType, typename IdValueType, EOnlineServices OnlineServicesType>
 class TOnlineBasicIdRegistry
 {
 public:
+	virtual ~TOnlineBasicIdRegistry() = default;
+
 	using HandleType = TOnlineIdHandle<IdType>;
 
-	static TOnlineBasicIdRegistry& Get();
+	const HandleType InvalidHandle = HandleType(OnlineServicesType, 0);
+
+	HandleType FindHandle(const IdValueType& IdValue) const
+	{
+		FReadScopeLock ReadLock(Lock);
+		if (const HandleType* FoundHandle = IdValueToHandleMap.Find(IdValue))
+		{
+			return *FoundHandle;
+		}
+		return InvalidHandle;
+	}
 
 	HandleType FindOrAddHandle(const IdValueType& IdValue)
 	{
-		HandleType Handle;
-		// Take a read lock and check if we already have a handle
-		{
-			FReadScopeLock ReadLock(Lock);
-			if (const uint32* FoundHandle = IdValueToHandleMap.Find(IdValue))
-			{
-				Handle.Handle = *FoundHandle;
-			}
-		}
-
+		HandleType Handle = FindHandle(IdValue);
 		if (!Handle.IsValid())
 		{
 			// Take a write lock, check again if we already have a handle, or insert a new element.
 			FWriteScopeLock WriteLock(Lock);
 			if (const HandleType* FoundHandle = IdValueToHandleMap.Find(IdValue))
 			{
-				Handle.Handle = *FoundHandle;
+				Handle = *FoundHandle;
 			}
 
 			if(!Handle.IsValid())
 			{
 				IdValues.Emplace(IdValue);
-				Handle.Handle = HandleType(SubsystemType, IdValues.Num());
-				IdValueToHandleMap.Emplace(IdValue, Handle.Handle);
+				Handle = HandleType(OnlineServicesType, IdValues.Num());
+				IdValueToHandleMap.Emplace(IdValue, Handle);
 			}
 		}
-
 		return Handle;
 	}
 
 	// Returns a copy as it's not thread safe to return a pointer/ref to an element of an array that can be relocated by another thread.
-	IdValueType GetIdValue(const HandleType Handle) const
+	IdValueType FindIdValue(const HandleType& Handle) const
 	{
-		if (Handle.Type == SubsystemType
-			&& Handle.IsValid()
-			&& IdValues.IsValidIndex(Handle.Handle - 1))
+		if (ValidateOnlineId(Handle))
 		{
 			FReadScopeLock ReadLock(Lock);
-			return IdValues[Handle.Handle - 1];
+			if (IdValues.IsValidIndex(Handle.GetHandle() - 1))
+			{
+				return IdValues[Handle.GetHandle() -1];
+			}
 		}
 		return IdValueType();
 	}
 
-	IdValueType GetIdValueChecked(const HandleType Handle) const
+	static inline bool ValidateOnlineId(const HandleType& Handle)
 	{
-		check(Handle.Type == SubsystemType
-			&& Handle.IsValid()
-			&& IdValues.IsValidIndex(Handle.Handle - 1));
-		return GetIdValue(Handle);
+		return ensure(Handle.GetOnlineServicesType() == OnlineServicesType) && Handle.IsValid();
 	}
 
 private:
 	mutable FRWLock Lock;
 
 	TArray<IdValueType> IdValues;
-	TMap<IdValueType, uint32> IdValueToHandleMap;
+	TMap<IdValueType, HandleType> IdValueToHandleMap;
 };
+
+template<typename IdValueType, EOnlineServices OnlineServicesType>
+using TOnlineBasicAccountIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FAccount, IdValueType, OnlineServicesType>;
 
 /* UE::Online */ }
 

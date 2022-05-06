@@ -3,16 +3,15 @@
 using UnrealBuildTool;
 using System.IO;
 
-public class OnlineServicesEOS : ModuleRules
+public class OnlineServicesEOSGS : ModuleRules
 {
-	public OnlineServicesEOS(ReadOnlyTargetRules Target) : base(Target)
+	public OnlineServicesEOSGS(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"OnlineServicesInterface",
 				"OnlineServicesCommon",
-				"OnlineServicesEOSGS"
 			}
 		);
 
@@ -21,8 +20,19 @@ public class OnlineServicesEOS : ModuleRules
 				"CoreOnline",
 				"CoreUObject",
 				"EOSSDK",
-				"EOSShared",
+				"EOSShared"
 			}
 		);
+
+		if (Target.bCompileAgainstEngine)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"SocketSubsystemEOS",
+					"Sockets"
+				}
+			);
+		}
 	}
 }

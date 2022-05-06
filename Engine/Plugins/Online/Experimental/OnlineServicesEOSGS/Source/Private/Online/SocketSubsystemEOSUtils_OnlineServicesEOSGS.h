@@ -8,20 +8,20 @@
 
 namespace UE::Online {
 
-class FOnlineServicesEOS;
+class FOnlineServicesEOSGS;
 
 class FSocketSubsystemEOSUtils_OnlineServicesEOS : public ISocketSubsystemEOSUtils
 {
 public:
-	FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOS& InServicesEOS);
-	virtual ~FSocketSubsystemEOSUtils_OnlineServicesEOS() override;
+	FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOSGS& InServicesEOS);
+	virtual ~FSocketSubsystemEOSUtils_OnlineServicesEOS();
 
 	virtual EOS_ProductUserId GetLocalUserId() override;
 	virtual FString GetSessionId() override;
 	virtual FName GetSubsystemInstanceName() override;
 
 private:
-	FOnlineServicesEOS& ServicesEOS;
+	FOnlineServicesEOSGS& ServicesEOSGS;
 };
 
 /* UE::Online */}

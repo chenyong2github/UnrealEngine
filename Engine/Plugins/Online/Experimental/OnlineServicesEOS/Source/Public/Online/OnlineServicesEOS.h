@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Online/OnlineServicesCommon.h"
+#include "Online/OnlineServicesEOSGS.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
@@ -17,24 +17,15 @@ using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle>;
 
 namespace UE::Online {
 
-class ONLINESERVICESEOS_API FOnlineServicesEOS : public FOnlineServicesCommon
+class ONLINESERVICESEOS_API FOnlineServicesEOS : public FOnlineServicesEOSGS
 {
 public:
-	using Super = FOnlineServicesCommon;
+	using Super = FOnlineServicesEOSGS;
 
 	FOnlineServicesEOS(FName InInstanceName);
+	virtual ~FOnlineServicesEOS() = default;
+
 	virtual void RegisterComponents() override;
-	virtual void Initialize() override;
-	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
-	virtual EOnlineServices GetServicesProvider() const override { return EOnlineServices::Epic; }
-
-	EOS_HPlatform GetEOSPlatformHandle() const;
-protected:
-	IEOSPlatformHandlePtr EOSPlatformHandle;
-
-#if WITH_ENGINE
-	TSharedPtr<FSocketSubsystemEOS, ESPMode::ThreadSafe> SocketSubsystem;
-#endif
 };
 
 /* UE::Online */ }

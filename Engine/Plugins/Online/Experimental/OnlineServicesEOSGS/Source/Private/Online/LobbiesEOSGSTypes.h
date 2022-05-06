@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Online/Lobbies.h"
 #include "Online/LobbiesCommonTypes.h"
-#include "Online/OnlineIdEOS.h"
-#include "Online/OnlineServicesEOSTypes.h"
+#include "Online/OnlineIdEOSGS.h"
+#include "Online/OnlineServicesEOSGSTypes.h"
+#include "CoreMinimal.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
@@ -167,7 +167,7 @@ using FLobbySearchParameters = FFindLobbies::Params;
 struct FLobbyPrerequisitesEOS
 {
 	EOS_HLobby LobbyInterfaceHandle = {};
-	TWeakPtr<FAuthEOS> AuthInterface;
+	TWeakPtr<FAuthEOSGS> AuthInterface;
 	TSharedRef<const FLobbySchemaRegistry> SchemaRegistry;
 	TSharedRef<const FLobbySchema> ServiceSchema;
 	FLobbyBucketIdEOS BucketId;

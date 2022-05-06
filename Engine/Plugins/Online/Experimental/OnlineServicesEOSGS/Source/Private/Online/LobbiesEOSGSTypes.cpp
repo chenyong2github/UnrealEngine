@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Online/LobbiesEOSTypes.h"
-#include "Online/AuthEOS.h"
+#include "LobbiesEOSGSTypes.h"
+
+#include "Online/AuthEOSGS.h"
 #include "Online/LobbiesCommon.h"
 
 namespace UE::Online {
@@ -260,7 +261,7 @@ FLobbyDetailsEOS::~FLobbyDetailsEOS()
 
 TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDetailsEOS::GetLobbySnapshot() const
 {
-	TSharedPtr<FAuthEOS> AuthInterface = Prerequisites->AuthInterface.Pin();
+	TSharedPtr<FAuthEOSGS> AuthInterface = Prerequisites->AuthInterface.Pin();
 	if (!AuthInterface)
 	{
 		return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>>(Errors::MissingInterface()).GetFuture();

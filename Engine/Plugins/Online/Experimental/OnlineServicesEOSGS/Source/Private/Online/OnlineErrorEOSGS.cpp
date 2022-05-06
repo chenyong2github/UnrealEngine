@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineErrorEOS.h"
+#include "OnlineErrorEOSGS.h"
 
 namespace UE::Online {
 
