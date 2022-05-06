@@ -32,28 +32,28 @@ public:
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool GetCustomAddressX(uint8& AttributeValue) const
+	bool GetCustomAddressX(TEnumAsByte<TextureAddress>& AttributeValue) const
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressX, uint8);
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressX, TEnumAsByte<TextureAddress>);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool SetCustomAddressX(const uint8 AttributeValue, bool bAddApplyDelegate = true)
+	bool SetCustomAddressX(const TEnumAsByte<TextureAddress> AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressX, uint8, UTexture2D)
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressX, TEnumAsByte<TextureAddress>, UTexture2D)
 	}
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool GetCustomAddressY(uint8& AttributeValue) const
+	bool GetCustomAddressY(TEnumAsByte<TextureAddress>& AttributeValue) const
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressY, uint8);
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressY, TEnumAsByte<TextureAddress>);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool SetCustomAddressY(const uint8 AttributeValue, bool bAddApplyDelegate = true)
+	bool SetCustomAddressY(const TEnumAsByte<TextureAddress> AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressY, uint8, UTexture2D)
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressY, TEnumAsByte<TextureAddress>, UTexture2D)
 	}
 
 	//////////////////////////////////////////////////////////////////////////

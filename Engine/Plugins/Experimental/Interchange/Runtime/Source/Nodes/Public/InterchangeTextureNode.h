@@ -23,6 +23,14 @@ namespace UE
 	}//ns Interchange
 }//ns UE
 
+UENUM(BlueprintType)
+enum class EInterchangeTextureWrapMode : uint8
+{
+	Wrap,
+	Clamp,
+	Mirror
+};
+
 UCLASS(BlueprintType, Abstract, Experimental)
 class INTERCHANGENODES_API UInterchangeTextureNode : public UInterchangeBaseNode
 {

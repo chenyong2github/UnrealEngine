@@ -32,7 +32,24 @@ namespace UE::Interchange::Gltf::Private
 			return NodeName + TEXT("_") + LexToString( NodeIndex );
 		}
 	}
+
+	EInterchangeTextureWrapMode ConvertWrap(GLTF::FSampler::EWrap Wrap)
+	{
+		switch (Wrap)
+		{
+		case GLTF::FSampler::EWrap::Repeat:
+			return EInterchangeTextureWrapMode::Wrap;
+		case GLTF::FSampler::EWrap::MirroredRepeat:
+			return EInterchangeTextureWrapMode::Mirror;
+		case GLTF::FSampler::EWrap::ClampToEdge:
+			return EInterchangeTextureWrapMode::Clamp;
+
+		default:
+			return EInterchangeTextureWrapMode::Wrap;
+		}
+	}
 }
+
 void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex ) const
 {
 	using namespace UE::Interchange::Gltf::Private;
@@ -157,7 +174,7 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 		NodeContainer.SetNodeParentUid( NodeUid, ShaderNode.GetUniqueID() );
 
 		ColorNode->SetCustomShaderType( Standard::Nodes::TextureSample::Name.ToString() );
-		const FString TextureUid = TEXT("\\Texture\\") + GltfAsset.Textures[ TextureMap.TextureIndex ].Source.URI;
+		const FString TextureUid = TEXT("\\Texture\\") + GltfAsset.Textures[ TextureMap.TextureIndex ].Name;
 		ColorNode->AddStringAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureSample::Inputs::Texture.ToString() ), TextureUid );
 
 		if ( TextureMap.bHasTextureTransform )
@@ -737,9 +754,13 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		for ( const GLTF::FTexture& GltfTexture : GltfAsset.Textures )
 		{
 			UInterchangeTexture2DNode* TextureNode = NewObject< UInterchangeTexture2DNode >( &NodeContainer );
-			FString TextureNodeUid = TEXT("\\Texture\\") + GltfTexture.Source.URI;
-			TextureNode->InitializeNode( TextureNodeUid, GltfTexture.Source.URI, EInterchangeNodeContainerType::TranslatedAsset );
+			FString TextureNodeUid = TEXT("\\Texture\\") + GltfTexture.Name;
+			TextureNode->InitializeNode( TextureNodeUid, GltfTexture.Name, EInterchangeNodeContainerType::TranslatedAsset );
 			TextureNode->SetPayLoadKey( LexToString( TextureIndex++ ) );
+
+			TextureNode->SetCustomWrapU( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapS ) );
+			TextureNode->SetCustomWrapV( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapT ) );
+
 			NodeContainer.AddNode( TextureNode );
 		}
 	}

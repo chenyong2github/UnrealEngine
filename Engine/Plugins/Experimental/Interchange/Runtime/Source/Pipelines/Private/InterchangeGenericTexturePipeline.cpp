@@ -75,6 +75,23 @@ namespace UE::Interchange::Private
 		}
 	}
 #endif
+
+	TextureAddress ConvertWrap(const EInterchangeTextureWrapMode WrapMode)
+	{
+		switch (WrapMode)
+		{
+		case EInterchangeTextureWrapMode::Wrap:
+			return TA_Wrap;
+		case EInterchangeTextureWrapMode::Clamp:
+			return TA_Clamp;
+		case EInterchangeTextureWrapMode::Mirror:
+			return TA_Mirror;
+
+		default:
+			ensureMsgf(false, TEXT("Unkown Interchange Texture Wrap Mode"));
+			return TA_Wrap;
+		}
+	}
 }
 
 void UInterchangeGenericTexturePipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
@@ -177,6 +194,18 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::HandleCreati
 		if (const UInterchangeTexture2DNode* Texture2DNode = Cast<UInterchangeTexture2DNode>(TextureNode))
 		{
 			SourceBlocks = Texture2DNode->GetSourceBlocks();
+
+			EInterchangeTextureWrapMode WrapU;
+			if (Texture2DNode->GetCustomWrapU(WrapU))
+			{
+				Texture2DFactoryNode->SetCustomAddressX(UE::Interchange::Private::ConvertWrap(WrapU));
+			}
+
+			EInterchangeTextureWrapMode WrapV;
+			if (Texture2DNode->GetCustomWrapV(WrapV))
+			{
+				Texture2DFactoryNode->SetCustomAddressY(UE::Interchange::Private::ConvertWrap(WrapV));
+			}
 		}
 
 #if WITH_EDITOR

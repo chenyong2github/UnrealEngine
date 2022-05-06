@@ -87,4 +87,34 @@ public:
 protected:
 
 	UE::Interchange::TMapAttributeHelper<int32, FString> SourceBlocks;
+
+// Custom attributes
+public:
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool SetCustomWrapU(const EInterchangeTextureWrapMode& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(WrapU, EInterchangeTextureWrapMode);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomWrapU(EInterchangeTextureWrapMode& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(WrapU, EInterchangeTextureWrapMode);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool SetCustomWrapV(const EInterchangeTextureWrapMode& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(WrapV, EInterchangeTextureWrapMode);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomWrapV(EInterchangeTextureWrapMode& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(WrapV, EInterchangeTextureWrapMode);
+	}
+
+private:
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(WrapU);
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(WrapV);
 };
