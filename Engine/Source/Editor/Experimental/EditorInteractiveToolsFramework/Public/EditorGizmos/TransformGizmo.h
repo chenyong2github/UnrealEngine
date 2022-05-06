@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseGizmos/GizmoElementHitTargets.h"
 #include "BaseGizmos/GizmoElementStateTargets.h"
 #include "BaseGizmos/TransformProxy.h"
@@ -33,13 +34,54 @@ class UGizmoElementRectangle;
 class UGizmoElementRoot;
 class UGizmoElementTorus;
 
+//
+// Interface for the Transform gizmo.
+//
+
+
+//
+// Part identifiers are used to associate transform gizmo parts with their corresponding representation 
+// in the render and hit target. The render and hit target should use the default identifier for 
+// any of their internal elements that do not correspond to transform gizmo parts, for example non-hittable
+// visual guide elements.
+//
+UENUM()
+enum class ETransformGizmoPartIdentifier
+{
+	Default,
+	TranslateAll,
+	TranslateXAxis,
+	TranslateYAxis,
+	TranslateZAxis,
+	TranslateXYPlanar,
+	TranslateYZPlanar,
+	TranslateXZPlanar,
+	TranslateScreenSpace,
+	RotateAll,
+	RotateXAxis,
+	RotateYAxis,
+	RotateZAxis,
+	RotateScreenSpace,
+	RotateArcball,
+	RotateArcballInnerCircle,
+	ScaleAll,
+	ScaleXAxis,
+	ScaleYAxis,
+	ScaleZAxis,
+	ScaleXYPlanar,
+	ScaleYZPlanar,
+	ScaleXZPlanar,
+	ScaleUniform, 
+	Max
+};
+
 /**
  * UTransformGizmo provides standard Transformation Gizmo interactions,
  * applied to a UTransformProxy target object. By default the Gizmo will be
  * a standard XYZ translate/rotate Gizmo (axis and plane translation).
  */
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -65,8 +107,7 @@ public:
 	static constexpr float RotateOuterCircleRadius = 73.0f;
 	static constexpr float RotateScreenSpaceRadius = 83.0f;
 
-	static constexpr float ScaleAxisLength = 35.0f;
-	static constexpr float ScaleAxisCubeSize = 3.0f;
+	static constexpr float ScaleAxisLength = 70.0f;
 	static constexpr float ScaleAxisCubeDim = 12.0f;
 
 	static constexpr float PlanarHandleOffset = 55.0f;
@@ -111,6 +152,11 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 	virtual void Tick(float DeltaTime) override;
 
+	// IHoverBehaviorTarget implementation
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& DevicePos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 	/**
 	 * Set the active target object for the Gizmo
@@ -127,6 +173,10 @@ public:
 	/** The active target object for the Gizmo */
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> ActiveTarget;
+
+	/** The hit target object */
+	UPROPERTY()
+	TObjectPtr< UGizmoElementHitMultiTarget> HitTarget;
 
 	/**
 	 * Repositions the gizmo without issuing undo/redo changes, triggering callbacks, 
@@ -192,15 +242,16 @@ public:
 	UPROPERTY()
 	TScriptInterface<ITransformGizmoSource> TransformSource;
 
+
+	/** Root of renderable gizmo elements */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementGroup> GizmoElementRoot;
+
 protected:
 
 	//
 	// Gizmo Objects, used for rendering and hit testing
 	//
-
-	/** Root of renderable gizmo elements */
-	UPROPERTY()
-	TObjectPtr<UGizmoElementGroup> GizmoElementRoot;
 
 	/** Translate X Axis */
 	UPROPERTY()
@@ -318,41 +369,52 @@ protected:
 	void EnableScale(EAxisList::Type InAxisListToDraw);
 
 	/** Enable planar handles used by translate and scale */
-	void EnablePlanarObjects(bool bEnableX, bool bEnableY, bool bEnableZ);
-
-
-	UPROPERTY()
-	EGizmoTransformMode CurrentMode = EGizmoTransformMode::None;
-
-	UPROPERTY()
-	TEnumAsByte<EAxisList::Type> CurrentAxisToDraw = EAxisList::None;
+	void EnablePlanarObjects(bool bTranslate, bool bEnableX, bool bEnableY, bool bEnableZ);
 
 	/** Construct translate axis handle */
-	virtual UGizmoElementArrow* MakeTranslateAxis(const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
+	virtual UGizmoElementArrow* MakeTranslateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
 
 	/** Construct scale axis handle */
-	virtual UGizmoElementArrow* MakeScaleAxis(const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
+	virtual UGizmoElementArrow* MakeScaleAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
 
 	/** Construct rotate axis handle */
-	virtual UGizmoElementTorus* MakeRotateAxis(const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1, 
+	virtual UGizmoElementTorus* MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1,
 		UMaterialInterface* InMaterial, UMaterialInterface* InCurrentMaterial);
 
 	/** Construct uniform scale handle */
 	virtual UGizmoElementBox* MakeUniformScaleHandle();
 
 	/** Construct planar axis handle */
-	virtual UGizmoElementRectangle* MakePlanarHandle(const FVector& InUpDirection, const FVector& InSideDirection, const FVector& InPlaneNormal,
+	virtual UGizmoElementRectangle* MakePlanarHandle(ETransformGizmoPartIdentifier InPartId, const FVector& InUpDirection, const FVector& InSideDirection, const FVector& InPlaneNormal,
 		UMaterialInterface* InMaterial, const FLinearColor& InVertexColor);
 
 	/** Construct translate screen space handle */
 	virtual UGizmoElementRectangle* MakeTranslateScreenSpaceHandle();
 
 	/** Construct rotate screen space handle */
-	virtual UGizmoElementCircle* MakeRotateCircleHandle(float InRadius, const FLinearColor& InColor, float bFill);
+	virtual UGizmoElementCircle* MakeRotateCircleHandle(ETransformGizmoPartIdentifier InPartId, float InRadius, const FLinearColor& InColor, float bFill);
+
+	// Update hover for hit part based on input device pos
+	FInputRayHit UpdateHoverHitSubElement(const FInputDeviceRay& DevicePos);
 
 	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
 	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
 	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
+
+	// Verify part identifier is within recognized range of transform gizmo part ids
+	bool VerifyPartIdentifier(uint32 InPartIdentifier);
+
+	// Currently rendered transform mode
+	UPROPERTY()
+	EGizmoTransformMode CurrentMode = EGizmoTransformMode::None;
+
+	// Currently rendered axis list
+	UPROPERTY()
+	TEnumAsByte<EAxisList::Type> CurrentAxisToDraw = EAxisList::None;
+
+	// Last hit part
+	UPROPERTY()
+	ETransformGizmoPartIdentifier LastHitPart = ETransformGizmoPartIdentifier::Default;
 
 	/** Materials and colors to be used when drawing the items for each axis */
 	UPROPERTY()

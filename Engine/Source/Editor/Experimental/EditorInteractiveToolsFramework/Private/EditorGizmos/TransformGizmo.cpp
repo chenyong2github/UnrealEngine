@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/TransformGizmo.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/AxisSources.h"
 #include "BaseGizmos/GizmoElementGroup.h"
 #include "BaseGizmos/GizmoElementShapes.h"
@@ -21,6 +22,8 @@
 
 #define LOCTEXT_NAMESPACE "UTransformGizmo"
 
+DEFINE_LOG_CATEGORY_STATIC(LogTransformGizmo, Log, All);
+
 void UTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 {
 	bDisallowNegativeScaling = bDisallow;
@@ -30,6 +33,14 @@ void UTransformGizmo::Setup()
 {
 	UInteractiveGizmo::Setup();
 
+	// Add default mouse hover behavior
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
+	HoverBehavior->Initialize(this);
+	HoverBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
+	AddInputBehavior(HoverBehavior);
+	
+	// @todo: Gizmo element construction will be moved to the UEditorTransformGizmoBuilder to decouple
+	// the rendered elements from the transform gizmo.
 	GizmoElementRoot = NewObject<UGizmoElementGroup>();
 	GizmoElementRoot->SetConstantScale(true);
 
@@ -106,6 +117,79 @@ void UTransformGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
+FInputRayHit UTransformGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& DevicePos)
+{
+	return UpdateHoverHitSubElement(DevicePos);
+}
+
+void UTransformGizmo::OnBeginHover(const FInputDeviceRay& DevicePos)
+{
+}
+
+bool UTransformGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	FInputRayHit RayHit = UpdateHoverHitSubElement(DevicePos);
+	return RayHit.bHit;
+}
+
+void UTransformGizmo::OnEndHover()
+{
+	if (HitTarget && LastHitPart != ETransformGizmoPartIdentifier::Default)
+	{
+		HitTarget->UpdateHoverState(false, (static_cast<uint64>(1) << static_cast<uint8>(LastHitPart)));
+		LastHitPart = ETransformGizmoPartIdentifier::Default;
+	}
+}
+
+FInputRayHit UTransformGizmo::UpdateHoverHitSubElement(const FInputDeviceRay& PressPos)
+{
+	if (!HitTarget)
+	{
+		return FInputRayHit();
+	}
+
+	FInputRayHit RayHit = HitTarget->IsHit(PressPos);
+
+	ETransformGizmoPartIdentifier HitPart;
+	if (RayHit.bHit && VerifyPartIdentifier(RayHit.HitIdentifier))
+	{
+		HitPart = static_cast<ETransformGizmoPartIdentifier>(RayHit.HitIdentifier);
+	}
+	else
+	{
+		HitPart = ETransformGizmoPartIdentifier::Default;
+	}
+
+	if (HitPart != LastHitPart)
+	{
+		if (LastHitPart != ETransformGizmoPartIdentifier::Default)
+		{
+			HitTarget->UpdateHoverState(false, static_cast<uint32>(LastHitPart));
+		}
+
+		if (HitPart != ETransformGizmoPartIdentifier::Default)
+		{
+			HitTarget->UpdateHoverState(true, static_cast<uint32>(HitPart));
+		}
+
+		LastHitPart = HitPart;
+	}
+
+	return RayHit;
+}
+
+bool UTransformGizmo::VerifyPartIdentifier(uint32 InPartIdentifier)
+{
+	if (InPartIdentifier >= static_cast<uint32>(ETransformGizmoPartIdentifier::Max))
+	{
+		UE_LOG(LogTransformGizmo, Warning, TEXT("Unrecognized transform gizmo part identifier %d, valid identifiers are between 0-%d."), 
+			InPartIdentifier, static_cast<uint32>(ETransformGizmoPartIdentifier::Max));
+		return false;
+	}
+
+	return true;
+}
+
 void UTransformGizmo::UpdateMode()
 {
 	if (TransformSource && TransformSource->GetVisible())
@@ -161,19 +245,19 @@ void UTransformGizmo::EnableTranslate(EAxisList::Type InAxisListToDraw)
 
 	if (bEnableX && TranslateXAxisElement == nullptr)
 	{
-		TranslateXAxisElement = MakeTranslateAxis(FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), AxisMaterialX);
+		TranslateXAxisElement = MakeTranslateAxis(ETransformGizmoPartIdentifier::TranslateXAxis, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), AxisMaterialX);
 		GizmoElementRoot->Add(TranslateXAxisElement);
 	}
 
 	if (bEnableY && TranslateYAxisElement == nullptr)
 	{
-		TranslateYAxisElement = MakeTranslateAxis(FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f), AxisMaterialY);
+		TranslateYAxisElement = MakeTranslateAxis(ETransformGizmoPartIdentifier::TranslateYAxis, FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f), AxisMaterialY);
 		GizmoElementRoot->Add(TranslateYAxisElement);
 	}
 
 	if (bEnableZ && TranslateZAxisElement == nullptr)
 	{
-		TranslateZAxisElement = MakeTranslateAxis(FVector(0.0f, 0.0f, 1.0f), FVector(1.0f, 0.0f, 0.0f), AxisMaterialZ);
+		TranslateZAxisElement = MakeTranslateAxis(ETransformGizmoPartIdentifier::TranslateZAxis, FVector(0.0f, 0.0f, 1.0f), FVector(1.0f, 0.0f, 0.0f), AxisMaterialZ);
 		GizmoElementRoot->Add(TranslateZAxisElement);
 	}
 
@@ -203,10 +287,10 @@ void UTransformGizmo::EnableTranslate(EAxisList::Type InAxisListToDraw)
 		TranslateScreenSpaceElement->SetEnabled(bEnableAny);
 	}
 
-	EnablePlanarObjects(bEnableX, bEnableY, bEnableZ);
+	EnablePlanarObjects(true, bEnableX, bEnableY, bEnableZ);
 }
 
-void UTransformGizmo::EnablePlanarObjects(bool bEnableX, bool bEnableY, bool bEnableZ)
+void UTransformGizmo::EnablePlanarObjects(bool bTranslate, bool bEnableX, bool bEnableY, bool bEnableZ)
 {
 	check(GizmoElementRoot);
 
@@ -220,19 +304,22 @@ void UTransformGizmo::EnablePlanarObjects(bool bEnableX, bool bEnableY, bool bEn
 
 	if (bEnableXY && PlanarXYElement == nullptr)
 	{
-		PlanarXYElement = MakePlanarHandle(XAxis, YAxis, ZAxis, TransparentVertexColorMaterial, AxisColorZ);
+		PlanarXYElement = MakePlanarHandle(bTranslate ? ETransformGizmoPartIdentifier::TranslateXYPlanar : ETransformGizmoPartIdentifier::ScaleXYPlanar, 
+											XAxis, YAxis, ZAxis, TransparentVertexColorMaterial, AxisColorZ);
 		GizmoElementRoot->Add(PlanarXYElement);
 	}
 
 	if (bEnableYZ && PlanarYZElement == nullptr)
 	{
-		PlanarYZElement = MakePlanarHandle(YAxis, ZAxis, XAxis, TransparentVertexColorMaterial, AxisColorX);
+		PlanarYZElement = MakePlanarHandle(bTranslate ? ETransformGizmoPartIdentifier::TranslateYZPlanar : ETransformGizmoPartIdentifier::ScaleYZPlanar, 
+											YAxis, ZAxis, XAxis, TransparentVertexColorMaterial, AxisColorX);
 		GizmoElementRoot->Add(PlanarYZElement);
 	}
 
 	if (bEnableXZ && PlanarXZElement == nullptr)
 	{
-		PlanarXZElement = MakePlanarHandle(ZAxis, XAxis, YAxis, TransparentVertexColorMaterial, AxisColorY);
+		PlanarXZElement = MakePlanarHandle(bTranslate ? ETransformGizmoPartIdentifier::TranslateXZPlanar : ETransformGizmoPartIdentifier::ScaleXZPlanar, 
+											ZAxis, XAxis, YAxis, TransparentVertexColorMaterial, AxisColorY);
 		GizmoElementRoot->Add(PlanarXZElement);
 	}
 
@@ -265,19 +352,19 @@ void UTransformGizmo::EnableRotate(EAxisList::Type InAxisListToDraw)
 
 	if (bEnableX && RotateXAxisElement == nullptr)
 	{
-		RotateXAxisElement = MakeRotateAxis(XAxis, YAxis, ZAxis, AxisMaterialX, CurrentAxisMaterial);
+		RotateXAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateXAxis, XAxis, YAxis, ZAxis, AxisMaterialX, CurrentAxisMaterial);
 		GizmoElementRoot->Add(RotateXAxisElement);
 	}
 
 	if (bEnableY && RotateYAxisElement == nullptr)
 	{
-		RotateYAxisElement = MakeRotateAxis(YAxis, ZAxis, XAxis, AxisMaterialY, CurrentAxisMaterial);
+		RotateYAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateYAxis, YAxis, ZAxis, XAxis, AxisMaterialY, CurrentAxisMaterial);
 		GizmoElementRoot->Add(RotateYAxisElement);
 	}
 
 	if (bEnableZ && RotateZAxisElement == nullptr)
 	{
-		RotateZAxisElement = MakeRotateAxis(ZAxis, XAxis, YAxis, AxisMaterialZ, CurrentAxisMaterial);
+		RotateZAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateZAxis, ZAxis, XAxis, YAxis, AxisMaterialZ, CurrentAxisMaterial);
 		GizmoElementRoot->Add(RotateZAxisElement);
 	}
 
@@ -285,25 +372,25 @@ void UTransformGizmo::EnableRotate(EAxisList::Type InAxisListToDraw)
 	{
 		if (RotateScreenSpaceElement == nullptr)
 		{
-			RotateScreenSpaceElement = MakeRotateCircleHandle(RotateScreenSpaceRadius, RotateScreenSpaceCircleColor, false);
+			RotateScreenSpaceElement = MakeRotateCircleHandle(ETransformGizmoPartIdentifier::RotateScreenSpace, RotateScreenSpaceRadius, RotateScreenSpaceCircleColor, false);
 			GizmoElementRoot->Add(RotateScreenSpaceElement);
 		}
 
 		if (RotateOuterCircleElement == nullptr)
 		{
-			RotateOuterCircleElement = MakeRotateCircleHandle(RotateOuterCircleRadius, RotateOuterCircleColor, false);
+			RotateOuterCircleElement = MakeRotateCircleHandle(ETransformGizmoPartIdentifier::Default, RotateOuterCircleRadius, RotateOuterCircleColor, false);
 			GizmoElementRoot->Add(RotateOuterCircleElement);
 		}
 
 		if (RotateArcballOuterElement == nullptr)
 		{
-			RotateArcballOuterElement = MakeRotateCircleHandle(RotateArcballOuterRadius, RotateArcballCircleColor, false);
+			RotateArcballOuterElement = MakeRotateCircleHandle(ETransformGizmoPartIdentifier::RotateArcball, RotateArcballOuterRadius, RotateArcballCircleColor, false);
 			GizmoElementRoot->Add(RotateArcballOuterElement);
 		}
 
 		if (RotateArcballInnerElement == nullptr)
 		{
-			RotateArcballInnerElement = MakeRotateCircleHandle(RotateArcballInnerRadius, RotateArcballCircleColor, true);
+			RotateArcballInnerElement = MakeRotateCircleHandle(ETransformGizmoPartIdentifier::RotateArcballInnerCircle, RotateArcballInnerRadius, RotateArcballCircleColor, true);
 			GizmoElementRoot->Add(RotateArcballInnerElement);
 		}
 	}
@@ -354,19 +441,19 @@ void UTransformGizmo::EnableScale(EAxisList::Type InAxisListToDraw)
 	
 	if (bEnableX && ScaleXAxisElement == nullptr)
 	{
-		ScaleXAxisElement = MakeScaleAxis(FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), AxisMaterialX);
+		ScaleXAxisElement = MakeScaleAxis(ETransformGizmoPartIdentifier::ScaleXAxis, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), AxisMaterialX);
 		GizmoElementRoot->Add(ScaleXAxisElement);
 	}
 
 	if (bEnableY && ScaleYAxisElement == nullptr)
 	{
-		ScaleYAxisElement = MakeScaleAxis(FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f), AxisMaterialY);
+		ScaleYAxisElement = MakeScaleAxis(ETransformGizmoPartIdentifier::ScaleYAxis, FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f), AxisMaterialY);
 		GizmoElementRoot->Add(ScaleYAxisElement);
 	}
 
 	if (bEnableZ && ScaleZAxisElement == nullptr)
 	{
-		ScaleZAxisElement = MakeScaleAxis(FVector(0.0f, 0.0f, 1.0f), FVector(1.0f, 0.0f, 0.0f), AxisMaterialZ);
+		ScaleZAxisElement = MakeScaleAxis(ETransformGizmoPartIdentifier::ScaleZAxis, FVector(0.0f, 0.0f, 1.0f), FVector(1.0f, 0.0f, 0.0f), AxisMaterialZ);
 		GizmoElementRoot->Add(ScaleZAxisElement);
 	}
 
@@ -396,7 +483,7 @@ void UTransformGizmo::EnableScale(EAxisList::Type InAxisListToDraw)
 		ScaleUniformElement->SetEnabled(bEnableX || bEnableY || bEnableZ);
 	}
 
-	EnablePlanarObjects(bEnableX, bEnableY, bEnableZ);
+	EnablePlanarObjects(false, bEnableX, bEnableY, bEnableZ);
 }
 
 void UTransformGizmo::UpdateCameraAxisSource()
@@ -486,9 +573,10 @@ void UTransformGizmo::SetVisibility(bool bVisibleIn)
 	bVisible = bVisibleIn;
 }
 
-UGizmoElementArrow* UTransformGizmo::MakeTranslateAxis(const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial)
+UGizmoElementArrow* UTransformGizmo::MakeTranslateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial)
 {
 	UGizmoElementArrow* ArrowElement = NewObject<UGizmoElementArrow>();
+	ArrowElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	ArrowElement->SetHeadType(EGizmoElementArrowHeadType::Cone);
 	ArrowElement->SetBase(InAxisDir * AxisLengthOffset);
 	ArrowElement->SetDirection(InAxisDir);
@@ -504,14 +592,15 @@ UGizmoElementArrow* UTransformGizmo::MakeTranslateAxis(const FVector& InAxisDir,
 	return ArrowElement;
 }
 
-UGizmoElementArrow* UTransformGizmo::MakeScaleAxis(const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial)
+UGizmoElementArrow* UTransformGizmo::MakeScaleAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial)
 {
 	UGizmoElementArrow* ArrowElement = NewObject<UGizmoElementArrow>();
+	ArrowElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	ArrowElement->SetHeadType(EGizmoElementArrowHeadType::Cube);
 	ArrowElement->SetBase(InAxisDir * AxisLengthOffset);
 	ArrowElement->SetDirection(InAxisDir);
 	ArrowElement->SetSideDirection(InSideDir);
-	ArrowElement->SetBodyLength(TranslateAxisLength);
+	ArrowElement->SetBodyLength(ScaleAxisLength);
 	ArrowElement->SetBodyRadius(AxisRadius);
 	ArrowElement->SetHeadLength(ScaleAxisCubeDim);
 	ArrowElement->SetNumSides(32);
@@ -524,6 +613,7 @@ UGizmoElementArrow* UTransformGizmo::MakeScaleAxis(const FVector& InAxisDir, con
 UGizmoElementBox* UTransformGizmo::MakeUniformScaleHandle()
 {
 	UGizmoElementBox* BoxElement = NewObject<UGizmoElementBox>();
+	BoxElement->SetPartIdentifier(static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleUniform));
 	BoxElement->SetCenter(FVector::ZeroVector);
 	BoxElement->SetUpDirection(FVector::UpVector);
 	BoxElement->SetSideDirection(FVector::RightVector);
@@ -532,7 +622,7 @@ UGizmoElementBox* UTransformGizmo::MakeUniformScaleHandle()
 	return BoxElement;
 }
 
-UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(const FVector& InUpDirection, const FVector& InSideDirection, const FVector& InPlaneNormal,
+UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(ETransformGizmoPartIdentifier InPartId, const FVector& InUpDirection, const FVector& InSideDirection, const FVector& InPlaneNormal,
 	UMaterialInterface* InMaterial, const FLinearColor& InVertexColor)
 {
 	FVector PlanarHandleCenter = (InUpDirection + InSideDirection) * PlanarHandleOffset;
@@ -542,6 +632,7 @@ UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(const FVector& InUpDir
 	VertexColor.A = LargeOuterAlpha;
 
 	UGizmoElementRectangle* RectangleElement = NewObject<UGizmoElementRectangle>();
+	RectangleElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	RectangleElement->SetUpDirection(InUpDirection);
 	RectangleElement->SetSideDirection(InSideDirection);
 	RectangleElement->SetCenter(PlanarHandleCenter);
@@ -561,6 +652,7 @@ UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(const FVector& InUpDir
 UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 {
 	UGizmoElementRectangle* RectangleElement = NewObject<UGizmoElementRectangle>();
+	RectangleElement->SetPartIdentifier(static_cast<uint32>(ETransformGizmoPartIdentifier::TranslateScreenSpace));
 	RectangleElement->SetUpDirection(FVector::UpVector);
 	RectangleElement->SetSideDirection(FVector::RightVector);
 	RectangleElement->SetCenter(FVector::ZeroVector);
@@ -575,10 +667,11 @@ UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 	return RectangleElement;
 }
 
-UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1,
+UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1,
 	UMaterialInterface* InMaterial, UMaterialInterface* InCurrentMaterial)
 {
 	UGizmoElementTorus* RotateAxisElement = NewObject<UGizmoElementTorus>();
+	RotateAxisElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	RotateAxisElement->SetCenter(FVector::ZeroVector);
 	RotateAxisElement->SetOuterRadius(UTransformGizmo::RotateAxisOuterRadius);
 	RotateAxisElement->SetOuterSegments(UTransformGizmo::RotateAxisOuterSegments);
@@ -597,9 +690,10 @@ UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(const FVector& Normal, const
 	return RotateAxisElement;
 }
 
-UGizmoElementCircle* UTransformGizmo::MakeRotateCircleHandle(float InRadius, const FLinearColor& InColor, float bFill)
+UGizmoElementCircle* UTransformGizmo::MakeRotateCircleHandle(ETransformGizmoPartIdentifier InPartId, float InRadius, const FLinearColor& InColor, float bFill)
 {
 	UGizmoElementCircle* CircleElement = NewObject<UGizmoElementCircle>();
+	CircleElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	CircleElement->SetCenter(FVector::ZeroVector);
 	CircleElement->SetRadius(InRadius);
 	CircleElement->SetNormal(-FVector::ForwardVector);
