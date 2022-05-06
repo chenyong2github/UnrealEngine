@@ -235,7 +235,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="TagList">List of tags separated by semicolons</param>
 		/// <returns>Tag names from this filespec</returns>
-		protected IEnumerable<string> FindTagNamesFromList(string TagList)
+		protected static IEnumerable<string> FindTagNamesFromList(string TagList)
 		{
 			if(!String.IsNullOrEmpty(TagList))
 			{
