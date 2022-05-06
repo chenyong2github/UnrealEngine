@@ -228,8 +228,9 @@ protected:
 	ENGINE_API UMaterialInterfaceEditorOnlyData* CreateEditorOnlyData();
 
 public:
-	UMaterialInterfaceEditorOnlyData* GetEditorOnlyData() { return EditorOnlyData; }
-	const UMaterialInterfaceEditorOnlyData* GetEditorOnlyData() const { return EditorOnlyData; }
+	virtual UMaterialInterfaceEditorOnlyData* GetEditorOnlyData() { return EditorOnlyData; }
+	virtual const UMaterialInterfaceEditorOnlyData* GetEditorOnlyData() const { return EditorOnlyData; }
+	bool IsEditorOnlyDataValid() const { return EditorOnlyData != nullptr; }
 #endif // WITH_EDITORONLY_DATA
 
 public:

@@ -2427,7 +2427,6 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 #if WITH_EDITOR
-	UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MaterialAttributeLayerParameters)
 	{
 		// Material attribute layers parameter refactor fix-up
@@ -2459,10 +2458,10 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 		StaticParameters_DEPRECATED.UpdateLegacyTerrainLayerWeightData();
 	}
 
-	if (!StaticParameters_DEPRECATED.IsEmpty())
+	if (Ar.IsLoading() && !StaticParameters_DEPRECATED.IsEmpty())
 	{
 		StaticParametersRuntime = MoveTemp(StaticParameters_DEPRECATED.GetRuntime());
-		EditorOnly->StaticParameters = MoveTemp(StaticParameters_DEPRECATED.EditorOnly);
+		GetEditorOnlyData()->StaticParameters = MoveTemp(StaticParameters_DEPRECATED.EditorOnly);
 		StaticParameters_DEPRECATED.Empty();
 	}
 
@@ -2535,7 +2534,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			{
 				StaticParameters_DEPRECATED.SerializeLegacy(Ar);
 				StaticParametersRuntime = MoveTemp(StaticParameters_DEPRECATED.GetRuntime());
-				EditorOnly->StaticParameters = MoveTemp(StaticParameters_DEPRECATED.EditorOnly);
+				GetEditorOnlyData()->StaticParameters = MoveTemp(StaticParameters_DEPRECATED.EditorOnly);
 			}
 
 			static_assert(!STORE_ONLY_ACTIVE_SHADERMAPS, "Only discard unused SMs in cooked build");
@@ -2562,12 +2561,15 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			FMaterialShaderMapId LegacyId;
 			LegacyId.Serialize(Ar, bLoadedByCookedMaterial);
 
-			EditorOnly->StaticParameters.StaticSwitchParameters = LegacyId.GetStaticSwitchParameters();
-			EditorOnly->StaticParameters.StaticComponentMaskParameters = LegacyId.GetStaticComponentMaskParameters();
-			EditorOnly->StaticParameters.TerrainLayerWeightParameters = LegacyId.GetTerrainLayerWeightParameters();
+			if (IsEditorOnlyDataValid())
+			{
+				GetEditorOnlyData()->StaticParameters.StaticSwitchParameters = LegacyId.GetStaticSwitchParameters();
+				GetEditorOnlyData()->StaticParameters.StaticComponentMaskParameters = LegacyId.GetStaticComponentMaskParameters();
+				GetEditorOnlyData()->StaticParameters.TerrainLayerWeightParameters = LegacyId.GetTerrainLayerWeightParameters();
 
-			TrimToOverriddenOnly(EditorOnly->StaticParameters.StaticSwitchParameters);
-			TrimToOverriddenOnly(EditorOnly->StaticParameters.StaticComponentMaskParameters);
+				TrimToOverriddenOnly(GetEditorOnlyData()->StaticParameters.StaticSwitchParameters);
+				TrimToOverriddenOnly(GetEditorOnlyData()->StaticParameters.StaticComponentMaskParameters);
+			}
 		}
 #endif // WITH_EDITOR
 	}

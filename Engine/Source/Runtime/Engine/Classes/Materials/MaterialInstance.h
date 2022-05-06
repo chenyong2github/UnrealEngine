@@ -471,8 +471,8 @@ class UMaterialInstance : public UMaterialInterface
 #if WITH_EDITORONLY_DATA
 	ENGINE_API virtual const UClass* GetEditorOnlyDataClass() const override { return UMaterialInstanceEditorOnlyData::StaticClass(); }
 
-	UMaterialInstanceEditorOnlyData* GetEditorOnlyData() { return CastChecked<UMaterialInstanceEditorOnlyData>(Super::GetEditorOnlyData()); }
-	const UMaterialInstanceEditorOnlyData* GetEditorOnlyData() const { return CastChecked<UMaterialInstanceEditorOnlyData>(Super::GetEditorOnlyData()); }
+	virtual UMaterialInstanceEditorOnlyData* GetEditorOnlyData() override { return CastChecked<UMaterialInstanceEditorOnlyData>(Super::GetEditorOnlyData()); }
+	virtual const UMaterialInstanceEditorOnlyData* GetEditorOnlyData() const override { return CastChecked<UMaterialInstanceEditorOnlyData>(Super::GetEditorOnlyData()); }
 #endif // WITH_EDITORONLY_DATA
 
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
