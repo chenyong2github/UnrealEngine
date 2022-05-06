@@ -17,6 +17,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPositiveActionButton.h"
 
+#include "ScopedTransaction.h"
+
 
 #define LOCTEXT_NAMESPACE "PoseSearchDatabaseAssetList"
 
