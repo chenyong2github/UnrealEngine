@@ -7296,7 +7296,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 				if (WorldSettings)
 				{
 					WorldSettings->SetReplicates(false);
-					NetDriver->RemoveNetworkActor(WorldSettings);
+					LoadedWorld->RemoveNetworkActor(WorldSettings);
 				}
 			}
 
