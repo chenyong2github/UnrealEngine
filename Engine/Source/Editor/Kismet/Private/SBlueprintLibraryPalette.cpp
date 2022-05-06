@@ -10,6 +10,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
+#include "BlueprintEditor.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "EdGraphSchema_K2.h"
 #include "ClassViewerModule.h"
@@ -220,6 +221,7 @@ void SBlueprintLibraryPalette::CollectAllActions(FGraphActionListBuilderBase& Ou
 	
 	FBlueprintActionContext FilterContext;
 	FilterContext.Blueprints.Add(GetBlueprint());
+	FilterContext.EditorPtr = BlueprintEditorPtr;
 	
 	UClass* ClassFilter = nullptr;
 	if (FilterClass.IsValid())

@@ -521,6 +521,7 @@ void SBlueprintActionMenu::ConstructActionContext(FBlueprintActionContext& Conte
 		return;
 	}
 
+	ContextDescOut.EditorPtr = EditorPtr;
 	ContextDescOut.Blueprints.Add(Blueprint);
 
 	if (bIsContextSensitive)

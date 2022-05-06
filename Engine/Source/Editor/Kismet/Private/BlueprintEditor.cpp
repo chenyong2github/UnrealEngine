@@ -10402,6 +10402,16 @@ bool FBlueprintEditor::IsNonImportedObject(const UObject* InObject) const
 	return false;
 }
 
+bool FBlueprintEditor::IsNonImportedObject(const FSoftObjectPath& InObject) const
+{
+	if (ImportedNamespaceHelper.IsValid() && !ImportedNamespaceHelper->IsImportedObject(InObject))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 void FBlueprintEditor::OnBlueprintProjectSettingsChanged(UObject*, struct FPropertyChangedEvent&)
 {
 	ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Unknown;

@@ -12,6 +12,7 @@
 #include "BlueprintNodeTemplateCache.h"
 #include "ComponentAssetBroker.h"
 #include "ComponentTypeRegistry.h"
+#include "BlueprintEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintComponenetNodeSpawner"
 
@@ -21,27 +22,27 @@
 
 namespace BlueprintComponentNodeSpawnerImpl
 {
-	static FText GetDefaultMenuCategory(TSubclassOf<UActorComponent> const ComponentClass);
-}
-
-//------------------------------------------------------------------------------
-static FText BlueprintComponentNodeSpawnerImpl::GetDefaultMenuCategory(TSubclassOf<UActorComponent> const ComponentClass)
-{
-	FText ClassGroup;
-	TArray<FString> ClassGroupNames;
-	ComponentClass->GetClassGroupNames(ClassGroupNames);
-
-	static FText const DefaultClassGroup(LOCTEXT("DefaultClassGroup", "Common"));
-	// 'Common' takes priority over other class groups
-	if (ClassGroupNames.Contains(DefaultClassGroup.ToString()) || (ClassGroupNames.Num() == 0))
+	//------------------------------------------------------------------------------
+	static FText GetMenuCategoryFormat()
 	{
-		ClassGroup = DefaultClassGroup;
+		return LOCTEXT("ComponentCategory", "Add Component|{0}");
 	}
-	else
+
+	//------------------------------------------------------------------------------
+	static FText GetDefaultMenuCategory(const TSubclassOf<UActorComponent> ComponentClass)
 	{
-		ClassGroup = FText::FromString(ClassGroupNames[0]);
+		TArray<FString> ClassGroupNames;
+		ComponentClass->GetClassGroupNames(ClassGroupNames);
+
+		static const FText DefaultClassGroup(LOCTEXT("DefaultClassGroup", "Common"));
+		// 'Common' takes priority over other class groups
+		if (ClassGroupNames.Contains(DefaultClassGroup.ToString()) || (ClassGroupNames.Num() == 0))
+		{
+			return DefaultClassGroup;
+		}
+		
+		return FText::FromString(ClassGroupNames[0]);
 	}
-	return FText::Format(LOCTEXT("ComponentCategory", "Add Component|{0}"), ClassGroup);
 }
 
 /*******************************************************************************
@@ -51,6 +52,8 @@ static FText BlueprintComponentNodeSpawnerImpl::GetDefaultMenuCategory(TSubclass
 //------------------------------------------------------------------------------
 UBlueprintComponentNodeSpawner* UBlueprintComponentNodeSpawner::Create(const FComponentTypeEntry& Entry)
 {
+	using namespace BlueprintComponentNodeSpawnerImpl;
+
 	UClass* ComponentClass = Entry.ComponentClass;
 	if (ComponentClass == nullptr)
 	{
@@ -65,7 +68,9 @@ UBlueprintComponentNodeSpawner* UBlueprintComponentNodeSpawner::Create(const FCo
 		FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 		FText const ComponentTypeName = FText::FromString(Entry.ComponentName);
 		MenuSignature.MenuName = FText::Format(LOCTEXT("AddComponentMenuName", "Add {0}"), ComponentTypeName);
-		MenuSignature.Category = LOCTEXT("BlueprintComponentCategory", "Custom");
+		// Note: Non-native (i.e. BP) component types are automatically assigned to the "Custom" group name.
+		// => @see FBlueprintEditorUtils::RecreateClassMetaData()
+		MenuSignature.Category = FText::Format(GetMenuCategoryFormat(), LOCTEXT("BlueprintComponentCategory", "Custom"));
 		MenuSignature.Tooltip = FText::Format(LOCTEXT("AddComponentTooltip", "Spawn a {0}"), ComponentTypeName);
 		// add at least one character, so that PrimeDefaultUiSpec() doesn't 
 		// attempt to query the template node
@@ -73,7 +78,10 @@ UBlueprintComponentNodeSpawner* UBlueprintComponentNodeSpawner::Create(const FCo
 		{
 			MenuSignature.Keywords = FText::FromString(TEXT(" "));
 		}
-		MenuSignature.Icon = FSlateIconFinder::FindIconForClass(nullptr);
+		// Note: Currently using whatever styling is in place for UActorComponent. Note that the actual
+		// class when loaded could be a USceneComponent derivative, in which case it might end up having
+		// an alternate styling. For now just going with this as the placeholder to match the basic type.
+		MenuSignature.Icon = FSlateIconFinder::FindIconForClass(UActorComponent::StaticClass());
 		MenuSignature.DocLink  = TEXT("Shared/GraphNodes/Blueprint/UK2Node_AddComponent");
 		MenuSignature.DocExcerptTag = TEXT("AddComponent");
 
@@ -102,7 +110,7 @@ UBlueprintComponentNodeSpawner* UBlueprintComponentNodeSpawner::Create(const FCo
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	FText const ComponentTypeName = AuthoritativeClass->GetDisplayNameText();
 	MenuSignature.MenuName = FText::Format(LOCTEXT("AddComponentMenuName", "Add {0}"), ComponentTypeName);
-	MenuSignature.Category = BlueprintComponentNodeSpawnerImpl::GetDefaultMenuCategory(AuthoritativeClass);
+	MenuSignature.Category = FText::Format(GetMenuCategoryFormat(), GetDefaultMenuCategory(AuthoritativeClass));
 	MenuSignature.Tooltip  = FText::Format(LOCTEXT("AddComponentTooltip", "Spawn a {0}"), ComponentTypeName);
 	MenuSignature.Keywords = AuthoritativeClass->GetMetaDataText(*FBlueprintMetadata::MD_FunctionKeywords.ToString(), TEXT("UObjectKeywords"), AuthoritativeClass->GetFullGroupName(false));
 	// add at least one character, so that PrimeDefaultUiSpec() doesn't 
@@ -285,6 +293,30 @@ bool UBlueprintComponentNodeSpawner::BindToNode(UEdGraphNode* Node, FBindingObje
 TSubclassOf<UActorComponent> UBlueprintComponentNodeSpawner::GetComponentClass() const
 {
 	return ComponentClass;
+}
+
+//------------------------------------------------------------------------------
+bool UBlueprintComponentNodeSpawner::IsTemplateNodeFilteredOut(const FBlueprintActionFilter& Filter) const
+{
+	bool bIsFilteredOut = false;
+
+	if (Filter.HasAnyFlags(FBlueprintActionFilter::BPFILTER_RejectNonImportedFields))
+	{
+		TSharedPtr<IBlueprintEditor> BlueprintEditor = Filter.Context.EditorPtr.Pin();
+		if (BlueprintEditor.IsValid())
+		{
+			if (ComponentClass)
+			{
+				bIsFilteredOut = BlueprintEditor->IsNonImportedObject(ComponentClass);
+			}
+			else if(FPackageName::IsValidObjectPath(ComponentAssetName))
+			{
+				bIsFilteredOut = BlueprintEditor->IsNonImportedObject(ComponentAssetName);
+			}
+		}
+	}
+
+	return bIsFilteredOut || UBlueprintNodeSpawner::IsTemplateNodeFilteredOut(Filter);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -11,6 +11,7 @@
 #include "Widgets/SToolTip.h"
 #include "Styling/CoreStyle.h"
 #include "EditorStyleSet.h"
+#include "BlueprintEditor.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "BlueprintPaletteFavorites.h"
 #include "BlueprintActionMenuBuilder.h"
@@ -315,6 +316,7 @@ void SBlueprintFavoritesPalette::CollectAllActions(FGraphActionListBuilderBase& 
 {
 	FBlueprintActionContext FilterContext;
 	FilterContext.Blueprints.Add(GetBlueprint());
+	FilterContext.EditorPtr = BlueprintEditorPtr;
 
 	FBlueprintActionMenuBuilder FavoritesBuilder(BlueprintEditorPtr);
 	FBlueprintActionMenuUtils::MakeFavoritesMenu(FilterContext, FavoritesBuilder);

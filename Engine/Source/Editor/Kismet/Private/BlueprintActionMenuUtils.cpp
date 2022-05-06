@@ -416,7 +416,7 @@ void FBlueprintActionMenuUtils::MakePaletteMenu(FBlueprintActionContext const& C
 {
 	MenuOut.Empty();
 	
-	uint32 FilterFlags = 0x00;
+	FBlueprintActionFilter::EFlags FilterFlags = FBlueprintActionFilter::BPFILTER_NoFlags;
 	if (FilterClass != nullptr)
 	{
 		// make sure we exclude global and static library actions
@@ -450,7 +450,7 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	// Composing Filters
 	//--------------------------------------
 
-	uint32 FilterFlags = 0x00;
+	FBlueprintActionFilter::EFlags FilterFlags = FBlueprintActionFilter::BPFILTER_NoFlags;
 	if ( bIsContextSensitive && ((ClassTargetMask & EContextTargetFlags::TARGET_BlueprintLibraries) == 0) )
 	{
 		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectGlobalFields;

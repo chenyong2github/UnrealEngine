@@ -15,6 +15,7 @@ class UBlueprint;
 class UBlueprintNodeSpawner;
 class UEdGraph;
 class UEdGraphPin;
+class IBlueprintEditor;
 
 /*******************************************************************************
  * FBlueprintActionContext
@@ -22,6 +23,13 @@ class UEdGraphPin;
 
 struct FBlueprintActionContext
 {
+	/**
+	 * A weak reference to the Blueprint editor context in which actions are
+	 * being filtered. Note that this may be NULL or invalid if we're filtering
+	 * actions outside of an editor context (e.g. commandlet).
+	 */
+	TWeakPtr<IBlueprintEditor> EditorPtr;
+
 	/** 
 	 * A list of all blueprints you want actions for. Generally, this will
 	 * only contain a single blueprint, but it can have many (where an action
@@ -163,6 +171,8 @@ public:
 public:
 	enum EFlags // Flags, which configure certain rejection tests.
 	{
+		BPFILTER_NoFlags					= (0),
+
 		/** Deprecated class actions will not be filtered out*/
 		BPFILTER_PermitDeprecated			= (1<<0),
 
@@ -201,7 +211,12 @@ public:
 		 */
 		BPFILTER_RejectIncompatibleThreadSafety = (1<<5)
 	};
-	FBlueprintActionFilter(uint32 const Flags = 0x00);
+
+	/** @param InFlags - Filter configuration flags. */
+	FBlueprintActionFilter(const EFlags InFlags = BPFILTER_NoFlags);
+
+	UE_DEPRECATED(5.1, "Please use the version that takes the EFlags type as input")
+	FBlueprintActionFilter(uint32 const Flags);
 	
 	/**
 	 * Contains the full blueprint/graph/pin context that this is filtering 
@@ -289,6 +304,22 @@ public:
 	 */
 	FBlueprintActionFilter const& operator&=(FBlueprintActionFilter const& Rhs);
 
+	/**
+	 * @return TRUE if any of the given configuration flags are set on this filter.
+	 */
+	FORCEINLINE bool HasAnyFlags(EFlags InFlags) const
+	{
+		return (FilterFlags & InFlags) != 0;
+	}
+
+	/**
+	 * @return TRUE if all of the given configuration flags are set on this filter.
+	 */
+	FORCEINLINE bool HasAllFlags(EFlags InFlags) const
+	{
+		return (FilterFlags & InFlags) == InFlags;
+	}
+
 private:
 	/**
 	 * Query to check and see if the specified action gets filtered out by this 
@@ -299,6 +330,9 @@ private:
 	 */
 	bool IsFilteredByThis(FBlueprintActionInfo& BlueprintAction) const;
 
+	/** Configuration flags for this filter. */
+	EFlags FilterFlags = BPFILTER_NoFlags;
+
 	/** Set of rejection tests for this specific filter. */
 	TArray<FRejectionTestDelegate> FilterTests;
 
@@ -308,3 +342,5 @@ private:
 	/** Alternative filters to be logically or'd in with the IsFilteredByThis() result. */
 	TArray<FBlueprintActionFilter> OrFilters;
 };
+
+ENUM_CLASS_FLAGS(FBlueprintActionFilter::EFlags);

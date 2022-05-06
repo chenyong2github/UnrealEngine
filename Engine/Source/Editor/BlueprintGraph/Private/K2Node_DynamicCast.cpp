@@ -7,13 +7,14 @@
 #include "Framework/Commands/UIAction.h"
 #include "ToolMenus.h"
 #include "EdGraphSchema_K2.h"
-
+#include "BlueprintEditorModule.h"
 #include "BlueprintEditorSettings.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "DynamicCastHandler.h"
 #include "EditorCategoryUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ScopedTransaction.h"
+#include "BlueprintActionFilter.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_DynamicCast"
 
@@ -514,6 +515,22 @@ bool UK2Node_DynamicCast::ReconnectPureExecPins(TArray<UEdGraphPin*>& OldPins)
 		}
 	}
 	return false;
+}
+
+bool UK2Node_DynamicCast::IsActionFilteredOut(const FBlueprintActionFilter& Filter)
+{
+	bool bIsFilteredOut = false;
+
+	if (Filter.HasAnyFlags(FBlueprintActionFilter::BPFILTER_RejectNonImportedFields))
+	{
+		TSharedPtr<IBlueprintEditor> BlueprintEditor = Filter.Context.EditorPtr.Pin();
+		if (BlueprintEditor.IsValid() && TargetType)
+		{
+			bIsFilteredOut = BlueprintEditor->IsNonImportedObject(TargetType);
+		}
+	}
+
+	return bIsFilteredOut;
 }
 
 #undef LOCTEXT_NAMESPACE

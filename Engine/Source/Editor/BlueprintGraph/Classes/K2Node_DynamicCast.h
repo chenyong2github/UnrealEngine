@@ -44,6 +44,7 @@ class UK2Node_DynamicCast : public UK2Node
 	virtual void NotifyPinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	virtual bool IsActionFilteredOut(const class FBlueprintActionFilter& Filter) override;
 	//~ End UK2Node Interface
 
 	/** Get the 'valid cast' exec pin */
