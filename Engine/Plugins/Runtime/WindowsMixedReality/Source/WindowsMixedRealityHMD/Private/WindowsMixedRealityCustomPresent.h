@@ -93,7 +93,7 @@ namespace WindowsMixedReality
 				return;
 			}
 
-			ViewportTexture = (ID3D11Texture2D*)RT->GetNativeResource();
+			ViewportTexture = (ID3D11Texture2D*)GetID3D11DynamicRHI()->RHIGetResource(RT);
 		}
 
 		void SetDepthTexture(ID3D11Texture2D* depthTexture)

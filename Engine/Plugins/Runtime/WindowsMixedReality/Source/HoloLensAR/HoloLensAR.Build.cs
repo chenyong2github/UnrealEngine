@@ -47,6 +47,9 @@ public class HoloLensAR : ModuleRules
             {
                 RuntimeDependencies.Add(Dll);
             }
+
+			PrivateDependencyModuleNames.Add("D3D11RHI");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
@@ -66,7 +69,10 @@ public class HoloLensAR : ModuleRules
             {
                 PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
             }
-        }
+
+			PrivateDependencyModuleNames.Add("D3D11RHI");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 

@@ -663,6 +663,7 @@ public:
 	// ID3D11DynamicRHI interface
 	virtual ID3D11Device*         RHIGetDevice() const final override;
 	virtual ID3D11DeviceContext*  RHIGetDeviceContext() const final override;
+	virtual IDXGIAdapter*         RHIGetAdapter() const final override;
 	virtual IDXGISwapChain*       RHIGetSwapChain(FRHIViewport* InViewport) const final override;
 	virtual DXGI_FORMAT           RHIGetSwapChainFormat(EPixelFormat InFormat) const final override;
 	virtual FTexture2DRHIRef      RHICreateTexture2DFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource) final override;

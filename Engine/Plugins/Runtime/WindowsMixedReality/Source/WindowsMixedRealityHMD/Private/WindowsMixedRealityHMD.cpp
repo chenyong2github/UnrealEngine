@@ -322,7 +322,7 @@ namespace WindowsMixedReality
 			FWindowsMixedRealityHMD* Self = this;
 			ENQUEUE_RENDER_COMMAND(InternalGetD3D11DeviceCmd)([Self](FRHICommandListImmediate& RHICmdList)
 			{
-				Self->D3D11Device = (ID3D11Device*)RHIGetNativeDevice();
+				Self->D3D11Device = GetID3D11DynamicRHI()->RHIGetDevice();
 			});
 
 			FlushRenderingCommands();
@@ -1571,7 +1571,7 @@ namespace WindowsMixedReality
 		{
 			if (FRHITexture* depthTargetableTexture = GetSceneTextureExtracts().GetDepthTexture())
 			{
-				ID3D11Texture2D* Texture = static_cast<ID3D11Texture2D*>(depthTargetableTexture->GetNativeResource());
+				ID3D11Texture2D* Texture = static_cast<ID3D11Texture2D*>(GetID3D11DynamicRHI()->RHIGetResource(depthTargetableTexture));
 				if (Texture != nullptr)
 				{
 					if (mCustomPresent != nullptr)
@@ -1801,7 +1801,7 @@ namespace WindowsMixedReality
 		// Update depth texture to match format Windows Mixed Reality platform is expecting.
 		FRHITexture2D* depthFRHITexture = CurrentDepthBuffer.GetReference()->GetTexture2D();
 
-		if (depthFRHITexture == nullptr || depthFRHITexture->GetNativeResource() == nullptr)
+		if (depthFRHITexture == nullptr || GetID3D11DynamicRHI()->RHIGetResource(depthFRHITexture) == nullptr)
 		{
 			return;
 		}
@@ -1869,7 +1869,7 @@ namespace WindowsMixedReality
 		}
 		RHICmdList.EndRenderPass();
 
-		ID3D11Device* device = (ID3D11Device*)RHIGetNativeDevice();
+		ID3D11Device* device = GetID3D11DynamicRHI()->RHIGetDevice();
 		if (device == nullptr)
 		{
 			return;
@@ -1920,7 +1920,7 @@ namespace WindowsMixedReality
 		device->GetImmediateContext(&context);
 
 		_StereoCopy(context, ScreenScalePercentage,
-			(ID3D11Texture2D*)remappedDepthTexture->GetNativeResource(),
+			(ID3D11Texture2D*)GetID3D11DynamicRHI()->RHIGetResource(remappedDepthTexture),
 			stereoDepthTexture);
 
 		if (mCustomPresent != nullptr)
@@ -1930,7 +1930,7 @@ namespace WindowsMixedReality
 		// Third camera depth
 		if (HMD->IsThirdCameraActive() && remappedDepthTexture != nullptr && monoDepthTexture != nullptr)
 		{
-			ID3D11Texture2D* sourceDepth = (ID3D11Texture2D*)remappedDepthTexture->GetNativeResource();
+			ID3D11Texture2D* sourceDepth = (ID3D11Texture2D*)GetID3D11DynamicRHI()->RHIGetResource(remappedDepthTexture);
 			int w, h;
 			HMD->GetThirdCameraDimensions(w, h);
 

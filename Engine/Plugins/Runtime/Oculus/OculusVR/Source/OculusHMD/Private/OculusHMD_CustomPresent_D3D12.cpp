@@ -53,13 +53,7 @@ bool FD3D12CustomPresent::IsUsingCorrectDisplayAdapter() const
 
 	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetDisplayAdapterId2(&luid)) && luid)
 	{
-		TRefCountPtr<ID3D12Device> D3DDevice;
-
-		ExecuteOnRenderThread([&D3DDevice]()
-		{
-			D3DDevice = (ID3D12Device*) RHIGetNativeDevice();
-		});
-
+		ID3D12Device* D3DDevice = GetID3D12DynamicRHI()->RHIGetDevice(0);
 		if (D3DDevice)
 		{
 			LUID AdapterLuid = D3DDevice->GetAdapterLuid();

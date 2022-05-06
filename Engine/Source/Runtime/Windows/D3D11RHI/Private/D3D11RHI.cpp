@@ -772,6 +772,11 @@ ID3D11DeviceContext* FD3D11DynamicRHI::RHIGetDeviceContext() const
 	return GetDeviceContext();
 }
 
+IDXGIAdapter* FD3D11DynamicRHI::RHIGetAdapter() const
+{
+	return GetAdapter().DXGIAdapter;
+}
+
 IDXGISwapChain* FD3D11DynamicRHI::RHIGetSwapChain(FRHIViewport* InViewport) const
 {
 	FD3D11Viewport* Viewport = static_cast<FD3D11Viewport*>(InViewport);

@@ -381,14 +381,14 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
     {
         UE_LOG(LogHLMediaPlayer, Verbose, TEXT("HLMediaPlayer %p: FHLMediaPlayer::InitializePlayer::Async()"), this);
 
-        ID3D11Device* Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+		ID3D11Device* Device = GetID3D11DynamicRHI()->RHIGetDevice();
 		checkf(Device, TEXT("No available D3D11Device"));
 
 		if (RHIGetInterfaceType() == ERHIInterfaceType::D3D12)
 		{
 			ID3D11Device* PrevDevice = Device;
-			ID3D12Device* D3d12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-			void* CommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+			ID3D12Device* D3d12Device = GetID3D12DynamicRHI()->RHIGetDevice(0);
+			ID3D12CommandQueue* CommandQueue = GetID3D12DynamicRHI()->RHIGetCommandQueue();
 
 			ID3D11DeviceContext* D3d11DeviceContext;
 			if (FAILED(D3D11On12CreateDevice(

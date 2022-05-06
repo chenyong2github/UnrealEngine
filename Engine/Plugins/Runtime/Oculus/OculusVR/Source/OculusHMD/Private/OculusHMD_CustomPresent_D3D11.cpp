@@ -53,25 +53,12 @@ bool FD3D11CustomPresent::IsUsingCorrectDisplayAdapter() const
 
 	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetDisplayAdapterId2(&luid)) && luid)
 	{
-		TRefCountPtr<ID3D11Device> D3D11Device;
+		IDXGIAdapter* Adapter = GetID3D11DynamicRHI()->RHIGetAdapter();
+		DXGI_ADAPTER_DESC AdapterDesc{};
 
-		ExecuteOnRenderThread([&D3D11Device]()
+		if (Adapter && SUCCEEDED(Adapter->GetDesc(&AdapterDesc)))
 		{
-			D3D11Device = (ID3D11Device*) RHIGetNativeDevice();
-		});
-
-		if (D3D11Device)
-		{
-			TRefCountPtr<IDXGIDevice> DXGIDevice;
-			TRefCountPtr<IDXGIAdapter> DXGIAdapter;
-			DXGI_ADAPTER_DESC DXGIAdapterDesc;
-
-			if (SUCCEEDED(D3D11Device->QueryInterface(__uuidof(IDXGIDevice), (void**) DXGIDevice.GetInitReference())) &&
-				SUCCEEDED(DXGIDevice->GetAdapter(DXGIAdapter.GetInitReference())) &&
-				SUCCEEDED(DXGIAdapter->GetDesc(&DXGIAdapterDesc)))
-			{
-				return !FMemory::Memcmp(luid, &DXGIAdapterDesc.AdapterLuid, sizeof(LUID));
-			}
+			return !FMemory::Memcmp(luid, &AdapterDesc.AdapterLuid, sizeof(LUID));
 		}
 	}
 

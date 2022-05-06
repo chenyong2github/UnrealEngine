@@ -18,6 +18,7 @@ struct ID3D11DynamicRHI : public FDynamicRHIPSOFallback
 
 	virtual ID3D11Device*         RHIGetDevice() const = 0;
 	virtual ID3D11DeviceContext*  RHIGetDeviceContext() const = 0;
+	virtual IDXGIAdapter*         RHIGetAdapter() const = 0;
 	virtual IDXGISwapChain*       RHIGetSwapChain(FRHIViewport* InViewport) const = 0;
 	virtual DXGI_FORMAT           RHIGetSwapChainFormat(EPixelFormat InFormat) const = 0;
 

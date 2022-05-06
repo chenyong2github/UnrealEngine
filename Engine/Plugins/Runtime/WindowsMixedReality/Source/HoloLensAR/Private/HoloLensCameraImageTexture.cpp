@@ -10,10 +10,7 @@
 #include "SceneUtils.h"
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-	#include "Windows/AllowWindowsPlatformTypes.h"
-	#include <Windows.h>
-	#include <d3d11.h>
-	#include "Windows/HideWindowsPlatformTypes.h"
+#include "ID3D11DynamicRHI.h"
 #endif
 
 struct FHoloLensCameraImageConversionVertex
@@ -193,9 +190,8 @@ public:
 		if (CameraImageHandle != INVALID_HANDLE_VALUE)
 		{
 			// Open the shared texture from the HoloLens camera on Unreal's d3d device.
-			ID3D11Device* D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-			TComPtr<ID3D11DeviceContext> D3D11DeviceContext = nullptr;
-			D3D11Device->GetImmediateContext(&D3D11DeviceContext);
+			ID3D11Device* D3D11Device = GetID3D11DynamicRHI()->RHIGetDevice();
+			TComPtr<ID3D11DeviceContext> D3D11DeviceContext = GetID3D11DynamicRHI()->RHIGetDeviceContext();
 			if (D3D11DeviceContext == nullptr)
 			{
 				CloseHandle(CameraImageHandle);
@@ -313,7 +309,7 @@ private:
 			return false;
 		}
 		// Get the underlying interface for the texture we are copying to
-		TComPtr<ID3D11Resource> CopyTexture = reinterpret_cast<ID3D11Resource*>(CopyTextureRef->GetNativeResource());
+		TComPtr<ID3D11Resource> CopyTexture = GetID3D11DynamicRHI()->RHIGetResource(CopyTextureRef);
 		if (CopyTexture == nullptr)
 		{
 			return false;
