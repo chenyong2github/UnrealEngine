@@ -41,8 +41,8 @@ void Main(
 		// Don't use WPO as Lumen cards and mesh SDF are computed without them
 		//WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
-		ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
-		Output.Position = INVARIANT(ClipSpacePosition);
+		ClipSpacePosition = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);
+		Output.Position = ClipSpacePosition;
 	}
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
