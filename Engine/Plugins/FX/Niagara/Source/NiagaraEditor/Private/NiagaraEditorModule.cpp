@@ -170,6 +170,9 @@ static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
 	ECVF_Default
 	);
 
+// this is required for gpu script compilation ticks
+static FNiagaraShaderQueueTickable NiagaraShaderQueueProcessor;
+
 //////////////////////////////////////////////////////////////////////////
 
 class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
