@@ -1239,6 +1239,8 @@ FCompressedBuffer FVirtualizationManager::PullDataFromAllBackends(const FIoHash&
 				CachePayload(Id, Payload, Backend);
 			}
 
+			UE_LOG(LogVirtualization, VeryVerbose, TEXT("[%s] pulled payload '%s'"), *Backend->GetDebugName(), *LexToString(Id));
+
 			return Payload;
 		}
 	}
