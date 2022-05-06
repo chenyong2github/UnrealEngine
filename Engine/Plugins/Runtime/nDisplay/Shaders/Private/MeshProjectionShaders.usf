@@ -98,9 +98,6 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 	
 	OutputColor = float4(Emissive, Opacity);
 	
-	static const float Gamma = 2.2;
-	OutputColor.rgb = pow(OutputColor.rgb, Gamma);
-	
 	static const float AzimuthFeatherStart = radians(180 - 45);
 	static const float AzimuthFeatherEnd   = radians(180 - 30);
 	
