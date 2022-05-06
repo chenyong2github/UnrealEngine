@@ -12,7 +12,7 @@ class FIKRetargetEditorController;
 class FIKRetargetEditor;
 class FIKRetargetPreviewScene;
 
-enum FIKRetargetTrackingState : int8
+enum class FIKRetargetTrackingState : int8
 {
 	None,
 	RotatingBone,
