@@ -4,9 +4,9 @@
 
 #if PLATFORM_UNIX
 
-#include "ElectraTextureSample.h"
-
 #if !UE_SERVER
+
+#include "ElectraTextureSample.h"
 
 /**
 * Init code for realloacting an image from the the pool
