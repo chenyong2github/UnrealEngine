@@ -25,22 +25,11 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Async/Async.h"
 #include "Misc/OutputDeviceRedirector.h"
-
+#include "Misc/ConfigContext.h"
 #include <limits>
 
-#if WITH_EDITOR
-	#define INI_CACHE 1
-#else
-	#define INI_CACHE 0
-#endif
-
-#ifndef CUSTOM_CONFIG
-#define CUSTOM_CONFIG ""
-#endif
-
-#ifndef DISABLE_GENERATED_INI_WHEN_COOKED
-#define DISABLE_GENERATED_INI_WHEN_COOKED 0
-#endif
+#define USE_CONTEXT 1
+#define VERIFY_CONTEXT 0
 
 namespace UE
 {
@@ -64,37 +53,6 @@ namespace
 }
 
 DEFINE_LOG_CATEGORY(LogConfig);
-namespace 
-{
-	FString GenerateHierarchyCacheKey(const FConfigFileHierarchy& IniHierarchy, const FString& IniPath, const FString& BaseIniName)
-	{
-#if !INI_CACHE
-		return TEXT("");
-#else
-		// A Hierarchy Key is a combined list of all ini file paths that affect that inis data set.
-		FString HierKey;
-		//
-		auto KeyLen = IniPath.Len();
-		KeyLen += BaseIniName.Len();
-		for (const auto& Ini : IniHierarchy)
-		{
-			KeyLen += Ini.Value.Filename.Len();
-		}
-		HierKey.Reserve(KeyLen);
-		HierKey += BaseIniName;
-		for (const auto& Ini : IniHierarchy)
-		{
-			HierKey += Ini.Value.Filename;
-		}
-		HierKey += IniPath;
-
-		return HierKey;
-#endif
-	}
-#if INI_CACHE
-	TMap<FString, FConfigFile> HierarchyCache;
-#endif
-}
 
 /*-----------------------------------------------------------------------------
 FConfigValue
@@ -590,7 +548,6 @@ static bool SaveConfigFileWrapper(const TCHAR* IniFile, const FString& Contents)
 enum class EConfigLayerFlags : int32
 {
 	None						= 0,
-	Required					= (1 << 0),
 	AllowCommandLineOverride	= (1 << 1),
 	DedicatedServerOnly			= (1 << 2), // replaces Default, Base, and (NOT {PLATFORM} yet) with an empty string
 	GenerateCacheKey			= (1 << 3),
@@ -621,7 +578,7 @@ struct FConfigLayer
 	**************************************************/
 
 	// Engine/Base.ini
-	{ TEXT("AbsoluteBase"),				TEXT("{ENGINE}/Config/Base.ini"), EConfigLayerFlags::Required | EConfigLayerFlags::NoExpand},
+	{ TEXT("AbsoluteBase"),				TEXT("../../../Engine/Config/Base.ini"), EConfigLayerFlags::NoExpand},
 	
 	// Engine/Base*.ini
 	{ TEXT("Base"),						TEXT("{ENGINE}/Config/Base{TYPE}.ini") },
@@ -650,6 +607,43 @@ struct FConfigLayer
 };
 
 
+/// <summary>
+/// Plugins don't need to look at the same number of insane layers. Here PROJECT is the Plugin dir
+/// </summary>
+FConfigLayer GPluginLayers[] =
+{
+	// Engine/Base.ini
+	{ TEXT("AbsoluteBase"),				TEXT("{ENGINE}/Config/Base.ini"), EConfigLayerFlags::NoExpand},
+
+	// Plugin/Base*.ini
+	{ TEXT("PluginBase"),				TEXT("{PLUGIN}/Config/Base{TYPE}.ini") },
+	// Plugin/Default*.ini (we use Base and Default as we can have both depending on Engine or Project plugin, but going forward we should stick with Default)
+	{ TEXT("PluginDefault"),			TEXT("{PLUGIN}/Config/Default{TYPE}.ini") },
+	// Plugin/Platform/Platform*.ini
+	{ TEXT("PluginPlatform"),			TEXT("{PLUGIN}/Config/{PLATFORM}/{PLATFORM}{TYPE}.ini") },
+	// Project/Default.ini
+	{ TEXT("ProjectDefault"),			TEXT("{PROJECT}/Config/Default{TYPE}.ini") },
+	// Project/Platform/.ini
+	{ TEXT("ProjectDefault"),			TEXT("{PROJECT}/Config/{PLATFORM}/{PLATFORM}{TYPE}.ini") },
+};
+
+
+
+
+
+enum class EConfigExpansionFlags : int32
+{
+	None		= 0,
+
+	ForUncooked	= 1 << 0,
+	ForCooked	= 1 << 1,
+	ForPlugin	= 1 << 2,
+
+	All			= 0xFF,
+};
+ENUM_CLASS_FLAGS(EConfigExpansionFlags);
+
+
 /**
  * This describes extra files per layer, to deal with restricted and NDA covered platform files that can't have the settings
  * be in the Base/Default ini files.
@@ -662,6 +656,7 @@ struct FConfigLayerExpansion
 	const TCHAR* After1;
 	const TCHAR* Before2;
 	const TCHAR* After2;
+	EConfigExpansionFlags Flags;
 };
 
 /**************************************************
@@ -670,17 +665,16 @@ struct FConfigLayerExpansion
 **************************************************/
 static FConfigLayerExpansion GConfigExpansions[] =
 {
-
 	// No replacements
-	{},
+	{ nullptr, nullptr, nullptr, nullptr, EConfigExpansionFlags::All },
 	// Restricted Locations
-	{ TEXT("{ENGINE}/"), TEXT("{ENGINE}/Restricted/NotForLicensees/"),	TEXT("{PROJECT}/Config/"), TEXT("{RESTRICTEDPROJECT_NFL}/Config/") },
-	{ TEXT("{ENGINE}/"), TEXT("{ENGINE}/Restricted/NoRedist/"),			TEXT("{PROJECT}/Config/"), TEXT("{RESTRICTEDPROJECT_NR}/Config/") },
+	{ TEXT("{ENGINE}/"), TEXT("{ENGINE}/Restricted/NotForLicensees/"),	TEXT("{PROJECT}/Config/"), TEXT("{RESTRICTEDPROJECT_NFL}/Config/"), EConfigExpansionFlags::ForUncooked },
+	{ TEXT("{ENGINE}/"), TEXT("{ENGINE}/Restricted/NoRedist/"),			TEXT("{PROJECT}/Config/"), TEXT("{RESTRICTEDPROJECT_NR}/Config/"), EConfigExpansionFlags::ForUncooked },
 	// Platform Extensions
-	{ TEXT("{ENGINE}/Config/{PLATFORM}/"), TEXT("{EXTENGINE}/Config/"),	TEXT("{PROJECT}/Config/{PLATFORM}/"), TEXT("{EXTPROJECT}/Config/") },
+	{ TEXT("{ENGINE}/Config/{PLATFORM}/"), TEXT("{EXTENGINE}/Config/"),	TEXT("{PROJECT}/Config/{PLATFORM}/"), TEXT("{EXTPROJECT}/Config/"), EConfigExpansionFlags::ForUncooked | EConfigExpansionFlags::ForCooked },
 	// Platform Extensions in Restricted Locations
-	{ TEXT("{ENGINE}/Config/{PLATFORM}/"), TEXT("{ENGINE}/Restricted/NotForLicensees/Platforms/{PLATFORM}/Config/"),	TEXT("{PROJECT}/Config/{PLATFORM}/"), TEXT("{RESTRICTEDPROJECT_NFL}/Platforms/{PLATFORM}/Config/") },
-	{ TEXT("{ENGINE}/Config/{PLATFORM}/"), TEXT("{ENGINE}/Restricted/NoRedist/Platforms/{PLATFORM}/Config/"),			TEXT("{PROJECT}/Config/{PLATFORM}/"), TEXT("{RESTRICTEDPROJECT_NR}/Platforms/{PLATFORM}/Config/") },
+	{ TEXT("{ENGINE}/Config/{PLATFORM}/"), TEXT("{ENGINE}/Restricted/NotForLicensees/Platforms/{PLATFORM}/Config/"),	TEXT("{PROJECT}/Config/{PLATFORM}/"), TEXT("{RESTRICTEDPROJECT_NFL}/Platforms/{PLATFORM}/Config/"), EConfigExpansionFlags::ForUncooked },
+	{ TEXT("{ENGINE}/Config/{PLATFORM}/"), TEXT("{ENGINE}/Restricted/NoRedist/Platforms/{PLATFORM}/Config/"),			TEXT("{PROJECT}/Config/{PLATFORM}/"), TEXT("{RESTRICTEDPROJECT_NR}/Platforms/{PLATFORM}/Config/"), EConfigExpansionFlags::ForUncooked },
 };
 
 constexpr int32 MaxPlatformIndex = 99;
@@ -705,17 +699,17 @@ int32 FConfigFileHierarchy::GenerateDynamicKey()
 	return ++KeyGen;
 }
 
-int32 FConfigFileHierarchy::AddStaticLayer(FIniFilename Filename, int32 LayerIndex, int32 ExpansionIndex /*= 0*/, int32 PlatformIndex /*= 0*/)
+int32 FConfigFileHierarchy::AddStaticLayer(const FString& Filename, int32 LayerIndex, int32 ExpansionIndex /*= 0*/, int32 PlatformIndex /*= 0*/)
 {
 	int32 Key = GetStaticKey(LayerIndex, ExpansionIndex, PlatformIndex);
-	Emplace(Key, MoveTemp(Filename));
+	Emplace(Key, Filename);
 	return Key;
 }
 
-int32 FConfigFileHierarchy::AddDynamicLayer(FIniFilename Filename)
+int32 FConfigFileHierarchy::AddDynamicLayer(const FString& Filename)
 {
 	int32 Key = GenerateDynamicKey();
-	Emplace(Key, MoveTemp(Filename));
+	Emplace(Key, Filename);
 	return Key;
 }
 
@@ -1354,11 +1348,11 @@ void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
 
 	if (SourceConfigFile)
 	{
-		SourceConfigFile->SourceIniHierarchy.AddDynamicLayer(FIniFilename(Filename));
+		SourceConfigFile->SourceIniHierarchy.AddDynamicLayer(Filename);
 		SourceConfigFile->CombineFromBuffer(ConfigContent);
 	}
 
-	SourceIniHierarchy.AddDynamicLayer(FIniFilename(Filename));
+	SourceIniHierarchy.AddDynamicLayer(Filename);
 	CombineFromBuffer(ConfigContent);
 
 	// Disable saving since dynamic layers are only for runtime
@@ -1373,120 +1367,36 @@ void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
  * @param ConfigFile - This is the FConfigFile which will have the contents of the .ini loaded into and Combined()
  *
  **/
-static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FConfigFile& ConfigFile, const bool bUseCache)
+/*static */bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FConfigFile& ConfigFile, bool bUseCache)
 {
-	// if the file does not exist then return
-	if (HierarchyToLoad.Num() == 0)
-	{
-		//UE_LOG(LogConfig, Warning, TEXT( "LoadIniFileHierarchy was unable to find FilenameToLoad: %s "), *FilenameToLoad);
-		return true;
-	}
-	else
-	{
-		// If no inis exist or only engine (Base*.ini) inis exist, don't load anything
-		bool bOptionalIniFound = false;
-		for (const TPair<int32, FIniFilename>& Pair : HierarchyToLoad)
-		{
-			const FIniFilename& IniToLoad = Pair.Value;
-			if (IniToLoad.bRequired == false &&
-				(!IsUsingLocalIniFile(*IniToLoad.Filename, nullptr) || DoesConfigFileExistWrapper(*IniToLoad.Filename)))
-			{
-				bOptionalIniFound = true;
-				break;
-			}
-		}
-		if (!bOptionalIniFound)
-		{
-			// No point in generating ini
-			return true;
-		}
-	}
-
-	int32 FirstCacheIndex = 0;
-#if INI_CACHE
-	if (bUseCache && HierarchyCache.Num() > 0)
-	{
-		// Find the last value in the hierarchy that is cached. We can start the load from there
-		for (auto& HierarchyIt : HierarchyToLoad)
-		{
-			if (HierarchyCache.Find(HierarchyIt.Value.CacheKey)) 
-			{
-				FirstCacheIndex = HierarchyIt.Key;
-			}
-		}
-	}
-#endif
-
-	TArray<FDateTime> TimestampsOfInis;
-	
-	// Making a copy of the HierarchyToLoad so we can loop and make changes to ConfigFile without breaking the iteration.
-	const FConfigFileHierarchy TempHierarchyToLoad = HierarchyToLoad;
-
 	// Traverse ini list back to front, merging along the way.
-	for (auto& HierarchyIt : TempHierarchyToLoad)
+	for (const TPair<int32, FString>& HierarchyIt : HierarchyToLoad)
 	{
-		if (FirstCacheIndex <= HierarchyIt.Key)
+		bool bDoCombine = (HierarchyIt.Key != 0);
+		bool bIsRequired = (HierarchyIt.Key == 0);
+		const FString& IniFileName = HierarchyIt.Value;
+
+		// Spit out friendly error if there was a problem locating .inis (e.g. bad command line parameter or missing folder, ...).
+		if (IsUsingLocalIniFile(*IniFileName, nullptr) && !DoesConfigFileExistWrapper(*IniFileName))
 		{
-			const FIniFilename& IniToLoad = HierarchyIt.Value;
-			const FString& IniFileName = IniToLoad.Filename;
-			bool bDoProcess = true;
-#if INI_CACHE
-			bool bShouldCache = IniToLoad.CacheKey.Len() > 0;
-			bShouldCache &= bUseCache;
-			if ( bShouldCache ) // if we are forcing a load don't mess with the cache
+			if (bIsRequired)
 			{
-				auto* CachedConfigFile = HierarchyCache.Find(IniToLoad.CacheKey);
-				if (CachedConfigFile) 
-				{
-					ConfigFile = *CachedConfigFile;
-					bDoProcess = false;
-				}
-				ConfigFile.CacheKey = IniToLoad.CacheKey;
+				UE_LOG(LogConfig, Error, TEXT("Couldn't locate '%s' which is required to run '%s'"), *IniFileName, FApp::GetProjectName() );
+				return false;
 			}
 			else
 			{
-				ConfigFile.CacheKey = TEXT("");
-			}
-#endif
-			if (bDoProcess)
-			{
-				// Spit out friendly error if there was a problem locating .inis (e.g. bad command line parameter or missing folder, ...).
-				if (IsUsingLocalIniFile(*IniFileName, nullptr) && !DoesConfigFileExistWrapper(*IniFileName))
-				{
-					if (IniToLoad.bRequired)
-					{
-						//UE_LOG(LogConfig, Error, TEXT("Couldn't locate '%s' which is required to run '%s'"), *IniToLoad.Filename, FApp::GetProjectName() );
-						return false;
-					}
-					else
-					{
-#if INI_CACHE
-						// missing file just add the current config file to the cache
-						if ( bShouldCache )
-						{
-							HierarchyCache.Add(IniToLoad.CacheKey, ConfigFile);
-						}
-#endif
-						continue;
-					}
-				}
-
-				bool bDoEmptyConfig = false;
-				bool bDoCombine = (HierarchyIt.Key != 0);
-				//UE_LOG(LogConfig, Log,  TEXT( "Combining configFile: %s" ), *IniList(IniIndex) );
-				ProcessIniContents(*(HierarchyIt.Value.Filename), *IniFileName, &ConfigFile, bDoEmptyConfig, bDoCombine);
-#if INI_CACHE
-				if ( bShouldCache )
-				{
-					HierarchyCache.Add(IniToLoad.CacheKey, ConfigFile);
-				}
-#endif
+				continue;
 			}
 		}
+
+		bool bDoEmptyConfig = false;
+		//UE_LOG(LogConfig, Log,  TEXT( "Combining configFile: %s" ), *IniList(IniIndex) );
+		ProcessIniContents(*IniFileName, *IniFileName, &ConfigFile, bDoEmptyConfig, bDoCombine);
 	}
 
 	// Set this configs files source ini hierarchy to show where it was loaded from.
-	ConfigFile.SourceIniHierarchy = TempHierarchyToLoad;
+	ConfigFile.SourceIniHierarchy = HierarchyToLoad;
 
 	return true;
 }
@@ -1563,26 +1473,6 @@ bool PropertySetFromCommandlineOption(const FConfigFile* InConfigFile, const FSt
 	return bFromCommandline;
 }
 
-/**
- * Clear the hierarchy cache
- * cos nobody want dat junk no more! bro
- *
- * @param Base ini name of the file hierarchy that we want to clear the cache for
- */
-static void ClearHierarchyCache( const TCHAR* BaseIniName )
-{
-#if INI_CACHE
-	// if we are forcing reload from disk then clear the cached hierarchy files
-	for ( TMap<FString, FConfigFile>::TIterator It(HierarchyCache); It; ++It )
-	{
-		if ( It.Key().StartsWith( BaseIniName ) )
-		{
-			It.RemoveCurrent();
-		}
-	}
-#endif
-}
-
 bool FConfigFile::WriteTempFileThenMove()
 {
 #if PLATFORM_DESKTOP && WITH_EDITOR
@@ -1638,7 +1528,7 @@ bool FConfigFile::IsADefaultIniWrite(const FString& Filename, int32& OutIniCombi
 		FString IniName = FPaths::GetCleanFilename(Filename);
 		for (const auto& HierarchyFileIt : SourceIniHierarchy)
 		{
-			if (FPaths::GetCleanFilename(HierarchyFileIt.Value.Filename) == IniName)
+			if (FPaths::GetCleanFilename(HierarchyFileIt.Value) == IniName)
 			{
 				OutIniCombineThreshold = HierarchyFileIt.Key;
 				break;
@@ -1671,20 +1561,6 @@ bool FConfigFile::WriteInternal(const FString& Filename, bool bDoRemoteWrite, TM
 	}
 
 	bool bResult = SaveConfigFileWrapper(*Filename, Text);
-
-#if INI_CACHE
-	// if we wrote the config successfully
-	if ( bResult && CacheKey.Len() > 0 )
-	{
-		check( Name != NAME_None );
-		ClearHierarchyCache(*Name.ToString());
-	}
-	
-	/*if (bResult && CacheKey.Len() > 0)
-	{
-		HierarchyCache.Add(CacheKey, *this);
-	}*/
-#endif
 
 	// File is still dirty if it didn't save.
 	Dirty = !bResult;
@@ -2218,7 +2094,7 @@ void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, co
 				HighestFileIndex = NextEntry > HighestFileIndex ? NextEntry : HighestFileIndex;
 			}
 
-			const FString& LastFileInHierarchy = SourceIniHierarchy.FindChecked(HighestFileIndex).Filename;
+			const FString& LastFileInHierarchy = SourceIniHierarchy.FindChecked(HighestFileIndex);
 			FConfigFile& DefaultConfigFile = Hierarchy.Add(LastFileInHierarchy, FConfigFile());
 
 			for (const auto& HierarchyFileIt : SourceIniHierarchy)
@@ -2228,7 +2104,7 @@ void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, co
 				// we would be diffing against the same config we've just written to.
 				if (HierarchyFileIt.Key < IniCombineThreshold)
 				{
-					DefaultConfigFile.Combine(HierarchyFileIt.Value.Filename);
+					DefaultConfigFile.Combine(HierarchyFileIt.Value);
 				}
 			}
 
@@ -3612,7 +3488,7 @@ bool FConfigCacheIni::ForEachEntry(const FKeyValueSink& Visitor, const TCHAR* Se
  * @param ConfigFile - This is the FConfigFile which will have the contents of the .ini loaded into
  *
  **/
-static void LoadAnIniFile(const FString& FilenameToLoad, FConfigFile& ConfigFile)
+/*static */void LoadAnIniFile(const FString& FilenameToLoad, FConfigFile& ConfigFile)
 {
 	if( !IsUsingLocalIniFile(*FilenameToLoad, nullptr) || DoesConfigFileExistWrapper(*FilenameToLoad) )
 	{
@@ -4004,13 +3880,6 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 		FString LayerPath = PerformBasicReplacements(Layer.Path, InBaseIniName);
 		bool bHasPlatformTag = LayerPath.Contains(TEXT("{PLATFORM}"));
 
-		// PROGRAMs don't require any ini files
-#if IS_PROGRAM
-		const bool bIsRequired = false;
-#else
-		const bool bIsRequired = EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::Required) && (EngineConfigDir == FPaths::EngineConfigDir());
-#endif
-
 		// expand if it it has {ED} or {EF} expansion tags
 		if (!EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::NoExpand))
 		{
@@ -4074,11 +3943,7 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 					}
 
 					// add this to the list!
-					SourceIniHierarchy.AddStaticLayer(
-						FIniFilename(PlatformPath, bIsRequired, bGenerateCacheKey ?
-							GenerateHierarchyCacheKey(SourceIniHierarchy, PlatformPath, InBaseIniName) :
-							FString(TEXT(""))),
-						LayerIndex, ExpansionIndex, PlatformIndex);
+					SourceIniHierarchy.AddStaticLayer(PlatformPath, LayerIndex, ExpansionIndex, PlatformIndex);
 				}
 			}
 		}
@@ -4090,12 +3955,8 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 
 			FString FinalPath = PerformFinalExpansions(LayerPath, TEXT(""), *UsedEngineDir, *UsedProjectDir);
 
-			// final layer needs to generate a hierarchy cache
-			SourceIniHierarchy.AddStaticLayer(
-				FIniFilename(FinalPath, bIsRequired, EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::GenerateCacheKey) ?
-					GenerateHierarchyCacheKey(SourceIniHierarchy, FinalPath, InBaseIniName) :
-					FString(TEXT(""))),
-				LayerIndex);
+			// add without an expansion
+			SourceIniHierarchy.AddStaticLayer(FinalPath, LayerIndex);
 		}
 	}
 }
@@ -4174,6 +4035,49 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 	Ar << GEngineIni;
 }
 
+
+bool FConfigCacheIni::InitializeKnownConfigFiles(FConfigContext& Context)
+{
+	// check for scalability platform override.
+	FConfigContext* ScalabilityPlatformOverrideContext = nullptr;
+#if !UE_BUILD_SHIPPING && WITH_EDITOR
+	if (Context.ConfigSystem == GConfig)
+	{
+		FString ScalabilityPlatformOverrideCommandLine;
+		FParse::Value(FCommandLine::Get(), TEXT("ScalabilityIniPlatformOverride="), ScalabilityPlatformOverrideCommandLine);
+		if (!ScalabilityPlatformOverrideCommandLine.IsEmpty())
+		{
+			ScalabilityPlatformOverrideContext = new FConfigContext(FConfigContext::ReadIntoConfigSystem(Context.ConfigSystem, ScalabilityPlatformOverrideCommandLine));
+		}
+	}
+#endif
+
+	bool bEngineConfigCreated = false;
+	for (uint8 KnownIndex = 0; KnownIndex < (uint8)EKnownIniFile::NumKnownFiles; KnownIndex++)
+	{
+		FConfigCacheIni::FKnownConfigFiles::FKnownConfigFile& KnownFile = Context.ConfigSystem->KnownFiles.Files[KnownIndex];
+
+		// allow for scalability to come from another platform (made above)
+		FConfigContext& ContextToUse = (KnownIndex == (uint8)EKnownIniFile::Scalability && ScalabilityPlatformOverrideContext) ? *ScalabilityPlatformOverrideContext : Context;
+
+		// and load it, saving the dest path to IniPath
+		bool bConfigCreated = ContextToUse.Load(*KnownFile.IniName.ToString(), KnownFile.IniPath);
+		
+		// we want to return if the Engine config was successfully created (to not remove any functionality from old code)
+		if (KnownIndex == (uint8)EKnownIniFile::Engine)
+		{
+			bEngineConfigCreated = bConfigCreated;
+		}
+	}
+
+	// Gconfig set itself ready for use later on
+	if (Context.ConfigSystem != GConfig)
+	{
+		Context.ConfigSystem->bIsReadyForUse = true;
+	}
+
+	return bEngineConfigCreated;
+}
 
 bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired, const TCHAR* OverrideProjectDir)
 {
@@ -4341,6 +4245,39 @@ bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
 
 #endif
 
+static void LoadRemainingConfigFiles(FConfigContext& Context)
+{
+	SCOPED_BOOT_TIMING("LoadRemainingConfigFiles");
+
+#if PLATFORM_DESKTOP
+	// load some desktop only .ini files
+	Context.Load(TEXT("Compat"), GCompatIni);
+	Context.Load(TEXT("Lightmass"), GLightmassIni);
+#endif
+
+#if WITH_EDITOR
+	// load some editor specific .ini files
+
+	Context.Load(TEXT("Editor"), GEditorIni);
+
+	// Upgrade editor user settings before loading the editor per project user settings
+	FConfigManifest::MigrateEditorUserSettings();
+	Context.Load(TEXT("EditorPerProjectUserSettings"), GEditorPerProjectIni);
+
+	// Project agnostic editor ini files, so save them to a shared location (Engine, not Project)
+	Context.GeneratedConfigDir = FPaths::EngineEditorSettingsDir();
+	Context.Load(TEXT("EditorSettings"), GEditorSettingsIni);
+	Context.Load(TEXT("EditorKeyBindings"), GEditorKeyBindingsIni);
+	Context.Load(TEXT("EditorLayout"), GEditorLayoutIni);
+
+#endif
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("dumpconfig")))
+	{
+		GConfig->Dump(*GLog);
+	}
+}
+
 static void LoadRemainingConfigFiles()
 {
 	SCOPED_BOOT_TIMING("LoadRemainingConfigFiles");
@@ -4397,7 +4334,12 @@ void FConfigCacheIni::InitializeConfigSystem()
 #if WITH_EDITOR
 		// a cooked editor (cooked cooker more likely) can be initialized from binary config for speed, 
 		// but we still need the other files as well
+#if USE_CONTEXT
+		FConfigContext Context = FConfigContext::ReadIntoGConfig();
+		LoadRemainingConfigFiles(Context);
+#else
 		LoadRemainingConfigFiles();
+#endif
 #endif
 		return;
 	}
@@ -4429,14 +4371,22 @@ void FConfigCacheIni::InitializeConfigSystem()
 	// create GConfig
 	GConfig = new FConfigCacheIni(EConfigCacheType::DiskBacked);
 
-	// load the main .ini files (unless we're running a program or a gameless UnrealEditor.exe, DefaultEngine.ini is required).
-	const bool bIsGamelessExe = !FApp::HasProjectName();
-	const bool bDefaultEngineIniRequired = !bIsGamelessExe && (GIsGameAgnosticExe || FApp::IsProjectNameEmpty());
+	// by not using this with VERIFY_CONTEXT, it will fall down to the old InitializeKnownConfigFiles impl, which will call down to LoadExternalIniFile, which
+	// will do the verification
+#if USE_CONTEXT && !VERIFY_CONTEXT
+	// create a context object that we will use for all of the main ini files
+	FConfigContext Context = FConfigContext::ReadIntoGConfig();
 
 	// load in the default ini files
-	bool bEngineConfigCreated = GConfig->InitializeKnownConfigFiles(nullptr, bDefaultEngineIniRequired);
+	bool bEngineConfigCreated = InitializeKnownConfigFiles(Context);
+#else
+
+	// load in the default ini files
+	bool bEngineConfigCreated = GConfig->InitializeKnownConfigFiles(nullptr, false);
+#endif
 
 	// verify if needed
+	const bool bIsGamelessExe = !FApp::HasProjectName();
 	if ( !bIsGamelessExe )
 	{
 		// Now check and see if our game is correct if this is a game agnostic binary
@@ -4459,7 +4409,12 @@ void FConfigCacheIni::InitializeConfigSystem()
 	}
 
 	// load editor, etc config files that won't be binaried
+#if USE_CONTEXT && !VERIFY_CONTEXT
+	LoadRemainingConfigFiles(Context);
+#else
 	LoadRemainingConfigFiles();
+#endif
+
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;
@@ -4495,6 +4450,17 @@ const FString& FConfigCacheIni::GetCustomConfigString()
 
 bool FConfigCacheIni::LoadGlobalIniFile(FString& OutFinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform, bool bForceReload, bool bRequireDefaultIni, bool bAllowGeneratedIniWhenCooked, bool bAllowRemoteConfig, const TCHAR* GeneratedConfigDir, FConfigCacheIni* ConfigSystem)
 {
+#if USE_CONTEXT && !VERIFY_CONTEXT
+	FConfigContext Context = FConfigContext::ReadIntoConfigSystem(ConfigSystem, Platform);
+	if (GeneratedConfigDir != nullptr)
+	{
+		Context.GeneratedConfigDir = GeneratedConfigDir;
+	}
+	Context.bForceReload = bForceReload;
+	Context.bAllowGeneratedIniWhenCooked = bAllowGeneratedIniWhenCooked;
+	Context.bAllowRemoteConfig = bAllowRemoteConfig;
+	return Context.Load(BaseIniName, OutFinalIniFilename);
+#else
 	// figure out where the end ini file is
 	FString FinalIniFilename = GetDestIniFilename(BaseIniName, Platform, GeneratedConfigDir);
 
@@ -4570,10 +4536,16 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& OutFinalIniFilename, const TCHA
 		/*bWriteDestIni*/ ConfigSystem->Type == EConfigCacheType::DiskBacked,
 		bAllowGeneratedIniWhenCooked, 
 		GeneratedConfigDir);
+#endif
 }
 
-bool FConfigCacheIni::LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, bool bIsBaseIniName, const TCHAR* Platform, bool bForceReload )
+bool FConfigCacheIni::LoadLocalIniFile(FConfigFile & ConfigFile, const TCHAR * IniName, bool bIsBaseIniName, const TCHAR * Platform, bool bForceReload)
 {
+#if USE_CONTEXT && !VERIFY_CONTEXT
+	FConfigContext Context = bIsBaseIniName ? FConfigContext::ReadIntoLocalFile(ConfigFile, Platform) : FConfigContext::ReadSingleIntoLocalFile(ConfigFile, Platform);
+	Context.bForceReload = bForceReload;
+	return Context.Load(IniName);
+#else
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FConfigCacheIni::LoadLocalIniFile" ), STAT_FConfigCacheIni_LoadLocalIniFile, STATGROUP_LoadTime );
 
 	FString EngineConfigDir = FPaths::EngineConfigDir();
@@ -4606,12 +4578,83 @@ bool FConfigCacheIni::LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* Ini
 		Platform, 
 		bForceReload, 
 		/*bWriteDestIni*/ false);
+#endif
 }
 
-bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir, bool bIsBaseIniName, const TCHAR* Platform, bool bForceReload, bool bWriteDestIni, bool bAllowGeneratedIniWhenCooked, const TCHAR* GeneratedConfigDir)
+
+
+bool ConfigMatches(const FConfigFile& A, const FConfigFile& B)
 {
+	TArray<TArray<FString>> AList, BList;
+
+	auto LocalSort = [](const FConfigFile& File, TArray<TArray<FString>>& List)
+	{
+		for (const auto& Pair : File)
+		{
+			TArray<FString>& Lines = List[List.AddDefaulted(1)];
+			Lines.Add(FString::Printf(TEXT("__[%s]"), *Pair.Key));
+			for (auto Values : Pair.Value)
+			{
+				Lines.Add(FString::Printf(TEXT("%s=%s"), *Values.Key.ToString(), *Values.Value.GetValue().ReplaceCharWithEscapedChar()));
+			}
+			Lines.Sort();
+		}
+		List.Sort([](const TArray<FString>& First, const TArray<FString>& Second) { return First[0] < Second[0]; });
+	};
+
+	LocalSort(A, AList);
+	LocalSort(B, BList);
+
+	if (AList != BList)
+	{
+		UE_LOG(LogConfig, Warning, TEXT("DOn't match!"));
+		UE_LOG(LogConfig, Warning, TEXT("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+		for (auto List : AList)
+		{
+			for (auto Key : List)
+			{
+				UE_LOG(LogConfig, Warning, TEXT("%s"), *Key);
+			}
+		}
+		UE_LOG(LogConfig, Warning, TEXT("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"));
+		for (auto List : BList)
+		{
+			for (auto Key : List)
+			{
+				UE_LOG(LogConfig, Warning, TEXT("%s"), *Key);
+			}
+		}
+		return false;
+	}
+	return true;
+
+}
+
+
+
+#if VERIFY_CONTEXT
+bool FConfigCacheIni::LoadExternalIniFile(FConfigFile & InConfigFile, const TCHAR * IniName, const TCHAR * EngineConfigDir, const TCHAR * SourceConfigDir, bool bIsBaseIniName, const TCHAR * Platform, bool bForceReload, bool bWriteDestIni, bool bAllowGeneratedIniWhenCooked, const TCHAR * GeneratedConfigDir)
+{
+	check(InConfigFile.Num() == 0);
+	FConfigFile ConfigFile;
+
+#else
+bool FConfigCacheIni::LoadExternalIniFile(FConfigFile & ConfigFile, const TCHAR * IniName, const TCHAR * EngineConfigDir, const TCHAR * SourceConfigDir, bool bIsBaseIniName, const TCHAR * Platform, bool bForceReload, bool bWriteDestIni, bool bAllowGeneratedIniWhenCooked, const TCHAR * GeneratedConfigDir)
+{
+#endif
 	LLM_SCOPE(ELLMTag::ConfigSystem);
 
+#if USE_CONTEXT && !VERIFY_CONTEXT
+	// 	could also set Context.bIsHierarchicalConfig instead of the ?: operator
+	FConfigContext Context = bIsBaseIniName ? FConfigContext::ReadIntoLocalFile(ConfigFile, Platform) : FConfigContext::ReadSingleIntoLocalFile(ConfigFile, Platform);
+	Context.EngineConfigDir = EngineConfigDir;
+	Context.ProjectConfigDir = SourceConfigDir;
+	Context.bForceReload = bForceReload;
+	Context.bAllowGeneratedIniWhenCooked = bAllowGeneratedIniWhenCooked;
+	Context.GeneratedConfigDir = GeneratedConfigDir;
+	Context.bWriteDestIni = bWriteDestIni;
+	return Context.Load(IniName);
+#else
 	// if bIsBaseIniName is false, that means the .ini is a ready-to-go .ini file, and just needs to be loaded into the FConfigFile
 	if (!bIsBaseIniName)
 	{
@@ -4641,11 +4684,6 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* 
 		FString DestIniFilename = GetDestIniFilename(IniName, Platform, GeneratedConfigDir);
 
 		ConfigFile.AddStaticLayersToHierarchy( IniName, Platform, EngineConfigDir, SourceConfigDir );
-
-		if (bForceReload)
-		{
-			ClearHierarchyCache(IniName);
-		}
 
 		// Keep a record of the original settings, delete
 		if (ConfigFile.SourceConfigFile)
@@ -4687,8 +4725,29 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* 
 		}
 	}
 
+#if VERIFY_CONTEXT
+	if (ConfigFile.Num() == 0)
+	{
+		return false;
+	}
+
+	// 	could also set Context.bIsHierarchicalConfig instead of the ?: operator
+	FConfigContext Context = bIsBaseIniName ? FConfigContext::ReadIntoLocalFile(InConfigFile, Platform) : FConfigContext::ReadSingleIntoLocalFile(InConfigFile, Platform);
+	Context.EngineConfigDir = EngineConfigDir;
+	Context.ProjectConfigDir = SourceConfigDir;
+	Context.bForceReload = bForceReload;
+	Context.bAllowGeneratedIniWhenCooked = bAllowGeneratedIniWhenCooked;
+	Context.GeneratedConfigDir = GeneratedConfigDir;
+	Context.bWriteDestIni = bWriteDestIni;
+	bool bSucceeded = Context.Load(IniName);
+	ensureAlways(ConfigMatches(ConfigFile, InConfigFile));
+	return bSucceeded;
+
+#else
 	// GenerateDestIniFile returns true if nothing is loaded, so check if we actually loaded something
 	return ConfigFile.Num() > 0;
+#endif
+#endif
 }
 
 void FConfigCacheIni::LoadConsoleVariablesFromINI()
@@ -4756,7 +4815,6 @@ FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile)
 		Ar << *ConfigFile.SourceConfigFile;
 	}
 	Ar << ConfigFile.SourceProjectConfigDir;
-	Ar << ConfigFile.CacheKey;
 	Ar << ConfigFile.PlatformName;
 	Ar << ConfigFile.PerObjectConfigArrayOfStructKeys;
 
@@ -4862,18 +4920,16 @@ void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRoot
 		bool bStartDeleting = false;
 		for (int32 Key : Keys)
 		{
-			if (!bStartDeleting && SourceIniHierarchy.Find(Key)->Filename == DiskFilename)
+			if (!bStartDeleting && SourceIniHierarchy.FindRef(Key) == DiskFilename)
 			{
 				bStartDeleting = true;
-				}
+			}
 
 			if (bStartDeleting)
 			{
 				SourceIniHierarchy.Remove(Key);
 			}
 		}
-
-		ClearHierarchyCache(IniRootName);
 
 		// Get a collection of the source hierarchy properties
 		if (SourceConfigFile)
@@ -5561,7 +5617,12 @@ void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
 			double Start = FPlatformTime::Seconds();
 
 			FConfigCacheIni* NewConfig = GConfigForPlatform.FindChecked(PlatformName);
+#if USE_CONTEXT
+			FConfigContext Context = FConfigContext::ReadIntoConfigSystem(NewConfig, PlatformName.ToString());
+			InitializeKnownConfigFiles(Context);
+#else
 			NewConfig->InitializeKnownConfigFiles(*PlatformName.ToString(), false);
+#endif
 	
 			UE_LOG(LogConfig, Display, TEXT("Loading %s ini files took %.2f seconds"), *PlatformName.ToString(), FPlatformTime::Seconds() - Start);
 		});
@@ -5607,7 +5668,12 @@ FConfigCacheIni* FConfigCacheIni::ForPlatform(FName PlatformName)
 		double Start = FPlatformTime::Seconds();
 		
 		PlatformConfig = GConfigForPlatform.Add(PlatformName, new FConfigCacheIni(EConfigCacheType::Temporary));
+#if USE_CONTEXT
+		FConfigContext Context = FConfigContext::ReadIntoConfigSystem(PlatformConfig, PlatformName.ToString());
+		InitializeKnownConfigFiles(Context);
+#else
 		PlatformConfig->InitializeKnownConfigFiles(*PlatformName.ToString(), false);
+#endif
 
 		UE_LOG(LogConfig, Display, TEXT("Read in platform %s ini files took %.2f seconds"), *PlatformName.ToString(), FPlatformTime::Seconds() - Start);
 	}
@@ -5628,3 +5694,394 @@ void FConfigCacheIni::ClearOtherPlatformConfigs()
 	GConfigForPlatform.Empty();
 #endif
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * This will load up two .ini files and then determine if the destination one is outdated.
+ * Outdatedness is determined by the following mechanic:
+ *
+ * When a generated .ini is written out it will store the timestamps of the files it was generated
+ * from.  This way whenever the Default__.inis are modified the Generated .ini will view itself as
+ * outdated and regenerate it self.
+ *
+ * Outdatedness also can be affected by commandline params which allow one to delete all .ini, have
+ * automated build system etc.
+ *
+ * @param DestConfigFile			The FConfigFile that will be filled out with the most up to date ini contents
+ * @param DestIniFilename			The name of the destination .ini file - it's loaded and checked against source (e.g. Engine.ini)
+ * @param SourceIniFilename			The name of the source .ini file (e.g. DefaultEngine.ini)
+ */
+bool GenerateDestIniFile(FConfigContext& Context)
+{
+	bool bResult = LoadIniFileHierarchy(Context.ConfigFile->SourceIniHierarchy, *Context.ConfigFile->SourceConfigFile, Context.bUseHierarchyCache);
+	if (bResult == false)
+	{
+		return false;
+	}
+
+	if (!FPlatformProperties::RequiresCookedData() || Context.bAllowGeneratedIniWhenCooked)
+	{
+		LoadAnIniFile(*Context.DestIniFilename, *Context.ConfigFile);
+	}
+
+#if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+	// process any commandline overrides
+	FConfigFile::OverrideFromCommandline(Context.ConfigFile, Context.DestIniFilename);
+#endif
+
+	bool bForceRegenerate = false;
+	bool bShouldUpdate = FPlatformProperties::RequiresCookedData();
+
+	// New versioning
+	int32 SourceConfigVersionNum = -1;
+	int32 CurrentIniVersion = -1;
+	bool bVersionChanged = false;
+
+	// Lambda for functionality that we can do in more than one place.
+	auto RegenerateFileLambda = [](const FConfigFileHierarchy& InSourceIniHierarchy, FConfigFile& InDestConfigFile, const bool bInUseCache)
+	{
+		// Regenerate the file.
+		bool bReturnValue = LoadIniFileHierarchy(InSourceIniHierarchy, InDestConfigFile, bInUseCache);
+		if (InDestConfigFile.SourceConfigFile)
+		{
+			delete InDestConfigFile.SourceConfigFile;
+			InDestConfigFile.SourceConfigFile = nullptr;
+		}
+		InDestConfigFile.SourceConfigFile = new FConfigFile(InDestConfigFile);
+
+		// mark it as dirty (caller may want to save)
+		InDestConfigFile.Dirty = true;
+
+		return bReturnValue;
+	};
+
+	// Don't try to load any generated files from disk in cooked builds. We will always use the re-generated INIs.
+	if (!FPlatformProperties::RequiresCookedData() || Context.bAllowGeneratedIniWhenCooked)
+	{
+		FString VersionString;
+		if (Context.ConfigFile->GetString(*CurrentIniVersionString, *VersionName.ToString(), VersionString))
+		{
+			CurrentIniVersion = FCString::Atoi(*VersionString);
+		}
+
+		// now compare to the source config file
+		if (Context.ConfigFile->SourceConfigFile->GetString(*CurrentIniVersionString, *VersionName.ToString(), VersionString))
+		{
+			SourceConfigVersionNum = FCString::Atoi(*VersionString);
+
+			if (SourceConfigVersionNum > CurrentIniVersion)
+			{
+				UE_LOG(LogInit, Log, TEXT("%s version has been updated. It will be regenerated."), *FPaths::ConvertRelativePathToFull(Context.DestIniFilename));
+				bVersionChanged = true;
+			}
+			else if (SourceConfigVersionNum < CurrentIniVersion)
+			{
+				UE_LOG(LogInit, Warning, TEXT("%s version is later than the source. Since the versions are out of sync, nothing will be done."), *FPaths::ConvertRelativePathToFull(Context.DestIniFilename));
+			}
+		}
+
+		// Regenerate the ini file?
+		if (FParse::Param(FCommandLine::Get(), TEXT("REGENERATEINIS")) == true)
+		{
+			bForceRegenerate = true;
+		}
+		else if (FParse::Param(FCommandLine::Get(), TEXT("NOAUTOINIUPDATE")))
+		{
+			// Flag indicating whether the user has requested 'Yes/No To All'.
+			static int32 GIniYesNoToAll = -1;
+			// Make sure GIniYesNoToAll's 'uninitialized' value is kosher.
+			static_assert(EAppReturnType::YesAll != -1, "EAppReturnType::YesAll must not be -1.");
+			static_assert(EAppReturnType::NoAll != -1, "EAppReturnType::NoAll must not be -1.");
+
+			// The file exists but is different.
+			// Prompt the user if they haven't already responded with a 'Yes/No To All' answer.
+			uint32 YesNoToAll;
+			if (GIniYesNoToAll != EAppReturnType::YesAll && GIniYesNoToAll != EAppReturnType::NoAll)
+			{
+				YesNoToAll = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, FText::Format(NSLOCTEXT("Core", "IniFileOutOfDate", "Your ini ({0}) file is outdated. Do you want to automatically update it saving the previous version? Not doing so might cause crashes!"), FText::FromString(Context.DestIniFilename)));
+				// Record whether the user responded with a 'Yes/No To All' answer.
+				if (YesNoToAll == EAppReturnType::YesAll || YesNoToAll == EAppReturnType::NoAll)
+				{
+					GIniYesNoToAll = YesNoToAll;
+				}
+			}
+			else
+			{
+				// The user has already responded with a 'Yes/No To All' answer, so note it 
+				// in the output arg so that calling code can operate on its value.
+				YesNoToAll = GIniYesNoToAll;
+			}
+			// Regenerate the file if approved by the user.
+			bShouldUpdate = (YesNoToAll == EAppReturnType::Yes) || (YesNoToAll == EAppReturnType::YesAll);
+		}
+		else
+		{
+			// If the version changes, we regenerate, so no need to do this.
+			if (!bVersionChanged)
+			{
+				bShouldUpdate = true;
+			}
+		}
+	}
+
+	// Order is important, we want to let force regenerate happen before version change, in case we're trying to wipe everything.
+	//	Version tries to save some info.
+	if (Context.ConfigFile->Num() == 0 && Context.ConfigFile->SourceConfigFile->Num() == 0)
+	{
+		// If both are empty, don't save
+		return false;
+	}
+	else if (bForceRegenerate)
+	{
+		bResult = RegenerateFileLambda(Context.ConfigFile->SourceIniHierarchy, *Context.ConfigFile, Context.bUseHierarchyCache);
+	}
+	else if (bVersionChanged)
+	{
+		// Clear out everything but the preserved sections with the properties in that section, then update the version.
+		//	The ini syntax is Preserve=Section=<section name, like /Scipt/FortniteGame.FortConsole>.
+		//	Go through and save the preserved sections before we regenerate the file. We'll re-add those after.
+		FConfigSection PreservedConfigSectionData;
+		if (FConfigSection* SourceConfigSectionIniVersion = Context.ConfigFile->SourceConfigFile->Find(CurrentIniVersionString))
+		{
+			for (FConfigSectionMap::TConstIterator ItSourceConfigSectionIniVersion(*SourceConfigSectionIniVersion); ItSourceConfigSectionIniVersion; ++ItSourceConfigSectionIniVersion)
+			{
+				if (ItSourceConfigSectionIniVersion.Key() == PreserveName)
+				{
+					PreservedConfigSectionData.Add(ItSourceConfigSectionIniVersion.Key(), ItSourceConfigSectionIniVersion.Value());
+				}
+			}
+		}
+
+		FConfigFile PreservedConfigFileData;
+		for (FConfigSectionMap::TConstIterator ItPreservedConfigSectionData(PreservedConfigSectionData); ItPreservedConfigSectionData; ++ItPreservedConfigSectionData)
+		{
+			FString SectionString = ItPreservedConfigSectionData.Value().GetSavedValue();
+			if (FConfigSection* FoundSection = Context.ConfigFile->Find(SectionString))
+			{
+				for (FConfigSectionMap::TConstIterator ItFoundSection(*FoundSection); ItFoundSection; ++ItFoundSection)
+				{
+					if (FConfigSection* CreatedSection = PreservedConfigFileData.FindOrAddSection(SectionString))
+					{
+						CreatedSection->Add(ItFoundSection.Key(), ItFoundSection.Value());
+					}
+				}
+			}
+		}
+
+		// Remove everything before we regenerate.
+		Context.ConfigFile->Empty();
+
+		// Regnerate.
+		bResult = RegenerateFileLambda(Context.ConfigFile->SourceIniHierarchy, *Context.ConfigFile, Context.bUseHierarchyCache);
+
+		// Add back the CurrentIniVersion section.
+		if (FConfigSection* DestConfigSectionIniVersion = Context.ConfigFile->FindOrAddSection(CurrentIniVersionString))
+		{
+			// Update the version. If it's already there then good but if not, we add it.
+			DestConfigSectionIniVersion->FindOrAdd(VersionName, FConfigValue(FString::FromInt(SourceConfigVersionNum)));
+		}
+
+		// Add back any preserved sections.
+		for (TMap<FString, FConfigSection>::TConstIterator ItPreservedConfigFileData(PreservedConfigFileData); ItPreservedConfigFileData; ++ItPreservedConfigFileData)
+		{
+			if (FConfigSection* DestConfigSectionPreserved = Context.ConfigFile->FindOrAddSection(ItPreservedConfigFileData.Key()))
+			{
+				FConfigSection PreservedConfigFileSection = ItPreservedConfigFileData.Value();
+				for (FConfigSectionMap::TConstIterator ItPreservedConfigFileSection(PreservedConfigFileSection); ItPreservedConfigFileSection; ++ItPreservedConfigFileSection)
+				{
+					DestConfigSectionPreserved->Add(ItPreservedConfigFileSection.Key(), ItPreservedConfigFileSection.Value());
+				}
+			}
+		}
+	}
+	else if (bShouldUpdate)
+	{
+		// Merge the .ini files by copying over properties that exist in the default .ini but are
+		// missing from the generated .ini
+		// NOTE: Most of the time there won't be any properties to add here, since LoadAnIniFile will
+		//		 combine properties in the Default .ini with those in the Project .ini
+		Context.ConfigFile->AddMissingProperties(*Context.ConfigFile->SourceConfigFile);
+
+		// mark it as dirty (caller may want to save)
+		Context.ConfigFile->Dirty = true;
+	}
+
+	if (!IsUsingLocalIniFile(*Context.DestIniFilename, nullptr))
+	{
+		// Save off a copy of the local file prior to overwriting it with the contents of a remote file
+		MakeLocalCopy(*Context.DestIniFilename);
+	}
+
+	return bResult;
+}
+
+FString PerformFinalExpansions(FConfigContext& Context, const FString& InString, const FString& Platform)
+{
+	FString OutString = InString.Replace(TEXT("{ENGINE}"), *Context.EngineRootDir);
+	OutString = OutString.Replace(TEXT("{PROJECT}"), *Context.ProjectRootDir);
+	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NFL}"), *Context.ProjectNotForLicenseesDir);
+	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NR}"), *Context.ProjectNoRedistDir);
+
+	if (Platform.Len() > 0)
+	{
+		OutString = OutString.Replace(TEXT("{EXTENGINE}"), *Context.GetPerPlatformDirs(Platform).PlatformExtensionEngineDir);
+		OutString = OutString.Replace(TEXT("{EXTPROJECT}"), *Context.GetPerPlatformDirs(Platform).PlatformExtensionProjectDir);
+		OutString = OutString.Replace(TEXT("{PLATFORM}"), *Platform);
+	}
+
+	if (Context.bIsForPlugin)
+	{
+		OutString = OutString.Replace(TEXT("{PLUGIN}"), *Context.PluginRootDir);
+	}
+
+	return OutString;
+}
+
+void FConfigFile::AddStaticLayersToHierarchy(FConfigContext& Context)
+{
+	// remember where this file was loaded from
+	Context.ConfigFile->SourceEngineConfigDir = Context.EngineConfigDir;
+	Context.ConfigFile->SourceProjectConfigDir = Context.ProjectConfigDir;
+
+	// string that can have a reference to it, lower down
+	const FString DedicatedServerString = IsRunningDedicatedServer() ? TEXT("DedicatedServer") : TEXT("");
+
+	// cache some platform extension information that can be used inside the loops
+	const bool bHasCustomConfig = !FConfigCacheIni::GetCustomConfigString().IsEmpty();
+
+
+	// figure out what layers and expansions we will want
+	EConfigExpansionFlags ExpansionMode = EConfigExpansionFlags::ForUncooked;
+	FConfigLayer* Layers = GConfigLayers;
+	int32 NumLayers = UE_ARRAY_COUNT(GConfigLayers);
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		ExpansionMode = EConfigExpansionFlags::ForCooked;
+	}
+	if (Context.bIsForPlugin)
+	{
+		// this has priority over cooked/uncooked
+		ExpansionMode = EConfigExpansionFlags::ForPlugin;
+		Layers = GPluginLayers;
+		NumLayers = UE_ARRAY_COUNT(GPluginLayers);
+	}
+
+	// go over all the config layers
+	for (int32 LayerIndex = 0; LayerIndex < NumLayers; LayerIndex++)
+	{
+		const FConfigLayer& Layer = Layers[LayerIndex];
+
+		// skip optional layers
+		if (EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::RequiresCustomConfig) && !bHasCustomConfig)
+		{
+			continue;
+		}
+
+		// start replacing basic variables
+		FString LayerPath = PerformBasicReplacements(Layer.Path, *Context.BaseIniName);
+		bool bHasPlatformTag = LayerPath.Contains(TEXT("{PLATFORM}"));
+
+		// expand if it it has {ED} or {EF} expansion tags
+		if (!EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::NoExpand))
+		{
+			// we assume none of the more special tags in expanded ones
+			checkfSlow(FCString::Strstr(Layer.Path, TEXT("{USERSETTINGS}")) == nullptr && FCString::Strstr(Layer.Path, TEXT("{USER}")) == nullptr, TEXT("Expanded config %s shouldn't have a {USER*} tags in it"), *Layer.Path);
+			// last layer is expected to not be expanded
+			checkfSlow(LayerIndex < NumLayers - 1, TEXT("Final layer %s shouldn't be an expansion layer, as it needs to generate the  hierarchy cache key"), *Layer.Path);
+
+			// loop over all the possible expansions
+			for (int32 ExpansionIndex = 0; ExpansionIndex < UE_ARRAY_COUNT(GConfigExpansions); ExpansionIndex++)
+			{
+				// does this expansion match our current mode?
+				if ((GConfigExpansions[ExpansionIndex].Flags & ExpansionMode) == EConfigExpansionFlags::None)
+				{
+					continue;
+				}
+
+				FString ExpandedPath = PerformExpansionReplacements(GConfigExpansions[ExpansionIndex], LayerPath);
+
+				// if we didn't replace anything, skip it
+				if (ExpandedPath.Len() == 0)
+				{
+					continue;
+				}
+
+				// allow for override, only on BASE EXPANSION!
+				if (EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::AllowCommandLineOverride) && ExpansionIndex == 0)
+				{
+					checkfSlow(!bHasPlatformTag, TEXT("EConfigLayerFlags::AllowCommandLineOverride config %s shouldn't have a PLATFORM in it"), Layer.Path);
+
+					ConditionalOverrideIniFilename(ExpandedPath, *Context.BaseIniName);
+				}
+
+				// check if we should be generating the cache key - only at the end of all expansions
+				bool bGenerateCacheKey = EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::GenerateCacheKey) && ExpansionIndex == UE_ARRAY_COUNT(GConfigExpansions) - 1;
+				checkfSlow(!(bGenerateCacheKey && bHasPlatformTag), TEXT("EConfigLayerFlags::GenerateCacheKey shouldn't have a platform tag"));
+
+				const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(Context.Platform);
+
+				// go over parents, and then this platform, unless there's no platform tag, then we simply want to run through the loop one time to add it to the
+				int32 NumPlatforms = bHasPlatformTag ? Info.IniParentChain.Num() + 1 : 1;
+				int32 CurrentPlatformIndex = NumPlatforms - 1;
+				int32 DedicatedServerIndex = -1;
+
+				// make DedicatedServer another platform
+				if (bHasPlatformTag && IsRunningDedicatedServer())
+				{
+					NumPlatforms++;
+					DedicatedServerIndex = CurrentPlatformIndex + 1;
+				}
+
+				check(NumPlatforms < MaxPlatformIndex);
+				for (int PlatformIndex = 0; PlatformIndex < NumPlatforms; PlatformIndex++)
+				{
+					const FString CurrentPlatform =
+						(PlatformIndex == DedicatedServerIndex) ? DedicatedServerString :
+						(PlatformIndex == CurrentPlatformIndex) ? Context.Platform :
+						Info.IniParentChain[PlatformIndex];
+
+					FString PlatformPath = PerformFinalExpansions(Context, ExpandedPath, CurrentPlatform);
+
+					// @todo restricted - ideally, we would move DedicatedServer files into a directory, like platforms are, but for short term compat,
+					// convert the path back to the original (DedicatedServer/DedicatedServerEngine.ini -> DedicatedServerEngine.ini)
+					if (PlatformIndex == DedicatedServerIndex)
+					{
+						PlatformPath.ReplaceInline(TEXT("Config/DedicatedServer/"), TEXT("Config/"));
+					}
+
+					// add this to the list!
+					Context.ConfigFile->SourceIniHierarchy.AddStaticLayer(PlatformPath, LayerIndex, ExpansionIndex, PlatformIndex);
+				}
+			}
+		}
+		// if no expansion, just process the special tags (assume no PLATFORM tags)
+		else
+		{
+			checkfSlow(!bHasPlatformTag, TEXT("Non-expanded config %s shouldn't have a PLATFORM in it"), *Layer.Path);
+			checkfSlow(!EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::AllowCommandLineOverride), TEXT("Non-expanded config can't have a EConfigLayerFlags::AllowCommandLineOverride"));
+
+			FString FinalPath = PerformFinalExpansions(Context, LayerPath, TEXT(""));
+
+			// add with no expansion
+			Context.ConfigFile->SourceIniHierarchy.AddStaticLayer(FinalPath, LayerIndex);
+		}
+	}
+}
+

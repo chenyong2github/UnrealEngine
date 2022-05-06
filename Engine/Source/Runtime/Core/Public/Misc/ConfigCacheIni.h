@@ -74,6 +74,7 @@ struct FAccessor;
 }
 }
 
+class FConfigContext;
 
 struct FConfigValue
 {
@@ -329,37 +330,6 @@ public:
 
 FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection);
 
-/**
- * FIniFilename struct.
- * 
- * Helper struct for generating ini files.
- */
-struct FIniFilename
-{
-	/** Ini filename */
-	FString Filename;
-	/** If true this ini file is required to generate the output ini. */
-	bool bRequired = false;
-	/** Used as ID for looking up an INI Hierarchy */
-	FString CacheKey;
-
-	explicit FIniFilename(const FString& InFilename, bool InIsRequired=false, FString InCacheKey=FString(TEXT("")))
-		: Filename(InFilename)
-		, bRequired(InIsRequired) 
-		, CacheKey(InCacheKey)
-	{}
-
-	FIniFilename() = default;
-
-	friend FArchive& operator<<(FArchive& Ar, FIniFilename& IniFilename)
-	{
-		Ar << IniFilename.Filename;
-		Ar << IniFilename.bRequired;
-		Ar << IniFilename.CacheKey;
-		return Ar;
-	}
-};
-
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 // Options which stemmed from the commandline
@@ -370,7 +340,7 @@ struct FConfigCommandlineOverride
 #endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 
 
-class FConfigFileHierarchy : public TMap<int32, FIniFilename>
+class FConfigFileHierarchy : public TMap<int32, FString>
 {
 private:
 	int32 KeyGen = 0;
@@ -388,8 +358,8 @@ public:
 private:
 	int32 GenerateDynamicKey();
 
-	int32 AddStaticLayer(FIniFilename Filename, int32 LayerIndex, int32 ExpansionIndex=0, int32 PlatformIndex=0);
-	int32 AddDynamicLayer(FIniFilename Filename);
+	int32 AddStaticLayer(const FString& Filename, int32 LayerIndex, int32 ExpansionIndex=0, int32 PlatformIndex=0);
+	int32 AddDynamicLayer(const FString& Filename);
 
 	friend class FConfigFile;
 };
@@ -415,9 +385,6 @@ public:
 
 	/** The untainted config file which contains the coalesced base/default options. I.e. No Saved/ options*/
 	FConfigFile* SourceConfigFile;
-
-	/** Key to the cache to speed up ini parsing */
-	FString CacheKey;
 
 	FString PlatformName;
 
@@ -632,9 +599,11 @@ private:
 	 * @param OutHierarchy An array which is to receive the generated hierachy of ini filenames.
 	 */
 	void AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const TCHAR* InPlatformName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir);
+	static void AddStaticLayersToHierarchy(FConfigContext& Context);
 
 	// for AddStaticLayersToHierarchy
 	friend class FConfigCacheIni;
+	friend FConfigContext;
 };
 
 FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
@@ -1240,6 +1209,7 @@ public:
 	 * return True if the engine ini was loaded
 	 */
 	bool InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired, const TCHAR* OverrideProjectDir=nullptr);
+	static bool InitializeKnownConfigFiles(FConfigContext& Context);
 
 	/**
 	 * Returns true if the given name is one of the known configs, where the matching G****Ini property is going to match the 
@@ -1283,6 +1253,8 @@ private:
 
 	/** The filenames for the known files in this config */
 	FKnownConfigFiles KnownFiles;
+
+	friend FConfigContext;
 };
 
 UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
