@@ -37,6 +37,24 @@ namespace AutomationTool.Tasks
 		public string DockerFile;
 
 		/// <summary>
+		/// Path to a .dockerignore. Will be copied to basedir if specified.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string DockerIgnoreFile;
+
+		/// <summary>
+		/// Use BuildKit in Docker
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool UseBuildKit;
+
+		/// <summary>
+		/// Type of progress output (--progress)
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string ProgressOutput;
+
+		/// <summary>
 		/// Tag for the image
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -100,12 +118,16 @@ namespace AutomationTool.Tasks
 			{
 				DirectoryReference BaseDir = ResolveDirectory(Parameters.BaseDir);
 				List<FileReference> SourceFiles = ResolveFilespec(BaseDir, Parameters.Files, TagNameToFileSet).ToList();
+				bool isStagingEnabled = SourceFiles.Count > 0;
 
 				DirectoryReference StagingDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Docker");
 				FileUtils.ForceDeleteDirectoryContents(StagingDir);
 
 				List<FileReference> TargetFiles = SourceFiles.ConvertAll(x => FileReference.Combine(StagingDir, x.MakeRelativeTo(BaseDir)));
 				CommandUtils.ThreadedCopyFiles(SourceFiles, BaseDir, StagingDir);
+
+				FileReference DockerIgnoreFileInBaseDir = FileReference.Combine(BaseDir, ".dockerignore");
+				FileReference.Delete(DockerIgnoreFileInBaseDir);
 
 				if (!String.IsNullOrEmpty(Parameters.OverlayDirs))
 				{
@@ -129,12 +151,28 @@ namespace AutomationTool.Tasks
 					}
 					Arguments.Append($" -f {DockerFile.MakeRelativeTo(BaseDir).QuoteArgument()}");
 				}
+				if (Parameters.DockerIgnoreFile != null)
+				{
+					FileReference DockerIgnoreFile = ResolveFile(Parameters.DockerIgnoreFile);
+					FileReference.Copy(DockerIgnoreFile, DockerIgnoreFileInBaseDir);
+				}
+				if (Parameters.ProgressOutput != null)
+				{
+					Arguments.Append($" --progress={Parameters.ProgressOutput}");
+				}
 				if (Parameters.Arguments != null)
 				{
 					Arguments.Append($" {Parameters.Arguments}");
 				}
 
-				await SpawnTaskBase.ExecuteAsync("docker", Arguments.ToString(), EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), WorkingDir: StagingDir.FullName);
+				Dictionary<string, string> EnvVars = ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile);
+				if (Parameters.UseBuildKit)
+				{
+					EnvVars["DOCKER_BUILDKIT"] = "1";
+				}
+				
+				string WorkingDir = isStagingEnabled ? StagingDir.FullName : BaseDir.FullName;
+				await SpawnTaskBase.ExecuteAsync("docker", Arguments.ToString(), EnvVars: EnvVars, WorkingDir: WorkingDir);
 			}
 		}
 
