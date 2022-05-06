@@ -53,7 +53,7 @@ void FMeshMaterialShaderElementData::InitializeMeshMaterialData(const FSceneView
 		{
 			int32 const PrimitiveIndex = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetIndex();
 
-			if (ViewInfo->PrimitiveFadeUniformBufferMap[PrimitiveIndex])
+			if (ViewInfo->PrimitiveFadeUniformBufferMap.IsValidIndex(PrimitiveIndex) && ViewInfo->PrimitiveFadeUniformBufferMap[PrimitiveIndex])
 			{
 				FadeUniformBuffer = ViewInfo->PrimitiveFadeUniformBuffers[PrimitiveIndex];
 			}
