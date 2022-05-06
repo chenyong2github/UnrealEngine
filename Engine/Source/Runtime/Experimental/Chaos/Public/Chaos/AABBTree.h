@@ -653,8 +653,13 @@ public:
 	}
 
 	template <typename ParticleView>
-	void Reinitialize(const ParticleView& Particles)
+	void Reinitialize(const ParticleView& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess, bool bInDynamicTree = false)
 	{
+		bDynamicTree = bInDynamicTree;
+		MaxChildrenInLeaf = InMaxChildrenInLeaf;
+		MaxTreeDepth = InMaxTreeDepth;
+		MaxPayloadBounds = InMaxPayloadBounds;
+		MaxNumToProcess = InMaxNumToProcess;
 		bShouldRebuild = true;
 		GenerateTree(Particles);
 	}

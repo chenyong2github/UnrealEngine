@@ -1496,7 +1496,7 @@ void FTriangleMeshImplicitObject::RebuildBVImp(const TArray<TVec3<IdxType>>& Ele
 	{
 		BVEntries.Add({this, Tri});
 	}
-	TreeBVH.Reinitialize(BVEntries);
+	TreeBVH.Reinitialize(BVEntries, 22);
 }
 
 FTriangleMeshImplicitObject::~FTriangleMeshImplicitObject() = default;
