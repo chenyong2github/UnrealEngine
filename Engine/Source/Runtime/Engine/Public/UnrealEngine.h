@@ -377,12 +377,21 @@ class FFrameEndSync
 	FRenderCommandFence Fence[2];
 	/** Current index into events array. */
 	int32 EventIndex;
+	/** cleanup delegate for engine pre-exit */
+	FDelegateHandle CleanupDelegate;
+
 public:
+	ENGINE_API FFrameEndSync();
+	ENGINE_API ~FFrameEndSync();
+
 	/**
 	 * Syncs the game thread with the render thread. Depending on passed in bool this will be a total
 	 * sync or a one frame lag.
 	 */
 	ENGINE_API void Sync( bool bAllowOneFrameThreadLag );
+
+private:
+	void Cleanup();
 };
 
 

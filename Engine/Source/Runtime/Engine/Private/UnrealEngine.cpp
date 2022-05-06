@@ -12063,6 +12063,33 @@ static FAutoConsoleVariableRef GDoAsyncLoadingWhileWaitingForVSyncCVar(
 	ECVF_Default
 );
 
+FFrameEndSync::FFrameEndSync()
+{
+	// FFrameEndSync instances are often used as static local vars. we need to cleanup them on engine exit to avoid static destruciton order problem
+	CleanupDelegate = FCoreDelegates::OnEnginePreExit.AddRaw(this, &FFrameEndSync::Cleanup);
+}
+
+FFrameEndSync::~FFrameEndSync()
+{
+	// if it's destroyed before the engine exit, remove the delegate so it doesn't use the instance after destruction
+	if (CleanupDelegate.IsValid())
+	{
+		FCoreDelegates::OnEnginePreExit.Remove(CleanupDelegate);
+	}
+}
+
+void FFrameEndSync::Cleanup()
+{
+	// forcing static deallocation order:
+	// fences can hold task completion handles that need to be freed before their allocator is destroyed. wating for fences does the job
+	Fence[0].Wait();
+	Fence[1].Wait();
+
+	FCoreDelegates::OnEnginePreExit.Remove(CleanupDelegate);
+	// notify the destructor
+	CleanupDelegate = {};
+}
+
 void FFrameEndSync::Sync( bool bAllowOneFrameThreadLag )
 {
 	check(IsInGameThread());			

@@ -1272,6 +1272,7 @@ void FRenderCommandFence::Wait(bool bProcessGameThreadTasks) const
 		}
 #endif
 		GameThreadWaitForTask(CompletionEvent, TriggerThreadIndex, bProcessGameThreadTasks);
+		CompletionEvent = nullptr; // release the internal memory as soon as it's not needed anymore
 	}
 }
 
