@@ -99,6 +99,7 @@ private:
 	TArray<uint8> Indices; // Per particle/constraints array of index to the stiffness table
 	TArray<FSolverReal> Table;  // Fixed lookup table of stiffness values, use uint8 indexation
 	FSolverVec2 WeightedValue;
+	const FSolverReal ParameterFitBase;
 	const FSolverReal ParameterFitLogBase;
 };
 
@@ -109,6 +110,7 @@ FPBDStiffness::FPBDStiffness(
 	int32 TableSize,
 	FSolverReal InParameterFitBase)
 	: WeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.))
+	, ParameterFitBase(InParameterFitBase)
 	, ParameterFitLogBase(FMath::Loge(InParameterFitBase))
 {
 	check(TableSize > 0 && TableSize < 256);  // The Stiffness lookup table is restricted to uint8 sized indices
@@ -147,6 +149,7 @@ FPBDStiffness::FPBDStiffness(
 	FSolverReal InParameterFitBase,
 	typename TEnableIf<Valence >= 2 && Valence <= 4>::Type*)
 	: WeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.))
+	, ParameterFitBase(InParameterFitBase)
 	, ParameterFitLogBase(FMath::Loge(InParameterFitBase))
 {
 	check(TableSize > 0 && TableSize < 256);  // The Stiffness lookup table is restricted to uint8 sized indices
@@ -185,6 +188,14 @@ FPBDStiffness::FPBDStiffness(
 	}
 }
 
+static inline FSolverReal CalcExponentialParameterFit(const FSolverReal ParameterFitBase, const FSolverReal ParameterFitLogBase, const FSolverReal InValue)
+{
+	// Get a very steep exponential curve between the [0, 1] range to make easier to set the parameter
+	// The base has been chosen empirically.
+	// ParameterFit = (pow(ParameterFitBase , InValue) - 1) / (ParameterFitBase - 1)
+	// Note that ParameterFit = 0 when InValue = 0, and 1 when InValue = 1.
+	return (FMath::Exp(ParameterFitLogBase * InValue) - (FSolverReal)1.) / (ParameterFitBase - (FSolverReal)1.);
+}
 
 void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
 {
@@ -207,10 +218,7 @@ void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
 		{
 			return (FSolverReal)1.;
 		}
-		// Get a very steep exponential curve between the [0, 1] range to make easier to set the parameter
-		// The base has been chosen empirically
-		// ParameterValue = Pow(ParameterFitBase, ParameterValue - 1)
-		const FSolverReal ParameterFit = FMath::Exp(ParameterFitLogBase * (InValue - (FSolverReal)1.));
+		const FSolverReal ParameterFit = CalcExponentialParameterFit(ParameterFitBase, ParameterFitLogBase, InValue);
 
 		// Use simulation dependent stiffness exponent to alleviate the variations in effect when Dt and NumIterations change
 		// This is based on the Position-Based Simulation Methods paper (page 8),
@@ -235,7 +243,7 @@ void FPBDStiffness::ApplyXPBDValues(const FSolverReal MinStiffness, const FSolve
 	SCOPE_CYCLE_COUNTER(STAT_PBD_StiffnessApplyValues);
 	
 	// XPBD internally handles the effects of iterations and dt. 
-	// PBD stiffness is more like a constraint compliance. This should scale like 1/ xpbd stiffness which 
+	// PBD stiffness is more like a constraint compliance. This should scale like 1/stiffness which 
 	// is an actual measure of stiffness (e.g., something with units like Pascals)	
 	const FSolverReal MinOverMaxStiffness = MinStiffness / MaxStiffness;
 	auto SimulationValue = [this, MinOverMaxStiffness, MinStiffness, MaxStiffness](const FSolverReal InValue)->FSolverReal
@@ -245,7 +253,7 @@ void FPBDStiffness::ApplyXPBDValues(const FSolverReal MinStiffness, const FSolve
 		{
 			return MaxStiffness;
 		}
-		const FSolverReal ParameterFit = FMath::Exp(ParameterFitLogBase * (ClampedInValue - (FSolverReal)1.));
+		const FSolverReal ParameterFit = CalcExponentialParameterFit(ParameterFitBase, ParameterFitLogBase, InValue);
 		return MinStiffness / ((FSolverReal)1. - ParameterFit + MinOverMaxStiffness);
 	};
 
