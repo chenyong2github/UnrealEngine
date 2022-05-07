@@ -3236,6 +3236,18 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 
 void FControlRigEditMode::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
+	if(bSuspendHierarchyNotifs)
+	{
+		return;
+	}
+
+	if (InNotif != ERigHierarchyNotification::ControlSettingChanged
+		&& InNotif != ERigHierarchyNotification::ControlShapeTransformChanged)
+	{
+		OnHierarchyModified(InNotif, InHierarchy, InElement);
+		return;
+	}
+	
 	FRigElementKey Key;
 	if(InElement)
 	{
