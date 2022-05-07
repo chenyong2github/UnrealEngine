@@ -1749,23 +1749,7 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 	if (Engine_IsStrataEnabled() && bIsStrataSupportedDomain)
 	{
 		// Strata material traversal is cached as this is an expensive operation
-		#if WITH_EDITOR
-		if (Material->HasStrataFrontMaterialConnected())
-		{
-			if (!CachedStrataMaterialInfo.IsValid())
-			{
-				check(Material->HasStrataFrontMaterialConnected());
-				const UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
-				if (MaterialEditorOnly->FrontMaterial.Expression->IsResultStrataMaterial(MaterialEditorOnly->FrontMaterial.OutputIndex))
-				{
-					MaterialEditorOnly->FrontMaterial.Expression->GatherStrataMaterialInfo(CachedStrataMaterialInfo, MaterialEditorOnly->FrontMaterial.OutputIndex);
-				}
-			}
-		}
-		return CachedStrataMaterialInfo.HasPropertyConnected(In);
-		#else
 		return FStrataMaterialInfo::HasPropertyConnected(Material->CachedConnectedInputs, In);
-		#endif
 	}
 	else
 	{

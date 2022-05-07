@@ -2805,24 +2805,23 @@ FStrataDBuffer StrataUnpackDBuffer(
 }
 
 FStrataDBuffer StrataConvertToDBuffer(
-	in FStrataPixelHeader InHeader)
+	in FStrataPixelHeader InHeader,
+	in FStrataBSDF InBSDF)
 {
 	FStrataDBuffer Out = (FStrataDBuffer)0;
 
 #if STRATA_INLINE_SHADING
 
-	FStrataBSDF BSDF = InHeader.StrataTree.BSDFs[0];
+	const float3 DiffuseColor = SLAB_DIFFUSEALBEDO(InBSDF);
+	const float3 F0 = SLAB_F0(InBSDF);
 
-	const float3 DiffuseColor = SLAB_DIFFUSEALBEDO(BSDF);
-	const float3 F0 = SLAB_F0(BSDF);
-
-	Out.Roughness = SLAB_ROUGHNESS(BSDF);
+	Out.Roughness = SLAB_ROUGHNESS(InBSDF);
 	Out.Metallic = F0RGBToMetallic(F0);
 	Out.Specular = F0RGBToDielectricSpecular(F0);
 	Out.BaseColor = lerp(DiffuseColor, F0, Out.Metallic);
-	Out.Emissive = BSDF_GETEMISSIVE(BSDF);
-	Out.WorldNormal = InHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(BSDF)];
-	Out.Coverage = BSDF.Coverage;
+	Out.Emissive = BSDF_GETEMISSIVE(InBSDF);
+	Out.WorldNormal = InHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(InBSDF)];
+	Out.Coverage = InBSDF.Coverage;
 
 #else
 	Out.WorldNormal = float3(0,0,1);

@@ -22081,6 +22081,7 @@ FStrataOperator* UMaterialExpressionStrataPostProcess::StrataGenerateMaterialTop
 
 UMaterialExpressionStrataConvertToDecal::UMaterialExpressionStrataConvertToDecal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bUseParameterBlending(1)
 {
 	struct FConstructorStatics
 	{
@@ -22100,26 +22101,41 @@ int32 UMaterialExpressionStrataConvertToDecal::Compile(class FMaterialCompiler* 
 	{
 		return Compiler->Errorf(TEXT("Missing DecalMaterial input"));
 	}
-	int32 WeightOfOneCodeChunk = Compiler->Constant(1.0f);
 
-	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
-
-	if (!StrataOperator.bUseParameterBlending)
-	{
-		return Compiler->Errorf(TEXT("Strata Convert To Decal node is not receiveing a parameter blended strata material tree."));
-	}
-	else if (!StrataOperator.bRootOfParameterBlendingSubTree)
-	{
-		return Compiler->Errorf(TEXT("Strata Convert To Decal node must be the root of a parameter blending sun tree."));
-	}
+	int32 CoverageCodeChunk = Coverage.GetTracedInput().Expression ? Coverage.Compile(Compiler) : Compiler->Constant(1.0f);
+	int32 DecalMaterialCodeChunk = DecalMaterial.Compile(Compiler);
 
 	int32 OutputCodeChunk = INDEX_NONE;
-	if (StrataOperator.bUseParameterBlending)
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
+	if (bUseParameterBlending)
 	{
-		int32 DecalMaterialCodeChunk = DecalMaterial.Compile(Compiler);
-		OutputCodeChunk = Compiler->StrataWeightParameterBlending(
-			DecalMaterialCodeChunk, WeightOfOneCodeChunk,
-			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
+		if (!StrataOperator.bUseParameterBlending)
+		{
+			return Compiler->Errorf(TEXT("Strata Convert To Decal node is not receiveing a parameter blended strata material tree."));
+		}
+		else if (!StrataOperator.bRootOfParameterBlendingSubTree)
+		{
+			return Compiler->Errorf(TEXT("Strata Convert To Decal node must be the root of a parameter blending sun tree."));
+		}
+
+		if (StrataOperator.bUseParameterBlending)
+		{
+			// Propagate the parameter blended normal
+			FStrataOperator* Operator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
+			if (StrataOperator.bRootOfParameterBlendingSubTree)
+			{
+				StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
+				StrataOperator.CopyFlagsForParameterBlending(*Operator);
+			}
+
+			OutputCodeChunk = Compiler->StrataWeightParameterBlending(
+				DecalMaterialCodeChunk, CoverageCodeChunk,
+				StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
+		}
+	}
+	else
+	{
+		OutputCodeChunk = Compiler->StrataWeight(DecalMaterialCodeChunk, CoverageCodeChunk, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
 	}
 	return OutputCodeChunk;
 }
@@ -22136,7 +22152,18 @@ uint32 UMaterialExpressionStrataConvertToDecal::GetOutputType(int32 OutputIndex)
 
 uint32 UMaterialExpressionStrataConvertToDecal::GetInputType(int32 InputIndex)
 {
-	return MCT_Strata;
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Strata;
+		break;
+	case 1:
+		return MCT_Float1;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
 }
 
 bool UMaterialExpressionStrataConvertToDecal::IsResultStrataMaterial(int32 OutputIndex)

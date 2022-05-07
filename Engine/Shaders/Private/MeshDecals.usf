@@ -138,7 +138,7 @@ void FPixelShaderInOut_MainPS(
 	StrataHeader.IrradianceAO = InitIrradianceAndOcclusion();
 	StrataHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	StrataHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
-	const float Coverage = DecalCommonOutput(Out, StrataHeader, 1.f /*CoverageWeight*/);
+	const float Coverage = DecalCommonOutput(Out, StrataHeader, StrataHeader.StrataTree.BSDFs[0], 1.f /*CoverageWeight*/);
 	const float Opacity = Coverage;
 #else // STRATA_ENABLED
 	float3 Color = GetMaterialEmissive(PixelMaterialInputs);

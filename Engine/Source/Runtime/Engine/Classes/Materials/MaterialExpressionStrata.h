@@ -610,8 +610,15 @@ class UMaterialExpressionStrataConvertToDecal : public UMaterialExpressionStrata
 	UPROPERTY()
 	FExpressionInput DecalMaterial;
 
+	/**
+	 * The coverage of the decal (default 1)
+	 */
+	UPROPERTY()
+	FExpressionInput Coverage;
+
 	// When a material is converted to decals, we use parameter blending to ensure that a single slab of matter is provided (current restriction).
-	const bool bUseParameterBlending = true;
+	UPROPERTY()
+	uint32 bUseParameterBlending : 1;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
