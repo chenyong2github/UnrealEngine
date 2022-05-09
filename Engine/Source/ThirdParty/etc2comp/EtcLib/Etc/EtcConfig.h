@@ -59,7 +59,9 @@ typedef double	f64;
 
 #if ETC_WINDOWS
 #include <SDKDDKVer.h>
-#define _CRT_SECURE_NO_WARNINGS (1)
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
 #include <tchar.h>
 #endif
 
