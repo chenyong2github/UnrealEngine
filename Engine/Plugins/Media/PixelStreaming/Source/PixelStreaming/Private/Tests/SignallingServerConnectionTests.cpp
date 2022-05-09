@@ -141,7 +141,7 @@ namespace
 		cricket::Candidate MockCandidate;
 	};
 
-	BEGIN_DEFINE_SPEC(FSignallingServerConnectionSpec, "PixelStreaming.SignallingServerConnection", EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
+	BEGIN_DEFINE_SPEC(FSignallingServerConnectionSpec, "System.Plugins.PixelStreaming.SignallingServerConnection",  EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 	TUniquePtr<FSignallingServerConnection> SignallingServerConnection; // the object being tested
 	FTestSSConnectionObserver Observer;
 	FSignallingServerConnection::FWebSocketFactory WebSocketFactory;
