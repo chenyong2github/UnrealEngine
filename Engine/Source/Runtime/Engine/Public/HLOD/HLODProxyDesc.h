@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/MaterialMerging.h"
+#include "SceneTypes.h"
 #include "HLODProxyDesc.generated.h"
 
 class ALODActor;
