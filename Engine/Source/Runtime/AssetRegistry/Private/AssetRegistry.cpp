@@ -3624,16 +3624,17 @@ void FAssetRegistryImpl::LoadCalculatedDependencies(TArray<FName>* AssetsToCalcu
 	}
 	else
 	{
-		for (FName PackageName : PackagesNeedingDependencyCalculation)
+		for (TSet<FName>::TIterator It = PackagesNeedingDependencyCalculation.CreateIterator(); It; ++It)
 		{
 			bool bHadActivity;
-			LoadCalculatedDependencies(PackageName, bHadActivity);
+			LoadCalculatedDependencies(*It, bHadActivity);
+			It.RemoveCurrent();
 			if (CheckForTimeUp(bHadActivity))
 			{
 				return;
 			}
 		}
-		PackagesNeedingDependencyCalculation.Empty();
+		check(PackagesNeedingDependencyCalculation.IsEmpty());
 	}
 }
 
