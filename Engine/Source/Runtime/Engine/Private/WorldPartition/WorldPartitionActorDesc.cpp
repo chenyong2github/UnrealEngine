@@ -96,6 +96,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(this);
 	}
 
+	Tags = InActor->Tags;
+
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	FolderPath = InActor->GetFolderPath();
@@ -178,7 +180,16 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 			TArray<FGuid> SortedReferencesOther(Other->References);
 			SortedReferences.Sort();
 			SortedReferencesOther.Sort();
-			return (SortedReferences == SortedReferencesOther);
+
+			if (SortedReferences == SortedReferencesOther)
+			{
+				TArray<FName> SortedTags(Tags);
+				TArray<FName> SortedTagsOther(Other->Tags);
+				SortedTags.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
+				SortedTagsOther.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
+
+				return SortedTags == SortedTagsOther;
+			}
 		}
 	}
 
@@ -289,6 +300,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	}
 
 	Ar << References;
+
+	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescTagsSerialization)
+	{
+		Ar << Tags;
+	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeArchivePersistent)
 	{

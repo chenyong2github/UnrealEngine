@@ -30,20 +30,20 @@ UClass* FWorldPartitionHelpers::ResolveActorDescClass(const FWorldPartitionActor
 	return ActorBaseClass;
 }
 
-void FWorldPartitionHelpers::ForEachIntersectingActorDesc(UWorldPartition* WorldPartition, const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
+void FWorldPartitionHelpers::ForEachIntersectingActorDesc(UWorldPartition* WorldPartition, const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
 {
-	WorldPartition->EditorHash->ForEachIntersectingActor(Box, [&ActorClass, Predicate](const FWorldPartitionActorDesc* ActorDesc)
+	WorldPartition->EditorHash->ForEachIntersectingActor(Box, [&ActorClass, Func](const FWorldPartitionActorDesc* ActorDesc)
 	{
 		UClass* ActorDescClass = ResolveActorDescClass(ActorDesc);
 
 		if (ActorDescClass->IsChildOf(ActorClass))
 		{
-			Predicate(ActorDesc);
+			Func(ActorDesc);
 		}
 	});
 }
 
-void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
+void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
 {
 	for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
@@ -51,7 +51,7 @@ void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, T
 
 		if (ActorDescClass->IsChildOf(ActorClass))
 		{
-			if (!Predicate(*ActorDescIterator))
+			if (!Func(*ActorDescIterator))
 			{
 				return;
 			}
@@ -81,12 +81,12 @@ namespace WorldPartitionHelpers
 		}
 	}
 
-	bool ForEachActorWithLoadingBody(const FGuid& ActorGuid, UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor, TMap<FGuid, FWorldPartitionReference>& ActorReferences)
+	bool ForEachActorWithLoadingBody(const FGuid& ActorGuid, UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor, TMap<FGuid, FWorldPartitionReference>& ActorReferences)
 	{
 		WorldPartitionHelpers::LoadReferences(WorldPartition, ActorGuid, ActorReferences);
 
 		FWorldPartitionReference ActorReference(WorldPartition, ActorGuid);
-		if (!Predicate(ActorReference.Get()))
+		if (!Func(ActorReference.Get()))
 		{
 			return false;
 		}
@@ -102,7 +102,12 @@ namespace WorldPartitionHelpers
 	}
 }
 
-void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor)
+FWorldPartitionHelpers::FForEachActorWithLoadiongParams::FForEachActorWithLoadiongParams()
+	: bGCPerActor(false)
+	, ActorClass(AActor::StaticClass())
+{}
+
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor)
 {
 	TMap<FGuid, FWorldPartitionReference> ActorReferences;
 
@@ -112,7 +117,7 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 
 		if (ActorDescClass->IsChildOf(ActorClass))
 		{
-			return WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorDesc->GetGuid(), WorldPartition, Predicate, OnReleasingActorReferences, bGCPerActor, ActorReferences);
+			return WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorDesc->GetGuid(), WorldPartition, Func, OnReleasingActorReferences, bGCPerActor, ActorReferences);
 		}
 
 		return true;
@@ -123,19 +128,51 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 	DoCollectGarbage();
 }
 
-void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, const TArray<FGuid>& ActorGuids, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor)
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, const TArray<FGuid>& ActorGuids, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor)
 {
 	TMap<FGuid, FWorldPartitionReference> ActorReferences;
 
 	for(const FGuid& ActorGuid : ActorGuids)
 	{
-		if (!WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorGuid, WorldPartition, Predicate, OnReleasingActorReferences, bGCPerActor, ActorReferences))
+		if (!WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorGuid, WorldPartition, Func, OnReleasingActorReferences, bGCPerActor, ActorReferences))
 		{
 			break;
 		}
 	}
 
 	OnReleasingActorReferences();
+	ActorReferences.Empty();
+	DoCollectGarbage();
+}
+
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, const FForEachActorWithLoadiongParams& Params, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
+{
+	TMap<FGuid, FWorldPartitionReference> ActorReferences;
+
+	auto CallOnPreGarbageCollect = [&Params]()
+	{
+		if (Params.OnPreGarbageCollect)
+		{
+			Params.OnPreGarbageCollect();
+		}
+	};
+
+	ForEachActorDesc(WorldPartition, [&Func, &CallOnPreGarbageCollect, &Params, &ActorReferences, WorldPartition](const FWorldPartitionActorDesc* ActorDesc)
+	{
+		UClass* ActorDescClass = ResolveActorDescClass(ActorDesc);
+
+		if (ActorDescClass->IsChildOf(Params.ActorClass))
+		{
+			if (!Params.FilterActorDesc || Params.FilterActorDesc(ActorDesc))
+			{
+				return WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorDesc->GetGuid(), WorldPartition, Func, [&CallOnPreGarbageCollect, &ActorReferences]() { CallOnPreGarbageCollect(); }, Params.bGCPerActor, ActorReferences);
+			}
+		}
+
+		return true;
+	});
+
+	CallOnPreGarbageCollect();
 	ActorReferences.Empty();
 	DoCollectGarbage();
 }

@@ -20,7 +20,6 @@ struct FWorldPartitionActorDescInitData
 };
 
 class UActorDescContainer;
-class UDataLayerSubsystem;
 struct FActorContainerID;
 
 enum class EContainerClusterMode : uint8
@@ -62,6 +61,7 @@ public:
 	inline FName GetHLODLayer() const { return HLODLayer; }
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayerInstanceNames; }
+	inline const TArray<FName>& GetTags() const { return Tags; }
 	inline void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames) { DataLayerInstanceNames = InDataLayerInstanceNames; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
@@ -198,6 +198,7 @@ protected:
 	FName							HLODLayer;
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
+	TArray<FName>					Tags;
 	FName							FolderPath;
 	FGuid							FolderGuid;
 

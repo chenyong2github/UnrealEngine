@@ -27,6 +27,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Serialize native and base class for actor descriptors
 		WorldPartitionActorDescNativeBaseClassSerialization,
 
+		// Serialize tags for actor descriptors
+		WorldPartitionActorDescTagsSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

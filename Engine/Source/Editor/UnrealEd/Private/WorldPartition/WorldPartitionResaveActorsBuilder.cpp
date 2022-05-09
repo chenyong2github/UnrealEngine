@@ -69,6 +69,11 @@ bool UWorldPartitionResaveActorsBuilder::PreRun(UWorld* World, FPackageSourceCon
 			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("SwitchActorPackagingSchemeToReduced is not compatible with ActorClassName"));
 			return false;
 		}
+		else if (!ActorTags.IsEmpty())
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("SwitchActorPackagingSchemeToReduced is not compatible with ActorTags"));
+			return false;
+		}
 		else if (bResaveDirtyActorDescsOnly)
 		{
 			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("SwitchActorPackagingSchemeToReduced is not compatible with ResaveDirtyActorDescsOnly"));
@@ -266,9 +271,35 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	}
 	else
 	{
-		TArray<UPackage*> PackagesToCheckout;
-		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, 
-		[this, &PackagesToDelete, &PackagesToCheckout](const FWorldPartitionActorDesc* ActorDesc)
+		TArray<UPackage*> PackagesToSave;
+
+		FWorldPartitionHelpers::FForEachActorWithLoadiongParams ForEachActorWithLoadingParams;
+
+		ForEachActorWithLoadingParams.ActorClass = ActorClass;
+
+		if (ActorTags.Num())
+		{
+			TSet<FName> ActorTagsSet(ActorTags);
+			ForEachActorWithLoadingParams.FilterActorDesc = [this, &ActorTagsSet](const FWorldPartitionActorDesc* ActorDesc) -> bool
+			{
+				for (const FName& ActorTag : ActorDesc->GetTags())
+				{
+					if (ActorTagsSet.Contains(ActorTag))
+					{
+						return true;
+					}
+				}
+				return false;
+			};
+		}
+
+		ForEachActorWithLoadingParams.OnPreGarbageCollect = [&PackagesToSave, &PackageHelper]()
+		{
+			UWorldPartitionBuilder::SavePackages(PackagesToSave, PackageHelper, true);
+			PackagesToSave.Empty();
+		};
+
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ForEachActorWithLoadingParams, [this, &PackagesToDelete, &PackagesToSave](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			AActor* Actor = ActorDesc->GetActor();
 
@@ -308,17 +339,12 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 				if (!bReportOnly)
 				{
-					PackagesToCheckout.Add(Package);
+					PackagesToSave.Add(Package);
 					return true;
 				}
 			}
 
 			return true;
-		},
-		[&PackagesToCheckout, &PackageHelper]()
-		{
-			UWorldPartitionBuilder::SavePackages(PackagesToCheckout, PackageHelper, /*bErrorsAsWarnings*/true);
-			PackagesToCheckout.Empty();
 		});
 	}
 
