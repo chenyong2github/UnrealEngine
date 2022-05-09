@@ -645,8 +645,7 @@ namespace Horde.Agent.Tests
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
-		[TestMethod]
-		[Ignore]
+		[TestMethod]		
 		public void LinuxLinkErrorMatcher()
 		{
 			string[] lines =
