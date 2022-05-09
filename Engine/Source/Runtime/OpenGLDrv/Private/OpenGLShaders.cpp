@@ -797,7 +797,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 	// This is the place to insert such engine preprocessor defines, immediately after the glsl version declaration.
 	if (TypeEnum == GL_FRAGMENT_SHADER)
 	{
-		if (FOpenGL::SupportsPixelLocalStorage())
+		if (FOpenGL::SupportsPixelLocalStorage() && FOpenGL::SupportsShaderDepthStencilFetch())
 		{
 			AppendCString(GlslCode, "#define UE_MRT_PLS 1\n");
 		}

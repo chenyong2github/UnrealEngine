@@ -1134,7 +1134,7 @@ RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Plat
 	{
 		return true;
 	}
-	else if (IsMobileDeferredShadingEnabled(Platform) && IsAndroidOpenGLESPlatform(Platform))
+	else if (IsMobileDeferredShadingEnabled(Platform) && IsAndroidOpenGLESPlatform(Platform) && !GSupportsShaderDepthStencilFetch)
 	{
 		return true;
 	}

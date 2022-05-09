@@ -1316,7 +1316,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 	TArray<FRDGTextureRef, TInlineAllocator<6>> ColorTargets;
 
 	// If we are using GL and don't have FBF support, use PLS
-	bool bUsingPixelLocalStorage = IsAndroidOpenGLESPlatform(ShaderPlatform) && GSupportsPixelLocalStorage;
+	bool bUsingPixelLocalStorage = IsAndroidOpenGLESPlatform(ShaderPlatform) && GSupportsPixelLocalStorage && GSupportsShaderDepthStencilFetch;
 
 	if (bUsingPixelLocalStorage)
 	{
