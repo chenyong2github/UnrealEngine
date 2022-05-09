@@ -25,6 +25,14 @@ FHLODISMComponentDesc::FHLODISMComponentDesc(const UInstancedStaticMeshComponent
 		FTransform InstanceTransform;
 		InISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform);
 		Instances.Emplace(InstanceTransform);
+
+		const int32 NumCustomDataFloats = InISMComponent->NumCustomDataFloats;
+		FCustomPrimitiveData InstanceCustomData;
+		InstanceCustomData.Data.SetNumUninitialized(NumCustomDataFloats);
+		check(InISMComponent->PerInstanceSMCustomData.GetTypeSize() == InstanceCustomData.Data.GetTypeSize());
+		FMemory::Memcpy(InstanceCustomData.Data.GetData(), &InISMComponent->PerInstanceSMCustomData[InstanceIndex * NumCustomDataFloats], NumCustomDataFloats * InstanceCustomData.Data.GetTypeSize());
+
+		InstancesCustomPrimitiveData.Emplace(MoveTemp(InstanceCustomData));
 	}
 }
 
@@ -61,6 +69,11 @@ bool FHLODISMComponentDesc::operator==(const FHLODISMComponentDesc& Other) const
 		{
 			return false;
 		}
+	}
+
+	if (InstancesCustomPrimitiveData != Other.InstancesCustomPrimitiveData)
+	{
+		return false;
 	}
 
 	return true;
@@ -310,11 +323,11 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 				Transform *= ActorTransform;
 			}
 
-			LODActor->AddInstances(ISMStaticMesh, ISMMaterial, Transforms);
+			LODActor->AddInstances(ISMStaticMesh, ISMMaterial, Transforms, ISMComponentDesc.InstancesCustomPrimitiveData);
 		}
 		else
 		{
-			LODActor->AddInstances(ISMStaticMesh, ISMMaterial, ISMComponentDesc.Instances);
+			LODActor->AddInstances(ISMStaticMesh, ISMMaterial, ISMComponentDesc.Instances, ISMComponentDesc.InstancesCustomPrimitiveData);
 		}
 	}
 

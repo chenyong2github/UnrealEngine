@@ -32,6 +32,9 @@ public:
 
 	UPROPERTY()
 	TArray<FTransform> Instances;
+
+	UPROPERTY()
+	TArray<FCustomPrimitiveData> InstancesCustomPrimitiveData;
 };
 
 /** Describe a LODActor */

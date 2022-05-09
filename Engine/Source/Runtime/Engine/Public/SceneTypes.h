@@ -26,6 +26,11 @@ struct FCustomPrimitiveData
 {
 	GENERATED_USTRUCT_BODY()
 
+	inline bool operator==(const FCustomPrimitiveData& Other) const
+	{
+		return Data == Other.Data;
+	}
+
 	static constexpr int32 NumCustomPrimitiveDataFloat4s = 9; // Must match NUM_CUSTOM_PRIMITIVE_DATA in SceneData.ush
 	static constexpr int32 NumCustomPrimitiveDataFloats = NumCustomPrimitiveDataFloat4s * 4;
 
