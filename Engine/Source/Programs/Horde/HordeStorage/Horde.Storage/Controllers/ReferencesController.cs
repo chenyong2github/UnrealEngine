@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -43,24 +44,24 @@ namespace Horde.Storage.Controllers
     public class ReferencesController : ControllerBase
     {
         private readonly IDiagnosticContext _diagnosticContext;
-        private readonly IAuthorizationService _authorizationService;
         private readonly FormatResolver _formatResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
         private readonly IReferenceResolver _referenceResolver;
+        private readonly RequestHelper _requestHelper;
 
         private readonly ILogger _logger = Log.ForContext<ReferencesController>();
         private readonly IObjectService _objectService;
         private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper)
         {
             _objectService = objectService;
             _blobStore = blobStore;
             _diagnosticContext = diagnosticContext;
-            _authorizationService = authorizationService;
             _formatResolver = formatResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
             _referenceResolver = referenceResolver;
+            _requestHelper = requestHelper;
         }
 
         /// <summary>
@@ -76,13 +77,17 @@ namespace Horde.Storage.Controllers
             NamespaceId[] namespaces = await _objectService.GetNamespaces().ToArrayAsync();
 
             // filter namespaces down to only the namespaces the user has access to
-            namespaces = namespaces.Where(ns =>
+            List<NamespaceId> namespacesWithAccess = new();
+            foreach (NamespaceId ns in namespaces)
             {
-                Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-                return authorizationResult.Result.Succeeded;
-            }).ToArray();
+                ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+                if (accessResult == null)
+                {
+                    namespacesWithAccess.Add(ns);
+                }
+            }
 
-            return Ok(new GetNamespacesResponse(namespaces));
+            return Ok(new GetNamespacesResponse(namespacesWithAccess.ToArray()));
         }
 
         /// <summary>
@@ -101,14 +106,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] IoHashKey key,
             [FromRoute] string? format = null)
         {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return accessResult;
             }
 
             try
@@ -323,14 +324,16 @@ namespace Horde.Storage.Controllers
             }
         }
 
-          /// <summary>
-        /// Returns the metadata about a ref key
-        /// </summary>
-        /// <param name="ns">Namespace. Each namespace is completely separated from each other. Use for different types of data that is never expected to be similar (between two different games for instance). Example: `uc4.ddc`</param>
-        /// <param name="bucket">The category/type of record you are caching. Is a clustered key together with the actual key, but all records in the same bucket can be dropped easily. Example: `terrainTexture` </param>
-        /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
-        /// <param name="fields">The fields to include in the response, omit this to include everything.</param>
-        [HttpGet("{ns}/{bucket}/{key}/metadata", Order = 500)]
+       
+
+    /// <summary>
+    /// Returns the metadata about a ref key
+    /// </summary>
+    /// <param name="ns">Namespace. Each namespace is completely separated from each other. Use for different types of data that is never expected to be similar (between two different games for instance). Example: `uc4.ddc`</param>
+    /// <param name="bucket">The category/type of record you are caching. Is a clustered key together with the actual key, but all records in the same bucket can be dropped easily. Example: `terrainTexture` </param>
+    /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
+    /// <param name="fields">The fields to include in the response, omit this to include everything.</param>
+    [HttpGet("{ns}/{bucket}/{key}/metadata", Order = 500)]
         [Authorize("Object.read")]
         public async Task<IActionResult> GetMetadata(
             [FromRoute] [Required] NamespaceId ns,
@@ -338,14 +341,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] IoHashKey key,
             [FromQuery] string[] fields)
         {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return accessResult;
             }
 
             try
@@ -384,14 +383,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return accessResult;
             }
 
             try
@@ -453,11 +448,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns,
             [FromQuery] [Required] List<string> names)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                return Forbid();
+                return accessResult;
             }
 
             ConcurrentBag<(BucketId, IoHashKey)> missingObject = new ();
@@ -520,14 +514,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return accessResult;
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
@@ -620,14 +610,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] IoHashKey key,
             [FromRoute] [Required] BlobIdentifier hash)
         {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return accessResult;
             }
 
             (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Finalize(ns, bucket, key, hash);
@@ -644,15 +630,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns,
             [FromBody] [Required] BatchOps ops)
         {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult =
-                    await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return accessResult;
             }
 
             ConcurrentDictionary<uint, (CbObject, HttpStatusCode)> results = new();
@@ -821,11 +802,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                return Forbid();
+                return accessResult;
             }
 
             try
@@ -852,11 +832,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                return Forbid();
+                return accessResult;
             }
 
             long countOfDeletedRecords;
@@ -887,11 +866,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (accessResult != null)
             {
-                return Forbid();
+                return accessResult;
             }
 
             try

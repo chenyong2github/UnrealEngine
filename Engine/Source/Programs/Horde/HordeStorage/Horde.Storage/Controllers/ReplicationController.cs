@@ -22,12 +22,12 @@ namespace Horde.Storage.Controllers
     public class ReplicationController : ControllerBase
     {
         private readonly ReplicationService _replicationService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly RequestHelper _requestHelper;
 
-        public ReplicationController(ReplicationService replicationService, IAuthorizationService authorizationService)
+        public ReplicationController(ReplicationService replicationService, RequestHelper requestHelper)
         {
             _replicationService = replicationService;
-            _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
         }
 
         [HttpGet("{ns}")]
@@ -36,11 +36,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             IEnumerable<IReplicator>? replicators = _replicationService.GetReplicators(ns);
@@ -80,11 +79,10 @@ namespace Horde.Storage.Controllers
             [Required] long offset
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             IEnumerable<IReplicator>? replicators = _replicationService.GetReplicators(ns);
@@ -119,11 +117,10 @@ namespace Horde.Storage.Controllers
             [Required] [FromBody] NewReplicationState replicationState
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             IEnumerable<IReplicator>? replicators = _replicationService.GetReplicators(ns);
@@ -163,11 +160,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             List<IReplicator> replicators = _replicationService.GetReplicators(ns).ToList();

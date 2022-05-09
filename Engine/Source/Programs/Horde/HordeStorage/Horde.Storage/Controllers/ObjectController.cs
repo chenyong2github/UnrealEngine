@@ -30,17 +30,17 @@ namespace Horde.Storage.Controllers
     {
         private readonly IBlobService _storage;
         private readonly IDiagnosticContext _diagnosticContext;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly RequestHelper _requestHelper;
         private readonly IReferenceResolver _referenceResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
         private readonly ILogger _logger = Log.ForContext<ObjectController>();
 
-        public ObjectController(IBlobService storage, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IReferenceResolver referenceResolver, BufferedPayloadFactory bufferedPayloadFactory)
+        public ObjectController(IBlobService storage, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, IReferenceResolver referenceResolver, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _diagnosticContext = diagnosticContext;
-            _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
             _referenceResolver = referenceResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
         }
@@ -52,11 +52,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] BlobIdentifier id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             try
@@ -78,11 +77,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] BlobIdentifier id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             bool exists = await _storage.Exists(ns, id);
@@ -102,11 +100,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] [FromQuery] List<BlobIdentifier> id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             ConcurrentBag<BlobIdentifier> missingBlobs = new ConcurrentBag<BlobIdentifier>();
@@ -130,11 +127,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [FromBody] BlobIdentifier[] bodyIds)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             ConcurrentBag<BlobIdentifier> missingBlobs = new ConcurrentBag<BlobIdentifier>();
@@ -158,11 +154,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] BlobIdentifier id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
@@ -178,11 +173,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] BlobIdentifier id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             BlobContents blob;
@@ -232,11 +226,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] BlobIdentifier id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             await _storage.DeleteObject(ns, id);
@@ -252,11 +245,10 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> DeleteNamespace(
             [Required] NamespaceId ns)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             await _storage.DeleteNamespace(ns);

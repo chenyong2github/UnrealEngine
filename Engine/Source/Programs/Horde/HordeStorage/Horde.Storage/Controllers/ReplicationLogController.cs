@@ -26,14 +26,14 @@ namespace Horde.Storage.Controllers
     public class ReplicationLogController : ControllerBase
     {
         private readonly IServiceProvider _provider;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly RequestHelper _requestHelper;
         private readonly IReplicationLog _replicationLog;
         private readonly IOptionsMonitor<SnapshotSettings> _snapshotSettings;
 
-        public ReplicationLogController(IServiceProvider provider, IAuthorizationService authorizationService, IReplicationLog replicationLog, IOptionsMonitor<SnapshotSettings> snapshotSettings)
+        public ReplicationLogController(IServiceProvider provider, RequestHelper requestHelper, IReplicationLog replicationLog, IOptionsMonitor<SnapshotSettings> snapshotSettings)
         {
             _provider = provider;
-            _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
             _replicationLog = replicationLog;
             _snapshotSettings = snapshotSettings;
         }
@@ -46,11 +46,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             return Ok(new ReplicationLogSnapshots(await _replicationLog.GetSnapshots(ns).ToListAsync()));
@@ -65,11 +64,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
@@ -88,11 +86,10 @@ namespace Horde.Storage.Controllers
             [FromQuery] int count = 100
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             if (((lastBucket == null && lastEvent.HasValue) || (lastBucket != null && !lastEvent.HasValue)) && lastBucket != "now")

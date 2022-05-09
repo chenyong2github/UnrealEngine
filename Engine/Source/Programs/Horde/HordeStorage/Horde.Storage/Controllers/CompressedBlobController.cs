@@ -31,16 +31,16 @@ namespace Horde.Storage.Controllers
         private readonly IBlobService _storage;
         private readonly IContentIdStore _contentIdStore;
         private readonly IDiagnosticContext _diagnosticContext;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly RequestHelper _requestHelper;
         private readonly CompressedBufferUtils _compressedBufferUtils;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
-        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory)
+        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _contentIdStore = contentIdStore;
             _diagnosticContext = diagnosticContext;
-            _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
             _compressedBufferUtils = compressedBufferUtils;
             _bufferedPayloadFactory = bufferedPayloadFactory;
         }
@@ -55,11 +55,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] ContentId id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             try
@@ -91,12 +90,12 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] ContentId id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
+
             BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, id, mustBeContentId: false);
             if (chunks == null || chunks.Length == 0)
             {
@@ -128,11 +127,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] [FromQuery] List<ContentId> id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             ConcurrentBag<ContentId> partialContentIds = new ConcurrentBag<ContentId>();
@@ -172,11 +170,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [FromBody] ContentId[] bodyIds)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             ConcurrentBag<ContentId> partialContentIds = new ConcurrentBag<ContentId>();
@@ -261,11 +258,10 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] ContentId id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
@@ -328,11 +324,10 @@ namespace Horde.Storage.Controllers
             [Required] string ns,
             [Required] BlobIdentifier id)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             await DeleteImpl(ns, id);
@@ -346,11 +341,10 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> DeleteNamespace(
             [Required] string ns)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             int deletedCount = await  _storage.DeleteNamespace(ns);
@@ -365,7 +359,7 @@ namespace Horde.Storage.Controllers
         }*/
     }
 
-    
+
     public class ExistCheckMultipleContentIdResponse
     {
         public ContentId[] Needs { get; set; } = null!;

@@ -432,8 +432,6 @@ namespace Jupiter
 
     public class JupiterSettings
     {
-        public const int DefaultInternalPort = 8080;
-
         /// <summary>
         /// If the request is smaller then MemoryBufferSize we buffer it in memory rather then as a file
         /// </summary>
@@ -444,7 +442,21 @@ namespace Jupiter
         public bool DisableHealthChecks { get; set; } = false;
         public bool HostSwaggerDocumentation { get; set; } = true;
 
-        public int InternalApiPort { get; set; } = DefaultInternalPort;
+        /// <summary>
+        /// Port used to host the internally accessible api (as well as the public api).
+        /// This hosts both public and private namespaces
+        /// </summary>
+        public int InternalApiPort { get; set; } = 8080;
+
+        /// <summary>
+        /// Port that hosts public and private namespaces
+        /// </summary>
+        public int CorpApiPort { get; set; } = 8008;
+
+        /// <summary>
+        /// Port that only hosts the public namespaces
+        /// </summary>
+        public int PublicApiPort { get; set; } = 80;
 
         // Enable to echo every request to the log file, usually this is more efficiently done on the load balancer
         public bool UseRequestLogging { get; set; } = false;
@@ -473,6 +485,7 @@ namespace Jupiter
 	    public bool UseBlobIndexForExists { get; set; } = false;
 	    public bool UseBlobIndexForSlowExists { get; set; } = false;
 	    public bool? IsLegacyNamespace { get; set; } = null;
+        public bool IsPublicNamespace { get; set; } = true;
     }
 
     public class DatadogTraceMiddleware

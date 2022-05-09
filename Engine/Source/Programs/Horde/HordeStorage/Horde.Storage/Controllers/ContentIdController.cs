@@ -18,12 +18,12 @@ namespace Horde.Storage.Controllers
     [Route("api/v1/content-id")]
     public class ContentIdController : ControllerBase
     {
-        private readonly IAuthorizationService _authorizationService;
+        private readonly RequestHelper _requestHelper;
         private readonly IContentIdStore _contentIdStore;
 
-        public ContentIdController(IAuthorizationService authorizationService, IContentIdStore contentIdStore)
+        public ContentIdController(RequestHelper requestHelper, IContentIdStore contentIdStore)
         {
-            _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
             _contentIdStore = contentIdStore;
         }
 
@@ -38,14 +38,10 @@ namespace Horde.Storage.Controllers
         [Authorize("Cache.read")]
         public async Task<IActionResult> Resolve(NamespaceId ns, ContentId contentId)
         {
-            using (IScope _ = Tracer.Instance.StartActive("authorize"))
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return result;
             }
             BlobIdentifier[]? blobs = await _contentIdStore.Resolve(ns, contentId, mustBeContentId: true);
 
@@ -70,14 +66,10 @@ namespace Horde.Storage.Controllers
         [Authorize("Cache.write")]
         public async Task<IActionResult> UpdateContentIdMapping(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
-            using (IScope _ = Tracer.Instance.StartActive("authorize"))
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return result;
             }
             await _contentIdStore.Put(ns, contentId, blobIdentifier, contentWeight);
 

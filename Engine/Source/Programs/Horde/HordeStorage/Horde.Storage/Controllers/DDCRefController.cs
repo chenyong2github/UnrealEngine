@@ -50,16 +50,18 @@ namespace Horde.Storage.Controllers
         private readonly IRefsStore _refsStore;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
+		private readonly RequestHelper _requestHelper;
 
         private readonly ILogger _logger = Log.ForContext<DDCRefController>();
         private readonly IDDCRefService _ddcRefService;
 
-        public DDCRefController(IDDCRefService ddcRefService, IRefsStore refsStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService)
+        public DDCRefController(IDDCRefService ddcRefService, IRefsStore refsStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, RequestHelper requestHelper)
         {
             _refsStore = refsStore;
             _ddcRefService = ddcRefService;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
         }
 
         /// <summary>
@@ -75,13 +77,18 @@ namespace Horde.Storage.Controllers
             NamespaceId[] namespaces = await _refsStore.GetNamespaces().ToArrayAsync();
 
             // filter namespaces down to only the namespaces the user has access to
-            namespaces = namespaces.Where(ns =>
+            List<NamespaceId> validNamespaces = new List<NamespaceId>();
+            foreach (NamespaceId ns in namespaces)
             {
-                Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-                return authorizationResult.Result.Succeeded;
-            }).ToArray();
+                ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+                if (result == null)
+                {
+                    validNamespaces.Add(ns);
+                }
+            }
 
-            return Ok(new GetNamespacesResponse(namespaces));
+
+            return Ok(new GetNamespacesResponse(validNamespaces.ToArray()));
         }
 
         /// <summary>
@@ -106,14 +113,10 @@ namespace Horde.Storage.Controllers
             [FromQuery] string[] fields,
             [FromRoute] string? format = null)
         {
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                using IScope _ = Tracer.Instance.StartActive("authorize");
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return result;
             }
 
             try
@@ -198,13 +201,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] KeyId key)
         {
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return result;
             }
 
             try
@@ -248,13 +248,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] KeyId key,
             [FromBody] RefRequest refRequest)
         {
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return result;
             }
 
             try
@@ -357,11 +354,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             try
@@ -388,11 +384,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             try
@@ -422,11 +417,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] KeyId key)
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             try
@@ -512,8 +506,8 @@ namespace Horde.Storage.Controllers
 
                 AuthorizationResult authorizationResultNamespace = await _authorizationService.AuthorizeAsync(User, op.Namespace, NamespaceAccessRequirement.Name);
                 AuthorizationResult authorizationResultOp = await _authorizationService.AuthorizeAsync(User, op, OpToPolicy(op.Op));
-
-                bool authorized = authorizationResultNamespace.Succeeded && authorizationResultOp.Succeeded;
+                ActionResult? accessToNamespaceResult = await _requestHelper.HasAccessToNamespace(User, Request, op.Namespace!.Value);
+                bool authorized = authorizationResultNamespace.Succeeded && authorizationResultOp.Succeeded && accessToNamespaceResult == null;
 
                 if (!authorized)
                 {
@@ -624,13 +618,10 @@ namespace Horde.Storage.Controllers
                 throw new InvalidOperationException("A valid namespace must be specified");
             }
 
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, batch.Namespace.Value);
+            if (result != null)
             {
-                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, batch.Namespace, NamespaceAccessRequirement.Name);
-
-                if (!authorizationResult.Succeeded)
-                {
-                    return Forbid();
-                }
+                return result;
             }
 
             BatchWriter writer = new BatchWriter();

@@ -13,11 +13,11 @@ namespace Horde.Storage.Controllers
     [Route("api/v1/auth")]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthorizationService _authorizationService;
+        private readonly RequestHelper _requestHelper;
 
-        public AuthController(IAuthorizationService authorizationService)
+        public AuthController(RequestHelper requestHelper)
         {
-            _authorizationService = authorizationService;
+            _requestHelper = requestHelper;
         }
 
         [HttpGet("{ns}")]
@@ -26,11 +26,10 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns
             )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-
-            if (!authorizationResult.Succeeded)
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
             {
-                return Forbid();
+                return result;
             }
 
             return Ok();
