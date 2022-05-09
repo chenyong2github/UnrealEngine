@@ -3430,8 +3430,15 @@ TArray<UPackage*> ULevel::GetLoadedExternalObjectPackages() const
 
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath)
 {
-	UPackage* ActorPackage = CreatePackage(*GetActorPackageName(InLevelPackage, ActorPackagingScheme, InActorPath));
-	ActorPackage->SetPackageFlags(PKG_EditorOnly | PKG_ContainsMapData);
+	const FString PackageName = GetActorPackageName(InLevelPackage, ActorPackagingScheme, InActorPath);
+	if (UPackage* ExistingActorPackage = FindObject<UPackage>(nullptr, *PackageName))
+	{
+		check(ExistingActorPackage->HasAllPackagesFlags(PKG_EditorOnly | PKG_ContainsMapData));
+		return ExistingActorPackage;
+	}
+
+	UPackage* ActorPackage = CreatePackage(*PackageName);
+	ActorPackage->SetPackageFlags(PKG_EditorOnly | PKG_ContainsMapData | PKG_NewlyCreated);
 	return ActorPackage;
 }
 

@@ -281,6 +281,9 @@ public:
 				// if the actor is using an external package. We really just want to rename that actor out of the way so we can spawn the new one in
 				// the exact same package, keeping the package name intact.
 				ExistingActor->UObject::Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
+				
+				// Reuse ActorGuid so that ActorDesc can be updated on save
+				SpawnParams.OverrideActorGuid = ExistingActor->GetActorGuid();
 			}
 						
 			FVector CellCenter(CellBounds.GetCenter());

@@ -47,23 +47,29 @@ UObject* FPackageItem::GetPackageObject() const
 
 bool FPackageItem::HasMultipleAssets() const
 {
-	bool bHasMultipleAssets = false;
 	if ( !FileName.StartsWith(TEXT("/Temp/Untitled")) )
 	{
 		int32 NumAssets = 0;
-		ForEachObjectWithPackage(Package, [&NumAssets](UObject* Obj)
+		int32 NumDeleted = 0;
+		ForEachObjectWithPackage(Package, [&NumAssets,&NumDeleted](UObject* Obj)
 			{
 				if (Obj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 				{
 					++NumAssets;
+
+					if (!IsValid(Obj))
+					{
+						++NumDeleted;
+					}
 				}
 				return true;
 			}, false /*bIncludeNestedObjects*/);
-		bHasMultipleAssets = NumAssets > 1;
-	}
-	return bHasMultipleAssets;
-}
 
+		return (NumAssets - NumDeleted) > 1;
+	}
+
+	return false;
+}
 
 bool FPackageItem::GetTypeNameAndColor(FText& OutName, FColor& OutColor) const
 {

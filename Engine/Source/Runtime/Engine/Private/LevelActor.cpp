@@ -740,7 +740,7 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		if (Actor->IsAsset())
+		if (Actor->IsAsset() && Actor->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
 		{
 			FAssetRegistryModule::AssetCreated(Actor);
 		}

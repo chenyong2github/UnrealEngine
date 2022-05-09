@@ -60,6 +60,7 @@ public:
 
 public:
 #if WITH_EDITOR
+	bool CanDeleteSelectedActor(FText& OutReason) const override { return true; }
 	bool CanEditFoliageInstance(const FFoliageInstanceId& InstanceId) const;
 	bool CanMoveFoliageInstance(const FFoliageInstanceId& InstanceId, const ETypedElementWorldType WorldType) const;
 	bool GetFoliageInstanceTransform(const FFoliageInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const;
