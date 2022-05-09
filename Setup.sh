@@ -5,11 +5,11 @@ set -e
 
 cd "`dirname "$0"`"
 
-if [ ! -f Engine/Binaries/DotNET/GitDependencies.exe ]; then
+if [ ! -f Engine/Binaries/DotNET/GitDependencies/linux-x64/GitDependencies ] && [ ! -f Engine/Binaries/DotNET/GitDependencies/osx-x64/GitDependencies ] ; then
 	echo "GitSetup ERROR: This script does not appear to be located \
-       in the root UE directory and must be run from there."
+	   in the root UE directory and must be run from there."
 	exit 1
-fi 
+fi
 
 function FindPromptOrForceArg()
 {
