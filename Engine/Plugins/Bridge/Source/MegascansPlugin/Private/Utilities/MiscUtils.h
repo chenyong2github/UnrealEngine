@@ -40,6 +40,8 @@ namespace AssetUtils {	//template<typename T>
 	void ManageImportSettings(FUAssetMeta AssetMetaData);
 	void SyncFolder(const FString& TargetFolder);
 	void RegisterAsset(const FString& PackagePath);
+
+	void ConvertToVT(FUAssetMeta AssetMetaData);
 }
 
 namespace JsonUtils

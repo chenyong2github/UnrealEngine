@@ -40,6 +40,15 @@
 #include "EngineGlobals.h"
 #include "Editor.h"
 
+#include "UObject/SoftObjectPath.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
+#include "Engine/Texture.h"
+
+#include "HAL/IConsoleManager.h"
+
+#include "Tools/BlendMaterials.h"
+
 
 TSharedPtr<FJsonObject> DeserializeJson(const FString& JsonStringData)
 {
@@ -241,6 +250,11 @@ void CopyMSPresets()
 		return false;
 	}
 
+	
+		
+
+	
+
 	FUAssetMeta AssetUtils::GetAssetMetaData(const FString& JsonPath)
 	{
 		
@@ -394,6 +408,17 @@ void AssetUtils::RegisterAsset(const FString& PackagePath)
 	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	FAssetData CharacterAssetData = AssetRegistry.GetAssetByObjectPath(FName(*PackagePath));
 	UObject* CharacterObject = CharacterAssetData.GetAsset();
+}
+
+void AssetUtils::ConvertToVT(FUAssetMeta AssetMetaData)
+{
+
+	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
+	const bool bVirtualTextureEnabled = CVarVirtualTexturesEnabled->GetValueOnAnyThread() != 0;
+	if (bVirtualTextureEnabled) {
+		FMaterialBlend::Get()->ConvertToVirtualTextures(AssetMetaData);
+	}
+
 }
 
 void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirectory, const int8& AssetTier)

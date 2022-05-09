@@ -4,6 +4,7 @@
 #include "Engine/StreamableManager.h"
 
 #include "Materials/MaterialInstanceConstant.h"
+#include "MSAssetImportData.h"
 
 enum EImportState
 {
@@ -30,8 +31,13 @@ private:
 	bool ValidateSelectedAssets(TArray<FString> SelectedMaterials, FString& Failure);
 	FString MasterMaterialPath = TEXT("/Game/MSPresets/M_MS_SurfaceBlend_Material/M_MS_SurfaceBlend_Material.M_MS_SurfaceBlend_Material");
 
+	void HandleTextureLoading(FAssetData TextureData);
+
 public:
 	static TSharedPtr<FMaterialBlend> Get();
-	void BlendSelectedMaterials();	
+	void BlendSelectedMaterials();
+
+	void ConvertToVirtualTextures(FUAssetMeta AssetMetaData);
+	
 
 };

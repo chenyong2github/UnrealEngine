@@ -31,6 +31,7 @@
 
 #include "StaticMeshCompiler.h"
 
+
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::ImportProgressive3DInst;
 
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::Get()
@@ -260,6 +261,8 @@ void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString
 	/*SourceMesh->OnPostMeshBuild().AddLambda([this](UStaticMesh* StaticMesh) {
 		UE_LOG(LogTemp, Error, TEXT("Data build complete..."));
 	});*/
+
+	AssetUtils::ConvertToVT(AssetMetaData);
 
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{

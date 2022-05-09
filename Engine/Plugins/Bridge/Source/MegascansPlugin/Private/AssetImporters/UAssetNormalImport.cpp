@@ -10,7 +10,6 @@
 
 
 
-
 TSharedPtr<FImportUAssetNormal> FImportUAssetNormal::ImportUassetNormalInst;
 
 TSharedPtr<FImportUAssetNormal> FImportUAssetNormal::Get()
@@ -52,6 +51,8 @@ void FImportUAssetNormal::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 	else {
 		CopyUassetFiles(AssetPaths, DestinationFolder);
 	}
+
+	AssetUtils::ConvertToVT(AssetMetaData);
 
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{

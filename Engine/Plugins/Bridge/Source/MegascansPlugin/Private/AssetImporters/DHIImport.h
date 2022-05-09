@@ -3,30 +3,28 @@
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 
-
-
-struct FDHIData {
-	FString CharacterPath;
-	FString CommonPath;
-	FString RootPath;
-	FString CharacterName;
+struct FDHIData
+{
+    FString CharacterPath;
+    FString CommonPath;
+    FString RootPath;
+    FString CharacterName;
 };
-
-
 
 class FImportDHI
 
 {
 
 private:
-	FImportDHI() = default;
-	static TSharedPtr<FImportDHI> ImportDHIInst;
-	TSharedPtr<FDHIData> ParseDHIData(TSharedPtr<FJsonObject> AssetImportJson);
+    FImportDHI() = default;
+    static TSharedPtr<FImportDHI> ImportDHIInst;
+    TSharedPtr<FDHIData> ParseDHIData(TSharedPtr<FJsonObject> AssetImportJson);
+    TArray<FString> CheckVersionCompatibilty();
 
 public:
-	static TSharedPtr<FImportDHI> Get();
-	void ImportAsset(TSharedPtr<FJsonObject> AssetImportJson);
+    static TSharedPtr<FImportDHI> Get();
+    void ImportAsset(TSharedPtr<FJsonObject> AssetImportJson);
 
 private:
-	static void EnableMissingPlugins();
+    static void EnableMissingPlugins();
 };

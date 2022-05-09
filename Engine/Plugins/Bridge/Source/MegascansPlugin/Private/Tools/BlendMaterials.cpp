@@ -16,6 +16,21 @@
 #include "Internationalization/Text.h"
 #include "Containers/Array.h"
 
+
+#include "HAL/IConsoleManager.h"
+
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+
+#include "UObject/SoftObjectPath.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
+#include "Engine/Texture.h"
+
+
+
+
 TSharedPtr<FMaterialBlend> FMaterialBlend::MaterialBlendInst;
 
 
@@ -38,8 +53,9 @@ TSharedPtr<FMaterialBlend> FMaterialBlend::Get()
 
 void FMaterialBlend::BlendSelectedMaterials()
 {
-
 	
+	
+
 	const UMaterialBlendSettings* BlendSettings = GetDefault<UMaterialBlendSettings>();
 
 	TArray<UMaterialInstanceConstant*> SelectedMaterialInstances = AssetUtils::GetSelectedAssets(TEXT("MaterialInstanceConstant"));
@@ -126,3 +142,57 @@ bool FMaterialBlend::ValidateSelectedAssets(TArray<FString> SelectedMaterials, F
 }
 
 
+void FMaterialBlend::HandleTextureLoading(FAssetData TextureData)
+{
+
+	
+			UTexture* TextureAsset = Cast<UTexture>(TextureData.GetAsset());
+			uint8 VT = TextureAsset->VirtualTextureStreaming;
+			if (TextureAsset == nullptr)
+			{
+				UE_LOG(LogTemp, Error, TEXT("VT"));
+			}
+		TextureAsset->VirtualTextureStreaming = 1;
+		TextureAsset->SetFlags(RF_Standalone);
+		TextureAsset->MarkPackageDirty();
+		TextureAsset->PostEditChange();
+
+		AssetUtils::SavePackage(TextureAsset);
+
+}
+
+void FMaterialBlend::ConvertToVirtualTextures(FUAssetMeta AssetMetaData)
+{
+
+	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+
+
+	FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+
+	for (FTexturesList TextureMeta : AssetMetaData.textureSets)
+	{
+		FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FName(*TextureMeta.path));
+
+		if (!TextureData.IsValid()) return;
+
+		FSoftObjectPath ItemToStream = TextureData.ToSoftObjectPath();
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FMaterialBlend::HandleTextureLoading, TextureData));
+
+		//Streamable.RequestAsyncLoad(ItemToStream, [&TextureData]() {
+		//	UTexture* TextureAsset = Cast<UTexture>(TextureData.GetAsset());
+		//	uint8 VT = TextureAsset->VirtualTextureStreaming;
+		//	if (TextureAsset == nullptr)
+		//	{
+		//		UE_LOG(LogTemp, Error, TEXT("VT"));
+		//	}
+		//	/*TextureAsset->VirtualTextureStreaming = 1;
+		//	TextureAsset->SetFlags(RF_Standalone);
+		//	TextureAsset->MarkPackageDirty();
+		//	TextureAsset->PostEditChange();
+
+		//	SavePackage(TextureAsset);*/
+
+		//});
+	}
+
+}
