@@ -7117,6 +7117,18 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 	}
 	if (bSelect)
 	{
+		if (Settings->GetAutoExpandTreeView())
+		{
+			for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodesToSelect)
+			{
+				if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+				{
+					DisplayNode->GetParent()->SetExpansionState(true);
+					break;
+				}
+			}
+		}
+
 		if (NodesToSelect.Num() > 0)
 		{
 			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
@@ -7168,7 +7180,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 	}
 	
 	if (bSelect)
-	{
+	{	
 		if (NodesToSelect.Num() > 0)
 		{
 			//todo hide behind preference 
@@ -7232,9 +7244,12 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 	{
 		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
 		{
-			if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+			if (Settings->GetAutoExpandTreeView())
 			{
-				DisplayNode->GetParent()->SetExpansionState(true);
+				if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+				{
+					DisplayNode->GetParent()->SetExpansionState(true);
+				}
 			}
 			NodesToSelect.Add(DisplayNode);
 		}

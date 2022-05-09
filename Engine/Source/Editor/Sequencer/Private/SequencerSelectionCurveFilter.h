@@ -23,7 +23,7 @@ struct FSequencerSelectionCurveFilter : FCurveEditorTreeFilter
 	/**
 	 * Adds all selected nodes and their object parents to the NodesToFilter set
 	 */
-	void Update(const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedNodes)
+	void Update(const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedNodes, const bool bExpandTreeToSelectedNodes = true)
 	{
 		NodesToFilter.Empty(SelectedNodes.Num());
 
@@ -43,6 +43,8 @@ struct FSequencerSelectionCurveFilter : FCurveEditorTreeFilter
 				Parent = Parent->GetParent();
 			}
 		}
+
+		bExpandToMatchedItems = bExpandTreeToSelectedNodes;
 	}
 
 	bool Match(TSharedRef<const FSequencerDisplayNode> InNode) const

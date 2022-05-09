@@ -251,9 +251,9 @@ void FCurveEditorTree::ToggleExpansionState(bool bRecursive)
 	ToggleExpansionStateDelegate.Broadcast(bRecursive);
 }
 
-bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
+ECurveEditorTreeFilterState FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
 {
-	bool bAnyMatched = false;
+	ECurveEditorTreeFilterState ReturnedParentState = ECurveEditorTreeFilterState::NoMatch;
 
 	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
 	{
@@ -265,35 +265,45 @@ bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter
 
 		const FCurveEditorTreeItem& TreeItem = GetItem(ItemID);
 
-		ECurveEditorTreeFilterState FilterState         = InheritedState;
+		ECurveEditorTreeFilterState FilterState = InheritedState;
 		ECurveEditorTreeFilterState ChildInheritedState = InheritedState;
 
 		TSharedPtr<ICurveEditorTreeItem> TreeItemImpl = TreeItem.GetItem();
 		if (TreeItemImpl)
 		{
-			const bool bMatchesFilter = Algo::AnyOf(FilterPtrs, [TreeItemImpl](const FCurveEditorTreeFilter* Filter){ return TreeItemImpl->PassesFilter(Filter); });
-			if (bMatchesFilter)
+			for (const FCurveEditorTreeFilter* Filter : FilterPtrs)
 			{
-				bAnyMatched = true;
-				FilterState = ECurveEditorTreeFilterState::Match;
-				ChildInheritedState = ECurveEditorTreeFilterState::ImplicitChild;
+				const bool bMatchesFilter = TreeItemImpl->PassesFilter(Filter);
+				if (bMatchesFilter)
+				{
+					ReturnedParentState |= ECurveEditorTreeFilterState::ImplicitParent;
+					FilterState |= ECurveEditorTreeFilterState::Match;
+					ChildInheritedState |= ECurveEditorTreeFilterState::ImplicitChild;
+
+					if (Filter->ShouldExpandOnMatch())
+					{
+						ReturnedParentState |= ECurveEditorTreeFilterState::Expand;
+
+						// Once an item is matched AND set to expand there's no other flags that could be 
+						// discernibly applied, therefore we can early out and skip needlessly testing other filters
+						break;
+					}
+					// Else, we have to keep iterating incase one of the other filters is set to expand
+				}
 			}
 		}
 
 		// Run the filter on all child nodes
-		const bool bMatchedChildren = PerformFilterPass(FilterPtrs, TreeItem.GetChildren(), ChildInheritedState);
+		ECurveEditorTreeFilterState AppliedStateFromChild = PerformFilterPass(FilterPtrs, TreeItem.GetChildren(), ChildInheritedState);
+		ReturnedParentState |= AppliedStateFromChild;
 
-		// If we matched children we become an implicit parent if not already matched
-		if (bMatchedChildren && FilterState != ECurveEditorTreeFilterState::Match)
-		{
-			bAnyMatched = true;
-			FilterState = ECurveEditorTreeFilterState::ImplicitParent;
-		}
+		// If we matched children we become an implicit parent
+		FilterState |= AppliedStateFromChild;
 
 		FilterStates.SetFilterState(ItemID, FilterState);
 	}
 
-	return bAnyMatched;
+	return ReturnedParentState;
 }
 
 void FCurveEditorTree::RunFilters()
@@ -473,7 +483,7 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 
 		for (FCurveEditorTreeItemID ChildID : TreeItem->GetChildren())
 		{
-			if (FilterStates.Get(ChildID) != ECurveEditorTreeFilterState::NoMatch)
+			if ((FilterStates.Get(ChildID) & ECurveEditorTreeFilterState::MatchBitMask) != ECurveEditorTreeFilterState::NoMatch)
 			{
 				TreeItems.Add(ChildID);
 			}

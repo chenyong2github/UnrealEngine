@@ -57,6 +57,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bVisualizePreAndPostRoll = true;
 	TrajectoryPathCap = 250;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
+	bAutoExpandOutlinerTreeOnChildSelection = true;
 }
 
 void USequencerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -829,6 +830,15 @@ void USequencerSettings::SetMovieRendererName(const FString& InMovieRendererName
 	if (InMovieRendererName != MovieRendererName)
 	{
 		MovieRendererName = InMovieRendererName;
+		SaveConfig();
+	}
+}
+
+void USequencerSettings::SetAutoExpandTreeView(bool bInAutoExpandOutlinerTree)
+{
+	if (bInAutoExpandOutlinerTree != bAutoExpandOutlinerTreeOnChildSelection)
+	{
+		bAutoExpandOutlinerTreeOnChildSelection = bInAutoExpandOutlinerTree;
 		SaveConfig();
 	}
 }

@@ -9,6 +9,8 @@
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
 #include "CurveEditorTypes.h"
+#include "Misc/EnumClassFlags.h"
+#include "Algo/ForEach.h"
 
 enum class ECurveEditorTreeFilterType : uint32;
 
@@ -18,21 +20,27 @@ struct FCurveEditorTreeFilter;
 class FCurveEditor;
 class FCurveEditorTree;
 
-/** Enumeration specifying how a specific tree item has matched the current set of filters */
+/** Enumeration of bitmask values specifying how a specific tree item is interpreted by the current set of filters */
 enum class ECurveEditorTreeFilterState : uint8
 {
 	/** The item did not match any filter, and neither did any of its parents or children */
-	NoMatch,
+	NoMatch        = 0x00,
 
-	/** Neither this item nor any of its children match filters, but one of its parents did (ie it resides within a matched item) */
-	ImplicitChild,
-
-	/** Neither this item nor any of its parents match the filters, but one of its descendant children did (ie it is a parent of a matched item) */
-	ImplicitParent,
-
+	/** One of this item's parents matched a filter (ie it resides within a matched item) */
+	ImplicitChild  = (1<<0),
+	
+	/** One of this item's descendant children matched a filter (ie it is a parent of a matched item) */
+	ImplicitParent = (1<<1),
+	
 	/** This item itself matched one or more of the filters */
-	Match,
+	Match          = (1<<2),
+
+	/** This item in the tree should be expanded according to one or more of the filters */
+	Expand         = (1<<3),
+
+	MatchBitMask   = (ImplicitParent | Match | ImplicitChild),
 };
+ENUM_CLASS_FLAGS(ECurveEditorTreeFilterState);
 
 /**
  * Scoped guard that prevents the broadcast of tree events for the duration of its lifetime. Will trigger necessary events after the last remaining guard has been destroyed.
@@ -250,6 +258,12 @@ struct FCurveEditorFilterStates
 		return State ? *State : ECurveEditorTreeFilterState::NoMatch;
 	}
 
+	template <typename CallableT>
+	void ForEachItemState(CallableT Callable) const
+	{
+		Algo::ForEach(FilterStates, Callable);
+	}
+
 	/**
 	 * Assign a new filter state to an item
 	 */
@@ -258,17 +272,17 @@ struct FCurveEditorFilterStates
 		const ECurveEditorTreeFilterState* Existing = FilterStates.Find(ItemID);
 		if (Existing)
 		{
-			if (*Existing  == ECurveEditorTreeFilterState::Match)
+			if ((*Existing & ECurveEditorTreeFilterState::Match) != ECurveEditorTreeFilterState::NoMatch)
 			{
 				--NumMatched;
 			}
-			else if (*Existing != ECurveEditorTreeFilterState::NoMatch)
+			else if ((*Existing & ECurveEditorTreeFilterState::MatchBitMask) != ECurveEditorTreeFilterState::NoMatch)
 			{
 				--NumMatchedImplicitly;
 			}
 		}
 
-		if (NewState == ECurveEditorTreeFilterState::NoMatch)
+		if ((NewState & ECurveEditorTreeFilterState::MatchBitMask) == ECurveEditorTreeFilterState::NoMatch)
 		{
 			FilterStates.Remove(ItemID);
 		}
@@ -276,7 +290,7 @@ struct FCurveEditorFilterStates
 		{
 			FilterStates.Add(ItemID, NewState);
 
-			if (NewState == ECurveEditorTreeFilterState::Match)
+			if ((NewState & ECurveEditorTreeFilterState::Match) != ECurveEditorTreeFilterState::NoMatch)
 			{
 				++NumMatched;
 			}
@@ -508,9 +522,9 @@ private:
 	 * @param FilterPtrs     Array of non-null pointers to filters to use. Items are considered matched if they match any filter in this array.
 	 * @param ItemsToFilter  Array item IDs to filter
 	 * @param InheritedState The filter state for each item to receive if it does not directly match a filter (either ECurveEditorTreeFilterState::NoMatch or ECurveEditorTreeFilterState::InheritedChild)
-	 * @return Whether any of the items or any their recursive children matched any filter
+	 * @return Raised state flags which should be applied to parents of the filtered items.
 	 */
-	bool PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState);
+	ECurveEditorTreeFilterState PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState);
 
 	/** 
 	 * Recursively sorts the tree item ids using the sort predicate.
