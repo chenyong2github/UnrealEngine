@@ -87,7 +87,6 @@ namespace Horde.Storage.Controllers
                 }
             }
 
-
             return Ok(new GetNamespacesResponse(validNamespaces.ToArray()));
         }
 
