@@ -2,9 +2,7 @@
 
 #include "ControlRigBaseDockableView.h"
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "ScopedTransaction.h"
 #include "ControlRig.h"

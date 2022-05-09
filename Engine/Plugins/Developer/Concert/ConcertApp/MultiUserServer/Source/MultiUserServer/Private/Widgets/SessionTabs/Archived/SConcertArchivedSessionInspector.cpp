@@ -2,12 +2,12 @@
 
 #include "SConcertArchivedSessionInspector.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Docking/TabManager.h"
 #include "Session/History/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SConcertArchivedSessionInspector"
 

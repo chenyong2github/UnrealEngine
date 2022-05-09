@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SMLDeformerCurvePickerWidget.h"
-#include "EditorStyleSet.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"

@@ -2,7 +2,6 @@
 
 #include "WidgetEditorToolPaletteCommands.h"
 #include "WidgetEditorToolPaletteStyle.h"
-#include "EditorStyleSet.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Settings/CreateWidgetToolSettings.h"
 #include "Styling/SlateIconFinder.h"

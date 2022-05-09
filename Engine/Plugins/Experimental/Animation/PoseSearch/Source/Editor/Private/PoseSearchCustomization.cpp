@@ -11,7 +11,6 @@
 #include "ScopedTransaction.h"
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/UnrealType.h"
-#include "EditorStyleSet.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SWrapBox.h"

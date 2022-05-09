@@ -6,7 +6,6 @@
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "ViewModels/DMXPixelMappingPaletteViewModel.h"
 
-#include "EditorStyleSet.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableViewBase.h"

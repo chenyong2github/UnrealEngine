@@ -10,7 +10,7 @@ class FContextualAnimAssetEditorCommands : public TCommands<FContextualAnimAsset
 {
 public:
 	FContextualAnimAssetEditorCommands()
-		: TCommands<FContextualAnimAssetEditorCommands>(TEXT("ContextualAnimAssetEditor"), NSLOCTEXT("Contexts", "ContextualAnim", "Contextual Anim"), NAME_None, FAppStyle::GetStyleSetName())
+		: TCommands<FContextualAnimAssetEditorCommands>(TEXT("ContextualAnimAssetEditor"), NSLOCTEXT("Contexts", "ContextualAnim", "Contextual Anim"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

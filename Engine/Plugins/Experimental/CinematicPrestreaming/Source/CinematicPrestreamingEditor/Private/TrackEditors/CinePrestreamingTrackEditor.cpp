@@ -3,7 +3,7 @@
 #include "TrackEditors/CinePrestreamingTrackEditor.h"
 
 #include "CinePrestreamingData.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencerSection.h"
 #include "LevelSequence.h"

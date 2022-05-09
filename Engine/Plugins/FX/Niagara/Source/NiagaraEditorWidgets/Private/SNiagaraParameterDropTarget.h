@@ -10,7 +10,6 @@
 #include "Framework/SlateDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "EditorStyleSet.h"
 #include "Styling/StyleColors.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 

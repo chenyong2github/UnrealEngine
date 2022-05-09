@@ -2,7 +2,6 @@
 
 #include "AssetTools/MediaPlateActions.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "MediaPlateComponent.h"

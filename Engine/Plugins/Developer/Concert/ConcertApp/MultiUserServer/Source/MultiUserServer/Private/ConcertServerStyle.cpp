@@ -2,7 +2,6 @@
 
 #include "ConcertServerStyle.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyleRegistry.h"
