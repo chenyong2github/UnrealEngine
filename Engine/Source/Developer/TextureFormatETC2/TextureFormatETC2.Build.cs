@@ -22,13 +22,6 @@ public class TextureFormatETC2 : ModuleRules
 			"TextureBuild",
 		});
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "QualcommTextureConverter");
-		}
-		else
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "QualcommTextureConverter");
-		}
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "etc2comp");
 	}
 }
