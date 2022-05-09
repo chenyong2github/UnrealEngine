@@ -9,9 +9,9 @@ DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Axial Spring Constraint"), STAT_XPBD_AxialSp
 namespace Chaos::Softs
 {
 
-// Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
-static const FSolverReal XPBDAxialSpringMinStiffness = (FSolverReal)1e-1;
-static const FSolverReal XPBDAxialSpringMaxStiffness = (FSolverReal)1e7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2
+// Stiffness is in kg/s^2
+static const FSolverReal XPBDAxialSpringMinStiffness = (FSolverReal)1e-4; // Stiffness below this will be considered 0 since all of our calculations are actually based on 1 / stiffness.
+static const FSolverReal XPBDAxialSpringMaxStiffness = (FSolverReal)1e7;
 
 class FXPBDAxialSpringConstraints final : public FPBDAxialSpringConstraintsBase
 {
@@ -37,7 +37,7 @@ public:
 
 	virtual ~FXPBDAxialSpringConstraints() override {}
 
-	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDAxialSpringMinStiffness, XPBDAxialSpringMaxStiffness); }
+	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDAxialSpringMaxStiffness); }
 
 	void Init() const { for (FSolverReal& Lambda : Lambdas) { Lambda = (FSolverReal)0.; } }
 
@@ -47,6 +47,10 @@ public:
 		if (!Stiffness.HasWeightMap())
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
+			if (ExpStiffnessValue < XPBDAxialSpringMinStiffness)
+			{
+				return;
+			}
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
 				const TVector<int32, 3>& constraint = Constraints[ConstraintIndex];
@@ -97,7 +101,7 @@ public:
 	}
 
 private:
-	FSolverVec3 GetDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 InConstraintIndex, const FSolverReal ExpStiffnessValue) const
+	FSolverVec3 GetDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 InConstraintIndex, const FSolverReal StiffnessValue) const
 	{
 		const TVector<int32, 3>& Constraint = Constraints[InConstraintIndex];
 		const int32 i1 = Constraint[0];
@@ -106,7 +110,7 @@ private:
 
 		const FSolverReal Bary = Barys[InConstraintIndex];
 		const FSolverReal PInvMass = Particles.InvM(i3) * ((FSolverReal)1. - Bary) + Particles.InvM(i2) * Bary;
-		if (Particles.InvM(i1) == (FSolverReal)0. && PInvMass == (FSolverReal)0.)
+		if (StiffnessValue < XPBDAxialSpringMinStiffness || ( Particles.InvM(i1) == (FSolverReal)0. && PInvMass == (FSolverReal)0.))
 		{
 			return FSolverVec3((FSolverReal)0.);
 		}
@@ -128,7 +132,7 @@ private:
 		const FSolverReal Offset = (Distance - Dists[InConstraintIndex]);
 
 		FSolverReal& Lambda = Lambdas[InConstraintIndex];
-		const FSolverReal Alpha = (FSolverReal)1 / (ExpStiffnessValue * Dt * Dt);
+		const FSolverReal Alpha = (FSolverReal)1 / (StiffnessValue * Dt * Dt);
 
 		const FSolverReal DLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
 		const FSolverVec3 Delta = DLambda * Direction;

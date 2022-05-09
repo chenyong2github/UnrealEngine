@@ -128,7 +128,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
 	if (Cloth->EdgeStiffness[0] > (FRealSingle)0. || (Cloth->EdgeStiffness[1] > (FRealSingle)0. && EdgeStiffnessMultipliers.Num() == NumParticles))
 	{
-		ClothConstraints.SetEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, Cloth->bUseXPBDConstraints);
+		ClothConstraints.SetEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, Cloth->bUseXPBDEdgeConstraints);
 	}
 
 	// Bending constraints
@@ -140,12 +140,12 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 		if (Cloth->bUseBendingElements)
 		{
 			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), BendingStiffnessMultipliers, BucklingStiffnessMultipliers, Cloth->bUseXPBDConstraints);
+			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), BendingStiffnessMultipliers, BucklingStiffnessMultipliers, Cloth->bUseXPBDBendingConstraints);
 		}
 		else
 		{
 			const TArray<Chaos::TVec2<int32>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
-			ClothConstraints.SetBendingConstraints(Edges, BendingStiffnessMultipliers, Cloth->bUseXPBDConstraints);
+			ClothConstraints.SetBendingConstraints(Edges, BendingStiffnessMultipliers, Cloth->bUseXPBDBendingConstraints);
 		}
 	}
 
@@ -153,7 +153,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	const TConstArrayView<FRealSingle>& AreaStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AreaStiffness];
 	if (Cloth->AreaStiffness[0] > (FRealSingle)0. || (Cloth->AreaStiffness[1] > (FRealSingle)0. && AreaStiffnessMultipliers.Num() == NumParticles))
 	{
-		ClothConstraints.SetAreaConstraints(SurfaceElements, AreaStiffnessMultipliers, Cloth->bUseXPBDConstraints);
+		ClothConstraints.SetAreaConstraints(SurfaceElements, AreaStiffnessMultipliers, Cloth->bUseXPBDAreaConstraints);
 	}
 
 	// Volume constraints
@@ -355,7 +355,9 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const TVec2<FRealSingle>& InAnimDriveStiffness,
 	const TVec2<FRealSingle>& InAnimDriveDamping,
 	FRealSingle InShapeTargetStiffness,
-	bool bInUseXPBDConstraints,
+	bool bInUseXPBDEdgeConstraints,
+	bool bInUseXPBDBendingConstraints,
+	bool bInUseXPBDAreaConstraints,
 	FRealSingle InGravityScale,
 	bool bInIsGravityOverridden,
 	const TVec3<FRealSingle>& InGravityOverride,
@@ -399,7 +401,9 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, AnimDriveStiffness(InAnimDriveStiffness)
 	, AnimDriveDamping(InAnimDriveDamping)
 	, ShapeTargetStiffness(InShapeTargetStiffness)
-	, bUseXPBDConstraints(bInUseXPBDConstraints)
+	, bUseXPBDEdgeConstraints(bInUseXPBDEdgeConstraints)
+	, bUseXPBDBendingConstraints(bInUseXPBDBendingConstraints)
+	, bUseXPBDAreaConstraints(bInUseXPBDAreaConstraints)
 	, GravityScale(InGravityScale)
 	, bIsGravityOverridden(bInIsGravityOverridden)
 	, GravityOverride(InGravityOverride)

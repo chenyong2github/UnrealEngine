@@ -96,6 +96,10 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 		if (!Stiffness.HasWeightMap())
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
+			if (ExpStiffnessValue < XPBDSpringMinStiffness)
+			{
+				return;
+			}
 
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_XPBDSpring_ISPC_Enabled)
@@ -144,6 +148,7 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 						&Dists.GetData()[ColorStart],
 						&Lambdas.GetData()[ColorStart],
 						Dt,
+						XPBDSpringMinStiffness,
 						&Stiffness.GetIndices().GetData()[ColorStart],
 						&Stiffness.GetTable().GetData()[0],
 						ColorSize);
@@ -171,6 +176,10 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 		if (!Stiffness.HasWeightMap())
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
+			if (ExpStiffnessValue < XPBDSpringMinStiffness)
+			{
+				return;
+			}
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);

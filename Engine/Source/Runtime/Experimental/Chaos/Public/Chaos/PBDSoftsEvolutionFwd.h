@@ -47,6 +47,7 @@ namespace Chaos
 		class FPBDSpringConstraints;
 		class FXPBDSpringConstraints;
 		class FPBDBendingConstraints;
+		class FXPBDBendingConstraints;
 		class FPBDAxialSpringConstraints;
 		class FXPBDAxialSpringConstraints;
 		class FPBDVolumeConstraint;

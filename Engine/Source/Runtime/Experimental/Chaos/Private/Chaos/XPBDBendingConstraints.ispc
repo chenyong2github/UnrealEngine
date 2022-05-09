@@ -5,8 +5,6 @@
 #include "Math/Vector.isph"
 #include "Chaos/PBDSofts.isph"
 
-static const uniform float SingleStepAngleLimit = FLOAT_PI * .25f;
-
 static inline FVector3f SafeDivide(const FVector3f& Numerator, const float Denominator)
 {
 	return VectorSelect(Denominator <= FLOAT_SMALL_NUMBER, FloatZeroVector, Numerator / Denominator);
@@ -50,9 +48,12 @@ static inline float CalcGradientsAndAngle(const FVector3f& P1, const FVector3f& 
 }
 
 
-export void ApplyBendingConstraints(uniform FVector4f PandInvM[],
+export void ApplyXPBDBendingConstraints(uniform FVector4f PandInvM[],
 									const uniform FIntVector4 Constraints[],
 									const uniform float RestAngles[],
+									uniform float Lambdas[],
+									const uniform float Dt,
+									const uniform float MinStiffness,
 									const uniform float Stiffness,
 									const uniform float BucklingRatio,
 									const uniform float BucklingStiffness,
@@ -67,10 +68,10 @@ export void ApplyBendingConstraints(uniform FVector4f PandInvM[],
 		const varying int32 i2 = Constraint.V[1];
 		const varying int32 i3 = Constraint.V[2];
 		const varying int32 i4 = Constraint.V[3];
-
+		
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
 		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
 		const varying FVector4f PandInvM3 = VectorGather(&PandInvM[i3]);
-		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
 		const varying FVector4f PandInvM4 = VectorGather(&PandInvM[i4]);
 
 		varying FVector3f P1, P2, P3, P4;
@@ -81,42 +82,46 @@ export void ApplyBendingConstraints(uniform FVector4f PandInvM[],
 		UnzipPandInvM(PandInvM3, P3, M3);
 		UnzipPandInvM(PandInvM4, P4, M4);
 
-
 		varying FVector3f Grad1, Grad2, Grad3, Grad4;
 		const varying float Angle = CalcGradientsAndAngle(P1, P2, P3, P4, Grad1, Grad2, Grad3, Grad4);
-
-		const varying float Denom = M1 * VectorSizeSquared(Grad1) + M2 * VectorSizeSquared(Grad2) + M3 * VectorSizeSquared(Grad3) + M4 * VectorSizeSquared(Grad4);
 		
 		const varying float RestAngle = RestAngles[i];
 		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
-		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
+		const varying float StiffnessValue = Stiffness;//VectorSelect(AngleIsBuckled, BucklingStiffness, Stiffness);
+		
+		const varying float Lambda = Lambdas[i];
+		const varying float Alpha  = 1.f / (StiffnessValue * Dt * Dt);
+		const varying float Denom = M1 * VectorSizeSquared(Grad1) + M2 * VectorSizeSquared(Grad2) + M3 * VectorSizeSquared(Grad3) + M4 * VectorSizeSquared(Grad4) + Alpha;
 
-		const varying float Delta = clamp(StiffnessValue * (Angle - RestAngle), -SingleStepAngleLimit, SingleStepAngleLimit);
-
-		const varying float S = SafeDivide(Delta, Denom);
+		const varying float ComputedDLambda = (Angle - RestAngle - Alpha * Lambda) / Denom;
+		const varying float DLambda = select(StiffnessValue < MinStiffness, (uniform float)0, ComputedDLambda);
+		Lambdas[i] = Lambda + DLambda;
 
 		if (M1 > 0)
 		{
-			VectorScatter(&PandInvM[i1], SetVector4(P1 - S * M1 * Grad1, M1));
+			VectorScatter(&PandInvM[i1], SetVector4(P1 - DLambda * M1 * Grad1, M1));
 		}
 		if (M2 > 0)
 		{
-			VectorScatter(&PandInvM[i2], SetVector4(P2 - S * M2 * Grad2, M2));
+			VectorScatter(&PandInvM[i2], SetVector4(P2 - DLambda * M2 * Grad2, M2));
 		}
 		if (M3 > 0)
 		{
-			VectorScatter(&PandInvM[i3], SetVector4(P3 - S * M3 * Grad3, M3));
+			VectorScatter(&PandInvM[i3], SetVector4(P3 - DLambda * M3 * Grad3, M3));
 		}
 		if (M4 > 0)
 		{
-			VectorScatter(&PandInvM[i4], SetVector4(P4 - S * M4 * Grad4, M4));
+			VectorScatter(&PandInvM[i4], SetVector4(P4 - DLambda * M4 * Grad4, M4));
 		}
 	}
 }
 
-export void ApplyBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
+export void ApplyXPBDBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 											const uniform FIntVector4 Constraints[],
 											const uniform float RestAngles[],
+											uniform float Lambdas[],
+											const uniform float Dt,
+											const uniform float MinStiffness,
 											const uniform bool StiffnessHasMap,
 											const uniform uint8 StiffnessIndices[],
 											const uniform float StiffnessTable[],
@@ -154,37 +159,39 @@ export void ApplyBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 
 		varying FVector3f Grad1, Grad2, Grad3, Grad4;
 		const varying float Angle = CalcGradientsAndAngle(P1, P2, P3, P4, Grad1, Grad2, Grad3, Grad4);
-
-		const varying float Denom = M1 * VectorSizeSquared(Grad1) + M2 * VectorSizeSquared(Grad2) + M3 * VectorSizeSquared(Grad3) + M4 * VectorSizeSquared(Grad4);
 		
 		#pragma ignore warning(perf)
 		const varying float Stiffness = StiffnessTable[StiffnessIndex];
 		#pragma ignore warning(perf)
 		const varying float BucklingStiffness = BucklingStiffnessTable[BucklingStiffnessIndex];
-
+		
 		const varying float RestAngle = RestAngles[i];
 		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
 		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
+		
+		const varying float Lambda = Lambdas[i];
+		const varying float Alpha  = 1.f / (StiffnessValue * Dt * Dt);
+		const varying float Denom = M1 * VectorSizeSquared(Grad1) + M2 * VectorSizeSquared(Grad2) + M3 * VectorSizeSquared(Grad3) + M4 * VectorSizeSquared(Grad4) + Alpha;
 
-		const varying float Delta = clamp(StiffnessValue * (Angle - RestAngle), -SingleStepAngleLimit, SingleStepAngleLimit);
-
-		const varying float S = SafeDivide(Delta, Denom);
+		const varying float ComputedDLambda = (Angle - RestAngle - Alpha * Lambda) / Denom;
+		const varying float DLambda = select( StiffnessValue < MinStiffness, (uniform float)0, ComputedDLambda);
+		Lambdas[i] = Lambda + DLambda;
 
 		if (M1 > 0)
 		{
-			VectorScatter(&PandInvM[i1], SetVector4(P1 - S * M1 * Grad1, M1));
+			VectorScatter(&PandInvM[i1], SetVector4(P1 - DLambda * M1 * Grad1, M1));
 		}
 		if (M2 > 0)
 		{
-			VectorScatter(&PandInvM[i2], SetVector4(P2 - S * M2 * Grad2, M2));
+			VectorScatter(&PandInvM[i2], SetVector4(P2 - DLambda * M2 * Grad2, M2));
 		}
 		if (M3 > 0)
 		{
-			VectorScatter(&PandInvM[i3], SetVector4(P3 - S * M3 * Grad3, M3));
+			VectorScatter(&PandInvM[i3], SetVector4(P3 - DLambda * M3 * Grad3, M3));
 		}
 		if (M4 > 0)
 		{
-			VectorScatter(&PandInvM[i4], SetVector4(P4 - S * M4 * Grad4, M4));
+			VectorScatter(&PandInvM[i4], SetVector4(P4 - DLambda * M4 * Grad4, M4));
 		}
 	}
 }

@@ -78,6 +78,7 @@ namespace Chaos
 		const TSharedPtr<Softs::FPBDSpringConstraints>& GetBendingConstraints() const { return BendingConstraints; }  
 		const TSharedPtr<Softs::FXPBDSpringConstraints>& GetXBendingConstraints() const { return XBendingConstraints; }
 		const TSharedPtr<Softs::FPBDBendingConstraints>& GetBendingElementConstraints() const { return BendingElementConstraints; }
+		const TSharedPtr<Softs::FXPBDBendingConstraints>& GetXBendingElementConstraints() const { return XBendingElementConstraints; }
 		const TSharedPtr<Softs::FPBDAxialSpringConstraints>& GetAreaConstraints() const { return AreaConstraints; }
 		const TSharedPtr<Softs::FXPBDAxialSpringConstraints>& GetXAreaConstraints() const { return XAreaConstraints; }
 		const TSharedPtr<Softs::FPBDSpringConstraints>& GetThinShellVolumeConstraints() const { return ThinShellVolumeConstraints; }
@@ -105,6 +106,7 @@ namespace Chaos
 		TSharedPtr<Softs::FPBDSpringConstraints> BendingConstraints;
 		TSharedPtr<Softs::FXPBDSpringConstraints> XBendingConstraints;
 		TSharedPtr<Softs::FPBDBendingConstraints> BendingElementConstraints;
+		TSharedPtr<Softs::FXPBDBendingConstraints> XBendingElementConstraints;
 		TSharedPtr<Softs::FPBDAxialSpringConstraints> AreaConstraints;
 		TSharedPtr<Softs::FXPBDAxialSpringConstraints> XAreaConstraints;
 		TSharedPtr<Softs::FPBDSpringConstraints> ThinShellVolumeConstraints;

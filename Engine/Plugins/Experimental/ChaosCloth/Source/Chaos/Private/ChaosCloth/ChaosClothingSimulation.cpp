@@ -33,6 +33,7 @@
 #include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/PBDBendingConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
+#include "Chaos/XPBDBendingConstraints.h"
 #include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
@@ -151,6 +152,7 @@ namespace ClothingSimulationConsole
 					bChaos_PostIterationUpdates_ISPC_Enabled =
 					bChaos_Bending_ISPC_Enabled =
 					bChaos_XPBDSpring_ISPC_Enabled =
+					bChaos_XPBDBending_ISPC_Enabled =
 					bEnableISPC;
 				return;
 			}
@@ -412,7 +414,9 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
 		TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
 		ClothConfig->ShapeTargetStiffness,  // TODO: This is now deprecated
-		/*bUseXPBDConstraints =*/ false,  // Experimental
+		false, // bUseXPBDEdgeSprings
+		false, // bUseXPBDBendingElements
+		false, // bUseXPBDAreaSprings
 		ClothConfig->GravityScale,
 		ClothConfig->bUseGravityOverride,
 		ClothConfig->Gravity,
@@ -839,7 +843,9 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
 			TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
 			ClothConfig->ShapeTargetStiffness,
-			/*bUseXPBDConstraints =*/ false,  // Experimental
+			false, // bUseXPBDEdgeSprings
+			false, // bUseXPBDBendingElements
+			false, // bUseXPBDAreaSprings
 			ClothConfig->GravityScale,
 			ClothConfig->bUseGravityOverride,
 			ClothConfig->Gravity,
@@ -1866,6 +1872,29 @@ void FClothingSimulation::DebugDrawBendingConstraint(FPrimitiveDrawInterface* PD
 				const Softs::FSolverVec3& P4 = Positions[Constraints[ConstraintIndex][3]];
 				const Softs::FSolverReal Angle = Softs::FPBDBendingConstraintsBase::CalcAngle(P1, P2, P3, P4);
 				
+				const bool bIsBuckled = BendingConstraints->AngleIsBuckled(Angle, RestAngles[ConstraintIndex]);
+
+				const FVec3 Pos0 = FVec3(P1) + LocalSpaceLocation;
+				const FVec3 Pos1 = FVec3(P2) + LocalSpaceLocation;
+				DrawLine(PDI, Pos0, Pos1, bIsBuckled ? FLinearColor::Red : FLinearColor::Blue);
+			}
+		}
+
+		if (const Softs::FXPBDBendingConstraints* const BendingConstraints = ClothConstraints.GetXBendingElementConstraints().Get())
+		{
+			const TArray<TVec4<int32>>& Constraints = BendingConstraints->GetConstraints();
+			const TArray<FSolverReal>& RestAngles = BendingConstraints->GetRestAngles();
+
+			// Color constraint edge with red or blue: Red = Buckled, Blue = Not Buckled. This is based on its current configuration, not the values used
+			// in the actual simulation.
+			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+			{
+				const Softs::FSolverVec3& P1 = Positions[Constraints[ConstraintIndex][0]];
+				const Softs::FSolverVec3& P2 = Positions[Constraints[ConstraintIndex][1]];
+				const Softs::FSolverVec3& P3 = Positions[Constraints[ConstraintIndex][2]];
+				const Softs::FSolverVec3& P4 = Positions[Constraints[ConstraintIndex][3]];
+				const Softs::FSolverReal Angle = Softs::FPBDBendingConstraintsBase::CalcAngle(P1, P2, P3, P4);
+
 				const bool bIsBuckled = BendingConstraints->AngleIsBuckled(Angle, RestAngles[ConstraintIndex]);
 
 				const FVec3 Pos0 = FVec3(P1) + LocalSpaceLocation;

@@ -69,6 +69,7 @@ export void ApplyXPBDSpringConstraintsWithWeightMaps(uniform FVector4f PandInvM[
 									const uniform float Dists[],
 									uniform float Lambdas[],
 									const uniform float Dt,
+									const uniform float MinStiffness,
 									const uniform uint8 StiffnessIndices[],
 									const uniform float StiffnessTable[],
 									const uniform int32 NumConstraints)
@@ -108,7 +109,7 @@ export void ApplyXPBDSpringConstraintsWithWeightMaps(uniform FVector4f PandInvM[
 
 		const FVector3f ComputedDelta = DLambda * Direction;
 
-		const FVector3f Delta = VectorSelect((InvM2 == FLOAT_ZERO && InvM1 == FLOAT_ZERO), FloatZeroVector, ComputedDelta);
+		const FVector3f Delta = VectorSelect(Stiffness < MinStiffness || (InvM2 == FLOAT_ZERO && InvM1 == FLOAT_ZERO), FloatZeroVector, ComputedDelta);
 
 		if (InvM1 > FLOAT_ZERO)
 		{

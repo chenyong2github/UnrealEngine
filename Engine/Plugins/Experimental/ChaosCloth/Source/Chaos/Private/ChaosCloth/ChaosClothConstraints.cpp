@@ -3,6 +3,7 @@
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
+#include "Chaos/XPBDBendingConstraints.h"
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/XPBDAxialSpringConstraints.h"
 #include "Chaos/PBDVolumeConstraint.h"
@@ -166,6 +167,20 @@ void FClothConstraints::CreateRules()
 			{
 				BendingElementConstraints->Apply(Particles, Dt);
 			};
+	}
+	if (XBendingElementConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+		{
+			XBendingElementConstraints->Init();
+			XBendingElementConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+		};
+		ConstraintRules[ConstraintRuleIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+		{
+			XBendingElementConstraints->Apply(Particles, Dt);
+		};
 	}
 	if (XAreaConstraints)
 	{
@@ -356,17 +371,33 @@ void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElem
 {
 	check(Evolution);
 
-	// TODO Add XPBD
-	BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
-		Evolution->Particles(),
-		ParticleOffset, NumParticles,
-		MoveTemp(BendingElements),
-		StiffnessMultipliers,
-		BucklingStiffnessMultipliers,
-		/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
-		/*InBucklingRatio=*/ (Softs::FSolverReal)0.f,
-		/*InBucklingStiffnessMultiplier =*/ Softs::FSolverVec2::UnitVector,
-		/*bTrimKinematicConstraints =*/ true);
+	if (bUseXPBDConstraints)
+	{
+		XBendingElementConstraints = MakeShared<Softs::FXPBDBendingConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			MoveTemp(BendingElements),
+			StiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
+			/*InBucklingRatio=*/ (Softs::FSolverReal)0.f,
+			/*InBucklingStiffnessMultiplier =*/ Softs::FSolverVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
+	}
+	else
+	{
+		BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			MoveTemp(BendingElements),
+			StiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
+			/*InBucklingRatio=*/ (Softs::FSolverReal)0.f,
+			/*InBucklingStiffnessMultiplier =*/ Softs::FSolverVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
+
+	}
 	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
@@ -558,6 +589,10 @@ void FClothConstraints::SetBendingProperties(const Softs::FSolverVec2& BendingSt
 	if (BendingElementConstraints)
 	{
 		BendingElementConstraints->SetProperties(BendingStiffness, BucklingRatio, BucklingStiffness);
+	}
+	if (XBendingElementConstraints)
+	{
+		XBendingElementConstraints->SetProperties(BendingStiffness, BucklingRatio, BucklingStiffness);
 	}
 }
 

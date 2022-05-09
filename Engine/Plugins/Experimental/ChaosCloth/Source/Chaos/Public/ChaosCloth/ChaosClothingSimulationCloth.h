@@ -48,7 +48,9 @@ namespace Chaos
 			const TVec2<FRealSingle>& InAnimDriveStiffness,
 			const TVec2<FRealSingle>& InAnimDriveDamping,
 			FRealSingle InShapeTargetStiffness,
-			bool bInUseXPBDConstraints,
+			bool bInUseXPBDEdgeConstraints,
+			bool bInUseXPBDBendingConstraints,
+			bool bInUseXPBDAreaConstraints,
 			FRealSingle InGravityScale,
 			bool bIsGravityOverridden,
 			const TVec3<FRealSingle>& InGravityOverride,
@@ -212,7 +214,9 @@ namespace Chaos
 		TVec2<FRealSingle> AnimDriveStiffness;  // Animatable
 		TVec2<FRealSingle> AnimDriveDamping;  // Animatable
 		FRealSingle ShapeTargetStiffness;
-		bool bUseXPBDConstraints;
+		bool bUseXPBDEdgeConstraints;
+		bool bUseXPBDBendingConstraints;
+		bool bUseXPBDAreaConstraints;
 		FRealSingle GravityScale;
 		bool bIsGravityOverridden;
 		TVec3<FRealSingle> GravityOverride;
