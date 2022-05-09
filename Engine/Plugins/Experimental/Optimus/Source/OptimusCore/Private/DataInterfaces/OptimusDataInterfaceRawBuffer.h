@@ -2,19 +2,19 @@
 
 #pragma once
 
-#include "OptimusComputeDataInterface.h"
-#include "OptimusDataDomain.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "OptimusComputeDataInterface.h"
+#include "OptimusDataDomain.h"
 
 #include "OptimusDataInterfaceRawBuffer.generated.h"
 
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
+class FOptimusPersistentBufferPool;
 class UOptimusRawBufferDataProvider;
 class USkinnedMeshComponent;
-struct FOptimusPersistentBufferPool;
 
 UCLASS(Abstract)
 class OPTIMUSCORE_API UOptimusRawBufferDataInterface : public UOptimusComputeDataInterface
@@ -208,5 +208,6 @@ private:
 	const int32 ElementStride;
 	const TArray<int32> InvocationElementCount;
 
-	bool bResourcesAllocated = false;
+	TArray<FRDGBuffer*> Buffers;
+	TArray<FRDGBufferUAV*> BufferUAVs;
 };

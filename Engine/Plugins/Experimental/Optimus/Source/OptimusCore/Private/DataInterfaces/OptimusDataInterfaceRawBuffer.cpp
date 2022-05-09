@@ -127,7 +127,7 @@ void UOptimusTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID,
 BEGIN_SHADER_PARAMETER_STRUCT(FPersistentBufferDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, StartOffset)
 	SHADER_PARAMETER(uint32, BufferSize)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<int>, BufferUAV)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<int>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -304,6 +304,12 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	FRDGBuilder& GraphBuilder
 	)
 {
+	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, ElementStride, InvocationElementCount, Buffers);
+	BufferUAVs.Reserve(Buffers.Num());
+	for (FRDGBufferRef BufferRef : Buffers)
+	{
+		BufferUAVs.Add(GraphBuilder.CreateUAV(BufferRef, PF_R32_FLOAT));
+	}
 }
 
 
@@ -317,8 +323,7 @@ void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(
 		return;
 	}
 
-	const TArray<FOptimusPersistentStructuredBufferPtr>& Buffers = BufferPool->GetResourceBuffers(ResourceName, ElementStride, InvocationElementCount);
-	if (Buffers.Num() != InvocationElementCount.Num())
+	if (!ensure(Buffers.Num() == InvocationElementCount.Num()))
 	{
 		return;
 	}
@@ -330,7 +335,7 @@ void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(
 		
 		Parameters->StartOffset = 0;
 		Parameters->BufferSize = InvocationElementCount[InvocationIndex];
-		Parameters->BufferUAV = Buffers[InvocationIndex]->GetUAV();
+		Parameters->BufferUAV = BufferUAVs[InvocationIndex];
 	}
 
 	FComputeDataProviderRenderProxy::GatherDispatchData(InDispatchSetup, InOutDispatchData);

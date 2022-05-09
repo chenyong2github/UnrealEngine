@@ -8,92 +8,79 @@
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
+#include "RenderGraphBuilder.h"
 
 
-void FOptimusPersistentStructuredBuffer::InitRHI()
+/** Container for a pooled buffer. */
+struct FOptimusPersistentStructuredBuffer
 {
-	if (ElementCount > 0)
-	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("PersistentStructuredBuffer"));
-		Buffer = RHICreateStructuredBuffer(
-			ElementStride, ElementStride * ElementCount,
-			BUF_ShaderResource | BUF_UnorderedAccess,
-			CreateInfo);
-
-		BufferUAV = RHICreateUnorderedAccessView(Buffer, false, false);
-	}
-}
+	TRefCountPtr<FRDGPooledBuffer> PooledBuffer;
+	int32 ElementStride = 0;
+	int32 ElementCount = 0;
+};
 
 
-void FOptimusPersistentStructuredBuffer::ReleaseRHI()
+void FOptimusPersistentBufferPool::GetResourceBuffers(
+	FRDGBuilder& GraphBuilder,
+	FName InResourceName,
+	int32 InElementStride,
+	TArray<int32> const& InElementCounts,
+	TArray<FRDGBufferRef>& OutBuffers)
 {
-	BufferUAV.SafeRelease();
-	Buffer.SafeRelease();
-}
+	OutBuffers.Reset();
 
-
-const TArray<FOptimusPersistentStructuredBufferPtr>& FOptimusPersistentBufferPool::GetResourceBuffers(
-	FName InResourceName, 
-	int32 InElementStride, 
-	TArray<int32> InInvocationElementCount
-	)
-{
-	check(IsInRenderingThread());
-
-	TArray<FOptimusPersistentStructuredBufferPtr>* ResourceBuffersPtr = ResourceBuffersMap.Find(InResourceName);
+	TArray<FOptimusPersistentStructuredBuffer>* ResourceBuffersPtr = ResourceBuffersMap.Find(InResourceName);
 	if (ResourceBuffersPtr == nullptr)
 	{
-		TArray<FOptimusPersistentStructuredBufferPtr> ResourceBuffers;
+		// Create pooled buffers and store.
+		TArray<FOptimusPersistentStructuredBuffer> ResourceBuffers;
+		ResourceBuffers.Reserve(InElementCounts.Num());
 
-		for (int32 Index = 0; Index < InInvocationElementCount.Num(); Index++)
+		for (int32 Index = 0; Index < InElementCounts.Num(); Index++)
 		{
-			FOptimusPersistentStructuredBufferPtr BufferPtr = MakeShared<FOptimusPersistentStructuredBuffer>(InInvocationElementCount[Index], InElementStride);
-			BufferPtr->InitRHI();
-			ResourceBuffers.Add(BufferPtr);
+			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(InElementStride, InElementCounts[Index]);
+			FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("FOptimusPersistentBuffer"), ERDGBufferFlags::None);
+			OutBuffers.Add(Buffer);
+
+			FOptimusPersistentStructuredBuffer& PersistentBuffer = ResourceBuffers.AddDefaulted_GetRef();
+			PersistentBuffer.ElementStride = InElementStride;
+			PersistentBuffer.ElementCount = InElementCounts[Index];
+			PersistentBuffer.PooledBuffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
 		}
 
-		return ResourceBuffersMap.Add(InResourceName, MoveTemp(ResourceBuffers));
+		ResourceBuffersMap.Add(InResourceName, MoveTemp(ResourceBuffers));
 	}
 	else
 	{
-		static TArray<FOptimusPersistentStructuredBufferPtr> EmptyArray;
-		
-		// Verify that the buffers are correct based on the incoming information. If there's a
-		// mismatch, then something has gone wrong upstream (either duplicated names, missing
-		// resource clearing on recompile, or something else).
-		if (!ensure(ResourceBuffersPtr->Num() == InInvocationElementCount.Num()))
+		// Verify that the buffers are correct based on the incoming information. 
+		// If there's a mismatch, then something has gone wrong upstream.
+		// Maybe either duplicated names, missing resource clearing on recompile, or something else.
+		if (!ensure(ResourceBuffersPtr->Num() == InElementCounts.Num()))
 		{
-			return EmptyArray;
+			return;
 		}
 
 		for (int32 Index = 0; Index < ResourceBuffersPtr->Num(); Index++)
 		{
-			FOptimusPersistentStructuredBufferPtr BufferPtr = (*ResourceBuffersPtr)[Index];
-			if (!ensure(BufferPtr.IsValid()) ||
-				!ensure(BufferPtr->GetElementStride() == InElementStride) ||
-				!ensure(BufferPtr->GetElementCount() == InInvocationElementCount[Index]))
+			FOptimusPersistentStructuredBuffer& PersistentBuffer = (*ResourceBuffersPtr)[Index];
+			if (!ensure(PersistentBuffer.PooledBuffer.IsValid()) ||
+				!ensure(PersistentBuffer.ElementStride == InElementStride) ||
+				!ensure(PersistentBuffer.ElementCount == InElementCounts[Index]))
 			{
-				return EmptyArray;
+				OutBuffers.Reset();
+				return;
 			}	
-		}
 
-		return *ResourceBuffersPtr;
+			// Register buffer back into the graph and return it.
+			FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(PersistentBuffer.PooledBuffer);
+			OutBuffers.Add(Buffer);
+		}
 	}
 }
-
 
 void FOptimusPersistentBufferPool::ReleaseResources()
 {
 	check(IsInRenderingThread());
-
-	for (TTuple<FName, TArray<FOptimusPersistentStructuredBufferPtr>>& ResourceBuffersInfo: ResourceBuffersMap)
-	{
-		for (const FOptimusPersistentStructuredBufferPtr& BufferPtr: ResourceBuffersInfo.Value)
-		{
-			BufferPtr->ReleaseRHI();
-		}
-	}
-
 	ResourceBuffersMap.Reset();
 }
 

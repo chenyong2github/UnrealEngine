@@ -4,72 +4,39 @@
 
 #include "Animation/MeshDeformerInstance.h"
 #include "ComputeFramework/ComputeGraphInstance.h"
-#include "RenderResource.h"
 
 #include "OptimusDeformerInstance.generated.h"
 
 enum class EOptimusNodeGraphType;
+struct FOptimusPersistentStructuredBuffer;
+class FRDGBuffer;
+class FRDGBuilder;
 class UMeshComponent;
-class UOptimusComputeDataInterface;
-class UOptimusVariableDescription;
 class UOptimusDeformer;
-class UOptimusNode_ConstantValue;
 class UOptimusVariableContainer;
-struct FShaderValueType;
+class UOptimusVariableDescription;
 
-
-class FOptimusPersistentStructuredBuffer :
-	public FRenderResource
+class FOptimusPersistentBufferPool
 {
 public:
-	FOptimusPersistentStructuredBuffer(int32 InElementCount, int32 InElementStride) :
-		ElementCount(InElementCount),
-		ElementStride(InElementStride)
-	{
-	}
-	
-	/** Allocate a structured buffer with the given element count and stride.
-	  * Note: Should only be called from the render thread.
-	  */
-	void InitRHI() override;
-
-	/** Release the structured buffer, leaving the UAV in a null state */
-	void ReleaseRHI() override;
-
-	FString GetFriendlyName() const override { return TEXT("FPersistentStructuredBuffer"); }
-
-	FUnorderedAccessViewRHIRef GetUAV() const { return BufferUAV; }
-
-	int32 GetElementCount() const { return ElementCount; }
-	int32 GetElementStride() const { return ElementStride; }
-	
-private:
-	int32 ElementCount = 0;
-	int32 ElementStride = 0;
-	FBufferRHIRef Buffer;
-	FUnorderedAccessViewRHIRef BufferUAV;
-};
-
-using FOptimusPersistentStructuredBufferPtr = TSharedPtr<FOptimusPersistentStructuredBuffer>;
-
-struct FOptimusPersistentBufferPool
-{
-	/** Allocate buffers for the given resource. If the buffer already exists but has different
-	  * sizing characteristics, the allocation fails. The number of buffers will equal the
-	  * size of the InInvocationElementCount array, but if the allocation fails, the returned
-	  * array will be empty.
-	  */
-	const TArray<FOptimusPersistentStructuredBufferPtr>& GetResourceBuffers(
+	/** 
+	 * Get or allocate buffers for the given resource
+	 * If the buffer already exists but has different sizing characteristics the allocation fails. 
+	 * The number of buffers will equal the size of the InElementCount array.
+	 * But if the allocation fails, the returned array will be empty.
+	 */
+	void GetResourceBuffers(
+		FRDGBuilder& GraphBuilder,
 		FName InResourceName,
 		int32 InElementStride,
-		TArray<int32> InInvocationElementCount
-		);
+		TArray<int32> const& InElementCounts,
+		TArray<FRDGBuffer*>& OutBuffers );
 
 	/** Release _all_ resources allocated by this pool */
 	void ReleaseResources();
 	
 private:
-	TMap<FName, TArray<FOptimusPersistentStructuredBufferPtr>> ResourceBuffersMap;    
+	TMap<FName, TArray<FOptimusPersistentStructuredBuffer>> ResourceBuffersMap;
 };
 using FOptimusPersistentBufferPoolPtr = TSharedPtr<FOptimusPersistentBufferPool>;
 
@@ -175,9 +142,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UOptimusVariableContainer> Variables;
 	
-	UPROPERTY()
-	TArray<TObjectPtr<UOptimusComputeDataInterface>> RetainedDataInterfaces;
-
 	// List of graphs that should be run on the next tick. 
 	TSet<FName> GraphsToRunOnNextTick;
 	FCriticalSection GraphsToRunOnNextTickLock;
