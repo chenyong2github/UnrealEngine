@@ -93,7 +93,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboards(const TArray<FUniqueNetIdRef>& Pla
 	for (const FUniqueNetIdRef& NetId : Players)
 	{
 		const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*NetId);
-		EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
+		const EOS_ProductUserId UserId = EOSId.GetProductUserId();
 		if (UserId != nullptr)
 		{
 			ProductUserIds.Add(UserId);
@@ -134,7 +134,8 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboards(const TArray<FUniqueNetIdRef>& Pla
 		for (FUniqueNetIdRef NetId : QueryContext->Players)
 		{
 			FString Nickname = EOSSubsystem->UserManager->GetPlayerNickname(*NetId);
-			EOS_ProductUserId UserId = EOSSubsystem->UserManager->GetProductUserId(*NetId);
+			const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*NetId);
+			const EOS_ProductUserId UserId = EOSId.GetProductUserId();
 			if (UserId == nullptr)
 			{
 				QueryContext->AddEmptyRowForPlayer(NetId, Nickname);

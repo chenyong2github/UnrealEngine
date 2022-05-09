@@ -2431,10 +2431,12 @@ bool FOnlineSessionEOS::FindFriendSession(int32 LocalUserNum, const FUniqueNetId
 	EOS_EResult CreateLobbySearchResult = EOS_Lobby_CreateLobbySearch(LobbyHandle, &CreateLobbySearchOptions, &LobbySearchHandle);
 	if (CreateLobbySearchResult == EOS_EResult::EOS_Success)
 	{
+		const FUniqueNetIdEOS& FriendEOSId = FUniqueNetIdEOS::Cast(Friend);
+
 		// Set the user we wan to use to find lobbies
 		EOS_LobbySearch_SetTargetUserIdOptions SetTargetUserIdOptions = { 0 };
 		SetTargetUserIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
-		SetTargetUserIdOptions.TargetUserId = EOSSubsystem->UserManager->GetProductUserId(Friend);
+		SetTargetUserIdOptions.TargetUserId = FriendEOSId.GetProductUserId();
 
 		// TODO: Using this as a search parameter only works if we use the owner's id (search for lobbies we're already in). Pending API fix so it works with other users too.
 		EOS_LobbySearch_SetTargetUserId(LobbySearchHandle, &SetTargetUserIdOptions);
@@ -2572,32 +2574,35 @@ bool FOnlineSessionEOS::SendSessionInviteToFriend(int32 LocalUserNum, FName Sess
 		UE_LOG_ONLINE_SESSION(Error, TEXT("SendSessionInviteToFriend() failed due to user (%d) being not logged in"), (int32)LocalUserNum);
 		return false;
 	}
-	EOS_ProductUserId TargetUserId = EOSSubsystem->UserManager->GetProductUserId(Friend);
-	if (TargetUserId == nullptr)
+	const FUniqueNetIdEOS& FriendEOSId = FUniqueNetIdEOS::Cast(Friend);
+	const EOS_ProductUserId FriendId = FriendEOSId.GetProductUserId();
+	if (EOS_ProductUserId_IsValid(FriendId) == EOS_FALSE)
 	{
 		UE_LOG_ONLINE_SESSION(Error, TEXT("SendSessionInviteToFriend() failed due to target user (%s) having not played this game"), *Friend.ToDebugString());
 		return false;
 	}
 
-	return SendSessionInvite(SessionName, LocalUserId, TargetUserId);
+	return SendSessionInvite(SessionName, LocalUserId, FriendId);
 };
 
 bool FOnlineSessionEOS::SendSessionInviteToFriend(const FUniqueNetId& LocalNetId, FName SessionName, const FUniqueNetId& Friend)
 {
-	EOS_ProductUserId LocalUserId = EOSSubsystem->UserManager->GetProductUserId(LocalNetId);
-	if (LocalUserId == nullptr)
+	const FUniqueNetIdEOS& LocalEOSId = FUniqueNetIdEOS::Cast(LocalNetId);
+	const EOS_ProductUserId LocalUserId = LocalEOSId.GetProductUserId();
+	if (EOS_ProductUserId_IsValid(LocalUserId) == EOS_FALSE)
 	{
 		UE_LOG_ONLINE_SESSION(Error, TEXT("SendSessionInviteToFriend() failed due to user (%s) being not logged in"), *LocalNetId.ToDebugString());
 		return false;
 	}
-	EOS_ProductUserId TargetUserId = EOSSubsystem->UserManager->GetProductUserId(Friend);
-	if (TargetUserId == nullptr)
+	const FUniqueNetIdEOS& FriendEOSId = FUniqueNetIdEOS::Cast(Friend);
+	const EOS_ProductUserId FriendId = FriendEOSId.GetProductUserId();
+	if (EOS_ProductUserId_IsValid(FriendId) == EOS_FALSE)
 	{
 		UE_LOG_ONLINE_SESSION(Error, TEXT("SendSessionInviteToFriend() failed due to target user (%s) having not played this game"), *Friend.ToDebugString());
 		return false;
 	}
 
-	return SendSessionInvite(SessionName, LocalUserId, TargetUserId);
+	return SendSessionInvite(SessionName, LocalUserId, FriendId);
 }
 
 bool FOnlineSessionEOS::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
@@ -2750,6 +2755,7 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUnique
 		for (int32 PlayerIdx=0; PlayerIdx<Players.Num(); PlayerIdx++)
 		{
 			const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
+			const FUniqueNetIdEOS& PlayerEOSId = FUniqueNetIdEOS::Cast(*PlayerId);
 
 			FUniqueNetIdMatcher PlayerMatch(*PlayerId);
 			if (Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch) == INDEX_NONE)
@@ -2757,7 +2763,7 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUnique
 				Session->RegisteredPlayers.Add(PlayerId);
 				if (bRegisterEOS)
 				{
-					EOSIds.Add(EOSSubsystem->UserManager->GetProductUserId(*PlayerId));
+					EOSIds.Add(PlayerEOSId.GetProductUserId());
 				}
 
 				// update number of open connections
@@ -2833,6 +2839,7 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniq
 		for (int32 PlayerIdx=0; PlayerIdx < Players.Num(); PlayerIdx++)
 		{
 			const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
+			const FUniqueNetIdEOS& PlayerEOSId = FUniqueNetIdEOS::Cast(*PlayerId);
 
 			FUniqueNetIdMatcher PlayerMatch(*PlayerId);
 			int32 RegistrantIndex = Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch);
@@ -2841,7 +2848,7 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniq
 				Session->RegisteredPlayers.RemoveAtSwap(RegistrantIndex);
 				if (bUnregisterEOS)
 				{
-					EOSIds.Add(EOSSubsystem->UserManager->GetProductUserId(*PlayerId));
+					EOSIds.Add(PlayerEOSId.GetProductUserId());
 				}
 
 				// update number of open connections
@@ -3219,12 +3226,14 @@ void FOnlineSessionEOS::RemovePlayerFromSession(int32 LocalUserNum, FName Sessio
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
 	if (Session)
 	{
+		const FUniqueNetIdEOS& TargetPlayerEOSId = FUniqueNetIdEOS::Cast(TargetPlayerId);
+
 		EOS_Lobby_KickMemberOptions KickMemberOptions = {};
 		KickMemberOptions.ApiVersion = EOS_LOBBY_KICKMEMBER_API_LATEST;
 		const FTCHARToUTF8 Utf8LobbyId(*Session->SessionInfo->GetSessionId().ToString());
 		KickMemberOptions.LobbyId = (EOS_LobbyId)Utf8LobbyId.Get();
 		KickMemberOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserNum);
-		KickMemberOptions.TargetUserId = EOSSubsystem->UserManager->GetProductUserId(TargetPlayerId);
+		KickMemberOptions.TargetUserId = TargetPlayerEOSId.GetProductUserId();
 
 		FLobbyRemovePlayerCallback* CallbackObj = new FLobbyRemovePlayerCallback(FOnlineSessionEOSWeakPtr(AsShared()));
 		CallbackObj->CallbackLambda = [this](const EOS_Lobby_KickMemberCallbackInfo* Data)

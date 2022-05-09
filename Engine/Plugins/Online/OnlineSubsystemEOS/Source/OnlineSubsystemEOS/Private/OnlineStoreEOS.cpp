@@ -47,7 +47,8 @@ void FOnlineStoreEOS::QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnli
 		Delegate.ExecuteIfBound(true, CachedOfferIds, TEXT("Returning cached offers"));
 		return;
 	}
-	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+	const EOS_EpicAccountId AccountId = UserEOSId.GetEpicAccountId();
 	if (AccountId == nullptr)
 	{
 		Delegate.ExecuteIfBound(false, TArray<FUniqueOfferId>(), TEXT("Can't query offers for a null user"));
@@ -143,7 +144,8 @@ typedef TEOSCallback<EOS_Ecom_OnCheckoutCallback, EOS_Ecom_CheckoutCallbackInfo,
 
 void FOnlineStoreEOS::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseCheckoutComplete& Delegate)
 {
-	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+	const EOS_EpicAccountId AccountId = UserEOSId.GetEpicAccountId();
 	if (AccountId == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("Checkout: failed due to invalid user"));
@@ -237,7 +239,8 @@ typedef TEOSCallback<EOS_Ecom_OnQueryEntitlementsCallback, EOS_Ecom_QueryEntitle
 
 void FOnlineStoreEOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreReceipts, const FOnQueryReceiptsComplete& Delegate)
 {
-	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+	const EOS_EpicAccountId AccountId = UserEOSId.GetEpicAccountId();
 	if (AccountId == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("QueryReceipts: failed due to invalid user"));
@@ -312,7 +315,8 @@ typedef TEOSCallback<EOS_Ecom_OnRedeemEntitlementsCallback, EOS_Ecom_RedeemEntit
 
 void FOnlineStoreEOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, FString& InReceiptValidationInfo, const FOnFinalizeReceiptValidationInfoComplete& Delegate)
 {
-	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+	const EOS_EpicAccountId AccountId = UserEOSId.GetEpicAccountId();
 	if (AccountId == nullptr)
 	{
 		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidUser), InReceiptValidationInfo);

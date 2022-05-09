@@ -354,9 +354,6 @@ public:
 	int32 GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const;
 	bool IsLocalUser(const FUniqueNetId& NetId) const;
 
-	EOS_EpicAccountId GetEpicAccountId(const FUniqueNetId& NetId) const;
-	EOS_ProductUserId GetProductUserId(const FUniqueNetId& NetId) const;
-
 	typedef TFunction<void(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)> GetEpicAccountIdAsyncCallback;
 	bool GetEpicAccountIdFromProductUserId(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& OutEpicAccountId) const;
 	void GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUserId, const GetEpicAccountIdAsyncCallback& Callback) const;
@@ -430,8 +427,6 @@ private:
 	/** General account mappings */
 	TMap<EOS_EpicAccountId, FString> AccountIdToStringMap;
 	TMap<EOS_ProductUserId, FString> ProductUserIdToStringMap;
-	TMap<FString, EOS_EpicAccountId> StringToAccountIdMap;
-	TMap<FString, EOS_ProductUserId> StringToProductUserIdMap;
 
 	/** Per user friends lists accessible by user num or net id */
 	TMap<int32, FFriendsListEOSRef> LocalUserNumToFriendsListMap;

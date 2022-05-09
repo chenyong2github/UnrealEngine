@@ -44,8 +44,6 @@ public:
 	friend inline FNboSerializeToBufferEOS& operator<<(FNboSerializeToBufferEOS& Ar, const FUniqueNetIdEOS& UniqueId)
 	{
 		Ar << UniqueId.UniqueNetIdStr;
-		Ar << UniqueId.EpicAccountIdStr;
-		Ar << UniqueId.ProductUserIdStr;
 		return Ar;
 	}
 
@@ -92,8 +90,7 @@ public:
 	friend inline FNboSerializeFromBufferEOS& operator>>(FNboSerializeFromBufferEOS& Ar, FUniqueNetIdEOS& UniqueId)
 	{
 		Ar >> UniqueId.UniqueNetIdStr;
-		Ar >> UniqueId.EpicAccountIdStr;
-		Ar >> UniqueId.ProductUserIdStr;
+		UniqueId.ParseAccountIds();
 		return Ar;
 	}
 

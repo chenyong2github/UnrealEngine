@@ -108,7 +108,7 @@ void AppendStats(TUniqueNetIdMap<TSharedRef<FOnlineStatsUserStats>>& StatsCache,
 void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray<FUniqueNetIdRef>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate)
 {
 	const FUniqueNetIdEOS& LocalEOSId = FUniqueNetIdEOS::Cast(*LocalUserId);
-	EOS_ProductUserId LocalEOSUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*LocalEOSId.ProductUserIdStr));
+	const EOS_ProductUserId LocalEOSUserId = LocalEOSId.GetProductUserId();
 	if (StatNames.Num() == 0)
 	{
 		UE_LOG_ONLINE_STATS(Warning, TEXT("QueryStats() without a list of stats names to query is not supported"));
@@ -134,7 +134,7 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 	for (const FUniqueNetIdRef& StatUserId : StatUsers)
 	{
 		const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*StatUserId);
-		EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
+		const EOS_ProductUserId UserId = EOSId.GetProductUserId();
 		if (UserId == nullptr)
 		{
 			continue;
@@ -148,7 +148,7 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 	for (const FUniqueNetIdRef& StatUserId : StatUsers)
 	{
 		const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*StatUserId);
-		const EOS_ProductUserId TargetEOSUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
+		const EOS_ProductUserId TargetEOSUserId = EOSId.GetProductUserId();
 		if (TargetEOSUserId == nullptr)
 		{
 			continue;
@@ -325,7 +325,7 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserI
 void FOnlineStatsEOS::UpdateStats(const FUniqueNetIdRef LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
 {
 	const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*LocalUserId);
-	EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
+	const EOS_ProductUserId UserId = EOSId.GetProductUserId();
 	if (UserId == nullptr)
 	{
 		UE_LOG_ONLINE_STATS(Error, TEXT("UpdateStats() failed for unknown player (%s)"), *EOSId.UniqueNetIdStr);
@@ -342,7 +342,8 @@ void FOnlineStatsEOS::UpdateStats(const FUniqueNetIdRef LocalUserId, const TArra
 	// Trigger one write for each user
 	for (const FOnlineStatsUserUpdatedStats& StatsUpdate : UpdatedUserStats)
 	{
-		EOS_ProductUserId StatsUser = EOSSubsystem->UserManager->GetProductUserId(*StatsUpdate.Account);
+		const FUniqueNetIdEOS& AccountEOSId = FUniqueNetIdEOS::Cast(*StatsUpdate.Account);
+		const EOS_ProductUserId StatsUser = AccountEOSId.GetProductUserId();
 		if (StatsUser != nullptr)
 		{
 			WriteStats(UserId, StatsUser, StatsUpdate);

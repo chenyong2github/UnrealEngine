@@ -177,7 +177,8 @@ bool FOnlineUserCloudEOS::ClearFile(const FUniqueNetId& UserId, const FString& F
 
 void FOnlineUserCloudEOS::EnumerateUserFiles(const FUniqueNetId& UserId)
 {
-	EOS_ProductUserId LocalUserId = EOSSubsystem->UserManager->GetProductUserId(UserId);
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+	const EOS_ProductUserId LocalUserId = UserEOSId.GetProductUserId();
 
 	if (LocalUserId == nullptr)
 	{
@@ -419,9 +420,11 @@ bool FOnlineUserCloudEOS::ReadUserFile(const FUniqueNetId& UserId, const FString
 		TriggerOnReadUserFileCompleteDelegates(bWasSuccessful, *SharedUserId, FileName);
 	};
 
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+
 	EOS_PlayerDataStorage_ReadFileOptions ReadFileOptions = {};
 	ReadFileOptions.ApiVersion = EOS_PLAYERDATASTORAGE_READFILEOPTIONS_API_LATEST;
-	ReadFileOptions.LocalUserId = EOSSubsystem->UserManager->GetProductUserId(UserId);
+	ReadFileOptions.LocalUserId = UserEOSId.GetProductUserId();
 	ReadFileOptions.Filename = FileNameUtf8.Get();
 	ReadFileOptions.ReadChunkLengthBytes = (uint32_t)ReadChunkSize;
 	ReadFileOptions.ReadFileDataCallback = CallbackObj->GetNested1CallbackPtr();
@@ -595,9 +598,11 @@ bool FOnlineUserCloudEOS::WriteUserFile(const FUniqueNetId& UserId, const FStrin
 		TriggerOnWriteUserFileCompleteDelegates(bWasSuccessful, *SharedUserId, FileName);
 	};
 
+	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+
 	EOS_PlayerDataStorage_WriteFileOptions WriteFileOptions = {};
 	WriteFileOptions.ApiVersion = EOS_PLAYERDATASTORAGE_WRITEFILEOPTIONS_API_LATEST;
-	WriteFileOptions.LocalUserId = EOSSubsystem->UserManager->GetProductUserId(UserId);
+	WriteFileOptions.LocalUserId = UserEOSId.GetProductUserId();
 	WriteFileOptions.Filename = FileNameUtf8.Get();
 	WriteFileOptions.ChunkLengthBytes = (uint32_t)ReadChunkSize;
 	WriteFileOptions.WriteFileDataCallback = CallbackObj->GetNested1CallbackPtr();
@@ -747,9 +752,11 @@ bool FOnlineUserCloudEOS::DeleteUserFile(const FUniqueNetId& UserId, const FStri
 	{
 		FTCHARToUTF8 FileNameUtf8(*FileName);
 
+		const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
+
 		EOS_PlayerDataStorage_DeleteFileOptions Options = {};
 		Options.ApiVersion = EOS_PLAYERDATASTORAGE_DELETEFILEOPTIONS_API_LATEST;
-		Options.LocalUserId = EOSSubsystem->UserManager->GetProductUserId(UserId);
+		Options.LocalUserId = UserEOSId.GetProductUserId();
 		Options.Filename = FileNameUtf8.Get();
 
 		FOnDeleteFileCallback* CallbackObj = new FOnDeleteFileCallback(FOnlineUserCloudEOSWeakPtr(AsShared()));

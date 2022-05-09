@@ -78,6 +78,16 @@ public:
 		return EOS_ID_BYTE_SIZE;
 	}
 
+	const EOS_EpicAccountId GetEpicAccountId() const
+	{
+		return EpicAccountId;
+	}
+
+	const EOS_ProductUserId GetProductUserId() const
+	{
+		return ProductUserId;
+	}
+
 	void UpdateNetIdStr(const FString& InNetIdStr)
 	{
 		UniqueNetIdStr = InNetIdStr;
@@ -88,22 +98,28 @@ public:
 	{
 		TArray<FString> AccountIds;
 		UniqueNetIdStr.ParseIntoArray(AccountIds, EOS_ID_SEPARATOR, false);
+
+		FString EpicAccountIdStr = EMPTY_EASID;
 		if (AccountIds.Num() > 0 && AccountIds[0].Len() > 0)
 		{
 			EpicAccountIdStr = AccountIds[0];
+			EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EpicAccountIdStr));
 		}
 		else
 		{
-			EpicAccountIdStr = EMPTY_EASID;
+			EpicAccountId = nullptr;
 		}
 		AddToBuffer(RawBytes, EpicAccountIdStr);
+
+		FString ProductUserIdStr = EMPTY_PUID;
 		if (AccountIds.Num() > 1 && AccountIds[1].Len() > 0)
 		{
 			ProductUserIdStr = AccountIds[1];
+			ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*ProductUserIdStr));
 		}
 		else
 		{
-			ProductUserIdStr = EMPTY_PUID;
+			ProductUserId = nullptr;
 		}
 		AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
 	}
@@ -120,10 +136,11 @@ public:
 		}
 	}
 
-	FString EpicAccountIdStr;
-	FString ProductUserIdStr;
-	uint8 RawBytes[EOS_ID_BYTE_SIZE] = { 0 };
 private:
+	EOS_EpicAccountId EpicAccountId;
+	EOS_ProductUserId ProductUserId;
+	uint8 RawBytes[EOS_ID_BYTE_SIZE] = { 0 };
+
 	FUniqueNetIdEOS()
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
@@ -138,9 +155,16 @@ private:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		check(Size == EOS_ID_BYTE_SIZE);
-		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
-		ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
+		const FString EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
+		EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EpicAccountIdStr));
+		AddToBuffer(RawBytes, EpicAccountIdStr);
+
+		const FString ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
+		ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*ProductUserIdStr));
+		AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
+
 		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+
 		Type = FName("EOS");
 	}
 
