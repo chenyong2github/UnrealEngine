@@ -97,6 +97,7 @@ void ComputeCollisionFromMesh(
 			ShapeGenerator.ConvexDecompositionMaxPieces = Options.MaxConvexHullsPerMesh;
 			ShapeGenerator.ConvexDecompositionSearchFactor = Options.ConvexDecompositionSearchFactor;
 			ShapeGenerator.ConvexDecompositionErrorTolerance = Options.ConvexDecompositionErrorTolerance;
+			ShapeGenerator.ConvexDecompositionMinPartThickness = Options.ConvexDecompositionMinPartThickness;
 			ShapeGenerator.Generate_ConvexHullDecompositions(NewCollision.Geometry);
 		}
 		else

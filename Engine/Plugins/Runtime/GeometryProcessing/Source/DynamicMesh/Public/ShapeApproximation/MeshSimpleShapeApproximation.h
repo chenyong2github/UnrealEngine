@@ -74,6 +74,8 @@ public:
 	float ConvexDecompositionSearchFactor = .5;
 	/** Error tolerance to guide convex decomposition (in cm); we stop adding new parts if the volume error is below the threshold.  For volumetric errors, value will be cubed. */
 	double ConvexDecompositionErrorTolerance = 0;
+	/** Minimum part thickness for convex decomposition (in cm); hulls thinner than this will be merged into adjacent hulls, if possible. */
+	double ConvexDecompositionMinPartThickness = .1;
 
 	bool bUseExactComputationForBox = false;
 

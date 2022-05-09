@@ -76,6 +76,9 @@ public:
 	float ConvexDecompositionErrorTolerance = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float ConvexDecompositionMinPartThickness = 0.1;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
 	float SweptHullSimplifyTolerance = 0.1;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
