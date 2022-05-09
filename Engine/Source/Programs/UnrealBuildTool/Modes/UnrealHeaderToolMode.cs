@@ -200,7 +200,7 @@ namespace UnrealBuildTool.Modes
 		/// <param name="Args">Extra command line arguments</param>
 		public UhtConfigImpl(CommandLineArguments Args)
 		{
-			DirectoryReference ConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs/UnrealBuildTool");
+			DirectoryReference ConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs", "UnrealHeaderTool");
 			this._ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, BuildHostPlatform.Current.Platform, "", Args.GetRawArray());
 
 			this._typeRedirectMap = GetRedirectsStringView("UnrealHeaderTool", "TypeRedirects", "OldType", "NewType");
@@ -356,7 +356,7 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// Specifies the path to a log file to write. Note that the default mode (eg. building, generating project files) will create a log file by default if this not specified.
 		/// </summary>
-		[CommandLine(Prefix = "-Log", Description = "Specify a log file location instead of the default Engine/Programs/UnrealBuildTool/Log_UHT.txt")]
+		[CommandLine(Prefix = "-Log", Description = "Specify a log file location instead of the default Engine/Programs/UnrealHeaderTool/Saved/Logs/UnrealHeaderTool.log")]
 		public FileReference? LogFileName = null;
 
 		/// <summary>
@@ -1024,7 +1024,7 @@ namespace UnrealBuildTool.Modes
 
 					if (!Log.HasFileWriter())
 					{
-						string BaseLogFileName = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "Log_UHT.txt").FullName;
+						string BaseLogFileName = FileReference.Combine(EngineProgramSavedDirectory, "UnrealHeaderTool", "Saved", "Logs", "UnrealHeaderTool.log").FullName;
 
 						FileReference LogFile = new(BaseLogFileName);
 						foreach (string LogSuffix in Arguments.GetValues("-LogSuffix="))
@@ -1097,8 +1097,8 @@ namespace UnrealBuildTool.Modes
 					EngineDirectory = Unreal.EngineDirectory.FullName,
 					ProjectFile = ProjectFile,
 					ProjectDirectory = string.IsNullOrEmpty(ProjectPath) ? null : ProjectPath,
-					ReferenceDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "ReferenceGeneratedCode").FullName,
-					VerifyDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "VerifyGeneratedCode").FullName,
+					ReferenceDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealHeaderTool", "Saved", "ReferenceExports").FullName,
+					VerifyDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealHeaderTool", "Saved", "VerifyExports").FullName,
 					WarningsAsErrors = Options.bWarningsAsErrors,
 					GoWide = !Options.bNoGoWide,
 					FailIfGeneratedCodeChanges = Options.bFailIfGeneratedCodeChanges,
