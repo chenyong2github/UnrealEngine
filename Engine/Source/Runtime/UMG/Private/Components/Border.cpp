@@ -21,6 +21,7 @@ UBorder::UBorder(const FObjectInitializer& ObjectInitializer)
 {
 	bIsVariable = false;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ContentColorAndOpacity = FLinearColor::White;
 	BrushColor = FLinearColor::White;
 
@@ -32,6 +33,7 @@ UBorder::UBorder(const FObjectInitializer& ObjectInitializer)
 	DesiredSizeScale = FVector2D(1, 1);
 
 	bShowEffectWhenDisabled = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UBorder::ReleaseSlateResources(bool bReleaseChildren)
@@ -58,6 +60,7 @@ void UBorder::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TAttribute<FLinearColor> ContentColorAndOpacityBinding = PROPERTY_BINDING(FLinearColor, ContentColorAndOpacity);
 	TAttribute<FSlateColor> BrushColorBinding = OPTIONAL_BINDING_CONVERT(FLinearColor, BrushColor, FSlateColor, ConvertLinearColorToSlateColor);
 	TAttribute<const FSlateBrush*> ImageBinding = OPTIONAL_BINDING_CONVERT(FSlateBrush, Background, const FSlateBrush*, ConvertImage);
@@ -70,7 +73,8 @@ void UBorder::SynchronizeProperties()
 	
 	MyBorder->SetDesiredSizeScale(DesiredSizeScale);
 	MyBorder->SetShowEffectWhenDisabled(bShowEffectWhenDisabled != 0);
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	MyBorder->SetOnMouseButtonDown(BIND_UOBJECT_DELEGATE(FPointerEventHandler, HandleMouseButtonDown));
 	MyBorder->SetOnMouseButtonUp(BIND_UOBJECT_DELEGATE(FPointerEventHandler, HandleMouseButtonUp));
 	MyBorder->SetOnMouseMove(BIND_UOBJECT_DELEGATE(FPointerEventHandler, HandleMouseMove));
@@ -84,12 +88,14 @@ UClass* UBorder::GetSlotClass() const
 
 void UBorder::OnSlotAdded(UPanelSlot* InSlot)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Copy the content properties into the new slot so that it matches what has been setup
 	// so far by the user.
 	UBorderSlot* BorderSlot = CastChecked<UBorderSlot>(InSlot);
 	BorderSlot->Padding = Padding;
 	BorderSlot->HorizontalAlignment = HorizontalAlignment;
 	BorderSlot->VerticalAlignment = VerticalAlignment;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Add the child to the live slot if it already exists
 	if ( MyBorder.IsValid() )
@@ -108,6 +114,16 @@ void UBorder::OnSlotRemoved(UPanelSlot* InSlot)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FLinearColor UBorder::GetContentColorAndOpacity() const
+{
+	if (MyBorder.IsValid())
+	{
+		return MyBorder->GetColorAndOpacity();
+	}
+	return ContentColorAndOpacity;
+}
+
 void UBorder::SetContentColorAndOpacity(FLinearColor Color)
 {
 	ContentColorAndOpacity = Color;
@@ -115,6 +131,11 @@ void UBorder::SetContentColorAndOpacity(FLinearColor Color)
 	{
 		MyBorder->SetColorAndOpacity(Color);
 	}
+}
+
+FMargin UBorder::GetPadding() const
+{
+	return Padding;
 }
 
 void UBorder::SetPadding(FMargin InPadding)
@@ -126,13 +147,23 @@ void UBorder::SetPadding(FMargin InPadding)
 	}
 }
 
+EHorizontalAlignment UBorder::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
+}
+
 void UBorder::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
-	if ( MyBorder.IsValid() )
+	if (MyBorder.IsValid())
 	{
 		MyBorder->SetHAlign(InHorizontalAlignment);
 	}
+}
+
+EVerticalAlignment UBorder::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
 }
 
 void UBorder::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
@@ -144,6 +175,11 @@ void UBorder::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 	}
 }
 
+FLinearColor UBorder::GetBrushColor() const
+{
+	return BrushColor;
+}
+
 void UBorder::SetBrushColor(FLinearColor Color)
 {
 	BrushColor = Color;
@@ -152,6 +188,7 @@ void UBorder::SetBrushColor(FLinearColor Color)
 		MyBorder->SetBorderBackgroundColor(Color);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FReply UBorder::HandleMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& MouseEvent)
 {
@@ -240,6 +277,13 @@ void UBorder::SetBrushFromMaterial(UMaterialInterface* Material)
 	}
 }
 
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool UBorder::GetShowEffectWhenDisabled() const
+{
+	return bShowEffectWhenDisabled;
+}
+
 void UBorder::SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled)
 {
 	bShowEffectWhenDisabled = bInShowEffectWhenDisabled;
@@ -248,6 +292,7 @@ void UBorder::SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled)
 		MyBorder->SetShowEffectWhenDisabled(bShowEffectWhenDisabled != 0);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 UMaterialInstanceDynamic* UBorder::GetDynamicMaterial()
 {
@@ -278,6 +323,12 @@ UMaterialInstanceDynamic* UBorder::GetDynamicMaterial()
 	return nullptr;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FVector2D UBorder::GetDesiredSizeScale() const
+{
+	return DesiredSizeScale;
+}
+
 void UBorder::SetDesiredSizeScale(FVector2D InScale)
 {
 	DesiredSizeScale = InScale;
@@ -286,6 +337,7 @@ void UBorder::SetDesiredSizeScale(FVector2D InScale)
 		MyBorder->SetDesiredSizeScale(InScale);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 const FSlateBrush* UBorder::ConvertImage(TAttribute<FSlateBrush> InImageAsset) const
 {

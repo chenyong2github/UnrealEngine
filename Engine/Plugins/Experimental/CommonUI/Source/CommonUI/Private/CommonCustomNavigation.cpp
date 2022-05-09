@@ -66,7 +66,7 @@ private:
 UCommonCustomNavigation::UCommonCustomNavigation(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Padding = FMargin(0);
+	SetPadding(FMargin(0.f));
 }
 
 TSharedRef<SWidget> UCommonCustomNavigation::RebuildWidget()

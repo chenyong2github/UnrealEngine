@@ -31,21 +31,24 @@ class UMG_API UBorder : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	/** The alignment of the content horizontally. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content")
+	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Content")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** The alignment of the content vertically. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content")
+	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetVerticalAlignment", Category="Content")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
 	/** Whether or not to show the disabled effect when this border is disabled */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to bShowEffectWhenDisabled is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="GetShowEffectWhenDisabled", Setter="SetShowEffectWhenDisabled", BlueprintSetter="SetShowEffectWhenDisabled", Category="Appearance", AdvancedDisplay)
 	uint8 bShowEffectWhenDisabled:1;
 
 	/** Color and opacity multiplier of content in the border */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content", meta=( sRGB="true" ))
+	UE_DEPRECATED(5.1, "Direct access to ContentColorAndOpacity is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetContentColorAndOpacity", Category="Content", meta=( sRGB="true" ))
 	FLinearColor ContentColorAndOpacity;
 
 	/** A bindable delegate for the ContentColorAndOpacity. */
@@ -53,7 +56,8 @@ public:
 	FGetLinearColor ContentColorAndOpacityDelegate;
 
 	/** The padding area between the slot and the content it contains. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content")
+	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPadding", Category="Content")
 	FMargin Padding;
 
 	/** Brush to drag as the background */
@@ -65,7 +69,8 @@ public:
 	FGetSlateBrush BackgroundDelegate;
 
 	/** Color and opacity of the actual border image */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=( sRGB="true" ))
+	UE_DEPRECATED(5.1, "Direct access to BrushColor is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetBrushColor", Category="Appearance", meta = (sRGB="true"))
 	FLinearColor BrushColor;
 
 	/** A bindable delegate for the BrushColor. */
@@ -78,11 +83,12 @@ public:
 	 * Note: if the parent widget is set up to ignore this widget's desired size,
 	 * then changing this value will have no effect.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	UE_DEPRECATED(5.1, "Direct access to DesiredSizeScale is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetDesiredSizeScale", Category="Appearance")
 	FVector2D DesiredSizeScale;
 
 	/** Flips the background image if the localization's flow direction is RightToLeft */
-	UPROPERTY(EditAnywhere, Category = "Localization")
+	UPROPERTY(EditAnywhere, Category="Localization")
 	bool bFlipForRightToLeftFlowDirection;
 
 public:
@@ -100,19 +106,30 @@ public:
 	FOnPointerEvent OnMouseDoubleClickEvent;
 
 public:
+	/**  */
+	FLinearColor GetContentColorAndOpacity() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetContentColorAndOpacity(FLinearColor InContentColorAndOpacity);
 
+	FMargin GetPadding() const;
+
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetPadding(FMargin InPadding);
+
+	EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
+	EVerticalAlignment GetVerticalAlignment() const;
+
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+
+	/**  */
+	FLinearColor GetBrushColor() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
@@ -135,6 +152,9 @@ public:
 	void SetBrushFromMaterial(UMaterialInterface* Material);
 
 	/**  */
+	bool GetShowEffectWhenDisabled() const;
+
+	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled);
 
@@ -143,11 +163,14 @@ public:
 	UMaterialInstanceDynamic* GetDynamicMaterial();
 
 public:
+	/** Gets the DesireSizeScale of this border. */
+	FVector2D GetDesiredSizeScale() const;
+
 	/**
-	* Sets the DesireSizeScale of this border.
-	*
-	* @param InScale    The X and Y multipliers for the desired size
-	*/
+	 * Sets the DesireSizeScale of this border.
+	 *
+	 * @param InScale    The X and Y multipliers for the desired size
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetDesiredSizeScale(FVector2D InScale);
 

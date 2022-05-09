@@ -15,7 +15,7 @@ UCommonHardwareVisibilityBorder::UCommonHardwareVisibilityBorder(const FObjectIn
 	, VisibleType(ESlateVisibility::SelfHitTestInvisible)
 	, HiddenType(ESlateVisibility::Collapsed)
 {
-	Padding = FMargin(0,0,0,0);
+	SetPadding(FMargin(0.f,0.f,0.f,0.f));
 }
 
 void UCommonHardwareVisibilityBorder::OnWidgetRebuilt()

@@ -125,10 +125,10 @@ void UCommonBorder::SafeAreaUpdated()
 		}
 
 		FMargin NewMargin;
-		NewMargin.Left = FMath::Max(MinimumPadding.Left, Padding.Left - SafeMargin.Left);
-		NewMargin.Right = FMath::Max(MinimumPadding.Right, Padding.Right - SafeMargin.Right);
-		NewMargin.Top = FMath::Max(MinimumPadding.Top, Padding.Top - SafeMargin.Top);
-		NewMargin.Bottom = FMath::Max(MinimumPadding.Bottom, Padding.Bottom - SafeMargin.Bottom);
+		NewMargin.Left = FMath::Max(MinimumPadding.Left, GetPadding().Left - SafeMargin.Left);
+		NewMargin.Right = FMath::Max(MinimumPadding.Right, GetPadding().Right - SafeMargin.Right);
+		NewMargin.Top = FMath::Max(MinimumPadding.Top, GetPadding().Top - SafeMargin.Top);
+		NewMargin.Bottom = FMath::Max(MinimumPadding.Bottom, GetPadding().Bottom - SafeMargin.Bottom);
 		
 		MyBorder->SetPadding(NewMargin);
 	}
