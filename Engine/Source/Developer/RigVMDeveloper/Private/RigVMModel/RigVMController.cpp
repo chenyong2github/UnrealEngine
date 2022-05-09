@@ -15539,6 +15539,30 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 	}
 }
 
+void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	for (URigVMNode* Node : Graph->GetNodes())
+	{
+		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+		{
+			TemplateNode->InitializeFilteredPermutationsFromTypes();
+		}
+	}
+}
+
 void URigVMController::InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())

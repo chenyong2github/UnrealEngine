@@ -266,12 +266,25 @@ bool URigVMTemplateNode::FilteredSupportsType(const URigVMPin* InPin, const FStr
 
 	const URigVMPin* RootPin = InPin;
 	bool bIsArrayElement = false;
+	bool bIsStructElement = false;
 	if (URigVMPin* ParentPin = InPin->GetParentPin())
 	{
 		RootPin = ParentPin;
-		bIsArrayElement = true;
+		if (ParentPin->IsArray())
+		{
+			bIsArrayElement = true;
+		}
+		else if (ParentPin->IsStruct())
+		{
+			bIsStructElement = true;
+		}
 	}
-	
+
+	if (bIsStructElement)
+	{
+		return InPin->GetCPPType() == InCPPType;
+	}
+
 	const FRigVMTemplateArgument* Argument = GetTemplate()->FindArgument(RootPin->GetFName());
 	if (Argument == nullptr)
 	{
@@ -527,11 +540,21 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 	NewFilteredPermutations.Reserve(FilteredPermutations.Num());
 	
 	bool bIsArrayElement = false;
+	bool bIsStructElement = false;
 	URigVMPin* RootPin = InPin;
 	if (URigVMPin* ParentPin = InPin->GetParentPin())
 	{
 		RootPin = ParentPin;
-		bIsArrayElement = true;
+		bIsArrayElement = RootPin->IsArray();
+		bIsStructElement = RootPin->IsStruct();
+	}
+
+	if (bIsStructElement)
+	{
+		if (InPin->GetCPPType() == LinkedPin->GetCPPType())
+		{
+			return FilteredPermutations;
+		}
 	}
 
 	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>({FindPermuationForTypes(PreferredPermutationTypes)});
@@ -740,6 +763,7 @@ void URigVMTemplateNode::InvalidateCache()
 {
 	SupportedTypesCache.Reset();
 	CachedFunction = nullptr;
+	CachedTemplate = nullptr;
 	ResolvedPermutations.Reset();
 
 	for(URigVMPin* Pin : GetPins())
@@ -769,4 +793,35 @@ void URigVMTemplateNode::InitializeFilteredPermutations()
 			}
 		}
 	}	
+}
+
+void URigVMTemplateNode::InitializeFilteredPermutationsFromTypes()
+{
+	if (IsSingleton())
+	{
+		return;
+	}
+
+	if (const FRigVMTemplate* Template = GetTemplate())
+	{
+		TArray<FString> ArgTypes;
+		for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ++ArgIndex)
+		{
+			const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgIndex);
+			if (URigVMPin* Pin = FindPin(Argument->GetName().ToString()))
+			{
+				ArgTypes.Add(Argument->GetName().ToString() + TEXT(":") + Pin->GetCPPType());
+			}
+		}
+
+		int32 Permutation = FindPermuationForTypes(ArgTypes);
+		if (Permutation != INDEX_NONE)
+		{
+			FilteredPermutations = {Permutation};
+		}
+		else
+		{
+			InitializeFilteredPermutations();
+		}
+	}
 }

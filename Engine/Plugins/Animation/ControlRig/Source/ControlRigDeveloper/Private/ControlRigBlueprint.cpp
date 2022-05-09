@@ -913,7 +913,7 @@ void UControlRigBlueprint::RefreshAllModels()
 			Controller->RemoveUnusedOrphanedPins(ModelNode, false);
 		}
 
-		Controller->RecomputeAllTemplateFilteredTypes(false);
+		Controller->InitializeFilteredPermutationsFromTemplateTypes();
 	}
 }
 

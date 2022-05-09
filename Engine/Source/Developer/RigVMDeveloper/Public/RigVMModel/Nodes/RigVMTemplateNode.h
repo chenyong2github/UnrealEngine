@@ -87,6 +87,8 @@ public:
 
 	// initializes the filtered permutations to all possible permutations
 	void InitializeFilteredPermutations();
+
+	void InitializeFilteredPermutationsFromTypes();
 	
 protected:
 
