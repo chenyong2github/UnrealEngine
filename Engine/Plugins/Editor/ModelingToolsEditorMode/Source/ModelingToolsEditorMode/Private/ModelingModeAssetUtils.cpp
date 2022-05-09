@@ -9,6 +9,7 @@
 #include "FileHelpers.h"
 #include "Misc/Paths.h"
 #include "ModelingObjectsCreationAPI.h"
+#include "Editor/EditorEngine.h"
 
 // for content-browser things
 #include "ContentBrowserModule.h"
