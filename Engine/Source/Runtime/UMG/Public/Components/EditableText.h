@@ -32,7 +32,8 @@ public:
 
 public:
 	/** The text content for this editable text box widget */
-	UPROPERTY(EditAnywhere, Category=Content)
+	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", FieldNotify, Category = "Content")
 	FText Text;
 
 	/** A bindable delegate to allow logic to drive the text of the widget */
@@ -42,7 +43,8 @@ public:
 public:
 
 	/** Hint text that appears when there is no text in the text box */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Content)
+	UE_DEPRECATED(5.1, "Direct access to Hint Text is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetHintText", BlueprintSetter = "SetHintText", Category = Content, meta = (MultiLine = "true"))
 	FText HintText;
 
 	/** A bindable delegate to allow logic to drive the hint text of the widget */
@@ -54,15 +56,18 @@ public:
 	FEditableTextStyle WidgetStyle;
 
 	/** Sets whether this text box can actually be modified interactively by the user */
-	UPROPERTY(EditAnywhere, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to IsReadOnly is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Appearance)
 	bool IsReadOnly;
 
 	/** Sets whether this text box is for storing a password */
-	UPROPERTY(EditAnywhere, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to IsPassword is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetIsPassword", Category = Appearance)
 	bool IsPassword;
 
-	/** Minimum width that a text block should be */
-	UPROPERTY(EditAnywhere, Category=Appearance)
+	/** The minimum desired Width for the text */
+	UE_DEPRECATED(5.1, "Direct access to MinimumDesiredWidth is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetMinimumDesiredWidth", Category = "Appearance")
 	float MinimumDesiredWidth;
 
 	/** Workaround as we lose focus when the auto completion closes. */
@@ -105,11 +110,13 @@ public:
 	EVirtualKeyboardDismissAction VirtualKeyboardDismissAction;
 	
 	/** How the text should be aligned with the margin. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetJustification, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to Justification is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Blueprintgetter = GetJustification, BlueprintSetter = SetJustification, Category = Appearance)
 	TEnumAsByte<ETextJustify::Type> Justification;
 
-	/** Sets what should happen when text is clipped because the block does not have enough space */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetTextOverflowPolicy, Category=Appearance)
+	/** Sets what happens to text that is clipped and doesn't fit within the clip rect for this widget */
+	UE_DEPRECATED(5.1, "Direct access to OverflowPolicy is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetTextOverflowPolicy", Setter = "SetTextOverflowPolicy", BlueprintSetter = "SetTextOverflowPolicy", Category = "Clipping", AdvancedDisplay, meta = (DisplayName = "Overflow Policy"))
 	ETextOverflowPolicy OverflowPolicy;
 
 	/** Controls how the text within this widget should be shaped. */
@@ -141,17 +148,42 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta=(DisplayName="SetText (Editable Text)"))
 	void SetText(FText InText);
 
+	bool GetIsPassword() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetIsPassword(UPARAM(DisplayName="IsPassword") bool InbIsPassword);
+
+	/** Gets the Hint text that appears when there is no text in the text box */
+	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "GetHintText (Editable Text)"))
+	FText GetHintText() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetHintText(FText InHintText);
 
+	/** @return the minimum desired width for this text box */
+	float GetMinimumDesiredWidth() const;
+
+	/**
+	 *  Set the minimum desired width for this text box
+	 *
+	 *  @param InMinDesiredWidth new minimum desired width
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetMinimumDesiredWidth(float InMinDesiredWidth);
+
+	bool GetIsReadOnly() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta=(DisplayName="SetIsReadOnly (Editable Text)"))
 	void SetIsReadOnly(UPARAM(DisplayName="ReadyOnly") bool InbIsReadyOnly);
 
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	ETextJustify::Type GetJustification() const;
+
 	UFUNCTION(BlueprintSetter)
 	void SetJustification(ETextJustify::Type InJustification);
+
+	/** @return the text overflow policy for this text block. */
+	ETextOverflowPolicy GetTextOverflowPolicy() const;
 
 	UFUNCTION(BlueprintSetter)
 	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);

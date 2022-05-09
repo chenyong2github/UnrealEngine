@@ -50,6 +50,7 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	}
 #endif // WITH_EDITOR
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	IsReadOnly = false;
 	IsPassword = false;
 	MinimumDesiredWidth = 0.0f;
@@ -63,6 +64,7 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	Clipping = EWidgetClipping::ClipToBounds;
 	OverflowPolicy = ETextOverflowPolicy::Clip;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
@@ -79,22 +81,24 @@ void UEditableText::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UEditableText::RebuildWidget()
 {
-	MyEditableText = SNew( SEditableText )
-		.Style( &WidgetStyle )
-		.MinDesiredWidth( MinimumDesiredWidth )
-		.IsCaretMovedWhenGainFocus( IsCaretMovedWhenGainFocus )
-		.SelectAllTextWhenFocused( SelectAllTextWhenFocused )
-		.RevertTextOnEscape( RevertTextOnEscape )
-		.ClearKeyboardFocusOnCommit( ClearKeyboardFocusOnCommit )
-		.SelectAllTextOnCommit( SelectAllTextOnCommit )
-		.OnTextChanged( BIND_UOBJECT_DELEGATE( FOnTextChanged, HandleOnTextChanged ) )
-		.OnTextCommitted( BIND_UOBJECT_DELEGATE( FOnTextCommitted, HandleOnTextCommitted ) )
-		.VirtualKeyboardType( EVirtualKeyboardType::AsKeyboardType( KeyboardType.GetValue() ) )
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MyEditableText = SNew(SEditableText)
+		.Style(&WidgetStyle)
+		.MinDesiredWidth(MinimumDesiredWidth)
+		.IsCaretMovedWhenGainFocus(IsCaretMovedWhenGainFocus)
+		.SelectAllTextWhenFocused(SelectAllTextWhenFocused)
+		.RevertTextOnEscape(RevertTextOnEscape)
+		.ClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit)
+		.SelectAllTextOnCommit(SelectAllTextOnCommit)
+		.OnTextChanged(BIND_UOBJECT_DELEGATE(FOnTextChanged, HandleOnTextChanged))
+		.OnTextCommitted(BIND_UOBJECT_DELEGATE(FOnTextCommitted, HandleOnTextCommitted))
+		.VirtualKeyboardType(EVirtualKeyboardType::AsKeyboardType(KeyboardType.GetValue()))
 		.VirtualKeyboardOptions(VirtualKeyboardOptions)
 		.VirtualKeyboardTrigger(VirtualKeyboardTrigger)
 		.VirtualKeyboardDismissAction(VirtualKeyboardDismissAction)
 		.Justification(Justification)
 		.OverflowPolicy(OverflowPolicy);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	return MyEditableText.ToSharedRef();
 }
@@ -102,6 +106,9 @@ TSharedRef<SWidget> UEditableText::RebuildWidget()
 void UEditableText::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	TAttribute<FText> TextBinding = PROPERTY_BINDING(FText, Text);
 	TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
@@ -115,10 +122,15 @@ void UEditableText::SynchronizeProperties()
 	MyEditableText->SetJustification(Justification);
 	MyEditableText->SetOverflowPolicy(OverflowPolicy);
 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	// TODO UMG Complete making all properties settable on SEditableText
 
 	ShapedTextOptions.SynchronizeShapedTextProperties(*MyEditableText);
 }
+
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 FText UEditableText::GetText() const
 {
@@ -132,7 +144,16 @@ FText UEditableText::GetText() const
 
 void UEditableText::SetText(FText InText)
 {
+	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
+	if (Text.IdenticalTo(InText))
+	{
+		return;
+	}
+
 	Text = InText;
+
+	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
+
 	if ( MyEditableText.IsValid() )
 	{
 		MyEditableText->SetText(Text);
@@ -148,6 +169,16 @@ void UEditableText::SetIsPassword(bool InbIsPassword)
 	}
 }
 
+FText UEditableText::GetHintText() const
+{
+	if (MyEditableText.IsValid())
+	{
+		return MyEditableText->GetHintText();
+	}
+
+	return HintText;
+}
+
 void UEditableText::SetHintText(FText InHintText)
 {
 	HintText = InHintText;
@@ -155,6 +186,25 @@ void UEditableText::SetHintText(FText InHintText)
 	{
 		MyEditableText->SetHintText(HintText);
 	}
+}
+
+float UEditableText::GetMinimumDesiredWidth() const
+{
+	return MinimumDesiredWidth;
+}
+
+void UEditableText::SetMinimumDesiredWidth(float InMinDesiredWidth)
+{
+	MinimumDesiredWidth = InMinDesiredWidth;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetMinDesiredWidth(MinimumDesiredWidth);
+	}
+}
+
+bool UEditableText::GetIsReadOnly() const
+{
+	return IsReadOnly;
 }
 
 void UEditableText::SetIsReadOnly(bool InbIsReadyOnly)
@@ -166,6 +216,18 @@ void UEditableText::SetIsReadOnly(bool InbIsReadyOnly)
 	}
 }
 
+
+bool UEditableText::GetIsPassword() const
+{
+	return IsPassword;
+}
+
+
+ETextJustify::Type UEditableText::GetJustification() const
+{
+	return Justification;
+}
+
 void UEditableText::SetJustification(ETextJustify::Type InJustification)
 {
 	Justification = InJustification;
@@ -173,6 +235,11 @@ void UEditableText::SetJustification(ETextJustify::Type InJustification)
 	{
 		MyEditableText->SetJustification(InJustification);
 	}
+}
+
+ETextOverflowPolicy UEditableText::GetTextOverflowPolicy() const
+{
+	return OverflowPolicy;
 }
 
 void UEditableText::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
@@ -183,6 +250,8 @@ void UEditableText::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
 		MyEditableText->SetOverflowPolicy(InOverflowPolicy);
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UEditableText::SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCommit)
 {

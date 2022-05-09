@@ -198,6 +198,16 @@ public:
 	 */
 	void SetText( const TAttribute< FText >& InNewText );
 	
+	/**
+	 * Returns the Hint text string
+	 *
+	 * @return  Hint Text string
+	 */
+	FText GetHintText() const
+	{
+		return EditableText->GetHintText();
+	}
+
 	/** See the HintText attribute */
 	void SetHintText( const TAttribute< FText >& InHintText );
 	
