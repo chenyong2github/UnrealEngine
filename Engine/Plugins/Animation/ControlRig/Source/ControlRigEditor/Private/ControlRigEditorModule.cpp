@@ -1384,28 +1384,31 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
 					{
-						FToolMenuSection& TemplatesSection = Menu->AddSection("EdGraphSchemaTemplates", LOCTEXT("TemplatesHeader", "Templates"));
-
-						if(ModelPin->IsRootPin())
+						if (!TemplateNode->IsSingleton())
 						{
-							TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
-							SNew(SControlRigChangePinType)
-							.Blueprint(RigBlueprint)
-							.ModelPins({ModelPin});
+							FToolMenuSection& TemplatesSection = Menu->AddSection("EdGraphSchemaTemplates", LOCTEXT("TemplatesHeader", "Templates"));
 
-							TemplatesSection.AddEntry(FToolMenuEntry::InitWidget("ChangePinTypeWidget", ChangePinTypeWidget, FText(), true));
-						}
+							if(ModelPin->IsRootPin())
+							{
+								TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
+								SNew(SControlRigChangePinType)
+								.Blueprint(RigBlueprint)
+								.ModelPins({ModelPin});
+
+								TemplatesSection.AddEntry(FToolMenuEntry::InitWidget("ChangePinTypeWidget", ChangePinTypeWidget, FText(), true));
+							}
 						
-						TemplatesSection.AddMenuEntry(
-							"Unresolve Template Node",
-							LOCTEXT("UnresolveTemplateNode", "Unresolve Template Node"),
-							LOCTEXT("UnresolveTemplateNode_Tooltip", "Removes any type information from the template node"),
-							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-								const TArray<FName> Nodes = ModelPin->GetGraph()->GetSelectNodes();
-								Controller->UnresolveTemplateNodes(Nodes);
-							})
-						));
+							TemplatesSection.AddMenuEntry(
+								"Unresolve Template Node",
+								LOCTEXT("UnresolveTemplateNode", "Unresolve Template Node"),
+								LOCTEXT("UnresolveTemplateNode_Tooltip", "Removes any type information from the template node"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+									const TArray<FName> Nodes = ModelPin->GetGraph()->GetSelectNodes();
+									Controller->UnresolveTemplateNodes(Nodes);
+								})
+							));
+						}
 					}
 
 
@@ -2328,17 +2331,20 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(RigNode->GetModelNode()))
 					{
-						FToolMenuSection& TemplatesSection = Menu->AddSection("EdGraphSchemaTemplates", LOCTEXT("TemplatesHeader", "Templates"));
-						TemplatesSection.AddMenuEntry(
-							"Unresolve Template Node",
-							LOCTEXT("UnresolveTemplateNode", "Unresolve Template Node"),
-							LOCTEXT("UnresolveTemplateNode_Tooltip", "Removes any type information from the template node"),
-							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([Controller, Model]() {
-								const TArray<FName> Nodes = Model->GetSelectNodes();
-								Controller->UnresolveTemplateNodes(Nodes);
-							})
-						));
+						if (!TemplateNode->IsSingleton())
+						{
+							FToolMenuSection& TemplatesSection = Menu->AddSection("EdGraphSchemaTemplates", LOCTEXT("TemplatesHeader", "Templates"));
+							TemplatesSection.AddMenuEntry(
+								"Unresolve Template Node",
+								LOCTEXT("UnresolveTemplateNode", "Unresolve Template Node"),
+								LOCTEXT("UnresolveTemplateNode_Tooltip", "Removes any type information from the template node"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([Controller, Model]() {
+									const TArray<FName> Nodes = Model->GetSelectNodes();
+									Controller->UnresolveTemplateNodes(Nodes);
+								})
+							));
+						}
 					}
 
 					if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(RigNode->GetModelNode()))

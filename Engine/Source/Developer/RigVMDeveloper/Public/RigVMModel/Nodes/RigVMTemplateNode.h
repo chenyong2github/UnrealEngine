@@ -39,23 +39,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = Template)
 	virtual FName GetNotation() const;
 
+	UFUNCTION(BlueprintCallable, Category = Template)
+	virtual bool IsSingleton() const;
+
 	// returns true if a pin supports a given type
 	bool SupportsType(const URigVMPin* InPin, const FString& InCPPType, FString* OutCPPType = nullptr);
 
-	// resolves a pin to a new type outputs the new type map
-	bool GetTypeMapForNewPinType(const URigVMPin* InPin, const FString& InCPPType, UObject* InCPPTypeObject, FRigVMTemplate::FTypeMap& OutTypes) const;
-
-	// returns the index of the resolved RigVM function (or INDEX_NONE)
-	const TArray<int32>& GetResolvedPermutationIndices(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
+	// returns true if a pin supports a given type after filtering
+	bool FilteredSupportsType(const URigVMPin* InPIn, const FString& InCPPType, FString* OutCPPType = nullptr, bool bAllowFloatingPointCasts = true);
 
 	// returns the resolved functions for the template
-	TArray<const FRigVMFunction*> GetResolvedPermutations(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
+	TArray<const FRigVMFunction*> GetResolvedPermutations() const;
 
 	// returns the template used for this node
 	virtual const FRigVMTemplate* GetTemplate() const;
-
-	// returns the type map for the currently resolved pins
-	FRigVMTemplate::FTypeMap GetResolvedTypes() const;
 
 	// returns the resolved function or nullptr if there are still unresolved pins left
 	const FRigVMFunction* GetResolvedFunction() const;
@@ -74,9 +71,32 @@ public:
 	// returns the display name for a pin
 	FName GetDisplayNameForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
+	// returns the indeces of the filtered permutations
+	const TArray<int32>& GetFilteredPermutationsIndices() const;
+
+	// returns the filtered types of this pin
+	TArray<FRigVMTemplateArgument::FType> GetFilteredTypesForPin(URigVMPin* InPin) const;
+
+	// returns true if updating pin filters with InTypes would result in different filters 
+	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
+	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, URigVMPin* LinkedPin);
+
+	// updates the filtered permutations given a link or the types for a pin
+	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
+	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
+
+	// initializes the filtered permutations to all possible permutations
+	void InitializeFilteredPermutations();
+	
 protected:
 
 	virtual void InvalidateCache() override;
+	
+	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
+	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
+
+	int32 FindPermuationForTypes(const TArray<FString>& ArgumentTypes);
+	TArray<FString> GetArgumentTypesForPermutation(const int32 InPermutationIndex);
 
 	UPROPERTY()
 	FName TemplateNotation;
@@ -84,6 +104,12 @@ protected:
 	UPROPERTY()
 	FString ResolvedFunctionName;
 
+	// Indicates a preferred permuation using the types of the arguments
+	// Each element is in the format "ArgumentName:CPPType"
+	UPROPERTY()
+	TArray<FString> PreferredPermutationTypes;
+	
+	TArray<int32> FilteredPermutations;
 	TMap<FString, TPair<bool, FRigVMTemplateArgument::FType>> SupportedTypesCache;
 
 	mutable const FRigVMTemplate* CachedTemplate;
@@ -91,5 +117,7 @@ protected:
 	mutable TArray<int32> ResolvedPermutations;
 
 	friend class URigVMController;
+	friend struct FRigVMSetTemplateFilteredPermutationsAction;
+	friend struct FRigVMSetPreferredTemplatePermutationsAction;
 };
 

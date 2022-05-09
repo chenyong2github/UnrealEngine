@@ -41,11 +41,15 @@ public:
 
 	// Returns the source Pin of this Link (or nullptr)
 	UFUNCTION(BlueprintCallable, Category = RigVMLink)
-	URigVMPin* GetSourcePin();
+	URigVMPin* GetSourcePin() const;
 
 	// Returns the target Pin of this Link (or nullptr)
 	UFUNCTION(BlueprintCallable, Category = RigVMLink)
-	URigVMPin* GetTargetPin();
+	URigVMPin* GetTargetPin() const;
+
+	// Returns the opposite Pin of this Link given one of its edges (or nullptr)
+	UFUNCTION(BlueprintCallable, Category = RigVMLink)
+	URigVMPin* GetOppositePin(const URigVMPin* InPin) const;
 
 	// Returns a string representation of the Link,
 	// for example: "NodeA.Color.R -> NodeB.Translation.X"
@@ -68,8 +72,8 @@ private:
 	UPROPERTY()
 	FString TargetPinPath;
 
-	URigVMPin* SourcePin;
-	URigVMPin* TargetPin;
+	mutable URigVMPin* SourcePin;
+	mutable URigVMPin* TargetPin;
 
 	friend class URigVMController;
 };

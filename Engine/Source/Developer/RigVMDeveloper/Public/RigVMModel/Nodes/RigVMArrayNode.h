@@ -38,6 +38,9 @@ public:
 	// Override of the template
 	virtual const FRigVMTemplate* GetTemplate() const override;
 
+	// Override of singleton
+	virtual bool IsSingleton() const override { return false; }
+
 	// Returns the op code of this node
 	UFUNCTION(BlueprintCallable, Category = RigVMArrayNode)
 	ERigVMOpCode GetOpCode() const;

@@ -1117,6 +1117,65 @@ public:
 };
 
 /**
+ * An action setting the filtered permutations on a template node
+ */
+USTRUCT()
+struct FRigVMSetTemplateFilteredPermutationsAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetTemplateFilteredPermutationsAction() {}
+	FRigVMSetTemplateFilteredPermutationsAction(URigVMTemplateNode* InNode, URigVMLink* InLink, const TArray<int32>& InOldFilteredPermutations);
+	virtual ~FRigVMSetTemplateFilteredPermutationsAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetTemplateFilteredPermutationsAction::StaticStruct(); }
+	virtual bool Merge(const FRigVMBaseAction* Other);
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	FString LinkPath;
+
+	UPROPERTY()
+	TArray<int32> OldFilteredPermutations;
+
+	UPROPERTY()
+	TArray<int32> NewFilteredPermutations;
+};
+
+/**
+ * An action setting the filtered permutations on a template node
+ */
+USTRUCT()
+struct FRigVMSetPreferredTemplatePermutationsAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetPreferredTemplatePermutationsAction() {}
+	FRigVMSetPreferredTemplatePermutationsAction(URigVMTemplateNode* InNode, const TArray<FString>& InPreferredPermutation);
+	virtual ~FRigVMSetPreferredTemplatePermutationsAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetTemplateFilteredPermutationsAction::StaticStruct(); }
+	virtual bool Merge(const FRigVMBaseAction* Other);
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	TArray<FString> OldPreferredPermutationTypes;
+
+	UPROPERTY()
+	TArray<FString> NewPreferredPermutationTypes;
+};
+
+/**
  * An action inserting a new array pin in the graph.
  */
 USTRUCT()

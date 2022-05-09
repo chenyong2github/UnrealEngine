@@ -84,6 +84,7 @@
 #include "IMessageLogListing.h"
 #include "SControlRigFunctionLocalizationWidget.h"
 #include "SControlRigFunctionBulkEditWidget.h"
+#include "SControlRigBreakLinksWidget.h"
 #include "SGraphPanel.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -247,6 +248,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnGraphImported().RemoveAll(this);
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
 		RigBlueprint->OnRequestBulkEditDialog().Unbind();
+		RigBlueprint->OnRequestBreakLinksDialog().Unbind();
 		RigBlueprint->OnRequestJumpToHyperlink().Unbind();
 		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
 
@@ -507,6 +509,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->OnGraphImported().AddSP(this, &FControlRigEditor::OnGraphImported);
 		InControlRigBlueprint->OnRequestLocalizeFunctionDialog().AddSP(this, &FControlRigEditor::OnRequestLocalizeFunctionDialog);
 		InControlRigBlueprint->OnRequestBulkEditDialog().BindSP(this, &FControlRigEditor::OnRequestBulkEditDialog);
+		InControlRigBlueprint->OnRequestBreakLinksDialog().BindSP(this, &FControlRigEditor::OnRequestBreakLinksDialog);
 		InControlRigBlueprint->OnRequestJumpToHyperlink().BindSP(this, &FControlRigEditor::HandleJumpToHyperlink);
 	}
 
@@ -4700,6 +4703,23 @@ FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UCont
 	Result.bCanceled = BulkEditDialog->ShowModal() == EAppReturnType::Cancel; 
 	Result.bSetupUndoRedo = false;
 	return Result;
+}
+
+bool FControlRigEditor::OnRequestBreakLinksDialog(TArray<URigVMLink*> InLinks)
+{
+	if(InLinks.Num() == 0)
+	{
+		return true;
+	}
+
+	TSharedRef<SControlRigBreakLinksDialog> BreakLinksDialog = SNew(SControlRigBreakLinksDialog)
+	.Links(InLinks)
+	.OnFocusOnLink(FControlRigOnFocusOnLinkRequestedDelegate::CreateLambda([&](URigVMLink* InLink)
+	{
+		HandleJumpToHyperlink(InLink);
+	}));
+
+	return BreakLinksDialog->ShowModal() == EAppReturnType::Ok; 
 }
 
 void FControlRigEditor::HandleJumpToHyperlink(const UObject* InSubject)

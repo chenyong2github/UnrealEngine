@@ -110,6 +110,16 @@ struct RIGVM_API FRigVMTemplateArgument
 			}
 			return CPPType;
 		}
+
+		void ConvertToArray() 
+		{
+			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+		}
+
+		void ConvertToBaseElement() 
+		{
+			CPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+		}
 	};
 	
 	enum EArrayType

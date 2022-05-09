@@ -34,6 +34,7 @@ public:
 
 	virtual FName GetNotation() const override;
 	virtual const FRigVMTemplate* GetTemplate() const override;
+	virtual bool IsSingleton() const override { return false; }
 
 private:
 

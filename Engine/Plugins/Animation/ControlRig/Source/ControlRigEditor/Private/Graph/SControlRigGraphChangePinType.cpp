@@ -169,22 +169,25 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 	struct FArgumentInfo
 	{
-		static FArgumentInfo Make(const FProperty* InProperty)
+		static FArgumentInfo Make(const FProperty* InProperty, const bool bInIsFilteredOut)
 		{
 			FArgumentInfo Info;
 			Info.Property = InProperty;
+			Info.bIsFilteredOut = bInIsFilteredOut;
 			return Info;
 		}
 
-		static FArgumentInfo Make(const FRigVMTemplateArgument::FType& InType)
+		static FArgumentInfo Make(const FRigVMTemplateArgument::FType& InType, const bool bInIsFilteredOut)
 		{
 			FArgumentInfo Info;
 			Info.Property = nullptr;
 			Info.Type = InType;
+			Info.bIsFilteredOut = bInIsFilteredOut;
 			return Info;
 		}
 
 		const FProperty* Property;
+		bool bIsFilteredOut;
 		FRigVMTemplateArgument::FType Type;
 	};
 
@@ -205,14 +208,16 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 				if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
 				{
 					const TArray<FRigVMTemplateArgument::FType>& AllArgumentTypes = Argument->GetTypes();
-					const TArray<FRigVMTemplateArgument::FType>& FilteredArgumentTypes = Argument->GetSupportedTypes(TemplateNode->GetResolvedPermutationIndices());
+					const TArray<FRigVMTemplateArgument::FType>& FilteredArgumentTypes = Argument->GetSupportedTypes(TemplateNode->GetFilteredPermutationsIndices());
 					
 					for(int32 PermutationIndex = 0; PermutationIndex < Template->NumPermutations(); PermutationIndex++)
 					{
 						FRigVMTemplateArgument::FType ArgumentType = AllArgumentTypes[PermutationIndex];
+					
+						bool bIsFilteredOut = false;
 						if(!FilteredArgumentTypes.Contains(ArgumentType))
 						{
-							continue;
+							bIsFilteredOut = true;
 						}
 
 						if(ArgumentType.CPPType == RigVMTypeUtils::FloatType)
@@ -235,13 +240,13 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 							{
 								if(const FProperty* Property = FunctionStruct->FindPropertyByName(ArgumentName))
 								{
-									Types.Add(ArgumentType, FArgumentInfo::Make(Property));
+									Types.Add(ArgumentType, FArgumentInfo::Make(Property, bIsFilteredOut));
 								}
 							}
 						}
 						else
 						{
-							Types.Add(ArgumentType, FArgumentInfo::Make(ArgumentType));
+							Types.Add(ArgumentType, FArgumentInfo::Make(ArgumentType, bIsFilteredOut));
 						}
 					}
 				}
@@ -300,6 +305,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		for(int32 TypeIndex=0; TypeIndex < SortedTypes.Num(); TypeIndex++)
 		{
 			const FRigVMTemplateArgument::FType& Type = SortedTypes[TypeIndex].Key;
+			const bool bIsFilteredOut = SortedTypes[TypeIndex].Value.bIsFilteredOut;
 			if (Type.CPPTypeObject != nullptr && !IsValid(Type.CPPTypeObject))
 			{
 				continue;
@@ -348,7 +354,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 					[
 						SNew(SImage)
 						.Image(FBlueprintEditorUtils::GetIconFromPin(PinType, true))
-						.ColorAndOpacity(Schema->GetPinTypeColor(PinType))
+						.ColorAndOpacity(Schema->GetPinTypeColor(PinType) * (bIsFilteredOut ? 0.5f : 1.f))
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -357,6 +363,9 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 					[
 						SNew(STextBlock)
 						.Text(GetBindingText(Type))
+						.ColorAndOpacity(FLinearColor::White * (bIsFilteredOut ? 0.5f : 1.f))
+						.ToolTipText(bIsFilteredOut ? LOCTEXT("WildcardAvailableTypeTooltip","Will break connections if resolved to this type.") :
+							LOCTEXT("WildcardAvailableTypeTooltip", "Available filtered type"))
 					]);
 		}
 	}

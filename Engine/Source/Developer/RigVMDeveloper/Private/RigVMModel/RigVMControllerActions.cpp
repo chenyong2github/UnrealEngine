@@ -1328,6 +1328,109 @@ bool FRigVMSetPinDefaultValueAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
+FRigVMSetTemplateFilteredPermutationsAction::FRigVMSetTemplateFilteredPermutationsAction(URigVMTemplateNode* InNode, URigVMLink* InLink, const TArray<int32>& InOldFilteredPermutations)
+: NodePath(InNode->GetNodePath())
+, LinkPath(InLink ? InLink->GetPinPathRepresentation() : FString())
+, OldFilteredPermutations(InOldFilteredPermutations)
+, NewFilteredPermutations(InNode->GetFilteredPermutationsIndices())
+{
+	
+}
+
+bool FRigVMSetTemplateFilteredPermutationsAction::Merge(const FRigVMBaseAction* Other)
+{
+	if (!FRigVMBaseAction::Merge(Other))
+	{
+		return false;
+	}
+
+	const FRigVMSetTemplateFilteredPermutationsAction* Action = (const FRigVMSetTemplateFilteredPermutationsAction*)Other;
+	if (NodePath != Action->NodePath)
+	{
+		return false;
+	}
+
+	NewFilteredPermutations = Action->NewFilteredPermutations;
+	return true;
+}
+
+bool FRigVMSetTemplateFilteredPermutationsAction::Undo(URigVMController* InController)
+{
+	if(!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+
+	if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InController->GetGraph()->FindNode(NodePath)))
+	{
+		TemplateNode->FilteredPermutations = OldFilteredPermutations;
+		return true;
+	}
+	return false;
+}
+
+bool FRigVMSetTemplateFilteredPermutationsAction::Redo(URigVMController* InController)
+{
+	URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InController->GetGraph()->FindNode(NodePath));
+	if (!TemplateNode)
+	{
+		return false;
+	}
+	TemplateNode->FilteredPermutations = NewFilteredPermutations;
+	return FRigVMBaseAction::Redo(InController);
+}
+
+FRigVMSetPreferredTemplatePermutationsAction::FRigVMSetPreferredTemplatePermutationsAction(URigVMTemplateNode* InNode, const TArray<FString>& InPreferredPermutationTypes)
+: NodePath(InNode->GetNodePath())
+, OldPreferredPermutationTypes(InNode->PreferredPermutationTypes)
+, NewPreferredPermutationTypes(InPreferredPermutationTypes)
+{
+	
+}
+
+bool FRigVMSetPreferredTemplatePermutationsAction::Merge(const FRigVMBaseAction* Other)
+{
+	if (!FRigVMBaseAction::Merge(Other))
+	{
+		return false;
+	}
+
+	const FRigVMSetPreferredTemplatePermutationsAction* Action = (const FRigVMSetPreferredTemplatePermutationsAction*)Other;
+	if (NodePath != Action->NodePath)
+	{
+		return false;
+	}
+
+	NewPreferredPermutationTypes = Action->NewPreferredPermutationTypes;
+	return true;
+}
+
+bool FRigVMSetPreferredTemplatePermutationsAction::Undo(URigVMController* InController)
+{
+	if(!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+
+	if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InController->GetGraph()->FindNode(NodePath)))
+	{
+		TemplateNode->PreferredPermutationTypes = OldPreferredPermutationTypes;
+		return true;
+	}
+	return false;
+}
+
+bool FRigVMSetPreferredTemplatePermutationsAction::Redo(URigVMController* InController)
+{
+	URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InController->GetGraph()->FindNode(NodePath));
+	if (!TemplateNode)
+	{
+		return false;
+	}
+	TemplateNode->PreferredPermutationTypes = NewPreferredPermutationTypes;
+	return FRigVMBaseAction::Redo(InController);
+}
+
 FRigVMInsertArrayPinAction::FRigVMInsertArrayPinAction(URigVMPin* InArrayPin, int32 InIndex, const FString& InNewDefaultValue)
 : ArrayPinPath(InArrayPin->GetPinPath())
 , Index(InIndex)
@@ -1460,31 +1563,11 @@ bool FRigVMChangePinTypeAction::Undo(URigVMController* InController)
 		return false;
 	}
 	
-	if(const URigVMPin* TemplateNodePin = InController->GetGraph()->FindPin(PinPath))
-	{
-		if(TemplateNodePin->GetNode()->IsA<URigVMTemplateNode>() && TemplateNodePin->IsWildCard())
-		{
-			return InController->ResolveWildCardPin(PinPath, OldCPPType, OldCPPTypeObjectPath, false, false);
-		}
-	}
-	
 	return InController->ChangePinType(PinPath, OldCPPType, OldCPPTypeObjectPath, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
 }
 
 bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
 {
-	if(const URigVMPin* TemplateNodePin = InController->GetGraph()->FindPin(PinPath))
-	{
-		if(TemplateNodePin->GetNode()->IsA<URigVMTemplateNode>() && TemplateNodePin->IsWildCard())
-		{
-			if(!InController->ResolveWildCardPin(PinPath, NewCPPType, NewCPPTypeObjectPath, false, false))
-			{
-				return false;
-			}
-			return FRigVMBaseAction::Redo(InController);
-		}
-	}
-
 	if(!InController->ChangePinType(PinPath, NewCPPType, NewCPPTypeObjectPath, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins))
 	{
 		return false;

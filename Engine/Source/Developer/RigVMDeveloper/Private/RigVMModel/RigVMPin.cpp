@@ -1338,6 +1338,19 @@ URigVMPin* URigVMPin::GetPinForLink() const
 	return PinForLink;
 }
 
+URigVMLink* URigVMPin::FindLinkForPin(const URigVMPin* InOtherPin) const
+{
+	for (URigVMLink* Link : Links)
+	{
+		if ((Link->GetSourcePin() == this && Link->GetTargetPin() == InOtherPin) ||
+			(Link->GetSourcePin() == InOtherPin && Link->GetTargetPin() == this))
+		{
+			return Link;
+		}
+	}
+	return nullptr;
+}
+
 URigVMPin* URigVMPin::GetOriginalPinFromInjectedNode() const
 {
 	if(GetNode() == nullptr)
@@ -1560,7 +1573,7 @@ URigVMGraph* URigVMPin::GetGraph() const
 	return nullptr;
 }
 
-bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection)
+bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection, bool bInAllowWildcard)
 {
 	if (InSourcePin == nullptr || InTargetPin == nullptr)
 	{
@@ -1640,12 +1653,16 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 			bCPPTypesDiffer = false;
 		}
 
+		if (bInAllowWildcard && (InSourcePin->CPPType == RigVMTypeUtils::GetWildCardCPPType() || InTargetPin->CPPType == RigVMTypeUtils::GetWildCardCPPType()))
+		{
+			bCPPTypesDiffer = false;
+		}
+
 		if (bCPPTypesDiffer)
 		{
 			{
 				auto TemplateNodeSupportsType = [](URigVMPin* InPin, const FString& InCPPType, FString* OutFailureReason) -> bool
 				{
-
 					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
 					{
 						if (TemplateNode->SupportsType(InPin, InCPPType))

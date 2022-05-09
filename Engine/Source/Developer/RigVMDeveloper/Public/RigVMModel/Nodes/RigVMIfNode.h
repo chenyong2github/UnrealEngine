@@ -18,6 +18,7 @@ public:
 	// Override from URigVMTemplateNode
 	virtual FName GetNotation() const override;
 	virtual const FRigVMTemplate* GetTemplate() const override;
+	virtual bool IsSingleton() const override { return false; }
 
 	// Override from URigVMNode
 	virtual FString GetNodeTitle() const override { return IfName; }

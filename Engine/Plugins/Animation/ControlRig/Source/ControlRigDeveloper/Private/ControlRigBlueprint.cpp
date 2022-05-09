@@ -912,6 +912,8 @@ void UControlRigBlueprint::RefreshAllModels()
 		{
 			Controller->RemoveUnusedOrphanedPins(ModelNode, false);
 		}
+
+		Controller->RecomputeAllTemplateFilteredTypes(false);
 	}
 }
 
@@ -1582,6 +1584,19 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 			}
 		}
 		return FRigVMController_BulkEditResult();
+	});
+
+	Controller->RequestBreakLinksDialogDelegate.BindLambda([WeakThis, WeakController](TArray<URigVMLink*> InLinks) -> bool 
+	{
+		if(WeakThis.IsValid() && WeakController.IsValid())
+		{
+			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			if(StrongThis->OnRequestBreakLinksDialog().IsBound())
+			{
+				return StrongThis->OnRequestBreakLinksDialog().Execute(InLinks);
+			}
+		}
+		return false;
 	});
 
 	Controller->RequestNewExternalVariableDelegate.BindLambda([WeakThis](FRigVMGraphVariableDescription InVariable, bool bInIsPublic, bool bInIsReadOnly) -> FName

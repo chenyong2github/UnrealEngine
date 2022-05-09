@@ -314,6 +314,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	URigVMPin* GetPinForLink() const;
 
+	// Returns the link that represents the connection
+	// between this pin and InOtherPin. nullptr is returned
+	// if the pins are not connected.
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	URigVMLink* FindLinkForPin(const URigVMPin* InOtherPin) const;
+
 	// Returns the original pin for a pin on an injected
 	// node. This can be used to determine where a link
 	// should go in the user interface
@@ -369,7 +375,7 @@ public:
 
 	// Returns true is the two provided source and target Pins
 	// can be linked to one another.
-	static bool CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection = ERigVMPinDirection::IO);
+	static bool CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection = ERigVMPinDirection::IO, bool bInAllowWildcard = false);
 
 	// Returns true if this pin has injected nodes
 	bool HasInjectedNodes() const { return InjectionInfos.Num() > 0; }
