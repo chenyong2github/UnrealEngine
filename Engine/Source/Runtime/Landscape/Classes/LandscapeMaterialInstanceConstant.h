@@ -35,7 +35,7 @@ class ULandscapeMaterialInstanceConstant : public UMaterialInstanceConstant
 	uint32 bIsLayerThumbnail:1;
 
 	UPROPERTY()
-	uint32 bDisableTessellation:1;
+	uint32 bDisableTessellation_DEPRECATED:1;
 
 	UPROPERTY()
 	uint32 bMobile:1;
