@@ -7,6 +7,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraGeometryCacheRendererProperties.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraEmitter.h"
 #include "Async/Async.h"
 
 static float GNiagaraGeometryComponentRenderPoolInactiveTimeLimit = 5;
