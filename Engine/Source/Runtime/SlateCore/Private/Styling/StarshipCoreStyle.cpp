@@ -1635,6 +1635,21 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	Style->Set("Docking.Sidebar.DrawerBackground", new FSlateColorBrush(FStyleColors::Panel));
 	Style->Set("Docking.Sidebar.Background", new FSlateColorBrush(FStyleColors::Background));
 
+	const FButtonStyle StatusBarButton = FButtonStyle(NoBorder)
+		.SetNormalForeground(FStyleColors::Foreground)
+		.SetNormalPadding(FMargin(2, 2, 2, 2))
+		.SetPressedPadding(FMargin(2, 3, 2, 1));
+
+	const FComboButtonStyle StatusBarComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/corner-dropdown", FVector2D(7.0f, 7.0f)))
+		.SetButtonStyle(StatusBarButton)
+		.SetDownArrowPadding(FMargin(0.0f))
+		.SetDownArrowAlignment(EVerticalAlignment::VAlign_Bottom);
+
+	Style->Set("StatusBar.StatusBarButton", StatusBarButton);
+	Style->Set("StatusBar.StatusBarComboButton", StatusBarComboButton);
+	Style->Set("StatusBar.Height", 32.0f);
+
 	// Create the regular border brush with all corners rounded and variants with certain corners squared.
 	{
 		const float CornerRadius = 5.0f;

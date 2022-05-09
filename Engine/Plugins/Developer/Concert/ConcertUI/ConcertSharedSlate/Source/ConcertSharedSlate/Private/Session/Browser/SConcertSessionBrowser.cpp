@@ -30,6 +30,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 
@@ -832,8 +833,8 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		.AutoWidth()
 		[
 			SNew(SComboButton)
-			.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
-			.ForegroundColor(FLinearColor::White)
+			.ComboButtonStyle(FAppStyle::Get(), "ComboButton")
+			.ForegroundColor(FStyleColors::Foreground)
 			.ContentPadding(0)
 			.OnGetMenuContent_Lambda(AddFilterMenu)
 			.HasDownArrow(true)
@@ -846,7 +847,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
-					SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton")) // The eye ball image.
+					SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.Visible")) // The eye ball image.
 				]
 
 				+SHorizontalBox::Slot()

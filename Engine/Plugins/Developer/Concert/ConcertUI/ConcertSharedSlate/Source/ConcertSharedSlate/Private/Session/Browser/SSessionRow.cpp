@@ -7,7 +7,6 @@
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
 
-#include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
 
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
@@ -192,16 +191,16 @@ TSharedRef<SWidget> SSessionRow::GenerateIconColumn()
 		LOCTEXT("ActiveIconTooltip", "Active session") : LOCTEXT("ArchivedIconTooltip", "Archived Session");
 	const FSlateColor InStyle = ItemPin->Type == FConcertSessionItem::EType::ActiveSession ?
 		FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success").Normal.TintColor : FSlateColor::UseSubduedForeground();
-	const FText InGlyph = ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FEditorFontGlyphs::Circle : FEditorFontGlyphs::Archive;
+	// @todo LB: change FolderClosed to archive
+	const FSlateBrush* InGlyph = ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FAppStyle::GetBrush("Icons.FilledCircle") : FAppStyle::GetBrush("Icons.FolderClosed");
 	return SNew(SBox)
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		.Padding(2)
 		.ToolTipText(Tooltip)
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
-			.Text(InGlyph)
+			SNew(SImage)
+			.Image(InGlyph)
 			.ColorAndOpacity(InStyle)
 		];
 }

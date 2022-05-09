@@ -31,15 +31,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if(Target.bBuildEditor == true)
-            {
-				PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"EditorStyle",
-				}
-			);
-			}
 		}
 	}
 }

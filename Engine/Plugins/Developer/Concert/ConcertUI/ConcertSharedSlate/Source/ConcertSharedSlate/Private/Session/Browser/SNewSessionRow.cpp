@@ -3,9 +3,8 @@
 #include "SNewSessionRow.h"
 
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/ConcertSessionItem.h"		
 
-#include "EditorFontGlyphs.h"
 #include "Styling/AppStyle.h"
 
 #include "Algo/ForEach.h"
@@ -78,9 +77,8 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			[
-				SNew(STextBlock)
-					.Font(FAppStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
-					.Text(FEditorFontGlyphs::Plus_Circle)
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			];
 	}
 	else if (ColumnName == ConcertBrowserUtils::SessionColName)
@@ -288,9 +286,8 @@ TSharedRef<SWidget> SNewSessionRow::MakeSelectedServerWidget()
 		.AutoWidth()
 		.Padding(2, 0, 0, 0)
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
-			.Text(this, &SNewSessionRow::GetSelectedServerIgnoreVersionText)
+			SNew(SImage)
+			.Image(this, &SNewSessionRow::GetSelectedServerIgnoreVersionImage)
 			.ToolTipText(this, &SNewSessionRow::GetSelectedServerIgnoreVersionTooltip)
 		];
 }
@@ -319,13 +316,13 @@ FText SNewSessionRow::GetServerDisplayName(const FString& ServerName) const
 	return FText::FromString(ServerName);
 }
 
-FText SNewSessionRow::GetSelectedServerIgnoreVersionText() const
+const FSlateBrush* SNewSessionRow::GetSelectedServerIgnoreVersionImage() const
 {
 	if (ServersComboBox->GetSelectedItem() && (ServersComboBox->GetSelectedItem()->ServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None)
 	{
-		return FEditorFontGlyphs::Exclamation_Triangle;
+		return FAppStyle::GetBrush("Icons.Warning");
 	}
-	return FText();
+	return FAppStyle::GetNoBrush();
 }
 
 FText SNewSessionRow::GetSelectedServerIgnoreVersionTooltip() const

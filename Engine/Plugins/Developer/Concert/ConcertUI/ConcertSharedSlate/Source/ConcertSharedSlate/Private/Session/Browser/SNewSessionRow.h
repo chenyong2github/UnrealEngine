@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Styling/SlateBrush.h"
 
 class FConcertSessionItem;
 class SEditableTextBox;
@@ -51,7 +52,7 @@ private:
 	TSharedRef<SWidget> OnGenerateServersComboOptionWidget(TSharedPtr<FConcertServerInfo> Item);
 	TSharedRef<SWidget> MakeSelectedServerWidget();
 	FText GetSelectedServerText() const;
-	FText GetSelectedServerIgnoreVersionText() const;
+	const FSlateBrush* GetSelectedServerIgnoreVersionImage() const;
 	FText GetSelectedServerIgnoreVersionTooltip() const;
 	FText GetServerDisplayName(const FString& ServerName) const;
 

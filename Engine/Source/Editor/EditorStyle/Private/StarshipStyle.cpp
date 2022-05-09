@@ -7711,26 +7711,11 @@ void FStarshipEditorStyle::FStyle::SetupMyBlueprintStyles()
 
 void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 {
-	const FButtonStyle StatusBarButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("NoBorder"))
-		.SetNormalForeground(FStyleColors::Foreground)
-		.SetNormalPadding(FMargin(2, 2, 2, 2))
-		.SetPressedPadding(FMargin(2, 3, 2, 1));
-
-	const FComboButtonStyle StatusBarComboButton = FComboButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
-		.SetDownArrowImage(CORE_IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/corner-dropdown", FVector2D(7.0f, 7.0f)))
-		.SetButtonStyle(StatusBarButton)
-		.SetDownArrowPadding(FMargin(0.0f))
-		.SetDownArrowAlignment(EVerticalAlignment::VAlign_Bottom);
-		
-	Set("StatusBar.StatusBarButton", StatusBarButton);
-	Set("StatusBar.StatusBarComboButton", StatusBarComboButton);
-
 	Set("StatusBar.ContentBrowserUp", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-up", Icon16x16));
 	Set("StatusBar.ContentBrowserDown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16));
 	Set("StatusBar.DrawerShadow", new BOX_BRUSH("Starship/StatusBar/drawer-shadow-bottom", FMargin(10/64.0f, 20/64.f, 10/64.f, 0), FLinearColor(0,0,0,1)));
 	Set("StatusBar.DrawerBackground", new FSlateRoundedBoxBrush(FStyleColors::Panel, 5.0f));
 
-	Set("StatusBar.Height", 32.0f);
 	Set("StatusBar.Background", new FSlateColorBrush(FStyleColors::Panel));
 	Set("StatusBar.ProgressOverlay", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 2.0f, FStyleColors::Panel, 1.0f, FVector2D(20, 8)));
 

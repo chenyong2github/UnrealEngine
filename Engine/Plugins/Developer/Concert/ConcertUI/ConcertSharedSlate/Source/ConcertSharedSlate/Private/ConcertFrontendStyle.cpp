@@ -6,6 +6,7 @@
 #include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
+#include "Styling/StarshipCoreStyle.h"
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FConcertFrontendStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
@@ -108,8 +109,8 @@ void FConcertFrontendStyle::Initialize()
 
 	// Activity Text
 	{
-		FTextBlockStyle BoldText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("RichTextBlock.Bold");
-		StyleSet->Set("ActivityText.Bold", FTextBlockStyle(BoldText));
+		FTextBlockStyle BoldText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+		StyleSet->Set("ActivityText.Bold", FTextBlockStyle(BoldText).SetFont(FStyleFonts::Get().NormalBold));
 	}
 
 	// Colors

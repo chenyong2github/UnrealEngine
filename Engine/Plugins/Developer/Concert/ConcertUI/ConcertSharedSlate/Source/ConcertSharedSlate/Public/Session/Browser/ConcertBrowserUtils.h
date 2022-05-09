@@ -8,7 +8,6 @@
 #include "IConcertSessionBrowserController.h"
 #include "Session/Browser/ConcertSessionItem.h"
 
-#include "EditorFontGlyphs.h"
 #include "Internationalization/Regex.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
@@ -96,9 +95,8 @@ namespace ConcertBrowserUtils
 			.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 			.ColorAndOpacity(FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Warning").Normal.TintColor.GetSpecifiedColor())
 			[
-				SNew(STextBlock)
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
-				.Text(FEditorFontGlyphs::Exclamation_Triangle)
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.Warning"))
 				.ToolTipText(GetServerVersionIgnoredTooltip())
 				.Visibility((InServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None ? EVisibility::Visible : EVisibility::Collapsed)
 			];

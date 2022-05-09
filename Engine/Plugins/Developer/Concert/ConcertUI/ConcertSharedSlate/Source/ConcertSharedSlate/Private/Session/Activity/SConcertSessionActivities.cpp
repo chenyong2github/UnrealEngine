@@ -905,7 +905,7 @@ TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget(TOpt
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton")) // The eye ball image.
+			SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.Visible")) // The eye ball image.
 		]
 
 		+SHorizontalBox::Slot()

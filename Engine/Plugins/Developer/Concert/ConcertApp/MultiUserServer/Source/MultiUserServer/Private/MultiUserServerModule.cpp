@@ -36,7 +36,6 @@ namespace UE::MultiUserServer
 	{
 		if (ensureMsgf(!WindowController.IsValid(), TEXT("InitSlateForServer is designed to be called at most once to create UI to run alongside the Multi User server.")))
 		{
-			PreInitializeMultiUser();
 			InitArgs.PostInitServerLoop.AddRaw(this, &FConcertServerUIModule::InitializeSlateApplication);
 			InitArgs.TickPostGameThread.AddRaw(this, &FConcertServerUIModule::TickSlate);
 		}
@@ -44,7 +43,7 @@ namespace UE::MultiUserServer
 	
 	void FConcertServerUIModule::PreInitializeMultiUser()
     {
-    	FModuleManager::Get().LoadModuleChecked("EditorStyle");
+    	FModuleManager::Get().LoadModuleChecked("SlateCore");
     	FConcertServerStyle::Initialize();
     	FConcertFrontendStyle::Initialize();
 
@@ -57,6 +56,8 @@ namespace UE::MultiUserServer
     	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
     	const FText ApplicationTitle = LOCTEXT("AppTitle", "Unreal Multi User Server");
     	FGlobalTabmanager::Get()->SetApplicationTitle(ApplicationTitle);
+
+		PreInitializeMultiUser();
 
     	CommandExecutor = MakeUnique<FConcertConsoleCommandExecutor>();
     	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CommandExecutor.Get());
