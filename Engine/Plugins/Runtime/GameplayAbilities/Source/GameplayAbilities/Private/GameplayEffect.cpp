@@ -69,6 +69,11 @@ void UGameplayEffect::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) 
 	TagContainer.AppendTags(InheritableOwnedTagsContainer.CombinedTags);
 }
 
+void UGameplayEffect::GetBlockedAbilityTags(FGameplayTagContainer& OutTagContainer) const
+{
+	OutTagContainer.AppendTags(InheritableBlockedAbilityTagsContainer.CombinedTags);
+}
+
 void UGameplayEffect::PostLoad()
 {
 	Super::PostLoad();
@@ -131,6 +136,7 @@ void UGameplayEffect::PostInitProperties()
 
 	InheritableGameplayEffectTags.PostInitProperties();
 	InheritableOwnedTagsContainer.PostInitProperties();
+	InheritableBlockedAbilityTagsContainer.PostInitProperties();
 	RemoveGameplayEffectsWithTags.PostInitProperties();
 }
 
@@ -152,6 +158,10 @@ void UGameplayEffect::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UGameplayEffect, InheritableOwnedTagsContainer))
 		{
 			InheritableOwnedTagsContainer.UpdateInheritedTagProperties(Parent ? &Parent->InheritableOwnedTagsContainer : NULL);
+		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UGameplayEffect, InheritableBlockedAbilityTagsContainer))
+		{
+			InheritableBlockedAbilityTagsContainer.UpdateInheritedTagProperties(Parent ? &Parent->InheritableBlockedAbilityTagsContainer : nullptr);
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UGameplayEffect, RemoveGameplayEffectsWithTags))
 		{
@@ -187,6 +197,7 @@ void UGameplayEffect::UpdateInheritedTagProperties()
 
 	InheritableGameplayEffectTags.UpdateInheritedTagProperties(Parent ? &Parent->InheritableGameplayEffectTags : NULL);
 	InheritableOwnedTagsContainer.UpdateInheritedTagProperties(Parent ? &Parent->InheritableOwnedTagsContainer : NULL);
+	InheritableBlockedAbilityTagsContainer.UpdateInheritedTagProperties(Parent ? &Parent->InheritableBlockedAbilityTagsContainer : nullptr);
 	RemoveGameplayEffectsWithTags.UpdateInheritedTagProperties(Parent ? &Parent->RemoveGameplayEffectsWithTags : NULL);
 }
 
@@ -1230,6 +1241,14 @@ void FGameplayEffectSpec::GetAllGrantedTags(OUT FGameplayTagContainer& Container
 	if (Def)
 	{
 		Container.AppendTags(Def->InheritableOwnedTagsContainer.CombinedTags);
+	}
+}
+
+void FGameplayEffectSpec::GetAllBlockedAbilityTags(FGameplayTagContainer& OutContainer) const
+{
+	if (Def)
+	{
+		OutContainer.AppendTags(Def->InheritableBlockedAbilityTagsContainer.CombinedTags);
 	}
 }
 
@@ -3245,6 +3264,11 @@ void FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModif
 	// Update our owner with the tags this GameplayEffect grants them
 	Owner->UpdateTagMap(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags, 1);
 	Owner->UpdateTagMap(Effect.Spec.DynamicGrantedTags, 1);
+
+	// Update our owner with the blocked ability tags this GameplayEffect adds to them
+	Owner->BlockAbilitiesWithTags(Effect.Spec.Def->InheritableBlockedAbilityTagsContainer.CombinedTags);
+
+	// Update minimal replication if needed.
 	if (ShouldUseMinimalReplication())
 	{
 		Owner->AddMinimalReplicationGameplayTags(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags);
@@ -3541,6 +3565,10 @@ void FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndMo
 	Owner->UpdateTagMap(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags, -1);
 	Owner->UpdateTagMap(Effect.Spec.DynamicGrantedTags, -1);
 
+	// Update our owner with the blocked ability tags this GameplayEffect adds to them
+	Owner->UnBlockAbilitiesWithTags(Effect.Spec.Def->InheritableBlockedAbilityTagsContainer.CombinedTags);
+
+	// Update minimal replication if needed.
 	if (ShouldUseMinimalReplication())
 	{
 		Owner->RemoveMinimalReplicationGameplayTags(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags);

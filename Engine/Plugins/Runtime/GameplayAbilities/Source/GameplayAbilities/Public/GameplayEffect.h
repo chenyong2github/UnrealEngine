@@ -1012,6 +1012,9 @@ struct GAMEPLAYABILITIES_API FGameplayEffectSpec
 	/** Appends all tags granted by this gameplay effect spec */
 	void GetAllGrantedTags(OUT FGameplayTagContainer& Container) const;
 
+	/** Appends all blocked ability tags granted by this gameplay effect spec */
+	void GetAllBlockedAbilityTags(FGameplayTagContainer& OutContainer) const;
+
 	/** Appends all tags that apply to this gameplay effect spec */
 	void GetAllAssetTags(OUT FGameplayTagContainer& Container) const;
 
@@ -1937,6 +1940,7 @@ public:
 	static const float INVALID_LEVEL;
 
 	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override;
+	virtual void GetBlockedAbilityTags(FGameplayTagContainer& OutTagContainer) const;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
@@ -2041,9 +2045,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta = (DisplayName = "GameplayEffectAssetTag", Categories="GameplayEffectTagsCategory"))
 	FInheritedTagContainer InheritableGameplayEffectTags;
 	
-	/** "These tags are applied to the actor I am applied to" */
+	/** These tags are applied to the actor I am applied to */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta=(DisplayName="GrantedTags", Categories="OwnedTagsCategory"))
 	FInheritedTagContainer InheritableOwnedTagsContainer;
+	
+	/** These blocked ability tags are applied to the actor I am applied to */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta=(DisplayName="GrantedBlockedAbilityTags", Categories="BlockedAbilityTagsCategory"))
+	FInheritedTagContainer InheritableBlockedAbilityTagsContainer;
 	
 	/** Once Applied, these tags requirements are used to determined if the GameplayEffect is "on" or "off". A GameplayEffect can be off and do nothing, but still applied. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta=(Categories="OngoingTagRequirementsCategory"))
