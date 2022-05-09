@@ -3762,7 +3762,7 @@ public:
 	}
 	static ENamedThreads::Type GetDesiredThread()
 	{
-		if (CVarEnableClothPhysicsUseTaskThread.GetValueOnGameThread() != 0)
+		if (CVarEnableClothPhysicsUseTaskThread.GetValueOnAnyThread() != 0)
 		{
 			return CPrio_FParallelClothTask.Get();
 		}
