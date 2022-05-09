@@ -7,7 +7,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RenderResource.h"
 #include "Math/GenericOctreePublic.h"
 #include "SceneManagement.h"
 #include "Math/GenericOctree.h"
@@ -176,7 +175,7 @@ public:
  * The information used to render a light.  This is the rendering thread's mirror of the game thread's ULightComponent.
  * FLightSceneInfo is internal to the renderer module and contains internal scene state.
  */
-class FLightSceneInfo : public FRenderResource
+class FLightSceneInfo
 {
 	friend class FLightPrimitiveInteraction;
 
@@ -251,7 +250,6 @@ public:
 
 	/** Initialization constructor. */
 	FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible);
-	virtual ~FLightSceneInfo();
 
 	/** Adds the light to the scene. */
 	void AddToScene();

@@ -65,12 +65,6 @@ FLightSceneInfo::FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible)
 	// Only visible lights can be added in game
 	check(bVisible || GIsEditor);
 
-	BeginInitResource(this);
-}
-
-FLightSceneInfo::~FLightSceneInfo()
-{
-	ReleaseResource();
 }
 
 void FLightSceneInfo::AddToScene()
