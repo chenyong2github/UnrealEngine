@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyBagDetails.h"
 #include "InstancedStructDetails.h"
@@ -18,6 +18,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "SPinTypeSelector.h"
 #include "PropertyBag.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsEditor"
 
@@ -459,7 +460,7 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 		NameWidget = SNew(SComboButton)
 			.OnGetMenuContent(this, &FPropertyBagInstanceDataDetails::OnPropertyNameContent, ChildRow.GetPropertyHandle(), InlineWidget)
 			.ContentPadding(2)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ButtonContent()
 			[
 				InlineWidget.ToSharedRef()
@@ -676,7 +677,7 @@ TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPrope
 			SNew(SButton)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("AddProperty_Tooltip", "Add new property"))
 			.OnClicked_Lambda([InStructProperty, InPropUtils]()
 			{
@@ -706,7 +707,7 @@ TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPrope
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			]
 		];
 }

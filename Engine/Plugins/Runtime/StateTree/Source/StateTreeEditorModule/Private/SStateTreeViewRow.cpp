@@ -231,7 +231,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 			.Visibility(this, &SStateTreeViewRow::GetLinkedStateVisibility)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(LinkBackground)
 				.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
 				[
