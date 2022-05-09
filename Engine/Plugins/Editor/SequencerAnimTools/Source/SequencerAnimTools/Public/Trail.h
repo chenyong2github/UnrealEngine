@@ -132,8 +132,10 @@ public:
 		}
 	}
 
+	virtual void ForceEvaluateNextTick() { bForceEvaluateNextTick = true; }
+
+
 	FTrajectoryDrawInfo* GetDrawInfo() { return DrawInfo.Get(); }
-	void ForceEvaluateNextTick() { bForceEvaluateNextTick = true; }
 
 	ETrailCacheState GetCacheState() const { return CacheState; }
 protected:

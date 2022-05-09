@@ -105,8 +105,16 @@ void FMovieSceneTransformTrail::CalculateEditedTimes(const FTrailHierarchy* Trai
 		}
 	}
 }
+
+void FMovieSceneTransformTrail::ForceEvaluateNextTick()
+{
+	FTrail::ForceEvaluateNextTick();
+	KeyTool->DirtyKeyTransforms();
+}
+
 void FMovieSceneTransformTrail::UpdateKeysInRange(const TRange<double>& ViewRange)
 {
+	KeyTool->DirtyKeyTransforms();
 	KeyTool->UpdateKeysInRange(ViewRange);
 }
 

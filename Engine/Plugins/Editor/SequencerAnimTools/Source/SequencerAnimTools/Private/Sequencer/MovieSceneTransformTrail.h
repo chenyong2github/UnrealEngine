@@ -45,6 +45,7 @@ public:
 	virtual void UpdateKeysInRange(const TRange<double>& ViewRange) override;
 	virtual TArray<FFrameNumber> GetKeyTimes() const override;
 	virtual TArray<FFrameNumber> GetSelectedKeyTimes() const override;
+	virtual void ForceEvaluateNextTick() override;
 	// End FTrail interface
 
 	TSharedPtr<ISequencer> GetSequencer() const { return WeakSequencer.Pin(); }
