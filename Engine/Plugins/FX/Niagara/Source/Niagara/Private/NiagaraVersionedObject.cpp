@@ -1,4 +1,6 @@
-﻿#include "NiagaraVersionedObject.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NiagaraVersionedObject.h"
 
 #include "NiagaraTypes.h"
 
