@@ -39,8 +39,8 @@ protected:
 		if (SettingsModule != nullptr)
 		{
 			ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "Shotgrid",
-				LOCTEXT("ShotgridSettingsName", "Shotgrid"),
-				LOCTEXT("ShotgridSettingsDescription", "Configure the Shotgrid plug-in."),
+				LOCTEXT("ShotgridSettingsName", "ShotGrid"),
+				LOCTEXT("ShotgridSettingsDescription", "Configure the ShotGrid plugin."),
 				GetMutableDefault<UShotgridSettings>()
 			);
 		}
