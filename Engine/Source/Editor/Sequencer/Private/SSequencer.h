@@ -12,6 +12,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "MovieSceneSequenceID.h"
 #include "ITimeSlider.h"
+#include "ISequencerModule.h"
+#include "ToolMenu.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SSpinBox.h"

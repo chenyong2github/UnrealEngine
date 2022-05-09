@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
+#include "ToolMenuContext.h"
 #include "ISequencer.h"
 #include "Modules/ModuleInterface.h"
 #include "AnimatedPropertyKey.h"
