@@ -3610,7 +3610,7 @@ public:
 	/** 
 	* Allows classes to control if a replicated component can actually be replicated or not in a specific actor class. 
 	* You can also choose a netcondition to filter to whom the component is replicated to.
-	* Called on every replicated component during BeginPlay() and from there on every new replicated component added to the OwnedComponent list
+	* Called on existing replicated component right before BeginPlay() and after that on every new replicated component added to the OwnedComponent list
     *
 	* @param ComponentToReplicate The replicated component added to the actor.
 	* @return Return COND_None if this component should be replicated to everyone, COND_Never if it should not be replicated at all or any other conditions for specific filtering.

@@ -518,7 +518,8 @@ void AActor::SetReplicatedComponentNetCondition(const UActorComponent* Replicate
 
 void AActor::AddComponentForReplication(UActorComponent* Component)
 {
-	if (ActorHasBegunPlay == EActorBeginPlayState::HasNotBegunPlay)
+	constexpr EObjectFlags CDOFlags = RF_ClassDefaultObject | RF_ArchetypeObject;
+	if (ActorHasBegunPlay == EActorBeginPlayState::HasNotBegunPlay || HasAnyFlags(CDOFlags))
 	{
 		return;
 	}
@@ -530,7 +531,7 @@ void AActor::AddComponentForReplication(UActorComponent* Component)
 		FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(Component);
 		if (!ComponentInfo)
 		{
-			ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{ Component, NetCondition });
+			ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(Component, NetCondition));
 		}
 		else
 		{
@@ -542,7 +543,11 @@ void AActor::AddComponentForReplication(UActorComponent* Component)
 
 void AActor::RemoveReplicatedComponent(UActorComponent* Component)
 {
-	ReplicatedComponentsInfo.RemoveSingleSwap(FReplicatedComponentInfo{ Component });
+	int32 Index = ReplicatedComponentsInfo.IndexOfByKey(Component);
+	if (Index != INDEX_NONE)
+	{
+		ReplicatedComponentsInfo.RemoveAtSwap(Index);
+	}
 }
 
 void AActor::AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition)
@@ -573,6 +578,7 @@ void AActor::AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponen
 {
 	check(IsValid(OwnerComponent));
 	check(IsValid(SubObject));
+	ensureMsgf(NetCondition != COND_Custom, TEXT("Custom netconditions do not work with SubObjects. %s - %s will not be replicated."), *GetName(), *SubObject->GetName());
 
 	FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(OwnerComponent);
 	if (ComponentInfo)
@@ -593,7 +599,7 @@ void AActor::AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponen
 		// Let's allow him to register subobjects but set a condition that prevents him from getting replicated until we call IsAllowed.
 		constexpr ELifetimeCondition NeverReplicate = COND_Never;
 
-		const int32 Index = ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{OwnerComponent, NeverReplicate});
+		const int32 Index = ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(OwnerComponent, NeverReplicate));
 		ReplicatedComponentsInfo[Index].SubObjects.AddSubObjectUnique(SubObject, NetCondition);
 
 		UE_LOG(LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) added replicated subobject %s (0x%p) [%s]"),

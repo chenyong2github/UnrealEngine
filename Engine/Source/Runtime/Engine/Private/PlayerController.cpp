@@ -32,6 +32,7 @@
 #include "Widgets/SViewport.h"
 #include "Engine/Console.h"
 #include "Net/UnrealNetwork.h"
+#include "Net/Core/Misc/NetConditionGroupManager.h"
 #include "Engine/WorldComposition.h"
 #include "Engine/LevelScriptActor.h"
 #include "GameFramework/GameNetworkManager.h"
@@ -5771,6 +5772,13 @@ bool APlayerController::ShouldPerformFullTickWhenPaused() const
 	return bShouldPerformFullTickWhenPaused || 
 		(/*bIsInVr =*/GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled() && 
 			GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected());
+}
+
+void APlayerController::IncludeInNetConditionGroup(FName NetGroup)
+{
+	checkf(!UE::Net::IsSpecialNetConditionGroup(NetGroup), TEXT("Cannot add a player to special netcondition group %s manually. This group membership is managed by the network engine automatically."), *NetGroup.ToString());
+	checkf(!NetGroup.IsNone(), TEXT("Invalid netcondition group: NONE"));
+	NetConditionGroups.AddUnique(NetGroup);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -1581,6 +1581,32 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(Keywords = "Camera"))
 	virtual void SetViewTargetWithBlend(class AActor* NewViewTarget, float BlendTime = 0, enum EViewTargetBlendFunction BlendFunc = VTBlend_Linear, float BlendExp = 0, bool bLockOutgoing = false);
 
+	/** 
+	* Make this player a member of a netcondition group. 
+	* Any subobject registered in the group may now be replicated to this player's connection.
+	*/
+	void IncludeInNetConditionGroup(FName NetGroup);
+
+	/** Remove this player from a netcondition group. */
+	void RemoveFromNetConditionGroup(FName NetGroup)
+	{
+		NetConditionGroups.RemoveSingleSwap(NetGroup);
+	}
+
+	/** Returns true if the player controller is a member of the netcondition group */
+	bool IsMemberOfNetConditionGroup(FName NetGroup) const
+	{
+		return NetConditionGroups.Find(NetGroup) != INDEX_NONE;
+	}
+
+	/** Returns the list of netcondition groups we are part of. */
+	const TArray<FName>& GetNetConditionGroups() const { return NetConditionGroups; }
+
+private:
+	
+	/** List of netcondition groups we are currently a member of. */
+	TArray<FName> NetConditionGroups;
+
 protected:
 	/** Clickable object currently under the mouse cursor. */
 	TWeakObjectPtr<UPrimitiveComponent> CurrentClickablePrimitive;

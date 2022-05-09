@@ -6,6 +6,7 @@
 
 #include "Net/DataChannel.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/ObjectKey.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
@@ -22,6 +23,7 @@
 #include "Stats/StatsMisc.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "Net/Subsystems/NetworkSubsystem.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/Misc/NetSubObjectRegistry.h"
 #include "Misc/NetworkVersion.h"
@@ -117,20 +119,18 @@ namespace UE::Net
 		QueuedBunchTimeoutSeconds,
 		TEXT("Time in seconds to wait for queued bunches on a channel to flush before logging a warning."));
 
-	int32 GCVarCompareSubObjectsReplicated = 0;
-	FAutoConsoleVariableRef CVarCompareSubObjectsReplicated(
+	static int32 GCVarCompareSubObjectsReplicated = 0;
+	static FAutoConsoleVariableRef CVarCompareSubObjectsReplicated(
 		TEXT("net.SubObjects.CompareWithLegacy"),
 		GCVarCompareSubObjectsReplicated,
 		TEXT("When turned on we will collect the subobjects replicated by the ReplicateSubObjects method and compare them with the ones replicated via the Actor's registered list. If a divergence is detected it will trigger an ensure."));
 
-	TAutoConsoleVariable<int32> CVarLogAllSubObjectComparisonErrors(
+	static TAutoConsoleVariable<int32> CVarLogAllSubObjectComparisonErrors(
 		TEXT("net.SubObjects.LogAllComparisonErrors"),
 		0,
 		TEXT("If enabled log all the errors detected by the CompareWithLegacy cheat. Otherwise only the first ensure triggered gets logged."));
 
 }; // namespace UE::Net
-
-using namespace UE::Net;
 
 template<typename T>
 static const bool IsBunchTooLarge(UNetConnection* Connection, T* Bunch)
@@ -145,25 +145,27 @@ public:
 	FSubObjectGetter() = delete;
 	~FSubObjectGetter() = delete;
 
-	static const TArray<FSubObjectRegistry::FEntry>& GetSubObjects(AActor* InActor)
+	using FSubObjectRegistry = UE::Net::FSubObjectRegistry;
+
+	static const FSubObjectRegistry& GetSubObjects(AActor* InActor)
 	{
-		return InActor->ReplicatedSubObjects.GetRegistryList();
+		return InActor->ReplicatedSubObjects;
 	}
 
 	static const FSubObjectRegistry* GetSubObjectsOfActorCompoment(AActor* InActor, UActorComponent* InActorComp)
 	{
-		FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
+		UE::Net::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
 		return ComponentInfo ? &(ComponentInfo->SubObjects) : nullptr;
 	}
 
-	static const TArray<FReplicatedComponentInfo>& GetReplicatedComponents(AActor* InActor)
+	static const TArray<UE::Net::FReplicatedComponentInfo>& GetReplicatedComponents(AActor* InActor)
 	{
 		return InActor->ReplicatedComponentsInfo;
 	}
 
 	static bool IsSubObjectInRegistry(AActor* InActor, UActorComponent* InActorComp, UObject* InSubObject)
 	{
-		FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
+		UE::Net::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
 		return ComponentInfo ? ComponentInfo->SubObjects.IsSubObjectInRegistry(InSubObject) : false;
 	}
 };
@@ -223,6 +225,12 @@ namespace DataChannelInternal
     * It is emptied at the end of every call to UActorChannel::ReplicateActor()
 	*/
 	TArray<FSubObjectReplicatedInfo> ReplicatedSubObjectsTracker;
+
+	/** 
+	* Temporary pointer to the NetworkSubsystem that gets set and released in ReplicateActor
+	* Prevents having to grab it for every unique subobject condition test.
+	*/
+	static UNetworkSubsystem* CachedNetworkSubsystem = nullptr;
 }
 
 /*-----------------------------------------------------------------------------
@@ -1787,7 +1795,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 			if (FNetControlMessage<NMT_NetPing>::Receive(Bunch, NetPingMessageType, MessageStr) &&
 				NetPingMessageType <= ENetPingControlMessage::Max)
 			{
-				FNetPing::HandleNetPingControlMessage(Connection, NetPingMessageType, MessageStr);
+				UE::Net::FNetPing::HandleNetPingControlMessage(Connection, NetPingMessageType, MessageStr);
 			}
 
 			break;
@@ -2121,7 +2129,7 @@ void UControlChannel::ReceiveDestructionInfo(FInBunch& Bunch)
 					TheActor->PreDestroyFromReplication();
 					TheActor->Destroy(true);
 
-					if (FilterGuidRemapping != 0)
+					if (UE::Net::FilterGuidRemapping != 0)
 					{
 						// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
 						if (NetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
@@ -2296,7 +2304,7 @@ void UActorChannel::DestroyActorAndComponents()
 		Actor->Destroy(true);
 	}
 
-	if (FilterGuidRemapping != 0)
+	if (UE::Net::FilterGuidRemapping != 0)
 	{
 		// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
 		if (ActorNetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
@@ -2733,7 +2741,7 @@ bool UActorChannel::ProcessQueuedBunches()
 		}
 		else
 		{
-			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > QueuedBunchTimeoutSeconds)
+			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > UE::Net::QueuedBunchTimeoutSeconds)
 			{
 				if (!bSuppressQueuedBunchWarningsDueToHitches && FPlatformProperties::RequiresCookedData())
 				{
@@ -3292,6 +3300,14 @@ int64 UActorChannel::ReplicateActor()
 		return 0;
 	}
 
+	// Cache the netgroup manager so we don't have to access it for every subobject.
+	DataChannelInternal::CachedNetworkSubsystem = ActorWorld->GetSubsystem<UNetworkSubsystem>();
+	check(DataChannelInternal::CachedNetworkSubsystem);
+	ON_SCOPE_EXIT
+	{
+		DataChannelInternal::CachedNetworkSubsystem = nullptr;
+	};
+
 #if UE_NET_TRACE_ENABLED
 	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 #endif
@@ -3540,7 +3556,7 @@ bool UActorChannel::DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& 
 		// If the actor replicates it's subobjects and those of it's components via the list.
 		bWroteSomethingImportant |= ReplicateRegisteredSubObjects(Bunch, OutRepFlags);
 
-		if (GCVarCompareSubObjectsReplicated)
+		if (UE::Net::GCVarCompareSubObjectsReplicated)
 		{
 			ValidateReplicatedSubObjects();
 
@@ -3559,8 +3575,40 @@ bool UActorChannel::DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& 
 	return bWroteSomethingImportant;
 }
 
+bool UActorChannel::CanSubObjectReplicateToClient(ELifetimeCondition NetCondition, FObjectKey SubObjectKey, const TStaticBitArray<COND_Max>& ConditionMap) const
+{
+	bool bCanReplicateToClient = ConditionMap[NetCondition];
+
+	if (NetCondition == COND_NetGroup)
+	{
+		TArrayView<const FName> NetGroups = DataChannelInternal::CachedNetworkSubsystem->GetNetConditionGroupManager().GetSubObjectNetConditionGroups(SubObjectKey);
+
+		for (int i=0; i < NetGroups.Num() && !bCanReplicateToClient; ++i)
+		{
+			const FName NetGroup = NetGroups[i];
+
+			if (UE::Net::NetGroupOwner == NetGroup)
+			{
+				bCanReplicateToClient = ConditionMap[COND_OwnerOnly];
+			}
+			else if (UE::Net::NetGroupReplay == NetGroup)
+			{
+				bCanReplicateToClient = ConditionMap[COND_ReplayOnly];
+			}
+			else
+			{
+				bCanReplicateToClient = Connection->PlayerController->IsMemberOfNetConditionGroup(NetGroup);
+			}
+		}
+	}
+
+	return bCanReplicateToClient;
+}
+	
 bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
+	using namespace UE::Net;
+
 	check(Actor->IsUsingRegisteredSubObjectList());
 
 	if (GCVarCompareSubObjectsReplicated)
@@ -3578,10 +3626,9 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	// Start with the Actor's subobjects
 	{
 		SetCurrentSubObjectOwner(Actor);
-		const TArray<FSubObjectRegistry::FEntry>& ActorSubObjects = FSubObjectGetter::GetSubObjects(Actor);
-		for (const FSubObjectRegistry::FEntry& SubObjectInfo : ActorSubObjects)
+		for (const FSubObjectRegistry::FEntry& SubObjectInfo : FSubObjectGetter::GetSubObjects(Actor).GetRegistryList())
 		{
-			if (ConditionMap[SubObjectInfo.NetCondition])
+			if (CanSubObjectReplicateToClient(SubObjectInfo.NetCondition, SubObjectInfo.Key, ConditionMap))
 			{
 				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
 			}
@@ -3593,7 +3640,7 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	{
 		check(IsValid(RepComponentInfo.Component));
 
-		if (ConditionMap[RepComponentInfo.NetCondition])
+		if (CanSubObjectReplicateToClient(RepComponentInfo.NetCondition, RepComponentInfo.Key, ConditionMap))
 		{
 			UActorComponent* ReplicatedComponent = RepComponentInfo.Component;
 
@@ -3696,7 +3743,7 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 	// This traps actor components using the registration list even if their owning Actor isn't using the list itself.
 	if (ReplicatedComponent->IsUsingRegisteredSubObjectList() && !DataChannelInternal::bTestingLegacyMethodForComparison)
 	{
-		if (GCVarCompareSubObjectsReplicated)
+		if (UE::Net::GCVarCompareSubObjectsReplicated)
 		{
 			TestLegacyReplicateSubObjects(ReplicatedComponent, Bunch, RepFlags);
 
@@ -3714,7 +3761,7 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 		// Write all the subobjects of the component
 		bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
 
-		if (GCVarCompareSubObjectsReplicated)
+		if (UE::Net::GCVarCompareSubObjectsReplicated)
 		{
 			ValidateReplicatedSubObjects();
 
@@ -3735,7 +3782,7 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 
 bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
 {
-	if (const FSubObjectRegistry* SubObjectList = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
+	if (const UE::Net::FSubObjectRegistry* SubObjectList = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
 	{
 		return WriteSubObjects(ReplicatedComponent, *SubObjectList, Bunch, RepFlags, ConditionMap);
 	}
@@ -3743,14 +3790,14 @@ bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBu
 	return false;
 }
 
-bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
+bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const UE::Net::FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
 {
 	bool bWroteSomethingImportant = false;
-	for (const FSubObjectRegistry::FEntry& SubObjectInfo : SubObjectList.GetRegistryList())
+	for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : SubObjectList.GetRegistryList())
 	{
 		checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s::%s"), *GetNameSafe(SubObjectInfo.SubObject), *Actor->GetName(), *GetNameSafe(ReplicatedComponent));
 
-		if (ConditionMap[SubObjectInfo.NetCondition])
+		if (CanSubObjectReplicateToClient(SubObjectInfo.NetCondition, SubObjectInfo.Key, ConditionMap))
 		{
 			bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
 		}
@@ -3762,11 +3809,12 @@ bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const 
 bool UActorChannel::ValidateReplicatedSubObjects()
 {
 	bool bErrorDetected = false;
-	const bool bLogAllErrors = CVarLogAllSubObjectComparisonErrors.GetValueOnAnyThread() != 0;
-	
-	// Make sure both lists contain the same subobjects and trigger an ensure if an element is missing from the other.
-	for (const DataChannelInternal::FSubObjectReplicatedInfo& Info : DataChannelInternal::LegacySubObjectsCollected)
+	const bool bLogAllErrors = UE::Net::CVarLogAllSubObjectComparisonErrors.GetValueOnAnyThread() != 0;
+
+	for (int32 i=DataChannelInternal::LegacySubObjectsCollected.Num()-1; i >= 0; i--)
 	{
+		const DataChannelInternal::FSubObjectReplicatedInfo& Info = DataChannelInternal::LegacySubObjectsCollected[i];
+
 		constexpr bool bNoShrinking = false;
 		const bool bWasFound = DataChannelInternal::ReplicatedSubObjectsTracker.RemoveSingleSwap(Info, bNoShrinking) != 0;
 
@@ -3777,8 +3825,10 @@ bool UActorChannel::ValidateReplicatedSubObjects()
 	}
 
 	// Leftover subobjects in this list means we replicated more elements than the legacy method would.
-	for (const DataChannelInternal::FSubObjectReplicatedInfo& Info : DataChannelInternal::ReplicatedSubObjectsTracker)
+	for (int32 i=DataChannelInternal::ReplicatedSubObjectsTracker.Num()-1; i >= 0; i--)
 	{
+		const DataChannelInternal::FSubObjectReplicatedInfo& Info = DataChannelInternal::ReplicatedSubObjectsTracker[i];
+
 		ensureMsgf(false, TEXT("%s was replicated only in the registered subobject list. Not in the legacy path."), *Info.Describe(Actor));
 		UE_CLOG(bLogAllErrors, LogNet, Warning, TEXT("%s was replicated only in the registered subobject list. Not in the legacy path."), *Info.Describe(Actor));
 	}

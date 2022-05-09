@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/CoreNetTypes.h"
+#include "UObject/ObjectKey.h"
 
-namespace UE::Net {
+class UActorComponent;
+
+namespace UE::Net 
+{
 
 /**
 * Stores the SubObjects to replicate and the network condition dictating to which connection they can replicate to.
@@ -38,10 +41,20 @@ public:
 		/** Raw pointer since users are obligated to call RemoveReplicatedSubobject before destroying the subobject otherwise it will cause a crash.  */
 		UObject* SubObject = nullptr;
 
+		/** Store the object key info for fast access later */
+		FObjectKey Key;
+
 		/** The network condition that chooses which connection this subobject can be replicated to. Default is none which means all connections receive it. */
 		ELifetimeCondition NetCondition = COND_None;
 
-		bool operator==(const FEntry& rhs) const { return SubObject == rhs.SubObject; }
+		FEntry(UObject* InSubObject, ELifetimeCondition InNetCondition = COND_None)
+			: SubObject(InSubObject)
+			, Key(InSubObject)
+			, NetCondition(InNetCondition)
+		{
+		}
+
+		bool operator==(const FEntry& rhs) const { return Key == rhs.Key; }
 		bool operator==(UObject* rhs) const { return SubObject == rhs; }
 	};
 
@@ -59,17 +72,27 @@ private:
 /** Keep track of replicated components and their subobject list */
 struct FReplicatedComponentInfo
 {
-	// Component that will be replicated
-	class UActorComponent* Component = nullptr;
+	/** Component that will be replicated */
+	UActorComponent* Component = nullptr;
 
-	// NetCondition of the component
+	/** Store the object key info for fast access later */
+	FObjectKey Key;
+
+	/** NetCondition of the component */
 	ELifetimeCondition NetCondition = COND_None;
 
-	// Collection of subobjects replicated with this component
+	/** Collection of subobjects replicated with this component */
 	FSubObjectRegistry SubObjects;
 
-	bool operator==(const FReplicatedComponentInfo& rhs) const { return Component == rhs.Component; }
-	bool operator==(const class UActorComponent* rhs) const { return Component == rhs; }
+	FReplicatedComponentInfo(UActorComponent* InComponent, ELifetimeCondition InNetCondition = COND_None)
+		: Component(InComponent)
+		, Key((UObject*)InComponent)
+		, NetCondition(InNetCondition)
+	{
+	};
+
+	bool operator==(const FReplicatedComponentInfo& rhs) const { return Key == rhs.Key; }
+	bool operator==(const UActorComponent* rhs) const { return Component == rhs; }
 };
 
 

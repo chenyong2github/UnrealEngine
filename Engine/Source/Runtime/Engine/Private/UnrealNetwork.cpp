@@ -39,6 +39,7 @@ void RegisterReplicatedLifetimeProperty(
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	const FDoRepLifetimeParams& Params)
 {
+	checkf(Params.Condition != COND_NetGroup, TEXT("Invalid lifetime condition for %s. COND_NetGroup can only be used with registered subobjects"), PropertyDescriptor.PropertyName);
 	for (int32 i = 0; i < PropertyDescriptor.ArrayDim; i++)
 	{
 		const uint16 RepIndex = PropertyDescriptor.RepIndex + i;

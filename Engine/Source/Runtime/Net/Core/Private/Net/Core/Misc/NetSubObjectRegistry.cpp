@@ -2,8 +2,8 @@
 
 #include "Net/Core/Misc/NetSubObjectRegistry.h"
 
-namespace UE {
-namespace Net {
+namespace UE::Net 
+{
 
 // ----------------------------------------------------------------
 //	FSubObjectRegistry
@@ -12,7 +12,7 @@ FSubObjectRegistry::EResult FSubObjectRegistry::AddSubObjectUnique(UObject* InSu
 {
 	check(InSubObject);
 
-	const FEntry SubObjectEntry{ InSubObject, InNetCondition };
+	const FEntry SubObjectEntry(InSubObject, InNetCondition);
 
 	const int32 CurrentIndex = Registry.Find(SubObjectEntry);
 	if (CurrentIndex == INDEX_NONE)
@@ -36,7 +36,13 @@ ELifetimeCondition FSubObjectRegistry::GetNetCondition(UObject* InSubObject) con
 
 bool FSubObjectRegistry::RemoveSubObject(UObject* InSubObject)
 {
-	return Registry.RemoveSingle(FEntry{ InSubObject }) == 1;
+	int32 Index = Registry.IndexOfByKey(InSubObject);
+	if (Index != INDEX_NONE)
+	{
+		Registry.RemoveAt(Index);
+		return true;
+	}
+	return false;
 }
 
 bool FSubObjectRegistry::IsSubObjectInRegistry(UObject* SubObject) const
@@ -44,5 +50,4 @@ bool FSubObjectRegistry::IsSubObjectInRegistry(UObject* SubObject) const
 	return Registry.FindByKey(SubObject) != nullptr;
 }
 
-} //namespace Net
-} //namespace UE
+} //namespace UE::Net

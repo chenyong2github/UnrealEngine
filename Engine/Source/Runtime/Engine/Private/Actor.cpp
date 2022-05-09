@@ -339,6 +339,8 @@ void AActor::ResetOwnedComponents()
 			if (Component->GetIsReplicated())
 			{
 				ReplicatedComponents.Add(Component);
+
+				AddComponentForReplication(Component);
 			}
 		}
 	}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
@@ -3148,10 +3150,7 @@ void AActor::AddOwnedComponent(UActorComponent* Component)
 		{
 			ReplicatedComponents.AddUnique(Component);
 
-			if (!HasAnyFlags(RF_ClassDefaultObject) && HasActorBegunPlay())
-			{
-				AddComponentForReplication(Component);
-			}
+			AddComponentForReplication(Component);
 		}
 		
 
@@ -3218,7 +3217,7 @@ void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 	}
 	else if (NetCondition != COND_Never)
 	{
-		ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{ Component, NetCondition });
+		ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(Component, NetCondition));
 	}
 }
 
@@ -3241,12 +3240,12 @@ void AActor::UpdateAllReplicatedComponents()
 			// We reset the array so no need to add unique
 			ReplicatedComponents.Add(Component);
 
-			if (HasActorBegunPlay())
+			if (ActorHasBegunPlay != EActorBeginPlayState::HasNotBegunPlay)
 			{
 				const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(Component);
 				if (NetCondition != COND_Never)
 				{
-					const int32 Index = ReplicatedComponentsInfo.AddUnique(FReplicatedComponentInfo{ Component });
+					const int32 Index = ReplicatedComponentsInfo.AddUnique(FReplicatedComponentInfo(Component));
 					ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
 				}
 			}
@@ -3913,6 +3912,19 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 
 		bActorBeginningPlayFromLevelStreaming = bFromLevelStreaming;
 		ActorHasBegunPlay = EActorBeginPlayState::BeginningPlay;
+
+		// Ask the actor class if they want to override any replicated components
+		for (UActorComponent* ReplicatedComponent : ReplicatedComponents)
+		{
+			const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(ReplicatedComponent);
+
+			if (NetCondition != COND_Never)
+			{
+				const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo(ReplicatedComponent));
+				ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+			}
+		}
+
 		BeginPlay();
 
 		ensure(BeginPlayCallDepth - 1 == CurrentCallDepth);
@@ -3976,19 +3988,6 @@ void AActor::BeginPlay()
 	ReceiveBeginPlay();
 
 	ActorHasBegunPlay = EActorBeginPlayState::HasBegunPlay;
-
-	// Check all replicated components to find if any got overriden by the actor class now that the class finished it's BeginPlay.
-	// We check after BeginPlay because some components can get removed or added during BeginPlay.
-	for (UActorComponent* ReplicatedComponent : ReplicatedComponents)
-	{
-		const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(ReplicatedComponent);
-
-		if (NetCondition != COND_Never)
-		{
-			const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo{ ReplicatedComponent });
-			ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
-		}
-	}
 }
 
 void AActor::UpdateInitialOverlaps(bool bFromLevelStreaming)

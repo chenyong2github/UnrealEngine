@@ -5858,9 +5858,9 @@ void UNetDriver::SetWorld(class UWorld* InWorld)
 	{
 		// Remove old world association
 		UnregisterTickEvents(World);
-		World = NULL;
-		WorldPackage = NULL;
-		Notify = NULL;
+		World = nullptr;
+		WorldPackage = nullptr;
+		Notify = nullptr;
 
 		GetNetworkObjectList().Reset();
 	}
