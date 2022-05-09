@@ -9,6 +9,7 @@
 #include "UObject/LinkerLoad.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CommandLine.h"
 
 /**
  * Returns the UE version of the linker for this object.
