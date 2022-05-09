@@ -616,7 +616,10 @@ bool FFileHelper::SaveStringToFile( FStringView String, const TCHAR* Filename,  
 		return false;
 
 	if( String.IsEmpty() )
+	{
+		Ar->Close();
 		return true;
+	}
 
 	bool SaveAsUnicode = EncodingOptions == EEncodingOptions::ForceUnicode || ( EncodingOptions == EEncodingOptions::AutoDetect && !FCString::IsPureAnsi(String.GetData(), String.Len()) );
 	if( EncodingOptions == EEncodingOptions::ForceUTF8 )
