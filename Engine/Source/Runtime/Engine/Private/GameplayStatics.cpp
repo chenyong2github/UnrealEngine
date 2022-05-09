@@ -50,6 +50,7 @@
 #include "Sound/SoundWave.h"
 #include "Audio/ActorSoundParameterInterface.h"
 #include "Engine/DamageEvents.h"
+#include "HAL/PlatformMisc.h"
 
 #if WITH_ACCESSIBILITY
 #include "Framework/Application/SlateApplication.h"
@@ -2275,24 +2276,24 @@ bool UGameplayStatics::SaveDataToSlot(const TArray<uint8>& InSaveData, const FSt
 
 void UGameplayStatics::AsyncSaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex, FAsyncSaveGameToSlotDelegate SavedDelegate)
 {
-	TArray<uint8> ObjectBytes;
-	if (SaveGameToMemory(SaveGameObject, ObjectBytes))
-	{
-		AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, SavedDelegate, ObjectBytes]()
-		{
-			bool bSuccess = SaveDataToSlot(ObjectBytes, SlotName, UserIndex);
+	ISaveGameSystem* SaveSystem = IPlatformFeaturesModule::Get().GetSaveGameSystem();
 
-			// Now schedule the callback on the game thread, but only if it was bound to anything
-			if (SavedDelegate.IsBound())
+	TSharedRef<TArray<uint8>> ObjectBytes(new TArray<uint8>());
+
+	if (SaveSystem && (SlotName.Len() > 0) && 
+		SaveGameToMemory(SaveGameObject, *ObjectBytes) && (ObjectBytes->Num() > 0) )
+	{
+		FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
+
+		SaveSystem->SaveGameAsync(false, *SlotName, PlatformUserId, ObjectBytes, 
+			[SavedDelegate, UserIndex](const FString& SlotName, FPlatformUserId PlatformUserId, bool bSuccess)
 			{
-				AsyncTask(ENamedThreads::GameThread, [SlotName, UserIndex, SavedDelegate, bSuccess]()
-				{
-					SavedDelegate.ExecuteIfBound(SlotName, UserIndex, bSuccess);
-				});
+				check(IsInGameThread());
+				SavedDelegate.ExecuteIfBound(SlotName, UserIndex, bSuccess);
 			}
-		});
+		);
 	}
-	else if (SavedDelegate.IsBound())
+	else
 	{
 		SavedDelegate.ExecuteIfBound(SlotName, UserIndex, false);
 	}
@@ -2380,24 +2381,30 @@ bool UGameplayStatics::LoadDataFromSlot(TArray<uint8>& OutSaveData, const FStrin
 
 void UGameplayStatics::AsyncLoadGameFromSlot(const FString& SlotName, const int32 UserIndex, FAsyncLoadGameFromSlotDelegate LoadedDelegate)
 {
-	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, LoadedDelegate]()
+	ISaveGameSystem* SaveSystem = IPlatformFeaturesModule::Get().GetSaveGameSystem();
+	if (SaveSystem && (SlotName.Len() > 0))
 	{
-		// Do the actual I/O on the background thread
-		TArray<uint8> ObjectBytes;
-		LoadDataFromSlot(ObjectBytes, SlotName, UserIndex);
+		FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
 
-		// Now schedule the serialize and callback on the game thread
-		AsyncTask(ENamedThreads::GameThread, [SlotName, UserIndex, LoadedDelegate, ObjectBytes]()
-		{
-			USaveGame* LoadedGame = nullptr;
-			if (ObjectBytes.Num() > 0)
+		SaveSystem->LoadGameAsync(false, *SlotName, PlatformUserId,
+			[LoadedDelegate, UserIndex](const FString& SlotName, FPlatformUserId PlatformUserId, bool bSuccess, const TArray<uint8>& Data)
 			{
-				LoadedGame = LoadGameFromMemory(ObjectBytes);
-			}
+				check(IsInGameThread());
 
-			LoadedDelegate.ExecuteIfBound(SlotName, UserIndex, LoadedGame);
-		});
-	});
+				USaveGame* LoadedGame = nullptr;
+				if (bSuccess)
+				{
+					LoadedGame = LoadGameFromMemory(Data);
+				}
+
+				LoadedDelegate.ExecuteIfBound(SlotName, UserIndex, LoadedGame);
+			}
+		);
+	}
+	else
+	{
+		LoadedDelegate.ExecuteIfBound(SlotName, UserIndex, nullptr);
+	}
 }
 
 USaveGame* UGameplayStatics::LoadGameFromSlot(const FString& SlotName, const int32 UserIndex)
