@@ -624,7 +624,7 @@ void UMassReplicationSubsystem::AddClient(FMassViewerHandle ViewerHandle, APlaye
 	}
 	else
 	{
-		checkf(ClientsReplicationInfo[ClientHandle.GetIndex()].Handles.Num() == 0, TEXT("ClientsReplicationInfo being replaced must have zero entries, they should have been removed first!"));
+		checkf(ClientsReplicationInfo[ClientHandle.GetIndex()].IsEmpty(), TEXT("ClientsReplicationInfo being replaced must have been reset prior to being reused!"));
 
 		FViewerClientPair& ClientToViewerHandleItem = ClientToViewerHandleArray[ClientHandle.GetIndex()];
 
@@ -671,10 +671,13 @@ void UMassReplicationSubsystem::RemoveClient(FMassClientHandle ClientHandle)
 	checkf(ClientToViewerHandleItem.ViewerHandle.IsValid(), TEXT("Invalid ViewerHandle! ClientHandle is out of sync with ClientToViewerHandleArray!"));
 	checkf(ClientToViewerHandleItem.ClientHandle == ClientHandle, TEXT("ClientHandle is out of sync with ClientToViewerHandleArray!"));
 
-	FMassClientReplicationInfo& ClientViewerHandles = ClientsReplicationInfo[ClientHandle.GetIndex()];
+	{
+		FMassClientReplicationInfo& ClientReplicationInfo = ClientsReplicationInfo[ClientHandle.GetIndex()];
 
-	checkf(ClientViewerHandles.Handles.Num() > 0, TEXT("There should always be atleast one client viewer handle (the parent NetConnection)"));
-	ClientViewerHandles.Handles.Reset();
+		checkf(ClientReplicationInfo.Handles.Num() > 0, TEXT("There should always be atleast one client viewer handle (the parent NetConnection)"));
+
+		ClientReplicationInfo.Reset();
+	}
 
 	checkf(ViewerToClientHandleArray.IsValidIndex(ClientToViewerHandleItem.ViewerHandle.GetIndex()), TEXT("ViewerHandle is out of sync with ViewerToClientHandleArray!"));
 	FViewerClientPair& ViewerToClientHandleItem = ViewerToClientHandleArray[ClientToViewerHandleItem.ViewerHandle.GetIndex()];

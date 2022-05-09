@@ -18,6 +18,19 @@ typedef TMap<FMassEntityHandle, FMassReplicatedAgentData> FMassReplicationAgentD
 
 struct FMassClientReplicationInfo
 {
+	void Reset()
+	{
+		Handles.Reset();
+		HandledEntities.Reset();
+		AgentsData.Reset();
+	}
+
+	/** Note this struct is constructed IsEmpty() == true */
+	bool IsEmpty() const
+	{
+		return (Handles.Num() == 0) && (HandledEntities.Num() == 0) && (AgentsData.Num() == 0);
+	}
+
 	/** Array of all the viewer of this client */
 	TArray<FMassViewerHandle> Handles;
 
@@ -106,6 +119,11 @@ public:
 
 	const TArray<FMassClientHandle>& GetClientReplicationHandles() const { return ClientHandleManager.GetHandles(); }
 
+	bool IsValidClientHandle(FMassClientHandle ClientHandle) const
+	{
+		return ClientHandleManager.IsValidHandle(ClientHandle);
+	}
+
 	/** Gets the client bubble safely */
 	AMassClientBubbleInfoBase* GetClientBubble(FMassBubbleInfoClassHandle BubbleClassHandle, FMassClientHandle ClientHandle) const
 	{
@@ -162,11 +180,15 @@ public:
 	}
 
 	/** Gets the client replication info. Faster version using check()s */
+	FMassClientReplicationInfo* GetMutableClientReplicationInfo(FMassClientHandle Handle)
+	{
+		return const_cast<FMassClientReplicationInfo*>(GetClientReplicationInfo(Handle));
+	}
+
+	/** Gets the client replication info. Faster version using check()s */
 	FMassClientReplicationInfo& GetMutableClientReplicationInfoChecked(FMassClientHandle Handle)
 	{
-		check(ClientHandleManager.IsValidHandle(Handle));
-
-		return ClientsReplicationInfo[Handle.GetIndex()];
+		return *const_cast<FMassClientReplicationInfo*>(&GetClientReplicationInfoChecked(Handle));
 	}
 
 	void SynchronizeClientsAndViewers();

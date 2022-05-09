@@ -136,8 +136,6 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 					ReplicationSubsystem->GetClientBubbleChecked(RepSharedFragment.BubbleInfoClassHandle, CurrentClientHandle) :
 					nullptr;
 
-				check(Info);
-
 				RepSharedFragment.BubbleInfos[Idx] = Info;
 				CachedClientHandle = CurrentClientHandle;
 			}
@@ -162,13 +160,18 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 	UMassLODSubsystem& LODSubsystem = Context.GetMutableSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
 	const TArray<FViewerInfo>& AllViewersInfo = LODSubsystem.GetViewers();
 	const TArray<FMassClientHandle>& ClientHandles = ReplicationSubsystem->GetClientReplicationHandles();
-	for( const FMassClientHandle ClientHandle : ClientHandles )
+	for (const FMassClientHandle ClientHandle : ClientHandles)
 	{
+		if (ReplicationSubsystem->IsValidClientHandle(ClientHandle) == false)
+		{
+			continue;
+		}
+
 		FMassClientReplicationInfo& ClientReplicationInfo = ReplicationSubsystem->GetMutableClientReplicationInfoChecked(ClientHandle);
 
 		// Figure out all viewer of this client
 		TArray<FViewerInfo> Viewers;
-		for(const FMassViewerHandle ClientViewerHandle : ClientReplicationInfo.Handles)
+		for (const FMassViewerHandle ClientViewerHandle : ClientReplicationInfo.Handles)
 		{
 			const FViewerInfo* ViewerInfo = AllViewersInfo.FindByPredicate([ClientViewerHandle](const FViewerInfo& ViewerInfo) { return ClientViewerHandle == ViewerInfo.Handle; });
 			if (ensureMsgf(ViewerInfo, TEXT("Expecting to find the client viewer handle in the all viewers info list")))
