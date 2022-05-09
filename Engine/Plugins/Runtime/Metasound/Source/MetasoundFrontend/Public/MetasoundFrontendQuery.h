@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/SortedMap.h"
 #include "Math/NumericLimits.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
@@ -95,10 +96,11 @@ namespace Metasound
 
 	/** A FFrontendQueryPartition represents a set of entries associated with a 
 	 * single FFrontendQueryKey. */
-	using FFrontendQueryPartition = TSet<FFrontendQueryEntry>;
+	
+	using FFrontendQueryPartition = TArray<FFrontendQueryEntry, TInlineAllocator<1>>;
 
 	/** A FFrontendQuerySelection holds a map of keys to partitions. */
-	using FFrontendQuerySelection = TMap<FFrontendQueryKey, FFrontendQueryPartition>;
+	using FFrontendQuerySelection = TSortedMap<FFrontendQueryKey, FFrontendQueryPartition>;
 
 	/** Interface for an individual step in a query */
 	class IFrontendQueryStep
@@ -162,7 +164,7 @@ namespace Metasound
 			virtual ~IFrontendQuerySortStep() = default;
 			virtual bool Sort(const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS) const = 0;
 	};
-
+	
 	class IFrontendQueryLimitStep : public IFrontendQueryStep
 	{
 		public:
