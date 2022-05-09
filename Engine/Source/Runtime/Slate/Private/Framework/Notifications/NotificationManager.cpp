@@ -92,6 +92,10 @@ void FSlateNotificationManager::ShutdownOnPreExit()
 	FCoreDelegates::OnPreExit.RemoveAll(this);
 
 	RegionalLists.Empty();
+
+	FScopeLock Lock(&StagedNotificationCS);
+	StagedNotifications.Empty();
+
 }
 
 void FSlateNotificationManager::SetRootWindow( const TSharedRef<SWindow> InRootWindow )
@@ -343,5 +347,20 @@ void FSlateNotificationManager::ForceNotificationsInFront( const TSharedRef<SWin
 		}
 	}
 }
+
+void FSlateNotificationManager::RegisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification)
+{
+	FScopeLock Lock(&StagedNotificationCS);
+
+	StagedNotifications.Add(InNotification);
+}
+
+void FSlateNotificationManager::UnregisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification)
+{
+	FScopeLock Lock(&StagedNotificationCS);
+
+	StagedNotifications.Remove(InNotification);
+}
+
 
 #undef LOCTEXT_NAMESPACE

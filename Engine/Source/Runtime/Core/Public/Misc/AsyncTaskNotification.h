@@ -190,5 +190,5 @@ public:
 
 private:
 	/** Pointer to the real notification implementation */
-	IAsyncTaskNotificationImpl* NotificationImpl = nullptr;
+	TSharedPtr<IAsyncTaskNotificationImpl> NotificationImpl;
 };

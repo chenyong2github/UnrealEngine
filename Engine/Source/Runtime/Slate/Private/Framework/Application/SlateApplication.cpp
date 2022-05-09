@@ -717,7 +717,7 @@ TSharedRef<FSlateApplication> FSlateApplication::Create(const TSharedRef<class G
 		PlatformApplication->OnDisplayMetricsChanged().AddSP(CurrentApplication.ToSharedRef(), &FSlateApplication::OnVirtualDesktopSizeChanged);
 	}
 
-	FAsyncTaskNotificationFactory::Get().RegisterFactory(TEXT("Slate"), []() -> FAsyncTaskNotificationFactory::FImplPointerType { return new FSlateAsyncTaskNotificationImpl(); });
+	FAsyncTaskNotificationFactory::Get().RegisterFactory(TEXT("Slate"), []() -> FAsyncTaskNotificationFactory::FImplPointerType { return MakeShared<FSlateAsyncTaskNotificationImpl>(); });
 
 	return CurrentApplication.ToSharedRef();
 }

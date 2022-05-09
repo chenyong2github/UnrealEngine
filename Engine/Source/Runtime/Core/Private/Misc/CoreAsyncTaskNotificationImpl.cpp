@@ -215,7 +215,7 @@ FAsyncTaskNotificationFactory::FImplPointerType FAsyncTaskNotificationFactory::I
 {
 	return Factories.Num() > 0
 		? Factories.Last().Value()
-		: new FCoreAsyncTaskNotificationImpl();
+		: MakeShared<FCoreAsyncTaskNotificationImpl>();
 }
 
 #undef LOCTEXT_NAMESPACE

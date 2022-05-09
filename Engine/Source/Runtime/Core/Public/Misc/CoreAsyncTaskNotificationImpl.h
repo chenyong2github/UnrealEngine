@@ -137,7 +137,7 @@ class CORE_API FAsyncTaskNotificationFactory
 	friend class FAsyncTaskNotification;
 
 public:
-	typedef IAsyncTaskNotificationImpl* FImplPointerType;
+	typedef TSharedPtr<IAsyncTaskNotificationImpl> FImplPointerType;
 	typedef TFunction<FImplPointerType()> FFactoryFunc;
 
 	/**

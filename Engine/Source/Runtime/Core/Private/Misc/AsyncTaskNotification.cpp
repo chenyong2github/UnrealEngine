@@ -12,22 +12,21 @@ FAsyncTaskNotification::FAsyncTaskNotification(const FAsyncTaskNotificationConfi
 
 FAsyncTaskNotification::~FAsyncTaskNotification()
 {
-	delete NotificationImpl;
 }
 
 FAsyncTaskNotification::FAsyncTaskNotification(FAsyncTaskNotification&& InOther)
 	: NotificationImpl(InOther.NotificationImpl)
 {
-	InOther.NotificationImpl = nullptr;
+	InOther.NotificationImpl.Reset();
 }
 
 FAsyncTaskNotification& FAsyncTaskNotification::operator=(FAsyncTaskNotification&& InOther)
 {
 	if (this != &InOther)
 	{
-		delete NotificationImpl;
+		NotificationImpl.Reset();
 		NotificationImpl = InOther.NotificationImpl;
-		InOther.NotificationImpl = nullptr;
+		InOther.NotificationImpl.Reset();
 	}
 	return *this;
 }

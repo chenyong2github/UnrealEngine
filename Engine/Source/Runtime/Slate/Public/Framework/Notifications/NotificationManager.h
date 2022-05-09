@@ -9,6 +9,7 @@
 #include "Widgets/SWindow.h"
 
 #include "HAL/IConsoleManager.h"
+#include "Misc/CoreAsyncTaskNotificationImpl.h"
 
 struct FNotificationInfo;
 
@@ -166,6 +167,16 @@ public:
 		return this->bAllowNotifications;
 	}
 
+	/**
+	 * Register a Staged Async Notification, allowing the NotificationManager to keep a reference to it
+	 */
+	void RegisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification);
+
+	/**
+	 * Unregister a previously added Staged Notification
+	 */
+	void UnregisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification);
+
 protected:
 	/** Protect constructor as this is a singleton */
 	FSlateNotificationManager();
@@ -208,6 +219,12 @@ private:
 
 	/** Thread safe queue of notifications to display */
 	TLockFreePointerListLIFO<FNotificationInfo> PendingNotifications;
+
+	/** An array of staged notifications */
+	TArray<TSharedPtr<IAsyncTaskNotificationImpl>> StagedNotifications;
+
+	/** Critical Section to guard access to StagedNotifications */
+	FCriticalSection StagedNotificationCS;
 
 	/** Counter used to create progress handles */
 	static int32 ProgressHandleCounter;
