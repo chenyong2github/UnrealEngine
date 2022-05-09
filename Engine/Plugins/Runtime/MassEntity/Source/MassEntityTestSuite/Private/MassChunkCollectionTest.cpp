@@ -14,15 +14,6 @@ PRAGMA_DISABLE_OPTIMIZATION
 namespace FMassEntityCollectionTest
 {
 
-void Shuffle(FRandomStream& Rand, TArray<FMassEntityHandle>& Entities)
-{
-	for (int i = 0; i < Entities.Num(); ++i)
-	{
-		const int32 NewIndex = Rand.RandRange(0, Entities.Num() - 1);
-		Entities.Swap(i, NewIndex);
-	}
-}
-
 struct FEntityCollectionTestBase : FEntityTestBase
 {
 	TArray<FMassEntityHandle> Entities;
@@ -95,7 +86,7 @@ struct FEntityCollection_CreateOrderInvariant : FEntityCollectionTestBase
 		FMassArchetypeEntityCollection CollectionFromOrdered(FloatsArchetype, EntitiesSubSet, FMassArchetypeEntityCollection::NoDuplicates);
 
 		FRandomStream Rand(0);
-		Shuffle(Rand, EntitiesSubSet);
+		ShuffleDataWithRandomStream(Rand, EntitiesSubSet);
 
 		FMassArchetypeEntityCollection CollectionFromRandom(FloatsArchetype, EntitiesSubSet, FMassArchetypeEntityCollection::NoDuplicates);
 
