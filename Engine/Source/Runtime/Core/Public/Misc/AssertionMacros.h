@@ -359,10 +359,10 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 
 #else	// DO_ENSURE
 
-	#define ensure(           InExpression                ) ([&](){return (!!(InExpression));}())
-	#define ensureMsgf(       InExpression, InFormat, ... ) ([&](){return (!!(InExpression));}())
-	#define ensureAlways(     InExpression                ) ([&](){return (!!(InExpression));}())
-	#define ensureAlwaysMsgf( InExpression, InFormat, ... ) ([&](){return (!!(InExpression));}())
+	#define ensure(           InExpression                ) (!!(InExpression))
+	#define ensureMsgf(       InExpression, InFormat, ... ) (!!(InExpression))
+	#define ensureAlways(     InExpression                ) (!!(InExpression))
+	#define ensureAlwaysMsgf( InExpression, InFormat, ... ) (!!(InExpression))
 
 #endif	// DO_CHECK
 
