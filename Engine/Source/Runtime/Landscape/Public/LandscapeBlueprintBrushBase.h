@@ -48,7 +48,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Landscape")
 	void RequestLandscapeUpdate();
 
-	UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION(BlueprintImplementableEvent, CallInEditor)
 	void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);
 
 #if WITH_EDITOR
