@@ -22,7 +22,7 @@ class FLobbyDetailsInfoEOS;
 class FLobbyInviteDataEOSRegistry;
 class FLobbySchema;
 struct FLobbyEvents;
-class FAuthEOS;
+class FAuthEOSGS;
 struct FClientLobbyMemberSnapshot;
 
 //--------------------------------------------------------------------------------------------------
