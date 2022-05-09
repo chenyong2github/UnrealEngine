@@ -725,11 +725,12 @@ class FShadowParallelCommandListSet final : public FParallelCommandListSet
 {
 public:
 	FShadowParallelCommandListSet(
+		const FRDGPass* InPass,
 		FRHICommandListImmediate& InParentCmdList,
 		const FViewInfo& InView,
 		const FProjectedShadowInfo& InProjectedShadowInfo,
 		const FParallelCommandListBindings& InBindings)
-		: FParallelCommandListSet(GET_STATID(STAT_CLP_Shadow), InView, InParentCmdList)
+		: FParallelCommandListSet(InPass, GET_STATID(STAT_CLP_Shadow), InView, InParentCmdList)
 		, ProjectedShadowInfo(InProjectedShadowInfo)
 		, Bindings(InBindings)
 	{}
@@ -1154,9 +1155,9 @@ void FProjectedShadowInfo::RenderDepth(
 #if WITH_MGPU
 			, ShadowDepthTexture, GPUMask, bDoCrossGPUCopy
 #endif
-			](FRHICommandListImmediate& RHICmdList)
+			](const FRDGPass* InPass, FRHICommandListImmediate& RHICmdList)
 		{
-			FShadowParallelCommandListSet ParallelCommandListSet(RHICmdList, *ShadowDepthView, *this, FParallelCommandListBindings(PassParameters));
+			FShadowParallelCommandListSet ParallelCommandListSet(InPass, RHICmdList, *ShadowDepthView, *this, FParallelCommandListBindings(PassParameters));
 			ShadowDepthPass.DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 
 #if WITH_MGPU

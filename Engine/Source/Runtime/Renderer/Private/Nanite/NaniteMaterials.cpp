@@ -550,7 +550,7 @@ void DrawBasePass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
 			RDGPassFlags,
-			[PassParameters, &SceneRenderer, &Scene, NaniteVertexShader, &View, &MaterialPassCommands, bParallelBasePassBuild](FRHICommandListImmediate& RHICmdListImmediate)
+			[PassParameters, &SceneRenderer, &Scene, NaniteVertexShader, &View, &MaterialPassCommands, bParallelBasePassBuild](const FRDGPass* InPass, FRHICommandListImmediate& RHICmdListImmediate)
 		{
 			RHICmdListImmediate.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -596,6 +596,7 @@ void DrawBasePass(
 			PassParameters->MaterialIndirectArgs->MarkResourceAsUsed();
 
 			DrawNaniteMaterialPasses(
+				InPass,
 				SceneRenderer,
 				Scene,
 				View,

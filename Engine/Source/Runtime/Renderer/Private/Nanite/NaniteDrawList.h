@@ -147,6 +147,7 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 );
 
 void DrawNaniteMaterialPasses(
+	const FRDGPass* Pass,
 	const FSceneRenderer& SceneRenderer,
 	const FScene& Scene,
 	const FViewInfo& View,

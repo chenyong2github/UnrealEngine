@@ -393,8 +393,8 @@ public:
 	void PopEventOverride();
 
 	/** Push/pop stats which do additional draw call tracking on top of events. */
-	void PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
-	void PopStat(FRHICommandListImmediate& RHICmdList, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
+	void PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr);
+	void PopStat(FRHICommandListImmediate& RHICmdList, FRHIDrawCallsStatPtr InNumDrawCallsPtr);
 
 #if GPUPROFILERTRACE_ENABLED
 	RENDERCORE_API void FetchPerfByDescription(TArray<FRealtimeGPUProfilerDescriptionResult> & OutResults) const;
@@ -432,7 +432,7 @@ class FScopedGPUStatEvent
 	/** Cmdlist to push onto. */
 	FRHICommandListImmediate* RHICmdList;
 
-	int32 (*NumDrawCallsPtr)[MAX_NUM_GPUS];
+	FRHIDrawCallsStatPtr NumDrawCallsPtr;
 public:
 	/** Default constructor, initializing all member variables. */
 	FORCEINLINE FScopedGPUStatEvent()
@@ -454,7 +454,7 @@ public:
 	/**
 	* Start/Stop functions for timer stats
 	*/
-	RENDERCORE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
+	RENDERCORE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr);
 	RENDERCORE_API void End();
 };
 #endif // HAS_GPU_STATS

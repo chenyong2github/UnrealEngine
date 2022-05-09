@@ -1498,7 +1498,7 @@ RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = 
 // GCurrentNumDrawCallsRHIPtr points to the drawcall counter to increment
 RHI_API int32 GCurrentNumDrawCallsRHI[MAX_NUM_GPUS] = {};
 RHI_API int32 GNumDrawCallsRHI[MAX_NUM_GPUS] = {};
-RHI_API int32(*GCurrentNumDrawCallsRHIPtr)[MAX_NUM_GPUS] = &GCurrentNumDrawCallsRHI;
+thread_local FRHIDrawCallsStatPtr GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
 RHI_API int32 GCurrentNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
 RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
 
@@ -3041,4 +3041,14 @@ void FDebugName::AppendString(FStringBuilderBase& Builder) const
 	{
 		Builder << '_' << Number;
 	}
+}
+
+RHI_API void RHISetCurrentNumDrawCallPtr(FRHIDrawCallsStatPtr InNumDrawCallsRHIPtr)
+{
+	GCurrentNumDrawCallsRHIPtr = InNumDrawCallsRHIPtr;
+}
+
+RHI_API void RHIIncCurrentNumDrawCallPtr(uint32 GPUIndex)
+{
+	FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
 }

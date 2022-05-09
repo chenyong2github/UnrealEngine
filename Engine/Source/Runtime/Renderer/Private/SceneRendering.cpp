@@ -674,8 +674,9 @@ bool FFastVramConfig::UpdateBufferFlagFromCVar(TAutoConsoleVariable<int32>& CVar
 FFastVramConfig GFastVRamConfig;
 
 
-FParallelCommandListSet::FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList)
-	: View(InView)
+FParallelCommandListSet::FParallelCommandListSet(const FRDGPass* InPass, TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList)
+	: Pass(InPass)
+	, View(InView)
 	, ParentCmdList(InParentCmdList)
 	, ExecuteStat(InExecuteStat)
 	, NumAlloc(0)
@@ -786,6 +787,17 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 {
 	FRHICommandList* Result = AllocCommandList();
 	Result->ExecuteStat = ExecuteStat;
+
+#if RDG_GPU_SCOPES
+	if (Pass->GetGPUScopes().Stat != nullptr && (**Pass->GetGPUScopes().Stat->DrawCallCounter) != -1)
+	{
+		Result->EnqueueLambda(
+			[DrawCallCounter = Pass->GetGPUScopes().Stat->DrawCallCounter](auto&)
+		{
+			RHISetCurrentNumDrawCallPtr(DrawCallCounter);
+		});
+	}
+#endif
 
 #if RHI_WANT_BREADCRUMB_EVENTS
 	if (GParallelCmdListInheritBreadcrumbs)

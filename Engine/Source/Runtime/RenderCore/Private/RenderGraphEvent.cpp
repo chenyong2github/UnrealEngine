@@ -186,10 +186,10 @@ FRDGEventScopeOpArray FRDGEventScopeStack::CompilePassEpilogue()
 	return MoveTemp(Ops);
 }
 
-FRDGGPUStatScopeGuard::FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, int32(*NumDrawCallsPtr)[MAX_NUM_GPUS])
+FRDGGPUStatScopeGuard::FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr)
 	: GraphBuilder(InGraphBuilder)
 {
-	GraphBuilder.GPUScopeStacks.BeginStatScope(Name, StatName, Description, NumDrawCallsPtr);
+	GraphBuilder.GPUScopeStacks.BeginStatScope(Name, StatName, Description, InNumDrawCallsPtr);
 }
 
 FRDGGPUStatScopeGuard::~FRDGGPUStatScopeGuard()
@@ -255,7 +255,7 @@ void FRDGGPUStatScopeOpArray::Execute(FRHIComputeCommandList& RHICmdListCompute)
 			RHICmdList.EnqueueLambda(
 				[DrawCallCounter = Scope->DrawCallCounter, bPush = Op.IsPush()](auto&)
 			{
-				GCurrentNumDrawCallsRHIPtr = bPush ? DrawCallCounter : &GCurrentNumDrawCallsRHI;
+				RHISetCurrentNumDrawCallPtr(bPush ? DrawCallCounter : &GCurrentNumDrawCallsRHI);
 			});
 			break;
 		}

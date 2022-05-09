@@ -1136,7 +1136,7 @@ void FRealtimeGPUProfiler::PopEventOverride()
 	}
 }
 
-void FRealtimeGPUProfiler::PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS])
+void FRealtimeGPUProfiler::PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr)
 {
 	PushEvent(RHICmdList.GetGPUMask(), Name, StatName, Description).Submit(RHICmdList);
 
@@ -1144,12 +1144,12 @@ void FRealtimeGPUProfiler::PushStat(FRHICommandListImmediate& RHICmdList, const 
 	{
 		RHICmdList.EnqueueLambda([InNumDrawCallsPtr](FRHICommandListImmediate&)
 		{
-			GCurrentNumDrawCallsRHIPtr = InNumDrawCallsPtr;
+			RHISetCurrentNumDrawCallPtr(InNumDrawCallsPtr);
 		});
 	}
 }
 
-void FRealtimeGPUProfiler::PopStat(FRHICommandListImmediate& RHICmdList, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS])
+void FRealtimeGPUProfiler::PopStat(FRHICommandListImmediate& RHICmdList, FRHIDrawCallsStatPtr InNumDrawCallsPtr)
 {
 	PopEvent().Submit(RHICmdList);
 
@@ -1157,7 +1157,7 @@ void FRealtimeGPUProfiler::PopStat(FRHICommandListImmediate& RHICmdList, int32 (
 	{
 		RHICmdList.EnqueueLambda([](FRHICommandListImmediate&)
 		{
-			GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
+			RHISetCurrentNumDrawCallPtr(&GCurrentNumDrawCallsRHI);
 		});
 	}
 }
@@ -1165,7 +1165,7 @@ void FRealtimeGPUProfiler::PopStat(FRHICommandListImmediate& RHICmdList, int32 (
 /*-----------------------------------------------------------------------------
 FScopedGPUStatEvent
 -----------------------------------------------------------------------------*/
-void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS])
+void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr)
 {
 	check(IsInRenderingThread());
 	if (!AreGPUStatsEnabled())

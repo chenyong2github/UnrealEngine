@@ -514,6 +514,7 @@ public:
 class FParallelCommandListSet
 {
 public:
+	const FRDGPass* Pass;
 	const FViewInfo& View;
 	FRHICommandListImmediate& ParentCmdList;
 	TStatId	ExecuteStat;
@@ -535,7 +536,7 @@ protected:
 	void Dispatch(bool bHighPriority = false);
 	FRHICommandList* AllocCommandList();
 public:
-	FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList);
+	FParallelCommandListSet(const FRDGPass* InPass, TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList);
 	virtual ~FParallelCommandListSet();
 
 	int32 NumParallelCommandLists() const
@@ -563,13 +564,14 @@ class FRDGParallelCommandListSet final : public FParallelCommandListSet
 {
 public:
 	FRDGParallelCommandListSet(
+		const FRDGPass* InPass,
 		FRHICommandListImmediate& InParentCmdList,
 		TStatId InStatId,
 		const FSceneRenderer& InSceneRenderer,
 		const FViewInfo& InView,
 		const FParallelCommandListBindings& InBindings,
 		float InViewportScale = 1.0f)
-		: FParallelCommandListSet(InStatId, InView, InParentCmdList)
+		: FParallelCommandListSet(InPass, InStatId, InView, InParentCmdList)
 		, SceneRenderer(InSceneRenderer)
 		, Bindings(InBindings)
 		, ViewportScale(InViewportScale)

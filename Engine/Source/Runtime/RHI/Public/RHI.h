@@ -596,8 +596,10 @@ extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
 /** Num draw calls and primitives this frame (only accurate on RenderThread) */
 extern RHI_API int32 GCurrentNumDrawCallsRHI[MAX_NUM_GPUS];
-extern RHI_API int32(*GCurrentNumDrawCallsRHIPtr)[MAX_NUM_GPUS];
 extern RHI_API int32 GCurrentNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
+using FRHIDrawCallsStatPtr = int32(*)[MAX_NUM_GPUS];
+RHI_API void RHIIncCurrentNumDrawCallPtr(uint32 GPUIndex);
+RHI_API void RHISetCurrentNumDrawCallPtr(FRHIDrawCallsStatPtr InNumDrawCallsRHIPtr);
 
 /** Whether or not the RHI can handle a non-zero BaseVertexIndex - extra SetStreamSource calls will be needed if this is false */
 extern RHI_API bool GRHISupportsBaseVertexIndex;
@@ -2689,7 +2691,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn"),STAT_RHILines,STATGROUP_RH
 #if STATS
 #define RHI_DRAW_CALL_INC_MGPU(GPUIndex) \
 		INC_DWORD_STAT(STAT_RHIDrawPrimitiveCalls); \
-		FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
+		RHIIncCurrentNumDrawCallPtr(GPUIndex);
 
 #define RHI_DRAW_CALL_STATS_MGPU(GPUIndex,PrimitiveType,NumPrimitives) \
 		RHI_DRAW_CALL_INC_MGPU(GPUIndex); \
@@ -2698,11 +2700,11 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn"),STAT_RHILines,STATGROUP_RH
 		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI[GPUIndex], NumPrimitives);
 #else
 #define RHI_DRAW_CALL_INC_MGPU(GPUIndex) \
-		FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
+		RHIIncCurrentNumDrawCallPtr(GPUIndex);
 
 #define RHI_DRAW_CALL_STATS_MGPU(GPUIndex,PrimitiveType,NumPrimitives) \
 		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI[GPUIndex], NumPrimitives); \
-		FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
+		RHIIncCurrentNumDrawCallPtr(GPUIndex);
 #endif
 
 #define RHI_DRAW_CALL_INC() RHI_DRAW_CALL_INC_MGPU(0)

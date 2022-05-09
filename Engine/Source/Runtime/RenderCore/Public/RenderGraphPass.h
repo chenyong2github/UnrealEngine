@@ -529,13 +529,28 @@ class TRDGLambdaPass
 	struct TLambdaTraits<ReturnType(ClassType::*)(ArgType&) const>
 	{
 		using TRHICommandList = ArgType;
+		using TRDGPass = void;
 	};
 	template <typename ReturnType, typename ClassType, typename ArgType>
 	struct TLambdaTraits<ReturnType(ClassType::*)(ArgType&)>
 	{
 		using TRHICommandList = ArgType;
+		using TRDGPass = void;
+	};
+	template <typename ReturnType, typename ClassType, typename ArgType1, typename ArgType2>
+	struct TLambdaTraits<ReturnType(ClassType::*)(const ArgType1*, ArgType2&) const>
+	{
+		using TRHICommandList = ArgType2;
+		using TRDGPass = ArgType1;
+	};
+	template <typename ReturnType, typename ClassType, typename ArgType1, typename ArgType2>
+	struct TLambdaTraits<ReturnType(ClassType::*)(const ArgType1*, ArgType2&)>
+	{
+		using TRHICommandList = ArgType2;
+		using TRDGPass = ArgType1;
 	};
 	using TRHICommandList = typename TLambdaTraits<ExecuteLambdaType>::TRHICommandList;
+	using TRDGPass = typename TLambdaTraits<ExecuteLambdaType>::TRDGPass;
 
 public:
 	static const bool kSupportsAsyncCompute = TIsSame<TRHICommandList, FRHIComputeCommandList>::Value;
@@ -560,12 +575,24 @@ public:
 	}
 
 private:
+	template<class T>
+	typename TEnableIf<!TIsSame<T, FRDGPass>::Value, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
+	{
+		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
+	}
+
+	template<class T>
+	typename TEnableIf<TIsSame<T, FRDGPass>::Value, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
+	{
+		ExecuteLambda(this, static_cast<TRHICommandList&>(RHICmdList));
+	}
+
 	void Execute(FRHIComputeCommandList& RHICmdList) override
 	{
 		check(!kSupportsRaster || RHICmdList.IsGraphics());
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
 		RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
-		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
+		ExecuteLambdaFunc<TRDGPass>(static_cast<TRHICommandList&>(RHICmdList));
 	}
 
 	ExecuteLambdaType ExecuteLambda;

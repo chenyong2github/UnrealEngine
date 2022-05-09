@@ -602,6 +602,7 @@ static void BuildNaniteMaterialPassCommands(
 }
 
 void DrawNaniteMaterialPasses(
+	const FRDGPass* Pass,
 	const FSceneRenderer& SceneRenderer,
 	const FScene& Scene,
 	const FViewInfo& View,
@@ -623,7 +624,7 @@ void DrawNaniteMaterialPasses(
 			TRACE_CPUPROFILER_EVENT_SCOPE(BuildParallelCommandListSet);
 
 			// Parallel set will be executed when object goes out of scope
-			FRDGParallelCommandListSet ParallelCommandListSet(RHICmdListImmediate, GET_STATID(STAT_CLP_NaniteBasePass), SceneRenderer, View, ParallelBindings);
+			FRDGParallelCommandListSet ParallelCommandListSet(Pass, RHICmdListImmediate, GET_STATID(STAT_CLP_NaniteBasePass), SceneRenderer, View, ParallelBindings);
 
 			// Force high prio so it's not preempted by another high prio task
 			ParallelCommandListSet.SetHighPriority();

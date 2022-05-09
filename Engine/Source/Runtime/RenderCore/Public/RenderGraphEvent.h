@@ -450,7 +450,7 @@ private:
 class FRDGGPUStatScope final
 {
 public:
-	FRDGGPUStatScope(const FRDGGPUStatScope* InParentScope, const FName& InName, const FName& InStatName, const TCHAR* InDescription, int32 (*InDrawCallCounter)[MAX_NUM_GPUS])
+	FRDGGPUStatScope(const FRDGGPUStatScope* InParentScope, const FName& InName, const FName& InStatName, const TCHAR* InDescription, FRHIDrawCallsStatPtr InDrawCallCounter)
 		: ParentScope(InParentScope)
 		, Name(InName)
 		, StatName(InStatName)
@@ -466,7 +466,7 @@ public:
 	const FName Name;
 	const FName StatName;
 	FString Description;
-	int32 (*DrawCallCounter)[MAX_NUM_GPUS];
+	FRHIDrawCallsStatPtr DrawCallCounter;
 };
 
 class FRDGGPUStatScopeOp : public TRDGScopeOp<FRDGGPUStatScope>
@@ -514,7 +514,7 @@ public:
 #endif
 	{}
 
-	inline void BeginScope(const FName& Name, const FName& StatName, const TCHAR* Description, int32(*DrawCallCounter)[MAX_NUM_GPUS])
+	inline void BeginScope(const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr DrawCallCounter)
 	{
 		if (IsEnabled())
 		{
@@ -574,7 +574,7 @@ private:
 class RENDERCORE_API FRDGGPUStatScopeGuard final
 {
 public:
-	FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*DrawCallCounter)[MAX_NUM_GPUS]);
+	FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr DrawCallCounter);
 	FRDGGPUStatScopeGuard(const FRDGGPUStatScopeGuard&) = delete;
 	~FRDGGPUStatScopeGuard();
 
@@ -668,7 +668,7 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 		AsyncCompute.Event.EndScope();
 	}
 
-	inline void BeginStatScope(const FName& Name, const FName& StatName, const TCHAR* Description, int32(*DrawCallCounter)[MAX_NUM_GPUS])
+	inline void BeginStatScope(const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr DrawCallCounter)
 	{
 		Graphics.Stat.BeginScope(Name, StatName, Description, DrawCallCounter);
 	}
