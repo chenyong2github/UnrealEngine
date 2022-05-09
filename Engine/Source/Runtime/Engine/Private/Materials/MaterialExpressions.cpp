@@ -22115,7 +22115,7 @@ int32 UMaterialExpressionStrataConvertToDecal::Compile(class FMaterialCompiler* 
 		}
 		else if (!StrataOperator.bRootOfParameterBlendingSubTree)
 		{
-			return Compiler->Errorf(TEXT("Strata Convert To Decal node must be the root of a parameter blending sun tree."));
+			return Compiler->Errorf(TEXT("Strata Convert To Decal node must be the root of a parameter blending sub tree."));
 		}
 
 		if (StrataOperator.bUseParameterBlending)
@@ -22398,7 +22398,7 @@ int32 UMaterialExpressionStrataSingleLayerWaterBSDF::Compile(class FMaterialComp
 	}
 	else if (StrataOperator.bRootOfParameterBlendingSubTree)
 	{
-		return Compiler->Errorf(TEXT("Strata SingleLayerWater BSDF node cannot be the root of a parameter blending sun tree."));
+		return Compiler->Errorf(TEXT("Strata SingleLayerWater BSDF node cannot be the root of a parameter blending sub tree."));
 	}
 
 	int32 OutputCodeChunk = Compiler->StrataSingleLayerWaterBSDF(
