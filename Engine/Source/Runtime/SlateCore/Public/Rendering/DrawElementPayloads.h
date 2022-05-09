@@ -339,18 +339,29 @@ struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElemen
 		{
 			NewPoints.Add(UE::Slate::CastToVector2f(Vect));
 		}
-		SetLines(MoveTemp(NewPoints), bInAntialias, InPointColors);
+		if (InPointColors)
+		{
+			SetLines(MoveTemp(NewPoints), bInAntialias, *InPointColors);
+		}
+		else
+		{
+			SetLines(MoveTemp(NewPoints), bInAntialias);
+		}
 	}
 
 
-	void SetLines(TArray<FVector2f> InPoints, bool bInAntialias, const TArray<FLinearColor>* InPointColors = nullptr)
+	void SetLines(TArray<FVector2f> InPoints, bool bInAntialias)
 	{
 		bAntialias = bInAntialias;
 		Points = MoveTemp(InPoints);
-		if (InPointColors)
-		{
-			PointColors = *InPointColors;
-		}
+		PointColors.Reset();
+	}
+
+	void SetLines(TArray<FVector2f> InPoints, bool bInAntialias, TArray<FLinearColor> InPointColors)
+	{
+		bAntialias = bInAntialias;
+		Points = MoveTemp(InPoints);
+		PointColors = MoveTemp(InPointColors);
 	}
 };
 

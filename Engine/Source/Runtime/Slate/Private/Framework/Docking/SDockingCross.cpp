@@ -39,19 +39,19 @@ int32 SDockingCross::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 	//  |/           \|
 	//  +-------------+
 	
-	const FVector2D P0( DockZoneSizeX, DockZoneSizeY );
-	const FVector2D P1( AllottedGeometry.GetLocalSize().X - DockZoneSizeX, DockZoneSizeY );
-	const FVector2D P2( AllottedGeometry.GetLocalSize().X - DockZoneSizeX, AllottedGeometry.GetLocalSize().Y - DockZoneSizeY );
-	const FVector2D P3( DockZoneSizeX, AllottedGeometry.GetLocalSize().Y - DockZoneSizeY );
+	const FVector2f P0( DockZoneSizeX, DockZoneSizeY );
+	const FVector2f P1( AllottedGeometry.GetLocalSize().X - DockZoneSizeX, DockZoneSizeY );
+	const FVector2f P2( AllottedGeometry.GetLocalSize().X - DockZoneSizeX, AllottedGeometry.GetLocalSize().Y - DockZoneSizeY );
+	const FVector2f P3( DockZoneSizeX, AllottedGeometry.GetLocalSize().Y - DockZoneSizeY );
 
-	const FVector2D P0_Outer( 0,0 );
-	const FVector2D P1_Outer( AllottedGeometry.GetLocalSize().X,0 );
-	const FVector2D P2_Outer( AllottedGeometry.GetLocalSize().X,AllottedGeometry.GetLocalSize().Y );
-	const FVector2D P3_Outer( 0,AllottedGeometry.GetLocalSize().Y );
+	const FVector2f P0_Outer( 0.f,0.f );
+	const FVector2f P1_Outer( AllottedGeometry.GetLocalSize().X,0.f );
+	const FVector2f P2_Outer( AllottedGeometry.GetLocalSize().X,AllottedGeometry.GetLocalSize().Y );
+	const FVector2f P3_Outer( 0.f,AllottedGeometry.GetLocalSize().Y );
 
 	// Inner Box
 	{
-		TArray<FVector2D> InnerBox;
+		TArray<FVector2f> InnerBox;
 
 		InnerBox.Add( P0 );
 		InnerBox.Add( P1 );
@@ -63,13 +63,13 @@ int32 SDockingCross::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 	      OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			InnerBox
+			MoveTemp(InnerBox)
 		);
 	}
 
 	// Outer Box
 	{
-		TArray<FVector2D> OuterBox;
+		TArray<FVector2f> OuterBox;
 
 		OuterBox.Add( P0_Outer );
 		OuterBox.Add( P1_Outer );
@@ -81,60 +81,60 @@ int32 SDockingCross::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 	      OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			OuterBox
+			MoveTemp(OuterBox)
 		);
 	}
 	
 	// Diagonals
 	{
-		TArray<FVector2D> Points;
+		TArray<FVector2f> Points;
 
-		Points.Add( FVector2D(P0_Outer) );
-		Points.Add( FVector2D(P0) );
+		Points.Add( P0_Outer );
+		Points.Add( P0 );
 
 		FSlateDrawElement::MakeLines(
 	      OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			Points
+			MoveTemp(Points)
 		);
 	}
 	{
-		TArray<FVector2D> Points;
+		TArray<FVector2f> Points;
 
-		Points.Add( FVector2D(P1_Outer) );
-		Points.Add( FVector2D(P1) );
+		Points.Add(FVector2f(P1_Outer));
+		Points.Add(FVector2f(P1));
 
 		FSlateDrawElement::MakeLines(
 	      OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			Points
+			MoveTemp(Points)
 		);
 	}
 	{
-		TArray<FVector2D> Points;
+		TArray<FVector2f> Points;
 
-		Points.Add( FVector2D(P2_Outer) );
-		Points.Add( FVector2D(P2) );
+		Points.Add(FVector2f(P2_Outer));
+		Points.Add(FVector2f(P2));
 
 		FSlateDrawElement::MakeLines(
 	      OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			Points
+			MoveTemp(Points)
 		);
 	}{
-		TArray<FVector2D> Points;
+		TArray<FVector2f> Points;
 
-		Points.Add( FVector2D(P3_Outer) );
-		Points.Add( FVector2D(P3) );
+		Points.Add(FVector2f(P3_Outer));
+		Points.Add(FVector2f(P3));
 
 		FSlateDrawElement::MakeLines(
 	      OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			Points
+			MoveTemp(Points)
 		);
 	}
 	

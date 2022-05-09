@@ -1605,19 +1605,19 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	{
 		FSlateClippingZone ClippingZone(AllottedGeometry);
 
-		TArray<FVector2D> Points;
-		Points.Add(FVector2D(ClippingZone.TopLeft));
-		Points.Add(FVector2D(ClippingZone.TopRight));
-		Points.Add(FVector2D(ClippingZone.BottomRight));
-		Points.Add(FVector2D(ClippingZone.BottomLeft));
-		Points.Add(FVector2D(ClippingZone.TopLeft));
+		TArray<FVector2f> Points;
+		Points.Add(FVector2f(ClippingZone.TopLeft));
+		Points.Add(FVector2f(ClippingZone.TopRight));
+		Points.Add(FVector2f(ClippingZone.BottomRight));
+		Points.Add(FVector2f(ClippingZone.BottomLeft));
+		Points.Add(FVector2f(ClippingZone.TopLeft));
 
 		const bool bAntiAlias = true;
 		FSlateDrawElement::MakeLines(
 			OutDrawElements,
 			NewLayerId,
 			FPaintGeometry(),
-			Points,
+			MoveTemp(Points),
 			ESlateDrawEffect::None,
 			ClippingZone.IsAxisAligned() ? FLinearColor::Yellow : FLinearColor::Red,
 			bAntiAlias,

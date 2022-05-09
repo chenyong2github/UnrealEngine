@@ -39,7 +39,7 @@ int32 SSpinningImage::OnPaint( const FPaintArgs& Args, const FGeometry& Allotted
 			ImageBrush,
 			DrawEffects,
 			Angle,
-			TOptional<FVector2D>(), // Will auto rotate about center
+			TOptional<FVector2f>(), // Will auto rotate about center
 			FSlateDrawElement::RelativeToElement,
 			FinalColorAndOpacity
 			);

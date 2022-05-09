@@ -466,16 +466,16 @@ class SSplineWithHandles : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSplineWithHandles)
-	: _P0(FVector2D(0,32))
-	, _P1(FVector2D(100, 32))
-	, _P2(FVector2D(0,132))
-	, _P3(FVector2D(100,132))
+	: _P0(FVector2f(0.f,32.f))
+	, _P1(FVector2f(100.f, 32.f))
+	, _P2(FVector2f(0.f,132.f))
+	, _P3(FVector2f(100.f,132.f))
 	, _SplineThickness(1.0f)
 	{}
-		SLATE_ARGUMENT(FVector2D, P0)
-		SLATE_ARGUMENT(FVector2D, P1)
-		SLATE_ARGUMENT(FVector2D, P2)
-		SLATE_ARGUMENT(FVector2D, P3)
+		SLATE_ARGUMENT(FVector2f, P0)
+		SLATE_ARGUMENT(FVector2f, P1)
+		SLATE_ARGUMENT(FVector2f, P2)
+		SLATE_ARGUMENT(FVector2f, P3)
 		SLATE_ATTRIBUTE(float, SplineThickness)
 	SLATE_END_ARGS()
 
@@ -485,7 +485,7 @@ public:
 		SplineThickness = InArgs._SplineThickness;
 	}
 
-	void SetPoints(FVector2D P0, FVector2D P1, FVector2D P2, FVector2D P3)
+	void SetPoints(FVector2f P0, FVector2f P1, FVector2f P2, FVector2f P3)
 	{
 		BezierPoints[0] = P0;
 		BezierPoints[1] = P1;
@@ -499,7 +499,7 @@ public:
 	}
 
 private:
-	const FVector2D BezierPointRadius = FVector2D(8,8);
+	const FVector2f BezierPointRadius = FVector2f(8.f,8.f);
 
 	TSharedPtr<SSpinBox<float>> ThicknessSpinBox;
 	
@@ -509,18 +509,18 @@ private:
 		const bool bEnabled = ShouldBeEnabled(bParentEnabled);
 		
 		// Draw control points.
-		for (int i = 0; i < 4; ++i)
+		for (int32 i = 0; i < 4; ++i)
 		{
-			const FVector2D RadiusToUse = (i == 0 || i == 3) ? BezierPointRadius : 0.5f*BezierPointRadius;
+			const FVector2f RadiusToUse = (i == 0 || i == 3) ? BezierPointRadius : 0.5f*BezierPointRadius;
 			const FLinearColor ColorToUse = (i == 0 || i == 1) ? FLinearColor::Green : FLinearColor::Blue;
 
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry(2* RadiusToUse, FSlateLayoutTransform(BezierPoints[i]- RadiusToUse)),
-				&WhiteBox,				
+				AllottedGeometry.ToPaintGeometry(FVector2D(2.f* RadiusToUse), FSlateLayoutTransform(BezierPoints[i]- RadiusToUse)),
+				&WhiteBox,
 				bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
-				ColorToUse * FLinearColor(1, 1, 1, 0.25f)
+				ColorToUse * FLinearColor(1.f, 1.f, 1.f, 0.25f)
 			);
 
 		}
@@ -584,7 +584,7 @@ private:
 	{
 		if (MouseEvent.GetEffectingButton()==EKeys::LeftMouseButton)
 		{
-			const FVector2D LocalCursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+			const FVector2f LocalCursorPos = UE::Slate::CastToVector2f(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 			PointBeingDragged = PointIndexFromCursorPos(BezierPoints, LocalCursorPos, 2*BezierPointRadius.X*2*BezierPointRadius.X);
 
 			if (PointBeingDragged != INDEX_NONE)
@@ -613,7 +613,7 @@ private:
 	{
 		if (PointBeingDragged != INDEX_NONE)
 		{
-			const FVector2D LocalCursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+			const FVector2f LocalCursorPos = UE::Slate::CastToVector2f(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 			BezierPoints[PointBeingDragged] = LocalCursorPos;
 			return FReply::Handled();
 		}
@@ -623,7 +623,7 @@ private:
 	//~ SWidget
 
 
-	static int32 PointIndexFromCursorPos(const FVector2D* Points, const FVector2D LocalCursorPos, const float RadiusSquared)
+	static int32 PointIndexFromCursorPos(const FVector2f* Points, const FVector2f LocalCursorPos, const float RadiusSquared)
 	{
 		for (int i = 0; i < 4; ++i)
 		{			
@@ -637,7 +637,7 @@ private:
 	}
 
 	FSlateColorBrush WhiteBox = FSlateColorBrush(FColor::White);
-	FVector2D BezierPoints[4];
+	FVector2f BezierPoints[4];
 	int32 PointBeingDragged = INDEX_NONE;
 	TAttribute<float> SplineThickness;
 	TArray<FSlateGradientStop> GradientStops;
@@ -647,15 +647,15 @@ class SSplineTest : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSplineTest)
-		: _P0(FVector2D(0, 32))
-		, _P1(FVector2D(100, 32))
-		, _P2(FVector2D(0, 132))
-		, _P3(FVector2D(100, 132))
+		: _P0(FVector2f(0.f, 32.f))
+		, _P1(FVector2f(100.f, 32.f))
+		, _P2(FVector2f(0.f, 132.f))
+		, _P3(FVector2f(100.f, 132.f))
 	{}
-		SLATE_ARGUMENT(FVector2D, P0)
-		SLATE_ARGUMENT(FVector2D, P1)
-		SLATE_ARGUMENT(FVector2D, P2)
-		SLATE_ARGUMENT(FVector2D, P3)
+		SLATE_ARGUMENT(FVector2f, P0)
+		SLATE_ARGUMENT(FVector2f, P1)
+		SLATE_ARGUMENT(FVector2f, P2)
+		SLATE_ARGUMENT(FVector2f, P3)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
@@ -679,7 +679,7 @@ public:
 				+ SHorizontalBox::Slot()
 				.FillWidth(1)
 				[
-					SNew(SSpinBox<int>)
+					SNew(SSpinBox<int32>)
 					.MinValue(0)
 					.MaxValue(16)
 					.OnValueChanged(this, &SSplineTest::OnNumGradientStopsChanged)
@@ -690,7 +690,7 @@ public:
 					.Text(LOCTEXT("HorizontalHermite", "Horizontal"))
 					.OnClicked_Lambda([this]()
 					{
-						SplineWidget->SetPoints(FVector2D(0, 64), FVector2D(66, 64), FVector2D(133, 64), FVector2D(200, 64));
+						SplineWidget->SetPoints(FVector2f(0.f, 64.f), FVector2f(66.f, 64.f), FVector2f(133.f, 64.f), FVector2f(200.f, 64.f));
 						return FReply::Handled();
 					})
 				]
@@ -700,7 +700,7 @@ public:
 					.Text(LOCTEXT("VerticalHermite", "Vertical"))
 					.OnClicked_Lambda([this]()
 					{
-						SplineWidget->SetPoints(FVector2D(64,0), FVector2D(64, 66), FVector2D(64, 133), FVector2D(64, 200));
+						SplineWidget->SetPoints(FVector2f(64.f,0.f), FVector2f(64.f, 66.f), FVector2f(64.f, 133.f), FVector2f(64.f, 200.f));
 						return FReply::Handled();
 					})
 				]
@@ -710,7 +710,7 @@ public:
 					.Text(LOCTEXT("HorizontalBendy", "Bendy"))
 					.OnClicked_Lambda([this]()
 					{
-						SplineWidget->SetPoints(FVector2D(64, 64), FVector2D(128, 64), FVector2D(64, 128), FVector2D(128, 128));
+						SplineWidget->SetPoints(FVector2f(64.f, 64.f), FVector2f(128.f, 64.f), FVector2f(64.f, 128.f), FVector2f(128.f, 128.f));
 						return FReply::Handled();
 					})
 				]
@@ -720,7 +720,7 @@ public:
 					.Text(LOCTEXT("HorizontalDoubleBendy", "DoubleBendy"))
 					.OnClicked_Lambda([this]()
 					{
-						SplineWidget->SetPoints(FVector2D(128, 128), FVector2D(128-96, 128), FVector2D(192+96, 192), FVector2D(192, 192));
+						SplineWidget->SetPoints(FVector2f(128.f, 128.f), FVector2f(128.f -96.f, 128.f), FVector2f(192.f +96.f, 192.f), FVector2f(192.f, 192.f));
 						return FReply::Handled();
 					})
 				]
@@ -742,7 +742,7 @@ public:
 private:
 	float GetSplineThickness() const { return SplineThickness; }
 	void OnSplineThicknessChanged(float InNewThickness) { SplineThickness = InNewThickness; }
-	void OnNumGradientStopsChanged(int NewNumGradientStops)
+	void OnNumGradientStopsChanged(int32 NewNumGradientStops)
 	{
 		const auto ColorOne = FLinearColor::MakeRandomColor();
 		const auto ColorTwo = FLinearColor::MakeRandomColor();
@@ -959,10 +959,10 @@ private:
 
 	int32 TestSplineElement( const FOnPaintHandlerParams& InParams )
 	{
-		const FVector2D Start(10,10);
-		const FVector2D StartDir(InParams.Geometry.GetLocalSize().X * 1000 / 600,0);
-		const FVector2D End(InParams.Geometry.GetLocalSize().X/4, InParams.Geometry.GetLocalSize().Y-10);
-		const FVector2D EndDir(InParams.Geometry.GetLocalSize().X * 1000 / 600,0);
+		const FVector2f Start(10,10);
+		const FVector2f StartDir(InParams.Geometry.GetLocalSize().X * 1000 / 600,0);
+		const FVector2f End(InParams.Geometry.GetLocalSize().X/4, InParams.Geometry.GetLocalSize().Y-10);
+		const FVector2f EndDir(InParams.Geometry.GetLocalSize().X * 1000 / 600,0);
 
 		FSlateDrawElement::MakeSpline(
 			InParams.OutDrawElements,
@@ -975,15 +975,15 @@ private:
 			FColor::White
 		);
 	
-		FVector2D LineStart =  FVector2D( InParams.Geometry.GetLocalSize().X/4, 10.0f );
+		FVector2f LineStart =  FVector2f( InParams.Geometry.GetLocalSize().X/4, 10.0f );
 
-		TArray<FVector2D> LinePoints;
+		TArray<FVector2f> LinePoints;
 		TArray<FLinearColor> LineColors;
 		LinePoints.Add(LineStart); LineColors.Add(FLinearColor::Red);
-		LinePoints.Add( LineStart + FVector2D( 100.0f, 50.0f ) );
-		LinePoints.Add( LineStart + FVector2D( 200.0f, 10.0f ) );
-		LinePoints.Add( LineStart + FVector2D( 300.0f, 50.0f ) );
-		LinePoints.Add( LineStart + FVector2D( 400.0f, 10.0f ) );
+		LinePoints.Add( LineStart + FVector2f( 100.0f, 50.0f ) );
+		LinePoints.Add( LineStart + FVector2f( 200.0f, 10.0f ) );
+		LinePoints.Add( LineStart + FVector2f( 300.0f, 50.0f ) );
+		LinePoints.Add( LineStart + FVector2f( 400.0f, 10.0f ) );
 
 
 		FSlateDrawElement::MakeLines( 
@@ -993,45 +993,45 @@ private:
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 			FColor::White,
-			true,	
+			true,
 			InParams.Geometry.Scale
 		);
 
 		FSlateDrawElement::MakeLines(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0, 10)),
+			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0.f, 10.f)),
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 			FColor::White,
 			true,
-			2*InParams.Geometry.Scale
+			2.f * InParams.Geometry.Scale
 		);
 
 		FSlateDrawElement::MakeLines(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0, 20)),
+			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0.f, 20.f)),
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 			FColor::White,
 			true,
-			3*InParams.Geometry.Scale
+			3.f * InParams.Geometry.Scale
 		);
 
 		FSlateDrawElement::MakeLines(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0, 34)),
+			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0.f, 34.f)),
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 			FColor::White,
 			true,
-			4 * InParams.Geometry.Scale
+			4.f * InParams.Geometry.Scale
 		);
 			
 
-		LineStart =  LinePoints[ LinePoints.Num() - 1 ] + FVector2D(50,10);
+		LineStart =  LinePoints[ LinePoints.Num() - 1 ] + FVector2f(50.f,10.f);
 		LinePoints.Empty();
 
 		static float CurTime = 0; 
@@ -1040,7 +1040,7 @@ private:
 
 		for( float I = 0; I < 10*PI; I+=.1f)
 		{
-			LinePoints.Add( LineStart + FVector2D( I*15 , 15*FMath::Sin( I + CurTime) ) );
+			LinePoints.Add( LineStart + FVector2f( I*15 , 15*FMath::Sin( I + CurTime) ) );
 		}
 
 		static FColor Color = FColor::MakeRandomColor();
@@ -1057,32 +1057,32 @@ private:
 		FSlateDrawElement::MakeLines(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0, 10)),
+			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0.f, 10.f)),
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::NoPixelSnapping : ESlateDrawEffect::NoPixelSnapping | ESlateDrawEffect::DisabledEffect,
 			Color,
 			true,
-			2*InParams.Geometry.Scale);
+			2.f * InParams.Geometry.Scale);
 
 		FSlateDrawElement::MakeLines(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0, 20)),
+			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0.f, 20.f)),
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::NoPixelSnapping : ESlateDrawEffect::NoPixelSnapping | ESlateDrawEffect::DisabledEffect,
 			Color,
 			true,
-			3 * InParams.Geometry.Scale);
+			3.f * InParams.Geometry.Scale);
 
 		FSlateDrawElement::MakeLines(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0, 34)),
+			InParams.Geometry.ToOffsetPaintGeometry(FVector2D(0.f, 34.f)),
 			LinePoints,
 			InParams.bEnabled ? ESlateDrawEffect::NoPixelSnapping : ESlateDrawEffect::NoPixelSnapping | ESlateDrawEffect::DisabledEffect,
 			Color,
 			true,
-			4 * InParams.Geometry.Scale);
+			4.f * InParams.Geometry.Scale);
 
 		return InParams.Layer;
 
@@ -5901,10 +5901,10 @@ TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 					.Clipping(EWidgetClipping::ClipToBounds)
 					[
 						SNew(SSplineTest)
-						.P0(FVector2D(64, 64))
-						.P1(FVector2D(256, 64))
-						.P2(FVector2D(64, 256))
-						.P3(FVector2D(256, 256))
+						.P0(FVector2f(64, 64))
+						.P1(FVector2f(256, 64))
+						.P2(FVector2f(64, 256))
+						.P3(FVector2f(256, 256))
 					]
 				]
 				+ SUniformGridPanel::Slot(1, 0)
@@ -5913,10 +5913,10 @@ TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 					.Clipping(EWidgetClipping::ClipToBounds)
 					[
 						SNew(SSplineTest)
-						.P0(FVector2D(128 - 32, 32))
-						.P1(FVector2D(128 + 32, 128))
-						.P2(FVector2D(128 - 32, 128))
-						.P3(FVector2D(128 + 32, 32))
+						.P0(FVector2f(128 - 32, 32))
+						.P1(FVector2f(128 + 32, 128))
+						.P2(FVector2f(128 - 32, 128))
+						.P3(FVector2f(128 + 32, 32))
 					]
 				]
 				+ SUniformGridPanel::Slot(0, 1)
@@ -5925,10 +5925,10 @@ TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 					.Clipping(EWidgetClipping::ClipToBounds)
 					[
 						SNew(SSplineTest)
-						.P0(FVector2D(64, 64))
-						.P1(FVector2D(256, 64))
-						.P2(FVector2D(256, 256))
-						.P3(FVector2D(64, 256))
+						.P0(FVector2f(64, 64))
+						.P1(FVector2f(256, 64))
+						.P2(FVector2f(256, 256))
+						.P3(FVector2f(64, 256))
 					]
 				]
 				+ SUniformGridPanel::Slot(1, 1)
@@ -5937,10 +5937,10 @@ TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 					.Clipping(EWidgetClipping::ClipToBounds)
 					[
 						SNew(SSplineTest)
-						.P0(FVector2D(64, 64))
-						.P1(FVector2D(128, 128))
-						.P2(FVector2D(196, 196))
-						.P3(FVector2D(256, 256))
+						.P0(FVector2f(64, 64))
+						.P1(FVector2f(128, 128))
+						.P2(FVector2f(196, 196))
+						.P3(FVector2f(256, 256))
 					]
 				]
 				

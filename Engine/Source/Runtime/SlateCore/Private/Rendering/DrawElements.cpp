@@ -46,10 +46,10 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList)
 
 static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintGeometry& PaintGeometry)
 {
-	const FVector2D& LocalSize = PaintGeometry.GetLocalSize();
+	const FVector2f LocalSize = UE::Slate::CastToVector2f(PaintGeometry.GetLocalSize());
 	const float DrawScale = PaintGeometry.DrawScale;
 
-	const FVector2D PixelSize = (LocalSize * DrawScale);
+	const FVector2f PixelSize = (LocalSize * DrawScale);
 	if (PixelSize.X <= 0.f || PixelSize.Y <= 0.f)
 	{
 		return true;
@@ -123,7 +123,7 @@ FSlateWindowElementList::FSlateWindowElementList(const TSharedPtr<SWindow>& InPa
 	, RenderTargetWindow(nullptr)
 	, bNeedsDeferredResolve(false)
 	, ResolveToDeferredIndex()
-	, WindowSize(FVector2D(0.0f, 0.0f))
+	, WindowSize(FVector2f(0.0f, 0.0f))
 	//, bReportReferences(true)
 {
 	if (InPaintWindow.IsValid())
@@ -156,7 +156,7 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	ClipStateHandle.SetPreCachedClipIndex(ElementList.GetClippingIndex());
 
 #if UE_SLATE_VERIFY_PIXELSIZE
-	const FVector2D PixelSize = FVector2D(LocalSize * Scale);
+	const FVector2f PixelSize = FVector2f(LocalSize * Scale);
 	ensureMsgf(PixelSize.X >= 0.f && PixelSize.X <= (float)std::numeric_limits<uint16>::max(), TEXT("The size X '%f' is too small or big to fit in the SlateVertex buffer."), PixelSize.X);
 	ensureMsgf(PixelSize.Y >= 0.f && PixelSize.Y <= (float)std::numeric_limits<uint16>::max(), TEXT("The size Y '%f' is too small or big to fit in the SlateVertex buffer."), PixelSize.Y);
 #endif
@@ -167,7 +167,7 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	DrawEffects = InDrawEffects;
 	
 	// Calculate the layout to render transform as this is needed by several calculations downstream.
-	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, FVector2D(Position))));
+	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
 
 	{
 		// This is a workaround because we want to keep track of the various Scenes 
@@ -204,7 +204,7 @@ void FSlateDrawElement::ApplyPositionOffset(FVector2f InOffset)
 	RenderTransform = Concatenate(RenderTransform, InOffset);
 
 	// Recompute cached layout to render transform
-	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, FVector2D(Position))));
+	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
 }
 
 void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FLinearColor Tint)
@@ -312,7 +312,22 @@ void FSlateDrawElement::MakeRotatedBox(
 	const FSlateBrush* InBrush,
 	ESlateDrawEffect InDrawEffects,
 	float Angle2D,
-	TOptional<FVector2D> InRotationPoint,
+	TOptional<FVector2d> InRotationPoint,
+	ERotationSpace RotationSpace,
+	const FLinearColor& InTint)
+{
+	TOptional<FVector2f> RotationPoint = InRotationPoint.IsSet() ? UE::Slate::CastToVector2f(InRotationPoint.GetValue()) : TOptional<FVector2f>();
+	MakeRotatedBox(ElementList, InLayer, PaintGeometry, InBrush, InDrawEffects, Angle2D, RotationPoint, RotationSpace, InTint);
+}
+
+void FSlateDrawElement::MakeRotatedBox(
+	FSlateWindowElementList& ElementList,
+	uint32 InLayer,
+	const FPaintGeometry& PaintGeometry,
+	const FSlateBrush* InBrush,
+	ESlateDrawEffect InDrawEffects,
+	float Angle2D,
+	TOptional<FVector2f> InRotationPoint,
 	ERotationSpace RotationSpace,
 	const FLinearColor& InTint)
 {
@@ -327,8 +342,8 @@ void FSlateDrawElement::MakeRotatedBox(
 	
 	if (Angle2D != 0.0f)
 	{
-		const FVector2D RotationPoint = GetRotationPoint(PaintGeometry, InRotationPoint, RotationSpace);
-		const FSlateRenderTransform RotationTransform = Concatenate(Inverse(RotationPoint), FQuat2D(Angle2D), RotationPoint);
+		const FVector2f RotationPoint = GetRotationPoint(PaintGeometry, InRotationPoint, RotationSpace);
+		const FSlateRenderTransform RotationTransform = Concatenate(Inverse(RotationPoint), FQuat2f(Angle2D), RotationPoint);
 		DrawElement.SetRenderTransform(Concatenate(RotationTransform, DrawElement.GetRenderTransform()));
 	}
 }
@@ -476,7 +491,12 @@ void FSlateDrawElement::MakeGradient( FSlateWindowElementList& ElementList, uint
 	Element.Init(ElementList, EElementType::ET_Gradient, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
+void FSlateDrawElement::MakeSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint)
+{
+	MakeSpline(ElementList, InLayer, PaintGeometry, UE::Slate::CastToVector2f(InStart), UE::Slate::CastToVector2f(InStartDir), UE::Slate::CastToVector2f(InEnd), UE::Slate::CastToVector2f(InEndDir), InThickness, InDrawEffects, InTint);
+}
+
+void FSlateDrawElement::MakeSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -493,7 +513,12 @@ void FSlateDrawElement::MakeSpline( FSlateWindowElementList& ElementList, uint32
 	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList & ElementList, uint32 InLayer, const FPaintGeometry & PaintGeometry, const FVector2D & P0, const FVector2D & P1, const FVector2D & P2, const FVector2D & P3, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor & InTint)
+void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2d P0, const FVector2d P1, const FVector2d P2, const FVector2d P3, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint)
+{
+	MakeCubicBezierSpline(ElementList, InLayer, PaintGeometry, UE::Slate::CastToVector2f(P0), UE::Slate::CastToVector2f(P1), UE::Slate::CastToVector2f(P2), UE::Slate::CastToVector2f(P3), InThickness, InDrawEffects, InTint);
+}
+
+void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2f P0, const FVector2f P1, const FVector2f P2, const FVector2f P3, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -510,9 +535,14 @@ void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList & ElementL
 	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeDrawSpaceSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
+void FSlateDrawElement::MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint)
 {
-	MakeSpline( ElementList, InLayer, FPaintGeometry(), InStart, InStartDir, InEnd, InEndDir, InThickness, InDrawEffects, InTint );
+	MakeSpline(ElementList, InLayer, FPaintGeometry(), InStart, InStartDir, InEnd, InEndDir, InThickness, InDrawEffects, InTint);
+}
+
+void FSlateDrawElement::MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint)
+{
+	MakeSpline(ElementList, InLayer, FPaintGeometry(), InStart, InStartDir, InEnd, InEndDir, InThickness, InDrawEffects, InTint);
 }
 
 void FSlateDrawElement::MakeDrawSpaceGradientSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const TArray<FSlateGradientStop>& InGradientStops, float InThickness, ESlateDrawEffect InDrawEffects)
@@ -551,7 +581,23 @@ void FSlateDrawElement::MakeDrawSpaceGradientSpline(FSlateWindowElementList& Ele
 	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2D>& Points, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness)
+void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2d>& Points, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness)
+{
+	if (ShouldCull(ElementList) || Points.Num() < 2)
+	{
+		return;
+	}
+
+	TArray<FVector2f> NewVector;
+	NewVector.Reserve(Points.Num());
+	for (FVector2d Vect : Points)
+	{
+		NewVector.Add(UE::Slate::CastToVector2f(Vect));
+	}
+	MakeLines(ElementList, InLayer, PaintGeometry, MoveTemp(NewVector), InDrawEffects, InTint, bAntialias, Thickness);
+}
+
+void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FVector2f> Points, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -566,20 +612,36 @@ void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 I
 
 	DataPayload.SetTint(InTint);
 	DataPayload.SetThickness(Thickness);
-	DataPayload.SetLines(Points, bAntialias, nullptr);
+	DataPayload.SetLines(MoveTemp(Points), bAntialias);
 
 	ESlateDrawEffect DrawEffects = InDrawEffects;
 	if (bAntialias)
 	{
 		// If the line is to be anti-aliased, we cannot reliably snap
-		// the generated vertices.
+		// the generated vertices
 		DrawEffects |= ESlateDrawEffect::NoPixelSnapping;
 	}
 
 	Element.Init(ElementList, EElementType::ET_Line, InLayer, PaintGeometry, DrawEffects);
 }
 
-void FSlateDrawElement::MakeLines( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2D>& Points, const TArray<FLinearColor>& PointColors, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness )
+void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2d>& Points, const TArray<FLinearColor>& PointColors, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness)
+{
+	if (ShouldCull(ElementList) || Points.Num() < 2)
+	{
+		return;
+	}
+
+	TArray<FVector2f> NewVector;
+	NewVector.Reserve(Points.Num());
+	for (FVector2d Vect : Points)
+	{
+		NewVector.Add(UE::Slate::CastToVector2f(Vect));
+	}
+	MakeLines(ElementList, InLayer, PaintGeometry, MoveTemp(NewVector), PointColors, InDrawEffects, InTint, bAntialias, Thickness);
+}
+
+void FSlateDrawElement::MakeLines( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FVector2f> Points, TArray<FLinearColor> PointColors, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness )
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -593,10 +655,9 @@ void FSlateDrawElement::MakeLines( FSlateWindowElementList& ElementList, uint32 
 	FSlateLinePayload& DataPayload = ElementList.CreatePayload<FSlateLinePayload>(Element);
 	DataPayload.SetTint(InTint);
 	DataPayload.SetThickness(Thickness);
-	DataPayload.SetLines(Points, bAntialias, &PointColors);
+	DataPayload.SetLines(MoveTemp(Points), bAntialias, MoveTemp(PointColors));
 
 	Element.Init(ElementList, EElementType::ET_Line, InLayer, PaintGeometry, InDrawEffects);
-
 }
 
 void FSlateDrawElement::MakeViewport( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TSharedPtr<const ISlateViewport> Viewport, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
@@ -694,11 +755,11 @@ FSlateDrawElement::~FSlateDrawElement()
 	}
 }
 
-FVector2D FSlateDrawElement::GetRotationPoint(const FPaintGeometry& PaintGeometry, const TOptional<FVector2D>& UserRotationPoint, ERotationSpace RotationSpace)
+FVector2f FSlateDrawElement::GetRotationPoint(const FPaintGeometry& PaintGeometry, const TOptional<FVector2f>& UserRotationPoint, ERotationSpace RotationSpace)
 {
-	FVector2D RotationPoint(0, 0);
+	FVector2f RotationPoint(0, 0);
 
-	const FVector2D& LocalSize = PaintGeometry.GetLocalSize();
+	const FVector2f LocalSize = UE::Slate::CastToVector2f(PaintGeometry.GetLocalSize());
 
 	switch (RotationSpace)
 	{
@@ -711,7 +772,7 @@ FVector2D FSlateDrawElement::GetRotationPoint(const FPaintGeometry& PaintGeometr
 		case RelativeToWorld:
 		{
 			// its in world space, must convert the point to local space.
-			RotationPoint = TransformPoint(Inverse(PaintGeometry.GetAccumulatedRenderTransform()), UserRotationPoint.Get(FVector2D::ZeroVector));
+			RotationPoint = TransformPoint(Inverse(PaintGeometry.GetAccumulatedRenderTransform()), UserRotationPoint.Get(FVector2f::ZeroVector));
 		}
 		break;
 	default:
