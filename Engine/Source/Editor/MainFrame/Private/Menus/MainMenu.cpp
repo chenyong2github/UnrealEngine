@@ -396,47 +396,44 @@ void FMainMenu::RegisterMainMenu()
 
 void FMainMenu::RegisterFileProjectMenu()
 {
-	if (!GetDefault<UEditorStyleSettings>()->bShowProjectMenus)
-	{
-		return;
-	}
-
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	UToolMenu* MainTabFileMenu = ToolMenus->ExtendMenu("MainFrame.MainTabMenu.File");
 	FToolMenuSection& Section = MainTabFileMenu->AddSection("FileProject", LOCTEXT("ProjectHeading", "Project"));
 
-	Section.AddMenuEntry( FMainFrameCommands::Get().NewProject );
-	Section.AddMenuEntry( FMainFrameCommands::Get().OpenProject );
-	/*
-	MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().LocalizeProject,
-		NAME_None,
-		TAttribute<FText>(),
-		LOCTEXT("LocalizeProjectToolTip", "Gather text from your project and import/export translations.")
-		);
-		*/
-	/*
-	MenuBuilder.AddSubMenu(
-		LOCTEXT("CookProjectSubMenuLabel", "Cook Project"),
-		LOCTEXT("CookProjectSubMenuToolTip", "Cook your project content for debugging"),
-		FNewMenuDelegate::CreateStatic( &FCookContentMenu::MakeMenu ), false, FSlateIcon()
-	);
-	*/
-
-
-	Section.AddMenuEntry(FMainFrameCommands::Get().ZipUpProject);
-
-	if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus && FMainFrameActionCallbacks::RecentProjects.Num() > 0)
+	if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus)
 	{
-		Section.AddSubMenu(
-			"RecentProjects",
-			LOCTEXT("SwitchProjectSubMenu", "Recent Projects"),
-			LOCTEXT("SwitchProjectSubMenu_ToolTip", "Select a project to switch to"),
-			FNewToolMenuDelegate::CreateStatic(&FRecentProjectsMenu::MakeMenu),
-			false,
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RecentProjects")
-		);
-	}
+		Section.AddMenuEntry(FMainFrameCommands::Get().NewProject);
+		Section.AddMenuEntry(FMainFrameCommands::Get().OpenProject);
+		/*
+		MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().LocalizeProject,
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("LocalizeProjectToolTip", "Gather text from your project and import/export translations.")
+			);
+			*/
+			/*
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("CookProjectSubMenuLabel", "Cook Project"),
+				LOCTEXT("CookProjectSubMenuToolTip", "Cook your project content for debugging"),
+				FNewMenuDelegate::CreateStatic( &FCookContentMenu::MakeMenu ), false, FSlateIcon()
+			);
+			*/
 
+
+		Section.AddMenuEntry(FMainFrameCommands::Get().ZipUpProject);
+
+		if (FMainFrameActionCallbacks::RecentProjects.Num() > 0)
+		{
+			Section.AddSubMenu(
+				"RecentProjects",
+				LOCTEXT("SwitchProjectSubMenu", "Recent Projects"),
+				LOCTEXT("SwitchProjectSubMenu_ToolTip", "Select a project to switch to"),
+				FNewToolMenuDelegate::CreateStatic(&FRecentProjectsMenu::MakeMenu),
+				false,
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RecentProjects")
+			);
+		}
+	}
 }
 
 void FMainMenu::RegisterToolsMenu()

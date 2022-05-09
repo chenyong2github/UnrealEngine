@@ -137,7 +137,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, AdvancedDisplay)
 	uint32 bExpandConfigurationMenus:1;
 
-	/** When enabled, the Editor Preferences and Project Settings menu items in the main menu will be expanded with sub-menus for each settings section. */
+	/** When enabled, the project subsection of the File menu will be shown. */
 	UPROPERTY(config)
 	uint32 bShowProjectMenus : 1;
 
