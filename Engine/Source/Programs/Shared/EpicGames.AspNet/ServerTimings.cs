@@ -89,8 +89,11 @@ namespace EpicGames.AspNet
 
         public void AddServerTimingMetric(string metricName, double? duration, string? description)
         {
-            _metrics.Add(new ServerTimingMetric(metricName, duration, description));
-        }
+	        lock (_metrics)
+	        {
+		        _metrics.Add(new ServerTimingMetric(metricName, duration, description));
+	        }
+		}
 
         public ServerTimingMetricScoped CreateServerTimingMetricScope(string metricName, string? description)
         {
