@@ -43,7 +43,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Viewports/InViewportUIDragOperation.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Styling/StyleColors.h"

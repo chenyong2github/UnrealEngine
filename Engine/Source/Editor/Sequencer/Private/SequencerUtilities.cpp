@@ -124,7 +124,7 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnClick
 
 		SNew(SButton)
 		.IsFocusable(true)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ForegroundColor(FSlateColor::UseForeground())
 		.IsEnabled_Lambda([=]() { return InSequencer.IsValid() ? !InSequencer.Pin()->IsReadOnly() : false; })
 		.OnClicked(OnClicked)
@@ -142,7 +142,7 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnClick
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FEditorStyle::GetBrush("Plus"))
+				.Image(FAppStyle::GetBrush("Plus"))
 			]
 
 			+ SHorizontalBox::Slot()

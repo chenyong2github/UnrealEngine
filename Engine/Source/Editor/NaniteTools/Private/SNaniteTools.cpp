@@ -42,12 +42,12 @@ void SNaniteTools::Construct(const FArguments& InArgs, const TSharedRef<SDockTab
 
 	TabManager->RegisterTabSpawner(FNaniteAuditTabs::ErrorsViewID, FOnSpawnTab::CreateRaw(this, &SNaniteTools::SpawnTab_ErrorsView))
 		.SetDisplayName(LOCTEXT("ErrorsViewTabTitle", "Errors"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Error"))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Error"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(FNaniteAuditTabs::OptimizeViewID, FOnSpawnTab::CreateRaw(this, &SNaniteTools::SpawnTab_OptimizeView))
 		.SetDisplayName(LOCTEXT("OptimizeViewTabTitle", "Optimize"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Info"))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Info"))
 		.SetGroup(AppMenuGroup);
 
 	FNaniteToolCommands::Register();
@@ -84,7 +84,7 @@ void SNaniteTools::Construct(const FArguments& InArgs, const TSharedRef<SDockTab
 			.Padding(10.0f)
 			[
 				SNew(SPrimaryButton)
-				.Icon(FEditorStyle::GetBrush("Icons.Refresh"))
+				.Icon(FAppStyle::GetBrush("Icons.Refresh"))
 				.Text(LOCTEXT("PerformAuditLoc", "Perform Audit"))
 				.ToolTipText(LOCTEXT("PerformAuditTooltipLoc", "Performs an audit of all static meshes loaded in memory."))
 				.OnClicked(FOnClicked::CreateSP(this, &SNaniteTools::OnPerformAudit))

@@ -440,7 +440,7 @@ private:
 			NewItemWP->Type = FNewLevelTemplateItem::NewLevelType::EmptyWorldPartition;
 			NewItemWP->Name = LOCTEXT("NewWPLevelItemLabel", "Empty Open World");
 			NewItemWP->Category = OpenWorldCategory;
-			NewItemWP->ThumbnailBrush = MakeUnique<FSlateBrush>(*FEditorStyle::GetBrush("NewLevelDialog.BlankWP"));
+			NewItemWP->ThumbnailBrush = MakeUnique<FSlateBrush>(*FAppStyle::GetBrush("NewLevelDialog.BlankWP"));
 			NewItemWP->ThumbnailBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 0, 0);
 			NewItemWP->ThumbnailBrush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
 			NewItemWP->ThumbnailBrush->DrawAs = ESlateBrushDrawType::RoundedBox;

@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -46,7 +46,7 @@ void FBlueprintHeaderViewModule::StartupModule()
 		.SetDisplayName(LOCTEXT("TabTitle", "C++ Header Preview"))
 		.SetTooltipText(LOCTEXT("TooltipText", "Displays a Blueprint Class in C++ Header format."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Class"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Class"));
 
 	HeaderViewTextStyle = FTextBlockStyle()
 		.SetFont(FCoreStyle::GetDefaultFontStyle("Mono", GetDefault<UBlueprintHeaderViewSettings>()->FontSize))
@@ -111,7 +111,7 @@ void FBlueprintHeaderViewModule::SetupAssetEditorMenuExtender()
 								FName("OpenHeaderView"),
 								LOCTEXT("OpenAssetHeaderView", "Preview Equivalent C++ Header"),
 								LOCTEXT("OpenAssetHeaderViewTooltip", "Provides a preview of what this class could look like in C++"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Class"),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Class"),
 								FUIAction(FExecuteAction::CreateStatic(&FBlueprintHeaderViewModule::OpenHeaderViewForAsset, BlueprintAssetData))
 							);
 						}
@@ -142,7 +142,7 @@ TSharedRef<FExtender> FBlueprintHeaderViewModule::OnExtendContentBrowserAssetSel
 					MenuBuilder.AddMenuEntry(
 						LOCTEXT("OpenHeaderView", "Preview Equivalent C++ Header"),
 						LOCTEXT("OpenHeaderViewTooltip", "Provides a preview of what this class could look like in C++"),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Class"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Class"),
 						FUIAction(FExecuteAction::CreateStatic(&FBlueprintHeaderViewModule::OpenHeaderViewForAsset, SelectedAssets[0]))
 						);
 				})

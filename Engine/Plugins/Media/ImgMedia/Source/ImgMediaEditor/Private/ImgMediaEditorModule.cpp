@@ -19,6 +19,8 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
+#include "Styling/AppStyle.h"
+
 #define LOCTEXT_NAMESPACE "ImgMediaEditorModule"
 
 DEFINE_LOG_CATEGORY(LogImgMediaEditor);
@@ -118,7 +120,7 @@ protected:
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 		TSharedRef<FWorkspaceItem> MediaBrowserGroup = MenuStructure.GetLevelEditorCategory()->AddGroup(
 			LOCTEXT("WorkspaceMenu_ImgMediaCategory", "ImgMedia"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon"),
 			true);
 
 		// Add bandwidth tab.
@@ -127,7 +129,7 @@ protected:
 			.SetGroup(MediaBrowserGroup)
 			.SetDisplayName(LOCTEXT("ImgMediaBandwidthTabTitle", "Bandwidth"))
 			.SetTooltipText(LOCTEXT("ImgMediaBandwidthTooltipText", "Open the bandwidth tab."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon"));
 
 		// Add cache tab.
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaCacheTabName,
@@ -135,7 +137,7 @@ protected:
 			.SetGroup(MediaBrowserGroup)
 			.SetDisplayName(LOCTEXT("ImgMediaCacheTabTitle", "Cache"))
 			.SetTooltipText(LOCTEXT("ImgMediaCacheTooltipText", "Open the cache tab."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon"));
 
 		// Add process images tab.
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaProcessImagesTabName,
@@ -143,7 +145,7 @@ protected:
 			.SetGroup(MediaBrowserGroup)
 			.SetDisplayName(LOCTEXT("ImgMediaProcessImagesTabTitle", "Process Images"))
 			.SetTooltipText(LOCTEXT("ImgMediaProcessImagesTooltipText", "Open the Process Images tab."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 	}
 
 	void UnregisterTabSpawners()

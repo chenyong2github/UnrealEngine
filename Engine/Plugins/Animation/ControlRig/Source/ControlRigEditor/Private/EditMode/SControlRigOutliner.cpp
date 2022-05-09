@@ -8,9 +8,8 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "ScopedTransaction.h"
 #include "ControlRig.h"
@@ -207,7 +206,7 @@ void SMultiRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRe
 
 
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(this, &SMultiRigHierarchyItem::OnGetSelectedClicked)
 			[
 				SNew(SImage)
@@ -220,11 +219,11 @@ void SMultiRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRe
 							{
 								if (ControlRig->GetControlsVisible())
 								{
-									return (FEditorStyle::GetBrush("Level.VisibleIcon16x"));
+									return (FAppStyle::GetBrush("Level.VisibleIcon16x"));
 								}
 								else
 								{
-									return  (FEditorStyle::GetBrush("Level.NotVisibleIcon16x"));
+									return  (FAppStyle::GetBrush("Level.NotVisibleIcon16x"));
 								}
 							}
 
@@ -359,16 +358,16 @@ TPair<const FSlateBrush*, FSlateColor> SMultiRigHierarchyItem::GetBrushForElemen
 		{
 			if (ControlRig->GetControlsVisible())
 			{
-				Brush = FEditorStyle::GetBrush("Level.VisibleIcon16x");
+				Brush = FAppStyle::GetBrush("Level.VisibleIcon16x");
 			}
 			else
 			{
-				Brush = FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+				Brush = FAppStyle::GetBrush("Level.NotVisibleIcon16x");
 			}
 		}
 		else
 		{
-			Brush = FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+			Brush = FAppStyle::GetBrush("Level.NotVisibleIcon16x");
 		}
 	}
 
@@ -943,7 +942,7 @@ void SSearchableMultiRigHierarchyTreeView::Construct(const FArguments& InArgs)
 					[
 						SNew(SBorder)
 						.Padding(2.0f)
-						.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+						.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 						[
 							SAssignNew(TreeView, SMultiRigHierarchyTreeView)
 							.RigTreeDelegates(TreeDelegates)
@@ -1002,7 +1001,7 @@ void SControlRigOutliner::Construct(const FArguments& InArgs, FControlRigEditMod
 					SAssignNew(PickerExpander, SExpandableArea)
 					.InitiallyCollapsed(false)
 					//.AreaTitle(AreaTitle)
-					//.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					//.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 					.BodyContent()
 					[

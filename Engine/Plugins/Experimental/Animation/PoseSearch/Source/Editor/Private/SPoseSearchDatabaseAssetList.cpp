@@ -16,6 +16,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPositiveActionButton.h"
+#include "Styling/AppStyle.h"
 
 #include "ScopedTransaction.h"
 
@@ -80,7 +81,7 @@ namespace UE::PoseSearch
 
 		STableRow<TSharedPtr<FDatabaseAssetTreeNode>>::ConstructInternal(
 			STableRow<TSharedPtr<FDatabaseAssetTreeNode>>::FArguments()
-			.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+			.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 			.OnCanAcceptDrop(SkeletonView.Pin().Get(), &SDatabaseAssetTree::OnCanAcceptDrop)
 			.OnAcceptDrop(SkeletonView.Pin().Get(), &SDatabaseAssetTree::OnAcceptDrop)
 			.ShowSelection(true),
@@ -91,7 +92,7 @@ namespace UE::PoseSearch
 	{
 		STableRow<TSharedPtr<FDatabaseAssetTreeNode>>::Construct(
 			STableRow<TSharedPtr<FDatabaseAssetTreeNode>>::FArguments()
-			.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+			.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
 			.OnCanAcceptDrop(SkeletonView.Pin().Get(), &SDatabaseAssetTree::OnCanAcceptDrop)
 			.OnAcceptDrop(SkeletonView.Pin().Get(), &SDatabaseAssetTree::OnAcceptDrop)
 			.ShowWires(false)
@@ -200,7 +201,7 @@ namespace UE::PoseSearch
 					SNew(SRichTextBlock)
 					.Text(this, &SDatabaseAssetListItem::GetName)
 					.TransformPolicy(ETextTransformPolicy::ToUpper)
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 				]
 				+SHorizontalBox::Slot()
@@ -337,7 +338,7 @@ namespace UE::PoseSearch
 			[
 				SNew(SBorder)
 				.Padding(2.0f)
-				.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+				.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 				[
 					SAssignNew(TreeView, STreeView<TSharedPtr<FDatabaseAssetTreeNode>>)
 					.TreeItemsSource(&RootNodes)

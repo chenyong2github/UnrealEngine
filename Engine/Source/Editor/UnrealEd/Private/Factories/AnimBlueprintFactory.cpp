@@ -168,9 +168,9 @@ public:
 				.Padding(10.0f)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+SUniformGridPanel::Slot(0,0)
 					[
 						SNew(SButton)
@@ -180,7 +180,7 @@ public:
 							return ParentClass.Get() != nullptr && (bTemplate || TargetSkeleton.IsValid());
 						})
 						.HAlign(HAlign_Center)
-						.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+						.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 						.OnClicked(this, &SAnimBlueprintCreateDialog::OkClicked)
 						.Text(LOCTEXT("CreateAnimBlueprintCreate", "Create"))
 					]
@@ -188,7 +188,7 @@ public:
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+						.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 						.OnClicked(this, &SAnimBlueprintCreateDialog::CancelClicked)
 						.Text(LOCTEXT("CreateAnimBlueprintCancel", "Cancel"))
 					]

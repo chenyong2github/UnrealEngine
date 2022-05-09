@@ -71,8 +71,8 @@ void FImgMediaSourceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> I
 			.MinDesiredWidth(125.0f)
 			[
 				SNew(SFilePathPicker)
-					.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-					.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+					.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.BrowseButtonToolTip(LOCTEXT("SequencePathBrowseButtonToolTip", "Choose a file from this computer"))
 					.BrowseDirectory_Lambda([this]() -> FString
 					{

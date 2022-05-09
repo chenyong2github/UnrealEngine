@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SwitchboardEditor"
@@ -112,7 +113,7 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Intro()
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.ContentPadding(FMargin(1, 0))
 				.Content()
 				[
@@ -181,7 +182,7 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_InstallProgress()
 		[
 			SAssignNew(InstallOutputTextBox, SMultiLineEditableTextBox)
 			.IsReadOnly(true)
-			.Font(FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
+			.Font(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()

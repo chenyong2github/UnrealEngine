@@ -51,7 +51,7 @@
 
 #include "Misc/App.h"
 #include "Framework/Application/SlateApplication.h"
-
+#include "Styling/AppStyle.h"
 
 #if WITH_ENGINE
 #include "RenderUtils.h"
@@ -673,7 +673,7 @@ public:
 			}
 
 
-			FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, LOCTEXT("Turnkey_CustomTaskNameVerbose", "Executing Custom Build"), LOCTEXT("Turnkey_CustomTaskName", "Custom"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+			FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, LOCTEXT("Turnkey_CustomTaskNameVerbose", "Executing Custom Build"), LOCTEXT("Turnkey_CustomTaskName", "Custom"), FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")));
 		}
 	}
 

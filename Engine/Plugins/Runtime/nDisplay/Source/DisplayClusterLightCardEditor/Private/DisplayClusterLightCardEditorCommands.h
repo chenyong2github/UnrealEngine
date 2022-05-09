@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 class FDisplayClusterLightCardEditorCommands 
@@ -13,7 +13,7 @@ class FDisplayClusterLightCardEditorCommands
 public:
 	FDisplayClusterLightCardEditorCommands()
 		: TCommands<FDisplayClusterLightCardEditorCommands>(TEXT("DisplayClusterLightCardEditor"), 
-			NSLOCTEXT("Contexts", "DisplayClusterLightCardEditor", "Display Cluster LightCard Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+			NSLOCTEXT("Contexts", "DisplayClusterLightCardEditor", "Display Cluster LightCard Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{ }
 
 	virtual void RegisterCommands() override;

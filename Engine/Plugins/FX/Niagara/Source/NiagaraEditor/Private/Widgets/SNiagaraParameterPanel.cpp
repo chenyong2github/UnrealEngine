@@ -23,6 +23,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SItemSelector.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanel"
 
@@ -203,7 +204,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 {
 	// Generate the icon widget.
 	FText			   IconToolTip = Item.ScriptVariable->Variable.GetType().GetNameText();
-	FSlateBrush const* IconBrush = Item.GetVariable().GetType().IsStatic() ? FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.StaticIcon")) : FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	FSlateBrush const* IconBrush = Item.GetVariable().GetType().IsStatic() ? FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.StaticIcon")) : FAppStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
 	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Item.GetVariable().GetType());
 	FSlateColor        IconColor = FSlateColor(TypeColor);
 	FString			   IconDocLink, IconDocExcerpt;

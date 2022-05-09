@@ -15,7 +15,7 @@
 #include "UsdWrappers/UsdStage.h"
 #include "Styling/AppStyle.h"
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/World.h"
 #include "EngineAnalytics.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

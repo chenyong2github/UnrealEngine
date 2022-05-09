@@ -4,10 +4,10 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Styling/AppStyle.h"
 
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FWidgetEditorToolPaletteStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
@@ -58,7 +58,7 @@ void FWidgetEditorToolPaletteStyle::Initialize()
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	const FTextBlockStyle& NormalText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 
 	// Tool Manager icons
 	{

@@ -1502,7 +1502,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 TSharedRef<SWidget> FControlRigWrappedNodeDetails::MakeNameListItemWidget(TSharedPtr<FString> InItem)
 {
-	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 FText FControlRigWrappedNodeDetails::GetNameListText(FNameProperty* InProperty) const

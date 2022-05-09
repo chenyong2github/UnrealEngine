@@ -11,6 +11,7 @@
 #include "Slate/SceneViewport.h"
 
 #include "Kismet2/DebuggerCommands.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterLightcardEditorViewport"
 
@@ -30,8 +31,8 @@ public:
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()

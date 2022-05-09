@@ -33,6 +33,7 @@
 #include "Materials/Material.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/StyleColors.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
@@ -683,14 +684,14 @@ const FSlateBrush* SNiagaraOverviewStackNode::GetSummaryViewButtonBrush() const
 	if (BottomSummaryExpander->IsHovered())
 	{
 		return EditorData && EditorData->ShouldShowSummaryView()
-			? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered")
-			: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered");
+			? FAppStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered")
+			: FAppStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered");
 	}
 	else
 	{
 		return EditorData && EditorData->ShouldShowSummaryView()
-			? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down")
-			: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up");
+			? FAppStyle::GetBrush("DetailsView.PulldownArrow.Down")
+			: FAppStyle::GetBrush("DetailsView.PulldownArrow.Up");
 	}	
 }
 

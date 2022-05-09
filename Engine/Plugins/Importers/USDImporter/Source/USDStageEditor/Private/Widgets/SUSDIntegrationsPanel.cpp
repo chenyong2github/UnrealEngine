@@ -15,7 +15,7 @@
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/VtValue.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISinglePropertyView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -69,7 +69,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 		{
 			SAssignNew( ColumnWidget, STextBlock )
 			.Text( *TextToDisplay )
-			.Font( FEditorStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) );
+			.Font( FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) );
 		}
 		else
 		{
@@ -92,7 +92,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				RowHeight = FOptionalSize();
 
 				FSinglePropertyParams Params;
-				Params.Font = FEditorStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont );
+				Params.Font = FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont );
 				Params.NamePlacement = EPropertyNamePlacement::Hidden;
 
 				UE::FVtValue Value;
@@ -150,7 +150,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 			SAssignNew( ColumnWidget, SLiveLinkSubjectRepresentationPicker )
 			.ShowRole( false )
 			.ShowSource( false )
-			.Font( FEditorStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) )
+			.Font( FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) )
 			.Value_Lambda( [AttributeCopy]()
 			{
 				SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole Result;

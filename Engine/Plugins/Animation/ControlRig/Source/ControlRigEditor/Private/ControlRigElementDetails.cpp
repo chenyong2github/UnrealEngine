@@ -17,6 +17,7 @@
 #include "RigVMModel/RigVMNode.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
 
@@ -3338,7 +3339,7 @@ void FRigControlElementDetails::CreateEnumValueWidgetRow(IDetailCategoryBuilder&
 				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<int32>(NewSelection), ValueType, true, true); 
 			}
 		})
-		.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+		.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 	]
 	.CopyAction(FUIAction(
 	FExecuteAction::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]()
@@ -3552,7 +3553,7 @@ void FRigControlElementDetails::CreateVector2DValueWidgetRow(
 	.ValueContent()
 	[
 		SAssignNew(VectorInputBox, SNumericVector2DInputBox)
-        .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+        .Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
         .AllowSpin(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
 		.SpinDelta(0.01f)
 		.X_Lambda([GetValue]() -> TOptional<float>

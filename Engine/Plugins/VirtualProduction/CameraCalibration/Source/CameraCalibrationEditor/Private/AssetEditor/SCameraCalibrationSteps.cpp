@@ -108,7 +108,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 					.MaxDesiredHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 					[
 						SNew(SBorder) // Background color for title
-						.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 						.BorderBackgroundColor(FLinearColor::White)
 						.VAlign(EVerticalAlignment::VAlign_Center)
 						[
@@ -158,7 +158,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 					.MaxDesiredHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 					[
 						SNew(SBorder) // Background color of title
-						.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 						.BorderBackgroundColor(FLinearColor::White)
 						.VAlign(EVerticalAlignment::VAlign_Center)
 						[

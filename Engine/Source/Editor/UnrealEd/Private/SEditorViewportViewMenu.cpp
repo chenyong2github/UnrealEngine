@@ -297,7 +297,7 @@ void SEditorViewportViewMenu::FillViewMenu(UToolMenu* Menu) const
 					),
 					EUserInterfaceActionType::RadioButton,
 					/* bInOpenSubMenuOnClick = */ false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeGPUSkinCacheMode")
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeGPUSkinCacheMode")
 				);
 			}
 		}

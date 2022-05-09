@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerPlaylistsStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Slate/SlateGameResources.h"
@@ -133,7 +133,7 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 
 	// Table rows
 	{
-		const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+		const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 		FTableRowStyle PlaylistItemRowStyle = FTableRowStyle(NormalTableRowStyle)
 			.SetEvenRowBackgroundBrush(FSlateNoResource())
 			.SetOddRowBackgroundBrush(FSlateNoResource())

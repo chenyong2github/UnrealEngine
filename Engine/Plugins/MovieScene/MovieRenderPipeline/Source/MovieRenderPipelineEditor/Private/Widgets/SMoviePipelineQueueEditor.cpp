@@ -594,11 +594,11 @@ TOptional<EItemDropZone> SQueueJobListRow::OnCanAcceptDrop(const FDragDropEvent&
 	{
 		if (InItemDropZone == EItemDropZone::OntoItem)
 		{
-			DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 		}
 		else
 		{
-			DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Ok"));
+			DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Ok"));
 		}
 		return InItemDropZone;
 	}

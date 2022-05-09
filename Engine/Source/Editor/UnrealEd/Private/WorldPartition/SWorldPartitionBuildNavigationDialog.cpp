@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "WorldPartition/WorldPartitionBuildNavigationOptions.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionBuildNavigationDialog"
 
@@ -30,7 +31,7 @@ void SWorldPartitionBuildNavigationDialog::Construct(const FArguments& InArgs)
 	this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -54,7 +55,7 @@ void SWorldPartitionBuildNavigationDialog::Construct(const FArguments& InArgs)
 						SNew(SButton)
 						.HAlign(HAlign_Center)
 						.IsEnabled(this, &SWorldPartitionBuildNavigationDialog::IsOkEnabled)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SWorldPartitionBuildNavigationDialog::OnOkClicked)
 						.Text(LOCTEXT("OkButton", "Ok"))
 					]
@@ -64,7 +65,7 @@ void SWorldPartitionBuildNavigationDialog::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SWorldPartitionBuildNavigationDialog::OnCancelClicked)
 						.Text(LOCTEXT("CancelButton", "Cancel"))
 					]

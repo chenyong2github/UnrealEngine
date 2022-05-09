@@ -22,6 +22,8 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Views/STreeView.h"
 
+#include "Styling/AppStyle.h"
+
 
 #define LOCTEXT_NAMESPACE "SOptimusEditorGraphNode"
 
@@ -141,7 +143,7 @@ public:
 		
 		const TSharedRef<SWidget> LabelWidget = SNew(STextBlock)
 			.Text(InArgs._PinLabel)
-			.TextStyle(FEditorStyle::Get(), NAME_DefaultPinLabelStyle)
+			.TextStyle(FAppStyle::Get(), NAME_DefaultPinLabelStyle)
 			.ColorAndOpacity(FLinearColor::White)
 			// .ColorAndOpacity(this, &SOptimusEditorGraphNode::GetPinTextColor, WeakPin)
 			;

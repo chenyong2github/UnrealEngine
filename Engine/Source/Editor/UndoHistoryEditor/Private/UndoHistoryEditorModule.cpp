@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IUndoHistoryEditorModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SUndoHistory.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -17,7 +17,7 @@ public:
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(UndoHistoryTabName, FOnSpawnTab::CreateRaw(this, &FUndoHistoryEditorModule::HandleSpawnSettingsTab))
 			.SetDisplayName(NSLOCTEXT("FUndoHistoryModule", "UndoHistoryTabTitle", "Undo History"))
 			.SetTooltipText(NSLOCTEXT("FUndoHistoryModule", "UndoHistoryTooltipText", "Open the Undo History tab."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "UndoHistory.TabIcon"))
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "UndoHistory.TabIcon"))
 			.SetAutoGenerateMenuEntry(false);
 	}
 	

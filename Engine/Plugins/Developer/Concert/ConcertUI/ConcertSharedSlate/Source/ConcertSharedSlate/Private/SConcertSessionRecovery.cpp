@@ -2,7 +2,7 @@
 
 #include "SConcertSessionRecovery.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -50,7 +50,7 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
 		.Padding(0)
 		[
@@ -59,7 +59,7 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 			.FillHeight(1.0)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -126,7 +126,7 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 					SNew(SPositiveActionButton)
 					.ToolTipText(this, &SConcertSessionRecovery::GetRecoverAllButtonTooltip)
 					.Text(LOCTEXT("RecoverAll", "Recover All"))
-					.Icon(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
+					.Icon(FAppStyle::GetBrush("Icons.CircleArrowRight"))
 					.OnClicked(this, &SConcertSessionRecovery::OnRecoverAllClicked)
 				]
 
@@ -183,7 +183,7 @@ TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<F
 				.Visibility_Lambda([this, Activity](){ return GetRecoverThroughButtonVisibility(Activity.Pin()); })
 				.OnClicked_Lambda([this, Activity](){ RecoverThrough(Activity.Pin()); return FReply::Handled(); })
 				.ToolTipText(this, &SConcertSessionRecovery::GetRecoverThroughButtonTooltip)
-				.Icon(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
+				.Icon(FAppStyle::GetBrush("Icons.CircleArrowRight"))
 			];
 		}
 	}

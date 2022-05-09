@@ -5,7 +5,7 @@
 #include "IDisplayClusterOperator.h"
 #include "DisplayClusterRootActor.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -71,7 +71,7 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(0.0f)
 		[
 			ToolBarBuilder.MakeWidget()

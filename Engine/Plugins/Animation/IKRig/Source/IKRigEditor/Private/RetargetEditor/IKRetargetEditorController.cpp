@@ -13,6 +13,7 @@
 #include "Retargeter/IKRetargeter.h"
 #include "RigEditor/SIKRigOutputLog.h"
 #include "RigEditor/IKRigController.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
 
@@ -412,7 +413,7 @@ void FIKRetargetEditorController::HandleRenamePose()
 	.SupportsMinimize(false) .SupportsMaximize(false)
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		[
 			SNew(SVerticalBox)
 

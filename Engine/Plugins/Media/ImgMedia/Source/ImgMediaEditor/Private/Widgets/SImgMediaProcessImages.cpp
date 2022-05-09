@@ -5,7 +5,7 @@
 #include "Async/Async.h"
 #include "Customizations/ImgMediaFilePathCustomization.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Notifications/NotificationManager.h"

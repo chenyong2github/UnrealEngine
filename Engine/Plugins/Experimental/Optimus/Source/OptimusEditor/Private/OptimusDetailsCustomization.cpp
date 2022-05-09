@@ -27,6 +27,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusDetailCustomization"
@@ -488,7 +489,7 @@ public:
 			.FillWidth(1.0f)
 			[
 				SNew(SSplitter)
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.Style(FAppStyle::Get(), "DetailsView.Splitter")
 				.PhysicalSplitterHandleSize(1.0f)
 				.HitDetectionSplitterHandleSize(5.0f)
 				+SSplitter::Slot()

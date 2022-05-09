@@ -17,6 +17,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDatabaseEditorToolkit"
 
@@ -266,7 +267,7 @@ namespace UE::PoseSearch
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Refresh"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Refresh"));
 
 		ToolbarBuilder.AddToolBarButton(
 			FDatabaseEditorCommands::Get().BuildSearchIndex,
@@ -289,35 +290,35 @@ namespace UE::PoseSearch
 			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_Viewport))
 			.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
 			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::AssetDetailsID,
 			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_AssetDetails))
 			.SetDisplayName(LOCTEXT("DatabaseDetailsTab", "Database Details"))
 			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::PreviewSettingsID,
 			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_PreviewSettings))
 			.SetDisplayName(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
 			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::AssetTreeViewID,
 			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_AssetTreeView))
 			.SetDisplayName(LOCTEXT("TreeViewTab", "Tree View"))
 			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::SelectionDetailsID,
 			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_SelectionDetails))
 			.SetDisplayName(LOCTEXT("SelectionDetailsTab", "Selection Details"))
 			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 	}
 
 	void FDatabaseEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)

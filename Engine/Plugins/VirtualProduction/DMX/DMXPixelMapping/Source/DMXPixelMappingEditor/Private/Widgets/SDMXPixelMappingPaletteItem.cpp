@@ -49,7 +49,7 @@ void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, 
 		.Content()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor_Lambda([this]()
 				{
 					return IsHovered() ? HoveredBGColor : NormalBGColor;

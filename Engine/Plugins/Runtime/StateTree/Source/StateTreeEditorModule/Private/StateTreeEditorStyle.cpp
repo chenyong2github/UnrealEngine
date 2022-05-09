@@ -8,7 +8,7 @@
 #include "Interfaces/IPluginManager.h"
 
 #include "Styling/StyleColors.h"
-
+#include "Styling/AppStyle.h"
 
 #define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( StyleSet->RootToContentDir( RelativePath, TEXT( ".png" ) ), __VA_ARGS__ )
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FMeshEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
@@ -122,11 +122,11 @@ void FStateTreeEditorStyle::Initialize()
 	StyleSet->Set("StateTree.Node.Operand.ComboBox", FComboButtonStyle(ComboButtonStyle).SetButtonStyle(OperandButton));
 
 	StyleSet->Set("StateTree.Node.Operand", FTextBlockStyle(NormalText)
-		.SetFont(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 		.SetFontSize(7));
 
 	StyleSet->Set("StateTree.Node.Parens", FTextBlockStyle(NormalText)
-		.SetFont(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		.SetFontSize(12));
 
 	// Condition Indent combo button

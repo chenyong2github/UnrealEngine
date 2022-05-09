@@ -3,7 +3,7 @@
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
@@ -37,8 +37,8 @@ void SNiagaraStackItemGroupAddButton::Construct(const FArguments& InArgs, UNiaga
 				.Padding(FMargin(1.0f))
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FEditorFontGlyphs::Plus)
 					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(
 						FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InSourceEntry->GetExecutionCategoryName())))

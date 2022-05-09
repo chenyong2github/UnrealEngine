@@ -13,6 +13,7 @@
 #include "WidgetBlueprint.h"
 #include "WidgetReference.h"
 #include "Blueprint/WidgetTree.h"
+#include "Styling/AppStyle.h"
 
 // localization namespace
 #define LOCTEXT_NAMESPACE "URectangleSelectTool"
@@ -177,7 +178,7 @@ int32 URectangleSelectTool::OnPaint(const FPaintArgs& Args, const FGeometry& All
 				OutDrawElements,
 				LayerId,
 				AllottedGeometry.ToPaintGeometry(PinnedOwningWidget->GraphCoordToPanelCoord(Properties->Marquee.Rect.GetUpperLeft()), Properties->Marquee.Rect.GetSize() * PinnedOwningWidget->GetZoomAmount()),
-				FEditorStyle::GetBrush(TEXT("MarqueeSelection"))
+				FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 			);
 		}
 	}

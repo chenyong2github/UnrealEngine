@@ -4,7 +4,7 @@
 #include "SOptimusShaderTextSearchWidget.h"
 
 #include "OptimusEditorStyle.h"
-#include "EditorStyleSet.h" 
+#include "Styling/AppStyle.h" 
 
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -62,7 +62,7 @@ FOptimusShaderTextEditorDocumentTextBoxCommands::FOptimusShaderTextEditorDocumen
 		"OptimusShaderTextEditorDocumentTextBox", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "OptimusShaderTextEditorDocumentTextBox", "Deformer Shader Text Editor Document TextBox"), // Localized context name for displaying
 		NAME_None,
-		FEditorStyle::GetStyleSetName()
+		FAppStyle::GetAppStyleSetName()
 	)
 {
 }

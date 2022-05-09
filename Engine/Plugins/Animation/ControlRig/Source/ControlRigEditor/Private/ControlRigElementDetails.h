@@ -23,6 +23,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Internationalization/FastDecimalFormat.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
 
 class IPropertyHandle;
 
@@ -435,7 +436,7 @@ private:
 		.ValueContent()
 		[
 			SAssignNew(NumericEntryBox, SNumericEntryBox<T>)
-	        .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+	        .Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 	        .AllowSpin(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
 	        .LinearDeltaSensitivity(1)
 			.Delta(0.01f)

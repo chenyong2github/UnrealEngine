@@ -18,6 +18,7 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "ActorFolder.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FActorFolders"
 
@@ -579,7 +580,7 @@ bool FActorFolders::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEdit
 	if (!Folder.IsNone())
 	{
 		OutDiplayInfo.Title = TEXT("Actor Folder");
-		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("SceneOutliner.FolderClosed"));
+		OutDiplayInfo.Brush = FAppStyle::GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		return true;
 	}
 	return false;

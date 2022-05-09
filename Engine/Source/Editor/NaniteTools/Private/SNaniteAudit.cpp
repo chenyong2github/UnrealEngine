@@ -15,6 +15,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Materials/Material.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "NaniteTools"
 
@@ -249,7 +250,7 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 					.Padding(5.0f)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(FMargin(0, 0, 0, 3))
 						[
 							SNew(SVerticalBox)
@@ -258,13 +259,13 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 							.AutoHeight()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+								.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 								.BorderBackgroundColor(FStyleColors::ForegroundHeader)
 								.Padding(3.0f)
 								[
 									SNew(STextBlock)
 									.Text(LOCTEXT("NonNaniteMeshes", "Non-Nanite Meshes"))
-									.Font(FEditorStyle::GetFontStyle("BoldFont"))
+									.Font(FAppStyle::GetFontStyle("BoldFont"))
 									.ShadowOffset(FVector2D(1.0f, 1.0f))
 								]
 							]
@@ -289,7 +290,7 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 				.HAlign(HAlign_Right)
 				[
 					SNew(SButton)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(FOnClicked::CreateSP(this, &SNaniteAudit::OnBatchEnableNanite))
 					.ToolTipText(LOCTEXT("PopulateAssetListTooltipLocEnableNaniteAll", "Enable Nanite on all selected meshes"))
 					.Text(LOCTEXT("PopulateAssetListLocEnableNanite", "Enable Nanite"))
@@ -357,7 +358,7 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 					.Padding(5.0f)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(FMargin(0, 0, 0, 3))
 						[
 							SNew(SVerticalBox)
@@ -366,13 +367,13 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 							.AutoHeight()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+								.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 								.BorderBackgroundColor(FStyleColors::ForegroundHeader)
 								.Padding(3.0f)
 								[
 									SNew(STextBlock)
 									.Text(LOCTEXT("NaniteMeshErrors", "Nanite Mesh Errors"))
-									.Font(FEditorStyle::GetFontStyle("BoldFont"))
+									.Font(FAppStyle::GetFontStyle("BoldFont"))
 									.ShadowOffset(FVector2D(1.0f, 1.0f))
 								]
 							]
@@ -397,7 +398,7 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 				.HAlign(HAlign_Right)
 				[
 					SNew(SButton)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(FOnClicked::CreateSP(this, &SNaniteAudit::OnBatchDisableNanite))
 					.ToolTipText(LOCTEXT("PopulateAssetListTooltipLocDisableNaniteAll", "Disable Nanite on all selected meshes"))
 					.Text(LOCTEXT("PopulateAssetListLocDisableNanite", "Disable Nanite"))

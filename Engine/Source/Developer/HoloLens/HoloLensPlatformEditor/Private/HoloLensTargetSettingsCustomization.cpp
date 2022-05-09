@@ -26,6 +26,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "IDetailChildrenBuilder.h"
 #include "HoloLensLocalizedResourcesCustomization.h"
+#include "Styling/AppStyle.h"
 
 #include <winreg.h>
 
@@ -104,8 +105,8 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 		.VAlign(VAlign_Center)
 		[
 			SNew(SFilePathPicker)
-			.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-			.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+			.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 			.FileTypeFilter(TEXT("pfx files (*.pfx)|*.pfx"))
 			.IsReadOnly(true)

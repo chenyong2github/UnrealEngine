@@ -53,6 +53,7 @@
 #include "NiagaraSettings.h"
 #include "SNiagaraParameterDropTarget.h"
 #include "Stack/SNiagaraStackIndent.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -146,7 +147,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				.Padding(3, 0, 0, 0)
 				[
 					SAssignNew(SetFunctionInputButton, SComboButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.IsFocusable(false)
 					.ForegroundColor(FSlateColor::UseForeground())
 					.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu)
@@ -217,7 +218,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 			.ButtonContent()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf0ca")/* fa-list-ul */)))
 				.ColorAndOpacity(FStyleColors::AccentYellow)
 			]

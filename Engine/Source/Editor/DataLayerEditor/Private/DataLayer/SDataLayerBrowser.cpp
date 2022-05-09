@@ -24,6 +24,7 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "DetailLayoutBuilder.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -94,7 +95,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	SAssignNew(DeprecatedDataLayerWarningBox, SMultiLineEditableTextBox)
 		.IsReadOnly(true)
 		.Font(IDetailLayoutBuilder::GetDetailFontBold())
-		.BackgroundColor(FEditorStyle::GetColor("ErrorReporting.WarningBackgroundColor"))
+		.BackgroundColor(FAppStyle::GetColor("ErrorReporting.WarningBackgroundColor"))
 		.Text(LOCTEXT("Deprecated_DataLayers", "Some data within DataLayers is deprecated. Run DataLayerToAssetCommandlet to create DataLayerInstances and DataLayer Assets for this level."))
 		.AutoWrapText(true)
 		.Visibility_Lambda([]() { return UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers() ? EVisibility::Visible : EVisibility::Collapsed; });
@@ -129,7 +130,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 			// Data Layer Outliner
 			SNew(SSplitter)
 			.Orientation(Orient_Vertical)
-			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+			.Style(FAppStyle::Get(), "DetailsView.Splitter")
 			+ SSplitter::Slot()
 			[
 				SNew(SVerticalBox)

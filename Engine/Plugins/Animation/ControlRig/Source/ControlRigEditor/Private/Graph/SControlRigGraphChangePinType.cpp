@@ -10,6 +10,7 @@
 #include "RigVMModel/RigVMController.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphChangePinType"
 
@@ -136,10 +137,10 @@ const FSlateBrush* SControlRigChangePinType::GetBindingImage() const
 	{
 		if(ModelPins[0]->IsArray())
 		{
-			return FEditorStyle::GetBrush(ArrayTypeIcon);
+			return FAppStyle::GetBrush(ArrayTypeIcon);
 		}
 	}
-	return FEditorStyle::GetBrush(TypeIcon);
+	return FAppStyle::GetBrush(TypeIcon);
 }
 
 FLinearColor SControlRigChangePinType::GetBindingColor() const

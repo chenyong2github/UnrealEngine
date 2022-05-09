@@ -3,7 +3,7 @@
 #include "ConcertFrontendStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 
@@ -108,7 +108,7 @@ void FConcertFrontendStyle::Initialize()
 
 	// Activity Text
 	{
-		FTextBlockStyle BoldText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("RichTextBlock.Bold");
+		FTextBlockStyle BoldText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("RichTextBlock.Bold");
 		StyleSet->Set("ActivityText.Bold", FTextBlockStyle(BoldText));
 	}
 

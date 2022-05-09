@@ -8,10 +8,9 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISequencer.h"
 #include "ScopedTransaction.h"
 #include "ControlRig.h"
@@ -37,7 +36,7 @@ void SControlRigSpacePicker::Construct(const FArguments& InArgs, FControlRigEdit
 					SAssignNew(PickerExpander, SExpandableArea)
 					.InitiallyCollapsed(true)
 					.AreaTitle(LOCTEXT("Picker_SpaceWidget", "Spaces"))
-					.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 					.Padding(FMargin(8.f))
 					.HeaderContent()
@@ -69,13 +68,13 @@ void SControlRigSpacePicker::Construct(const FArguments& InArgs, FControlRigEdit
 						[
 							SNew(SButton)
 							.ContentPadding(0.0f)
-							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+							.ButtonStyle(FAppStyle::Get(), "NoBorder")
 							.OnClicked(this, &SControlRigSpacePicker::HandleAddSpaceClicked)
 							.Cursor(EMouseCursor::Default)
 							.ToolTipText(LOCTEXT("AddSpace", "Add Space"))
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+								.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 							]
 						]
 					]

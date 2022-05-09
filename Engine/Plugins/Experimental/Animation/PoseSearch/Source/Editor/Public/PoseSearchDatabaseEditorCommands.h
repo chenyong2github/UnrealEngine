@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 namespace UE::PoseSearch
@@ -17,7 +17,7 @@ namespace UE::PoseSearch
 				TEXT("PoseSearchDatabaseEditor"),
 				NSLOCTEXT("Contexts", "PoseSearchDatabase", "Pose Search Database"),
 				NAME_None,
-				FEditorStyle::GetStyleSetName())
+				FAppStyle::GetAppStyleSetName())
 		{
 		}
 

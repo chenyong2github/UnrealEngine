@@ -94,8 +94,8 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText3", "Unknown");
 	}
 
-	const FSlateFontInfo AttributeFont = FEditorStyle::GetFontStyle("CurveEd.InfoFont");
-	const FSlateFontInfo AttributeResultFont = FEditorStyle::GetFontStyle("CurveEd.InfoFont");
+	const FSlateFontInfo AttributeFont = FAppStyle::GetFontStyle("CurveEd.InfoFont");
+	const FSlateFontInfo AttributeResultFont = FAppStyle::GetFontStyle("CurveEd.InfoFont");
 	const FLinearColor AttributeColor(0.80f, 0.80f, 0.80f);
 	const FText TrueText  = LOCTEXT("GroomOptionsWindow_AttributeTrue", "True");
 	const FText FalseText = LOCTEXT("GroomOptionsWindow_AttributeFalse", "False");
@@ -184,7 +184,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -215,7 +215,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -245,7 +245,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -275,7 +275,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()

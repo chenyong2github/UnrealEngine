@@ -23,6 +23,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Workflow/SWizard.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterLightCardList"
 
@@ -424,7 +425,7 @@ void SDisplayClusterLightCardList::AddExistingLightCard()
 	.SupportsMinimize(false) .SupportsMaximize(false)
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			SNew(SWizard)
 			.FinishButtonText(LOCTEXT("FinishAddingExistingLightCard", "Add Actor"))
@@ -453,7 +454,7 @@ void SDisplayClusterLightCardList::AddExistingLightCard()
 			[
 				SNew(SBorder)
 				.VAlign(VAlign_Fill)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()
@@ -469,7 +470,7 @@ void SDisplayClusterLightCardList::AddExistingLightCard()
 					.Padding(0.f, 8.f)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.TextStyle(FAppStyle::Get(), "NormalText.Important")
 						.Text_Lambda([&]
 						{
 							const FString Result = FString::Printf(TEXT("Selected Actor: %s"),

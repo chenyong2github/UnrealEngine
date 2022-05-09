@@ -21,7 +21,7 @@
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
@@ -284,10 +284,10 @@ namespace Metasound
 
 				if (IsPlaying(Path))
 				{
-					return FEditorStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
+					return FAppStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
 				}
 
-				return FEditorStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
+				return FAppStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
 			};
 
 			auto OnClickedLambda = [Path = AssetData.ToSoftObjectPath()]()
@@ -347,7 +347,7 @@ namespace Metasound
 
 			TSharedPtr<SButton> Widget;
 			SAssignNew(Widget, SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText_Lambda(OnToolTipTextLambda)
 				.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so overriden here
 				.ForegroundColor(FSlateColor::UseForeground())

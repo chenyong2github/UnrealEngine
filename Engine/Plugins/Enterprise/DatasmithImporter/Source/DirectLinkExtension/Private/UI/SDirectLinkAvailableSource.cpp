@@ -6,7 +6,7 @@
 #include "DirectLinkExtensionModule.h"
 #include "IDirectLinkManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateBrush.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -159,7 +159,7 @@ namespace UE::DatasmithImporter
 					.OnClicked_Lambda([this]() { GenerateDirectLinkExternalSourceInfos(); SourceListView->RequestListRefresh(); return FReply::Handled(); })
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+						.Image(FAppStyle::GetBrush("Icons.Refresh"))
 					]
 				]
 

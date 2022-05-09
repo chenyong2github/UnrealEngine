@@ -360,7 +360,7 @@ namespace Metasound
 
 								if (!Output->GetNodes().IsEmpty())
 								{
-									PrimarySymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
+									PrimarySymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
 									SecondarySymbol = nullptr;
 									Message = FText::Format(LOCTEXT("DropTargetShowOutput", "Show '{0}' (One per graph)"), GraphMember->GetDisplayName());
 								}
@@ -383,7 +383,7 @@ namespace Metasound
 							{
 								bDropTargetValid = true;
 
-								PrimarySymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
+								PrimarySymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
 
 								if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 								{
@@ -494,7 +494,7 @@ namespace Metasound
 				FSlateColor IconColor = FSlateColor::UseForeground();
 
 				const bool bIsInterfaceMember = InterfaceVersion.IsValid();
-				const FSlateBrush* InterfaceIconBrush = bIsInterfaceMember ? FEditorStyle::GetBrush("Icons.Lock") : FStyleDefaults::GetNoBrush();
+				const FSlateBrush* InterfaceIconBrush = bIsInterfaceMember ? FAppStyle::GetBrush("Icons.Lock") : FStyleDefaults::GetNoBrush();
 
 				if (TSharedPtr<FMetasoundGraphMemberSchemaAction> GraphMemberAction = StaticCastSharedPtr<FMetasoundGraphMemberSchemaAction>(InCreateData->Action))
 				{

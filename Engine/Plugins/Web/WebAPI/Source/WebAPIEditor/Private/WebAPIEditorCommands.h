@@ -1,10 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FWebAPIEditorCommands
 	: public TCommands<FWebAPIEditorCommands>
@@ -14,7 +14,7 @@ public:
 		: TCommands<FWebAPIEditorCommands>(TEXT("WebAPIEditor"),
 			NSLOCTEXT("Contexts", "WebAPIEditor", "WebAPI Definition Editor"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName())
+			FAppStyle::GetAppStyleSetName())
 	{ }
 
 	/** Generate command to execute code generation. */

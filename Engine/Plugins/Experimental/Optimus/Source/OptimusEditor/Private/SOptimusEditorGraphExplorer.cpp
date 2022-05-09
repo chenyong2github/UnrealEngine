@@ -662,9 +662,9 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 			}
 
 			return SNew(SComboButton)
-				.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-				.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-			    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+				.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
+				.ButtonStyle(FAppStyle::Get(), "RoundButton")
+			    .ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 			    .ContentPadding(FMargin(2, 0))
 				.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
 				.HasDownArrow(false)
@@ -673,7 +673,7 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 				.ButtonContent()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
+					.Image(FAppStyle::GetBrush("Plus"))
 					.ToolTipText(AddNewTooltipText)
 				];
 		}

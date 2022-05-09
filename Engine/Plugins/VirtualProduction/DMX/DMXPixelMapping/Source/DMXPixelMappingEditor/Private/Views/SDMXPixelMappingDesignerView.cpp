@@ -34,7 +34,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
-
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingDesignerView"
 
@@ -151,7 +151,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 								SAssignNew(DesignCanvasBorder, SBorder)
 								.HAlign(HAlign_Fill)
 								.VAlign(VAlign_Fill)
-								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
 								.Padding(0.0f)
 								[
 									SAssignNew(DesignCanvas, SConstraintCanvas)
@@ -190,7 +190,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 							.Padding(6, 2, 0, 0)
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+								.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 								.Text(this, &SDMXPixelMappingDesignerView::GetZoomText)
 								.ColorAndOpacity(this, &SDMXPixelMappingDesignerView::GetZoomTextColorAndOpacity)
 							]
@@ -200,7 +200,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 							.Padding(40, 2, 0, 0)
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+								.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 								.Font(FCoreStyle::GetDefaultFontStyle(TEXT("BoldCondensed"), 14))
 								.Text(this, &SDMXPixelMappingDesignerView::GetCursorPositionText)
 								.ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))
@@ -219,10 +219,10 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 							[
 								SNew(SButton)
 								.ButtonColorAndOpacity(FLinearColor::Transparent)
-								.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+								.ButtonStyle(FAppStyle::Get(), "ViewportMenu.Button")
 								.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
 								.OnClicked(this, &SDMXPixelMappingDesignerView::OnZoomToFitClicked)
-								.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
+								.ContentPadding(FAppStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
 								[
 									SNew(SImage)
 									.Image(FDMXPixelMappingEditorStyle::Get().GetBrush("Icons.ZoomToFit"))

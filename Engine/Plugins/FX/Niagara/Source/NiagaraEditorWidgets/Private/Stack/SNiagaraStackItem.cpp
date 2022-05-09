@@ -51,7 +51,7 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(Item->GetIconText())
 		];
 	}

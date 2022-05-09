@@ -15,6 +15,7 @@
 #include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraSimulationStageBase.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "StackEmitterProperties"
 
@@ -203,7 +204,7 @@ const FSlateBrush* UNiagaraStackEmitterPropertiesGroup::GetSecondaryIconBrush() 
 			return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.GPUIcon");
 		}
 	}
-	return FEditorStyle::GetBrush("NoBrush");
+	return FAppStyle::GetBrush("NoBrush");
 }
 
 void UNiagaraStackEmitterPropertiesGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

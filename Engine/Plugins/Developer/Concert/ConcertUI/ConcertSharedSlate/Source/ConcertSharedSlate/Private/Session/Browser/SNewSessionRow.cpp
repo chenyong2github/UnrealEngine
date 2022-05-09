@@ -6,7 +6,7 @@
 #include "Session/Browser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Algo/ForEach.h"
 
@@ -129,7 +129,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				+SUniformGridPanel::Slot(0, 0)
 				[
 					ConcertBrowserUtils::MakePositiveActionButton(
-						FEditorStyle::GetBrush("Icons.Check"),
+						FAppStyle::GetBrush("Icons.Check"),
 						LOCTEXT("CreateCheckIconTooltip", "Create the session"),
 						TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }),
 						FOnClicked::CreateRaw(this, &SNewSessionRow::OnAccept))
@@ -139,7 +139,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				+SUniformGridPanel::Slot(1, 0)
 				[
 					ConcertBrowserUtils::MakeNegativeActionButton(
-						FEditorStyle::GetBrush("Icons.X"),
+						FAppStyle::GetBrush("Icons.X"),
 						LOCTEXT("CancelIconTooltip", "Cancel"),
 						true, // Always enabled.
 						FOnClicked::CreateRaw(this, &SNewSessionRow::OnDecline))

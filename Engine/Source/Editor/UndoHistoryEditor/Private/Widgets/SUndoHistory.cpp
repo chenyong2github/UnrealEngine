@@ -5,7 +5,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -62,7 +62,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 										.Padding( 0.0f, 0.0f, 4.0f, 0.0f )
 										[
 											SNew( SImage )
-												.Image( FEditorStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
+												.Image( FAppStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
 										]
 
 									+SHorizontalBox::Slot()
@@ -76,7 +76,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 								+ SVerticalBox::Slot()
 								[
 									SNew(SBorder)
-										.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+										.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 										.Padding(FMargin(4.0f, 1.0f))
 										[
 											SAssignNew(UndoListView, SListView<TSharedPtr<FTransactionInfo> >)
@@ -118,14 +118,14 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 									.Padding( 0.0f, 0.0f, 4.0f, 0.0f )
 									[
 										SNew(SImage)
-											.Image(FEditorStyle::GetBrush( "LevelEditor.Tabs.Details" ))
+											.Image(FAppStyle::GetBrush( "LevelEditor.Tabs.Details" ))
 									]
 
 								+ SHorizontalBox::Slot()
 									.Padding(FMargin(4.0f, 0.0f))
 									[
 										SNew(STextBlock)
-											.TextStyle(FEditorStyle::Get(), "NormalText")
+											.TextStyle(FAppStyle::Get(), "NormalText")
 											.Text(LOCTEXT("TransactionDetailsLabel", "Transaction Details"))
 									]
 							]
@@ -149,11 +149,11 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							.ToolTipText(LOCTEXT("UndoBufferFullToolTip", "The undo buffer has reached its maximum capacity, transactions will be deleted from the top."))
 							.Text(FText::FromString(FString(TEXT("\xf071 "))) /*fa-exclamation-triangle*/)
-							.ColorAndOpacity(FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Danger").Normal.TintColor)
+							.ColorAndOpacity(FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Danger").Normal.TintColor)
 							.Visibility(this, &SUndoHistory::HandleUndoWarningVisibility)
 					]
 
@@ -174,12 +174,12 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 						// Discard history button
 						SAssignNew(DiscardButton, SButton)
 							.ForegroundColor(FSlateColor::UseForeground())
-							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+							.ButtonStyle(FAppStyle::Get(), "ToggleButton")
  							.OnClicked(this, &SUndoHistory::HandleDiscardHistoryButtonClicked)
 							.ToolTipText(LOCTEXT("DiscardHistoryButtonToolTip", "Discard the Undo History."))
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::Get().GetBrush("Icons.Delete"))
+								.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 							]
 					]
 
@@ -189,7 +189,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 						SNew(SComboButton)
 							.ContentPadding(0)
 							.ForegroundColor(FSlateColor::UseForeground())
-							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+							.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 							.OnGetMenuContent(this, &SUndoHistory::GetViewButtonContent)
 							.ButtonContent()
 							[
@@ -199,7 +199,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 									.AutoWidth()
 									.VAlign(VAlign_Center)
 									[
-										SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
+										SNew(SImage).Image(FAppStyle::GetBrush("GenericViewButton"))
 									]
 							]
 					]

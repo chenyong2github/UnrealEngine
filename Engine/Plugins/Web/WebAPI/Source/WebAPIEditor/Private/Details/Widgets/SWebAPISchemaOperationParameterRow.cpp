@@ -1,8 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaOperationParameterRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Details/ViewModels/WebAPIOperationParameterViewModel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
@@ -10,8 +10,8 @@
 
 void SWebAPISchemaOperationParameterRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIOperationParameterViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
-	const FSlateBrush* ArrayIcon = FEditorStyle::GetBrush(TEXT("Graph.ArrayPin.Connected"));
-	const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("Graph.Pin.Connected"));
+	const FSlateBrush* ArrayIcon = FAppStyle::GetBrush(TEXT("Graph.ArrayPin.Connected"));
+	const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("Graph.Pin.Connected"));
 	
 	const FSlateColor TypeColor = InViewModel->GetPinColor();
 	
@@ -61,7 +61,7 @@ void SWebAPISchemaOperationParameterRow::Construct(const FArguments& InArgs, con
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "PlacementBrowser.Asset.Name")
+							.TextStyle(FAppStyle::Get(), "PlacementBrowser.Asset.Name")
 							.Text(InViewModel->GetLabel())
 						]
 					]

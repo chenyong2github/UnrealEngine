@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTrackFilters.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/World.h"
 #include "Framework/Commands/Commands.h"
 #include "ISequencer.h"
@@ -133,7 +133,7 @@ public:
 		"FSequencerTrackFilter_Animated",
 		NSLOCTEXT("Contexts", "FSequencerTrackFilter_Animated", "FSequencerTrackFilter_Animated"),
 		NAME_None,
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{ }
 		

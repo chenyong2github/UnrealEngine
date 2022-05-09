@@ -6,6 +6,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Widgets/Input/SFilePathPicker.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FImgMediaFilePathCustomization"
 
@@ -55,8 +56,8 @@ void FImgMediaFilePathCustomization::CustomizeChildren(TSharedRef<IPropertyHandl
 		.MinDesiredWidth(125.0f)
 		[
 			SNew(SFilePathPicker)
-				.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-				.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+				.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a file from this computer"))
 				.BrowseDirectory(FPaths::GetPath(PickedPath))
 				.BrowseTitle(LOCTEXT("PropertyEditorTitle", "File picker..."))

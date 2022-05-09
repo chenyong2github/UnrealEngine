@@ -39,6 +39,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SequencerPlaylists"
@@ -1177,7 +1178,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 			.Padding(FMargin(4.0f, 2.0f))
 			.HAlign(HAlign_Center)
 			.ToolTipText(LOCTEXT("ToggleHoldTooltip", "Enable or disable hold. Hold will infinitely hold the first frame of this item until manually played. Items are put into a hold state at the start of a take, or manually by hitting \"Reset.\""))
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 			.IsChecked_Lambda([WeakItem]() { return (WeakItem.IsValid() && WeakItem->bHoldAtFirstFrame) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			.OnCheckStateChanged_Lambda([WeakItem](ECheckBoxState InState) {
 				if (WeakItem.IsValid())

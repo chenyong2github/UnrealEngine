@@ -62,6 +62,8 @@
 #include "GroomCustomAssetEditorToolkit.h"
 #include "IPropertyUtilities.h"
 
+#include "Styling/AppStyle.h"
+
 static FLinearColor HairGroupColor(1.0f, 0.5f, 0.0f);
 static FLinearColor HairLODColor(1.0f, 0.5f, 0.0f);
 
@@ -1518,13 +1520,13 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 								SNew(SButton)
 									.VAlign(VAlign_Center)
 									.HAlign(HAlign_Center)
-									.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+									.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 									.ToolTipText(RegenToolTipText)
 									.OnClicked(this, &FGroomRenderingDetails::OnGenerateCardDataUsingPlugin, GroupIndex)
 									[
 										SNew(SImage)
 											// @TODO: Need a specialized icon for this?
-											.Image(FEditorStyle::GetBrush("ContentBrowser.AssetActions.ReimportAsset"))
+											.Image(FAppStyle::GetBrush("ContentBrowser.AssetActions.ReimportAsset"))
 											.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(90.0f))))
 											.RenderTransformPivot(FVector2D(0.5f, 0.5f))
 									]
@@ -1541,12 +1543,12 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 								SNew(SButton)
 								.VAlign(VAlign_Center)
 								.HAlign(HAlign_Center)
-								.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+								.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 								.ToolTipText(ToolTipTextForGeneration)
 								.OnClicked(this, &FGroomRenderingDetails::OnSaveCards, GroupIndex, Property)
 								[
 									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset"))
+									.Image(FAppStyle::GetBrush("AssetEditor.SaveAsset"))
 								]
 							];
 

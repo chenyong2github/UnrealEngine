@@ -1,16 +1,16 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaPropertyRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 void SWebAPISchemaPropertyRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIPropertyViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
-	const FSlateBrush* ArrayIcon = FEditorStyle::GetBrush(TEXT("Graph.ArrayPin.Connected"));
-	const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("Graph.Pin.Connected"));
+	const FSlateBrush* ArrayIcon = FAppStyle::GetBrush(TEXT("Graph.ArrayPin.Connected"));
+	const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("Graph.Pin.Connected"));
 	const FSlateColor TypeColor = InViewModel->GetPinColor();
 	
 	SWebAPISchemaTreeTableRow::Construct(
@@ -59,7 +59,7 @@ void SWebAPISchemaPropertyRow::Construct(const FArguments& InArgs, const TShared
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "PlacementBrowser.Asset.Name")
+							.TextStyle(FAppStyle::Get(), "PlacementBrowser.Asset.Name")
 							.Text(InViewModel->GetLabel())
 						]
 					]

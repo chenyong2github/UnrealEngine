@@ -20,7 +20,7 @@
 #include "HeaderViewVariableListItem.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_FunctionEntry.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "String/LineEndings.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "BlueprintHeaderViewSettings.h"
@@ -276,7 +276,7 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 			.HAlign(HAlign_Left)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("BrowseToBlueprintTooltip", "Browse to Selected Blueprint in Content Browser"))
 				.OnClicked(this, &SBlueprintHeaderView::BrowseToAssetClicked)
 				.ContentPadding(4.0f)
@@ -291,14 +291,14 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 			.HAlign(HAlign_Left)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("EditBlueprintTooltip", "Open Selected Blueprint in Blueprint Editor"))
 				.OnClicked(this, &SBlueprintHeaderView::OpenAssetEditorClicked)
 				.ContentPadding(4.0f)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Edit"))
+					.Image(FAppStyle::GetBrush("Icons.Edit"))
 				]
 			]
 			+SHorizontalBox::Slot()

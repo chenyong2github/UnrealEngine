@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -46,7 +46,7 @@ void FNaniteToolsModule::StartupModule()
 		.SetDisplayName(NSLOCTEXT("NaniteToolsApp", "TabTitle", "Nanite Tools"))
 		.SetTooltipText(NSLOCTEXT("NaniteToolsApp", "TooltipText", "Tools for auditing and optimizing Nanite assets."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.UserDefinedStruct"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.UserDefinedStruct"));
 }
 
 void FNaniteToolsModule::ShutdownModule()

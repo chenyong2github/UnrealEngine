@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FContextualAnimAssetEditorCommands : public TCommands<FContextualAnimAssetEditorCommands>
 {
 public:
 	FContextualAnimAssetEditorCommands()
-		: TCommands<FContextualAnimAssetEditorCommands>(TEXT("ContextualAnimAssetEditor"), NSLOCTEXT("Contexts", "ContextualAnim", "Contextual Anim"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FContextualAnimAssetEditorCommands>(TEXT("ContextualAnimAssetEditor"), NSLOCTEXT("Contexts", "ContextualAnim", "Contextual Anim"), NAME_None, FAppStyle::GetStyleSetName())
 	{
 	}
 

@@ -5,7 +5,7 @@
 #include "IDisplayClusterOperator.h"
 #include "SDisplayClusterOperatorToolbar.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -57,12 +57,12 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 
 	TabManager->RegisterTabSpawner(ToolbarTabId, FOnSpawnTab::CreateSP(this, &SDisplayClusterOperatorPanel::SpawnToolbarTab))
 		.SetDisplayName(LOCTEXT("ToolbarTabTitle", "Toolbar"))
-		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(DetailsTabId, FOnSpawnTab::CreateSP(this, &SDisplayClusterOperatorPanel::SpawnDetailsTab))
 		.SetDisplayName(LOCTEXT("DetailsTabTitle", "Details"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"))
 		.SetGroup(AppMenuGroup);
 
 	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("nDisplayOperatorLayout")

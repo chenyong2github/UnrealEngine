@@ -453,7 +453,7 @@ void FCurveTableEditor::ExtendToolbar()
 				NAME_None,
 				FText::GetEmpty(),
 				LOCTEXT("Reimport_Tooltip", "Reimport the Curve Table from the source file.  All changes will be lost.  This action cannot be undone."),
-				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Toolbar.Import")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Import")
 			);
 
 			bool HasRichCurves = GetCurveTable()->HasRichCurves();
@@ -477,7 +477,7 @@ void FCurveTableEditor::ExtendToolbar()
 					NAME_None, 
 					FText::GetEmpty(),
 					TAttribute<FText>(), 
-					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeySquare")
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.KeySquare")
 				);
 			}
 
@@ -488,7 +488,7 @@ void FCurveTableEditor::ExtendToolbar()
 					NAME_None, 
 					FText::GetEmpty(),
 					TAttribute<FText>(), 
-					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeyTriangle")
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.KeyTriangle")
 				);
 			}
 
@@ -1037,7 +1037,7 @@ void FCurveTableEditor::AddNewKeyColumn(float NewKeyTime)
 		ColumnData->KeyTime = NewKeyTime;
 
 		TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+		const FTextBlockStyle& CellTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 		ColumnData->DesiredColumnWidth = FontMeasure->Measure(ColumnData->DisplayName, CellTextStyle.Font).X + 10.f;
 
 		AvailableColumns.Add(ColumnData);

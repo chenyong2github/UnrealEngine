@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaServiceRow.h"
 
@@ -7,6 +7,8 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SBox.h"
+
+#include "Styling/AppStyle.h"
 
 void SWebAPISchemaServiceRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIServiceViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
@@ -17,7 +19,7 @@ void SWebAPISchemaServiceRow::Construct(const FArguments& InArgs, const TSharedR
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0,0,0,0))
 			// @todo: this prevents selection highlight
-			//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			//.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4)
 			[
 				SNew(SBox)

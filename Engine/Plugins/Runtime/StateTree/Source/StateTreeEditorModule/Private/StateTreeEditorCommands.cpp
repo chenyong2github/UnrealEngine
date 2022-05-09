@@ -1,7 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeEditorCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -10,7 +10,7 @@ FStateTreeEditorCommands::FStateTreeEditorCommands()
 		"StateTreeEditor", // Context name for fast lookup
 		LOCTEXT("StateTreeEditor", "StateTree Editor"), // Localized context name for displaying
 		NAME_None,
-		FEditorStyle::GetStyleSetName()
+		FAppStyle::GetAppStyleSetName()
 	)
 {
 }

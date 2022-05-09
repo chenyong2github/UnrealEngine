@@ -1,8 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaEnumValueRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Details/ViewModels/WebAPIEnumViewModel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -36,7 +36,7 @@ void SWebAPISchemaEnumValueRow::Construct(const FArguments& InArgs, const TShare
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "PlacementBrowser.Asset.Name")
+							.TextStyle(FAppStyle::Get(), "PlacementBrowser.Asset.Name")
 							.Text(InViewModel->GetLabel())
 						]
 					]

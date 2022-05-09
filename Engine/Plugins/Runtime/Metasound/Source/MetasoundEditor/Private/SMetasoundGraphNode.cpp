@@ -88,7 +88,7 @@ namespace Metasound
 		{
 			if (IsVariableAccessor() || IsVariableMutator())
 			{
-				return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
+				return bSelected ? FAppStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
 			}
 
 			return SGraphNode::GetShadowBrush(bSelected);
@@ -410,7 +410,7 @@ namespace Metasound
 			if (CornerIcon != NAME_None)
 			{
 
-				if (const FSlateBrush* Brush = FEditorStyle::GetBrush(CornerIcon))
+				if (const FSlateBrush* Brush = FAppStyle::GetBrush(CornerIcon))
 				{
 					FOverlayBrushInfo OverlayInfo = { Brush };
 
@@ -529,7 +529,7 @@ namespace Metasound
 					case EMetasoundFrontendClassType::VariableDeferredAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
 					{
-						return FEditorStyle::GetBrush("Graph.VarNode.Body");
+						return FAppStyle::GetBrush("Graph.VarNode.Body");
 					}
 					break;
 

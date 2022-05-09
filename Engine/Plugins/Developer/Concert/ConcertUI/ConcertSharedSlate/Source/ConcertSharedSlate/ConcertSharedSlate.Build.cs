@@ -12,7 +12,6 @@ namespace UnrealBuildTool.Rules
 					"Concert",
 					"Core",
 					"CoreUObject",
-					"EditorStyle",
 					"Slate",
 				}
 			);

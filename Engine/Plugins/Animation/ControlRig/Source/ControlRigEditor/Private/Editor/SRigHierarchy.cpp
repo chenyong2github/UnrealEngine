@@ -45,6 +45,7 @@
 #include "Slate/Private/Widgets/Views/SListPanel.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
@@ -1343,7 +1344,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		{
 			FNotificationInfo Info(LOCTEXT("SkeletalMeshHasNoSkeleton", "Chosen Skeletal Mesh has no assigned skeleton. This needs to fixed before the mesh can be used for a Control Rig."));
 			Info.bUseSuccessFailIcons = true;
-			Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
+			Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Warning"));
 			Info.bFireAndForget = true;
 			Info.bUseThrobber = true;
 			Info.FadeOutDuration = 2.f;

@@ -15,6 +15,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SwitchboardEditor"
@@ -206,7 +207,7 @@ void FSwitchboardProjectSettingsCustomization::CustomizeDetails(IDetailLayoutBui
 				.Padding(8.0f, 0.0f, 0.0f, 0.0f)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.WarningWithColor.Large"))
+					.Image(FAppStyle::GetBrush("Icons.WarningWithColor.Large"))
 				]
 				+ SHorizontalBox::Slot()
 				.FillWidth(1.0f)

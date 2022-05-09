@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 class FWaveFunctionCollapseEditorCommands : public TCommands<FWaveFunctionCollapseEditorCommands>
@@ -15,7 +15,7 @@ public:
 			TEXT("WaveFunctionCollapse"),
 			NSLOCTEXT("Contexts", "WaveFunctionCollapse", "WaveFunctionCollapse Plugin"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		) 
 		{}
 

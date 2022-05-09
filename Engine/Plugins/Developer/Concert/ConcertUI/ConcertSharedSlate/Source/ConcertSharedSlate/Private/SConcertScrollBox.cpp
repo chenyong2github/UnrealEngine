@@ -2,7 +2,7 @@
 
 #include "SConcertScrollBox.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
@@ -124,7 +124,7 @@ TSharedRef<SButton> SConcertScrollBox::CreateScrollBarButton(const FText& InTool
 	return SNew(SButton)
 		.Visibility(this, &SConcertScrollBox::HandleScrollButtonsVisibility)
 		.ToolTipText(InToolTip)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
 		.ForegroundColor(FLinearColor::White)
 		.OnClicked(OnClickedDelegate)
 		.ContentPadding(FMargin(2.f, 2.f))
@@ -133,7 +133,7 @@ TSharedRef<SButton> SConcertScrollBox::CreateScrollBarButton(const FText& InTool
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FText::FromString(InIcon)) /*fa-chevron-up*/
 				.Justification(ETextJustify::Center)
 			]

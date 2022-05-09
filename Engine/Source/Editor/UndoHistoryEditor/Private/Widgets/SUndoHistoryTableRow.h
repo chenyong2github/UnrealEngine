@@ -18,7 +18,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Layout/SExpandableArea.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SPositiveActionButton.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SButton.h"
@@ -57,7 +57,7 @@ public:
 		OnGotoTransactionClicked = InArgs._OnGotoTransactionClicked;
 
 		FSuperRowType::FArguments Args = FSuperRowType::FArguments()
-			.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
+			.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 
 		UObject* ContextObject = nullptr;
 		if (InArgs._Transaction)
@@ -85,7 +85,7 @@ public:
 		{
 			return SNew(SPositiveActionButton)
 				.ToolTipText(FText::FromString("Jump to this transaction"))
-				.Icon(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
+				.Icon(FAppStyle::GetBrush("Icons.CircleArrowRight"))
 				.OnClicked_Lambda([this]() { OnGotoTransactionClicked.ExecuteIfBound(TransactionId); return FReply::Handled(); })
 				.Visibility_Lambda([this]() { return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; });
 		}

@@ -5,7 +5,7 @@
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Algo/ForEach.h"
 
@@ -148,7 +148,7 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 				+SUniformGridPanel::Slot(0, 0)
 				[
 					ConcertBrowserUtils::MakePositiveActionButton(
-						FEditorStyle::GetBrush("Icons.Check"),
+						FAppStyle::GetBrush("Icons.Check"),
 						ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreCheckIconTooltip", "Restore the session") : LOCTEXT("ArchiveCheckIconTooltip", "Archive the session"),
 						TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }), // Enabled?
 						FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnAccept))
@@ -158,7 +158,7 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 				+SUniformGridPanel::Slot(1, 0)
 				[
 					ConcertBrowserUtils::MakeNegativeActionButton(
-						FEditorStyle::GetBrush("Icons.X"),
+						FAppStyle::GetBrush("Icons.X"),
 						LOCTEXT("CancelTooltip", "Cancel"),
 						true, // Enabled?
 						FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnDecline))

@@ -26,6 +26,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "Algo/AllOf.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
 
@@ -1210,8 +1211,8 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 		.SelectionMode(ESelectionMode::SingleToggle)
 		.ConsumeMouseWheel(EConsumeMouseWheel::Never);
 
-	ContinuingPoseView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
-	ContinuingPoseView.RowBrush = *FEditorStyle::GetBrush("DetailsView.CategoryTop");
+	ContinuingPoseView.RowStyle = FAppStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	ContinuingPoseView.RowBrush = *FAppStyle::GetBrush("DetailsView.CategoryTop");
 
 	// Filtered Database
 	FilteredDatabaseView.ScrollBar =
@@ -1317,7 +1318,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Fill)
@@ -1342,7 +1343,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				[
 					SNew(SBorder)
 					
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.Padding(0.0f)
 					[
 						ContinuingPoseView.ListView.ToSharedRef()
@@ -2065,7 +2066,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 		SNew(SButton)
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Fill)
-		.ButtonStyle(FEditorStyle::Get(), "Button")
+		.ButtonStyle(FAppStyle::Get(), "Button")
 		.ContentPadding( FMargin(5, 0) )
 		.OnClicked(this, &SDebuggerView::TogglePlaySelectedAssets)
 		[
@@ -2078,7 +2079,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 				.Image_Lambda([this]
 				{
 					const bool bPlayingSelections = ViewModel.Get()->IsPlayingSelections();
-					return FSlateIcon("FEditorStyle", bPlayingSelections ? "PlayWorld.StopPlaySession.Small" : "PlayWorld.PlayInViewport.Small").GetSmallIcon();
+					return FSlateIcon("FAppStyle", bPlayingSelections ? "PlayWorld.StopPlaySession.Small" : "PlayWorld.PlayInViewport.Small").GetSmallIcon();
 				})
 			]
 			// Text

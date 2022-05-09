@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPAddress.h"
 #include "SocketSubsystem.h" 
 #include "Widgets/Input/SEditableComboBox.h"
@@ -49,7 +49,7 @@ void SIpAddressComboBox::Construct(const FArguments& InArgs)
 		.Content()
 		[
 			SAssignNew(IPAddressEditableTextBlock, SEditableText)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text(FText::FromString(InArgs._InitialValue))
 			.OnTextCommitted(this, &SIpAddressComboBox::OnIPAddressTextCommmited)
 		]
@@ -76,7 +76,7 @@ TSharedRef<SWidget> SIpAddressComboBox::GenerateLocalAdapterAddressComboBoxEntry
 	return
 		SNew(STextBlock)
 		.Text(FText::FromString(*InAddress))
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 #endif

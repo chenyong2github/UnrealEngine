@@ -1,8 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaOperationRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WebAPIEditorStyle.h"
 #include "Details/ViewModels/WebAPIOperationViewModel.h"
 #include "Details/ViewModels/WebAPIServiceViewModel.h"
@@ -22,7 +22,7 @@ void SWebAPISchemaOperationRow::Construct(const FArguments& InArgs, const TShare
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0,0,0,0))
 			// @todo: this prevents selection highlight
-			//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			//.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4)
 			[
 				SNew(SBox)
@@ -93,7 +93,7 @@ void SWebAPISchemaOperationRow::Construct(const FArguments& InArgs, const TShare
 									SNew(STextBlock)
 									.Text(InViewModel->GetLabel())
 									.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
-									.TextStyle(FEditorStyle::Get(), "PlacementBrowser.Asset.Name")								
+									.TextStyle(FAppStyle::Get(), "PlacementBrowser.Asset.Name")								
 								]
 								+ SHorizontalBox::Slot()
 								.VAlign(VAlign_Center)

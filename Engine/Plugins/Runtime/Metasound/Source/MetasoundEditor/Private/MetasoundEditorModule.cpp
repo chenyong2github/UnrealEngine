@@ -78,12 +78,12 @@ namespace Metasound
 				}
 				else
 				{
-					return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : FEditorStyle::GetBrush("Icons.BulletPoint");
+					return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : FAppStyle::GetBrush("Icons.BulletPoint");
 				}
 			}
 			else
 			{
-				return PinType.IsArray() ? FEditorStyle::GetBrush("Graph.ArrayPin.Connected") : FEditorStyle::GetBrush("Icons.BulletPoint");
+				return PinType.IsArray() ? FAppStyle::GetBrush("Graph.ArrayPin.Connected") : FAppStyle::GetBrush("Icons.BulletPoint");
 			}
 		}
 

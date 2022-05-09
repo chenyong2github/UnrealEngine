@@ -5,7 +5,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailGroup.h"
 #include "MediaPlate.h"
 #include "MediaPlateComponent.h"
@@ -40,7 +40,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	}
 	if (Style == nullptr)
 	{
-		Style = &FEditorStyle::Get();
+		Style = &FAppStyle::Get();
 	}
 
 	IDetailCategoryBuilder& MediaPlateCategory = DetailBuilder.EditCategory("MediaPlate");
@@ -99,8 +99,8 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		.ValueContent()
 		[
 			SNew(SFilePathPicker)
-				.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-				.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+				.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a file from this computer"))
 				.BrowseTitle(LOCTEXT("PropertyEditorTitle", "File picker..."))
 				.FilePath(this, &FMediaPlateCustomization::HandleMediaPath)

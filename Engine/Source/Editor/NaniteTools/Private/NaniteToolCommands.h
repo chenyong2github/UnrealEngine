@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/StaticMesh.h"
 
 class FNaniteToolCommands : public TCommands<FNaniteToolCommands>
@@ -15,7 +15,7 @@ public:
 		TEXT("NaniteTools"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "NaniteTools", "Nanite Tools"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{
 	}

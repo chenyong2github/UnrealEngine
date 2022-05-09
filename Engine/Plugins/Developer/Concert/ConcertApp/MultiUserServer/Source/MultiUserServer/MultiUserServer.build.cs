@@ -18,7 +18,6 @@ namespace UnrealBuildTool.Rules
 					"ConcertSharedSlate",
 					"ConcertSyncCore",
 					"ConcertTransport",
-					"EditorStyle",			// Needed so OutputLog module to work correctly
 					"InputCore",
 					"OutputLog",
 					"Projects",

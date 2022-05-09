@@ -23,6 +23,8 @@
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 
+#include "Styling/AppStyle.h"
+
 #define LOCTEXT_NAMESPACE "IKRetargeterEditor"
 
 const FName IKRetargetApplicationModes::IKRetargetApplicationMode("IKRetargetApplicationMode");
@@ -172,7 +174,7 @@ void FIKRetargetEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(),"GenericStop"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(),"GenericStop"));
 	}
 	ToolbarBuilder.EndSection();
 }

@@ -263,7 +263,7 @@ void SMergeActorsToolbar::UpdateToolbar()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::Get().GetBrush("Icons.Info"))
+				.Image(FAppStyle::Get().GetBrush("Icons.Info"))
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(10, 0, 0, 0)

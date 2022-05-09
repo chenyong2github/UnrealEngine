@@ -64,6 +64,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -1661,7 +1662,7 @@ void SRemoteControlPanel::RegisterAuxiliaryToolBar()
 				, SNew(SAutoResizeButton)
 					.UICommand(FRemoteControlCommands::Get().ToggleProtocolMappings)
 					.ForceSmallIcons_Static(SRemoteControlPanel::ShouldForceSmallIcons)
-					.IconOverride(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.StatsViewer"))
+					.IconOverride(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer"))
 				, LOCTEXT("MappingsLabel", "Mappings")
 			)
 			);

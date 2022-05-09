@@ -1,8 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Session/History/SEditableSessionHistory.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SNegativeActionButton.h"
 
 #include "Algo/Transform.h"
@@ -27,7 +27,7 @@ void SEditableSessionHistory::Construct(const FArguments& InArgs)
 			.OnClicked(this, &SEditableSessionHistory::OnClickDeleteActivityButton)
 			.ToolTipText(this, &SEditableSessionHistory::GetDeleteActivityToolTip)
 			.IsEnabled(this, &SEditableSessionHistory::IsDeleteButtonEnabled)
-			.Icon(FEditorStyle::GetBrush("Icons.Delete"))
+			.Icon(FAppStyle::GetBrush("Icons.Delete"))
 		]
 		);
 	

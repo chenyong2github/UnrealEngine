@@ -840,7 +840,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 					.Text(StackItem->GetIconText())
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				]
@@ -1056,7 +1056,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 						.Text(StackItemGroup->GetIconText())
 						.ColorAndOpacity(IconColor)
 					]

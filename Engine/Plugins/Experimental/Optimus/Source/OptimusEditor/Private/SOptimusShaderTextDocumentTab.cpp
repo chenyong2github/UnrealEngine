@@ -5,7 +5,7 @@
 
 #include "OptimusHLSLSyntaxHighlighter.h"
 
-#include "EditorStyleSet.h" 
+#include "Styling/AppStyle.h"
 
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -45,7 +45,7 @@ void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject*
 	const FText ShaderTextTitle = LOCTEXT("OptimusShaderTextDocumentTab_ShaderText_Title", "Shader Text");
 
 	SExpandableArea::FArguments ExpandableAreaArgs;
-	ExpandableAreaArgs.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
+	ExpandableAreaArgs.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
 	
 	ChildSlot
 	[

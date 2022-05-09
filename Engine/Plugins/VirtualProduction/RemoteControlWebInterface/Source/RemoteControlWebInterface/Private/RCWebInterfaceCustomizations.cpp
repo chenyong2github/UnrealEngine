@@ -207,7 +207,7 @@ void FRCWebInterfaceCustomizations::GeneratePanelExtensions(TArray<TSharedRef<SW
 
 	OutExtensions.Add(
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton")
 		.ToolTipText(LOCTEXT("AppPassphraseDisabled", "Warning: Passphrase is disabled!"))
 		.Visibility_Lambda([]()
 		{
@@ -225,8 +225,8 @@ void FRCWebInterfaceCustomizations::GeneratePanelExtensions(TArray<TSharedRef<SW
 		})
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.TextStyle(FAppStyle::Get(), "NormalText.Important")
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FEditorFontGlyphs::Exclamation_Triangle)
 		]
 	);
@@ -242,7 +242,7 @@ void FRCWebInterfaceCustomizations::GeneratePanelExtensions(TArray<TSharedRef<SW
 		+ SWidgetSwitcher::Slot()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ToolTipText_Lambda([this]()
 				{
 					switch (WebApp->GetStatus())
@@ -264,8 +264,8 @@ void FRCWebInterfaceCustomizations::GeneratePanelExtensions(TArray<TSharedRef<SW
 				.Padding(0.f, 2.f, 4.f, 2.f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text_Lambda([this]()
 						{
 							switch (WebApp->GetStatus())

@@ -1047,10 +1047,4 @@ bool UAssetEditorSubsystem::IsEditorModeAllowed(const FName ModeId) const
 	return AllowedEditorModes.PassesFilter(ModeId);
 }
 
-void UAssetEditorSubsystem::OnSMInstanceElementsEnabled()
-{
-	// Let the modes know that SM instance elements may have been enabled or disabled and update state accordingly
-	OnEditorModesChanged().Broadcast();
-}
-
 #undef LOCTEXT_NAMESPACE

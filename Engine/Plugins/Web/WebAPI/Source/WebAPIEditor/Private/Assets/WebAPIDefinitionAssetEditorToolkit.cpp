@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIDefinitionAssetEditorToolkit.h"
 
@@ -19,6 +19,7 @@
 #include "Modules/ModuleManager.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIDefinitionAssetEditorToolkit"
 
@@ -139,7 +140,7 @@ void FWebAPIDefinitionAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<F
 	InTabManager->RegisterTabSpawner(DetailsTabID, FOnSpawnTab::CreateSP(this, &FWebAPIDefinitionAssetEditorToolkit::SpawnTab_Details))
 		.SetDisplayName(LOCTEXT("Details", "Details"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	// Log
 	{
@@ -202,7 +203,7 @@ void FWebAPIDefinitionAssetEditorToolkit::ExtendToolbar(const TSharedPtr<FExtend
 					NAME_None,
 					TAttribute<FText>(),
 					TAttribute<FText>(Toolkit, &FWebAPIDefinitionAssetEditorToolkit::GetGenerateStatusTooltip),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Blueprint.CompileStatus.Background"));
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Blueprint.CompileStatus.Background"));
 			}
 			InToolbarBuilder.EndSection();
 		}

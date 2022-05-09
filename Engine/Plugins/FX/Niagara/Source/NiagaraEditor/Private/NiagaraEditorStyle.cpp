@@ -397,7 +397,7 @@ void FNiagaraEditorStyle::InitOverview()
 
 void FNiagaraEditorStyle::InitViewportStyle()
 {
-	FTextBlockStyle NormalTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+	FTextBlockStyle NormalTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
 	FTextBlockStyle CompileOverlayText = FTextBlockStyle(NormalTextStyle)
 		.SetFontSize(18);
 	Set("NiagaraEditor.Viewport.CompileOverlay", CompileOverlayText);

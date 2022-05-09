@@ -10,11 +10,11 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
 #include "IDetailsView.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/SToolBarStackButtonBlock.h"
 #include "Settings/CreateWidgetToolSettings.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "WidgetEditorToolPalette"
 
@@ -73,7 +73,7 @@ void FWidgetEditorToolPaletteToolkit::BuildToolPalette(FName PaletteName, class 
 TSharedRef<SWidget> FWidgetEditorToolPaletteToolkit::CreatePaletteWidget(TSharedPtr<FUICommandList> InCommandList, FName InToolbarCustomizationName, FName InPaletteName)
 {
 	FVerticalToolBarBuilder ModeToolbarBuilder(InCommandList, FMultiBoxCustomization(InToolbarCustomizationName));
-	ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "VerticalToolBar");
+	ModeToolbarBuilder.SetStyle(&FAppStyle::Get(), "VerticalToolBar");
 
 	BuildToolPalette(InPaletteName, ModeToolbarBuilder);
 

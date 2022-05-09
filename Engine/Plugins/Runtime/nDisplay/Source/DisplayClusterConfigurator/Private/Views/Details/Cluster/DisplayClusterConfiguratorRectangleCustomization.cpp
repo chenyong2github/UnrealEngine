@@ -12,6 +12,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FRectanglePositionCustomNodeBuilder"
                  
@@ -80,7 +81,7 @@ public:
 					.Visibility(this, &FRectangleCompoundCustomNodeBuilder::GetRatioLockVisibility)
 					.IsChecked(this, &FRectangleCompoundCustomNodeBuilder::GetRatioLockCheckState)
 					.OnCheckStateChanged(this, &FRectangleCompoundCustomNodeBuilder::OnRatioLockToggled)
-					.Style(FEditorStyle::Get(), "TransparentCheckBox")
+					.Style(FAppStyle::Get(), "TransparentCheckBox")
 					.ToolTipText(RatioLockTooltip)
 					[
 						SNew(SImage)
@@ -337,7 +338,7 @@ private:
 	/** Gets the icon to use for the ratio lock toggle button */
 	const FSlateBrush* GetRatioLockIcon() const
 	{
-		return RatioLockedAttribute.Get(false) ? FEditorStyle::GetBrush(TEXT("Icons.Lock")) : FEditorStyle::GetBrush(TEXT("Icons.Unlock"));
+		return RatioLockedAttribute.Get(false) ? FAppStyle::GetBrush(TEXT("Icons.Lock")) : FAppStyle::GetBrush(TEXT("Icons.Unlock"));
 	}
 
 private:

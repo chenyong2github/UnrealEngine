@@ -19,6 +19,8 @@
 #include "SGraphSnapContainerRow.h"
 #include "K2Node_SnapContainer.h"
 
+#include "Styling/AppStyle.h"
+
 #define LOCTEXT_NAMESPACE "BlueprintSnapNodes"
 
 /////////////////////////////////////////////////////
@@ -66,14 +68,14 @@ void SGraphNodeSnapContainer::UpdateGraphNode()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.CollapsedNode.Body" ) )
+			.BorderImage( FAppStyle::GetBrush( "Graph.CollapsedNode.Body" ) )
 			.Padding(0)
 			[
 				SNew(SOverlay)
 				+SOverlay::Slot()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("Graph.CollapsedNode.BodyColorSpill") )
+					.Image( FAppStyle::GetBrush("Graph.CollapsedNode.BodyColorSpill") )
 					.ColorAndOpacity( this, &SGraphNode::GetNodeTitleColor )
 				]
 				+SOverlay::Slot()
@@ -90,7 +92,7 @@ void SGraphNodeSnapContainer::UpdateGraphNode()
 						.VAlign(VAlign_Center)
 						[
 							SNew(SBorder)
-							.BorderImage( FEditorStyle::GetBrush("NoBorder") )  // Graph.CollapsedNode.ColorSpill
+							.BorderImage( FAppStyle::GetBrush("NoBorder") )  // Graph.CollapsedNode.ColorSpill
 							.Padding( FMargin(10,5,30,3) )
 							[
 								SNew(SVerticalBox)
@@ -104,7 +106,7 @@ void SGraphNodeSnapContainer::UpdateGraphNode()
 										.AutoHeight()
 									[
 										SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-										.Style( FEditorStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
+										.Style( FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
 										.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 										.OnVerifyTextChanged(this, &SGraphNodeSnapContainer::OnVerifyNameTextChanged)
 										.OnTextCommitted(this, &SGraphNodeSnapContainer::OnNameTextCommited)
@@ -262,7 +264,7 @@ TSharedRef<SWidget> SGraphNodeSnapContainer::CreateNodeBody()
 	{
 		// Create the input and output pin areas if there are pins
 		return SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding( FMargin(0,3) )
