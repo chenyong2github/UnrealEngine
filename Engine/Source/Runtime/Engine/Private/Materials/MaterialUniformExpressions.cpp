@@ -361,7 +361,7 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 
 	if (UniformPreshaderBufferSize > 0u)
 	{
-		new(Members) FShaderParametersMetadata::FMember(TEXT("PreshaderBuffer"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4, UniformPreshaderBufferSize,NULL);
+		new(Members) FShaderParametersMetadata::FMember(TEXT("PreshaderBuffer"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Float,1,4, UniformPreshaderBufferSize,NULL);
 		NextMemberOffset += UniformPreshaderBufferSize * sizeof(FVector4f);
 	}
 
