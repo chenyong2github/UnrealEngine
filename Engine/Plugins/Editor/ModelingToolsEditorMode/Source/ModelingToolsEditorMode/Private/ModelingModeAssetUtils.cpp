@@ -14,6 +14,7 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 
+extern UNREALED_API UEditorEngine* GEditor;
 
 #define LOCTEXT_NAMESPACE "ModelingModeAssetUtils"
 
