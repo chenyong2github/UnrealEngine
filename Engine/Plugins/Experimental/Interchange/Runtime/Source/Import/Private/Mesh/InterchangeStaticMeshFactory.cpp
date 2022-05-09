@@ -10,6 +10,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "InterchangeAssetImportData.h"
+#include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeMaterialFactoryNode.h"
@@ -433,6 +434,12 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 		return Payloads;
 	}
 
+	FTransform GlobalOffsetTransform = FTransform::Identity;
+	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(Arguments.NodeContainer))
+	{
+		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+	}
+
 	for (const FString& MeshUid : MeshUids)
 	{
 		FMeshPayload Payload;
@@ -451,7 +458,7 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 
 			// Get the transform from the scene node
 			FTransform SceneNodeGlobalTransform;
-			if (SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform))
+			if (SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform))
 			{
 				Payload.Transform = SceneNodeGlobalTransform;
 			}
@@ -460,6 +467,11 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 			FString MeshDependencyUid;
 			SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
 			MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
+		}
+		else
+		{
+			//If we have a mesh that is not reference by a scene node, we must apply the global offset.
+			Payload.Transform = GlobalOffsetTransform;
 		}
 
 		if (!ensure(MeshNode))
@@ -1288,6 +1300,12 @@ bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Argu
 
 	TSet<FName> ImportedSocketNames;
 
+	FTransform GlobalOffsetTransform = FTransform::Identity;
+	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(Arguments.NodeContainer))
+	{
+		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+	}
+
 	for (const FString& SocketUid : SocketUids)
 	{
 		if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(SocketUid)))
@@ -1302,7 +1320,7 @@ bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Argu
 			ImportedSocketNames.Add(SocketName);
 
 			FTransform GlobalTransform;
-			SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalTransform);
+			SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, GlobalTransform);
 
 			UStaticMeshSocket* Socket = StaticMesh->FindSocket(SocketName);
 			if (!Socket)

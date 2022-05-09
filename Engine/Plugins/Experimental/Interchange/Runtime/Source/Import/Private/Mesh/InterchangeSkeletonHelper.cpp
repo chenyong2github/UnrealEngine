@@ -3,6 +3,7 @@
 
 #if WITH_EDITOR
 #include "Animation/Skeleton.h"
+#include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeSceneNode.h"
 #include "ReferenceSkeleton.h"
@@ -187,12 +188,27 @@ namespace UE::Interchange::Private
 		Info.Name = JointNode->GetDisplayLabel();
 
 		FTransform LocalTransform;
-		ensure(JointNode->GetCustomLocalTransform(LocalTransform));
-
 		FTransform TimeZeroLocalTransform;
-		const bool bHasTimeZeroTransform = JointNode->GetCustomTimeZeroLocalTransform(TimeZeroLocalTransform);
+		bool bHasTimeZeroTransform = false;
 		FTransform BindPoseLocalTransform;
-		const bool bHasBindPoseTransform = JointNode->GetCustomBindPoseLocalTransform(BindPoseLocalTransform);
+		bool bHasBindPoseTransform = false;
+		if (ParentIndex == INDEX_NONE)
+		{
+			FTransform GlobalOffsetTransform = FTransform::Identity;
+			if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(NodeContainer))
+			{
+				CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+			}
+			ensure(JointNode->GetCustomGlobalTransform(NodeContainer, GlobalOffsetTransform, LocalTransform));
+			bHasTimeZeroTransform = JointNode->GetCustomTimeZeroGlobalTransform(NodeContainer, GlobalOffsetTransform, TimeZeroLocalTransform);
+			bHasBindPoseTransform = JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, GlobalOffsetTransform, BindPoseLocalTransform);
+		}
+		else
+		{
+			ensure(JointNode->GetCustomLocalTransform(LocalTransform));
+			bHasTimeZeroTransform = JointNode->GetCustomTimeZeroLocalTransform(TimeZeroLocalTransform);
+			bHasBindPoseTransform = JointNode->GetCustomBindPoseLocalTransform(BindPoseLocalTransform);
+		}
 
 		Info.LocalTransform = bHasBindPoseTransform ? BindPoseLocalTransform : LocalTransform;
 		//If user want to bind the mesh at time zero try to get the time zero transform

@@ -216,9 +216,9 @@ bool UInterchangeSceneNode::SetCustomLocalTransform(const UInterchangeBaseNodeCo
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(LocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::GetCustomGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
+bool UInterchangeSceneNode::GetCustomGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& GlobalOffsetTransform, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
 {
-	return GetGlobalTransformInternal(Macro_CustomLocalTransformKey, CacheGlobalTransform, BaseNodeContainer, AttributeValue, bForceRecache);
+	return GetGlobalTransformInternal(Macro_CustomLocalTransformKey, CacheGlobalTransform, BaseNodeContainer, GlobalOffsetTransform, AttributeValue, bForceRecache);
 }
 
 bool UInterchangeSceneNode::GetCustomBindPoseLocalTransform(FTransform& AttributeValue) const
@@ -235,9 +235,9 @@ bool UInterchangeSceneNode::SetCustomBindPoseLocalTransform(const UInterchangeBa
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::GetCustomBindPoseGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
+bool UInterchangeSceneNode::GetCustomBindPoseGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& GlobalOffsetTransform, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
 {
-	return GetGlobalTransformInternal(Macro_CustomBindPoseLocalTransformKey, CacheBindPoseGlobalTransform, BaseNodeContainer, AttributeValue, bForceRecache);
+	return GetGlobalTransformInternal(Macro_CustomBindPoseLocalTransformKey, CacheBindPoseGlobalTransform, BaseNodeContainer, GlobalOffsetTransform, AttributeValue, bForceRecache);
 }
 
 bool UInterchangeSceneNode::GetCustomTimeZeroLocalTransform(FTransform& AttributeValue) const
@@ -254,9 +254,9 @@ bool UInterchangeSceneNode::SetCustomTimeZeroLocalTransform(const UInterchangeBa
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::GetCustomTimeZeroGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
+bool UInterchangeSceneNode::GetCustomTimeZeroGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& GlobalOffsetTransform, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
 {
-	return GetGlobalTransformInternal(Macro_CustomTimeZeroLocalTransformKey, CacheTimeZeroGlobalTransform, BaseNodeContainer, AttributeValue, bForceRecache);
+	return GetGlobalTransformInternal(Macro_CustomTimeZeroLocalTransformKey, CacheTimeZeroGlobalTransform, BaseNodeContainer, GlobalOffsetTransform, AttributeValue, bForceRecache);
 }
 
 bool UInterchangeSceneNode::GetCustomGeometricTransform(FTransform& AttributeValue) const
@@ -361,7 +361,12 @@ void UInterchangeSceneNode::ResetGlobalTransformCachesOfNodeAndAllChildren(const
 	}
 }
 
-bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey, TOptional<FTransform>& CacheTransform, const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache) const
+bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey
+	, TOptional<FTransform>& CacheTransform
+	, const UInterchangeBaseNodeContainer* BaseNodeContainer
+	, const FTransform& GlobalOffsetTransform
+	, FTransform& AttributeValue
+	, bool bForceRecache) const
 {
 	if (!Attributes->ContainAttribute(LocalTransformKey))
 	{
@@ -385,22 +390,31 @@ bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FA
 				{
 					if (LocalTransformKey == Macro_CustomLocalTransformKey)
 					{
-						ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalParent, bForceRecache);
+						ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
 					}
 					else if (LocalTransformKey == Macro_CustomBindPoseLocalTransformKey)
 					{
-						ParentSceneNode->GetCustomBindPoseGlobalTransform(BaseNodeContainer, GlobalParent, bForceRecache);
+						//Its possible the root skeleton id have a parent that is not a joint, in that case we need to fall back on the normal transform
+						if (!ParentSceneNode->GetCustomBindPoseGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache))
+						{
+							ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
+						}
 					}
 					else if (LocalTransformKey == Macro_CustomTimeZeroLocalTransformKey)
 					{
-						ParentSceneNode->GetCustomTimeZeroGlobalTransform(BaseNodeContainer, GlobalParent, bForceRecache);
+						//Its possible the root skeleton id have a parent that is not a joint, in that case we need to fall back on the normal transform
+						if(!ParentSceneNode->GetCustomTimeZeroGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache))
+						{
+							ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
+						}
 					}
 				}
 				CacheTransform = LocalTransform * GlobalParent;
 			}
 			else
 			{
-				CacheTransform = LocalTransform;
+				//Scene Node without parent will need the global offset to be apply
+				CacheTransform = LocalTransform * GlobalOffsetTransform;
 			}
 		}
 		else

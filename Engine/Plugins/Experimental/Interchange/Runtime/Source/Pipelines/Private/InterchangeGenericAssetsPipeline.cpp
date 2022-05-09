@@ -5,6 +5,7 @@
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
 #include "InterchangeAnimSequenceFactoryNode.h"
+#include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeGenericAnimationPipeline.h"
 #include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangeGenericMeshPipeline.h"
@@ -156,6 +157,20 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 
 
 	BaseNodeContainer = InBaseNodeContainer;
+
+	//Setup the Global import offset
+
+	{
+		FTransform ImportOffsetTransform;
+		ImportOffsetTransform.SetTranslation(ImportOffsetTranslation);
+		ImportOffsetTransform.SetRotation(FQuat(ImportOffsetRotation));
+		ImportOffsetTransform.SetScale3D(FVector(ImportOffsetUniformScale));
+
+		UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::FindOrCreateUniqueInstance(BaseNodeContainer);
+		CommonPipelineDataFactoryNode->SetCustomGlobalOffsetTransform(BaseNodeContainer, ImportOffsetTransform);
+		
+	}
+
 	SourceDatas.Empty(InSourceDatas.Num());
 	for (const UInterchangeSourceData* SourceData : InSourceDatas)
 	{

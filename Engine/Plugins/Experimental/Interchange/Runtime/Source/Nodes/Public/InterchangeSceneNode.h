@@ -96,7 +96,7 @@ public:
 
 	/** Return the default scene node global transform. This value is computed with all parent local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool GetCustomGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache = false) const;
+	bool GetCustomGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& GlobalOffsetTransform, FTransform& AttributeValue, bool bForceRecache = false) const;
 
 	//Bind pose transform is the transform of the joint when the binding with the mesh was done.
 	//This attribute should be set only if we have a joint.
@@ -111,7 +111,7 @@ public:
 
 	/** Return the bind pose scene node global transform. This value is computed with all parent bind pose local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomBindPoseGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache = false) const;
+	bool GetCustomBindPoseGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& GlobalOffsetTransform, FTransform& AttributeValue, bool bForceRecache = false) const;
 
 	//Time zero transform is the transform of the node at time zero.
 	//This is useful when there is no bind pose or when we import rigid mesh.
@@ -126,7 +126,7 @@ public:
 
 	/** Return the time zero scene node global transform. This value is computed with all parent timezero local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomTimeZeroGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache = false) const;
+	bool GetCustomTimeZeroGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& GlobalOffsetTransform, FTransform& AttributeValue, bool bForceRecache = false) const;
 
 	/** Return the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
@@ -192,7 +192,12 @@ public:
 
 private:
 
-	bool GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey, TOptional<FTransform>& CacheTransform, const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache) const;
+	bool GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey
+		, TOptional<FTransform>& CacheTransform
+		, const UInterchangeBaseNodeContainer* BaseNodeContainer
+		, const FTransform& GlobalOffsetTransform
+		, FTransform& AttributeValue
+		, bool bForceRecache) const;
 
 	//Scene Attribute Keys
 	const UE::Interchange::FAttributeKey Macro_CustomLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("LocalTransform"));

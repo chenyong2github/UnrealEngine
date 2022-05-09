@@ -4,6 +4,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/InterchangeAnimationPayload.h"
 #include "Animation/InterchangeAnimationPayloadInterface.h"
+#include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeCommonAnimationPayload.h"
 #include "InterchangeImportCommon.h"
@@ -88,6 +89,16 @@ namespace UE::Interchange::Private
 			Controller.RemoveAllBoneTracks();
 			Controller.SetPlayLength(FGenericPlatformMath::Max<float>(SequenceLength, MINIMUM_ANIMATION_LENGTH));
 
+			FTransform3f GlobalOffsetTransform;
+			{
+				FTransform TempTransform = FTransform::Identity;
+				if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(NodeContainer))
+				{
+					CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(TempTransform);
+				}
+				GlobalOffsetTransform = FTransform3f(TempTransform);
+			}
+
 			for (const FString& NodeUid : SkeletonNodes)
 			{
 				if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(NodeUid)))
@@ -99,6 +110,9 @@ namespace UE::Interchange::Private
 						//Skip this bone, we did not found it in the skeleton
 						continue;
 					}
+					//If we are getting the root 
+					bool bApplyGlobalOffset = NodeUid.Equals(SkeletonRootUid);
+
 					FString PayloadKey;
 					if (SkeletonSceneNode->GetCustomTransformCurvePayloadKey(PayloadKey))
 					{
@@ -164,6 +178,15 @@ namespace UE::Interchange::Private
 								}
 							}
 							FQuat4f Quaternion = FQuat4f::MakeFromEuler(Euler);
+							
+							if (bApplyGlobalOffset)
+							{
+								FTransform3f AnimKeyTransform(Quaternion, Position, Scale);
+								AnimKeyTransform = AnimKeyTransform * GlobalOffsetTransform;
+								Position = AnimKeyTransform.GetLocation();
+								Quaternion = AnimKeyTransform.GetRotation();
+								Scale = AnimKeyTransform.GetScale3D();
+							}
 							RawTrack.ScaleKeys.Add(Scale);
 							RawTrack.PosKeys.Add(Position);
 							RawTrack.RotKeys.Add(Quaternion);

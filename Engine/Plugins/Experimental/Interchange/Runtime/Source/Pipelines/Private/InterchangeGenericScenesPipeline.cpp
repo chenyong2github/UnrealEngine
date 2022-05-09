@@ -5,6 +5,7 @@
 #include "InterchangeActorFactoryNode.h"
 #include "InterchangeCameraNode.h"
 #include "InterchangeCineCameraFactoryNode.h"
+#include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeLightNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
@@ -24,6 +25,12 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAssetsPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
 		return;
+	}
+
+	FTransform GlobalOffsetTransform = FTransform::Identity;
+	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(InBaseNodeContainer))
+	{
+		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
 	}
 
 	TArray<UInterchangeSceneNode*> SceneNodes;
@@ -58,12 +65,12 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 					continue;
 				}
 			}
-			ExecuteSceneNodePreImport(InBaseNodeContainer, SceneNode, InBaseNodeContainer);
+			ExecuteSceneNodePreImport(InBaseNodeContainer, GlobalOffsetTransform, SceneNode, InBaseNodeContainer);
 		}
 	}
 }
 
-void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
+void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
 {
 	if (!SceneNode)
 	{
@@ -97,8 +104,9 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 	ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());
 	SceneNode->AddTargetNodeUid(ActorFactoryNode->GetUniqueID());
 
+	//TODO move this code to the factory, a stack over pipeline can change the global offset transform which will affect this value.
 	FTransform GlobalTransform;
-	if (SceneNode->GetCustomGlobalTransform(InBaseNodeContainer, GlobalTransform))
+	if (SceneNode->GetCustomGlobalTransform(InBaseNodeContainer, GlobalOffsetTransform, GlobalTransform))
 	{
 		ActorFactoryNode->SetCustomGlobalTransform(GlobalTransform);
 	}

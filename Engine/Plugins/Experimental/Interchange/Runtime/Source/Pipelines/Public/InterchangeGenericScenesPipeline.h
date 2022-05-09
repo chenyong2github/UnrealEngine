@@ -32,7 +32,7 @@ protected:
 	/**
 	 * PreImport step called for each translated SceneNode.
 	 */
-	virtual void ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer);
+	virtual void ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer);
 
 	/**
 	 * Return a new Actor Factory Node to be used for the given SceneNode.

@@ -6,6 +6,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "GPUSkinPublicDefs.h"
 #include "InterchangeAssetImportData.h"
+#include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeMaterialFactoryNode.h"
@@ -288,6 +289,12 @@ namespace UE
 				TArray<double> SkinWeights;
 				SkinWeights.AddZeroed(VertexCount);
 
+				FTransform GlobalOffsetTransform = FTransform::Identity;
+				if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(NodeContainer))
+				{
+					CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+				}
+
 				//We assume normalize weight method in this bind pose conversion
 
 				const FTransform MeshGlobalTransformInverse = MeshGlobalTransform.Inverse();
@@ -303,11 +310,11 @@ namespace UE
 					}
 					
 					FTransform JointBindPoseGlobalTransform;
-					if (!JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, JointBindPoseGlobalTransform))
+					if (!JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, GlobalOffsetTransform, JointBindPoseGlobalTransform))
 					{
 						//If there is no bind pose we will fall back on the CustomGlobalTransform of the link.
 						//We ensure here because any scenenode should have a valid CustomGlobalTransform.
-						if (!ensure(JointNode->GetCustomGlobalTransform(NodeContainer, JointBindPoseGlobalTransform)))
+						if (!ensure(JointNode->GetCustomGlobalTransform(NodeContainer, GlobalOffsetTransform, JointBindPoseGlobalTransform)))
 						{
 							//No value to convert from, skip this joint.
 							continue;
@@ -315,7 +322,7 @@ namespace UE
 					}
 
 					FTransform JointTimeZeroGlobalTransform;
-					if (!JointNode->GetCustomTimeZeroGlobalTransform(NodeContainer, JointTimeZeroGlobalTransform))
+					if (!JointNode->GetCustomTimeZeroGlobalTransform(NodeContainer, GlobalOffsetTransform, JointTimeZeroGlobalTransform))
 					{
 						//If there is no time zero global transform we cannot set the bind pose to time zero.
 						//We must skip this joint.
@@ -997,6 +1004,12 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
+	FTransform GlobalOffsetTransform = FTransform::Identity;
+	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(Arguments.NodeContainer))
+	{
+		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+	}
+
 	//Dirty the DDC Key for any imported Skeletal Mesh
 	SkeletalMesh->InvalidateDeriveDataCacheGUID();
 	USkeleton* SkeletonReference = nullptr;
@@ -1142,9 +1155,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
 					//Cache the scene node global matrix, we will use this matrix to bake the vertices, add the node geometric mesh offset to this matrix to bake it properly
 					FTransform SceneNodeGlobalTransform;
-					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform))
+					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform))
 					{
-						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform));
+						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform));
 					}
 					FTransform SceneNodeGeometricTransform;
 					if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))
@@ -1153,6 +1166,11 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					}
 					MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
 				}
+				else
+				{
+					MeshReference.SceneGlobalTransform = GlobalOffsetTransform;
+				}
+
 				if (!ensure(MeshReference.MeshNode != nullptr))
 				{
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
