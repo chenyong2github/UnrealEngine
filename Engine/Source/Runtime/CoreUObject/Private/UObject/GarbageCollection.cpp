@@ -922,14 +922,12 @@ public:
 		{
 			if (GarbageReferencer != FGCObject::GGCObjectReferencer)
 			{
-#if ENABLE_GC_OBJECT_CHECKS
 				if (TokenIndex >= 0)
 				{
 					UClass* Class = GarbageReferencer->GetClass();
 					FTokenInfo TokenInfo = Class->ReferenceTokenStream.GetTokenInfo(TokenIndex);
 					PropertyName = TokenInfo.Name;
 				}
-#endif // ENABLE_GC_OBJECT_CHECKS
 				ObjectsToSerializeStruct.GarbageReferences.Add(FGarbageReferenceInfo(GarbageReferencer, Object, Object, PropertyName));
 			}
 			else
