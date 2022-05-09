@@ -518,7 +518,7 @@ private:
 		return nullptr;
 	}
 public:
-	class FAnimAttributeContainerPtrScope
+	class CONTROLRIG_API FAnimAttributeContainerPtrScope
 	{
 	public:
 		FAnimAttributeContainerPtrScope(UControlRig* InControlRig, UE::Anim::FStackAttributeContainer& InExternalContainer);
