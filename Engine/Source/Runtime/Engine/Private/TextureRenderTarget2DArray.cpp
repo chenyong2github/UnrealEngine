@@ -246,22 +246,20 @@ void FTextureRenderTarget2DArrayResource::InitDynamicRHI()
 				.SetArraySize(Owner->Slices)
 				.SetFormat(Owner->GetFormat())
 				.SetNumMips(Owner->GetNumMips())
-				.SetFlags(TexCreateFlags)
-				.SetClearValue(FClearValueBinding(Owner->ClearColor));
+				.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetClearValue(FClearValueBinding(Owner->ClearColor))
+				.SetInitialState(ERHIAccess::SRVMask);
 
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTarget2DArrayRHI, Texture2DArrayRHI);
+			TextureRHI = RHICreateTexture(Desc);
 		}
 
 		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTarget2DArrayRHI);
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI);
 		}
 
-		TextureRHI = Texture2DArrayRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
-
-		// Can't set this as it's a texture 2D
-		//RenderTargetTextureRHI = 2DArraySurfaceRHI;
+		RenderTargetTextureRHI = TextureRHI;
 
 		AddToDeferredUpdateList(true);
 	}
@@ -288,8 +286,7 @@ void FTextureRenderTarget2DArrayResource::ReleaseDynamicRHI()
 	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-	RenderTarget2DArrayRHI.SafeRelease();
-	Texture2DArrayRHI.SafeRelease();
+	RenderTargetTextureRHI.SafeRelease();
 
 	// remove from global list of deferred clears
 	RemoveFromDeferredUpdateList();
@@ -302,16 +299,14 @@ void FTextureRenderTarget2DArrayResource::ReleaseDynamicRHI()
  */
 void FTextureRenderTarget2DArrayResource::UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget/*=true*/)
 {
-	const FIntPoint Dims = GetSizeXY();
+	if (!bClearRenderTarget)
+	{
+		return;
+	}
 
-	const ERenderTargetLoadAction LoadAction = bClearRenderTarget ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-
-	FRHIRenderPassInfo RPInfo(RenderTarget2DArrayRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	RHICmdList.Transition(FRHITransitionInfo(RenderTarget2DArrayRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateTarget2DArray"));
-	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)Dims.X, (float)Dims.Y, 1.0f);
-	RHICmdList.EndRenderPass();
-	RHICmdList.CopyToResolveTarget(RenderTarget2DArrayRHI, Texture2DArrayRHI, FResolveParams());
+	RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+	ClearRenderTarget(RHICmdList, TextureRHI);
+	RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
 }
 
 /** 
@@ -366,7 +361,7 @@ bool FTextureRenderTarget2DArrayResource::ReadPixels(TArray<FColor>& OutImageDat
 		[RenderTarget_RT=this, OutData_RT=&OutImageData, Rect_RT=InRect, Slice_RT=InSlice, bSRGB_RT= bSRGB](FRHICommandListImmediate& RHICmdList)
 		{
 			TArray<FFloat16Color> TempData;
-			RHICmdList.ReadSurfaceFloatData(RenderTarget_RT->Texture2DArrayRHI, Rect_RT, TempData, (ECubeFace)0, Slice_RT, 0);
+			RHICmdList.ReadSurfaceFloatData(RenderTarget_RT->TextureRHI, Rect_RT, TempData, (ECubeFace)0, Slice_RT, 0);
 			for (const FFloat16Color& SrcColor : TempData)
 			{
 				OutData_RT->Emplace(FLinearColor(SrcColor).ToFColor(bSRGB_RT));
@@ -391,7 +386,7 @@ bool FTextureRenderTarget2DArrayResource::ReadPixels(TArray<FFloat16Color>& OutI
 	(
 		[RenderTarget_RT=this, OutData_RT=&OutImageData, Rect_RT=InRect, Slice_RT=InSlice](FRHICommandListImmediate& RHICmdList)
 		{
-			RHICmdList.ReadSurfaceFloatData(RenderTarget_RT->Texture2DArrayRHI, Rect_RT, *OutData_RT, (ECubeFace)0, Slice_RT, 0);
+			RHICmdList.ReadSurfaceFloatData(RenderTarget_RT->TextureRHI, Rect_RT, *OutData_RT, (ECubeFace)0, Slice_RT, 0);
 		}
 	);
 	FlushRenderingCommands();

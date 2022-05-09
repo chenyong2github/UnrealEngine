@@ -319,9 +319,11 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 			FRHITextureCreateDesc::Create2D(TEXT("FSlateTextureRenderTarget2DResource"))
 			.SetExtent(TargetSizeX, TargetSizeY)
 			.SetFormat((EPixelFormat)Format)
-			.SetClearValue(FClearValueBinding(ClearColor));
+			.SetClearValue(FClearValueBinding(ClearColor))
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask);
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, TextureRHI);
+		RenderTargetTextureRHI = TextureRHI = RHICreateTexture(Desc);
 	}
 
 	// Create the sampler state RHI resource.
@@ -342,7 +344,7 @@ void FSlateTextureRenderTarget2DResource::ReleaseDynamicRHI()
 	// Release the FTexture RHI resources here as well
 	ReleaseRHI();
 
-	RenderTargetTextureRHI.SafeRelease();	
+	RenderTargetTextureRHI.SafeRelease();
 
 	// Remove from global list of deferred clears
 	RemoveFromDeferredUpdateList();
@@ -355,13 +357,10 @@ void FSlateTextureRenderTarget2DResource::UpdateDeferredResource(FRHICommandList
 	// Clear the target surface to green
 	if (bClearRenderTarget)
 	{
-		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, ERenderTargetActions::Clear_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("Slate2DUpdateDeferred_Clear"));
-		RHICmdList.EndRenderPass();
+		RHICmdList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+		ClearRenderTarget(RHICmdList, RenderTargetTextureRHI);
+		RHICmdList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 	}
-
-	// Copy surface to the texture for use
-	RHICmdList.CopyToResolveTarget(RenderTargetTextureRHI, TextureRHI, FResolveParams());
 }
 
 uint32 FSlateTextureRenderTarget2DResource::GetSizeX() const

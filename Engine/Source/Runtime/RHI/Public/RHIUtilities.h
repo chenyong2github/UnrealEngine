@@ -660,11 +660,6 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	RHICmdList.Transition(MakeArrayView(Transitions, TransitionIndex));
 }
 
-RHI_API void RHICreateTargetableShaderResource(
-	const FRHITextureCreateDesc& BaseDesc,
-	ETextureCreateFlags TargetableTextureFlags,
-	FTextureRHIRef& OutTargetableTexture);
-
 /**
  * Creates 1 or 2 textures with the same dimensions/format.
  * If the RHI supports textures that can be used as both shader resources and render targets,
@@ -673,42 +668,7 @@ RHI_API void RHICreateTargetableShaderResource(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-RHI_API void RHICreateTargetableShaderResource(
-	const FRHITextureCreateDesc& Desc,
-	ETextureCreateFlags TargetableTextureFlags,
-	bool bForceSeparateTargetAndShaderResource,
-	bool bForceSharedTargetAndShaderResource,
-	FTextureRHIRef& OutTargetableTexture,
-	FTextureRHIRef& OutShaderResourceTexture);
-
-inline void RHICreateTargetableShaderResource(
-	const FRHITextureCreateDesc& Desc,
-	ETextureCreateFlags TargetableTextureFlags,
-	bool bForceSeparateTargetAndShaderResource,
-	FTextureRHIRef& OutTargetableTexture,
-	FTextureRHIRef& OutShaderResourceTexture)
-{
-	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, OutTargetableTexture, OutShaderResourceTexture);
-}
-
-inline void RHICreateTargetableShaderResource(
-	const FRHITextureCreateDesc& Desc,
-	ETextureCreateFlags TargetableTextureFlags,
-	FTextureRHIRef& OutTargetableTexture,
-	FTextureRHIRef& OutShaderResourceTexture)
-{
-	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, false, false, OutTargetableTexture, OutShaderResourceTexture);
-}
-
-/**
- * Creates 1 or 2 textures with the same dimensions/format.
- * If the RHI supports textures that can be used as both shader resources and render targets,
- * and bForceSeparateTargetAndShaderResource=false, then a single texture is created.
- * Otherwise two textures are created, one of them usable as a shader resource and resolve target, and one of them usable as a render target.
- * Two texture references are always returned, but they may reference the same texture.
- * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
- */
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResource2D(
 	uint32 SizeX,
 	uint32 SizeY,
@@ -723,7 +683,7 @@ RHI_API void RHICreateTargetableShaderResource2D(
 	FTextureRHIRef& OutShaderResourceTexture,
 	uint32 NumSamples = 1);
 
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResource2D(
 	uint32 SizeX,
 	uint32 SizeY,
@@ -737,7 +697,7 @@ RHI_API void RHICreateTargetableShaderResource2D(
 	FTextureRHIRef& OutShaderResourceTexture,
 	uint32 NumSamples = 1);
 
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2DArray is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2DArray is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResource2DArray(
 	uint32 SizeX,
 	uint32 SizeY,
@@ -753,7 +713,7 @@ RHI_API void RHICreateTargetableShaderResource2DArray(
 	FTextureRHIRef& OutShaderResourceTexture,
 	uint32 NumSamples = 1);
 
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2DArray is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2DArray is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResource2DArray(
 	uint32 SizeX,
 	uint32 SizeY,
@@ -775,7 +735,7 @@ RHI_API void RHICreateTargetableShaderResource2DArray(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResourceCube is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResourceCube is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResourceCube(
 	uint32 LinearSize,
 	uint8 Format,
@@ -795,7 +755,7 @@ RHI_API void RHICreateTargetableShaderResourceCube(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResourceCubeArray is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResourceCubeArray is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResourceCubeArray(
 	uint32 LinearSize,
 	uint32 ArraySize,
@@ -816,7 +776,7 @@ RHI_API void RHICreateTargetableShaderResourceCubeArray(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource3D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource3D is deprecated. RHICreateTexture should be used instead.")
 RHI_API void RHICreateTargetableShaderResource3D(
 	uint32 SizeX,
 	uint32 SizeY,
@@ -829,6 +789,18 @@ RHI_API void RHICreateTargetableShaderResource3D(
 	const FRHIResourceCreateInfo& CreateInfo,
 	FTextureRHIRef& OutTargetableTexture,
 	FTextureRHIRef& OutShaderResourceTexture);
+
+/** Performs a clear render pass on an RHI texture. The texture is expected to be in the RTV state. */
+inline void ClearRenderTarget(FRHICommandList& RHICmdList, FRHITexture* Texture, uint32 MipIndex = 0, uint32 ArraySlice = 0)
+{
+	check(Texture);
+	const FIntPoint Extent = Texture->GetSizeXY();
+	FRHIRenderPassInfo Info(Texture, ERenderTargetActions::Clear_Store);
+	Info.ColorRenderTargets[0].MipIndex = MipIndex;
+	Info.ColorRenderTargets[0].ArraySlice = ArraySlice;
+	RHICmdList.BeginRenderPass(Info, TEXT("ClearRenderTarget"));
+	RHICmdList.EndRenderPass();
+}
 
 /**
  * Computes the vertex count for a given number of primitives of the specified type.

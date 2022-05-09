@@ -67,8 +67,7 @@ struct FViewportInfo : public FRenderResource
 	TRefCountPtr<IPooledRenderTarget> HDRSourceRT;
 
 	/** Color-space LUT for HDR UI composition. */
-	FTexture3DRHIRef ColorSpaceLUTRT;
-	FTexture3DRHIRef ColorSpaceLUTSRV;
+	FTextureRHIRef ColorSpaceLUT;
 	int32 ColorSpaceLUTOutputDevice;
 	int32 ColorSpaceLUTOutputGamut;
 		
@@ -130,8 +129,7 @@ struct FViewportInfo : public FRenderResource
 	~FViewportInfo()
 	{
 		DepthStencil.SafeRelease();
-		ColorSpaceLUTRT.SafeRelease();
-		ColorSpaceLUTSRV.SafeRelease();
+		ColorSpaceLUT.SafeRelease();
 	}
 
 	void ConditionallyUpdateDepthBuffer(bool bInRequiresStencilTest, uint32 Width, uint32 Height);

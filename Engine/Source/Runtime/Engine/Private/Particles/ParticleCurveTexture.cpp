@@ -169,7 +169,6 @@ TGlobalResource<FParticleCurveInjectionVertexDeclaration> GParticleCurveInjectio
 static void InjectCurves(
 	FRHICommandListImmediate& RHICmdList,
 	FRHITexture2D* CurveTextureRHI,
-	FRHITexture2D* CurveTextureTargetRHI,
 	TArray<FCurveSamples>& InPendingCurves)
 {
 	static bool bFirstCall = true;
@@ -178,7 +177,7 @@ static void InjectCurves(
 
 	SCOPED_DRAW_EVENT(RHICmdList, InjectParticleCurves);
 
-	RHICmdList.BeginUpdateMultiFrameResource(CurveTextureTargetRHI);
+	RHICmdList.BeginUpdateMultiFrameResource(CurveTextureRHI);
 
 	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ELoad;
 
@@ -188,8 +187,8 @@ static void InjectCurves(
 		bFirstCall = false;
 	}
 
-	FRHIRenderPassInfo RPInfo(CurveTextureTargetRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	RHICmdList.Transition(FRHITransitionInfo(CurveTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+	FRHIRenderPassInfo RPInfo(CurveTextureRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
+	RHICmdList.Transition(FRHITransitionInfo(CurveTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("InjectCurves"));
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -282,8 +281,8 @@ static void InjectCurves(
 		}
 	}
 	RHICmdList.EndRenderPass();
-	RHICmdList.CopyToResolveTarget(CurveTextureTargetRHI, CurveTextureRHI, FResolveParams());
-	RHICmdList.EndUpdateMultiFrameResource(CurveTextureTargetRHI);
+	RHICmdList.Transition(FRHITransitionInfo(CurveTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
+	RHICmdList.EndUpdateMultiFrameResource(CurveTextureRHI);
 }
 
 /*------------------------------------------------------------------------------
@@ -518,10 +517,11 @@ void FParticleCurveTexture::InitRHI()
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2D(TEXT("ParticleCurveTexture"))
 		.SetExtent(GParticleCurveTextureSizeX, GParticleCurveTextureSizeY)
+		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoFastClear)
 		.SetFormat(PF_B8G8R8A8)
 		.SetClearValue(FClearValueBinding(FLinearColor::Blue));
 
-	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::NoFastClear, CurveTextureTargetRHI, CurveTextureRHI);
+	CurveTextureRHI = RHICreateTexture(Desc);
 }
 
 /**
@@ -529,7 +529,6 @@ void FParticleCurveTexture::InitRHI()
 */
 void FParticleCurveTexture::ReleaseRHI()
 {
-	CurveTextureTargetRHI.SafeRelease();
 	CurveTextureRHI.SafeRelease();
 }
 
@@ -611,7 +610,6 @@ void FParticleCurveTexture::SubmitPendingCurves()
 				InjectCurves(
 					RHICmdList,
 					ParticleCurveTexture->CurveTextureRHI,
-					ParticleCurveTexture->CurveTextureTargetRHI,
 					PendingCurves
 				);
 			});

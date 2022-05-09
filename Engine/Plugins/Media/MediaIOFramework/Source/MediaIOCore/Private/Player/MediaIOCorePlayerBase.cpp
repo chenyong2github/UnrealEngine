@@ -634,16 +634,20 @@ void FMediaIOCorePlayerBase::CreateAndRegisterTextures(const IMediaOptions* Opti
 					checkf(false, TEXT("Format not supported"));
 				}
 
-				TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-
-				ETextureCreateFlags CreateFlags = TexCreate_Shared;
+				ETextureCreateFlags CreateFlags = ETextureCreateFlags::Shared;
 				if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 				{
-					CreateFlags = TexCreate_External;
+					CreateFlags = ETextureCreateFlags::External;
 				}
 
-				FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(*TextureName, FIntPoint(TextureWidth, TextureHeight), InputFormat, FClearValueBinding::White, CreateFlags);
-				RHICreateTargetableShaderResource(CreateDesc, TexCreate_RenderTargetable, RHITexture, DummyTexture2DRHI);
+				FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(*TextureName)
+					.SetExtent(TextureWidth, TextureHeight)
+					.SetFormat(InputFormat)
+					.SetClearValue(FClearValueBinding::White)
+					.SetFlags(CreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+					.SetInitialState(ERHIAccess::SRVMask);
+
+				RHITexture = RHICreateTexture(CreateDesc);
 
 				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering texture %u"), reinterpret_cast<uintptr_t>(RHITexture->GetNativeResource()));
 

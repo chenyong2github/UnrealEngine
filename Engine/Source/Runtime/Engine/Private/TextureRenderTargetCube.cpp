@@ -247,37 +247,21 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 				.SetExtent(Owner->SizeX)
 				.SetFormat(Owner->GetFormat())
 				.SetNumMips(Owner->GetNumMips())
-				.SetFlags(TexCreateFlags)
-				.SetClearValue(FClearValueBinding(Owner->ClearColor));
+				.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetClearValue(FClearValueBinding(Owner->ClearColor))
+				.SetInitialState(ERHIAccess::SRVMask);
 
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetCubeRHI, TextureCubeRHI);
+			TextureRHI = RHICreateTexture(Desc);
 		}
+
+		SetGPUMask(FRHIGPUMask::All());
 
 		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetCubeRHI);
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI);
 		}
 
-		TextureRHI = TextureCubeRHI;
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
-
-		// Create the RHI target surface used for rendering to
-		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTargetCubeResource"), FClearValueBinding(Owner->ClearColor));
-			CubeFaceSurfaceRHI = RHICreateTexture2D(
-				Owner->SizeX, 
-				Owner->SizeX, 
-				Owner->GetFormat(),
-				Owner->GetNumMips(), 
-				/* NumSamples =*/ 1,
-				ETextureCreateFlags::RenderTargetable|TexCreateFlags,
-				CreateInfo
-				);
-			SetGPUMask(CreateInfo.GPUMask);
-		}
-
-		// Set render target to 2D surface.
-		RenderTargetTextureRHI = CubeFaceSurfaceRHI;
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 
 		AddToDeferredUpdateList(true);
 	}
@@ -304,9 +288,7 @@ void FTextureRenderTargetCubeResource::ReleaseDynamicRHI()
 	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-	CubeFaceSurfaceRHI.SafeRelease();
-	RenderTargetCubeRHI.SafeRelease();
-	RenderTargetTextureRHI.SafeRelease();	
+	RenderTargetTextureRHI.SafeRelease();
 
 	// remove from global list of deferred clears
 	RemoveFromDeferredUpdateList();
@@ -319,26 +301,19 @@ void FTextureRenderTargetCubeResource::ReleaseDynamicRHI()
  */
 void FTextureRenderTargetCubeResource::UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget/*=true*/)
 {
-	const FIntPoint Dims = GetSizeXY();
+	if (!bClearRenderTarget)
+	{
+		return;
+	}
+
+	RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+
 	for(int32 FaceIdx = CubeFace_PosX; FaceIdx < CubeFace_MAX; FaceIdx++)
 	{
-		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ELoad;
-		// clear each face of the cube target texture to ClearColor
-		if (bClearRenderTarget)
-		{
-			LoadAction = ERenderTargetLoadAction::EClear;
-		}
-		
-		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-		RHICmdList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateTargetCube"));
-		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)Dims.X, (float)Dims.Y, 1.0f);
-		RHICmdList.EndRenderPass();
-		// copy surface to the texture for use
-		FResolveParams ResolveParams;
-		ResolveParams.CubeFace = (ECubeFace)FaceIdx;
-		RHICmdList.CopyToResolveTarget(RenderTargetTextureRHI, TextureCubeRHI, ResolveParams);
+		ClearRenderTarget(RHICmdList, TextureRHI, 0, FaceIdx);
 	}
+
+	RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
 }
 
 /** 
@@ -416,7 +391,7 @@ bool FTextureRenderTargetCubeResource::ReadPixels(TArray< FColor >& OutImageData
 		[Context](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ReadSurfaceData(
-				Context.SrcRenderTarget->TextureCubeRHI,
+				Context.SrcRenderTarget->TextureRHI,
 				Context.Rect,
 				*Context.OutData,
 				Context.Flags
@@ -461,7 +436,7 @@ bool FTextureRenderTargetCubeResource::ReadPixels(TArray<FFloat16Color>& OutImag
 		[Context](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ReadSurfaceFloatData(
-				Context.SrcRenderTarget->TextureCubeRHI,
+				Context.SrcRenderTarget->TextureRHI,
 				Context.Rect,
 				*Context.OutData,
 				Context.CubeFace,

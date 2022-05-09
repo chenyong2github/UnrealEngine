@@ -452,7 +452,9 @@ public:
 
 	// Destructor
 	virtual ~FTexture() {}
-	
+
+	FRHITexture* GetTextureRHI() { return TextureRHI; }
+
 	/** Returns the width of the texture in pixels. */
 	virtual uint32 GetSizeX() const
 	{

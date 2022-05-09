@@ -64,11 +64,6 @@ public:
 	virtual FIntPoint GetSizeXY() const override;
 
 	/**
-	 * @return TextureRHI for rendering
-	 */
-	FTexture3DRHIRef GetTextureRHI() { return TextureVolumeRHI; }
-
-	/**
 	 * @return UnorderedAccessView for rendering
 	 */
 	FUnorderedAccessViewRHIRef GetUnorderedAccessViewRHI() { return UnorderedAccessViewRHI; }
@@ -110,10 +105,11 @@ private:
 	/** The UTextureRenderTargetVolume which this resource represents. */
 	const class UTextureRenderTargetVolume* Owner;
 
-	/** Represents the current render target (from one of the slices)*/
-	FTexture3DRHIRef RenderTargetVolumeRHI;
-	/** Texture resource used for rendering with and resolving to */
-	FTexture3DRHIRef TextureVolumeRHI;
+	UE_DEPRECATED(5.1, "RenderTargetVolumeRHI has been deprecated. Use RenderTargetTextureRHI instead.")
+	FTextureRHIRef RenderTargetVolumeRHI;
+	UE_DEPRECATED(5.1, "TextureVolumeRHI has been deprecated. Use TextureRHI instead.")
+	FTextureRHIRef TextureVolumeRHI;
+
 	/** Optional Unordered Access View for the resource, automatically created if bCanCreateUAV is true */
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 };

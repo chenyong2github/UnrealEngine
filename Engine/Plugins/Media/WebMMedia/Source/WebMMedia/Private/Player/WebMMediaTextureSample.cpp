@@ -24,9 +24,10 @@ void FWebMMediaTextureSample::CreateTexture()
 		FRHITextureCreateDesc::Create2D(TEXT("FWebMMediaTextureSample_DummyTexture2D"))
 		.SetExtent(TotalSize)
 		.SetFormat(PF_B8G8R8A8)
-		.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB);
+		.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+		.SetInitialState(ERHIAccess::SRVMask);
 
-	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, Texture);
+	Texture = RHICreateTexture(Desc);
 }
 
 const void* FWebMMediaTextureSample::GetBuffer()

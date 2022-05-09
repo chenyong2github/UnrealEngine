@@ -146,7 +146,7 @@ void FWebBrowserTextureResource::ClearTexture(const FLinearColor& ClearColor)
 {
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:ClearTexture"));
 	// create output render target if we don't have one yet
-	const ETextureCreateFlags OutputCreateFlags = TexCreate_Dynamic | TexCreate_SRGB;
+	const ETextureCreateFlags OutputCreateFlags = ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB;
 
 	if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || !EnumHasAllFlags(OutputTarget->GetFlags(), OutputCreateFlags))
 	{
@@ -154,10 +154,11 @@ void FWebBrowserTextureResource::ClearTexture(const FLinearColor& ClearColor)
 			FRHITextureCreateDesc::Create2D(TEXT("FWebBrowserTextureResource"))
 			.SetExtent(2, 2)
 			.SetFormat(PF_B8G8R8A8)
-			.SetFlags(OutputCreateFlags)
+			.SetFlags(OutputCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding(ClearColor));
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutputTarget);
+		OutputTarget = RHICreateTexture(Desc);
 
 		CurrentClearColor = ClearColor;
 		UpdateResourceSize();
@@ -171,10 +172,8 @@ void FWebBrowserTextureResource::ClearTexture(const FLinearColor& ClearColor)
 	// draw the clear color
 	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
 	{
-		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, ERenderTargetActions::Clear_Store);
-		CommandList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
-		CommandList.EndRenderPass();
-
+		CommandList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+		ClearRenderTarget(CommandList, RenderTargetTextureRHI);
 		CommandList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
 	}
 
@@ -216,10 +215,11 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 				FRHITextureCreateDesc::Create2D(TEXT("FWebBrowserTextureResource"))
 				.SetExtent(SampleDim)
 				.SetFormat(PF_B8G8R8A8)
-				.SetFlags(OutputCreateFlags)
+				.SetFlags(OutputCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetInitialState(ERHIAccess::SRVMask)
 				.SetClearValue(FClearValueBinding(ClearColor));
 
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutputTarget);
+			OutputTarget = RHICreateTexture(Desc);
 
 			CurrentClearColor = ClearColor;
 			UpdateResourceSize();

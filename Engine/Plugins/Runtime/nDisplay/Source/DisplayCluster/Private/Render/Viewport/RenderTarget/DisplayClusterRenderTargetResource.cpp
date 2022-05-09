@@ -43,10 +43,11 @@ void FDisplayClusterViewportResource::ImplInitDynamicRHI_RenderTargetResource2D(
 		.SetExtent(GetSizeX(), GetSizeY())
 		.SetFormat(ViewportResourceSettings.Format)
 		.SetNumMips(NumMips)
-		.SetFlags(CreateFlags)
+		.SetFlags(CreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+		.SetInitialState(ERHIAccess::SRVMask)
 		.SetClearValue(FClearValueBinding::Black);
 
-	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutRenderTargetTextureRHI, OutTextureRHI);
+	OutRenderTargetTextureRHI = OutTextureRHI = RHICreateTexture(Desc);
 }
 
 void FDisplayClusterViewportResource::ImplInitDynamicRHI_TextureResource2D(FTexture2DRHIRef& OutTextureRHI)

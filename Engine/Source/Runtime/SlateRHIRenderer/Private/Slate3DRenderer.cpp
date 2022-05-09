@@ -155,7 +155,7 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 	RenderTargetPolicy->BeginDrawingWindows();
 
 	// Set render target and clear.
-	FTexture2DRHIRef RTTextureRHI = Context.RenderTarget->GetRenderTargetTexture();
+	FRHITexture* RTTextureRHI = Context.RenderTarget->GetRenderTargetTexture();
 	InRHICmdList.Transition(FRHITransitionInfo(RTTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
 	
 	FRHIRenderPassInfo RPInfo(RTTextureRHI, ERenderTargetActions::Load_Store);
@@ -199,9 +199,10 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 						FRHITextureCreateDesc::Create2D(TEXT("SlateWindowDepthStencil"))
 						.SetExtent(ColorTarget->GetSizeXY())
 						.SetFormat(PF_DepthStencil)
-						.SetClearValue(FClearValueBinding::DepthZero);
+						.SetClearValue(FClearValueBinding::DepthZero)
+						.SetFlags(ETextureCreateFlags::DepthStencilTargetable | ETextureCreateFlags::ShaderResource);
 
-					RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::DepthStencilTargetable, DepthStencil);
+					DepthStencil = RHICreateTexture(Desc);
 
 					check(IsValidRef(DepthStencil));
 				}
@@ -244,7 +245,7 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 	}
 
 	FSlateEndDrawingWindowsCommand::EndDrawingWindows(InRHICmdList, Context.WindowDrawBuffer, *RenderTargetPolicy);
-	InRHICmdList.CopyToResolveTarget(Context.RenderTarget->GetRenderTargetTexture(), RTTextureRHI, FResolveParams());
+	InRHICmdList.Transition(FRHITransitionInfo(RTTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
 
 	// Enqueue a command to keep "this" alive.
 	InRHICmdList.EnqueueLambda([Self = SharedThis(this)](FRHICommandListImmediate&){});

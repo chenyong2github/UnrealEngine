@@ -228,10 +228,11 @@ public:
 					FRHITextureCreateDesc::Create2D(TEXT("FHoloLensCameraImageResource_DummyTexture2D"))
 					.SetExtent(Size)
 					.SetFormat(PF_B8G8R8A8)
-					.SetFlags(ETextureCreateFlags::Dynamic);
+					.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+					.SetInitialState(ERHIAccess::SRVMask);
 
 				// Create our render target that we'll convert to
-				RHICreateTargetableShaderResource(CreateDesc, ETextureCreateFlags::RenderTargetable, DecodedTextureRef);
+				DecodedTextureRef = RHICreateTexture(CreateDesc);
 			}
 
 			if (PerformCopy(cameraImageTexture, D3D11DeviceContext))

@@ -92,9 +92,10 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 				FRHITextureCreateDesc::Create2D(TEXT("FMediaFoundationMovieStreamer"))
 				.SetExtent(SourceFormat.BufferDim)
 				.SetFormat(InputPixelFormat)
-				.SetFlags(InputCreateFlags);
+				.SetFlags(InputCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetInitialState(ERHIAccess::SRVMask);
 
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, InputTarget);
+			InputTarget = RHICreateTexture(Desc);
 		}
 
 		// copy sample data to input render target

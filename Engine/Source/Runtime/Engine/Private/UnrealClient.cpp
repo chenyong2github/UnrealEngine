@@ -1727,7 +1727,6 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 				// Copy (resolve) the rendered thumbnail from the render target to its texture
 				RHICmdList.Transition(FRHITransitionInfo(RenderTargetTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
 				RHICmdList.CopyToResolveTarget(RenderTargetTexture, HitProxyMapPtr->GetHitProxyCPUTexture(), ResolveParams);
-				RHICmdList.CopyToResolveTarget(RenderTargetTexture, HitProxyMapPtr->GetHitProxyTexture(), FResolveParams());
 			});
 
 		ENQUEUE_RENDER_COMMAND(EndDrawingCommand)(
@@ -2102,9 +2101,11 @@ void FViewport::FHitProxyMap::Init(uint32 NewSizeX,uint32 NewSizeY)
 			FRHITextureCreateDesc::Create2D(TEXT("HitProxyTexture"))
 			.SetExtent(SizeX, SizeY)
 			.SetFormat(PF_B8G8R8A8)
-			.SetClearValue(FClearValueBinding::White);
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetClearValue(FClearValueBinding::White)
+			.SetInitialState(ERHIAccess::SRVMask);
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, HitProxyTexture);
+		RenderTargetTextureRHI = RHICreateTexture(Desc);
 	}
 	{
 		const FRHITextureCreateDesc Desc =
@@ -2119,7 +2120,6 @@ void FViewport::FHitProxyMap::Init(uint32 NewSizeX,uint32 NewSizeY)
 
 void FViewport::FHitProxyMap::Release()
 {
-	HitProxyTexture.SafeRelease();
 	HitProxyCPUTexture.SafeRelease();
 	RenderTargetTextureRHI.SafeRelease();
 }
@@ -2388,7 +2388,9 @@ void FDummyViewport::InitDynamicRHI()
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2D(TEXT("FDummyViewport"))
 		.SetExtent(SizeX, SizeY)
-		.SetFormat(PF_A2B10G10R10);
+		.SetFormat(PF_A2B10G10R10)
+		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+		.SetInitialState(ERHIAccess::SRVMask);
 
-	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI);
+	RenderTargetTextureRHI = RHICreateTexture(Desc);
 }

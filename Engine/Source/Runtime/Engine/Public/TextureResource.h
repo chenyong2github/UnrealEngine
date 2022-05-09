@@ -127,17 +127,17 @@ public:
 		return TextureRHI.IsValid() && !!(TextureRHI->GetFlags() & TexCreate_Virtual);
 	}
 
-	FORCEINLINE FRHITexture2D* GetTexture2DRHI() const
+	FORCEINLINE FRHITexture* GetTexture2DRHI() const
 	{
 		return TextureRHI.IsValid() ? TextureRHI->GetTexture2D() : nullptr;
 	}
 
-	FORCEINLINE FRHITexture3D* GetTexture3DRHI() const
+	FORCEINLINE FRHITexture* GetTexture3DRHI() const
 	{
 		return TextureRHI.IsValid() ? TextureRHI->GetTexture3D() : nullptr;
 	}
 
-	FORCEINLINE FRHITexture2DArray* GetTexture2DArrayRHI() const
+	FORCEINLINE FRHITexture* GetTexture2DArrayRHI() const
 	{
 		return TextureRHI.IsValid() ? TextureRHI->GetTexture2DArray() : nullptr;
 	}
@@ -458,11 +458,6 @@ public:
 	 */
 	virtual float GetDisplayGamma() const override;
 
-	/** 
-	 * @return TextureRHI for rendering 
-	 */
-	FTexture2DRHIRef GetTextureRHI() { return Texture2DRHI; }
-
 	/**
 	 * @return UnorderedAccessView for rendering
 	 */
@@ -482,6 +477,7 @@ private:
 	/** The UTextureRenderTarget2D which this resource represents. */
 	const class UTextureRenderTarget2D* Owner;
 	/** Texture resource used for rendering with and resolving to */
+	UE_DEPRECATED(5.1, "Texture2DRHI is deprecated. Use TextureRHI instead.")
 	FTexture2DRHIRef Texture2DRHI;
 	/** Optional Unordered Access View for the resource, automatically created if bCanCreateUAV is true */
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
@@ -549,11 +545,6 @@ public:
 	 */
 	virtual FIntPoint GetSizeXY() const override;
 
-	/** 
-	 * @return TextureRHI for rendering 
-	 */
-	FTextureCubeRHIRef GetTextureRHI() { return TextureCubeRHI; }
-
 	/**
 	 * @return UnorderedAccessView for rendering
 	 */
@@ -596,13 +587,15 @@ protected:
 private:
 	/** The UTextureRenderTargetCube which this resource represents. */
 	const class UTextureRenderTargetCube* Owner;
-	/** Texture resource used for rendering with and resolving to */
-	FTextureCubeRHIRef TextureCubeRHI;
-	/** Target surfaces for each cube face */
-	FTexture2DRHIRef CubeFaceSurfaceRHI;
 
-	/** Represents the current render target (from one of the cube faces)*/
-	FTextureCubeRHIRef RenderTargetCubeRHI;
+	UE_DEPRECATED(5.1, "TextureCubeRHI is deprecated. Use TextureRHI instead.")
+	FTextureRHIRef TextureCubeRHI;
+
+	UE_DEPRECATED(5.1, "CubeFaceSurfaceRHI is deprecated. Use TextureRHI instead.")
+	FTextureRHIRef CubeFaceSurfaceRHI;
+
+	UE_DEPRECATED(5.1, "RenderTargetCubeRHI is deprecated. Use TextureRHI instead.")
+	FTextureRHIRef RenderTargetCubeRHI;
 
 	/** Optional Unordered Access View for the resource, automatically created if bCanCreateUAV is true */
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;

@@ -253,18 +253,17 @@ void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 				.SetDepth(Owner->SizeZ)
 				.SetFormat(Owner->GetFormat())
 				.SetNumMips(Owner->GetNumMips())
-				.SetFlags(TexCreateFlags)
+				.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 				.SetClearValue(FClearValueBinding(Owner->ClearColor));
 
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetVolumeRHI, TextureVolumeRHI);
+			TextureRHI = RenderTargetTextureRHI = RHICreateTexture(Desc);
 		}
 
 		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
 		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetVolumeRHI);
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI);
 		}
 
-		TextureRHI = TextureVolumeRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
 
 		// Can't set this as it's a texture 2D
@@ -295,8 +294,7 @@ void FTextureRenderTargetVolumeResource::ReleaseDynamicRHI()
 	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-	RenderTargetVolumeRHI.SafeRelease();
-	TextureVolumeRHI.SafeRelease();
+	RenderTargetTextureRHI.SafeRelease();
 
 	// remove from global list of deferred clears
 	RemoveFromDeferredUpdateList();
@@ -309,16 +307,12 @@ void FTextureRenderTargetVolumeResource::ReleaseDynamicRHI()
  */
 void FTextureRenderTargetVolumeResource::UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget/*=true*/)
 {
-	const FIntPoint Dims = GetSizeXY();
-
-	const ERenderTargetLoadAction LoadAction = bClearRenderTarget ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-
-	FRHIRenderPassInfo RPInfo(RenderTargetVolumeRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	RHICmdList.Transition(FRHITransitionInfo(RenderTargetVolumeRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateTargetVolume"));
-	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)Dims.X, (float)Dims.Y, 1.0f);
-	RHICmdList.EndRenderPass();
-	RHICmdList.CopyToResolveTarget(RenderTargetVolumeRHI, TextureVolumeRHI, FResolveParams());
+	if (bClearRenderTarget)
+	{
+		RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+		ClearRenderTarget(RHICmdList, TextureRHI);
+		RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
+	}
 }
 
 /** 
@@ -373,7 +367,7 @@ bool FTextureRenderTargetVolumeResource::ReadPixels(TArray<FColor>& OutImageData
 		[RenderTarget_RT=this, OutData_RT=&OutImageData, Rect_RT=InRect, DepthSlice_RT=InDepthSlice, bSRGB_RT= bSRGB](FRHICommandListImmediate& RHICmdList)
 		{
 			TArray<FFloat16Color> TempData;
-			RHICmdList.Read3DSurfaceFloatData(RenderTarget_RT->TextureVolumeRHI, Rect_RT, FIntPoint(DepthSlice_RT, DepthSlice_RT + 1), TempData);
+			RHICmdList.Read3DSurfaceFloatData(RenderTarget_RT->TextureRHI, Rect_RT, FIntPoint(DepthSlice_RT, DepthSlice_RT + 1), TempData);
 			for (const FFloat16Color& SrcColor : TempData)
 			{
 				OutData_RT->Emplace(FLinearColor(SrcColor).ToFColor(bSRGB_RT));
@@ -398,7 +392,7 @@ bool FTextureRenderTargetVolumeResource::ReadPixels(TArray<FFloat16Color>& OutIm
 	(
 		[RenderTarget_RT=this, OutData_RT=&OutImageData, Rect_RT=InRect, DepthSlice_RT=InDepthSlice](FRHICommandListImmediate& RHICmdList)
 		{
-			RHICmdList.Read3DSurfaceFloatData(RenderTarget_RT->TextureVolumeRHI, Rect_RT, FIntPoint(DepthSlice_RT, DepthSlice_RT+1), *OutData_RT);
+			RHICmdList.Read3DSurfaceFloatData(RenderTarget_RT->TextureRHI, Rect_RT, FIntPoint(DepthSlice_RT, DepthSlice_RT+1), *OutData_RT);
 		}
 	);
 	FlushRenderingCommands();

@@ -71,9 +71,11 @@ void FDisplayClusterLightCardEditorViewportClient::FNormalMap::Init(const FScene
 				FRHITextureCreateDesc::Create2D(TEXT("NormalMapTexture"))
 				.SetExtent(SizeX, SizeY)
 				.SetFormat(PF_FloatRGBA)
-				.SetClearValue(FClearValueBinding::Black);
+				.SetClearValue(FClearValueBinding::Black)
+				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetInitialState(ERHIAccess::SRVMask);
 
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI);
+			RenderTargetTextureRHI = RHICreateTexture(Desc);
 		});
 }
 

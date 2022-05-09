@@ -64,11 +64,6 @@ public:
 	virtual FIntPoint GetSizeXY() const override;
 
 	/**
-	 * @return TextureRHI for rendering
-	 */
-	FTexture2DArrayRHIRef GetTextureRHI() { return Texture2DArrayRHI; }
-
-	/**
 	 * @return UnorderedAccessView for rendering
 	 */
 	FUnorderedAccessViewRHIRef GetUnorderedAccessViewRHI() { return UnorderedAccessViewRHI; }
@@ -111,9 +106,11 @@ private:
 	const class UTextureRenderTarget2DArray* Owner;
 
 	/** Represents the current render target (from one of the slices)*/
-	FTexture2DArrayRHIRef RenderTarget2DArrayRHI;
+	UE_DEPRECATED(5.1, "RenderTarget2DArrayRHI is deprecated. Use TextureRHI instead.")
+	FTextureRHIRef RenderTarget2DArrayRHI;
 	/** Texture resource used for rendering with and resolving to */
-	FTexture2DArrayRHIRef Texture2DArrayRHI;
+	UE_DEPRECATED(5.1, "Texture2DArrayRHI is deprecated. Use TextureRHI instead.")
+	FTextureRHIRef Texture2DArrayRHI;
 	/** Optional Unordered Access View for the resource, automatically created if bCanCreateUAV is true */
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 };

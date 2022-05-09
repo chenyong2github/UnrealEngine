@@ -1206,10 +1206,11 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 			.SetExtent(InDim)
 			.SetFormat(InPixelFormat)
 			.SetNumMips(InNumMips)
-			.SetFlags(OutputCreateFlags)
+			.SetFlags(OutputCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding(InClearColor));
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutputTarget);
+		OutputTarget = RHICreateTexture(Desc);
 
 		OutputTarget->SetName(TEXT("MediaTextureResourceOutput"));
 

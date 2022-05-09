@@ -26,11 +26,6 @@ public:
 		Size(InSize)
 	{}
 
-	virtual const FTexture2DRHIRef& GetRenderTargetTexture() const 
-	{
-		return (const FTexture2DRHIRef&)TextureRHI;
-	}
-
 	virtual void InitDynamicRHI()
 	{
 		// Create the sampler state RHI resource.
@@ -47,9 +42,11 @@ public:
 			FRHITextureCreateDesc::Create2D(TEXT("FPlanarReflectionRenderTarget"))
 			.SetExtent(GetSizeXY())
 			.SetFormat(PF_FloatRGBA)
-			.SetClearValue(FClearValueBinding::Black);
+			.SetClearValue(FClearValueBinding::Black)
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask);
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, TextureRHI);
+		RenderTargetTextureRHI = TextureRHI = RHICreateTexture(Desc);
 	}
 
 	virtual FIntPoint GetSizeXY() const { return Size; }

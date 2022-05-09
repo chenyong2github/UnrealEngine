@@ -45,10 +45,11 @@ void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize)
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create2D(TEXT("FSlatePostProcessResource"))
 				.SetExtent(RenderTargetSize)
-				.SetFormat(PixelFormat);
+				.SetFormat(PixelFormat)
+				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetInitialState(ERHIAccess::SRVMask);
 
-			FTexture2DRHIRef RenderTargetTextureRHI;
-			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI);
+			FTexture2DRHIRef RenderTargetTextureRHI = RHICreateTexture(Desc);
 
 			RenderTargets.Add(RenderTargetTextureRHI);
 		}

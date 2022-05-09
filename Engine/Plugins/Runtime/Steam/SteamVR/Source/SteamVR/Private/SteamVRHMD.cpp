@@ -1653,7 +1653,8 @@ bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32
 		FRHITextureCreateDesc::Create2D(TEXT("FSteamVRHMD"))
 		.SetExtent(SizeX, SizeY)
 		.SetFormat(PF_B8G8R8A8)
-		.SetNumSamples(NumSamples);
+		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+		.SetInitialState(ERHIAccess::SRVMask);
 
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{
@@ -1667,7 +1668,7 @@ bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32
 
 		FTexture2DRHIRef TargetableTexture;
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, TargetableTexture);
+		TargetableTexture = RHICreateTexture(Desc);
 
 		SwapChainTextures.Add((FTextureRHIRef&)TargetableTexture);
 
@@ -1720,14 +1721,13 @@ bool FSteamVRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY,
 		FRHITextureCreateDesc::Create2D(TEXT("SteamVRDepthStencil"))
 		.SetExtent(SizeX, SizeY)
 		.SetFormat(PF_DepthStencil)
-		.SetFlags(Flags)
+		.SetFlags(Flags | TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
+		.SetInitialState(ERHIAccess::SRVMask)
 		.SetClearValue(ClearValue);
 
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{
-		FTextureRHIRef TargetableTexture;
-
-		RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, TargetableTexture);
+		FTextureRHIRef TargetableTexture = RHICreateTexture(Desc);
 
 		SwapChainTextures.Add(TargetableTexture);
 

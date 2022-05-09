@@ -2045,9 +2045,11 @@ void FSceneViewport::InitDynamicRHI()
 				const FRHITextureCreateDesc Desc =
 					FRHITextureCreateDesc::Create2D(TEXT("BufferedRT"))
 					.SetExtent(TexSizeX, TexSizeY)
-					.SetFormat(SceneTargetFormat);
+					.SetFormat(SceneTargetFormat)
+					.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+					.SetInitialState(ERHIAccess::SRVMask);
 
-				RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, BufferedRTRHI, BufferedSRVRHI);
+				BufferedRTRHI = BufferedSRVRHI = RHICreateTexture(Desc);
 			}
 			BufferedRenderTargetsRHI[i] = BufferedRTRHI;
 			BufferedShaderResourceTexturesRHI[i] = BufferedSRVRHI;

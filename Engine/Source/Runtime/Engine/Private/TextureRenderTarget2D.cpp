@@ -575,24 +575,31 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 			TexCreateFlags |= ETextureCreateFlags::UAV;
 		}
 
-		const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(*ResourceName)
 			.SetExtent(Owner->SizeX, Owner->SizeY)
 			.SetFormat(Format)
 			.SetNumMips(Owner->GetNumMips())
-			.SetFlags(TexCreateFlags)
+			.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding(ClearColor));
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, Owner->bNeedsTwoCopies, RenderTargetTextureRHI, Texture2DRHI);
+		TextureRHI = RenderTargetTextureRHI = RHICreateTexture(Desc);
+
+		if (Owner->bNeedsTwoCopies)
+		{
+			Desc.SetFlags(TexCreateFlags | ETextureCreateFlags::ShaderResource);
+
+			TextureRHI = RHICreateTexture(Desc);
+		}
 
 		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetTextureRHI);
 		}
 
-		SetGPUMask(Desc.GPUMask);
-		TextureRHI = (FTextureRHIRef&)Texture2DRHI;
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
+		SetGPUMask(FRHIGPUMask::All());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 
 		AddToDeferredUpdateList(true);
 	}
@@ -619,7 +626,6 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-	Texture2DRHI.SafeRelease();
 	RenderTargetTextureRHI.SafeRelease();
 	MipGenerationCache.SafeRelease();
 
@@ -635,10 +641,14 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
  */
 void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget/*=true*/ )
 {
-	FMemMark Mark(FMemStack::Get());
-
 	SCOPED_DRAW_EVENT(RHICmdList, GPUResourceUpdate)
 	RemoveFromDeferredUpdateList();
+
+	// Skip executing an empty graph.
+	if (TextureRHI == RenderTargetTextureRHI && !bClearRenderTarget && !Owner->bAutoGenerateMips)
+	{
+		return;
+	}
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -663,7 +673,7 @@ void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImme
 			Owner->MipsAddressV == TA_Wrap ? AM_Wrap : (Owner->MipsAddressV == TA_Mirror ? AM_Mirror : AM_Clamp)});
 	}
 
-	AddCopyToResolveTargetPass(GraphBuilder, RenderTargetTextureRDG, TextureRDG, FResolveParams());
+	AddCopyTexturePass(GraphBuilder, RenderTargetTextureRDG, TextureRDG, FRHICopyTextureInfo());
 
 	GraphBuilder.Execute();
 }

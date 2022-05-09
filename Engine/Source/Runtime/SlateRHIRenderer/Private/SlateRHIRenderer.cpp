@@ -159,10 +159,11 @@ void FViewportInfo::RecreateDepthBuffer_RenderThread()
 			FRHITextureCreateDesc::Create2D(TEXT("SlateViewportDepthStencil"))
 			.SetExtent(Width, Height)
 			.SetFormat(PF_DepthStencil)
+			.SetFlags(TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding::DepthZero);
 
-		RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, DepthStencil);
-		
+		DepthStencil = RHICreateTexture(Desc);
 		check(IsValidRef(DepthStencil));
 	}
 }
@@ -898,16 +899,17 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				// LUT
 				{
-					ViewportInfo.ColorSpaceLUTRT.SafeRelease();
-					ViewportInfo.ColorSpaceLUTSRV.SafeRelease();
+					ViewportInfo.ColorSpaceLUT.SafeRelease();
 
 					const FRHITextureCreateDesc Desc =
 						FRHITextureCreateDesc::Create3D(TEXT("ColorSpaceLUT"))
 						.SetExtent(CompositionLUTSize)
 						.SetDepth(CompositionLUTSize)
-						.SetFormat(PF_A2B10G10R10);
+						.SetFormat(PF_A2B10G10R10)
+						.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+						.SetInitialState(ERHIAccess::SRVMask);
 
-					RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, ViewportInfo.ColorSpaceLUTRT, ViewportInfo.ColorSpaceLUTSRV);
+					ViewportInfo.ColorSpaceLUT = RHICreateTexture(Desc);
 				}
 
 				bLUTStale = true;
@@ -951,9 +953,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, HDRRenderRT, TEXT("HDRTargetRT"));
 
-				// FIXME: is this necessary?
-				RHICmdList.Transition(FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-
 				BackBuffer = HDRRenderRT->GetRHI();
 			}
 #endif
@@ -992,8 +991,8 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				if (bLUTStale)
 				{
 					// #todo-renderpasses will this touch every pixel? use NoAction?
-					FRHIRenderPassInfo RPInfo(ViewportInfo.ColorSpaceLUTRT, ERenderTargetActions::Load_Store);
-					RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.ColorSpaceLUTRT, ERHIAccess::Unknown, ERHIAccess::RTV));
+					FRHIRenderPassInfo RPInfo(ViewportInfo.ColorSpaceLUT, ERenderTargetActions::Load_Store);
+					RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.ColorSpaceLUT, ERHIAccess::Unknown, ERHIAccess::RTV));
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("GenerateLUT"));
 					{
 						FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -1026,7 +1025,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
 					}
 					RHICmdList.EndRenderPass();
-					RHICmdList.CopyToResolveTarget(ViewportInfo.ColorSpaceLUTRT, ViewportInfo.ColorSpaceLUTSRV, FResolveParams());
+					RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.ColorSpaceLUT, ERHIAccess::RTV, ERHIAccess::SRVMask));
 				}
 
 				// Composition pass
@@ -1067,7 +1066,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRHI(), ViewportInfo.ColorSpaceLUTSRV);
+							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRHI(), ViewportInfo.ColorSpaceLUT);
 						}
 						else
 						{
@@ -1081,7 +1080,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRHI(), ViewportInfo.ColorSpaceLUTSRV);
+							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRHI(), ViewportInfo.ColorSpaceLUT);
 						}
 
 						RendererModule.DrawRectangle(

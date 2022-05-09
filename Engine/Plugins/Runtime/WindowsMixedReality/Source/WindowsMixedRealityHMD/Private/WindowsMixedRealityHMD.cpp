@@ -1635,7 +1635,8 @@ namespace WindowsMixedReality
 			.SetExtent(sizeX, sizeY)
 			.SetFormat(PF_B8G8R8A8) // must be BGRA
 			.SetNumMips(numMips)
-			.SetFlags(flags);
+			.SetFlags(flags | targetableTextureFlags | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask);
 
 		if (bMultiView)
 		{
@@ -1643,7 +1644,7 @@ namespace WindowsMixedReality
 				.SetArraySize(2);
 		}
 
-		RHICreateTargetableShaderResource(Desc, targetableTextureFlags, outTargetableTexture, outShaderResourceTexture);
+		outTargetableTexture = outShaderResourceTexture = RHICreateTexture(Desc);
 
 		if (bMultiView)
 		{
@@ -1689,10 +1690,11 @@ namespace WindowsMixedReality
 			.SetFormat(PF_DepthStencil) // must be BGRA
 			// Do not use input mips, this will resolve to 0 which will throw creating the texture.
 			.SetNumMips(1)
-			.SetFlags(InTexFlags)
+			.SetFlags(InTexFlags | TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
 			// This binding is necessary - without it there will be a runtime error.
 			// Current shader assumes far depth since scene depth uses far depth.
-			.SetClearValue(FClearValueBinding::DepthFar);
+			.SetClearValue(FClearValueBinding::DepthFar)
+			.SetInitialState(ERHIAccess::SRVMask);
 
 		if (bMultiView)
 		{
@@ -1705,9 +1707,8 @@ namespace WindowsMixedReality
 			Desc.SetExtent(SizeX, SizeY);
 		}
 
-		RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, OutTargetableTexture, OutShaderResourceTexture);
+		CurrentDepthBuffer = OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture(Desc);
 
-		CurrentDepthBuffer = OutTargetableTexture;
 		bNeedReallocateDepthTexture = false;
 
 		return true;

@@ -773,10 +773,9 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SkyLightMipTreeRT);
 
-	RHICmdList.CopyToResolveTarget(SceneColor->GetRHI(), SceneColor->GetRHI(), FResolveParams());
-
 	// Transition to compute
 	RHICmdList.Transition({
+		FRHITransitionInfo(SceneColor->GetRHI(), ERHIAccess::RTV, ERHIAccess::SRVMask),
 		FRHITransitionInfo(SkyLightMipTreePosX.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
 		FRHITransitionInfo(SkyLightMipTreeNegX.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
 		FRHITransitionInfo(SkyLightMipTreePosY.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),

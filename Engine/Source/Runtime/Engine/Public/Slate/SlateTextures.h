@@ -153,9 +153,6 @@ public:
 	/** Resizes the render target */
 	virtual void SetSize(int32 InSizeX,int32 InSizeY);
 
-	/** Gets the RHI resource for this render target */
-	FTexture2DRHIRef GetTextureRHI() { return TextureRHI; }
-
 public:
 	// FTextureRenderTargetResource implementation
 	virtual void ClampSize(int32 SizeX,int32 SizeY) override;
