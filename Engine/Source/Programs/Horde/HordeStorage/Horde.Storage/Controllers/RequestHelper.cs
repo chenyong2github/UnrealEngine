@@ -26,7 +26,6 @@ public class RequestHelper
         _settings = settings;
     }
 
-
     public async Task<ActionResult?> HasAccessToNamespace(ClaimsPrincipal user, HttpRequest request, NamespaceId ns)
     {
         using IScope _ = Tracer.Instance.StartActive("authorize");
@@ -41,7 +40,9 @@ public class RequestHelper
 
         // public namespaces are always accessible
         if (isPublicNamespace)
+        {
             return null;
+        }
 
         // namespace is a restricted namespace
         HttpContext context = request.HttpContext;

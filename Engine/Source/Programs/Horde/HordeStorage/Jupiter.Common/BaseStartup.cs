@@ -39,7 +39,7 @@ namespace Jupiter
 {
     public abstract class BaseStartup
     {
-	    protected ILogger Logger { get; } = Log.ForContext<BaseStartup>();
+        protected ILogger Logger { get; } = Log.ForContext<BaseStartup>();
 
         protected BaseStartup(IConfiguration configuration)
         {
@@ -55,6 +55,8 @@ namespace Jupiter
         public void ConfigureServices(IServiceCollection services)
         {
             CbConvertersAspNet.AddAspnetConverters();
+
+            services.AddServerTiming();
 
             // aws specific settings
             services.AddOptions<AWSCredentialsSettings>().Bind(Configuration.GetSection("AWSCredentials")).ValidateDataAnnotations();
@@ -282,7 +284,9 @@ namespace Jupiter
             app.UseAuthentication();
             //app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
             app.UseAuthorization();
-            
+
+            app.UseMiddleware<ServerTimingMiddleware>();
+
             //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
             {
@@ -477,14 +481,14 @@ namespace Jupiter
 
     public class NamespacePolicy
     {
-	    public string[] Claims { get; set; } = Array.Empty<string>();
-	    public string StoragePool { get; set; } = "";
+        public string[] Claims { get; set; } = Array.Empty<string>();
+        public string StoragePool { get; set; } = "";
 
-	    public bool LastAccessTracking { get; set; } = true;
-	    public bool OnDemandReplication { get; set; } = false;
-	    public bool UseBlobIndexForExists { get; set; } = false;
-	    public bool UseBlobIndexForSlowExists { get; set; } = false;
-	    public bool? IsLegacyNamespace { get; set; } = null;
+        public bool LastAccessTracking { get; set; } = true;
+        public bool OnDemandReplication { get; set; } = false;
+        public bool UseBlobIndexForExists { get; set; } = false;
+        public bool UseBlobIndexForSlowExists { get; set; } = false;
+        public bool? IsLegacyNamespace { get; set; } = null;
         public bool IsPublicNamespace { get; set; } = true;
     }
 

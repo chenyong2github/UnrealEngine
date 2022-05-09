@@ -359,7 +359,6 @@ namespace Horde.Storage.Controllers
         }*/
     }
 
-
     public class ExistCheckMultipleContentIdResponse
     {
         public ContentId[] Needs { get; set; } = null!;

@@ -14,7 +14,6 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.SecretsManager;
 using Cassandra;
-using EpicGames.AspNet;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.Blob;
@@ -178,8 +177,6 @@ namespace Horde.Storage
 
             services.AddHttpClient();
 
-            services.AddServerTiming();
-            
             services.AddOptions<HordeStorageSettings>().Bind(Configuration.GetSection("Horde_Storage")).ValidateDataAnnotations();
             services.AddOptions<MongoSettings>().Bind(Configuration.GetSection("Mongo")).ValidateDataAnnotations();
             services.AddOptions<CosmosSettings>().Bind(Configuration.GetSection("Cosmos")).ValidateDataAnnotations();

@@ -6,11 +6,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Datadog.Trace;
+using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation.Blob;
 using Jupiter.Implementation;
 using Jupiter.Utils;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace Horde.Storage.Implementation
@@ -30,6 +33,7 @@ namespace Horde.Storage.Implementation
 
     public class ObjectService : IObjectService
     {
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IReferencesStore _referencesStore;
         private readonly IBlobService _blobService;
         private readonly IReferenceResolver _referenceResolver;
@@ -38,8 +42,9 @@ namespace Horde.Storage.Implementation
         private readonly ILastAccessTracker<LastAccessRecord> _lastAccessTracker;
         private readonly ILogger _logger = Log.ForContext<ObjectService>();
 
-        public ObjectService(IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker)
+        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker)
         {
+            _httpContextAccessor = httpContextAccessor;
             _referencesStore = referencesStore;
             _blobService = blobService;
             _referenceResolver = referenceResolver;
@@ -66,7 +71,15 @@ namespace Horde.Storage.Implementation
                         : IReferencesStore.FieldFlags.None;
                 }
             }
-            ObjectRecord o = await _referencesStore.Get(ns, bucket, key, flags);
+
+            IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+
+            ObjectRecord o;
+            {
+                using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("ref.get", "Fetching Ref from DB");
+
+                o = await _referencesStore.Get(ns, bucket, key, flags);
+            }
 
             // we do not wait for the last access tracking as it does not matter when it completes
             Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key)).ContinueWith((task, _) =>
@@ -88,6 +101,8 @@ namespace Horde.Storage.Implementation
                 }
                 else
                 {
+                    using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("blob.get", "Downloading blob from store");
+
                     blobContents = await _blobService.GetObject(ns, o.BlobIdentifier);
                 }
             }

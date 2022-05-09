@@ -3,7 +3,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
-using Jupiter;
 using Microsoft.AspNetCore.Authorization;
 using EpicGames.Horde.Storage;
 

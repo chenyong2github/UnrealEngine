@@ -4,7 +4,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -15,12 +14,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.AspNet;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using JetBrains.Annotations;
-using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Jupiter.Utils;
@@ -28,9 +27,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Serilog;
 using ContentHash = Jupiter.Implementation.ContentHash;
+using CustomMediaTypeNames = Jupiter.CustomMediaTypeNames;
 using Log = Serilog.Log;
 
 namespace Horde.Storage.Controllers
@@ -132,6 +133,9 @@ namespace Horde.Storage.Controllers
 
                 async Task WriteBody(BlobContents blobContents, string contentType)
                 {
+                    IServerTiming? serverTiming = Request.HttpContext.RequestServices.GetService<IServerTiming>();
+                    using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("body.write", "Time spent writing body");
+
                     using IScope scope = Tracer.Instance.StartActive("body.write");
                     long contentLength = blobContents.Length;
                     scope.Span.SetTag("content-length", contentLength.ToString());

@@ -10,12 +10,14 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.Blob;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -66,6 +68,7 @@ public class BlobService : IBlobService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceCredentials _serviceCredentials;
     private readonly INamespacePolicyResolver _namespacePolicyResolver;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger _logger = Log.ForContext<BlobService>();
 
     internal IEnumerable<IBlobStore> BlobStore
@@ -74,7 +77,7 @@ public class BlobService : IBlobService
         set => _blobStores = value.ToList();
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
@@ -83,6 +86,7 @@ public class BlobService : IBlobService
         _httpClientFactory = httpClientFactory;
         _serviceCredentials = serviceCredentials;
         _namespacePolicyResolver = namespacePolicyResolver;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public static IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings)
@@ -171,11 +175,16 @@ public class BlobService : IBlobService
 
     private async Task<BlobIdentifier> PutObjectToStores(NamespaceId ns, IBufferedPayload bufferedPayload, BlobIdentifier identifier)
     {
+        IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+
         foreach (IBlobStore store in _blobStores)
         {
             using IScope scope = Tracer.Instance.StartActive("put_blob_to_store");
             scope.Span.ResourceName = identifier.ToString();
             scope.Span.SetTag("store", store.ToString());
+            string storeName = store.GetType().Name;
+
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.put.{storeName}", $"PUT to store: '{storeName}'");
 
             await using Stream s = bufferedPayload.GetStream();
             await store.PutObject(ns, s, identifier);
@@ -200,12 +209,17 @@ public class BlobService : IBlobService
         bool seenNamespaceNotFound = false;
         int numStoreMisses = 0;
         BlobContents? blobContents = null;
+        IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+
         foreach (IBlobStore store in _blobStores)
         {
             using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
             scope.Span.ResourceName = blob.ToString();
             scope.Span.SetTag("BlobStore", store.GetType().Name);
             scope.Span.SetTag("ObjectFound", false.ToString());
+            string storeName = store.GetType().Name;
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.get.{storeName}", $"Blob GET from: '{storeName}'");
+
             try
             {
                 blobContents = await store.GetObject(ns, blob);
@@ -242,6 +256,8 @@ public class BlobService : IBlobService
         if (numStoreMisses >= 1)
         {
             using IScope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.populate", "Populating caches with blob contents");
+
             await using MemoryStream tempStream = new MemoryStream();
             await blobContents.Stream.CopyToAsync(tempStream);
             byte[] data = tempStream.ToArray();
@@ -270,8 +286,10 @@ public class BlobService : IBlobService
         {
             throw new NotSupportedException($"Replication is not allowed in namespace {ns}");
         }
-
+        IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
         using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.Replicate");
+
+        using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("blob.replicate", "Replicating blob from remote instances");
 
         BlobInfo? blobInfo = await _blobIndex.GetBlobInfo(ns, blob);
         if (blobInfo == null)
