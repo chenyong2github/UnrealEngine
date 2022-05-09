@@ -9,6 +9,7 @@
 class FNiagaraBakerRenderer;
 class UNiagaraComponent;
 class UNiagaraBakerSettings;
+class UNiagaraSimCache;
 class UTextureRenderTarget2D;
 class USceneCaptureComponent2D;
 class FAdvancedPreviewScene;
@@ -90,10 +91,12 @@ public:
 	void SetAbsoluteTime(float AbsoluteTime, bool bShouldTickComponent = true);
 
 	void RenderSceneCapture(UTextureRenderTarget2D* RenderTarget, ESceneCaptureSource CaptureSource) const;
+	void RenderSceneCapture(UTextureRenderTarget2D* RenderTarget, UNiagaraComponent* NiagaraComponent, ESceneCaptureSource CaptureSource) const;
 	void RenderBufferVisualization(UTextureRenderTarget2D* RenderTarget, FName BufferVisualizationMode = NAME_None) const;
 	void RenderDataInterface(UTextureRenderTarget2D* RenderTarget, FName BindingName) const;
 	void RenderParticleAttribute(UTextureRenderTarget2D* RenderTarget, FName BindingName) const;
-	
+	void RenderSimCache(UTextureRenderTarget2D* RenderTarget, UNiagaraSimCache* SimCache) const;
+
 	UWorld* GetWorld() const;
 	float GetWorldTime() const;
 	ERHIFeatureLevel::Type GetFeatureLevel() const;
@@ -115,8 +118,15 @@ public:
 	static bool ExportImage(FStringView FilePath, FIntPoint ImageSize, TArrayView<FFloat16Color> ImageData);
 
 private:
+	static void CreatePreviewScene(UNiagaraSystem* NiagaraSystem, UNiagaraComponent*& OutComponent, TSharedPtr<FAdvancedPreviewScene>& OutPreviewScene);
+	static void DestroyPreviewScene(UNiagaraComponent*& InOutComponent, TSharedPtr<FAdvancedPreviewScene>& InOutPreviewScene);
+
+private:
 	UNiagaraSystem* NiagaraSystem = nullptr;
 	UNiagaraComponent* PreviewComponent = nullptr;
 	TSharedPtr<FAdvancedPreviewScene> AdvancedPreviewScene;
 	USceneCaptureComponent2D* SceneCaptureComponent = nullptr;
+
+	mutable UNiagaraComponent* SimCachePreviewComponent = nullptr;
+	mutable TSharedPtr<FAdvancedPreviewScene> SimCacheAdvancedPreviewScene;
 };

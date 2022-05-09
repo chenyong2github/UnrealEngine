@@ -12,6 +12,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSimCache.h"
 #include "NiagaraGpuComputeDebug.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraCrashReporterHandler.h"
@@ -2164,6 +2165,92 @@ void FNiagaraSystemInstance::ManualTick(float DeltaSeconds, const FGraphEventRef
 	check(bSolo);
 
 	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
+}
+
+void FNiagaraSystemInstance::SimCacheTick_GameThread(UNiagaraSimCache* SimCache, float DesiredAge, float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_ComponentTickGT);
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_TickGT);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
+	LLM_SCOPE(ELLMTag::Niagara);
+
+	check(IsInGameThread());
+	check(bSolo);
+
+	FNiagaraCrashReporterScope CRScope(this);
+
+	UNiagaraSystem* System = GetSystem();
+	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
+
+	if (IsComplete() || IsDisabled())
+	{
+		return;
+	}
+
+	// If the attached component is marked pending kill the instance is no longer valid
+	if (GetAttachComponent() == nullptr)
+	{
+		Complete(true);
+		return;
+	}
+
+	if ( DesiredAge >= SimCache->StartSeconds + SimCache->DurationSeconds )
+	{
+		Complete(false);
+		return;
+	}
+
+	CachedDeltaSeconds = DeltaSeconds;
+	//FixedBounds_CNC = FixedBounds_GT;
+
+	//TickInstanceParameters_GameThread(DeltaSeconds);
+
+	//TickDataInterfaces(DeltaSeconds, false);
+
+	Age = DesiredAge;
+	TickCount += 1;
+
+#if WITH_EDITOR
+	//// We need to tick the rapid iteration parameters when in the editor
+	//for (auto& EmitterInstance : Emitters)
+	//{
+	//	if (EmitterInstance->ShouldTick())
+	//	{
+	//		EmitterInstance->TickRapidIterationParameters();
+	//	}
+	//}
+#endif
+
+	//-OPT: On cooked builds we do not need to do this every frame
+	if ( SimCache->CanRead(GetSystem()) == false )
+	{
+		Complete(false);
+		return;
+	}
+
+	//-TODO: This can run async
+	const bool bCacheValid = SimCache->Read(Age, this);
+	if (bCacheValid == false)
+	{
+		Complete(false);
+		return;
+	}
+
+	if ( SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawn )
+	{
+		SystemSimulation->SetInstanceState(this, ENiagaraSystemInstanceState::Running);
+	}
+
+	if (OnPostTickDelegate.IsBound())
+	{
+		OnPostTickDelegate.Execute();
+	}
+}
+
+void FNiagaraSystemInstance::SimCacheTick_Concurrent(UNiagaraSimCache* SimCache)
+{
+	//-OPT: Move SimCache read from GT to concurrent work
 }
 
 void FNiagaraSystemInstance::DumpStalledInfo()

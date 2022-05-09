@@ -14,7 +14,7 @@ struct FNiagaraDataSetDebugAccessor
 	int32 ReadInt(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const;
 
 	template<typename TString>
-	void StringAppend(TString& StringType, FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
+	void StringAppend(TString& StringType, const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
 	{
 		if (IsFloat() || IsHalf())
 		{

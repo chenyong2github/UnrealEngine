@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraBakerWidget.h"
+#include "NiagaraBakerOutputRegistry.h"
 #include "SNiagaraBakerTimelineWidget.h"
 #include "SNiagaraBakerViewport.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
-#include "Customizations/NiagaraBakerOutputCustomization.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
 
 #include "Modules/ModuleManager.h"
@@ -309,7 +309,7 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 	DetailsArgs.bAllowSearch = false;
 
 	BakerSettingsDetails = PropertyModule.CreateDetailView(DetailsArgs);
-	NiagaraBakerOutputCustomization::RegisterCustomization(BakerSettingsDetails.Get());
+	FNiagaraBakerOutputRegistry::Get().RegisterCustomizations(BakerSettingsDetails.Get());
 
 	// Transport control args
 	{
@@ -726,17 +726,14 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeAddOutputMenu()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (TObjectIterator<UClass> It; It; ++It)
+	for ( UClass* OutputClass : FNiagaraBakerOutputRegistry::Get().GetOutputClasses() )
 	{
-		if ( It->IsChildOf(UNiagaraBakerOutput::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract) )
-		{
-			MenuBuilder.AddMenuEntry(
-				It->GetDisplayNameText(),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::AddOutput, *It))
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			OutputClass->GetDisplayNameText(),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::AddOutput, OutputClass))
+		);
 	}
 
 	return MenuBuilder.MakeWidget();

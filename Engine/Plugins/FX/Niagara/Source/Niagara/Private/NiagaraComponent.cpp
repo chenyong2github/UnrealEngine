@@ -704,7 +704,28 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 			SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
 		}
 
-		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
+		// If we have a sim cache attached then use that
+		if ( SimCache != nullptr )
+		{
+			float Age = SystemInstanceController->GetAge();
+
+			if ((AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge) || (AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAgeNoSeek))
+			{
+				if ( DesiredAge < Age )
+				{
+					SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+				}
+				Age = DesiredAge;
+			}
+			else
+			{
+				Age += DeltaSeconds;
+			}
+
+			SystemInstanceController->SimCacheTick_GameThread(SimCache, Age, DeltaSeconds, (ThisTickFunction && ThisTickFunction->IsCompletionHandleValid()) ? ThisTickFunction->GetCompletionHandle() : nullptr);
+		}
+		// Otherwise we need to manually tick
+		else if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
 			SystemInstanceController->ManualTick(DeltaSeconds * CustomTimeDilation, (ThisTickFunction && ThisTickFunction->IsCompletionHandleValid()) ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
@@ -3447,6 +3468,17 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 	}
 }
 
+void UNiagaraComponent::SetSimCache(UNiagaraSimCache* InSimCache)
+{
+	SimCache = InSimCache;
+	UpdateInstanceSoloMode();
+}
+
+UNiagaraSimCache* UNiagaraComponent::GetSimCache() const
+{
+	return SimCache;
+}
+
 void UNiagaraComponent::SetAllowScalability(bool bAllow)
 {
 	bAllowScalability = bAllow; 
@@ -3580,7 +3612,7 @@ void UNiagaraComponent::SetForceSolo(bool bInForceSolo)
 
 bool UNiagaraComponent::RequiresSoloMode() const
 {
-	return bForceSolo || !FMath::IsNearlyEqual(CustomTimeDilation, 1.0f);
+	return bForceSolo || SimCache != nullptr || !FMath::IsNearlyEqual(CustomTimeDilation, 1.0f);
 }
 
 void UNiagaraComponent::UpdateInstanceSoloMode()

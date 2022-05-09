@@ -24,6 +24,8 @@ struct FNiagaraEmitterCompiledData;
 */
 class FNiagaraEmitterInstance
 {
+	friend class UNiagaraSimCache;
+
 private:
 	struct FEventInstanceData
 	{
@@ -87,9 +89,6 @@ public:
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
 	FORCEINLINE bool IsInactive()const { return ExecutionState == ENiagaraExecutionState::Inactive; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
-
-	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
-	//void NIAGARA_API UpdateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, TArray<NiagaraRenderer*>& ToBeAddedList, TArray<NiagaraRenderer*>& ToBeRemovedList);
 
 private:
 	NIAGARA_API int32 GetNumParticlesGPUInternal() const;

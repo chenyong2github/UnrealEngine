@@ -419,6 +419,20 @@ void FNiagaraGpuComputeDispatch::FlushPendingTicks_GameThread()
 	);
 }
 
+void FNiagaraGpuComputeDispatch::FlushAndWait_GameThread()
+{
+	check(IsInGameThread());
+	ENQUEUE_RENDER_COMMAND(NiagaraFlushPendingTicks)(
+		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
+		{
+			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, true);
+			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool();
+			RT_NiagaraBatcher->GetGpuReadbackManager()->WaitCompletion(RHICmdList);
+		}
+	);
+	FlushRenderingCommands();
+}
+
 void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList, bool bForceFlush)
 {
 	// Test to see if we have any proxies, if not we have nothing to do
@@ -475,6 +489,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			}
 			if (bHasPendingTicks == false)
 			{
+				GpuReadbackManagerPtr->Tick();
 				return;
 			}
 

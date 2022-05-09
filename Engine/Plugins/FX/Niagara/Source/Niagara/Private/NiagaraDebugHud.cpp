@@ -2,6 +2,7 @@
 
 #include "NiagaraDebugHud.h"
 #include "NiagaraComponent.h"
+#include "NiagaraDataSetReadback.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraComputeExecutionContext.h"
@@ -942,7 +943,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	}
 }
 
-FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* SystemInstance, FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter)
+const FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* SystemInstance, FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -966,7 +967,7 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 		GpuCachedData->LastAccessedCycles = FPlatformTime::Cycles64();
 
 		// Pending readback complete?
-		if (GpuCachedData->PendingEmitterData[iEmitter] && GpuCachedData->PendingEmitterData[iEmitter]->bWritten)
+		if (GpuCachedData->PendingEmitterData[iEmitter] && GpuCachedData->PendingEmitterData[iEmitter]->IsReady())
 		{
 			GpuCachedData->CurrentEmitterData[iEmitter] = GpuCachedData->PendingEmitterData[iEmitter];
 			GpuCachedData->PendingEmitterData[iEmitter] = nullptr;
@@ -975,24 +976,14 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 		// Enqueue a readback?
 		if ( GpuCachedData->PendingEmitterData[iEmitter] == nullptr )
 		{
-			const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& AllEmittersCompiledData = SystemInstance->GetSystem()->GetEmitterCompiledData();
-
-			GpuCachedData->PendingEmitterData[iEmitter] = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>();
-			GpuCachedData->PendingEmitterData[iEmitter]->Parameters = GPUExecContext->CombinedParamStore;
-			GpuCachedData->PendingEmitterData[iEmitter]->Frame.Init(&AllEmittersCompiledData[iEmitter]->DataSetCompiledData);
-
-			ENQUEUE_RENDER_COMMAND(NiagaraReadbackGpuSim)(
-				[RT_ComputeDispatchInterface=SystemInstance->GetComputeDispatchInterface(), RT_InstanceID=SystemInstance->GetId(), RT_DebugInfo=GpuCachedData->PendingEmitterData[iEmitter], RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
-				{
-					RT_ComputeDispatchInterface->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
-				}
-			);
+			GpuCachedData->PendingEmitterData[iEmitter] = MakeShared<FNiagaraDataSetReadback, ESPMode::ThreadSafe>();
+			GpuCachedData->PendingEmitterData[iEmitter]->EnqueueReadback(EmitterInstance);
 		}
 
 		// Pull current data if we have one
 		if ( GpuCachedData->CurrentEmitterData[iEmitter] )
 		{
-			return &GpuCachedData->CurrentEmitterData[iEmitter]->Frame;
+			return &GpuCachedData->CurrentEmitterData[iEmitter]->GetDataSet();
 		}
 		return nullptr;
 	}
@@ -2223,13 +2214,13 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 					continue;
 				}
 
-				FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
+				const FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
 				if (ParticleDataSet == nullptr)
 				{
 					continue;
 				}
 
-				FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
+				const FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
 				if (!DataBuffer || !DataBuffer->GetNumInstances())
 				{
 					continue;
@@ -2400,13 +2391,13 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				}
 
 				FNiagaraEmitterInstance* EmitterInstance = &SystemInstance->GetEmitters()[iEmitter].Get();
-				FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
+				const FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
 				if (ParticleDataSet == nullptr)
 				{
 					continue;
 				}
 
-				FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
+				const FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
 				if (!DataBuffer || !DataBuffer->GetNumInstances())
 				{
 					continue;
@@ -2689,13 +2680,13 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 								}
 
 								FNiagaraEmitterInstance* EmitterInstance = &SystemInstance->GetEmitters()[iEmitter].Get();
-								FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
+								const FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
 								if (ParticleDataSet == nullptr)
 								{
 									continue;
 								}
 
-								FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
+								const FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
 								if (!DataBuffer || !DataBuffer->GetNumInstances())
 								{
 									continue;

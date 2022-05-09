@@ -77,6 +77,12 @@ public:
 	*/
 	virtual void FlushPendingTicks_GameThread() = 0;
 
+	/**
+	This will flush all pending ticks & readbacks from the dispatcher.
+	Note: This is a GameThread blocking call and will impact performance
+	*/
+	virtual void FlushAndWait_GameThread() = 0;
+
 	/** Debug only function to readback data. */
 	virtual void AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context) = 0;
 

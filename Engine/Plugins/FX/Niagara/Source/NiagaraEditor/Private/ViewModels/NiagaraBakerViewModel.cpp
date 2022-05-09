@@ -577,6 +577,15 @@ void FNiagaraBakerViewModel::RenderBaker()
 		}
 	}
 
+	// Ensure we flush everything from the render thread
+	if ( UWorld* World = BakerRenderer->GetWorld() )
+	{
+		if ( FNiagaraGpuComputeDispatchInterface* DispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World) )
+		{
+			DispatchInterface->FlushAndWait_GameThread();
+		}
+	}
+
 	// Complete bake
 	{
 		FScopedSlowTask SlowTask(OutputRenderers.Num());

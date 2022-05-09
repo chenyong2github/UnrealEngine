@@ -2,15 +2,12 @@
 
 #include "NiagaraBakerRenderer.h"
 #include "NiagaraBakerSettings.h"
-#include "NiagaraBakerOutputTexture2D.h"
-#include "NiagaraBakerOutputVolumeTexture.h"
+#include "NiagaraBakerOutputRegistry.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraBatchedElements.h"
-#include "NiagaraBakerRendererOutputTexture2D.h"
-#include "NiagaraBakerRendererOutputVolumeTexture.h"
 
 #include "Niagara/Classes/NiagaraDataInterfaceRenderTarget2D.h"
 #include "Niagara/Classes/NiagaraDataInterfaceGrid2DCollection.h"
@@ -275,33 +272,13 @@ FNiagaraBakerRenderer::FNiagaraBakerRenderer(UNiagaraSystem* InNiagaraSystem)
 	SceneCaptureComponent->bCaptureEveryFrame = false;
 	SceneCaptureComponent->bCaptureOnMovement = false;
 
-	PreviewComponent = NewObject<UNiagaraComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-	PreviewComponent->CastShadow = 1;
-	PreviewComponent->bCastDynamicShadow = 1;
-	PreviewComponent->SetAllowScalability(false);
-	PreviewComponent->SetAsset(NiagaraSystem);
-	PreviewComponent->SetForceSolo(true);
-	PreviewComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
-	PreviewComponent->SetCanRenderWhileSeeking(true);
-	PreviewComponent->SetMaxSimTime(0.0f);
-	PreviewComponent->Activate(true);
-
-	AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
-	AdvancedPreviewScene->SetFloorVisibility(false);
-	AdvancedPreviewScene->AddComponent(PreviewComponent, PreviewComponent->GetRelativeTransform());
+	CreatePreviewScene(NiagaraSystem, PreviewComponent, AdvancedPreviewScene);
 }
 
 FNiagaraBakerRenderer::~FNiagaraBakerRenderer()
 {
-	if (AdvancedPreviewScene && PreviewComponent)
-	{
-		AdvancedPreviewScene->RemoveComponent(PreviewComponent);
-	}
-
-	if (PreviewComponent)
-	{
-		PreviewComponent->DestroyComponent();
-	}
+	DestroyPreviewScene(PreviewComponent, AdvancedPreviewScene);
+	DestroyPreviewScene(SimCachePreviewComponent, SimCacheAdvancedPreviewScene);
 }
 
 void FNiagaraBakerRenderer::SetAbsoluteTime(float AbsoluteTime, bool bShouldTickComponent)
@@ -338,14 +315,19 @@ void FNiagaraBakerRenderer::SetAbsoluteTime(float AbsoluteTime, bool bShouldTick
 
 void FNiagaraBakerRenderer::RenderSceneCapture(UTextureRenderTarget2D* RenderTarget, ESceneCaptureSource CaptureSource) const
 {
+	RenderSceneCapture(RenderTarget, PreviewComponent, CaptureSource);
+}
+
+void FNiagaraBakerRenderer::RenderSceneCapture(UTextureRenderTarget2D* RenderTarget, UNiagaraComponent* NiagaraComponent, ESceneCaptureSource CaptureSource) const
+{
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
-	if ( !RenderTarget || !BakerSettings )
+	if (!NiagaraComponent || !RenderTarget || !BakerSettings)
 	{
 		return;
 	}
 
 	const float WorldTime = GetWorldTime();
-	UWorld* World = GetWorld();
+	UWorld* World = NiagaraComponent->GetWorld();
 
 	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, FGameTime::CreateUndilated(WorldTime, FApp::GetDeltaTime()), GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Black);
@@ -353,7 +335,7 @@ void FNiagaraBakerRenderer::RenderSceneCapture(UTextureRenderTarget2D* RenderTar
 	SceneCaptureComponent->RegisterComponentWithWorld(World);
 	SceneCaptureComponent->TextureTarget = RenderTarget;
 	SceneCaptureComponent->CaptureSource = CaptureSource;
-	
+
 	// Set view location
 	const FNiagaraBakerCameraSettings& CurrentCamera = BakerSettings->GetCurrentCamera();
 	if (CurrentCamera.IsOrthographic())
@@ -366,25 +348,25 @@ void FNiagaraBakerRenderer::RenderSceneCapture(UTextureRenderTarget2D* RenderTar
 		SceneCaptureComponent->ProjectionType = ECameraProjectionMode::Perspective;
 		SceneCaptureComponent->FOVAngle = CurrentCamera.FOV;
 	}
-	
+
 	const FMatrix SceneCaptureMatrix = FMatrix(FPlane(0, 0, 1, 0), FPlane(1, 0, 0, 0), FPlane(0, 1, 0, 0), FPlane(0, 0, 0, 1));
 	FMatrix ViewMatrix = SceneCaptureMatrix * BakerSettings->GetViewportMatrix().Inverse() * FRotationTranslationMatrix(BakerSettings->GetCameraRotation(), BakerSettings->GetCameraLocation());
 	SceneCaptureComponent->SetWorldLocationAndRotation(ViewMatrix.GetOrigin(), ViewMatrix.Rotator());
-	
+
 	SceneCaptureComponent->bUseCustomProjectionMatrix = true;
 	SceneCaptureComponent->CustomProjectionMatrix = BakerSettings->GetProjectionMatrix();
-	
+
 	SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	SceneCaptureComponent->ShowOnlyComponents.Empty(1);
-	SceneCaptureComponent->ShowOnlyComponents.Add(PreviewComponent);
-	
+	SceneCaptureComponent->ShowOnlyComponents.Add(NiagaraComponent);
+
 	SceneCaptureComponent->CaptureScene();
-	
+
 	SceneCaptureComponent->TextureTarget = nullptr;
 	SceneCaptureComponent->UnregisterComponent();
-	
+
 	// Alpha from a scene capture is 1- so we need to invert
-	if ( SceneCaptureComponent->CaptureSource == ESceneCaptureSource::SCS_SceneColorHDR )
+	if (SceneCaptureComponent->CaptureSource == ESceneCaptureSource::SCS_SceneColorHDR)
 	{
 		FCanvasTileItem TileItem(FVector2D(0, 0), FVector2D(RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight()), FLinearColor::White);
 		TileItem.BlendMode = SE_BLEND_Opaque;
@@ -599,6 +581,35 @@ void FNiagaraBakerRenderer::RenderParticleAttribute(UTextureRenderTarget2D* Rend
 	}
 }
 
+void FNiagaraBakerRenderer::RenderSimCache(UTextureRenderTarget2D* RenderTarget, UNiagaraSimCache* SimCache) const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	if (!SimCache)
+	{
+		return;
+	}
+
+	if (SimCachePreviewComponent == nullptr)
+	{
+		CreatePreviewScene(NiagaraSystem, SimCachePreviewComponent, SimCacheAdvancedPreviewScene);
+	}
+
+	const float SeekDelta = BakerSettings->GetSeekDelta();
+
+	SimCachePreviewComponent->SetSimCache(SimCache);
+	SimCachePreviewComponent->SetSeekDelta(SeekDelta);
+	SimCachePreviewComponent->SeekToDesiredAge(GetWorldTime());
+	SimCachePreviewComponent->TickComponent(SeekDelta, ELevelTick::LEVELTICK_All, nullptr);
+
+	SimCachePreviewComponent->MarkRenderDynamicDataDirty();
+	UWorld* World = SimCachePreviewComponent->GetWorld();
+	World->SendAllEndOfFrameUpdates();
+
+	RenderSceneCapture(RenderTarget, SimCachePreviewComponent, ESceneCaptureSource::SCS_SceneColorHDR);
+
+	SimCachePreviewComponent->SetSimCache(nullptr);
+}
+
 UWorld* FNiagaraBakerRenderer::GetWorld() const
 {
 	return PreviewComponent->GetWorld();
@@ -624,19 +635,12 @@ void FNiagaraBakerRenderer::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(NiagaraSystem);
 	Collector.AddReferencedObject(PreviewComponent);
 	Collector.AddReferencedObject(SceneCaptureComponent);
+	Collector.AddReferencedObject(SimCachePreviewComponent);
 }
 
 FNiagaraBakerOutputRenderer* FNiagaraBakerRenderer::GetOutputRenderer(UClass* Class)
 {
-	if ( Class == UNiagaraBakerOutputTexture2D::StaticClass() )
-	{
-		return new FNiagaraBakerRendererOutputTexture2D();
-	}
-	else if (Class == UNiagaraBakerOutputVolumeTexture::StaticClass())
-	{
-		return new FNiagaraBakerRendererOutputVolumeTexture();
-	}
-	return nullptr;
+	return FNiagaraBakerOutputRegistry::Get().GetRendererForClass(Class);
 }
 
 bool FNiagaraBakerRenderer::ExportImage(FStringView FilePath, FIntPoint ImageSize, TArrayView<FFloat16Color> ImageData)
@@ -692,4 +696,38 @@ bool FNiagaraBakerRenderer::ExportImage(FStringView FilePath, FIntPoint ImageSiz
 
 	const TArray64<uint8> TempData = ImageWrapper->GetCompressed();
 	return FFileHelper::SaveArrayToFile(TempData, FilePath.GetData());
+}
+
+void FNiagaraBakerRenderer::CreatePreviewScene(UNiagaraSystem* NiagaraSystem, UNiagaraComponent*& OutComponent, TSharedPtr<FAdvancedPreviewScene>& OutPreviewScene)
+{
+	check(NiagaraSystem);
+	OutComponent = NewObject<UNiagaraComponent>(GetTransientPackage(), NAME_None, RF_Transient);
+	OutComponent->CastShadow = 1;
+	OutComponent->bCastDynamicShadow = 1;
+	OutComponent->SetAllowScalability(false);
+	OutComponent->SetAsset(NiagaraSystem);
+	OutComponent->SetForceSolo(true);
+	OutComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
+	OutComponent->SetCanRenderWhileSeeking(true);
+	OutComponent->SetMaxSimTime(0.0f);
+	OutComponent->Activate(true);
+
+	OutPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
+	OutPreviewScene->SetFloorVisibility(false);
+	OutPreviewScene->AddComponent(OutComponent, OutComponent->GetRelativeTransform());
+}
+
+void FNiagaraBakerRenderer::DestroyPreviewScene(UNiagaraComponent*& InOutComponent, TSharedPtr<FAdvancedPreviewScene>& InOutPreviewScene)
+{
+	if ( InOutPreviewScene && InOutComponent )
+	{
+		InOutPreviewScene->RemoveComponent(InOutComponent);
+		InOutPreviewScene = nullptr;
+	}
+
+	if ( InOutComponent )
+	{
+		InOutComponent->DestroyComponent();
+		InOutComponent = nullptr;
+	}
 }

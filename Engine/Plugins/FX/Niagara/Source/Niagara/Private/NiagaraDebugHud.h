@@ -17,6 +17,7 @@ Class used help debugging Niagara simulations
 
 #if WITH_PARTICLE_PERF_STATS
 
+class FNiagaraDataSet;
 class FNiagaraDebugHud;
 
 struct FNiagaraDebugHudFrameStat
@@ -87,7 +88,7 @@ public:
 
 class FNiagaraDebugHud
 {
-	typedef TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> FGpuDataSetPtr;
+	typedef TSharedPtr<class FNiagaraDataSetReadback, ESPMode::ThreadSafe> FGpuDataSetPtr;
 
 	struct FSystemDebugInfo
 	{
@@ -229,7 +230,7 @@ public:
 	void RemoveMessage(FName Key);
 
 private:
-	class FNiagaraDataSet* GetParticleDataSet(class FNiagaraSystemInstance* SystemInstance, class FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter);
+	const FNiagaraDataSet* GetParticleDataSet(class FNiagaraSystemInstance* SystemInstance, class FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter);
 	FValidationErrorInfo& GetValidationErrorInfo(class UNiagaraComponent* NiagaraComponent);
 
 	static void DebugDrawCallback(class UCanvas* Canvas, class APlayerController* PC);

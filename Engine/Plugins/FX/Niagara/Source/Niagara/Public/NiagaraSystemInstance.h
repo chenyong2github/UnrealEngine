@@ -16,6 +16,7 @@ class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
 class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraGPUSystemTick;
+class UNiagaraSimCache;
 class FNiagaraSystemGpuComputeProxy;
 
 using FNiagaraSystemInstancePtr = TSharedPtr<FNiagaraSystemInstance, ESPMode::ThreadSafe>;
@@ -70,6 +71,7 @@ class NIAGARA_API FNiagaraSystemInstance
 	friend class FNiagaraSystemSimulation;
 	friend class FNiagaraGPUSystemTick;
 	friend class FNiagaraDebugHud;
+	friend class UNiagaraSimCache;
 
 public:
 	DECLARE_DELEGATE(FOnPostTick);
@@ -168,6 +170,11 @@ public:
 	void Reset(EResetMode Mode);
 
 	void ManualTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+
+	/** Ticks the system using the a SimCache. */
+	void SimCacheTick_GameThread(UNiagaraSimCache* SimCache, float DesiredAge, float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+	/** Concurrent work for SimCache tick */
+	void SimCacheTick_Concurrent(UNiagaraSimCache* SimCache);
 
 	/** Initial phase of system instance tick. Must be executed on the game thread. */
 	void Tick_GameThread(float DeltaSeconds);

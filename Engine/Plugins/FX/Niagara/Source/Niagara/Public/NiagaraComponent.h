@@ -697,6 +697,12 @@ public:
 	uint32 bWaitForCompilationOnActivate : 1;
 #endif
 
+	UFUNCTION(BlueprintCallable, Category = SimCache)
+	void SetSimCache(UNiagaraSimCache* InSimCache);
+
+	UFUNCTION(BlueprintCallable, Category = SimCache)
+	UNiagaraSimCache* GetSimCache() const;
+
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	UFUNCTION(BlueprintSetter, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	void SetAllowScalability(bool bAllow);
@@ -776,6 +782,9 @@ private:
 
 
 	float CustomTimeDilation = 1.0f;
+
+	UPROPERTY(transient)
+	TObjectPtr<class UNiagaraSimCache> SimCache;
 
 	UPROPERTY(transient)
 	TObjectPtr<class UNiagaraCullProxyComponent> CullProxy;

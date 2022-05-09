@@ -237,6 +237,7 @@ public:
 class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation, ESPMode::ThreadSafe>, FGCObject
 {
 	friend FNiagaraSystemSimulationTickContext;
+	friend struct FNiagaraSimCacheHelper;
 	friend class FNiagaraDebugHud;
 
 public:

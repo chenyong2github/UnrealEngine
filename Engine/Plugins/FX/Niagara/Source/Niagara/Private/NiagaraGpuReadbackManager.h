@@ -22,6 +22,9 @@ protected:
 public:
 	struct FBufferRequest
 	{
+		FBufferRequest() {}
+		FBufferRequest(FRHIBuffer* InBuffer, uint32 InOffset, uint32 InSize) : Buffer(InBuffer), Offset(InOffset), Size(InSize) {}
+
 		FRHIBuffer*	Buffer = nullptr;
 		uint32		Offset = 0;
 		uint32		Size = 0;

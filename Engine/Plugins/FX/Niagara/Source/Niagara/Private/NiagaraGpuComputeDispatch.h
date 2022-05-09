@@ -74,6 +74,7 @@ public:
 
 	// FNiagaraGpuComputeDispatchInterface Impl
 	virtual void FlushPendingTicks_GameThread() override;
+	virtual void FlushAndWait_GameThread() override;
 	// FNiagaraGpuComputeDispatchInterface Impl
 
 	/**
