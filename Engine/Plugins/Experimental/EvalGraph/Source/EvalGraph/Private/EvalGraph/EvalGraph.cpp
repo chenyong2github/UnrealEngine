@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
 #include "EvalGraph/EvalGraph.h"
 
 #include "EvalGraph/EvalGraphInputOutput.h"
