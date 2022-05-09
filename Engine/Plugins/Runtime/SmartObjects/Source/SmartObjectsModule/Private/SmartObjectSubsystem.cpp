@@ -1053,7 +1053,7 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 	}
 	else
 	{
-		InCollection.MarkAsGarbage();
+		InCollection.Destroy();
 		Result = ESmartObjectCollectionRegistrationResult::Failed_NotFromPersistentLevel;
 	}
 
