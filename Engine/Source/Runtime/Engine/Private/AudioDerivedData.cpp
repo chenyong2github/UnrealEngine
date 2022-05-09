@@ -1688,7 +1688,7 @@ bool FDerivedAudioDataCompressor::Build(TArray<uint8>& OutData)
 	FAudioStatusMessageContext StatusMessage(FText::Format(NSLOCTEXT("Engine", "BuildingCompressedAudioTaskStatus", "Building compressed audio format {AudioFormat} hash {Hash} wave {SoundNodeName}..."), Args));
 
 	// these types of sounds do not need cooked data
-	if(CookInputs->bIsASourceBus || CookInputs->bIsASourceBus)
+	if(CookInputs->bIsASourceBus || CookInputs->bIsSoundWaveProcedural)
 	{
 		return false;
 	}
