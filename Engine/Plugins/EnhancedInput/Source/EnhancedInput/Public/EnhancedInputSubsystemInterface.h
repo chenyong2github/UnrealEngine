@@ -269,6 +269,12 @@ private:
 
 	// Debug visualization implemented in EnhancedInputSubsystemsDebug.cpp
 	void ShowDebugInfo(class UCanvas* Canvas);
+	
+	// Debug visualization of any platform input devices (IPlatformInputDeviceMapper)
+	// TODO: We should get a better place to put this instead of the Enhanced Input plugin.
+	// It can't go in InputCore because that doesn't depend on Engine for debug drawing
+	void ShowPlatformInputDebugInfo(class UCanvas* Canvas);
+	
 	void ShowDebugActionModifiers(UCanvas* Canvas, const UInputAction* Action);
 	static void PurgeDebugVisualizations();
 };

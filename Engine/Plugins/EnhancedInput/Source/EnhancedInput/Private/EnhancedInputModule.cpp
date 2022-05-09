@@ -301,20 +301,32 @@ void FEnhancedInputModule::Tick(float DeltaTime)
 void FEnhancedInputModule::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos)
 {
 	static const FName NAME_EnhancedInput("EnhancedInput");
-	if (Canvas && HUD->ShouldDisplayDebug(NAME_EnhancedInput))
+	static const FName NAME_PlatformDevices("Devices");
+	if (Canvas)
 	{
-		FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
-		DisplayDebugManager.SetFont(GEngine->GetSmallFont());
-		DisplayDebugManager.SetDrawColor(FColor::Yellow);
-		DisplayDebugManager.DrawString(TEXT("ENHANCED INPUT"));
-
-		// TODO: Support paging through subsystems one at a time (via console? key press?)
-
-		// Show first player only for now
-		TObjectIterator<UEnhancedInputLocalPlayerSubsystem> FirstPlayer;
-		if (FirstPlayer)
+		if (HUD->ShouldDisplayDebug(NAME_EnhancedInput))
 		{
-			FirstPlayer->ShowDebugInfo(Canvas);
+			FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+			DisplayDebugManager.SetFont(GEngine->GetSmallFont());
+			DisplayDebugManager.SetDrawColor(FColor::Yellow);
+			DisplayDebugManager.DrawString(TEXT("ENHANCED INPUT"));
+			
+			// TODO: Support paging through subsystems one at a time (via console? key press?)
+
+			// Show first player only for now
+			TObjectIterator<UEnhancedInputLocalPlayerSubsystem> FirstPlayer;
+			if (FirstPlayer)
+			{
+				FirstPlayer->ShowDebugInfo(Canvas);
+			}
+		}
+		
+		if (HUD->ShouldDisplayDebug(NAME_PlatformDevices))
+		{
+			UEnhancedInputLibrary::ForEachSubsystem([Canvas](IEnhancedInputSubsystemInterface* Subsystem)
+			{
+				Subsystem->ShowPlatformInputDebugInfo(Canvas);
+			});
 		}
 	}
 	else
