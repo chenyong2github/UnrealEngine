@@ -30,6 +30,16 @@ namespace UnrealBuildTool.Rules
 					"ToolWidgets"
 				}
 			);
+
+			if(Target.bBuildEditor == true)
+            {
+				PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorStyle",
+				}
+			);
+			}
 		}
 	}
 }
