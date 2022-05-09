@@ -37,8 +37,8 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 	AActor* InteractableObject = Context.GetInstanceData(InteractableObjectHandle);
 	AActor* Interactor = Context.GetExternalDataPtr(InteractorActorHandle);
 	const UContextualAnimSceneAsset* ContextualAnimAsset = Context.GetInstanceData(ContextualAnimAssetHandle);
+	UAnimMontage* Montage = nullptr;
 
-	FContextualAnimQueryResult ContextualAnimQueryResult;
 	// If we have a target use that to find the best contextual anim to play
 	if (ContextualAnimAsset != nullptr && InteractableObject != nullptr && Interactor != nullptr)
 	{
@@ -51,27 +51,28 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 		ContextualAnimQueryParams.QueryTransform = InteractorTransform;
 		
 		// If we don't find a good sync point, grab the closest one.
+		FContextualAnimQueryResult ContextualAnimQueryResult;
 		if (!ContextualAnimAsset->Query(InteractorRole, ContextualAnimQueryResult, ContextualAnimQueryParams, InteractableObjectTransform))
 		{
 			ContextualAnimQueryParams.bComplexQuery = false;
 			ContextualAnimAsset->Query(InteractorRole, ContextualAnimQueryResult, ContextualAnimQueryParams, InteractableObjectTransform);
 		}
-	}
 
-	const UAnimMontage* Montage = ContextualAnimQueryResult.Animation.Get();
-	if (Montage != nullptr)
-	{
-		UContextualAnimManager* ContextualAnimManager = UContextualAnimManager::Get(Context.GetWorld());
-		FContextualAnimStartSceneParams StartSceneParams;
-		StartSceneParams.RoleToActorMap.Add(InteractorRole, Interactor);
-		StartSceneParams.RoleToActorMap.Add(InteractableObjectRole, InteractableObject);
-	
-		UContextualAnimSceneInstance* SceneInstance = ContextualAnimManager->TryStartScene(*ContextualAnimAsset, StartSceneParams);
-		if (SceneInstance == nullptr)
+		Montage = ContextualAnimQueryResult.Animation.Get();
+		if (Montage != nullptr)
 		{
-			return EStateTreeRunStatus::Failed;
+			UContextualAnimManager* ContextualAnimManager = UContextualAnimManager::Get(Context.GetWorld());
+			FContextualAnimStartSceneParams StartSceneParams;
+			StartSceneParams.RoleToActorMap.Add(InteractorRole, Interactor);
+			StartSceneParams.RoleToActorMap.Add(InteractableObjectRole, InteractableObject);
+	
+			UContextualAnimSceneInstance* SceneInstance = ContextualAnimManager->TryStartScene(*ContextualAnimAsset, StartSceneParams);
+			if (SceneInstance == nullptr)
+			{
+				return EStateTreeRunStatus::Failed;
+			}
+			// @todo: listen anim completed event
 		}
-		// @todo: listen anim completed event
 	}
 
 	if (Montage == nullptr)
