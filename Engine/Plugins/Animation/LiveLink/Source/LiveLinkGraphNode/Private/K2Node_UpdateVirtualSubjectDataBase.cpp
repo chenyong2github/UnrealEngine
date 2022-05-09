@@ -10,6 +10,7 @@
 #include "LiveLinkRole.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "VirtualSubjects/LiveLinkBlueprintVirtualSubject.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_UpdateVirtualSubjectDataBase"
 

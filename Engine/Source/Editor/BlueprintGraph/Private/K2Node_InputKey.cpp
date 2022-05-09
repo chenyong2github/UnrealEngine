@@ -12,6 +12,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/InputSettings.h"
 #include "Editor.h"								// for FEditorDelegates::OnEnableGestureRecognizerChanged
 

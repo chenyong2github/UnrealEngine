@@ -14,6 +14,7 @@
 #include "EditorCategoryUtils.h"
 #include "FindInBlueprintManager.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 
 const FName UK2Node_EnumLiteral::GetEnumInputPinName()
 {

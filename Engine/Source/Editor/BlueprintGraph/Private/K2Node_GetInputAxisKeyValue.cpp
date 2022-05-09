@@ -9,6 +9,7 @@
 #include "EditorCategoryUtils.h"
 #include "Engine/InputAxisKeyDelegateBinding.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_GetInputAxisKeyValue"
 

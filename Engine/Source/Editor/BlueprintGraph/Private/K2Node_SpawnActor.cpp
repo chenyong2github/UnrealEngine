@@ -11,6 +11,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
+#include "Styling/AppStyle.h"
 
 struct FK2Node_SpawnActorHelper
 {

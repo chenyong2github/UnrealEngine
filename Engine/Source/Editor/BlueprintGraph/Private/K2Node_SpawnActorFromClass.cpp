@@ -16,6 +16,7 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "K2Node_EnumLiteral.h"
+#include "Styling/AppStyle.h"
 
 struct FK2Node_SpawnActorFromClassHelper
 {

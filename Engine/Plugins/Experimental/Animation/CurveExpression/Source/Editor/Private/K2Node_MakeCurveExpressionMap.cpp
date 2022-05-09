@@ -10,6 +10,7 @@
 #include "KismetCompilerMisc.h"
 #include "String/ParseLines.h"
 #include "Textures/SlateIcon.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "MakeCurveExpressionMap"
 

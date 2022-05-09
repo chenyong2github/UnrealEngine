@@ -17,6 +17,7 @@
 #include "KismetCompiler.h"
 #include "EventEntryHandler.h"
 #include "DiffResults.h"
+#include "Styling/AppStyle.h"
 
 const FName UK2Node_Event::DelegateOutputName(TEXT("OutputDelegate"));
 

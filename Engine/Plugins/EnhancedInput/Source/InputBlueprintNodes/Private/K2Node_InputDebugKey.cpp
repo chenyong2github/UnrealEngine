@@ -13,6 +13,7 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "InputActionValue.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/InputSettings.h"
 #include "Editor.h"								// for FEditorDelegates::OnEnableGestureRecognizerChanged
 

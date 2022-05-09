@@ -12,6 +12,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 
 UK2Node_InputTouch::UK2Node_InputTouch(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
