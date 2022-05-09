@@ -8,6 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Editor.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "ActorEditorContext"
 
@@ -86,7 +87,7 @@ void SActorEditorContext::Rebuild()
 						.Content()
 						[
 							SNew(SImage)
-							.Image_Lambda([this]() { return bIsContextExpanded ? FEditorStyle::GetBrush("ContentBrowser.SortDown") : FEditorStyle::GetBrush("ContentBrowser.SortUp"); })
+							.Image_Lambda([this]() { return bIsContextExpanded ? FAppStyle::GetBrush("ContentBrowser.SortDown") : FAppStyle::GetBrush("ContentBrowser.SortUp"); })
 							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					]
@@ -169,7 +170,7 @@ void SActorEditorContext::Rebuild()
 							.Content()
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+								.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 						]

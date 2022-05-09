@@ -631,7 +631,7 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 			Section.AddMenuEntry("SaveSelectedAssets",
 				LOCTEXT("SaveSelectedAssets", "Save"),
 				LOCTEXT("SaveSelectedAssets_ToolTip", "Save the selected assets"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.SaveIcon16x"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Level.SaveIcon16x"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &SAnimationSequenceBrowser::SaveSelectedAssets, SelectedAssets),
 					FCanExecuteAction::CreateSP(this, &SAnimationSequenceBrowser::CanSaveSelectedAssets, SelectedAssets)
@@ -640,7 +640,7 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 			Section.AddMenuEntry("OpenSequenceInNewWindow",
 				LOCTEXT("AnimSequenceBase_OpenInNewWindow", "Open In New Window"),
 				LOCTEXT("AnimSequenceBase_OpenInNewWindowTooltip", "Will always open asset in a new window, and not re-use existing window. (Shift+Double-Click)"),
-				FSlateIcon(FAppStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &SAnimationSequenceBrowser::OpenInNewWindow, SelectedAssets),
 					FCanExecuteAction()

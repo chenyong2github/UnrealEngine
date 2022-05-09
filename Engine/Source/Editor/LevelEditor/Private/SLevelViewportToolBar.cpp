@@ -1596,7 +1596,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			),
 			EUserInterfaceActionType::RadioButton,
 						/* bInOpenSubMenuOnClick = */ false,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeLumenMode")
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeLumenMode")
 						);
 	}
 
@@ -1620,7 +1620,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			),
 			EUserInterfaceActionType::RadioButton,
 			/* bInOpenSubMenuOnClick = */ false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeVirtualShadowMapMode")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeVirtualShadowMapMode")
 			);
 	}
 

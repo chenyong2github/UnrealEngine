@@ -12,6 +12,8 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/Object.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/AppStyle.h"
+
 
 #define LOCTEXT_NAMESPACE "UsdStageImportOptionsCustomization"
 
@@ -79,7 +81,7 @@ void FUsdStageImportOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 		[
 			SNew( STextBlock )
 			.Text( FText::FromString( TEXT( "Render Context to Import" ) ) )
-			.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+			.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 			.ToolTipText( RenderContextProperty->GetToolTipText() )
 		]
 		.ValueContent()
@@ -92,13 +94,13 @@ void FUsdStageImportOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 			{
 				return SNew( STextBlock )
 					.Text( Item.IsValid() ? FText::FromString( *Item ) : FText::GetEmpty() )
-					.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) );
+					.Font(FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) );
 			} )
 			.Content()
 			[
 				SNew( STextBlock )
 				.Text( this, &FUsdStageImportOptionsCustomization::GetComboBoxSelectedOptionText )
-				.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+				.Font(FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 			]
 		];
 	}

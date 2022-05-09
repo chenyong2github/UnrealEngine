@@ -30,98 +30,6 @@ void FDisplayClusterConfiguratorTreeItemHost::Initialize()
 	HostDisplayData->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationHostDisplayData::FOnPostEditChangeChainProperty::FDelegate::CreateSP(this, &FDisplayClusterConfiguratorTreeItemHost::OnPostEditChangeChainProperty));
 }
 
->>>> ORIGINAL //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#1
-TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemHost::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
-{
-	if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Host)
-	{
-		return SNew(SImage)
-			.ColorAndOpacity(this, &FDisplayClusterConfiguratorTreeItemHost::GetHostColor)
-			.OnMouseButtonDown(this, &FDisplayClusterConfiguratorTreeItemHost::OnHostClicked)
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
-			.Cursor(EMouseCursor::Hand);
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Visible)
-	{
-		return SAssignNew(VisibilityButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this host and its children in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnVisibilityButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemHost::GetVisibilityButtonBrush)
-			];
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
-	{
-		return SAssignNew(EnabledButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this host and its children in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemHost::GetEnabledButtonBrush)
-			];
-	}
-
-	return FDisplayClusterConfiguratorTreeItemCluster::GenerateWidgetForColumn(ColumnName, TableRow, FilterText, InIsSelected);
-}
-
-==== THEIRS //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#2
-TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemHost::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
-{
-	if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Host)
-	{
-		return SNew(SImage)
-			.ColorAndOpacity(this, &FDisplayClusterConfiguratorTreeItemHost::GetHostColor)
-			.OnMouseButtonDown(this, &FDisplayClusterConfiguratorTreeItemHost::OnHostClicked)
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
-			.Cursor(EMouseCursor::Hand);
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Visible)
-	{
-		return SAssignNew(VisibilityButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FAppStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this host and its children in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnVisibilityButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemHost::GetVisibilityButtonBrush)
-			];
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
-	{
-		return SAssignNew(EnabledButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FAppStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this host and its children in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemHost::GetEnabledButtonBrush)
-			];
-	}
-
-	return FDisplayClusterConfiguratorTreeItemCluster::GenerateWidgetForColumn(ColumnName, TableRow, FilterText, InIsSelected);
-}
-
-==== YOURS //lauren.barnes_Fortnite_Dev-EngineMerge/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp
-<<<<
 void FDisplayClusterConfiguratorTreeItemHost::DeleteItem() const
 {
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
@@ -312,29 +220,7 @@ void FDisplayClusterConfiguratorTreeItemHost::ToggleClusterItemVisibility()
 bool FDisplayClusterConfiguratorTreeItemHost::IsClusterItemUnlocked() const
 {
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
->>>> ORIGINAL //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#1
-
-	if (Host->bIsVisible)
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.VisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
-	}
-	else
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.NotVisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
-	}
-==== THEIRS //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#2
-
-	if (Host->bIsVisible)
-	{
-		return VisibilityButton->IsHovered() ? FAppStyle::GetBrush(TEXT("Level.VisibleHighlightIcon16x")) : FAppStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
-	}
-	else
-	{
-		return VisibilityButton->IsHovered() ? FAppStyle::GetBrush(TEXT("Level.NotVisibleHighlightIcon16x")) : FAppStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
-	}
-==== YOURS //lauren.barnes_Fortnite_Dev-EngineMerge/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp
 	return Host->bIsUnlocked;
-<<<<
 }
 
 void FDisplayClusterConfiguratorTreeItemHost::ToggleClusterItemLock()
@@ -363,23 +249,11 @@ FSlateColor FDisplayClusterConfiguratorTreeItemHost::GetClusterItemGroupColor() 
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	if (ToolkitPtr.Pin()->IsObjectSelected(Host))
 	{
->>>> ORIGINAL //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#1
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.UnlockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.UnlockedIcon16x"));
-==== THEIRS //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#2
-		return EnabledButton->IsHovered() ? FAppStyle::GetBrush(TEXT("Level.UnlockedHighlightIcon16x")) : FAppStyle::GetBrush(TEXT("Level.UnlockedIcon16x"));
-==== YOURS //lauren.barnes_Fortnite_Dev-EngineMerge/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp
 		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Color.Selected");
-<<<<
 	}
 	else
 	{
->>>> ORIGINAL //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#1
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.LockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.LockedIcon16x"));
-==== THEIRS //Fortnite/Main/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp#2
-		return EnabledButton->IsHovered() ? FAppStyle::GetBrush(TEXT("Level.LockedHighlightIcon16x")) : FAppStyle::GetBrush(TEXT("Level.LockedIcon16x"));
-==== YOURS //lauren.barnes_Fortnite_Dev-EngineMerge/Engine/Plugins/Runtime/nDisplay/Source/DisplayClusterConfigurator/Private/Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.cpp
 		return Host->Color;
-<<<<
 	}
 }
 

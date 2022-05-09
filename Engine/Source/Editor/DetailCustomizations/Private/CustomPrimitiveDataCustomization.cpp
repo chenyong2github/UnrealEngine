@@ -9,9 +9,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "SlateOptMacros.h"
-
-#include "EditorStyleSet.h"
-
+#include "Styling/AppStyle.h"
 #include "IDetailGroup.h"
 #include "IDetailPropertyRow.h"
 #include "IPropertyTypeCustomization.h"
@@ -916,8 +914,8 @@ TSharedRef<SHyperlink> FCustomPrimitiveDataCustomization::CreateHyperlink(FText 
 	return SNew(SHyperlink)
 		.Text(Text)
 		.OnNavigate(this, &FCustomPrimitiveDataCustomization::OnNavigate, Material, ExpressionID)
-		.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-		.TextStyle(FEditorStyle::Get(), "DetailsView.HyperlinkStyle");
+		.Style(FAppStyle::Get(), "HoverOnlyHyperlink")
+		.TextStyle(FAppStyle::Get(), "DetailsView.HyperlinkStyle");
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -939,7 +937,7 @@ TSharedRef<SWidget> FCustomPrimitiveDataCustomization::GetUndeclaredParameterWid
 		[
 			SNew(SImage)
 			.DesiredSizeOverride(FVector2D(FontSize))
-			.Image(FEditorStyle::GetBrush("Icons.Warning"))
+			.Image(FAppStyle::GetBrush("Icons.Warning"))
 		]
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
@@ -958,7 +956,7 @@ TSharedRef<SWidget> FCustomPrimitiveDataCustomization::CreateWarningWidget(TShar
 {
 	// Similar to SWarningOrErrorBox widget
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("RoundedWarning"))
+		.BorderImage(FAppStyle::GetBrush("RoundedWarning"))
 		[
 			SNew(SHorizontalBox)
 			.ToolTipText(WarningText)
@@ -969,7 +967,7 @@ TSharedRef<SWidget> FCustomPrimitiveDataCustomization::CreateWarningWidget(TShar
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.WarningWithColor"))
+				.Image(FAppStyle::GetBrush("Icons.WarningWithColor"))
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(0.f, 2.f, 16.f, 2.f)

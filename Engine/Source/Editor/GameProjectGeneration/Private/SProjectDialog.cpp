@@ -42,6 +42,7 @@
 #include "LauncherPlatformModule.h"
 #include "SPrimaryButton.h"
 #include "Styling/StyleColors.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
@@ -299,7 +300,7 @@ private:
 		{
 			return ItemPtr->Thumbnail.Get();
 		}
-		return FEditorStyle::GetBrush("UnrealDefaultThumbnail");
+		return FAppStyle::GetBrush("UnrealDefaultThumbnail");
 	}
 	
 };

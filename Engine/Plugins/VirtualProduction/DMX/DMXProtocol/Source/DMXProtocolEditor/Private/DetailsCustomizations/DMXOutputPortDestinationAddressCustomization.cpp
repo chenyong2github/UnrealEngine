@@ -10,6 +10,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXOutputPortDestinationAddressCustomization"
@@ -72,7 +73,7 @@ void FDMXOutputPortDestinationAddressCustomization::CustomizeChildren(TSharedRef
 			[
 				SNew(SButton)
 				.ContentPadding(2.0f)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FDMXOutputPortDestinationAddressCustomization::OnDeleteDestinationAddressClicked)
 				.ToolTipText(LOCTEXT("RemoveCellAttributeTooltip", "Removes the Destination Address"))
 				.ForegroundColor(FSlateColor::UseForeground())
@@ -81,7 +82,7 @@ void FDMXOutputPortDestinationAddressCustomization::CustomizeChildren(TSharedRef
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+					.Image(FAppStyle::GetBrush("Icons.Delete"))
 					.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
 				]
 			];

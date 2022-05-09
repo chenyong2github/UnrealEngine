@@ -504,7 +504,7 @@ TSharedPtr<SWidget> SPoseWatchManager::OnOpenContextMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CreateFolder", "Create Folder"),
 			LOCTEXT("CreateFolderDescription", "Create a new folder"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon"),
 			FUIAction(FExecuteAction::CreateSP(this, &SPoseWatchManager::CreateFolder))
 		);
 	}

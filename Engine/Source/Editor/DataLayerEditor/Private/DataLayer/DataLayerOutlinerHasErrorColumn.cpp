@@ -10,9 +10,9 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/STreeView.h"
 #include "ScopedTransaction.h"
-#include "EditorStyleSet.h"
 #include "Editor.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "Styling/AppStyle.h"
 
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationTokenizedMessageErrorHandler.h"
 
@@ -39,7 +39,7 @@ SHeaderRow::FColumn::FArguments FDataLayerOutlinerHasErrorsColumn::ConstructHead
 		.DefaultTooltip(FText::FromName(GetColumnID()))
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+			.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }
@@ -68,7 +68,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerHasErrorsColumn::ConstructRowWidget(
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+						.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 						.ToolTipText(MakeErrorMessage(ErrorHandler.GetErrorMessages()))
 					];
 			}

@@ -688,7 +688,7 @@ FReply SCompatibleSkeletons::OnAddSkeletonClicked()
 			.Padding( 2 )
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				.Padding( 8 )
 				[
 					ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)

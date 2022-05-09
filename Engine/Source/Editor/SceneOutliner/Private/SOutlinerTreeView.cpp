@@ -418,7 +418,7 @@ void SSceneOutlinerPinnedTreeRow::Construct(const FArguments& InArgs, const TSha
 	OutlinerTreeViewWeak = OutlinerTreeView;
 
 	FSuperRowType::FArguments Args = FSuperRowType::FArguments()
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
+		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 
 	Args.OnDragDetected_Static(HandleOnDragDetected, TWeakPtr<SSceneOutlinerTreeView>(OutlinerTreeView));
 

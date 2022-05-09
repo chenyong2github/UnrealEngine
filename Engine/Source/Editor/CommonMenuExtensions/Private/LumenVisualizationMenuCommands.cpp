@@ -7,8 +7,8 @@
 #include "Materials/Material.h"
 #include "Internationalization/Text.h"
 #include "Templates/Function.h"
-#include "EditorStyleSet.h"
 #include "EditorViewportClient.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "LumenVisualizationMenuCommands"
 
@@ -18,7 +18,7 @@ FLumenVisualizationMenuCommands::FLumenVisualizationMenuCommands()
 		TEXT("LumenVisualizationMenu"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "LumenVisualizationMenu", "Lumen"), // Localized context name for displaying
 		NAME_None, // Parent context name.  
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	),
 	CommandMap()
 {

@@ -24,6 +24,8 @@
 #include "EngineUtils.h"
 #include "Editor.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
+#include "Styling/AppStyle.h"
+
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -206,7 +208,7 @@ bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld
 	if (!DataLayerSubsystem->GetActorEditorContextDataLayers().IsEmpty())
 	{
 		OutDiplayInfo.Title = TEXT("Data Layers");
-		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
+		OutDiplayInfo.Brush = FAppStyle::GetBrush(TEXT("DataLayer.Editor"));
 		return true;
 	}
 	return false;

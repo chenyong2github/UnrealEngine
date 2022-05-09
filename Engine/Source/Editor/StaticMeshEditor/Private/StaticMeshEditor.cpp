@@ -883,7 +883,7 @@ void FStaticMeshEditor::ExtendToolBar()
 				FNewToolMenuChoice(), // let registered menu be looked up by name "AssetEditor.StaticMeshEditor.ToolBar.Collision"
 				LOCTEXT("Collision_Label", "Collision"),
 				LOCTEXT("Collision_Tooltip", "Collision drawing options"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "StaticMeshEditor.SetShowCollision")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "StaticMeshEditor.SetShowCollision")
 			));
 			CollisionEntry.StyleNameOverride = "CalloutToolbar";
 
@@ -897,7 +897,7 @@ void FStaticMeshEditor::ExtendToolBar()
 						FNewToolMenuDelegate::CreateSP(StaticMeshEditor.ToSharedRef(), &FStaticMeshEditor::GenerateUVChannelComboList),
 						LOCTEXT("UVToolbarText", "UV"),
 						LOCTEXT("UVToolbarTooltip", "Toggles display of the static mesh's UVs for the specified channel."),
-						FSlateIcon(FAppStyle::GetStyleSetName(), "StaticMeshEditor.SetDrawUVs")
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "StaticMeshEditor.SetDrawUVs")
 					));
 					UVToolbarEntry.StyleNameOverride = "CalloutToolbar";
 				}

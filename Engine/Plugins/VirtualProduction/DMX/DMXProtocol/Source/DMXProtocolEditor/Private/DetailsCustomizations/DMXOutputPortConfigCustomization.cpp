@@ -22,6 +22,7 @@
 #include "ScopedTransaction.h"
 #include "Misc/Guid.h" 
 #include "Widgets/Text/STextBlock.h" 
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXOutputPortConfigCustomization"
@@ -300,7 +301,7 @@ void FDMXOutputPortConfigCustomization::GenerateDeviceAddressRow(IDetailProperty
 						EVisibility::Visible :
 						EVisibility::Collapsed;
 				})
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 	UpdateAutoCompleteDeviceAddressTextBox();
 

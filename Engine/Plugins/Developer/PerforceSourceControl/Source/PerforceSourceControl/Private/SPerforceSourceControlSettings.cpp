@@ -2,7 +2,6 @@
 
 #include "SPerforceSourceControlSettings.h"
 
-#include "EditorStyleSet.h"
 #include "ISourceControlModule.h"
 #include "PerforceSourceControlInternalOperations.h"
 #include "PerforceSourceControlPrivate.h"

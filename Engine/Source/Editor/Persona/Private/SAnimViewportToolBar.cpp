@@ -1297,7 +1297,7 @@ TSharedRef<FExtender> SAnimViewportToolBar::GetViewMenuExtender(TSharedPtr<class
 				"VisualizeBufferViewMode",
 				EUserInterfaceActionType::RadioButton,
 				/* bInOpenSubMenuOnClick = */ false,
-				FSlateIcon(FAppStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeBufferMode")
 				);
 		}));
 

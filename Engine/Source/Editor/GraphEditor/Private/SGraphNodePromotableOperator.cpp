@@ -7,6 +7,8 @@
 #include "SPinTypeSelector.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "GraphEditorSettings.h"
+#include "Styling/AppStyle.h"
+
 
 #define LOCTEXT_NAMESPACE "SGraphNodePromotableOperator"
 
@@ -62,12 +64,12 @@ void SGraphNodePromotableOperator::LoadCachedIcons()
 	// Outer ring icons
 	if(!CachedOuterIcon)
 	{
-		CachedOuterIcon = FEditorStyle::GetBrush(PromotableTypeOuterName);
+		CachedOuterIcon = FAppStyle::GetBrush(PromotableTypeOuterName);
 	}
 
 	if(!CachedInnerIcon)
 	{
-		CachedInnerIcon = FEditorStyle::GetBrush(PromotableTypeInnerName);
+		CachedInnerIcon = FAppStyle::GetBrush(PromotableTypeInnerName);
 	}
 }
 

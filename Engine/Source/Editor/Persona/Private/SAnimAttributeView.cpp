@@ -9,6 +9,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SAnimAttributeView"
 
@@ -196,7 +197,7 @@ void SAnimAttributeView::Construct(const FArguments& InArgs)
 	SnapshotColumnLabelOverride = InArgs._SnapshotColumnLabelOverride;
 
 	SExpandableArea::FArguments ExpandableAreaArgs;
-	ExpandableAreaArgs.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
+	ExpandableAreaArgs.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
 	
 	ChildSlot
 	[

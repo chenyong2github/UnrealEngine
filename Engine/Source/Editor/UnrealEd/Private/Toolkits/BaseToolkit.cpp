@@ -20,6 +20,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSegmentedControl.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "BaseToolkit"
 
@@ -658,7 +659,7 @@ bool FModeToolkit::ShouldShowModeToolbar() const
 TSharedRef<SWidget> FModeToolkit::CreatePaletteWidget(TSharedPtr<FUICommandList> InCommandList, FName InToolbarCustomizationName, FName InPaletteName)
 {
 	FUniformToolBarBuilder ModeToolbarBuilder(InCommandList, FMultiBoxCustomization(InToolbarCustomizationName));
-	ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
+	ModeToolbarBuilder.SetStyle(&FAppStyle::Get(), "PaletteToolBar");
 
 	BuildToolPalette(InPaletteName, ModeToolbarBuilder);
 

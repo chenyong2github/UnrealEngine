@@ -636,21 +636,21 @@ const FSlateBrush* SAutomationTestItem::ItemChildrenStatus_StatusImage(const int
 	const int32 PassIndex = TestStatus->GetCurrentPassIndex(ClusterIndex);
 	TestStatus->GetCompletionStatus(ClusterIndex, PassIndex, CompleteState);
 
-	const FSlateBrush* ImageToUse = FEditorStyle::GetBrush("Automation.InProcess");
+	const FSlateBrush* ImageToUse = FAppStyle::GetBrush("Automation.InProcess");
 
 	uint32 TotalComplete = CompleteState.NumEnabledTestsPassed + CompleteState.NumEnabledTestsFailed + CompleteState.NumEnabledTestsCouldntBeRun;
 	if ((TotalComplete > 0) && (CompleteState.TotalEnabled > 0) && TotalComplete == CompleteState.TotalEnabled) {
 		if (TotalComplete == CompleteState.NumEnabledTestsPassed)
 		{
-			ImageToUse = FEditorStyle::GetBrush("Automation.Success");
+			ImageToUse = FAppStyle::GetBrush("Automation.Success");
 		}
 		else if (CompleteState.NumEnabledTestsFailed)
 		{
-			ImageToUse = FEditorStyle::GetBrush("Automation.Fail");
+			ImageToUse = FAppStyle::GetBrush("Automation.Fail");
 		}
 		else if (CompleteState.NumEnabledTestsCouldntBeRun)
 		{
-			ImageToUse = FEditorStyle::GetBrush("Automation.NotRun");
+			ImageToUse = FAppStyle::GetBrush("Automation.NotRun");
 		}
 	}
 	return ImageToUse;

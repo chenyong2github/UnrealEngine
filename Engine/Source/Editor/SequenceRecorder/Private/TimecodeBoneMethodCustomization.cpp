@@ -17,6 +17,7 @@
 #include "Templates/Casts.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "TimecodeBoneMethodCustomization"
 
@@ -86,7 +87,7 @@ public:
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Background")))
 			.Padding(5)
 			.Content()
 			[
@@ -96,7 +97,7 @@ public:
 				.Padding(0.0f, 1.0f)
 				[
 					SNew(STextBlock)
-					.Font( FEditorStyle::GetFontStyle(TEXT("SocketChooser.TitleFont")) )
+					.Font(FAppStyle::GetFontStyle(TEXT("SocketChooser.TitleFont")) )
 					.Text( NSLOCTEXT("ComponentChooser", "ChooseComponentLabel", "Choose Component") )
 				]
 				+SVerticalBox::Slot()

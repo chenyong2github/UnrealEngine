@@ -116,7 +116,7 @@ void FAnimGraphNodeSlotDetails::CustomizeDetails(class IDetailLayoutBuilder& Det
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("MeshPaint.FindInCB"))
+					.Image(FAppStyle::GetBrush("MeshPaint.FindInCB"))
 				]
 			]
 		];

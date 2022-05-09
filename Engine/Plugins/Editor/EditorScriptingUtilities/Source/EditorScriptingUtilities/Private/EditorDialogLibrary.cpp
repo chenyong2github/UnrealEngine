@@ -78,7 +78,7 @@ public:
 
 		DetailsView->SetObjects(Objects, true);
 
-		FVector2D DefaultWindowSize = FEditorStyle::Get().GetVector("WindowSize.Medium");
+		FVector2D DefaultWindowSize = FAppStyle::Get().GetVector("WindowSize.Medium");
 
 		ChildSlot
 		[
@@ -100,7 +100,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Right)
 					[

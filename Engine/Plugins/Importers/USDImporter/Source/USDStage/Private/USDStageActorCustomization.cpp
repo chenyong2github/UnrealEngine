@@ -15,6 +15,8 @@
 #include "ScopedTransaction.h"
 #include "UObject/Object.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/AppStyle.h"
+
 
 #define LOCTEXT_NAMESPACE "UsdStageActorCustomization"
 
@@ -84,7 +86,7 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 		[
 			SNew( STextBlock )
 			.Text( FText::FromString( TEXT( "Render Context" ) ) )
-			.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+			.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 			.ToolTipText( RenderContextProperty->GetToolTipText() )
 		]
 		.ValueContent()
@@ -97,13 +99,13 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 			{
 				return SNew( STextBlock )
 					.Text( Item.IsValid() ? FText::FromString( *Item ) : FText::GetEmpty() )
-					.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) );
+					.Font(FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) );
 			} )
 			.Content()
 			[
 				SNew( STextBlock )
 				.Text( this, &FUsdStageActorCustomization::GetComboBoxSelectedOptionText )
-				.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+				.Font(FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 			]
 		];
 	}

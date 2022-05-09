@@ -9,12 +9,12 @@
 #include "Misc/ExpressionParser.h"
 #include "Logging/MessageLog.h"
 #include "Styling/StyleColors.h"
-#include "EditorStyleSet.h"
 #include "VirtualizationManager.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "VirtualAssets"
 
@@ -146,7 +146,7 @@ EActiveTimerReturnType SVirtualAssetsStatisticsDialog::UpdateGridPanels(double I
 		Info.bUseThrobber = false;
 		Info.FadeOutDuration = 0.5f;
 		Info.ExpireDuration = 0.0f;
-		Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Warning"));
 		Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("PullFailedIgnore", "Ignore"), LOCTEXT("PullFailedIgnoreToolTip", "Ignore future warnings"), FSimpleDelegate::CreateSP(this, &SVirtualAssetsStatisticsDialog::OnWarningReasonIgnore), SNotificationItem::CS_None));
 		Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("PullFailedOK", "Ok"), LOCTEXT("PullFailedOkToolTip", "Notify future warnings"), FSimpleDelegate::CreateSP(this, &SVirtualAssetsStatisticsDialog::OnWarningReasonOk), SNotificationItem::CS_None));
 		Info.HyperlinkText = LOCTEXT("PullFailed_ShowLog", "Show Message Log");

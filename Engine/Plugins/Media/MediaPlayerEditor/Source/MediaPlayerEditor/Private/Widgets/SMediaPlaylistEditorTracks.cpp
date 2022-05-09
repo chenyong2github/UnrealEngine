@@ -8,6 +8,7 @@
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
 #include "Widgets/Input/SButton.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SMediaPlaylistEditorTracks"
 
@@ -44,7 +45,7 @@ void SMediaPlaylistEditorTracks::Construct(const FArguments& InArgs, UMediaPlayl
 								[
 									SNew(SImage)
 										.ColorAndOpacity(FSlateColor::UseForeground())
-										.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+										.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 								]
 						]
 				]
