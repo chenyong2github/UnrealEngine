@@ -2,6 +2,7 @@
 
 #include "LevelSequenceEditorToolkit.h"
 #include "Misc/LevelSequencePlaybackContext.h"
+#include "Misc/LevelSequenceEditorMenuContext.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UObject/UnrealType.h"
 #include "GameFramework/Actor.h"
@@ -51,6 +52,7 @@
 #include "MovieSceneCaptureDialogModule.h"
 #include "MovieScene.h"
 #include "UnrealEdMisc.h"
+#include "ToolMenus.h"
 
 // @todo sequencer: hack: setting defaults for transform tracks
 
@@ -191,16 +193,15 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 		SequencerInitParams.ViewParams.UniqueName = "LevelSequenceEditor";
 		SequencerInitParams.ViewParams.ScrubberStyle = ESequencerScrubberStyle::FrameBlock;
 		SequencerInitParams.ViewParams.OnReceivedFocus.BindRaw(this, &FLevelSequenceEditorToolkit::OnSequencerReceivedFocus);
+		SequencerInitParams.ViewParams.OnInitToolMenuContext.BindRaw(this, &FLevelSequenceEditorToolkit::OnInitToolMenuContext);
 
 		SequencerInitParams.HostCapabilities.bSupportsCurveEditor = true;
 		SequencerInitParams.HostCapabilities.bSupportsSaveMovieSceneAsset = true;
 		SequencerInitParams.HostCapabilities.bSupportsRecording = true;
 		SequencerInitParams.HostCapabilities.bSupportsRenderMovie = true;
-
-		TSharedRef<FExtender> ToolbarExtender = MakeShared<FExtender>();
-		ToolbarExtender->AddToolBarExtension("Base Commands", EExtensionHook::Before, nullptr, FToolBarExtensionDelegate::CreateSP(this, &FLevelSequenceEditorToolkit::ExtendSequencerToolbar));
-		SequencerInitParams.ViewParams.ToolbarExtender = ToolbarExtender;
 	}
+
+	ExtendSequencerToolbar("Sequencer.MainToolBar");
 
 	Sequencer = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer").CreateSequencer(SequencerInitParams);
 	SpawnRegister->SetSequencer(Sequencer);
@@ -286,13 +287,37 @@ FString FLevelSequenceEditorToolkit::GetWorldCentricTabPrefix() const
 	return LOCTEXT("WorldCentricTabPrefix", "Sequencer ").ToString();
 }
 
-
 /* FLevelSequenceEditorToolkit implementation
  *****************************************************************************/
 
-void FLevelSequenceEditorToolkit::ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder)
+void FLevelSequenceEditorToolkit::ExtendSequencerToolbar(FName InToolMenuName)
 {
-	ToolbarBuilder.AddWidget(PlaybackContext->BuildWorldPickerCombo());
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(InToolMenuName);
+
+	const FToolMenuInsert SectionInsertLocation("BaseCommands", EToolMenuInsertType::Before);
+
+	{
+		ToolMenu->AddDynamicSection("LevelSequenceEditorDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{	
+			ULevelSequenceEditorMenuContext* LevelSequenceEditorMenuContext = InMenu->FindContext<ULevelSequenceEditorMenuContext>();
+			if (LevelSequenceEditorMenuContext && LevelSequenceEditorMenuContext->Toolkit.IsValid())
+			{
+				const FName SequencerToolbarStyleName = "SequencerToolbar";
+			
+				FToolMenuEntry PlaybackContextEntry = FToolMenuEntry::InitWidget(
+					"PlaybackContext",
+					LevelSequenceEditorMenuContext->Toolkit.Pin()->PlaybackContext->BuildWorldPickerCombo(),
+					LOCTEXT("PlaybackContext", "PlaybackContext")
+				);
+				PlaybackContextEntry.StyleNameOverride = SequencerToolbarStyleName;
+
+				FToolMenuSection& Section = InMenu->AddSection("LevelSequenceEditor");
+				Section.AddEntry(PlaybackContextEntry);
+			}
+		}), SectionInsertLocation);
+	}
 }
 
 void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const FGuid Binding)
@@ -541,6 +566,13 @@ void FLevelSequenceEditorToolkit::OnSequencerReceivedFocus()
 	{
 		FLevelEditorSequencerIntegration::Get().OnSequencerReceivedFocus(Sequencer.ToSharedRef());
 	}
+}
+
+void FLevelSequenceEditorToolkit::OnInitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	ULevelSequenceEditorMenuContext* LevelSequenceEditorMenuContext = NewObject<ULevelSequenceEditorMenuContext>();
+	LevelSequenceEditorMenuContext->Toolkit = SharedThis(this);
+	MenuContext.AddObject(LevelSequenceEditorMenuContext);
 }
 
 void FLevelSequenceEditorToolkit::HandleAddComponentActionExecute(UActorComponent* Component)

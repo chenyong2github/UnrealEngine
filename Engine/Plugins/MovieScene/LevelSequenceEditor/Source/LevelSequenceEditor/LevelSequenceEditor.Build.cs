@@ -46,6 +46,7 @@ public class LevelSequenceEditor : ModuleRules
                 "UnrealEd",
                 "VREditor",
 				"TimeManagement",
+				"ToolMenus",
 				"ToolWidgets",
 			}
 		);

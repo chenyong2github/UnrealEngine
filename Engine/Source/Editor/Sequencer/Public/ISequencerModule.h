@@ -52,6 +52,9 @@ DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<ISequencerEditorObjectBinding>, FOnC
 /** A delegate that is executed when adding menu content. */
 DECLARE_DELEGATE_TwoParams(FOnGetAddMenuContent, FMenuBuilder& /*MenuBuilder*/, TSharedRef<ISequencer>);
 
+/** A delegate that is executed when initializing tool menu context. */
+DECLARE_DELEGATE_OneParam(FOnInitToolMenuContext, FToolMenuContext&);
+
 /** A delegate that is executed when menu object is clicked. Unlike FExtender delegates we pass in the FGuid which exists even for deleted objects. */
 DECLARE_DELEGATE_TwoParams(FOnBuildCustomContextMenuForGuid, FMenuBuilder&, FGuid);
 
@@ -72,6 +75,9 @@ struct FSequencerViewParams
 
 	/** Called when this sequencer has received user focus */
 	FSimpleDelegate OnReceivedFocus;
+
+	/** Called when this sequencer is initializing the tool menu context */
+	FOnInitToolMenuContext OnInitToolMenuContext;
 
 	/** The playback speed options available */
 	ISequencer::FOnGetPlaybackSpeeds OnGetPlaybackSpeeds;

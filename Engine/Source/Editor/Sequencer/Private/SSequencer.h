@@ -249,6 +249,9 @@ public:
 		/** Called when any widget contained within sequencer has received focus */
 		SLATE_EVENT( FSimpleDelegate, OnReceivedFocus )
 
+		/** Called when initializing tool menu context */
+		SLATE_EVENT(FOnInitToolMenuContext, OnInitToolMenuContext)
+
 		/** Called when something is dragged over the sequencer. */
 		SLATE_EVENT( FOptionalOnDragDrop, OnReceivedDragOver )
 
@@ -399,6 +402,10 @@ private:
 
 	/** Get context menu contents. */
 	void GetContextMenuContent(FMenuBuilder& MenuBuilder);
+
+	TWeakPtr<FSequencer> GetSequencer() { return SequencerPtr; }
+
+	static void PopulateToolBar(UToolMenu* InMenu);
 
 	/** Makes the toolbar. */
 	TSharedRef<SWidget> MakeToolBar();
@@ -743,6 +750,9 @@ private:
 
 	/** Called when any widget contained within sequencer has received focus */
 	FSimpleDelegate OnReceivedFocus;
+
+	/** Called when initializing tool menu context */
+	FOnInitToolMenuContext OnInitToolMenuContext;
 
 	/** Called when something is dragged over the sequencer. */
 	TArray<FOptionalOnDragDrop> OnReceivedDragOver;

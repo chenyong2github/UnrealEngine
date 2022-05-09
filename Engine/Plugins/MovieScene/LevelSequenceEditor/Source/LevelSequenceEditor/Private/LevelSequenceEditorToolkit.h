@@ -116,9 +116,12 @@ protected:
 	/** Called whenever sequencer has received focus */
 	void OnSequencerReceivedFocus();
 
+	/** Called whenever sequencer in initializing tool menu context */
+	void OnInitToolMenuContext(FToolMenuContext& MenuContext);
+
 private:
 
-	void ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder);
+	void ExtendSequencerToolbar(FName InToolMenuName);
 
 	/** Callback for executing the Add Component action. */
 	void HandleAddComponentActionExecute(UActorComponent* Component);
