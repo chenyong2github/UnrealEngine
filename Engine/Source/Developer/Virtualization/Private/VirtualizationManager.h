@@ -212,9 +212,6 @@ private:
 	/** The name of the current project */
 	FString ProjectName;
 
-	/** The critical section used to force single threaded access if bForceSingleThreaded is true */
-	FCriticalSection ForceSingleThreadedCS;
-
 	/** All of the backends that were mounted during graph creation */
 	TArray<TUniquePtr<IVirtualizationBackend>> AllBackends;
 
@@ -239,6 +236,9 @@ private:
 	{
 		/** All of the console commands/variables that we register, so they can be unregistered when the manager is destroyed */
 		TArray<IConsoleObject*> ConsoleObjects;
+
+		/** The critical section used to force single threaded access if bForceSingleThreaded is true */
+		FCriticalSection ForceSingleThreadedCS;
 
 		/** When enabled all public operations will be performed as single threaded */
 		bool bSingleThreaded = false;
