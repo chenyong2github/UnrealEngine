@@ -3731,12 +3731,14 @@ static const char* getAsioErrorString( ASIOError result )
 
 //=============================================================================
 
-#define SAFE_RELEASE( objectPtr )\
-if ( objectPtr )\
-{\
-  objectPtr->Release();\
-  objectPtr = NULL;\
-}
+#if !defined(SAFE_RELEASE)
+	#define SAFE_RELEASE( objectPtr )\
+	if ( objectPtr )\
+	{\
+	  objectPtr->Release();\
+	  objectPtr = NULL;\
+	}
+#endif
 
 typedef HANDLE ( __stdcall *TAvSetMmThreadCharacteristicsPtr )( LPCWSTR TaskName, LPDWORD TaskIndex );
 

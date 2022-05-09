@@ -4,6 +4,8 @@ using UnrealBuildTool;
 
 public class AudioCaptureRtAudio : ModuleRules
 {
+	protected virtual bool WithRtAudio { get => false; }
+
 	public AudioCaptureRtAudio(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.Add("Core");
@@ -25,7 +27,7 @@ public class AudioCaptureRtAudio : ModuleRules
         }
 		else
 		{
-			PublicDefinitions.Add("WITH_RTAUDIO=0");
+			PublicDefinitions.Add($"WITH_RTAUDIO={(WithRtAudio?"1":"0")}");
 		}
 	}
 }
