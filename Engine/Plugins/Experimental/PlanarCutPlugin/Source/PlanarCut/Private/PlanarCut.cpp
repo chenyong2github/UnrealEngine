@@ -824,7 +824,7 @@ void FindBoneVolumes(
 		{
 			int32 TransformIdx = TransformIndicesArray[Idx];
 			int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
-			if (GeomIdx == -1)
+			if (GeomIdx == -1 || !Collection.IsRigid(TransformIdx))
 			{
 				OutVolumes[Idx] = 0.0;
 			}
@@ -846,9 +846,9 @@ void FilterBonesByVolume(
 {
 	OutSmallBones.Reset();
 
-	auto AddIdx = [&Collection, &Volumes, &Filter, &OutSmallBones](int32 TransformIdx)
+	auto AddIdx = [&Collection, &Volumes, &Filter, &OutSmallBones](int32 TransformIdx, double Volume)
 	{
-		if (Collection.TransformToGeometryIndex[TransformIdx] > -1 && Filter(Volumes[TransformIdx], TransformIdx))
+		if (Collection.IsRigid(TransformIdx) && Collection.TransformToGeometryIndex[TransformIdx] > -1 && Filter(Volume, TransformIdx))
 		{
 			OutSmallBones.Add(TransformIdx);
 		}
@@ -864,7 +864,7 @@ void FilterBonesByVolume(
 		}
 		for (int32 TransformIdx = 0; TransformIdx < NumTransforms; TransformIdx++)
 		{
-			AddIdx(TransformIdx);
+			AddIdx(TransformIdx, Volumes[TransformIdx]);
 		}
 	}
 	else
@@ -873,9 +873,10 @@ void FilterBonesByVolume(
 		{
 			return;
 		}
-		for (int32 TransformIdx : TransformIndices)
+		for (int32 Idx = 0; Idx < TransformIndices.Num(); ++Idx)
 		{
-			AddIdx(TransformIdx);
+			int32 TransformIdx = TransformIndices[Idx];
+			AddIdx(TransformIdx, Volumes[Idx]);
 		}
 	}
 }
@@ -1041,22 +1042,22 @@ int32 MergeBones(
 		return Center;
 	};
 
-	for (int32 TransformIdx : TransformIndices)
+	for (int32 Idx = 0; Idx < TransformIndices.Num(); ++Idx)
 	{
+		int32 TransformIdx = TransformIndices[Idx];
 		int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
 		if (GeomIdx > -1 && Collection.IsRigid(TransformIdx))
 		{
 			CanMerge.Add(GeomIdx);
-			GeomToVol.Add(GeomIdx, Volumes[TransformIdx]);
+			GeomToVol.Add(GeomIdx, Volumes[Idx]);
 		}
 	}
 	for (int32 TransformIdx : SmallTransformIndices)
 	{
 		int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
-		if (GeomIdx > -1 && Collection.IsRigid(TransformIdx))
+		if (GeomIdx > -1 && Collection.IsRigid(TransformIdx) && GeomToVol.Contains(GeomIdx))
 		{
 			TooSmalls.Add(GeomIdx);
-			GeomToVol.Add(GeomIdx, Volumes[TransformIdx]);
 		}
 		else
 		{

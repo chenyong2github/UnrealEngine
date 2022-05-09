@@ -308,6 +308,7 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 		{
 			FGeometryCollectionEdit EditCollection(FractureContext.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic, !ExecuteUpdatesShape());
 
+			int32 InitialNumTransforms = FractureContext.GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
 			int32 FirstNewGeometryIndex = ExecuteFracture(FractureContext);
 			
 			if (FirstNewGeometryIndex > INDEX_NONE)
@@ -326,10 +327,21 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 				}
 
 				FractureContext.SetSelection(NewTransforms);
-
-				Toolkit->RegenerateHistogram();
+			}
+			else
+			{
+				// either no update was done, or the updated range was not expressible as a final geometry index
+				// -- in the latter case, selection may become invalid, so we should clear it
+				int32 NumTransforms = FractureContext.GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
+				TArray<int32>& Selection = FractureContext.GetSelection();
+				if (InitialNumTransforms != NumTransforms)
+				{
+					Selection.Empty();
+				}
+				FractureContext.Sanitize(false);
 			}
 			
+			Toolkit->RegenerateHistogram();
 
 			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(FractureContext.GetGeometryCollection().Get(), -1);
 

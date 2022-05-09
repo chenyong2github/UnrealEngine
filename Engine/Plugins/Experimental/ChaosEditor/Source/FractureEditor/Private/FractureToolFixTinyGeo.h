@@ -27,6 +27,14 @@ enum class ENeighborSelectionMethod
 	NearestCenter
 };
 
+UENUM()
+enum class EUseBoneSelection
+{
+	NoEffect,
+	AlsoMergeSelected,
+	OnlyMergeSelected
+};
+
 /** Settings controlling how geometry is selected and merged into neighboring geometry */
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureTinyGeoSettings : public UFractureToolSettings
@@ -42,9 +50,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = MergeSettings)
 	ENeighborSelectionMethod NeighborSelection = ENeighborSelectionMethod::LargestNeighbor;
 
-	/** Also merge selected bones to their neighbors */
-	UPROPERTY(EditAnywhere, Category = MergeSettings, meta = (DisplayName = "Merge Selected"))
-	bool bAlsoMergeSelected = false;
+	/** Options for using the current bone selection */
+	UPROPERTY(EditAnywhere, Category = MergeSettings, meta = (DisplayName = "Bone Selection"))
+	EUseBoneSelection UseBoneSelection;
 
 
 	UPROPERTY(EditAnywhere, Category = FilterSettings)
