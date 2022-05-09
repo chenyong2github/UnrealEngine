@@ -67,7 +67,7 @@ FLumenViewCardTracingInputs::FLumenViewCardTracingInputs(FRDGBuilder& GraphBuild
 		{
 			const FLumenVoxelLightingClipmapState& Clipmap = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex];
 
-			ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
+			ClipmapWorldToUVScale[ClipmapIndex] = Clipmap.Extent.GetMax() > 0.0f ? FVector(1.0f) / (2.0f * Clipmap.Extent) : FVector(1.0f);
 			ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * ClipmapWorldToUVScale[ClipmapIndex];
 			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
 			ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
