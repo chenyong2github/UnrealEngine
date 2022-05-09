@@ -380,18 +380,20 @@ public:
 	 *
 	 * @param 	InPredicate			Predicate to call for each node, returning whether to continue iteration or not
 	 * @param 	bIncludeThisNode	Whether to include this node in the iteration, or just children
+	 * @param   bJustVisible		Whether or not we check the visible state of the node when adding it
 	 * @return  true where the client prematurely exited the iteration, false otherwise
 	 */
-	bool Traverse_ChildFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode = true);
+	bool Traverse_ChildFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode = true, bool bJustVisible = false);
 
 	/**
 	 * Iterate this entire node tree, parent first.
 	 *
 	 * @param 	InPredicate			Predicate to call for each node, returning whether to continue iteration or not
 	 * @param 	bIncludeThisNode	Whether to include this node in the iteration, or just children
+	 * @param   bJustVisible		Whether or not we check the visible state of the node when adding it
 	 * @return  true where the client prematurely exited the iteration, false otherwise
 	 */
-	bool Traverse_ParentFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode = true);
+	bool Traverse_ParentFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode = true, bool bJustVisible = false);
 
 	/**
 	 * Iterate any visible portions of this node's sub-tree, child first.
@@ -457,7 +459,7 @@ public:
 	}
 
 	/** Gets all the key area nodes recursively, including this node if applicable */
-	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<class FSequencerSectionKeyAreaNode>>& OutNodes) const;
+	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<class FSequencerSectionKeyAreaNode>>& OutNodes, bool bJustVisible = false) const;
 
 	/**
 	 * @return The base node this node belongs to, for collections of tracks that are part of an object

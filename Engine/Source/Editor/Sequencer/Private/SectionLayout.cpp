@@ -2,6 +2,8 @@
 
 #include "SectionLayout.h"
 #include "Layout/Geometry.h"
+#include "Sequencer.h"
+#include "SequencerSettings.h"
 
 bool FSectionLayoutElementKeyFuncs::Matches(const FSectionLayoutElement& A, const FSectionLayoutElement& B)
 {
@@ -37,7 +39,8 @@ uint32 FSectionLayoutElementKeyFuncs::GetKeyHash(const FSectionLayoutElement& Ke
 FSectionLayoutElement FSectionLayoutElement::FromGroup(const TSharedRef<FSequencerDisplayNode>& InNode, UMovieSceneSection* InSection, float InOffset)
 {
 	TArray< TSharedRef<FSequencerSectionKeyAreaNode> > ChildKeyAreaNodes;
-	InNode->GetChildKeyAreaNodesRecursively(ChildKeyAreaNodes);
+	const bool bJustVisible = true;
+	InNode->GetChildKeyAreaNodesRecursively(ChildKeyAreaNodes, bJustVisible);
 
 	FSectionLayoutElement Tmp;
 	Tmp.Type = Group;

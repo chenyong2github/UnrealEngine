@@ -32,14 +32,18 @@ struct SEQUENCER_API FAddKeyOperation
 	 * Construct an operation from any set of display nodes. Each node in the set will receive keys for all decendant key areas.
 	 *
 	 * @param InNodes A set of all the nodes to key
+	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	static FAddKeyOperation FromNodes(const TSet<TSharedRef<FSequencerDisplayNode>>& InNodes);
+	static FAddKeyOperation FromNodes(const TSet<TSharedRef<FSequencerDisplayNode>>& InNodes, bool bJustVisible = false);
 
 
 	/**
 	 * Construct an operation from a single display node. Every key area underneath this node will receive keys.
+	 * 
+	 * @param InNode Node to key
+	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	static FAddKeyOperation FromNode(TSharedRef<FSequencerDisplayNode> InNode);
+	static FAddKeyOperation FromNode(TSharedRef<FSequencerDisplayNode> InNode, bool bJustVisible = false);
 
 
 	/**
@@ -62,8 +66,9 @@ private:
 	 * Add a set of nodes to this operation that have already had child nodes removed (ie only parent nodes should exist in the set)
 	 *
 	 * @param InNodes     A set of nodes to add to this operation that contains no child nodes
+	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	void AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> InNodes);
+	void AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> InNodes, bool bJustVisible);
 
 
 	/**
@@ -71,8 +76,9 @@ private:
 	 *
 	 * @param InTrackNode           The current track node
 	 * @param InKeyAnythingBeneath  A node to search within for key areas
+	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	bool ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FSequencerDisplayNode* InKeyAnythingBeneath);
+	bool ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FSequencerDisplayNode* InKeyAnythingBeneath, bool bJustVisible);
 
 
 	/**
@@ -80,8 +86,9 @@ private:
 	 *
 	 * @param InTrackNode         The current track node
 	 * @param InKeyAreaNode       The key area node to add key areas from
+	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	bool ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, const FSequencerSectionKeyAreaNode* InKeyAreaNode);
+	bool ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, const FSequencerSectionKeyAreaNode* InKeyAreaNode, bool bJustVisible);
 
 
 	/**

@@ -6,6 +6,8 @@
 #include "DisplayNodes/SequencerDisplayNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
+#include "Sequencer.h"
+#include "SequencerSettings.h"
 
 FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(const TArray<FSequencerDisplayNode*>& InNodes, FFrameNumber InDuplicateThresholdTime)
 {
@@ -46,6 +48,8 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecu
 
 	TArray<TSharedRef<FSequencerSectionKeyAreaNode>> AllKeyAreaNodes;
 	AllKeyAreaNodes.Reserve(36);
+	const bool bJustVisible = true;
+
 	for (FSequencerDisplayNode* Node : InNodes)
 	{
 		if (Node->GetType() == ESequencerNode::KeyArea)
@@ -53,7 +57,7 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecu
 			AllKeyAreaNodes.Add(StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node->AsShared()));
 		}
 
-		Node->GetChildKeyAreaNodesRecursively(AllKeyAreaNodes);
+		Node->GetChildKeyAreaNodesRecursively(AllKeyAreaNodes, bJustVisible);
 	}
 
 	for (const TSharedRef<FSequencerSectionKeyAreaNode>& Node : AllKeyAreaNodes)
@@ -75,7 +79,9 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodeRecur
 
 	TArray<TSharedRef<FSequencerSectionKeyAreaNode>> AllKeyAreaNodes;
 	AllKeyAreaNodes.Reserve(36);
-	InNode.GetChildKeyAreaNodesRecursively(AllKeyAreaNodes);
+
+	const bool bJustVisible = true;
+	InNode.GetChildKeyAreaNodesRecursively(AllKeyAreaNodes, bJustVisible);
 
 	for (const auto& Node : AllKeyAreaNodes)
 	{

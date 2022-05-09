@@ -711,9 +711,9 @@ void FSequencerTrackNode::Resize(float NewSize)
 	}
 }
 
-void FSequencerTrackNode::GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSequencerSectionKeyAreaNode>>& OutNodes) const
+void FSequencerTrackNode::GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSequencerSectionKeyAreaNode>>& OutNodes, bool bJustVisible) const
 {
-	FSequencerDisplayNode::GetChildKeyAreaNodesRecursively(OutNodes);
+	FSequencerDisplayNode::GetChildKeyAreaNodesRecursively(OutNodes, bJustVisible);
 
 	if (TopLevelKeyNode.IsValid())
 	{

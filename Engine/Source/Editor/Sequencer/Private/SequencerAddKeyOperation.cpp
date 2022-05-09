@@ -17,7 +17,7 @@ namespace Sequencer
 {
 
 
-FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TSharedRef<FSequencerDisplayNode>>& InNodes)
+FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TSharedRef<FSequencerDisplayNode>>& InNodes, bool bJustVisible)
 {
 	FAddKeyOperation Operation;
 
@@ -42,14 +42,14 @@ FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TSharedRef<FSequencerDis
 		continue;
 	}
 
-	Operation.AddPreFilteredNodes(FilteredNodes);
+	Operation.AddPreFilteredNodes(FilteredNodes, bJustVisible);
 	return Operation;
 }
 
-FAddKeyOperation FAddKeyOperation::FromNode(TSharedRef<FSequencerDisplayNode> InNode)
+FAddKeyOperation FAddKeyOperation::FromNode(TSharedRef<FSequencerDisplayNode> InNode, bool bJustVisible)
 {
 	FAddKeyOperation Operation;
-	Operation.AddPreFilteredNodes(MakeArrayView(&InNode, 1));
+	Operation.AddPreFilteredNodes(MakeArrayView(&InNode, 1), bJustVisible);
 	return Operation;
 }
 
@@ -66,9 +66,9 @@ FAddKeyOperation FAddKeyOperation::FromKeyAreas(ISequencerTrackEditor* TrackEdit
 	return Operation;
 }
 
-void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> FilteredNodes)
+void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> FilteredNodes, bool bJustVisible)
 {
-	auto KeyChildTrackArea = [this](FSequencerDisplayNode& InNode)
+	auto KeyChildTrackArea = [this, bJustVisible](FSequencerDisplayNode& InNode)
 	{
 		if (InNode.GetType() == ESequencerNode::Track)
 		{
@@ -76,7 +76,7 @@ void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequence
 			if (TrackNode->GetSubTrackMode() != FSequencerTrackNode::ESubTrackMode::ParentTrack)
 			{
 				// Consider everything underneath this track for keying
-				this->ConsiderKeyableAreas(TrackNode, TrackNode);
+				this->ConsiderKeyableAreas(TrackNode, TrackNode, bJustVisible);
 			}
 		}
 		return true;
@@ -86,20 +86,20 @@ void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequence
 	{
 		if (TSharedPtr<FSequencerTrackNode> ParentTrack = Node->FindParentTrackNode())
 		{
-			ConsiderKeyableAreas(ParentTrack.Get(), &Node.Get());
+			ConsiderKeyableAreas(ParentTrack.Get(), &Node.Get(), bJustVisible);
 		}
 		else
 		{
-			Node->Traverse_ParentFirst(KeyChildTrackArea);
+			Node->Traverse_ParentFirst(KeyChildTrackArea, true/*bIncludeThisNode*/, bJustVisible);
 		}
 	}
 }
 
-bool FAddKeyOperation::ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FSequencerDisplayNode* KeyAnythingBeneath)
+bool FAddKeyOperation::ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FSequencerDisplayNode* KeyAnythingBeneath, bool bJustVisible)
 {
 	bool bKeyedAnything = false;
 
-	auto Traversal = [this, InTrackNode, &bKeyedAnything](FSequencerDisplayNode& InNode)
+	auto Traversal = [this, InTrackNode, &bKeyedAnything, bJustVisible](FSequencerDisplayNode& InNode)
 	{
 		if (InNode.GetType() == ESequencerNode::Track)
 		{
@@ -107,28 +107,30 @@ bool FAddKeyOperation::ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FS
 
 			if (TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode = ThisTrackNode->GetTopLevelKeyNode())
 			{
-				bKeyedAnything |= this->ProcessKeyAreaNode(ThisTrackNode, KeyAreaNode.Get());
+				bKeyedAnything |= this->ProcessKeyAreaNode(ThisTrackNode, KeyAreaNode.Get(), bJustVisible);
 			}
 		}
 
 		if (InNode.GetType() == ESequencerNode::KeyArea)
 		{
-			bKeyedAnything |= this->ProcessKeyAreaNode(InTrackNode, static_cast<FSequencerSectionKeyAreaNode*>(&InNode));
+			bKeyedAnything |= this->ProcessKeyAreaNode(InTrackNode, static_cast<FSequencerSectionKeyAreaNode*>(&InNode), bJustVisible);
 		}
 		return true;
 	};
-	KeyAnythingBeneath->Traverse_ParentFirst(Traversal, true);
+	KeyAnythingBeneath->Traverse_ParentFirst(Traversal, true/*bIncludeThisNode*/, bJustVisible);
 
 	return bKeyedAnything;
 }
 
-bool FAddKeyOperation::ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, const FSequencerSectionKeyAreaNode* KeyAreaNode)
+bool FAddKeyOperation::ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, const FSequencerSectionKeyAreaNode* KeyAreaNode, bool bJustVisible)
 {
 	bool bKeyedAnything = false;
-
-	for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode->GetAllKeyAreas())
+	if (bJustVisible == false || InTrackNode->IsVisible())
 	{
-		bKeyedAnything |= ProcessKeyArea(InTrackNode, KeyArea);
+		for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode->GetAllKeyAreas())
+		{
+			bKeyedAnything |= ProcessKeyArea(InTrackNode, KeyArea);
+		}
 	}
 
 	return bKeyedAnything;

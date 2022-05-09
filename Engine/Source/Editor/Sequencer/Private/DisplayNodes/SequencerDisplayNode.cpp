@@ -627,11 +627,11 @@ FGuid FSequencerDisplayNode::GetObjectGuid() const
 	return ObjectBindingNode ? ObjectBindingNode->GetObjectBinding() : FGuid();
 }
 
-bool FSequencerDisplayNode::Traverse_ChildFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode)
+bool FSequencerDisplayNode::Traverse_ChildFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode, bool bJustVisible)
 {
 	for (auto& Child : GetChildNodes())
 	{
-		if (!Child->Traverse_ChildFirst(InPredicate, true))
+		if ((bJustVisible == true  && Child->IsVisible() == false) || !Child->Traverse_ChildFirst(InPredicate, true))
 		{
 			return false;
 		}
@@ -641,7 +641,7 @@ bool FSequencerDisplayNode::Traverse_ChildFirst(const TFunctionRef<bool(FSequenc
 }
 
 
-bool FSequencerDisplayNode::Traverse_ParentFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode)
+bool FSequencerDisplayNode::Traverse_ParentFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode, bool bJustVisible)
 {
 	if (bIncludeThisNode && !InPredicate(*this))
 	{
@@ -650,7 +650,7 @@ bool FSequencerDisplayNode::Traverse_ParentFirst(const TFunctionRef<bool(FSequen
 
 	for (auto& Child : GetChildNodes())
 	{
-		if (!Child->Traverse_ParentFirst(InPredicate, true))
+		if ((bJustVisible == true &&  Child->IsVisible() == false) || !Child->Traverse_ParentFirst(InPredicate, true))
 		{
 			return false;
 		}
@@ -735,7 +735,8 @@ bool FSequencerDisplayNode::IsDimmed() const
 		{
 			TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
 			const FSequencerTrackNode& TrackNode = static_cast<FSequencerTrackNode&>(InNode);
-			TrackNode.GetChildKeyAreaNodesRecursively(KeyAreaNodes);
+			const bool bJustVisible = true;
+			TrackNode.GetChildKeyAreaNodesRecursively(KeyAreaNodes, true);
 			if (KeyAreaNodes.Num() > 0)
 			{
 				for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
@@ -1283,16 +1284,16 @@ void FSequencerDisplayNode::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
 }
 
 
-void FSequencerDisplayNode::GetChildKeyAreaNodesRecursively(TArray< TSharedRef<FSequencerSectionKeyAreaNode> >& OutNodes) const
+void FSequencerDisplayNode::GetChildKeyAreaNodesRecursively(TArray< TSharedRef<FSequencerSectionKeyAreaNode> >& OutNodes, bool bJustVisible) const
 {
 	for (const TSharedRef<FSequencerDisplayNode>& Node : ChildNodes)
 	{
-		if (Node->GetType() == ESequencerNode::KeyArea)
+		if (Node->GetType() == ESequencerNode::KeyArea && (bJustVisible == false || Node->IsVisible()))
 		{
 			OutNodes.Add(StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node));
 		}
 
-		Node->GetChildKeyAreaNodesRecursively(OutNodes);
+		Node->GetChildKeyAreaNodesRecursively(OutNodes, bJustVisible);
 	}
 }
 

@@ -24,6 +24,7 @@
 #include "Modules/ModuleManager.h"
 #include "IKeyArea.h"
 #include "SequencerAddKeyOperation.h"
+#include "SequencerSettings.h"
 
 #define LOCTEXT_NAMESPACE "SKeyNavigationButtons"
 
@@ -247,7 +248,9 @@ public:
 		FFrameTime  CurrentTime = Sequencer.GetLocalTime().Time;
 
 		FScopedTransaction Transaction(LOCTEXT("AddKeys", "Add Keys at Current Time"));
-		FAddKeyOperation::FromNode(DisplayNode.ToSharedRef()).Commit(CurrentTime.FrameNumber, Sequencer);
+		const bool bJustVisible = true;
+
+		FAddKeyOperation::FromNode(DisplayNode.ToSharedRef(), bJustVisible ).Commit(CurrentTime.FrameNumber, Sequencer);
 
 		return FReply::Handled();
 	}
