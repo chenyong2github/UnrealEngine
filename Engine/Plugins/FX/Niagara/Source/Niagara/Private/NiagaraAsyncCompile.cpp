@@ -45,11 +45,11 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 		for (int32 i = 0; i < EmitterHandles.Num(); i++)
 		{
 			const FNiagaraEmitterHandle& Handle = EmitterHandles[i];
-			if (Handle.GetInstance() && Handle.GetIsEnabled())
+			if (Handle.GetEmitterData() && Handle.GetIsEnabled())
 			{
 				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = SystemPrecompiledData->GetDependentRequest(i);
 				TArray<UNiagaraScript*> EmitterScripts;
-				Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
+				Handle.GetEmitterData()->GetScripts(EmitterScripts, false, true);
 				check(EmitterScripts.Num() > 0);
 				for (UNiagaraScript* EmitterScript : EmitterScripts)
 				{
@@ -264,7 +264,7 @@ void FNiagaraAsyncCompileTask::PrecompileData()
 	DDCKey = CurrentDDCKey;
 	
 	ComputedPrecompileData = PrecompileReference->GetPrecompileData(ScriptPair.CompiledScript);
-	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> SystemPrecompileDuplicateData = PrecompileReference->GetPrecompileDuplicateData(ScriptPair.Emitter, ScriptPair.CompiledScript);
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> SystemPrecompileDuplicateData = PrecompileReference->GetPrecompileDuplicateData(ScriptPair.VersionedEmitter.Emitter, ScriptPair.CompiledScript);
 
 	if (ComputedPrecompileData == nullptr || SystemPrecompileDuplicateData == nullptr)
 	{
@@ -286,8 +286,8 @@ void FNiagaraAsyncCompileTask::PrecompileData()
 	}
 	else
 	{
-		UNiagaraEmitter* OwningEmitter = ScriptPair.Emitter;
-		int32 EmitterIndex = OwningSystem->GetEmitterHandles().IndexOfByPredicate([OwningEmitter](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetInstance() == OwningEmitter; });
+		UNiagaraEmitter* OwningEmitter = ScriptPair.VersionedEmitter.Emitter;
+		int32 EmitterIndex = OwningSystem->GetEmitterHandles().IndexOfByPredicate([OwningEmitter](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetInstance().Emitter == OwningEmitter; });
 		if(EmitterIndex != INDEX_NONE)
 		{
 			ComputedPrecompileDuplicateData = SystemPrecompileDuplicateData->GetDependentRequest(EmitterIndex);

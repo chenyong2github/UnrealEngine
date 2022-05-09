@@ -4,15 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
-#include "UObject/Object.h"
 #include "RHIDefinitions.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "NiagaraMergeable.h"
-#include "NiagaraGPUSortInfo.h"
 #include "NiagaraPlatformSet.h"
 #include "NiagaraRendererProperties.generated.h"
 
+struct FVersionedNiagaraEmitterData;
 class FNiagaraRenderer;
 class FNiagaraSystemInstanceController;
 class UMaterial;
@@ -42,7 +41,6 @@ public:
           , SummaryText(InSummaryText)
           , FixDescription(FText())
           , Fix(FNiagaraRendererFeedbackFix())
-		  , Dismissable(false)
 	{}
 
 	FNiagaraRendererFeedback()
@@ -91,7 +89,7 @@ private:
 	FText SummaryText;
 	FText FixDescription;
 	FNiagaraRendererFeedbackFix Fix;
-	bool Dismissable;
+	bool Dismissable = false;
 };
 #endif
 
@@ -209,7 +207,7 @@ public:
 	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;
 
 	/** Method to add asset tags that are specific to this renderer. By default we add in how many instances of this class exist in the list.*/
-	virtual void GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const;
+	virtual void GetAssetTagsForContext(const UObject* InAsset, FGuid AssetVersion, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const;
 
 	/** In the case that we need parameters bound in that aren't Particle variables, these should be set up here so that the data is appropriately populated after the simulation.*/
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore);
@@ -220,8 +218,8 @@ public:
 
 	/** Internal handling of any emitter variable renames. Note that this doesn't modify the renderer, the caller will need to do that if it is desired.*/
 	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter);
-	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter);
-	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter);
+	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter);
+	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter);
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) { return true; }
 
 	virtual void FixMaterial(UMaterial* Material) { }
@@ -240,8 +238,8 @@ public:
 
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const PURE_VIRTUAL(UNiagaraRendererProperties::GetRendererWidgets, );
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const PURE_VIRTUAL(UNiagaraRendererProperties::GetRendererTooltipWidgets, );
-	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const {};
-	virtual void GetRendererFeedback(UNiagaraEmitter* InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const;
+	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const {};
+	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const;
 
 	// The icon to display in the niagara stack widget under the renderer section
 	virtual const FSlateBrush* GetStackIcon() const;
@@ -275,6 +273,9 @@ public:
 	template<typename TAction>
 	void ForEachPlatformSet(TAction Func);
 
+	FVersionedNiagaraEmitterData* GetEmitterData() const;
+	FVersionedNiagaraEmitter GetOuterEmitter() const;
+
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	FNiagaraPlatformSet Platforms;
@@ -298,6 +299,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	bool bAllowInCullProxies;
 
+	UPROPERTY()
+	FGuid OuterEmitterVersion;
+	
 protected:
 	UPROPERTY()
 	bool bMotionBlurEnabled_DEPRECATED; // This has been rolled into MotionVectorSetting
@@ -323,5 +327,5 @@ protected:
 template<typename TAction>
 void UNiagaraRendererProperties::ForEachPlatformSet(TAction Func)
 {
-	Func(this, Platforms);
+	Func(Platforms);
 }

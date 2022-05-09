@@ -37,12 +37,18 @@ public:
 	uint32 bEnabled : 1;
 
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	/** Return the FName to use in place of the default for the location in the stack context. If this would be the default, return NAME_None.*/
 	virtual FName GetStackContextReplacementName() const { return NAME_None; }
 	void SetEnabled(bool bEnabled);
 	void RequestRecompile();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	UPROPERTY()
+	FGuid OuterEmitterVersion;
+	
+	FVersionedNiagaraEmitterData* GetEmitterData() const;
+	FVersionedNiagaraEmitter GetOuterEmitter() const;
 #endif
 };
 

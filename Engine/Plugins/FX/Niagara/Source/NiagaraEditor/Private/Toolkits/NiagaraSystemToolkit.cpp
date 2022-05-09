@@ -40,6 +40,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SNiagaraEmitterVersionWidget.h"
 #include "BusyCursor.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor.h"
@@ -50,6 +51,8 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
+#include "NiagaraVersionMetaData.h"
+#include "Dialogs/Dialogs.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 #include "SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
@@ -112,6 +115,7 @@ FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 void FNiagaraSystemToolkit::AddReferencedObjects(FReferenceCollector& Collector) 
 {
 	Collector.AddReferencedObject(System);
+	Collector.AddReferencedObject(VersionMetadata);
 }
 
 TSharedPtr<SWidget> FNiagaraSystemToolkit::GetSystemOverview() const
@@ -176,46 +180,54 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 	InitializeInternal(Mode, InitToolkitHost, SystemOptions.MessageLogGuid.GetValue());
 }
 
+void FNiagaraSystemToolkit::InitializeRapidIterationParameters(const FVersionedNiagaraEmitter& VersionedEmitter)
+{
+	// Before copying the emitter prepare the rapid iteration parameters so that the post compile prepare doesn't
+	// cause the change ids to become out of sync.
+	TArray<UNiagaraScript*> Scripts;
+	TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
+	TMap<UNiagaraScript*, FVersionedNiagaraEmitter> ScriptToEmitterMap;
+
+	FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+	Scripts.Add(EmitterData->EmitterSpawnScriptProps.Script);
+	ScriptToEmitterMap.Add(EmitterData->EmitterSpawnScriptProps.Script, VersionedEmitter);
+
+	Scripts.Add(EmitterData->EmitterUpdateScriptProps.Script);
+	ScriptToEmitterMap.Add(EmitterData->EmitterUpdateScriptProps.Script, VersionedEmitter);
+
+	Scripts.Add(EmitterData->SpawnScriptProps.Script);
+	ScriptToEmitterMap.Add(EmitterData->SpawnScriptProps.Script, VersionedEmitter);
+
+	Scripts.Add(EmitterData->UpdateScriptProps.Script);
+	ScriptToEmitterMap.Add(EmitterData->UpdateScriptProps.Script, VersionedEmitter);
+
+	if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		Scripts.Add(EmitterData->GetGPUComputeScript());
+		ScriptToEmitterMap.Add(EmitterData->GetGPUComputeScript(), VersionedEmitter);
+		ScriptDependencyMap.Add(EmitterData->SpawnScriptProps.Script, EmitterData->GetGPUComputeScript());
+		ScriptDependencyMap.Add(EmitterData->UpdateScriptProps.Script, EmitterData->GetGPUComputeScript());
+	} 
+	else if (EmitterData->bInterpolatedSpawning)
+	{
+		ScriptDependencyMap.Add(EmitterData->UpdateScriptProps.Script, EmitterData->SpawnScriptProps.Script);
+	}
+
+	FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
+}
+
 void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraEmitter& InEmitter)
 {
 	System = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient | RF_Transactional);
 	UNiagaraSystemFactoryNew::InitializeSystem(System, true);
 	System->EnsureFullyLoaded();
 
+	InEmitter.UpdateEmitterAfterLoad();
 	Emitter = &InEmitter;
-	Emitter->UpdateEmitterAfterLoad();
 
-	// Before copying the emitter prepare the rapid iteration parameters so that the post compile prepare doesn't
-	// cause the change ids to become out of sync.
-	TArray<UNiagaraScript*> Scripts;
-	TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
-	TMap<UNiagaraScript*, const UNiagaraEmitter*> ScriptToEmitterMap;
-
-	Scripts.Add(Emitter->EmitterSpawnScriptProps.Script);
-	ScriptToEmitterMap.Add(Emitter->EmitterSpawnScriptProps.Script, Emitter);
-
-	Scripts.Add(Emitter->EmitterUpdateScriptProps.Script);
-	ScriptToEmitterMap.Add(Emitter->EmitterUpdateScriptProps.Script, Emitter);
-
-	Scripts.Add(Emitter->SpawnScriptProps.Script);
-	ScriptToEmitterMap.Add(Emitter->SpawnScriptProps.Script, Emitter);
-
-	Scripts.Add(Emitter->UpdateScriptProps.Script);
-	ScriptToEmitterMap.Add(Emitter->UpdateScriptProps.Script, Emitter);
-
-	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		Scripts.Add(Emitter->GetGPUComputeScript());
-		ScriptToEmitterMap.Add(Emitter->GetGPUComputeScript(), Emitter);
-		ScriptDependencyMap.Add(Emitter->SpawnScriptProps.Script, Emitter->GetGPUComputeScript());
-		ScriptDependencyMap.Add(Emitter->UpdateScriptProps.Script, Emitter->GetGPUComputeScript());
-	} 
-	else if (Emitter->bInterpolatedSpawning)
-	{
-		ScriptDependencyMap.Add(Emitter->UpdateScriptProps.Script, Emitter->SpawnScriptProps.Script);
-	}
-
-	FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
+	FGuid VersionGuid = Emitter->IsVersioningEnabled() && Emitter->VersionToOpenInEditor.IsValid() ? Emitter->VersionToOpenInEditor : Emitter->GetExposedVersion().VersionGuid;
+	FVersionedNiagaraEmitter VersionedEmitter = FVersionedNiagaraEmitter(Emitter, VersionGuid);
+	InitializeRapidIterationParameters(VersionedEmitter);
 
 	// No need to reset loader or versioning on the transient package, there should never be any set 
 	
@@ -233,7 +245,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	SystemViewModel->OnGetWorkflowMode().BindSP(this, &FNiagaraSystemToolkit::GetCurrentMode);
 
-	SystemViewModel->AddEmitter(*Emitter);
+	SystemViewModel->AddEmitter(VersionedEmitter);
 
 	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel);
 	ParameterDefinitionsPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterDefinitionsPanelViewModel>(SystemViewModel);
@@ -247,7 +259,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	// Adding the emitter to the system has made a copy of it and we set this to the copy's change id here instead of the original emitter's change 
 	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
 	// emitter has been changed.
-	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter()->GetChangeId();
+	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter().Emitter->GetChangeId();
 	SystemToolkitMode = ESystemToolkitMode::Emitter;
 
 	if (GbLogNiagaraSystemChanges > 0)
@@ -281,11 +293,8 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	
 	SystemViewModel->OnGetWorkflowMode().BindSP(this, &FNiagaraSystemToolkit::GetCurrentMode);
 	
-	const float InTime = -0.02f;
-	const float OutTime = 3.2f;
-	
-	const bool bCreateDefaultStandaloneMenu = true;
-	const bool bCreateDefaultToolbar = true;
+	constexpr bool bCreateDefaultStandaloneMenu = true;
+	constexpr bool bCreateDefaultToolbar = true;
 	UObject* ToolkitObject = SystemToolkitMode == ESystemToolkitMode::System ? (UObject*)System : (UObject*)Emitter;
 	// order of registering commands matters. SetupCommands before InitAssetEditor will make the toolkit prioritize niagara commands
 	SetupCommands();
@@ -296,9 +305,23 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	
 	AddApplicationMode(DefaultModeName, MakeShared<FNiagaraSystemToolkitMode_Default>(SharedThis(this)));
 	AddApplicationMode(ScalabilityModeName, MakeShared<FNiagaraSystemToolkitMode_Scalability>(SharedThis(this)));
+
+	// set up the versioning widget
+	VersionMetadata = NewObject<UNiagaraVersionMetaData>(ToolkitObject, "VersionMetadata", RF_Transient);
+	SAssignNew(VersionsWidget, SNiagaraEmitterVersionWidget, HasEmitter() ? GetEditedEmitterViewModel()->GetEmitter().Emitter : nullptr, VersionMetadata, HasEmitter() ? Emitter->GetOutermost()->GetName() : TEXT(""))
+		.OnChangeToVersion(this, &FNiagaraSystemToolkit::SwitchToVersion)
+		.OnVersionDataChanged_Lambda([this]()
+		{
+			if (TSharedPtr<FNiagaraEmitterViewModel> EditableEmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel())
+			{
+				FVersionedNiagaraEmitter EditableEmitter = EditableEmitterViewModel->GetEmitter();
+				FProperty* VersionProperty = FindFProperty<FProperty>(UNiagaraEmitter::StaticClass(), FName("VersionData"));
+				FPropertyChangedEvent ChangeEvent(VersionProperty);
+				EditableEmitter.Emitter->PostEditChangeProperty(ChangeEvent);
+			}
+		});
 	
 	SetCurrentMode(DefaultModeName);
-	//SystemViewModel->GetScalabilityViewModel()->Activate();
 	
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	AddMenuExtender(NiagaraEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
@@ -380,9 +403,6 @@ void FNiagaraSystemToolkit::PostUndo(bool bSuccess)
 
 void FNiagaraSystemToolkit::SetupCommands()
 {
-	FLevelEditorModule& Module = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	const FLevelEditorCommands& LevelEditorCommands = Module.GetLevelEditorCommands();
-	
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().Compile,
 		FExecuteAction::CreateRaw(this, &FNiagaraSystemToolkit::CompileSystem, false));
@@ -524,17 +544,31 @@ void FNiagaraSystemToolkit::SetupCommands()
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().OpenAttributeSpreadsheet,
 		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OpenAttributeSpreadsheet));
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().EmitterVersioning,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ManageVersions));
 	
 	// appending the sequencer commands will make the toolkit also check for sequencer commands (last)
 	GetToolkitCommands()->Append(SystemViewModel->GetSequencer()->GetCommandBindings(ESequencerCommandBindings::Sequencer).ToSharedRef());
 	SystemViewModel->GetSequencer()->GetCommandBindings(ESequencerCommandBindings::Sequencer)->Append(GetToolkitCommands());
 }
 
+void FNiagaraSystemToolkit::ManageVersions()
+{
+	TabManager->TryInvokeTab(FNiagaraSystemToolkitModeBase::VersioningTabID);
+}
+
+TSharedPtr<FNiagaraEmitterViewModel> FNiagaraSystemToolkit::GetEditedEmitterViewModel() const
+{
+	return HasEmitter() ? SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel() : TSharedPtr<FNiagaraEmitterViewModel>(); 
+}
+
 void FNiagaraSystemToolkit::OnSaveThumbnailImage()
 {
 	if (Viewport.IsValid())
 	{
-		Viewport->CreateThumbnail(SystemToolkitMode == ESystemToolkitMode::System ? (UObject*)System : Emitter);
+		Viewport->CreateThumbnail(SystemToolkitMode == ESystemToolkitMode::System ? static_cast<UObject*>(System) : Emitter);
 	}
 }
 
@@ -551,7 +585,7 @@ void FNiagaraSystemToolkit::OnThumbnailCaptured(UTexture2D* Thumbnail)
 	else if (SystemToolkitMode == ESystemToolkitMode::Emitter) 
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> EditableEmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
-		UNiagaraEmitter* EditableEmitter = EditableEmitterViewModel->GetEmitter();
+		UNiagaraEmitter* EditableEmitter = EditableEmitterViewModel->GetEmitter().Emitter;
 		EditableEmitter->ThumbnailImage = Thumbnail;
 		bEmitterThumbnailUpdated = true;
 		// Broadcast an object property changed event to update the content browser
@@ -646,6 +680,81 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 				.OnTemplateAssetActivated(this, &FNiagaraSystemToolkit::EmitterAssetSelected)
 			]
 		];
+}
+
+FText FNiagaraSystemToolkit::GetVersionButtonLabel() const
+{
+	FText BaseLabel = LOCTEXT("NiagaraShowEmitterVersions", "Versioning");
+	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = GetEditedEmitterViewModel();
+	if (EmitterViewModel && EmitterViewModel->GetEmitter().Emitter->IsVersioningEnabled())
+	{
+		if (FVersionedNiagaraEmitterData* EmitterData = EmitterViewModel->GetEmitter().GetEmitterData())
+		{
+			FNiagaraAssetVersion ExposedVersion = EmitterViewModel->GetEmitter().Emitter->GetExposedVersion();
+			return FText::Format(FText::FromString("{0} ({1}.{2}{3})"), BaseLabel, EmitterData->Version.MajorVersion, EmitterData->Version.MinorVersion, EmitterData->Version <= ExposedVersion ? FText::FromString("*") : FText());
+		}
+	}
+	return BaseLabel;
+}
+
+TArray<FNiagaraAssetVersion> FNiagaraSystemToolkit::GetEmitterVersions() const
+{
+	TArray<FNiagaraAssetVersion> Result;
+	if (TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = GetEditedEmitterViewModel())
+	{
+		Result.Append(EmitterViewModel->GetEmitter().Emitter->GetAllAvailableVersions());
+	}
+	return Result;
+}
+
+TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateVersioningDropdownMenu(TSharedRef<FUICommandList> InCommandList)
+{
+	constexpr bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
+
+	TArray<FNiagaraAssetVersion> AssetVersions = GetEmitterVersions();
+	for (FNiagaraAssetVersion& Version : AssetVersions)
+	{
+		FText Tooltip = LOCTEXT("NiagaraSelectVersion", "Select this emitter version to edit");
+		FUIAction UIAction(FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::SwitchToVersion, Version.VersionGuid),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsVersionSelected, Version));
+		TAttribute<FText> Label = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FNiagaraSystemToolkit::GetVersionMenuLabel, Version));
+		MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), UIAction, NAME_None, EUserInterfaceActionType::RadioButton);	
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+void FNiagaraSystemToolkit::SwitchToVersion(FGuid VersionGuid)
+{
+	if (TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = GetEditedEmitterViewModel())
+	{
+		if (EmitterViewModel->GetEmitter().Version == VersionGuid)
+		{
+			return;
+		}
+		
+		FScopedTransaction Transaction(LOCTEXT("ChangeEmitterVersion", "Switch to emitter version"));
+		InitializeRapidIterationParameters(FVersionedNiagaraEmitter(EmitterViewModel->GetEmitter().Emitter, VersionGuid));
+		if (GetSystemViewModel()->ChangeEmitterVersion(EmitterViewModel->GetEmitter(), VersionGuid))
+		{
+			GetSystemViewModel()->GetSelectionViewModel()->EmptySelection();
+			GetSystemViewModel()->GetSelectionViewModel()->AddEntryToSelectionByDisplayedObjectDeferred(EmitterViewModel->GetEmitter().Emitter);
+		}
+	}
+}
+
+bool FNiagaraSystemToolkit::IsVersionSelected(FNiagaraAssetVersion Version) const
+{
+	return HasEmitter() && GetEditedEmitterViewModel()->GetEmitter().Version == Version.VersionGuid;
+}
+
+FText FNiagaraSystemToolkit::GetVersionMenuLabel(FNiagaraAssetVersion Version) const
+{
+	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = GetEditedEmitterViewModel();
+	bool bIsExposed = EmitterViewModel && Version == EmitterViewModel->GetEmitter().Emitter->GetExposedVersion();
+	return FText::Format(FText::FromString("v{0}.{1} {2}"), Version.MajorVersion, Version.MinorVersion, bIsExposed ? LOCTEXT("NiagaraExposedVersionHint", "(exposed)") : FText());
 }
 
 TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateCompileMenuContent()
@@ -890,43 +999,59 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 	checkf(SystemToolkitMode == ESystemToolkitMode::Emitter, TEXT("There is no original emitter to update in system mode."));
 
 	TSharedPtr<FNiagaraEmitterViewModel> EditableEmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
-	UNiagaraEmitter* EditableEmitter = EditableEmitterViewModel->GetEmitter();
-
-	if (EditableEmitter->GetChangeId() != LastSyncedEmitterChangeId)
+	FVersionedNiagaraEmitter EditableEmitter = EditableEmitterViewModel->GetEmitter();
+	FVersionedNiagaraEmitterData* EditableEmitterData = EditableEmitter.GetEmitterData();
+	UNiagaraEmitter* Source = Emitter;
+	if (EditableEmitter.Emitter->GetChangeId() != LastSyncedEmitterChangeId)
 	{
+		if (EditableEmitter.Emitter->IsVersioningEnabled() && EditableEmitterData->Version <= EditableEmitter.Emitter->GetExposedVersion())
+		{
+			FSuppressableWarningDialog::FSetupInfo Info( 
+				LOCTEXT("ApplyExposedVersionChangesPrompt", "You are about to apply changes to an already exposed asset version. Saving these changes will force-push them out to existing usages!\nConsider creating a new version instead to make those changes."), 
+				LOCTEXT("ApplyExposedVersionChangesTitle", "Warning: editing exposed emitter version"), 
+				TEXT("ApplyExposedEmitterChanges"));
+			Info.ConfirmText = LOCTEXT("ApplyExposedVersionChanges_ConfirmText", "Apply Changes");
+			Info.CancelText = LOCTEXT("ApplyExposedVersionChanges_CancelText", "Cancel");
+			Info.CheckBoxText = LOCTEXT("ApplyExposedVersionChanges_CheckBoxText", "Don't Ask Again");
+
+			if (FSuppressableWarningDialog(Info).ShowModal() == FSuppressableWarningDialog::EResult::Cancel)
+			{
+				return;
+			}
+		}
+		
 		const FScopedBusyCursor BusyCursor;
 		const FText LocalizedScriptEditorApply = NSLOCTEXT("UnrealEd", "ToolTip_NiagaraEmitterEditorApply", "Apply changes to original emitter and its use in the world.");
 		GWarn->BeginSlowTask(LocalizedScriptEditorApply, true);
 		GWarn->StatusUpdate(1, 1, LocalizedScriptEditorApply);
 
-		if (Emitter->IsSelected())
+		if (Source->IsSelected())
 		{
-			GEditor->GetSelectedObjects()->Deselect(Emitter);
+			GEditor->GetSelectedObjects()->Deselect(Source);
 		}
 
-		ResetLoaders(Emitter->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
+		ResetLoaders(Source->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
 
 		TArray<UNiagaraScript*> AllScripts;
-		EditableEmitter->GetScripts(AllScripts, true);
+		EditableEmitterData->GetScripts(AllScripts, true);
 		for (UNiagaraScript* Script : AllScripts)
 		{
 			checkfSlow(Script->AreScriptAndSourceSynchronized(), TEXT("Editable Emitter Script change ID is out of date when applying to Original Emitter!"));
 		}
-		Emitter->PreEditChange(nullptr);
+		Source->PreEditChange(nullptr);
 		// overwrite the original script in place by constructing a new one with the same name
-		Emitter = (UNiagaraEmitter*)StaticDuplicateObject(EditableEmitter, Emitter->GetOuter(),
-			Emitter->GetFName(), RF_AllFlags, Emitter->GetClass());
+		Source = Cast<UNiagaraEmitter>(StaticDuplicateObject(EditableEmitter.Emitter, Source->GetOuter(), Source->GetFName(), RF_AllFlags, Source->GetClass()));
 
 		// Restore RF_Standalone and RF_Public on the original emitter, as it had been removed from the preview emitter so that it could be GC'd.
-		Emitter->SetFlags(RF_Standalone | RF_Public);
+		Source->SetFlags(RF_Standalone | RF_Public);
 
-		Emitter->PostEditChange();
+		Source->PostEditChange();
 
 		TArray<UNiagaraScript*> EmitterScripts;
-		Emitter->GetScripts(EmitterScripts, false);
+		Source->GetEmitterData(EditableEmitter.Version)->GetScripts(EmitterScripts, false);
 
 		TArray<UNiagaraScript*> EditableEmitterScripts;
-		EditableEmitter->GetScripts(EditableEmitterScripts, false);
+		EditableEmitterData->GetScripts(EditableEmitterScripts, false);
 
 		// Validate that the change ids on the original emitters match the editable emitters ids to ensure the DDC contents are up to data without having to recompile.
 		if (ensureMsgf(EmitterScripts.Num() == EditableEmitterScripts.Num(), TEXT("Script count mismatch after copying from editable emitter to original emitter.")))
@@ -943,7 +1068,7 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		}
 
 		// Record the last synced change id to detect future changes.
-		LastSyncedEmitterChangeId = EditableEmitter->GetChangeId();
+		LastSyncedEmitterChangeId = EditableEmitter.Emitter->GetChangeId();
 		bEmitterThumbnailUpdated = false;
 
 		UpdateExistingEmitters();
@@ -951,14 +1076,14 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 	}
 	else if(bEmitterThumbnailUpdated)
 	{
-		Emitter->MarkPackageDirty();
-		Emitter->ThumbnailImage = (UTexture2D*)StaticDuplicateObject(EditableEmitter->ThumbnailImage, Emitter);
-		Emitter->PostEditChange();
+		Source->MarkPackageDirty();
+		Source->ThumbnailImage = (UTexture2D*)StaticDuplicateObject(EditableEmitter.Emitter->ThumbnailImage, Source);
+		Source->PostEditChange();
 		bEmitterThumbnailUpdated = false;
 	}
 }
 
-void MergeEmittersRecursively(UNiagaraEmitter* ChangedEmitter, const TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>>& EmitterToReferencingEmittersMap, TSet<UNiagaraEmitter*>& OutMergedEmitters)
+void MergeEmittersRecursively(const UNiagaraEmitter* ChangedEmitter, const TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>>& EmitterToReferencingEmittersMap, TSet<UNiagaraEmitter*>& OutMergedEmitters)
 {
 	const TArray<UNiagaraEmitter*>* ReferencingEmitters = EmitterToReferencingEmittersMap.Find(ChangedEmitter);
 	if (ReferencingEmitters != nullptr)
@@ -979,14 +1104,21 @@ void FNiagaraSystemToolkit::UpdateExistingEmitters()
 {
 	// Build a tree of references from the currently loaded emitters so that we can efficiently find all emitters that reference the modified emitter.
 	TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>> EmitterToReferencingEmittersMap;
-	UNiagaraEmitter* EditableCopy = System->GetEmitterHandles()[0].GetInstance();
+	UNiagaraEmitter* EditableCopy = System->GetEmitterHandles()[0].GetInstance().Emitter;
 	for (TObjectIterator<UNiagaraEmitter> EmitterIterator; EmitterIterator; ++EmitterIterator)
 	{
 		UNiagaraEmitter* LoadedEmitter = *EmitterIterator;
-		if (LoadedEmitter != EditableCopy && LoadedEmitter->GetParent() != nullptr)
+		if (LoadedEmitter != EditableCopy)
 		{
-			TArray<UNiagaraEmitter*>& ReferencingEmitters = EmitterToReferencingEmittersMap.FindOrAdd(LoadedEmitter->GetParent());
-			ReferencingEmitters.Add(LoadedEmitter);
+			for (FNiagaraAssetVersion Version : LoadedEmitter->GetAllAvailableVersions())
+			{
+				FVersionedNiagaraEmitterData* EmitterData = LoadedEmitter->GetEmitterData(Version.VersionGuid);
+				if (UNiagaraEmitter* ParentEmitter = EmitterData->GetParent().Emitter)
+				{
+					TArray<UNiagaraEmitter*>& ReferencingEmitters = EmitterToReferencingEmittersMap.FindOrAdd(ParentEmitter);
+					ReferencingEmitters.AddUnique(LoadedEmitter);
+				}
+			}
 		}
 	}
 
@@ -1006,7 +1138,7 @@ void FNiagaraSystemToolkit::UpdateExistingEmitters()
 			bool bUsesMergedEmitterDirectly = false;
 			for (const FNiagaraEmitterHandle& EmitterHandle : LoadedSystem->GetEmitterHandles())
 			{
-				if (MergedEmitters.Contains(EmitterHandle.GetInstance()))
+				if (MergedEmitters.Contains(EmitterHandle.GetInstance().Emitter))
 				{
 					bUsesMergedEmitterDirectly = true;
 					break;
@@ -1133,7 +1265,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
-		if (bChangesDiscarded == false && (EmitterViewModel->GetEmitter()->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated))
+		if (bChangesDiscarded == false && (EmitterViewModel->GetEmitter().Emitter->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated))
 		{
 			// find out the user wants to do with this dirty emitter.
 			EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,
@@ -1194,7 +1326,7 @@ bool FNiagaraSystemToolkit::OnApplyEnabled() const
 	if (Emitter != nullptr)
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
-		return EmitterViewModel->GetEmitter()->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated;
+		return EmitterViewModel->GetEmitter().Emitter->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated;
 	}
 	return false;
 }
@@ -1239,9 +1371,9 @@ void FNiagaraSystemToolkit::RefreshParameters()
 
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleToDisplay : EmitterHandlesToDisplay)
 	{
-		if (EmitterHandleToDisplay->IsValid() && EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter() != nullptr)
+		if (EmitterHandleToDisplay->IsValid() && EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter().Emitter != nullptr)
 		{
-			NewParameterViewSelection.Add(EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter());
+			NewParameterViewSelection.Add(EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter().Emitter);
 		}
 	}
 

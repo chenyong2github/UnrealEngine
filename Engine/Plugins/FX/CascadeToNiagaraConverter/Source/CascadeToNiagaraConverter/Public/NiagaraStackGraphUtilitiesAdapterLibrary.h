@@ -24,12 +24,15 @@
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
 #include "Curves/RichCurve.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraMessages.h"
 #include "Particles/Location/ParticleModuleLocationPrimitiveCylinder.h"
 #include "Particles/Location/ParticleModuleLocationBoneSocket.h"
 #include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
 #include "Particles/Velocity/ParticleModuleVelocityInheritParent.h"
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.generated.h"
 
+class UNiagaraScriptConversionContextInput;
+class UNiagaraScriptConversionContext;
 class UNiagaraSystem;
 class UNiagaraEmitter;
 class UNiagaraRendererProperties;
@@ -672,7 +675,7 @@ public:
 	void Finalize();
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	UNiagaraEmitter* GetEmitter() {return Emitter;};
+	UNiagaraEmitter* GetEmitter() {return Emitter.Emitter;}
 
 	void InternalFinalizeEvents(UNiagaraSystemConversionContext* OwningSystemConversionContext);
 
@@ -683,7 +686,7 @@ public:
 	 * @param InEmitter						The Emitter to convert.
 	 * @param InEmitterHandleViewModelGuid	A Guid key to the FNiagaraEmitterHandleViewModel pointing at the InEmitter.
 	 */
-	void Init(UNiagaraEmitter* InEmitter, const TSharedPtr<FNiagaraEmitterHandleViewModel>& InEmitterHandleViewModel)
+	void Init(FVersionedNiagaraEmitter InEmitter, const TSharedPtr<FNiagaraEmitterHandleViewModel>& InEmitterHandleViewModel)
 	{
 		Emitter = InEmitter;
 		EmitterHandleViewModel = InEmitterHandleViewModel;
@@ -708,7 +711,7 @@ public:
 	void RemoveModuleScriptsForAssets(TArray<FAssetData> ScriptsToRemove);
 
 private:
-	UNiagaraEmitter* Emitter;
+	FVersionedNiagaraEmitter Emitter;
 
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 

@@ -5,6 +5,7 @@
 #include <atomic>
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraRendererProperties.h"
 #include "Components/PointLightComponent.h"
 #include "NiagaraComponentRendererProperties.generated.h"
@@ -71,7 +72,7 @@ public:
 
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
-	virtual void GetRendererFeedback(UNiagaraEmitter* InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
+	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
 	virtual const FSlateBrush* GetStackIcon() const override;
 	virtual FText GetWidgetDisplayName() const override;
 
@@ -162,7 +163,7 @@ private:
 	static TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> ComponentRendererPropertiesToDeferredInit;
 
 	// this is just used to check for localspace when creating a new template component
-	const UNiagaraEmitter* EmitterPtr;
+	FVersionedNiagaraEmitter EmitterPtr;
 
 	void CreateTemplateComponent();
 

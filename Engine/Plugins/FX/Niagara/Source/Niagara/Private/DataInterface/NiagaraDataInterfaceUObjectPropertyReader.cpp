@@ -601,7 +601,7 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::InitPerInstanceData(void* PerIn
 		// We shouldn't need to do this per init, we should be able to cache once and once only
 		for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
 		{
-			if (EmitterInstance->IsDisabled() || EmitterInstance->GetCachedEmitter() == nullptr || EmitterInstance->GetGPUContext() == nullptr)
+			if (EmitterInstance->IsDisabled() || EmitterInstance->GetCachedEmitterData() == nullptr || EmitterInstance->GetGPUContext() == nullptr)
 			{
 				continue;
 			}

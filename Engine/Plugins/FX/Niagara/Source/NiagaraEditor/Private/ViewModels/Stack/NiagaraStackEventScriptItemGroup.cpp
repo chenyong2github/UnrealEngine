@@ -13,9 +13,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "NiagaraScriptSource.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
-#include "NiagaraStackEditorData.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
 
@@ -25,6 +23,17 @@
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackEventScriptItemGroup"
 
+void UNiagaraStackEventWrapper::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	UObject::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (FVersionedNiagaraEmitterData* EmitterData = EmitterWeakPtr.GetEmitterData())
+	{
+		EmitterData->EventHandlerScriptProps = EventHandlerScriptProps;
+		EmitterWeakPtr.Emitter->PostEditChangeVersionedProperty(PropertyChangedEvent, EmitterWeakPtr.Version);
+	}
+}
+
 void UNiagaraStackEventHandlerPropertiesItem::Initialize(FRequiredEntryData InRequiredEntryData, FGuid InEventScriptUsageId)
 {
 	FString EventStackEditorDataKey = FString::Printf(TEXT("Event-%s-Properties"), *InEventScriptUsageId.ToString(EGuidFormats::DigitsWithHyphens));
@@ -32,15 +41,15 @@ void UNiagaraStackEventHandlerPropertiesItem::Initialize(FRequiredEntryData InRe
 
 	EventScriptUsageId = InEventScriptUsageId;
 
-	Emitter = GetEmitterViewModel()->GetEmitter();
-	Emitter->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEventHandlerPropertiesItem::EventHandlerPropertiesChanged);
+	EmitterWeakPtr = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
+	EmitterWeakPtr.Emitter->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEventHandlerPropertiesItem::EventHandlerPropertiesChanged);
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::FinalizeInternal()
 {
-	if (Emitter.IsValid())
+	if (EmitterWeakPtr.IsValid())
 	{
-		Emitter->OnPropertiesChanged().RemoveAll(this);
+		EmitterWeakPtr.Emitter->OnPropertiesChanged().RemoveAll(this);
 	}
 	Super::FinalizeInternal();
 }
@@ -56,11 +65,11 @@ bool UNiagaraStackEventHandlerPropertiesItem::TestCanResetToBaseWithMessage(FTex
 	{
 		if (HasBaseEventHandler())
 		{
-			const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
-			if (BaseEmitter != nullptr && Emitter != BaseEmitter)
+			FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+			if (BaseEmitter.Emitter != nullptr && EmitterWeakPtr.Emitter != BaseEmitter.Emitter)
 			{
 				TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-				bCanResetToBaseCache = MergeManager->IsEventHandlerPropertySetDifferentFromBase(*Emitter.Get(), *BaseEmitter, EventScriptUsageId);
+				bCanResetToBaseCache = MergeManager->IsEventHandlerPropertySetDifferentFromBase(EmitterWeakPtr.ResolveWeakPtr(), BaseEmitter, EventScriptUsageId);
 			}
 			else
 			{
@@ -87,25 +96,29 @@ bool UNiagaraStackEventHandlerPropertiesItem::TestCanResetToBaseWithMessage(FTex
 void UNiagaraStackEventHandlerPropertiesItem::ResetToBase()
 {
 	FText Unused;
-	if (TestCanResetToBaseWithMessage(Unused))
+	if (TestCanResetToBaseWithMessage(Unused) && EmitterWeakPtr.IsValid())
 	{
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
+		FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		MergeManager->ResetEventHandlerPropertySetToBase(*Emitter, *BaseEmitter, EventScriptUsageId);
+		MergeManager->ResetEventHandlerPropertySetToBase(EmitterWeakPtr.ResolveWeakPtr(), BaseEmitter, EventScriptUsageId);
 		RefreshChildren();
 	}
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	if (EmitterObject == nullptr)
+	if (EmitterObject == nullptr && EmitterWeakPtr.GetEmitterData())
 	{
+		EventWrapper = NewObject<UNiagaraStackEventWrapper>(this, NAME_None, RF_Transactional);
+		EventWrapper->EventHandlerScriptProps = EmitterWeakPtr.GetEmitterData()->EventHandlerScriptProps;
+		EventWrapper->EmitterWeakPtr = EmitterWeakPtr;
+
 		EmitterObject = NewObject<UNiagaraStackObject>(this);
 		bool bIsTopLevelObject = true;
-		EmitterObject->Initialize(CreateDefaultChildRequiredData(), Emitter.Get(), bIsTopLevelObject, GetStackEditorDataKey());
+		EmitterObject->Initialize(CreateDefaultChildRequiredData(), EventWrapper, bIsTopLevelObject, GetStackEditorDataKey());
 		EmitterObject->RegisterInstancedCustomPropertyTypeLayout(FNiagaraEventScriptProperties::StaticStruct()->GetFName(), 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraEventScriptPropertiesCustomization::MakeInstance, 
-			TWeakObjectPtr<UNiagaraSystem>(&GetSystemViewModel()->GetSystem()), TWeakObjectPtr<UNiagaraEmitter>(GetEmitterViewModel()->GetEmitter())));
+			TWeakObjectPtr<UNiagaraSystem>(&GetSystemViewModel()->GetSystem()), GetEmitterViewModel()->GetEmitter().ToWeakPtr()));
 		EmitterObject->SetOnSelectRootNodes(UNiagaraStackObject::FOnSelectRootNodes::CreateUObject(this, &UNiagaraStackEventHandlerPropertiesItem::SelectEmitterStackObjectRootTreeNodes));
 	}
 
@@ -183,11 +196,11 @@ bool UNiagaraStackEventHandlerPropertiesItem::HasBaseEventHandler() const
 {
 	if (bHasBaseEventHandlerCache.IsSet() == false)
 	{
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
-		if (BaseEmitter != nullptr && Emitter != BaseEmitter)
+		FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+		if (BaseEmitter.Emitter != nullptr && EmitterWeakPtr.Emitter.Get() != BaseEmitter.Emitter)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-			bHasBaseEventHandlerCache = MergeManager->HasBaseEventHandler(*BaseEmitter, EventScriptUsageId);
+			bHasBaseEventHandlerCache = MergeManager->HasBaseEventHandler(BaseEmitter, EventScriptUsageId);
 		}
 		else
 		{
@@ -214,9 +227,9 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 {
 	bHasBaseEventHandlerCache.Reset();
 
-	UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
+	FVersionedNiagaraEmitterData* EmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData();
 
-	const FNiagaraEventScriptProperties* EventScriptProperties = Emitter->GetEventHandlers().FindByPredicate(
+	const FNiagaraEventScriptProperties* EventScriptProperties = EmitterData->GetEventHandlers().FindByPredicate(
 		[=](const FNiagaraEventScriptProperties& InEventScriptProperties) { return InEventScriptProperties.Script->GetUsageId() == GetScriptUsageId(); });
 
 	if (EventScriptProperties != nullptr)
@@ -257,8 +270,9 @@ void UNiagaraStackEventScriptItemGroup::Delete()
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ScriptViewModel.Pin();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not delete when the script view model has been deleted."));
 
-	UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Emitter->GraphSource);
+	FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+	FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(EmitterData->GraphSource);
 
 	if (!Source || !Source->NodeGraph)
 	{
@@ -268,10 +282,10 @@ void UNiagaraStackEventScriptItemGroup::Delete()
 	//Need to tear down existing systems now.
 	FNiagaraSystemUpdateContext UpdateCtx;
 	UpdateCtx.SetDestroyOnAdd(true);
-	UpdateCtx.Add(Emitter, true);
+	UpdateCtx.Add(VersionedEmitter, true);
 
 	FScopedTransaction Transaction(FText::Format(LOCTEXT("DeleteEventHandler", "Deleted {0}"), GetDisplayName()));
-	Emitter->Modify();
+	VersionedEmitter.Emitter->Modify();
 	Source->NodeGraph->Modify();
 	TArray<UNiagaraNode*> EventIndexNodes;
 	Source->NodeGraph->BuildTraversal(EventIndexNodes, GetScriptUsage(), GetScriptUsageId());
@@ -281,7 +295,7 @@ void UNiagaraStackEventScriptItemGroup::Delete()
 	}
 	
 	// First, remove the event handler script properties object.
-	Emitter->RemoveEventHandlerByUsageId(GetScriptUsageId());
+	VersionedEmitter.Emitter->RemoveEventHandlerByUsageId(GetScriptUsageId(), VersionedEmitter.Version);
 	
 	// Now remove all graph nodes associated with the event script index.
 	for (UNiagaraNode* Node : EventIndexNodes)
@@ -291,7 +305,7 @@ void UNiagaraStackEventScriptItemGroup::Delete()
 
 	// Set the emitter here to that the internal state of the view model is updated.
 	// TODO: Move the logic for managing event handlers into the emitter view model or script view model.
-	ScriptViewModelPinned->SetScripts(Emitter);
+	ScriptViewModelPinned->SetScripts(VersionedEmitter);
 	
 	OnModifiedEventHandlersDelegate.ExecuteIfBound();
 }
@@ -310,8 +324,8 @@ bool UNiagaraStackEventScriptItemGroup::HasBaseEventHandler() const
 {
 	if (bHasBaseEventHandlerCache.IsSet() == false)
 	{
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
-		bHasBaseEventHandlerCache = BaseEmitter != nullptr && FNiagaraScriptMergeManager::Get()->HasBaseEventHandler(*BaseEmitter, GetScriptUsageId());
+		FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+		bHasBaseEventHandlerCache = BaseEmitter.Emitter != nullptr && FNiagaraScriptMergeManager::Get()->HasBaseEventHandler(BaseEmitter, GetScriptUsageId());
 	}
 	return bHasBaseEventHandlerCache.GetValue();
 }

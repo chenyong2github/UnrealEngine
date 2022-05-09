@@ -205,23 +205,19 @@ FSlateColor SNiagaraScalabilityPreviewSettings::GetQualityLevelButtonTextColor(i
 
 const FSlateBrush* SNiagaraScalabilityPreviewSettings::GetActivePreviewPlatformImage() const
 {
-	UDeviceProfile* DeviceProfile = ScalabilityViewModel->GetPreviewDeviceProfile().Get(nullptr);
-
-	FName PlatformName;
-	if(DeviceProfile)
+	if (UDeviceProfile* DeviceProfile = ScalabilityViewModel->GetPreviewDeviceProfile().Get(nullptr))
 	{
-		PlatformName = *DeviceProfile->DeviceType;
-	}
-	
-	if (const PlatformInfo::FTargetPlatformInfo* Info = PlatformInfo::FindPlatformInfo(PlatformName))
-	{
-		const FSlateBrush* DeviceProfileTypeIcon = FAppStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
-		if (DeviceProfileTypeIcon != FAppStyle::Get().GetDefaultBrush())
+		FName PlatformName = *DeviceProfile->DeviceType;
+		if (const PlatformInfo::FTargetPlatformInfo* Info = PlatformInfo::FindPlatformInfo(PlatformName))
 		{
-			return DeviceProfileTypeIcon;
+			const FSlateBrush* DeviceProfileTypeIcon = FAppStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
+			if (DeviceProfileTypeIcon != FAppStyle::Get().GetDefaultBrush())
+			{
+				return DeviceProfileTypeIcon;
+			}
 		}
 	}
-
+	
 	return nullptr;
 }
 

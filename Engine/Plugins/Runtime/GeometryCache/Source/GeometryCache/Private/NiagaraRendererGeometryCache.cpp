@@ -233,7 +233,7 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 		if (!GeometryComponent || GeometryComponent->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 		{
 			int32 CacheIndex = ArrayIndexAccessor.GetSafe(ParticleIndex, INDEX_NONE);
-			if (CacheIndex == INDEX_NONE && Emitter->GetCachedEmitter()->bDeterminism)
+			if (CacheIndex == INDEX_NONE && Emitter->GetCachedEmitterData()->bDeterminism)
 			{
 				int32 Seed = Properties->bAssignComponentsOnParticleID ? ParticleID : ParticleIndex;
 				FRandomStream RandomStream = FRandomStream(Seed * 907633515U); // multiply the seed, otherwise we get very poor randomness for small seeds
@@ -277,7 +277,7 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 			GeometryComponent->SetGeometryCache(Cache);
 			GeometryComponent->SetManualTick(true); // we want to tick the component with the delta time of the niagara sim
 
-			if (Emitter->GetCachedEmitter()->bLocalSpace)
+			if (Emitter->GetCachedEmitterData()->bLocalSpace)
 			{
 				GeometryComponent->SetAbsolute(false, false, false);
 			}
@@ -312,7 +312,7 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 		const auto RotationAccessor = FNiagaraDataSetAccessor<FVector3f>::CreateReader(Data, Properties->RotationBinding.GetDataSetBindableVariable().GetName());
 		const auto ScaleAccessor = FNiagaraDataSetAccessor<FVector3f>::CreateReader(Data, Properties->ScaleBinding.GetDataSetBindableVariable().GetName());
 		const auto ElapsedTimeAccessor = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->ElapsedTimeBinding.GetDataSetBindableVariable().GetName());
-		FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(Emitter->GetCachedEmitter()->bLocalSpace);
+		FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(Emitter->GetCachedEmitterData()->bLocalSpace);
 
 		FVector Position = LwcConverter.ConvertSimulationPositionToWorld(PositionAccessor.GetSafe(ParticleIndex, FNiagaraPosition(ForceInit)));
 		FVector Scale = (FVector)ScaleAccessor.GetSafe(ParticleIndex, FVector3f::OneVector);

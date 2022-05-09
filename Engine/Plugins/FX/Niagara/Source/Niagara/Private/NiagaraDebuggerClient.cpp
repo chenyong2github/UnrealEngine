@@ -72,7 +72,7 @@ void FNiagaraDebuggerClient::UpdateClientInfo()
 				NewInfo->Systems.Add(System->GetName());
 				for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
 				{
-					if (Handle.GetInstance())
+					if (Handle.GetInstance().Emitter)
 					{
 						NewInfo->Emitters.AddUnique(Handle.GetUniqueInstanceName());
 					}					
@@ -381,18 +381,19 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 						for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : Inst->GetEmitters())
 						{
 							FNiagaraOutlinerEmitterInstanceData& EmitterData = InstData.Emitters.AddDefaulted_GetRef();
-							if (UNiagaraEmitter* NiagaraEmitter = EmitterInst->GetCachedEmitter())
+							FVersionedNiagaraEmitter VersionedEmitter = EmitterInst->GetCachedEmitter();
+							if (VersionedEmitter.Emitter)
 							{
 								//TODO: This is a bit wasteful to copy the name into each instance data. Though we can't rely on the debugger side data matchin the actul running data on the device.
 								//We need to build a shared representation of the asset data from the client that we then reference from this per instance data.
-								EmitterData.EmitterName = NiagaraEmitter->GetUniqueEmitterName();
-								EmitterData.SimTarget = NiagaraEmitter->SimTarget;
+								EmitterData.EmitterName = VersionedEmitter.Emitter->GetUniqueEmitterName();
+								EmitterData.SimTarget = VersionedEmitter.GetEmitterData()->SimTarget;
 								//Move all above to a shared asset representation.
 
 								EmitterData.ExecState = EmitterInst->GetExecutionState();
 								EmitterData.NumParticles = EmitterInst->GetNumParticles();
 
-								EmitterData.bRequiresPersistentIDs = NiagaraEmitter->RequiresPersistentIDs();
+								EmitterData.bRequiresPersistentIDs = VersionedEmitter.GetEmitterData()->RequiresPersistentIDs();
 							}
 						}
 					}

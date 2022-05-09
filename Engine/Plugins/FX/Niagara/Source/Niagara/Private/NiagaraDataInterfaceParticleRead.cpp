@@ -667,13 +667,11 @@ bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceDat
 	PIData->EmitterInstance = nullptr;
 	for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 	{
-		if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
+		const FVersionedNiagaraEmitter& CachedEmitter = EmitterInstance->GetCachedEmitter();
+		if (CachedEmitter.Emitter && (EmitterName == CachedEmitter.Emitter->GetUniqueEmitterName()))
 		{
-			if (EmitterName == CachedEmitter->GetUniqueEmitterName())
-			{
-				PIData->EmitterInstance = EmitterInstance.Get();
-				break;
-			}
+			PIData->EmitterInstance = EmitterInstance.Get();
+			break;
 		}
 	}
 
@@ -1418,7 +1416,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	if (!bBindSuccessful)
 	{
 		UNiagaraSystem* NiagaraSystem = PIData->SystemInstance ? PIData->SystemInstance->GetSystem() : nullptr;
-		UNiagaraEmitter* NiagaraEmitter = PIData->EmitterInstance ? PIData->EmitterInstance->GetCachedEmitter() : nullptr;
+		UNiagaraEmitter* NiagaraEmitter = PIData->EmitterInstance ? PIData->EmitterInstance->GetCachedEmitter().Emitter : nullptr;
 		UE_LOG(LogNiagara, Warning, TEXT("ParticleRead: Failed to '%s' attribute '%s' for System '%s' Emitter '%s'! Check that the attribute is named correctly."), *BindingInfo.Name.ToString(), *AttributeToRead.ToString(), *GetNameSafe(NiagaraSystem), *GetNameSafe(NiagaraEmitter));
 	}
 }
@@ -1429,8 +1427,8 @@ void UNiagaraDataInterfaceParticleRead::VMGetLocalSpace(FVectorVMExternalFunctio
 	FNDIOutputParam<bool> OutIsLocalSpace(Context);
 
 	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	UNiagaraEmitter* NiagaraEmitter = EmitterInstance ? EmitterInstance->GetCachedEmitter() : nullptr;
-	const bool bIsLocalSpace = NiagaraEmitter ? NiagaraEmitter->bLocalSpace : false;
+	FVersionedNiagaraEmitterData* EmitterData = EmitterInstance ? EmitterInstance->GetCachedEmitterData() : nullptr;
+	const bool bIsLocalSpace = EmitterData ? EmitterData->bLocalSpace : false;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
@@ -2421,18 +2419,18 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 		return;
 	}
 
-	UNiagaraEmitter* FoundSourceEmitter = nullptr;
+	FVersionedNiagaraEmitter FoundSourceEmitter;
 	for (const FNiagaraEmitterHandle& EmitterHandle : Asset->GetEmitterHandles())
 	{
-		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
-		if (EmitterInstance && EmitterInstance->GetUniqueEmitterName() == EmitterName)
+		FVersionedNiagaraEmitter EmitterInstance = EmitterHandle.GetInstance();
+		if (EmitterInstance.Emitter && EmitterInstance.Emitter->GetUniqueEmitterName() == EmitterName)
 		{
 			FoundSourceEmitter = EmitterInstance;
 			break; 
 		}
 	}
 
-	if (!FoundSourceEmitter)
+	if (!FoundSourceEmitter.Emitter)
 	{
 		Warnings.Emplace(
 			LOCTEXT("SourceEmitterNotFound", "Source emitter was not found."),
@@ -2448,7 +2446,7 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 	for (auto&& EmitterHandle : Asset->GetEmitterHandles())
 	{
 		TArray<UNiagaraScript*> OutScripts;
-		EmitterHandle.GetInstance()->GetScripts(OutScripts, false);
+		EmitterHandle.GetEmitterData()->GetScripts(OutScripts, false);
 		Scripts.Append(OutScripts);
 	}
 
@@ -2496,12 +2494,12 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 				if (CachedDefaultDIs.IsValidIndex(Idx) && CachedDefaultDIs[Idx].DataInterface != nullptr && CachedDefaultDIs[Idx].DataInterface->Equals(this))
 				{
 					bMatchFound = true;
-					UNiagaraEmitter* OuterEmitter = Script->GetTypedOuter<UNiagaraEmitter>();
-					if (OuterEmitter && FoundSourceEmitter)
+					FVersionedNiagaraEmitter OuterEmitter = Script->GetOuterEmitter();
+					if (OuterEmitter.GetEmitterData() && FoundSourceEmitter.GetEmitterData())
 					{
-						if (OuterEmitter->SimTarget != FoundSourceEmitter->SimTarget)
+						if (OuterEmitter.GetEmitterData()->SimTarget != FoundSourceEmitter.GetEmitterData()->SimTarget)
 						{
-							FText Msg = FText::Format(LOCTEXT("SourceEmitterSimTypeMismatchError", "Emitter \"{0}\" SimTarget not compatible (CPU vs GPU)!"), FText::FromName(OuterEmitter->GetFName()));
+							FText Msg = FText::Format(LOCTEXT("SourceEmitterSimTypeMismatchError", "Emitter \"{0}\" SimTarget not compatible (CPU vs GPU)!"), FText::FromName(OuterEmitter.Emitter->GetFName()));
 							FNiagaraDataInterfaceError SourceEmitterNotFoundError(
 								Msg, Msg,
 								FNiagaraDataInterfaceFix());
@@ -2523,16 +2521,16 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 							AttributeType = GetValueTypeFromFuncName(Func.Name);
 						}
 
-						if (AttributeName && FoundSourceEmitter)
+						if (AttributeName && FoundSourceEmitter.GetEmitterData())
 						{
 							if (AttributeType != ENiagaraParticleDataValueType::Invalid)
 							{
-								auto AttribFilter = [&Func, AttributeName](const FNiagaraVariable& Var)
+								auto AttribFilter = [AttributeName](const FNiagaraVariable& Var)
 								{
 									return Var.GetName() == *AttributeName;
 								};
 
-								const FNiagaraVariableBase* FoundVar = FoundSourceEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes.FindByPredicate(AttribFilter);
+								const FNiagaraVariableBase* FoundVar = FoundSourceEmitter.GetEmitterData()->SpawnScriptProps.Script->GetVMExecutableData().Attributes.FindByPredicate(AttribFilter);
 								if (FoundVar && !CheckVariableType(FoundVar->GetType(), AttributeType))
 								{
 									FText Msg = FText::Format(LOCTEXT("SourceEmitterTypeMismatchError", "Source Emitter has attribute named, \"{0}\" but the type isn't compatible with the function \"{1}\", and will not succeed."), FText::FromName(*AttributeName), FText::FromName(Func.Name));
@@ -2561,37 +2559,34 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 	}
 
 	// If we found persistent ID functions in use and the target emitter isn't set to expose them, trigger a fixable warning.
-	if (bHasPersistenIDAccessWarning && FoundSourceEmitter && FoundSourceEmitter->bRequiresPersistentIDs == false)
+	FVersionedNiagaraEmitterData* EmitterData = FoundSourceEmitter.GetEmitterData();
+	if (bHasPersistenIDAccessWarning && EmitterData && EmitterData->bRequiresPersistentIDs == false)
 	{
 		FNiagaraDataInterfaceError SourceEmitterNeedsPersistentIDError(LOCTEXT("SourceEmitterNeedsPersistenIDError", "Source Emitter Needs PersistentIDs set."),
 			LOCTEXT("SourceEmitterNeedsPersistenIDErrorSummary", "Source emitter needs persistent id's set."),
 			FNiagaraDataInterfaceFix::CreateLambda([=]()
 				{
-					if (FoundSourceEmitter)
+					FName PropertyName = GET_MEMBER_NAME_CHECKED(FVersionedNiagaraEmitterData, bRequiresPersistentIDs);
+					FProperty* FoundProp = nullptr;
+					for (TFieldIterator<FProperty> PropertyIt(FVersionedNiagaraEmitterData::StaticStruct()); PropertyIt; ++PropertyIt)
 					{
-						FName PropertyName = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs);
-						FProperty* FoundProp = nullptr;
-						for (TFieldIterator<FProperty> PropertyIt(UNiagaraEmitter::StaticClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+						FProperty* Property = *PropertyIt;
+						if (Property && Property->GetFName() == PropertyName)
 						{
-							FProperty* Property = *PropertyIt;
-							if (Property && Property->GetFName() == PropertyName)
-							{
-								FoundProp = Property;
-								break;
-							}
+							FoundProp = Property;
+							break;
 						}
+					}
 
-						FoundSourceEmitter->Modify();
-						if (FoundProp)
-						{
-							FPropertyChangedEvent EmptyPropertyUpdateStruct(FoundProp);
+					FoundSourceEmitter.Emitter->Modify();
+					if (FoundProp)
+					{
+						FPropertyChangedEvent EmptyPropertyUpdateStruct(FoundProp);
 
-							// Go through Pre/Post edit change cycle on these because changing them will invoke a recompile on the target emitter.
-							FoundSourceEmitter->PreEditChange(FoundProp);
-							FoundSourceEmitter->bRequiresPersistentIDs = true;
-							FoundSourceEmitter->PostEditChangeProperty(EmptyPropertyUpdateStruct);
-						}
-
+						// Go through Pre/Post edit change cycle on these because changing them will invoke a recompile on the target emitter.
+						FoundSourceEmitter.Emitter->PreEditChange(FoundProp);
+						EmitterData->bRequiresPersistentIDs = true;
+						FoundSourceEmitter.Emitter->PostEditChangeProperty(EmptyPropertyUpdateStruct);
 					}
 					return true;
 				}));
@@ -2600,18 +2595,17 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 }
 #endif
 
-void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(UNiagaraSystem* Asset, TArray<UNiagaraEmitter*>& Dependencies) const
+void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(UNiagaraSystem* Asset, TArray<FVersionedNiagaraEmitter>& Dependencies) const
 {
 	if (!Asset)
 	{
 		return;
 	}
 
-	UNiagaraEmitter* FoundSourceEmitter = nullptr;
 	for (const FNiagaraEmitterHandle& EmitterHandle : Asset->GetEmitterHandles())
 	{
-		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
-		if (EmitterInstance && EmitterInstance->GetUniqueEmitterName() == EmitterName)
+		FVersionedNiagaraEmitter EmitterInstance = EmitterHandle.GetInstance();
+		if (EmitterInstance.Emitter && EmitterInstance.Emitter->GetUniqueEmitterName() == EmitterName)
 		{
 			Dependencies.Add(EmitterInstance);
 			return;

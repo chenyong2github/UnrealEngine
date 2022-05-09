@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraEmitter.h"
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "NiagaraStackEmitterSettingsGroup.generated.h"
@@ -42,11 +43,11 @@ protected:
 
 private:
 	void EmitterPropertiesChanged();
+	FStackIssueFixDelegate GetUpgradeVersionFix();
 
-private:
 	mutable TOptional<bool> bCanResetToBaseCache;
 
-	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	FVersionedNiagaraEmitterWeakPtr EmitterWeakPtr;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackObject> EmitterObject;
@@ -80,7 +81,7 @@ private:
 	void SelectSummaryNodesFromEmitterEditorDataRootNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected);
 
 private:
-	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	FVersionedNiagaraEmitterWeakPtr Emitter;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackSummaryViewObject> FilteredObject;

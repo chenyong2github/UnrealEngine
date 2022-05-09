@@ -17,7 +17,7 @@ struct FEmitterCompiledScriptPair
 	GENERATED_USTRUCT_BODY()
 	
 	bool bResultsReady = false;
-	UNiagaraEmitter* Emitter = nullptr;
+	FVersionedNiagaraEmitter VersionedEmitter;
 	UNiagaraScript* CompiledScript = nullptr;
 	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
 	FNiagaraVMExecutableDataId CompileId;

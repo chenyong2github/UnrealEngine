@@ -7,8 +7,10 @@
 #include "NiagaraParameterMapHistory.h"
 #include "UObject/Object.h"
 #include "NiagaraTypes.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "UpgradeNiagaraScriptResults.generated.h"
 
+class UNiagaraStackModuleItem;
 class UNiagaraClipboardFunctionInput;
 
 UENUM()
@@ -29,6 +31,8 @@ enum class ENiagaraPythonScriptInputSource : uint32
 	
     Num UMETA(Hidden)
 };
+
+// ---------------------- Script upgrade data -------------------------------------
 
 /** Wrapper for setting the value on a parameter of a UNiagaraScript, applied through a UUpgradeNiagaraScriptResults. */
 UCLASS(BlueprintInternalUseOnly)
@@ -143,4 +147,102 @@ struct NIAGARAEDITOR_API FNiagaraScriptVersionUpgradeContext {
 	TFunction<void(UNiagaraClipboardContent*, FText&)> ApplyClipboardCallback;
 	FCompileConstantResolver ConstantResolver;
 	bool bSkipPythonScript = false;
+};
+
+
+
+// ---------------------- Emitter upgrade data -------------------------------------
+
+/** Wrapper for a module from the emitter stack. */
+UCLASS(BlueprintInternalUseOnly)
+class UNiagaraPythonModule : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UNiagaraPythonModule() {};
+
+	void Init(UNiagaraStackModuleItem* InModuleItem);
+
+	// Returns the raw underlying object
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	UNiagaraStackModuleItem* Object() const;
+
+	//TODO: extend the api here to fully support module actions
+
+private:
+	UPROPERTY()
+	UNiagaraStackModuleItem* ModuleItem = nullptr;
+};
+
+/** Wrapper for an emitter stack. */
+UCLASS(BlueprintInternalUseOnly)
+class UNiagaraPythonEmitter : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UNiagaraPythonEmitter() {}
+
+	void Init(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel);
+
+	// Returns the raw underlying object
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	UNiagaraEmitter* Object();
+
+	// returns the emitter properties, such as determinism or interpolated spawning
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	FVersionedNiagaraEmitterData GetProperties() const;
+
+	// sets the new emitter properties
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	void SetProperties(FVersionedNiagaraEmitterData Data);
+
+	// returns a list of all modules contained in this emitter
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	TArray<UNiagaraPythonModule*> GetModules() const;
+
+	// returns true if the emitter contains a certain module
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	bool HasModule(const FString& ModuleName) const;
+
+	// returns a module by name
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	UNiagaraPythonModule* GetModule(const FString& ModuleName) const;
+
+	//TODO: extend the api here to support renderers
+
+	bool IsValid() const { return EmitterViewModel.IsValid(); }
+
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterViewModel;
+};
+
+/**
+ * Wrapper class for passing results back from the version upgrade python script.
+ */
+UCLASS(BlueprintType)
+class NIAGARAEDITOR_API UUpgradeNiagaraEmitterContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	UUpgradeNiagaraEmitterContext() {}
+
+	void Init(UNiagaraPythonEmitter* InOldEmitter, UNiagaraPythonEmitter* InNewEmitter);
+	bool IsValid() const;
+	const TArray<FVersionedNiagaraEmitterData*>& GetUpgradeData() const;
+	
+	// Whether the converter process was cancelled due to an unrecoverable error in the python script process.
+	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
+	bool bCancelledByPythonError = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
+	UNiagaraPythonEmitter* OldEmitter = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
+	UNiagaraPythonEmitter* NewEmitter = nullptr;
+
+private:
+	TArray<FVersionedNiagaraEmitterData*> UpgradeVersionData;
 };

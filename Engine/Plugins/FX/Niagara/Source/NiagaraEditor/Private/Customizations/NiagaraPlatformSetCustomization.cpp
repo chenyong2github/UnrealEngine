@@ -10,7 +10,6 @@
 #include "NiagaraTypes.h"
 #include "PlatformInfo.h"
 #include "PropertyHandle.h"
-#include "Scalability.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Layout/Visibility.h"
@@ -23,16 +22,55 @@
 #include "Widgets/SToolTip.h"
 #include "NiagaraSettings.h"
 #include "IDetailPropertyRow.h"
+#include "IPropertyUtilities.h"
+#include "PropertyEditor/Private/PropertyNode.h"
+#include "PropertyEditor/Private/StructurePropertyNode.h"
 
 
 #define LOCTEXT_NAMESPACE "FNiagaraPlatformSetCustomization"
 
+uint8* GetBaseAddress(TSharedRef<IPropertyHandle> PropertyHandle)
+{
+	if (PropertyHandle->GetNumOuterObjects() > 0)
+	{
+		TArray<UObject*> Objects;
+		PropertyHandle->GetOuterObjects(Objects);
+		return reinterpret_cast<uint8*>(Objects[0]);
+	}
+	
+	// walk the struct hierarchy to find the parent StructOnScope
+	FStructurePropertyNode* StructurePropertyNode = nullptr;
+	TSharedPtr<IPropertyHandle> LastParent = PropertyHandle;
+	while (StructurePropertyNode == nullptr)
+	{
+		TSharedPtr<IPropertyHandle> NewParent = LastParent->GetParentHandle();
+		if (!ensureMsgf(NewParent.IsValid() && NewParent != LastParent, TEXT("Unable to walk property chain")))
+		{
+			return nullptr;
+		}
+		
+		if (FComplexPropertyNode* ComplexPropertyNode = NewParent->GetPropertyNode()->AsComplexNode())
+		{
+			StructurePropertyNode = ComplexPropertyNode->AsStructureNode();
+		}
+		LastParent = NewParent;
+	}
+	TSharedPtr<FStructOnScope> StructOnScope = StructurePropertyNode->GetStructData();
+	return StructOnScope->GetStructMemory();
+}
+
 void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	PropertyHandle = InPropertyHandle;
-	TArray<UObject*> Objects;
-	PropertyHandle->GetOuterObjects(Objects);
-	TargetPlatformSet = (FNiagaraPlatformSet*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
+	TArray<TWeakObjectPtr<UObject>> WeakObjectPtrs = CustomizationUtils.GetPropertyUtilities()->GetSelectedObjects();
+
+	uint8* BaseAddress = GetBaseAddress(InPropertyHandle);
+	if (!BaseAddress)
+	{
+		return;
+	}
+	
+	TargetPlatformSet = reinterpret_cast<FNiagaraPlatformSet*>(PropertyHandle->GetValueBaseAddress(BaseAddress));
 
 	if (PlatformSelectionStates.Num() == 0)
 	{
@@ -68,22 +106,22 @@ void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 				TSharedPtr<IPropertyHandle> ParentHandle = CurrHandle->GetParentHandle();
 				if (CurrStruct == FNiagaraSystemScalabilitySettingsArray::StaticStruct())
 				{
-					SystemScalabilitySettings = (FNiagaraSystemScalabilitySettingsArray*)ParentHandle->GetValueBaseAddress((uint8*)Objects[0]);
+					SystemScalabilitySettings = reinterpret_cast<FNiagaraSystemScalabilitySettingsArray*>(ParentHandle->GetValueBaseAddress(BaseAddress));
 					break;
 				}
 				else if (CurrStruct == FNiagaraEmitterScalabilitySettingsArray::StaticStruct())
 				{
-					EmitterScalabilitySettings = (FNiagaraEmitterScalabilitySettingsArray*)ParentHandle->GetValueBaseAddress((uint8*)Objects[0]);
+					EmitterScalabilitySettings = reinterpret_cast<FNiagaraEmitterScalabilitySettingsArray*>(ParentHandle->GetValueBaseAddress(BaseAddress));
 					break;
 				}
 				else if (CurrStruct == FNiagaraSystemScalabilityOverrides::StaticStruct())
 				{
-					SystemScalabilityOverrides = (FNiagaraSystemScalabilityOverrides*)ParentHandle->GetValueBaseAddress((uint8*)Objects[0]);
+					SystemScalabilityOverrides = reinterpret_cast<FNiagaraSystemScalabilityOverrides*>(ParentHandle->GetValueBaseAddress(BaseAddress));
 					break;
 				}
 				else if (CurrStruct == FNiagaraEmitterScalabilityOverrides::StaticStruct())
 				{
-					EmitterScalabilityOverrides = (FNiagaraEmitterScalabilityOverrides*)ParentHandle->GetValueBaseAddress((uint8*)Objects[0]);
+					EmitterScalabilityOverrides = reinterpret_cast<FNiagaraEmitterScalabilityOverrides*>(ParentHandle->GetValueBaseAddress(BaseAddress));
 					break;
 				}
 			}
@@ -94,7 +132,6 @@ void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 
 	UpdateCachedConflicts();
 	
-	BaseSystem = Objects[0]->GetTypedOuter<UNiagaraSystem>();
 	PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraPlatformSetCustomization::OnPropertyValueChanged));
 	PropertyHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateLambda([&]{ TargetPlatformSet->OnChanged(); }));
 
@@ -286,7 +323,7 @@ static TSharedPtr<IPropertyHandle> FindChildPlatformSet(TSharedPtr<IPropertyHand
 	uint32 NumChildren = 0;
 	PropertyHandle->GetNumChildren(NumChildren);
 
-	for (int32 Idx = 0; Idx < (int32) NumChildren; ++Idx)
+	for (int32 Idx = 0; Idx < static_cast<int32>(NumChildren); ++Idx)
 	{
 		TSharedPtr<IPropertyHandle> Child = PropertyHandle->GetChildHandle(Idx);
 
@@ -309,7 +346,7 @@ void FNiagaraPlatformSetCustomization::InvalidateSiblingConflicts() const
 
 	uint32 ArrayCount = 0;
 	PlatformSetArray->GetNumElements(ArrayCount);
-	for (int32 Idx = 0; Idx < (int32) ArrayCount; ++Idx)
+	for (int32 Idx = 0; Idx < static_cast<int32>(ArrayCount); ++Idx)
 	{
 		if (Idx == PlatformSetArrayIndex)
 		{
@@ -1280,6 +1317,7 @@ static const TCHAR* NiagaraCVarHistoryKey = TEXT("NiagaraCVarHistory");
 SNiagaraConsoleInputBox::SNiagaraConsoleInputBox()
 	: bIgnoreUIUpdate(false)
 	, bHasTicked(false)
+	, bConsumeTab(false)
 {
 }
 
@@ -1787,27 +1825,20 @@ void FNiagaraPlatformSetCVarConditionCustomization::OnTextCommitted(const FText&
 
 FNiagaraPlatformSetCVarCondition* FNiagaraPlatformSetCVarConditionCustomization::GetTargetCondition()const
 {
-	TArray<UObject*> Objects;
-	PropertyHandle->GetOuterObjects(Objects);
-	int32 Index = 0;
-	if (Objects.IsValidIndex(Index))
+	if (uint8* BaseAddress = GetBaseAddress(PropertyHandle.ToSharedRef()))
 	{
-		return (FNiagaraPlatformSetCVarCondition*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+		return reinterpret_cast<FNiagaraPlatformSetCVarCondition*>(PropertyHandle->GetValueBaseAddress(BaseAddress));
 	}
 	return nullptr;
 }
 
 FNiagaraPlatformSet* FNiagaraPlatformSetCVarConditionCustomization::GetTargetPlatformSet()const
 {
-	TArray<UObject*> Objects;
 	check(PropertyHandle && PropertyHandle->GetParentHandle());
 	TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
-	ParentHandle->GetOuterObjects(Objects);
-
-	int32 Index = 0;
-	if (Objects.IsValidIndex(Index))
+	if (uint8* BaseAddress = GetBaseAddress(ParentHandle.ToSharedRef()))
 	{
-		return (FNiagaraPlatformSet*)ParentHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+		return reinterpret_cast<FNiagaraPlatformSet*>(ParentHandle->GetValueBaseAddress(BaseAddress));
 	}
 	return nullptr;
 }

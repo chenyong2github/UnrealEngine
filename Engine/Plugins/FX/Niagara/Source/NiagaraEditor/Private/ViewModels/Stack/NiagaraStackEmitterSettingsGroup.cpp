@@ -7,14 +7,15 @@
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
-#include "NiagaraStackEditorData.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraEmitterDetailsCustomization.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraEditorUtilities.h"
 #include "NiagaraSystem.h"
-#include "NiagaraEditorStyle.h"
+#include "ScopedTransaction.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Styling/AppStyle.h"
 #include "IDetailTreeNode.h"
@@ -24,15 +25,15 @@
 void UNiagaraStackEmitterPropertiesItem::Initialize(FRequiredEntryData InRequiredEntryData)
 {
 	Super::Initialize(InRequiredEntryData, TEXT("EmitterProperties"));
-	Emitter = GetEmitterViewModel()->GetEmitter();
-	Emitter->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged);
+	EmitterWeakPtr = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
+	EmitterWeakPtr.Emitter->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged);
 }
 
 void UNiagaraStackEmitterPropertiesItem::FinalizeInternal()
 {
-	if (Emitter.IsValid())
+	if (EmitterWeakPtr.IsValid())
 	{
-		Emitter->OnPropertiesChanged().RemoveAll(this);
+		EmitterWeakPtr.Emitter->OnPropertiesChanged().RemoveAll(this);
 	}
 	Super::FinalizeInternal();
 }
@@ -49,13 +50,17 @@ FText UNiagaraStackEmitterPropertiesItem::GetTooltipText() const
 
 bool UNiagaraStackEmitterPropertiesItem::TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const
 {
-	if (bCanResetToBaseCache.IsSet() == false)
+	if (GetEmitterViewModel().IsValid() == false)
 	{
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
-		if (BaseEmitter != nullptr && Emitter != BaseEmitter)
+		bCanResetToBaseCache = false;
+	}
+	else if (bCanResetToBaseCache.IsSet() == false)
+	{
+		FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+		if (BaseEmitter.GetEmitterData() != nullptr && EmitterWeakPtr.Emitter != BaseEmitter.Emitter)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-			bCanResetToBaseCache = MergeManager->IsEmitterEditablePropertySetDifferentFromBase(*Emitter.Get(), *BaseEmitter);
+			bCanResetToBaseCache = MergeManager->IsEmitterEditablePropertySetDifferentFromBase(EmitterWeakPtr.ResolveWeakPtr(), BaseEmitter);
 		}
 		else
 		{
@@ -79,21 +84,24 @@ void UNiagaraStackEmitterPropertiesItem::ResetToBase()
 	FText Unused;
 	if (TestCanResetToBaseWithMessage(Unused))
 	{
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
+		FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		MergeManager->ResetEmitterEditablePropertySetToBase(*Emitter, *BaseEmitter);
+		MergeManager->ResetEmitterEditablePropertySetToBase(EmitterWeakPtr.ResolveWeakPtr(), BaseEmitter);
 	}
 }
 
 const FSlateBrush* UNiagaraStackEmitterPropertiesItem::GetIconBrush() const
 {
-	if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
+	if (FVersionedNiagaraEmitterData* EmitterData = EmitterWeakPtr.GetEmitterData())
 	{
-		return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.CPUIcon");
-	}
-	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.GPUIcon");
+		if (EmitterData->SimTarget == ENiagaraSimTarget::CPUSim)
+		{
+			return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.CPUIcon");
+		}
+		if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.GPUIcon");
+		}
 	}
 	return FAppStyle::GetBrush("NoBrush");
 }
@@ -105,7 +113,7 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 		EmitterObject = NewObject<UNiagaraStackObject>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
 		bool bIsTopLevelObject = true;
-		EmitterObject->Initialize(RequiredEntryData, Emitter.Get(), bIsTopLevelObject, GetStackEditorDataKey());
+		EmitterObject->Initialize(RequiredEntryData, EmitterWeakPtr.Emitter.Get(), bIsTopLevelObject, GetStackEditorDataKey());
 		EmitterObject->RegisterInstancedCustomPropertyLayout(UNiagaraEmitter::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraEmitterDetails::MakeInstance));
 	}
 
@@ -115,11 +123,21 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 	RefreshIssues(NewIssues);
 }
 
+UNiagaraStackEntry::FStackIssueFixDelegate UNiagaraStackEmitterPropertiesItem::GetUpgradeVersionFix()
+{
+	return FStackIssueFixDelegate::CreateLambda([=]()
+	{
+		FGuid NewVersion = GetEmitterViewModel()->GetParentEmitter().Emitter->GetExposedVersion().VersionGuid;
+		FNiagaraEditorUtilities::SwitchParentEmitterVersion(GetEmitterViewModel().ToSharedRef(), GetSystemViewModel(), NewVersion);
+	});
+}
 
 void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 {
-	UNiagaraEmitter* ActualEmitter = GetEmitterViewModel()->GetEmitter();
-	if (ActualEmitter && ActualEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
+	FNiagaraStackGraphUtilities::CheckForDeprecatedEmitterVersion(GetEmitterViewModel(), GetStackEditorDataKey(), GetUpgradeVersionFix(), NewIssues);
+	
+	FVersionedNiagaraEmitterData* ActualEmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData();
+	if (ActualEmitterData && ActualEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
 	{
 		bool bAddError = true;
 		
@@ -153,9 +171,9 @@ void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 		bCanResetToBaseCache.Reset();
 		RefreshChildren();
 
-		if (Emitter.IsValid())
+		if (EmitterWeakPtr.IsValid())
 		{
-			GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(Emitter.Get()).Get()->GetEmitterStackViewModel()->RequestValidationUpdate();
+			GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(EmitterWeakPtr.ResolveWeakPtr()).Get()->GetEmitterStackViewModel()->RequestValidationUpdate();
 		}
 	}
 }
@@ -163,7 +181,7 @@ void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 void UNiagaraStackEmitterSummaryItem::Initialize(FRequiredEntryData InRequiredEntryData)
 {
 	Super::Initialize(InRequiredEntryData, TEXT("EmitterParameters"));
-	Emitter = GetEmitterViewModel()->GetEmitter();
+	Emitter = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
 }
 
 FText UNiagaraStackEmitterSummaryItem::GetDisplayName() const
@@ -206,7 +224,7 @@ void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiag
 	{
 		FilteredObject = NewObject<UNiagaraStackSummaryViewObject>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
-		FilteredObject->Initialize(RequiredEntryData, Emitter.Get(), GetStackEditorDataKey());
+		FilteredObject->Initialize(RequiredEntryData, Emitter, GetStackEditorDataKey());
 	}
 
 	NewChildren.Add(FilteredObject);

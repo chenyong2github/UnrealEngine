@@ -83,7 +83,7 @@ TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterPanelUtilities::GetAllGraph
 			{
 				continue;
 			}
-			UNiagaraGraph* Graph = Cast<UNiagaraScriptSource>(EmitterHandle->GetInstance()->GraphSource)->NodeGraph;
+			UNiagaraGraph* Graph = Cast<UNiagaraScriptSource>(EmitterHandle->GetEmitterData()->GraphSource)->NodeGraph;
 			if (Graph)
 			{
 				OutGraphs.Add(Graph);
@@ -95,7 +95,7 @@ TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterPanelUtilities::GetAllGraph
 		FNiagaraEmitterHandle* EmitterHandle = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle();
 		if (EmitterHandle != nullptr)
 		{
-			OutGraphs.Add(Cast<UNiagaraScriptSource>(EmitterHandle->GetInstance()->GraphSource)->NodeGraph);
+			OutGraphs.Add(Cast<UNiagaraScriptSource>(EmitterHandle->GetEmitterData()->GraphSource)->NodeGraph);
 		}
 	}
 	return OutGraphs;
@@ -126,7 +126,7 @@ TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterPanelUtilities::GetEditable
 	}
 	else
 	{
-		EditableGraphs.Add(Cast<UNiagaraScriptSource>(SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph);
+		EditableGraphs.Add(Cast<UNiagaraScriptSource>(SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetEmitterData()->GraphSource)->NodeGraph);
 	}
 	return EditableGraphs;
 }
@@ -157,7 +157,10 @@ FReply FNiagaraSystemToolkitParameterPanelUtilities::CreateDragEventForParameter
 TArray<UNiagaraGraph*> FNiagaraScriptToolkitParameterPanelUtilities::GetEditableGraphs(const TSharedPtr<FNiagaraScriptViewModel>& ScriptViewModel)
 {
 	TArray<UNiagaraGraph*> EditableGraphs;
-	EditableGraphs.Add(ScriptViewModel->GetGraphViewModel()->GetGraph());
+	if (UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph())
+	{
+		EditableGraphs.Add(Graph);
+	}
 	return EditableGraphs;
 }
 
@@ -893,7 +896,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Cleanup()
 		{
 			TArray<UNiagaraScript*> EmitterScripts;
 			const bool bCompilableOnly = false;
-			EmitterHandle->GetInstance()->GetScripts(EmitterScripts, bCompilableOnly);
+			EmitterHandle->GetEmitterData()->GetScripts(EmitterScripts, bCompilableOnly);
 			for (UNiagaraScript* EmitterScript : EmitterScripts)
 			{
 				GraphsToRemoveCallbacks.Add(GetGraphFromScript(EmitterScript));
@@ -948,7 +951,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 		{
 			TArray<UNiagaraScript*> EmitterScripts;
 			const bool bCompilableOnly = false;
-			EmitterHandle->GetInstance()->GetScripts(EmitterScripts, bCompilableOnly);
+			EmitterHandle->GetEmitterData()->GetScripts(EmitterScripts, bCompilableOnly);
 			for (UNiagaraScript* EmitterScript : EmitterScripts)
 			{
 				GraphsToAddCallbacks.Add(GetGraphFromScript(EmitterScript));
@@ -1246,7 +1249,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 		{
 			for (const FNiagaraEmitterHandle* EmitterHandle : GetEditableEmitterHandles())
 			{
-				EmitterHandle->GetInstance()->HandleVariableRenamed(Parameter, FNiagaraVariableBase(Parameter.GetType(), NewName), true);
+				EmitterHandle->GetInstance().Emitter->HandleVariableRenamed(Parameter, FNiagaraVariableBase(Parameter.GetType(), NewName), true, EmitterHandle->GetInstance().Version);
 			}		
 		}
 		else
@@ -1649,8 +1652,8 @@ const TArray<FNiagaraGraphParameterReference> FNiagaraSystemToolkitParameterPane
 
 			bool bIgnoreDisabled = true;
 			FNiagaraParameterMapHistoryBuilder Builder;
-			UNiagaraEmitter* GraphOwningEmitter = Graph->GetTypedOuter<UNiagaraEmitter>();
-			FCompileConstantResolver ConstantResolver = GraphOwningEmitter != nullptr
+			FVersionedNiagaraEmitter GraphOwningEmitter = Graph->GetOwningEmitter();
+			FCompileConstantResolver ConstantResolver = GraphOwningEmitter.Emitter != nullptr
 				? FCompileConstantResolver(GraphOwningEmitter, ENiagaraScriptUsage::Function)
 				: FCompileConstantResolver();
 
@@ -1658,9 +1661,9 @@ const TArray<FNiagaraGraphParameterReference> FNiagaraSystemToolkitParameterPane
 			Builder.ConstantResolver = ConstantResolver;
 			FName StageName;
 			ENiagaraScriptUsage StageUsage = OutputNode->GetUsage();
-			if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter)
+			if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter.Emitter)
 			{
-				UNiagaraSimulationStageBase* Base = GraphOwningEmitter->GetSimulationStageById(OutputNode->GetUsageId());
+				UNiagaraSimulationStageBase* Base = GraphOwningEmitter.GetEmitterData()->GetSimulationStageById(OutputNode->GetUsageId());
 				if (Base)
 				{
 					StageName = Base->GetStackContextReplacementName();
@@ -1826,8 +1829,8 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 
 			bool bIgnoreDisabled = true;
 			FNiagaraParameterMapHistoryBuilder Builder;
-			UNiagaraEmitter* GraphOwningEmitter = EditableGraph->GetTypedOuter<UNiagaraEmitter>();
-			FCompileConstantResolver ConstantResolver = GraphOwningEmitter != nullptr
+			FVersionedNiagaraEmitter GraphOwningEmitter = EditableGraph->GetOwningEmitter();
+			FCompileConstantResolver ConstantResolver = GraphOwningEmitter.Emitter != nullptr
 				? FCompileConstantResolver(GraphOwningEmitter, OutputNode->GetUsage())
 				: FCompileConstantResolver();
 				 
@@ -1835,9 +1838,9 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 			Builder.ConstantResolver = ConstantResolver;
 			FName StageName;
 			ENiagaraScriptUsage StageUsage = OutputNode->GetUsage();
-			if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter)
+			if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter.Emitter)
 			{
-				UNiagaraSimulationStageBase* Base = GraphOwningEmitter->GetSimulationStageById(OutputNode->GetUsageId());
+				UNiagaraSimulationStageBase* Base = GraphOwningEmitter.GetEmitterData()->GetSimulationStageById(OutputNode->GetUsageId());
 				if (Base)
 				{
 					StageName = Base->GetStackContextReplacementName();
@@ -1967,7 +1970,7 @@ TArray<TWeakObjectPtr<UNiagaraGraph>> FNiagaraSystemToolkitParameterPanelViewMod
 	else
 	{
 		TArray<TWeakObjectPtr<UNiagaraGraph>> EditableEmitterScriptGraphs;
-		EditableEmitterScriptGraphs.Add(static_cast<UNiagaraScriptSource*>(SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph);
+		EditableEmitterScriptGraphs.Add(static_cast<UNiagaraScriptSource*>(SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetEmitterData()->GraphSource)->NodeGraph);
 		return EditableEmitterScriptGraphs;
 	}
 }
@@ -2072,7 +2075,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(
 				if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
 				{
 					bool bFound = false;
-					UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+					FVersionedNiagaraEmitter VersionedEmitter = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
+					UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(VersionedEmitter.GetEmitterData()->GraphSource)->NodeGraph;
 					if (Graph)
 					{
 						const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& RefMap = Graph->GetParameterReferenceMap();
@@ -2105,7 +2109,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(
 		const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
 		for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
 		{
-			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetEmitterData()->GraphSource)->NodeGraph;
 			if (Graph)
 			{ 
 				Graphs.Add(Graph);
@@ -2155,7 +2159,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(
 				if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
 				{
 					bool bFound = false;
-					UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+					FVersionedNiagaraEmitter VersionedEmitter = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
+					UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(VersionedEmitter.GetEmitterData()->GraphSource)->NodeGraph;
 					if (Graph)
 					{
 						const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& RefMap = Graph->GetParameterReferenceMap();
@@ -2169,7 +2174,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(
 
 					if (!bFound)
 					{
-						EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->HandleVariableRemoved(InOldVar, true);
+						VersionedEmitter.Emitter->HandleVariableRemoved(InOldVar, true, VersionedEmitter.Version);
 					}
 				}
 			}
@@ -2185,7 +2190,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(
 		const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
 		for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
 		{
-			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetEmitterData()->GraphSource)->NodeGraph;
 			if (Graph)
 				Graphs.Add(Graph);
 
@@ -2232,7 +2237,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::ReconcileOnGraphChangedBindin
 		{
 			TArray<UNiagaraScript*> EmitterScripts;
 			const bool bCompilableOnly = false;
-			EmitterHandle->GetInstance()->GetScripts(EmitterScripts, bCompilableOnly);
+			EmitterHandle->GetEmitterData()->GetScripts(EmitterScripts, bCompilableOnly);
 			for (UNiagaraScript* EmitterScript : EmitterScripts)
 			{
 				GraphsToAddCallbacks.Add(GetGraphFromScript(EmitterScript));

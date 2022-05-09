@@ -161,7 +161,7 @@ FNiagaraVariable UNiagaraRendererProperties::GetBoundAttribute(const FNiagaraVar
 	return FNiagaraVariable();
 }
 
-void UNiagaraRendererProperties::GetRendererFeedback(UNiagaraEmitter* InEmitter,	TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings,	TArray<FNiagaraRendererFeedback>& OutInfo) const
+void UNiagaraRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings,	TArray<FNiagaraRendererFeedback>& OutInfo) const
 {
 	TArray<FText> Errors;
 	TArray<FText> Warnings;
@@ -191,7 +191,7 @@ FText UNiagaraRendererProperties::GetWidgetDisplayName() const
 	return GetClass()->GetDisplayNameText();
 }
 
-void UNiagaraRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter)
+void UNiagaraRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	// Handle the renaming of generic renderer bindings...
 	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
@@ -201,7 +201,7 @@ void UNiagaraRendererProperties::RenameVariable(const FNiagaraVariableBase& OldV
 			Binding->RenameVariableIfMatching(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
 	}
 }
-void UNiagaraRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable,const UNiagaraEmitter* InEmitter)
+void UNiagaraRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable,const FVersionedNiagaraEmitter& InEmitter)
 {
 	// Handle the reset to defaults of generic renderer bindings
 	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
@@ -287,7 +287,7 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 	return MaxNumComponents;
 }
 
-void UNiagaraRendererProperties::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
+void UNiagaraRendererProperties::GetAssetTagsForContext(const UObject* InAsset, FGuid AssetVersion, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
 {
 	UClass* Class = GetClass();
 
@@ -310,7 +310,7 @@ void UNiagaraRendererProperties::GetAssetTagsForContext(const UObject* InAsset, 
 			FString Key = Class->GetName();
 			Key.ReplaceInline(TEXT("Niagara"), TEXT(""));
 			Key.ReplaceInline(TEXT("Properties"), TEXT(""));
-			NumericKeys.Add(*Key) = NumInstances;
+			NumericKeys.Add(FName(Key)) = NumInstances;
 		}
 	}
 }
@@ -378,26 +378,26 @@ void UNiagaraRendererProperties::PostEditChangeProperty(struct FPropertyChangedE
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+	if (FVersionedNiagaraEmitterData* EmitterData = GetEmitterData())
 	{
 		// Check for properties changing that invalidate the current script compilation for the emitter
 		bool bNeedsRecompile = false;
 		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UNiagaraRendererProperties, MotionVectorSetting))
 		{
-			if (Emitter->GraphSource)
+			if (EmitterData->GraphSource)
 			{
-				Emitter->GraphSource->MarkNotSynchronized(TEXT("Renderer MotionVectorSetting changed"));
+				EmitterData->GraphSource->MarkNotSynchronized(TEXT("Renderer MotionVectorSetting changed"));
 			}
 			bNeedsRecompile = true;
 		}
 
 		if (bNeedsRecompile)
 		{
-			UNiagaraSystem::RequestCompileForEmitter(Emitter);
+			UNiagaraSystem::RequestCompileForEmitter(GetOuterEmitter());
 		}
 
 		// Just in case we changed something that needs static params, refresh that cached list.
-		Emitter->RebuildRendererBindings();
+		EmitterData->RebuildRendererBindings(*GetOuterEmitter().Emitter);
 	}
 
 }
@@ -411,7 +411,8 @@ void UNiagaraRendererProperties::SetIsEnabled(bool bInIsEnabled)
 #if WITH_EDITORONLY_DATA
 		// Changing the enabled state will add or remove its renderer binding data stored on the emitters RenderBindings
 		// parameter store, so we need to reset to clear any binding references or add new ones
-		if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+		FVersionedNiagaraEmitter SrcEmitter = GetOuterEmitter();
+		if (SrcEmitter.Emitter)
 		{
 			FNiagaraSystemUpdateContext(SrcEmitter, true);
 		}
@@ -423,8 +424,8 @@ void UNiagaraRendererProperties::SetIsEnabled(bool bInIsEnabled)
 
 void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
-	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
-	if (SrcEmitter)
+	FVersionedNiagaraEmitter SrcEmitter = GetOuterEmitter();
+	if (SrcEmitter.Emitter)
 	{
 		for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 		{
@@ -436,16 +437,31 @@ void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourc
 		// to ensure new ones get bound by the simulation
 		if (bFromPropertyEdit)
 		{
-			if (SrcEmitter)
-			{
-				// We may need to refresh internal variables because this may be the first binding to it, so request a recompile as that will pull data 
-				// into the right place.
-				UNiagaraSystem::RequestCompileForEmitter(SrcEmitter);
-			}
+			// We may need to refresh internal variables because this may be the first binding to it, so request a recompile as that will pull data 
+			// into the right place.
+			UNiagaraSystem::RequestCompileForEmitter(GetOuterEmitter());
 			FNiagaraSystemUpdateContext Context(SrcEmitter, true);
 		}
 #endif
 	}
+}
+
+FVersionedNiagaraEmitterData* UNiagaraRendererProperties::GetEmitterData() const
+{
+	if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		return SrcEmitter->GetEmitterData(OuterEmitterVersion);
+	}
+	return nullptr;
+}
+
+FVersionedNiagaraEmitter UNiagaraRendererProperties::GetOuterEmitter() const
+{
+	if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		return FVersionedNiagaraEmitter(SrcEmitter, OuterEmitterVersion);
+	}
+	return FVersionedNiagaraEmitter();
 }
 
 bool UNiagaraRendererProperties::NeedsPreciseMotionVectors() const

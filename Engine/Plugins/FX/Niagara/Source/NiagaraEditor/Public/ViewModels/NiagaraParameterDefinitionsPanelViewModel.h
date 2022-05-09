@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "NiagaraEditorCommon.h"
 #include "NiagaraParameterPanelViewModel.h"
 #include "NiagaraToolkitCommon.h"
 #include "Templates/SharedPointer.h"
@@ -13,7 +12,7 @@ class UNiagaraParameterDefinitions;
 class FNiagaraObjectSelection;
 
 /** Interface for view models to the parameter panel. */
-class INiagaraParameterDefinitionsPanelViewModel : public INiagaraImmutableParameterPanelViewModel
+class NIAGARAEDITOR_API INiagaraParameterDefinitionsPanelViewModel : public INiagaraImmutableParameterPanelViewModel
 {
 public:
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
@@ -22,7 +21,7 @@ public:
 	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const override;
 
 	//~ Begin Pure Virtual Methods
-	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const = 0;
+	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override = 0;
 
 	virtual const TArray<UNiagaraParameterDefinitions*> GetAvailableParameterDefinitionsAssets(bool bSkipSubscribedParameterDefinitions) const = 0;
 	//~ End INiagaraImmutableParameterPanelViewModel interface

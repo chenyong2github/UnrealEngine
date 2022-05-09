@@ -522,11 +522,10 @@ void SNiagaraStackTableRow::ToggleShowInSummaryView()
 		{
 			// TODO: Move this parent handling to the UNiagaraStackFunctionInput and merge manager.
 			bool bHasParentSummaryData = false;;
-			UNiagaraEmitter* ParentEmitter = FunctionInput->GetEmitterViewModel()->GetEmitter()->GetParent();
-			if (ParentEmitter != nullptr)
+			FVersionedNiagaraEmitter ParentEmitter = FunctionInput->GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetParent();
+			if (ParentEmitter.GetEmitterData())
 			{
-				UNiagaraEmitterEditorData* ParentEmitterEditorData = Cast<UNiagaraEmitterEditorData>(ParentEmitter->GetEditorData());
-				if (ParentEmitterEditorData != nullptr)
+				if (UNiagaraEmitterEditorData* ParentEmitterEditorData = Cast<UNiagaraEmitterEditorData>(ParentEmitter.GetEmitterData()->GetEditorData()))
 				{
 					bHasParentSummaryData = ParentEmitterEditorData->GetSummaryViewMetaData(Key.GetValue()).IsSet();
 				}

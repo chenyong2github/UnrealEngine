@@ -1568,6 +1568,7 @@ const TArray<FNiagaraVariable>& FNiagaraEmitterParameters::GetVariables()
 
 	return Variables;
 }
+
 #endif
 
 #if NIAGARA_PERF_BASELINES

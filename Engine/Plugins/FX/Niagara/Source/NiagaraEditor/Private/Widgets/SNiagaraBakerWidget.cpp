@@ -760,13 +760,13 @@ void SNiagaraBakerWidget::FindWarnings()
 			}
 			for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles() )
 			{
-				UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance();
-				if (NiagaraEmitter == nullptr || NiagaraEmitter->bDeterminism)
+				FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetInstance().GetEmitterData();
+				if (EmitterData == nullptr || EmitterData->bDeterminism)
 				{
 					continue;
 				}
 
-				FoundWarnings.Emplace(FText::Format(LOCTEXT("EmitterDeterminismFormat", "Emitter '{0}' is not set to deterministic, results will vary each bake"), FText::FromString(NiagaraEmitter->GetUniqueEmitterName())));
+				FoundWarnings.Emplace(FText::Format(LOCTEXT("EmitterDeterminismFormat", "Emitter '{0}' is not set to deterministic, results will vary each bake"), FText::FromString(EmitterHandle.GetInstance().Emitter->GetUniqueEmitterName())));
 			}
 		}
 	}

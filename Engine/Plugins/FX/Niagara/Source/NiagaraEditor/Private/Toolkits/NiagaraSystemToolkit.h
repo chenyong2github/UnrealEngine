@@ -5,19 +5,19 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 #include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "EditorUndoClient.h"
 #include "NiagaraEditorModule.h"
 
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
 
-#include "NiagaraCommon.h"
-#include "NiagaraScript.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "Widgets/SItemSelector.h"
 #include "ViewModels/NiagaraSystemGraphSelectionViewModel.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
+class SNiagaraEmitterVersionWidget;
+class UNiagaraVersionMetaData;
 #if WITH_NIAGARA_GPU_PROFILER
 	#include "NiagaraGPUProfilerInterface.h"
 #endif
@@ -68,7 +68,7 @@ public:
 	void InitializeWithEmitter(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraEmitter& InEmitter);
 
 	/** Destructor */
-	virtual ~FNiagaraSystemToolkit();
+	virtual ~FNiagaraSystemToolkit() override;
 	
 	//~ Begin IToolkit Interface
 	virtual FName GetToolkitFName() const override;
@@ -105,7 +105,14 @@ public:
 	void SetSystemOverview(const TSharedPtr<SWidget>& SystemOverview);
 	TSharedPtr<SWidget> GetScriptScratchpad() const;
 	void SetScriptScratchpad(const TSharedPtr<SWidget>& ScriptScratchpad);
-	
+	TSharedPtr<SWidget> GetVersioningWidget() const { return VersionsWidget; }
+	FText GetVersionButtonLabel() const;
+	TArray<FNiagaraAssetVersion> GetEmitterVersions() const;
+	TSharedRef<SWidget> GenerateVersioningDropdownMenu(TSharedRef<FUICommandList> InCommandList);
+	void SwitchToVersion(FGuid VersionGuid);
+	bool IsVersionSelected(FNiagaraAssetVersion Version) const;
+	FText GetVersionMenuLabel(FNiagaraAssetVersion Version) const;
+
 	/** Mode exposed functions */
 	TSharedRef<SWidget> GenerateCompileMenuContent();
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
@@ -154,6 +161,7 @@ protected:
 	
 private:
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
+	void InitializeRapidIterationParameters(const FVersionedNiagaraEmitter& VersionedEmitter);
 
 	void UpdateOriginalEmitter();
 	void UpdateExistingEmitters();
@@ -185,13 +193,19 @@ private:
 	void OnSaveThumbnailImage();
 	void OnThumbnailCaptured(UTexture2D* Thumbnail);
 
+	void ManageVersions();
+	TSharedPtr<FNiagaraEmitterViewModel> GetEditedEmitterViewModel() const;
+
 private:
 
 	/** The System being edited in system mode, or the placeholder system being edited in emitter mode. */
-	UNiagaraSystem* System;
+	UNiagaraSystem* System = nullptr;
 
-	/** The emitter being edited in emitter mode, or null when editing in system mode. */
-	UNiagaraEmitter* Emitter;
+	/** The emitter being edited in emitter mode, or null when editing in system mode. Note that we are NOT using the FVersionedEmitter here, because this is the full asset. The version being edited is defined by the emitter view model. */
+	UNiagaraEmitter* Emitter = nullptr;
+
+	/** Temp object to hold version data being edited in the versioning widget's property editor. */
+	UNiagaraVersionMetaData* VersionMetadata = nullptr;
 
 	/** The value of the emitter change id from the last time it was in sync with the original emitter. */
 	FGuid LastSyncedEmitterChangeId;
@@ -236,11 +250,11 @@ private:
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelectionForParameterMapView;
 
 	bool bChangesDiscarded;
-
 	bool bScratchPadChangesDiscarded;
 
 	TSharedPtr<SWidget> SystemOverview;
 	TSharedPtr<SWidget> ScriptScratchpad;
+	TSharedPtr<SWidget> VersionsWidget;
 	
 	static IConsoleVariable* VmStatEnabledVar;
 

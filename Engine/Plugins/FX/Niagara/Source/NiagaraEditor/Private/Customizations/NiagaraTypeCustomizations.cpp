@@ -121,12 +121,13 @@ void FNiagaraMatrixCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> 
 	}
 }
 
-TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNiagaraEmitter* InEmitter, bool bSystem, bool bEmitter, bool bParticles, bool bUser, bool bAllowStatic)
+TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(const FVersionedNiagaraEmitter& InEmitter, bool bSystem, bool bEmitter, bool bParticles, bool bUser, bool bAllowStatic)
 {
 	TArray<FNiagaraVariableBase> Bindings;
 	TArray<FNiagaraParameterMapHistory> Histories;
 
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(InEmitter->GraphSource);
+	UNiagaraEmitter* Emitter = InEmitter.Emitter;
+	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(InEmitter.GetEmitterData()->GraphSource);
 	if (Source)
 	{
 		Histories.Append(UNiagaraNodeParameterMapBase::GetParameterMaps(Source->NodeGraph));
@@ -134,8 +135,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 
 	if (bSystem || bEmitter)
 	{
-		UNiagaraSystem* Sys = InEmitter->GetTypedOuter<UNiagaraSystem>();
-		if (Sys)
+		if (UNiagaraSystem* Sys = Emitter->GetTypedOuter<UNiagaraSystem>())
 		{
 			Source = Cast<UNiagaraScriptSource>(Sys->GetSystemUpdateScript()->GetLatestSource()); 
 			if (Source)
@@ -162,10 +162,10 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 			{
 				Bindings.AddUnique(Var);
 			}
-			else if (Var.IsInNameSpace(InEmitter->GetUniqueEmitterName()) && bEmitter)
+			else if (Var.IsInNameSpace(Emitter->GetUniqueEmitterName()) && bEmitter)
 			{
 				Bindings.AddUnique(FNiagaraUtilities::ResolveAliases(Var, FNiagaraAliasContext()
-					.ChangeEmitterNameToEmitter(InEmitter->GetUniqueEmitterName())));
+					.ChangeEmitterNameToEmitter(Emitter->GetUniqueEmitterName())));
 			}
 			else if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var) && bEmitter)
 			{
@@ -184,8 +184,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 
 	if (bUser)
 	{
-		UNiagaraSystem* Sys = InEmitter->GetTypedOuter<UNiagaraSystem>();
-		if (Sys)
+		if (UNiagaraSystem* Sys = Emitter->GetTypedOuter<UNiagaraSystem>())
 		{
 			for (const FNiagaraVariable Var : Sys->GetExposedParameters().ReadParameterVariables())
 			{
@@ -199,7 +198,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 
 FName FNiagaraVariableAttributeBindingCustomization::GetVariableName() const
 {
-	if (BaseEmitter && TargetVariableBinding)
+	if (BaseEmitter.Emitter && TargetVariableBinding)
 	{
 		return (TargetVariableBinding->GetName());
 	}
@@ -208,7 +207,7 @@ FName FNiagaraVariableAttributeBindingCustomization::GetVariableName() const
 
 FText FNiagaraVariableAttributeBindingCustomization::GetCurrentText() const
 {
-	if (BaseEmitter && TargetVariableBinding)
+	if (BaseEmitter.Emitter && TargetVariableBinding)
 	{
 		return FText::FromName(TargetVariableBinding->GetName());
 	}
@@ -217,7 +216,7 @@ FText FNiagaraVariableAttributeBindingCustomization::GetCurrentText() const
 
 FText FNiagaraVariableAttributeBindingCustomization::GetTooltipText() const
 {
-	if (BaseEmitter && TargetVariableBinding)
+	if (BaseEmitter.Emitter && TargetVariableBinding)
 	{
 		FString DefaultValueStr = TargetVariableBinding->GetDefaultValueString();
 
@@ -257,7 +256,7 @@ TSharedRef<SWidget> FNiagaraVariableAttributeBindingCustomization::OnGetMenuCont
 	return Widget.ToSharedRef(); 
 }
 
-TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(UNiagaraEmitter* InEmitter) const
+TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(const FVersionedNiagaraEmitter& InEmitter) const
 {
 	TArray<FName> Names;
 	if (!PropertyHandle.IsValid() || !PropertyHandle->GetProperty() || !TargetVariableBinding)
@@ -359,7 +358,7 @@ void FNiagaraVariableAttributeBindingCustomization::ChangeSource(FName InVarName
 	{
 		Obj->Modify();
 	}
-	check(BaseEmitter);
+	check(BaseEmitter.Emitter);
 	check(RenderProps || SimulationStage);
 
 	PropertyHandle->NotifyPreChange();
@@ -376,7 +375,7 @@ void FNiagaraVariableAttributeBindingCustomization::ResetToDefault()
 
 EVisibility FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible() const
 {
-	check(BaseEmitter);
+	check(BaseEmitter.Emitter);
 	check(RenderProps || SimulationStage);
 	check(TargetVariableBinding);
 	check(DefaultVariableBinding);
@@ -394,7 +393,7 @@ FReply FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked()
 	{
 		Obj->Modify();
 	}
-	check(BaseEmitter);
+	check(BaseEmitter.Emitter);
 	check(RenderProps || SimulationStage);
 	check(TargetVariableBinding);
 	check(DefaultVariableBinding);
@@ -411,7 +410,7 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 {
 	RenderProps = nullptr;
 	SimulationStage = nullptr;
-	BaseEmitter = nullptr;
+	BaseEmitter = FVersionedNiagaraEmitter();
 	PropertyHandle = InPropertyHandle;
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
@@ -433,16 +432,16 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 		RenderProps = Cast<UNiagaraRendererProperties>(Objects[0]);
 		if (RenderProps)
 		{
-			BaseEmitter = Cast<UNiagaraEmitter>(RenderProps->GetOuter());
+			BaseEmitter = RenderProps->GetOuterEmitter();
 		}
 
 		SimulationStage = Cast<UNiagaraSimulationStageBase>(Objects[0]);
 		if ( SimulationStage )
 		{
-			BaseEmitter = SimulationStage->GetTypedOuter<UNiagaraEmitter>();
+			BaseEmitter = SimulationStage->GetOuterEmitter();
 		}
 
-		if (BaseEmitter)
+		if (BaseEmitter.Emitter)
 		{
 			TargetVariableBinding = (FNiagaraVariableAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
 			DefaultVariableBinding = (FNiagaraVariableAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]->GetClass()->GetDefaultObject());
@@ -670,7 +669,7 @@ void FNiagaraUserParameterBindingCustomization::CustomizeHeader(TSharedRef<IProp
 			if (UNiagaraDataInterface* ObjectAsDataInterface = Cast<UNiagaraDataInterface>(Objects[0]))
 			{
 				FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-				UNiagaraEmitter* Emitter = nullptr;
+				FVersionedNiagaraEmitter Emitter;
 				NiagaraEditorModule.GetTargetSystemAndEmitterForDataInterface(ObjectAsDataInterface, BaseSystem, Emitter);
 			}
 		}
@@ -838,7 +837,7 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 	TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase>> Names;
 	TArray < FNiagaraVariableBase > BaseVars;
 
-	if (BaseSystem && BaseEmitter && TargetParameterBinding)
+	if (BaseSystem && BaseEmitter.Emitter && TargetParameterBinding)
 	{
 		bool bSystem = true;
 		bool bEmitter = true;
@@ -850,10 +849,10 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 		TArray<UNiagaraScript*> Scripts;
 		Scripts.Add(BaseSystem->GetSystemUpdateScript());
 		Scripts.Add(BaseSystem->GetSystemSpawnScript());
-		BaseEmitter->GetScripts(Scripts, false);
+		BaseEmitter.GetEmitterData()->GetScripts(Scripts, false);
 
 		TMap<FString, FString> EmitterAlias;
-		EmitterAlias.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), BaseEmitter->GetUniqueEmitterName());
+		EmitterAlias.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), BaseEmitter.Emitter->GetUniqueEmitterName());
 
 		auto FindCachedDI = 
 			[&](const FNiagaraVariableBase& BaseVariable) -> UNiagaraDataInterface*
@@ -862,7 +861,7 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 				if (BaseVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 				{
 					VariableName = FNiagaraUtilities::ResolveAliases(BaseVariable, FNiagaraAliasContext()
-						.ChangeEmitterToEmitterName(BaseEmitter->GetUniqueEmitterName())).GetName();
+						.ChangeEmitterToEmitterName(BaseEmitter.Emitter->GetUniqueEmitterName())).GetName();
 				}
 
 				for (UNiagaraScript* Script : Scripts)
@@ -1008,7 +1007,7 @@ void FNiagaraMaterialAttributeBindingCustomization::ChangeNiagaraSource(FNiagara
 	PropertyHandle->NotifyPreChange();
 	TargetParameterBinding->NiagaraVariable = InVar->BaseVar;
 	TargetParameterBinding->NiagaraChildVariable = InVar->ChildVar;
-	TargetParameterBinding->CacheValues(BaseEmitter);
+	TargetParameterBinding->CacheValues(BaseEmitter.Emitter);
 	//TargetParameterBinding->Parameter.SetType(FNiagaraTypeDefinition::GetUObjectDef()); Do not override the type here!
 	//TargetVariableBinding->DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(TargetVariableBinding->BoundVariable);
 	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
@@ -1207,7 +1206,7 @@ void FNiagaraMaterialAttributeBindingCustomization::CustomizeChildren(TSharedRef
 {
 	RenderProps = nullptr;
 	BaseSystem =  nullptr;
-	BaseEmitter = nullptr;
+	BaseEmitter = FVersionedNiagaraEmitter();
 	  
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
@@ -1215,7 +1214,10 @@ void FNiagaraMaterialAttributeBindingCustomization::CustomizeChildren(TSharedRef
 	{
 		RenderProps = Cast<UNiagaraRendererProperties>(Objects[0]);
 		BaseSystem = Objects[0]->GetTypedOuter<UNiagaraSystem>();
-		BaseEmitter = Objects[0]->GetTypedOuter<UNiagaraEmitter>();
+		if (RenderProps)
+		{
+			BaseEmitter = RenderProps->GetOuterEmitter();
+		}
 		if (BaseSystem)
 		{
 			TargetParameterBinding = (FNiagaraMaterialAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
@@ -1341,19 +1343,16 @@ TArray<FName> FNiagaraDataInterfaceBindingCustomization::GetNames() const
 
 	if (BaseStage && TargetDataInterfaceBinding)
 	{
-		UNiagaraEmitter* Emitter = BaseStage->GetTypedOuter<UNiagaraEmitter>();
-
-		if (Emitter)
+		if (FVersionedNiagaraEmitterData* EmitterData = BaseStage->GetEmitterData())
 		{
 			// Find all used emitter and particle data interface variables that can be iterated upon.
 			TArray<UNiagaraScript*> AllScripts;
-			Emitter->GetScripts(AllScripts, false);
+			EmitterData->GetScripts(AllScripts, false);
 
 			TArray<UNiagaraGraph*> Graphs;
 			for (const UNiagaraScript* Script : AllScripts)
 			{
-				const UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
-				if (Source)
+				if (const UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetLatestSource()))
 				{
 					Graphs.AddUnique(Source->NodeGraph);
 				}

@@ -151,7 +151,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 }
 #if WITH_EDITORONLY_DATA
 
-void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReInit)
+void FNiagaraSystemUpdateContext::Add(const FVersionedNiagaraEmitter& Emitter, bool bReInit)
 {
 	for (TObjectIterator<UNiagaraComponent> It; It; ++It)
 	{
@@ -280,7 +280,7 @@ void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatId
 	{
 		return;
 	}
-	FScopeLock Lock(&CriticalSection);
+	FScopeLock Lock(GetCriticalSection());
 	if (StatCaptures.Num() > GNiagaraMaxStatInstanceReports)
 	{
 		// we don't need data from too many emitter instances. If we already have enough, delete an old data point.
@@ -298,13 +298,13 @@ void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatId
 
 void FNiagaraStatDatabase::ClearStatCaptures()
 {
-	FScopeLock Lock(&CriticalSection);
+	FScopeLock Lock(GetCriticalSection());
 	StatCaptures.Empty();
 }
 
 float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType)
 {
-	FScopeLock Lock(&CriticalSection);
+	FScopeLock Lock(GetCriticalSection());
 	int32 ValueCount = 0;
 	float Sum = 0;
 	float Max = 0;
@@ -338,7 +338,7 @@ float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage U
 
 float FNiagaraStatDatabase::GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType)
 {
-	FScopeLock Lock(&CriticalSection);
+	FScopeLock Lock(GetCriticalSection());
 	int32 ValueCount = 0;
 	float Sum = 0;
 	float Max = 0;
@@ -368,7 +368,7 @@ float FNiagaraStatDatabase::GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraSt
 
 TMap<ENiagaraScriptUsage, TSet<FName>> FNiagaraStatDatabase::GetAvailableStatNames()
 {
-	FScopeLock Lock(&CriticalSection);
+	FScopeLock Lock(GetCriticalSection());
 	TMap<ENiagaraScriptUsage, TSet<FName>> Result;
 	for (const auto& EmitterEntry : StatCaptures)
 	{
@@ -380,15 +380,30 @@ TMap<ENiagaraScriptUsage, TSet<FName>> FNiagaraStatDatabase::GetAvailableStatNam
 	}
 	return Result;
 }
+
+void FNiagaraStatDatabase::Init()
+{
+	if (CriticalSection.IsValid() == false)
+	{
+		CriticalSection = MakeShared<FCriticalSection>();
+	}
+}
+
+FCriticalSection* FNiagaraStatDatabase::GetCriticalSection() const
+{
+	ensure(CriticalSection.IsValid());
+	return CriticalSection.Get();
+}
 #endif
 
-void FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+void FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const FVersionedNiagaraEmitter& InVersionedEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
+	UNiagaraEmitter* Emitter = InVersionedEmitter.Emitter;
 	RootVariable.SetName(InValue);
 
 	const bool bIsRootParticleValue = RootVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString);
 	const bool bIsRootUnaliasedEmitterValue = RootVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString);
-	const bool bIsAliasedEmitterValue = InEmitter ? RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()) : false;
+	const bool bIsAliasedEmitterValue = Emitter ? RootVariable.IsInNameSpace(Emitter->GetUniqueEmitterName()) : false;
 	const bool bIsRootSystemValue = RootVariable.IsInNameSpace(FNiagaraConstants::SystemNamespaceString);
 	const bool bIsRootUserValue = RootVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString);
 	const bool bIsStackContextValue = RootVariable.IsInNameSpace(FNiagaraConstants::StackContextNamespaceString);
@@ -408,7 +423,7 @@ void FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNia
 	{
 		// First, replace unaliased emitter namespace with "Emitter" namespace
 		RootVariable = FNiagaraUtilities::ResolveAliases(RootVariable, FNiagaraAliasContext()
-			.ChangeEmitterNameToEmitter(InEmitter->GetUniqueEmitterName()));
+			.ChangeEmitterNameToEmitter(Emitter->GetUniqueEmitterName()));
 
 		// Now strip out "Emitter"
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
@@ -422,10 +437,10 @@ void FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNia
 	else if (bIsRootUnaliasedEmitterValue || bIsAliasedEmitterValue)
 	{
 		// First, replace unaliased emitter namespace with "Emitter" namespace
-		if (InEmitter != nullptr)
+		if (Emitter != nullptr)
 		{
 			RootVariable = FNiagaraUtilities::ResolveAliases(RootVariable, FNiagaraAliasContext()
-				.ChangeEmitterNameToEmitter(InEmitter->GetUniqueEmitterName()));
+				.ChangeEmitterNameToEmitter(Emitter->GetUniqueEmitterName()));
 		}
 
 		// Now strip out "Emitter"
@@ -445,14 +460,15 @@ void FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNia
 		ensureMsgf(!bIsStackContextValue, TEXT("Should not get to this point! Should be covered by first two branch expresssions."));
 	}
 
-	CacheValues(InEmitter, InSourceMode);
+	CacheValues(InVersionedEmitter, InSourceMode);
 }
 
-void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableBase& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableBase& Src, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	static const FString PreviousNamespace = FNiagaraConstants::PreviousNamespace.ToString();
 
-	RootVariable = ParamMapVariable = DataSetVariable = Src;
+	ParamMapVariable = Src;
+	RootVariable = DataSetVariable = Src;
 
 	// Split out the name and it's namespace
 	TArray<FString> SplitName;
@@ -484,11 +500,12 @@ void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariable
 	}
 }
 
-void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableAttributeBinding& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableAttributeBinding& Src, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	static const FString PreviousNamespace = FNiagaraConstants::PreviousNamespace.ToString();
 
-	RootVariable = ParamMapVariable = DataSetVariable = Src.RootVariable;
+	ParamMapVariable = Src.RootVariable;
+	RootVariable = DataSetVariable = Src.RootVariable;
 
 	// Split out the name and it's namespace
 	TStringBuilder<128> VarName;
@@ -542,7 +559,7 @@ void FNiagaraVariableAttributeBinding::Setup(const FNiagaraVariableBase& InRootV
 	{
 		RootVariable.SetData(InDefaultValue.GetData());
 	}
-	SetValue(InRootVar.GetName(), nullptr, InSourceMode);
+	SetValue(InRootVar.GetName(), FVersionedNiagaraEmitter(), InSourceMode);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -566,7 +583,7 @@ void FNiagaraVariableAttributeBinding::PostLoad(ENiagaraRendererSourceDataMode I
 	if (BoundVariable.IsValid())
 	{
 		RootVariable.SetType(DataSetVariable.GetType()); //Sometimes the BoundVariable was bogus in the past. THe DataSet shouldn't be though.
-		SetValue(BoundVariable.GetName(), nullptr, InSourceMode);
+		SetValue(BoundVariable.GetName(), FVersionedNiagaraEmitter(), InSourceMode);
 		BoundVariable = FNiagaraVariable();
 	}
 #endif
@@ -587,7 +604,7 @@ void FNiagaraVariableAttributeBinding::Dump() const
 		bBindingExistsOnSource ? 1 : 0, bIsCachedParticleValue ? 1 : 0 );
 }
 
-void FNiagaraVariableAttributeBinding::ResetToDefault(const FNiagaraVariableAttributeBinding& InOther, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+void FNiagaraVariableAttributeBinding::ResetToDefault(const FNiagaraVariableAttributeBinding& InOther, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	if (InOther.BindingSourceMode == ImplicitFromSource || InOther.BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || InOther.BindingSourceMode == ENiagaraBindingSource::ExplicitParticles)
 	{
@@ -606,7 +623,7 @@ void FNiagaraVariableAttributeBinding::ResetToDefault(const FNiagaraVariableAttr
 			TempVar.SetNamespacedName(FNiagaraConstants::ParticleAttributeNamespaceString, InOther.DataSetVariable.GetName());
 		}
 
-		SetValue(TempVar.GetName(), nullptr, InSourceMode);
+		SetValue(TempVar.GetName(), FVersionedNiagaraEmitter(), InSourceMode);
 	}
 	else
 	{
@@ -624,7 +641,7 @@ bool FNiagaraVariableAttributeBinding::MatchesDefault(const FNiagaraVariableAttr
 }
 
 
-bool FNiagaraVariableAttributeBinding::RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+bool FNiagaraVariableAttributeBinding::RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	// First try a namespace mangling - free match.
 	if (OldVariable.GetName() == ParamMapVariable.GetName() && OldVariable.GetType() == ParamMapVariable.GetType())
@@ -639,7 +656,7 @@ bool FNiagaraVariableAttributeBinding::RenameVariableIfMatching(const FNiagaraVa
 	{
 		// First, resolve any aliases
 		OldVarAliased = FNiagaraUtilities::ResolveAliases(OldVariable, FNiagaraAliasContext()
-			.ChangeEmitterToEmitterName(InEmitter->GetUniqueEmitterName()));
+			.ChangeEmitterToEmitterName(InEmitter.Emitter->GetUniqueEmitterName()));
 	}
 	if (OldVarAliased.GetName() == ParamMapVariable.GetName() && OldVarAliased.GetType() == ParamMapVariable.GetType())
 	{
@@ -649,7 +666,7 @@ bool FNiagaraVariableAttributeBinding::RenameVariableIfMatching(const FNiagaraVa
 	return false;
 }
 
-bool FNiagaraVariableAttributeBinding::Matches(const FNiagaraVariableBase& OldVariable,  const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+bool FNiagaraVariableAttributeBinding::Matches(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	// First try a namespace mangling - free match.
 	if (OldVariable.GetName() == ParamMapVariable.GetName() && OldVariable.GetType() == ParamMapVariable.GetType())
@@ -659,11 +676,11 @@ bool FNiagaraVariableAttributeBinding::Matches(const FNiagaraVariableBase& OldVa
 
 	// Now we need to deal with any aliased emitter namespaces for the match. If so resolve the aliases then try the match.
 	FNiagaraVariable OldVarAliased = OldVariable;
-	if (InEmitter && OldVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
+	if (InEmitter.Emitter && OldVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 	{
 		// First, resolve any aliases
 		OldVarAliased = FNiagaraUtilities::ResolveAliases(OldVariable, FNiagaraAliasContext()
-			.ChangeEmitterToEmitterName(InEmitter->GetUniqueEmitterName()));
+			.ChangeEmitterToEmitterName(InEmitter.Emitter->GetUniqueEmitterName()));
 	}
 	if (OldVarAliased.GetName() == ParamMapVariable.GetName() && OldVarAliased.GetType() == ParamMapVariable.GetType())
 	{
@@ -672,15 +689,16 @@ bool FNiagaraVariableAttributeBinding::Matches(const FNiagaraVariableBase& OldVa
 	return false;
 }
 
-void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+void FNiagaraVariableAttributeBinding::CacheValues(const FVersionedNiagaraEmitter& InVersionedEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	// Some older values may have had the root with the emitter unique name as the namespace, fix this up
 	// to meet the new assumptions.
-	if (InEmitter && RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()))
+	UNiagaraEmitter* Emitter = InVersionedEmitter.Emitter;
+	if (Emitter && RootVariable.IsInNameSpace(Emitter->GetUniqueEmitterName()))
 	{
 		// First, replace unaliased emitter namespace with "Emitter" namespace
 		RootVariable = FNiagaraUtilities::ResolveAliases(RootVariable, FNiagaraAliasContext()
-			.ChangeEmitterNameToEmitter(InEmitter->GetUniqueEmitterName()));
+			.ChangeEmitterNameToEmitter(Emitter->GetUniqueEmitterName()));
 
 		// Now strip out "Emitter"
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
@@ -722,33 +740,33 @@ void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 #endif
 
 	// Now resolve if this variable actually exists.
-	if (InEmitter)
+	if (Emitter)
 	{
 		if (BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
 		{
 			// Replace  "Emitter" namespace with unaliased emitter namespace
 			FNiagaraAliasContext ResolveAliasesContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript);
-			ResolveAliasesContext.ChangeEmitterToEmitterName(InEmitter->GetUniqueEmitterName());
-			ParamMapVariable = FNiagaraUtilities::ResolveAliases(ParamMapVariable,  ResolveAliasesContext);
+			ResolveAliasesContext.ChangeEmitterToEmitterName(Emitter->GetUniqueEmitterName());
+			ParamMapVariable = FNiagaraUtilities::ResolveAliases(ParamMapVariable, ResolveAliasesContext);
 			DataSetVariable = FNiagaraUtilities::ResolveAliases(DataSetVariable, ResolveAliasesContext);
 		}
 
 		FNiagaraTypeDefinition BoundVarType = ParamMapVariable.GetType();
 		if (BindingSourceMode == ENiagaraBindingSource::ExplicitParticles || (InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainParticleAttribute(DataSetVariable, BoundVarType);
+			bBindingExistsOnSource = Emitter->CanObtainParticleAttribute(DataSetVariable, InVersionedEmitter.Version, BoundVarType);
 		}
 		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainEmitterAttribute(ParamMapVariable, BoundVarType);
+			bBindingExistsOnSource = Emitter->CanObtainEmitterAttribute(ParamMapVariable, BoundVarType);
 		}
 		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitSystem)
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainSystemAttribute(ParamMapVariable, BoundVarType);
+			bBindingExistsOnSource = Emitter->CanObtainSystemAttribute(ParamMapVariable, BoundVarType);
 		}
 		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitUser)
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainUserVariable(ParamMapVariable);
+			bBindingExistsOnSource = Emitter->CanObtainUserVariable(ParamMapVariable);
 		}
 
 		if (bBindingExistsOnSource && BoundVarType != ParamMapVariable.GetType())
@@ -1320,7 +1338,7 @@ FNiagaraVariable FNiagaraUtilities::ResolveAliases(const FNiagaraVariable& InVar
 }
 
 #if WITH_EDITORONLY_DATA
-void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, const UNiagaraEmitter*>& ScriptToEmitterMap)
+void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FVersionedNiagaraEmitter>& ScriptToEmitterMap)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Niagara_Utilities_PrepareRapidIterationParameters);
 
@@ -1333,7 +1351,7 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		Script->RapidIterationParameters.CopyParametersTo(ParameterStoreToPrepare, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::None);
 		ParameterStoreToPrepare.ParameterGuidMapping = Script->RapidIterationParameters.ParameterGuidMapping;
 		checkf(ScriptToEmitterMap.Find(Script) != nullptr, TEXT("Script to emitter name map must have an entry for each script to be processed."));
-		if (const UNiagaraEmitter* const* Emitter = ScriptToEmitterMap.Find(Script))
+		if (const FVersionedNiagaraEmitter* Emitter = ScriptToEmitterMap.Find(Script))
 		{
 			if (Script->GetLatestSource())
 			{

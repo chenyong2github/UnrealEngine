@@ -12,7 +12,7 @@
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraph/EdGraph.h"
 
-static const float SystemOverviewNodePadding = 250.0f;
+static constexpr float SystemOverviewNodePadding = 250.0f;
 
 const FName UNiagaraSystemEditorFolder::GetFolderName() const
 {
@@ -174,7 +174,7 @@ void UNiagaraSystemEditorData::UpdatePlaybackRangeFromEmitters(UNiagaraSystem& O
 
 		for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem.GetEmitterHandles())
 		{
-			UNiagaraEmitterEditorData* EmitterEditorData = Cast<UNiagaraEmitterEditorData>(EmitterHandle.GetInstance()->GetEditorData());
+			UNiagaraEmitterEditorData* EmitterEditorData = Cast<UNiagaraEmitterEditorData>(EmitterHandle.GetEmitterData()->GetEditorData());
 			if (EmitterEditorData != nullptr)
 			{
 				EmitterPlaybackRangeMin = FMath::Min(PlaybackRangeMin, EmitterEditorData->GetPlaybackRange().GetLowerBoundValue());
@@ -215,8 +215,6 @@ void FindOuterNodes(const TArray<UNiagaraOverviewNode*> OverviewNodes, UNiagaraO
 
 void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem& OwnerSystem)
 {
-	float NextNodePosX = 0.0;
-
 	TArray<UNiagaraOverviewNode*> OverviewNodes;
 	SystemOverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
 

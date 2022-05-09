@@ -16,6 +16,7 @@
 #include "NiagaraScriptHighlight.h"
 #include "NiagaraStackSection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
+#include "NiagaraVersionedObject.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformAtomics.h"
 #include "VectorVM.h"
@@ -652,7 +653,7 @@ private:
 
 /** Runtime script for a Niagara system */
 UCLASS(MinimalAPI)
-class UNiagaraScript : public UNiagaraScriptBase
+class UNiagaraScript : public UNiagaraScriptBase, public FNiagaraVersionedObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -660,7 +661,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** If true then this script asset uses active version control to track changes. */
-	NIAGARA_API bool IsVersioningEnabled() const { return bVersioningEnabled; }
+	NIAGARA_API virtual bool IsVersioningEnabled() const override { return bVersioningEnabled; }
 
 	/** Returns the script data for latest exposed version. */
 	NIAGARA_API FVersionedNiagaraScriptData* GetLatestScriptData();
@@ -671,28 +672,30 @@ public:
 	NIAGARA_API const FVersionedNiagaraScriptData* GetScriptData(const FGuid& VersionGuid) const;
 
 	/** Returns all available versions for this script. */
-	NIAGARA_API TArray<FNiagaraAssetVersion> GetAllAvailableVersions() const;
+	NIAGARA_API virtual TArray<FNiagaraAssetVersion> GetAllAvailableVersions() const override;
 
 	/** Returns the version of the exposed version data (i.e. the version used when adding a module to the stack) */
-	NIAGARA_API FNiagaraAssetVersion GetExposedVersion() const;
+	NIAGARA_API virtual FNiagaraAssetVersion GetExposedVersion() const override;
 
 	/** Returns the version data for the given guid, if it exists. Otherwise returns nullptr. */
-	NIAGARA_API FNiagaraAssetVersion const* FindVersionData(const FGuid& VersionGuid) const;
+	NIAGARA_API virtual FNiagaraAssetVersion const* FindVersionData(const FGuid& VersionGuid) const override;
 	
 	/** Creates a new data entry for the given version number. The version must be > 1.0 and must not collide with an already existing version. The data will be a copy of the previous minor version. */
-	NIAGARA_API FGuid AddNewVersion(int32 MajorVersion, int32 MinorVersion);
+	NIAGARA_API virtual FGuid AddNewVersion(int32 MajorVersion, int32 MinorVersion) override;
 
 	/** Deletes the version data for an existing version. The exposed version cannot be deleted and will result in an error. Does nothing if the guid does not exist in the script's version data. */
-	NIAGARA_API void DeleteVersion(const FGuid& VersionGuid);
+	NIAGARA_API virtual void DeleteVersion(const FGuid& VersionGuid) override;
 
 	/** Changes the exposed version. Does nothing if the guid does not exist in the script's version data. */
-	NIAGARA_API void ExposeVersion(const FGuid& VersionGuid);
+	NIAGARA_API virtual void ExposeVersion(const FGuid& VersionGuid) override;
 
 	/** Enables versioning for this script asset. */
-	NIAGARA_API void EnableVersioning();
+	NIAGARA_API virtual void EnableVersioning() override;
 
 	/** Disables versioning and keeps only the data from the given version guid. Note that this breaks ALL references from existing assets and should only be used when creating a copy of a script, as the effect is very destructive.  */
-	NIAGARA_API void DisableVersioning(const FGuid& VersionGuidToUse);
+	NIAGARA_API virtual void DisableVersioning(const FGuid& VersionGuidToUse) override;
+
+	NIAGARA_API virtual TSharedPtr<FNiagaraVersionDataAccessor> GetVersionDataAccessor(const FGuid& Version) override; 
 
 	/** Makes sure that the default version data is available and fixes old script assets. */
 	NIAGARA_API void CheckVersionDataAvailable();
@@ -700,6 +703,9 @@ public:
 	/** Creates a shallow transient copy of this script for compilation purposes. */
 	NIAGARA_API UNiagaraScript* CreateCompilationCopy();
 #endif
+
+	/** Workaround for emitter versioning because we used a lot of Script->GetOuter() previously. */
+	NIAGARA_API FVersionedNiagaraEmitter GetOuterEmitter() const;
 
 	// how this script is to be used. cannot be private due to use of GET_MEMBER_NAME_CHECKED
 	UPROPERTY(AssetRegistrySearchable)
@@ -1212,7 +1218,7 @@ private:
 	private :
 
 #if WITH_EDITORONLY_DATA
-		void ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, UNiagaraEmitter* Emitter, UNiagaraSystem* EmitterOwner, ENiagaraRendererSourceDataMode InSourceMode) const;
+		void ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, const FVersionedNiagaraEmitter& Emitter, ENiagaraRendererSourceDataMode InSourceMode) const;
 #endif
 };
 

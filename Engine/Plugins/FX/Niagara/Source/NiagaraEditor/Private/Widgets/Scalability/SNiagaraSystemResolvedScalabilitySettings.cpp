@@ -15,7 +15,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SExpandableButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "PropertyEditorModule.h"
 
@@ -130,10 +129,10 @@ TSharedRef<SWidget> SScalabilityResolvedRow::GenerateWidgetForColumn(const FName
 		];
 	}
 	else if(ColumnId == ColumnDefaultValue)
-	{		
-		FText DefaultValueText;
+	{
 		if(ScalabilityRowData->DefaultPropertyHandle.IsValid())
 		{
+			FText DefaultValueText;
 			ScalabilityRowData->DefaultPropertyHandle->GetValueAsDisplayText(DefaultValueText);			
 			RowContent = SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -153,7 +152,7 @@ TSharedRef<SWidget> SScalabilityResolvedRow::GenerateWidgetForColumn(const FName
 		bool bSkipWidget = false;
 		if(UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(ScalabilityRowData->OwningObject))
 		{
-			const FNiagaraEmitterScalabilityOverride& CurrentOverrides = Emitter->GetCurrentOverrideSettings();
+			const FNiagaraEmitterScalabilityOverride& CurrentOverrides = Emitter->GetEmitterData(ScalabilityRowData->OwningObjectVersion)->GetCurrentOverrideSettings();
 			if(!IsEmitterScalabilityValueOverridden(ScalabilityRowData->ResolvedTreeNode->GetNodeName(), CurrentOverrides))
 			{
 				RowContent = SNullWidget::NullWidget;
@@ -221,8 +220,7 @@ void SNiagaraSystemResolvedScalabilitySettings::RebuildWidget()
 
 	for(UObject* SelectedNode : SystemViewModel->GetOverviewGraphViewModel()->GetNodeSelection()->GetSelectedObjects())
 	{
-		UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
-		if(OverviewNode)
+		if(UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode))
 		{
 			SelectedOverviewNodes.Add(OverviewNode);
 		}
@@ -232,17 +230,17 @@ void SNiagaraSystemResolvedScalabilitySettings::RebuildWidget()
 	{
 		for(UObject* SelectedNode : SelectedOverviewNodes)
 		{
-			UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
-			if(OverviewNode)
+			if(UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode))
 			{
 				if(FNiagaraEmitterHandle* Handle = OverviewNode->TryGetEmitterHandle())
 				{
-					Handle->GetInstance()->OnPropertiesChanged().RemoveAll(this);
-					Handle->GetInstance()->OnPropertiesChanged().AddSP(this, &SNiagaraSystemResolvedScalabilitySettings::RebuildWidget);
+					FVersionedNiagaraEmitter VersionedEmitter = Handle->GetInstance();
+					VersionedEmitter.Emitter->OnPropertiesChanged().RemoveAll(this);
+					VersionedEmitter.Emitter->OnPropertiesChanged().AddSP(this, &SNiagaraSystemResolvedScalabilitySettings::RebuildWidget);
 					ResolvedScalabilityContainer->AddSlot()
 					.AutoHeight()
 					[
-						GenerateResolvedScalabilityTable(Handle->GetInstance())
+						GenerateResolvedScalabilityTable(VersionedEmitter.Emitter, VersionedEmitter.Version)
 					];
 				}
 				else
@@ -250,7 +248,7 @@ void SNiagaraSystemResolvedScalabilitySettings::RebuildWidget()
 					ResolvedScalabilityContainer->AddSlot()
 					.AutoHeight()
 					[
-						GenerateResolvedScalabilityTable(OverviewNode->GetOwningSystem())
+						GenerateResolvedScalabilityTable(OverviewNode->GetOwningSystem(), FGuid())
 					];
 				}
 			}
@@ -260,16 +258,17 @@ void SNiagaraSystemResolvedScalabilitySettings::RebuildWidget()
 	{
 		ResolvedScalabilityContainer->AddSlot()
 		[
-			GenerateResolvedScalabilityTable(&SystemViewModel->GetSystem())
+			GenerateResolvedScalabilityTable(&SystemViewModel->GetSystem(), FGuid())
 		];
 		
 		for(const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 		{
-			EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->OnPropertiesChanged().RemoveAll(this);
-			EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->OnPropertiesChanged().AddSP(this, &SNiagaraSystemResolvedScalabilitySettings::RebuildWidget);
+			FVersionedNiagaraEmitter VersionedEmitter = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
+			VersionedEmitter.Emitter->OnPropertiesChanged().RemoveAll(this);
+			VersionedEmitter.Emitter->OnPropertiesChanged().AddSP(this, &SNiagaraSystemResolvedScalabilitySettings::RebuildWidget);
 			ResolvedScalabilityContainer->AddSlot()
 			[
-				GenerateResolvedScalabilityTable(EmitterHandleViewModel->GetEmitterHandle()->GetInstance())
+				GenerateResolvedScalabilityTable(VersionedEmitter.Emitter, VersionedEmitter.Version)
 			];	
 		}
 	}
@@ -285,7 +284,7 @@ TSharedRef<ITableRow> SNiagaraSystemResolvedScalabilitySettings::GenerateScalabi
 	return SNew(SScalabilityResolvedRow, ScalabilityRowData, TableViewBase, SharedThis(this));
 }
 
-TSharedRef<SWidget> SNiagaraSystemResolvedScalabilitySettings::GenerateResolvedScalabilityTable(UObject* Object)
+TSharedRef<SWidget> SNiagaraSystemResolvedScalabilitySettings::GenerateResolvedScalabilityTable(UObject* Object, const FGuid& Version)
 {
 	FString DisplayName = Object->GetName();
 
@@ -307,7 +306,7 @@ TSharedRef<SWidget> SNiagaraSystemResolvedScalabilitySettings::GenerateResolvedS
 			const FNiagaraEmitterScalabilitySettings& DefaultEmitterScalabilitySettings = System->GetEffectType()->GetActiveEmitterScalabilitySettings();
 			DefaultValueStruct = MakeShared<FStructOnScope>(FNiagaraEmitterScalabilitySettings::StaticStruct(), (uint8*) &DefaultEmitterScalabilitySettings);			
 		}
-		const FNiagaraEmitterScalabilitySettings& EmitterScalabilitySettings = Emitter->GetScalabilitySettings();
+		const FNiagaraEmitterScalabilitySettings& EmitterScalabilitySettings = Emitter->GetEmitterData(Version)->GetScalabilitySettings();
 		ResolvedValueStruct = MakeShared<FStructOnScope>(FNiagaraEmitterScalabilitySettings::StaticStruct(), (uint8*) &EmitterScalabilitySettings);
 	}
 	else if(UNiagaraSystem* NiagaraSystem = Cast<UNiagaraSystem>(Object))
@@ -326,12 +325,11 @@ TSharedRef<SWidget> SNiagaraSystemResolvedScalabilitySettings::GenerateResolvedS
     ResolvedPropertyGenerator->SetStructure(ResolvedValueStruct);
 
 	// we are caching the default handles so we can later find the default handle corresponding to a resolved handle
-	TArray<TSharedRef<IDetailTreeNode>> DefaultTreeNodes;
 	TMap<FString, TSharedRef<IDetailTreeNode>> DefaultHandles;
 	if(DefaultValueStruct.IsValid())
 	{
 		DefaultPropertyGenerator->SetStructure(DefaultValueStruct);
-		DefaultTreeNodes = DefaultPropertyGenerator->GetRootTreeNodes();
+		TArray<TSharedRef<IDetailTreeNode>> DefaultTreeNodes = DefaultPropertyGenerator->GetRootTreeNodes();
 		
 		for(TSharedRef<IDetailTreeNode> RootNode : DefaultTreeNodes)
 		{
@@ -374,6 +372,7 @@ TSharedRef<SWidget> SNiagaraSystemResolvedScalabilitySettings::GenerateResolvedS
 					ScalabilityValue->ResolvedPropertyHandle = ChildPropertyHandle.ToSharedRef();
 					ScalabilityValue->ResolvedTreeNode = Child;
 					ScalabilityValue->OwningObject = Object;
+					ScalabilityValue->OwningObjectVersion = Version;
 
 					// if we found the same handle in the default handles, we have both handles needed to display default and override data
 					if(DefaultHandles.Contains(ChildPropertyHandle->GetProperty()->GetName()))

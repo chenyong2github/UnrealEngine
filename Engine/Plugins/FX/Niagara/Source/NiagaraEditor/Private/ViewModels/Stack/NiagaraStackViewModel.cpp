@@ -134,7 +134,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		{
 			EmitterViewModel->OnParentRemoved().AddUObject(this, &UNiagaraStackViewModel::EmitterParentRemoved);
 
-			if (UNiagaraEmitter* Emitter = EmitterViewModel->GetEmitter())
+			if (UNiagaraEmitter* Emitter = EmitterViewModel->GetEmitter().Emitter)
 			{
 				EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
 			}
@@ -207,15 +207,18 @@ void UNiagaraStackViewModel::Reset()
 	}
 	RootEntries.Empty();
 
-	if (EmitterHandleViewModel.IsValid())
+	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel.IsValid() ? EmitterHandleViewModel.Pin()->GetEmitterViewModel() : TSharedPtr<FNiagaraEmitterViewModel>();
+	if (EmitterViewModel.IsValid())
 	{
-		EmitterHandleViewModel.Reset();
+		EmitterViewModel->OnParentRemoved().RemoveAll(this);
+		if (EmitterViewModel->GetEmitter().GetEmitterData())
+		{
+			EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().RemoveAll(this);
+		}
 	}
 
-	if (SystemViewModel.IsValid())
-	{
-		SystemViewModel.Reset();
-	}
+	EmitterHandleViewModel.Reset();
+	SystemViewModel.Reset();
 
 	TopLevelViewModels.Empty();
 

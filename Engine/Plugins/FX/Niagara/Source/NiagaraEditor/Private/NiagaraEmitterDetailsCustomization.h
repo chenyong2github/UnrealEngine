@@ -20,3 +20,13 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 };
 
+// customization for scalability mode
+class FNiagaraEmitterScalabilityDetails : public IDetailCustomization
+{
+public:
+	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
+};

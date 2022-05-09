@@ -7,6 +7,8 @@
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorSettings.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -261,6 +263,28 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 						LOCTEXT("ScalabilityTooltip", "Turn on scalability mode to optimize your effects for various platforms and quality settings."),
 						FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.SimulationOptions")
 					);
+				}
+				ToolbarBuilder.EndSection();
+			}
+
+			if (Toolkit->HasEmitter())
+			{
+				ToolbarBuilder.BeginSection("Versioning");
+				{
+					ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().EmitterVersioning, NAME_None,
+					TAttribute<FText>(Toolkit, &FNiagaraSystemToolkit::GetVersionButtonLabel),
+					LOCTEXT("NiagaraShowModuleVersionsTooltip", "Manage different versions of this emitter."),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"));
+
+					FUIAction DropdownAction;
+					DropdownAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([Toolkit]() { return Toolkit->GetEmitterVersions().Num() > 1; });
+					ToolbarBuilder.AddComboButton(
+					 DropdownAction,
+					 FOnGetContent::CreateRaw(Toolkit, &FNiagaraSystemToolkit::GenerateVersioningDropdownMenu, Toolkit->GetToolkitCommands()),
+					 FText(),
+					 LOCTEXT("NiagaraShowVersions_ToolTip", "Select version to edit"),
+					 FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"),
+					 true);
 				}
 				ToolbarBuilder.EndSection();
 			}

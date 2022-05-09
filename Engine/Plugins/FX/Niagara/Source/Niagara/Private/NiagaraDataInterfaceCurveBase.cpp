@@ -2,8 +2,6 @@
 
 #include "NiagaraDataInterfaceCurveBase.h"
 #include "Curves/CurveVector.h"
-#include "Curves/CurveLinearColor.h"
-#include "Curves/CurveFloat.h"
 #include "Engine/Texture2D.h"
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
@@ -430,19 +428,10 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceCurveBase::GetErrors()
 {
 	// Trace down the root emitter (if there is one)
 	TArray<FNiagaraDataInterfaceError> Errors;
-	UObject* Obj = GetOuter();
-	UNiagaraEmitter* Emitter = nullptr;
-	while (Obj && !Obj->IsA(UPackage::StaticClass()))
-	{
-		Emitter = Cast<UNiagaraEmitter>(Obj);
-		if (!Emitter)
-			Obj = Obj->GetOuter();
-		else
-			break;
-	}
+	UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>();
 
 	// If there is a root emitter, assume that we are in its particle stack and point out that we need bUseLUT true for GPU sims.
-	if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && !bUseLUT)
+	if (Emitter && Emitter->GetLatestEmitterData()->SimTarget == ENiagaraSimTarget::GPUComputeSim && !bUseLUT)
 	{
 		FNiagaraDataInterfaceError LUTsNeededForGPUSimsError(LOCTEXT("LUTsNeededForGPUSims", "This Data Interface must have bUseLUT set to true for GPU sims."),
 			LOCTEXT("LUTsNeededForGPUSimsSummary", "bUseLUT Required"),

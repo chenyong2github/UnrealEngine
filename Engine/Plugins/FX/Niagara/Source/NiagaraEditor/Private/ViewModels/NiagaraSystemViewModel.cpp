@@ -35,7 +35,6 @@
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraphUtilities.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
-#include "NiagaraParameterDefinitions.h"
 #include "NiagaraEmitterFactoryNew.h"
 
 #include "Editor.h"
@@ -56,7 +55,6 @@
 #include "NiagaraMessageUtilities.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Framework/Application/SlateApplication.h"
-#include "NiagaraScriptVariable.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
@@ -268,7 +266,7 @@ INiagaraParameterDefinitionsSubscriber* FNiagaraSystemViewModel::GetParameterDef
 	}
 	else /**EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset */
 	{
-		return GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance();
+		return GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance().Emitter;
 	}
 }
 
@@ -294,7 +292,7 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::GetEmitterHa
 	return TSharedPtr<FNiagaraEmitterHandleViewModel>();
 }
 
-TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::GetEmitterHandleViewModelForEmitter(const FVersionedNiagaraEmitter& InEmitter) const
 {
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 	{
@@ -389,13 +387,13 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitterFr
 	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(AssetData.GetAsset());
 	if (Emitter != nullptr)
 	{
-		return AddEmitter(*Emitter);
+		return AddEmitter(*Emitter, Emitter->GetExposedVersion().VersionGuid);
 	}
 
 	return nullptr;
 }
 
-TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter, FGuid EmitterVersion)
 {
 	// Reset view models before modifying the emitter handle list to prevent accessing deleted data.
 	ResetEmitterHandleViewModelsAndTracks();
@@ -407,7 +405,7 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(U
 		GEditor->BeginTransaction(LOCTEXT("AddEmitter", "Add emitter"));
 	}
 
-	const FGuid NewEmitterHandleId = FNiagaraEditorUtilities::AddEmitterToSystem(GetSystem(), Emitter, EditMode != ENiagaraSystemViewModelEditMode::EmitterDuringMerge);
+	const FGuid NewEmitterHandleId = FNiagaraEditorUtilities::AddEmitterToSystem(GetSystem(), Emitter, EmitterVersion, EditMode != ENiagaraSystemViewModelEditMode::EmitterDuringMerge);
 
 	if (false == bSystemIsPlaceholder && false == bIsForDataProcessingOnly)
 	{
@@ -459,7 +457,12 @@ NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewM
 	FName EmptyEmitterName = FNiagaraEditorUtilities::GetUniqueObjectName<UNiagaraEmitter>(GetTransientPackage(), TEXT("Empty"));
 	EmptyEmitter->SetUniqueEmitterName(EmptyEmitterName.ToString());
 	EmptyEmitter->SetFlags(RF_Transactional);
-	return AddEmitter(*EmptyEmitter);
+	return AddEmitter(FVersionedNiagaraEmitter(EmptyEmitter, FGuid()));
+}
+
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(const FVersionedNiagaraEmitter& VersionedEmitter)
+{
+	return AddEmitter(*VersionedEmitter.Emitter, VersionedEmitter.Version);
 }
 
 void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate)
@@ -512,7 +515,7 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 		if (SourceSystem != nullptr && HandleToDuplicate.IsValid())
 		{
 			const FNiagaraEmitterHandle& EmitterHandle = GetSystem().DuplicateEmitterHandle(HandleToDuplicate, FNiagaraUtilities::GetUniqueName(HandleToDuplicate.GetName(), EmitterHandleNames));
-			FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(*SourceSystem, *EmitterHandle.GetInstance());
+			FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(*SourceSystem, EmitterHandle.GetInstance());
 			EmitterHandleNames.Add(EmitterHandle.GetName());
 			if (EmitterHandleToDuplicate.OverviewNode)
 			{
@@ -690,10 +693,7 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 {
 	// Reset system stack and emitter handle view models to prevent accessing invalid data if they were in the undo operation.
-	SystemStackViewModel->Reset();
-	ResetEmitterHandleViewModelsAndTracks();
-	RefreshAll();
-	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
+	ResetStack();
 	System->InvalidateActiveCompiles();
 	System->RequestCompile(false);
 }
@@ -818,12 +818,12 @@ void FNiagaraSystemViewModel::SetToolkitCommands(const TSharedRef<FUICommandList
 const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleDataByModuleEntry(UNiagaraStackEntry* ModuleEntry)
 {
 	FGuid EmitterHandleId = FGuid();
-	UNiagaraEmitter* Emitter = nullptr;
+	FVersionedNiagaraEmitter Emitter;
 	if (ModuleEntry->GetEmitterViewModel().IsValid())
 	{
 		Emitter = ModuleEntry->GetEmitterViewModel()->GetEmitter();
 		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelForEmitter(Emitter);
-		if (ensureMsgf(EmitterHandleViewModel.IsValid(), TEXT("Failed to get the emitter handle view model for emitter %s while getting stack module data."), *Emitter->GetPathName()))
+		if (ensureMsgf(EmitterHandleViewModel.IsValid(), TEXT("Failed to get the emitter handle view model for emitter %s while getting stack module data."), *Emitter.Emitter->GetPathName()))
 		{
 			EmitterHandleId = EmitterHandleViewModel->GetId();
 		}
@@ -841,7 +841,7 @@ const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleDa
 		return *StackModuleData;
 	}
 
-	UNiagaraEmitter* Emitter = nullptr;
+	FVersionedNiagaraEmitter Emitter;
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelById(EmitterHandleId);
 	if (ensureMsgf(EmitterHandleViewModel.IsValid(), TEXT("Failed to get the emitter handle view model for emitter handle id %s while getting stack module data."), *EmitterHandleId.ToString(EGuidFormats::DigitsWithHyphens)))
 	{
@@ -851,7 +851,7 @@ const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleDa
 	return BuildAndCacheStackModuleData(EmitterHandleId, Emitter);
 }
 
-const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::BuildAndCacheStackModuleData(FGuid EmitterHandleId, UNiagaraEmitter* Emitter)
+const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::BuildAndCacheStackModuleData(FGuid EmitterHandleId, const FVersionedNiagaraEmitter& Emitter)
 {
 	TArray<FNiagaraStackModuleData>& StackModuleData = GuidToCachedStackModuleData.Add(EmitterHandleId);
 	TArray<UNiagaraScript*> OrderedScripts;
@@ -870,13 +870,13 @@ UNiagaraEditorParametersAdapter* FNiagaraSystemViewModel::GetEditorOnlyParameter
 		return CastChecked<UNiagaraEditorParametersAdapter>(System->GetEditorParameters());
 	}
 	/** else EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset */
-	UNiagaraEmitter* Emitter = GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance();
-	return CastChecked<UNiagaraEditorParametersAdapter>(Emitter->GetEditorParameters());
+	FVersionedNiagaraEmitterData* EmitterData = GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetEmitterData();
+	return CastChecked<UNiagaraEditorParametersAdapter>(EmitterData->GetEditorParameters());
 }
 
 void FNiagaraSystemViewModel::GetOrderedScriptsForEmitterHandleId(FGuid EmitterHandleId, TArray<UNiagaraScript*>& OutScripts)
 {
-	UNiagaraEmitter* Emitter = nullptr;
+	FVersionedNiagaraEmitter Emitter;
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelById(EmitterHandleId);
 	if (EmitterHandleViewModel.IsValid())
 	{
@@ -885,17 +885,18 @@ void FNiagaraSystemViewModel::GetOrderedScriptsForEmitterHandleId(FGuid EmitterH
 	GetOrderedScriptsForEmitter(Emitter, OutScripts);
 }
 
-void FNiagaraSystemViewModel::GetOrderedScriptsForEmitter(UNiagaraEmitter* Emitter, TArray<UNiagaraScript*>& OutScripts)
+void FNiagaraSystemViewModel::GetOrderedScriptsForEmitter(const FVersionedNiagaraEmitter& Emitter, TArray<UNiagaraScript*>& OutScripts)
 {
 	OutScripts.Add(System->GetSystemSpawnScript());
 	OutScripts.Add(System->GetSystemUpdateScript());
-	if (Emitter != nullptr)
+	FVersionedNiagaraEmitterData* EmitterData = Emitter.GetEmitterData();
+	if (EmitterData != nullptr)
 	{
-		OutScripts.Add(Emitter->EmitterSpawnScriptProps.Script);
-		OutScripts.Add(Emitter->EmitterUpdateScriptProps.Script);
-		OutScripts.Add(Emitter->SpawnScriptProps.Script);
-		OutScripts.Add(Emitter->UpdateScriptProps.Script);
-		for (UNiagaraSimulationStageBase* SimulationStage : Emitter->GetSimulationStages())
+		OutScripts.Add(EmitterData->EmitterSpawnScriptProps.Script);
+		OutScripts.Add(EmitterData->EmitterUpdateScriptProps.Script);
+		OutScripts.Add(EmitterData->SpawnScriptProps.Script);
+		OutScripts.Add(EmitterData->UpdateScriptProps.Script);
+		for (UNiagaraSimulationStageBase* SimulationStage : EmitterData->GetSimulationStages())
 		{
 			if (SimulationStage->bEnabled)
 			{
@@ -979,12 +980,12 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 	const TArray<FNiagaraEmitterHandle> EmitterHandles = GetSystem().GetEmitterHandles();
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		const UNiagaraEmitter* EmitterInSystem = Handle.GetInstance();
+		FVersionedNiagaraEmitter EmitterInSystem = Handle.GetInstance();
 		TArray<UNiagaraScript*> EmitterScripts;
-		EmitterInSystem->GetScripts(EmitterScripts, false);
+		EmitterInSystem.GetEmitterData()->GetScripts(EmitterScripts, false);
 		for (UNiagaraScript* EmitterScript : EmitterScripts)
 		{
-			ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(EmitterScript, EmitterInSystem->GetUniqueEmitterName()));
+			ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(EmitterScript, EmitterInSystem.Emitter->GetUniqueEmitterName()));
 		}
 	}
 
@@ -1134,7 +1135,7 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 					{
 						if (EmitterHandle.GetIsEnabled())
 						{
-							EmitterHandle.GetInstance()->GetScripts(ScriptsToCheckForStatus, true);
+							EmitterHandle.GetEmitterData()->GetScripts(ScriptsToCheckForStatus, true);
 						}
 					}
 				}
@@ -1189,6 +1190,14 @@ void FNiagaraSystemViewModel::RefreshAll()
 	bPendingAssetMessagesChanged = true;
 }
 
+void FNiagaraSystemViewModel::ResetStack()
+{
+	SystemStackViewModel->Reset();
+	ResetEmitterHandleViewModelsAndTracks();
+	RefreshAll();
+	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
+}
+
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
 {
 	if (ChangedObjects.Num() == 1 && ChangedObjects[0]->IsA<UNiagaraSystem>())
@@ -1216,11 +1225,16 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 
 			if(UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(ChangedObject))
 			{
-				UNiagaraStackViewModel* StackViewModel = GetEmitterHandleViewModelForEmitter(Emitter)->GetEmitterStackViewModel();
-
-				if(ensure(StackViewModel))
+				for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 				{
-					StackViewModel->Refresh();
+					if (EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter().Emitter == Emitter)
+					{
+						UNiagaraStackViewModel* StackViewModel = EmitterHandleViewModel->GetEmitterStackViewModel();
+						if(ensure(StackViewModel))
+						{
+							StackViewModel->Refresh();
+						}
+					}
 				}
 			}
 		}
@@ -1660,12 +1674,12 @@ void GetCompiledScriptsAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNia
 		{
 			const FNiagaraEmitterHandle* OwningEmitterHandle = OwningSystem.GetEmitterHandles().FindByPredicate([&StackNode](const FNiagaraEmitterHandle& EmitterHandle)
 			{
-				return CastChecked<UNiagaraScriptSource>(EmitterHandle.GetInstance()->GraphSource)->NodeGraph == StackNode.GetNiagaraGraph();
+				return CastChecked<UNiagaraScriptSource>(EmitterHandle.GetEmitterData()->GraphSource)->NodeGraph == StackNode.GetNiagaraGraph();
 			});
 
 			if(OwningEmitterHandle != nullptr)
 			{
-				OutEmitterName = OwningEmitterHandle->GetInstance()->GetUniqueEmitterName();
+				OutEmitterName = OwningEmitterHandle->GetInstance().Emitter->GetUniqueEmitterName();
 				switch (OutputNode->GetUsage())
 				{
 				case ENiagaraScriptUsage::EmitterSpawnScript:
@@ -1678,10 +1692,11 @@ void GetCompiledScriptsAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNia
 				case ENiagaraScriptUsage::ParticleUpdateScript:
 				case ENiagaraScriptUsage::ParticleEventScript:
 				case ENiagaraScriptUsage::ParticleSimulationStageScript:
-					OutCompiledScripts.Add(OwningEmitterHandle->GetInstance()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId()));
-					if (OwningEmitterHandle->GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					//TODO extract emitterdata into one var
+					OutCompiledScripts.Add(OwningEmitterHandle->GetEmitterData()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId()));
+					if (OwningEmitterHandle->GetEmitterData()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 					{
-						OutCompiledScripts.Add(OwningEmitterHandle->GetInstance()->GetScript(ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid()));
+						OutCompiledScripts.Add(OwningEmitterHandle->GetEmitterData()->GetScript(ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid()));
 					}
 					break;
 				}
@@ -2278,12 +2293,23 @@ void FNiagaraSystemViewModel::ClearEmitterStats()
 #if STATS
 	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
 	{
-		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		if (FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData())
 		{
-			Emitter->GetStatData().ClearStatCaptures();
+			EmitterData->GetStatData().ClearStatCaptures();
 		}
 	}
 #endif
+}
+
+// this switches the viewed emitter version in the editor, for the version selector of the referenced parent version see SNiagaraOverviewStackNode::SwitchToVersion
+bool FNiagaraSystemViewModel::ChangeEmitterVersion(const FVersionedNiagaraEmitter& Emitter, const FGuid& NewVersion)
+{
+	if (System->ChangeEmitterVersion(Emitter, NewVersion))
+	{
+		ResetStack();
+		return true;
+	}
+	return false;
 }
 
 void FNiagaraSystemViewModel::AddSystemEventHandlers()
@@ -2470,9 +2496,9 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 		Scripts.Add(ViewedSystem.GetSystemUpdateScript());
 		for (const FNiagaraEmitterHandle& EmitterHandle : ViewedSystem.GetEmitterHandles())
 		{
-			UNiagaraEmitter& Emitter = *EmitterHandle.GetInstance();
-			LastFunctionCallNodeObjectKeys.Append(PublishMessages(Emitter, &UNiagaraEmitter::RemoveMessageDelegateable));
-			Emitter.GetScripts(Scripts, false);
+			FVersionedNiagaraEmitter VersionedEmitter = EmitterHandle.GetInstance();
+			LastFunctionCallNodeObjectKeys.Append(PublishMessages(*VersionedEmitter.Emitter, &UNiagaraEmitter::RemoveMessageDelegateable));
+			VersionedEmitter.GetEmitterData()->GetScripts(Scripts, false);
 		}
 		LastFunctionCallNodeObjectKeys.Append(PublishScriptMessages(Scripts));
 
@@ -2482,11 +2508,11 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 		const TArray<FNiagaraEmitterHandle>& EmitterHandles = ViewedSystem.GetEmitterHandles();
 		if (ensureMsgf(EmitterHandles.Num() == 1, TEXT("There was not exactly 1 Emitter Handle for the SystemViewModel in Emitter edit mode!")))
 		{
-			UNiagaraEmitter& ViewedEmitter = *(EmitterHandles[0].GetInstance());
-			LastFunctionCallNodeObjectKeys.Append(PublishMessages(ViewedEmitter, &UNiagaraEmitter::RemoveMessageDelegateable));
+			FVersionedNiagaraEmitter VersionedEmitter = EmitterHandles[0].GetInstance();
+			LastFunctionCallNodeObjectKeys.Append(PublishMessages(*VersionedEmitter.Emitter, &UNiagaraEmitter::RemoveMessageDelegateable));
 
 			TArray<UNiagaraScript*> Scripts;
-			ViewedEmitter.GetScripts(Scripts, false);
+			VersionedEmitter.GetEmitterData()->GetScripts(Scripts, false);
 			LastFunctionCallNodeObjectKeys.Append(PublishScriptMessages(Scripts));
 		}
 	}

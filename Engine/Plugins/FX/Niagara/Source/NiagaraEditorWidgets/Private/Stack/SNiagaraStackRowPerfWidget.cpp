@@ -110,13 +110,13 @@ void SNiagaraStackRowPerfWidget::Tick(const FGeometry& AllottedGeometry, const d
 	{
 		return;
 	}
-	GroupOverallTime = CalculateGroupOverallTime(IsEmitterStack() ? GetEmitter()->GetUniqueEmitterName() : "Main");
+	GroupOverallTime = CalculateGroupOverallTime(IsEmitterStack() ? GetEmitter().Emitter->GetUniqueEmitterName() : "Main");
 	if (IsSystemStack())
 	{
 		EmitterTimeTotal = 0;
 		for (const FNiagaraEmitterHandle& Handle : StackEntry->GetSystemViewModel()->GetSystem().GetEmitterHandles())
 		{
-			EmitterTimeTotal += CalculateGroupOverallTime(Handle.GetInstance()->GetUniqueEmitterName());
+			EmitterTimeTotal += CalculateGroupOverallTime(Handle.GetInstance().Emitter->GetUniqueEmitterName());
 		}
 	}
 	if (IsGpuEmitter())
@@ -401,11 +401,11 @@ bool SNiagaraStackRowPerfWidget::IsEntrySelected() const
 	return StackEntry->GetSystemViewModel()->GetSelectionViewModel()->ContainsEntry(StackEntry.Get());
 }
 
-UNiagaraEmitter* SNiagaraStackRowPerfWidget::GetEmitter() const
+FVersionedNiagaraEmitter SNiagaraStackRowPerfWidget::GetEmitter() const
 {
 	if (!StackEntry->GetEmitterViewModel())
 	{
-		return nullptr;
+		return FVersionedNiagaraEmitter();
 	}
 	return StackEntry->GetEmitterViewModel().Get()->GetEmitter();
 }
@@ -440,17 +440,18 @@ ENiagaraStatDisplayMode SNiagaraStackRowPerfWidget::GetDisplayMode() const
 
 bool SNiagaraStackRowPerfWidget::IsInterpolatedSpawnEnabled() const
 {
-	UNiagaraEmitter* Emitter = GetEmitter();
-	if (!Emitter)
+	FVersionedNiagaraEmitterData* EmitterData = GetEmitter().GetEmitterData();
+	if (!EmitterData)
 	{
 		return false;
 	}
-	return Emitter->bInterpolatedSpawning;
+	return EmitterData->bInterpolatedSpawning;
 }
 
 bool SNiagaraStackRowPerfWidget::IsGpuEmitter() const
 {
-	return GetEmitter() && GetEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+	FVersionedNiagaraEmitterData* EmitterData = GetEmitter().GetEmitterData();
+	return EmitterData && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 }
 
 float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime(FString StatScopeName) const
@@ -462,17 +463,17 @@ float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime(FString StatScopeNam
 	}
 	if (IsParticleStack())
 	{
-		UNiagaraEmitter* Emitter = GetEmitter();
-		if (!Emitter)
+		FVersionedNiagaraEmitterData* EmitterData = GetEmitter().GetEmitterData();
+		if (!EmitterData)
 		{
 			return 0;
 		}
 		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
 		if (IsGpuEmitter())
 		{
-			return Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), ENiagaraScriptUsage::ParticleGPUComputeScript, GetEvaluationType()) / 1000.0f;
+			return EmitterData->GetStatData().GetRuntimeStat(StatId.GetName(), ENiagaraScriptUsage::ParticleGPUComputeScript, GetEvaluationType()) / 1000.0f;
 		}
-		return FPlatformTime::ToMilliseconds(Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+		return FPlatformTime::ToMilliseconds(EmitterData->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
 	}
 	if (IsSystemStack() || IsEmitterStack())
 	{
@@ -502,8 +503,8 @@ float SNiagaraStackRowPerfWidget::CalculateStackEntryTime() const
 	UNiagaraNodeFunctionCall& FunctionNode = ModuleItem->GetModuleNode();
 	if (IsParticleStack())
 	{
-		UNiagaraEmitter* Emitter = GetEmitter();
-		if (!Emitter)
+		FVersionedNiagaraEmitterData* EmitterData = GetEmitter().GetEmitterData();
+		if (!EmitterData)
 		{
 			return 0;
 		}
@@ -511,11 +512,11 @@ float SNiagaraStackRowPerfWidget::CalculateStackEntryTime() const
 		FString StatScopeName = FunctionNode.GetFunctionName() + "_Emitter";
 		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
 		FString StatName = StatId.GetName().ToString();
-		return FPlatformTime::ToMilliseconds(Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+		return FPlatformTime::ToMilliseconds(EmitterData->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
 	}
 	if (IsEmitterStack())
 	{
-		UNiagaraEmitter* Emitter = GetEmitter();
+		UNiagaraEmitter* Emitter = GetEmitter().Emitter;
 		if (!Emitter)
 		{
 			return 0;

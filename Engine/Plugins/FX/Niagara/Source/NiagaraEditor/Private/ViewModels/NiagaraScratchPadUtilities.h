@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "UObject/NameTypes.h"
+#include "NiagaraTypes.h"
 
 class UNiagaraSystem;
 class UNiagaraEmitter;
@@ -16,5 +16,5 @@ namespace FNiagaraScratchPadUtilities
 
 	/** Fixes function call nodes in an emitter which reference scratch pad scripts from another system which can happen when copying
 		and pasting emitters between systems, and when saving system emitters as assets. */
-	void FixExternalScratchPadScriptsForEmitter(UNiagaraSystem& SourceSystem, UNiagaraEmitter& TargetEmitter);
+	void FixExternalScratchPadScriptsForEmitter(UNiagaraSystem& SourceSystem, const FVersionedNiagaraEmitter& TargetEmitter);
 }

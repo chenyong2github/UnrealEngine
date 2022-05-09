@@ -508,11 +508,11 @@ void UNiagaraEffectType::ForEachPlatformSet(TAction Func)
 {
 	for (FNiagaraSystemScalabilitySettings& Setting : SystemScalabilitySettings.Settings)
 	{
-		Func(this, Setting.Platforms);
+		Func(Setting.Platforms);
 	}
 
 	for (FNiagaraEmitterScalabilitySettings& Setting : EmitterScalabilitySettings.Settings)
 	{
-		Func(this, Setting.Platforms);
+		Func(Setting.Platforms);
 	}
 }

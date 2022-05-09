@@ -24,7 +24,6 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -51,14 +50,10 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Stack/SNiagaraStackErrorItem.h"
-#include "NiagaraStackEditorData.h"
-#include "ScopedTransaction.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
 #include "NiagaraStackCommandContext.h"
 #include "NiagaraEditorUtilities.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "EditorFontGlyphs.h"
 #include "Framework/Commands/UICommandList.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Widgets/SNiagaraParameterName.h"
@@ -230,7 +225,7 @@ private:
 
 	EVisibility GetOpenSourceEmitterVisibility() const
 	{
-		return EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter()->GetParent() != nullptr ? EVisibility::Visible : EVisibility::Collapsed;
+		return EmitterHandleViewModel->GetEmitterViewModel()->HasParentEmitter() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	FReply OnIssueIconClicked() const
@@ -494,7 +489,7 @@ void SNiagaraStack::ShowEmitterInContentBrowser(TWeakPtr<FNiagaraEmitterHandleVi
 		TArray<FAssetData> Assets;
 		if (EmitterHandleViewModel->GetEmitterViewModel()->HasParentEmitter())
 		{
-			Assets.Add(FAssetData(EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter()));
+			Assets.Add(FAssetData(EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter().Emitter));
 			ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
 		}
 	}

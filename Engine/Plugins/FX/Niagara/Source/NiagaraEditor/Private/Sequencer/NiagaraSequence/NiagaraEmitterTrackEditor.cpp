@@ -90,7 +90,7 @@ public:
 		// We refresh the renderer widgets when renderers changed.
 		// The OnRenderersChanged delegate will cause the renderer items to be created that are used for widget creation,
 		// Due to delegate bind order, the item creation happens after the refresh. To solve this, we just wait a frame. 
-		UNiagaraEmitter* NiagaraEmitter = EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter();
+		UNiagaraEmitter* NiagaraEmitter = EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter().Emitter;
 		WeakNiagaraEmitter = NiagaraEmitter;
 		NiagaraEmitter->OnRenderersChanged().AddSP(this, &SEmitterTrackWidget::RefreshRenderers);
 
@@ -297,7 +297,7 @@ bool FNiagaraEmitterTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& T
 	UNiagaraSequence* NiagaraSequence = Cast<UNiagaraSequence>(GetSequencer()->GetRootMovieSceneSequence());
 	if (EmitterAsset != nullptr && NiagaraSequence != nullptr && NiagaraSequence->GetSystemViewModel().GetCanModifyEmittersFromTimeline())
 	{
-		NiagaraSequence->GetSystemViewModel().AddEmitter(*EmitterAsset);
+		NiagaraSequence->GetSystemViewModel().AddEmitter(*EmitterAsset, EmitterAsset->GetExposedVersion().VersionGuid);
 	}
 	return false;
 }

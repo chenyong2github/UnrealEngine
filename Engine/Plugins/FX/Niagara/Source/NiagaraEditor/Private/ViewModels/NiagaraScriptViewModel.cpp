@@ -231,9 +231,10 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, T
 	}
 }
 
-void FNiagaraScriptViewModel::SetScripts(UNiagaraEmitter* InEmitter)
+void FNiagaraScriptViewModel::SetScripts(FVersionedNiagaraEmitter InEmitter)
 {
-	if (InEmitter == nullptr)
+	FVersionedNiagaraEmitterData* EmitterData = InEmitter.GetEmitterData();
+	if (EmitterData == nullptr)
 	{
 		TArray<FVersionedNiagaraScript> EmptyScripts;
 		SetScripts(nullptr, EmptyScripts);
@@ -241,7 +242,7 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraEmitter* InEmitter)
 	else
 	{
 		TArray<UNiagaraScript*> InScripts;
-		InEmitter->GetScripts(InScripts);
+		EmitterData->GetScripts(InScripts);
 
 		TArray<FVersionedNiagaraScript> EmitterScripts;
 		for (UNiagaraScript* Script : InScripts)
@@ -249,7 +250,7 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraEmitter* InEmitter)
 			EmitterScripts.AddDefaulted_GetRef().Script = Script;
 		}
 		
-		SetScripts(Cast<UNiagaraScriptSource>(InEmitter->GraphSource), EmitterScripts);
+		SetScripts(Cast<UNiagaraScriptSource>(EmitterData->GraphSource), EmitterScripts);
 	}
 }
 

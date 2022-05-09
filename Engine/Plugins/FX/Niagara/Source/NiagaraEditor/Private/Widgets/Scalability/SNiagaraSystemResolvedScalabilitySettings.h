@@ -16,6 +16,7 @@ struct FScalabilityRowData
 	TSharedPtr<IPropertyHandle> DefaultPropertyHandle;
 	TArray<FProperty*> SourceProperties;
 	UObject* OwningObject;
+	FGuid OwningObjectVersion;
 };
 
 class SScalabilityResolvedRow : public SMultiColumnTableRow<TSharedPtr<FScalabilityRowData>>
@@ -62,7 +63,7 @@ private:
 	TMap<UObject*, FRequiredInstanceInformation> InstanceInformation;
 	
 	/** Generates an expandable widget for an emitter or system */
-	TSharedRef<SWidget> GenerateResolvedScalabilityTable(UObject* Object);
+	TSharedRef<SWidget> GenerateResolvedScalabilityTable(UObject* Object, const FGuid& Version);
 	
 	TSharedRef<ITableRow> GenerateScalabilityValueRow(TSharedRef<FScalabilityRowData> ScalabilityRowData, const TSharedRef< class STableViewBase >& TableViewBase);
 };

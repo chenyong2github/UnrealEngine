@@ -25,7 +25,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual bool ShouldAllowCulling() const override { return false; }
 
-	virtual ~SNiagaraOverviewStackNode();
+	virtual ~SNiagaraOverviewStackNode() override;
 protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
@@ -67,15 +67,20 @@ private:
 
 	FReply OnCycleThroughIssues();
 	FReply OpenParentEmitter();
+	FText OpenParentEmitterTooltip() const;
 	EVisibility GetOpenParentEmitterVisibility() const;
+	EVisibility GetVersionSelectorVisibility() const;
+	FSlateColor GetVersionSelectorColor() const;
+	TSharedRef<SWidget> GetVersionSelectorDropdownMenu();
+	void SwitchToVersion(FNiagaraAssetVersion Version);
 
 	const FSlateBrush* GetSummaryViewButtonBrush() const;
 	FText GetSummaryViewCollapseTooltipText() const;
 	FReply ExpandSummaryViewClicked();
-private:
-	UNiagaraOverviewNode* OverviewStackNode;
-	UNiagaraStackViewModel* StackViewModel;
-	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
+
+	UNiagaraOverviewNode* OverviewStackNode = nullptr;
+	UNiagaraStackViewModel* StackViewModel = nullptr;
+	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel = nullptr;
 	TWeakObjectPtr<UNiagaraSystemScalabilityViewModel> ScalabilityViewModel;
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelWeak;
 	/** The top content bar houses the isolate button and the thumbnails */
@@ -83,8 +88,8 @@ private:
 	TSharedPtr<SWidget> BottomSummaryExpander;
 
 	TArray<UNiagaraStackEntry*> PreviewStackEntries;
-	bool bIsHoveringThumbnail;
-	bool bTopContentBarRefreshPending;
-	int32 CurrentIssueIndex;
-	bool bScalabilityModeActive;
+	bool bIsHoveringThumbnail = false;
+	bool bTopContentBarRefreshPending = false;
+	int32 CurrentIssueIndex = 0;
+	bool bScalabilityModeActive = false;
 };

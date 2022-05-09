@@ -268,7 +268,7 @@ void UNiagaraDataInterfaceVectorField::GetFeedback(UNiagaraSystem* InAsset, UNia
 		for (auto&& EmitterHandle : InAsset->GetEmitterHandles())
 		{
 			TArray<UNiagaraScript*> OutScripts;
-			EmitterHandle.GetInstance()->GetScripts(OutScripts, false);
+			EmitterHandle.GetEmitterData()->GetScripts(OutScripts, false);
 			Scripts.Append(OutScripts);
 		}
 
@@ -294,14 +294,12 @@ void UNiagaraDataInterfaceVectorField::GetFeedback(UNiagaraSystem* InAsset, UNia
 
 					if (bHasCPUFunctionsReferenced)
 					{
-						bool bMatchFound = false;
 						// We assume that if the properties match or we are referencing an external variable whose name is in the list of candidates found in the prior search, it's a valid match for us.
 						if (CachedDefaultDIs.IsValidIndex(Idx) && CachedDefaultDIs[Idx].DataInterface != nullptr &&
 							(CachedDefaultDIs[Idx].DataInterface->Equals(this) || DIAliases.Contains(CachedDefaultDIs[Idx].Name)))
 						{
-							bMatchFound = true;
-							UNiagaraEmitter* OuterEmitter = Script->GetTypedOuter<UNiagaraEmitter>();
-							if (OuterEmitter && (OuterEmitter->SimTarget == ENiagaraSimTarget::CPUSim || Script->IsSystemScript(Script->Usage)))
+							FVersionedNiagaraEmitter OuterEmitter = Script->GetOuterEmitter();
+							if (OuterEmitter.Emitter && (OuterEmitter.GetEmitterData()->SimTarget == ENiagaraSimTarget::CPUSim || Script->IsSystemScript(Script->Usage)))
 							{
 								bHasCPUFunctions = true;
 							}

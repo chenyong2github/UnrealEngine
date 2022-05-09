@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "NiagaraTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
 #include "NiagaraSystemFactoryNew.generated.h"
@@ -15,8 +17,8 @@ class UNiagaraSystemFactoryNew : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
-	UNiagaraSystem* SystemToCopy;
-	TArray<UNiagaraEmitter*> EmittersToAddToNewSystem;
+	UNiagaraSystem* SystemToCopy = nullptr;
+	TArray<FVersionedNiagaraEmitter> EmittersToAddToNewSystem;
 
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;

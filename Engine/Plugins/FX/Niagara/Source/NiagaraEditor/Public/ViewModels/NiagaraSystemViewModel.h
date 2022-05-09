@@ -68,7 +68,7 @@ struct NIAGARAEDITOR_API FNiagaraSystemViewModelOptions
 	FNiagaraSystemViewModelOptions();
 
 	/** Whether or not the user can edit emitters from the timeline. */
-	bool bCanModifyEmittersFromTimeline;
+	bool bCanModifyEmittersFromTimeline = true;
 
 	/** A delegate which is used to generate the content for the add menu in sequencer. */
 	FOnGetAddMenuContent OnGetSequencerAddMenuContent;
@@ -83,7 +83,7 @@ struct NIAGARAEDITOR_API FNiagaraSystemViewModelOptions
 	TOptional<const FGuid> MessageLogGuid;
 
 	/** Gets the current editing mode for this system. */
-	ENiagaraSystemViewModelEditMode EditMode;
+	ENiagaraSystemViewModelEditMode EditMode = ENiagaraSystemViewModelEditMode::SystemAsset;
 
 	/** Specifies that the view model is being constructed for data processing only and will not be displayed in the UI. */
 	bool bIsForDataProcessingOnly;
@@ -171,8 +171,8 @@ public:
 	/** Returns whether or not this view model is initialized and safe to use. */
 	bool IsValid() const;
 
-	NIAGARAEDITOR_API ~FNiagaraSystemViewModel();
-
+	NIAGARAEDITOR_API virtual ~FNiagaraSystemViewModel() override;
+	
 	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
 protected:
 	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override;
@@ -188,7 +188,7 @@ public:
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
 
 	/** Gets an emitter handle view model for the given emitter. Returns an invalid shared ptr if it can't be found. */
-	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const;
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(const FVersionedNiagaraEmitter& InEmitter) const;
 
 	/** Gets the view model for the System script. */
 	TSharedPtr<FNiagaraSystemScriptViewModel> GetSystemScriptViewModel();
@@ -218,7 +218,8 @@ public:
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitterFromAssetData(const FAssetData& AssetData);
 
 	/** Adds a new emitter to the System. */
-	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitter(UNiagaraEmitter& Emitter);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitter(UNiagaraEmitter& Emitter, FGuid EmitterVersion);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitter(const FVersionedNiagaraEmitter& Emitter);
 
 	/** Adds an empty emitter to the system. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmptyEmitter();
@@ -284,6 +285,8 @@ public:
 
 	/** Reinitializes all System instances, and rebuilds emitter handle view models and tracks. */
 	NIAGARAEDITOR_API void RefreshAll();
+	
+	NIAGARAEDITOR_API void ResetStack();
 
 	/** Called to notify the system view model that one of the data objects in the system was modified. */
 	void NotifyDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
@@ -296,6 +299,9 @@ public:
 
 	/** Clear the captures stats for all the emitters in the current system. */
 	void ClearEmitterStats();
+
+	/** Changes the version of an existing emitter in the system */
+	bool ChangeEmitterVersion(const FVersionedNiagaraEmitter& Emitter, const FGuid& NewVersion);
 
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
 	NIAGARAEDITOR_API void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
@@ -347,7 +353,7 @@ public:
 	void GetOrderedScriptsForEmitterHandleId(FGuid EmitterHandleId, TArray<UNiagaraScript*>& OutScripts);
 
 	/** Gets all non-event scripts which will execute for an emitter. */
-	void GetOrderedScriptsForEmitter(UNiagaraEmitter* Emitter, TArray<UNiagaraScript*>& OutScripts);
+	void GetOrderedScriptsForEmitter(const FVersionedNiagaraEmitter& Emitter, TArray<UNiagaraScript*>& OutScripts);
 
 	/** Gets the ViewModel for the system overview graph. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraOverviewGraphViewModel> GetOverviewGraphViewModel() const;
@@ -435,9 +441,6 @@ private:
 
 	/** Callback function for when editor settings change. Used to snap to the closest available speed. */
 	void SnapToNextSpeed(const FString& PropertyName, const UNiagaraEditorSettings* Settings);
-
-	/** Gets the content for the add menu in sequencer. */
-	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);
 
 	/** Updates the compiled versions of data interfaces when their sources change. */
 	void UpdateCompiledDataInterfaces(UNiagaraDataInterface* ChangedDataInterface);
@@ -531,7 +534,7 @@ private:
 	/** Called whenever the map of messages associated with the managed Emitter/System changes. */
 	void RefreshAssetMessages();
 
-	const TArray<FNiagaraStackModuleData>& BuildAndCacheStackModuleData(FGuid EmitterHandleId, UNiagaraEmitter* Emitter);
+	const TArray<FNiagaraStackModuleData>& BuildAndCacheStackModuleData(FGuid EmitterHandleId, const FVersionedNiagaraEmitter& Emitter);
 
 private:
 	/** The System being viewed and edited by this view model. */

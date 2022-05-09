@@ -88,22 +88,21 @@ public:
 
 		FScopedTransaction ScopedTransaction(LOCTEXT("AddNewRendererTransaction", "Add new renderer"));
 
-		UNiagaraEmitter* Emitter = EmitterViewModelPinned->GetEmitter();
-		Emitter->Modify();
-		UNiagaraRendererProperties* RendererProperties = NewObject<UNiagaraRendererProperties>(Emitter, RenderAddAction->GetRendererClass(), NAME_None, RF_Transactional);
-		Emitter->AddRenderer(RendererProperties);
+		FVersionedNiagaraEmitter VersionedEmitter = EmitterViewModelPinned->GetEmitter();
+		UNiagaraRendererProperties* RendererProperties = NewObject<UNiagaraRendererProperties>(VersionedEmitter.Emitter, RenderAddAction->GetRendererClass(), NAME_None, RF_Transactional);
+		VersionedEmitter.Emitter->AddRenderer(RendererProperties, VersionedEmitter.Version);
 
 		bool bVarsAdded = false;
-		TArray<FNiagaraVariable> MissingAttributes = UNiagaraStackRendererItem::GetMissingVariables(RendererProperties, Emitter);
+		TArray<FNiagaraVariable> MissingAttributes = UNiagaraStackRendererItem::GetMissingVariables(RendererProperties, VersionedEmitter.GetEmitterData());
 		for (int32 i = 0; i < MissingAttributes.Num(); i++)
 		{
-			if (UNiagaraStackRendererItem::AddMissingVariable(Emitter, MissingAttributes[i]))
+			if (UNiagaraStackRendererItem::AddMissingVariable(VersionedEmitter.GetEmitterData(), MissingAttributes[i]))
 			{
 				bVarsAdded = true;
 			}
 		}
 
-		FNiagaraSystemUpdateContext SystemUpdate(Emitter, true);
+		FNiagaraSystemUpdateContext SystemUpdate(VersionedEmitter, true);
 
 		if (bVarsAdded)
 		{
@@ -127,8 +126,8 @@ void UNiagaraStackRenderItemGroup::Initialize(FRequiredEntryData InRequiredEntry
 	FText ToolTip = LOCTEXT("RendererGroupTooltip", "Describes how we should display/present each particle. Note that this doesn't have to be visual. Multiple renderers are supported. Order in this stack is not necessarily relevant to draw order.");
 	AddUtilities = MakeShared<FRenderItemGroupAddUtilities>(InRequiredEntryData.EmitterViewModel.ToSharedRef(), FRenderItemGroupAddUtilities::FOnItemAdded::CreateUObject(this, &UNiagaraStackRenderItemGroup::OnRendererAdded));
 	Super::Initialize(InRequiredEntryData, DisplayName, ToolTip, AddUtilities.Get());
-	EmitterWeak = GetEmitterViewModel()->GetEmitter();
-	EmitterWeak->OnRenderersChanged().AddUObject(this, &UNiagaraStackRenderItemGroup::EmitterRenderersChanged);
+	EmitterWeak = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
+	EmitterWeak.Emitter->OnRenderersChanged().AddUObject(this, &UNiagaraStackRenderItemGroup::EmitterRenderersChanged);
 }
 
 bool UNiagaraStackRenderItemGroup::TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const
@@ -151,12 +150,12 @@ void UNiagaraStackRenderItemGroup::Paste(const UNiagaraClipboardContent* Clipboa
 {
 	if (EmitterWeak.IsValid())
 	{
-		UNiagaraEmitter* Emitter = EmitterWeak.Get();
+		UNiagaraEmitter* Emitter = EmitterWeak.Emitter.Get();
 		for (const UNiagaraRendererProperties* ClipboardRenderer : ClipboardContent->Renderers)
 		{
 			if (ClipboardRenderer != nullptr)
 			{
-				EmitterWeak->AddRenderer(ClipboardRenderer->StaticDuplicateWithNewMergeId(Emitter));
+				EmitterWeak.Emitter->AddRenderer(ClipboardRenderer->StaticDuplicateWithNewMergeId(Emitter), EmitterWeak.Version);
 			}
 		}
 	}
@@ -165,7 +164,7 @@ void UNiagaraStackRenderItemGroup::Paste(const UNiagaraClipboardContent* Clipboa
 void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	int32 RendererIndex = 0;
-	for (UNiagaraRendererProperties* RendererProperties : GetEmitterViewModel()->GetEmitter()->GetRenderers())
+	for (UNiagaraRendererProperties* RendererProperties : GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetRenderers())
 	{
 		UNiagaraStackRendererItem* RendererItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackRendererItem>(CurrentChildren,
 			[=](UNiagaraStackRendererItem* CurrentRendererItem) { return CurrentRendererItem->GetRendererProperties() == RendererProperties; });
@@ -217,7 +216,7 @@ void UNiagaraStackRenderItemGroup::FinalizeInternal()
 {
 	if (EmitterWeak.IsValid())
 	{
-		EmitterWeak->OnRenderersChanged().RemoveAll(this);
+		EmitterWeak.Emitter->OnRenderersChanged().RemoveAll(this);
 	}
 	Super::FinalizeInternal();
 }

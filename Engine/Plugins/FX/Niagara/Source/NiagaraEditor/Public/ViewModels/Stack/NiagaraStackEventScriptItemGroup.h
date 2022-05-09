@@ -13,6 +13,22 @@ class UNiagaraStackObject;
 struct FNiagaraEventScriptProperties;
 class IDetailTreeNode;
 
+// This is a wrapper class used for the details customization in the stack, since the event script properties were moved from the emitter object into the version data struct
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraStackEventWrapper : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = "Events")
+	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
+
+	FVersionedNiagaraEmitterWeakPtr EmitterWeakPtr;
+
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+};
+
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackEventHandlerPropertiesItem : public UNiagaraStackItem
 {
@@ -50,10 +66,13 @@ private:
 
 	mutable TOptional<bool> bCanResetToBaseCache;
 
-	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	FVersionedNiagaraEmitterWeakPtr EmitterWeakPtr;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackObject> EmitterObject;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackEventWrapper> EventWrapper;
 };
 
 UCLASS()

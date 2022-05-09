@@ -780,7 +780,7 @@ FReply SNiagaraStackFunctionInputValue::ResetButtonPressed() const
 
 EVisibility SNiagaraStackFunctionInputValue::GetResetToBaseButtonVisibility() const
 {
-	if (FunctionInput->HasBaseEmitter())
+	if (FunctionInput->HasBaseEmitter() && FunctionInput->GetEmitterViewModel().IsValid())
 	{
 		return FunctionInput->CanResetToBase() ? EVisibility::Visible : EVisibility::Hidden;
 	}

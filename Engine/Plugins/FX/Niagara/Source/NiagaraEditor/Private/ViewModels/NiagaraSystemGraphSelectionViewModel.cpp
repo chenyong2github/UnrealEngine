@@ -34,7 +34,7 @@ void FNiagaraSystemGraphSelectionViewModel::RefreshSelectedEmitterScriptGraphs()
 		{
 			if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
 			{
-				SelectedEmitterScriptGraphs.Add(static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph);
+				SelectedEmitterScriptGraphs.Add(static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetEmitterData()->GraphSource)->NodeGraph);
 			}
 		}
 	}

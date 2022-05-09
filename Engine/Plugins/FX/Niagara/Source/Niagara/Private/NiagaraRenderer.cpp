@@ -2,12 +2,9 @@
 
 #include "NiagaraRenderer.h"
 #include "ParticleResources.h"
-#include "ParticleBeamTrailVertexFactory.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
-#include "NiagaraVertexFactory.h"
 #include "NiagaraComponent.h"
-#include "Engine/Engine.h"
 #include "DynamicBufferAllocator.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGPUSortInfo.h"
@@ -369,14 +366,14 @@ void FNiagaraDynamicDataBase::SetVertexFactoryData(class FNiagaraVertexFactoryBa
 
 FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: DynamicDataRender(nullptr)
-	, bLocalSpace(Emitter->GetCachedEmitter()->bLocalSpace)
+	, bLocalSpace(Emitter->GetCachedEmitterData()->bLocalSpace)
 	, bHasLights(false)
 	, bMotionBlurEnabled(InProps ? InProps->MotionVectorSetting != ENiagaraRendererMotionVectorSetting::Disable : false)
-	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
+	, SimTarget(Emitter->GetCachedEmitterData()->SimTarget)
 	, FeatureLevel(InFeatureLevel)
 {
 #if STATS
-	EmitterStatID = Emitter->GetCachedEmitter()->GetStatID(false, false);
+	EmitterStatID = Emitter->GetCachedEmitter().Emitter->GetStatID(false, false);
 #endif
 }
 

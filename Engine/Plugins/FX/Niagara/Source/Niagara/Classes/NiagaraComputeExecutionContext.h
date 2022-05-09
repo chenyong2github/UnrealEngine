@@ -145,7 +145,7 @@ public:
 	FString DebugSimName;
 #endif
 	TWeakObjectPtr<class USceneComponent>	ProfilingComponentPtr;
-	TWeakObjectPtr<UNiagaraEmitter>			ProfilingEmitterPtr;
+	FVersionedNiagaraEmitterWeakPtr			ProfilingEmitterPtr;
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return CombinedParamStore.GetDataInterfaces(); }
 

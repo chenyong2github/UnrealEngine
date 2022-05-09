@@ -8,6 +8,7 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitterInstance.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraGPUSortInfo.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -161,9 +162,9 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 	FVector MaxWorldMeshOffset(ForceInitToZero);
 
 	bool bLocalSpace = false;
-	if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter()))
+	if (FVersionedNiagaraEmitterData* EmitterData = GetEmitterData())
 	{
-		bLocalSpace = Emitter->bLocalSpace;
+		bLocalSpace = EmitterData->bLocalSpace;
 	}
 
 	for (const auto& MeshProperties : Meshes)
@@ -281,10 +282,10 @@ void UNiagaraMeshRendererProperties::InitBindings()
 		CustomSortingBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
 	}
 
-	SetPreviousBindings(nullptr, SourceMode);
+	SetPreviousBindings(FVersionedNiagaraEmitter(), SourceMode);
 }
 
-void UNiagaraMeshRendererProperties::SetPreviousBindings(const UNiagaraEmitter* SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+void UNiagaraMeshRendererProperties::SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	PrevPositionBinding.SetAsPreviousValue(PositionBinding, SrcEmitter, InSourceMode);
 	PrevScaleBinding.SetAsPreviousValue(ScaleBinding, SrcEmitter, InSourceMode);
@@ -297,12 +298,12 @@ void UNiagaraMeshRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererS
 {
 	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
 
-	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
-	if (SrcEmitter)
+	FVersionedNiagaraEmitter SrcEmitter = GetOuterEmitter();
+	if (SrcEmitter.Emitter)
 	{
 		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
 		{
-			MaterialParamBinding.CacheValues(SrcEmitter);
+			MaterialParamBinding.CacheValues(SrcEmitter.Emitter);
 		}
 
 		SetPreviousBindings(SrcEmitter, InSourceMode);
@@ -555,7 +556,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 	PostLoadBindings(SourceMode);
 	
 	// Fix up these bindings from their loaded source bindings
-	SetPreviousBindings(nullptr, SourceMode);
+	SetPreviousBindings(FVersionedNiagaraEmitter(), SourceMode);
 
 	for ( const FNiagaraMeshMaterialOverride& OverrideMaterial : OverrideMaterials )
 	{
@@ -667,7 +668,7 @@ void UNiagaraMeshRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmi
 }
 
 
-void UNiagaraMeshRendererProperties::GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+void UNiagaraMeshRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
 {
 	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
 }
@@ -801,28 +802,28 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void UNiagaraMeshRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter)
+void UNiagaraMeshRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
 
 	// Handle renaming material bindings
 	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
 	{
-		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter.Emitter, GetCurrentSourceMode());
 	}
 }
 
-void UNiagaraMeshRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter)
+void UNiagaraMeshRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RemoveVariable(OldVariable, InEmitter);
 
 	// Handle resetting material bindings to defaults
 	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
 	{
-		if (Binding.Matches(OldVariable, InEmitter, GetCurrentSourceMode()))
+		if (Binding.Matches(OldVariable, InEmitter.Emitter, GetCurrentSourceMode()))
 		{
 			Binding.NiagaraVariable = FNiagaraVariable();
-			Binding.CacheValues(InEmitter);
+			Binding.CacheValues(InEmitter.Emitter);
 		}
 	}
 }
@@ -831,10 +832,10 @@ void UNiagaraMeshRendererProperties::OnMeshChanged()
 {
 	FNiagaraSystemUpdateContext ReregisterContext;
 
-	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter());
-	if (Emitter != nullptr)
+	FVersionedNiagaraEmitter Outer = GetOuterEmitter();
+	if (Outer.Emitter)
 	{
-		ReregisterContext.Add(Emitter, true);
+		ReregisterContext.Add(Outer, true);
 	}
 
 	CheckMaterialUsage();

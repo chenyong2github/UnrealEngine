@@ -4,7 +4,6 @@
 
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraGraph.h"
-#include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraSystem.h"
@@ -58,7 +57,7 @@ void FNiagaraSystemScriptViewModel::OnSystemVMCompiled(UNiagaraSystem* InSystem)
 	for (const FNiagaraEmitterHandle& Handle : InSystem->GetEmitterHandles())
 	{
 		int32 NumScripts = SystemScripts.Num();
-		Handle.GetInstance()->GetScripts(SystemScripts, true);
+		Handle.GetEmitterData()->GetScripts(SystemScripts, true);
 		for (; NumScripts < SystemScripts.Num(); NumScripts++)
 		{
 			if (Handle.GetIsEnabled())
@@ -156,7 +155,7 @@ ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatu
 	{
 		if (Handle.GetIsEnabled())
 		{
-			Handle.GetInstance()->GetScripts(SystemScripts, true);
+			Handle.GetEmitterData()->GetScripts(SystemScripts, true);
 		}
 	}
 

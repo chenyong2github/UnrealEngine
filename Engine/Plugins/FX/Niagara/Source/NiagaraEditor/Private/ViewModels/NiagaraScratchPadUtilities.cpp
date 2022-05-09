@@ -21,17 +21,18 @@ void FNiagaraScratchPadUtilities::FixFunctionInputsFromFunctionScriptRename(UNia
 	FunctionCallNode.SuggestName(FString());
 	const FString NewFunctionName = FunctionCallNode.GetFunctionName();
 	UNiagaraSystem* System = FunctionCallNode.GetTypedOuter<UNiagaraSystem>();
-	UNiagaraEmitter* Emitter = FunctionCallNode.GetTypedOuter<UNiagaraEmitter>();
+	FVersionedNiagaraEmitter Emitter = FunctionCallNode.GetNiagaraGraph()->GetOwningEmitter();
 	FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, FunctionCallNode, OldFunctionName, NewFunctionName);
 }
 
-void FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(UNiagaraSystem& SourceSystem, UNiagaraEmitter& TargetEmitter)
+void FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(UNiagaraSystem& SourceSystem, const FVersionedNiagaraEmitter& TargetEmitter)
 {
-	UNiagaraSystem* TargetSystem = TargetEmitter.GetTypedOuter<UNiagaraSystem>();
-	if (TargetSystem != &SourceSystem)
+	UNiagaraSystem* TargetSystem = TargetEmitter.Emitter->GetTypedOuter<UNiagaraSystem>();
+	FVersionedNiagaraEmitterData* EmitterData = TargetEmitter.GetEmitterData();
+	if (EmitterData && TargetSystem != &SourceSystem)
 	{
-		UNiagaraScriptSource* EmitterScriptSource = Cast<UNiagaraScriptSource>(TargetEmitter.GraphSource);
-		if (ensureMsgf(EmitterScriptSource != nullptr, TEXT("Emitter script source was null. Target Emitter: %s"), *TargetEmitter.GetPathName()))
+		UNiagaraScriptSource* EmitterScriptSource = Cast<UNiagaraScriptSource>(EmitterData->GraphSource);
+		if (ensureMsgf(EmitterScriptSource != nullptr, TEXT("Emitter script source was null. Target Emitter: %s"), *TargetEmitter.Emitter->GetPathName()))
 		{
 			// Find function call nodes which reference external scratch pad scripts.
 			TArray<UNiagaraNodeFunctionCall*> AllFunctionCallNodes;
@@ -54,7 +55,7 @@ void FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(UNiagar
 
 			// Determine the destination for the copies of the external scratch pad scripts.
 			UObject* TargetScratchPadScriptOuter = nullptr;
-			using ScriptArrayType = decltype(TargetEmitter.ScratchPadScripts);
+			using ScriptArrayType = decltype(EmitterData->ScratchPads->Scripts);
 			ScriptArrayType* TargetScratchPadScriptArray = nullptr;
 			if (TargetSystem != nullptr)
 			{
@@ -63,13 +64,13 @@ void FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(UNiagar
 			}
 			else
 			{
-				TargetScratchPadScriptOuter = &TargetEmitter;
-				TargetScratchPadScriptArray = &TargetEmitter.ScratchPadScripts;
+				TargetScratchPadScriptOuter = TargetEmitter.Emitter;
+				TargetScratchPadScriptArray = &EmitterData->ScratchPads->Scripts;
 			}
 
 			// Fix up the external scratch scripts.
 			if (ensureMsgf(TargetScratchPadScriptOuter != nullptr && TargetScratchPadScriptArray != nullptr,
-				TEXT("Failed to find target outer and array for fixing up  external scratch pad scripts.  Target Emitter: %s"), *TargetEmitter.GetPathName()))
+				TEXT("Failed to find target outer and array for fixing up  external scratch pad scripts.  Target Emitter: %s"), *TargetEmitter.Emitter->GetPathName()))
 			{
 				// Collate the function call nodes by the scratch script they call.
 				TMap<UNiagaraScript*, TArray<UNiagaraNodeFunctionCall*>> ExternalScratchPadScriptToFunctionCallNodes;

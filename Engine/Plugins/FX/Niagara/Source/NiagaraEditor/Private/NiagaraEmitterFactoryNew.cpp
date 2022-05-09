@@ -19,19 +19,17 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "Misc/ConfigCacheIni.h"
-
 #define LOCTEXT_NAMESPACE "NiagaraEmitterFactory"
 
 UNiagaraEmitterFactoryNew::UNiagaraEmitterFactoryNew(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	SupportedClass = UNiagaraEmitter::StaticClass();
-	bCreateNew = false;
 	bEditAfterNew = true;
 	bCreateNew = true;
 	EmitterToCopy = nullptr;
 	bUseInheritance = false;
+	bAddDefaultModulesAndRenderersToEmptyEmitter = true;
 }
 
 bool UNiagaraEmitterFactoryNew::ConfigureProperties()
@@ -125,12 +123,13 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 	{
 		if (bUseInheritance && EmitterToCopy->TemplateSpecification == ENiagaraScriptTemplateSpecification::None)
 		{
-			NewEmitter = UNiagaraEmitter::CreateWithParentAndOwner(*EmitterToCopy, InParent, Name, Flags);
+			NewEmitter = UNiagaraEmitter::CreateWithParentAndOwner(FVersionedNiagaraEmitter(EmitterToCopy, EmitterToCopy->GetExposedVersion().VersionGuid), InParent, Name, Flags);
 		}
 		else
 		{
 			NewEmitter = Cast<UNiagaraEmitter>(StaticDuplicateObject(EmitterToCopy, InParent, Name, Flags, Class));
 			NewEmitter->SetUniqueEmitterName(Name.GetPlainNameString());
+			NewEmitter->DisableVersioning(EmitterToCopy->GetExposedVersion().VersionGuid);
 		}
 
 		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
@@ -149,39 +148,41 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 void UNiagaraEmitterFactoryNew::InitializeEmitter(UNiagaraEmitter* NewEmitter, bool bAddDefaultModulesAndRenderers)
 {
 	{
-		NewEmitter->SimTarget = ENiagaraSimTarget::CPUSim;
+		NewEmitter->CheckVersionDataAvailable();
+		FVersionedNiagaraEmitterData* EmitterData = NewEmitter->GetLatestEmitterData();
+		EmitterData->SimTarget = ENiagaraSimTarget::CPUSim;
 
 		UNiagaraScriptSource* Source = NewObject<UNiagaraScriptSource>(NewEmitter, NAME_None, RF_Transactional);
 		UNiagaraGraph* CreatedGraph = NewObject<UNiagaraGraph>(Source, NAME_None, RF_Transactional);
 		Source->NodeGraph = CreatedGraph;
 
 		// Fix up source pointers.
-		NewEmitter->GraphSource = Source;
-		NewEmitter->SpawnScriptProps.Script->SetLatestSource(Source);
-		NewEmitter->UpdateScriptProps.Script->SetLatestSource(Source);
-		NewEmitter->EmitterSpawnScriptProps.Script->SetLatestSource(Source);
-		NewEmitter->EmitterUpdateScriptProps.Script->SetLatestSource(Source);
-		NewEmitter->GetGPUComputeScript()->SetLatestSource(Source);
+		EmitterData->GraphSource = Source;
+		EmitterData->SpawnScriptProps.Script->SetLatestSource(Source);
+		EmitterData->UpdateScriptProps.Script->SetLatestSource(Source);
+		EmitterData->EmitterSpawnScriptProps.Script->SetLatestSource(Source);
+		EmitterData->EmitterUpdateScriptProps.Script->SetLatestSource(Source);
+		EmitterData->GetGPUComputeScript()->SetLatestSource(Source);
 
 		// Initialize the scripts for output.
-		UNiagaraNodeOutput* EmitterSpawnOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::EmitterSpawnScript, NewEmitter->EmitterSpawnScriptProps.Script->GetUsageId());
-		UNiagaraNodeOutput* EmitterUpdateOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::EmitterUpdateScript, NewEmitter->EmitterUpdateScriptProps.Script->GetUsageId());
-		UNiagaraNodeOutput* ParticleSpawnOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::ParticleSpawnScript, NewEmitter->SpawnScriptProps.Script->GetUsageId());
-		UNiagaraNodeOutput* ParticleUpdateOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::ParticleUpdateScript, NewEmitter->UpdateScriptProps.Script->GetUsageId());
+		UNiagaraNodeOutput* EmitterSpawnOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::EmitterSpawnScript, EmitterData->EmitterSpawnScriptProps.Script->GetUsageId());
+		UNiagaraNodeOutput* EmitterUpdateOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::EmitterUpdateScript, EmitterData->EmitterUpdateScriptProps.Script->GetUsageId());
+		UNiagaraNodeOutput* ParticleSpawnOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::ParticleSpawnScript, EmitterData->SpawnScriptProps.Script->GetUsageId());
+		UNiagaraNodeOutput* ParticleUpdateOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::ParticleUpdateScript, EmitterData->UpdateScriptProps.Script->GetUsageId());
 
 		checkf(EmitterSpawnOutputNode != nullptr && EmitterUpdateOutputNode != nullptr && ParticleSpawnOutputNode != nullptr && ParticleUpdateOutputNode != nullptr,
 			TEXT("Failed to create output nodes for emitter scripts."));
 
 		if (bAddDefaultModulesAndRenderers)
 		{
-			NewEmitter->AddRenderer(NewObject<UNiagaraSpriteRendererProperties>(NewEmitter, "Renderer"));
+			NewEmitter->AddRenderer(NewObject<UNiagaraSpriteRendererProperties>(NewEmitter, "Renderer"), EmitterData->Version.VersionGuid);
 
 			AddModuleFromAssetPath(TEXT("/Niagara/Modules/Emitter/EmitterLifeCycle.EmitterLifeCycle"), *EmitterUpdateOutputNode);
 			
 			UNiagaraNodeFunctionCall* SpawnRateNode = AddModuleFromAssetPath(TEXT("/Niagara/Modules/Emitter/SpawnRate.SpawnRate"), *EmitterUpdateOutputNode);
 			if (SpawnRateNode != nullptr)
 			{
-				SetRapidIterationParameter(NewEmitter->GetUniqueEmitterName(), *NewEmitter->EmitterUpdateScriptProps.Script, *SpawnRateNode,
+				SetRapidIterationParameter(NewEmitter->GetUniqueEmitterName(), *EmitterData->EmitterUpdateScriptProps.Script, *SpawnRateNode,
 					"SpawnRate", FNiagaraTypeDefinition::GetFloatDef(), 10.0f);
 			}
 
@@ -190,7 +191,7 @@ void UNiagaraEmitterFactoryNew::InitializeEmitter(UNiagaraEmitter* NewEmitter, b
 			UNiagaraNodeFunctionCall* AddVelocityNode = AddModuleFromAssetPath(TEXT("/Niagara/Modules/Spawn/Velocity/AddVelocity.AddVelocity"), *ParticleSpawnOutputNode);
 			if (AddVelocityNode != nullptr)
 			{
-				SetRapidIterationParameter(NewEmitter->GetUniqueEmitterName(), *NewEmitter->SpawnScriptProps.Script, *AddVelocityNode,
+				SetRapidIterationParameter(NewEmitter->GetUniqueEmitterName(), *EmitterData->SpawnScriptProps.Script, *AddVelocityNode,
 					"Velocity", FNiagaraTypeDefinition::GetVec3Def(), FVector3f(0.0f, 0.0f, 100.0f));
 			}
 
@@ -216,10 +217,10 @@ void UNiagaraEmitterFactoryNew::InitializeEmitter(UNiagaraEmitter* NewEmitter, b
 		}
 
 		FNiagaraStackGraphUtilities::RelayoutGraph(*Source->NodeGraph);
-		NewEmitter->bInterpolatedSpawning = true;
-		NewEmitter->bDeterminism = false; // NOTE: Default to non-determinism
+		EmitterData->bInterpolatedSpawning = true;
+		EmitterData->bDeterminism = false; // NOTE: Default to non-determinism
 		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
-		NewEmitter->SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated);
+		EmitterData->SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated);
 	}
 }
 

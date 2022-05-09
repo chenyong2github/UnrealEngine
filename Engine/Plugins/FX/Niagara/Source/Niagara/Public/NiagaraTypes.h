@@ -177,7 +177,7 @@ struct FNiagaraMatrix
 };
 
 USTRUCT()
-struct FNiagaraAssetVersion
+struct NIAGARA_API FNiagaraAssetVersion
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -2084,3 +2084,73 @@ struct alignas(16) FNiagaraEmitterParameters
 	int32 _Pad0;
 	int32 _Pad1;
 };
+
+// Forward decl FVersionedNiagaraEmitterWeakPtr to support FVersionedNiagaraEmitter::ToWeakPtr().
+struct FVersionedNiagaraEmitterWeakPtr;
+struct FVersionedNiagaraEmitterData;
+class UNiagaraEmitter;
+
+/** Struct combining an emitter with a specific version.*/
+USTRUCT()
+struct NIAGARA_API FVersionedNiagaraEmitter
+{
+	GENERATED_USTRUCT_BODY()
+	
+	FVersionedNiagaraEmitter() {}
+	FVersionedNiagaraEmitter(UNiagaraEmitter* InEmitter, const FGuid& InVersion)
+		: Emitter(InEmitter), Version(InVersion)
+	{};
+
+	FVersionedNiagaraEmitterData* GetEmitterData() const;
+	FVersionedNiagaraEmitterWeakPtr ToWeakPtr() const;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraEmitter> Emitter = nullptr;
+
+	UPROPERTY()
+	FGuid Version;
+
+	bool operator==(const FVersionedNiagaraEmitter& Other) const
+	{
+		return Emitter == Other.Emitter && Version == Other.Version;
+	}
+
+	bool operator!=(const FVersionedNiagaraEmitter& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
+struct NIAGARA_API FVersionedNiagaraEmitterWeakPtr
+{
+	FVersionedNiagaraEmitterWeakPtr() : Emitter(nullptr) {}
+	FVersionedNiagaraEmitterWeakPtr(UNiagaraEmitter* InEmitter, const FGuid& InVersion);
+	FVersionedNiagaraEmitter ResolveWeakPtr() const;
+	FVersionedNiagaraEmitterData* GetEmitterData() const;
+	bool IsValid() const;
+	bool operator==(const FVersionedNiagaraEmitterWeakPtr& Other) const
+	{
+		return Emitter == Other.Emitter && Version == Other.Version;
+	}
+
+
+	bool operator!=(const FVersionedNiagaraEmitterWeakPtr& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	FGuid Version;
+};
+
+inline uint32 GetTypeHash(const FVersionedNiagaraEmitterWeakPtr& Item)
+{
+	return GetTypeHash(Item.Emitter);
+}
+
+inline uint32 GetTypeHash(const FVersionedNiagaraEmitter& Item)
+{
+	return GetTypeHash(Item.Emitter) + GetTypeHash(Item.Version);
+}
+
+

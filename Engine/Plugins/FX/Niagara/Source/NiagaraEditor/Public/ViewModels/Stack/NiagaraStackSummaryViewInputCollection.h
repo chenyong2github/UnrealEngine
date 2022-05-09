@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "NiagaraEmitter.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
-#include "Misc/NotifyHook.h"
 #include "PropertyEditorDelegates.h"
 #include "NiagaraStackFunctionInputCollection.h"
 #include "NiagaraStackSummaryViewInputCollection.generated.h"
@@ -25,7 +25,7 @@ public:
 public:
 	UNiagaraStackSummaryViewObject();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraEmitter* InEmitter, FString InOwningStackItemEditorDataKey);
+	void Initialize(FRequiredEntryData InRequiredEntryData, FVersionedNiagaraEmitterWeakPtr InEmitter, FString InOwningStackItemEditorDataKey);
 	virtual void FinalizeInternal() override;
 
 	virtual FText GetDisplayName() const override;
@@ -46,6 +46,6 @@ private:
 	void OnViewStateChanged();
 private:
 
-	UNiagaraEmitter* Emitter;
+	FVersionedNiagaraEmitterWeakPtr Emitter;
 	TMap<FGuid, UNiagaraStackFunctionInputCollection*> KnownInputCollections;
 };

@@ -115,7 +115,7 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 	}
 }
 
-void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
+void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* InAsset, FGuid AssetVersion, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
 {
 #if WITH_EDITOR
 	const UNiagaraSystem* System = Cast<UNiagaraSystem>(InAsset);
@@ -131,7 +131,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 		Scripts.Add(System->GetSystemUpdateScript());
 		for (auto&& EmitterHandle : System->GetEmitterHandles())
 		{
-			const UNiagaraEmitter* HandleEmitter = EmitterHandle.GetInstance();
+			FVersionedNiagaraEmitterData* HandleEmitter = EmitterHandle.GetEmitterData();
 			if (HandleEmitter)
 			{
 				if (HandleEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
@@ -147,10 +147,11 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 	}
 	if (Emitter)
 	{
-		if (Emitter->SimTarget != ENiagaraSimTarget::GPUComputeSim)
+		const FVersionedNiagaraEmitterData* EmitterData = Emitter->GetEmitterData(AssetVersion);
+		if (EmitterData && EmitterData->SimTarget != ENiagaraSimTarget::GPUComputeSim)
 		{
 			TArray<UNiagaraScript*> OutScripts;
-			Emitter->GetScripts(OutScripts, false);
+			EmitterData->GetScripts(OutScripts, false);
 			Scripts.Append(OutScripts);
 		}
 	}
@@ -193,8 +194,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 #endif
 	
 	// Make sure and get the base implementation tags
-	Super::GetAssetTagsForContext(InAsset, InProperties, NumericKeys, StringKeys);
-	
+	Super::GetAssetTagsForContext(InAsset, AssetVersion, InProperties, NumericKeys, StringKeys);
 }
 
 void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)

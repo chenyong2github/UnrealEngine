@@ -7,8 +7,8 @@
 #include "NiagaraMeshRendererProperties.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-#include "IDetailGroup.h"
 #include "NiagaraComponent.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraEditorModule.h"
@@ -110,11 +110,11 @@ void FNiagaraDataInterfaceMeshRendererInfoDetails::GenerateRendererList()
 	if (auto Interface = DataInterface.Get())
 	{
 		UNiagaraSystem* System = nullptr;
-		UNiagaraEmitter* Emitter = nullptr;
-		FNiagaraEditorModule::Get().GetTargetSystemAndEmitterForDataInterface(Interface, System, Emitter);
-		if (System && Emitter)
+		FVersionedNiagaraEmitter EmitterHandle;
+		FNiagaraEditorModule::Get().GetTargetSystemAndEmitterForDataInterface(Interface, System, EmitterHandle);
+		if (System && EmitterHandle.GetEmitterData())
 		{
-			for (auto RendererProps : Emitter->GetRenderers())
+			for (auto RendererProps : EmitterHandle.GetEmitterData()->GetRenderers())
 			{
 				if (auto MeshProps = Cast<UNiagaraMeshRendererProperties>(RendererProps))
 				{
@@ -186,7 +186,7 @@ FText FNiagaraDataInterfaceMeshRendererInfoDetails::CreateRendererTextLabel(cons
 	UNiagaraEmitter* Emitter = Properties->GetTypedOuter<UNiagaraEmitter>();
 	check(Emitter);
 
-	UNiagaraEmitterEditorData* EmitterEditorData = static_cast<UNiagaraEmitterEditorData*>(Emitter->GetEditorData());
+	UNiagaraEmitterEditorData* EmitterEditorData = static_cast<UNiagaraEmitterEditorData*>(Properties->GetEmitterData()->GetEditorData());
 	if (EmitterEditorData == nullptr)
 	{
 		return LOCTEXT("NoneOption", "None");

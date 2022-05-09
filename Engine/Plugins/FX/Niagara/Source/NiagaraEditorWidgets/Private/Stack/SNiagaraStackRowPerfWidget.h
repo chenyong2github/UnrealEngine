@@ -38,7 +38,7 @@ private:
 	bool IsGroupHeaderEntry() const;
 	bool IsModuleEntry() const;
 	bool IsEntrySelected() const;
-	UNiagaraEmitter* GetEmitter() const;
+	FVersionedNiagaraEmitter GetEmitter() const;
 	ENiagaraScriptUsage GetUsage() const;
 	ENiagaraStatEvaluationType GetEvaluationType() const;
 	ENiagaraStatDisplayMode GetDisplayMode() const;

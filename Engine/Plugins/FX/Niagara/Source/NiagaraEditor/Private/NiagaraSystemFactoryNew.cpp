@@ -2,7 +2,6 @@
 
 #include "NiagaraSystemFactoryNew.h"
 #include "CoreMinimal.h"
-#include "Misc/ConfigCacheIni.h"
 #include "NiagaraSystem.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
@@ -27,7 +26,6 @@ UNiagaraSystemFactoryNew::UNiagaraSystemFactoryNew(const FObjectInitializer& Obj
 : Super(ObjectInitializer)
 {
 	SupportedClass = UNiagaraSystem::StaticClass();
-	bCreateNew = false;
 	bEditAfterNew = true;
 	bCreateNew = true;
 }
@@ -76,7 +74,7 @@ bool UNiagaraSystemFactoryNew::ConfigureProperties()
 			UNiagaraEmitter* EmitterToAdd = Cast<UNiagaraEmitter>(EmitterAssetToAdd.GetAsset());
 			if (EmitterToAdd != nullptr)
 			{
-				EmittersToAddToNewSystem.Add(EmitterToAdd);
+				EmittersToAddToNewSystem.Add(FVersionedNiagaraEmitter(EmitterToAdd, EmitterToAdd->GetExposedVersion().VersionGuid));
 			}
 			else
 			{
@@ -157,9 +155,9 @@ UObject* UNiagaraSystemFactoryNew::FactoryCreateNew(UClass* Class, UObject* InPa
 		NewSystem = NewObject<UNiagaraSystem>(InParent, Class, Name, Flags | RF_Transactional);
 		InitializeSystem(NewSystem, true);
 
-		for (UNiagaraEmitter* EmitterToAddToNewSystem : EmittersToAddToNewSystem)
+		for (FVersionedNiagaraEmitter& EmitterToAddToNewSystem : EmittersToAddToNewSystem)
 		{
-			FNiagaraEditorUtilities::AddEmitterToSystem(*NewSystem, *EmitterToAddToNewSystem);
+			FNiagaraEditorUtilities::AddEmitterToSystem(*NewSystem, *EmitterToAddToNewSystem.Emitter, EmitterToAddToNewSystem.Version);
 		}
 	}
 	else

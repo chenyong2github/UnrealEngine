@@ -88,8 +88,8 @@ void FNiagaraSystemToolkitMode_Scalability::UnbindEmitterUpdates()
 
 	for(const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 	{
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->OnRenderersChanged().RemoveAll(this);
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->OnPropertiesChanged().RemoveAll(this);
+		EmitterHandleViewModel->GetEmitterHandle()->GetInstance().Emitter->OnRenderersChanged().RemoveAll(this);
+		EmitterHandleViewModel->GetEmitterHandle()->GetInstance().Emitter->OnPropertiesChanged().RemoveAll(this);
 	}
 }
 
@@ -100,19 +100,20 @@ void FNiagaraSystemToolkitMode_Scalability::BindEmitterPreviewOverrides()
 	
 	for(const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 	{
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandleViewModel->GetEmitterHandle()->GetEmitterData();
 		// we bind the quality level and device profile of the emitter itself to use our scalability preview
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->Platforms.OnOverrideQualityLevelDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewQualityLevel);
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->Platforms.OnOverrideActiveDeviceProfileDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewDeviceProfile);
+		EmitterData->Platforms.OnOverrideQualityLevelDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewQualityLevel);
+		EmitterData->Platforms.OnOverrideActiveDeviceProfileDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewDeviceProfile);
 
 		// we do the same for the overrides
-		for(FNiagaraEmitterScalabilityOverride& EmitterScalabilityOverride : EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->ScalabilityOverrides.Overrides)
+		for(FNiagaraEmitterScalabilityOverride& EmitterScalabilityOverride : EmitterData->ScalabilityOverrides.Overrides)
 		{
 			EmitterScalabilityOverride.Platforms.OnOverrideQualityLevelDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewQualityLevel);
 			EmitterScalabilityOverride.Platforms.OnOverrideActiveDeviceProfileDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewDeviceProfile);
 		}
 
 		// and also for the renderers
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->ForEachRenderer([=](UNiagaraRendererProperties* RendererProperties)
+		EmitterData->ForEachRenderer([=](UNiagaraRendererProperties* RendererProperties)
 		{
 			RendererProperties->Platforms.OnOverrideQualityLevelDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewQualityLevel);
 			RendererProperties->Platforms.OnOverrideActiveDeviceProfileDelegate.BindUObject(ScalabilityViewModel, &UNiagaraSystemScalabilityViewModel::GetPreviewDeviceProfile);
@@ -139,16 +140,17 @@ void FNiagaraSystemToolkitMode_Scalability::UnbindEmitterPreviewOverrides()
 	// we undo all the bindings we created in the Bind function here 
 	for(const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 	{
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->Platforms.OnOverrideQualityLevelDelegate.Unbind();
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->Platforms.OnOverrideActiveDeviceProfileDelegate.Unbind();
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandleViewModel->GetEmitterHandle()->GetEmitterData();
+		EmitterData->Platforms.OnOverrideQualityLevelDelegate.Unbind();
+		EmitterData->Platforms.OnOverrideActiveDeviceProfileDelegate.Unbind();
 		
-		for(FNiagaraEmitterScalabilityOverride& EmitterScalabilityOverride : EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->ScalabilityOverrides.Overrides)
+		for(FNiagaraEmitterScalabilityOverride& EmitterScalabilityOverride : EmitterData->ScalabilityOverrides.Overrides)
 		{
 			EmitterScalabilityOverride.Platforms.OnOverrideQualityLevelDelegate.Unbind();
 			EmitterScalabilityOverride.Platforms.OnOverrideActiveDeviceProfileDelegate.Unbind();
 		}
 
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->ForEachRenderer([](UNiagaraRendererProperties* RendererProperties)
+		EmitterData->ForEachRenderer([](UNiagaraRendererProperties* RendererProperties)
 		{
 			RendererProperties->Platforms.OnOverrideQualityLevelDelegate.Unbind();
 			RendererProperties->Platforms.OnOverrideActiveDeviceProfileDelegate.Unbind();
@@ -176,8 +178,8 @@ void FNiagaraSystemToolkitMode_Scalability::BindEmitterUpdates()
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = SystemToolkit.Pin()->GetSystemViewModel();
 	for(const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 	{		
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->OnRenderersChanged().AddSP(this, &FNiagaraSystemToolkitMode_Scalability::BindEmitterPreviewOverrides);
-		EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->OnPropertiesChanged().AddSP(this, &FNiagaraSystemToolkitMode_Scalability::BindEmitterPreviewOverrides);
+		EmitterHandleViewModel->GetEmitterHandle()->GetInstance().Emitter->OnRenderersChanged().AddSP(this, &FNiagaraSystemToolkitMode_Scalability::BindEmitterPreviewOverrides);
+		EmitterHandleViewModel->GetEmitterHandle()->GetInstance().Emitter->OnPropertiesChanged().AddSP(this, &FNiagaraSystemToolkitMode_Scalability::BindEmitterPreviewOverrides);
 	}
 
 	BindEmitterPreviewOverrides();

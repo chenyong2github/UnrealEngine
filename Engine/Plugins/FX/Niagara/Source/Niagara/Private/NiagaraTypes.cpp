@@ -4,6 +4,7 @@
 
 #include "NiagaraDataInterface.h"
 #include "NiagaraStats.h"
+#include "NiagaraEmitter.h"
 #include "Misc/StringBuilder.h"
 #include "UObject/Class.h"
 
@@ -28,6 +29,41 @@ void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMe
 			ChildProperty->CopyCompleteValue((uint8*)this + PropertyOffset, (uint8*)&OtherMetaData + PropertyOffset);
 		};
 	}
+}
+
+FVersionedNiagaraEmitterData* FVersionedNiagaraEmitter::GetEmitterData() const
+{
+	return Emitter ? Emitter->GetEmitterData(Version) : nullptr;
+}
+
+FVersionedNiagaraEmitterWeakPtr FVersionedNiagaraEmitter::ToWeakPtr() const
+{
+	return FVersionedNiagaraEmitterWeakPtr(Emitter, Version);
+}
+
+FVersionedNiagaraEmitterWeakPtr::FVersionedNiagaraEmitterWeakPtr(UNiagaraEmitter* InEmitter, const FGuid& InVersion)
+{
+	Emitter = InEmitter;
+	Version = InVersion;
+}
+
+FVersionedNiagaraEmitter FVersionedNiagaraEmitterWeakPtr::ResolveWeakPtr() const
+{
+	if (Emitter.IsValid())
+	{
+		return FVersionedNiagaraEmitter(Emitter.Get(), Version);
+	}
+	return FVersionedNiagaraEmitter();
+}
+
+FVersionedNiagaraEmitterData* FVersionedNiagaraEmitterWeakPtr::GetEmitterData() const
+{
+	return ResolveWeakPtr().GetEmitterData();
+}
+
+bool FVersionedNiagaraEmitterWeakPtr::IsValid() const
+{
+	return GetEmitterData() != nullptr;
 }
 
 FNiagaraLWCConverter::FNiagaraLWCConverter(FVector InSystemWorldPos)

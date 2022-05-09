@@ -242,8 +242,8 @@ void UNiagaraComponentRendererProperties::PostLoad()
 
 void UNiagaraComponentRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
-	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
-	if (SrcEmitter)
+	FVersionedNiagaraEmitter SrcEmitter = GetOuterEmitter();
+	if (SrcEmitter.Emitter)
 	{
 		EnabledBinding.CacheValues(SrcEmitter, InSourceMode);
 		RendererVisibilityTagBinding.CacheValues(SrcEmitter, InSourceMode);
@@ -485,7 +485,8 @@ void UNiagaraComponentRendererProperties::CreateTemplateComponent()
 	TemplateComponent->SetComponentTickEnabled(false);
 
 	// set some defaults on the component
-	bool IsWorldSpace = EmitterPtr ? !EmitterPtr->bLocalSpace : true;
+	FVersionedNiagaraEmitterData* EmitterData = EmitterPtr.GetEmitterData();
+	bool IsWorldSpace = EmitterData ? !EmitterData->bLocalSpace : true;
 	TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
 }
 
@@ -570,7 +571,7 @@ void UNiagaraComponentRendererProperties::GetRendererTooltipWidgets(const FNiaga
 	OutWidgets.Add(Tooltip);
 }
 
-void UNiagaraComponentRendererProperties::GetRendererFeedback(UNiagaraEmitter* InEmitter,	TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings,	TArray<FNiagaraRendererFeedback>& OutInfo) const
+void UNiagaraComponentRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const
 {
 	OutInfo.Add(FNiagaraRendererFeedback(FText::FromString(TEXT("The component renderer is still a very experimental feature that offers great flexibility, \nbut is *not* optimized for performance or safety. \nWith great power comes great responsibility."))));
 
@@ -581,10 +582,10 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(UNiagaraEmitter* I
 		OutErrors.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary));
 	}
 
-	if (InEmitter && TemplateComponent)
+	FVersionedNiagaraEmitterData* EmitterData = EmitterPtr.GetEmitterData();
+	if (InEmitter.Emitter && TemplateComponent && EmitterData)
 	{
-		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-		if (Settings)
+		if (const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>())
 		{
 			for (const TPair<FString, FText>& Pair : Settings->ComponentRendererWarningsPerClass)
 			{
@@ -596,8 +597,8 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(UNiagaraEmitter* I
 			}
 		}
 
-		bool IsWorldSpace = !InEmitter->bLocalSpace;
-		FNiagaraRendererFeedbackFix LocalspaceFix = FNiagaraRendererFeedbackFix::CreateLambda([InEmitter]() {	InEmitter->bLocalSpace = !InEmitter->bLocalSpace; });
+		bool IsWorldSpace = !EmitterData->bLocalSpace;
+		FNiagaraRendererFeedbackFix LocalspaceFix = FNiagaraRendererFeedbackFix::CreateLambda([EmitterData]() {	EmitterData->bLocalSpace = !EmitterData->bLocalSpace; });
 		if (TemplateComponent->IsUsingAbsoluteLocation() != IsWorldSpace && !HasPropertyBinding(FName("bAbsoluteLocation")))
 		{
 			FText ErrorDescription = LOCTEXT("NiagaraComponentLocalspaceLocationWarning", "The component location is configured to use a different localspace setting than the emitter.");

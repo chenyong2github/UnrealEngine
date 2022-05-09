@@ -370,7 +370,7 @@ void SNiagaraGeneratedCodeView::UpdateUI()
 		if (Handle)
 		{
 			TArray<UNiagaraScript*> EmitterScripts;
-			Handle->GetInstance()->GetScripts(EmitterScripts);
+			Handle->GetEmitterData()->GetScripts(EmitterScripts);
 			Scripts.Append(EmitterScripts);
 		}
 	}

@@ -3,10 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+
+#include "NiagaraEmitter.h"
 #include "Misc/Guid.h"
-#include "NiagaraModule.h"
 #include "NiagaraScript.h"
 #include "NiagaraEmitterHandle.generated.h"
 
@@ -26,7 +25,10 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Creates a new emitter handle from an emitter. */
-	FNiagaraEmitterHandle(UNiagaraEmitter& InEmitter);
+	FNiagaraEmitterHandle(UNiagaraEmitter& InEmitter, const FGuid& Version);
+	
+	/** Creates a new emitter handle from an emitter. */
+	FNiagaraEmitterHandle(const FVersionedNiagaraEmitter& InEmitter);
 #endif
 
 	/** Whether or not this is a valid emitter handle. */
@@ -57,7 +59,10 @@ public:
 #endif
 
 	/** Gets the copied instance of the emitter this handle references. */
-	UNiagaraEmitter* GetInstance() const;
+	FVersionedNiagaraEmitter GetInstance() const;
+	FVersionedNiagaraEmitter& GetInstance();
+
+	FVersionedNiagaraEmitterData* GetEmitterData() const;
 
 	/** Gets a unique name for this emitter instance for use in scripts and parameter stores etc.*/
 	FString GetUniqueInstanceName()const;
@@ -70,6 +75,7 @@ public:
 	void ConditionalPostLoad(int32 NiagaraCustomVersion);
 
 	/** Whether or not this handle uses the supplied emitter. */
+	bool UsesEmitter(const FVersionedNiagaraEmitter& InEmitter) const;
 	bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
 
 	void ClearEmitter();
@@ -113,5 +119,9 @@ private:
 
 	/** The copied instance of the emitter this handle references. */
 	UPROPERTY()
-	TObjectPtr<UNiagaraEmitter> Instance;
+	TObjectPtr<UNiagaraEmitter> Instance_DEPRECATED;
+
+	/** The copied instance of the emitter this handle references. */
+	UPROPERTY()
+	FVersionedNiagaraEmitter VersionedInstance;
 };

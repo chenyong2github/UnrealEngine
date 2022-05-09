@@ -139,7 +139,6 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 	//  Iterate over all systems
 	const FString DevelopersFolder = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir().LeftChop(1));
 	FString LastPackageName = TEXT("");
-	int32 PackageSwitches = 0;
 	UPackage* CurrentPackage = nullptr;
 	TArray<UPackage*> PackagesToSave;
 
@@ -207,8 +206,8 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 
 		for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
 		{
-			UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance();
-			if (NiagaraEmitter == nullptr)
+			FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
+			if (EmitterData == nullptr)
 			{
 				continue;
 			}
@@ -218,39 +217,39 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				continue;
 			}
 
-			if (NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{
 				// Optionally disable GPU emitters
 				for (UDeviceProfile* DeviceProfile : DeviceProfilesToDisableGpu)
 				{
-					const int32 DeviceQualityLevelMask = NiagaraEmitter->Platforms.IsEnabledForDeviceProfile(DeviceProfile);
+					const int32 DeviceQualityLevelMask = EmitterData->Platforms.IsEnabledForDeviceProfile(DeviceProfile);
 					if (DeviceQualityLevelMask != 0)
 					{
 						for (int32 iQualityLevel = 0; iQualityLevel < NiagaraSettings->QualityLevels.Num(); ++iQualityLevel)
 						{
 							if ( (DeviceQualityLevelMask & (1 << iQualityLevel)) != 0 )
 							{
-								NiagaraEmitter->Platforms.SetDeviceProfileState(DeviceProfile, iQualityLevel, ENiagaraPlatformSelectionState::Disabled);
+								EmitterData->Platforms.SetDeviceProfileState(DeviceProfile, iQualityLevel, ENiagaraPlatformSelectionState::Disabled);
 							}
 						}
 
 						PackagesToSave.AddUnique(CurrentPackage);
 						CurrentPackage->SetDirtyFlag(true);
 
-						UE_LOG(LogNiagaraSystemAuditCommandlet, Log, TEXT("Disabling Emitter %s for System %s Device Quality Level Mask 0x%08x"), *GetNameSafe(NiagaraEmitter), *GetNameSafe(NiagaraSystem), DeviceQualityLevelMask);
+						UE_LOG(LogNiagaraSystemAuditCommandlet, Log, TEXT("Disabling Emitter %s for System %s Device Quality Level Mask 0x%08x"), *EmitterHandle.GetUniqueInstanceName(), *GetNameSafe(NiagaraSystem), DeviceQualityLevelMask);
 					}
 				}
 
 				// Build information to write out
 				TStringBuilder<512> GpuEmitterBuilder;
-				GpuEmitterBuilder.Append(NiagaraEmitter->GetDebugSimName());
+				GpuEmitterBuilder.Append(EmitterData->GetDebugSimName());
 				for (int32 iQualityLevel=0; iQualityLevel < NiagaraSettings->QualityLevels.Num(); ++iQualityLevel)
 				{
-					const bool bEnabled = NiagaraEmitter->Platforms.IsEffectQualityEnabled(iQualityLevel);
+					const bool bEnabled = EmitterData->Platforms.IsEffectQualityEnabled(iQualityLevel);
 
 					TArray<UDeviceProfile*> EnabledProfiles;
 					TArray<UDeviceProfile*> DisabledProfiles;
-					NiagaraEmitter->Platforms.GetOverridenDeviceProfiles(iQualityLevel, EnabledProfiles, DisabledProfiles);
+					EmitterData->Platforms.GetOverridenDeviceProfiles(iQualityLevel, EnabledProfiles, DisabledProfiles);
 
 					GpuEmitterBuilder.Append(TEXT(","));
 					GpuEmitterBuilder.Append(bEnabled ? TEXT("Enabled") : TEXT("Disabled"));
@@ -266,7 +265,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				}
 
 				GpuEmitterBuilder.Append(TEXT(","));
-				for (const FNiagaraPlatformSetCVarCondition& Condition : NiagaraEmitter->Platforms.CVarConditions)
+				for (const FNiagaraPlatformSetCVarCondition& Condition : EmitterData->Platforms.CVarConditions)
 				{
 					GpuEmitterBuilder.Appendf(TEXT(" CVarName(%s)"), *Condition.CVarName.ToString());
 				}
@@ -276,9 +275,9 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				NiagaraSystemsWithGPUEmitters.Add(GpuEmitterBuilder.ToString());
 			}
 
-			bHasEvents |= NiagaraEmitter->GetEventHandlers().Num() > 0;
+			bHasEvents |= EmitterData->GetEventHandlers().Num() > 0;
 
-			for (UNiagaraRendererProperties* RendererProperties : NiagaraEmitter->GetRenderers())
+			for (UNiagaraRendererProperties* RendererProperties : EmitterData->GetRenderers())
 			{
 				if (UNiagaraLightRendererProperties* LightRendererProperties = Cast<UNiagaraLightRendererProperties>(RendererProperties))
 				{
@@ -292,7 +291,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 						static UEnum* NiagaraRibbonTessellationModeEnum = StaticEnum<ENiagaraRibbonTessellationMode>();
 
 						TStringBuilder<512> RendererBuilder;
-						RendererBuilder.Append(NiagaraEmitter->GetPathName());
+						RendererBuilder.Append(EmitterHandle.GetInstance().Emitter->GetPathName());
 						RendererBuilder.Append(TEXT(","));
 						RendererBuilder.Append(NiagaraRibbonTessellationModeEnum->GetValueAsString(RibbonRendererProperties->TessellationMode));
 						NiagaraRibbonRenderers.Add(RendererBuilder.ToString());
@@ -300,9 +299,9 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				}
 			}
 
-			if ( (NiagaraEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic) && !NiagaraSystem->bFixedBounds )
+			if ( (EmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic) && !NiagaraSystem->bFixedBounds )
 			{
-				EmittersWithDynamicBounds.Append(NiagaraEmitter->GetDebugSimName());
+				EmittersWithDynamicBounds.Append(EmitterData->GetDebugSimName());
 			}
 		}
 
@@ -496,14 +495,14 @@ TArray<class UNiagaraDataInterface*> UNiagaraSystemAuditCommandlet::GetDataInter
 
 	for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
 	{
-		UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance();
-		if (NiagaraEmitter == nullptr)
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
+		if (EmitterData == nullptr)
 		{
 			continue;
 		}
 
 		TArray<UNiagaraScript*> EmitterScripts;
-		NiagaraEmitter->GetScripts(EmitterScripts);
+		EmitterData->GetScripts(EmitterScripts);
 		for (UNiagaraScript* Script : EmitterScripts)
 		{
 			GatherScriptDIs(Script);

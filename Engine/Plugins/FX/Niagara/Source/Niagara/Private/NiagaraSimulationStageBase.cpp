@@ -38,16 +38,15 @@ void UNiagaraSimulationStageBase::SetEnabled(bool bInEnabled)
 
 void UNiagaraSimulationStageBase::RequestRecompile()
 {
-	UNiagaraEmitter* Emitter = Cast< UNiagaraEmitter>(GetOuter());
-	if (Emitter)
+	FVersionedNiagaraEmitter OuterEmitter = GetOuterEmitter();
+	if (FVersionedNiagaraEmitterData* EmitterData = OuterEmitter.GetEmitterData())
 	{
-		UNiagaraScriptSourceBase* GraphSource = Emitter->UpdateScriptProps.Script->GetLatestSource();
-		if (GraphSource != nullptr)
+		if (UNiagaraScriptSourceBase* GraphSource = EmitterData->UpdateScriptProps.Script->GetLatestSource())
 		{
 			GraphSource->MarkNotSynchronized(TEXT("SimulationStage changed."));
 		}
 
-		UNiagaraSystem::RequestCompileForEmitter(Emitter);
+		UNiagaraSystem::RequestCompileForEmitter(OuterEmitter);
 	}
 }
 
@@ -216,6 +215,24 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 	{
 		RequestRecompile();
 	}
+}
+
+FVersionedNiagaraEmitterData* UNiagaraSimulationStageBase::GetEmitterData() const
+{
+	if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		return SrcEmitter->GetEmitterData(OuterEmitterVersion);
+	}
+	return nullptr;
+}
+
+FVersionedNiagaraEmitter UNiagaraSimulationStageBase::GetOuterEmitter() const
+{
+	if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		return FVersionedNiagaraEmitter(SrcEmitter, OuterEmitterVersion);
+	}
+	return FVersionedNiagaraEmitter();
 }
 
 FName UNiagaraSimulationStageGeneric::GetStackContextReplacementName() const 

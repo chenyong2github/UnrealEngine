@@ -117,7 +117,6 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraScript.h"
 #include "NiagaraCommon.h"
-#include "NiagaraScriptHighlight.h"
 #include "NiagaraComponentRendererProperties.h"
 #include "NiagaraMeshRendererProperties.h"
 
@@ -139,7 +138,6 @@
 #include "ISourceControlModule.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/Ticker.h"
-#include "NiagaraConstants.h"
 
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
 #include "NiagaraPlatformSet.h"
@@ -330,10 +328,10 @@ void DumpRapidIterationParametersForScript(UNiagaraScript* Script, const FString
 	DumpParameterStore(Script->RapidIterationParameters);
 }
 
-void DumpRapidIterationParametersForEmitter(UNiagaraEmitter* Emitter, const FString& EmitterName)
+void DumpRapidIterationParametersForEmitter(FVersionedNiagaraEmitter Emitter, const FString& EmitterName)
 {
 	TArray<UNiagaraScript*> Scripts;
-	Emitter->GetScripts(Scripts, false);
+	Emitter.GetEmitterData()->GetScripts(Scripts, false);
 	for (UNiagaraScript* Script : Scripts)
 	{
 		DumpRapidIterationParametersForScript(Script, EmitterName);
@@ -364,7 +362,7 @@ void DumpRapidIterationParamersForAsset(const TArray<FString>& Arguments)
 				UNiagaraEmitter* EmitterAsset = Cast<UNiagaraEmitter>(Asset);
 				if (EmitterAsset != nullptr)
 				{
-					DumpRapidIterationParametersForEmitter(EmitterAsset, EmitterAsset->GetName());
+					DumpRapidIterationParametersForEmitter(FVersionedNiagaraEmitter(EmitterAsset, EmitterAsset->GetExposedVersion().VersionGuid), EmitterAsset->GetName());
 				}
 				else
 				{
@@ -383,35 +381,36 @@ void DumpRapidIterationParamersForAsset(const TArray<FString>& Arguments)
 	}
 }
 
-void CompileEmitterStandAlone(UNiagaraEmitter* Emitter, TSet<UNiagaraEmitter*>& InOutCompiledEmitters)
+void CompileEmitterStandAlone(FVersionedNiagaraEmitter VersionedEmitter, TSet<FVersionedNiagaraEmitter>& InOutCompiledEmitters)
 {
-	if (InOutCompiledEmitters.Contains(Emitter) == false)
+	if (InOutCompiledEmitters.Contains(VersionedEmitter) == false)
 	{
-		if (Emitter->GetParent() != nullptr)
+		FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+		if (EmitterData && EmitterData->GetParent().Emitter != nullptr)
 		{
 			// If the emitter has a parent emitter make sure to compile that one first.
-			CompileEmitterStandAlone(Emitter->GetParent(), InOutCompiledEmitters);
+			CompileEmitterStandAlone(EmitterData->GetParent(), InOutCompiledEmitters);
 
-			if (Emitter->IsSynchronizedWithParent() == false)
+			if (VersionedEmitter.Emitter->IsSynchronizedWithParent() == false)
 			{
 				// If compiling the parent caused it to become out of sync with the current emitter merge in changes before compiling.
-				Emitter->MergeChangesFromParent();
+				VersionedEmitter.Emitter->MergeChangesFromParent();
 			}
 		}
 
-		Emitter->MarkPackageDirty();
+		VersionedEmitter.Emitter->MarkPackageDirty();
 		UNiagaraSystem* TransientSystem = NewObject<UNiagaraSystem>(GetTransientPackage(), FName("StandaloneEmitter_TempSystem"), RF_Transient);
 		UNiagaraSystemFactoryNew::InitializeSystem(TransientSystem, true);
-		TransientSystem->AddEmitterHandle(*Emitter, TEXT("Emitter"));
+		TransientSystem->AddEmitterHandle(*VersionedEmitter.Emitter, TEXT("Emitter"), VersionedEmitter.Version);
 		FNiagaraStackGraphUtilities::RebuildEmitterNodes(*TransientSystem);
 		TransientSystem->RequestCompile(false);
 		TransientSystem->WaitForCompilationComplete();
 
-		InOutCompiledEmitters.Add(Emitter);
+		InOutCompiledEmitters.Add(VersionedEmitter);
 	}
 }
 
-void PreventSystemRecompile(FAssetData SystemAsset, TSet<UNiagaraEmitter*>& InOutCompiledEmitters)
+void PreventSystemRecompile(FAssetData SystemAsset, TSet<FVersionedNiagaraEmitter>& InOutCompiledEmitters)
 {
 	UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset.GetAsset());
 	if (System != nullptr)
@@ -442,7 +441,7 @@ void PreventSystemRecompile(const TArray<FString>& Arguments)
 				SystemAsset = AssetsInPackage[0];
 			}
 		}
-		TSet<UNiagaraEmitter*> CompiledEmitters;
+		TSet<FVersionedNiagaraEmitter> CompiledEmitters;
 		PreventSystemRecompile(SystemAsset, CompiledEmitters);
 	}
 }
@@ -457,7 +456,7 @@ void PreventAllSystemRecompiles()
 	TArray<FAssetData> SystemAssets;
 	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetFName(), SystemAssets);
 
-	TSet<UNiagaraEmitter*> CompiledEmitters;
+	TSet<FVersionedNiagaraEmitter> CompiledEmitters;
 	int32 ItemIndex = 0;
 	for (FAssetData& SystemAsset : SystemAssets)
 	{
@@ -536,7 +535,6 @@ void UpgradeAllNiagaraAssets()
 void MakeIndent(int32 IndentLevel, FString& OutIndentString)
 {
 	OutIndentString.Reserve(IndentLevel * 2);
-	int32 InsertStart = OutIndentString.Len();
 	for (int32 i = 0; i < IndentLevel * 2; i++)
 	{
 		OutIndentString.AppendChar(TCHAR(' '));
@@ -575,15 +573,14 @@ void DumpCompileIdDataForScript(UNiagaraScript* Script, int32 IndentLevel, FStri
 	}
 }
 
-void DumpCompileIdDataForEmitter(UNiagaraEmitter* Emitter, int32 IndentLevel, FString& Dump)
+void DumpCompileIdDataForEmitter(const FVersionedNiagaraEmitter& VersionedEmitter, int32 IndentLevel, FString& Dump)
 {
-
 	FString Indent;
 	MakeIndent(IndentLevel, Indent);
-	Dump.Append(FString::Printf(TEXT("%sEmitter: %s\n"), *Indent, *Emitter->GetUniqueEmitterName()));
+	Dump.Append(FString::Printf(TEXT("%sEmitter: %s\n"), *Indent, *VersionedEmitter.Emitter->GetUniqueEmitterName()));
 
 	TArray<UNiagaraScript*> Scripts;
-	Emitter->GetScripts(Scripts, false);
+	VersionedEmitter.GetEmitterData()->GetScripts(Scripts, false);
 	for (UNiagaraScript* Script : Scripts)
 	{
 		DumpCompileIdDataForScript(Script, IndentLevel + 1, Dump);
@@ -1603,7 +1600,6 @@ void FNiagaraEditorModule::GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* I
 		return;
 
 	UNiagaraSystem* OwningSystem = InDataInterface->GetTypedOuter<UNiagaraSystem>();
-	UNiagaraEmitter* OwningEmitter = InDataInterface->GetTypedOuter<UNiagaraEmitter>();
 	UNiagaraComponent* OwningComponent = InDataInterface->GetTypedOuter<UNiagaraComponent>();
 
 	if (OwningSystem == nullptr)
@@ -1627,7 +1623,6 @@ void FNiagaraEditorModule::GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* I
 			if (SystemViewModel->IsValid() && SystemViewModel->GetPlaceholderDataInterfaceManager()->TryGetOwnerInformation(InDataInterface, OwningEmitterHandle, OwningFunctionCallNode))
 			{
 				OwningSystem = &SystemViewModel->GetSystem();
-				OwningEmitter = OwningEmitterHandle.IsValid() ? SystemViewModel->GetEmitterHandleViewModelById(OwningEmitterHandle)->GetEmitterViewModel()->GetEmitter() : nullptr;
 				break;
 			}
 		}
@@ -1652,10 +1647,10 @@ const TArray<TWeakObjectPtr<UNiagaraParameterDefinitions>>& FNiagaraEditorModule
 	return ParameterDefinitionsAssetCache.Get();
 }
 
-void FNiagaraEditorModule::GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter)
+void FNiagaraEditorModule::GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, FVersionedNiagaraEmitter& OutOwningEmitter)
 {
 	OutOwningSystem = InDataInterface->GetTypedOuter<UNiagaraSystem>();
-	OutOwningEmitter = InDataInterface->GetTypedOuter<UNiagaraEmitter>();
+	OutOwningEmitter.Emitter = InDataInterface->GetTypedOuter<UNiagaraEmitter>();
 	
 	if (OutOwningSystem == nullptr)
 	{
@@ -1679,7 +1674,10 @@ void FNiagaraEditorModule::GetTargetSystemAndEmitterForDataInterface(UNiagaraDat
 			if (SystemViewModel->IsValid() && SystemViewModel->GetPlaceholderDataInterfaceManager()->TryGetOwnerInformation(InDataInterface, OwningEmitterHandle, OwningFunctionCallNode))
 			{
 				OutOwningSystem = &SystemViewModel->GetSystem();
-				OutOwningEmitter = OwningEmitterHandle.IsValid() ? SystemViewModel->GetEmitterHandleViewModelById(OwningEmitterHandle)->GetEmitterViewModel()->GetEmitter() : nullptr;
+				if (OwningEmitterHandle.IsValid())
+				{
+					OutOwningEmitter = SystemViewModel->GetEmitterHandleViewModelById(OwningEmitterHandle)->GetEmitterViewModel()->GetEmitter();
+				}
 				break;
 			}
 		}

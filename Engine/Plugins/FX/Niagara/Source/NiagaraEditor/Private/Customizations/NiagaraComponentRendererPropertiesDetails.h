@@ -14,7 +14,7 @@ class SWidget;
 class FNiagaraComponentRendererPropertiesDetails : public IDetailCustomization
 {
 public:
-	~FNiagaraComponentRendererPropertiesDetails();
+	virtual ~FNiagaraComponentRendererPropertiesDetails() override;
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual void CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder) override;
 	static TSharedRef<IDetailCustomization> MakeInstance();
@@ -28,7 +28,7 @@ private:
 	FReply ResetBindingButtonPressed(TSharedPtr<IPropertyHandle> PropertyHandle);
 	void RefreshPropertiesPanel();
 	FText GetCurrentBindingText(TSharedPtr<IPropertyHandle> PropertyHandle) const;
-	const UNiagaraEmitter* GetCurrentEmitter() const;
+	FVersionedNiagaraEmitter GetCurrentEmitter() const;
 	TArray<FNiagaraVariable> GetPossibleBindings(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 	bool IsOverridableType(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 	void ChangePropertyBinding(TSharedPtr<IPropertyHandle> PropertyHandle, const FNiagaraVariable& BindingVar);

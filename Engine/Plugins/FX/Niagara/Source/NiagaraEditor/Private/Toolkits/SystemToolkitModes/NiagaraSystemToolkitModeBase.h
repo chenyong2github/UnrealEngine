@@ -33,6 +33,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_ScratchPad(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ScriptStats(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Baker(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Versioning(const FSpawnTabArgs& Args);
 
 protected:
 	TWeakPtr<FNiagaraSystemToolkit> SystemToolkit;
@@ -55,5 +56,6 @@ public:
 	static const FName ScratchPadTabID;
 	static const FName ScriptStatsTabID;
 	static const FName BakerTabID;
+	static const FName VersioningTabID;
 };
 

@@ -6,19 +6,12 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
-#include "NiagaraObjectSelection.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraNodeOutput.h"
-#include "NiagaraGraph.h"
-#include "NiagaraNodeInput.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
 #include "Algo/Find.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "ScopedTransaction.h"
-#include "NiagaraRendererProperties.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
@@ -63,7 +56,6 @@ void FNiagaraEmitterHandleViewModel::Cleanup()
 void FNiagaraEmitterHandleViewModel::GetRendererEntries(TArray<UNiagaraStackEntry*>& InRenderingEntries)
 {
 	InRenderingEntries.Empty();
-	UNiagaraEmitter* Emitter = GetEmitterHandle()->GetInstance();
 	UNiagaraStackRoot* StackRoot = Cast<UNiagaraStackRoot>(EmitterStackViewModel->GetRootEntry());
 	if (StackRoot)
 	{
@@ -92,7 +84,7 @@ FGuid FNiagaraEmitterHandleViewModel::AddMessage(UNiagaraMessageData* NewMessage
 	{
 		const FGuid NewGuid = InNewGuid.IsValid() ? InNewGuid : FGuid::NewGuid();
 		
-		EmitterHandle->GetInstance()->AddMessage(NewGuid, static_cast<UNiagaraMessageDataBase*>(NewMessage));
+		EmitterHandle->GetInstance().Emitter->AddMessage(NewGuid, NewMessage);
 		return NewGuid;
 	}
 	return FGuid();
@@ -102,7 +94,7 @@ void FNiagaraEmitterHandleViewModel::RemoveMessage(const FGuid& MessageKey) cons
 {
 	if (ensureMsgf(EmitterHandle != nullptr, TEXT("EmitterHandleViewModel had a null EmitterHandle!")))
 	{
-		EmitterHandle->GetInstance()->RemoveMessage(MessageKey);
+		EmitterHandle->GetInstance().Emitter->RemoveMessage(MessageKey);
 	}
 }
 
@@ -117,7 +109,7 @@ void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 	OwningSystemViewModelWeak = InOwningSystemViewModel;
 	EmitterHandleIndex = InEmitterHandleIndex;
 	EmitterHandle = &InOwningSystemViewModel->GetSystem().GetEmitterHandle(InEmitterHandleIndex);
-	UNiagaraEmitter* Emitter = EmitterHandle != nullptr ? EmitterHandle->GetInstance() : nullptr;
+	FVersionedNiagaraEmitter Emitter = EmitterHandle != nullptr ? EmitterHandle->GetInstance() : FVersionedNiagaraEmitter();
 	EmitterViewModel->Initialize(Emitter, InSimulation);
 	EmitterStackViewModel->InitializeWithViewModels(InOwningSystemViewModel, this->AsShared(), FNiagaraStackViewModelOptions(false, true));
 }

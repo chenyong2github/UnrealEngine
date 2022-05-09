@@ -20,7 +20,6 @@
 #include "ViewModels/NiagaraEmitterViewModel.h"
 
 #include "AssetToolsModule.h"
-#include "Toolkits/AssetEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraValidationRules"
 
@@ -130,8 +129,8 @@ void UNiagaraValidationRule_FixedGPUBoundsSet::CheckValidity(TSharedPtr<FNiagara
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
 	{
-		UNiagaraEmitter* NiagaraEmitter = EmitterHandleModel.Get().GetEmitterHandle()->GetInstance();
-		if (NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && NiagaraEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandleModel.Get().GetEmitterHandle()->GetEmitterData();
+		if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && EmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
 		{
 			UNiagaraStackEmitterPropertiesItem* EmitterProperties = GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
 			FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("GpuDynamicBoundsErrorSummary", "GPU emitters do not support dynamic bounds"), LOCTEXT("GpuDynamicBoundsErrorDescription", "Gpu emitter should either not be in dynamic mode or the system must have fixed bounds."), EmitterProperties);
@@ -158,9 +157,8 @@ void UNiagaraValidationRule_BannedRenderers::CheckValidity(TSharedPtr<FNiagaraSy
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
 	{
-		int32 MaxQualityLevel = 3;
-		UNiagaraEmitter* NiagaraEmitter = EmitterHandleModel.Get().GetEmitterHandle()->GetInstance();
-		NiagaraEmitter->ForEachRenderer([&Results, EmitterHandleModel, MaxQualityLevel, this, &System](UNiagaraRendererProperties* RendererProperties)
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandleModel.Get().GetEmitterHandle()->GetEmitterData();
+		EmitterData->ForEachRenderer([&Results, EmitterHandleModel, this, &System](UNiagaraRendererProperties* RendererProperties)
 		{
 			if (RendererProperties->GetIsEnabled() && BannedRenderers.Contains(RendererProperties->GetClass()))
 			{
@@ -225,15 +223,15 @@ void UNiagaraValidationRule_BannedModules::CheckValidity(TSharedPtr<FNiagaraSyst
 			{
 				if (BannedModule == FuncCall.FunctionScript)
 				{
-					UNiagaraEmitter* Emitter = Item->GetEmitterViewModel().IsValid() ? Item->GetEmitterViewModel()->GetEmitter() : nullptr;
+					FVersionedNiagaraEmitterData* EmitterData = Item->GetEmitterViewModel().IsValid() ? Item->GetEmitterViewModel()->GetEmitter().GetEmitterData() : nullptr;
 
 					bool bApplyBan = true;
-					if (Emitter)
+					if (EmitterData)
 					{
 						//If we're on an emitter, this emitter may be culled on the platforms the rule applies to.
 						TArray<const FNiagaraPlatformSet*> CheckSets;
 						CheckSets.Add(&Platforms);
-						CheckSets.Add(&Emitter->Platforms);
+						CheckSets.Add(&EmitterData->Platforms);
 						TArray<FNiagaraPlatformSetConflictInfo> Conflicts;
 						FNiagaraPlatformSet::GatherConflicts(CheckSets, Conflicts);
 						bApplyBan = Conflicts.Num() > 0;
@@ -295,7 +293,7 @@ void UNiagaraValidationRule_LWC::CheckValidity(TSharedPtr<FNiagaraSystemViewMode
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
 	{
-		if (EmitterHandleModel->GetEmitterHandle()->GetInstance()->bLocalSpace == false)
+		if (EmitterHandleModel->GetEmitterHandle()->GetEmitterData()->bLocalSpace == false)
 		{
 			AllModules.Append(GetStackEntries<UNiagaraStackModuleItem>(EmitterHandleModel.Get().GetEmitterStackViewModel()));
 		}

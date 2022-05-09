@@ -8,6 +8,7 @@
 #include "UObject/ObjectKey.h"
 #include "IAssetTypeActions.h"
 #include "NiagaraEmitterEditorData.h"
+#include "NiagaraEmitter.h"
 
 class UNiagaraEmitter;
 class UNiagaraScript;
@@ -42,10 +43,10 @@ public:
 public:
 	/** Creates a new emitter editor view model.  It must be initialized before use. */
 	FNiagaraEmitterViewModel(bool bInIsForDataProcessingOnly);
-	virtual ~FNiagaraEmitterViewModel();
+	virtual ~FNiagaraEmitterViewModel() override;
 
 	/** Initialize this view model with an emitter and simulation. */
-	bool Initialize(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
+	bool Initialize(const FVersionedNiagaraEmitter& InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
 	/** Resets this view model to initial conditions. */
 	void Reset();
@@ -63,13 +64,13 @@ public:
 	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
 	/** Gets the emitter represented by this view model. */
-	NIAGARAEDITOR_API UNiagaraEmitter* GetEmitter();
+	NIAGARAEDITOR_API FVersionedNiagaraEmitter GetEmitter();
 
 	/** Gets whether or not this emitter has a parent emitter. */
 	NIAGARAEDITOR_API bool HasParentEmitter() const;
 
 	/** Gets the parent emitter for the emitter represented by this view model, if it has one. */
-	NIAGARAEDITOR_API const UNiagaraEmitter* GetParentEmitter() const;
+	NIAGARAEDITOR_API FVersionedNiagaraEmitter GetParentEmitter() const;
 
 	/** Gets the text representation of the parent emitter name. */
 	NIAGARAEDITOR_API FText GetParentNameText() const;
@@ -125,12 +126,18 @@ public:
 
 	void Cleanup();
 
+	/** When the parent emitter version is changed, this is set to generate the changelist in the stack. */
+	FGuid PreviousEmitterVersion;
+
+	/** Can be used by the ui after a version change to display change notes */
+	FString PythonUpgradeScriptWarnings;
+	
 private:
 	/** Sets this view model to a different emitter. */
-	void SetEmitter(UNiagaraEmitter* InEmitter);
+	void SetEmitter(FVersionedNiagaraEmitter InEmitter);
 
-	void OnVMCompiled(UNiagaraEmitter* InEmitter);
-	void OnGPUCompiled(UNiagaraEmitter* InEmitter);
+	void OnVMCompiled(FVersionedNiagaraEmitter InEmitter);
+	void OnGPUCompiled(FVersionedNiagaraEmitter InEmitter);
 
 	void AddScriptEventHandlers();
 
@@ -142,7 +149,6 @@ private:
 
 	void OnEmitterPropertiesChanged();
 
-private:
 	/** The text format stats display .*/
 	static const FText StatsFormat;
 
@@ -153,7 +159,7 @@ private:
 	static const FText ParticleDisabledDueToScalability;
 
 	/** The emitter object being displayed by the control .*/
-	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	FVersionedNiagaraEmitterWeakPtr EmitterWeakPtr;
 
 	/** The runtime simulation for the emitter being displayed by the control */
 	TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation;

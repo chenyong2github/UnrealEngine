@@ -71,7 +71,7 @@ TSharedRef<ISequencerSection> UMovieSceneNiagaraEmitterSectionBase::MakeInvalidS
 }
 
 UMovieSceneNiagaraEmitterTrack::UMovieSceneNiagaraEmitterTrack(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer), SystemViewModel(nullptr)
 {
 	bSectionsWereModified = false;
 }
@@ -179,14 +179,14 @@ void UMovieSceneNiagaraEmitterTrack::Tick(float DeltaTime)
 {
 	if(!HasAnyFlags(RF_ClassDefaultObject) && bScalabilityModeActive)
 	{
-		UNiagaraEmitter* Emitter = nullptr;
+		FVersionedNiagaraEmitterData* EmitterData = nullptr;
 		// the emitter instance might no longer be valid if we deleted the emitter but the track still lives until garbage collection
 		if(EmitterHandleViewModel.IsValid() && EmitterHandleViewModel.Pin()->GetEmitterHandle() != nullptr)
 		{
-			Emitter = EmitterHandleViewModel.Pin()->GetEmitterHandle()->GetInstance();
+			EmitterData = EmitterHandleViewModel.Pin()->GetEmitterHandle()->GetEmitterData();
 		}
 		
-		if(Emitter && !Emitter->IsAllowedByScalability())
+		if(EmitterData && !EmitterData->IsAllowedByScalability())
 		{
 			SetColorTint(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.SystemOverview.ExcludedFromScalability").ToFColor(true));
 		}
@@ -269,7 +269,7 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 {
 	SectionInitializationErrors.Empty();
 
-	UNiagaraScript* EmitterUpdateScript = GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter()->GetScript(ENiagaraScriptUsage::EmitterUpdateScript, FGuid());
+	UNiagaraScript* EmitterUpdateScript = GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetScript(ENiagaraScriptUsage::EmitterUpdateScript, FGuid());
 	UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(EmitterUpdateScript->GetLatestSource());
 	UNiagaraNodeOutput* OutputNode = ScriptSource->NodeGraph->FindOutputNode(ENiagaraScriptUsage::EmitterUpdateScript);
 

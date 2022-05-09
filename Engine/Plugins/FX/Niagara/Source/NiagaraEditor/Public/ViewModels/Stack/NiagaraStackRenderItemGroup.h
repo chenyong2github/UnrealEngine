@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraEmitter.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "NiagaraStackRenderItemGroup.generated.h"
 
@@ -35,5 +36,5 @@ private:
 	void OnRendererAdded(UNiagaraRendererProperties* RendererProperties) const;
 	TSharedPtr<INiagaraStackItemGroupAddUtilities> AddUtilities;
 
-	TWeakObjectPtr<UNiagaraEmitter> EmitterWeak;
+	FVersionedNiagaraEmitterWeakPtr EmitterWeak;
 };

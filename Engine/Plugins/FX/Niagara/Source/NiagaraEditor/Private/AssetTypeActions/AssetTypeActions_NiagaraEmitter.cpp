@@ -8,7 +8,6 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraSystemScriptViewModel.h"
 #include "ToolMenus.h"
 #include "Styling/AppStyle.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -40,9 +39,12 @@ void FAssetTypeActions_NiagaraEmitter::OpenAssetEditor(const TArray<UObject*>& I
 
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(*ObjIt);
-		if (Emitter != nullptr)
+		if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(*ObjIt))
 		{
+			if (!Emitter->VersionToOpenInEditor.IsValid())
+			{
+				Emitter->VersionToOpenInEditor = Emitter->GetExposedVersion().VersionGuid;
+			}
 			TSharedRef<FNiagaraSystemToolkit> SystemToolkit(new FNiagaraSystemToolkit());
 			SystemToolkit->InitializeWithEmitter(Mode, EditWithinLevelEditor, *Emitter);
 		}
@@ -74,7 +76,18 @@ void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObje
 		LOCTEXT("Emitter_CreateDuplicateParentTooltip", "Duplicate this emitter and set this emitter's parent to the new emitter."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetTypeActions_NiagaraEmitter::ExecuteCreateDuplicateParent, NiagaraEmitters)
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_NiagaraEmitter::ExecuteCreateDuplicateParent, NiagaraEmitters),
+			FCanExecuteAction::CreateLambda([NiagaraEmitters]()
+			{
+				for (TWeakObjectPtr<UNiagaraEmitter> EmitterPtr : NiagaraEmitters)
+				{
+					if (EmitterPtr.IsValid() && EmitterPtr->IsVersioningEnabled())
+					{
+						return false;
+					}
+				}
+				return true;
+			})
 		)
 	);
 
@@ -107,7 +120,7 @@ void FAssetTypeActions_NiagaraEmitter::ExecuteNewNiagaraSystem(TArray<TWeakObjec
 
 			// Create the factory used to generate the asset
 			UNiagaraSystemFactoryNew* Factory = NewObject<UNiagaraSystemFactoryNew>();
-			Factory->EmittersToAddToNewSystem.Add(Emitter.Get());
+			Factory->EmittersToAddToNewSystem.Add(FVersionedNiagaraEmitter(Emitter.Get(), Emitter->GetExposedVersion().VersionGuid));
 			FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 			UObject* NewAsset = AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), UNiagaraSystem::StaticClass(), Factory);
 			
@@ -150,11 +163,11 @@ void FAssetTypeActions_NiagaraEmitter::ExecuteCreateDuplicateParent(TArray<TWeak
 				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Emitter);
 
 				NewEmitter->Modify();
-				NewEmitter->GraphSource->MarkNotSynchronized(TEXT("Emitter created"));
+				NewEmitter->GetLatestEmitterData()->GraphSource->MarkNotSynchronized(TEXT("Emitter created"));
 
 				Emitter->Modify();
-				Emitter->SetParent(*NewEmitter);
-				Emitter->GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
+				Emitter->SetParent(FVersionedNiagaraEmitter(NewEmitter, NewEmitter->GetExposedVersion().VersionGuid));
+				Emitter->GetLatestEmitterData()->GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 
 				ObjectsToSync.Add(NewEmitter);
 			}

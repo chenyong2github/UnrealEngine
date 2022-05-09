@@ -6,6 +6,7 @@
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraDataInterfaceBase.h"
 #include "NiagaraComponent.h"
+#include "NiagaraEmitter.h"
 
 #include "Async/Async.h"
 
@@ -144,13 +145,13 @@ void SetResultsForEditorStats(const FNiagaraGpuFrameResultsPtr& FrameResults)
 #if WITH_NIAGARA_GPU_PROFILER_EDITOR
 	// Send data for editor stat display
 	//-TODO: editor stats should merge with particle perf stats
-	TMap<UNiagaraEmitter*, TMap<TStatIdData const*, float>> CapturedStats;
+	TMap<FVersionedNiagaraEmitterData*, TMap<TStatIdData const*, float>> CapturedStats;
 	CapturedStats.Reserve(FrameResults->DispatchResults.Num());
 
 	for (const auto& DispatchResult : FrameResults->DispatchResults)
 	{
-		UNiagaraEmitter* Emitter = DispatchResult.OwnerEmitter.Get();
-		if ( Emitter == nullptr )
+		FVersionedNiagaraEmitterData* EmitterData = DispatchResult.OwnerEmitter.GetEmitterData();
+		if ( EmitterData == nullptr )
 		{
 			continue;
 		}
@@ -162,7 +163,7 @@ void SetResultsForEditorStats(const FNiagaraGpuFrameResultsPtr& FrameResults)
 		const FName StatFName(StatNameBuilder.ToString());
 
 		const TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatFName);
-		CapturedStats.FindOrAdd(Emitter).FindOrAdd(StatId.GetRawPointer()) += DispatchResult.DurationMicroseconds;
+		CapturedStats.FindOrAdd(EmitterData).FindOrAdd(StatId.GetRawPointer()) += DispatchResult.DurationMicroseconds;
 	}
 
 	for (auto& CapturedStat : CapturedStats)

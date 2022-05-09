@@ -14,12 +14,10 @@
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "NiagaraStackEditorData.h"
 
 #include "ScopedTransaction.h"
 #include "Editor.h"
 #include "UObject/StructOnScope.h"
-#include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
@@ -194,7 +192,7 @@ TArray<UEdGraphPin*> UNiagaraStackParameterStoreEntry::GetOwningPins()
 	auto EmitterHandles = GetSystemViewModel()->GetSystem().GetEmitterHandles();
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		UNiagaraGraph* EmitterGraph = CastChecked<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource)->NodeGraph;
+		UNiagaraGraph* EmitterGraph = CastChecked<UNiagaraScriptSource>(Handle.GetEmitterData()->GraphSource)->NodeGraph;
 		GraphsToCheck.Add(EmitterGraph);
 	}
 	TArray<UEdGraphPin*> OwningPins;
@@ -260,13 +258,19 @@ void UNiagaraStackParameterStoreEntry::OnRenamed(FText NewName)
 		}
 
 		UObject* OwnerObj = Owner.Get();
-		UNiagaraSystem* System = Cast<UNiagaraSystem>(OwnerObj);
-		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(OwnerObj);
-		if (System)
+		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(OwnerObj))
+		{
 			System->HandleVariableRenamed(FNiagaraVariable(InputType, ParameterName), FNiagaraVariable(InputType, VariableName), true);
-		if (Emitter)
-			Emitter->HandleVariableRenamed(FNiagaraVariable(InputType, ParameterName), FNiagaraVariable(InputType, VariableName), true);
-		
+		}
+		else if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(OwnerObj))
+		{
+			FGuid Version;
+			if (TSharedPtr<FNiagaraEmitterViewModel> ViewModel = GetEmitterViewModel())
+			{
+				Version = ViewModel->GetEmitter().Version;
+			}
+			Emitter->HandleVariableRenamed(FNiagaraVariable(InputType, ParameterName), FNiagaraVariable(InputType, VariableName), true, Version);	
+		}		
 
 		ParameterName = VariableName;
 		DisplayName = FText::FromName(ParameterName);
@@ -417,13 +421,19 @@ void UNiagaraStackParameterStoreEntry::Delete()
 
 	// Update anything that was referencing that parameter
 	UObject* OwnerObj = Owner.Get();
-	UNiagaraSystem* System = Cast<UNiagaraSystem>(OwnerObj);
-	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(OwnerObj);
-	if (System)
+	if (UNiagaraSystem* System = Cast<UNiagaraSystem>(OwnerObj))
+	{
 		System->HandleVariableRemoved(FNiagaraVariable(InputType, ParameterName),  true);
-	if (Emitter)
-		Emitter->HandleVariableRemoved(FNiagaraVariable(InputType, ParameterName), true);
-
+	}
+	else if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(OwnerObj))
+	{
+		FGuid Version;
+		if (TSharedPtr<FNiagaraEmitterViewModel> ViewModel = GetEmitterViewModel())
+		{
+			Version = ViewModel->GetEmitter().Version;
+		}
+		Emitter->HandleVariableRemoved(FNiagaraVariable(InputType, ParameterName), true, Version);
+	}	
 
 	// Notify the system view model that the DI has been modifier.
 	if (CachedSystemViewModel.IsValid() && DataInterface != nullptr)

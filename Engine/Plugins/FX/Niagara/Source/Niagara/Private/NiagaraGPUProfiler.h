@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "NiagaraEmitter.h"
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
@@ -31,7 +32,7 @@ class FNiagaraGPUProfiler : public FNiagaraGPUProfilerInterface
 	{
 		uint32									bUniqueInstance : 1;
 		TWeakObjectPtr<class USceneComponent>	OwnerComponent;
-		TWeakObjectPtr<class UNiagaraEmitter>	OwnerEmitter;
+		FVersionedNiagaraEmitterWeakPtr			OwnerEmitter;
 		FName									StageName;
 		FRHIPooledRenderQuery					StartQuery;
 		FRHIPooledRenderQuery					EndQuery;

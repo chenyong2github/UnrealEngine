@@ -115,12 +115,12 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				continue;
 			}
 
-			const UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
+			const FVersionedNiagaraEmitterData* EmitterData = EmitterInstance->GetCachedEmitterData();
 			FNiagaraComputeExecutionContext* GPUContext = EmitterInstance->GetGPUContext();
 
-			check(Emitter);
+			check(EmitterData);
 
-			if (!Emitter || !GPUContext || Emitter->SimTarget != ENiagaraSimTarget::GPUComputeSim)
+			if (!EmitterData || !GPUContext || EmitterData->SimTarget != ENiagaraSimTarget::GPUComputeSim)
 			{
 				continue;
 			}

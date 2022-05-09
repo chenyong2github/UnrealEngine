@@ -12,9 +12,7 @@
 #include "NiagaraNodeInput.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraDataInterface.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeParameterMapSet.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeOutput.h"
@@ -25,7 +23,6 @@
 #include "ShaderCompiler.h"
 #include "NiagaraShader.h"
 #include "NiagaraScript.h"
-#include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraTrace.h"
 #include "Serialization/MemoryReader.h"
@@ -346,9 +343,9 @@ void FNiagaraCompileRequestDuplicateData::DeepCopyGraphs(UNiagaraScriptSource* S
 	DuplicateReferencedGraphs(ScriptSource->NodeGraph, NodeGraphDeepCopy.Get(), InUsage, ConstantResolver);
 }
 
-void FNiagaraCompileRequestDuplicateData::DeepCopyGraphs(UNiagaraEmitter* Emitter)
+void FNiagaraCompileRequestDuplicateData::DeepCopyGraphs(const FVersionedNiagaraEmitter& Emitter)
 {
-	UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Emitter->GraphSource);
+	UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Emitter.GetEmitterData()->GraphSource);
 
 	SourceDeepCopy = ScriptSource->CreateCompilationCopy(ValidUsages);
 	NodeGraphDeepCopy = SourceDeepCopy->NodeGraph;
@@ -914,9 +911,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		{
 			const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
 			TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe> EmitterPtr = MakeShared<FNiagaraCompileRequestData, ESPMode::ThreadSafe>();
-			EmitterPtr->EmitterUniqueName = Handle.GetInstance()->GetUniqueEmitterName();
+			EmitterPtr->EmitterUniqueName = Handle.GetInstance().Emitter->GetUniqueEmitterName();
 			EmitterPtr->SourceName = BasePtr->SourceName;
-			EmitterPtr->Source = Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource);
+			EmitterPtr->Source = Cast<UNiagaraScriptSource>(Handle.GetEmitterData()->GraphSource);
 			EmitterPtr->bUseRapidIterationParams = BasePtr->bUseRapidIterationParams;
 			EmitterPtr->bDisableDebugSwitches = BasePtr->bDisableDebugSwitches;
 			//EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
@@ -944,7 +941,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		// now that the scripts have been precompiled we can prepare the rapid iteration parameters, which we need to do before we
 		// actually generate the hlsl in the case of baking out the parameters
 		TArray<UNiagaraScript*> Scripts;
-		TMap<UNiagaraScript*, const UNiagaraEmitter*> ScriptToEmitterMap;
+		TMap<UNiagaraScript*, FVersionedNiagaraEmitter> ScriptToEmitterMap;
 
 		// Now we can finish off the emitters.
 		for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
@@ -953,12 +950,13 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
 			if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
 			{
-				TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalEmitterData = Handle.GetInstance()->GetCachedTraversalData();
+				TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalEmitterData = Handle.GetInstance().Emitter->GetCachedTraversalData(Handle.GetInstance().Version);
 				TArray<FNiagaraVariable> StaticVariablesFromEmitter = StaticVariablesFromSystem;
 				StaticVariablesFromEmitter.Append(((FNiagaraGraphCachedBuiltHistory*)CachedTraversalEmitterData.Get())->StaticVariables);
 
 				TArray<UNiagaraScript*> EmitterScripts;
-				Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
+				FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData();
+				EmitterData->GetScripts(EmitterScripts, false, true);
 
 				for (int32 ScriptIdx = 0; ScriptIdx < EmitterScripts.Num(); ScriptIdx++)
 				{
@@ -986,7 +984,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 					ENiagaraScriptUsage::ParticleSimulationStageScript };
 
 				TArray<FNiagaraVariable> OldStaticVars = BasePtr->EmitterData[i]->StaticVariables;
-				BasePtr->EmitterData[i]->FinishPrecompile(ParticleEncounterableVars, OldStaticVars, ConstantResolver, ParticleUsages, &Handle.GetInstance()->GetSimulationStages(), EmitterNames);
+				BasePtr->EmitterData[i]->FinishPrecompile(ParticleEncounterableVars, OldStaticVars, ConstantResolver, ParticleUsages, &EmitterData->GetSimulationStages(), EmitterNames);
 			}
 		}
 
@@ -994,17 +992,27 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
 
 			// Prepare rapid iteration parameters for execution.
-			for (auto ScriptEmitterPair = ScriptToEmitterMap.CreateIterator(); ScriptEmitterPair; ++ScriptEmitterPair)
+			TArray<TTuple<UNiagaraScript*, FVersionedNiagaraEmitter>> ScriptsToIterate;
+			for (const auto& Entry : ScriptToEmitterMap)
 			{
-				UNiagaraScript* CompiledScript = ScriptEmitterPair->Key;
-				const UNiagaraEmitter* Emitter = ScriptEmitterPair->Value;
+				ScriptsToIterate.Add(Entry);
+			}
+			for (int Index = 0; Index < ScriptsToIterate.Num(); Index++)
+			{
+				TTuple<UNiagaraScript*, FVersionedNiagaraEmitter> ScriptEmitterPair = ScriptsToIterate[Index];
+				UNiagaraScript* CompiledScript = ScriptEmitterPair.Key;
+				FVersionedNiagaraEmitterData* EmitterData = ScriptEmitterPair.Value.GetEmitterData();
 
 				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::EmitterSpawnScript))
 				{
 					UNiagaraScript* SystemSpawnScript = System->GetSystemSpawnScript();
 					Scripts.AddUnique(SystemSpawnScript);
 					ScriptDependencyMap.Add(CompiledScript, SystemSpawnScript);
-					ScriptToEmitterMap.Add(SystemSpawnScript, nullptr);
+					if (!ScriptToEmitterMap.Contains(SystemSpawnScript))
+					{
+						ScriptToEmitterMap.Add(SystemSpawnScript);
+						ScriptsToIterate.Emplace(SystemSpawnScript, FVersionedNiagaraEmitter());
+					}
 				}
 
 				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::EmitterUpdateScript))
@@ -1012,36 +1020,53 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 					UNiagaraScript* SystemUpdateScript = System->GetSystemUpdateScript();
 					Scripts.AddUnique(SystemUpdateScript);
 					ScriptDependencyMap.Add(CompiledScript, SystemUpdateScript);
-					ScriptToEmitterMap.Add(SystemUpdateScript, nullptr);
+					ScriptToEmitterMap.Add(SystemUpdateScript);
+					if (!ScriptToEmitterMap.Contains(SystemUpdateScript))
+					{
+						ScriptToEmitterMap.Add(SystemUpdateScript);
+						ScriptsToIterate.Emplace(SystemUpdateScript, FVersionedNiagaraEmitter());
+					}
 				}
 
 				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleSpawnScript))
 				{
-					if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					if (EmitterData && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 					{
-						UNiagaraScript* ComputeScript = const_cast<UNiagaraScript*>(Emitter->GetGPUComputeScript());
+						UNiagaraScript* ComputeScript = EmitterData->GetGPUComputeScript();
 
 						Scripts.AddUnique(ComputeScript);
 						ScriptDependencyMap.Add(CompiledScript, ComputeScript);
-						ScriptToEmitterMap.Add(ComputeScript, Emitter);
+						if (!ScriptToEmitterMap.Contains(ComputeScript))
+						{
+							ScriptToEmitterMap.Add(ComputeScript, ScriptEmitterPair.Value);
+							ScriptsToIterate.Emplace(ComputeScript, ScriptEmitterPair.Value);
+						}
 					}
 				}
 
 				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleUpdateScript))
 				{
-					if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					if (EmitterData && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 					{
-						UNiagaraScript* ComputeScript = const_cast<UNiagaraScript*>(Emitter->GetGPUComputeScript());
+						UNiagaraScript* ComputeScript = EmitterData->GetGPUComputeScript();
 
 						Scripts.AddUnique(ComputeScript);
 						ScriptDependencyMap.Add(CompiledScript, ComputeScript);
-						ScriptToEmitterMap.Add(ComputeScript, Emitter);
+						if (!ScriptToEmitterMap.Contains(ComputeScript))
+						{
+							ScriptToEmitterMap.Add(ComputeScript, ScriptEmitterPair.Value);
+							ScriptsToIterate.Emplace(ComputeScript, ScriptEmitterPair.Value);
+						}
 					}
-					else if (Emitter && Emitter->bInterpolatedSpawning)
+					else if (EmitterData && EmitterData->bInterpolatedSpawning)
 					{
-						Scripts.AddUnique(Emitter->SpawnScriptProps.Script);
-						ScriptDependencyMap.Add(CompiledScript, Emitter->SpawnScriptProps.Script);
-						ScriptToEmitterMap.Add(Emitter->SpawnScriptProps.Script, Emitter);
+						Scripts.AddUnique(EmitterData->SpawnScriptProps.Script);
+						ScriptDependencyMap.Add(CompiledScript, EmitterData->SpawnScriptProps.Script);
+						if (!ScriptToEmitterMap.Contains(EmitterData->SpawnScriptProps.Script))
+						{
+							ScriptToEmitterMap.Add(EmitterData->SpawnScriptProps.Script, ScriptEmitterPair.Value);
+							ScriptsToIterate.Emplace(EmitterData->SpawnScriptProps.Script, ScriptEmitterPair.Value);
+						}
 					}
 				}
 			}
@@ -1059,7 +1084,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 				if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
 				{
 					TArray<UNiagaraScript*> EmitterScripts;
-					Handle.GetInstance()->GetScripts(EmitterScripts, false);
+					Handle.GetEmitterData()->GetScripts(EmitterScripts, false);
 
 					for (int32 ScriptIdx = 0; ScriptIdx < EmitterScripts.Num(); ScriptIdx++)
 					{
@@ -1211,13 +1236,13 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		{
 			const FNiagaraEmitterHandle& Handle = OwningSystem->GetEmitterHandle(i);
 			TSharedPtr<FNiagaraCompileRequestDuplicateData, ESPMode::ThreadSafe> EmitterPtr = MakeShared<FNiagaraCompileRequestDuplicateData, ESPMode::ThreadSafe>();
-			EmitterPtr->EmitterUniqueName = Handle.GetInstance()->GetUniqueEmitterName();
+			EmitterPtr->EmitterUniqueName = Handle.GetInstance().Emitter->GetUniqueEmitterName();
 			EmitterPtr->ValidUsages = BasePtr->ValidUsages;
 			EmitterPtr->SharedSourceGraphToDuplicatedGraphsMap = BasePtr->SharedSourceGraphToDuplicatedGraphsMap;
 			EmitterPtr->SharedNameToDuplicatedDataInterfaceMap = BasePtr->SharedNameToDuplicatedDataInterfaceMap;
 			EmitterPtr->SharedDataInterfaceClassToDuplicatedCDOMap = BasePtr->SharedDataInterfaceClassToDuplicatedCDOMap;
 			//EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
-			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance())) // Don't need to copy the graph if we aren't going to use it.
+			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance().Emitter)) // Don't need to copy the graph if we aren't going to use it.
 			{
 				EmitterPtr->DeepCopyGraphs(Handle.GetInstance());
 			}
@@ -1253,14 +1278,14 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 			TArray<FNiagaraVariable> EncounterableEmitterVariables;
 			OwningSystemRequestData->GetDependentRequest(i)->GatherPreCompiledVariables(FString(), EncounterableEmitterVariables);
 
-			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance()))
+			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance().Emitter))
 			{
-				TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalEmitterData = Handle.GetInstance()->GetCachedTraversalData();
+				TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalEmitterData = Handle.GetInstance().Emitter->GetCachedTraversalData(Handle.GetInstance().Version);
 				TArray<FNiagaraVariable> StaticVariablesFromEmitter = StaticVariablesFromSystem;
 				StaticVariablesFromEmitter.Append(((FNiagaraGraphCachedBuiltHistory*)CachedTraversalEmitterData.Get())->StaticVariables);
 
 				FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
-				BasePtr->EmitterData[i]->FinishPrecompileDuplicate(EncounterableEmitterVariables, StaticVariablesFromEmitter, ConstantResolver, &Handle.GetInstance()->GetSimulationStages(), ((FNiagaraCompileRequestData*)OwningSystemRequestData)->EmitterData[i]->RapidIterationParams);
+				BasePtr->EmitterData[i]->FinishPrecompileDuplicate(EncounterableEmitterVariables, StaticVariablesFromEmitter, ConstantResolver, &Handle.GetEmitterData()->GetSimulationStages(), ((FNiagaraCompileRequestData*)OwningSystemRequestData)->EmitterData[i]->RapidIterationParams);
 
 			}
 
@@ -1385,11 +1410,12 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			}*/
 		}
 		SrcUniqueEmitterName = Emitter->GetUniqueEmitterName();
-		Emitter->GatherStaticVariables(SrcStaticVariables);
+		const FVersionedNiagaraEmitterData* EmitterData = Emitter->GetEmitterData(Version);
+		EmitterData->GatherStaticVariables(SrcStaticVariables);
 
-		ScriptSource = CastChecked<UNiagaraScriptSource>(Emitter->GraphSource);
-		SimStages = &Emitter->GetSimulationStages();
-		ConstantResolver = FCompileConstantResolver(Emitter, ENiagaraScriptUsage::EmitterSpawnScript);
+		ScriptSource = CastChecked<UNiagaraScriptSource>(EmitterData->GraphSource);
+		SimStages = &EmitterData->GetSimulationStages();
+		ConstantResolver = FCompileConstantResolver(FVersionedNiagaraEmitter(const_cast<UNiagaraEmitter*>(Emitter), Version), ENiagaraScriptUsage::EmitterSpawnScript);
 	}
 
 

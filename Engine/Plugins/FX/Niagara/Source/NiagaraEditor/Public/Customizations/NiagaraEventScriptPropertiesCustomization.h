@@ -48,13 +48,11 @@ class FNiagaraEventScriptPropertiesCustomization : public IPropertyTypeCustomiza
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<class IPropertyTypeCustomization> MakeInstance(TWeakObjectPtr<UNiagaraSystem> InSystem,
-		TWeakObjectPtr<UNiagaraEmitter> InEmitter);
+	static TSharedRef<class IPropertyTypeCustomization> MakeInstance(TWeakObjectPtr<UNiagaraSystem> InSystem, FVersionedNiagaraEmitterWeakPtr InEmitter);
 
-	FNiagaraEventScriptPropertiesCustomization(TWeakObjectPtr<UNiagaraSystem> InSystem,
-		TWeakObjectPtr<UNiagaraEmitter> InEmitter);
+	FNiagaraEventScriptPropertiesCustomization(TWeakObjectPtr<UNiagaraSystem> InSystem,	FVersionedNiagaraEmitterWeakPtr InEmitter);
 
-	~FNiagaraEventScriptPropertiesCustomization();
+	virtual ~FNiagaraEventScriptPropertiesCustomization() override;
 
 	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
@@ -80,7 +78,7 @@ protected:
 	FText GetErrorText() const;
 	FText GetErrorTextTooltip() const;
 
-	TArray<FName> GetEventNames(UNiagaraEmitter* Emitter) const;
+	TArray<FName> GetEventNames(const FVersionedNiagaraEmitter& Emitter) const;
 private:
 	TSharedPtr<IPropertyHandle> HandleSrcID;
 	TSharedPtr<IPropertyHandle> HandleEventName;
@@ -91,7 +89,7 @@ private:
 	TSharedPtr<IPropertyHandle> HandleMinSpawnNumber;
 
 	TWeakObjectPtr<UNiagaraSystem> System;
-	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	FVersionedNiagaraEmitterWeakPtr Emitter;
 
 	FName CachedEmitterName;
 	EVisibility CachedVisibility;

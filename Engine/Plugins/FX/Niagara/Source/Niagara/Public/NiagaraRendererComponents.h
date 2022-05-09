@@ -6,6 +6,7 @@ NiagaraRendererComponents.h: Renderer for rendering Niagara particles as scene c
 #pragma once
 
 #include "NiagaraRenderer.h"
+#include "UObject/WeakFieldPtr.h"
 #include "CoreMinimal.h"
 
 class UNiagaraComponentRendererProperties;

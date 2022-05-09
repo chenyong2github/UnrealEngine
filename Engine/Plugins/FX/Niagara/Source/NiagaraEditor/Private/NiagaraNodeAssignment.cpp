@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeAssignment.h"
-#include "UObject/UnrealType.h"
 #include "NiagaraGraph.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
@@ -9,14 +8,12 @@
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
 #include "EdGraphSchema_Niagara.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraConstants.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
@@ -125,8 +122,7 @@ void UNiagaraNodeAssignment::PostLoad()
 		if (Pin != nullptr && Pin->LinkedTo.Num() == 1)
 		{
 			// Likely we have a set node going into us, check to see if it has any variables that need to be cleaned up.
-			UNiagaraNodeParameterMapSet* SetNode = Cast<UNiagaraNodeParameterMapSet>(Pin->LinkedTo[0]->GetOwningNode());
-			if (SetNode)
+			if (UNiagaraNodeParameterMapSet* SetNode = Cast<UNiagaraNodeParameterMapSet>(Pin->LinkedTo[0]->GetOwningNode()))
 			{
 				SetNode->ConditionalPostLoad();
 
@@ -179,7 +175,18 @@ void UNiagaraNodeAssignment::PostLoad()
 			TArray<UNiagaraScript*> Scripts;
 			if (Emitter)
 			{
-				Emitter->GetScripts(Scripts, false);
+				if (UNiagaraScript* OuterScript = GetTypedOuter<UNiagaraScript>())
+				{
+					OuterScript->GetOuterEmitter().GetEmitterData()->GetScripts(Scripts, false);
+				}
+				else if (UNiagaraScriptSource* OuterSource = GetTypedOuter<UNiagaraScriptSource>())
+				{
+					OuterSource->GetOuterEmitter().GetEmitterData()->GetScripts(Scripts, false);
+				}
+				else
+				{
+					ensureMsgf(false, TEXT("Unable to find path from emitter %s to %s"), *Emitter->GetPathName(), *this->GetPathName());
+				}
 			}
 			if (System)
 			{
@@ -489,8 +496,7 @@ void UNiagaraNodeAssignment::InitializeScript(UNiagaraScript* NewScript)
 
 				if (FNiagaraConstants::IsNiagaraConstant(AssignmentTargets[i]))
 				{
-					const FNiagaraVariableMetaData* FoundMetaData = FNiagaraConstants::GetConstantMetaData(AssignmentTargets[i]);
-					if (FoundMetaData)
+					if (const FNiagaraVariableMetaData* FoundMetaData = FNiagaraConstants::GetConstantMetaData(AssignmentTargets[i]))
 					{
 						FNiagaraVariableMetaData NewMetaData;
 						TOptional<FNiagaraVariableMetaData> ExistingMetaData = CreatedGraph->GetMetaData(TargetVar);

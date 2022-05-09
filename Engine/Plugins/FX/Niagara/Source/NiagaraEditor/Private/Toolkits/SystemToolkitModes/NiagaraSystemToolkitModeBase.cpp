@@ -45,6 +45,7 @@ const FName FNiagaraSystemToolkitModeBase::SystemOverviewTabID(TEXT("NiagaraSyst
 const FName FNiagaraSystemToolkitModeBase::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
 const FName FNiagaraSystemToolkitModeBase::ScriptStatsTabID(TEXT("NiagaraSystemEditor_ScriptStats"));
 const FName FNiagaraSystemToolkitModeBase::BakerTabID(TEXT("NiagaraSystemEditor_Baker"));
+const FName FNiagaraSystemToolkitModeBase::VersioningTabID(TEXT("NiagaraSystemEditor_Versioning"));
 
 void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
 {
@@ -131,6 +132,11 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetDisplayName(LOCTEXT("NiagaraBakerTab", "Baker"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.BakerIcon"));
+
+	InTabManager->RegisterTabSpawner(VersioningTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_Versioning))
+		.SetDisplayName(LOCTEXT("VersioningTab", "Versioning"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"));
 }
 
 class SNiagaraSelectedEmitterGraph : public SCompoundWidget
@@ -151,7 +157,7 @@ public:
 		UpdateGraphWidget();
 	}
 
-	~SNiagaraSelectedEmitterGraph()
+	virtual ~SNiagaraSelectedEmitterGraph() override
 	{
 		if (SystemViewModel.IsValid() && SystemViewModel->GetSelectionViewModel())
 		{
@@ -184,7 +190,7 @@ private:
 					SNew(SNiagaraScriptGraph, SelectedEmitterHandle->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel())
 				];
 
-			UNiagaraEmitter* LastMergedEmitter = SelectedEmitterHandle->GetEmitterViewModel()->GetEmitter()->GetParentAtLastMerge();
+			FVersionedNiagaraEmitterData* LastMergedEmitter = SelectedEmitterHandle->GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetParentAtLastMerge().GetEmitterData();
 			if (LastMergedEmitter != nullptr)
 			{
 				UNiagaraScriptSource* LastMergedScriptSource = CastChecked<UNiagaraScriptSource>(LastMergedEmitter->GraphSource);
@@ -519,6 +525,23 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_Baker(const FSpawnT
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Baker")))
 			[
 				SystemToolkit.Pin()->BakerViewModel->GetWidget().ToSharedRef()
+			]
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_Versioning(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == VersioningTabID);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("EmitterVersioningTitle", "Versioning"))
+		[
+			SNew(SBox)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EmitterVersioning")))
+			[
+				SystemToolkit.Pin()->GetVersioningWidget().ToSharedRef()
 			]
 		];
 

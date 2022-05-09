@@ -1,37 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraSpreadsheetView.h"
-#include "Textures/SlateIcon.h"
+#include "EditorStyleSet.h"
+#include "ISequencer.h"
+#include "NiagaraComponent.h"
+#include "NiagaraEditorStyle.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraScript.h"
+#include "NiagaraSystem.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboButton.h"
-#include "ISequencer.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "NiagaraEmitterHandle.h"
-#include "NiagaraEmitter.h"
-#include "NiagaraScript.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Kismet2/DebuggerCommands.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/Class.h"
-#include "UObject/Package.h"
-#include "SequencerSettings.h"
-#include "NiagaraSystem.h"
-#include "NiagaraEditorStyle.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "UObject/UObjectIterator.h"
-#include "NiagaraComponent.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "NiagaraEmitterHandle.h"
-#include "Kismet2/DebuggerCommands.h"
-#include "Editor/EditorEngine.h"
-#include "UnrealEdGlobals.h"
-#include "EngineGlobals.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraSpreadsheetView"
 #define ARRAY_INDEX_COLUMN_NAME TEXT("Array Index")
@@ -1255,7 +1245,7 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 
 void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 {
-	int32 i = (int32)Tab;
+	int32 i = Tab;
 
 	if (CaptureData[i].DataSet.GetCurrentData() && CaptureData[i].DataSet.GetCurrentData()->GetNumInstances() != 0)
 	{
@@ -1263,20 +1253,20 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 
 		// Handle output columns
 		{
-			CaptureData[(int32)i].OutputHeaderRow->ClearColumns();
+			CaptureData[i].OutputHeaderRow->ClearColumns();
 
-			const TArray<FName>& PreviousSupportedFields = CaptureData[(int32)i].SupportedOutputFields.IsValid() ? *CaptureData[(int32)i].SupportedOutputFields.Get() : TArray<FName>();
-			CaptureData[(int32)i].SupportedOutputFields = MakeShared<TArray<FName> >();
-			CaptureData[(int32)i].OutputFieldInfoMap = MakeShared<TMap<FName, FieldInfo> >();
+			const TArray<FName>& PreviousSupportedFields = CaptureData[i].SupportedOutputFields.IsValid() ? *CaptureData[i].SupportedOutputFields.Get() : TArray<FName>();
+			CaptureData[i].SupportedOutputFields = MakeShared<TArray<FName> >();
+			CaptureData[i].OutputFieldInfoMap = MakeShared<TMap<FName, FieldInfo> >();
 			uint32 TotalFloatComponents = 0;
 			uint32 TotalInt32Components = 0;
 			uint32 TotalHalfComponents = 0;
 
-			TArray<FNiagaraVariable> Variables = CaptureData[(int32)i].DataSet.GetVariables();
+			TArray<FNiagaraVariable> Variables = CaptureData[i].DataSet.GetVariables();
 
 			TArray<FName> ColumnNames;
 
-			if (CaptureData[(int32)i].bOutputColumnsAreAttributes)
+			if (CaptureData[i].bOutputColumnsAreAttributes)
 			{
 				ColumnNames.Add(ARRAY_INDEX_COLUMN_NAME);
 			}
@@ -1372,28 +1362,28 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 					ColumnArgs.DefaultLabel(FText::FromString(TEXT(" ")));
 					ColumnArgs.ManualWidth(ManualWidth);
 				}
-				CaptureData[(int32)i].OutputHeaderRow->AddColumn(ColumnArgs);
+				CaptureData[i].OutputHeaderRow->AddColumn(ColumnArgs);
 			}
 
-			CaptureData[(int32)i].OutputHeaderRow->ResetColumnWidths();
-			CaptureData[(int32)i].OutputHeaderRow->RefreshColumns();
-			CaptureData[(int32)i].OutputsListView->RequestTreeRefresh();
+			CaptureData[i].OutputHeaderRow->ResetColumnWidths();
+			CaptureData[i].OutputHeaderRow->RefreshColumns();
+			CaptureData[i].OutputsListView->RequestTreeRefresh();
 		}
 
 		// Handle input columns
 		{
-			CaptureData[(int32)i].InputHeaderRow->ClearColumns();
+			CaptureData[i].InputHeaderRow->ClearColumns();
 
 
-			CaptureData[(int32)i].SupportedInputFields = MakeShared<TArray<FName> >();
-			CaptureData[(int32)i].InputFieldInfoMap = MakeShared<TMap<FName, FieldInfo> >();
+			CaptureData[i].SupportedInputFields = MakeShared<TArray<FName> >();
+			CaptureData[i].InputFieldInfoMap = MakeShared<TMap<FName, FieldInfo> >();
 
 			TArray<FNiagaraVariable> Variables;
-			CaptureData[(int32)i].InputParams.GetParameters(Variables);
+			CaptureData[i].InputParams.GetParameters(Variables);
 
 			TArray<FName> ColumnNames;
 
-			if (CaptureData[(int32)i].bInputColumnsAreAttributes)
+			if (CaptureData[i].bInputColumnsAreAttributes)
 			{
 				ColumnNames.Add(ARRAY_INDEX_COLUMN_NAME);
 			}
@@ -1415,7 +1405,7 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 				TArray<FName> PropertyNames;
 				TArray<SNiagaraSpreadsheetView::FieldInfo> FieldInfos;
 
-				int32 ByteOffset = CaptureData[(int32)i].InputParams.IndexOf(Var);
+				int32 ByteOffset = CaptureData[i].InputParams.IndexOf(Var);
 
 				GenerateLayoutInfo(Layout, Struct, Enum, Var.GetName(), PropertyNames, FieldInfos);
 
@@ -1426,11 +1416,11 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 
 						FieldInfos[VarIdx].GlobalStartOffset += ByteOffset;
 
-						CaptureData[(int32)i].SupportedInputFields->Add(PropertyNames[VarIdx]);
-						CaptureData[(int32)i].InputFieldInfoMap->Add(PropertyNames[VarIdx], FieldInfos[VarIdx]);
+						CaptureData[i].SupportedInputFields->Add(PropertyNames[VarIdx]);
+						CaptureData[i].InputFieldInfoMap->Add(PropertyNames[VarIdx], FieldInfos[VarIdx]);
 					}
 
-					if (CaptureData[(int32)i].bInputColumnsAreAttributes)
+					if (CaptureData[i].bInputColumnsAreAttributes)
 					{
 						ColumnNames.Add(PropertyNames[VarIdx]);
 					}
@@ -1461,12 +1451,12 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 					ColumnArgs.DefaultLabel(FText::FromString(TEXT(" ")));
 					ColumnArgs.ManualWidth(ManualWidth);
 				}
-				CaptureData[(int32)i].InputHeaderRow->AddColumn(ColumnArgs);
+				CaptureData[i].InputHeaderRow->AddColumn(ColumnArgs);
 			}
 
-			CaptureData[(int32)i].InputHeaderRow->ResetColumnWidths();
-			CaptureData[(int32)i].InputHeaderRow->RefreshColumns();
-			CaptureData[(int32)i].InputsListView->RequestTreeRefresh();
+			CaptureData[i].InputHeaderRow->ResetColumnWidths();
+			CaptureData[i].InputHeaderRow->RefreshColumns();
+			CaptureData[i].InputsListView->RequestTreeRefresh();
 		}
 	}
 }
@@ -1494,11 +1484,12 @@ FReply SNiagaraSpreadsheetView::OnCaptureRequestPressed()
 		SystemInstance->RequestCapture(TargetRequestId);
 
 		TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
-		UNiagaraEmitter* Emitter = SelectedEmitterHandle->GetEmitterHandle()->GetInstance();
+		FVersionedNiagaraEmitter Emitter = SelectedEmitterHandle->GetEmitterHandle()->GetInstance();
+		FVersionedNiagaraEmitterData* EmitterData = Emitter.GetEmitterData();
 
 		for (int32 i = 0; i < CaptureData.Num(); i++)
 		{
-			CaptureData[(int32)i].DataSource = Emitter;
+			CaptureData[i].DataSource = Emitter.ToWeakPtr();
 			switch (i)
 			{
 				case UIPerParticleUpdate:
@@ -1511,15 +1502,15 @@ FReply SNiagaraSpreadsheetView::OnCaptureRequestPressed()
 					break;
 				case UIPerParticleEvent0:
 					CaptureData[i].TargetUsage = ENiagaraScriptUsage::ParticleEventScript;
-					CaptureData[i].TargetUsageId = Emitter->GetEventHandlers().Num() >= 1 ? Emitter->GetEventHandlers() [0].Script->GetUsageId() : FGuid();
+					CaptureData[i].TargetUsageId = EmitterData->GetEventHandlers().Num() >= 1 ? EmitterData->GetEventHandlers() [0].Script->GetUsageId() : FGuid();
 					break;
 				case UIPerParticleEvent1:
 					CaptureData[i].TargetUsage = ENiagaraScriptUsage::ParticleEventScript;
-					CaptureData[i].TargetUsageId = Emitter->GetEventHandlers().Num() >= 2 ? Emitter->GetEventHandlers()[1].Script->GetUsageId() : FGuid();
+					CaptureData[i].TargetUsageId = EmitterData->GetEventHandlers().Num() >= 2 ? EmitterData->GetEventHandlers()[1].Script->GetUsageId() : FGuid();
 					break;
 				case UIPerParticleEvent2:
 					CaptureData[i].TargetUsage = ENiagaraScriptUsage::ParticleEventScript;
-					CaptureData[i].TargetUsageId = Emitter->GetEventHandlers().Num() >= 3 ? Emitter->GetEventHandlers()[2].Script->GetUsageId() : FGuid();
+					CaptureData[i].TargetUsageId = EmitterData->GetEventHandlers().Num() >= 3 ? EmitterData->GetEventHandlers()[2].Script->GetUsageId() : FGuid();
 					break;
 				case UISystemUpdate:
 					CaptureData[i].TargetUsage = ENiagaraScriptUsage::SystemUpdateScript;

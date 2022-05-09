@@ -91,7 +91,6 @@ private:
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	struct FNiagaraPlatformSet* TargetPlatformSet;
-	class UNiagaraSystem* BaseSystem;
 
 	TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>> FullDeviceProfileTree;
 	TArray<TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>>> FilteredDeviceProfileTrees;

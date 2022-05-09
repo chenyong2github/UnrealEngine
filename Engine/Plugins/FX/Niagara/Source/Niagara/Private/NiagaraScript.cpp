@@ -95,7 +95,7 @@ static FAutoConsoleVariableRef CVarLogCompileStaticVars(
 	ECVF_Default
 );
 
-FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), FrameLastWriteId(-1), bWritten(false)
+FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), Usage(ENiagaraScriptUsage::Function), FrameLastWriteId(-1), bWritten(false)
 {
 }
 
@@ -409,6 +409,7 @@ FGuid UNiagaraScript::AddNewVersion(int32 MajorVersion, int32 MinorVersion)
 	// check preconditions
 	check(MajorVersion >= 1);
 	check(MajorVersion != 1 || MinorVersion != 0);
+	Modify();
 
 	FVersionedNiagaraScriptData NewVersionData;
 	for (int i = VersionData.Num() - 1; i >= 0; i--)
@@ -447,6 +448,7 @@ void UNiagaraScript::DeleteVersion(const FGuid& VersionGuid)
 		if (AssetVersion.VersionGuid == VersionGuid)
 		{
 			check(AssetVersion.MajorVersion != 1 || AssetVersion.MinorVersion != 0);
+			Modify();
 			VersionData.RemoveAt(i);
 			return;
 		}
@@ -460,6 +462,7 @@ void UNiagaraScript::ExposeVersion(const FGuid& VersionGuid)
 	{
 		if (Data.Version.VersionGuid == VersionGuid)
 		{
+			Modify();
 			ExposedVersion = VersionGuid;
 			Data.Version.bIsVisibleInVersionSelector = true;
 			return;
@@ -473,7 +476,7 @@ void UNiagaraScript::EnableVersioning()
 	{
 		return;
 	}
-	
+	Modify();
 	ensure(VersionData.Num() == 1);
 	bVersioningEnabled = true;	
 	ExposedVersion = VersionData[0].Version.VersionGuid;
@@ -499,6 +502,29 @@ void UNiagaraScript::DisableVersioning(const FGuid& VersionGuidToUse)
 	DataToUse.Version = FNiagaraAssetVersion(); // reset and create new guid
 	VersionData.Empty();
 	VersionData.Add(DataToUse);
+}
+
+struct FNiagaraScriptVersionDataAccessor final : FNiagaraVersionDataAccessor
+{
+	virtual ~FNiagaraScriptVersionDataAccessor() override = default;
+	explicit FNiagaraScriptVersionDataAccessor(FVersionedNiagaraScriptData* InScriptData) : ScriptData(InScriptData) {}
+
+	virtual FNiagaraAssetVersion& GetObjectVersion() override { return ScriptData->Version; }
+	virtual FText& GetVersionChangeDescription() override { return ScriptData->VersionChangeDescription; }
+	virtual ENiagaraPythonUpdateScriptReference& GetUpdateScriptExecutionType() override { return ScriptData->UpdateScriptExecution; }
+	virtual FString& GetPythonUpdateScript() override { return ScriptData->PythonUpdateScript; }
+	virtual FFilePath& GetScriptAsset() override { return ScriptData->ScriptAsset; }
+	
+	FVersionedNiagaraScriptData* ScriptData;
+};
+
+TSharedPtr<FNiagaraVersionDataAccessor> UNiagaraScript::GetVersionDataAccessor(const FGuid& Version)
+{
+	if (FVersionedNiagaraScriptData* ScriptData = GetScriptData(Version))
+	{
+		return MakeShared<FNiagaraScriptVersionDataAccessor>(ScriptData);
+	}
+	return TSharedPtr<FNiagaraVersionDataAccessor>();
 }
 
 void UNiagaraScript::CheckVersionDataAvailable()
@@ -549,6 +575,26 @@ UNiagaraScript* UNiagaraScript::CreateCompilationCopy()
 }
 
 #endif
+
+FVersionedNiagaraEmitter UNiagaraScript::GetOuterEmitter() const
+{
+	UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>();
+	if (Emitter == nullptr)
+	{
+		return FVersionedNiagaraEmitter();
+	}
+	for (FNiagaraAssetVersion& Version : Emitter->GetAllAvailableVersions())
+	{
+		FVersionedNiagaraEmitterData* EmitterData = Emitter->GetEmitterData(Version.VersionGuid);
+		TArray<UNiagaraScript*> OutScripts;
+		EmitterData->GetScripts(OutScripts, false);
+		if (OutScripts.Contains(this))
+		{
+			return FVersionedNiagaraEmitter(Emitter, Version.VersionGuid);
+		}
+	}
+	return FVersionedNiagaraEmitter();
+}
 
 bool FNiagaraVMExecutableDataId::IsValid() const
 {
@@ -833,15 +879,15 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	ENiagaraSimTarget SimTargetToBuild = ENiagaraSimTarget::CPUSim;
 	// Ideally we wouldn't want to do this but rather than push the data down
 	// from the emitter.  Checking all outers here to pick up simulation stages too.
-	UNiagaraEmitter* OuterEmitter = GetTypedOuter<UNiagaraEmitter>();
+	FVersionedNiagaraEmitter Outer = GetOuterEmitter();
+	FVersionedNiagaraEmitterData* EmitterData = Outer.GetEmitterData();
 	int32 SystemSpawnIdx = INDEX_NONE;
 	int32 SystemUpdateIdx = INDEX_NONE;
 	TArray<UNiagaraScript*> Scripts;
 
-	if (OuterEmitter != nullptr)
+	if (EmitterData != nullptr)
 	{
-		UNiagaraEmitter* Emitter = OuterEmitter;
-
+		UNiagaraEmitter* Emitter = Outer.Emitter;
 		if (UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter()))
 		{
 			SystemSpawnIdx = Scripts.Add(EmitterOwner->GetSystemSpawnScript());
@@ -861,16 +907,16 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			bool TrimAttributes = EmitterOwner->ShouldTrimAttributes();
 			if (TrimAttributes)
 			{
-				auto TrimAttributesSupported = [=](const UNiagaraEmitter* OtherEmitter)
+				auto TrimAttributesSupported = [=](const FVersionedNiagaraEmitter& OtherEmitter)
 				{
 					TArray<const UNiagaraDataInterfaceBase*> DataInterfaces;
-					if (OtherEmitter && OtherEmitter->GraphSource)
+					if (OtherEmitter.GetEmitterData() && OtherEmitter.GetEmitterData()->GraphSource)
 					{
-						OtherEmitter->GraphSource->CollectDataInterfaces(DataInterfaces);
+						OtherEmitter.GetEmitterData()->GraphSource->CollectDataInterfaces(DataInterfaces);
 
 						for (const UNiagaraDataInterfaceBase* DataInterface : DataInterfaces)
 						{
-							if (DataInterface->HasInternalAttributeReads(OtherEmitter, Emitter))
+							if (DataInterface->HasInternalAttributeReads(OtherEmitter.Emitter, Emitter))
 							{
 								return false;
 							}
@@ -912,14 +958,14 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 					};
 
 				// preserve the attributes that have been defined on the emitter directly
-				for (const FString& Attribute : Emitter->AttributesToPreserve)
+				for (const FString& Attribute : EmitterData->AttributesToPreserve)
 				{
 					const FString PreserveDefine = TEXT("PreserveAttribute=") + Attribute;
 					PreserveAttributes.AddUnique(PreserveDefine);
 				}
 
 				// Now preserve the attributes that have been defined on the renderers in use
-				for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
+				for (UNiagaraRendererProperties* RendererProperty : EmitterData->GetRenderers())
 				{
 					if (RendererProperty->bIsEnabled)
 					{
@@ -930,7 +976,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 					}
 				}
 
-				for (const UNiagaraSimulationStageBase* SimStageBase : Emitter->GetSimulationStages())
+				for (const UNiagaraSimulationStageBase* SimStageBase : EmitterData->GetSimulationStages())
 				{
 					if (const UNiagaraSimulationStageGeneric* SimStageGeneric = Cast<const UNiagaraSimulationStageGeneric>(SimStageBase))
 					{
@@ -946,37 +992,37 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				Id.AdditionalDefines.Append(PreserveAttributes);
 			}
 
-			ComputeVMCompilationId_EmitterShared(Id, Emitter, EmitterOwner, ENiagaraRendererSourceDataMode::Particles);
+			ComputeVMCompilationId_EmitterShared(Id, Outer, ENiagaraRendererSourceDataMode::Particles);
 		}
 
 		// Gather up the scripts we will use to iterate for static rapid iteration vars later...
-		Emitter->GetScripts(Scripts, false, true);
+		EmitterData->GetScripts(Scripts, false, true);
 
-		if ((Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) ||
-			(Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleSpawnScript) ||
+		if ((EmitterData->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) ||
+			(EmitterData->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleSpawnScript) ||
 			Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
 		{
 			Id.bInterpolatedSpawn = true;
 			Id.AdditionalDefines.Add(TEXT("InterpolatedSpawn"));
 		}
-		if (Emitter->bInterpolatedSpawning)
+		if (EmitterData->bInterpolatedSpawning)
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.InterpolatedSpawn"));
 		}
-		if (IsParticleScript(Usage))
+		if (IsParticleScript(Usage) || IsParticleStageScript(Usage))
 		{
-			SimTargetToBuild = Emitter->SimTarget;
+			SimTargetToBuild = EmitterData->SimTarget;
 		}
-		if (Emitter->RequiresPersistentIDs())
+		if (EmitterData->RequiresPersistentIDs())
 		{
 			Id.bRequiresPersistentIDs = true;
 			Id.AdditionalDefines.Add(TEXT("RequiresPersistentIDs"));
 		}
-		if (Emitter->bLocalSpace)
+		if (EmitterData->bLocalSpace)
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.Localspace"));
 		}
-		if (Emitter->bDeterminism)
+		if (EmitterData->bDeterminism)
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.Determinism"));
 		}
@@ -986,7 +1032,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 			FSHA1 HashState;
 			FNiagaraCompileHashVisitor Visitor(HashState);
-			for (UNiagaraSimulationStageBase* Base : Emitter->GetSimulationStages())
+			for (UNiagaraSimulationStageBase* Base : EmitterData->GetSimulationStages())
 			{
 				// bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 				if (Base && Base->bEnabled)
@@ -1007,7 +1053,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 		if (IsParticleEventScript(Usage))
 		{
-			if (const FNiagaraEventScriptProperties* EventScriptProps = Emitter->GetEventHandlerByIdUnsafe(UsageId))
+			if (const FNiagaraEventScriptProperties* EventScriptProps = EmitterData->GetEventHandlerByIdUnsafe(UsageId))
 			{
 				if (EventScriptProps->ExecutionMode == EScriptExecutionMode::SpawnedParticles)
 				{
@@ -1032,23 +1078,23 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 		for (const FNiagaraEmitterHandle& EmitterHandle: System->GetEmitterHandles())
 		{
-			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(EmitterHandle.GetInstance());
-			if (Emitter && EmitterHandle.GetIsEnabled())
+			FVersionedNiagaraEmitterData* HandleData = EmitterHandle.GetEmitterData();
+			if (HandleData && EmitterHandle.GetIsEnabled())
 			{
-				if (Emitter->bLocalSpace)
+				if (HandleData->bLocalSpace)
 				{
-					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".Localspace"));
+					Id.AdditionalDefines.Add(EmitterHandle.GetUniqueInstanceName() + TEXT(".Localspace"));
 				}
-				if (Emitter->bDeterminism)
+				if (HandleData->bDeterminism)
 				{
-					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".Determinism"));
+					Id.AdditionalDefines.Add(EmitterHandle.GetUniqueInstanceName() + TEXT(".Determinism"));
 				}
-				if (Emitter->bInterpolatedSpawning)
+				if (HandleData->bInterpolatedSpawning)
 				{
-					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".InterpolatedSpawn"));
+					Id.AdditionalDefines.Add(EmitterHandle.GetUniqueInstanceName() + TEXT(".InterpolatedSpawn"));
 				}
 
-				ComputeVMCompilationId_EmitterShared(Id, Emitter, System, ENiagaraRendererSourceDataMode::Emitter);
+				ComputeVMCompilationId_EmitterShared(Id, EmitterHandle.GetInstance(), ENiagaraRendererSourceDataMode::Emitter);
 			}
 		}
 	}
@@ -1215,10 +1261,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 }
 
 
-void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, UNiagaraEmitter* Emitter, UNiagaraSystem* EmitterOwner, ENiagaraRendererSourceDataMode InSourceMode) const
+void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, const FVersionedNiagaraEmitter& Emitter, ENiagaraRendererSourceDataMode InSourceMode) const
 {
 	// Gather additional variables from renderers
-	for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
+	for (UNiagaraRendererProperties* RendererProperty : Emitter.GetEmitterData()->GetRenderers())
 	{
 		// Because we currently generate the CompilationId during PostLoad (as a part of AreScriptAndSourceSynchronized)
 		// we need to ensure that the RendererProperties have done their PostLoad.
@@ -1328,11 +1374,11 @@ TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
 	case ENiagaraScriptUsage::ParticleEventScript:
 	case ENiagaraScriptUsage::ParticleSimulationStageScript:
 	case ENiagaraScriptUsage::ParticleGPUComputeScript:
-		if (UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>())
+		if (FVersionedNiagaraEmitterData* EmitterData = GetOuterEmitter().GetEmitterData())
 		{
-			if (OwningEmitter->SimTarget != ENiagaraSimTarget::CPUSim || CachedScriptVM.IsValid())
+			if (EmitterData->SimTarget != ENiagaraSimTarget::CPUSim || CachedScriptVM.IsValid())
 			{
-				return OwningEmitter->SimTarget;
+				return EmitterData->SimTarget;
 			}
 		}
 		break;
@@ -1804,6 +1850,7 @@ void UNiagaraScript::PostLoad()
 
 		// if our bindings aren't valid, then something has gone wrong with our cook and we need to disable this Script, which will in turn
 		// disable the owning script and system
+		
 		if (!HasValidParameterBindings())
 		{
 #if WITH_EDITOR && IS_MONOLITHIC
@@ -1811,7 +1858,7 @@ void UNiagaraScript::PostLoad()
 #else
 			UE_LOG(LogNiagara, Error, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
 #endif
-
+			
 			CachedScriptVM.Reset();
 			return;
 		}
@@ -2002,8 +2049,9 @@ bool UNiagaraScript::ShouldCacheShadersForCooking(const ITargetPlatform* TargetP
 			}
 		}
 
-		UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>();
-		if (OwningEmitter != nullptr && OwningEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && OwningEmitter->NeedsLoadForTargetPlatform(TargetPlatform))
+		FVersionedNiagaraEmitter OuterEmitter = GetOuterEmitter();
+		FVersionedNiagaraEmitterData* EmitterData = OuterEmitter.GetEmitterData();
+		if (EmitterData != nullptr && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && OuterEmitter.Emitter->NeedsLoadForTargetPlatform(TargetPlatform))
 		{
 			return true;
 		}
@@ -2681,9 +2729,9 @@ void UNiagaraScript::RaiseOnGPUCompilationComplete()
 	OnGPUScriptCompiled().Broadcast(this, FGuid());
 	FNiagaraSystemUpdateContext(this, true);
 
-	if (UNiagaraEmitter* EmitterOwner = Cast<UNiagaraEmitter>(GetOuter()) )
+	if (FVersionedNiagaraEmitterData* EmitterData = GetOuterEmitter().GetEmitterData())
 	{
-		EmitterOwner->CacheFromShaderCompiled();
+		EmitterData->CacheFromShaderCompiled();
 	}
 #endif
 }
@@ -2827,18 +2875,11 @@ bool UNiagaraScript::IsEditorOnly() const
 		return false;
 	}
 
-	if (const UNiagaraEmitter* EmitterOwner = Cast<const UNiagaraEmitter>(GetOuter()))
+	UNiagaraSystem* OuterSystem = GetTypedOuter<UNiagaraSystem>();
+	bool bIsSystemScript = OuterSystem && (OuterSystem->GetSystemSpawnScript() == this || OuterSystem->GetSystemUpdateScript() == this);
+	if (!bIsSystemScript && !GetOuterEmitter().GetEmitterData())
 	{
-		// we want to only cook scripts that are referenced by systems (as opposed to standalone scripts that may be getting
-		// referenced via an emitter's parent, this will also take care of GPUScripts that are created for CPU emitters
-		TArray<UNiagaraScript*> OwnerScripts;
-
-		EmitterOwner->GetScripts(OwnerScripts, false);
-
-		if (!OwnerScripts.Contains(this))
-		{
-			return true;
-		}
+		return true;
 	}
 #endif
 	return Super::IsEditorOnly();
@@ -3590,12 +3631,11 @@ bool UNiagaraScript::CanBeRunOnGpu()const
 	return true;
 }
 
-
 bool UNiagaraScript::OwnerCanBeRunOnGpu() const
 {
-	if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+	if (FVersionedNiagaraEmitterData* EmitterData = GetOuterEmitter().GetEmitterData())
 	{
-		if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
 			return true;
 		}
@@ -3606,9 +3646,9 @@ bool UNiagaraScript::OwnerCanBeRunOnGpu() const
 
 bool UNiagaraScript::LegacyCanBeRunOnGpu() const
 {
-	if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+	if (FVersionedNiagaraEmitterData* EmitterData = GetOuterEmitter().GetEmitterData())
 	{
-		if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
+		if (EmitterData->SimTarget == ENiagaraSimTarget::CPUSim)
 		{
 			return false;
 		}

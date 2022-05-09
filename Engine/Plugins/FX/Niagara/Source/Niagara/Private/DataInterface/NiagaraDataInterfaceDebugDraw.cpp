@@ -1107,14 +1107,14 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 				for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
 				{
-					UNiagaraEmitter* Emitter = Handle.GetInstance();
-					if (Emitter)
+					FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData();
+					if (EmitterData)
 					{
-						bool bEmitterIsLocal = Emitter->bLocalSpace;
-						if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
+						bool bEmitterIsLocal = EmitterData->bLocalSpace;
+						if (EmitterData->SimTarget == ENiagaraSimTarget::CPUSim)
 						{
 							int32 ScriptCap = Scripts.Num();
-							Emitter->GetScripts(Scripts, true, true);
+							EmitterData->GetScripts(Scripts, true, true);
 
 							for (int32 i = ScriptCap; i < Scripts.Num(); i++)
 								ScriptIsLocal.Add(bEmitterIsLocal);
@@ -1124,8 +1124,8 @@ struct FNDIDebugDrawInstanceData_GameThread
 							// It's a little weird to do this, but ultimately all the rapid iteration values are 
 							// referenced by the compile tags from these scripts and we want to get the most up-to-date 
 							// values here. If we reference the GPU script here, it will have stale values for some reason.
-							Scripts.Add(Emitter->SpawnScriptProps.Script);
-							Scripts.Add(Emitter->UpdateScriptProps.Script);
+							Scripts.Add(EmitterData->SpawnScriptProps.Script);
+							Scripts.Add(EmitterData->UpdateScriptProps.Script);
 							ScriptIsLocal.Add(bEmitterIsLocal);
 							ScriptIsLocal.Add(bEmitterIsLocal);
 						}

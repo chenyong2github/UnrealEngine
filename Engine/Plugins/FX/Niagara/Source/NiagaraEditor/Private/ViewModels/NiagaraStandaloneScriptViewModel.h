@@ -11,7 +11,7 @@ class UNiagaraScript;
 class UNiagaraScriptVariable;
 
 
-class FNiagaraStandaloneScriptViewModel : public FNiagaraScriptViewModel
+class NIAGARAEDITOR_API FNiagaraStandaloneScriptViewModel : public FNiagaraScriptViewModel
 {
 public:
 	FNiagaraStandaloneScriptViewModel(

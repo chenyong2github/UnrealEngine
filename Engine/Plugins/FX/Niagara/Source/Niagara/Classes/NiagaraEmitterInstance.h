@@ -111,7 +111,7 @@ public:
 	}
 
 	FORCEINLINE int32 GetTotalSpawnedParticles()const { return TotalSpawnedParticles; }
-	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CachedEmitter->GetScalabilitySettings(); }
+	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return GetCachedEmitterData()->GetScalabilitySettings(); }
 
 	NIAGARA_API const FNiagaraEmitterHandle& GetEmitterHandle() const;
 
@@ -131,7 +131,8 @@ public:
 	TArrayView<FNiagaraScriptExecutionContext> GetEventExecutionContexts();
 
 	FORCEINLINE FName GetCachedIDName()const { return CachedIDName; }
-	FORCEINLINE UNiagaraEmitter* GetCachedEmitter()const { return CachedEmitter; }
+	FORCEINLINE FVersionedNiagaraEmitter GetCachedEmitter()const { return CachedEmitter; }
+	FORCEINLINE FVersionedNiagaraEmitterData* GetCachedEmitterData()const { return CachedEmitter.GetEmitterData(); }
 
 	TArray<FNiagaraSpawnInfo>& GetSpawnInfo() { return SpawnInfos; }
 
@@ -215,7 +216,7 @@ private:
 	 ** EmitterInstance and the cached bounds will be unset. */
 	FBox CachedSystemFixedBounds;
 
-	FNiagaraSystemInstanceID OwnerSystemInstanceID;
+	FNiagaraSystemInstanceID OwnerSystemInstanceID = 0;
 
 	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = nullptr;
 
@@ -225,7 +226,7 @@ private:
 	FNiagaraSystemInstance *ParentSystemInstance = nullptr;
 
 	/** Raw pointer to the emitter that we're instanced from. Raw ptr should be safe here as we check for the validity of the system and it's emitters higher up before any ticking. */
-	UNiagaraEmitter* CachedEmitter = nullptr;
+	FVersionedNiagaraEmitter CachedEmitter;
 	FName CachedIDName;
 
 	/** The index of our emitter in our parent system instance. */

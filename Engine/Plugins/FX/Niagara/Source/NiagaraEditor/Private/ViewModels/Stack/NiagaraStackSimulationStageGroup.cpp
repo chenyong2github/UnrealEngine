@@ -4,7 +4,6 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraSimulationStageBase.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
-#include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
@@ -14,14 +13,11 @@
 #include "EdGraphSchema_Niagara.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "NiagaraScriptSource.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
-#include "NiagaraStackEditorData.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 
 #include "Internationalization/Internationalization.h"
 #include "ScopedTransaction.h"
-#include "IDetailTreeNode.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackSimulationStageGroup"
 
@@ -55,12 +51,12 @@ bool UNiagaraStackSimulationStagePropertiesItem::TestCanResetToBaseWithMessage(F
 	{
 		if (HasBaseSimulationStage())
 		{
-			UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-			const UNiagaraEmitter* BaseEmitter = Emitter->GetParent();
-			if (BaseEmitter != nullptr && Emitter != BaseEmitter)
+			FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+			FVersionedNiagaraEmitter BaseEmitter = VersionedEmitter.GetEmitterData()->GetParent();
+			if (BaseEmitter.Emitter != nullptr && VersionedEmitter.Emitter != BaseEmitter.Emitter)
 			{
 				TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-				bCanResetToBaseCache = MergeManager->IsSimulationStagePropertySetDifferentFromBase(*Emitter, *BaseEmitter, SimulationStage->Script->GetUsageId());
+				bCanResetToBaseCache = MergeManager->IsSimulationStagePropertySetDifferentFromBase(VersionedEmitter, BaseEmitter, SimulationStage->Script->GetUsageId());
 			}
 			else
 			{
@@ -89,10 +85,10 @@ void UNiagaraStackSimulationStagePropertiesItem::ResetToBase()
 	FText Unused;
 	if (TestCanResetToBaseWithMessage(Unused))
 	{
-		UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-		const UNiagaraEmitter* BaseEmitter = Emitter->GetParent();
+		FVersionedNiagaraEmitter VersionedNiagaraEmitter = GetEmitterViewModel()->GetEmitter();
+		FVersionedNiagaraEmitter BaseEmitter = VersionedNiagaraEmitter.GetEmitterData()->GetParent();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		MergeManager->ResetSimulationStagePropertySetToBase(*Emitter, *BaseEmitter, SimulationStage->Script->GetUsageId());
+		MergeManager->ResetSimulationStagePropertySetToBase(VersionedNiagaraEmitter, BaseEmitter, SimulationStage->Script->GetUsageId());
 		RefreshChildren();
 	}
 }
@@ -108,8 +104,8 @@ void UNiagaraStackSimulationStagePropertiesItem::RefreshChildrenInternal(const T
 
 	if ( SimulationStage.IsValid() )
 	{
-		UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-		if ( Emitter && (Emitter->SimTarget != ENiagaraSimTarget::GPUComputeSim) && SimulationStage->bEnabled )
+		FVersionedNiagaraEmitterData* EmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData();
+		if (EmitterData && (EmitterData->SimTarget != ENiagaraSimTarget::GPUComputeSim) && SimulationStage->bEnabled )
 		{
 			TArray<FStackIssueFix> IssueFixes;
 			IssueFixes.Emplace(
@@ -119,13 +115,13 @@ void UNiagaraStackSimulationStagePropertiesItem::RefreshChildrenInternal(const T
 			IssueFixes.Emplace(
 				LOCTEXT("SetGpuSimulationFix", "Set GPU simulation"),
 				FStackIssueFixDelegate::CreateLambda(
-					[WeakEmitter=TWeakObjectPtr<UNiagaraEmitter>(GetEmitterViewModel()->GetEmitter())]()
+					[WeakEmitter=GetEmitterViewModel()->GetEmitter().ToWeakPtr()]()
 					{
-						if ( UNiagaraEmitter* NiagaraEmitter = WeakEmitter.Get() )
+						if (WeakEmitter.IsValid())
 						{
 							FScopedTransaction Transaction(LOCTEXT("SetGpuSimulation", "Set Gpu Simulation"));
-							NiagaraEmitter->Modify();
-							NiagaraEmitter->SimTarget = ENiagaraSimTarget::GPUComputeSim;
+							WeakEmitter.Emitter.Get()->Modify();
+							WeakEmitter.GetEmitterData()->SimTarget = ENiagaraSimTarget::GPUComputeSim;
 						}
 					}
 				)
@@ -159,12 +155,12 @@ bool UNiagaraStackSimulationStagePropertiesItem::HasBaseSimulationStage() const
 {
 	if (bHasBaseSimulationStageCache.IsSet() == false)
 	{
-		UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-		const UNiagaraEmitter* BaseEmitter = Emitter->GetParent();
-		if (BaseEmitter != nullptr && Emitter != BaseEmitter)
+		FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+		FVersionedNiagaraEmitter BaseEmitter = VersionedEmitter.GetEmitterData()->GetParent();
+		if (BaseEmitter.Emitter != nullptr && VersionedEmitter.Emitter != BaseEmitter.Emitter)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-			bHasBaseSimulationStageCache = MergeManager->HasBaseSimulationStage(*BaseEmitter, SimulationStage->Script->GetUsageId());
+			bHasBaseSimulationStageCache = MergeManager->HasBaseSimulationStage(BaseEmitter, SimulationStage->Script->GetUsageId());
 		}
 		else
 		{
@@ -233,8 +229,6 @@ void UNiagaraStackSimulationStageGroup::RefreshChildrenInternal(const TArray<UNi
 {
 	bHasBaseSimulationStageCache.Reset();
 
-	UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-
 	SetDisplayName(FText::FromName(SimulationStage->SimulationStageName));
 
 	if (SimulationStageProperties == nullptr)
@@ -293,7 +287,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackSimulationStage
 			return Super::CanDropInternal(DropRequest);
 		}
 
-		UNiagaraEmitter* OwningEmitter = GetEmitterViewModel()->GetEmitter();
+		FVersionedNiagaraEmitterData* OwningEmitter = GetEmitterViewModel()->GetEmitter().GetEmitterData();
 		int32 SourceIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SourceSimulationStageGroup->GetSimulationStage());
 		if (SourceIndex == INDEX_NONE)
 		{
@@ -328,15 +322,16 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackSimulationStage
 		UNiagaraStackSimulationStageGroup* SourceSimulationStageGroup = Cast<UNiagaraStackSimulationStageGroup>(StackEntryDragDropOp->GetDraggedEntries()[0]);
 		if (SourceSimulationStageGroup)
 		{
-			UNiagaraEmitter* OwningEmitter = GetEmitterViewModel()->GetEmitter();
-			int32 SourceIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SourceSimulationStageGroup->GetSimulationStage());
+			FVersionedNiagaraEmitter OwningEmitter = GetEmitterViewModel()->GetEmitter();
+			FVersionedNiagaraEmitterData* EmitterData = OwningEmitter.GetEmitterData();
+			int32 SourceIndex = EmitterData->GetSimulationStages().IndexOfByKey(SourceSimulationStageGroup->GetSimulationStage());
 			if (SourceIndex != INDEX_NONE)
 			{
 				int32 TargetOffset = DropRequest.DropZone == EItemDropZone::BelowItem ? 1 : 0;
-				int32 TargetIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SimulationStage.Get()) + TargetOffset;
+				int32 TargetIndex = EmitterData->GetSimulationStages().IndexOfByKey(SimulationStage.Get()) + TargetOffset;
 
 				FScopedTransaction Transaction(FText::Format(LOCTEXT("MoveSimulationStage", "Move Shader Stage {0}"), GetDisplayName()));
-				OwningEmitter->MoveSimulationStageToIndex(SourceSimulationStageGroup->GetSimulationStage(), TargetIndex);
+				OwningEmitter.Emitter->MoveSimulationStageToIndex(SourceSimulationStageGroup->GetSimulationStage(), TargetIndex, OwningEmitter.Version);
 
 				OnRequestFullRefreshDeferred().Broadcast();
 				return FDropRequestResponse(DropRequest.DropZone, FText());
@@ -365,8 +360,9 @@ void UNiagaraStackSimulationStageGroup::Delete()
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ScriptViewModel.Pin();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not delete when the script view model has been deleted."));
 
-	UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Emitter->GraphSource);
+	FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+	FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(EmitterData->GraphSource);
 
 	if (!Source || !Source->NodeGraph)
 	{
@@ -375,7 +371,7 @@ void UNiagaraStackSimulationStageGroup::Delete()
 
 	FScopedTransaction Transaction(FText::Format(LOCTEXT("DeleteSimulationStage", "Delete {0}"), GetDisplayName()));
 
-	Emitter->Modify();
+	VersionedEmitter.Emitter->Modify();
 	Source->NodeGraph->Modify();
 	TArray<UNiagaraNode*> SimulationStageNodes;
 	Source->NodeGraph->BuildTraversal(SimulationStageNodes, GetScriptUsage(), GetScriptUsageId());
@@ -385,7 +381,7 @@ void UNiagaraStackSimulationStageGroup::Delete()
 	}
 	
 	// First, remove the simulation stage object.
-	Emitter->RemoveSimulationStage(SimulationStage.Get());
+	VersionedEmitter.Emitter->RemoveSimulationStage(SimulationStage.Get(), VersionedEmitter.Version);
 	
 	// Now remove all graph nodes associated with the simulation stage.
 	for (UNiagaraNode* Node : SimulationStageNodes)
@@ -395,7 +391,7 @@ void UNiagaraStackSimulationStageGroup::Delete()
 
 	// Set the emitter here to that the internal state of the view model is updated.
 	// TODO: Move the logic for managing additional scripts into the emitter view model or script view model.
-	ScriptViewModelPinned->SetScripts(Emitter);
+	ScriptViewModelPinned->SetScripts(VersionedEmitter);
 	
 	OnModifiedSimulationStagesDelegate.ExecuteIfBound();
 }
@@ -419,8 +415,8 @@ bool UNiagaraStackSimulationStageGroup::HasBaseSimulationStage() const
 {
 	if (bHasBaseSimulationStageCache.IsSet() == false)
 	{
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
-		bHasBaseSimulationStageCache = BaseEmitter != nullptr && FNiagaraScriptMergeManager::Get()->HasBaseSimulationStage(*BaseEmitter, GetScriptUsageId());
+		FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetParent();
+		bHasBaseSimulationStageCache = BaseEmitter.Emitter != nullptr && FNiagaraScriptMergeManager::Get()->HasBaseSimulationStage(BaseEmitter, GetScriptUsageId());
 	}
 	return bHasBaseSimulationStageCache.GetValue();
 }

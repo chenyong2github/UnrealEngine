@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "NiagaraCommon.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -96,7 +95,6 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils);
 
 
-private:
 };
 
 
@@ -151,7 +149,7 @@ struct FNiagaraStackAssetAction_VarBind : public FEdGraphSchemaAction
 	}
 	//~ End FEdGraphSchemaAction Interface
 
-	static TArray<FNiagaraVariableBase> FindVariables(UNiagaraEmitter* InEmitter, bool bSystem, bool bEmitter, bool bParticles, bool bUser, bool bAllowStatic);
+	static TArray<FNiagaraVariableBase> FindVariables(const FVersionedNiagaraEmitter& InEmitter, bool bSystem, bool bEmitter, bool bParticles, bool bUser, bool bAllowStatic);
 };
 
 class FNiagaraVariableAttributeBindingCustomization : public IPropertyTypeCustomization
@@ -175,7 +173,7 @@ private:
 	FText GetCurrentText() const;
 	FText GetTooltipText() const;
 	TSharedRef<SWidget> OnGetMenuContent() const;
-	TArray<FName> GetNames(class UNiagaraEmitter* InEmitter) const;
+	TArray<FName> GetNames(const FVersionedNiagaraEmitter& InEmitter) const;
 
 	void ChangeSource(FName InVarName);
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
@@ -184,7 +182,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	TSharedPtr<SComboButton> ComboButton;
-	class UNiagaraEmitter* BaseEmitter = nullptr;
+	FVersionedNiagaraEmitter BaseEmitter;
 	class UNiagaraRendererProperties* RenderProps = nullptr;
 	class UNiagaraSimulationStageBase* SimulationStage = nullptr;
 	struct FNiagaraVariableAttributeBinding* TargetVariableBinding = nullptr;
@@ -268,7 +266,7 @@ private:
 	TSharedPtr<SComboButton> MaterialParameterButton;
 	TSharedPtr<SComboButton> NiagaraParameterButton;
 	class UNiagaraSystem* BaseSystem;
-	class UNiagaraEmitter* BaseEmitter;
+	FVersionedNiagaraEmitter BaseEmitter;
 	class UNiagaraRendererProperties* RenderProps;
 	struct FNiagaraMaterialAttributeBinding* TargetParameterBinding;
 

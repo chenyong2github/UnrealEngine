@@ -11,7 +11,6 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
-#include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraParameterStore.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
@@ -22,7 +21,6 @@
 #include "NiagaraSimulationStageBase.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
@@ -769,11 +767,11 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		OldEmitterChildNodes = OldEmitterNode->GetChildNodes();
 	}
 
-	UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
+	FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
 
-	UNiagaraStackEditorData& StackEditorData = CastChecked<UNiagaraEmitterEditorData>(EmitterHandle.GetInstance()->GetEditorData())->GetStackEditorData();
+	UNiagaraStackEditorData& StackEditorData = CastChecked<UNiagaraEmitterEditorData>(EmitterHandle.GetEmitterData()->GetEditorData())->GetStackEditorData();
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterSpawnNode = CreateNodeForScript(
-		OldEmitterChildNodes, *Emitter->EmitterSpawnScriptProps.Script, TEXT("Emitter Spawn"), StackEditorData,
+		OldEmitterChildNodes, *EmitterData->EmitterSpawnScriptProps.Script, TEXT("Emitter Spawn"), StackEditorData,
 		UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn,
 		&EmitterHandle);
 	if (EmitterSpawnNode.IsValid())
@@ -782,7 +780,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	}
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterUpdateNode = CreateNodeForScript(
-		OldEmitterChildNodes, *Emitter->EmitterUpdateScriptProps.Script, TEXT("Emitter Update"), StackEditorData,
+		OldEmitterChildNodes, *EmitterData->EmitterUpdateScriptProps.Script, TEXT("Emitter Update"), StackEditorData,
 		UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Update,
 		&EmitterHandle);
 	if (EmitterUpdateNode.IsValid())
@@ -791,7 +789,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	}
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> ParticleSpawnNode = CreateNodeForScript(
-		OldEmitterChildNodes, *Emitter->SpawnScriptProps.Script, TEXT("Particle Spawn"), StackEditorData,
+		OldEmitterChildNodes, *EmitterData->SpawnScriptProps.Script, TEXT("Particle Spawn"), StackEditorData,
 		UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn,
 		&EmitterHandle);
 	if (ParticleSpawnNode.IsValid())
@@ -800,7 +798,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	}
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> ParticleUpdateNode = CreateNodeForScript(
-		OldEmitterChildNodes, *Emitter->UpdateScriptProps.Script, TEXT("Particle Update"), StackEditorData,
+		OldEmitterChildNodes, *EmitterData->UpdateScriptProps.Script, TEXT("Particle Update"), StackEditorData,
 		UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Update,
 		&EmitterHandle);
 	if (ParticleUpdateNode.IsValid())
@@ -808,7 +806,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		NewEmitterChildNodes.Add(ParticleUpdateNode.ToSharedRef());
 	}
 
-	for (const FNiagaraEventScriptProperties& EventScriptProps : Emitter->GetEventHandlers())
+	for (const FNiagaraEventScriptProperties& EventScriptProps : EmitterData->GetEventHandlers())
 	{
 		TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterEventNode = CreateNodeForScript(
 			OldEmitterChildNodes, *EventScriptProps.Script, FString::Printf(TEXT("Event Handler - %s"), *EventScriptProps.SourceEventName.ToString()), StackEditorData,
@@ -820,7 +818,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		}
 	}
 
-	for (UNiagaraSimulationStageBase* SimulationStage : Emitter->GetSimulationStages())
+	for (UNiagaraSimulationStageBase* SimulationStage : EmitterData->GetSimulationStages())
 	{
 		TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterSimulationStageNode = CreateNodeForScript(
 			OldEmitterChildNodes, *SimulationStage->Script, FString::Printf(TEXT("Simulation Stage - %s"), *SimulationStage->SimulationStageName.ToString()), StackEditorData,
@@ -844,7 +842,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 			NewEmitterNode->SetDataId(EmitterDataId);
 			NewEmitterNode->SetSecondDisplayName(FText::FromName(FNiagaraConstants::EmitterNamespace));
 			NewEmitterNode->SetStyle(ENiagaraCurveSelectionNodeStyleMode::TopLevelObject, UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Settings, false);
-			NewEmitterNode->SetDisplayedObjectKey(FObjectKey(EmitterHandle.GetInstance()));
+			NewEmitterNode->SetDisplayedObjectKey(FObjectKey(EmitterHandle.GetInstance().Emitter));
 			NewEmitterNode->SetShowInTree(true);
 			NewEmitterNode->SetIsExpanded(true);
 
@@ -888,7 +886,7 @@ void UNiagaraCurveSelectionViewModel::Refresh()
 		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 		{
 			// During transactions Emitters may not have their EditorData set if they were created during the transaction; skip if this is true.
-			if (EmitterHandleViewModel->GetEmitterHandle() && EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GetEditorData())
+			if (EmitterHandleViewModel->GetEmitterHandle() && EmitterHandleViewModel->GetEmitterHandle()->GetEmitterData()->GetEditorData())
 			{
 				TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterNode = CreateNodeForEmitter(OldRootChildNodes, *EmitterHandleViewModel->GetEmitterHandle());
 				if (EmitterNode.IsValid())

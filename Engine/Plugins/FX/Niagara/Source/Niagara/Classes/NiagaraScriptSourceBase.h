@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "NiagaraCommon.h"
+#include "NiagaraTypes.h"
 #include "NiagaraCompileHash.h"
 #include "Misc/Guid.h"
 #include "NiagaraScriptSourceBase.generated.h"
@@ -114,7 +114,7 @@ class UNiagaraScriptSourceBase : public UObject
 	/** Enforce that the source graph is now out of sync with the script.*/
 	virtual void MarkNotSynchronized(FString Reason) {}
 
-	virtual FGuid GetChangeID() { return FGuid(); };
+	virtual FGuid GetChangeID() { return FGuid(); }
 
 	virtual void ComputeVMCompilationId(struct FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId, bool bForceRebuild = false) const {};
 
@@ -131,13 +131,13 @@ class UNiagaraScriptSourceBase : public UObject
 	 * Allows the derived editor only script source to handle a post load requested by an owning emitter. 
 	 * @param OwningEmitter The emitter requesting the post load.
 	 */
-	virtual void PostLoadFromEmitter(UNiagaraEmitter& OwningEmitter) { }
+	virtual void PostLoadFromEmitter(FVersionedNiagaraEmitter OwningEmitter) { }
 
 	/** Adds a module if it isn't already in the graph. If the module isn't found bOutFoundModule will be false. If it is found and it did need to be added, the function returns true. If it already exists, it returns false. */
 	NIAGARA_API virtual bool AddModuleIfMissing(FString ModulePath, ENiagaraScriptUsage Usage, bool& bOutFoundModule) { bOutFoundModule = false; return false; }
 
 #if WITH_EDITOR
-	virtual void CleanUpOldAndInitializeNewRapidIterationParameters(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FNiagaraParameterStore& RapidIterationParameters) const { checkf(false, TEXT("Not implemented")); }
+	virtual void CleanUpOldAndInitializeNewRapidIterationParameters(const FVersionedNiagaraEmitter& Emitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FNiagaraParameterStore& RapidIterationParameters) const { checkf(false, TEXT("Not implemented")); }
 
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
@@ -170,8 +170,9 @@ class UNiagaraScriptSourceBase : public UObject
 
 	/** Checks if any of the provided variables are linked to function inputs of position type data
 	 */
-	virtual void GetLinkedPositionTypeInputs(const TArray<FNiagaraVariable>& ParametersToCheck, TSet<FNiagaraVariable>& OutLinkedParameters) {};
-	virtual void ChangedLinkedInputTypes(const FNiagaraVariable& ParametersToCheck, const FNiagaraTypeDefinition& NewType) {};
+	virtual void GetLinkedPositionTypeInputs(const TArray<FNiagaraVariable>& ParametersToCheck, TSet<FNiagaraVariable>& OutLinkedParameters) {}
+	virtual void ChangedLinkedInputTypes(const FNiagaraVariable& ParametersToCheck, const FNiagaraTypeDefinition& NewType) {}
+	virtual void ReplaceScriptReferences(UNiagaraScript* OldScript, UNiagaraScript* NewScript) {}
 
 protected:
 	FOnChanged OnChangedDelegate;

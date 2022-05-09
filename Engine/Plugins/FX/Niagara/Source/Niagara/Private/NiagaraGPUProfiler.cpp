@@ -4,7 +4,6 @@
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraSimStageData.h"
 #include "HAL/IConsoleManager.h"
-#include "Misc/StringBuilder.h"
 
 bool GNiagaraGpuProfilingEnabled = true;
 static FAutoConsoleVariableRef CVarNiagaraGpuProfilingEnabled(
@@ -157,7 +156,7 @@ void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, FName Stage
 	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
 	DispatchTimer.bUniqueInstance = false;
 	DispatchTimer.OwnerComponent = nullptr;
-	DispatchTimer.OwnerEmitter = nullptr;
+	DispatchTimer.OwnerEmitter = FVersionedNiagaraEmitterWeakPtr();
 	DispatchTimer.StageName = StageName;
 	DispatchTimer.StartQuery = QueryPool->AllocateQuery();
 	RHICmdList.EndRenderQuery(DispatchTimer.StartQuery.GetQuery());

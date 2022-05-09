@@ -706,6 +706,25 @@ void UNiagaraGraph::ChangeParameterType(const TArray<FNiagaraVariable>& Paramete
 	InvalidateCachedParameterData();
 }
 
+void UNiagaraGraph::ReplaceScriptReferences(UNiagaraScript* OldScript, UNiagaraScript* NewScript)
+{
+	bool bChanged = false;
+	for (UEdGraphNode* Node : Nodes)
+	{
+		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
+		if (FunctionNode && FunctionNode->FunctionScript == OldScript)
+		{
+			FunctionNode->Modify();
+			FunctionNode->FunctionScript = NewScript;
+			bChanged = true;
+		}
+	}
+	if (bChanged)
+	{
+		MarkGraphRequiresSynchronization(TEXT("Script references updated"));
+	}
+}
+
 TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName VariableName) const
 {
 	TArray<UEdGraphPin*> DefaultPins;
@@ -1982,7 +2001,8 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 		return true;
 	}
 
-	TSharedPtr<FNiagaraScriptToolkitParameterPanelViewModel> ParameterPanelViewModel = TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptToolkitParameterPanelViewModel>::GetExistingViewModelForObject(GetTypedOuter<UNiagaraScript>());
+	UNiagaraScript* OuterScript = GetTypedOuter<UNiagaraScript>();
+	TSharedPtr<FNiagaraScriptToolkitParameterPanelViewModel> ParameterPanelViewModel = TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptToolkitParameterPanelViewModel>::GetExistingViewModelForObject(OuterScript);
 	if (ParameterPanelViewModel.IsValid() == false)
 	{
 		ensureMsgf(false, TEXT("Failed to get parameter panel view model when renaming parameter via pin in graph!"));
@@ -2252,6 +2272,24 @@ void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 
 	ValidateDefaultPins();
 	NotifyGraphChanged();
+}
+
+FVersionedNiagaraEmitter UNiagaraGraph::GetOwningEmitter() const
+{
+	UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>();
+	if (OwningEmitter)
+	{
+		for (FNiagaraAssetVersion Version : OwningEmitter->GetAllAvailableVersions())
+		{
+			FVersionedNiagaraEmitterData* EmitterData = OwningEmitter->GetEmitterData(Version.VersionGuid);
+			UNiagaraGraph* EmitterGraph = Cast<UNiagaraScriptSource>(EmitterData->GraphSource)->NodeGraph;
+			if (this == EmitterGraph)
+			{
+				return FVersionedNiagaraEmitter(OwningEmitter, Version.VersionGuid);
+			}
+		}
+	}
+	return FVersionedNiagaraEmitter();
 }
 
 bool UNiagaraGraph::SynchronizeScriptVariable(const UNiagaraScriptVariable* SourceScriptVar, UNiagaraScriptVariable* DestScriptVar /*= nullptr*/, bool bIgnoreChangeId /*= false*/)

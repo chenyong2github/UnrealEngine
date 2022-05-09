@@ -9,6 +9,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraSettings.h"
 #include "SystemSettings.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "PlatformInfo.h"
@@ -958,7 +959,7 @@ void FNiagaraPlatformSet::RefreshScalability()
 			check(System);
 
 			bool bNeedsUpdate = false;
-			auto NeedsScalabilityUpdate = [&](UObject* Owner, FNiagaraPlatformSet& PSet)
+			auto NeedsScalabilityUpdate = [&](FNiagaraPlatformSet& PSet)
 			{
 				for (FNiagaraPlatformSetCVarCondition& CVarCondition : PSet.CVarConditions)
 				{

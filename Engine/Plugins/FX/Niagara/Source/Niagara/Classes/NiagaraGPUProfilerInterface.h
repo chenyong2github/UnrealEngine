@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraSystemGpuComputeProxy.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -46,7 +47,7 @@ struct FNiagaraGpuFrameResults : public TSharedFromThis<FNiagaraGpuFrameResults,
 	{
 		uint32									bUniqueInstance : 1;		// Set only once for all dispatches from an instance across all ticks
 		TWeakObjectPtr<class USceneComponent>	OwnerComponent;				// Optional pointer back to owning Component
-		TWeakObjectPtr<class UNiagaraEmitter>	OwnerEmitter;				// Optional pointer back to owning Emitter
+		FVersionedNiagaraEmitterWeakPtr			OwnerEmitter;				// Optional pointer back to owning Emitter
 		FName									StageName;					// Generally the simulation stage but may be a DataInterface name
 		uint64									DurationMicroseconds;		// Duration in microseconds of the dispatch
 	};

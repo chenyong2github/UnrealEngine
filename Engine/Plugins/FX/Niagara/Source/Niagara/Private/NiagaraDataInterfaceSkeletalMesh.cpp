@@ -22,7 +22,6 @@
 #include "Templates/AlignmentTemplates.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCore.h"
-#include "SkeletalMeshTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh"
 
@@ -2785,7 +2784,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 			Scripts.Add(Asset->GetSystemUpdateScript());
 			for (auto&& EmitterHandle : Asset->GetEmitterHandles())
 			{
-				EmitterHandle.GetInstance()->GetScripts(Scripts, false);
+				EmitterHandle.GetEmitterData()->GetScripts(Scripts, false);
 			}
 
 			// Now check if any script uses functions that require CPU access

@@ -885,7 +885,7 @@ void SNiagaraDebugger::InvokeDebugger(FNiagaraEmitterHandle& InEmitterHandle)
 		Content->FocusDebugTab();
 
 		UNiagaraDebugHUDSettings* HudSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
-		if (HudSettings && InEmitterHandle.IsValid() && InEmitterHandle.GetInstance())
+		if (HudSettings && InEmitterHandle.IsValid() && InEmitterHandle.GetInstance().Emitter)
 		{
 			HudSettings->Data.bComponentFilterEnabled = false;
 			HudSettings->Data.ComponentFilter = TEXT("");
@@ -893,7 +893,7 @@ void SNiagaraDebugger::InvokeDebugger(FNiagaraEmitterHandle& InEmitterHandle)
 			HudSettings->Data.ActorFilter = TEXT("");
 			HudSettings->Data.bActorFilterEnabled = false;
 
-			UNiagaraSystem* System = Cast<UNiagaraSystem>(InEmitterHandle.GetInstance()->GetOuter());
+			UNiagaraSystem* System = Cast<UNiagaraSystem>(InEmitterHandle.GetInstance().Emitter->GetOuter());
 			if (System)
 			{
 				HudSettings->Data.SystemFilter = System->GetName();
@@ -1006,7 +1006,7 @@ void SNiagaraDebugger::InvokeDebugger(UNiagaraSystem* InSystem, TArray<FNiagaraE
 						HudSettings->Data.ParticlesVariables.Add(NewVar);
 				}
 
-				if (InSelectedHandles.Num() > 0 && InSelectedHandles[0].GetInstance() && InSelectedHandles[0].GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+				if (InSelectedHandles.Num() > 0 && InSelectedHandles[0].GetEmitterData() && InSelectedHandles[0].GetEmitterData()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 					HudSettings->Data.bEnableGpuParticleReadback = true;
 			}
 

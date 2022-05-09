@@ -208,7 +208,6 @@ private:
 	{
 	}
 
-private:
 	FText DisplayName;
 	TArray<FString> Categories;
 	FText Description;
@@ -219,7 +218,6 @@ private:
 	bool bRenameParameterOnAdd;
 	FAssetData ModuleAssetData;
 	UNiagaraScript* ModuleScript;
-	bool bIsMaterialParameterModuleAction;
 	bool bIsNewScratchModuleAction;
 	bool bIsNewSetSpecificModuleAction;
 	FNiagaraActionSourceData SourceData;
@@ -407,7 +405,7 @@ void UNiagaraStackScriptItemGroup::Initialize(
 	}
 	else if (GetEmitterViewModel().IsValid())
 	{
-		OwningParticleScriptWeak = GetEmitterViewModel()->GetEmitter()->GetScript(ScriptUsage, ScriptUsageId);
+		OwningParticleScriptWeak = GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetScript(ScriptUsage, ScriptUsageId);
 		if (OwningParticleScriptWeak.IsValid())
 		{
 			OwningParticleScriptWeak->OnVMScriptCompiled().AddUObject(this, &UNiagaraStackScriptItemGroup::OnParticleScriptCompiled);
@@ -1062,7 +1060,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 
 	UNiagaraStackModuleItem* SourceModuleItem = CastChecked<UNiagaraStackModuleItem>(StackEntryDragDropOp->GetDraggedEntries()[0]);
 	const FNiagaraEmitterHandle* SourceEmitterHandle = SourceModuleItem->GetEmitterViewModel().IsValid()
-		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(SourceModuleItem->GetSystemViewModel()->GetSystem(), *SourceModuleItem->GetEmitterViewModel()->GetEmitter())
+		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(SourceModuleItem->GetSystemViewModel()->GetSystem(), SourceModuleItem->GetEmitterViewModel()->GetEmitter())
 		: nullptr;
 	FGuid SourceEmitterHandleId = SourceEmitterHandle != nullptr
 		? SourceEmitterHandle->GetId()
@@ -1071,9 +1069,8 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	UNiagaraScript* SourceModuleScript = FNiagaraEditorUtilities::GetScriptFromSystem(SourceModuleItem->GetSystemViewModel()->GetSystem(), SourceEmitterHandleId,
 		SourceModuleOutputNode->GetUsage(), SourceModuleOutputNode->GetUsageId());
 
-	const UNiagaraStackModuleItem* TargetModuleItem = Cast<UNiagaraStackModuleItem>(&TargetEntry);
 	const FNiagaraEmitterHandle* TargetEmitterHandle = GetEmitterViewModel().IsValid()
-		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), *GetEmitterViewModel()->GetEmitter())
+		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), GetEmitterViewModel()->GetEmitter())
 		: nullptr;
 	FGuid TargetEmitterHandleId = TargetEmitterHandle != nullptr
 		? TargetEmitterHandle->GetId()
@@ -1221,7 +1218,7 @@ void GatherRenamedModuleOutputs(
 	TArray<TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>> InClipboardFunctionAndNodeFunctionPairs,
 	TMap<FName, FName>& OutOldModuleOutputNameToNewModuleOutputNameMap)
 {
-	UNiagaraEmitter* Emitter = InOwnerEntry->GetEmitterViewModel().IsValid() ? InOwnerEntry->GetEmitterViewModel()->GetEmitter() : nullptr;
+	FVersionedNiagaraEmitter Emitter = InOwnerEntry->GetEmitterViewModel().IsValid() ? InOwnerEntry->GetEmitterViewModel()->GetEmitter() : FVersionedNiagaraEmitter();
 
 	for (TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>& ClipboardFunctionAndNodeFunctionPair : InClipboardFunctionAndNodeFunctionPairs)
 	{

@@ -64,7 +64,7 @@ void UNiagaraEffectType::PostLoad()
 	}
 
 	//Apply platform set redirectors
-	auto ApplyPlatformSetRedirects = [](UObject* Owner, FNiagaraPlatformSet& Platforms)
+	auto ApplyPlatformSetRedirects = [](FNiagaraPlatformSet& Platforms)
 	{
 		Platforms.ApplyRedirects();
 	};

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ViewModels/Stack/NiagaraStackItem.h"
-#include "Misc/NotifyHook.h"
 #include "PropertyEditorDelegates.h"
 #include "NiagaraStackFunctionInputCollection.h"
 #include "NiagaraStackFilteredObject.generated.h"
@@ -27,7 +26,7 @@ public:
 
 	virtual FText GetDisplayName() const override;
 	virtual bool GetShouldShowInStack() const override;
-	virtual bool GetIsEnabled() const;
+	virtual bool GetIsEnabled() const override;
 protected:
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -43,7 +42,7 @@ private:
 	void OnViewStateChanged();
 private:
 
-	UNiagaraEmitter* Emitter;
+	FVersionedNiagaraEmitter VersionedEmitter;
 
 	TMap<FGuid, UNiagaraStackFunctionInputCollection*> KnownInputCollections;
 

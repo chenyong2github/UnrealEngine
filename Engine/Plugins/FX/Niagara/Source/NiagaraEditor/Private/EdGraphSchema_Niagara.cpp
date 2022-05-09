@@ -79,7 +79,7 @@ const FName UEdGraphSchema_Niagara::PinCategoryStaticEnum("StaticEnum");
 namespace NiagaraNodeNumbers
 {
 	// Maximum distance a drag can be off a node edge to require 'push off' from node
-	const int32 NiagaraMinNodeDistance = 60;
+	constexpr int32 NiagaraMinNodeDistance = 60;
 }
 
 UEdGraphNode* FNiagaraSchemaAction_NewNode::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
@@ -280,7 +280,7 @@ const UNiagaraGraph* GetAlternateGraph(const UNiagaraGraph* NiagaraGraph)
 		UNiagaraScript* Script = Cast<UNiagaraScript>(ScriptSource->GetOuter());
 		if (Script != nullptr)
 		{
-			UNiagaraEmitter* EmitterProperties = Cast<UNiagaraEmitter>(Script->GetOuter());
+			FVersionedNiagaraEmitterData* EmitterProperties = Script->GetOuterEmitter().GetEmitterData();
 			if (EmitterProperties != nullptr)
 			{
 				if (EmitterProperties->SpawnScriptProps.Script == Script)

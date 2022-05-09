@@ -76,7 +76,7 @@ struct FMenuAndSearchBoxWidgets
 };
 
 /** Base Interface for view models to SiagaraParameterPanel and SNiagaraParameterDefinitionsPanel. */
-class INiagaraImmutableParameterPanelViewModel : public TSharedFromThis<INiagaraImmutableParameterPanelViewModel>, public FSelfRegisteringEditorUndoClient
+class NIAGARAEDITOR_API INiagaraImmutableParameterPanelViewModel : public TSharedFromThis<INiagaraImmutableParameterPanelViewModel>, public FSelfRegisteringEditorUndoClient
 {
 public:
 	/** Delegate to signal the view model's state has changed. */
@@ -141,7 +141,7 @@ public:
 	/** Delegate to get the names of all selected parameter items. */
 	DECLARE_DELEGATE_RetVal(TArray<FName>, FOnGetSelectedParameterNames);
 
-	~INiagaraParameterPanelViewModel();
+	virtual ~INiagaraParameterPanelViewModel() override;
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
 	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const = 0;
@@ -258,7 +258,7 @@ protected:
 	mutable TArray<FNiagaraParameterPanelItem> CachedViewedItems; //@todo(ng) consider moving to tset in future
 
 	/** Re-entrancy guard for adding parameters. */
-	mutable bool bIsAddingParameter;
+	mutable bool bIsAddingParameter = false;
 
 	/** Transient UNiagaraScriptVariables used to pass to new FNiagaraParameterPanelItems when the source FNiagaraVariable is not associated with a UNiagaraScriptVariable in a graph. */
 	mutable TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> TransientParameterToScriptVarMap;
@@ -372,7 +372,7 @@ class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPan
 {
 public:
 	/** Construct a ScriptToolkit Parameter Panel View Model from a Script View Model. */
-	FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel);
+	NIAGARAEDITOR_API FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel);
 
 	void Init(const FScriptToolkitUIContext& InUIContext);
 

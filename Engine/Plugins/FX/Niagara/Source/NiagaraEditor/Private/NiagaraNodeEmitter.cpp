@@ -5,17 +5,12 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorUtilities.h"
 #include "EdGraphSchema_Niagara.h"
-#include "EdGraph/EdGraph.h"
 #include "NiagaraCommon.h"
-#include "NiagaraDataInterface.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
-#include "NiagaraGraph.h"
-#include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraHlslTranslator.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Stats/Stats.h"
 #include "NiagaraEditorModule.h"
 
@@ -118,18 +113,6 @@ bool UNiagaraNodeEmitter::GenerateCompileHashForClassMembers(const UClass* InCla
 
 void UNiagaraNodeEmitter::AllocateDefaultPins()
 {
-	UNiagaraEmitter* Emitter = nullptr;
-	if (OwnerSystem)
-	{
-		for (int32 i = 0; i < OwnerSystem->GetNumEmitters(); ++i)
-		{
-			if (OwnerSystem->GetEmitterHandle(i).GetId() == EmitterHandleId)
-			{
-				Emitter = OwnerSystem->GetEmitterHandle(i).GetInstance();
-			}
-		}
-	}
-
 	const UEdGraphSchema_Niagara* NiagaraSchema = Cast<UEdGraphSchema_Niagara>(GetSchema());
 	CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
 	CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
@@ -193,22 +176,23 @@ FString UNiagaraNodeEmitter::GetEmitterUniqueName() const
 UNiagaraScriptSource* UNiagaraNodeEmitter::GetScriptSource() const
 {
 	// First get the emitter that we're referencing..
-	UNiagaraEmitter* Emitter = nullptr;
+	FVersionedNiagaraEmitter VersionedEmitter;
 	if (OwnerSystem)
 	{
 		for (int32 i = 0; i < OwnerSystem->GetNumEmitters(); ++i)
 		{
 			if (OwnerSystem->GetEmitterHandle(i).GetId() == EmitterHandleId)
 			{
-				Emitter = OwnerSystem->GetEmitterHandle(i).GetInstance();
+				VersionedEmitter = OwnerSystem->GetEmitterHandle(i).GetInstance();
 			}
 		}
 	}
 
 	// Now get the graph off that emitter
-	if (Emitter != nullptr && Emitter->GraphSource != nullptr)
+	FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+	if (EmitterData && EmitterData->GraphSource)
 	{
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Emitter->GraphSource);
+		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(EmitterData->GraphSource);
 		return Source;
 	}
 
@@ -218,22 +202,23 @@ UNiagaraScriptSource* UNiagaraNodeEmitter::GetScriptSource() const
 UNiagaraGraph* UNiagaraNodeEmitter::GetCalledGraph() const
 {
 	// First get the emitter that we're referencing..
-	UNiagaraEmitter* Emitter = nullptr;
+	FVersionedNiagaraEmitter VersionedEmitter;
 	if (OwnerSystem)
 	{
 		for (int32 i = 0; i < OwnerSystem->GetNumEmitters(); ++i)
 		{
 			if (OwnerSystem->GetEmitterHandle(i).GetId() == EmitterHandleId)
 			{
-				Emitter = OwnerSystem->GetEmitterHandle(i).GetInstance();
+				VersionedEmitter = OwnerSystem->GetEmitterHandle(i).GetInstance();
 			}
 		}
 	}
 
 	// Now get the graph off that emitter
-	if (Emitter != nullptr && Emitter->GraphSource != nullptr)
+	FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+	if (EmitterData && EmitterData->GraphSource)
 	{
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Emitter->GraphSource);
+		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(EmitterData->GraphSource);
 		if (Source)
 		{
 			return Source->NodeGraph;
@@ -435,8 +420,6 @@ void UNiagaraNodeEmitter::Compile(FHlslNiagaraTranslator *Translator, TArray<int
 	GetOutputPins(OutputPins);
 
 	check(Outputs.Num() == 0);
-
-	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
 	// First compile fully down the hierarchy for our predecessors..
 	UNiagaraGraph* CalledGraph = GetCalledGraph();

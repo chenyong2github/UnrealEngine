@@ -10,12 +10,12 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 #include "Async/Async.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Views/SListView.h"
@@ -108,13 +108,13 @@ namespace NiagaraScriptStatsLocal
 
 	struct FNiagaraScriptStats
 	{
-		FNiagaraScriptStats(const FGuid& InGuid, UNiagaraEmitter* NiagaraEmitter, EShaderPlatform ShaderPlatform)
+		FNiagaraScriptStats(const FGuid& InGuid, FVersionedNiagaraEmitter NiagaraEmitter, EShaderPlatform ShaderPlatform)
 		{
 			EmitterId = InGuid;
-			bIsGPU = NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+			bIsGPU = NiagaraEmitter.GetEmitterData()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 		}
 
-		void UpdateStatus(EShaderPlatform ShaderPlatform, UNiagaraEmitter* NiagaraEmitter)
+		void UpdateStatus(EShaderPlatform ShaderPlatform, FVersionedNiagaraEmitter NiagaraEmitter)
 		{
 			if ( bIsCompiling )
 			{
@@ -126,7 +126,7 @@ namespace NiagaraScriptStatsLocal
 					if ( ShaderScripts.Num() == 0 )
 					{
 						bool bScriptsValid = true;
-						NiagaraEmitter->ForEachScript(
+						NiagaraEmitter.GetEmitterData()->ForEachScript(
 							[&](UNiagaraScript* NiagaraScript)
 							{
 								if ( !NiagaraScript->GetVMExecutableDataCompilationId().CompilerVersionID.IsValid() || !NiagaraScript->GetVMExecutableDataCompilationId().BaseScriptCompileHash.IsValid() )
@@ -141,7 +141,7 @@ namespace NiagaraScriptStatsLocal
 							return;
 						}
 
-						NiagaraEmitter->ForEachScript(
+						NiagaraEmitter.GetEmitterData()->ForEachScript(
 							[&](UNiagaraScript* NiagaraScript)
 							{
 								TArray<FNiagaraShaderScript*> NewResources;
@@ -209,7 +209,7 @@ namespace NiagaraScriptStatsLocal
 				else
 				{
 					TArray<UNiagaraScript*> NiagaraScripts;
-					NiagaraEmitter->GetScripts(NiagaraScripts);
+					NiagaraEmitter.GetEmitterData()->GetScripts(NiagaraScripts);
 					GetVMScriptStatus(MakeArrayView(NiagaraScripts), bIsCompiling, bHasError, ResultsString);
 				}
 			}
@@ -622,7 +622,7 @@ void FNiagaraScriptStatsViewModel::RefreshView()
 		{
 			if (EmitterHandle.IsValid() && EmitterHandle.GetIsEnabled())
 			{
-				if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
+				if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance().Emitter)
 				{
 					RowIDs.Emplace(MakeShareable(new FGuid(EmitterHandle.GetId())));
 				}

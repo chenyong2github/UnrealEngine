@@ -13,6 +13,7 @@
 #include "TickableEditorObject.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraEmitter.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Map.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -100,7 +101,7 @@ protected:
 		ENiagaraScriptUsage TargetUsage;
 		FGuid TargetUsageId;
 		FGuid LastCaptureHandleId;
-		TWeakObjectPtr<UNiagaraEmitter> DataSource;
+		FVersionedNiagaraEmitterWeakPtr DataSource;
 		TSharedPtr<SScrollBar> OutputHorizontalScrollBar;
 		TSharedPtr<SScrollBar> OutputVerticalScrollBar;
 		TSharedPtr<SScrollBar> InputHorizontalScrollBar;

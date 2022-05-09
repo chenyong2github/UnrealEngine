@@ -43,7 +43,6 @@
 #include "Particles/Velocity/ParticleModuleVelocity.h"
 #include "Particles/Velocity/ParticleModuleVelocityOverLifetime.h"
 #include "Particles/Acceleration/ParticleModuleAccelerationConstant.h"
-#include "Particles/TypeData/ParticleModuleTypeDataBase.h"
 #include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
@@ -55,11 +54,8 @@
 #include "NiagaraEditorModule.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
 
-#include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "NiagaraEmitterFactoryNew.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
 #include "NiagaraRendererProperties.h"
@@ -87,10 +83,7 @@
 #include "Distributions/DistributionVectorUniform.h"
 #include "Distributions/DistributionVectorUniformCurve.h"
 #include "Distributions/DistributionVectorParticleParameter.h"
-#include "MessageLogModule.h"
 #include "IMessageLogListing.h"
-#include "EdGraph/EdGraphNode.h"
-#include "NiagaraNode.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "CascadeToNiagaraConverterModule.h"
 #include "Curves/RichCurve.h"
@@ -1586,7 +1579,7 @@ UNiagaraEmitterConversionContext* UNiagaraSystemConversionContext::AddEmptyEmitt
 	FName NewEmitterName = FNiagaraEditorUtilities::GetUniqueObjectName(System, UNiagaraEmitter::StaticClass(), NewEmitterNameString);
 	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(StaticLoadObject(UNiagaraEmitter::StaticClass(), nullptr, TEXT("/Niagara/DefaultAssets/Templates/CascadeConversion/CompletelyEmpty")));
 	
-	const TSharedPtr<FNiagaraEmitterHandleViewModel>& NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*NewEmitter);
+	const TSharedPtr<FNiagaraEmitterHandleViewModel>& NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*NewEmitter, NewEmitter->GetExposedVersion().VersionGuid);
 	NewEmitterHandleViewModel->SetName(NewEmitterName);
 	NewEmitterName = NewEmitterHandleViewModel->GetName();
 
@@ -1618,7 +1611,7 @@ UNiagaraEmitterConversionContext* const* UNiagaraSystemConversionContext::FindEm
 
 void UNiagaraEmitterConversionContext::Cleanup()
 {
-	Emitter = nullptr;
+	Emitter = FVersionedNiagaraEmitter();
 	EmitterHandleViewModel.Reset();
 	StackEntryAddActions.Empty();
 	RendererNameToStagedRendererPropertiesMap.Empty();
@@ -1757,7 +1750,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeEvents(UNiagaraSystemConv
 				UNiagaraEmitterConversionContext* SourceEmitterConversionContext = *SourceEmitterConversionContextPtr;
 
 				// Enable persistent IDs for the event generator emitter as this is a requisite for events.
-				SourceEmitterConversionContext->Emitter->bRequiresPersistentIDs = true;
+				SourceEmitterConversionContext->Emitter.GetEmitterData()->bRequiresPersistentIDs = true;
 
 				// Add the event generator.
 				SourceEmitterConversionContext->FindOrAddModuleScript("EventGenerator", EventHandlerAddAction.AddEventGeneratorOptions.EventGeneratorScriptAssetData, EScriptExecutionCategory::ParticleUpdate);
@@ -1826,8 +1819,8 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 		}
 		else if (ExecutionCategory == EScriptExecutionCategory::ParticleEvent)
 		{
-			auto GetEventSourceEmitterId = [](const FName EventName, UNiagaraEmitter* InEmitter)->const FGuid {
-				const FNiagaraEventScriptProperties* FoundEventProps = InEmitter->GetEventHandlers().FindByPredicate(
+			auto GetEventSourceEmitterId = [](const FName EventName, FVersionedNiagaraEmitter InEmitter)->const FGuid {
+				const FNiagaraEventScriptProperties* FoundEventProps = InEmitter.GetEmitterData()->GetEventHandlers().FindByPredicate(
 					[EventName](const FNiagaraEventScriptProperties& EventProps) {return EventProps.SourceEventName == EventName; }
 				);
 				if (FoundEventProps != nullptr)
@@ -1837,7 +1830,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 				return FGuid();
 			};
 
-			UNiagaraEmitter* EmitterInstance = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
+			FVersionedNiagaraEmitter EmitterInstance = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
 			const FGuid EventSourceEmitterId = GetEventSourceEmitterId(StackEntryID.EventName, EmitterInstance);
 
 			auto FilterStackEntryForEventSourceEmitterId = [EventSourceEmitterId](UNiagaraStackItemGroup* ItemGroup)->bool {
@@ -1990,7 +1983,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 	// Push the emitter messages.
 	for (FGenericConverterMessage& Message : EmitterMessages)
 	{
-		UNiagaraMessageDataText* NewMessageDataText = NewObject<UNiagaraMessageDataText>(Emitter);
+		UNiagaraMessageDataText* NewMessageDataText = NewObject<UNiagaraMessageDataText>(Emitter.Emitter);
 		const FName TopicName = Message.bIsVerbose ? FNiagaraConverterMessageTopics::VerboseConversionEventTopicName : FNiagaraConverterMessageTopics::ConversionEventTopicName;
 		NewMessageDataText->Init(FText::FromString(Message.Message), Message.MessageSeverity, TopicName);
 		EmitterHandleViewModel->AddMessage(NewMessageDataText);

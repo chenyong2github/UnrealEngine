@@ -86,22 +86,23 @@ public:
 			{
 				EmitterRef.SystemName = ParentSystem->GetFName();
 			}
-			const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter();
-			EmitterRef.EmitterName = CachedEmitter->GetUniqueEmitterName();
+			FVersionedNiagaraEmitter CachedEmitter = EmitterInstance->GetCachedEmitter();
+			EmitterRef.EmitterName = CachedEmitter.Emitter->GetUniqueEmitterName();
 
 			if (bUseSuppressEmitterList && ComponentSettings->SuppressEmitterList.Contains(EmitterRef))
 			{
 				return true;
 			}
 
-			if (bUseGpuEmitterAllowList && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) && !ComponentSettings->GPUEmitterAllowList.Contains(EmitterRef))
+			FVersionedNiagaraEmitterData* EmitterData = CachedEmitter.GetEmitterData();
+			if (bUseGpuEmitterAllowList && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim) && !ComponentSettings->GPUEmitterAllowList.Contains(EmitterRef))
 			{
 				return true;
 			}
 
-			if ( bUseGpuDataInterfaceDenyList && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) )
+			if ( bUseGpuDataInterfaceDenyList && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim) )
 			{
-				if (const UNiagaraScript* GPUComputeScript = CachedEmitter->GetGPUComputeScript())
+				if (const UNiagaraScript* GPUComputeScript = EmitterData->GetGPUComputeScript())
 				{
 					for (const FNiagaraScriptDataInterfaceInfo& DefaultDIInfo : GPUComputeScript->GetCachedDefaultDataInterfaces())
 					{

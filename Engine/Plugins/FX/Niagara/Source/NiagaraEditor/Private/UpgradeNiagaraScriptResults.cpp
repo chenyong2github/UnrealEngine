@@ -3,6 +3,37 @@
 #include "UpgradeNiagaraScriptResults.h"
 
 #include "NiagaraClipboard.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
+
+template<typename T>
+TArray<T*> GetStackEntries(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
+{
+	TArray<T*> Results;
+	TArray<UNiagaraStackEntry*> EntriesToCheck;
+	if (UNiagaraStackEntry* RootEntry = StackViewModel->GetRootEntry())
+	{
+		if (bRefresh)
+		{
+			RootEntry->RefreshChildren();
+		}
+		RootEntry->GetUnfilteredChildren(EntriesToCheck);
+	}
+	while (EntriesToCheck.Num() > 0)
+	{
+		UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
+		if (T* ItemToCheck = Cast<T>(Entry))
+		{
+			Results.Add(ItemToCheck);
+		}
+		Entry->GetUnfilteredChildren(EntriesToCheck);
+	}
+	return Results;
+}
 
 template<typename T>
 T GetValue(const UNiagaraClipboardFunctionInput* Input)
@@ -251,6 +282,133 @@ UNiagaraPythonScriptModuleInput* UUpgradeNiagaraScriptResults::GetNewInput(const
 		}
 	}
 	return nullptr;
+}
+
+void UNiagaraPythonModule::Init(UNiagaraStackModuleItem* InModuleItem)
+{
+	ModuleItem = InModuleItem;
+}
+
+UNiagaraStackModuleItem* UNiagaraPythonModule::Object() const
+{
+	return ModuleItem;
+}
+
+void UNiagaraPythonEmitter::Init(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterViewModel)
+{
+	EmitterViewModel = InEmitterViewModel;
+}
+
+UNiagaraEmitter* UNiagaraPythonEmitter::Object()
+{
+	return EmitterViewModel->GetEmitterViewModel()->GetEmitter().Emitter;
+}
+
+FVersionedNiagaraEmitterData UNiagaraPythonEmitter::GetProperties() const
+{
+	if (EmitterViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData())
+	{
+		return *EmitterViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData();
+	}
+	return FVersionedNiagaraEmitterData();
+}
+
+void UNiagaraPythonEmitter::SetProperties(FVersionedNiagaraEmitterData Data)
+{
+	if (EmitterViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData())
+	{
+		FVersionedNiagaraEmitterData* EmitterData = EmitterViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData();
+		for (TFieldIterator<FProperty> PropertyIterator(FVersionedNiagaraEmitterData::StaticStruct()); PropertyIterator; ++PropertyIterator)
+		{
+			if (PropertyIterator->HasAllPropertyFlags(CPF_Edit))
+			{
+				void* Dest = PropertyIterator->ContainerPtrToValuePtr<void>(EmitterData);
+				void* Src = PropertyIterator->ContainerPtrToValuePtr<void>(&Data);
+				PropertyIterator->CopyCompleteValue(Dest, Src);
+			}
+		}
+	}
+}
+
+TArray<UNiagaraPythonModule*> UNiagaraPythonEmitter::GetModules() const
+{
+	TArray<UNiagaraPythonModule*> Result;
+
+	if (UNiagaraStackViewModel* StackViewModel = EmitterViewModel->GetEmitterStackViewModel())
+	{
+		TArray<UNiagaraStackModuleItem*> StackModuleItems =	GetStackEntries<UNiagaraStackModuleItem>(StackViewModel);
+		for (UNiagaraStackModuleItem* ModuleItem : StackModuleItems)
+		{
+			UNiagaraPythonModule* Module = NewObject<UNiagaraPythonModule>();
+			Module->Init(ModuleItem);
+			Result.Add(Module);
+		}
+	}
+
+	return Result;
+}
+
+bool UNiagaraPythonEmitter::HasModule(const FString& ModuleName) const
+{
+	return GetModule(ModuleName)->Object() != nullptr;
+}
+
+UNiagaraPythonModule* UNiagaraPythonEmitter::GetModule(const FString& ModuleName) const
+{
+	UNiagaraPythonModule* Module = NewObject<UNiagaraPythonModule>();
+	if (UNiagaraStackViewModel* StackViewModel = EmitterViewModel->GetEmitterStackViewModel())
+	{
+		TArray<UNiagaraStackModuleItem*> StackModuleItems =	GetStackEntries<UNiagaraStackModuleItem>(StackViewModel);
+		for (UNiagaraStackModuleItem* ModuleItem : StackModuleItems)
+		{
+			if (ModuleItem->GetModuleNode().GetFunctionName() == ModuleName)
+			{
+				Module->Init(ModuleItem);
+				break;
+			}
+		}
+	}
+	return Module;
+}
+
+void UUpgradeNiagaraEmitterContext::Init(UNiagaraPythonEmitter* InOldEmitter, UNiagaraPythonEmitter* InNewEmitter)
+{
+	OldEmitter = InOldEmitter;
+	NewEmitter = InNewEmitter;
+
+	UpgradeVersionData.Empty();
+
+	if (!IsValid())
+	{
+		return;
+	}
+	
+	FVersionedNiagaraEmitterData* SourceData = OldEmitter->EmitterViewModel->GetEmitterHandle()->GetInstance().GetEmitterData();
+	FVersionedNiagaraEmitterData* TargetData = NewEmitter->EmitterViewModel->GetEmitterHandle()->GetInstance().GetEmitterData();
+	FVersionedNiagaraEmitter SourceParent = SourceData->GetParent();
+	FVersionedNiagaraEmitter TargetParent = TargetData->GetParent();
+	FNiagaraAssetVersion SourceVersion = SourceParent.GetEmitterData()->Version;
+	FNiagaraAssetVersion TargetVersion = TargetParent.GetEmitterData()->Version;
+
+	// gather script required to execute
+	for (const FNiagaraAssetVersion& Version : SourceParent.Emitter->GetAllAvailableVersions())
+	{
+		if (SourceVersion <= Version && Version <= TargetVersion)
+		{
+			FVersionedNiagaraEmitterData* ParentData = SourceParent.Emitter->GetEmitterData(Version.VersionGuid);
+			UpgradeVersionData.Add(ParentData);
+		}
+	}
+}
+
+bool UUpgradeNiagaraEmitterContext::IsValid() const
+{
+	return OldEmitter && OldEmitter->IsValid() && NewEmitter && NewEmitter->IsValid();
+}
+
+const TArray<FVersionedNiagaraEmitterData*>& UUpgradeNiagaraEmitterContext::GetUpgradeData() const
+{
+	return UpgradeVersionData;
 }
 
 

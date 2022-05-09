@@ -19,6 +19,7 @@
 #include "Particles/ParticleSystem.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "Components/PrimitiveComponent.h"
 
 #include "NiagaraDataInterfacePlatformSet.h"
 
@@ -231,7 +232,8 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	//~ Begin INiagaraParameterDefinitionsSubscriber interface
-	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return ParameterDefinitionsSubscriptions; };
+	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return ParameterDefinitionsSubscriptions; }
+	
 	virtual TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() override { return ParameterDefinitionsSubscriptions; };
 
 	/** Get all UNiagaraScriptSourceBase of this subscriber. */
@@ -248,6 +250,8 @@ public:
 	 */
 	virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() override;
 	//~ End INiagaraParameterDefinitionsSubscriber interface
+
+	virtual bool ChangeEmitterVersion(const FVersionedNiagaraEmitter& Emitter, const FGuid& NewVersion);
 #endif 
 
 	/** Gets an array of the emitter handles. */
@@ -270,7 +274,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Adds a new emitter handle to this System.  The new handle exposes an Instance value which is a copy of the
 		original asset. */
-	FNiagaraEmitterHandle AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName);
+	FNiagaraEmitterHandle AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName, FGuid EmitterVersion);
 
 	/** Adds a new emitter handle to this system without copying the original asset. This should only be used for temporary systems and never for live assets. */
 	void AddEmitterHandleDirect(FNiagaraEmitterHandle& EmitterHandleToAdd);
@@ -356,7 +360,7 @@ public:
 	bool HasOutstandingCompilationRequests(bool bIncludingGPUShaders = false) const;
 
 	/** Determines if this system has the supplied emitter as an editable and simulating emitter instance. */
-	bool ReferencesInstanceEmitter(UNiagaraEmitter& Emitter);
+	bool ReferencesInstanceEmitter(const FVersionedNiagaraEmitter& Emitter) const;
 
 	/** Updates the system's rapid iteration parameters from a specific emitter. */
 	void RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle);
@@ -457,12 +461,13 @@ public:
 	FORCEINLINE bool ShouldDisableExperimentalVM() const { return bDisableExperimentalVM; }
 
 #if WITH_EDITORONLY_DATA
-	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
+	bool UsesEmitter(UNiagaraEmitter* Emitter) const;
+	bool UsesEmitter(const FVersionedNiagaraEmitter& VersionedEmitter) const;
 	bool UsesScript(const UNiagaraScript* Script)const; 
 	void ForceGraphToRecompileOnNextCheck();
 
-	static void RequestCompileForEmitter(UNiagaraEmitter* InEmitter);
-	static void RecomputeExecutionOrderForEmitter(UNiagaraEmitter* InEmitter);
+	static void RequestCompileForEmitter(const FVersionedNiagaraEmitter& InEmitter);
+	static void RecomputeExecutionOrderForEmitter(const FVersionedNiagaraEmitter& InEmitter);
 	static void RecomputeExecutionOrderForDataInterface(class UNiagaraDataInterface* DataInterface);
 
 	FORCEINLINE bool ShouldUseRapidIterationParameters() const { return bCompileForEdit ? !bBakeOutRapidIteration : !bBakeOutRapidIterationOnCook; }
@@ -581,10 +586,10 @@ public:
 	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
 
 	/** Queries all the data interfaces in the array for emitter dependencies. */
-	void FindDataInterfaceDependencies(UNiagaraEmitter* Emitter, UNiagaraScript* Script, TArray<class UNiagaraEmitter*>& Dependencies);
+	void FindDataInterfaceDependencies(FVersionedNiagaraEmitterData* EmitterData, UNiagaraScript* Script, TArray<FVersionedNiagaraEmitter>& Dependencies);
 
 	/** Looks at all the event handlers in the emitter to determine which other emitters it depends on. */
-	void FindEventDependencies(UNiagaraEmitter* Emitter, TArray<UNiagaraEmitter*>& Dependencies);
+	void FindEventDependencies(FVersionedNiagaraEmitterData* EmitterData, TArray<FVersionedNiagaraEmitter>& Dependencies);
 
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
@@ -720,7 +725,7 @@ private:
 	const FName GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter* InEmitter) const;
 
 	/** Helper for filling in attribute datasets per emitter. */
-	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
+	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 	void PrepareRapidIterationParametersForCompilation();
 
 	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
@@ -975,9 +980,9 @@ void UNiagaraSystem::ForEachScript(TAction Func) const
 
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		if (FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData())
 		{
-			Emitter->ForEachScript(Func);
+			EmitterData->ForEachScript(Func);
 		}
 	}
 }
@@ -989,7 +994,7 @@ void UNiagaraSystem::ForEachPlatformSet(TAction Func)
 	//Handle our scalability overrides
 	for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
 	{
-		Func(this, Override.Platforms);
+		Func(Override.Platforms);
 	}
 
 	//Handle and platform set User DIs.
@@ -997,7 +1002,7 @@ void UNiagaraSystem::ForEachPlatformSet(TAction Func)
 	{
 		if (UNiagaraDataInterfacePlatformSet* PlatformSetDI = Cast<UNiagaraDataInterfacePlatformSet>(DI))
 		{
-			Func(PlatformSetDI, PlatformSetDI->Platforms);
+			Func(PlatformSetDI->Platforms);
 		}
 	}
 
@@ -1010,7 +1015,7 @@ void UNiagaraSystem::ForEachPlatformSet(TAction Func)
 			{
 				if (UNiagaraDataInterfacePlatformSet* PlatformSetDI = Cast<UNiagaraDataInterfacePlatformSet>(DataInterfaceInfo.DataInterface))
 				{
-					Func(PlatformSetDI, PlatformSetDI->Platforms);
+					Func(PlatformSetDI->Platforms);
 				}
 			}
 		}
@@ -1021,7 +1026,7 @@ void UNiagaraSystem::ForEachPlatformSet(TAction Func)
 	//Finally handle all our emitters.
 	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		if (FVersionedNiagaraEmitterData* Emitter = Handle.GetEmitterData())
 		{
 			Emitter->ForEachPlatformSet(Func);
 		}

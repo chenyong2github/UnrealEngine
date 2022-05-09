@@ -40,7 +40,7 @@ public:
 	{}
 	SLATE_END_ARGS();
 
-	NIAGARAEDITOR_API ~SNiagaraParameterDefinitionsPanel();
+	NIAGARAEDITOR_API virtual ~SNiagaraParameterDefinitionsPanel() override;
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterDefinitionsPanelViewModel>& InParameterDefinitionsPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands);
 

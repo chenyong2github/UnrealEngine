@@ -302,9 +302,6 @@ public:
 	void EvaluateBoundFunction(FName FunctionName, bool& UsedOnCpu, bool& UsedOnGpu) const;
 
 #if WITH_EDITORONLY_DATA
-	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
-	bool UsesScript(const UNiagaraScript* Script) const;
-	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
 	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
 #endif
 

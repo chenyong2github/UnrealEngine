@@ -315,6 +315,8 @@ class UNiagaraGraph : public UEdGraph
 	 */
 	NIAGARAEDITOR_API void ChangeParameterType(const TArray<FNiagaraVariable>& ParametersToChange, const FNiagaraTypeDefinition& NewType, bool bAllowOrphanedPins = false);
 
+	void ReplaceScriptReferences(UNiagaraScript* OldScript, UNiagaraScript* NewScript);
+
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();
 
@@ -348,6 +350,8 @@ class UNiagaraGraph : public UEdGraph
 	bool IsPinVisualWidgetProviderRegistered() const;
 
 	void ScriptVariableChanged(FNiagaraVariable Variable);
+
+	FVersionedNiagaraEmitter GetOwningEmitter() const;
 
 	/** Synchronize all the properties of DestScriptVar to those of SourceScriptVar, as well as propagating those changes through the graph (pin variable names and default values on pins.) 
 	 *  If DestScriptVar is not set, find a script variable with the same key as the SourceScriptVar.

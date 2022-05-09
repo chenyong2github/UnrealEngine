@@ -78,6 +78,7 @@ FNiagaraScriptToolkit::~FNiagaraScriptToolkit()
 
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().RemoveAll(this);
+	GEditor->UnregisterForUndo(this);
 }
 
 void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -215,7 +216,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	Stats = MessageLogModule.CreateLogListingWidget(StatsListing.ToSharedRef());
 
 	VersionMetadata = NewObject<UNiagaraVersionMetaData>(InputScript, "VersionMetadata", RF_Transient);
-	SAssignNew(VersionsWidget, SNiagaraScriptVersionWidget, EditedNiagaraScript.Script, VersionMetadata)
+	SAssignNew(VersionsWidget, SNiagaraScriptVersionWidget, EditedNiagaraScript.Script, VersionMetadata, InputScript->GetOutermost()->GetName())
 		.OnChangeToVersion(this, &FNiagaraScriptToolkit::SwitchToVersion)
 		.OnVersionDataChanged_Lambda([this]()
 		{
@@ -638,7 +639,7 @@ void FNiagaraScriptToolkit::ExtendToolbar()
                  FOnGetContent::CreateRaw(ScriptToolkit, &FNiagaraScriptToolkit::GenerateVersioningDropdownMenu, ScriptToolkit->GetToolkitCommands()),
                  FText(),
                  LOCTEXT("NiagaraShowVersions_ToolTip", "Select version to edit"),
-                 FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.SourceControl"),
+                 FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"),
                  true);
 			}
 			ToolbarBuilder.EndSection();
@@ -804,14 +805,15 @@ void FNiagaraScriptToolkit::UpdateModuleStats()
 bool FNiagaraScriptToolkit::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const
 {
 	const auto* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
-	if (Graph)
+	UNiagaraScriptSourceBase* Source = EditedNiagaraScript.GetScriptData() ? EditedNiagaraScript.Script->GetSource(EditedNiagaraScript.Version) : nullptr;
+	if (Graph || Source)
 	{
 		for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
 		{
 			UObject* Object = TransactionObjectPair.Key;
 			while (Object != nullptr)
 			{
-				if (Object == Graph)
+				if (Object == Graph || Object == Source)
 				{
 					return true;
 				}
@@ -824,6 +826,17 @@ bool FNiagaraScriptToolkit::MatchesContext(const FTransactionContext& InContext,
 
 void FNiagaraScriptToolkit::PostUndo(bool bSuccess)
 {
+	if (EditedNiagaraScript.Version.IsValid() && EditedNiagaraScript.GetScriptData() == nullptr)
+	{
+		if (EditedNiagaraScript.Script && EditedNiagaraScript.Script->IsVersioningEnabled())
+		{
+			SwitchToVersion(EditedNiagaraScript.Script->GetExposedVersion().VersionGuid);
+		}
+		else
+		{
+			EditedNiagaraScript.Version = FGuid();
+		}
+	}
 	MarkDirtyWithPendingChanges();
 }
 

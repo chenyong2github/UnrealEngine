@@ -105,7 +105,6 @@ void UNiagaraDumpByteCodeCommandlet::ProcessNiagaraScripts()
 	//  Iterate over all scripts
 	const FString DevelopersFolder = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir().LeftChop(1));
 	FString LastPackageName = TEXT("");
-	int32 PackageSwitches = 0;
 	UPackage* CurrentPackage = nullptr;
 	for (const FAssetData& AssetIt : AssetList)
 	{
@@ -175,7 +174,7 @@ void UNiagaraDumpByteCodeCommandlet::ProcessNiagaraScripts()
 				continue;
 			}
 
-			if (UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+			if (FVersionedNiagaraEmitterData* Emitter = EmitterHandle.GetEmitterData())
 			{
 				const FString EmitterName = EmitterHandle.GetUniqueInstanceName();
 
@@ -186,7 +185,7 @@ void UNiagaraDumpByteCodeCommandlet::ProcessNiagaraScripts()
 
 				for (const auto* EmitterScript : EmitterScripts)
 				{
-					DumpByteCode(EmitterScript, ShorterSystemName / EmitterName / UsageEnum->GetNameStringByValue((int64)EmitterScript->GetUsage()) + TEXT(".bin"));
+					DumpByteCode(EmitterScript, ShorterSystemName / EmitterName / UsageEnum->GetNameStringByValue(static_cast<int64>(EmitterScript->GetUsage())) + TEXT(".bin"));
 				}
 			}
 		}

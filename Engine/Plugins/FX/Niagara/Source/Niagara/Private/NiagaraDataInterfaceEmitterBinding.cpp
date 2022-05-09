@@ -13,7 +13,7 @@ FNiagaraEmitterInstance* FNiagaraDataInterfaceEmitterBinding::Resolve(FNiagaraSy
 		{
 			for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 			{
-				if (EmitterInstance->GetCachedEmitter() == OwnerEmitter)
+				if (EmitterInstance->GetCachedEmitter().Emitter == OwnerEmitter)
 				{
 					return EmitterInstance.Get();
 				}
@@ -53,7 +53,7 @@ FNiagaraEmitterInstance* FNiagaraDataInterfaceEmitterBinding::Resolve(FNiagaraSy
 					SelfEmitterView = SelfEmitterView.Mid(0, DotIndex);
 					for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 					{
-						if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
+						if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter().Emitter)
 						{
 							if (SelfEmitterView.Equals(CachedEmitter->GetUniqueEmitterName()))
 							{
@@ -86,7 +86,7 @@ FNiagaraEmitterInstance* FNiagaraDataInterfaceEmitterBinding::Resolve(FNiagaraSy
 
 		for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 		{
-			if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
+			if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter().Emitter)
 			{
 				//-TODO: UniqueEmitterName should probably be a FName?
 				if (EmitterNameStringView.Equals(CachedEmitter->GetUniqueEmitterName()) )
@@ -119,7 +119,7 @@ UNiagaraEmitter* FNiagaraDataInterfaceEmitterBinding::Resolve(UNiagaraSystem* Ni
 
 		for ( const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles() )
 		{
-			if ( UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance() )
+			if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance().Emitter)
 			{
 				//-TODO: UniqueEmitterName should probably be a FName?
 				if (EmitterNameStringView.Equals(NiagaraEmitter->GetUniqueEmitterName()))

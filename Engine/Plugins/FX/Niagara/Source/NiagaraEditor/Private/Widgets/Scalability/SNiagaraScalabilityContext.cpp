@@ -2,8 +2,8 @@
 
 #include "SNiagaraScalabilityContext.h"
 #include "IDetailChildrenBuilder.h"
-#include "IPropertyRowGenerator.h"
 #include "ISinglePropertyView.h"
+#include "NiagaraEmitterDetailsCustomization.h"
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraObjectSelection.h"
 #include "Modules/ModuleManager.h"
@@ -37,7 +37,7 @@ void SNiagaraScalabilityContext::Construct(const FArguments& InArgs, UNiagaraSys
 	// puts a category from default into custom categories. This in turn will ignore the property visible delegate.
 	// without this, a few properties from the mesh renderer properties make it into the details panel even though the delegate returns false for them.
 	DetailsView->RegisterInstancedCustomPropertyLayout(UNiagaraMeshRendererProperties::StaticClass(), DetailsView->GetGenericLayoutDetailsDelegate());
-	// add more here...
+	DetailsView->RegisterInstancedCustomPropertyLayout(UNiagaraEmitter::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraEmitterScalabilityDetails::MakeInstance));
 	
 	DetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SNiagaraScalabilityContext::FilterScalabilityProperties));
 	UpdateScalabilityContent();
@@ -103,7 +103,7 @@ void SNiagaraScalabilityContext::UpdateScalabilityContent()
 		}
 		else if(StackEntry->IsA(UNiagaraStackEmitterPropertiesGroup::StaticClass()))
 		{
-			UNiagaraEmitter* Emitter = Cast<UNiagaraStackEmitterPropertiesGroup>(StackEntry)->GetEmitterViewModel()->GetEmitter();
+			UNiagaraEmitter* Emitter = Cast<UNiagaraStackEmitterPropertiesGroup>(StackEntry)->GetEmitterViewModel()->GetEmitter().Emitter;
 			NewSelection = Emitter;
 		}
 		else if(StackEntry->IsA(UNiagaraStackSystemPropertiesGroup::StaticClass()))

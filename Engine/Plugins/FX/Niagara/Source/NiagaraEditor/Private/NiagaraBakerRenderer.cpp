@@ -132,8 +132,8 @@ void FNiagaraBakerOutputBindingHelper::ForEachEmitterDataInterface(UNiagaraSyste
 	for (int32 EmitterIndex=0; EmitterIndex < NiagaraSystem->GetEmitterHandles().Num(); ++EmitterIndex)
 	{
 		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterIndex);
-		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
-		if (!EmitterHandle.IsValid() || !EmitterHandle.GetIsEnabled() || !EmitterInstance)
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetInstance().GetEmitterData();
+		if (!EmitterHandle.IsValid() || !EmitterHandle.GetIsEnabled() || !EmitterData)
 		{
 			continue;
 		}
@@ -141,10 +141,10 @@ void FNiagaraBakerOutputBindingHelper::ForEachEmitterDataInterface(UNiagaraSyste
 		const FString EmitterName = EmitterHandle.GetName().ToString();
 		const FString EmitterPrefix = EmitterName + TEXT(".");
 
-		EmitterInstance->ForEachScript(
+		EmitterData->ForEachScript(
 			[&](UNiagaraScript* NiagaraScript)
 			{
-				if (const FNiagaraScriptExecutionParameterStore* SrcStore = NiagaraScript->GetExecutionReadyParameterStore(EmitterInstance->SimTarget))
+				if (const FNiagaraScriptExecutionParameterStore* SrcStore = NiagaraScript->GetExecutionReadyParameterStore(EmitterData->SimTarget))
 				{
 					for (const FNiagaraVariableWithOffset& Variable : SrcStore->ReadParameterVariables())
 					{
@@ -231,8 +231,8 @@ void FNiagaraBakerOutputBindingHelper::GetParticleAttributeBindings(TArray<FNiag
 	for (int32 EmitterIndex = 0; EmitterIndex < NiagaraSystem->GetEmitterHandles().Num(); ++EmitterIndex)
 	{
 		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterIndex);
-		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
-		if (!EmitterHandle.IsValid() || !EmitterHandle.GetIsEnabled() || !EmitterInstance)
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetInstance().GetEmitterData();
+		if (!EmitterHandle.IsValid() || !EmitterHandle.GetIsEnabled() || !EmitterData)
 		{
 			continue;
 		}
@@ -523,7 +523,7 @@ void FNiagaraBakerRenderer::RenderParticleAttribute(UTextureRenderTarget2D* Rend
 	
 	for ( const auto& EmitterInstance : SystemInstance->GetEmitters() )
 	{
-		UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter();
+		UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter().Emitter;
 		if ( !NiagaraEmitter || (NiagaraEmitter->GetUniqueEmitterName() != EmitterName) )
 		{
 			continue;

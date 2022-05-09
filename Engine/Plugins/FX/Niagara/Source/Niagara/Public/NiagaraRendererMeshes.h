@@ -8,6 +8,8 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraRenderer.h"
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraMeshVertexFactory.h"
+#include "NiagaraGPUSortInfo.h"
+#include "StaticMeshResources.h"
 #include "NiagaraGPUSceneUtils.h"
 
 class FNiagaraDataSet;
@@ -20,7 +22,7 @@ class NIAGARA_API FNiagaraRendererMeshes : public FNiagaraRenderer
 {
 public:
 	FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
-	~FNiagaraRendererMeshes();
+	virtual ~FNiagaraRendererMeshes() override;
 
 	//FNiagaraRenderer Interface
 	virtual void Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController) override;

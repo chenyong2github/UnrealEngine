@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "Modules/ModuleInterface.h"
-#include "Engine/World.h"
 #include "NiagaraTypes.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraPerfBaseline.h"
