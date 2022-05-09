@@ -134,6 +134,7 @@ UMassCharacterOrientationToActorTranslator::UMassCharacterOrientationToActorTran
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
 	RequiredTags.Add<FMassCharacterOrientationCopyToActorTag>();
+	bRequiresGameThreadExecution = true;
 }
 
 void UMassCharacterOrientationToActorTranslator::ConfigureQueries()
