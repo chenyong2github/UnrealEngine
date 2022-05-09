@@ -1081,6 +1081,23 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			}
 		}
 
+		if (bMainLevel)
+		{
+			if (LevelHasLevelScriptBlueprint(Level))
+			{
+				ULevelScriptBlueprint* LevelScriptBlueprint = Level->GetLevelScriptBlueprint(true);
+				TArray<AActor*> LevelScriptActorReferences = ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprint);
+
+				for (AActor* LevelScriptActorReference : LevelScriptActorReferences)
+				{
+					if (LevelScriptActorReference->GetIsSpatiallyLoaded() && LevelScriptActorReference->CanChangeIsSpatiallyLoadedFlag())
+					{
+						LevelScriptActorReference->SetIsSpatiallyLoaded(false);
+					}
+				}
+			}
+		}
+
 		// do loop after as it may modify Level->Actors
 		if (IFAs.Num())
 		{
