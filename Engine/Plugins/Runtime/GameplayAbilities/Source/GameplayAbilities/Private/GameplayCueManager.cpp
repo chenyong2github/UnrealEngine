@@ -421,7 +421,7 @@ AGameplayCueNotify_Actor* UGameplayCueManager::GetInstancedCueActor(AActor* Targ
 		
 #if WITH_EDITOR	
 		// Animtion preview hack. If we are trying to play the GC on a CDO, then don't use actor recycling and don't set the owner (to the CDO, which would cause problems)
-		if (TargetActor && TargetActor->HasAnyFlags(RF_ClassDefaultObject))
+		if (TargetActor->HasAnyFlags(RF_ClassDefaultObject))
 		{
 			NewOwnerActor = nullptr;
 			UseActorRecycling = false;
