@@ -105,7 +105,7 @@ namespace UE::UsdXformableTranslatorImpl::Private
 
 				for ( ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents )
 				{
-					if ( LiveLinkComponent->ComponentToControl.GetComponent( Parent ) == Component )
+					if ( LiveLinkComponent->GetControlledComponent( ULiveLinkTransformRole::StaticClass() ) == Component )
 					{
 						// We found some other controller handling this component somehow, use that
 						Controller = LiveLinkComponent;
@@ -120,7 +120,6 @@ namespace UE::UsdXformableTranslatorImpl::Private
 
 					Controller = NewObject<ULiveLinkComponentController>( Parent, NAME_None, Context.ObjectFlags );
 					Controller->bUpdateInEditor = true;
-					Controller->ComponentToControl.PathToComponent = Component->GetPathName( Parent );
 
 					// Important because of how ULiveLinkComponentController::TickComponent also checks for the sequencer
 					// tag to try and guess if the controlled component is a spawnable
@@ -155,6 +154,9 @@ namespace UE::UsdXformableTranslatorImpl::Private
 			}
 			Controller->SetSubjectRepresentation( SubjectRepresentation );
 
+			// This should be done after setting the subject representation to ensure that the LiveLink component's ControllerMap has a transform controller
+			Controller->SetControlledComponent( ULiveLinkTransformRole::StaticClass(), Component );
+
 			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealLiveLinkEnabled ) )
 			{
 				bool bEnabled = true;
@@ -184,9 +186,9 @@ namespace UE::UsdXformableTranslatorImpl::Private
 
 		for ( ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents )
 		{
-			if ( LiveLinkComponent->ComponentToControl.GetComponent( Parent ) == Component )
+			if ( LiveLinkComponent->GetControlledComponent( ULiveLinkTransformRole::StaticClass() ) == Component )
 			{
-				LiveLinkComponent->ComponentToControl.ComponentProperty = NAME_None;
+				LiveLinkComponent->SetControlledComponent( ULiveLinkTransformRole::StaticClass(), nullptr );
 				Parent->RemoveInstanceComponent( LiveLinkComponent );
 				break;
 			}

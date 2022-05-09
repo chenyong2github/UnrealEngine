@@ -12,13 +12,12 @@
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "UObject/EnterpriseObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Kismet2/ComponentEditorUtils.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "LiveLinkController"
@@ -46,12 +45,14 @@ ULiveLinkComponentController::ULiveLinkComponentController()
 #endif //WITH_EDITOR
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ULiveLinkComponentController::~ULiveLinkComponentController()
 {
 #if WITH_EDITOR
 	FEditorDelegates::EndPIE.RemoveAll(this);
 #endif //WITH_EDITOR
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ULiveLinkComponentController::OnSubjectRoleChanged()
 {
@@ -64,8 +65,6 @@ void ULiveLinkComponentController::OnSubjectRoleChanged()
 	}
 	else
 	{
-		TSubclassOf<UActorComponent> DesiredClass = nullptr;
-		UActorComponent* DesiredActorComponent = nullptr;
 		TArray<TSubclassOf<ULiveLinkRole>> SelectedRoleHierarchy = GetSelectedRoleHierarchyClasses(SubjectRepresentation.Role);
 		ControllerMap.Empty(SelectedRoleHierarchy.Num());
 		for (const TSubclassOf<ULiveLinkRole>& RoleClass : SelectedRoleHierarchy)
@@ -77,35 +76,8 @@ void ULiveLinkComponentController::OnSubjectRoleChanged()
 
 				TSubclassOf<ULiveLinkControllerBase> SelectedControllerClass = GetControllerClassForRoleClass(RoleClass);
 				SetControllerClassForRole(RoleClass, SelectedControllerClass);
-
-				//Keep track of the most specific available component in the hierarchy
-				if (SelectedControllerClass)
-				{
-					if (AActor* Actor = GetOwner())
-					{
-						DesiredClass = SelectedControllerClass.GetDefaultObject()->GetDesiredComponentClass();
-						if (UActorComponent* ActorComponent = Actor->GetComponentByClass(DesiredClass))
-						{
-							DesiredActorComponent = ActorComponent;
-						}
-					}
-				}
 			}
 		}
-
-		//After creating the controller hierarchy, update component to control to the highest in the hierarchy.
-#if WITH_EDITOR
-		if (DesiredActorComponent)
-		{
-			UActorComponent* CurrentComponentToControl = ComponentToControl.GetComponent(GetOwner());
-			if ((CurrentComponentToControl == nullptr) || !CurrentComponentToControl->IsA(DesiredClass))
-			{
-				AActor* Actor = GetOwner();
-				check(Actor);
-				ComponentToControl = FComponentEditorUtils::MakeComponentReference(Actor, DesiredActorComponent);
-			}
-		}
-#endif
 	}
 
 	if (OnControllerMapUpdatedDelegate.IsBound())
@@ -142,25 +114,9 @@ void ULiveLinkComponentController::SetControllerClassForRole(TSubclassOf<ULiveLi
 			{
 				const EObjectFlags ControllerObjectFlags = GetMaskedFlags(RF_Public | RF_Transactional | RF_ArchetypeObject);
 				CurrentController = NewObject<ULiveLinkControllerBase>(this, DesiredControllerClass, NAME_None, ControllerObjectFlags);
+				InitializeController(CurrentController);
 
-#if WITH_EDITOR
-				//For the controller directly associated with the subject role, set the component to control to the desired component this controller wants
-				if (RoleClass == SubjectRepresentation.Role)
-				{
-					TSubclassOf<UActorComponent> DesiredComponent = CurrentController->GetDesiredComponentClass();
-					UActorComponent* CurrentComponentToControl = ComponentToControl.GetComponent(GetOwner());
-					if ((CurrentComponentToControl == nullptr) || !CurrentComponentToControl->IsA(DesiredComponent))
-					{
-						if (AActor* Actor = GetOwner())
-						{
-							if (UActorComponent* ActorComponent = Actor->GetComponentByClass(DesiredComponent))
-							{
-								ComponentToControl = FComponentEditorUtils::MakeComponentReference(Actor, ActorComponent);
-							}
-						}
-					}
-				}
-				
+#if WITH_EDITOR		
 				CurrentController->InitializeInEditor();
 #endif
 			}
@@ -242,7 +198,6 @@ void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick Tic
 		{
 			if (bIsDirty)
 			{
-				Controller->SetAttachedComponent(ComponentToControl.GetComponent(GetOwner()));
 				Controller->SetSelectedSubject(SubjectRepresentation);
 				Controller->OnEvaluateRegistered();
 			}
@@ -281,6 +236,30 @@ void ULiveLinkComponentController::Serialize(FArchive& Ar)
 		}
 	}
 #endif
+}
+
+void ULiveLinkComponentController::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+ 	const int32 Version = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
+ 	if (Version < FUE5MainStreamObjectVersion::LiveLinkComponentPickerPerController)
+ 	{
+		for (auto& ControllerEntry : ControllerMap)
+		{
+			ULiveLinkControllerBase* Controller = ControllerEntry.Value;
+			if (Controller)
+			{
+				Controller->ConditionalPostLoad();
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				UActorComponent* OldAttachedComponent = ComponentToControl_DEPRECATED.GetComponent(GetOwner());
+				Controller->SetAttachedComponent(OldAttachedComponent);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			}
+		}
+	}
+#endif //WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -400,6 +379,61 @@ void ULiveLinkComponentController::CleanupControllersInMap()
 		if (ControllerPair.Value)
 		{
 			ControllerPair.Value->Cleanup();
+		}
+	}
+}
+
+void ULiveLinkComponentController::InitializeController(ULiveLinkControllerBase* InController)
+{
+#if WITH_EDITOR
+	// If the OuterActor has a component that matches the desired class of this controller, set that as the component to control. 
+	// Otherwise, the default root component will set as the component to control.
+	if (AActor* OuterActor = GetOwner())
+	{
+		TInlineComponentArray<UActorComponent*> ActorComponents;
+		OuterActor->GetComponents(InController->GetDesiredComponentClass(), ActorComponents);
+
+		bool bFoundValidComponent = false;
+
+		// Look through the list of components matching the desired component class, and choose the first editable instance
+		for (UActorComponent* ActorComponent : ActorComponents)
+		{
+			// Check that the selected component is editable (and thus appropriate to be driven by a LiveLink controller)
+			if (FComponentEditorUtils::CanEditComponentInstance(ActorComponent, Cast<USceneComponent>(ActorComponent), false))
+			{
+				InController->SetAttachedComponent(ActorComponent);
+				bFoundValidComponent = true;
+				break;
+			}
+		}
+
+		if (!bFoundValidComponent)
+		{
+			UE_LOG(LogLiveLinkComponents, Warning, TEXT("The desired component class for %s is %s, but %s does not have a component of that type."), *InController->GetName(), *InController->GetDesiredComponentClass()->GetName(), *OuterActor->GetActorLabel(false));
+		}
+	}
+#endif //WITH_EDITOR
+}
+
+UActorComponent* ULiveLinkComponentController::GetControlledComponent(TSubclassOf<ULiveLinkRole> InRoleClass) const
+{
+	if (const TObjectPtr<ULiveLinkControllerBase>* ControllerPtr = ControllerMap.Find(InRoleClass))
+	{	
+		if (const TObjectPtr<ULiveLinkControllerBase> Controller = *ControllerPtr)
+		{
+			return Controller->GetAttachedComponent();
+		}
+	}
+	return nullptr;
+}
+
+void ULiveLinkComponentController::SetControlledComponent(TSubclassOf<ULiveLinkRole> InRoleClass, UActorComponent* InComponent)
+{
+	if (TObjectPtr<ULiveLinkControllerBase>* ControllerPtr = ControllerMap.Find(InRoleClass))
+	{
+		if (TObjectPtr<ULiveLinkControllerBase> Controller = *ControllerPtr)
+		{
+			Controller->SetAttachedComponent(InComponent);
 		}
 	}
 }

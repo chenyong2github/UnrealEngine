@@ -85,9 +85,9 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 	// Invalidate the lens file evaluation data
 	LensFileEvalData.Invalidate();
 
-	if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(AttachedComponent))
+	if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(GetAttachedComponent()))
 	{
-		if (AActor* Camera = Cast<AActor>(AttachedComponent->GetOwner()))
+		if (AActor* Camera = Cast<AActor>(GetOuterActor()))
 		{
 			LensFileEvalData.Camera.UniqueId = Camera->GetUniqueID();
 		}
@@ -113,7 +113,7 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 			LensFileEvalData.Input.Zoom = FrameData->FocalLength;
 		}
 
-		if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(AttachedComponent))
+		if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(GetAttachedComponent()))
 		{
 			//Stamp previous values that have an impact on frustum visual representation
 			const float PreviousFOV = CameraComponent->FieldOfView;
@@ -235,7 +235,7 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 {
 	Super::SetAttachedComponent(ActorComponent);
 
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 	{	
 		// Initialize the most recent filmback and component transform to the current values of the camera to properly detect changes to this property
 		LastFilmback = CineCameraComponent->Filmback;
@@ -255,7 +255,7 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 
 void ULiveLinkCameraController::Cleanup()
 {
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 	{
 		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
 		{
@@ -308,7 +308,7 @@ void ULiveLinkCameraController::SetApplyNodalOffset(bool bInApplyNodalOffset)
 
 	bApplyNodalOffset = bInApplyNodalOffset;
 
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 	{
 		if (bApplyNodalOffset)
 		{
@@ -353,7 +353,7 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, bApplyNodalOffset))
 	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 		{
 			if (bApplyNodalOffset)
 			{
@@ -373,7 +373,7 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, bUseDefaultLensFile))
 	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 		{
 			ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
 			if (SelectedLensFile)
@@ -672,7 +672,7 @@ void ULiveLinkCameraController::OnPostActorTick(UWorld* World, ELevelTick TickTy
 {
 	if (World == GetWorld())
 	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 		{
 			if (ULensFile* CurrentLensFile = LensFilePicker.GetLensFile())
 			{
@@ -846,7 +846,7 @@ void ULiveLinkCameraController::PostLoad()
 				//if Subjects role direct controller is us, set the component to control to what we had
 				if (LiveLinkComponent->SubjectRepresentation.Role == ULiveLinkCameraRole::StaticClass())
 				{
-					LiveLinkComponent->ComponentToControl = ComponentToControl_DEPRECATED;
+					ComponentPicker = ComponentToControl_DEPRECATED;
 				}
 			}
 		}

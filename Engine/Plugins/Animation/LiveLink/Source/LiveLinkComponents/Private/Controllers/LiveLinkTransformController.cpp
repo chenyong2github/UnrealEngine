@@ -88,7 +88,7 @@ void FLiveLinkTransformControllerData::CheckForError(FName OwnerName, USceneComp
 void ULiveLinkTransformController::OnEvaluateRegistered()
 {
 	AActor* OuterActor = GetOuterActor();
-	TransformData.CheckForError(OuterActor ? OuterActor->GetFName() : NAME_None, Cast<USceneComponent>(AttachedComponent));
+	TransformData.CheckForError(OuterActor ? OuterActor->GetFName() : NAME_None, Cast<USceneComponent>(GetAttachedComponent()));
 }
 
 void ULiveLinkTransformController::Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData)
@@ -98,7 +98,7 @@ void ULiveLinkTransformController::Tick(float DeltaTime, const FLiveLinkSubjectF
 
 	if (StaticData && FrameData)
 	{
-		if (USceneComponent* SceneComponent = Cast<USceneComponent>(AttachedComponent))
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(GetAttachedComponent()))
 		{
 			TransformData.ApplyTransform(SceneComponent, FrameData->Transform, *StaticData);
 		}
@@ -120,7 +120,7 @@ void ULiveLinkTransformController::SetAttachedComponent(UActorComponent* ActorCo
 	Super::SetAttachedComponent(ActorComponent);
 
 	AActor* OuterActor = GetOuterActor();
-	TransformData.CheckForError(OuterActor ? OuterActor->GetFName() : NAME_None, Cast<USceneComponent>(AttachedComponent));
+	TransformData.CheckForError(OuterActor ? OuterActor->GetFName() : NAME_None, Cast<USceneComponent>(GetAttachedComponent()));
 }
 
 void ULiveLinkTransformController::PostLoad()
@@ -145,7 +145,7 @@ void ULiveLinkTransformController::PostLoad()
 				//if Subjects role direct controller is us, set the component to control to what we had
 				if (LiveLinkComponent->SubjectRepresentation.Role == ULiveLinkTransformRole::StaticClass())
 				{
-					LiveLinkComponent->ComponentToControl = ComponentToControl_DEPRECATED;
+					ComponentPicker = ComponentToControl_DEPRECATED;
 				}
 			}
 		}

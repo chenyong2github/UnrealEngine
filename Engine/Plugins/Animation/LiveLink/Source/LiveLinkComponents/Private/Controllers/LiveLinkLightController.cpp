@@ -24,7 +24,7 @@ void ULiveLinkLightController::Tick(float DeltaTime, const FLiveLinkSubjectFrame
 
 	if (StaticData && FrameData)
 	{
-		if (ULightComponent* LightComponent = Cast<ULightComponent>(AttachedComponent))
+		if (ULightComponent* LightComponent = Cast<ULightComponent>(GetAttachedComponent()))
 		{
 			if (StaticData->bIsTemperatureSupported) { LightComponent->SetTemperature(FrameData->Temperature); }
 			if (StaticData->bIsIntensitySupported) { LightComponent->SetIntensity(FrameData->Intensity); }
@@ -88,10 +88,10 @@ void ULiveLinkLightController::PostLoad()
 				}
 
 				//if Subjects role direct controller is us, set the component to control to what we had
-				if (LiveLinkComponent->SubjectRepresentation.Role == ULiveLinkLightRole::StaticClass())
-				{
-					LiveLinkComponent->ComponentToControl = ComponentToControl_DEPRECATED;
-				}
+ 				if (LiveLinkComponent->SubjectRepresentation.Role == ULiveLinkLightRole::StaticClass())
+ 				{
+ 					ComponentPicker = ComponentToControl_DEPRECATED;
+ 				}
 			}
 		}
 	}

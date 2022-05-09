@@ -12,6 +12,7 @@
 #include "LiveLinkEditorPrivate.h"
 #include "ScopedTransaction.h"
 
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkComponentDetailsCustomization"
@@ -40,10 +41,8 @@ void FLiveLinkComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 
 	if (ULiveLinkComponentController* SelectedPtr = Cast<ULiveLinkComponentController>(SelectedObjects[0].Get()))
 	{
-		//Register callback when LiveLinkSubjectRepresentation selection has changed to refresh the UI and update controller
-		TSharedRef<IPropertyHandle> SubjectRepresentationPropertyRef = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULiveLinkComponentController, SubjectRepresentation));
-		SubjectRepresentationPropertyRef->MarkHiddenByCustomization();
-		DetailLayout->AddPropertyToCategory(SubjectRepresentationPropertyRef);
+		// Force "LiveLink" to be the topmost category in the details panel
+		DetailBuilder.EditCategory(TEXT("LiveLink"));
 
 		//Hide the Map default UI
 		TSharedRef<IPropertyHandle> ControllersProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULiveLinkComponentController, ControllerMap));
@@ -53,8 +52,10 @@ void FLiveLinkComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 		TSharedPtr<IPropertyHandleMap> MapHandle = ControllersProperty->AsMap();
 		if (MapHandle.IsValid())
 		{
-			EditedObject = Cast<ULiveLinkComponentController>(SelectedObjects[0].Get());
+			EditedObject = SelectedPtr;
 
+			//Register callback when LiveLinkSubjectRepresentation selection has changed to refresh the UI and update controller
+			TSharedRef<IPropertyHandle> SubjectRepresentationPropertyRef = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULiveLinkComponentController, SubjectRepresentation));
 			SubjectRepresentationPropertyRef->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FLiveLinkComponentDetailCustomization::OnSubjectRepresentationPropertyChanged));
 			SubjectRepresentationPropertyRef->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FLiveLinkComponentDetailCustomization::OnSubjectRepresentationPropertyChanged));
 
@@ -76,14 +77,13 @@ void FLiveLinkComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 					continue;
 				}
 
-				//Map has a TSubClassof Key type
-				TSubclassOf<ULiveLinkRole> LiveLinkRoleClass;
-				UObject* LiveLinkRoleClassObj = nullptr;
 				TSharedPtr<IPropertyHandle> KeyHandle = EntryHandle->GetKeyHandle();
 
-				//Make sure we were able to query the UClass and that it's not null. 
-				check(KeyHandle->GetValue(LiveLinkRoleClassObj) == FPropertyAccess::Success)
-				LiveLinkRoleClass = Cast<UClass>(LiveLinkRoleClassObj);
+				//Map has a TSubClassof Key type. Make sure we were able to query the UClass and that it's not null. 
+				UObject* LiveLinkRoleClassObj = nullptr;
+				KeyHandle->GetValue(LiveLinkRoleClassObj);
+
+				TSubclassOf<ULiveLinkRole> LiveLinkRoleClass = Cast<UClass>(LiveLinkRoleClassObj);
 				if (LiveLinkRoleClass == nullptr)
 				{
 					continue;
@@ -92,30 +92,21 @@ void FLiveLinkComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 				FText ControllerName = FText::Format(LOCTEXT("No Controller", "{0}"), FText::FromName(NAME_None));
 
 				//Map value is a pointer to the Controller. Can be null so it could be empty
-				uint32 ControllerValueCount = 0;
-				EntryHandle->GetNumChildren(ControllerValueCount);
-				TSharedPtr<IPropertyHandle> ValueHandle;
-				if (ControllerValueCount > 0)
+				UObject* ControllerPtr = nullptr;
+				EntryHandle->GetValue(ControllerPtr);
+				if (ControllerPtr != nullptr)
 				{
-					ValueHandle = EntryHandle->GetChildHandle(0);
-
-					UObject* ControllerPtr = nullptr;
-					EntryHandle->GetValue(ControllerPtr);
-					if (ControllerPtr != nullptr)
-					{
-						ControllerName = ControllerPtr->GetClass()->GetDisplayNameText();
-					}
+					ControllerName = ControllerPtr->GetClass()->GetDisplayNameText();
 				}
 
 				//Since we're displaying properties of another object, add it as external to the current one being edited. 
-				//Add each Map entry as in the row that is generated for that external objects : Name = Key (Component name) + Value = Dropdown menu with available controllers
 				TArray<UObject*> ExternalObjects;
-				if (EditedObject->ControllerMap.Contains(LiveLinkRoleClass))
-				{
-					ExternalObjects.Add(EditedObject->ControllerMap[LiveLinkRoleClass]);
-				}
-
+				ExternalObjects.Add(ControllerPtr);
 				IDetailPropertyRow* ThisRoleRow = DetailBuilder.EditCategory(TEXT("Role Controllers")).AddExternalObjects(ExternalObjects);
+
+				//As external objects, each map entry will generate a custom widget for its detail property row like this: 
+				//(NameWidget) | (ValueWidget)
+				//Role Name    | Dropdown menu with available controllers
 				if (ThisRoleRow)
 				{
 					ThisRoleRow->CustomWidget()
@@ -125,7 +116,7 @@ void FLiveLinkComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 					]
 					.ValueContent()
 					[
-						BuildControllerValueWidget(KeyHandle, LiveLinkRoleClass, ControllerName)
+						BuildControllerValueWidget(LiveLinkRoleClass, ControllerName)
 					];
 				}
 			}
@@ -151,71 +142,59 @@ void FLiveLinkComponentDetailCustomization::OnSubjectRepresentationPropertyChang
 	}
 }
 
-TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::HandleControllerComboButton(TSharedPtr<IPropertyHandle> KeyHandle) const
+TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::HandleControllerComboButton(TSubclassOf<ULiveLinkRole> RoleClass) const
 {
 	// Generate menu
 	FMenuBuilder MenuBuilder(true, nullptr);
 	MenuBuilder.BeginSection("SupportedControllers", LOCTEXT("SupportedControllers", "Controllers"));
 	{
-		if (KeyHandle.IsValid())
+		if(RoleClass)
 		{
-			//Make sure we were able to query the UClass and that it's not null. 
-			TSubclassOf<ULiveLinkRole> RoleClass;
-			UObject* RoleClassObj = nullptr;
-			KeyHandle->GetValue(RoleClassObj);
-			RoleClass = Cast<UClass>(RoleClassObj);
-			if(RoleClass)
+			TArray<TSubclassOf<ULiveLinkControllerBase>> NewControllerClasses = ULiveLinkControllerBase::GetControllersForRole(RoleClass);
+			if (NewControllerClasses.Num() > 0)
 			{
-				TArray<TSubclassOf<ULiveLinkControllerBase>> NewControllerClasses = ULiveLinkControllerBase::GetControllersForRole(RoleClass);
-				if (NewControllerClasses.Num() > 0)
-				{
-					//Always add a None entry
-					MenuBuilder.AddMenuEntry(
-						FText::FromName(NAME_None),
-						FText::FromName(NAME_None),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &FLiveLinkComponentDetailCustomization::HandleControllerSelection, RoleClass, TWeakObjectPtr<UClass>()),
-							FCanExecuteAction(),
-							FIsActionChecked::CreateSP(this, &FLiveLinkComponentDetailCustomization::IsControllerItemSelected, FName(), RoleClass)
-						),
-						NAME_None,
-						EUserInterfaceActionType::RadioButton
-					);
+				//Always add a None entry
+				MenuBuilder.AddMenuEntry(
+					FText::FromName(NAME_None),
+					FText::FromName(NAME_None),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &FLiveLinkComponentDetailCustomization::HandleControllerSelection, RoleClass, TWeakObjectPtr<UClass>()),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &FLiveLinkComponentDetailCustomization::IsControllerItemSelected, FName(), RoleClass)
+					),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton
+				);
 
-					for (const TSubclassOf<ULiveLinkControllerBase>& ControllerClass : NewControllerClasses)
+				for (const TSubclassOf<ULiveLinkControllerBase>& ControllerClass : NewControllerClasses)
+				{
+					if (UClass* ControllerClassPtr = ControllerClass.Get())
 					{
-						if (UClass* ControllerClassPtr = ControllerClass.Get())
-						{
-							MenuBuilder.AddMenuEntry(
-								FText::Format(LOCTEXT("Controller Label", "{0}"), ControllerClassPtr->GetDisplayNameText()),
-								FText::Format(LOCTEXT("Controller ToolTip", "{0}"), ControllerClassPtr->GetDisplayNameText()),
-								FSlateIcon(),
-								FUIAction(
-									FExecuteAction::CreateSP(this, &FLiveLinkComponentDetailCustomization::HandleControllerSelection, RoleClass, MakeWeakObjectPtr(ControllerClassPtr)),
-									FCanExecuteAction(),
-									FIsActionChecked::CreateSP(this, &FLiveLinkComponentDetailCustomization::IsControllerItemSelected, ControllerClassPtr->GetFName(), RoleClass)
-								),
-								NAME_None,
-								EUserInterfaceActionType::RadioButton
-							);
-						}
-
+						MenuBuilder.AddMenuEntry(
+							FText::Format(LOCTEXT("Controller Label", "{0}"), ControllerClassPtr->GetDisplayNameText()),
+							FText::Format(LOCTEXT("Controller ToolTip", "{0}"), ControllerClassPtr->GetDisplayNameText()),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(this, &FLiveLinkComponentDetailCustomization::HandleControllerSelection, RoleClass, MakeWeakObjectPtr(ControllerClassPtr)),
+								FCanExecuteAction(),
+								FIsActionChecked::CreateSP(this, &FLiveLinkComponentDetailCustomization::IsControllerItemSelected, ControllerClassPtr->GetFName(), RoleClass)
+							),
+							NAME_None,
+							EUserInterfaceActionType::RadioButton
+						);
 					}
-				}
-				else
-				{
-					MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("NoControllersFound", "No Controllers were found for this role"), false, false);
+
 				}
 			}
 			else
 			{
-				MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("InvalidRoleClass", "Role is invalid. Can't find controllers for it"), false, false);
+				MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("NoControllersFound", "No Controllers were found for this role"), false, false);
 			}
 		}
 		else
 		{
-			MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("InvalidComponent", "Invalid component class handle received"), false, false);
+			MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("InvalidRoleClass", "Role is invalid. Can't find controllers for it"), false, false);
 		}
 	}
 	MenuBuilder.EndSection();
@@ -225,14 +204,14 @@ TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::HandleControllerCombo
 
 void FLiveLinkComponentDetailCustomization::HandleControllerSelection(TSubclassOf<ULiveLinkRole> RoleClass, TWeakObjectPtr<UClass> SelectedControllerClass) const
 {
-	if (ULiveLinkComponentController* EditedObjectPtr = EditedObject.Get())
-	{
-		const FScopedTransaction Transaction(LOCTEXT("OnChangedController", "Property Controller Selection"));
-		EditedObjectPtr->Modify();
-
-		UClass* SelectedControllerClassPtr = SelectedControllerClass.Get();
-		EditedObjectPtr->SetControllerClassForRole(RoleClass, SelectedControllerClassPtr);
-	}
+ 	if (ULiveLinkComponentController* EditedObjectPtr = EditedObject.Get())
+ 	{
+ 		const FScopedTransaction Transaction(LOCTEXT("OnChangedController", "Property Controller Selection"));
+ 		EditedObjectPtr->Modify();
+ 
+ 		UClass* SelectedControllerClassPtr = SelectedControllerClass.Get();
+ 		EditedObjectPtr->SetControllerClassForRole(RoleClass, SelectedControllerClassPtr);
+ 	}
 }
 
 bool FLiveLinkComponentDetailCustomization::IsControllerItemSelected(FName Item, TSubclassOf<ULiveLinkRole> RoleClass) const
@@ -244,7 +223,6 @@ bool FLiveLinkComponentDetailCustomization::IsControllerItemSelected(FName Item,
 
 	if (ULiveLinkComponentController* EditedObjectPtr = EditedObject.Get())
 	{
-
 		TObjectPtr<ULiveLinkControllerBase>* CurrentClass = EditedObjectPtr->ControllerMap.Find(RoleClass);
 		if (CurrentClass == nullptr || *CurrentClass == nullptr)
 		{
@@ -259,117 +237,39 @@ bool FLiveLinkComponentDetailCustomization::IsControllerItemSelected(FName Item,
 	return false;
 }
 
-FSlateColor FLiveLinkComponentDetailCustomization::HandleControllerStatusColorAndOpacity(TSubclassOf<ULiveLinkRole> RoleClassEntry) const
+EVisibility FLiveLinkComponentDetailCustomization::HandleControllerWarningVisibility(TSubclassOf<ULiveLinkRole> RoleClassEntry) const
 {
-	FSlateColor Result = FLinearColor::Green;
-	bool bIsValid = true;
-
 	if (ULiveLinkComponentController* EditorObjectPtr = EditedObject.Get())
 	{
 		TObjectPtr<ULiveLinkControllerBase>* AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
 		if (AssociatedControllerPtr && *AssociatedControllerPtr)
 		{
-			if (UActorComponent* SelectedComponent = EditorObjectPtr->ComponentToControl.GetComponent(EditorObjectPtr->GetOwner()))
+			const ULiveLinkControllerBase* AssociatedController = *AssociatedControllerPtr;
+			if (UActorComponent* SelectedComponent = AssociatedController->GetAttachedComponent())
 			{
-				const ULiveLinkControllerBase* AssociatedController = *AssociatedControllerPtr;
 				if (!SelectedComponent->IsA(AssociatedController->GetDesiredComponentClass()))
 				{
 					//Controller exists for RoleClass and desired component is not the kind it wants
-					bIsValid = false;
+					return EVisibility::Visible;
 				}
 			}
 			else
 			{
 				//Component is not valid
-				bIsValid = false;
+				return EVisibility::Visible;
 			}
 		}
 	}
 
-	if (!bIsValid)
-	{
-		Result = FLinearColor::Red;
-	}
-
-	return Result;
-}
-
-FText FLiveLinkComponentDetailCustomization::HandleControllerStatusText(TSubclassOf<ULiveLinkRole> RoleClassEntry) const
-{
-	FText Result;
-	bool bIsValid = true;
-
-	if (ULiveLinkComponentController* EditorObjectPtr = EditedObject.Get())
-	{
-		TObjectPtr<ULiveLinkControllerBase>* AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
-		if (AssociatedControllerPtr && *AssociatedControllerPtr)
-		{
-			if (UActorComponent* SelectedComponent = EditorObjectPtr->ComponentToControl.GetComponent(EditorObjectPtr->GetOwner()))
-			{
-				const ULiveLinkControllerBase* AssociatedController = *AssociatedControllerPtr;
-				if (!SelectedComponent->IsA(AssociatedController->GetDesiredComponentClass()))
-				{
-					//Controller exists for RoleClass and desired component is not the kind it wants
-					bIsValid = false;
-				}
-			}
-			else
-			{
-				//Component is not valid
-				bIsValid = false;
-			}
-		}
-	}
-
-	if (!bIsValid)
-	{
-		Result = FEditorFontGlyphs::Ban;
-	}
-
-	return Result;
-}
-
-FText FLiveLinkComponentDetailCustomization::HandleControllerStatusToolTipText(TSubclassOf<ULiveLinkRole> RoleClassEntry) const
-{
-	FText Result;
-	bool bIsValid = true;
-
-	if (ULiveLinkComponentController* EditorObjectPtr = EditedObject.Get())
-	{
-		TObjectPtr<ULiveLinkControllerBase>* AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
-		if (AssociatedControllerPtr && *AssociatedControllerPtr)
-		{
-			if (UActorComponent* SelectedComponent = EditorObjectPtr->ComponentToControl.GetComponent(EditorObjectPtr->GetOwner()))
-			{
-				const ULiveLinkControllerBase* AssociatedController = *AssociatedControllerPtr;
-				if (!SelectedComponent->IsA(AssociatedController->GetDesiredComponentClass()))
-				{
-					//Controller exists for RoleClass and desired component is not the kind it wants
-					bIsValid = false;
-				}
-			}
-			else
-			{
-				//Component is not valid
-				bIsValid = false;
-			}
-		}
-	}
-
-	if (!bIsValid)
-	{
-		Result = LOCTEXT("ControllerToolTip", "Controller can't control selected component");
-	}
-
-	return Result;
+	return EVisibility::Hidden;
 }
 
 TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::BuildControllerNameWidget(TSharedPtr<IPropertyHandle> ControllersProperty, TSubclassOf<ULiveLinkRole> RoleClass) const
 {
-	return ControllersProperty->CreatePropertyNameWidget(RoleClass.Get()->GetDisplayNameText().ToUpper());
+	return ControllersProperty->CreatePropertyNameWidget(RoleClass.Get()->GetDisplayNameText());
 }
 
-TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::BuildControllerValueWidget(TSharedPtr<IPropertyHandle> RoleKeyPropertyHandle, TSubclassOf<ULiveLinkRole> RoleClass, const FText& ControllerName) const
+TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::BuildControllerValueWidget(TSubclassOf<ULiveLinkRole> RoleClass, const FText& ControllerName) const
 {
 	TSharedRef<SWidget> ValueWidget = 
 		SNew(SHorizontalBox)
@@ -378,7 +278,7 @@ TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::BuildControllerValueW
 		.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 		[
 			SNew(SComboButton)
-			.OnGetMenuContent(this, &FLiveLinkComponentDetailCustomization::HandleControllerComboButton, RoleKeyPropertyHandle)
+			.OnGetMenuContent(this, &FLiveLinkComponentDetailCustomization::HandleControllerComboButton, RoleClass)
 			.ContentPadding(FMargin(4.0, 2.0))
 			.ButtonContent()
 			[
@@ -389,14 +289,14 @@ TSharedRef<SWidget> FLiveLinkComponentDetailCustomization::BuildControllerValueW
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
 		.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-		.HAlign(EHorizontalAlignment::HAlign_Left)
 		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-			.Text(this, &FLiveLinkComponentDetailCustomization::HandleControllerStatusText, RoleClass)
-			.ColorAndOpacity(this, &FLiveLinkComponentDetailCustomization::HandleControllerStatusColorAndOpacity, RoleClass)
-			.ToolTipText(this, &FLiveLinkComponentDetailCustomization::HandleControllerStatusToolTipText, RoleClass)
+			SNew(SImage)
+			.Image(FLiveLinkEditorPrivate::GetStyleSet()->GetBrush("LiveLinkController.WarningIcon"))
+			.ToolTipText(LOCTEXT("ControllerWarningToolTip", "The selected component to control does not match this controller's desired component class"))
+ 			.Visibility(this, &FLiveLinkComponentDetailCustomization::HandleControllerWarningVisibility, RoleClass)
 		];
 
 	return ValueWidget;

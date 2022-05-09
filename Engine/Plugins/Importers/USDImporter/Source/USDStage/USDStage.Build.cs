@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"LevelSequence",
 					"LiveLinkComponents", // For tracking edits to LiveLinkComponentController properties and writing to USD
+					"LiveLinkInterface",
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",

@@ -221,6 +221,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Move some Chaos flags into a bitfield
 		AddRigidParticleControlFlags,
 
+		// Allow each LiveLink controller to specify its own component to control
+		LiveLinkComponentPickerPerController,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -16,12 +16,16 @@ class AActor;
 
 /**
  */
-UCLASS(Abstract, ClassGroup=(LiveLink), editinlinenew)
+UCLASS(Abstract, ClassGroup = (LiveLink), editinlinenew)
 class LIVELINKCOMPONENTS_API ULiveLinkControllerBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
+
 	/** Initialize the controller at the first tick of his owner component. */
 	virtual void OnEvaluateRegistered() { }
 
@@ -54,7 +58,6 @@ public:
 	 */
 	virtual void SetSelectedSubject(FLiveLinkSubjectRepresentation LiveLinkSubject);
 
-
 	/**
 	 * Cleanup controller state before getting removed
 	 */
@@ -66,6 +69,16 @@ public:
 
 	/** Get the selected LiveLink subject for this controller */
 	virtual FLiveLinkSubjectRepresentation GetSelectedSubject() { return SelectedSubject; }
+
+	/**
+	 * Returns the component controlled by this controller
+	 */
+	UActorComponent* GetAttachedComponent() const;
+
+	/**
+	 * Callback to reset the AttachedComponent when the value of the ComponentPicker is changed
+	 */
+	void OnComponentToControlChanged();
 
 protected:
 	AActor* GetOuterActor() const;
@@ -81,6 +94,14 @@ public:
 	static TArray<TSubclassOf<ULiveLinkControllerBase>> GetControllersForRole(const TSubclassOf<ULiveLinkRole>& RoleToSupport);
 
 protected:
+	/**
+	 * A component reference (customized) that allows the user to specify a component that this controller should control
+	 */
+	UPROPERTY(EditInstanceOnly, Category = "ComponentToControl", meta = (UseComponentPicker, AllowedClasses = "ActorComponent", DisallowedClasses = "LiveLinkComponentController"))
+	FComponentReference ComponentPicker;
+
+protected:
+	UE_DEPRECATED(5.1, "This property has been deprecated. Please use GetAttachedComponent() instead.")
 	TWeakObjectPtr<UActorComponent> AttachedComponent;
 
 	FLiveLinkSubjectRepresentation SelectedSubject;

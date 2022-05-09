@@ -60,6 +60,7 @@
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Roles/LiveLinkTransformRole.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
@@ -2489,7 +2490,10 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 	ULiveLinkComponentController* Controller = Cast< ULiveLinkComponentController >( ObjectBeingModified );
 	if ( Controller )
 	{
-		ObjectBeingModified = Controller->ComponentToControl.GetComponent( Controller->GetOwner() );
+		if (UActorComponent* ControlledComponent = Controller->GetControlledComponent(ULiveLinkTransformRole::StaticClass()))
+		{
+			ObjectBeingModified = ControlledComponent;
+		}
 	}
 
 	UObject* PrimObject = ObjectBeingModified;

@@ -44,8 +44,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "LiveLink")
 	FOnControllerMapUpdatedDelegate OnControllerMapUpdatedDelegate;
 
-	UPROPERTY(EditInstanceOnly, Category = "LiveLink", meta = (UseComponentPicker, AllowedClasses = "ActorComponent", DisallowedClasses = "LiveLinkComponentController"))
-	FComponentReference ComponentToControl;
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property has been deprecated. Please use the ComponentPicker property of each controller in this LiveLink component's controller map.")
+	UPROPERTY()
+	FComponentReference ComponentToControl_DEPRECATED;
+#endif //WITH_EDITORONLY_DATA
 
 	// If true, will not evaluate LiveLink if the attached actor is a spawnable in Sequencer
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
@@ -85,6 +88,12 @@ public:
 	/** Used to notify that the subject role has changed. Mainly from Customization or C++ modification to the subject's Role */
 	void OnSubjectRoleChanged();
 
+	/** Returns the component controlled by the LiveLink controller of the input Role. Returns null if there is no controller for that Role */
+	UActorComponent* GetControlledComponent(TSubclassOf<ULiveLinkRole> InRoleClass) const;
+
+	/** Set the component to control for the LiveLink controller of the input Role */
+	void SetControlledComponent(TSubclassOf<ULiveLinkRole> InRoleClass, UActorComponent* InComponent);
+
 #if WITH_EDITOR
 	/** Used to cleanup controllers when exiting PIE */
 	void OnEndPIE(bool bIsSimulating);
@@ -97,6 +106,7 @@ public:
 	//~ End UActorComponent interface
 
 	//~ UObject interface
+	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -111,6 +121,9 @@ protected:
 
 	/** Loops through the controller map and calls Cleanup() on each entry */
 	void CleanupControllersInMap();
+
+	/** Initializes the component that the newly created input controller should control based on its specified desired component class */
+	void InitializeController(ULiveLinkControllerBase* InController);
 
 #if WITH_EDITOR
 	/** Called during loading to convert old data to new scheme. */
