@@ -46,7 +46,6 @@ public interface IBlobService
     // Delete a object
     Task DeleteObject(NamespaceId ns, BlobIdentifier blob);
 
-
     // delete the whole namespace
     Task DeleteNamespace(NamespaceId ns);
 
@@ -71,8 +70,8 @@ public class BlobService : IBlobService
 
     internal IEnumerable<IBlobStore> BlobStore
     {
-        get { return _blobStores; }
-        set { _blobStores = value.ToList(); } 
+        get => _blobStores;
+        set => _blobStores = value.ToList();
     }
 
     public BlobService(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver)
@@ -101,10 +100,12 @@ public class BlobService : IBlobService
             HordeStorageSettings.StorageBackendImplementations.Memory => provider.GetService<MemoryCacheBlobStore>(),
             HordeStorageSettings.StorageBackendImplementations.MemoryBlobStore => provider.GetService<MemoryBlobStore>(),
             HordeStorageSettings.StorageBackendImplementations.Relay => provider.GetService<RelayBlobStore>(),
-            _ => throw new ArgumentOutOfRangeException()
+            _ => throw new NotImplementedException("Unknown blob store {store")
         };
         if (store == null)
+        {
             throw new ArgumentException($"Failed to find a provider service for type: {impl}");
+        }
 
         return store;
     }
@@ -180,7 +181,6 @@ public class BlobService : IBlobService
             await store.PutObject(ns, s, identifier);
         }
 
-
         return identifier;
     }
 
@@ -249,14 +249,16 @@ public class BlobService : IBlobService
             // Don't populate the last store, as that is where we got the hit
             for (int i = 0; i < numStoreMisses; i++)
             {
-                var blobStore = _blobStores[i];
+                IBlobStore blobStore = _blobStores[i];
                 using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.PopulateStore");
                 scope.Span.SetTag("BlobStore", blobStore.GetType().Name);
                 // Populate each store traversed that did not have the content found lower in the hierarchy
                 await blobStore.PutObject(ns, data, blob);
             }
 
-            blobContents = new BlobContents(new MemoryStream(data), data.Length);
+#pragma warning disable CA2000 // Dispose objects before losing scope , ownership is transfered to caller
+            blobContents = new BlobContents(data);
+#pragma warning restore CA2000 // Dispose objects before losing scope
         }
         
         return blobContents;
@@ -265,16 +267,22 @@ public class BlobService : IBlobService
     public async Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob, bool force = false)
     {
         if (!force && !ShouldFetchBlobOnDemand(ns))
+        {
             throw new NotSupportedException($"Replication is not allowed in namespace {ns}");
+        }
 
         using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.Replicate");
 
-        IBlobIndex.BlobInfo? blobInfo = await _blobIndex.GetBlobInfo(ns, blob);
+        BlobInfo? blobInfo = await _blobIndex.GetBlobInfo(ns, blob);
         if (blobInfo == null)
+        {
             throw new BlobNotFoundException(ns, blob);
+        }
 
         if (!blobInfo.Regions.Any())
+        {
             throw new BlobReplicationException(ns, blob, "Blob not found in any region");
+        }
 
         _logger.Information("On-demand replicating blob {Blob} in Namespace {Namespace}", blob, ns);
         List<(int, string)> possiblePeers = new List<(int, string)>(_peerStatusService.GetPeersByLatency(blobInfo.Regions.ToList()));
@@ -282,15 +290,17 @@ public class BlobService : IBlobService
         bool replicated = false;
         foreach ((int latency, string? region) in possiblePeers)
         {
-            IPeerStatusService.PeerStatus? peerStatus = _peerStatusService.GetPeerStatus(region);
+            PeerStatus? peerStatus = _peerStatusService.GetPeerStatus(region);
             if (peerStatus == null)
+            {
                 throw new Exception($"Failed to find peer {region}");
+            }
 
             _logger.Information("Attempting to replicate blob {Blob} in Namespace {Namespace} from {Region}", blob, ns, region);
 
             PeerEndpoints peerEndpoint = peerStatus.Endpoints.First();
-            HttpClient httpClient = _httpClientFactory.CreateClient();
-            HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, $"{peerEndpoint.Url}/api/v1/blobs/{ns}/{blob}");
+            using HttpClient httpClient = _httpClientFactory.CreateClient();
+            using HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"{peerEndpoint.Url}/api/v1/blobs/{ns}/{blob}"));
             HttpResponseMessage blobResponse = await httpClient.SendAsync(blobRequest, HttpCompletionOption.ResponseHeadersRead);
 
             if (blobResponse.StatusCode == HttpStatusCode.NotFound)
@@ -312,7 +322,9 @@ public class BlobService : IBlobService
         }
 
         if (!replicated)
+        {
             throw new BlobReplicationException(ns, blob, $"Failed to replicate {blob} in {ns} due to it not existing in any region");
+        }
 
         return await GetObject(ns, blob);
     }
@@ -322,12 +334,15 @@ public class BlobService : IBlobService
         return _settings.CurrentValue.EnableOnDemandReplication && _namespacePolicyResolver.GetPoliciesForNs(ns).OnDemandReplication;
     }
 
-    private HttpRequestMessage BuildHttpRequest(HttpMethod httpMethod, string uri)
+    private HttpRequestMessage BuildHttpRequest(HttpMethod httpMethod, Uri uri)
     {
         string? token = _serviceCredentials.GetToken();
         HttpRequestMessage request = new HttpRequestMessage(httpMethod, uri);
         if (!string.IsNullOrEmpty(token))
+        {
             request.Headers.Add("Authorization", "Bearer " + token);
+        }
+
         return request;
     }
 
@@ -412,10 +427,14 @@ public class BlobService : IBlobService
         await _blobIndex.RemoveBlobFromRegion(ns, blob);
 
         if (deletedAtLeastOnce)
+        {
             return;
+        }
 
         if (blobNotFound)
+        {
             throw new BlobNotFoundException(ns, blob);
+        }
 
         throw new NamespaceNotFoundException(ns);
     }
@@ -439,7 +458,9 @@ public class BlobService : IBlobService
         }
 
         if (deletedAtLeastOnce)
+        {
             return;
+        }
 
         throw new NamespaceNotFoundException(ns);
     }
@@ -454,7 +475,7 @@ public class BlobService : IBlobService
     {
         var tasks = blobs.Select(async blobIdentifier => new { BlobIdentifier = blobIdentifier, Exists = await Exists(ns, blobIdentifier) });
         var blobResults = await Task.WhenAll(tasks);
-        var filteredBlobs = blobResults.Where(ac => !ac.Exists).Select(ac => ac.BlobIdentifier);
+        IEnumerable<BlobIdentifier> filteredBlobs = blobResults.Where(ac => !ac.Exists).Select(ac => ac.BlobIdentifier);
         return filteredBlobs.ToArray();
     }
 
@@ -477,7 +498,9 @@ public class BlobService : IBlobService
         catch (ParallelForEachException e)
         {
             if (e.InnerException is PartialReferenceResolveException)
+            {
                 throw e.InnerException;
+            }
 
             throw;
         }
@@ -506,6 +529,4 @@ public class BlobService : IBlobService
 
         return new BlobContents(ms, ms.Length);
     }
-
-
 }

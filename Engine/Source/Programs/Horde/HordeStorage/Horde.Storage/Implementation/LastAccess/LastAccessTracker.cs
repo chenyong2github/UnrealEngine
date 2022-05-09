@@ -62,7 +62,7 @@ namespace Horde.Storage.Implementation
         // we will exchange the refs dictionary when fetching the records and use a rw lock to make sure no-one is trying to add things at the same time
         private readonly ReaderWriterLock _rwLock = new ReaderWriterLock();
 
-        public LastAccessTracker(IOptionsMonitor<HordeStorageSettings> settings)
+        protected LastAccessTracker(IOptionsMonitor<HordeStorageSettings> settings)
         {
             _settings = settings;
         }
@@ -72,7 +72,9 @@ namespace Horde.Storage.Implementation
         public Task TrackUsed(T record)
         {
             if (!_settings.CurrentValue.EnableLastAccessTracking)
+            {
                 return Task.CompletedTask;
+            }
 
             return Task.Run(() =>
             {
@@ -134,5 +136,4 @@ namespace Horde.Storage.Implementation
             }
         }
     }
-
 }

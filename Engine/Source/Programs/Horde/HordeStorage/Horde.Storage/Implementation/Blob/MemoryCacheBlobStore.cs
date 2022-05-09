@@ -23,7 +23,7 @@ namespace Horde.Storage.Implementation
     /// Primarily intended for use together with HierarchicalBlobStore to speed up reads from other stores, such as Amazon S3 and disk.
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class MemoryCacheBlobStore : IBlobStore
+    public class MemoryCacheBlobStore : IBlobStore, IDisposable
     {
         private readonly IOptionsMonitor<MemoryCacheBlobSettings> _memoryOptions;
 
@@ -31,7 +31,7 @@ namespace Horde.Storage.Implementation
 
         private readonly ILogger _logger = Log.ForContext<MemoryCacheBlobStore>();
         private readonly FieldInfo _sizeField;
-        private Timer _cacheInfoTimer;
+        private readonly Timer _cacheInfoTimer;
 
         public MemoryCacheBlobStore(IOptionsMonitor<MemoryCacheBlobSettings> memoryOptions)
         {
@@ -69,7 +69,9 @@ namespace Horde.Storage.Implementation
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, Stream blob, BlobIdentifier identifier)
         {
             if (blob.Length > int.MaxValue)
+            {
                 throw new BlobToLargeException(identifier);
+            }
 
             return await PutObject(ns, blob: await blob.ToByteArray(), identifier);
         }
@@ -109,7 +111,7 @@ namespace Horde.Storage.Implementation
             return Array.Empty<(BlobIdentifier, DateTime)>().ToAsyncEnumerable();
         }
         
-        private string BuildKey(NamespaceId ns, BlobIdentifier blob)
+        private static string BuildKey(NamespaceId ns, BlobIdentifier blob)
         {
             return $"{ns}.{blob}";
         }
@@ -117,6 +119,21 @@ namespace Horde.Storage.Implementation
         internal long? GetMemoryCacheSize()
         {
             return (long?)_sizeField.GetValue(_memoryCache);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _memoryCache.Dispose();
+                _cacheInfoTimer.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

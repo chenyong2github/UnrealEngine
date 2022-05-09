@@ -2,20 +2,31 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using JetBrains.Annotations;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Newtonsoft.Json;
 
 namespace Horde.Storage.Implementation.TransactionLog
 {
+    [UsedImplicitly]
+    public class ReplicationLogSnapshotState
+    {
+        public ReplicationLogSnapshotState(SnapshotHeader header, List<SnapshotLiveObject> liveObjects)
+        {
+            Header = header;
+            LiveObjects = liveObjects;
+        }
+
+        public SnapshotHeader Header { get; set; }
+        public List<SnapshotLiveObject> LiveObjects { get; }
+    }
+
     public class JsonReplicationLogSnapshot : ReplicationLogSnapshot
     {
         private readonly List<SnapshotLiveObject> _liveObjects;
@@ -83,11 +94,15 @@ namespace Horde.Storage.Implementation.TransactionLog
             byte[] bytes = new byte[4];
             int bytesRead = stream.Read(bytes, 0, 4);
             if (bytesRead != 4)
+            {
                 throw new Exception("Partial stream read when deserializing snapshot");
+            }
 
             bool hasMagic = bytes[0] == 'S' && bytes[1] == 'N' && bytes[2] == 'A' && bytes[3] == 'P';
             if (!hasMagic)
+            {
                 throw new Exception("Did not find magic prefix when deserializing snapshot, incorrect format?");
+            }
 
             using BinaryReader reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
             string ns = reader.ReadString();
@@ -98,11 +113,12 @@ namespace Horde.Storage.Implementation.TransactionLog
             return (new NamespaceId(ns), lastBucket, lastEvent, countOfObjects);
         }
 
-
         public override IEnumerable<SnapshotLiveObject> GetLiveObjects()
         {
             if (_filesystemBufferedPayload == null)
+            {
                 yield break;
+            }
 
             using Stream payloadStream = _filesystemBufferedPayload.GetStream();
 
@@ -131,12 +147,16 @@ namespace Horde.Storage.Implementation.TransactionLog
         public static ReplicationLogSnapshot DeserializeSnapshotFromStream(Stream stream)
         {
             if (!stream.CanSeek)
+            {
                 throw new Exception("Seekable stream required");
+            }
 
             byte[] bytes = new byte[4];
             int bytesRead = stream.Read(bytes, 0, 4);
             if (bytesRead != 4)
+            {
                 throw new Exception("Partial stream read when deserializing snapshot");
+            }
 
             bool hasMagic = bytes[0] == 'S' && bytes[1] == 'N' && bytes[2] == 'A' && bytes[3] == 'P';
             stream.Seek(0, SeekOrigin.Begin);
@@ -155,45 +175,33 @@ namespace Horde.Storage.Implementation.TransactionLog
         }
     }
 
-    public abstract class ReplicationLogSnapshot: IDisposable
+    public class SnapshotHeader
+    {
+        public NamespaceId Namespace { get; set; }
+        public string LastBucket { get; set; } = null!;
+        public Guid LastEvent { get; set; }
+    }
+
+    public class SnapshotLiveObject
+    {
+        public SnapshotLiveObject(BucketId bucket, IoHashKey key, BlobIdentifier blob)
+        {
+            Bucket = bucket;
+            Key = key;
+            Blob = blob;
+        }
+
+        public BucketId Bucket { get; set; }
+        public IoHashKey Key { get; set; }
+        public BlobIdentifier Blob { get; set; }
+    }
+
+    public abstract class ReplicationLogSnapshot
     {
         private readonly List<SnapshotLiveObject> _addedObjects = new List<SnapshotLiveObject>();
         private readonly HashSet<(BucketId, IoHashKey)> _removedObjects = new HashSet<(BucketId, IoHashKey)>();
 
-        public class ReplicationLogSnapshotState
-        {
-            public ReplicationLogSnapshotState(SnapshotHeader header, List<SnapshotLiveObject> liveObjects)
-            {
-                Header = header;
-                LiveObjects = liveObjects;
-            }
-
-            public SnapshotHeader Header { get; set; }
-            public List<SnapshotLiveObject> LiveObjects { get; set; }
-        }
-
-        public class SnapshotHeader
-        {
-            public NamespaceId Namespace { get; set; }
-            public string LastBucket { get; set; } = null!;
-            public Guid LastEvent { get; set; }
-        }
-
-        public class SnapshotLiveObject
-        {
-            public SnapshotLiveObject(BucketId bucket, IoHashKey key, BlobIdentifier blob)
-            {
-                Bucket = bucket;
-                Key = key;
-                Blob = blob;
-            }
-
-            public BucketId Bucket { get; set; }
-            public IoHashKey Key { get; set; }
-            public BlobIdentifier Blob { get; set; }
-        }
-
-        public ReplicationLogSnapshot(NamespaceId ns)
+        protected ReplicationLogSnapshot(NamespaceId ns)
         {
             Namespace = ns;
         }
@@ -216,9 +224,14 @@ namespace Horde.Storage.Implementation.TransactionLog
         public void Serialize(Stream stream)
         {
             if (LastBucket == null)
+            {
                 throw new Exception("No last bucket found when serializing state, did you really have events?");
+            }
+
             if (LastEvent == null)
+            {
                 throw new Exception("No last event found when serializing state, did you really have events?");
+            }
 
             void WriteHeader(Stream s, NamespaceId ns, string lastBucket, Guid lastEvent, ulong countOfObjects)
             {
@@ -274,7 +287,6 @@ namespace Horde.Storage.Implementation.TransactionLog
             stream.Seek(0, SeekOrigin.Begin);
             WriteHeader(stream, Namespace, LastBucket, LastEvent.Value, countOfLiveObjects);
         }
-
 
         public void ProcessEvent(ReplicationLogEvent entry)
         {

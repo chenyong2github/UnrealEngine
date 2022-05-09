@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.Blob;
@@ -51,10 +50,11 @@ namespace Horde.Storage.UnitTests
         public async Task Setup()
         {
             Mock<IServiceProvider> serviceProviderMock = new Mock<IServiceProvider>();
-            serviceProviderMock.Setup(x => x.GetService(typeof(MemoryCacheBlobStore))).Returns(new MemoryCacheBlobStore(Mock.Of<IOptionsMonitor<MemoryCacheBlobSettings>>(_ => _.CurrentValue == new MemoryCacheBlobSettings())));
+            using MemoryCacheBlobStore blobStore =  new MemoryCacheBlobStore(Mock.Of<IOptionsMonitor<MemoryCacheBlobSettings>>(_ => _.CurrentValue == new MemoryCacheBlobSettings()));
+            serviceProviderMock.Setup(x => x.GetService(typeof(MemoryCacheBlobStore))).Returns(blobStore);
             IOptionsMonitor<HordeStorageSettings> settingsMonitor = Mock.Of<IOptionsMonitor<HordeStorageSettings>>(_ => _.CurrentValue == new HordeStorageSettings());
             Mock<INamespacePolicyResolver> mockPolicyResolver = new Mock<INamespacePolicyResolver>();
-            mockPolicyResolver.Setup(x => x.GetPoliciesForNs(It.IsAny<NamespaceId>())).Returns(new NamespaceSettings.PerNamespaceSettings());
+            mockPolicyResolver.Setup(x => x.GetPoliciesForNs(It.IsAny<NamespaceId>())).Returns(new NamespacePolicy());
 
             _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object);
             _chained.BlobStore = new List<IBlobStore> { _first, _second, _third };
@@ -156,7 +156,7 @@ namespace Horde.Storage.UnitTests
             await Assert.ThrowsExceptionAsync<NamespaceNotFoundException>(() => _second.DeleteNamespace(Ns));
         }
 
-        private string BlobToString(BlobContents contents)
+        private static string BlobToString(BlobContents contents)
         {
             using StreamReader reader = new StreamReader(contents.Stream);
             return reader.ReadToEnd();

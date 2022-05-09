@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -33,12 +34,12 @@ namespace Horde.Storage.FunctionalTests.Status
                         {
                             new PeerEndpoints()
                             {
-                                Url = "http://siteA.com/internal",
+                                Url = new Uri("http://siteA.com/internal"),
                                 IsInternal = true
                             },
                             new PeerEndpoints()
                             {
-                                Url = "http://siteA.com/public"
+                                Url = new Uri("http://siteA.com/public")
                             },
                         }.ToList()
                     },
@@ -50,12 +51,12 @@ namespace Horde.Storage.FunctionalTests.Status
                         {
                             new PeerEndpoints()
                             {
-                                Url = "http://siteB.com/internal",
+                                Url = new Uri("http://siteB.com/internal"),
                                 IsInternal = true
                             },
                             new PeerEndpoints()
                             {
-                                Url = "http://siteB.com/public"
+                                Url = new Uri("http://siteB.com/public")
                             },
                         }.ToList()
                     },
@@ -76,19 +77,19 @@ namespace Horde.Storage.FunctionalTests.Status
             handler.SetupRequest("http://siteb.com/internal" + endpoint).ReturnsResponse(HttpStatusCode.OK).Callback(() => Task.Delay(400).Wait()).Verifiable();
 
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
-            PeerStatusService statusService = new PeerStatusService(settingsMock, jupiterSettingsMock, httpClientFactory);
+            await using PeerStatusService statusService = new(settingsMock, jupiterSettingsMock, httpClientFactory);
 
             await statusService.UpdatePeerStatus(CancellationToken.None);
 
             handler.Verify();
 
             // as we are actually measuring the time it takes to call our mocked handler the latency expected is not going to be exact so we allow some delta
-            IPeerStatusService.PeerStatus? siteAPeerStatus = statusService.GetPeerStatus("siteA");
+            PeerStatus? siteAPeerStatus = statusService.GetPeerStatus("siteA");
             Assert.IsNotNull(siteAPeerStatus);
             Assert.AreEqual(220, siteAPeerStatus.Latency, 50);
             Assert.IsTrue(siteAPeerStatus.Reachable);
 
-            IPeerStatusService.PeerStatus? siteBPeerStatus = statusService.GetPeerStatus("siteB");
+            PeerStatus? siteBPeerStatus = statusService.GetPeerStatus("siteB");
             Assert.IsNotNull(siteBPeerStatus);
             Assert.AreEqual(420, siteBPeerStatus.Latency, 50);
             Assert.IsTrue(siteBPeerStatus.Reachable);
@@ -109,12 +110,12 @@ namespace Horde.Storage.FunctionalTests.Status
                         {
                             new PeerEndpoints()
                             {
-                                Url = "http://siteA.com/internal",
+                                Url = new Uri("http://siteA.com/internal"),
                                 IsInternal = true
                             },
                             new PeerEndpoints()
                             {
-                                Url = "http://siteA.com/public"
+                                Url = new Uri("http://siteA.com/public")
                             },
                         }.ToList()
                     },
@@ -126,12 +127,12 @@ namespace Horde.Storage.FunctionalTests.Status
                         {
                             new PeerEndpoints()
                             {
-                                Url = "http://siteB.com/internal",
+                                Url = new Uri("http://siteB.com/internal"),
                                 IsInternal = true
                             },
                             new PeerEndpoints()
                             {
-                                Url = "http://siteB.com/public"
+                                Url = new Uri("http://siteB.com/public")
                             },
                         }.ToList()
                     },
@@ -152,20 +153,20 @@ namespace Horde.Storage.FunctionalTests.Status
             handler.SetupRequest("http://siteb.com/internal" + endpoint).Throws<SocketException>().Verifiable();
 
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
-            PeerStatusService statusService = new PeerStatusService(settingsMock, jupiterSettingsMock, httpClientFactory);
+            await using PeerStatusService statusService = new(settingsMock, jupiterSettingsMock, httpClientFactory);
 
             await statusService.UpdatePeerStatus(CancellationToken.None);
 
             handler.Verify();
 
             // as we are actually measuring the time it takes to call our mocked handler the latency expected is not going to be exact so we allow some delta
-            IPeerStatusService.PeerStatus? siteAPeerStatus = statusService.GetPeerStatus("siteA");
+            PeerStatus? siteAPeerStatus = statusService.GetPeerStatus("siteA");
             Assert.IsNotNull(siteAPeerStatus);
             // verify that we ignore the failing internal endpoint
             Assert.AreEqual(220, siteAPeerStatus.Latency, 50);
             Assert.IsTrue(siteAPeerStatus.Reachable);
 
-            IPeerStatusService.PeerStatus? siteBPeerStatus = statusService.GetPeerStatus("siteB");
+            PeerStatus? siteBPeerStatus = statusService.GetPeerStatus("siteB");
             Assert.IsNotNull(siteBPeerStatus);
             Assert.AreEqual(int.MaxValue, siteBPeerStatus.Latency);
             Assert.IsFalse(siteBPeerStatus.Reachable);

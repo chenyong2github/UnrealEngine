@@ -7,6 +7,12 @@ using IntPtr = System.IntPtr;
 
 namespace Jupiter.Utils
 {
+
+#pragma warning disable CA1008 // Add a member that has a value of zero with a suggested name of None
+#pragma warning disable CA1027 // Mark enums with FlagsAttribute
+#pragma warning disable CA1707 // Identifiers should not contain underscores. We use the same identifiers as Oodle uses in its source
+#pragma warning disable CA1712 // Do not prefix enum values with the name of the enum type.  We use the same identifiers as Oodle uses in its source
+
     public enum OodleLZ_Compressor
     {
         OodleLZ_Compressor_Invalid = -1,
@@ -51,10 +57,10 @@ namespace Jupiter.Utils
         OodleLZ_CompressionLevel_HyperFast1=-1, // faster than SuperFast, less compression
         OodleLZ_CompressionLevel_HyperFast2=-2, // faster than HyperFast1, less compression
         OodleLZ_CompressionLevel_HyperFast3=-3, // faster than HyperFast2, less compression
-        OodleLZ_CompressionLevel_HyperFast4=-4, // fastest, less compression
-
+        OodleLZ_CompressionLevel_HyperFast4 =-4, // fastest, less compression
+        
         // aliases :
-        OodleLZ_CompressionLevel_HyperFast=OodleLZ_CompressionLevel_HyperFast1, // alias hyperfast base level
+        OodleLZ_CompressionLevel_HyperFast =OodleLZ_CompressionLevel_HyperFast1, // alias hyperfast base level
         OodleLZ_CompressionLevel_Optimal = OodleLZ_CompressionLevel_Optimal2,   // alias optimal standard level
         OodleLZ_CompressionLevel_Max     = OodleLZ_CompressionLevel_Optimal5,   // maximum compression level
         OodleLZ_CompressionLevel_Min     = OodleLZ_CompressionLevel_HyperFast4, // fastest compression level
@@ -92,6 +98,10 @@ namespace Jupiter.Utils
         OodleLZ_Verbosity_Lots = 3,
         OodleLZ_Verbosity_Force32 = 0x40000000
     }
+#pragma warning restore CA1008 // Add a member that has a value of zero with a suggested name of None
+#pragma warning restore CA1027 // Mark enums with FlagsAttribute
+#pragma warning restore CA1707 // Identifiers should not contain underscores
+#pragma warning restore CA1712 // Do not prefix enum values with the name of the enum type
 
     [StructLayout(LayoutKind.Sequential)]
     public class OodleConfigValues
@@ -176,7 +186,9 @@ namespace Jupiter.Utils
         public long Compress(OodleLZ_Compressor compressor, byte[] rawBuf, OodleLZ_CompressionLevel compressionLevel, out byte[] compBuf)
         {
             if (!_initialized)
+            {
                 throw new InvalidOperationException("Initialize Oodle before using it");
+            }
 
             long bufferSizeNeeded = OodleLZ_GetCompressedBufferSizeNeeded(compressor, rawBuf.LongLength);
             compBuf = new byte[bufferSizeNeeded];
@@ -185,10 +197,12 @@ namespace Jupiter.Utils
             return result;
         }
 
-        public long Decompress(OodleLZ_Compressor compressor, byte[] compBuf, OodleLZ_CompressionLevel compressionLevel, long uncompressedSize, out byte[] rawBuf)
+        public long Decompress(byte[] compBuf, long uncompressedSize, out byte[] rawBuf)
         {
             if (!_initialized)
+            {
                 throw new InvalidOperationException("Initialize Oodle before using it");
+            }
 
             rawBuf = new byte[uncompressedSize];
 
@@ -206,13 +220,21 @@ namespace Jupiter.Utils
 
         public void Dispose()
         {
-            ReleaseUnmanagedResources();
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ReleaseUnmanagedResources();
+            }
         }
 
         ~OodleCompressor()
         {
-            ReleaseUnmanagedResources();
+            Dispose(false);
         }
     }
 }

@@ -12,14 +12,17 @@ using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation.Blob;
 using Jupiter;
 using Jupiter.Implementation;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Horde.Storage.Implementation
 {
+    public class ConsistencyState
+    {
+    }
+
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class BlobStoreConsistencyCheckService : PollingService<BlobStoreConsistencyCheckService.ConsistencyState>
+    public class BlobStoreConsistencyCheckService : PollingService<ConsistencyState>
     {
         private readonly IOptionsMonitor<ConsistencyCheckSettings> _settings;
         private readonly IOptionsMonitor<HordeStorageSettings> _hordeStorageSettings;
@@ -30,17 +33,12 @@ namespace Horde.Storage.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly ILogger _logger = Log.ForContext<BlobStoreConsistencyCheckService>();
 
-        public class ConsistencyState
-        {
-        }
-
         protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.EnableBlobStoreChecks;
         }
 
-        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<HordeStorageSettings> hordeStorageSettings, IServiceProvider provider, ILeaderElection leaderElection, IRefsStore refsStore, IReferencesStore referencesStore, IBlobIndex blobIndex) :
-            base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
+        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<HordeStorageSettings> hordeStorageSettings, IServiceProvider provider, ILeaderElection leaderElection, IRefsStore refsStore, IReferencesStore referencesStore, IBlobIndex blobIndex) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
         {
             _settings = settings;
             _hordeStorageSettings = hordeStorageSettings;
@@ -74,7 +72,9 @@ namespace Horde.Storage.Implementation
                 bool requiresLeader = blobStore is not FileSystemStore;
 
                 if (!_settings.CurrentValue.RunBlobStoreConsistencyCheckOnRootStore && isRootStore)
+                {
                     continue;
+                }
 
                 if (requiresLeader && !_leaderElection.IsThisInstanceLeader())
                 {
@@ -98,7 +98,10 @@ namespace Horde.Storage.Implementation
                         scope.Span.SetTag("BlobStore", blobStoreName);
 
                         if (countOfBlobsChecked % 100 == 0)
+                        {
                             _logger.Information("Consistency check running on Blob Store {BlobStore}, count of blobs processed so far: {CountOfBlobs}", blobStoreName, countOfBlobsChecked);
+                        }
+
                         Interlocked.Increment(ref countOfBlobsChecked);
                         
                         BlobContents contents = await blobStore.GetObject(ns, blob);

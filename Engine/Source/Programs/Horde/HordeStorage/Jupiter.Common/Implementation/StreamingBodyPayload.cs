@@ -18,9 +18,9 @@ namespace Jupiter.Common.Implementation
     /// <summary>
     /// Streaming request that is streamed into memory
     /// </summary>
-    public class MemoryBufferedPayload : IBufferedPayload
+    public sealed class MemoryBufferedPayload : IBufferedPayload
     {
-        private byte[] _buffer;
+        private readonly byte[] _buffer;
 
         public MemoryBufferedPayload(byte[] source)
         {
@@ -44,13 +44,13 @@ namespace Jupiter.Common.Implementation
             return new MemoryStream(_buffer);
         }
 
-        public long Length { get { return _buffer.LongLength; } }
+        public long Length => _buffer.LongLength;
     }
 
     /// <summary>
     /// A streaming request backed by a temporary file on disk
     /// </summary>
-    public class FilesystemBufferedPayload : IBufferedPayload
+    public sealed class FilesystemBufferedPayload : IBufferedPayload
     {
         private readonly FileInfo _tempFile;
         private long _length;
@@ -84,7 +84,9 @@ namespace Jupiter.Common.Implementation
         public void Dispose()
         {
             if (_tempFile.Exists)
+            {
                 _tempFile.Delete();
+            }
         }
 
         public Stream GetStream()
@@ -92,10 +94,7 @@ namespace Jupiter.Common.Implementation
             return _tempFile.OpenRead();
         }
 
-        public long Length
-        {
-            get { return _length; }
-        }
+        public long Length => _length;
 
         public static FilesystemBufferedPayload FromTempFile(FileInfo tempFile)
         {

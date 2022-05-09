@@ -1,12 +1,10 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using EpicGames.Serialization;
-using Jupiter.Implementation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EuropaUnit
@@ -65,7 +63,7 @@ namespace EuropaUnit
         }
 
         [TestMethod]
-        public void compact_binary()
+        public void CompactBinary()
         {
             byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/compact_binary");
 
@@ -79,8 +77,6 @@ namespace EuropaUnit
 
             Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\",\"Hash\":\"37dbaa409ef30ba67f18c8fc2faaf606636cb915\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\",\"RawHash\":\"da6fc57e4b9f91377c9509ea0ad567bacb3796c5\",\"RawSize\":24789}]}", o.ToJson());
         }
-
-
 
         [TestMethod]
         public void WriteArray()
@@ -109,7 +105,6 @@ namespace EuropaUnit
             CollectionAssert.AreEqual(new IoHash[] {hash1, hash2}, blobs);
         }
 
-
         [TestMethod]
         public void WriteObject()
         {
@@ -136,5 +131,4 @@ namespace EuropaUnit
             Assert.AreEqual(hash1, hashField!.AsAttachment());
         }
     }
-
 }

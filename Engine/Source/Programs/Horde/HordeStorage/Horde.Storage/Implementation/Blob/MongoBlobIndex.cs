@@ -54,13 +54,15 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         });
     }
 
-    public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
         IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
         MongoBlobIndexModelV0? model = await cursor.FirstOrDefaultAsync();
         if (model == null)
+        {
             return null;
+        }
 
         return model.ToBlobInfo();
     }
@@ -77,7 +79,7 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
 
-        IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, id);
+        BlobInfo? blobInfo = await GetBlobInfo(ns, id);
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
         MongoBlobIndexModelV0 model = new MongoBlobIndexModelV0(blobInfo!);
         model.Regions.Remove(region);
@@ -91,7 +93,7 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
 
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
     {
-        IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
+        BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
     }
 
@@ -116,7 +118,7 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         await Task.WhenAll(refUpdateTasks);
     }
 
-    public async IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    public async IAsyncEnumerable<BlobInfo> GetAllBlobs()
     {
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
         IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(FilterDefinition<MongoBlobIndexModelV0>.Empty);
@@ -145,7 +147,7 @@ class MongoBlobIndexModelV0
         References = references;
     }
 
-    public MongoBlobIndexModelV0(IBlobIndex.BlobInfo blobInfo)
+    public MongoBlobIndexModelV0(BlobInfo blobInfo)
     {
         Ns = blobInfo.Namespace.ToString();
         BlobId = blobInfo.BlobIdentifier.ToString();
@@ -170,9 +172,9 @@ class MongoBlobIndexModelV0
     [BsonDictionaryOptions(DictionaryRepresentation.Document)]
     public List<Dictionary<string, string>> References { get; set; } = new List<Dictionary<string, string>>();
 
-    public IBlobIndex.BlobInfo ToBlobInfo()
+    public BlobInfo ToBlobInfo()
     {
-        return new IBlobIndex.BlobInfo()
+        return new BlobInfo()
         {
             Namespace = new NamespaceId(Ns),
             BlobIdentifier = new BlobIdentifier(BlobId),

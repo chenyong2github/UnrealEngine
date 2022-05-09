@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -24,10 +25,9 @@ namespace Horde.Storage.FunctionalTests.Storage
 {
     [TestClass]
     public class BlobReplicationTests
-    {
-        protected readonly NamespaceId TestNamespaceName = new NamespaceId("test-namespace");
+    { 
+        protected NamespaceId TestNamespaceName { get; } = new NamespaceId("test-namespace");
 
-        
         [TestMethod]
         public async Task ReplicateBlobFromRegion()
         {
@@ -60,7 +60,7 @@ namespace Horde.Storage.FunctionalTests.Storage
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
 
-            TestServer server = new TestServer(new WebHostBuilder()
+            using TestServer server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
@@ -78,12 +78,12 @@ namespace Horde.Storage.FunctionalTests.Storage
                                 {
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteA.com/internal",
+                                        Url = new Uri("http://siteA.com/internal"),
                                         IsInternal = true
                                     },
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteA.com/public"
+                                        Url = new Uri("http://siteA.com/public")
                                     },
                                 }.ToList()
                             },
@@ -95,12 +95,12 @@ namespace Horde.Storage.FunctionalTests.Storage
                                 {
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteB.com/internal",
+                                        Url = new Uri("http://siteB.com/internal"),
                                         IsInternal = true
                                     },
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteB.com/public"
+                                        Url = new Uri("http://siteB.com/public")
                                     },
                                 }.ToList()
                             },
@@ -109,10 +109,10 @@ namespace Horde.Storage.FunctionalTests.Storage
                     });
                     collection.Configure<NamespaceSettings>(settings =>
                     {
-                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        settings.Policies = new Dictionary<string, NamespacePolicy>()
                         {
                             {
-                                TestNamespaceName.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                TestNamespaceName.ToString(), new NamespacePolicy()
                                 {
                                     OnDemandReplication = true
                                 }
@@ -131,7 +131,8 @@ namespace Horde.Storage.FunctionalTests.Storage
             await blobIndex.AddBlobToIndex(TestNamespaceName, blobIdentifier, "siteB");
 
             HttpClient httpClient = server.CreateClient();
-            HttpResponseMessage response = await httpClient!.GetAsync(requestUri: $"api/v1/blobs/{TestNamespaceName}/{blobIdentifier}");
+
+            HttpResponseMessage response = await httpClient!.GetAsync(new Uri($"api/v1/blobs/{TestNamespaceName}/{blobIdentifier}", UriKind.Relative));
             response.EnsureSuccessStatusCode();
 
             byte[] responseData = await response.Content.ReadAsByteArrayAsync();
@@ -163,7 +164,7 @@ namespace Horde.Storage.FunctionalTests.Storage
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
 
-            TestServer server = new TestServer(new WebHostBuilder()
+            using TestServer server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
@@ -181,12 +182,12 @@ namespace Horde.Storage.FunctionalTests.Storage
                                 {
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteA.com/internal",
+                                        Url = new Uri("http://siteA.com/internal"),
                                         IsInternal = true
                                     },
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteA.com/public"
+                                        Url = new Uri("http://siteA.com/public")
                                     },
                                 }.ToList()
                             },
@@ -198,12 +199,12 @@ namespace Horde.Storage.FunctionalTests.Storage
                                 {
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteB.com/internal",
+                                        Url = new Uri("http://siteB.com/internal"),
                                         IsInternal = true
                                     },
                                     new PeerEndpoints()
                                     {
-                                        Url = "http://siteB.com/public"
+                                        Url = new Uri("http://siteB.com/public")
                                     },
                                 }.ToList()
                             },
@@ -216,7 +217,7 @@ namespace Horde.Storage.FunctionalTests.Storage
             );
 
             HttpClient httpClient = server.CreateClient();
-            HttpResponseMessage response = await httpClient!.GetAsync(requestUri: $"api/v1/blobs/{TestNamespaceName}/{blobIdentifier}");
+            HttpResponseMessage response = await httpClient!.GetAsync(new Uri($"api/v1/blobs/{TestNamespaceName}/{blobIdentifier}", UriKind.Relative));
             Assert.IsTrue(response.StatusCode == HttpStatusCode.NotFound);
         }
     }

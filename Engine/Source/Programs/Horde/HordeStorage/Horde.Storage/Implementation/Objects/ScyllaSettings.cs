@@ -17,6 +17,7 @@ public class ScyllaSettings
     /// Note that this only applies when creating the keyspace
     /// To modify a existing keyspace see https://docs.datastax.com/en/dse/6.7/dse-admin/datastax_enterprise/operations/opsChangeKSStrategy.html
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
     public Dictionary<string, string>? KeyspaceReplicationStrategy { get; set; }
 
     /// <summary>
@@ -24,6 +25,7 @@ public class ScyllaSettings
     /// Note that this only applies when creating the keyspace
     /// To modify a existing keyspace see https://docs.datastax.com/en/dse/6.7/dse-admin/datastax_enterprise/operations/opsChangeKSStrategy.html
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
     public Dictionary<string, string>? LocalKeyspaceReplicationStrategy { get; set; }
 
     /// <summary>

@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
@@ -18,7 +17,6 @@ using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Horde.Storage.Controllers
@@ -34,19 +32,14 @@ namespace Horde.Storage.Controllers
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
-        private readonly HordeStorageSettings _settings;
 
-        private readonly ILogger _logger = Log.ForContext<StorageController>();
-
-        public StorageController(IBlobService storage, IOptions<HordeStorageSettings> settings, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, BufferedPayloadFactory bufferedPayloadFactory)
+        public StorageController(IBlobService storage, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
             _bufferedPayloadFactory = bufferedPayloadFactory;
-            _settings = settings.Value;
         }
-
 
         [HttpGet("{ns}/{id}")]
         [Authorize("Storage.read")]
@@ -116,7 +109,9 @@ namespace Horde.Storage.Controllers
             IEnumerable<Task> tasks = id.Select(async blob =>
             {
                 if (!await _storage.Exists(ns, blob))
+                {
                     missingBlobs.Add(blob);
+                }
             });
             await Task.WhenAll(tasks);
 
@@ -142,7 +137,9 @@ namespace Horde.Storage.Controllers
             IEnumerable<Task> tasks = bodyIds.Select(async blob =>
             {
                 if (!await _storage.Exists(ns, blob))
+                {
                     missingBlobs.Add(blob);
+                }
             });
             await Task.WhenAll(tasks);
 
@@ -158,7 +155,10 @@ namespace Horde.Storage.Controllers
             catch (BlobNotFoundException)
             {
                 if (!_storage.ShouldFetchBlobOnDemand(ns))
+                {
                     throw;
+                }
+
                 return await _storage.ReplicateObject(ns, blob);
             }
         }
@@ -223,7 +223,6 @@ namespace Horde.Storage.Controllers
             });
         }
 
-
         [HttpDelete("{ns}/{id}")]
         [Authorize("Storage.delete")]
         public async Task<IActionResult> Delete(
@@ -260,7 +259,6 @@ namespace Horde.Storage.Controllers
             return NoContent();
         }
 
-
         private async Task DeleteImpl(NamespaceId ns, BlobIdentifier id)
         {
             await _storage.DeleteObject(ns, id);
@@ -268,6 +266,7 @@ namespace Horde.Storage.Controllers
 
         // ReSharper disable UnusedAutoPropertyAccessor.Global
         // ReSharper disable once ClassNeverInstantiated.Global
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Used by serialization")]
         public class BatchOp
         {
             // ReSharper disable once InconsistentNaming
@@ -289,6 +288,7 @@ namespace Horde.Storage.Controllers
             public byte[]? Content { get; set; }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Used by serialization")]
         public class BatchCall
         {
             public BatchOp[]? Operations { get; set; }
@@ -316,7 +316,7 @@ namespace Horde.Storage.Controllers
 
             if (batch?.Operations == null)
             {
-                throw new ArgumentNullException();
+                throw new ();
             }
 
             Task<object?>[] tasks = new Task<object?>[batch.Operations.Length];
@@ -325,7 +325,7 @@ namespace Horde.Storage.Controllers
                 BatchOp op = batch.Operations[index];
                 if (op.Namespace == null)
                 {
-                    throw new ArgumentNullException("namespace");
+                    throw new Exception(nameof(op.Namespace));
                 }
 
                 AuthorizationResult authorizationResultNamespace = await _authorizationService.AuthorizeAsync(User, op.Namespace, NamespaceAccessRequirement.Name);
@@ -339,14 +339,14 @@ namespace Horde.Storage.Controllers
                 switch (op.Op)
                 {
                     case BatchOp.Operation.INVALID:
-                        throw new ArgumentOutOfRangeException();
+                        throw new InvalidOperationException($"Op type {BatchOp.Operation.INVALID} is not a valid op type for operation id {op.Id}");
                     case BatchOp.Operation.GET:
                         if (op.Id == null)
                         {
-                            throw new ArgumentNullException("id");
+                            return BadRequest();
                         }
 
-                        tasks[index] = GetImpl(op.Namespace.Value, op.Id).ContinueWith(t =>
+                        tasks[index] = GetImpl(op.Namespace.Value, op.Id).ContinueWith((t, _) =>
                         {
                             // TODO: This is very allocation heavy but given that the end result is a json object we can not really stream this anyway
                             using BlobContents blobContents = t.Result;
@@ -356,16 +356,16 @@ namespace Horde.Storage.Controllers
                             ms.Seek(0, SeekOrigin.Begin);
                             string str = Convert.ToBase64String(ms.ToArray());
                             return (object?) str;
-                        });
+                        }, null, TaskScheduler.Current);
                         break;
                     case BatchOp.Operation.HEAD:
                         if (op.Id == null)
                         {
-                            throw new ArgumentNullException("id");
+                            return BadRequest();
                         }
 
                         tasks[index] = _storage.Exists(op.Namespace.Value, op.Id)
-                            .ContinueWith(t => t.Result ? (object?) null : op.Id);
+                            .ContinueWith((t,_) => t.Result ? (object?) null : op.Id, null, TaskScheduler.Current);
                         break;
                     case BatchOp.Operation.PUT:
                     {
@@ -380,19 +380,19 @@ namespace Horde.Storage.Controllers
                         }
 
                         using MemoryBufferedPayload payload = new MemoryBufferedPayload(op.Content);
-                        tasks[index] = _storage.PutObject(op.Namespace.Value, payload, op.Id).ContinueWith(t => (object?) t.Result);
+                        tasks[index] = _storage.PutObject(op.Namespace.Value, payload, op.Id).ContinueWith((t, _) => (object?) t.Result, null, TaskScheduler.Current);
                         break;
                     }
                     case BatchOp.Operation.DELETE:
                         if (op.Id == null)
                         {
-                            throw new ArgumentNullException("id");
+                            return BadRequest();
                         }
 
-                        tasks[index] = DeleteImpl(op.Namespace.Value, op.Id).ContinueWith(t => (object?) null);
+                        tasks[index] = DeleteImpl(op.Namespace.Value, op.Id).ContinueWith((t, _) => (object?) null, null, TaskScheduler.Current);
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        throw new NotImplementedException($"{op.Op} is not a support op type");
                 }
             }
 
@@ -402,7 +402,6 @@ namespace Horde.Storage.Controllers
 
             return Ok(results);
         }
-
     }
 
     public class HeadMultipleResponse

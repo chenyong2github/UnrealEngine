@@ -12,10 +12,7 @@ namespace Horde.Storage.Implementation
         private readonly IServiceCredentials _serviceCredentials;
         private readonly HttpClient _httpClient;
 
-        protected HttpClient HttpClient
-        {
-            get { return _httpClient; }
-        }
+        protected HttpClient HttpClient => _httpClient;
 
         protected RelayStore(IOptionsMonitor<UpstreamRelaySettings> settings, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials)
         {
@@ -26,15 +23,16 @@ namespace Horde.Storage.Implementation
             _httpClient.BaseAddress = new Uri(_settings.CurrentValue.ConnectionString);
         }
 
-        protected HttpRequestMessage BuildHttpRequest(HttpMethod method, string uri)
+        protected HttpRequestMessage BuildHttpRequest(HttpMethod method, Uri uri)
         {
             string? token = _serviceCredentials.GetToken();
             HttpRequestMessage request = new HttpRequestMessage(method, uri);
             if (!string.IsNullOrEmpty(token))
+            {
                 request.Headers.Add("Authorization", "Bearer " + token);
+            }
 
             return request;
         }
-
     }
 }

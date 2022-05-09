@@ -23,16 +23,11 @@ namespace Callisto.Implementation
         [JsonProperty]
         public Guid LogGeneration { get; set; }
 
-
         [JsonProperty]
         public int Version { get; set; }
 
-
         [JsonIgnore]
-        public List<string> Locations
-        {
-            get { return _locationToIdentifier.Keys.ToList(); }
-        }
+        public List<string> Locations => _locationToIdentifier.Keys.ToList();
 
         // ReSharper disable once UnusedMember.Local
         public FileTransactionLogIndex()

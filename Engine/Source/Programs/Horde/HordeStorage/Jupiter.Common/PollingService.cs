@@ -49,15 +49,9 @@ namespace Jupiter
             }, -1, -1);
         }
 
-        public bool Running
-        {
-            get { return _timer != null; }
-        }
+        public bool Running => _timer != null;
 
-        public T State
-        {
-            get { return _state; }
-        }
+        public T State => _state;
 
         protected virtual bool ShouldStartPolling()
         {
@@ -88,7 +82,7 @@ namespace Jupiter
             ThreadState? ts = (ThreadState?)state;
             if (ts == null)
             {
-                throw new ArgumentNullException(nameof(ts));
+                throw new ArgumentNullException("", "Null thread state passed to polling service");
             }
             ThreadState threadState = ts.Value;
 
@@ -98,7 +92,9 @@ namespace Jupiter
             ILogger logger = Log.ForContext<PollingService<T>>();
 
             if (instance._alreadyRunning)
+            {
                 return;
+            }
 
             try
             {
@@ -106,7 +102,9 @@ namespace Jupiter
                 instance._hasFinishedRunning.Reset();
 
                 if (stopPollingToken.IsCancellationRequested)
+                {
                     return;
+                }
 
                 bool _ = instance.OnPoll(threadState.ServiceState, stopPollingToken).Result;
             }
@@ -140,6 +138,7 @@ namespace Jupiter
             finally
             {
                 instance._alreadyRunning = false;
+                instance._hasFinishedRunning.Set();
             }
         }
 
@@ -155,7 +154,10 @@ namespace Jupiter
             _logger.Information("{Service} poll service stopping.", _serviceName);
 
             if (_timer != null)
+            {
                 await _timer.DisposeAsync();
+            }
+
             _timer = null;
 
             await OnStopping(_state);
@@ -167,10 +169,18 @@ namespace Jupiter
         public async ValueTask DisposeAsync()
         {
             if (_disposed)
+            {
                 return;
+            }
 
             _disposed = true;
+
             await StopAsync(CancellationToken.None);
+
+            _stopPolling.Dispose();
+            _hasFinishedRunning.Dispose();
+
+            GC.SuppressFinalize(this);
         }
     }
 }

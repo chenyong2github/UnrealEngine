@@ -53,7 +53,9 @@ namespace Horde.Storage.Implementation
                     {
                         BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
                         if (missingBlobs.Length == 0)
+                        {
                             return blobs;
+                        }
                     }
                     // blobs are missing continue testing with the next content id in the weighted list as that might exist
 
@@ -115,7 +117,7 @@ namespace Horde.Storage.Implementation
         public string ContentId { get; set; }
 
         [BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public Dictionary<int, string[]> ContentWeightToBlobsMap { get; set; }
-
     }
 }

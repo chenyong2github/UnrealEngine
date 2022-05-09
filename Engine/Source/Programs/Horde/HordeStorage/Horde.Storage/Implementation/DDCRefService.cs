@@ -41,6 +41,7 @@ namespace Horde.Storage.Implementation
         [CbField("lastAccessTime")]
         public DateTime? LastAccessTime { get; set; }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Required by serialization")]
         public Dictionary<string, object>? Metadata { get; set; }
 
         [CbField("contentHash")]
@@ -107,9 +108,14 @@ namespace Horde.Storage.Implementation
 
             IRefsStore.ExtraFieldsFlag flags = IRefsStore.ExtraFieldsFlag.None;
             if (needsLastAccess)
+            {
                 flags |= IRefsStore.ExtraFieldsFlag.LastAccess;
+            }
+
             if (needsMetadata)
+            {
                 flags |= IRefsStore.ExtraFieldsFlag.Metadata;
+            }
 
             string resource = $"{ns}.{bucket}.{key}";
             RefRecord? record;
@@ -125,13 +131,13 @@ namespace Horde.Storage.Implementation
 
             // its not critical that this finishes, so we just log errors in case it fails but never await
             {
-                Task _ = _lastAccessTracker.TrackUsed(record).ContinueWith(task =>
+                Task _ = _lastAccessTracker.TrackUsed(record).ContinueWith((task, _) =>
                 {
                     if (task.Exception != null)
                     {
                         _logger.Error(task.Exception, "Exception when tracking last access record");
                     }
-                });
+                }, null, TaskScheduler.Current);
             }
 
             BlobContents? maybeBlob = null;
@@ -189,7 +195,6 @@ namespace Horde.Storage.Implementation
             return record;
         }
 
-
         public async Task<PutRequestResponse> Put(
             NamespaceId ns,
             BucketId bucket,
@@ -232,7 +237,9 @@ namespace Horde.Storage.Implementation
             }
             int countOfBlobs = blobReferences.Length;
             if (countOfBlobs == 0)
+            {
                 throw new ArgumentException("No blobs found when determining partitioning");
+            }
 
             // as the body is just a binary blob we are unable to receive metadata for this route
             // TODO: We could accept metadata from query parameters
@@ -251,7 +258,9 @@ namespace Horde.Storage.Implementation
             else
             {
                 if (slices == null)
+                {
                     throw new Exception("Slices was never set when uploading partitioned blob.");
+                }
 
                 Task[] insertTasks = new Task[countOfBlobs];
                 for (int i = 0; i < countOfBlobs; i++)
@@ -318,7 +327,10 @@ namespace Horde.Storage.Implementation
         {
             long deleteCount = await _refsStore.Delete(ns, bucket, key);
             if (deleteCount != 0)
+            {
                 await _transactionLog.Delete(ns, bucket, key);
+            }
+
             return deleteCount;
         }
     }

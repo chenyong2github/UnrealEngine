@@ -89,7 +89,7 @@ namespace Horde.Storage.Implementation
 
     public class MongoRefsStore : IRefsStore
     {
-        protected readonly MongoClient _client;
+        protected MongoClient Client { get; }
         protected const string ModelName = "Cache";
         private const string MetadataModel = "Metadata";
         private readonly ILogger _logger = Log.ForContext<MongoRefsStore>();
@@ -102,10 +102,10 @@ namespace Horde.Storage.Implementation
             );
             if (settings.RequireTls12)
             {
-                mongoClientSettings.SslSettings = new SslSettings {EnabledSslProtocols = SslProtocols.Tls12};
+                mongoClientSettings.SslSettings = new SslSettings {EnabledSslProtocols = SslProtocols.None};
             }
 
-            _client = new MongoClient(mongoClientSettings);
+            Client = new MongoClient(mongoClientSettings);
 
             SetupClassMaps();
         }
@@ -131,12 +131,12 @@ namespace Horde.Storage.Implementation
         protected IMongoCollection<T> GetCollection<T>(NamespaceId ns, string collectionName)
         {
             string dbName = GetDatabaseName(ns);
-            return _client.GetDatabase(dbName).GetCollection<T>(collectionName);
+            return Client.GetDatabase(dbName).GetCollection<T>(collectionName);
         }
 
         protected string GetDatabaseName(NamespaceId ns)
         {
-            string cleanedNs = ns.ToString().Replace(".", "_");
+            string cleanedNs = ns.ToString().Replace(".", "_", StringComparison.OrdinalIgnoreCase);
             string dbName = $"Europa_{cleanedNs}";
             return dbName;
         }
@@ -229,16 +229,18 @@ namespace Horde.Storage.Implementation
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
-            using IAsyncCursor<BsonDocument> cursor = await _client.ListDatabasesAsync();
+            using IAsyncCursor<BsonDocument> cursor = await Client.ListDatabasesAsync();
             while (await cursor.MoveNextAsync())
             {
                 foreach (BsonDocument doc in cursor.Current)
                 {
                     string dbName = doc["name"].AsString;
-                    MongoMetadata? result = await _client.GetDatabase(dbName).GetCollection<MongoMetadata>("Metadata")
+                    MongoMetadata? result = await Client.GetDatabase(dbName).GetCollection<MongoMetadata>("Metadata")
                         .Find(FilterDefinition<MongoMetadata>.Empty).FirstOrDefaultAsync();
                     if (result == null)
+                    {
                         continue;
+                    }
 
                     NamespaceId ns;
                     try
@@ -269,7 +271,7 @@ namespace Horde.Storage.Implementation
         public async Task DropNamespace(NamespaceId ns)
         {
             string dbName = GetDatabaseName(ns);
-            await _client.GetDatabase(dbName).DropCollectionAsync(ModelName);
+            await Client.GetDatabase(dbName).DropCollectionAsync(ModelName);
         }
 
         private async Task<V> ExecuteWithRetries<V>(Func<Task<V>> function)
@@ -291,8 +293,7 @@ namespace Horde.Storage.Implementation
                     // https://feedback.azure.com/forums/263030-azure-cosmos-db/suggestions/32956231-better-handling-of-request-limit-too-large
                     // so lets just guess that we should retry after a while
                     return TimeSpan.FromMilliseconds(250);
-
-                };
+                }
 
                 TimeSpan sleepTime;
                 try

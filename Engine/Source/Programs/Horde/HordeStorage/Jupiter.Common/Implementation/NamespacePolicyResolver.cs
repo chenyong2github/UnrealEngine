@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -9,12 +8,9 @@ namespace Jupiter.Common
 {
     public interface INamespacePolicyResolver
     {
-        public NamespaceSettings.PerNamespaceSettings GetPoliciesForNs(NamespaceId ns);
+        public NamespacePolicy GetPoliciesForNs(NamespaceId ns);
 
-        static NamespaceId JupiterInternalNamespace
-        {
-            get { return new NamespaceId("jupiter-internal"); }
-        }
+        static NamespaceId JupiterInternalNamespace => new NamespaceId("jupiter-internal");
     }
     public class NamespacePolicyResolver : INamespacePolicyResolver
     {
@@ -25,11 +21,11 @@ namespace Jupiter.Common
             _namespaceSettings = namespaceSettings;
         }
 
-        public NamespaceSettings.PerNamespaceSettings GetPoliciesForNs(NamespaceId ns)
+        public NamespacePolicy GetPoliciesForNs(NamespaceId ns)
         {
             if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
             {
-                return new NamespaceSettings.PerNamespaceSettings()
+                return new NamespacePolicy()
                 {
                     // we grant the full storage access claim access to the internal namespace, this is typically set of admins and service accounts that can access everything
                     Claims = new string[] {"Storage=full" },
@@ -38,14 +34,14 @@ namespace Jupiter.Common
             }
 
             if (_namespaceSettings.CurrentValue.Policies.TryGetValue(ns.ToString(),
-                    out NamespaceSettings.PerNamespaceSettings? settings))
+                    out NamespacePolicy? settings))
             {
                 return settings;
             }
 
             // attempt to find the default mapping
             if (_namespaceSettings.CurrentValue.Policies.TryGetValue("*",
-                    out NamespaceSettings.PerNamespaceSettings? defaultSettings))
+                    out NamespacePolicy? defaultSettings))
             {
                 return defaultSettings;
             }

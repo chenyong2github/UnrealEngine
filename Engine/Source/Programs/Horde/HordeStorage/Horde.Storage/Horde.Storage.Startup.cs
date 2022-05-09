@@ -22,8 +22,6 @@ using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,13 +33,12 @@ namespace Horde.Storage
     // ReSharper disable once ClassNeverInstantiated.Global
     public class HordeStorageStartup : BaseStartup
     {
-        public HordeStorageStartup(IConfiguration configuration, IWebHostEnvironment environment) : base(configuration,
-            environment)
+        public HordeStorageStartup(IConfiguration configuration) : base(configuration)
         {
             string? ddAgentHost = System.Environment.GetEnvironmentVariable("DD_AGENT_HOST");
             if (!string.IsNullOrEmpty(ddAgentHost))
             {
-                _logger.Information("Initializing Dogstatsd to connect to: {DatadogAgentHost}", ddAgentHost);
+                Logger.Information("Initializing Dogstatsd to connect to: {DatadogAgentHost}", ddAgentHost);
                 StatsdConfig dogstatsdConfig = new StatsdConfig
                 {
                     StatsdServerName = ddAgentHost,
@@ -153,7 +150,6 @@ namespace Horde.Storage
                     .AddAny();
             });
 
-
             authorizationOptions.AddPolicy("Admin", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
@@ -208,7 +204,6 @@ namespace Horde.Storage
             services.AddOptions<ScyllaSettings>().Configure(o => Configuration.GetSection("Scylla").Bind(o)).ValidateDataAnnotations();
 
             services.AddOptions<KubernetesLeaderElectionSettings>().Configure(o => Configuration.GetSection("Kubernetes").Bind(o)).ValidateDataAnnotations();
-
 
             services.AddSingleton(typeof(OodleCompressor), CreateOodleCompressor);
             services.AddSingleton(typeof(CompressedBufferUtils), CreateCompressedBufferUtils);
@@ -329,7 +324,7 @@ namespace Horde.Storage
                 case HordeStorageSettings.BlobIndexImplementations.Cache:
                     return ActivatorUtilities.CreateInstance<CachedBlobIndex>(provider);
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unknown blob index implementation: {settings.BlobIndexImplementation}");
             }
         }
 
@@ -369,7 +364,7 @@ namespace Horde.Storage
                 case HordeStorageSettings.ContentIdStoreImplementations.Cache:
                     return ActivatorUtilities.CreateInstance<CacheContentIdStore>(provider);
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unknown content id store implementation: {settings.ContentIdStoreImplementation}");
             }
         }
 
@@ -378,7 +373,7 @@ namespace Horde.Storage
             ScyllaSettings settings = provider.GetService<IOptionsMonitor<ScyllaSettings>>()!.CurrentValue!;
             ISecretResolver secretResolver = provider.GetService<ISecretResolver>()!;
 
-            Serilog.Extensions.Logging.SerilogLoggerProvider serilogLoggerProvider = new();
+            using Serilog.Extensions.Logging.SerilogLoggerProvider serilogLoggerProvider = new();
             Diagnostics.AddLoggerProvider(serilogLoggerProvider);
             const string DefaultKeyspaceName = "jupiter";
 
@@ -397,7 +392,6 @@ namespace Horde.Storage
                 .WithExecutionProfiles(options =>
                     options.WithProfile("default", builder => builder.WithConsistencyLevel(ConsistencyLevel.LocalOne)));
 
-
             if (settings.UseAzureCosmosDB)
             {
                 CassandraConnectionStringBuilder connectionStringBuilder = new CassandraConnectionStringBuilder(connectionString);
@@ -405,19 +399,21 @@ namespace Horde.Storage
                 string[] contactPoints = connectionStringBuilder.ContactPoints;
 
                 // Connect to cassandra cluster using TLSv1.2.
-                var sslOptions = new SSLOptions(SslProtocols.Tls12, false,
+                SSLOptions sslOptions = new SSLOptions(SslProtocols.None, false,
                     (sender, certificate, chain, sslPolicyErrors) =>
                     {
                         if (sslPolicyErrors == SslPolicyErrors.None)
+                        {
                             return true;
+                        }
 
-                        _logger.Error("Certificate error: {0}", sslPolicyErrors);
+                        Logger.Error("Certificate error: {0}", sslPolicyErrors);
                         // Do not allow this client to communicate with unauthenticated servers.
                         return false;
                     });
 
                 // Prepare a map to resolve the host name from the IP address.
-                var hostNameByIp = new Dictionary<IPAddress, string>();
+                Dictionary<IPAddress, string> hostNameByIp = new Dictionary<IPAddress, string>();
                 foreach (string contactPoint in contactPoints)
                 {
                     IPAddress[] resolvedIps = Dns.GetHostAddresses(contactPoint);
@@ -433,7 +429,7 @@ namespace Horde.Storage
                     {
                         return resolvedName;
                     }
-                    var hostEntry = Dns.GetHostEntry(ipAddress.ToString());
+                    IPHostEntry hostEntry = Dns.GetHostEntry(ipAddress.ToString());
                     return hostEntry.HostName;
                 });
 
@@ -445,7 +441,7 @@ namespace Horde.Storage
             if (settings.KeyspaceReplicationStrategy != null)
             {
                 replicationStrategy = settings.KeyspaceReplicationStrategy;
-                _logger.Information("Scylla Replication strategy for replicated keyspace is set to {@ReplicationStrategy}", replicationStrategy);
+                Logger.Information("Scylla Replication strategy for replicated keyspace is set to {@ReplicationStrategy}", replicationStrategy);
             }
             ISession replicatedSession = cluster.ConnectAndCreateDefaultKeyspaceIfNotExists(replicationStrategy);
 
@@ -461,7 +457,7 @@ namespace Horde.Storage
             if (settings.LocalKeyspaceReplicationStrategy != null)
             {
                 replicationStrategyLocal = settings.LocalKeyspaceReplicationStrategy;
-                _logger.Information("Scylla Replication strategy for local keyspace is set to {@ReplicationStrategy}", replicationStrategyLocal);
+                Logger.Information("Scylla Replication strategy for local keyspace is set to {@ReplicationStrategy}", replicationStrategyLocal);
             }
 
             // the local keyspace is never replicated so we do not support controlling how the replication strategy is setup
@@ -488,7 +484,7 @@ namespace Horde.Storage
                 case HordeStorageSettings.ReferencesDbImplementations.Cache:
                     return ActivatorUtilities.CreateInstance<CacheReferencesStore>(provider);
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unknown references db implementation: {settings.ReferencesDbImplementation}");
             }
         }
         
@@ -516,7 +512,7 @@ namespace Horde.Storage
             }
             
             bool isS3InUse = settings.StorageImplementations.Any(x =>
-                String.Equals(x, HordeStorageSettings.StorageBackendImplementations.S3.ToString(), StringComparison.CurrentCultureIgnoreCase));
+                string.Equals(x, HordeStorageSettings.StorageBackendImplementations.S3.ToString(), StringComparison.OrdinalIgnoreCase));
 
             if (isS3InUse)
             {
@@ -538,7 +534,6 @@ namespace Horde.Storage
                     {
                         c.ForcePathStyle = true;
                     }
-
                 }
                 else
                 {
@@ -569,7 +564,9 @@ namespace Horde.Storage
 
             AWSOptions awsOptions = Configuration.GetAWSOptions();
             if (dynamoDbSettings.ConnectionString.ToUpper() != "AWS")
+            {
                 awsOptions.DefaultClientConfig.ServiceURL = dynamoDbSettings.ConnectionString;
+            }
 
             awsOptions.Credentials = awsCredentials;
 
@@ -674,7 +671,7 @@ namespace Horde.Storage
                     }
                     break;*/
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unknown ref db implementation: {settings.RefDbImplementation} when adding health checks");
             }
 
             foreach (HordeStorageSettings.StorageBackendImplementations impl in settings.GetStorageImplementations())

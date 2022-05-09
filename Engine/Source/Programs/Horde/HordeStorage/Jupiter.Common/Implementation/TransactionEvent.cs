@@ -83,6 +83,5 @@ namespace Jupiter.Implementation
         public string Bucket { get; }
 
         public List<string> Locations { get; }
-
     }
 }

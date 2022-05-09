@@ -21,15 +21,8 @@ namespace Horde.Storage.Implementation
         Task<SnapshotInfo?> GetLatestSnapshot(NamespaceId ns);
         IAsyncEnumerable<SnapshotInfo> GetSnapshots(NamespaceId ns);
 
-
         Task UpdateReplicatorState(NamespaceId ns, string replicatorName, ReplicatorState newState);
         Task<ReplicatorState?> GetReplicatorState(NamespaceId ns, string replicatorName);
-    }
-
-    public class ReplicatorState
-    {
-        public string? LastBucket { get; set; }
-        public Guid? LastEvent { get; set; }
     }
 
     public class SnapshotInfo

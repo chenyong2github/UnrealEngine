@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
-using Jupiter.Implementation;
 
 namespace Horde.Storage
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ReplicationSettings
     {
+        private string _stateRoot = "";
+
         /// <summary>
         /// Enable to start a replicating another Jupiter instance into this one
         /// </summary>
@@ -20,7 +22,11 @@ namespace Horde.Storage
         /// Path to a directory were the local state can be kept
         /// </summary>
         [Required]
-        public string StateRoot { get; set; } = "";
+        public string StateRoot
+        {
+            get => PathUtil.ResolvePath(_stateRoot);
+            set => _stateRoot = value;
+        }
 
         /// <summary>
         /// Path to a directory where state used to be stored. State is migrated from old state root to the new during startup.
@@ -35,13 +41,9 @@ namespace Horde.Storage
         public int ReplicationPollFrequencySeconds { get; set; } = 15;
         
         [Required]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         // ReSharper disable once CollectionNeverUpdated.Global
         public List<ReplicatorSettings> Replicators { get; set; } = new List<ReplicatorSettings>();
-
-        public string GetStateRoot()
-        {
-            return PathUtil.ResolvePath(StateRoot);
-        }
     }
 
     public class ReplicatorSettings
@@ -109,7 +111,7 @@ namespace Horde.Storage
         /// <summary>
         /// The url to login for a token to use to connect to the other services. Set to empty to disable login, assuming a unprotected service.
         /// </summary>
-        public string OAuthLoginUrl { get; set; } = "";
+        public Uri? OAuthLoginUrl { get; set; } = null;
 
         /// <summary>
         /// The scope to request

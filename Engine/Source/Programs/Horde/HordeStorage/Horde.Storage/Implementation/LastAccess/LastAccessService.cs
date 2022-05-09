@@ -58,9 +58,7 @@ namespace Horde.Storage.Implementation
         private void OnUpdate(object? state)
         {
             // call results to make sure we join the task
-            Task.WaitAll(
-                ProcessLastAccessRecords()
-            );
+            ProcessLastAccessRecords().Wait();
         }
 
         internal async Task<List<(RefRecord, DateTime)>> ProcessLastAccessRecords()
@@ -70,7 +68,9 @@ namespace Horde.Storage.Implementation
             foreach ((RefRecord record, DateTime lastAccessTime) in records)
             {
                 if (!ShouldTrackLastAccess(record.Namespace))
+                {
                     continue;
+                }
 
                 using IScope scope = Tracer.Instance.StartActive("lastAccess.update");
                 scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.RefName}";
@@ -88,7 +88,16 @@ namespace Horde.Storage.Implementation
 
         public void Dispose()
         {
-            _timer?.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _timer?.Dispose();
+            }
         }
     }
 }

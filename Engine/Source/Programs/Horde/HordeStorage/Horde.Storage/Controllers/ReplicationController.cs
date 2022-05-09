@@ -30,7 +30,6 @@ namespace Horde.Storage.Controllers
             _authorizationService = authorizationService;
         }
 
-
         [HttpGet("{ns}")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> Get(
@@ -73,7 +72,6 @@ namespace Horde.Storage.Controllers
 
         }
 
-
         [HttpPost("{ns}/{replicatorName}/{offset}")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> SetReplicationOffset(
@@ -99,7 +97,7 @@ namespace Horde.Storage.Controllers
                 });
             }
 
-            IReplicator? replicator = replicators.FirstOrDefault(replicator => string.Equals(replicator.Info.ReplicatorName, replicatorName, StringComparison.InvariantCultureIgnoreCase));
+            IReplicator? replicator = replicators.FirstOrDefault(replicator => string.Equals(replicator.Info.ReplicatorName, replicatorName, StringComparison.OrdinalIgnoreCase));
             if (replicator == null)
             {
                 return BadRequest(new ValidationProblemDetails
@@ -138,7 +136,7 @@ namespace Horde.Storage.Controllers
                 });
             }
 
-            IReplicator? replicator = replicators.FirstOrDefault(replicator => string.Equals(replicator.Info.ReplicatorName, replicatorName, StringComparison.InvariantCultureIgnoreCase));
+            IReplicator? replicator = replicators.FirstOrDefault(replicator => string.Equals(replicator.Info.ReplicatorName, replicatorName, StringComparison.OrdinalIgnoreCase));
             if (replicator == null)
             {
                 return BadRequest(new ValidationProblemDetails
@@ -158,7 +156,6 @@ namespace Horde.Storage.Controllers
             refsReplicator.SetRefState(replicationState.LastBucket, replicationState.LastEvent);
             return Ok();
         }
-
 
         [HttpDelete("{ns}")]
         [ProducesDefaultResponseType]
@@ -187,7 +184,6 @@ namespace Horde.Storage.Controllers
             {
                 await replicator.DeleteState();
             }
-
 
             return Ok();
 

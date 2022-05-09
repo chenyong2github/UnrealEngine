@@ -12,10 +12,12 @@ namespace Jupiter.Controllers
         [Route("/error")]
         public IActionResult Error()
         {
-            var context = HttpContext.Features.Get<IExceptionHandlerFeature>();
+            IExceptionHandlerFeature? context = HttpContext.Features.Get<IExceptionHandlerFeature>();
 
             if (context == null)
+            {
                 return NoContent();
+            }
 
             return Problem(
                 detail: context.Error.StackTrace,

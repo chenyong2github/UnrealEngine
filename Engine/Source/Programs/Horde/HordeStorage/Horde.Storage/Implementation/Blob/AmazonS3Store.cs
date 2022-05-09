@@ -14,14 +14,12 @@ using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
-using Serilog;
 using KeyNotFoundException = System.Collections.Generic.KeyNotFoundException;
 
 namespace Horde.Storage.Implementation
 {
     public class AmazonS3Store : IBlobStore
     {
-        private readonly ILogger _logger = Log.ForContext<AmazonS3Store>();
         private readonly IAmazonS3 _amazonS3;
         private readonly IBlobIndex _blobIndex;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
@@ -54,7 +52,7 @@ namespace Horde.Storage.Implementation
                     bool bucketExist = await _amazonS3.DoesS3BucketExistAsync(bucketName);
                     if (!bucketExist)
                     {
-                        var putBucketRequest = new PutBucketRequest
+                        PutBucketRequest putBucketRequest = new PutBucketRequest
                         {
                             BucketName = bucketName,
                             UseClientRegion = true
@@ -114,7 +112,10 @@ namespace Horde.Storage.Implementation
                 }
 
                 if (e.StatusCode == HttpStatusCode.TooManyRequests)
+                {
                     throw new ResourceHasToManyRequestsException(e);
+                }
+
                 throw;
             }
 
@@ -140,7 +141,6 @@ namespace Horde.Storage.Implementation
                 throw new NamespaceNotFoundException(ns);
             }
         }
-
 
         public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
         {
@@ -168,7 +168,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
-            NamespaceSettings.PerNamespaceSettings policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            NamespacePolicy policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
             if (_settings.UseBlobIndexForExistsCheck && policies.UseBlobIndexForSlowExists)
             {
                 return await _blobIndex.BlobExistsInRegion(ns, blobIdentifier);

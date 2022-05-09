@@ -72,7 +72,9 @@ namespace Horde.Storage.Implementation
             }
 
             if (o == null)
+            {
                 throw new ObjectNotFoundException(ns, bucket, name);
+            }
 
             try
             {
@@ -105,7 +107,6 @@ namespace Horde.Storage.Implementation
             await addBucketTask;
         }
 
-
         public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobIdentifier)
         {
             using IScope scope = Tracer.Instance.StartActive("scylla.finalize");
@@ -129,7 +130,9 @@ namespace Horde.Storage.Implementation
             foreach (Row row in rowSet)
             {
                 if (rowSet.GetAvailableWithoutFetching() == 0)
+                {
                     await rowSet.FetchMoreResultsAsync();
+                }
 
                 string bucket = row.GetValue<string>("bucket");
                 string name = row.GetValue<string>("name");
@@ -137,7 +140,10 @@ namespace Horde.Storage.Implementation
 
                 // skip any names that are not conformant to io hash
                 if (name.Length != 40)
+                {
                     continue;
+                }
+
                 yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime);
             }
         }
@@ -150,7 +156,9 @@ namespace Horde.Storage.Implementation
             foreach (Row row in rowSet)
             {
                 if (rowSet.GetAvailableWithoutFetching() == 0)
+                {
                     await rowSet.FetchMoreResultsAsync();
+                }
 
                 yield return new NamespaceId(row.GetValue<string>(0));
             }
@@ -164,7 +172,9 @@ namespace Horde.Storage.Implementation
             AppliedInfo<ScyllaObject> info = await _mapper.DeleteIfAsync<ScyllaObject>("WHERE namespace=? AND bucket=? AND name=? IF EXISTS", ns.ToString(), bucket.ToString(), key.ToString());
 
             if (info.Applied)
+            {
                 return true;
+            }
 
             return false;
         }
@@ -311,15 +321,29 @@ namespace Horde.Storage.Implementation
         public void ThrowIfRequiredFieldIsMissing(bool includePayload)
         {
             if (string.IsNullOrEmpty(Namespace))
-                throw new ArgumentException("Namespace was not valid", nameof(Namespace));
+            {
+                throw new InvalidOperationException("Namespace was not valid");
+            }
+
             if (string.IsNullOrEmpty(Bucket))
-                throw new ArgumentException("Bucket was not valid", nameof(Bucket));
+            {
+                throw new InvalidOperationException("Bucket was not valid");
+            }
+
             if (string.IsNullOrEmpty(Name))
-                throw new ArgumentException("Name was not valid", nameof(Name));
+            {
+                throw new InvalidOperationException("Name was not valid");
+            }
+
             if (PayloadHash == null && includePayload)
-                throw new ArgumentException("PayloadHash was not valid", nameof(PayloadHash));
+            {
+                throw new ArgumentException("PayloadHash was not valid");
+            }
+
             if (!IsFinalized.HasValue)
-                throw new ArgumentException("IsFinalized was not valid", nameof(IsFinalized));
+            {
+                throw new ArgumentException("IsFinalized was not valid");
+            }
         }
     }
 
@@ -340,6 +364,7 @@ namespace Horde.Storage.Implementation
         [Cassandra.Mapping.Attributes.PartitionKey]
         public string? Namespace { get; set; }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<string> Buckets { get; set; } = new List<string>();
     }
 
@@ -362,7 +387,7 @@ namespace Horde.Storage.Implementation
         [Cassandra.Mapping.Attributes.Column("accessed_at")]
         public LocalDate? AccessedAt { get; set; }
 
-
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<string> Objects { get; set; } = new List<string>();
 
     }

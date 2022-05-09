@@ -61,7 +61,9 @@ namespace Horde.Storage.Implementation
                             pendingCompactBinaryAttachments.Add(ParseCompactBinaryAttachment(ns, blobIdentifier));
                         }
                         else
+                        { 
                             throw new NotImplementedException($"Unknown attachment type for field {field}");
+                        }
                     });
 
                     foreach (BlobIdentifier blobIdentifier in blobIdentifiers)

@@ -31,7 +31,7 @@ namespace Horde.Storage
                 IAuthorizationHandler? handler = innerRequirement as IAuthorizationHandler;
                 if (handler != null)
                 {
-                    var innerContext = new AuthorizationHandlerContext(new[] { innerRequirement }, context.User, context.Resource);
+                    AuthorizationHandlerContext innerContext = new AuthorizationHandlerContext(new[] { innerRequirement }, context.User, context.Resource);
                     await handler.HandleAsync(innerContext);
                     if (innerContext.HasSucceeded)
                     {
@@ -64,7 +64,7 @@ namespace Horde.Storage
 
         public AuthorizationPolicyBuilder AddAny()
         {
-            var anyRequirement = new AnyRequirement(_innerRequirements.ToArray());
+            AnyRequirement anyRequirement = new AnyRequirement(_innerRequirements.ToArray());
             return _policyBuilder.AddRequirements(anyRequirement);
         }
     }

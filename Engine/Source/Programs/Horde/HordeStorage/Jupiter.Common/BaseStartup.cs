@@ -39,19 +39,17 @@ namespace Jupiter
 {
     public abstract class BaseStartup
     {
-        protected readonly ILogger _logger = Log.ForContext<BaseStartup>();
+	    protected ILogger Logger { get; } = Log.ForContext<BaseStartup>();
 
-        public BaseStartup(IConfiguration configuration, IWebHostEnvironment environment)
+        protected BaseStartup(IConfiguration configuration)
         {
             Configuration = configuration;
-            Environment = environment;
             Auth = new AuthSettings();
         }
 
-        public IConfiguration Configuration { get; }
-        public IWebHostEnvironment Environment { get; }
+        protected IConfiguration Configuration { get; }
 
-        protected AuthSettings Auth { get; }
+        private AuthSettings Auth { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -96,7 +94,7 @@ namespace Jupiter
                 {
                     options.InvalidModelStateResponseFactory = context =>
                     {
-                        var result = new BadRequestObjectResult(context.ModelState);
+                        BadRequestObjectResult result = new BadRequestObjectResult(context.ModelState);
                         // always return errors as json objects
                         // we could allow more types here, but we do not want raw for instance
                         result.ContentTypes.Add(MediaTypeNames.Application.Json);
@@ -128,7 +126,7 @@ namespace Jupiter
                             options.DefaultChallengeScheme = DisabledAuthenticationHandler.AuthenticateScheme;
                             break;
                         default:
-                            throw new ArgumentOutOfRangeException();
+                            throw new NotImplementedException($"Method {Auth.Method} not implemented");
                     }
                 });
             if (Auth.Method == AuthMethod.JWTBearer)
@@ -178,7 +176,6 @@ namespace Jupiter
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             });
 
-
             services.AddSwaggerGen(settings =>
             {
                 string? assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
@@ -213,7 +210,7 @@ namespace Jupiter
             OnAddHealthChecks(services, healthChecks);
 
             string? ddAgentHost = System.Environment.GetEnvironmentVariable("DD_AGENT_HOST");
-            if (!String.IsNullOrEmpty(ddAgentHost))
+            if (!string.IsNullOrEmpty(ddAgentHost))
             {
                 healthChecks.AddDatadogPublisher("jupiter.healthchecks");
             }
@@ -246,7 +243,7 @@ namespace Jupiter
 
             if (jupiterSettings.ShowPII)
             {
-                _logger.Error("Personally Identifiable information being shown. This should not be generally enabled in prod.");
+                Logger.Error("Personally Identifiable information being shown. This should not be generally enabled in prod.");
 
                 // do not hide personal information during development
                 Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
@@ -344,7 +341,7 @@ namespace Jupiter
 
     public class MvcJsonOptionsWrapper : IConfigureOptions<MvcNewtonsoftJsonOptions>
     {
-        IServiceProvider ServiceProvider;
+        readonly IServiceProvider ServiceProvider;
 
         public MvcJsonOptionsWrapper(IServiceProvider serviceProvider)
         {
@@ -358,7 +355,7 @@ namespace Jupiter
 
     public class FieldFilteringResolver : DefaultContractResolver
     {
-        private IHttpContextAccessor _httpContextAccessor;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public FieldFilteringResolver(IServiceProvider sp)
         {
@@ -377,11 +374,15 @@ namespace Jupiter
                 HttpContext? httpContext = _httpContextAccessor.HttpContext;
 
                 if (httpContext == null)
+                {
                     return true;
+                }
 
                 // if no fields are being filtered we should serialize the property
                 if (!httpContext.Request.Query.ContainsKey("fields"))
+                {
                     return true;
+                }
 
                 StringValues fields = httpContext.Request.Query["fields"];
                 bool ignore = true;
@@ -392,7 +393,7 @@ namespace Jupiter
                     {
                         return true;
                     }
-                    if (string.Equals(field, property.PropertyName, StringComparison.InvariantCultureIgnoreCase))
+                    if (string.Equals(field, property.PropertyName, StringComparison.OrdinalIgnoreCase))
                     {
                         ignore = false;
                     }
@@ -405,7 +406,6 @@ namespace Jupiter
         }
     }
 
-
     public enum AuthMethod
     {
         JWTBearer,
@@ -417,7 +417,6 @@ namespace Jupiter
     {
         [Required] 
         public AuthMethod Method { get; set; } = AuthMethod.JWTBearer;
-
 
         [Required]
         public string OktaDomain { get; set; } = "";
@@ -438,10 +437,10 @@ namespace Jupiter
         /// <summary>
         /// If the request is smaller then MemoryBufferSize we buffer it in memory rather then as a file
         /// </summary>
-        public long MemoryBufferSize { get; set; } = Int32.MaxValue;
+        public long MemoryBufferSize { get; set; } = int.MaxValue;
 
         // enable to unhide potentially personal information, see https://aka.ms/IdentityModel/PII
-        public bool ShowPII = false;
+        public bool ShowPII { get; set; } = false;
         public bool DisableHealthChecks { get; set; } = false;
         public bool HostSwaggerDocumentation { get; set; } = true;
 
@@ -460,19 +459,20 @@ namespace Jupiter
 
     public class NamespaceSettings
     {
-        public Dictionary<string, PerNamespaceSettings> Policies { get; set; } = new Dictionary<string, PerNamespaceSettings>();
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+        public Dictionary<string, NamespacePolicy> Policies { get; set; } = new Dictionary<string, NamespacePolicy>();
+    }
 
-        public class PerNamespaceSettings
-        {
-            public string[] Claims { get; set; } = Array.Empty<string>();
-            public string StoragePool { get; set; } = "";
+    public class NamespacePolicy
+    {
+	    public string[] Claims { get; set; } = Array.Empty<string>();
+	    public string StoragePool { get; set; } = "";
 
-            public bool LastAccessTracking { get; set; } = true;
-            public bool OnDemandReplication { get; set; } = false;
-            public bool UseBlobIndexForExists { get; set; } = false;
-            public bool UseBlobIndexForSlowExists { get; set; } = false;
-            public bool? IsLegacyNamespace { get; set; } = null;
-        }
+	    public bool LastAccessTracking { get; set; } = true;
+	    public bool OnDemandReplication { get; set; } = false;
+	    public bool UseBlobIndexForExists { get; set; } = false;
+	    public bool UseBlobIndexForSlowExists { get; set; } = false;
+	    public bool? IsLegacyNamespace { get; set; } = null;
     }
 
     public class DatadogTraceMiddleware

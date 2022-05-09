@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.LeaderElection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace Horde.Storage
@@ -106,7 +104,9 @@ namespace Horde.Storage
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = new CancellationToken())
         {
             if (!_snapshotSettings.CurrentValue.Enabled)
+            {
                 return Task.FromResult(HealthCheckResult.Healthy());
+            }
 
             if (_replicationSnapshotService.Running)
             {
@@ -132,7 +132,9 @@ namespace Horde.Storage
         {
             // if replication is disabled we consider it healthy
             if (!_replicationSetting.CurrentValue.Enabled)
+            {
                 return Task.FromResult(HealthCheckResult.Healthy());
+            }
 
             if (_replicationService.Running)
             {

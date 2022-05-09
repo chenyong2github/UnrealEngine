@@ -4,11 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Amazon.Runtime;
-using Amazon.SecurityToken.Model;
 
 namespace Jupiter
 {
-    public class AWSCredentialsHelper
+    public static class AWSCredentialsHelper
     {
         public static AWSCredentials GetCredentials(AWSCredentialsSettings options, string sessionName)
         {
@@ -21,7 +20,7 @@ namespace Jupiter
                 case AWSCredentialsType.AssumeRoleWebIdentity:
                     return AssumeRoleWithWebIdentityCredentials.FromEnvironmentVariables();
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unhandled enum option {options.AWSCredentialsType}");
             }
         }
     }
@@ -36,7 +35,7 @@ namespace Jupiter
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            var results = new List<ValidationResult>();
+            List<ValidationResult> results = new();
 
             switch (AWSCredentialsType)
             {
@@ -62,7 +61,7 @@ namespace Jupiter
                     // the environment variables will be verified when we create the credentials type, as there is no configuration in our appsettings we do not do any checks
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException();
+	                throw new NotImplementedException($"Unhandled enum option {AWSCredentialsType}");
             }
 
             return results;

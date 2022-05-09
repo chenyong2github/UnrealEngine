@@ -1,14 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using async_enumerable_dotnet;
-using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 
@@ -25,7 +20,6 @@ namespace Horde.Storage.Implementation
 
         // Delete a object
         Task DeleteObject(NamespaceId ns, BlobIdentifier blob);
-
 
         // delete the whole namespace
         Task DeleteNamespace(NamespaceId ns);
@@ -66,7 +60,6 @@ namespace Horde.Storage.Implementation
         {
             Namespace = @namespace;
         }
-
     }
 
     public class BlobToLargeException : Exception
@@ -77,7 +70,6 @@ namespace Horde.Storage.Implementation
         {
             Blob = blob;
         }
-
     }
 
     public class ResourceHasToManyRequestsException : Exception
@@ -86,6 +78,4 @@ namespace Horde.Storage.Implementation
         {
         }
     }
-
-
 }

@@ -8,43 +8,41 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Horde.Storage.Implementation
 {
+    public class ReplicationState
+    {
+        public List<IReplicator> Replicators { get; } = new List<IReplicator>();
+    }
+
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class ReplicationService : PollingService<ReplicationService.ReplicationState>
+    public class ReplicationService : PollingService<ReplicationState>
     {
         private readonly IOptionsMonitor<ReplicationSettings> _settings;
         private readonly ILeaderElection _leaderElection;
         private readonly ILogger _logger = Log.ForContext<ReplicationService>();
         private readonly Dictionary<string, Task<bool>> _currentReplications = new Dictionary<string, Task<bool>>();
 
-        public class ReplicationState
-        {
-            public List<IReplicator> Replicators { get; } = new List<IReplicator>();
-        }
-
         protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.Enabled;
         }
 
-        public ReplicationService(IOptionsMonitor<ReplicationSettings> settings, IServiceProvider provider, ILeaderElection leaderElection) :
-            base(serviceName: nameof(ReplicationService), TimeSpan.FromSeconds(settings.CurrentValue.ReplicationPollFrequencySeconds), new ReplicationState(), startAtRandomTime: true)
+        public ReplicationService(IOptionsMonitor<ReplicationSettings> settings, IServiceProvider provider, ILeaderElection leaderElection) : base(serviceName: nameof(ReplicationService), TimeSpan.FromSeconds(settings.CurrentValue.ReplicationPollFrequencySeconds), new ReplicationState(), startAtRandomTime: true)
         {
             _settings = settings;
             _leaderElection = leaderElection;
 
             _leaderElection.OnLeaderChanged += OnLeaderChanged;
 
-            DirectoryInfo di = new DirectoryInfo(settings.CurrentValue.GetStateRoot());
+            DirectoryInfo di = new DirectoryInfo(settings.CurrentValue.StateRoot);
             Directory.CreateDirectory(di.FullName);
 
-            foreach (var replicator in settings.CurrentValue.Replicators)
+            foreach (ReplicatorSettings replicator in settings.CurrentValue.Replicators)
             {
                 try
                 {
@@ -55,13 +53,14 @@ namespace Horde.Storage.Implementation
                     _logger.Error(e, "Failed to create replicator {Name}", replicator.ReplicatorName);
                 }
             }
-
         }
 
-        private void OnLeaderChanged(object? sender, ILeaderElection.OnLeaderChangedEventArgs e)
+        private void OnLeaderChanged(object? sender, OnLeaderChangedEventArgs e)
         {
             if (e.IsLeader)
+            {
                 return;
+            }
 
             // if we are no longer the leader cancel any pending replications
             // TODO: Reset replication token if we are the new leader
@@ -79,7 +78,7 @@ namespace Horde.Storage.Implementation
                 case ReplicatorVersion.Refs:
                     return ActivatorUtilities.CreateInstance<RefsReplicator>(provider, replicatorSettings);
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unknown replicator version: {replicatorSettings.Version}");
             }
         }
 

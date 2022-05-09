@@ -31,10 +31,9 @@ namespace Horde.Storage.FunctionalTests.Storage
 {
     public abstract class BlobIndexTests
     {
-        protected TestServer? _server;
-        protected HttpClient? _httpClient;
-
-        protected readonly NamespaceId TestNamespaceName = new NamespaceId("testbucket");
+        private TestServer? _server;
+        private HttpClient? _httpClient;
+        private readonly NamespaceId _testNamespaceName = new NamespaceId("testbucket");
 
         [TestInitialize]
         public async Task Setup()
@@ -68,7 +67,6 @@ namespace Horde.Storage.FunctionalTests.Storage
         protected abstract Task Seed(IServiceProvider serverServices);
         protected abstract Task Teardown(IServiceProvider serverServices);
 
-
         [TestCleanup]
         public async Task MyTeardown()
         {
@@ -83,12 +81,12 @@ namespace Horde.Storage.FunctionalTests.Storage
             using ByteArrayContent requestContent = new ByteArrayContent(payload);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             BlobIdentifier contentHash = BlobIdentifier.FromBlob(payload);
-            HttpResponseMessage response = await _httpClient!.PutAsync(requestUri: $"api/v1/s/{TestNamespaceName}/{contentHash}", requestContent);
+            HttpResponseMessage response = await _httpClient!.PutAsync(new Uri($"api/v1/s/{_testNamespaceName}/{contentHash}", UriKind.Relative), requestContent);
             response.EnsureSuccessStatusCode();
 
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            IBlobIndex.BlobInfo? blobInfo = await index.GetBlobInfo(TestNamespaceName, contentHash);
+            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, contentHash);
 
             Assert.IsNotNull(blobInfo);
             Assert.IsTrue(blobInfo.Regions.Contains("test"));
@@ -105,16 +103,16 @@ namespace Horde.Storage.FunctionalTests.Storage
             byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
-            HttpContent requestContent = new ByteArrayContent(objectData);
+            using HttpContent requestContent = new ByteArrayContent(objectData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
             IoHashKey putKey = IoHashKey.FromName("newReferenceUploadObject");
-            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespaceName}/bucket/{putKey}.uecb", requestContent);
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{_testNamespaceName}/bucket/{putKey}.uecb", UriKind.Relative), requestContent);
             result.EnsureSuccessStatusCode();
 
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            IBlobIndex.BlobInfo? blobInfo = await index.GetBlobInfo(TestNamespaceName, objectHash);
+            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, objectHash);
 
             Assert.IsNotNull(blobInfo);
             Assert.IsTrue(blobInfo.Regions.Contains("test"));
@@ -135,29 +133,28 @@ namespace Horde.Storage.FunctionalTests.Storage
             {
                 using ByteArrayContent requestContent = new ByteArrayContent(payload);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
-                HttpResponseMessage response = await _httpClient!.PutAsync(requestUri: $"api/v1/s/{TestNamespaceName}/{contentHash}", requestContent);
+                HttpResponseMessage response = await _httpClient!.PutAsync(new Uri($"api/v1/s/{_testNamespaceName}/{contentHash}", UriKind.Relative), requestContent);
                 response.EnsureSuccessStatusCode();
             }
             // verify its present in the blob index
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            IBlobIndex.BlobInfo? blobInfo = await index.GetBlobInfo(TestNamespaceName, contentHash);
+            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, contentHash);
             Assert.IsNotNull(blobInfo);
             Assert.IsTrue(blobInfo.Regions.Any());
 
             // delete the blob
             {
-                HttpResponseMessage response = await _httpClient!.DeleteAsync(requestUri: $"api/v1/s/{TestNamespaceName}/{contentHash}");
+                HttpResponseMessage response = await _httpClient!.DeleteAsync(new Uri($"api/v1/s/{_testNamespaceName}/{contentHash}", UriKind.Relative));
                 response.EnsureSuccessStatusCode();
             }
 
-            IBlobIndex.BlobInfo? deletedBlobInfo = await index.GetBlobInfo(TestNamespaceName, contentHash);
+            BlobInfo? deletedBlobInfo = await index.GetBlobInfo(_testNamespaceName, contentHash);
 
             bool hasRegions = deletedBlobInfo != null && deletedBlobInfo.Regions.Any();
             // but the blob info will not contain the current region
             Assert.IsTrue(!hasRegions);
         }
-
 
         [TestMethod]
         public async Task EnumerateAllBlobs()
@@ -166,7 +163,7 @@ namespace Horde.Storage.FunctionalTests.Storage
             Assert.IsNotNull(index);
             {
                 // verify the blob info list is empty at the start
-                IBlobIndex.BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
+                BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
                 Assert.AreEqual(0, blobInfos.Length);
             }
 
@@ -179,7 +176,7 @@ namespace Horde.Storage.FunctionalTests.Storage
                 {
                     using ByteArrayContent requestContent = new ByteArrayContent(payload);
                     requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
-                    HttpResponseMessage response = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespaceName}/{contentHash}", requestContent);
+                    HttpResponseMessage response = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{_testNamespaceName}/{contentHash}", UriKind.Relative), requestContent);
                     response.EnsureSuccessStatusCode();
                 }
             }
@@ -191,22 +188,20 @@ namespace Horde.Storage.FunctionalTests.Storage
                 compressedPayloadIdentifier = BlobIdentifier.FromBlob(texturePayload);
                 BlobIdentifier uncompressedPayloadIdentifier = new BlobIdentifier("DEA81B6C3B565BB5089695377C98CE0F1C13B0C3");
 
-                ByteArrayContent content = new ByteArrayContent(texturePayload);
+                using ByteArrayContent content = new ByteArrayContent(texturePayload);
                 content.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompressedBuffer);
-                HttpResponseMessage result = await _httpClient!.PutAsync($"api/v1/compressed-blobs/{TestNamespaceName}/{uncompressedPayloadIdentifier}", content);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/compressed-blobs/{_testNamespaceName}/{uncompressedPayloadIdentifier}", UriKind.Relative), content);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                IBlobIndex.BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
+                BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
                 Assert.AreEqual(2, blobInfos.Length);
 
                 Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.BlobIdentifier.Equals(compressedPayloadIdentifier)));
                 Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.BlobIdentifier.Equals(contentHash)));
             }
         }
-
-     
     }
 
     [TestClass()]

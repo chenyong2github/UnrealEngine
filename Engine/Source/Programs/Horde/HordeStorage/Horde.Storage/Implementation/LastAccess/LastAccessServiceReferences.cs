@@ -60,9 +60,7 @@ namespace Horde.Storage.Implementation
             try
             {
                 // call results to make sure we join the task
-                Task.WaitAll(
-                    ProcessLastAccessRecords()
-                );
+                ProcessLastAccessRecords().Wait();
             }
             catch (Exception e)
             {
@@ -77,7 +75,10 @@ namespace Horde.Storage.Implementation
             foreach ((LastAccessRecord record, DateTime lastAccessTime) in records)
             {
                 if (!ShouldTrackLastAccess(record.Namespace))
+                {
                     continue;
+                }
+
                 using IScope scope = Tracer.Instance.StartActive("lastAccess.update");
                 scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Key}";
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
@@ -96,7 +97,17 @@ namespace Horde.Storage.Implementation
 
         public void Dispose()
         {
-            _timer?.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _timer?.Dispose();
+
+            }
         }
     }
 }

@@ -23,7 +23,6 @@ namespace Horde.Storage.Implementation
             _cosmosSettings = cosmosSettings;
         }
 
-
         public override async Task Add(RefRecord record)
         {
             string dbName = GetDatabaseName(record.Namespace);
@@ -31,7 +30,7 @@ namespace Horde.Storage.Implementation
             bool collectionExists = await CollectionExistsAsync(dbName, ModelName);
             if (!collectionExists)
             {
-                var createDbCommand = new BsonDocument
+                BsonDocument createDbCommand = new BsonDocument
                 {
                     {
                         "customAction","CreateCollection"
@@ -43,7 +42,7 @@ namespace Horde.Storage.Implementation
                         "offerThroughput",_cosmosSettings.CurrentValue.DefaultRU
                     }
                 };
-                var db = _client.GetDatabase(dbName);
+                IMongoDatabase? db = Client.GetDatabase(dbName);
                 BsonDocument? result;
                 try
                 {
@@ -69,7 +68,9 @@ namespace Horde.Storage.Implementation
                     //https://docs.microsoft.com/en-us/azure/cosmos-db/mongodb-custom-commands#default-output
                     int ok = result["ok"].AsInt32;
                     if (ok == 0) // failure
+                    {
                         throw new Exception($"Failed to create MongoDB {dbName} in Cosmos. Response: {result}");
+                    }
                 }
             }
 
@@ -78,11 +79,11 @@ namespace Horde.Storage.Implementation
 
         private async Task<bool> CollectionExistsAsync(string dbName, string collectionName)
         {
-            var db = _client.GetDatabase(dbName);
+            IMongoDatabase? db = Client.GetDatabase(dbName);
 
-            var filter = new BsonDocument("name", collectionName);
+            BsonDocument filter = new BsonDocument("name", collectionName);
             //filter by collection name
-            var collections = await db.ListCollectionsAsync(new ListCollectionsOptions { Filter = filter });
+            IAsyncCursor<BsonDocument>? collections = await db.ListCollectionsAsync(new ListCollectionsOptions { Filter = filter });
             //check for existence
             return await collections.AnyAsync();
         }

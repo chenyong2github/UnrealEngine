@@ -8,30 +8,29 @@ using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
     public class BatchWriter
     {
-        public enum OpState : byte
-        {
+#pragma warning disable CA1028 // Enum Storage should be Int32
+		public enum OpState : byte
+		{
             OK = 0,
             Failed = 1,
             NotFound = 2,
             Exists = 3 // special case for HEAD checks, same as OK but indicates that there will be no payload
         };
+#pragma warning restore CA1028 // Enum Storage should be Int32
 
-        private readonly ILogger _logger = Log.ForContext<BatchWriter>();
-
-        public async Task WriteToStream(Stream outStream, NamespaceId ns, List<Tuple<OpVerb, BucketId, KeyId>> ops, Func<OpVerb, NamespaceId, BucketId, KeyId, string[], Task<Tuple<ContentHash?, BlobContents?, OpState>>> fetchAction)
+		public async Task WriteToStream(Stream outStream, NamespaceId ns, List<Tuple<OpVerb, BucketId, KeyId>> ops, Func<OpVerb, NamespaceId, BucketId, KeyId, string[], Task<Tuple<ContentHash?, BlobContents?, OpState>>> fetchAction)
         {
             await outStream.WriteAsync(Encoding.ASCII.GetBytes("JPTR"));
             await outStream.WriteAsync(BitConverter.GetBytes((uint) ops.Count));
 
             byte[] entryHeaderBytes = Encoding.ASCII.GetBytes("JPEE");
 
-            SemaphoreSlim streamLock = new SemaphoreSlim(1, 1);
+            using SemaphoreSlim streamLock = new SemaphoreSlim(1, 1);
 
             foreach ((OpVerb opVerb, BucketId bucket, KeyId key) in ops)
             {
@@ -64,7 +63,9 @@ namespace Jupiter.Implementation
                     // if we have a failure we do not know if the hash data or blob is valid so we only write the state code
                     // also for head checks we do not write anything more
                     if (opState != OpState.OK || opState == OpState.Exists || contentHash == null || blob == null)
+                    {
                         continue;
+                    }
 
                     await outStream.WriteAsync(contentHash.HashData);
                     await outStream.WriteAsync(BitConverter.GetBytes((ulong) blob.Length));

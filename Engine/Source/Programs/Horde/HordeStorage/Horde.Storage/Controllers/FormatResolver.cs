@@ -31,7 +31,10 @@ namespace Horde.Storage.Controllers
             {
                 string? typeMapping = _mvcOptions.CurrentValue.FormatterMappings.GetMediaTypeMappingForFormat(format);
                 if (typeMapping == null)
+                {
                     throw new Exception($"No mapping defined from format {format} to mime type");
+                }
+
                 return typeMapping;
             }
             
@@ -51,10 +54,9 @@ namespace Horde.Storage.Controllers
 
             foreach (string header in acceptHeader)
             {
-                string s = header.ToLowerInvariant();
-                if (_validContentTypes.Contains(s))
+                if (_validContentTypes.Contains(header, StringComparer.OrdinalIgnoreCase))
                 {
-                    return s;
+                    return header;
                 }
             }
 

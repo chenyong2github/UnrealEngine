@@ -18,6 +18,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
+using JetBrains.Annotations;
 using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
@@ -90,7 +91,6 @@ namespace Horde.Storage.Controllers
         /// <param name="ns">Namespace. Each namespace is completely separated from each other. Use for different types of data that is never expected to be similar (between two different games for instance). Example: `uc4.ddc`</param>
         /// <param name="bucket">The category/type of record you are caching. Is a clustered key together with the actual key, but all records in the same bucket can be dropped easily. Example: `terrainTexture` </param>
         /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
-        /// <param name="fields">The fields to include in the response, omit this to include everything.</param>
         /// <param name="format">Optional specifier to set which output format is used json/raw/cb</param>
         [HttpGet("{ns}/{bucket}/{key}.{format?}", Order = 500)]
         [Produces(MediaTypeNames.Application.Json, MediaTypeNames.Application.Octet, CustomMediaTypeNames.UnrealCompactBinary, CustomMediaTypeNames.JupiterInlinedPayload)]
@@ -99,7 +99,6 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key,
-            [FromQuery] string[] fields,
             [FromRoute] string? format = null)
         {
             {
@@ -117,7 +116,9 @@ namespace Horde.Storage.Controllers
                 (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, Array.Empty<string>());
 
                 if (blob == null)
+                {
                     throw new InvalidOperationException($"Blob was null when attempting to fetch {ns} {bucket} {key}");
+                }
 
                 if (!objectRecord.IsFinalized)
                 {
@@ -134,7 +135,7 @@ namespace Horde.Storage.Controllers
                     long contentLength = blobContents.Length;
                     scope.Span.SetTag("content-length", contentLength.ToString());
                     const int BufferSize = 64 * 1024;
-                    var outputStream = Response.Body;
+                    Stream outputStream = Response.Body;
                     Response.ContentLength = contentLength;
                     Response.ContentType = contentType;
                     Response.StatusCode = StatusCodes.Status200OK;
@@ -165,7 +166,9 @@ namespace Horde.Storage.Controllers
                             {
                                 ++count;
                                 if (field.IsBinaryAttachment())
+                                {
                                     foundField = field;
+                                }
                             });
 
                             return (count, foundField);
@@ -187,7 +190,8 @@ namespace Horde.Storage.Controllers
                         }
 
                         // this doesn't look like the generated compact binary so we just return the payload
-                        await WriteBody(new BlobContents(blobMemory), MediaTypeNames.Application.Octet);
+                        await using BlobContents contents = new(blobMemory);
+                        await WriteBody(contents, MediaTypeNames.Application.Octet);
                         break;
                     }
                     case MediaTypeNames.Application.Json:
@@ -199,7 +203,8 @@ namespace Horde.Storage.Controllers
                         }
                         CbObject cb = new CbObject(blobMemory);
                         string s = cb.ToJson();
-                        await WriteBody(new BlobContents(Encoding.UTF8.GetBytes(s)), MediaTypeNames.Application.Json);
+                        await using BlobContents contents = new BlobContents(Encoding.UTF8.GetBytes(s));
+                        await WriteBody(contents, MediaTypeNames.Application.Json);
                         break;
 
                     }
@@ -285,7 +290,8 @@ namespace Horde.Storage.Controllers
                         else if (countOfBinaryAttachmentFields == 0 && countOfAttachmentFields == 0)
                         {
                             // no attachments so we just return the compact object instead
-                            await WriteBody(new BlobContents(blobMemory), CustomMediaTypeNames.JupiterInlinedPayload);
+                            await using BlobContents contents = new BlobContents(blobMemory);
+                            await WriteBody(contents, CustomMediaTypeNames.JupiterInlinedPayload);
                             return new EmptyResult();
                         }
 
@@ -361,7 +367,6 @@ namespace Horde.Storage.Controllers
                 return NotFound(new ProblemDetails { Title = $"Object {e.Blob} in {e.Ns} not found" });
             }
         }
-
 
         /// <summary>
         /// Checks if a object exists
@@ -462,7 +467,10 @@ namespace Horde.Storage.Controllers
             {
                 int separatorIndex = name.IndexOf(".", StringComparison.Ordinal);
                 if (separatorIndex == -1)
+                {
                     return BadRequest(new ProblemDetails() { Title = $"Key {name} did not contain a '.' separator" });
+                }
+
                 BucketId bucket = new BucketId(name.Substring(0, separatorIndex));
                 IoHashKey key = new IoHashKey(name.Substring(separatorIndex + 1));
                 requestedNames.Add((bucket, key));
@@ -503,7 +511,6 @@ namespace Horde.Storage.Controllers
 
             return Ok(new ExistCheckMultipleRefsResponse(missingObject.ToList()));
         }
-
 
         [HttpPut("{ns}/{bucket}/{key}.{format?}", Order = 500)]
         [DisableRequestSizeLimit]
@@ -565,7 +572,7 @@ namespace Horde.Storage.Controllers
                     }
                     case CustomMediaTypeNames.UnrealCompactBinary:
                     {
-                        MemoryStream ms = new MemoryStream();
+                        await using MemoryStream ms = new MemoryStream();
                         await using Stream payloadStream = payload.GetStream();
                         await payloadStream.CopyToAsync(ms);
                         payloadObject = new CbObject(ms.ToArray());
@@ -597,7 +604,6 @@ namespace Horde.Storage.Controllers
                     Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
             }
-
 
             (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Put(ns, bucket, key, blobHeader, payloadObject);
 
@@ -631,7 +637,6 @@ namespace Horde.Storage.Controllers
             return Ok(new PutObjectResponse(missingHashes.ToArray()));
         }
 
-
         [HttpPost("{ns}")]
         [Consumes(CustomMediaTypeNames.UnrealCompactBinary)]
         [Produces(CustomMediaTypeNames.UnrealCompactBinary)]
@@ -664,7 +669,9 @@ namespace Horde.Storage.Controllers
                     }
 
                     if (blob == null)
+                    {
                         throw new Exception();
+                    }
 
                     CbObject cb = new CbObject(await blob.Stream.ToByteArray());
 
@@ -708,9 +715,10 @@ namespace Horde.Storage.Controllers
                         List<BlobIdentifier>? _ = await references.ToListAsync();
                     }
 
-
                     if (blob == null)
+                    {
                         throw new Exception();
+                    }
 
                     return (CbObject.Build(writer => writer.WriteBool("exists", true)), HttpStatusCode.OK);
                 }
@@ -771,7 +779,7 @@ namespace Horde.Storage.Controllers
                         break;
                     case BatchOps.BatchOp.Operation.INVALID:
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        throw new NotImplementedException($"Unknown op type {op.Op}");
                 }
 
                 await Task.CompletedTask;
@@ -791,7 +799,7 @@ namespace Horde.Storage.Controllers
             });
         }
 
-        private (CbObject, HttpStatusCode) ToErrorResult(Exception exception, HttpStatusCode statusCode = HttpStatusCode.InternalServerError)
+        private static (CbObject, HttpStatusCode) ToErrorResult(Exception exception, HttpStatusCode statusCode = HttpStatusCode.InternalServerError)
         {
             Exception e = exception;
             CbWriter writer = new CbWriter();
@@ -829,7 +837,6 @@ namespace Horde.Storage.Controllers
                 return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
             }
 
-
             return NoContent();
         }
 
@@ -852,7 +859,7 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            long countOfDeletedRecords = 0;
+            long countOfDeletedRecords;
             try
             {
                 countOfDeletedRecords = await _objectService.DeleteBucket(ns, bucket);
@@ -861,7 +868,6 @@ namespace Horde.Storage.Controllers
             {
                 return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
             }
-
 
             return Ok(new BucketDeletedResponse(countOfDeletedRecords));
         }
@@ -947,6 +953,7 @@ namespace Horde.Storage.Controllers
             Ops = Array.Empty<BatchOp>();
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "For serialization only")]
         public class BatchOp
         {
             public BatchOp()
@@ -967,13 +974,13 @@ namespace Horde.Storage.Controllers
             [CbField("opId")]
             public uint OpId { get; set; }
 
-
             [CbField("op")]
             [JsonIgnore]
+            [UsedImplicitly]
             public string OpString
             {
-                get { return Op.ToString(); }
-                set { Op = Enum.Parse<Operation>(value); }
+                get => Op.ToString();
+                set => Op = Enum.Parse<Operation>(value);
             }
 
             [Required]
@@ -1008,6 +1015,7 @@ namespace Horde.Storage.Controllers
 
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "For serialization only")]
         public class OpResponses
         {
             public OpResponses()
@@ -1025,6 +1033,7 @@ namespace Horde.Storage.Controllers
         }
 
         [CbField("results")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<OpResponses> Results { get; set; } = new List<OpResponses>();
     }
 
@@ -1119,8 +1128,10 @@ namespace Horde.Storage.Controllers
         }
 
         [CbField("missing")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<MissingReference> Missing { get; set; }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "For serialization only")]
         public class MissingReference
         {
             [CbField("bucket")]

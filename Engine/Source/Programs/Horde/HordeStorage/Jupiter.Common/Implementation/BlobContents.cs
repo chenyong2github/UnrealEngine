@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Jupiter.Implementation
 {
-    public class BlobContents : IDisposable, IAsyncDisposable
+    public sealed class BlobContents : IDisposable, IAsyncDisposable
     {
         public BlobContents(Stream stream, long length)
         {

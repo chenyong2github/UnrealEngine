@@ -24,14 +24,12 @@ namespace Horde.Storage.Controllers
     {
         private readonly LastAccessService _lastAccessService;
         private readonly IRefCleanup _refCleanup;
-        private readonly BlobCleanupService _blobCleanupService;
         private readonly IConfiguration _configuration;
 
-        public AdminController(LastAccessService lastAccessService, IRefCleanup refCleanup, BlobCleanupService blobCleanupService, IConfiguration configuration)
+        public AdminController(LastAccessService lastAccessService, IRefCleanup refCleanup, IConfiguration configuration)
         {
             _lastAccessService = lastAccessService;
             _refCleanup = refCleanup;
-            _blobCleanupService = blobCleanupService;
             _configuration = configuration;
         }
 
@@ -105,7 +103,9 @@ namespace Horde.Storage.Controllers
             {
                 Dictionary<string, object> values = ResolveSection(section);
                 if (values.Count != 0)
+                {
                     settings.Add(section.Key, values);
+                }
             }
 
             return new JsonResult(new
@@ -148,6 +148,7 @@ namespace Horde.Storage.Controllers
             UpdatedRecords = updatedRecords;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Only used by serialization")]
         public class UpdatedRecord
         {
             public UpdatedRecord(RefRecord record, DateTime time)

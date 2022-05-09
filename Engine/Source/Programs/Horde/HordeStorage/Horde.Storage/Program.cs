@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 namespace Horde.Storage
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class Program
+    public static class Program
     {
         public static int Main(string[] args)
         {

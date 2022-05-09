@@ -45,11 +45,11 @@ namespace Jupiter.Common.Implementation
 
         private string? ResolveUsingProvider(string providerId, string providerPath, string originalValue)
         {
-            switch (providerId.ToLowerInvariant())
+            switch (providerId.ToUpperInvariant())
             {
-                case "aws":
+                case "AWS":
                     return ResolveAWSSecret(providerPath);
-                case "akv":
+                case "AKV":
                     return ResolveAKVSecret(providerPath);
                 default:
                     // no provider matches so just return the original value
@@ -63,7 +63,9 @@ namespace Jupiter.Common.Implementation
 
             IAmazonSecretsManager? secretsManager = _serviceProvider.GetService<IAmazonSecretsManager>();
             if (secretsManager == null)
+            {
                 throw new Exception($"Unable to get AWSSecretsManager when resolving aws secret resource: {providerPath}");
+            }
 
             string secretValue;
             try
@@ -81,14 +83,21 @@ namespace Jupiter.Common.Implementation
             }
 
             if (key == null)
+            {
                 return secretValue;
+            }
 
             Dictionary<string, string>? keyCollection = JsonSerializer.Deserialize<Dictionary<string, string>>(secretValue);
 
             if (keyCollection == null)
+            {
                 throw new Exception($"Unable to deserialize secret to a json payload for path: {providerPath}");
+            }
+
             if (keyCollection.TryGetValue(key, out string? s))
+            {
                 return s;
+            }
 
             throw new Exception($"Unable to find key {key} in blob returned for secret {arn}");
         }
@@ -102,7 +111,7 @@ namespace Jupiter.Common.Implementation
         /// <param name="providerPath"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        private string? ResolveAKVSecret(string providerPath)
+        private static string? ResolveAKVSecret(string providerPath)
         {
             if (!SplitByFirstSeparator(providerPath, '|', out string vaultName, out string? secretName))
             {
@@ -118,7 +127,7 @@ namespace Jupiter.Common.Implementation
 
         private static bool SplitByFirstSeparator(string fullPath, char sep, out string left, out string? right)
         {
-            int keySeparator = fullPath.IndexOf(sep);
+            int keySeparator = fullPath.IndexOf(sep, StringComparison.OrdinalIgnoreCase);
             left = fullPath;
             right = null;
             if (keySeparator != -1)

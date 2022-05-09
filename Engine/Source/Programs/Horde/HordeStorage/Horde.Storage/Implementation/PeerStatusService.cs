@@ -12,20 +12,20 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Storage.Implementation
 {
-    public interface IPeerStatusService
+    public class PeerStatus
     {
-        public class PeerStatus
+        public PeerStatus(PeerSettings peerSettings)
         {
-            public PeerStatus(PeerSettings peerSettings)
-            {
-                Endpoints = peerSettings.Endpoints;
-            }
-
-            public List<PeerEndpoints> Endpoints { get; set; }
-            public int Latency { get; set; }
-            public bool Reachable { get; set; }
+            Endpoints = peerSettings.Endpoints;
         }
 
+        public List<PeerEndpoints> Endpoints { get; }
+        public int Latency { get; set; }
+        public bool Reachable { get; set; }
+    }
+
+    public interface IPeerStatusService
+    {
         PeerStatus? GetPeerStatus(string regionName);
 
         /// <summary>
@@ -36,21 +36,20 @@ namespace Horde.Storage.Implementation
         List<(int, string)> GetPeersByLatency(IEnumerable<string> peerNames);
     }
 
-    public class PeerStatusService : PollingService<PeerStatusService.PeerStatusServiceState>, IPeerStatusService
+    public class PeerStatusServiceState
+    {
+    }
+    public class PeerStatusService : PollingService<PeerStatusServiceState>, IPeerStatusService
     {
         private readonly IOptionsMonitor<ClusterSettings> _clusterSettings;
         private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
         private readonly IHttpClientFactory _clientFactory;
-        private readonly Dictionary<string, IPeerStatusService.PeerStatus> _peers = new Dictionary<string, IPeerStatusService.PeerStatus>(StringComparer.InvariantCultureIgnoreCase);
+        private readonly Dictionary<string, PeerStatus> _peers = new Dictionary<string, PeerStatus>(StringComparer.InvariantCultureIgnoreCase);
         private volatile bool _alreadyPolling = false;
 
-        public class PeerStatusServiceState
+        public PeerStatus? GetPeerStatus(string regionName)
         {
-        }
-
-        public IPeerStatusService.PeerStatus? GetPeerStatus(string regionName)
-        {
-            if (_peers.TryGetValue(regionName, out IPeerStatusService.PeerStatus? peerStatus))
+            if (_peers.TryGetValue(regionName, out PeerStatus? peerStatus))
             {
                 return peerStatus;
             }
@@ -64,12 +63,17 @@ namespace Horde.Storage.Implementation
             foreach (string peerName in peerNames)
             {
                 // skip the local site
-                if (string.Equals(peerName, _jupiterSettings.CurrentValue.CurrentSite, StringComparison.InvariantCultureIgnoreCase))
+                if (string.Equals(peerName, _jupiterSettings.CurrentValue.CurrentSite, StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
-                IPeerStatusService.PeerStatus? peerStatus = GetPeerStatus(peerName);
+                PeerStatus? peerStatus = GetPeerStatus(peerName);
                 if (peerStatus == null)
+                {
                     continue;
+                }
+
                 peers.Add((peerStatus.Latency, peerName));
             }
 
@@ -86,10 +90,12 @@ namespace Horde.Storage.Implementation
             foreach (PeerSettings peerSettings in clusterSettings.CurrentValue.Peers)
             {
                 // skip the local site
-                if (string.Equals(peerSettings.Name, jupiterSettings.CurrentValue.CurrentSite, StringComparison.InvariantCultureIgnoreCase))
+                if (string.Equals(peerSettings.Name, jupiterSettings.CurrentValue.CurrentSite, StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
-                _peers[peerSettings.Name] = new IPeerStatusService.PeerStatus(peerSettings)
+                _peers[peerSettings.Name] = new PeerStatus(peerSettings)
                 {
                     Latency = int.MaxValue
                 };
@@ -99,7 +105,9 @@ namespace Horde.Storage.Implementation
         public override async Task<bool> OnPoll(PeerStatusServiceState state, CancellationToken cancellationToken)
         {
             if (_alreadyPolling)
+            {
                 return false;
+            }
 
             _alreadyPolling = true;
 
@@ -112,10 +120,12 @@ namespace Horde.Storage.Implementation
             foreach (PeerSettings peerSettings in _clusterSettings.CurrentValue.Peers)
             {
                 // skip the local site
-                if (string.Equals(peerSettings.Name, _jupiterSettings.CurrentValue.CurrentSite, StringComparison.InvariantCultureIgnoreCase))
+                if (string.Equals(peerSettings.Name, _jupiterSettings.CurrentValue.CurrentSite, StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
-                IPeerStatusService.PeerStatus status = _peers[peerSettings.Name];
+                PeerStatus status = _peers[peerSettings.Name];
 
                 int bestLatency = int.MaxValue;
                 bool reachable = false;
@@ -126,7 +136,9 @@ namespace Horde.Storage.Implementation
                     bestLatency = Math.Min(latency, bestLatency);
 
                     if (latency != int.MaxValue)
-                       reachable = true;
+                    {
+                        reachable = true;
+                    }
                 });
 
                 status.Reachable = reachable;
@@ -148,7 +160,9 @@ namespace Horde.Storage.Implementation
                 HttpResponseMessage result = await client.GetAsync(uri);
                 // ignore error responses as they may not have reached the actual instance
                 if (!result.IsSuccessStatusCode)
+                {
                     return int.MaxValue;
+                }
 
                 return (int)stopwatch.ElapsedMilliseconds;
             }
@@ -157,7 +171,6 @@ namespace Horde.Storage.Implementation
                 // error reaching the endpoint is just considered to max latency
                 return int.MaxValue;
             }
-
         }
     }
 }

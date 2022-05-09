@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Amazon.DynamoDBv2;
@@ -8,7 +7,6 @@ using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
 namespace Horde.Storage.Implementation
@@ -45,7 +43,6 @@ namespace Horde.Storage.Implementation
             }
         }
 
-
         public async IAsyncEnumerable<NamespaceId> GetNamespaces(NamespaceUsage usage)
         {
             await Initialize();
@@ -61,7 +58,10 @@ namespace Horde.Storage.Implementation
                 foreach (NamespaceMappingRecord document in newSet)
                 {
                     if (document.Namespace == null)
+                    {
                         continue;
+                    }
+
                     yield return new NamespaceId(document.Namespace);
                 }
             } while (!search.IsDone);
@@ -103,8 +103,8 @@ namespace Horde.Storage.Implementation
             Tree
         }
 
-
         [DynamoDBTable(NamespaceTableName)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Used by serialization")]
         public class NamespaceMappingRecord
         {
             [DynamoDBHashKey] public string Namespace { get; set; } = null!;

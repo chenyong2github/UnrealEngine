@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
@@ -31,9 +30,6 @@ namespace Horde.Storage.FunctionalTests.GC
     [TestClass]
     public class GCBlobTests
     {
-        private TestServer? _server;
-        private HttpClient? _httpClient;
-
         private readonly BlobIdentifier object0id = new BlobIdentifier("0000000000000000000000000000000000000000");
         private readonly BlobIdentifier object1id = new BlobIdentifier("1111111111111111111111111111111111111111");
         private readonly BlobIdentifier object2id = new BlobIdentifier("2222222222222222222222222222222222222222");
@@ -60,8 +56,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
 
-
-            _callistoBlobMock = GetCallistoMock(new CallistoReader.CallistoGetResponse(new TransactionEvent[]
+            _callistoBlobMock = GetCallistoMock(new CallistoGetResponse(new TransactionEvent[]
             {
                 new AddTransactionEvent("object0", "default", new[] {object0id}, identifier: 0, nextIdentifier: 1),
                 new AddTransactionEvent("object2", "default", new[] {object2id}, identifier: 1, nextIdentifier: 2),
@@ -70,7 +65,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 new AddTransactionEvent("object6", "default", new[] {object6id}, identifier: 4, nextIdentifier: 5)
             }.ToList(), Guid.Empty, 10));
 
-            TestServer server = new TestServer(new WebHostBuilder()
+           using  TestServer server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
@@ -88,21 +83,15 @@ namespace Horde.Storage.FunctionalTests.GC
 
                         NamespacePolicyResolver policyResolver = Mock.Of<NamespacePolicyResolver>();
 
-
                         IBlobService blobService = provider.GetService<IBlobService>()!;
-                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon, policyResolver);
+                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, policyResolver);
                     });
-
                 })
             );
-
-            _httpClient = server.CreateClient();
-            _server = server;
-
             _blobService = server.Services.GetService<IBlobService>()!;
 
             MemoryBlobStore memoryBlobStore = (MemoryBlobStore) ((BlobService)_blobService).BlobStore.First();
-            byte[] emptyContents = new byte[0];
+            byte[] emptyContents = Array.Empty<byte>();
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object0id);
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object1id);// this is not in callisto
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object2id);
@@ -121,7 +110,7 @@ namespace Horde.Storage.FunctionalTests.GC
             memoryBlobStore.SetLastModifiedTime(TestNamespace, object6id, DateTime.Now.AddDays(-2));
         }
 
-        private Mock<IRestClient> GetCallistoMock(CallistoReader.CallistoGetResponse responseData)
+        private Mock<IRestClient> GetCallistoMock(CallistoGetResponse responseData)
         {
             // the callisto reader will do 2 requests to fetch the events (one to determine the generation and the other to actually fetch the objects)
             // after that we insert a empty response to indicate the end of the log was reached
@@ -139,27 +128,27 @@ namespace Horde.Storage.FunctionalTests.GC
                     It.IsAny<CancellationToken>())).ReturnsAsync(listNsResponse.Object).Verifiable();
             
             
-            Mock<IRestResponse<CallistoReader.CallistoGetResponse>> response = new Mock<IRestResponse<CallistoReader.CallistoGetResponse>>();
+            Mock<IRestResponse<CallistoGetResponse>> response = new Mock<IRestResponse<CallistoGetResponse>>();
             response.Setup(_ => _.StatusCode).Returns(HttpStatusCode.OK);
             response.Setup(_ => _.IsSuccessful).Returns(true);
             response.Setup(_ => _.Data).Returns(responseData);
             response.Setup(_ => _.ResponseUri).Returns(new Uri("http://localhost"));
             
             mock.Setup(x =>
-                x.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(),
+                x.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(),
                     It.IsAny<CancellationToken>())).ReturnsAsync(response.Object).Verifiable();
 
             // when we do the second call to callisto with a offset we return a empty object indicating we have reached the end
-            Mock<IRestResponse<CallistoReader.CallistoGetResponse>> responseSecondPage = new Mock<IRestResponse<CallistoReader.CallistoGetResponse>>();
+            Mock<IRestResponse<CallistoGetResponse>> responseSecondPage = new Mock<IRestResponse<CallistoGetResponse>>();
             responseSecondPage.Setup(_ => _.StatusCode).Returns(HttpStatusCode.OK);
             responseSecondPage.Setup(_ => _.IsSuccessful).Returns(true);
-            responseSecondPage.Setup(_ => _.Data).Returns(new CallistoReader.CallistoGetResponse(
+            responseSecondPage.Setup(_ => _.Data).Returns(new CallistoGetResponse(
                 new List<TransactionEvent>(),
                 responseData.Generation,
                 responseData.CurrentOffset + 10 // set the offset to some arbitrary higher number to indicate we are at the end of the log
             ));
             responseSecondPage.Setup(_ => _.ResponseUri).Returns(new Uri("http://localhost"));
-            mock.Setup(x => x.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(
+            mock.Setup(x => x.ExecuteGetAsync<CallistoGetResponse>(
                     It.Is<IRestRequest>(request =>
                         request.Parameters.Any(parameter =>
                             parameter.Name == "offset" && parameter.Value!.ToString() != "0")),
@@ -180,16 +169,16 @@ namespace Horde.Storage.FunctionalTests.GC
             IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
 
             Mock<INamespacePolicyResolver> policyResolverMock = new Mock<INamespacePolicyResolver>();
-            policyResolverMock.Setup(resolver => resolver.GetPoliciesForNs(TestNamespace)).Returns(new NamespaceSettings.PerNamespaceSettings()
+            policyResolverMock.Setup(resolver => resolver.GetPoliciesForNs(TestNamespace)).Returns(new NamespacePolicy()
             {
                 IsLegacyNamespace = true,
             });
 
-            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon, policyResolverMock.Object);
+            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, policyResolverMock.Object);
             List<NamespaceId> namespaces = await cleanup.ListNamespaces().ToListAsync();
             Assert.AreEqual(1, namespaces.Count);
 
-            CancellationTokenSource cts = new CancellationTokenSource();
+            using CancellationTokenSource cts = new CancellationTokenSource();
             ulong removedBlobsCount = await cleanup.Cleanup(cts.Token);
             Assert.AreEqual(4ul, removedBlobsCount);
             
@@ -219,7 +208,6 @@ namespace Horde.Storage.FunctionalTests.GC
     public abstract class GCBlobTestsRefs
     {
         private TestServer? _server;
-        private HttpClient? _httpClient;
 
         private readonly BlobIdentifier object0id = new BlobIdentifier("0000000000000000000000000000000000000000");
         private readonly BlobIdentifier object1id = new BlobIdentifier("1111111111111111111111111111111111111111");
@@ -261,10 +249,10 @@ namespace Horde.Storage.FunctionalTests.GC
                 {
                     collection.Configure<NamespaceSettings>(settings =>
                     {
-                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        settings.Policies = new Dictionary<string, NamespacePolicy>()
                         {
                             {
-                                TestNamespace.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                TestNamespace.ToString(), new NamespacePolicy()
                                 {
                                     IsLegacyNamespace = false
                                 }
@@ -275,13 +263,12 @@ namespace Horde.Storage.FunctionalTests.GC
                 .UseStartup<HordeStorageStartup>()
             );
 
-            _httpClient = server.CreateClient();
             _server = server;
 
             _blobService = server.Services.GetService<IBlobService>()!;
 
             MemoryBlobStore memoryBlobStore = (MemoryBlobStore) ((BlobService)_blobService).BlobStore.First();
-            byte[] emptyContents = new byte[0];
+            byte[] emptyContents = Array.Empty<byte>();
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object0id);
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object1id);// this is not in the index
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object2id);
@@ -330,13 +317,11 @@ namespace Horde.Storage.FunctionalTests.GC
             await blobIndex.AddRefToBlobs(TestNamespace, testBucket, IoHashKey.FromName("object3"), new [] {object3id });
             await blobIndex.AddBlobToIndex(TestNamespace, object6id);
             await blobIndex.AddRefToBlobs(TestNamespace, testBucket, IoHashKey.FromName("object6"), new [] {object6id });
-
-
         }
 
         protected abstract string GetImplementation();
 
-        private (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
+        private static (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
         {
             CbWriter writer = new CbWriter();
             writer.BeginObject();
@@ -353,7 +338,7 @@ namespace Horde.Storage.FunctionalTests.GC
             OrphanBlobCleanupRefs? cleanup = _server!.Services.GetService<OrphanBlobCleanupRefs>();
             Assert.IsNotNull(cleanup);
 
-            CancellationTokenSource cts = new CancellationTokenSource();
+            using CancellationTokenSource cts = new();
             ulong countOfRemovedBlobs = await cleanup.Cleanup(cts.Token);
             Assert.AreEqual(3u, countOfRemovedBlobs);
 

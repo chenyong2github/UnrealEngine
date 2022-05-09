@@ -20,9 +20,7 @@ namespace Horde.Storage.Implementation
         private readonly ILogger _logger = Log.ForContext<FileSystemStore>();
         private readonly IOptionsMonitor<FilesystemSettings> _settings;
 
-        internal const int DefaultBufferSize = 4096;
-
-        private const int SharingViolationErrorCode = 32;
+        private const int DefaultBufferSize = 4096;
 
         public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings)
         {
@@ -55,7 +53,7 @@ namespace Horde.Storage.Implementation
             return new DirectoryInfo(Path.Combine(GetRootDir(), ns.ToString()));
         }
 
-        static string s_processSuffix = Guid.NewGuid().ToString();
+        static readonly string s_processSuffix = Guid.NewGuid().ToString();
         static int s_uniqueId = 0;
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier blobIdentifier)
@@ -91,7 +89,9 @@ namespace Horde.Storage.Implementation
                 filePath.Refresh();
 
                 if (filePath.Length == 0)
+                {
                     _logger.Warning("0 byte file written as {Blob} {Namespace} {Method}", blobIdentifier, ns, "Stream");
+                }
             }
 
             UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
@@ -109,7 +109,9 @@ namespace Horde.Storage.Implementation
             FileInfo filePath = GetFilesystemPath(ns, blob);
 
             if (!filePath.Exists)
+            {
                 throw new BlobNotFoundException(ns, blob);
+            }
 
             UpdateLastWriteTime(filePath.FullName, DateTime.UtcNow);
             FileStream fs = new FileStream(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -130,7 +132,7 @@ namespace Horde.Storage.Implementation
         /// </summary>
         /// <param name="filePath"></param>
         /// <param name="lastAccessed">Time the file was last accessed</param>
-        private void UpdateLastWriteTime(string filePath, DateTime lastAccessed)
+        private static void UpdateLastWriteTime(string filePath, DateTime lastAccessed)
         {
             try
             {
@@ -160,7 +162,9 @@ namespace Horde.Storage.Implementation
         {
             DirectoryInfo namespaceDirectory = GetFilesystemPath(ns);
             if (namespaceDirectory.Exists)
+            {
                 namespaceDirectory.Delete(true);
+            }
 
             return Task.CompletedTask;
         }

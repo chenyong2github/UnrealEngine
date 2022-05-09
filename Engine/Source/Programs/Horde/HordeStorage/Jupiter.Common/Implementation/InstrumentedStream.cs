@@ -1,12 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Serilog;
 
 namespace Jupiter.Common.Implementation
 {
@@ -21,12 +18,17 @@ namespace Jupiter.Common.Implementation
         private long _totalBytesWritten = 0;
         private DateTime _consumeStartedAt;
 
-        private readonly ILogger _logger = Log.ForContext<InstrumentedStream>();
-
         public InstrumentedStream(Stream s, string sourceIdentifier)
         {
             _streamImplementation = s;
             _sourceIdentifier = sourceIdentifier;
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await _streamImplementation.DisposeAsync();
+            await base.DisposeAsync();
+            GC.SuppressFinalize(this);
         }
 
         public override void Close()
@@ -77,30 +79,18 @@ namespace Jupiter.Common.Implementation
             _streamImplementation.Write(buffer, offset, count);
         }
 
-        public override bool CanRead
-        {
-            get { return _streamImplementation.CanRead; }
-        }
+        public override bool CanRead => _streamImplementation.CanRead;
 
-        public override bool CanSeek
-        {
-            get { return _streamImplementation.CanSeek; }
-        }
+        public override bool CanSeek => _streamImplementation.CanSeek;
 
-        public override bool CanWrite
-        {
-            get { return _streamImplementation.CanWrite; }
-        }
+        public override bool CanWrite => _streamImplementation.CanWrite;
 
-        public override long Length
-        {
-            get { return _streamImplementation.Length; }
-        }
+        public override long Length => _streamImplementation.Length;
 
         public override long Position
         {
-            get { return _streamImplementation.Position; }
-            set { _streamImplementation.Position = value; }
+            get => _streamImplementation.Position;
+            set => _streamImplementation.Position = value;
         }
     }
 }

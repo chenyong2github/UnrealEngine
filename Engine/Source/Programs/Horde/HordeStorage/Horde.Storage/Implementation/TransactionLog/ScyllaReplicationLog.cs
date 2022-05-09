@@ -124,7 +124,9 @@ namespace Horde.Storage.Implementation
                 readReplicationScope.Span.ResourceName = bucket;
 
                 if (lastBucket != null && bucket != lastBucket)
+                {
                     continue;
+                }
 
                 // at least one bucket was found
                 bucketFound = true;
@@ -144,7 +146,9 @@ namespace Horde.Storage.Implementation
                     }
 
                     if (skipEvents)
+                    {
                         continue;
+                    }
 
                     yield return new ReplicationLogEvent(
                         new NamespaceId(scyllaReplicationLog.Namespace),
@@ -218,14 +222,16 @@ namespace Horde.Storage.Implementation
 
                 bucketTime = bucketTime.AddHours(1.0);
             }
-
         }
 
-        private long FromReplicationBucketIdentifier(string bucket)
+        private static long FromReplicationBucketIdentifier(string bucket)
         {
-            if (!bucket.StartsWith("rep-"))
+            if (!bucket.StartsWith("rep-", StringComparison.OrdinalIgnoreCase))
+            {
                 throw new ArgumentException($"Invalid bucket identifier: \"{bucket}\"", nameof(bucket));
-            string timestamp = bucket.Substring(bucket.IndexOf("-") + 1);
+            }
+
+            string timestamp = bucket.Substring(bucket.IndexOf("-", StringComparison.OrdinalIgnoreCase) + 1);
             long filetime = long.Parse(timestamp);
             return filetime;
         }
@@ -349,8 +355,6 @@ namespace Horde.Storage.Implementation
         }
     }
 
-
-    
     [Cassandra.Mapping.Attributes.Table("replication_snapshot")]
     class ScyllaSnapshot
     {
@@ -370,8 +374,7 @@ namespace Horde.Storage.Implementation
         }
 
         [Cassandra.Mapping.Attributes.PartitionKey]
-        public string Namespace { get;set; }
-
+        public string Namespace { get; set; }
 
         [Cassandra.Mapping.Attributes.Column("id")]
         [Cassandra.Mapping.Attributes.ClusteringKey]
@@ -419,10 +422,8 @@ namespace Horde.Storage.Implementation
             LastEvent = lastEvent;
         }
 
-
         [Cassandra.Mapping.Attributes.PartitionKey]
         public string Namespace { get; set; }
-
 
         [Cassandra.Mapping.Attributes.ClusteringKey]
         public string Name { get; set; }

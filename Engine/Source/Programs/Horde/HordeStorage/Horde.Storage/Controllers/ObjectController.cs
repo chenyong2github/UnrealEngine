@@ -4,12 +4,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
@@ -18,7 +16,6 @@ using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
@@ -47,7 +44,6 @@ namespace Horde.Storage.Controllers
             _referenceResolver = referenceResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
         }
-
 
         [HttpGet("{ns}/{id}")]
         [Authorize("Storage.read")]
@@ -118,7 +114,9 @@ namespace Horde.Storage.Controllers
             IEnumerable<Task> tasks = id.Select(async blob =>
             {
                 if (!await _storage.Exists(ns, blob))
+                {
                     missingBlobs.Add(blob);
+                }
             });
             await Task.WhenAll(tasks);
 
@@ -144,7 +142,9 @@ namespace Horde.Storage.Controllers
             IEnumerable<Task> tasks = bodyIds.Select(async blob =>
             {
                 if (!await _storage.Exists(ns, blob))
+                {
                     missingBlobs.Add(blob);
+                }
             });
             await Task.WhenAll(tasks);
 
@@ -176,8 +176,7 @@ namespace Horde.Storage.Controllers
         [Authorize("Storage.read")]
         public async Task<IActionResult> ResolveReferences(
             [Required] NamespaceId ns,
-            [Required] BlobIdentifier id,
-            [FromQuery] int depth = 1)
+            [Required] BlobIdentifier id)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -227,7 +226,6 @@ namespace Horde.Storage.Controllers
             }
         }
 
-
         [HttpDelete("{ns}/{id}")]
         [Authorize("Storage.delete")]
         public async Task<IActionResult> Delete(
@@ -248,7 +246,6 @@ namespace Horde.Storage.Controllers
                 DeletedCount = 1
             });
         }
-
 
         [HttpDelete("{ns}")]
         [Authorize("Admin")]

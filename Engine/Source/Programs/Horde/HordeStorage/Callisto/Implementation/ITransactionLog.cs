@@ -19,7 +19,6 @@ namespace Callisto.Implementation
         TransactionLogDescription Describe();
     }
 
-
     public interface ITransactionLogs
     {
         NamespaceId[] GetNamespaces();
@@ -35,8 +34,8 @@ namespace Callisto.Implementation
             KnownSites = knownSites;
         }
 
-        public Guid Generation { get; set; }
-        public List<string> KnownSites { get; set; }
+        public Guid Generation { get; }
+        public List<string> KnownSites { get; }
     }
 
     public class TransactionEvents

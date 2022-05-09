@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter;
 using Microsoft.Extensions.Options;
@@ -13,7 +12,19 @@ using Serilog;
 
 namespace Horde.Storage.Implementation
 {
-    public class RefCleanupService : PollingService<RefCleanupService.RefCleanupState>
+    public class RefCleanupState
+    {
+        public RefCleanupState(IRefsStore refs, IRefCleanup refCleanup)
+        {
+            Refs = refs;
+            RefCleanup = refCleanup;
+        }
+
+        public IRefsStore Refs { get; }
+        public IRefCleanup RefCleanup { get; }
+    }
+
+    public class RefCleanupService : PollingService<RefCleanupState>
     {
         private readonly IOptionsMonitor<GCSettings> _settings;
         private readonly ILeaderElection _leaderElection;
@@ -21,21 +32,7 @@ namespace Horde.Storage.Implementation
         private volatile bool _alreadyPolling;
         private readonly ILogger _logger = Log.ForContext<RefCleanupService>();
 
-
-        public class RefCleanupState
-        {
-            public RefCleanupState(IRefsStore refs, IRefCleanup refCleanup)
-            {
-                Refs = refs;
-                RefCleanup = refCleanup;
-            }
-
-            public IRefsStore Refs { get; }
-            public IRefCleanup RefCleanup { get; }
-        }
-
-        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefsStore store, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore) : 
-            base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(store, refCleanup))
+        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefsStore store, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore) : base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(store, refCleanup))
         {
             _settings = settings;
             _leaderElection = leaderElection;
@@ -50,7 +47,9 @@ namespace Horde.Storage.Implementation
         public override async Task<bool> OnPoll(RefCleanupState state, CancellationToken cancellationToken)
         {
             if (_alreadyPolling)
+            {
                 return false;
+            }
 
             _alreadyPolling = true;
             try

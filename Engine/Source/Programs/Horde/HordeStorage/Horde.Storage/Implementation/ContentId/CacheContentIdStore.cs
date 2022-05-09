@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -19,11 +20,13 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
-            HttpRequestMessage getContentIdRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/content-id/{ns}/{contentId}");
+            using HttpRequestMessage getContentIdRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/content-id/{ns}/{contentId}", UriKind.Relative));
             HttpResponseMessage response = await HttpClient.SendAsync(getContentIdRequest);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 return null;
+            }
 
             response.EnsureSuccessStatusCode();
             ResolvedContentIdResponse resolvedContentId = await response.Content.ReadAsAsync<ResolvedContentIdResponse>();
@@ -33,7 +36,7 @@ namespace Horde.Storage.Implementation
 
         public async Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
-            HttpRequestMessage putContentIdRequest = BuildHttpRequest(HttpMethod.Put, $"api/v1/content-id/{ns}/{contentId}/update/{blobIdentifier}/{contentWeight}");
+            using HttpRequestMessage putContentIdRequest = BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/content-id/{ns}/{contentId}/update/{blobIdentifier}/{contentWeight}", UriKind.Relative));
             HttpResponseMessage response = await HttpClient.SendAsync(putContentIdRequest);
 
             response.EnsureSuccessStatusCode();

@@ -14,32 +14,32 @@ using RestSharp;
 
 namespace Jupiter.Implementation
 {
-    public class CallistoReader
+    public class CallistoGetResponse
     {
-        public class CallistoGetResponse
+        [JsonConstructor]
+        public CallistoGetResponse(List<TransactionEvent> events, Guid generation, long currentOffset)
         {
-            [JsonConstructor]
-            public CallistoGetResponse(List<TransactionEvent> events, Guid generation, long currentOffset)
-            {
-                Events = events;
-                Generation = generation;
-                CurrentOffset = currentOffset;
-            }
-
-            public CallistoGetResponse()
-            {
-                Events = null!;
-                Generation = Guid.Empty;
-                CurrentOffset = 0;
-            }
-
-            public Guid Generation { get; set; }
-            public long CurrentOffset { get; }
-            public List<TransactionEvent> Events { get; set; }
+            Events = events;
+            Generation = generation;
+            CurrentOffset = currentOffset;
         }
 
+        public CallistoGetResponse()
+        {
+            Events = null!;
+            Generation = Guid.Empty;
+            CurrentOffset = 0;
+        }
+
+        public Guid Generation { get; set; }
+        public long CurrentOffset { get; set; }
+        public List<TransactionEvent> Events { get; init; }
+    }
+
+	public class CallistoReader
+    {
         private readonly NamespaceId _ns;
-        private IRestClient _client;
+        private readonly IRestClient _client;
 
         public CallistoReader(IRestClient callistoClient, NamespaceId ns)
         {
@@ -56,7 +56,9 @@ namespace Jupiter.Implementation
             }
 
             if (cancellationToken.IsCancellationRequested)
+            {
                 yield break;
+            }
 
             bool hadNewEvents;
             long currentOffset = startingOffset;
@@ -74,23 +76,23 @@ namespace Jupiter.Implementation
                 }
 
                 if (currentBatch.Events == null)
+                {
                     yield break;
+                }
 
                 foreach (TransactionEvent transactionEvent in currentBatch.Events)
                 {
                     yield return transactionEvent;
                 }
-
-
             } while (hadNewEvents);
         }
 
         private async Task<Transactions> FetchTransactions(long startingOffset, int countOfEventsToFetch, string? siteFilter, Guid? replicatingGeneration, int? maxOffsetsAttempted, CancellationToken replicationToken)
         {
-            const int maxAttempts = 3;
+            const int MaxAttempts = 3;
             CallistoGetResponse? callistoGetResponse = null;
             IRestResponse<CallistoGetResponse>? response = null;
-            for (int i = 0; i < maxAttempts; i++)
+            for (int i = 0; i < MaxAttempts; i++)
             {
                 RestRequest request = new RestRequest("api/v1/t/{ns}/{offset}");
                 request.AddUrlSegment("ns", _ns);
@@ -99,13 +101,19 @@ namespace Jupiter.Implementation
                 request.AddQueryParameter("count", countOfEventsToFetch.ToString());
 
                 if (siteFilter != null)
+                {
                     request.AddQueryParameter("notSeenAtSite", siteFilter);
+                }
 
                 if (replicatingGeneration != null)
+                {
                     request.AddQueryParameter("expectedGeneration", replicatingGeneration.ToString()!);
+                }
 
                 if (maxOffsetsAttempted.HasValue)
+                {
                     request.AddQueryParameter("maxOffsetsAttempted", maxOffsetsAttempted.Value.ToString());
+                }
 
                 response = await _client.ExecuteGetAsync<CallistoGetResponse>(request, replicationToken);
                 if (response.StatusCode == HttpStatusCode.BadRequest)
@@ -130,7 +138,7 @@ namespace Jupiter.Implementation
                         maxOffsetsAttempted = maxOffsetsAttempted.GetValueOrDefault(100) * 10;
 
                         // if we reached max attempts throw a exception other retry with more offsets attempted
-                        if (i == maxAttempts - 1)
+                        if (i == MaxAttempts - 1)
                         {
                             string errorMsg = badRequestObj["title"]!.Value<string>()!;
                             throw new UnknownNamespaceException($"Transaction log mismatch in {_ns}. Error message {errorMsg}");
@@ -149,7 +157,9 @@ namespace Jupiter.Implementation
                 }
 
                 if (!response.IsSuccessful)
+                {
                     throw new Exception($"Unsuccessful response from remote callisto. Status Code: {response.StatusCode}. Url: {response.ResponseUri} . Message: {response.ErrorMessage}");
+                }
 
                 // we have data so stop retrying
                 callistoGetResponse = response.Data;
@@ -157,11 +167,15 @@ namespace Jupiter.Implementation
             }
 
             if (callistoGetResponse == null)
-                throw new Exception($"Unsuccessful response from remote callisto, gave up after {maxAttempts} attempts. Status Code: {response!.StatusCode}. Url: {response.ResponseUri} . Message: {response.ErrorMessage}");
+            {
+                throw new Exception($"Unsuccessful response from remote callisto, gave up after {MaxAttempts} attempts. Status Code: {response!.StatusCode}. Url: {response.ResponseUri} . Message: {response.ErrorMessage}");
+            }
 
             List<TransactionEvent> events = callistoGetResponse.Events;
             if (events == null)
+            {
                 throw new Exception($"Invalid response from remote callisto: {_client} expected objects with events array");
+            }
 
             if (events.Count == 0)
             {

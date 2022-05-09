@@ -37,7 +37,6 @@ namespace Callisto.Controllers
             _settings = options;
         }
 
-
         [HttpGet("")]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
@@ -148,7 +147,6 @@ namespace Callisto.Controllers
             }
         }
 
-
         [HttpPost("{ns}")]
         [Authorize("TLog.write")]
         public async Task<IActionResult> PostNewTransaction(
@@ -193,7 +191,6 @@ namespace Callisto.Controllers
 
         }
 
-
         // this exists for admin use only
         [HttpDelete("{ns}")]
         [Authorize("TLog.delete")]
@@ -234,5 +231,4 @@ namespace Callisto.Controllers
     {
         public long Offset { get; set; }
     }
-
 }

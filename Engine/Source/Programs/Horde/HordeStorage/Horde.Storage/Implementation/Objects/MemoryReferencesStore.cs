@@ -83,7 +83,7 @@ namespace Horde.Storage.Implementation
 
         public Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
-            if (!_objects.TryRemove(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
+            if (!_objects.TryRemove(BuildKey(ns, bucket, key), out MemoryStoreObject? _))
             {
                 throw new ObjectNotFoundException(ns, bucket, key);
             }
@@ -186,6 +186,5 @@ namespace Horde.Storage.Implementation
             bool includePayload = (fieldFlags & IReferencesStore.FieldFlags.IncludePayload) != 0;
             return new ObjectRecord(Namespace, Bucket, Name, LastAccessTime, includePayload ? Blob : null, BlobHash, IsFinalized);
         }
-
     }
 }

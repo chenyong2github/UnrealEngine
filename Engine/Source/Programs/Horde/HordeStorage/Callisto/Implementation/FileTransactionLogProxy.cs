@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
 namespace Callisto.Implementation

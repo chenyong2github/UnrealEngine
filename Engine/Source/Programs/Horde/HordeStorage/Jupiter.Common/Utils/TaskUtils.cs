@@ -11,7 +11,10 @@ namespace Jupiter
         public static byte[] CombineIntoSingleBuffer(List<byte[]> tasks)
         {
             if (tasks.Count == 1)
+            {
                 return tasks[0];
+            }
+
             int totalLength = tasks.Sum(task => task.Length);
             byte[] buffer = new byte[totalLength];
             int index = 0;

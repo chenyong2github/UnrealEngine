@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,7 +12,7 @@ namespace Horde.Storage.Implementation.Blob;
 
 public class MemoryBlobIndex : IBlobIndex
 {
-    private class MemoryBlobInfo : IBlobIndex.BlobInfo
+    private class MemoryBlobInfo : BlobInfo
     {
 
     }
@@ -39,14 +38,16 @@ public class MemoryBlobIndex : IBlobIndex
         return Task.CompletedTask;
     }
 
-    public Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
         ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
 
         if (!index.TryGetValue(id, out MemoryBlobInfo? blobInfo))
-            return Task.FromResult<IBlobIndex.BlobInfo?>(null);
+        {
+            return Task.FromResult<BlobInfo?>(null);
+        }
 
-        return Task.FromResult<IBlobIndex.BlobInfo?>(blobInfo);
+        return Task.FromResult<BlobInfo?>(blobInfo);
     }
 
     public Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
@@ -75,7 +76,7 @@ public class MemoryBlobIndex : IBlobIndex
 
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
     {
-        IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
+        BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
     }
 
@@ -95,25 +96,25 @@ public class MemoryBlobIndex : IBlobIndex
                 info.References.Add((bucket, key));
                 return info;
             });
-        };
+        }
 
         return Task.CompletedTask;
     }
 
-    public async IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    public async IAsyncEnumerable<BlobInfo> GetAllBlobs()
     {
         await Task.CompletedTask;
 
         foreach (KeyValuePair<NamespaceId, ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo>> pair in _index)
         {
-            foreach ((BlobIdentifier? blobIdentifier, MemoryBlobInfo? blobInfo) in pair.Value)
+            foreach ((BlobIdentifier? _, MemoryBlobInfo? blobInfo) in pair.Value)
             {
                 yield return blobInfo;
             }
         }
     }
 
-    private MemoryBlobInfo NewBlobInfo(NamespaceId ns, BlobIdentifier blob, string region)
+    private static MemoryBlobInfo NewBlobInfo(NamespaceId ns, BlobIdentifier blob, string region)
     {
         MemoryBlobInfo info = new MemoryBlobInfo
         {

@@ -29,7 +29,6 @@ using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using ContentHash = Jupiter.Implementation.ContentHash;
 
 namespace Horde.Storage.FunctionalTests.References
 {
@@ -61,7 +60,7 @@ namespace Horde.Storage.FunctionalTests.References
             //verify we are using the replication log writer
             Assert.IsTrue(replicationLog.GetType() == typeof(ScyllaReplicationLog));
 
-            await SeedTestData(referencesStore);
+            await SeedTestData();
         }
 
         protected override async Task TeardownDb(IServiceProvider provider)
@@ -115,7 +114,7 @@ namespace Horde.Storage.FunctionalTests.References
             //verify we are using the replication log writer
             Assert.IsTrue(replicationLog.GetType() == typeof(MemoryReplicationLog));
 
-            await SeedTestData(referencesStore);
+            await SeedTestData();
         }
 
         protected override async Task TeardownDb(IServiceProvider provider)
@@ -151,7 +150,7 @@ namespace Horde.Storage.FunctionalTests.References
             //verify we are using the replication log writer
             Assert.IsTrue(replicationLog.GetType() == typeof(MemoryReplicationLog));
 
-            await SeedTestData(referencesStore);
+            await SeedTestData();
         }
 
         protected override Task TeardownDb(IServiceProvider provider)
@@ -164,10 +163,10 @@ namespace Horde.Storage.FunctionalTests.References
     {
         private static TestServer? _server;
         private static HttpClient? _httpClient;
-        protected IBlobService _blobService = null!;
-        protected IReferencesStore ReferencesStore = null!;
 
-        protected readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
+        protected IBlobService Service { get; set; } = null!;
+        protected IReferencesStore ReferencesStore { get; set; } = null!;
+        protected NamespaceId TestNamespace { get; } = new NamespaceId("test-namespace");
 
         [TestInitialize]
         public async Task Setup()
@@ -193,22 +192,23 @@ namespace Horde.Storage.FunctionalTests.References
             _httpClient = server.CreateClient();
             _server = server;
 
-            _blobService = _server.Services.GetService<IBlobService>()!;
+            Service = _server.Services.GetService<IBlobService>()!;
             ReferencesStore = _server.Services.GetService<IReferencesStore>()!;
             await SeedDb(server.Services);
         }
 
-        protected async Task SeedTestData(IReferencesStore referencesStore)
+        protected virtual async Task SeedTestData()
         {
             await Task.CompletedTask;
         }
 
-
         [TestCleanup]
         public async Task Teardown()
         {
-            if (_server != null) 
+            if (_server != null)
+            {
                 await TeardownDb(_server.Services);
+            }
         }
 
         protected abstract IEnumerable<KeyValuePair<string, string>> GetSettings();
@@ -223,15 +223,15 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
             IoHashKey key = IoHashKey.FromName("newBlobObject");
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
             result.EnsureSuccessStatusCode();
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -247,7 +247,7 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BlobIdentifier attachment;
                 {
-                    HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb");
+                    HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                     getResponse.EnsureSuccessStatusCode();
                     await using MemoryStream ms = new MemoryStream();
                     await getResponse.Content.CopyToAsync(ms);
@@ -264,7 +264,7 @@ namespace Horde.Storage.FunctionalTests.References
                 }
 
                 {
-                    HttpResponseMessage getAttachment = await _httpClient.GetAsync($"api/v1/blobs/{TestNamespace}/{attachment}");
+                    HttpResponseMessage getAttachment = await _httpClient.GetAsync(new Uri($"api/v1/blobs/{TestNamespace}/{attachment}", UriKind.Relative));
                     getAttachment.EnsureSuccessStatusCode();
                     await using MemoryStream ms = new MemoryStream();
                     await getAttachment.Content.CopyToAsync(ms);
@@ -277,7 +277,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.json");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -301,7 +301,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             {
                 // request the object as a json response using accept instead of the format filter
-                var request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{TestNamespace}/bucket/{key}");
+                using HttpRequestMessage request = new(HttpMethod.Get, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(MediaTypeNames.Application.Json));
                 HttpResponseMessage getResponse = await _httpClient.SendAsync(request);
                 getResponse.EnsureSuccessStatusCode();
@@ -329,7 +329,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             {
                 // request the object as a jupiter inlined payload
-                var request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{TestNamespace}/bucket/{key}");
+                using HttpRequestMessage request = new (HttpMethod.Get, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CustomMediaTypeNames.JupiterInlinedPayload));
                 HttpResponseMessage getResponse = await _httpClient.SendAsync(request);
                 getResponse.EnsureSuccessStatusCode();
@@ -358,11 +358,11 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
             IoHashKey key = IoHashKey.FromName("newReferenceObject");
 
-            HttpContent requestContent = new ByteArrayContent(objectData);
+            using HttpContent requestContent = new ByteArrayContent(objectData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+            using HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
             result.EnsureSuccessStatusCode();
 
             {
@@ -390,7 +390,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -402,7 +402,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -417,9 +417,8 @@ namespace Horde.Storage.FunctionalTests.References
                 Assert.AreEqual("thisIsAField", stringField.AsString());
             }
 
-
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.json");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -457,11 +456,11 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
             IoHashKey key = IoHashKey.FromName("newReferenceObject");
 
-            HttpContent requestContent = new ByteArrayContent(objectData);
+            using HttpContent requestContent = new ByteArrayContent(objectData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
             result.EnsureSuccessStatusCode();
 
             {
@@ -489,7 +488,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
             
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.json?fields=name");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json?fields=name", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -535,11 +534,11 @@ namespace Horde.Storage.FunctionalTests.References
             IoHashKey key = IoHashKey.FromName("newHierarchyObject");
             // this first upload should fail with the child object missing
             {
-                HttpContent requestContent = new ByteArrayContent(parentObjectData);
+                using HttpContent requestContent = new ByteArrayContent(parentObjectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, parentObjectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, result!.Content.Headers.ContentType!.MediaType);
@@ -557,7 +556,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             // upload the child object
             {
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/objects/{TestNamespace}/{childObjectHash}");
+                using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, new Uri($"api/v1/objects/{TestNamespace}/{childObjectHash}", UriKind.Relative));
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CustomMediaTypeNames.UnrealCompactBinary));
 
                 HttpContent requestContent = new ByteArrayContent(childObjectData);
@@ -581,11 +580,11 @@ namespace Horde.Storage.FunctionalTests.References
 
             // since we have now uploaded the child object putting the object again should result in no missing references
             {
-                HttpContent requestContent = new ByteArrayContent(parentObjectData);
+                using HttpContent requestContent = new ByteArrayContent(parentObjectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, parentObjectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, CustomMediaTypeNames.UnrealCompactBinary);
@@ -611,7 +610,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -623,7 +622,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -638,9 +637,8 @@ namespace Horde.Storage.FunctionalTests.References
                 Assert.AreEqual(childObjectHash, BlobIdentifier.FromIoHash(childObjectField.AsHash()));
             }
 
-
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.json");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -665,7 +663,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/objects/{TestNamespace}/{childObjectHash}");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/objects/{TestNamespace}/{childObjectHash}", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -675,7 +673,6 @@ namespace Horde.Storage.FunctionalTests.References
                 CollectionAssert.AreEqual(childObjectData, roundTrippedBuffer);
                 Assert.AreEqual(childObjectHash, BlobIdentifier.FromBlob(roundTrippedBuffer));
             }
-
         }
 
         [TestMethod]
@@ -685,22 +682,24 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
             IoHashKey key = IoHashKey.FromName("newObject");
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"api/v1/refs/{TestNamespace}/bucket/{key}"));
+                using HttpRequestMessage message = new(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+                HttpResponseMessage result = await _httpClient!.SendAsync(message);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"api/v1/refs/{TestNamespace}/bucket/{IoHashKey.FromName("missingObject")}"));
+                using HttpRequestMessage message = new(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{IoHashKey.FromName("missingObject")}", UriKind.Relative));
+                HttpResponseMessage result = await _httpClient!.SendAsync(message);
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
         }
@@ -714,12 +713,12 @@ namespace Horde.Storage.FunctionalTests.References
             const string objectContents = "This is treated as a opaque blob";
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{existingObject}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{bucket}/{existingObject}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
@@ -728,7 +727,7 @@ namespace Horde.Storage.FunctionalTests.References
             string queryString = $"?names={bucket}.{existingObject}&names={bucket}.{missingObject}";
 
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/exists" + queryString);
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists" + queryString, UriKind.Relative));
                 result.EnsureSuccessStatusCode();
                 ExistCheckMultipleRefsResponse response = await result.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
 
@@ -738,20 +737,18 @@ namespace Horde.Storage.FunctionalTests.References
             }
         }
 
-
-
         [TestMethod]
         public async Task PutGetObjectHierarchy()
         {
             string blobContents = "This is a string that is referenced as a blob";
             byte[] blobData = Encoding.ASCII.GetBytes(blobContents);
             BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
-            await _blobService.PutObject(TestNamespace, blobData, blobHash);
+            await Service.PutObject(TestNamespace, blobData, blobHash);
 
             string blobContentsChild = "This string is also referenced as a blob but from a child object";
             byte[] dataChild = Encoding.ASCII.GetBytes(blobContentsChild);
             BlobIdentifier blobHashChild = BlobIdentifier.FromBlob(dataChild);
-            await _blobService.PutObject(TestNamespace, dataChild, blobHashChild);
+            await Service.PutObject(TestNamespace, dataChild, blobHashChild);
 
             CbWriter writerChild = new CbWriter();
             writerChild.BeginObject();
@@ -760,7 +757,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             byte[] childDataObject = writerChild.ToByteArray();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
-            await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
+            await Service.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
             CbWriter writerParent = new CbWriter();
             writerParent.BeginObject();
@@ -774,11 +771,11 @@ namespace Horde.Storage.FunctionalTests.References
 
             IoHashKey key = IoHashKey.FromName("newHierarchyObject");
 
-            HttpContent requestContent = new ByteArrayContent(objectData);
+            using HttpContent requestContent = new ByteArrayContent(objectData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
             result.EnsureSuccessStatusCode();
 
             // check the response
@@ -808,7 +805,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             // verify attachments
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -823,7 +820,7 @@ namespace Horde.Storage.FunctionalTests.References
                 BlobIdentifier blobAttachment;
                 BlobIdentifier objectAttachment;
                 {
-                    HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb");
+                    HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                     getResponse.EnsureSuccessStatusCode();
                     await using MemoryStream ms = new MemoryStream();
                     await getResponse.Content.CopyToAsync(ms);
@@ -842,7 +839,7 @@ namespace Horde.Storage.FunctionalTests.References
                 }
 
                 {
-                    HttpResponseMessage getAttachment = await _httpClient.GetAsync($"api/v1/blobs/{TestNamespace}/{blobAttachment}");
+                    HttpResponseMessage getAttachment = await _httpClient.GetAsync(new Uri($"api/v1/blobs/{TestNamespace}/{blobAttachment}", UriKind.Relative));
                     getAttachment.EnsureSuccessStatusCode();
                     await using MemoryStream ms = new MemoryStream();
                     await getAttachment.Content.CopyToAsync(ms);
@@ -855,7 +852,7 @@ namespace Horde.Storage.FunctionalTests.References
 
                 BlobIdentifier attachedBlobIdentifier;
                 {
-                    HttpResponseMessage getAttachment = await _httpClient.GetAsync($"api/v1/blobs/{TestNamespace}/{objectAttachment}");
+                    HttpResponseMessage getAttachment = await _httpClient.GetAsync(new Uri($"api/v1/blobs/{TestNamespace}/{objectAttachment}", UriKind.Relative));
                     getAttachment.EnsureSuccessStatusCode();
                     await using MemoryStream ms = new MemoryStream();
                     await getAttachment.Content.CopyToAsync(ms);
@@ -871,7 +868,7 @@ namespace Horde.Storage.FunctionalTests.References
                 }
 
                 {
-                    HttpResponseMessage getAttachment = await _httpClient.GetAsync($"api/v1/blobs/{TestNamespace}/{attachedBlobIdentifier}");
+                    HttpResponseMessage getAttachment = await _httpClient.GetAsync(new Uri($"api/v1/blobs/{TestNamespace}/{attachedBlobIdentifier}", UriKind.Relative));
                     getAttachment.EnsureSuccessStatusCode();
                     await using MemoryStream ms = new MemoryStream();
                     await getAttachment.Content.CopyToAsync(ms);
@@ -885,7 +882,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             // check json representation
             {
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.json");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -905,8 +902,6 @@ namespace Horde.Storage.FunctionalTests.References
 
             }
         }
-
-
         
         [TestMethod]
         public async Task PutPartialHierarchy()
@@ -927,7 +922,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             byte[] childDataObject = writerChild.ToByteArray();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
-            await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
+            await Service.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
             CbWriter writerParent = new CbWriter();
             writerParent.BeginObject();
@@ -942,11 +937,11 @@ namespace Horde.Storage.FunctionalTests.References
             IoHashKey key = IoHashKey.FromName("newHierarchyObject");
 
             {
-                HttpContent requestContent = new ByteArrayContent(objectData);
+                using HttpContent requestContent = new ByteArrayContent(objectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -965,11 +960,11 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpContent requestContent = new ByteArrayContent(objectData);
+                using HttpContent requestContent = new ByteArrayContent(objectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.json", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync( new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -1016,11 +1011,11 @@ namespace Horde.Storage.FunctionalTests.References
             IoHashKey key = IoHashKey.FromName("putContentIdMissingBlob");
 
             {
-                HttpContent requestContent = new ByteArrayContent(objectData);
+                using HttpContent requestContent = new ByteArrayContent(objectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -1040,11 +1035,11 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                HttpContent requestContent = new ByteArrayContent(objectData);
+                using HttpContent requestContent = new ByteArrayContent(objectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.json", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -1089,11 +1084,11 @@ namespace Horde.Storage.FunctionalTests.References
             IoHashKey key = IoHashKey.FromName("putContentIdMissingBlobComplex");
 
             {
-                HttpContent requestContent = new ByteArrayContent(objectData);
+                using HttpContent requestContent = new ByteArrayContent(objectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -1134,7 +1129,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             byte[] childDataObject = writerChild.ToByteArray();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
-            await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
+            await Service.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
             CbWriter writerParent = new CbWriter();
             writerParent.BeginObject();
@@ -1147,11 +1142,11 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             {
-                HttpContent requestContent = new ByteArrayContent(objectData);
+                using HttpContent requestContent = new ByteArrayContent(objectData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -1180,15 +1175,15 @@ namespace Horde.Storage.FunctionalTests.References
 
             // upload missing pieces
             {
-                await _blobService.PutObject(TestNamespace, blobData, blobHash);
-                await _blobService.PutObject(TestNamespace, dataChild, blobHashChild);
+                await Service.PutObject(TestNamespace, blobData, blobHash);
+                await Service.PutObject(TestNamespace, dataChild, blobHashChild);
             }
 
             // finalize the object as no pieces is now missing
             {
-                HttpContent requestContent = new ByteArrayContent(Array.Empty<byte>());
+                using HttpContent requestContent = new ByteArrayContent(Array.Empty<byte>());
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}/finalize/{objectHash}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}/finalize/{objectHash}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 {
@@ -1222,11 +1217,11 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
             IoHashKey key = IoHashKey.FromName("newReferenceObject");
 
-            HttpContent requestContent = new ByteArrayContent(blobData);
+            using HttpContent requestContent = new ByteArrayContent(blobData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
             result.EnsureSuccessStatusCode();
 
             {
@@ -1243,7 +1238,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             {
                 // verify we can fetch the blob properly
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
@@ -1256,24 +1251,24 @@ namespace Horde.Storage.FunctionalTests.References
 
             {
                 // delete the blob 
-                await _blobService.DeleteObject(TestNamespace, blobHash);
+                await Service.DeleteObject(TestNamespace, blobHash);
             }
 
             {
                 // the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
             }
 
             {
                 // the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.json");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
             }
 
             {
                 // we should now see a 404 as the blob is missing
-                HttpResponseMessage getResponse = await _httpClient.GetAsync($"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
                 Assert.AreEqual("application/problem+json", getResponse.Content.Headers.ContentType!.MediaType);
                 string s = await getResponse.Content.ReadAsStringAsync();
@@ -1283,7 +1278,6 @@ namespace Horde.Storage.FunctionalTests.References
             }
         }
         
-        
         [TestMethod]
         public async Task DeleteObject()
         {
@@ -1291,38 +1285,38 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
 
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             IoHashKey key = IoHashKey.FromName("deletableObject");
             // submit the object
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             // verify it is present
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // delete the object
             {
-                HttpResponseMessage result = await _httpClient!.DeleteAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}");
+                HttpResponseMessage result = await _httpClient!.DeleteAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // ensure the object is not present anymore
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
 
             // delete the object again which doesn't exist anymore
             {
-                HttpResponseMessage result = await _httpClient!.DeleteAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}");
+                HttpResponseMessage result = await _httpClient!.DeleteAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
         }
@@ -1337,7 +1331,7 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
 
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
@@ -1345,42 +1339,42 @@ namespace Horde.Storage.FunctionalTests.References
 
             // submit the object into multiple buckets
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{BucketToDelete}/{key}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{BucketToDelete}/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
-                result.EnsureSuccessStatusCode();
-            }
-
-            // verify it is present
-            {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             // verify it is present
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/{BucketToDelete}/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
+                result.EnsureSuccessStatusCode();
+            }
+
+            // verify it is present
+            {
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/{BucketToDelete}/{key}.raw", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // delete the bucket
             {
-                HttpResponseMessage result = await _httpClient!.DeleteAsync(requestUri: $"api/v1/refs/{TestNamespace}/{BucketToDelete}");
+                HttpResponseMessage result = await _httpClient!.DeleteAsync(new Uri($"api/v1/refs/{TestNamespace}/{BucketToDelete}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // ensure the object is present in not deleted bucket
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // ensure the object is not present anymore
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/{BucketToDelete}/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/{BucketToDelete}/{key}.raw", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
         }
@@ -1395,62 +1389,61 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
 
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             IoHashKey key = IoHashKey.FromName("deletableObject");
             // submit the object into multiple namespaces
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{NamespaceToBeDeleted}/bucket/{key}", requestContent);
-                result.EnsureSuccessStatusCode();
-            }
-
-            // verify it is present
-            {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{NamespaceToBeDeleted}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             // verify it is present
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{NamespaceToBeDeleted}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
+                result.EnsureSuccessStatusCode();
+            }
+
+            // verify it is present
+            {
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{NamespaceToBeDeleted}/bucket/{key}.raw", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // delete the namespace
             {
-                HttpResponseMessage result = await _httpClient!.DeleteAsync(requestUri: $"api/v1/refs/{NamespaceToBeDeleted}");
+                HttpResponseMessage result = await _httpClient!.DeleteAsync(new Uri($"api/v1/refs/{NamespaceToBeDeleted}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // ensure the object is present in not deleted namespace
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
             // ensure the object is not present anymore
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{NamespaceToBeDeleted}/bucket/{key}.raw");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{NamespaceToBeDeleted}/bucket/{key}.raw", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
 
             // make sure the namespace is not considered a valid namespace anymore
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
                 GetNamespacesResponse response = await result.Content.ReadAsAsync<GetNamespacesResponse>();
                 CollectionAssert.DoesNotContain(response.Namespaces, NamespaceToBeDeleted);
             }
         }
-
 
         
         [TestMethod]
@@ -1461,25 +1454,24 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
             IoHashKey key = IoHashKey.FromName("notUsedObject");
 
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             // submit a object to make sure a namespace is created
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
                 GetNamespacesResponse response = await result.Content.ReadAsAsync<GetNamespacesResponse>();
                 Assert.IsTrue(response.Namespaces.Contains(TestNamespace));
             }
         }
-
         
         [TestMethod]
         public async Task GetOldRecords()
@@ -1488,14 +1480,14 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] data = Encoding.ASCII.GetBytes(objectContents);
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
 
-            HttpContent requestContent = new ByteArrayContent(data);
+            using HttpContent requestContent = new ByteArrayContent(data);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             IoHashKey key = IoHashKey.FromName("oldRecord");
             // submit some contents
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
@@ -1506,17 +1498,16 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.AreEqual(key, oldRecord.Value.Item2);
             Assert.AreEqual("bucket", oldRecord.Value.Item1.ToString());
         }
-
         
         [TestMethod]
         public async Task BatchJsonRequest()
         {
             // verifies that json request against the batch endpoint will fail
             {
-                HttpContent requestContent = new StringContent("{}");
+                using HttpContent requestContent = new StringContent("{}");
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Json);
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}", UriKind.Relative), requestContent);
 
                 Assert.AreEqual(HttpStatusCode.UnsupportedMediaType, result.StatusCode);
             }
@@ -1568,10 +1559,10 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] batchRequestData = batchRequestWriter.ToByteArray();
 
             {
-                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                using HttpContent requestContent = new ByteArrayContent(batchRequestData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 await using MemoryStream ms = new MemoryStream();
@@ -1595,7 +1586,6 @@ namespace Horde.Storage.FunctionalTests.References
             }
         }
 
-
         [TestMethod]
         public async Task BatchGetOperations()
         {
@@ -1608,11 +1598,11 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] cbObjectBytes = newBlobObject.GetView().ToArray();
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
 
-                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                using HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newBlobObjectKey}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{bucket}/{newBlobObjectKey}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
                 byte[] content = await result.Content.ReadAsByteArrayAsync();
                 PutObjectResponse? response = CbSerializer.Deserialize<PutObjectResponse?>(content);
@@ -1627,11 +1617,11 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobContents);
 
-                HttpContent requestContent = new ByteArrayContent(blobContents);
+                using HttpContent requestContent = new ByteArrayContent(blobContents);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespace}/{blobHash}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespace}/{blobHash}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
@@ -1642,11 +1632,11 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobContents);
 
-                HttpContent requestContent = new ByteArrayContent(blobContents);
+                using HttpContent requestContent = new ByteArrayContent(blobContents);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespace}/{blobHash}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespace}/{blobHash}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
@@ -1654,11 +1644,11 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] cbObjectBytes = newReferenceObject.GetView().ToArray();
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
 
-                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                using HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newReferenceObjectKey}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{bucket}/{newReferenceObjectKey}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 result.EnsureSuccessStatusCode();
@@ -1711,10 +1701,10 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] batchRequestData = batchRequestWriter.ToByteArray();
 
             {
-                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                using HttpContent requestContent = new ByteArrayContent(batchRequestData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 await using MemoryStream ms = new MemoryStream();
@@ -1753,11 +1743,11 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] cbObjectBytes = newBlobObject.GetView().ToArray();
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
 
-                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                using HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newBlobObjectKey}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{bucket}/{newBlobObjectKey}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
                 byte[] content = await result.Content.ReadAsByteArrayAsync();
                 PutObjectResponse? response = CbSerializer.Deserialize<PutObjectResponse?>(content);
@@ -1772,11 +1762,11 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobContents);
 
-                HttpContent requestContent = new ByteArrayContent(blobContents);
+                using HttpContent requestContent = new ByteArrayContent(blobContents);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespace}/{blobHash}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespace}/{blobHash}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
@@ -1784,11 +1774,11 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] cbObjectBytes = newReferenceObject.GetView().ToArray();
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
 
-                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                using HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newReferenceObjectKey}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{bucket}/{newReferenceObjectKey}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 result.EnsureSuccessStatusCode();
@@ -1830,10 +1820,10 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] batchRequestData = batchRequestWriter.ToByteArray();
             
             {
-                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                using HttpContent requestContent = new ByteArrayContent(batchRequestData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 await using MemoryStream ms = new MemoryStream();
@@ -1905,10 +1895,10 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] batchRequestData = batchRequestWriter.ToByteArray();
 
             {
-                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                using HttpContent requestContent = new ByteArrayContent(batchRequestData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 await using MemoryStream ms = new MemoryStream();
@@ -1949,11 +1939,11 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] cbObjectBytes = getObject.GetView().ToArray();
                 BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
 
-                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                using HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
                 requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
 
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{getObjectKey}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{bucket}/{getObjectKey}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
                 byte[] content = await result.Content.ReadAsByteArrayAsync();
                 PutObjectResponse? response = CbSerializer.Deserialize<PutObjectResponse?>(content);
@@ -2015,10 +2005,10 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] batchRequestData = batchRequestWriter.ToByteArray();
             
             {
-                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                using HttpContent requestContent = new ByteArrayContent(batchRequestData);
                 requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
-                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/refs/{TestNamespace}", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
 
                 await using MemoryStream ms = new MemoryStream();

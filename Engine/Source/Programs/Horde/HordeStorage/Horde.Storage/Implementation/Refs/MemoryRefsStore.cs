@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Jupiter.Implementation;
-using Serilog;
-
 using RefContainer = System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>;
 using BucketContainer = System.Collections.Concurrent.ConcurrentDictionary<EpicGames.Horde.Storage.BucketId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>>;
 using NamespaceContainer = System.Collections.Concurrent.ConcurrentDictionary<EpicGames.Horde.Storage.NamespaceId, System.Collections.Concurrent.ConcurrentDictionary<EpicGames.Horde.Storage.BucketId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>>>;
@@ -16,7 +14,6 @@ namespace Horde.Storage.Implementation
 {
     internal class MemoryRefsStore : IRefsStore
     {
-        private readonly ILogger _logger = Log.ForContext<MemoryRefsStore>();
         private readonly NamespaceContainer _refs = new NamespaceContainer();
 
         public Task<RefRecord?> Get(NamespaceId ns, BucketId bucket, KeyId key, IRefsStore.ExtraFieldsFlag fields)
@@ -56,7 +53,7 @@ namespace Horde.Storage.Implementation
             BucketContainer bucketContainer = _refs.GetOrAdd(ns, new BucketContainer());
             RefContainer refContainer = bucketContainer.GetOrAdd(bucket, new RefContainer());
 
-            if (refContainer.TryRemove(key, out RefRecord? refRecord))
+            if (refContainer.TryRemove(key, out RefRecord? _))
             {
                 return Task.FromResult(1L);
             }
@@ -95,7 +92,9 @@ namespace Horde.Storage.Implementation
                 {
                     RefRecord refRecord = refContainer[keyId];
                     if (refRecord.LastAccessTime < cutoff)
+                    {
                         yield return new OldRecord(ns, bucket, keyId);
+                    }
                 }
             }
         }

@@ -34,7 +34,7 @@ namespace Horde.Storage.UnitTests
     }
     
     [TestClass]
-    public class MemoryCacheBlobStoreTest
+    public class MemoryCacheBlobStoreTest: IDisposable
     {
         private readonly NamespaceId Ns1 = new NamespaceId("my-namespace-1");
         private readonly NamespaceId Ns2 = new NamespaceId("my-namespace-2");
@@ -115,6 +115,20 @@ namespace Horde.Storage.UnitTests
         [Ignore("Not implemented due to limitations with MS MemoryCache")]
         public void ListOldObjects()
         {
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _store.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

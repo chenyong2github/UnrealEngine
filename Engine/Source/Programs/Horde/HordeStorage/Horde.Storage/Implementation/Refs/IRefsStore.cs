@@ -21,8 +21,6 @@ namespace Horde.Storage.Implementation
             LastAccessTime = lastAccessTime;
             ContentHash = contentHash;
         }
-
-
         public NamespaceId Namespace { get; }
 
         public BucketId Bucket { get; }
@@ -48,14 +46,11 @@ namespace Horde.Storage.Implementation
             RefName = refName;
         }
 
-
         public NamespaceId Namespace { get; }
 
         public BucketId Bucket { get; }
         public KeyId RefName { get; }
-
     }
-
 
     public interface IRefsStore
     {

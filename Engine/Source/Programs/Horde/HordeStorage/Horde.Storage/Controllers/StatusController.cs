@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -46,15 +47,20 @@ namespace Horde.Storage.Controllers
             string srcControlIdentifier = "Unknown";
             AssemblyMetadataAttribute? gitHashAttribute = attrs.FirstOrDefault(attr => attr.Key == "GitHash");
             if (gitHashAttribute?.Value != null && !string.IsNullOrEmpty(gitHashAttribute.Value))
+            {
                 srcControlIdentifier = gitHashAttribute.Value;
+            }
 
             AssemblyMetadataAttribute? p4ChangeAttribute = attrs.FirstOrDefault(attr => attr.Key == "PerforceChangelist");
             if (p4ChangeAttribute?.Value != null && !string.IsNullOrEmpty(p4ChangeAttribute.Value))
+            {
                 srcControlIdentifier = p4ChangeAttribute.Value;
+            }
+
             return Ok(new StatusResponse(_versionFile.VersionString ?? "Unknown", srcControlIdentifier, GetCapabilities(), _jupiterSettings.CurrentValue.CurrentSite));
         }
 
-        private string[] GetCapabilities()
+        private static string[] GetCapabilities()
         {
             return new string[]
             {
@@ -96,13 +102,14 @@ namespace Horde.Storage.Controllers
 
         public string CurrentSite { get; set; }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<KnownPeer> Peers { get; set; } = new List<KnownPeer>();
     }
 
     public class KnownPeer
     {
         [JsonConstructor]
-        public KnownPeer(string site, string fullName, List<string> endpoints, int latency)
+        public KnownPeer(string site, string fullName, List<Uri> endpoints, int latency)
         {
             Site = site;
             FullName = fullName;
@@ -116,10 +123,13 @@ namespace Horde.Storage.Controllers
             FullName = peerSettings.FullName;
             IEnumerable<PeerEndpoints> endpoints = peerSettings.Endpoints;
             if (!includeInternalEndpoints)
+            {
                 endpoints = endpoints.Where(s => !s.IsInternal);
+            }
+
             Endpoints = endpoints.Select(e => e.Url).ToList();
 
-            IPeerStatusService.PeerStatus? peerStatus = statusService.GetPeerStatus(peerSettings.Name);
+            PeerStatus? peerStatus = statusService.GetPeerStatus(peerSettings.Name);
             if (peerStatus != null)
             {
                 Latency = peerStatus.Latency;
@@ -131,7 +141,8 @@ namespace Horde.Storage.Controllers
 
         public int Latency { get; set; }
 
-        public List<string> Endpoints { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
+        public List<Uri> Endpoints { get; set; }
     }
 
     public class StatusResponse

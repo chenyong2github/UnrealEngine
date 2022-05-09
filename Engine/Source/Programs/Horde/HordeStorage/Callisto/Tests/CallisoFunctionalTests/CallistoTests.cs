@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -107,7 +105,7 @@ namespace Callisto.FunctionalTests
         {
             const int startOffset = 0;
             HttpResponseMessage response =
-                await _httpClient!.GetAsync($"api/v1/t/{TestExistingNamespace}/{startOffset}");
+                await _httpClient!.GetAsync(new Uri($"api/v1/t/{TestExistingNamespace}/{startOffset}", UriKind.Relative));
             response.EnsureSuccessStatusCode();
             dynamic ter = await response.Content.ReadAsAsync<dynamic>();
             Assert.IsNotNull(ter.generation);
@@ -129,8 +127,7 @@ namespace Callisto.FunctionalTests
         public async Task GetMismatchedOffsetEvent()
         {
             const int startOffset = 50; // this is not a valid offset, so we should get the object at offset 70
-            HttpResponseMessage response =
-                await _httpClient!.GetAsync($"api/v1/t/{TestExistingNamespace}/{startOffset}");
+            HttpResponseMessage response = await _httpClient!.GetAsync(new Uri($"api/v1/t/{TestExistingNamespace}/{startOffset}", UriKind.Relative));
             response.EnsureSuccessStatusCode();
             dynamic ter = await response.Content.ReadAsAsync<dynamic>();
             Assert.IsNotNull(ter.generation);
@@ -148,20 +145,18 @@ namespace Callisto.FunctionalTests
             Assert.AreEqual(new BlobIdentifier("0BEEC7B5EA3F0FDBC95D0DD47F3C5BC275DA8A34"), actual: tEvent.Blobs.First());
         }
 
-
         [TestMethod]    
         public async Task GetNonExistentEvent()
         {
             // fetch the event after the second event, this will not exist
             const int startOffset = 77;
-            HttpResponseMessage response = await _httpClient!.GetAsync($"api/v1/t/{TestExistingNamespace}/{startOffset}");
+            HttpResponseMessage response = await _httpClient!.GetAsync(new Uri($"api/v1/t/{TestExistingNamespace}/{startOffset}", UriKind.Relative));
             response.EnsureSuccessStatusCode();
             dynamic ter = await response.Content.ReadAsAsync<dynamic>();
             Assert.IsNotNull(ter.generation);
             JArray events = ter.events;
             Assert.AreEqual(0, events.Count);
         }
-
 
         [TestMethod]
         public async Task AddNewEvent()
@@ -255,7 +250,7 @@ namespace Callisto.FunctionalTests
                 };
 
                 HttpResponseMessage response =
-                    await _httpClient!.PostAsJsonAsync(requestUri: $"api/v1/t/{FullFlowNamespace}", request);
+                    await _httpClient!.PostAsJsonAsync(new Uri($"api/v1/t/{FullFlowNamespace}", UriKind.Relative), request);
                 response.EnsureSuccessStatusCode();
                 NewTransactionResponse r = await response.Content.ReadAsAsync<NewTransactionResponse>();
                 long offset = r.Offset;
@@ -265,7 +260,7 @@ namespace Callisto.FunctionalTests
             {
                 const int startOffset = 0;
                 HttpResponseMessage response =
-                    await _httpClient!.GetAsync($"api/v1/t/{FullFlowNamespace}/{startOffset}");
+                    await _httpClient!.GetAsync(new Uri($"api/v1/t/{FullFlowNamespace}/{startOffset}", UriKind.Relative));
                 response.EnsureSuccessStatusCode();
                 dynamic ter = await response.Content.ReadAsAsync<dynamic>();
                 JArray events = ter.events;

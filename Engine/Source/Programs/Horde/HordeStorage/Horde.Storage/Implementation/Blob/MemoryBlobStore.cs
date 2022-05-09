@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Jupiter;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 
@@ -53,7 +52,7 @@ namespace Horde.Storage.Implementation
                 identifier = BlobIdentifier.FromBlob(blob);
             }
 
-            var namespaceContainer = _blobs.GetOrAdd(ns, new ConcurrentDictionary<BlobIdentifier, BlobContainer>());
+            ConcurrentDictionary<BlobIdentifier, BlobContainer> namespaceContainer = _blobs.GetOrAdd(ns, new ConcurrentDictionary<BlobIdentifier, BlobContainer>());
             if (throwOnOverwrite && namespaceContainer.ContainsKey(identifier))
             {
                 throw new Exception($"Blob {identifier} already exists in {ns}");
@@ -75,7 +74,7 @@ namespace Horde.Storage.Implementation
 
         public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
         {
-            if (!_blobs.TryGetValue(ns, value: out var namespaceContainer))
+            if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
                 throw new NamespaceNotFoundException(ns);
             }
@@ -91,7 +90,7 @@ namespace Horde.Storage.Implementation
 
         public Task DeleteObject(NamespaceId ns, BlobIdentifier blob)
         {
-            if (!_blobs.TryGetValue(ns, value: out var namespaceContainer))
+            if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
                 throw new NamespaceNotFoundException(ns);
             }
@@ -106,7 +105,7 @@ namespace Horde.Storage.Implementation
 
         public Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
         {
-            if (!_blobs.TryGetValue(ns, value: out var namespaceContainer))
+            if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
                 throw new NamespaceNotFoundException(ns);
             }
@@ -116,7 +115,7 @@ namespace Horde.Storage.Implementation
 
         public Task DeleteNamespace(NamespaceId ns)
         {
-            _blobs.Remove(ns, out var nsBlobs);
+            _blobs.Remove(ns, out ConcurrentDictionary<BlobIdentifier, BlobContainer>? nsBlobs);
             if (nsBlobs == null)
             {
                 throw new NamespaceNotFoundException(ns);
@@ -127,7 +126,7 @@ namespace Horde.Storage.Implementation
 
         public async IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns)
         {
-            if (!_blobs.TryGetValue(ns, value: out var namespaceContainer))
+            if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
                 throw new NamespaceNotFoundException(ns);
             }
@@ -141,7 +140,7 @@ namespace Horde.Storage.Implementation
 
         internal IEnumerable<BlobIdentifier> GetIdentifiers(NamespaceId ns)
         {
-            if (!_blobs.TryGetValue(ns, value: out var namespaceContainer))
+            if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
                 throw new NamespaceNotFoundException(ns);
             }
@@ -152,7 +151,7 @@ namespace Horde.Storage.Implementation
         // only for unit tests to update the last modified time
         internal void SetLastModifiedTime(NamespaceId ns, BlobIdentifier blob, DateTime modifiedTime)
         {
-            if (!_blobs.TryGetValue(ns, value: out var namespaceContainer))
+            if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
                 throw new Exception($"Namespace {ns} not found");
             }

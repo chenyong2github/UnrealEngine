@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
@@ -16,13 +15,13 @@ using Serilog;
 
 namespace Horde.Storage.Implementation
 {
-    // ReSharper disable once ClassNeverInstantiated.Global
-    public class ReplicationSnapshotService : PollingService<ReplicationSnapshotService.SnapshotState>
+    public class SnapshotState
     {
-        public class SnapshotState
-        {
-        }
+    }
 
+    // ReSharper disable once ClassNeverInstantiated.Global
+    public class ReplicationSnapshotService : PollingService<SnapshotState>
+    {
         private readonly IServiceProvider _provider;
         private readonly IOptionsMonitor<SnapshotSettings> _settings;
         private readonly IReplicationLog _replicationLog;
@@ -36,8 +35,7 @@ namespace Horde.Storage.Implementation
             return _settings.CurrentValue.Enabled;
         }
 
-        public ReplicationSnapshotService(IServiceProvider provider, IOptionsMonitor<SnapshotSettings> settings, IReplicationLog replicationLog, ILeaderElection leaderElection) :
-            base(serviceName: nameof(ReplicationSnapshotService), TimeSpan.FromMinutes(15), new SnapshotState())
+        public ReplicationSnapshotService(IServiceProvider provider, IOptionsMonitor<SnapshotSettings> settings, IReplicationLog replicationLog, ILeaderElection leaderElection) : base(serviceName: nameof(ReplicationSnapshotService), TimeSpan.FromMinutes(15), new SnapshotState())
         {
             _provider = provider;
             _settings = settings;
@@ -98,7 +96,9 @@ namespace Horde.Storage.Implementation
             _cancellationTokenSource.Cancel();
 
             if (_snapshotBuildTask != null)
+            {
                 await _snapshotBuildTask;
+            }
         }
     }
 

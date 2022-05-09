@@ -9,7 +9,6 @@ using Blake3;
 using EpicGames.Core;
 using EpicGames.Serialization;
 using Newtonsoft.Json;
-using SharpYaml.Tokens;
 using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
@@ -41,7 +40,9 @@ namespace Jupiter.Implementation
         public bool Equals(BlobIdentifier? other)
         {
             if (other == null)
+            {
                 return false;
+            }
 
             return Comparer.Equals(Identifier, other.Identifier);
         }
@@ -58,7 +59,7 @@ namespace Jupiter.Implementation
                 return true;
             }
 
-            if (obj.GetType() != this.GetType())
+            if (obj.GetType() != GetType())
             {
                 return false;
             }
@@ -76,7 +77,7 @@ namespace Jupiter.Implementation
             return _stringIdentifier;
         }
 
-        public new static BlobIdentifier FromBlob(byte[] blobMemory)
+        public static new BlobIdentifier FromBlob(byte[] blobMemory)
         {
             Hash blake3Hash;
             if (blobMemory.Length < MultiThreadedSize)
@@ -165,9 +166,9 @@ namespace Jupiter.Implementation
   
         public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)  
         {
-            if (value is string)
+            if (value is string s)
             {
-                return new BlobIdentifier((string) value);
+                return new BlobIdentifier(s);
             }
 
             return base.ConvertFrom(context, culture, value);  
@@ -183,12 +184,18 @@ namespace Jupiter.Implementation
 
         public override BlobIdentifier? ReadJson(JsonReader reader, Type objectType, BlobIdentifier? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
-            if (reader.TokenType == JsonToken.Null) 
+            if (reader.TokenType == JsonToken.Null)
+            {
                 return null;
+            }
+
             string? s = (string?)reader.Value;
 
             if (s == null)
+            {
                 return null;
+            }
+
             return new BlobIdentifier(s!);
         }
     }

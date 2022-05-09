@@ -8,14 +8,11 @@ using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using Serilog;
 
 namespace Horde.Storage.Implementation
 {
     public class MongoReferencesStore : MongoStore, IReferencesStore
     {
-        private readonly ILogger _logger = Log.ForContext<MongoReferencesStore>();
-
         public MongoReferencesStore(IOptionsMonitor<MongoSettings> settings, string? overrideDatabaseName = null) : base(settings, overrideDatabaseName)
         {
             CreateCollectionIfNotExists<MongoReferencesModelV0>().Wait();
@@ -49,7 +46,9 @@ namespace Horde.Storage.Implementation
             IAsyncCursor<MongoReferencesModelV0>? cursor = await collection.FindAsync(m => m.Ns == ns.ToString() && m.Bucket == bucket.ToString() && m.Key == key.ToString());
             MongoReferencesModelV0? model = await cursor.FirstOrDefaultAsync();
             if (model == null)
+            {
                 throw new ObjectNotFoundException(ns, bucket, key);
+            }
 
             if (!includePayload)
             {
@@ -262,7 +261,6 @@ namespace Horde.Storage.Implementation
         [BsonRequired]
         public string Ns { get; set; }
 
-
         [BsonConstructor]
         public MongoNamespacesModelV0(string ns)
         {
@@ -273,6 +271,5 @@ namespace Horde.Storage.Implementation
         {
             Ns = ns.ToString();
         }
-
     }
 }

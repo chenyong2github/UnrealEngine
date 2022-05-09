@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using Blake3;
@@ -30,7 +29,10 @@ namespace Jupiter.Implementation
         public bool Equals(TreeHash? other)
         {
             if (other == null)
+            {
                 return false;
+            }
+
             return Comparer.Equals(Identifier, other.Identifier);
         }
 
@@ -46,7 +48,7 @@ namespace Jupiter.Implementation
                 return true;
             }
 
-            if (obj.GetType() != this.GetType())
+            if (obj.GetType() != GetType())
             {
                 return false;
             }
@@ -93,14 +95,15 @@ namespace Jupiter.Implementation
         }
     }
 
-
     public sealed class TreeHashTypeConverter : TypeConverter
     {
         /// <inheritdoc/>
         public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
         {
             if (sourceType == typeof(string))
+            {
                 return true;
+            }
 
             return base.CanConvertFrom(context, sourceType);
         }

@@ -23,7 +23,6 @@ namespace Horde.Storage.Implementation
         Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized);
         Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier);
 
-
         Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime newLastAccessTime);
         IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns);
 

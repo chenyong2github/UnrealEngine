@@ -15,7 +15,7 @@ namespace Horde.Storage.Implementation
     {
         private readonly VersionFileContents _versionFileContents;
 
-        public class VersionFileContents
+        private class VersionFileContents
         {
             public string? Version { get; set; }
         }
@@ -32,9 +32,6 @@ namespace Horde.Storage.Implementation
             _versionFileContents = deserializer.Deserialize<VersionFileContents>(tr);
         }
 
-        public string? VersionString
-        {
-            get { return _versionFileContents.Version; }
-        }
+        public string? VersionString => _versionFileContents.Version;
     }
 }

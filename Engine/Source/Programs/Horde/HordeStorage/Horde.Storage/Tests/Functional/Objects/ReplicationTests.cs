@@ -51,7 +51,7 @@ namespace Horde.Storage.FunctionalTests.References
             IReplicationLog replicationLog = provider.GetService<IReplicationLog>()!;
             Assert.IsTrue(replicationLog.GetType() == typeof(ScyllaReplicationLog));
 
-            await SeedTestData(referencesStore);
+            await SeedTestData();
         }
 
         protected override async Task TeardownDb(IServiceProvider provider)
@@ -68,11 +68,8 @@ namespace Horde.Storage.FunctionalTests.References
                 // remove the namespaces
                 localKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS replication_namespace;"))
             );
-
-
         }
     }
-
 
     [TestClass]
     public class MemoryReplicationTests : ReplicationTests
@@ -95,7 +92,7 @@ namespace Horde.Storage.FunctionalTests.References
             IReplicationLog replicationLog = provider.GetService<IReplicationLog>()!;
             Assert.IsTrue(replicationLog.GetType() == typeof(MemoryReplicationLog));
 
-            await SeedTestData(referencesStore);
+            await SeedTestData();
         }
 
         protected override Task TeardownDb(IServiceProvider provider)
@@ -108,13 +105,12 @@ namespace Horde.Storage.FunctionalTests.References
     {
         private static TestServer? _server;
         private static HttpClient? _httpClient;
-        protected IBlobService _blobStore = null!;
-        protected IReferencesStore _referencesStore = null!;
+        private IBlobService _blobStore = null!;
         private IReplicationLog _replicationLog = null!;
 
-        protected readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
-        protected readonly NamespaceId SnapshotNamespace = new NamespaceId("snapshot-namespace");
-        protected readonly BucketId TestBucket = new BucketId("default");
+        private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
+        private readonly NamespaceId SnapshotNamespace = new NamespaceId("snapshot-namespace");
+        private readonly BucketId TestBucket = new BucketId("default");
 
         [TestInitialize]
         public async Task Setup()
@@ -141,23 +137,23 @@ namespace Horde.Storage.FunctionalTests.References
             _server = server;
 
             _blobStore = _server.Services.GetService<IBlobService>()!;
-            _referencesStore = _server.Services.GetService<IReferencesStore>()!;
             _replicationLog = _server.Services.GetService<IReplicationLog>()!;
 
             await SeedDb(server.Services);
         }
 
-        protected async Task SeedTestData(IReferencesStore referencesStore)
+        protected virtual async Task SeedTestData()
         {
             await Task.CompletedTask;
         }
 
-
         [TestCleanup]
         public async Task Teardown()
         {
-            if (_server != null) 
+            if (_server != null)
+            {
                 await TeardownDb(_server.Services);
+            }
         }
 
         protected abstract IEnumerable<KeyValuePair<string, string>> GetSettings();
@@ -177,29 +173,28 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
-            HttpContent requestContent = new ByteArrayContent(objectData);
+            using HttpContent requestContent = new ByteArrayContent(objectData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("newReferenceObject")}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("newReferenceObject")}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("secondObject")}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("secondObject")}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("thirdObject")}.uecb", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("thirdObject")}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
             
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
-                string s = await result.Content.ReadAsStringAsync();
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
@@ -255,9 +250,8 @@ namespace Horde.Storage.FunctionalTests.References
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("fourthObject"), objectHash, oldestTimestamp.AddDays(0.9));
 
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
-                string s = await result.Content.ReadAsStringAsync();
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
@@ -317,9 +311,8 @@ namespace Horde.Storage.FunctionalTests.References
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("sixthObject"), objectHash, oldestTimestamp.AddDays(2.13));
 
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
-                string s = await result.Content.ReadAsStringAsync();
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
@@ -376,17 +369,16 @@ namespace Horde.Storage.FunctionalTests.References
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("fourthObject"), objectHash, oldestTimestamp.AddDays(0.9));
 
             // start from the second event
-            const int eventsToFetch = 2;
+            const int EventsToFetch = 2;
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}&count={eventsToFetch}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}&count={EventsToFetch}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
-                string s = await result.Content.ReadAsStringAsync();
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
                 ReplicationLogEvents? events = await result.Content.ReadAsAsync<ReplicationLogEvents>();
                 Assert.IsNotNull(events);
-                Assert.AreEqual(eventsToFetch, events!.Events.Count);
+                Assert.AreEqual(EventsToFetch, events!.Events.Count);
 
                 // parse the events returned, make sure they are in the right order
                 {
@@ -427,10 +419,8 @@ namespace Horde.Storage.FunctionalTests.References
             Guid eventId = Guid.NewGuid();
 
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.BadRequest, result.StatusCode);
-                
-                string s = await result.Content.ReadAsStringAsync();
                 
                 ProblemDetails? problem = await result.Content.ReadFromJsonAsync<ProblemDetails?>();
                 Assert.IsNotNull(problem);
@@ -457,10 +447,8 @@ namespace Horde.Storage.FunctionalTests.References
             Guid eventId = Guid.NewGuid();
 
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.BadRequest, result.StatusCode);
-                
-                string s = await result.Content.ReadAsStringAsync();
                 
                 ProblemDetails? problem = await result.Content.ReadFromJsonAsync<ProblemDetails?>();
                 Assert.IsNotNull(problem);
@@ -474,10 +462,8 @@ namespace Horde.Storage.FunctionalTests.References
         {
             // the namespace does not exist
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
-                string s = await result.Content.ReadAsStringAsync();
-                
                 ProblemDetails? problem = await result.Content.ReadFromJsonAsync<ProblemDetails?>();
                 Assert.IsNotNull(problem);
             }
@@ -511,17 +497,14 @@ namespace Horde.Storage.FunctionalTests.References
             // use a bucket that does not exist, should raise a message to use a snapshot instead
             string bucketThatDoesNotExist = "rep-0000";
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={bucketThatDoesNotExist}&lastEvent={Guid.NewGuid()}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={bucketThatDoesNotExist}&lastEvent={Guid.NewGuid()}", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.BadRequest, result.StatusCode);
-                string s = await result.Content.ReadAsStringAsync();
-                
                 ProblemDetails? problem = await result.Content.ReadFromJsonAsync<ProblemDetails?>();
                 Assert.IsNotNull(problem);
                 Assert.AreEqual("http://jupiter.epicgames.com/replication/useSnapshot", problem!.Type);
                 Assert.IsTrue(problem.Extensions.ContainsKey("SnapshotId"));
                 Assert.AreEqual(snapshotBlobId, new BlobIdentifier(problem.Extensions["SnapshotId"]!.ToString()!));
             }
-            
         }
 
         [TestMethod]
@@ -599,13 +582,12 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.AreEqual(lastEventId, snapshot.LastEvent);
             Assert.AreEqual(lastEventBucket, snapshot.LastBucket);
 
-            List<ReplicationLogSnapshot.SnapshotLiveObject> liveObjects = snapshot.GetLiveObjects().ToList();
+            List<SnapshotLiveObject> liveObjects = snapshot.GetLiveObjects().ToList();
             Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("firstObject")));
             Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("secondObject")));
             Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("thirdObject")));
             Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("fourthObject")));
         }
-
 
         [TestMethod]
         public async Task ReplicationLogSnapshotQuerying()
@@ -642,10 +624,8 @@ namespace Horde.Storage.FunctionalTests.References
 
             // make sure the snapshot is returned by the rest api
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/snapshots/{TestNamespace}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/snapshots/{TestNamespace}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
-                string s = await result.Content.ReadAsStringAsync();
-                
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
                 ReplicationLogSnapshots snapshots = await result.Content.ReadAsAsync<ReplicationLogSnapshots>();
@@ -706,7 +686,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             // verify the new events can be found when resuming from the snapshot
             {
-                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={snapshot.LastBucket}&lastEvent={snapshot.LastEvent}");
+                HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={snapshot.LastBucket}&lastEvent={snapshot.LastEvent}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);

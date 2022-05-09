@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
@@ -57,7 +56,9 @@ namespace Horde.Storage.Implementation
             {
                 // empty array means fetch all fields
                 if (fields.Length == 0)
+                {
                     flags = IReferencesStore.FieldFlags.All;
+                }
                 else
                 {
                     flags = fields.Contains("payload")
@@ -68,20 +69,22 @@ namespace Horde.Storage.Implementation
             ObjectRecord o = await _referencesStore.Get(ns, bucket, key, flags);
 
             // we do not wait for the last access tracking as it does not matter when it completes
-            Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key)).ContinueWith(task =>
+            Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key)).ContinueWith((task, _) =>
             {
                 if (task.Exception != null)
                 {
                     _logger.Error(task.Exception, "Exception when tracking last access record");
                 }
-            });;
+            }, null, TaskScheduler.Current);
 
             BlobContents? blobContents = null;
             if ((flags & IReferencesStore.FieldFlags.IncludePayload) != 0)
             {
                 if (o.InlinePayload != null && o.InlinePayload.Length != 0)
                 {
+#pragma warning disable CA2000 // Dispose objects before losing scope , ownership is transfered to caller
                     blobContents = new BlobContents(o.InlinePayload);
+#pragma warning restore CA2000 // Dispose objects before losing scope
                 }
                 else
                 {
@@ -116,7 +119,9 @@ namespace Horde.Storage.Implementation
                 {
                     bool hasAttachment = HasAttachments(field.AsObject());
                     if (hasAttachment)
+                    {
                         return true;
+                    }
                 }
 
                 if (field.IsArray())
@@ -125,7 +130,9 @@ namespace Horde.Storage.Implementation
                     {
                         bool hasAttachment = FieldHasAttachments(subField);
                         if (hasAttachment)
+                        {
                             return true;
+                        }
                     }
                 }
 
@@ -139,12 +146,17 @@ namespace Horde.Storage.Implementation
         {
             (ObjectRecord o, BlobContents? blob) = await Get(ns, bucket, key);
             if (blob == null)
+            {
                 throw new InvalidOperationException("No blob when attempting to finalize");
+            }
+
             byte[] blobContents = await blob.Stream.ToByteArray();
             CbObject payload = new CbObject(blobContents);
 
             if (!o.BlobIdentifier.Equals(blobHash))
+            {
                 throw new ObjectHashMismatchException(ns, bucket, key, blobHash, o.BlobIdentifier);
+            }
 
             return await DoFinalize(ns, bucket, key, blobHash, payload);
         }

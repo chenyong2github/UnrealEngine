@@ -86,7 +86,9 @@ namespace Horde.Storage.Implementation
             {
                 // if we have no buckets we are done
                 if (!buckets.Any())
+                {
                     yield break;
+                }
 
                 lastBucket = buckets.First().Key;
             }
@@ -172,7 +174,6 @@ namespace Horde.Storage.Implementation
             {
                 yield return snapshot;
             }
-
         }
 
         public Task UpdateReplicatorState(NamespaceId ns, string replicatorName,

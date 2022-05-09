@@ -91,16 +91,24 @@ namespace Horde.Storage.Implementation
             // LoadAsync can return null records even if its not annotated for it
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (baseRefRecord == null)
+            {
                 return null; // this key is not valid
+            }
 
             if (!baseRefRecord.IsValid())
+            {
                 throw new InvalidOperationException("Refs record was not fully populated, version mismatch?");
+            }
 
             if (!lastAccessRefRecord?.IsValid() ?? false)
+            {
                 throw new InvalidOperationException("LastAccess Refs record was not fully populated, version mismatch?");
+            }
 
             if (!metadataRefRecord?.IsValid() ?? false)
+            {
                 throw new InvalidOperationException("Metadata refs record was not fully populated, version mismatch?");
+            }
 
             return new DynamoRefRecord(new NamespaceId(baseRefRecord.Namespace!), new BucketId(baseRefRecord.Bucket!), new KeyId(baseRefRecord.Name!), 
                 baseRefRecord.Blobs!.Select(s => new BlobIdentifier(s)).ToArray(), 
@@ -176,17 +184,16 @@ namespace Horde.Storage.Implementation
             return countOfDeletedItems;
         }
 
-
         public async Task<long> Delete(NamespaceId ns, BucketId bucket, KeyId key)
         {
             await Initialize();
 
-            var deleteBaseTask = new DeleteItemRequest(MainTableName, new Dictionary<string, AttributeValue> {{"Id", new AttributeValue(DynamoBaseRefRecord.BuildCacheKey(ns, bucket, key)) }})
+            DeleteItemRequest deleteBaseTask = new(MainTableName, new Dictionary<string, AttributeValue> {{"Id", new AttributeValue(DynamoBaseRefRecord.BuildCacheKey(ns, bucket, key)) }})
             {
                 ConditionExpression = "attribute_exists(Id)"
             };
-            var deleteLastAccessTask = new DeleteItemRequest(MainTableName, new Dictionary<string, AttributeValue> {{"Id", new AttributeValue(DynamoLastAccessRefRecord.BuildCacheKey(ns, bucket, key)) }});
-            var deleteMetadataTask = new DeleteItemRequest(MainTableName, new Dictionary<string, AttributeValue> {{"Id", new AttributeValue(DynamoMetadataRefRecord.BuildCacheKey(ns, bucket, key)) }});
+            DeleteItemRequest deleteLastAccessTask = new(MainTableName, new Dictionary<string, AttributeValue> {{"Id", new AttributeValue(DynamoLastAccessRefRecord.BuildCacheKey(ns, bucket, key)) }});
+            DeleteItemRequest deleteMetadataTask = new(MainTableName, new Dictionary<string, AttributeValue> {{"Id", new AttributeValue(DynamoMetadataRefRecord.BuildCacheKey(ns, bucket, key)) }});
 
             try
             {
@@ -201,7 +208,6 @@ namespace Horde.Storage.Implementation
             return 1;
         }
 
-
         public async Task UpdateLastAccessTime(RefRecord record, DateTime lastAccessTime)
         {
             await Initialize();
@@ -215,7 +221,10 @@ namespace Horde.Storage.Implementation
             Document? item = await table.GetItemAsync(DynamoLastAccessRefRecord.BuildCacheKey(record.Namespace, record.Bucket, record.RefName));
             // if the item has been deleted after it was scheduled to be updated it will be null
             if (item == null)
+            {
                 return;
+            }
+
             item["LastAccessTime"] = lastAccessTime;
             await table.UpdateItemAsync(item);
         }
@@ -224,7 +233,7 @@ namespace Horde.Storage.Implementation
         {
             await Initialize();
 
-            await foreach (var ns in _namespaceStore.GetNamespaces(DynamoNamespaceStore.NamespaceUsage.Cache))
+            await foreach (NamespaceId ns in _namespaceStore.GetNamespaces(DynamoNamespaceStore.NamespaceUsage.Cache))
             {
                 yield return ns;
             }
@@ -235,7 +244,7 @@ namespace Horde.Storage.Implementation
             await Initialize();
 
             DateTime cutOffDate = DateTime.Now - oldRecordCutoff;
-            using var context = new DynamoDBContext(Client, new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 });
+            using DynamoDBContext context = new DynamoDBContext(Client, new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 });
             AsyncSearch<DynamoLastAccessRefRecord> search = context.ScanAsync<DynamoLastAccessRefRecord>(new[]
             {
                 new ScanCondition("LastAccessTime", ScanOperator.Between, DateTime.MinValue, cutOffDate)
@@ -247,14 +256,23 @@ namespace Horde.Storage.Implementation
                 foreach (DynamoLastAccessRefRecord document in newSet)
                 {
                     if (document == null)
+                    {
                         continue;
+                    }
+
                     string parentKey = DynamoLastAccessRefRecord.ToBaseRefRecordsKey(document.Id!);
 
                     DynamoBaseRefRecord? baseRecord = await context.LoadAsync<DynamoBaseRefRecord>(parentKey);
                     if (baseRecord == null || baseRecord.Namespace == null || baseRecord.Bucket == null || baseRecord.Name == null)
+                    {
                         continue;
+                    }
+
                     if (baseRecord.Namespace != ns.ToString())
+                    {
                         continue;
+                    }
+
                     yield return new OldRecord(new NamespaceId(baseRecord.Namespace), new BucketId(baseRecord.Bucket), new KeyId(baseRecord.Name));
                 }
             } while (!search.IsDone);
@@ -262,7 +280,7 @@ namespace Horde.Storage.Implementation
 
         public async Task DropNamespace(NamespaceId ns)
         {
-            using var context = new DynamoDBContext(Client, new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 });
+            using DynamoDBContext context = new DynamoDBContext(Client, new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 });
             try
             {
                 AsyncSearch<DynamoBaseRefRecord> search = context.ScanAsync<DynamoBaseRefRecord>(new[]
@@ -328,7 +346,6 @@ namespace Horde.Storage.Implementation
             Id = BuildCacheKey(record.Namespace, record.Bucket, record.RefName);
         }
 
-
         [DynamoDBHashKey] 
         public string? Id { get; set; }
 
@@ -339,6 +356,7 @@ namespace Horde.Storage.Implementation
         public string? Name { get; set; }
 
         [DynamoDBProperty]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Required by serialization")]
         public List<string>? Blobs { get; set; }
 
         public string? ContentHash { get; set; }
@@ -351,17 +369,34 @@ namespace Horde.Storage.Implementation
         public bool IsValid()
         {
             if (Id == null)
+            {
                 return false;
+            }
+
             if (Namespace == null)
+            {
                 return false;
+            }
+
             if (Bucket == null)
+            {
                 return false;
+            }
+
             if (Name == null)
+            {
                 return false;
+            }
+
             if (Blobs == null)
+            {
                 return false;
+            }
+
             if (ContentHash == null)
+            {
                 return false;
+            }
 
             return true;
         }
@@ -407,18 +442,25 @@ namespace Horde.Storage.Implementation
 
         public static string ToBaseRefRecordsKey(string cacheKey)
         {
-            return cacheKey.Replace("#last-access", "");
+            return cacheKey.Replace("#last-access", "", StringComparison.OrdinalIgnoreCase);
         }
-
 
         public bool IsValid()
         {
             if (Id == null)
+            {
                 return false;
+            }
+
             if (LastAccessTime == null)
+            {
                 return false;
+            }
+
             if (LastAccessIndex == null)
+            {
                 return false;
+            }
 
             return true;
         }
@@ -443,6 +485,7 @@ namespace Horde.Storage.Implementation
         public string? Id { get; set; }
 
         [DynamoDBProperty(typeof(DynamoJsonConverter))]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public Dictionary<string, object>? Metadata { get; set; }
 
         public static string BuildCacheKey(NamespaceId ns, BucketId bucket, KeyId key)
@@ -453,7 +496,9 @@ namespace Horde.Storage.Implementation
         public bool IsValid()
         {
             if (Id == null)
+            {
                 return false;
+            }
 
             return true;
         }

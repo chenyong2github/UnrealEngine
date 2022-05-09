@@ -38,7 +38,6 @@ namespace Horde.Storage.Controllers
             _snapshotSettings = snapshotSettings;
         }
 
-
         [HttpGet("snapshots/{ns}")]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
@@ -140,7 +139,6 @@ namespace Horde.Storage.Controllers
                     Title = $"Namespace {ns} was not found",
                 });
             }
-
         }
     }
 
@@ -173,6 +171,7 @@ namespace Horde.Storage.Controllers
             Snapshots = snapshots;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<SnapshotInfo> Snapshots { get; set; }
     }
 
@@ -189,6 +188,7 @@ namespace Horde.Storage.Controllers
             Events = events;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<ReplicationLogEvent> Events { get; set; }
     }
 }

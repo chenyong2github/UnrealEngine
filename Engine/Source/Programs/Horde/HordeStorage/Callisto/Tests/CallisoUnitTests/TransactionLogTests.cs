@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -173,7 +171,6 @@ namespace Calliso.UnitTests
             }
         }
 
-
         [TestMethod]
         public async Task FileTransactionLogSiteFilter()
         {
@@ -220,7 +217,6 @@ namespace Calliso.UnitTests
             Assert.AreEqual(arnEvent.Name, transactionEvent.Name);
             Assert.AreEqual(arnEvent.Bucket, transactionEvent.Bucket);
         }
-
 
         [TestMethod]
         public async Task FileTransactionLogMultipleSites()

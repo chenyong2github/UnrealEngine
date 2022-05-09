@@ -34,11 +34,8 @@ namespace Horde.Storage.Controllers
         private readonly IAuthorizationService _authorizationService;
         private readonly CompressedBufferUtils _compressedBufferUtils;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
-        private readonly FormatResolver _formatResolver;
 
-        private readonly ILogger _logger = Log.ForContext<CompressedBlobController>();
-
-        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory, FormatResolver formatResolver)
+        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _contentIdStore = contentIdStore;
@@ -46,9 +43,7 @@ namespace Horde.Storage.Controllers
             _authorizationService = authorizationService;
             _compressedBufferUtils = compressedBufferUtils;
             _bufferedPayloadFactory = bufferedPayloadFactory;
-            _formatResolver = formatResolver;
         }
-
 
         [HttpGet("{ns}/{id}")]
         [Authorize("Storage.read")]
@@ -73,7 +68,9 @@ namespace Horde.Storage.Controllers
 
                 StringValues acceptHeader = Request.Headers["Accept"];
                 if (!acceptHeader.Contains("*/*") && acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
+                {
                     return new UnsupportedMediaTypeResult();
+                }
 
                 return File(blobContents.Stream, mediaType, enableRangeProcessing: true);
             }
@@ -300,7 +297,7 @@ namespace Horde.Storage.Controllers
             // TODO: we should add a overload for decompress content that can work on streams, otherwise we are still limited to 2GB compressed blobs
             byte[] decompressedContent = _compressedBufferUtils.DecompressContent(await decompressStream.ToByteArray());
 
-            MemoryStream decompressedStream = new MemoryStream(decompressedContent);
+            await using MemoryStream decompressedStream = new MemoryStream(decompressedContent);
             ContentId identifierDecompressedPayload = ContentId.FromContentHash(await _storage.VerifyContentMatchesHash(decompressedStream, id));
 
             BlobIdentifier identifierCompressedPayload;

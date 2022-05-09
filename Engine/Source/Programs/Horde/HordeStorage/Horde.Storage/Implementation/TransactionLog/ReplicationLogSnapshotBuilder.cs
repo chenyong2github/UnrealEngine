@@ -33,7 +33,9 @@ namespace Horde.Storage.Implementation.TransactionLog
             SnapshotInfo? snapshotInfo = await _replicationLog.GetLatestSnapshot(ns);
 
             if (cancellationToken.IsCancellationRequested)
+            {
                 throw new TaskCanceledException();
+            }
 
             ReplicationLogSnapshot snapshot;
             string? lastBucket;
@@ -43,7 +45,10 @@ namespace Horde.Storage.Implementation.TransactionLog
                 // append to the previous snapshot if one is available
                 await using BlobContents blobContents = await _blobService.GetObject(snapshotInfo.BlobNamespace, snapshotInfo.SnapshotBlob);
                 if (cancellationToken.IsCancellationRequested)
+                {
                     throw new TaskCanceledException();
+                }
+
                 using FilesystemBufferedPayload snapshotPayload = await FilesystemBufferedPayload.Create(blobContents.Stream);
                 await using Stream s = snapshotPayload.GetStream();
                 snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(s);
@@ -59,16 +64,19 @@ namespace Horde.Storage.Implementation.TransactionLog
             }
 
             if (cancellationToken.IsCancellationRequested)
+            {
                 throw new TaskCanceledException();
+            }
 
             await foreach (ReplicationLogEvent entry in _replicationLog.Get(ns, lastBucket, lastEvent))
             {
                 if (cancellationToken.IsCancellationRequested)
+                {
                     throw new TaskCanceledException();
+                }
 
                 snapshot.ProcessEvent(entry);
             }
-
 
             FileInfo tempFile = new FileInfo(Path.GetTempFileName());
             {
@@ -95,7 +103,9 @@ namespace Horde.Storage.Implementation.TransactionLog
                 BlobIdentifier cbBlobId = BlobIdentifier.FromBlob(cbObjectBytes);
 
                 if (cancellationToken.IsCancellationRequested)
+                {
                     throw new TaskCanceledException();
+                }
 
                 // upload the attachment first so we are not missing any references when we go to create the ref
                 await _blobService.PutObject(storeInNamespace, payload, blobIdentifier);
@@ -105,10 +115,14 @@ namespace Horde.Storage.Implementation.TransactionLog
                 List<ContentHash> missingHashes = new List<ContentHash>(missingContentIds);
                 missingHashes.AddRange(missingBlobs);
                 if (missingHashes.Count != 0)
+                {
                     throw new Exception($"Failed to upload snapshot to object service, missing references {string.Join(',' , missingHashes.Select(b => b.ToString()))}");
+                }
 
                 if (cancellationToken.IsCancellationRequested)
+                {
                     throw new TaskCanceledException();
+                }
 
                 // update the replication log with the new snapshot
                 await _replicationLog.AddSnapshot(new SnapshotInfo(ns, storeInNamespace, blobIdentifier, DateTime.Now));

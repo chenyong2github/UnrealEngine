@@ -15,7 +15,7 @@ using Newtonsoft.Json;
 
 namespace Horde.Storage.Implementation
 {
-    public abstract class DynamoStore
+    public abstract class DynamoStore: IDisposable
     {
         private readonly IOptionsMonitor<DynamoDbSettings> _settings;
         private readonly SemaphoreSlim _initializeSemaphore = new SemaphoreSlim(1, 1);
@@ -37,12 +37,17 @@ namespace Horde.Storage.Implementation
         public async Task Initialize()
         {
             if (_initialized)
+            {
                 return;
+            }
 
             await _initializeSemaphore.WaitAsync();
 
             if (_initialized)
+            {
                 return;
+            }
+
             try
             {
                 await CreateTables();
@@ -61,9 +66,11 @@ namespace Horde.Storage.Implementation
 
         protected async Task CreateTable(string tableName, KeySchemaElement[] keySchemaElements, AttributeDefinition[] attributeDefinitions, ProvisionedThroughput provisionedThroughput, IEnumerable<GlobalSecondaryIndex>? secondaryIndices = null)
         {
-            var tables = await Client.ListTablesAsync();
+            ListTablesResponse? tables = await Client.ListTablesAsync();
             if (tables.TableNames.Contains(tableName))
+            {
                 return;
+            }
 
             bool shouldCreateTable = _settings.CurrentValue.CreateTablesOnDemand;
 
@@ -101,6 +108,19 @@ namespace Horde.Storage.Implementation
             }
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _initializeSemaphore.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
     }
 
     public class DynamoJsonConverter : IPropertyConverter
@@ -108,15 +128,18 @@ namespace Horde.Storage.Implementation
         public object? FromEntry(DynamoDBEntry entry)
         {
             Primitive? primitive = entry as Primitive;
-            if (primitive == null || !(primitive.Value is String) || string.IsNullOrEmpty((string)primitive.Value))
-                throw new ArgumentOutOfRangeException();
-            Dictionary<string, object>? ret = JsonConvert.DeserializeObject<Dictionary<string, object>>((primitive.Value as string)!);
+            if (primitive == null || primitive.Value is not string value || string.IsNullOrEmpty(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(entry));
+            }
+
+            Dictionary<string, object>? ret = JsonConvert.DeserializeObject<Dictionary<string, object>>(value);
             return ret;
         }
 
         public DynamoDBEntry ToEntry(object value)
         {
-            var jsonString = JsonConvert.SerializeObject(value);
+            string jsonString = JsonConvert.SerializeObject(value);
             DynamoDBEntry ret = new Primitive(jsonString);
             return ret;
         }

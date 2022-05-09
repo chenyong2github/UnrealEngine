@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Datadog.Trace;
@@ -21,7 +19,7 @@ namespace Horde.Storage.Controllers
     public class ContentIdController : ControllerBase
     {
         private readonly IAuthorizationService _authorizationService;
-        private IContentIdStore _contentIdStore;
+        private readonly IContentIdStore _contentIdStore;
 
         public ContentIdController(IAuthorizationService authorizationService, IContentIdStore contentIdStore)
         {
@@ -34,12 +32,11 @@ namespace Horde.Storage.Controllers
         /// </summary>
         /// <param name="ns">Namespace. Each namespace is completely separated from each other. Use for different types of data that is never expected to be similar (between two different games for instance). Example: `uc4.ddc`</param>
         /// <param name="contentId">The content id to resolve </param>
-        /// <param name="format">Optional specifier to set which output format is used json/raw/cb</param>
         [HttpGet("{ns}/{contentId}.{format?}", Order = 500)]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
         [Authorize("Cache.read")]
-        public async Task<IActionResult> Resolve(NamespaceId ns, ContentId contentId, string? format = null)
+        public async Task<IActionResult> Resolve(NamespaceId ns, ContentId contentId)
         {
             using (IScope _ = Tracer.Instance.StartActive("authorize"))
             {

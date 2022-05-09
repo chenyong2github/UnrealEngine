@@ -2,12 +2,11 @@
 
 namespace Jupiter
 {
-    public class CustomMediaTypeNames
+    public static class CustomMediaTypeNames
     {
         public const string UnrealCompactBinary = "application/x-ue-cb";
         public const string UnrealCompressedBuffer = "application/x-ue-comp";
 
         public const string JupiterInlinedPayload = "application/x-jupiter-inline";
     }
-
 }

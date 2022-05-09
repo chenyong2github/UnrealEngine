@@ -1,9 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Cassandra;
 
 namespace Horde.Storage.Implementation
@@ -35,6 +31,5 @@ namespace Horde.Storage.Implementation
         {
             return _localSession;
         }
-
     }
 }

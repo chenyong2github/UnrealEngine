@@ -107,11 +107,14 @@ namespace Horde.Storage.Implementation
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key, IReferencesStore.FieldFlags flags)
         {
-            HttpRequestMessage getObjectRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/refs/{ns}/{bucket}/{key}/metadata");
+            using HttpRequestMessage getObjectRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/refs/{ns}/{bucket}/{key}/metadata", UriKind.Relative));
             getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Json);
             HttpResponseMessage response = await HttpClient.SendAsync(getObjectRequest);
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 throw new ObjectNotFoundException(ns, bucket, key);
+            }
+
             response.EnsureSuccessStatusCode();
 
             RefMetadataResponse metadataResponse = await response.Content.ReadAsAsync<RefMetadataResponse>();
@@ -121,7 +124,7 @@ namespace Horde.Storage.Implementation
 
         public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
-            HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, $"api/v1/refs/{ns}/{bucket}/{key}");
+            using HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/refs/{ns}/{bucket}/{key}", UriKind.Relative));
             putObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Json);
             putObjectRequest.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
             putObjectRequest.Content = new ByteArrayContent(blob);
@@ -141,7 +144,7 @@ namespace Horde.Storage.Implementation
 
         public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier)
         {
-            HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Post, $"api/v1/refs/{ns}/{bucket}/{key}/finalize/{blobIdentifier}");
+            using HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Post, new Uri($"api/v1/refs/{ns}/{bucket}/{key}/finalize/{blobIdentifier}", UriKind.Relative));
             putObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Json);
 
             HttpResponseMessage response = await HttpClient.SendAsync(putObjectRequest);

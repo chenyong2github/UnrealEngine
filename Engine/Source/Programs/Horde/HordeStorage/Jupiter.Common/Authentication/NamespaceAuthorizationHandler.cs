@@ -1,14 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
 
 namespace Jupiter
 {
@@ -33,10 +30,10 @@ namespace Jupiter
 
             try
             {
-                NamespaceSettings.PerNamespaceSettings settings = _namespacePolicyResolver.GetPoliciesForNs(namespaceName);
+                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(namespaceName);
 
                 // These are ANDed, e.g. all claims needs to be present
-                foreach (string expectedClaim in settings.Claims)
+                foreach (string expectedClaim in policy.Claims)
                 {
                     // if expected claim is * then everyone is allowed to use the namespace
                     if (expectedClaim == "*")
@@ -45,9 +42,9 @@ namespace Jupiter
                         continue;
                     }
 
-                    if (expectedClaim.Contains('='))
+                    if (expectedClaim.Contains('=', StringComparison.InvariantCultureIgnoreCase))
                     {
-                        int separatorIndex = expectedClaim.IndexOf('=');
+                        int separatorIndex = expectedClaim.IndexOf('=', StringComparison.InvariantCultureIgnoreCase);
                         string claimName = expectedClaim.Substring(0, separatorIndex);
                         string claimValue = expectedClaim.Substring(separatorIndex + 1);
                         if (context.User.HasClaim(claim => claim.Type == claimName && claim.Value == claimValue))

@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using Horde.Storage.Implementation;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Storage
@@ -83,8 +82,8 @@ namespace Horde.Storage
             Static, 
             Kubernetes
         }
-        
-        public class ValidStorageBackend : ValidationAttribute
+
+        private sealed class ValidStorageBackend : ValidationAttribute
         {
             public override string FormatErrorMessage(string name)
             {
@@ -94,12 +93,17 @@ namespace Horde.Storage
 
             public override bool IsValid(object? value)
             {
-                if (value == null) return true;
+                if (value == null)
+                {
+                    return true;
+                }
+
                 return value is IEnumerable<string> backends && backends.All(x => Enum.TryParse(typeof(StorageBackendImplementations), x, true, out _));
             }
         }
 
         [ValidStorageBackend]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1721:Property names should not match get methods", Justification = "This pattern is used to work around limitations in dotnet configurations support for enums in arrays")]
         public string[]? StorageImplementations { get; set; }
 
         public IEnumerable<StorageBackendImplementations> GetStorageImplementations()
@@ -147,7 +151,6 @@ namespace Horde.Storage
         public bool CreateDatabaseIfMissing { get; set; } = true;
     }
 
-
     public class DynamoDbSettings
     {
         [Required] public string ConnectionString { get; set; } = "";
@@ -170,7 +173,7 @@ namespace Horde.Storage
 
         public static (string, int) ParseDaxEndpointAsHostPort(string endpoint)
         {
-            if (!endpoint.Contains(":"))
+            if (!endpoint.Contains(':', StringComparison.InvariantCultureIgnoreCase))
             {
                 return (endpoint, 8111);
             }
@@ -181,10 +184,9 @@ namespace Horde.Storage
         }
     }
 
-
     public class CosmosSettings
     {
-        [Range(400, 10_000)] public int DefaultRU = 400;
+        [Range(400, 10_000)] public int DefaultRU { get; set; } = 400;
     }
 
     public class CallistoTransactionLogSettings
@@ -214,7 +216,6 @@ namespace Horde.Storage
         public int SlidingExpirationMinutes { get; set; } = 60;
     }
 
-
     public class AzureSettings
     {
         [Required] public string ConnectionString { get; set; } = string.Empty;
@@ -241,9 +242,6 @@ namespace Horde.Storage
         public bool SetBucketPolicies { get; set; } = true;
 
         public bool UseBlobIndexForExistsCheck { get; set; } = false;
-
-        public List<string> NamespacesThatUseBlobIndexForExistsCheck { get; set; } = new List<string>();
-
     }
 
     public class GCSettings
@@ -268,6 +266,7 @@ namespace Horde.Storage
 
     public class ClusterSettings
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<PeerSettings> Peers { get; set; } = new List<PeerSettings>();
     }
 
@@ -277,12 +276,13 @@ namespace Horde.Storage
 
         [Required] public string FullName { get; set; } = null!;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<PeerEndpoints> Endpoints { get; set; } = new List<PeerEndpoints>();
     }
 
     public class PeerEndpoints
     { 
-        [Required] public string Url { get; set; } = null!;
+        [Required] public Uri Url { get; set; } = null!;
 
         public bool IsInternal { get; set; } = false;
     }

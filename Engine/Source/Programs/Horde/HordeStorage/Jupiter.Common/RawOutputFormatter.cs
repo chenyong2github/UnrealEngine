@@ -24,7 +24,9 @@ namespace Jupiter
         public override async Task WriteResponseBodyAsync(OutputFormatterWriteContext context)
         {
             if (context.Object == null)
+            {
                 return;
+            }
 
             HttpResponse response = context.HttpContext.Response;
 
@@ -74,7 +76,8 @@ namespace Jupiter
     /// <summary>
     ///  Used to indicate that the field in question is what we want to return as a raw set of bytes
     /// </summary>
-    public class RawOutputPropertyAttribute : Attribute
+    [AttributeUsage(AttributeTargets.Property)]
+    public sealed class RawOutputPropertyAttribute : Attribute
     {
     }
 }

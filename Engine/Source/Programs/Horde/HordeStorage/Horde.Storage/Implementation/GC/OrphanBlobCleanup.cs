@@ -30,17 +30,15 @@ namespace Horde.Storage.Implementation
     {
         private readonly IBlobService _blobService;
         private readonly ILeaderElection _leaderElection;
-        private readonly IOptionsMonitor<GCSettings> _gcSettings;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly IRestClient _client;
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanup>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IOptionsMonitor<CallistoTransactionLogSettings> callistoSettings, IOptionsMonitor<GCSettings> gcSettings, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver)
+        public OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IOptionsMonitor<CallistoTransactionLogSettings> callistoSettings, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver)
         {
             _blobService = blobService;
             _leaderElection = leaderElection;
-            _gcSettings = gcSettings;
             _namespacePolicyResolver = namespacePolicyResolver;
 
             _client = new RestClient(callistoSettings.CurrentValue.ConnectionString)
@@ -49,12 +47,11 @@ namespace Horde.Storage.Implementation
             }.UseSerializer(() => new JsonNetSerializer());
         }
 
-        internal OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IRestClient callistoClient, IOptionsMonitor<GCSettings> gcSettings, INamespacePolicyResolver namespacePolicyResolver)
+        internal OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IRestClient callistoClient, INamespacePolicyResolver namespacePolicyResolver)
         {
             _blobService = blobService;
             _leaderElection = leaderElection;
             _client = callistoClient;
-            _gcSettings = gcSettings;
             _namespacePolicyResolver = namespacePolicyResolver;
         }
 
@@ -70,7 +67,6 @@ namespace Horde.Storage.Implementation
                 TransactionLogGeneration = transactionLogGeneration;
                 GcRoots = gcRoots;
             }
-
         }
 
         public bool ShouldRun()
@@ -91,7 +87,6 @@ namespace Horde.Storage.Implementation
                 return 0;
             }
 
-
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
             ConcurrentDictionary<NamespaceId, GCRootState> perNamespaceRoots = new();
             await namespaces.ParallelForEachAsync(async ns =>
@@ -111,7 +106,9 @@ namespace Horde.Storage.Implementation
                 await foreach ((BlobIdentifier blob, DateTime lastModified) in _blobService.ListObjects(@namespace).WithCancellation(cancellationToken))
                 {
                     if (lastModified > DateTime.Now.AddMinutes(-60))
+                    {
                         continue;
+                    }
 
                     // TODO: This could be turned into a parallel for as each iteration does not mutate the state
                     // there is no parallel for each for async enumerable yet
@@ -147,7 +144,10 @@ namespace Horde.Storage.Implementation
             foreach (BlobIdentifier blob in blobsToRemove)
             {
                 if (cancellationToken.IsCancellationRequested)
+                {
                     break;
+                }
+
                 _logger.Information("Attempting to GC Orphan blob {Blob}", blob);
 
                 bool deleted = true;
@@ -177,7 +177,7 @@ namespace Horde.Storage.Implementation
 
         private bool NamespaceShouldBeCleaned(NamespaceId ns)
         {
-            NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
 
             return policy.IsLegacyNamespace.HasValue && policy.IsLegacyNamespace.Value;
         }
@@ -198,18 +198,18 @@ namespace Horde.Storage.Implementation
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Used by serialization")]
         public class ListNamespaceResponse
         {
             public NamespaceId[] Logs { get; set; } = null!;
         }
-
 
         private async Task<bool> HasBlobBeenAddedToGcSet(NamespaceId ns, BlobIdentifier blob, long transactionLogPointer, Guid transactionLogGeneration, CancellationToken cancellationToken)
         {
             // request all events since the transaction log pointer and make sure this blob has not been added since
 
             CallistoReader reader = new CallistoReader(_client, ns);
-            await foreach (bool found in reader.GetOps(transactionLogPointer, transactionLogGeneration, maxOffsetsAttempted: 1000000).Any(transactionEvent =>
+            await foreach (bool found in reader.GetOps(transactionLogPointer, transactionLogGeneration, maxOffsetsAttempted: 1000000, cancellationToken: cancellationToken).Any(transactionEvent =>
             {
                 if (transactionEvent is AddTransactionEvent addTransactionEvent)
                 {
@@ -239,14 +239,18 @@ namespace Horde.Storage.Implementation
             await foreach (TransactionEvent transactionEvent in reader.GetOps(cancellationToken: cancellationToken, maxOffsetsAttempted: 1000000, enumerationState: enumerationState).Prefetch(prefetchCount).WithCancellation(cancellationToken))
             {
                 if (transactionEvent == null)
+                {
                     continue;
-                
+                }
+
                 string key = $"{transactionEvent.Bucket}.{transactionEvent.Name}";
                 switch (transactionEvent)
                 {
                     case AddTransactionEvent add:
                         if (add.Blobs == null)
+                        {
                             throw new Exception("Expected to find blobs in a add transaction event");
+                        }
 
                         if (!events.TryAdd(key, add.Blobs))
                         {

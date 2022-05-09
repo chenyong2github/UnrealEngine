@@ -96,7 +96,7 @@ namespace Horde.Storage.Implementation
             return await PutObject(ns, stream, blobIdentifier);
         }
 
-        private async Task TouchBlob(BlobClient blob)
+        private static async Task TouchBlob(BlobClient blob)
         {
             Dictionary<string, string> metadata = new Dictionary<string, string>
             {
@@ -126,7 +126,9 @@ namespace Horde.Storage.Implementation
             catch (RequestFailedException e)
             {
                 if (e.Status == 404)
+                {
                     throw new BlobNotFoundException(ns, blobIdentifier);
+                }
 
                 throw;
             }
@@ -173,9 +175,11 @@ namespace Horde.Storage.Implementation
             BlobContainerClient container = new BlobContainerClient(_connectionString, fixedNamespace);
             bool exists = await container.ExistsAsync();
             if (!exists)
+            {
                 yield break;
+            }
 
-            await foreach (var item in container.GetBlobsAsync(BlobTraits.Metadata))
+            await foreach (BlobItem? item in container.GetBlobsAsync(BlobTraits.Metadata))
             {
                 yield return (new BlobIdentifier(item.Name), item.Properties?.LastModified?.DateTime ?? DateTime.Now);
             }
@@ -183,7 +187,7 @@ namespace Horde.Storage.Implementation
 
         private static string SanitizeNamespace(NamespaceId ns)
         {
-            return ns.ToString().Replace(".", "-").ToLower();
+            return ns.ToString().Replace(".", "-", StringComparison.OrdinalIgnoreCase).ToLower();
         }
     }
 }

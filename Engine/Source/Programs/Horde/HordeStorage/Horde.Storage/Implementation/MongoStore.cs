@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 namespace Horde.Storage.Implementation;
@@ -14,7 +12,7 @@ namespace Horde.Storage.Implementation;
 public class MongoStore
 {
     private readonly string? _overrideDatabaseName;
-    protected readonly MongoClient _client;
+    private readonly MongoClient _client;
 
     public MongoStore(IOptionsMonitor<MongoSettings> settings, string? overrideDatabaseName = null)
     {
@@ -24,7 +22,7 @@ public class MongoStore
         );
         if (settings.CurrentValue.RequireTls12)
         {
-            mongoClientSettings.SslSettings = new SslSettings {EnabledSslProtocols = SslProtocols.Tls12};
+            mongoClientSettings.SslSettings = new SslSettings {EnabledSslProtocols = SslProtocols.None};
         }
 
         _client = new MongoClient(mongoClientSettings);
@@ -38,7 +36,7 @@ public class MongoStore
 
         // Try to avoid exceptions breaking in the debugger unnecessarily by checking for the existence of the collection beforehand.
         FilterDefinition<BsonDocument> filter = new BsonDocument("name", collectionName);
-        if (await database.ListCollectionNames(new ListCollectionNamesOptions { Filter = filter }).AnyAsync())
+        if (await (await database.ListCollectionNamesAsync(new ListCollectionNamesOptions { Filter = filter })).AnyAsync())
         {
             return;
         }
@@ -50,7 +48,9 @@ public class MongoStore
         catch (MongoCommandException e)
         {
             if (e.CodeName != "NamespaceExists")
+            {
                 throw ;
+            }
         }
     }
 
@@ -83,7 +83,8 @@ public class MongoStore
     }
 }
 
-public class MongoCollectionNameAttribute : Attribute
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class MongoCollectionNameAttribute : Attribute
 {
     public string CollectionName { get; }
 

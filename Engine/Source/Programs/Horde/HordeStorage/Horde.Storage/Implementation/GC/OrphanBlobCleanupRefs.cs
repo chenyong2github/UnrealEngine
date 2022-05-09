@@ -14,7 +14,6 @@ using Horde.Storage.Implementation.Blob;
 using Jupiter;
 using Jupiter.Common;
 using Jupiter.Implementation;
-using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Horde.Storage.Implementation
@@ -25,18 +24,16 @@ namespace Horde.Storage.Implementation
         private readonly IObjectService _objectService;
         private readonly IBlobIndex _blobIndex;
         private readonly ILeaderElection _leaderElection;
-        private readonly IOptionsMonitor<GCSettings> _gcSettings;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanupRefs>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanupRefs(IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, IOptionsMonitor<GCSettings> gcSettings, INamespacePolicyResolver namespacePolicyResolver)
+        public OrphanBlobCleanupRefs(IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver)
         {
             _blobService = blobService;
             _objectService = objectService;
             _blobIndex = blobIndex;
             _leaderElection = leaderElection;
-            _gcSettings = gcSettings;
             _namespacePolicyResolver = namespacePolicyResolver;
         }
 
@@ -65,7 +62,9 @@ namespace Horde.Storage.Implementation
             foreach (NamespaceId @namespace in namespaces)
             {
                 if (cancellationToken.IsCancellationRequested)
+                {
                     break;
+                }
 
                 // only consider blobs that have been around for 60 minutes
                 // this due to cases were blobs are uploaded first
@@ -73,24 +72,30 @@ namespace Horde.Storage.Implementation
                 await foreach ((BlobIdentifier blob, DateTime lastModified) in _blobService.ListObjects(@namespace).WithCancellation(cancellationToken))
                 {
                     if (lastModified > cutoff)
+                    {
                         continue;
-                    
+                    }
+
                     if (cancellationToken.IsCancellationRequested)
+                    {
                         break;
+                    }
 
                     using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob");
                     removeBlobScope.Span.ResourceName = $"{@namespace}.{blob}";
 
                     bool found = false;
-                    NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
+                    NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
                     
                     // check all other namespaces that share the same storage pool for presence of the blob
                     foreach (NamespaceId blobNamespace in namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool))
                     {
                         if (cancellationToken.IsCancellationRequested)
+                        {
                             break;
-                        
-                        IBlobIndex.BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
+                        }
+
+                        BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
 
                         if (blobIndex == null)
                         {
@@ -100,7 +105,9 @@ namespace Horde.Storage.Implementation
                         foreach ((BucketId bucket, IoHashKey key) in blobIndex.References)
                         {
                             if (cancellationToken.IsCancellationRequested)
+                            {
                                 break;
+                            }
 
                             try
                             {
@@ -120,7 +127,9 @@ namespace Horde.Storage.Implementation
                     }
 
                     if (cancellationToken.IsCancellationRequested)
+                    {
                         break;
+                    }
 
                     removeBlobScope.Span.SetTag("removed", (!found).ToString());
 
@@ -152,7 +161,7 @@ namespace Horde.Storage.Implementation
         {
             try
             {
-                NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
 
                 return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
             }

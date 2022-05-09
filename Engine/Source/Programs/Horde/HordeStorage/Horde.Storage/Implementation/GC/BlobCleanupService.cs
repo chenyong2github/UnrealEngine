@@ -6,14 +6,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jupiter;
 using Microsoft.Extensions.Options;
-using Datadog.Trace;
-using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace Horde.Storage.Implementation
 {
-    public class BlobCleanupService : PollingService<BlobCleanupService.BlobCleanupState>
+    public class BlobCleanupState
+    {
+        public List<IBlobCleanup> BlobCleanups { get; } = new List<IBlobCleanup>();
+    }
+
+    public class BlobCleanupService : PollingService<BlobCleanupState>
     {
         private readonly IOptionsMonitor<GCSettings> _settings;
         private volatile bool _alreadyPolling;
@@ -24,14 +27,7 @@ namespace Horde.Storage.Implementation
             return _settings.CurrentValue.BlobCleanupServiceEnabled;
         }
 
-        public class BlobCleanupState
-        {
-            public List<IBlobCleanup> BlobCleanups { get; } = new List<IBlobCleanup>();
-        }
-
-        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings) :
-            base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency,
-                new BlobCleanupState())
+        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings) : base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency, new BlobCleanupState())
         {
             _settings = settings;
 
@@ -63,7 +59,9 @@ namespace Horde.Storage.Implementation
         public override async Task<bool> OnPoll(BlobCleanupState state, CancellationToken cancellationToken)
         {
             if (_alreadyPolling)
+            {
                 return false;
+            }
 
             _alreadyPolling = true;
             try
@@ -82,7 +80,9 @@ namespace Horde.Storage.Implementation
             foreach (IBlobCleanup blobCleanup in state.BlobCleanups)
             {
                 if (!blobCleanup.ShouldRun())
+                {
                     continue;
+                }
 
                 string type = blobCleanup.GetType().ToString();
                 _logger.Information("Blob cleanup running for {BlobCleanup}", type);

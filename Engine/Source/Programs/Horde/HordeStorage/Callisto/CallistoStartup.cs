@@ -7,7 +7,6 @@ using System.IO;
 using Callisto.Implementation;
 using Jupiter;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -17,7 +16,7 @@ namespace Callisto
     // ReSharper disable once ClassNeverInstantiated.Global
     public class CallistoStartup : BaseStartup
     {
-        public CallistoStartup(IConfiguration configuration, IWebHostEnvironment environment) : base(configuration, environment)
+        public CallistoStartup(IConfiguration configuration) : base(configuration)
         {
         }
 
@@ -92,8 +91,8 @@ namespace Callisto
         [Required]
         public string TransactionLogRoot
         {
-            get { return Environment.ExpandEnvironmentVariables(_transactionLogRoot); }
-            set { _transactionLogRoot = value; }
+            get => Environment.ExpandEnvironmentVariables(_transactionLogRoot);
+            set => _transactionLogRoot = value;
         }
 
         public bool VerifySerialization { get; set; } = false;

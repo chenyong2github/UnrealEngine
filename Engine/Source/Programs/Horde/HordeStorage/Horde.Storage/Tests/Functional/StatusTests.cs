@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Collections.Generic;
+using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -9,8 +9,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
 using Serilog.Core;
@@ -18,10 +16,10 @@ using Serilog.Core;
 namespace Horde.Storage.FunctionalTests.Status
 {
     [TestClass]
-    public class StatusTests
+    public class StatusTests: IDisposable
     {
-        protected TestServer? _server;
-        protected HttpClient? _httpClient;
+        private HttpClient? _httpClient;
+        private TestServer? _server;
 
         [TestInitialize]
         public async Task Setup()
@@ -36,7 +34,7 @@ namespace Horde.Storage.FunctionalTests.Status
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
 
-            TestServer server = new TestServer(new WebHostBuilder()
+            _server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
@@ -52,8 +50,8 @@ namespace Horde.Storage.FunctionalTests.Status
                                 FullName = "us-east-1",
                                 Endpoints = new PeerEndpoints[]
                                 {
-                                    new PeerEndpoints { Url = "http://use-internal.jupiter.com", IsInternal = true },
-                                    new PeerEndpoints { Url = "http://use.jupiter.com", IsInternal = false },
+                                    new PeerEndpoints { Url = new Uri("http://use-internal.jupiter.com"), IsInternal = true },
+                                    new PeerEndpoints { Url = new Uri("http://use.jupiter.com"), IsInternal = false },
                                 }.ToList()
                             }
                         }.ToList();
@@ -61,8 +59,7 @@ namespace Horde.Storage.FunctionalTests.Status
                 })
                 .UseStartup<HordeStorageStartup>()
             );
-            _httpClient = server.CreateClient();
-            _server = server;
+            _httpClient = _server.CreateClient();
 
             await Task.CompletedTask;
         }
@@ -70,7 +67,7 @@ namespace Horde.Storage.FunctionalTests.Status
         [TestMethod]
         public async Task GetPeerConnection()
         {
-            HttpResponseMessage result = await _httpClient!.GetAsync($"api/v1/status/peers");
+            HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/status/peers", UriKind.Relative));
             result.EnsureSuccessStatusCode();
             PeersResponse peersResponse = await result.Content.ReadAsAsync<PeersResponse>();
             Assert.AreEqual("test", peersResponse.CurrentSite);
@@ -80,14 +77,14 @@ namespace Horde.Storage.FunctionalTests.Status
             Assert.AreEqual("use", peersResponse.Peers[0].Site);
             Assert.AreEqual("us-east-1", peersResponse.Peers[0].FullName);
             Assert.AreEqual(1, peersResponse.Peers[0].Endpoints.Count);
-            Assert.AreEqual("http://use.jupiter.com", peersResponse.Peers[0].Endpoints[0]);
+            Assert.AreEqual(new Uri("http://use.jupiter.com"), peersResponse.Peers[0].Endpoints[0]);
         }
 
         
         [TestMethod]
         public async Task GetPeerConnectionInternal()
         {
-            HttpResponseMessage result = await _httpClient!.GetAsync($"api/v1/status/peers?includeInternalEndpoints=true");
+            HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/status/peers?includeInternalEndpoints=true", UriKind.Relative));
             result.EnsureSuccessStatusCode();
             PeersResponse peersResponse = await result.Content.ReadAsAsync<PeersResponse>();
             Assert.AreEqual("test", peersResponse.CurrentSite);
@@ -98,8 +95,23 @@ namespace Horde.Storage.FunctionalTests.Status
             Assert.AreEqual("us-east-1", peersResponse.Peers[0].FullName);
             Assert.AreEqual(2, peersResponse.Peers[0].Endpoints.Count);
 
-            Assert.AreEqual("http://use-internal.jupiter.com", peersResponse.Peers[0].Endpoints[0]);
-            Assert.AreEqual("http://use.jupiter.com", peersResponse.Peers[0].Endpoints[1]);
+            Assert.AreEqual(new Uri("http://use-internal.jupiter.com"), peersResponse.Peers[0].Endpoints[0]);
+            Assert.AreEqual(new Uri("http://use.jupiter.com"), peersResponse.Peers[0].Endpoints[1]);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _httpClient?.Dispose();
+                _server?.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            System.GC.SuppressFinalize(this);
         }
     }
 }

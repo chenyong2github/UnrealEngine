@@ -1,8 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Amazon.S3;
@@ -22,7 +20,7 @@ namespace Horde.Storage.UnitTests
     [TestClass]
     public class S3StoreTests
     {
-        private NamespaceId Namespace = new NamespaceId("foo");
+        private readonly NamespaceId Namespace = new NamespaceId("foo");
 
         [TestMethod]
         public async Task PutBufferSuccess()
@@ -32,7 +30,7 @@ namespace Horde.Storage.UnitTests
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
             INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                                                  new NamespaceSettings.PerNamespaceSettings
+                                                  new NamespacePolicy
                                                   {
                                                       StoragePool = ""
                                                   });
@@ -60,7 +58,7 @@ namespace Horde.Storage.UnitTests
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
             
             INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespaceSettings.PerNamespaceSettings
+                new NamespacePolicy
                 {
                     StoragePool = "storagepool"
                 });
@@ -91,7 +89,7 @@ namespace Horde.Storage.UnitTests
             S3Settings settings = new S3Settings{BucketName = "tests-foo"};
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
             INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespaceSettings.PerNamespaceSettings
+                new NamespacePolicy
                 {
                     StoragePool = ""
                 });
@@ -118,7 +116,7 @@ namespace Horde.Storage.UnitTests
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
             INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespaceSettings.PerNamespaceSettings
+                new NamespacePolicy
                 {
                     StoragePool = ""
                 });
@@ -138,7 +136,7 @@ namespace Horde.Storage.UnitTests
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
             INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespaceSettings.PerNamespaceSettings
+                new NamespacePolicy
                 {
                     StoragePool = ""
                 });

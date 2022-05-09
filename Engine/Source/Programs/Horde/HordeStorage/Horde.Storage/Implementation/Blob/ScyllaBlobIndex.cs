@@ -45,7 +45,7 @@ public class ScyllaBlobIndex : IBlobIndex
             new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
     }
 
-    public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
         using IScope scope = Tracer.Instance.StartActive("scylla.fetch_blob_index");
         scope.Span.ResourceName = $"{ns}.{id}";
@@ -55,7 +55,9 @@ public class ScyllaBlobIndex : IBlobIndex
                 ns.ToString(), new ScyllaBlobIdentifier(id));
 
         if (blobIndex == null)
+        {
             return null;
+        }
 
         return blobIndex.ToBlobInfo();
     }
@@ -82,7 +84,7 @@ public class ScyllaBlobIndex : IBlobIndex
 
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
     {
-        IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
+        BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
     }
 
@@ -91,14 +93,14 @@ public class ScyllaBlobIndex : IBlobIndex
         using IScope _ = Tracer.Instance.StartActive("scylla.add_ref_blobs");
 
         string nsAsString = ns.ToString();
-        ScyllaObjectReference r = new ScyllaObjectReference(bucket, key);
+        ScyllaObjectReference reference = new ScyllaObjectReference(bucket, key);
         Task[] refUpdateTasks = new Task[blobs.Length];
         for (int i = 0; i < blobs.Length; i++)
         {
             BlobIdentifier id = blobs[i];
             refUpdateTasks[i] = _mapper.UpdateAsync<ScyllaBlobIndexTable>(
                 "SET references = references + ? WHERE namespace = ? AND blob_id = ?",
-                new[] { r },
+                new[] { reference },
                 nsAsString,
                 new ScyllaBlobIdentifier(id));
         }
@@ -106,7 +108,7 @@ public class ScyllaBlobIndex : IBlobIndex
         await Task.WhenAll(refUpdateTasks);
     }
 
-    public async IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    public async IAsyncEnumerable<BlobInfo> GetAllBlobs()
     {
         using IScope _ = Tracer.Instance.StartActive("scylla.get_all_blobs");
 
@@ -116,7 +118,6 @@ public class ScyllaBlobIndex : IBlobIndex
         }
     }
 }
-
 
 [Cassandra.Mapping.Attributes.Table("blob_index")]
 class ScyllaBlobIndexTable
@@ -150,9 +151,9 @@ class ScyllaBlobIndexTable
     [Cassandra.Mapping.Attributes.Column("references")]
     public List<ScyllaObjectReference>? References { get; set; }
 
-    public IBlobIndex.BlobInfo ToBlobInfo()
+    public BlobInfo ToBlobInfo()
     {
-        return new IBlobIndex.BlobInfo
+        return new BlobInfo
         {
             Regions = Regions ?? new HashSet<string>(),
             BlobIdentifier = BlobId.AsBlobIdentifier(),

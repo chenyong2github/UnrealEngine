@@ -2,13 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
-using Horde.Storage.Implementation.Blob;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
@@ -26,14 +24,14 @@ namespace Horde.Storage.FunctionalTests.GC
 {
     [TestClass]
 
-    public class GCRefTests
+    public class GCRefTests : IDisposable
     {
-        private TestServer? _server;
         private HttpClient? _httpClient;
         private Mock<IRefsStore>? _refMock;
 
         private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
         private readonly BucketId DefaultBucket = new BucketId("default");
+        private TestServer? _server;
 
         [TestInitialize]
         public void Setup()
@@ -58,7 +56,7 @@ namespace Horde.Storage.FunctionalTests.GC
             _refMock.Setup(store => store.GetOldRecords(TestNamespace, It.IsAny<TimeSpan>())).Returns(oldRecords.ToAsyncEnumerable()).Verifiable();
             _refMock.Setup(store => store.Delete(TestNamespace, DefaultBucket, It.IsAny<KeyId>())).Verifiable();
 
-            TestServer server = new TestServer(new WebHostBuilder()
+           _server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
@@ -70,10 +68,10 @@ namespace Horde.Storage.FunctionalTests.GC
 
                     collection.Configure<NamespaceSettings>(settings =>
                     {
-                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        settings.Policies = new Dictionary<string, NamespacePolicy>()
                         {
                             {
-                                TestNamespace.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                TestNamespace.ToString(), new NamespacePolicy()
                                 {
                                     IsLegacyNamespace = true
                                 }
@@ -82,33 +80,39 @@ namespace Horde.Storage.FunctionalTests.GC
                     });
                 })
             );
-            _httpClient = server.CreateClient();
-            _server = server;
-            
+            _httpClient = _server.CreateClient();
         }
-
 
         [TestMethod]
         public async Task RunRefCleanup()
         {
             // trigger the cleanup
-            var cleanupResponse = await _httpClient!.PostAsync($"api/v1/admin/refCleanup/{TestNamespace}", new StringContent(string.Empty));
+            using StringContent content = new StringContent(string.Empty);
+            HttpResponseMessage cleanupResponse = await _httpClient!.PostAsync(new Uri($"api/v1/admin/refCleanup/{TestNamespace}", UriKind.Relative), content);
             cleanupResponse.EnsureSuccessStatusCode();
             RemovedRefRecordsResponse removedRefRecords = await cleanupResponse.Content.ReadAsAsync<RemovedRefRecordsResponse>();
 
-            KeyId[] expectedRemovedRefRecords = new[]
-            {
-                new KeyId("object2"),
-                new KeyId("object5"),
-                new KeyId("object6")
-            };
             Assert.AreEqual(3, removedRefRecords.CountOfRemovedRecords);
 
             _refMock!.Verify();
             _refMock.VerifyNoOtherCalls();
         }
-    }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _httpClient?.Dispose();
+                _server?.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            System.GC.SuppressFinalize(this);
+        }
+    }
 
     [TestClass]
     public class MemoryGCReferencesTests : GCReferencesTests
@@ -128,10 +132,8 @@ namespace Horde.Storage.FunctionalTests.GC
         }
     }
 
-
-    public abstract class GCReferencesTests
+    public abstract class GCReferencesTests : IDisposable
     {
-        private TestServer? _server;
         private HttpClient? _httpClient;
 
         private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
@@ -152,6 +154,7 @@ namespace Horde.Storage.FunctionalTests.GC
         private readonly IoHashKey object4Name = IoHashKey.FromName("object4");
         private readonly IoHashKey object5Name = IoHashKey.FromName("object5");
         private readonly IoHashKey object6Name = IoHashKey.FromName("object6");
+        private TestServer? _server;
 
         [TestInitialize]
         public async Task Setup()
@@ -170,7 +173,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
 
-            TestServer server = new TestServer(new WebHostBuilder()
+            _server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
@@ -178,10 +181,10 @@ namespace Horde.Storage.FunctionalTests.GC
                 {
                     collection.Configure<NamespaceSettings>(settings =>
                     {
-                        settings.Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
+                        settings.Policies = new Dictionary<string, NamespacePolicy>()
                         {
                             {
-                                TestNamespace.ToString(), new NamespaceSettings.PerNamespaceSettings()
+                                TestNamespace.ToString(), new NamespacePolicy()
                                 {
                                     IsLegacyNamespace = false
                                 }
@@ -191,11 +194,9 @@ namespace Horde.Storage.FunctionalTests.GC
                 })
                 .UseStartup<HordeStorageStartup>()
             );
-            _httpClient = server.CreateClient();
-            _server = server;
-            
+            _httpClient = _server.CreateClient();
 
-            IObjectService? objectService = server.Services.GetService<IObjectService>()!;
+            IObjectService? objectService = _server.Services.GetService<IObjectService>()!;
             Assert.IsNotNull(objectService);
             (BlobIdentifier ob0_hash, CbObject ob0_cb) = GetCBWithAttachment(object0id);
             await objectService.Put(TestNamespace, DefaultBucket, object0Name, ob0_hash, ob0_cb);
@@ -218,7 +219,7 @@ namespace Horde.Storage.FunctionalTests.GC
             (BlobIdentifier ob6_hash, CbObject ob6_cb) = GetCBWithAttachment(object6id);
             await objectService.Put(TestNamespace, DefaultBucket, object6Name, ob6_hash, ob6_cb);
 
-            IReferencesStore referenceStore = server.Services.GetService<IReferencesStore>()!;
+            IReferencesStore referenceStore = _server.Services.GetService<IReferencesStore>()!;
             DateTime oldTimestamp = DateTime.Now.AddDays(-30);
             DateTime newTimestamp = DateTime.Now;
             await referenceStore.UpdateLastAccessTime(TestNamespace, DefaultBucket, object0Name, oldTimestamp);
@@ -232,26 +233,18 @@ namespace Horde.Storage.FunctionalTests.GC
 
         protected abstract string GetImplementation();
 
-
         [TestMethod]
         public async Task RunRefCleanup()
         {
             // trigger the cleanup
-            var cleanupResponse = await _httpClient!.PostAsync($"api/v1/admin/refCleanup/{TestNamespace}", new StringContent(string.Empty));
+            using StringContent content = new StringContent(string.Empty);
+            HttpResponseMessage cleanupResponse = await _httpClient!.PostAsync(new Uri($"api/v1/admin/refCleanup/{TestNamespace}", UriKind.Relative), content);
             cleanupResponse.EnsureSuccessStatusCode();
             RemovedRefRecordsResponse removedRefRecords = await cleanupResponse.Content.ReadAsAsync<RemovedRefRecordsResponse>();
-
-            string[] expectedRemovedRefRecords = new[]
-            {
-                object0Name.ToString(),
-                object2Name.ToString(),
-                object3Name.ToString(),
-                object6Name.ToString()
-            };
             Assert.AreEqual(4, removedRefRecords.CountOfRemovedRecords);
         }
 
-        private (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
+        private static (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
         {
             CbWriter writer = new CbWriter();
             writer.BeginObject();
@@ -260,6 +253,21 @@ namespace Horde.Storage.FunctionalTests.GC
 
             byte[] b = writer.ToByteArray();
             return (BlobIdentifier.FromBlob(b), new CbObject(b));
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _httpClient?.Dispose();
+                _server?.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            System.GC.SuppressFinalize(this);
         }
     }
 }

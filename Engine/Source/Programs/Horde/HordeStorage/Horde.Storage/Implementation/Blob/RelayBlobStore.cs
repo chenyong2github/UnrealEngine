@@ -22,7 +22,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] blob, BlobIdentifier identifier)
         {
-            HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, $"api/v1/blobs/{ns}/{identifier}");
+            using HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/blobs/{ns}/{identifier}", UriKind.Relative));
 
             putObjectRequest.Content = new ByteArrayContent(blob);
             putObjectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
@@ -42,7 +42,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier identifier)
         {
-            HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, $"api/v1/blobs/{ns}/{identifier}");
+            using HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/blobs/{ns}/{identifier}", UriKind.Relative));
             putObjectRequest.Content = new StreamContent(content);
             putObjectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             putObjectRequest.Content.Headers.Add(CommonHeaders.HashHeaderName, identifier.ToString());
@@ -55,25 +55,33 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
         {
-            HttpRequestMessage getObjectRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{ns}/{blob}");
+            using HttpRequestMessage getObjectRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}", UriKind.Relative));
             getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Octet);
             HttpResponseMessage response = await HttpClient.SendAsync(getObjectRequest);
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 throw new BlobNotFoundException(ns, blob);
+            }
+
             response.EnsureSuccessStatusCode();
 
             long? contentLength = response.Content.Headers.ContentLength;
             if (contentLength == null)
+            {
                 throw new Exception($"Content length missing in response from upstream blob store. This is not supported");
+            }
+
             return new BlobContents(await response.Content.ReadAsStreamAsync(), contentLength.Value);
         }
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
         {
-            HttpRequestMessage headObjectRequest = BuildHttpRequest(HttpMethod.Head, $"api/v1/blobs/{ns}/{blob}");
+            using HttpRequestMessage headObjectRequest = BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}", UriKind.Relative));
             HttpResponseMessage response = await HttpClient.SendAsync(headObjectRequest);
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 return false;
+            }
 
             response.EnsureSuccessStatusCode();
 

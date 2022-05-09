@@ -24,8 +24,8 @@ namespace Horde.Storage.FunctionalTests.References
     {
         private static IWebHost? _server;
 
-        protected readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
-        protected readonly BucketId TestBucket = new BucketId("default");
+        private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
+        private readonly BucketId TestBucket = new BucketId("default");
 
         [TestInitialize]
         public async Task Setup()
@@ -69,21 +69,21 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
-            HttpContent requestContent = new ByteArrayContent(objectData);
+            using HttpContent requestContent = new ByteArrayContent(objectData);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             {
                 using HttpClient httpClient = new HttpClient();
                 httpClient.BaseAddress = new Uri("http://localhost:8080");
-                HttpResponseMessage result = await httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("newReferenceObject")}.uecb", requestContent);
+                HttpResponseMessage result = await httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/{TestBucket}/{IoHashKey.FromName("newReferenceObject")}.uecb", UriKind.Relative), requestContent);
                 result.EnsureSuccessStatusCode();
             }
             // access the replication-log using a public endpoint and a internal endpoint, only the internal endpoint should return results
             {
                 using HttpClient httpClient = new HttpClient();
                 httpClient.BaseAddress = new Uri("http://localhost:8080");
-                HttpResponseMessage result = await httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}");
+                HttpResponseMessage result = await httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
             }
 
@@ -91,7 +91,7 @@ namespace Horde.Storage.FunctionalTests.References
                 using HttpClient httpClient = new HttpClient();
                 httpClient.BaseAddress = new Uri("http://localhost:80");
 
-                HttpResponseMessage result = await httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}");
+                HttpResponseMessage result = await httpClient!.GetAsync(new Uri($"api/v1/replication-log/incremental/{TestNamespace}", UriKind.Relative));
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
         }

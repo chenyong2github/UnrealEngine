@@ -18,9 +18,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Serilog;
 
@@ -53,18 +50,16 @@ namespace Horde.Storage.Controllers
         private readonly IRefsStore _refsStore;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
 
         private readonly ILogger _logger = Log.ForContext<DDCRefController>();
         private readonly IDDCRefService _ddcRefService;
 
-        public DDCRefController(IDDCRefService ddcRefService, IRefsStore refsStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IOptionsMonitor<JupiterSettings> jupiterSettings)
+        public DDCRefController(IDDCRefService ddcRefService, IRefsStore refsStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService)
         {
             _refsStore = refsStore;
             _ddcRefService = ddcRefService;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
-            _jupiterSettings = jupiterSettings;
         }
 
         /// <summary>
@@ -123,7 +118,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                bool isRaw = format?.ToLowerInvariant() == "raw";
+                bool isRaw = format?.ToUpperInvariant() == "RAW";
                 // if the raw format is used only the blob itself will be output so no need to fetch anything else
                 if (isRaw)
                 {
@@ -142,7 +137,7 @@ namespace Horde.Storage.Controllers
                         using (IScope _ = Tracer.Instance.StartActive("body.write"))
                         {
                             const int BufferSize = 64 * 1024;
-                            var outputStream = Response.Body;
+                            Stream outputStream = Response.Body;
                             Response.ContentLength = blob.Length;
                             Response.ContentType = MediaTypeNames.Application.Octet;
                             Response.StatusCode = StatusCodes.Status200OK;
@@ -169,7 +164,6 @@ namespace Horde.Storage.Controllers
                     // convert to byte array in preparation for json serialization
                     record.Blob = await blobStream.ToByteArray();
                 }
-
 
                 return Ok(record);
 
@@ -283,7 +277,6 @@ namespace Horde.Storage.Controllers
             }
         }
 
-
         // that structured data will match the route above first
         [RequiredContentType(MediaTypeNames.Application.Octet)]
         [HttpPut("ddc/{ns}/{bucket}/{key}", Order = 500)]
@@ -380,7 +373,6 @@ namespace Horde.Storage.Controllers
                 return BadRequest(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
             }
 
-
             return NoContent();
         }
 
@@ -412,7 +404,6 @@ namespace Horde.Storage.Controllers
                 return BadRequest(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
             }
 
-
             return NoContent();
         }
 
@@ -443,7 +434,9 @@ namespace Horde.Storage.Controllers
                 long deleteCount = await _ddcRefService.Delete(ns, bucket, key);
 
                 if (deleteCount == 0)
+                {
                     return BadRequest("Deleted 0 records, most likely the object did not exist");
+                }
             }
             catch (NamespaceNotFoundException e)
             {
@@ -452,9 +445,9 @@ namespace Horde.Storage.Controllers
             return NoContent();
         }
 
-
         // ReSharper disable UnusedAutoPropertyAccessor.Global
         // ReSharper disable once ClassNeverInstantiated.Global
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Required by serialization")]
         public class DdcBatchOp
         {
             // ReSharper disable InconsistentNaming
@@ -482,6 +475,7 @@ namespace Horde.Storage.Controllers
             public byte[]? Content { get; set; }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Required by serialization")]
         public class DdcBatchCall
         {
             public DdcBatchOp[]? Operations { get; set; }
@@ -508,7 +502,7 @@ namespace Horde.Storage.Controllers
 
             if (batch.Operations == null)
             {
-                throw new ArgumentNullException();
+                throw new InvalidOperationException("No operations specified, this is a required field");
             }
 
             Task<object?>[] tasks = new Task<object?>[batch.Operations.Length];
@@ -527,7 +521,7 @@ namespace Horde.Storage.Controllers
                 }
                 else
                 {
-                    tasks[index] = ProcessOp(op).ContinueWith(task => task.IsFaulted ? (object?)new ProblemDetails { Title = "Exception thrown", Detail = task!.Exception!.ToString()} : task.Result);
+                    tasks[index] = ProcessOp(op).ContinueWith((task, _) => task.IsFaulted ? (object?)new ProblemDetails { Title = "Exception thrown", Detail = task!.Exception!.ToString()} : task.Result, null, TaskScheduler.Current);
                 }
             }
 
@@ -542,26 +536,26 @@ namespace Horde.Storage.Controllers
         {
             if (op.Namespace == null)
             {
-                throw new ArgumentNullException("namespace");
+                throw new InvalidOperationException("namespace was null, is required");
             }
 
             if (op.Bucket == null)
             {
-                throw new ArgumentNullException("bucket");
+                throw new InvalidOperationException("bucket was null, is required");
             }
 
             if (op.Id == null)
             {
-                throw new ArgumentNullException("id");
+                throw new InvalidOperationException("id was null, is required");
             }
 
             switch (op.Op)
             {
                 case DdcBatchOp.DdcOperation.INVALID:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unsupported batch op {DdcBatchOp.DdcOperation.INVALID} used in op {op.Id}");
                 case DdcBatchOp.DdcOperation.GET:
                     // TODO: support field filtering
-                    return _ddcRefService.Get(op.Namespace.Value, op.Bucket.Value, op.Id.Value, new string[0]).ContinueWith(t => 
+                    return _ddcRefService.Get(op.Namespace.Value, op.Bucket.Value, op.Id.Value, Array.Empty<string>()).ContinueWith((t,_) => 
                     {
                         // we are serializing this to json, so we just stream the blob into memory to return it.
                         (RefResponse response, BlobContents? blob) = t.Result;
@@ -571,19 +565,19 @@ namespace Horde.Storage.Controllers
                             response.Blob = blobContents.Stream.ToByteArray().Result;
                         }
                         return (object?)response;
-                    });
+                    }, null, TaskScheduler.Current);
                 case DdcBatchOp.DdcOperation.HEAD:
-                    return _ddcRefService.Exists(op.Namespace.Value, op.Bucket.Value, op.Id.Value).ContinueWith(t => t.Result == null ? (object?)null : op.Id);
+                    return _ddcRefService.Exists(op.Namespace.Value, op.Bucket.Value, op.Id.Value).ContinueWith((t,_) => t.Result == null ? (object?)null : op.Id, null, TaskScheduler.Current);
                 case DdcBatchOp.DdcOperation.PUT:
                 {
                     if (op.ContentHash == null)
                     {
-                        throw new ArgumentNullException("ContentHash");
+                        throw new InvalidOperationException("ContentHash was null, is required");
                     }
 
                     if (op.Content == null)
                     {
-                        throw new ArgumentNullException("Content");
+                        throw new InvalidOperationException("Content was null, is required");
                     }
 
                     ContentHash blobHash = ContentHash.FromBlob(op.Content);
@@ -591,15 +585,16 @@ namespace Horde.Storage.Controllers
                     {
                         throw new HashMismatchException(op.ContentHash, blobHash);
                     }
-                    return _ddcRefService.Put(op.Namespace.Value, op.Bucket.Value, op.Id.Value, blobHash, op.Content).ContinueWith(t => (object?)t.Result);
+                    return _ddcRefService.Put(op.Namespace.Value, op.Bucket.Value, op.Id.Value, blobHash, op.Content).ContinueWith((t,_) => (object?)t.Result, null, TaskScheduler.Current);
                 }
                 case DdcBatchOp.DdcOperation.DELETE:
-                    return _ddcRefService.Delete(op.Namespace.Value, op.Bucket.Value, op.Id.Value).ContinueWith(t => (object?)null);
+                    return _ddcRefService.Delete(op.Namespace.Value, op.Bucket.Value, op.Id.Value).ContinueWith((t,_) => (object?)null, null, TaskScheduler.Current);
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotImplementedException($"Unknown op used {op.Op}");
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Used by serialization")]
         public class BatchGetOp
         {
             public class GetOp
@@ -626,7 +621,7 @@ namespace Horde.Storage.Controllers
         {
             if (batch.Namespace == null)
             {
-                throw new ArgumentNullException();
+                throw new InvalidOperationException("A valid namespace must be specified");
             }
 
             {

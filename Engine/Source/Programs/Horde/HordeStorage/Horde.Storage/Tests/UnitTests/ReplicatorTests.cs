@@ -18,7 +18,6 @@ using Microsoft.Extensions.Options;
 using Moq;
 using RestSharp;
 using EpicGames.Horde.Storage;
-using Horde.Storage.Controllers;
 using Moq.Contrib.HttpClient;
 
 namespace Horde.Storage.UnitTests
@@ -60,9 +59,9 @@ namespace Horde.Storage.UnitTests
             Mock<ITransactionLogWriter> transactionLogWriter = new Mock<ITransactionLogWriter>();
             Mock<IRestClient> remoteClientMock = new Mock<IRestClient> { DefaultValue = DefaultValue.Empty };
 
-            CallistoReader.CallistoGetResponse[] responses = new[]
+            CallistoGetResponse[] responses = new[]
             {
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 0,
                     events: new List<TransactionEvent>(new[]
@@ -70,17 +69,17 @@ namespace Horde.Storage.UnitTests
                         new AddTransactionEvent("", "", new[] {blobToReplication}, identifier:0, nextIdentifier: 100)
                     })
                 ),
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 100,
                     events: new List<TransactionEvent>()
                 )
             };
 
-            Mock<IRestResponse<CallistoReader.CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
+            Mock<IRestResponse<CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
             // mock of callisto calls
             remoteClientMock
-                .SetupSequence(x => x.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
+                .SetupSequence(x => x.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
                 // first we will query for a callisto event
                 .ReturnsAsync(mockedCallistoResponse[0].Object)
                 // then it will iterate again and should now reach the stop event
@@ -115,7 +114,7 @@ namespace Horde.Storage.UnitTests
             blobStoreMock.Verify(blobStore => blobStore.Exists(ns, blobToReplication), Times.Once);
 
             // we should have attempted to store the replicated object in our callisto
-            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
             transactionLogWriter.Verify(writer => writer.Add(ns, It.Is<AddTransactionEvent>(e => e.Blobs[0].Equals(blobToReplication))), Times.Once);
 
             // as this was a add operation we should have transferred the blob from the remote blob store to the local
@@ -125,7 +124,6 @@ namespace Horde.Storage.UnitTests
 
             remoteClientMock.VerifyNoOtherCalls();
         }
-
 
         [TestMethod]
         public async Task ReplicatorSkipLogReplicatorV1()
@@ -137,18 +135,18 @@ namespace Horde.Storage.UnitTests
 
             Mock<IRestClient> remoteClientMock = new Mock<IRestClient> { DefaultValue = DefaultValue.Empty };
             IServiceCredentials serviceCredentials = Mock.Of<IServiceCredentials>();
-            CallistoReader.CallistoGetResponse[] responses = new[]
+            CallistoGetResponse[] responses = new[]
             {
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 100000,
                     events: new List<TransactionEvent>()
                 ),
             };
-            Mock<IRestResponse<CallistoReader.CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
+            Mock<IRestResponse<CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
             // mock of callisto calls
             remoteClientMock
-                .SetupSequence(x => x.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
+                .SetupSequence(x => x.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(mockedCallistoResponse[0].Object)
                 .ReturnsAsync(mockedCallistoResponse[0].Object);
 
@@ -175,7 +173,7 @@ namespace Horde.Storage.UnitTests
             Assert.AreEqual(_currentLogGeneration, replicator.State.ReplicatingGeneration);
 
             // we should called the transaction log 2
-            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
 
             remoteClientMock.VerifyNoOtherCalls();
         }
@@ -196,9 +194,9 @@ namespace Horde.Storage.UnitTests
             Mock<ITransactionLogWriter> transactionLogWriter = new Mock<ITransactionLogWriter>();
             Mock<IRestClient> remoteClientMock = new Mock<IRestClient> { DefaultValue = DefaultValue.Empty };
 
-            CallistoReader.CallistoGetResponse[] responses = new[]
+            CallistoGetResponse[] responses = new[]
             {
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 0,
                     events: new List<TransactionEvent>(new[]
@@ -206,17 +204,17 @@ namespace Horde.Storage.UnitTests
                         new AddTransactionEvent("", "", new[] {blobToReplication}, identifier:0, nextIdentifier: 100)
                     })
                 ),
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 100,
                     events: new List<TransactionEvent>()
                 )
             };
 
-            Mock<IRestResponse<CallistoReader.CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
+            Mock<IRestResponse<CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
             // mock of callisto calls
             remoteClientMock
-                .SetupSequence(x => x.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
+                .SetupSequence(x => x.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
                 // first we will query for a callisto event
                 .ReturnsAsync(mockedCallistoResponse[0].Object)
                 // then it will iterate again and should now reach the stop event
@@ -253,7 +251,7 @@ namespace Horde.Storage.UnitTests
             blobStoreMock.Verify(blobStore => blobStore.Exists(ns, blobToReplication), Times.Once);
 
             // we should have attempted to store the replicated object in our callisto
-            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
             transactionLogWriter.Verify(writer => writer.Add(ns, It.Is<AddTransactionEvent>(e => e.Blobs[0].Equals(blobToReplication))), Times.Once);
 
             // as this was a add operation we should have transferred the blob from the remote blob store to the local
@@ -263,7 +261,6 @@ namespace Horde.Storage.UnitTests
 
             remoteClientMock.VerifyNoOtherCalls();
         }
-
 
         [TestMethod]
         [Ignore("Fails intermittently on build machines, this is a test for our legacy replicator so disabling as this code will be removed soon")]
@@ -281,9 +278,9 @@ namespace Horde.Storage.UnitTests
             Mock<ITransactionLogWriter> transactionLogWriter = new Mock<ITransactionLogWriter>();
             Mock<IRestClient> remoteClientMock = new Mock<IRestClient> { DefaultValue = DefaultValue.Empty };
 
-            CallistoReader.CallistoGetResponse[] responses = new[]
+            CallistoGetResponse[] responses = new[]
             {
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 0,
                     events: new List<TransactionEvent>(new[]
@@ -291,17 +288,17 @@ namespace Horde.Storage.UnitTests
                         new RemoveTransactionEvent("", "", 0, 100)
                     })
                 ),
-                new CallistoReader.CallistoGetResponse(
+                new CallistoGetResponse(
                     generation: _currentLogGeneration,
                     currentOffset: 100,
                     events: new List<TransactionEvent>()
                 )
             };
 
-            Mock<IRestResponse<CallistoReader.CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
+            Mock<IRestResponse<CallistoGetResponse>>[] mockedCallistoResponse = responses.Select(response => CreateMockResponse(HttpStatusCode.OK, response)).ToArray();
             // mock of callisto calls
             remoteClientMock
-                .SetupSequence(x => x.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
+                .SetupSequence(x => x.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()))
                 // first we will query for a callisto event
                 .ReturnsAsync(mockedCallistoResponse[0].Object)
                 // then it will iterate again and should now reach the stop event
@@ -322,7 +319,7 @@ namespace Horde.Storage.UnitTests
             Assert.IsTrue(ran);
 
             // we should have fetched the replicated object
-            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoReader.CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            remoteClientMock.Verify(client => client.ExecuteGetAsync<CallistoGetResponse>(It.IsAny<IRestRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
             transactionLogWriter.Verify(writer => writer.Add(ns, It.IsAny<RemoveTransactionEvent>()), Times.Once);
             // other then copying the remove event we should have written nothing else
             transactionLogWriter.VerifyNoOtherCalls();
@@ -334,7 +331,7 @@ namespace Horde.Storage.UnitTests
             remoteClientMock.VerifyNoOtherCalls();
         }
 
-        private Mock<IRestResponse<T>> CreateMockResponse<T>(HttpStatusCode httpStatusCode, T data)
+        private static Mock<IRestResponse<T>> CreateMockResponse<T>(HttpStatusCode httpStatusCode, T data)
         {
             Mock<IRestResponse<T>> response = new Mock<IRestResponse<T>>();
             response.Setup(_ => _.StatusCode).Returns(httpStatusCode);
@@ -353,6 +350,5 @@ namespace Horde.Storage.UnitTests
 
             return response;
         }
-
     }
 }

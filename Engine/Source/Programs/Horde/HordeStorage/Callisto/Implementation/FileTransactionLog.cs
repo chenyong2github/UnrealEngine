@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -64,12 +63,7 @@ namespace Callisto.Implementation
             _transactionLogHandle = new FileInfo(Path.Combine(root.FullName, ns.ToString(), LogFilename));
         }
 
-
-        internal FileTransactionLogIndex IndexFile
-        {
-            get { return _index; }
-        }
-
+        internal FileTransactionLogIndex IndexFile => _index;
 
         public async Task<long> NewTransaction(AddTransactionEvent @event)
         {
@@ -92,14 +86,15 @@ namespace Callisto.Implementation
             span.OperationName = "WRITE";
 
             if (_index.Version != 1)
+            {
                 throw new InvalidOperationException($"Version mismatch of transaction log, found {_index.Version} but expected version 1");
+            }
 
             byte[] eventBuffer = SerializeToBuffer(eventRecord);
             int eventLength = eventBuffer.Length;
 
             using MD5 md5 = MD5.Create();
             byte[] md5Hash = md5.ComputeHash(eventBuffer, 0, eventLength);
-
 
             long offset = await Task.Run(() =>
             {
@@ -111,7 +106,9 @@ namespace Callisto.Implementation
                     long position = fs.Position;
                     
                     if (_settings?.CurrentValue?.VerifySerialization ?? false)
+                    {
                         VerifySerializationOfEvent(position, eventRecord.Op!, eventBuffer, md5Hash, eventLength, md5);
+                    }
 
                     OpHeader header = new OpHeader(position, md5Hash, eventLength);
                     header.Serialize(fs);
@@ -123,7 +120,7 @@ namespace Callisto.Implementation
             return offset;
         }
 
-        private byte[] SerializeToBuffer(OpRecord eventRecord)
+        private static byte[] SerializeToBuffer(OpRecord eventRecord)
         {
             using MemoryStream memoryStream = new MemoryStream();
             eventRecord.Serialize(memoryStream);
@@ -182,7 +179,9 @@ namespace Callisto.Implementation
             span.OperationName = "GET";
 
             if (_index.Version != 1)
+            {
                 throw new InvalidOperationException($"Version mismatch of transaction log, found {_index.Version} but expected version 1");
+            }
 
             OpRecord[] events = new OpRecord[count];
 
@@ -195,7 +194,9 @@ namespace Callisto.Implementation
 
             _transactionLogHandle.Refresh();
             if (!_transactionLogHandle.Exists)
+            {
                 throw new FileNotFoundException("Transaction log is empty");
+            }
 
             // we set a max amount of events to skip to make sure we actually move the current event counter forward for the replicator and do not have to start from the beginning again
             const int maxEventsSkippedDueToLocation = 1000;
@@ -218,7 +219,9 @@ namespace Callisto.Implementation
 
                 // if we would read outside the stream when reading the next header we stop
                 if (fs.Position + OpHeader.HeaderLength > fs.Length)
+                {
                     break;
+                }
 
                 OpHeader opHeader = OpHeader.Deserialize(fs);
 
@@ -236,9 +239,16 @@ namespace Callisto.Implementation
                 offset = fs.Position;
 
                 if (offset - eventPosition != opHeader.Length)
+                {
                     throw new Exception($"Read event size {offset - eventPosition} did not match expected size from header {opHeader.Length}");
-                using MD5 md5 = MD5.Create();
-                byte[] md5Hash = md5.ComputeHash(eventBuf, 0, opHeader.Length);
+                }
+
+                byte[] md5Hash;
+                using (MD5 md5 = MD5.Create())
+                {
+                    md5Hash = md5.ComputeHash(eventBuf, 0, opHeader.Length);
+                }
+
                 if (!opHeader.Md5hash.SequenceEqual(md5Hash))
                 {
                     string headerMd5 = StringUtils.FormatAsHexString(opHeader.Md5hash);
@@ -247,8 +257,13 @@ namespace Callisto.Implementation
                     throw new EventHashMismatchException(opHeader.Offset, headerMd5, calculatedMd5);
                 }
 
-                await using MemoryStream eventStream = new MemoryStream(eventBuf);
-                OpRecord op = OpRecord.Deserialize(eventStream);
+                OpRecord op;
+                {
+#pragma warning disable CA2000 // Dispose objects before losing scope -- object is disposed so false positive
+                    await using MemoryStream eventStream = new MemoryStream(eventBuf);
+#pragma warning restore CA2000 // Dispose objects before losing scope
+                    op = OpRecord.Deserialize(eventStream);
+                }
 
                 if (siteFilter != 0)
                 {
@@ -305,11 +320,7 @@ namespace Callisto.Implementation
             // Length of transaction event
             public int Length;
 
-
-            public static int HeaderLength
-            {
-                get { return sizeof(long) + 16 /* MD5 hash */ + sizeof(int); }
-            }
+            public static int HeaderLength => sizeof(long) + 16 /* MD5 hash */ + sizeof(int);
 
             public OpHeader(in long offset, byte[] md5Hash, in int length)
             {
@@ -379,7 +390,7 @@ namespace Callisto.Implementation
                         baseOp = RemoveOp.Deserialize(stream);
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        throw new NotImplementedException($"Op type {op} not supported");
                 }
 
                 return new OpRecord(op, baseOp);
@@ -391,7 +402,6 @@ namespace Callisto.Implementation
                 Op.Serialize(stream);
             }
         }
-
 
         internal abstract class BaseOp
         {
@@ -432,7 +442,10 @@ namespace Callisto.Implementation
             {
                 List<string> enumerable = eventLocations.ToList();
                 if (!enumerable.Any())
+                {
                     throw new Exception("No locations set, at least the location of the current instance has to be specified");
+                }
+
                 ulong flags = 0;
                 foreach (int indexToSet in enumerable.Select(index.ToIndex))
                 {
@@ -464,7 +477,6 @@ namespace Callisto.Implementation
             protected abstract void DoSerialize(Stream stream);
         }
 
-
         internal class RemoveOp : BaseOp
         {
             private RemoveOp(string name, string bucket, ulong locations) : base(name, bucket, locations)
@@ -492,7 +504,7 @@ namespace Callisto.Implementation
                 // nothing extra to serialize
             }
 
-            public new static BaseOp Deserialize(Stream stream)
+            public static new BaseOp Deserialize(Stream stream)
             {
                 (string name, string bucket, ulong locations) = BaseOp.Deserialize(stream);
                 return new RemoveOp(name, bucket, locations);
@@ -511,17 +523,16 @@ namespace Callisto.Implementation
 
             public List<BlobIdentifier> Blobs { get; set; } = null!;
 
-            public byte[] Metadata { get; set; } = new byte[0];
-
+            public byte[] Metadata { get; set; } = Array.Empty<byte>();
 
             public static OpRecord FromEvent(FileTransactionLogIndex index, AddTransactionEvent @event)
             {
                 // create a bson representation of the metadata
-                byte[]? metadataBuffer = new byte[0];
+                byte[] metadataBuffer = Array.Empty<byte>();
                 if (@event.Metadata != null)
                 {
                     using MemoryStream ms = new MemoryStream();
-                    BsonDataWriter writer = new BsonDataWriter(ms);
+                    using BsonDataWriter writer = new BsonDataWriter(ms);
                     JsonSerializer serializer = JsonSerializer.CreateDefault();
                     serializer.Serialize(writer, @event.Metadata);
 
@@ -542,7 +553,7 @@ namespace Callisto.Implementation
                 if (Metadata != null && Metadata.Length != 0)
                 {
                     using MemoryStream ms = new MemoryStream(Metadata);
-                    BsonDataReader reader = new BsonDataReader(ms);
+                    using BsonDataReader reader = new BsonDataReader(ms);
                     JsonSerializer serializer = JsonSerializer.CreateDefault();
                     try
                     {
@@ -581,7 +592,7 @@ namespace Callisto.Implementation
                 writer.Write(Metadata, 0, Metadata.Length);
             }
 
-            public new static BaseOp Deserialize(Stream stream)
+            public static new BaseOp Deserialize(Stream stream)
             {
                 (string name, string bucket, ulong locations) = BaseOp.Deserialize(stream);
 

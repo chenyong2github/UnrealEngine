@@ -15,8 +15,12 @@ using Serilog;
 
 namespace Horde.Storage.Implementation
 {
+    public class BlobIndexConsistencyState
+    {
+    }
+
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class BlobIndexConsistencyCheckService : PollingService<BlobIndexConsistencyCheckService.ConsistencyState>
+    public class BlobIndexConsistencyCheckService : PollingService<BlobIndexConsistencyState>
     {
         private readonly IOptionsMonitor<ConsistencyCheckSettings> _settings;
         private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
@@ -26,17 +30,12 @@ namespace Horde.Storage.Implementation
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILogger _logger = Log.ForContext<BlobIndexConsistencyCheckService>();
 
-        public class ConsistencyState
-        {
-        }
-
         protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.EnableBlobIndexChecks;
         }
 
-        public BlobIndexConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<JupiterSettings> jupiterSettings, ILeaderElection leaderElection, IBlobIndex blobIndex, IBlobService blobService, INamespacePolicyResolver namespacePolicyResolver) :
-            base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
+        public BlobIndexConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<JupiterSettings> jupiterSettings, ILeaderElection leaderElection, IBlobIndex blobIndex, IBlobService blobService, INamespacePolicyResolver namespacePolicyResolver) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new BlobIndexConsistencyState())
         {
             _settings = settings;
             _jupiterSettings = jupiterSettings;
@@ -46,7 +45,7 @@ namespace Horde.Storage.Implementation
             _namespacePolicyResolver = namespacePolicyResolver;
         }
 
-        public override async Task<bool> OnPoll(ConsistencyState state, CancellationToken cancellationToken)
+        public override async Task<bool> OnPoll(BlobIndexConsistencyState state, CancellationToken cancellationToken)
         {
             if (!_settings.CurrentValue.EnableBlobIndexChecks)
             {
@@ -69,7 +68,7 @@ namespace Horde.Storage.Implementation
         {
             try
             {
-                NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
 
                 return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
             }
@@ -78,7 +77,6 @@ namespace Horde.Storage.Implementation
                 _logger.Warning("Namespace {Namespace} does not configure any policy, not running blob index consistency checks on it.", ns);
                 return false;
             }
-
         }
 
         private async Task RunConsistencyCheck()
@@ -95,12 +93,16 @@ namespace Horde.Storage.Implementation
                     Interlocked.Increment(ref countOfBlobsChecked);
 
                     if (countOfBlobsChecked % 100 == 0)
+                    {
                         _logger.Information("Consistency check running on blob index, count of blobs processed so far: {CountOfBlobs}", countOfBlobsChecked);
+                    }
 
                     // skip namespace that we shouldn't consistency check, e.g. the legacy namespaces
                     if (!NamespaceShouldBeCheckedForConsistency(blobInfo.Namespace))
+                    {
                         return;
-                    
+                    }
+
                     using IScope scope = Tracer.Instance.StartActive("consistency_check.blob_index");
                     scope.Span.ResourceName = $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}";
 
@@ -205,7 +207,7 @@ namespace Horde.Storage.Implementation
             _logger.Information("Blob Index Consistency check finished, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", countOfIncorrectBlobsFound, countOfBlobsChecked);
         }
 
-        protected override Task OnStopping(ConsistencyState state)
+        protected override Task OnStopping(BlobIndexConsistencyState state)
         {
             return Task.CompletedTask;
         }

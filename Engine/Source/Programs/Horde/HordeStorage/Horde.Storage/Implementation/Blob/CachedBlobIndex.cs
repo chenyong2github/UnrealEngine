@@ -21,11 +21,11 @@ public class CachedBlobIndex : IBlobIndex
         _fileSystemStore = fileSystemStore;
     }
 
-    public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
         if (await BlobExistsInRegion(ns, id))
         {
-            return new IBlobIndex.BlobInfo
+            return new BlobInfo
             {
                 Namespace = ns,
                 BlobIdentifier = id,
@@ -67,7 +67,7 @@ public class CachedBlobIndex : IBlobIndex
         await Task.CompletedTask;
     }
 
-    public IAsyncEnumerable<IBlobIndex.BlobInfo> GetAllBlobs()
+    public IAsyncEnumerable<BlobInfo> GetAllBlobs()
     {
         throw new NotImplementedException();
     }

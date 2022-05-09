@@ -16,7 +16,7 @@ namespace Horde.Storage.UnitTests
     [TestClass]
     public class HordeStorageStartupTest
     {
-        private string localTestDir;
+        private readonly string localTestDir;
         
         public HordeStorageStartupTest()
         {
@@ -45,7 +45,6 @@ namespace Horde.Storage.UnitTests
                 {"Horde_Storage:StorageImplementations:1", "Memory"},
             });
 
-
             List<IBlobStore> blobStores = blobService.BlobStore.ToList();
             Assert.IsTrue(blobStores[0] is FileSystemStore);
             Assert.IsTrue(blobStores[1] is MemoryCacheBlobStore);
@@ -58,7 +57,7 @@ namespace Horde.Storage.UnitTests
                 .AddInMemoryCollection(new Dictionary<string, string> {{"Filesystem:RootDir", localTestDir}})
                 .AddInMemoryCollection(configDict)
                 .Build();
-            TestServer server = new TestServer(new WebHostBuilder()
+            using TestServer server = new TestServer(new WebHostBuilder()
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(new LoggerConfiguration().ReadFrom.Configuration(configuration).CreateLogger())

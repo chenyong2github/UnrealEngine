@@ -43,18 +43,31 @@ namespace Jupiter
             }
 
             if (b == null)
+            {
                 return false;
+            }
 
-            if (a.Length != b.Length) return false;
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+
             for (int i = 0; i < a.Length; i++)
-                if (a[i] != b[i]) return false;
+            {
+                if (a[i] != b[i])
+                {
+                    return false;
+                }
+            }
             return true;
         }
         public override int GetHashCode(byte[] a)
         {
             uint b = 0;
             foreach (byte t in a)
-                b = ((b << 23) | (b >> 9)) ^ t;
+            {
+	            b = ((b << 23) | (b >> 9)) ^ t;
+            }
 
             return unchecked((int)b);
         }

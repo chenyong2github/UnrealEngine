@@ -61,7 +61,7 @@ namespace Jupiter.Implementation
 
         public override int GetHashCode()
         {
-            return _text.GetHashCode();
+            return _text.GetHashCode(StringComparison.Ordinal);
         }
 
         public override string ToString()
@@ -106,7 +106,9 @@ namespace Jupiter.Implementation
         public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
         {
             if (sourceType == typeof(string))
+            {
                 return true;
+            }
 
             return base.CanConvertFrom(context, sourceType);
         }

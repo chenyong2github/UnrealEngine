@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
@@ -41,7 +40,7 @@ namespace Horde.Storage.Implementation
 
         public Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
         {
-            NamespaceSettings.PerNamespaceSettings policies;
+            NamespacePolicy policies;
             try
             {
                 policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
@@ -87,7 +86,9 @@ namespace Horde.Storage.Implementation
                 Interlocked.Increment(ref consideredCount);
 
                 if (lastAccessTime > cutoffTime)
+                {
                     continue;
+                }
 
                 _logger.Information("Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}", ns, bucket, name, lastAccessTime, cutoffTime);
                 using IScope scope = Tracer.Instance.StartActive("gc.ref");
@@ -139,7 +140,7 @@ namespace Horde.Storage.Implementation
 
                 try
                 {
-                    Task.WaitAll(storeDelete, transactionLogDelete);
+                    await Task.WhenAll(storeDelete, transactionLogDelete);
                 }
                 catch (Exception e)
                 {

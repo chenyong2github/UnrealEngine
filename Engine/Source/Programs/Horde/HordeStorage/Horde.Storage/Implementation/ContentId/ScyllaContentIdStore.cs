@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
@@ -16,7 +15,7 @@ namespace Horde.Storage.Implementation
     {
         private readonly ISession _session;
         private readonly IBlobService _blobStore;
-        private Mapper _mapper;
+        private readonly Mapper _mapper;
 
         public ScyllaContentIdStore(IScyllaSessionManager scyllaSessionManager, IBlobService blobStore)
         {
@@ -34,7 +33,6 @@ namespace Horde.Storage.Implementation
             ));
         }
 
-
         public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
             using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.ResolveContentId");
@@ -51,8 +49,10 @@ namespace Horde.Storage.Implementation
             foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
             {
                 if (resolvedContentId == null)
+                {
                     throw new InvalidContentIdException(contentId);
-                
+                }
+
                 BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
 
                 {
@@ -60,7 +60,9 @@ namespace Horde.Storage.Implementation
 
                     BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
                     if (missingBlobs.Length == 0)
+                    {
                         return blobs;
+                    }
                 }
                 // blobs are missing continue testing with the next content id in the weighted list as that might exist
             }
@@ -71,7 +73,9 @@ namespace Horde.Storage.Implementation
                 bool contentIdBlobExists = await blobStoreExistsTask!;
 
                 if (contentIdBlobExists)
+                {
                     return new[] { contentIdBlob };
+                }
             }
             
             // unable to resolve the content id

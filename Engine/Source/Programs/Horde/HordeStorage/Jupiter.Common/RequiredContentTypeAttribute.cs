@@ -7,7 +7,8 @@ using Microsoft.Extensions.Primitives;
 
 namespace Jupiter
 {
-    public class RequiredContentTypeAttribute : Attribute, IActionConstraint
+    [AttributeUsage(AttributeTargets.Method)]
+    public sealed class RequiredContentTypeAttribute : Attribute, IActionConstraint
     {
         private readonly string _mediaTypeName;
 
@@ -16,10 +17,9 @@ namespace Jupiter
             _mediaTypeName = mediaTypeName;
         }
 
-        public int Order
-        {
-            get { return 0; }
-        }
+        public string MediaTypeName => _mediaTypeName;
+
+        public int Order => 0;
 
         public bool Accept(ActionConstraintContext context)
         {
