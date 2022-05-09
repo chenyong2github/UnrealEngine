@@ -328,7 +328,18 @@ namespace UnrealBuildTool
 						Idx += 4;
 						return 0;
 					}
-					else if (Text == Identifiers.__has_cpp_attribute || Text == Identifiers.__has_include || Text == Identifiers.__has_include_next)
+					else if (Text == Identifiers.__is_identifier)
+					{
+						if (Tokens[Idx + 1].Type != TokenType.LeftParen || Tokens[Idx + 3].Type != TokenType.RightParen)
+						{
+							throw new NotImplementedException(Text.ToString());
+						}
+						Idx += 4;
+						return 0;
+					}
+					else if (Text == Identifiers.__has_attribute || Text == Identifiers.__has_declspec_attribute
+						|| Text == Identifiers.__has_c_attribute || Text == Identifiers.__has_cpp_attribute
+						|| Text == Identifiers.__has_include || Text == Identifiers.__has_include_next)
 					{
 						Idx += Tokens.Count - Idx;
 						return 0;
