@@ -305,7 +305,7 @@ float HistoryPreExposureCorrection;
 uint bCameraCut;
 
 #if DEBUG_OUTPUT
-	RWTexture2D<float4> DebugOutput;
+	RWTexture2DArray<float4> DebugOutput;
 #endif
 
 

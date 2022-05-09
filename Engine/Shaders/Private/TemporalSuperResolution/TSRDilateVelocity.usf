@@ -281,7 +281,7 @@ void MainCS(
 
 		#if DEBUG_OUTPUT && 0 // running out of UAVs
 		{
-			DebugOutput[OutputPixelPos] = Debug;
+			DebugOutput[tsr_short3(OutputPixelPos, 0)] = Debug;
 		}
 		#endif
 	}

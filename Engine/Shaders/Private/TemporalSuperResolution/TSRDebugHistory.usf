@@ -108,7 +108,7 @@ void MainCS(
 	#if DEBUG_OUTPUT && 1
 	if (all(DispatchThreadId < HistoryInfo_ViewportMax * SUB_PIXEL_GRID_SIZE))
 	{
-		DebugOutput[DispatchThreadId] = Debug;
+		DebugOutput[tsr_short3(DispatchThreadId, 0)] = Debug;
 	}
 	#endif
 }

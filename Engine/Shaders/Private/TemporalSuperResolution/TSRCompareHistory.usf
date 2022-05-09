@@ -137,7 +137,7 @@ void MainCS(
 	#if DEBUG_OUTPUT
 	{
 		tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(tsr_ushort2(InputPixelPos), InputPixelPosMax);
-		DebugOutput[OutputPixelPos] = Debug;
+		DebugOutput[tsr_short3(OutputPixelPos, 0)] = Debug;
 	}
 	#endif
 }

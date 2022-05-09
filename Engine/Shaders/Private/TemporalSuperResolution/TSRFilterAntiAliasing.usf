@@ -119,7 +119,7 @@ void MainCS(
 		
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[OutputPixelPos] = Debug;
+			DebugOutput[tsr_short3(OutputPixelPos, 0)] = Debug;
 		}
 		#endif
 	}

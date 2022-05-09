@@ -510,10 +510,10 @@ void MainCS(
 
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[dpv_lo(OutputPixelPos)] = dpv_lo(Debug);
+			DebugOutput[tsr_short3(dpv_lo(OutputPixelPos), 0)] = dpv_lo(Debug);
 
 			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-				DebugOutput[dpv_hi(OutputPixelPos)] = dpv_hi(Debug);
+				DebugOutput[tsr_short3(dpv_hi(OutputPixelPos), 0)] = dpv_hi(Debug);
 			#endif
 		}
 		#endif

@@ -9,6 +9,8 @@
 
 #define DEBUG_LOW_FREQUENCY_REJECTION 0
 
+#define DEBUG_ARRAY_SIZE 8
+
 
 //------------------------------------------------------- CONFIG
 
@@ -310,8 +312,14 @@ void MainCS(
 	#else
 		uint GroupWaveIndex = GetGroupWaveIndex(GroupThreadIndex, TILE_SIZE * TILE_SIZE);
 	#endif
-
-	float4x2 Debug = 0.0;
+	
+	#if DEBUG_OUTPUT
+	float4x2 Debug[DEBUG_ARRAY_SIZE];
+	for (uint DebugId = 0; DebugId < DEBUG_ARRAY_SIZE; DebugId++)
+	{
+		Debug[DebugId] = 0.0;
+	}
+	#endif
 
 	tsr_short2x2 HistoryPixelPos = dpv_add(
 		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE),
@@ -1152,14 +1160,6 @@ void MainCS(
 			dpv_scale(PrevHighFrequencyColor, CommonWeight * BlendPrevHistory * InvPrevHistoryWeight) +
 			dpv_scale(FilteredInputColor, CommonWeight * BlendFilteredInput));
 				
-				
-		//Debug[0] = CommonWeight * BlendFilteredInput;
-		Debug[0] = OutputValidity2;
-		//Debug[0] = CurrentMomentWeight;
-		//Debug[0] = FilteredInputColor[0];
-		//Debug[1] = FilteredInputColor[1];
-		//Debug[2] = FilteredInputColor[2];
-
 		// Quantize validity for the 8bit encoding to avoid numerical shift between color and validity.
 		FinalHistoryValidity = ceil(tsr_half(255.0) * OutputValidity) * rcp(tsr_half(255.0));
 	}
@@ -1848,13 +1848,14 @@ void MainCS(
 			#endif
 		}
 		#endif
-
+		
 		#if DEBUG_OUTPUT
+		for (uint DebugId = 0; DebugId < DEBUG_ARRAY_SIZE; DebugId++)
 		{
-			DebugOutput[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(Debug);
+			DebugOutput[tsr_short3(dpv_lo(LocalHistoryPixelPos), DebugId)] = dpv_lo(Debug[DebugId]);
 
 			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-				DebugOutput[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(Debug);
+				DebugOutput[tsr_short3(dpv_hi(LocalHistoryPixelPos), DebugId)] = dpv_hi(Debug[DebugId]);
 			#endif
 		}
 		#endif
