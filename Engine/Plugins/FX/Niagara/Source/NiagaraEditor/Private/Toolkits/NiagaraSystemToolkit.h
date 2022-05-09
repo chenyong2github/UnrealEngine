@@ -16,12 +16,12 @@
 #include "ViewModels/NiagaraSystemGraphSelectionViewModel.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
-class SNiagaraEmitterVersionWidget;
-class UNiagaraVersionMetaData;
 #if WITH_NIAGARA_GPU_PROFILER
 	#include "NiagaraGPUProfilerInterface.h"
 #endif
 
+class SNiagaraEmitterVersionWidget;
+class UNiagaraVersionMetaData;
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
 class FNiagaraObjectSelection;

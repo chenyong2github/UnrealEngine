@@ -172,7 +172,7 @@ public:
 
 private:
 	UPROPERTY()
-	UNiagaraStackModuleItem* ModuleItem = nullptr;
+	TObjectPtr<UNiagaraStackModuleItem> ModuleItem = nullptr;
 };
 
 /** Wrapper for an emitter stack. */
@@ -238,10 +238,10 @@ public:
 	bool bCancelledByPythonError = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
-	UNiagaraPythonEmitter* OldEmitter = nullptr;
+	TObjectPtr<UNiagaraPythonEmitter> OldEmitter = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
-	UNiagaraPythonEmitter* NewEmitter = nullptr;
+	TObjectPtr<UNiagaraPythonEmitter> NewEmitter = nullptr;
 
 private:
 	TArray<FVersionedNiagaraEmitterData*> UpgradeVersionData;
