@@ -36,6 +36,10 @@ struct FStaticLightingPrimitiveInfo;
 /** Whether FStaticMeshSceneProxy should to store data and enable codepaths needed for debug rendering */
 #define STATICMESH_ENABLE_DEBUG_RENDERING			ENABLE_DRAW_DEBUG
 
+namespace Nanite
+{
+	struct FResources;
+}
 
 /** Cached vertex information at the time the mesh was painted. */
 USTRUCT()
@@ -413,6 +417,8 @@ public:
 #endif
 		return StaticMesh; 
 	}
+
+	virtual const Nanite::FResources* GetNaniteResources() const;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|LOD")
 	void SetForcedLodModel(int32 NewForcedLodModel);

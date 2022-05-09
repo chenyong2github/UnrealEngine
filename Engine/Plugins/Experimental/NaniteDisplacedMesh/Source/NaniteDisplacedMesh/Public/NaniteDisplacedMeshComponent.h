@@ -16,13 +16,15 @@ class UTexture;
 UCLASS(ClassGroup=Rendering, hidecategories=(Object,Activation,Collision,"Components|Activation",Physics), editinlinenew, meta=(BlueprintSpawnableComponent))
 class NANITEDISPLACEDMESH_API UNaniteDisplacedMeshComponent : public UStaticMeshComponent
 {
-public:
-
 	GENERATED_BODY()
+
+public:
 	UNaniteDisplacedMeshComponent(const FObjectInitializer& Init);
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void OnRegister() override;
+
+	virtual const Nanite::FResources* GetNaniteResources() const;
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 
@@ -34,8 +36,4 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Displacement)
 	TObjectPtr<class UNaniteDisplacedMesh> DisplacedMesh;
-
-private:
-
-
 };

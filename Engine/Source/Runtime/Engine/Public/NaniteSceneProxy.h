@@ -300,7 +300,7 @@ protected:
 protected:
 	FMeshInfo MeshInfo;
 
-	FResources* Resources = nullptr;
+	const FResources* Resources = nullptr;
 
 	const FStaticMeshRenderData* RenderData;
 	const FDistanceFieldVolumeData* DistanceFieldData;

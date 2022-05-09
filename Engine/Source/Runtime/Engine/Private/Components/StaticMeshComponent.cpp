@@ -2136,6 +2136,16 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 	return true;
 }
 
+const Nanite::FResources* UStaticMeshComponent::GetNaniteResources() const
+{
+	if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
+	{
+		return &GetStaticMesh()->GetRenderData()->NaniteResources;
+	}
+
+	return nullptr;
+}
+
 void UStaticMeshComponent::SetForcedLodModel(int32 NewForcedLodModel)
 {
 	if (ForcedLodModel != NewForcedLodModel)

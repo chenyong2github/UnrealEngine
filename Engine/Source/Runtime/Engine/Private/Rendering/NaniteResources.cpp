@@ -500,7 +500,7 @@ bool FSceneProxyBase::SetEvaluateWorldPositionOffset(bool NewValue)
 FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
-, Resources(&Component->GetStaticMesh()->GetRenderData()->NaniteResources)
+, Resources(Component->GetNaniteResources())
 , RenderData(Component->GetStaticMesh()->GetRenderData())
 , StaticMesh(Component->GetStaticMesh())
 #if WITH_EDITOR
