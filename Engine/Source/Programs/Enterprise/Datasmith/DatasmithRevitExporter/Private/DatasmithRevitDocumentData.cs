@@ -818,8 +818,9 @@ namespace DatasmithRevitExporter
 					else
 					{
 						InElement.ElementActor = new FDatasmithFacadeActorMesh(HashedActorName);
-						InElement.ElementActor.SetLabel(GetActorLabel());
 					}
+
+					InElement.ElementActor.SetLabel(GetActorLabel());
 				}
 
 				// Set the world transform of the Datasmith mesh actor.
@@ -1906,7 +1907,8 @@ namespace DatasmithRevitExporter
 					}
 
 					Transform TranslationMatrix = Transform.CreateTranslation(BasePointPosition);
-					SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor);
+					// Don't apply offset since basepoints aren't yet initialized
+					SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor, false);
 
 					// Set the Datasmith placeholder actor layer to the base point category name.
 					BasePointActor.SetLayer(BasePointLocation.Category.Name);
@@ -2049,7 +2051,8 @@ namespace DatasmithRevitExporter
 
 				FDecalMaterial DecalMaterial = DecalMaterialPair.Value;
 
-				FDatasmithFacadeDecalMaterial DatasmithMaterial = new FDatasmithFacadeDecalMaterial(DecalMaterial.MaterialName);
+				FDatasmithFacadeMasterMaterial DatasmithMaterial = new FDatasmithFacadeMasterMaterial(DecalMaterial.MaterialName);
+				DatasmithMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Decal);
 
 				if (!string.IsNullOrEmpty(DecalMaterial.DiffuseTexturePath))
 				{
@@ -2057,7 +2060,9 @@ namespace DatasmithRevitExporter
 					DiffuseTexture.SetSRGB(FDatasmithFacadeTexture.EColorSpace.sRGB);
 					DiffuseTexture.SetTextureMode(FDatasmithFacadeTexture.ETextureMode.Diffuse);
 					DiffuseTexture.SetFile(DecalMaterial.DiffuseTexturePath);
-					DatasmithMaterial.SetDiffuseTexturePathName(DiffuseTexture.GetName());
+
+					DatasmithMaterial.AddTexture("ColorMap", DiffuseTexture);
+
 					InDatasmithScene.AddTexture(DiffuseTexture);
 				}
 
@@ -2067,8 +2072,34 @@ namespace DatasmithRevitExporter
 					BumpTexture.SetSRGB(FDatasmithFacadeTexture.EColorSpace.sRGB);
 					BumpTexture.SetTextureMode(FDatasmithFacadeTexture.ETextureMode.Bump);
 					BumpTexture.SetFile(DecalMaterial.BumpTexturePath);
-					DatasmithMaterial.SetDiffuseTexturePathName(BumpTexture.GetName());
+
+					DatasmithMaterial.AddTexture("NormalMap", BumpTexture);
+					DatasmithMaterial.AddFloat("NormalMapAmount", (float)DecalMaterial.BumpAmount);
+
 					InDatasmithScene.AddTexture(BumpTexture);
+				}
+
+				if (!string.IsNullOrEmpty(DecalMaterial.CutoutTexturePath))
+				{
+					FDatasmithFacadeTexture CutoutTexture = FDatasmithFacadeMaterialsUtils.CreateSimpleTextureElement(DecalMaterial.CutoutTexturePath);
+					CutoutTexture.SetSRGB(FDatasmithFacadeTexture.EColorSpace.sRGB);
+					CutoutTexture.SetTextureMode(FDatasmithFacadeTexture.ETextureMode.Other);
+					CutoutTexture.SetFile(DecalMaterial.CutoutTexturePath);
+
+					DatasmithMaterial.AddBoolean("UseCustomOpacityMap", true);
+					DatasmithMaterial.AddTexture("OpacityMap", CutoutTexture);
+
+					InDatasmithScene.AddTexture(CutoutTexture);
+				}
+
+				if (DecalMaterial.Luminance > 0f)
+				{
+					DatasmithMaterial.AddFloat("LuminanceAmount", (float)DecalMaterial.Luminance);
+				}
+
+				if (DecalMaterial.Transparency > 0f)
+				{
+					DatasmithMaterial.AddFloat("Opacity", (float)DecalMaterial.Transparency);
 				}
 
 				InDatasmithScene.AddMaterial(DatasmithMaterial);
@@ -2278,8 +2309,8 @@ namespace DatasmithRevitExporter
 
 		private void SetActorTransform(
 			Transform InWorldTransform,
-			FDatasmithFacadeActor IOActor
-		)
+			FDatasmithFacadeActor IOActor,
+			bool bInApplyOffset = true)
 		{
 			XYZ transformBasisX = InWorldTransform.BasisX;
 			XYZ transformBasisY = InWorldTransform.BasisY;
@@ -2287,12 +2318,25 @@ namespace DatasmithRevitExporter
 			XYZ transformOrigin = InWorldTransform.Origin;
 
 			// Check if need to apply world offset to element transform
-			if (InsertionPoint != FSettings.EInsertionPoint.Default)
+			if (bInApplyOffset && InsertionPoint != FSettings.EInsertionPoint.Default)
 			{
 				switch (InsertionPoint)
 				{
-					case FSettings.EInsertionPoint.BasePoint: transformOrigin -= ProjectBasePoint; break;
-					case FSettings.EInsertionPoint.SurveyPoint: transformOrigin -= ProjectSurveyPoint; break;
+					case FSettings.EInsertionPoint.BasePoint: 
+					{
+						if (ProjectBasePoint != null)
+						{
+							transformOrigin -= ProjectBasePoint;
+						}
+					} break;
+
+					case FSettings.EInsertionPoint.SurveyPoint: 
+					{
+						if (ProjectSurveyPoint != null)
+						{
+							transformOrigin -= ProjectSurveyPoint;
+						}
+					} break;
 				}
 			}
 

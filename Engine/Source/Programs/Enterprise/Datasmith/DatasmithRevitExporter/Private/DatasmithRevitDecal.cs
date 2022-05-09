@@ -11,12 +11,20 @@ namespace DatasmithRevitExporter
 		public string MaterialName { get; private set; }
 		public string DiffuseTexturePath { get; private set; }
 		public string BumpTexturePath { get; private set; }
+		public string CutoutTexturePath { get; private set; }
+		public double BumpAmount { get; private set; }
+		public double Transparency { get; private set; }
+		public double Luminance { get; private set; }
 
 		private void SetMaterialProperties(Asset InMaterialAsset)
 		{
 			const string DiffuseMapPropName = "decApp_diffuse";
 			const string BumpMapPropName = "decApp_bump_map";
 			const string TexturePathName = "unifiedbitmap_Bitmap";
+			const string BumpAmountPropName = "decApp_bump_amount";
+			const string CutoutMapPropName = "decApp_cutout_opacity";
+			const string LuminancePropName = "decApp_self_illum_luminance";
+			const string TransparencyPropName = "decApp_transparency";
 
 			string GetConnectedImagePath(AssetProperty InProp)
 			{
@@ -47,9 +55,6 @@ namespace DatasmithRevitExporter
 				return null;
 			}
 
-			bool bDiffusePropertyProcessed = false;
-			bool bBumpPropertyProcessed = false;
-
 			for (int PropIndex = 0; PropIndex < InMaterialAsset.Size; ++PropIndex)
 			{
 #if REVIT_API_2018
@@ -60,17 +65,26 @@ namespace DatasmithRevitExporter
 				if (Prop.Name == DiffuseMapPropName)
 				{
 					DiffuseTexturePath = GetConnectedImagePath(Prop);
-					bDiffusePropertyProcessed = true;
 				}
 				else if (Prop.Name == BumpMapPropName)
 				{
 					BumpTexturePath = GetConnectedImagePath(Prop);
-					bBumpPropertyProcessed = true;
 				}
-
-				if (bDiffusePropertyProcessed && bBumpPropertyProcessed)
+				else if (Prop.Name == BumpAmountPropName)
 				{
-					break;
+					BumpAmount = (Prop as AssetPropertyDouble)?.Value ?? 0;
+				}
+				else if (Prop.Name == CutoutMapPropName)
+				{
+					CutoutTexturePath = GetConnectedImagePath(Prop);
+				}
+				else if (Prop.Name == LuminancePropName)
+				{
+					Luminance = (Prop as AssetPropertyDouble)?.Value ?? 0;
+				}
+				else if (Prop.Name == TransparencyPropName)
+				{
+					Transparency = (Prop as AssetPropertyDouble)?.Value ?? 0;
 				}
 			}
 		}

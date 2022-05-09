@@ -59,6 +59,7 @@ public:
 		/** Material has a transparent cutout map */
 		CutOut,
 		Emissive,
+		Decal,
 		/** Dummy element to count the number of types */
 		Count
 	};

@@ -16,9 +16,10 @@ public:
 	virtual ~FDatasmithRevitMaterialSelector() = default;
 
 	virtual bool IsValid() const override;
-	virtual const FDatasmithMasterMaterial& GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const override;
+	virtual const FDatasmithMasterMaterial& GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const override;
 	virtual void FinalizeMaterialInstance(const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const override;
 
 private:
 	FDatasmithMasterMaterial MasterMaterial;
+	FDatasmithMasterMaterial MasterMaterialDecal;
 };

@@ -13,6 +13,7 @@ FDatasmithRevitMaterialSelector::FDatasmithRevitMaterialSelector()
 {
 	// Master
 	MasterMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/RevitMaster.RevitMaster") );
+	MasterMaterialDecal.FromSoftObjectPath(FSoftObjectPath("/DatasmithContent/Materials/StdDecal/M_StdDecal.M_StdDecal"));
 }
 
 bool FDatasmithRevitMaterialSelector::IsValid() const
@@ -20,8 +21,13 @@ bool FDatasmithRevitMaterialSelector::IsValid() const
 	return MasterMaterial.IsValid();
 }
 
-const FDatasmithMasterMaterial& FDatasmithRevitMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const
+const FDatasmithMasterMaterial& FDatasmithRevitMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
 {
+	if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::Decal)
+	{
+		return MasterMaterialDecal;
+	}
+
 	return MasterMaterial;
 }
 

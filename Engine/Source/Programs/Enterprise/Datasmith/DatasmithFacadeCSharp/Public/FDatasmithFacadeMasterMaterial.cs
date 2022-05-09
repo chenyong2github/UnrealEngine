@@ -126,6 +126,7 @@ public class FDatasmithFacadeMasterMaterial : FDatasmithFacadeBaseMaterial {
     Custom,
     CutOut,
     Emissive,
+    Decal,
     Count
   }
 
