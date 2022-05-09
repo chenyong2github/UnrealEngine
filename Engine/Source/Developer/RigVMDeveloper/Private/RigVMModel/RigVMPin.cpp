@@ -566,6 +566,11 @@ int32 URigVMPin::GetPinIndex() const
 	return Index;
 }
 
+int32 URigVMPin::GetAbsolutePinIndex() const
+{
+	return GetNode()->GetAllPinsRecursively().Find((URigVMPin*)this);
+}
+
 void URigVMPin::SetNameFromIndex()
 {
 	LowLevelRename(*FString::FormatAsNumber(GetPinIndex()));

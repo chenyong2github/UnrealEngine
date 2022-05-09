@@ -217,6 +217,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	int32 GetPinIndex() const;
 
+	// Returns the absolute index of the Pin within the node / parent Pin
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	int32 GetAbsolutePinIndex() const;
+
 	// Returns the number of elements within an array Pin
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	int32 GetArraySize() const;
