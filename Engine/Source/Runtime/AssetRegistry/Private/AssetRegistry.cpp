@@ -5,6 +5,7 @@
 #include "Algo/Unique.h"
 #include "AssetDataGatherer.h"
 #include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetDependencyGatherer.h"
 #include "AssetRegistryConsoleCommands.h"
 #include "AssetRegistryPrivate.h"
 #include "Async/Async.h"
@@ -778,6 +779,27 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 	}
 
 	InitRedirectors(Context.Events, Context.bRedirectorsNeedSubscribe);
+
+#if WITH_EDITOR
+	if (!UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::IsEmpty())
+	{
+		TArray<UObject*> Classes;
+		GetObjectsOfClass(UClass::StaticClass(), Classes);
+
+		/** Per Class dependency gatherers */
+		UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::ForEach([&](UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer* RegisteredAssetDependencyGatherer)
+		{
+			UClass* AssetClass = RegisteredAssetDependencyGatherer->GetAssetClass();
+			for(UObject* ClassObject : Classes)
+			{
+				if (UClass* Class = Cast<UClass>(ClassObject); Class && Class->IsChildOf(AssetClass) && !Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+				{
+					RegisteredDependencyGathererClasses.Add(Class, RegisteredAssetDependencyGatherer);
+				}
+			}
+		});
+	}
+#endif
 }
 
 }
@@ -3391,11 +3413,20 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		UE_LOG(LogAssetRegistry, Verbose, TEXT("### Background search completed in %0.4f seconds"), SearchTimes[SearchTimeIdx]);
 	}
 	const bool bHadAssetsToProcess = BackgroundAssetResults.Num() > 0 || BackgroundDependencyResults.Num() > 0;
+	auto GetNumGatherFromDiskPending = [&NumFilesToSearch, &NumPathsToSearch, this]()
+	{
+		return NumFilesToSearch + NumPathsToSearch + BackgroundPathResults.Num() + BackgroundAssetResults.Num()
+			+ BackgroundDependencyResults.Num() + BackgroundCookedPackageNamesWithoutAssetDataResults.Num();
+	};
 	auto UpdateStatus = [bIsSearching, bAbleToProgress, bHadAssetsToProcess, bIsDiscoveringFiles, &EventContext,
-		&OutStatus, &NumFilesToSearch, &NumPathsToSearch, this](bool bInterrupted)
+		&OutStatus, this](int32 NumGatherPending, bool bInterrupted)
 	{
 		// Compute total pending, plus highest pending for this run so we can show a good progress bar
-		int32 NumPending = NumFilesToSearch + NumPathsToSearch + BackgroundPathResults.Num() + BackgroundAssetResults.Num() + BackgroundDependencyResults.Num() + BackgroundCookedPackageNamesWithoutAssetDataResults.Num();
+		int32 NumPending = NumGatherPending
+#if WITH_EDITOR
+			+ (PackagesNeedingDependencyCalculation.Num() ? 1 : 0)
+#endif
+			;
 		HighestPending = FMath::Max(this->HighestPending, NumPending);
 
 		if (!bInterrupted && !bIsSearching && NumPending == 0)
@@ -3465,13 +3496,28 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		CookedPackageNamesWithoutAssetDataGathered(EventContext, TickStartTime, BackgroundCookedPackageNamesWithoutAssetDataResults, bOutInterrupted);
 		if (bOutInterrupted)
 		{
-			UpdateStatus(true /* bInterrupted */);
+			UpdateStatus(GetNumGatherFromDiskPending(), true /* bInterrupted */);
 			return OutStatus;
 		}
 	}
 
+	// Load Calculated Dependencies when the gather from disk is complete; the full gather is not complete until after this is done
+	int32 NumGatherFromDiskPending = GetNumGatherFromDiskPending();
+#if WITH_EDITOR
+	bool bDiskGatherComplete = !bIsSearching && NumGatherFromDiskPending == 0;
+	if (bDiskGatherComplete && PackagesNeedingDependencyCalculation.Num())
+	{
+		LoadCalculatedDependencies(nullptr, TickStartTime, bOutInterrupted);
+		if (bOutInterrupted)
+		{
+			UpdateStatus(NumGatherFromDiskPending, true /* bInterrupted */);
+			return OutStatus;
+		}
+	}
+#endif
+
 	// If completing an initial search, refresh the content browser
-	UpdateStatus(false /* bInterrupted */);
+	UpdateStatus(NumGatherFromDiskPending, false /* bInterrupted */);
 
 	if (OutStatus == EGatherStatus::Complete)
 	{
@@ -3539,6 +3585,139 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 		DependencyDataGathered(-1., PackageDependencyDatas);
 	}
 }
+
+#if WITH_EDITOR
+void FAssetRegistryImpl::LoadCalculatedDependencies(TArray<FName>* AssetsToCalculate, double TickStartTime, bool& bOutInterrupted)
+{
+	auto CheckForTimeUp = [&TickStartTime, &bOutInterrupted](bool bHadActivity)
+	{
+		// Only Check TimeUp when we found something to do, otherwise we waste time calling FPlatformTime::Seconds
+		if (!bHadActivity)
+		{
+			return false;
+		}
+		if (TickStartTime >= 0 && (FPlatformTime::Seconds() - TickStartTime) >= UE::AssetRegistry::Impl::MaxSecondsPerFrame)
+		{
+			bOutInterrupted = true;
+			return true;
+		}
+		return false;
+	};
+
+	if (AssetsToCalculate)
+	{
+		for (FName PackageName : *AssetsToCalculate)
+		{
+			// We do not remove the package from PackagesNeedingDependencyCalculation, because
+			// we are only calculating an interim result when AssetsToCalculate is non-null
+			// We will run again on each of these PackageNames when TickGatherer finishes gathering all dependencies
+			if (PackagesNeedingDependencyCalculation.Contains(PackageName))
+			{
+				bool bHadActivity;
+				LoadCalculatedDependencies(PackageName, bHadActivity);
+				if (CheckForTimeUp(bHadActivity))
+				{
+					return;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (FName PackageName : PackagesNeedingDependencyCalculation)
+		{
+			bool bHadActivity;
+			LoadCalculatedDependencies(PackageName, bHadActivity);
+			if (CheckForTimeUp(bHadActivity))
+			{
+				return;
+			}
+		}
+		PackagesNeedingDependencyCalculation.Empty();
+	}
+}
+
+void FAssetRegistryImpl::LoadCalculatedDependencies(FName PackageName, bool& bOutHadActivity)
+{
+	bOutHadActivity = false;
+	
+	auto GetCompiledFilter = [this](const FARFilter& InFilter) -> FARCompiledFilter
+	{
+		check(!InFilter.bRecursiveClasses);
+		UE::AssetRegistry::Impl::FClassInheritanceContext InheritanceContext;
+		FARCompiledFilter CompiledFilter;
+		CompileFilter(InheritanceContext, InFilter, CompiledFilter);
+		return CompiledFilter;
+	};
+
+	for (const FAssetData* AssetData : State.GetAssetsByPackageName(PackageName))
+	{
+		if (UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer** AssetDependencyGatherer = RegisteredDependencyGathererClasses.Find(AssetData->GetClass()))
+		{
+			if (!bOutHadActivity)
+			{
+				RemoveDirectoryReferencer(PackageName);
+			}
+
+			bOutHadActivity = true;
+			TArray<IAssetDependencyGatherer::FGathereredDependency> GatheredDependencies;
+			TArray<FString> DirectoryReferences;
+
+			(*AssetDependencyGatherer)->GatherDependencies(*AssetData, State, GetCompiledFilter, GatheredDependencies, DirectoryReferences);
+			
+			if (GatheredDependencies.Num())
+			{
+				FDependsNode* SourceNode = State.CreateOrFindDependsNode(FAssetIdentifier(PackageName));
+
+				for (const IAssetDependencyGatherer::FGathereredDependency& GatheredDepencency : GatheredDependencies)
+				{
+					FDependsNode* TargetNode = State.CreateOrFindDependsNode(FAssetIdentifier(GatheredDepencency.PackageName));
+					EDependencyProperty DependencyProperties = GatheredDepencency.Property;
+					SourceNode->AddDependency(TargetNode, EDependencyCategory::Package, DependencyProperties);
+					TargetNode->AddReferencer(SourceNode);
+				}
+			}
+
+			for (const FString& Directory : DirectoryReferences)
+			{
+				AddDirectoryReferencer(PackageName, Directory);
+			}
+		}
+	}
+}
+
+void FAssetRegistryImpl::AddDirectoryReferencer(FName PackageName, const FString& DirectoryLocalPathOrLongPackageName)
+{
+	FString DirectoryLocalPath;
+	if (!FPackageName::TryConvertLongPackageNameToFilename(DirectoryLocalPathOrLongPackageName, DirectoryLocalPath))
+	{
+		UE_LOG(LogAssetRegistry, Warning,
+			TEXT("AddDirectoryReferencer called with LongPackageName %s that cannot be mapped to a local path. Ignoring it."),
+			*DirectoryLocalPathOrLongPackageName);
+		return;
+	}
+	FPaths::MakeStandardFilename(DirectoryLocalPath);
+	DirectoryReferencers.AddUnique(DirectoryLocalPath, PackageName);
+}
+
+void FAssetRegistryImpl::RemoveDirectoryReferencer(FName PackageName)
+{
+	TArray<FString> FoundKeys;
+	for (const TPair<FString, FName>& Pair : DirectoryReferencers)
+	{
+		if (Pair.Value == PackageName)
+		{
+			FoundKeys.Add(Pair.Key);
+		}
+	}
+	for (FString& Key : FoundKeys)
+	{
+		DirectoryReferencers.Remove(Key, PackageName);
+	}
+}
+
+#endif
+
 
 }
 
@@ -3916,18 +4095,19 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 	}
 
 	Gatherer.ScanPathsSynchronous(Context.LocalPaths, Context.bForceRescan, Context.bIgnoreDenyListScanFilters, CacheFilename, Context.PackageDirs);
+	TArray<FName> BufferFoundAssets;
+	TArray<FName>* FoundAssets = &BufferFoundAssets;
+	if (Context.OutFoundAssets)
+	{
+		FoundAssets = Context.OutFoundAssets;
+	}
 
-	auto AssetsFoundCallback = [&Context](const TRingBuffer<FAssetData*>& InFoundAssets)
+	auto AssetsFoundCallback = [&Context, FoundAssets, this](const TRingBuffer<FAssetData*>& InFoundAssets)
 	{
 		Context.NumFoundAssets = InFoundAssets.Num();
 
-		if (!Context.OutFoundAssets)
-		{
-			return;
-		}
-
-		Context.OutFoundAssets->Reset();
-		Context.OutFoundAssets->Reserve(Context.NumFoundAssets);
+		FoundAssets->Reset();
+		FoundAssets->Reserve(Context.NumFoundAssets);
 
 		// The gatherer may have added other assets that were scanned as part of the ongoing background scan; remove any assets that were not in the requested paths
 		for (FAssetData* AssetData : InFoundAssets)
@@ -3963,13 +4143,16 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 			{
 				UE_LOG(LogAssetRegistry, VeryVerbose, TEXT("FAssetRegistryImpl::ScanPathsSynchronous: Found Asset: %s"),
 					*AssetData->ObjectPath.ToString());
-				Context.OutFoundAssets->Add(AssetData->ObjectPath);
+				FoundAssets->Add(AssetData->ObjectPath);
 			}
 		}
 	};
 
 	bool bUnusedInterrupted;
 	Context.Status = TickGatherer(Context.EventContext, -1., bUnusedInterrupted, FAssetsFoundCallback(AssetsFoundCallback));
+#if WITH_EDITOR
+	LoadCalculatedDependencies(FoundAssets, -1., bUnusedInterrupted);
+#endif
 }
 
 namespace Utils
@@ -4137,6 +4320,9 @@ void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRin
 		if (Result.bHasDependencyData)
 		{
 			FDependsNode* Node = State.CreateOrFindDependsNode(Result.PackageName);
+#if WITH_EDITOR
+			PackagesNeedingDependencyCalculation.Add(Result.PackageName);
+#endif
 
 			// We will populate the node dependencies below. Empty the set here in case this file was already read
 			// Also remove references to all existing dependencies, those will be also repopulated below
@@ -4587,6 +4773,29 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext, T
 				break;
 			}
 		}
+
+#if WITH_EDITOR
+		if (bIsValidPackageName)
+		{
+			// If a package changes in a referenced directory, modify the Assets that monitor that directory
+			FString DirectoryPath = FPaths::CreateStandardFilename(FPaths::GetPath(File));
+			// TODO: Change DirectoryReferencers to a FileNameMap so we can do this FindParentDirectory check more quickly
+			TArray<FName, TInlineAllocator<1>> WatcherPackageNames;
+			for (const TPair<FString, FName>& Pair : DirectoryReferencers)
+			{
+				if (FPathViews::IsParentPathOf(Pair.Key, DirectoryPath))
+				{
+					WatcherPackageNames.Add(Pair.Value);
+				}
+			}
+			for (FName WatcherPackageName : WatcherPackageNames)
+			{
+				// ScanModifiedAssetFiles accepts LongPackageNames as well as LocalPaths
+				ModifiedFiles.AddUnique(WatcherPackageName.ToString());
+			}
+		}
+#endif
+			
 	}
 
 	if (NewFiles.Num() || NewDirs.Num())

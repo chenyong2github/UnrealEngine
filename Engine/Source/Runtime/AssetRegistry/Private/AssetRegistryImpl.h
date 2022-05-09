@@ -28,6 +28,10 @@ class UAssetRegistryImpl;
 namespace UE::AssetRegistry::Impl { struct FEventContext; }
 namespace UE::AssetRegistry::Premade { struct FAsyncConsumer; }
 
+#if WITH_EDITOR
+namespace UE::AssetDependencyGatherer::Private { class FRegisteredAssetDependencyGatherer; }
+#endif
+
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
 namespace UE::AssetRegistry::Premade
 {
@@ -182,6 +186,18 @@ public:
 	void GetProcessLoadedAssetsBatch(TArray<const UObject*>& OutLoadedAssets, uint32 BatchSize);
 	void PushProcessLoadedAssetsBatch(Impl::FEventContext& EventContext,
 		TArrayView<FAssetData> LoadedAssetDatas, TArrayView<const UObject*> UnprocessedFromBatch);
+	/** Call LoadCalculatedDependencies on each Package updated after the last LoadCalculatedDependencies. */
+	void LoadCalculatedDependencies(TArray<FName>* AssetsToCalculate, double TickStartTime, bool& bOutInterrupted);
+	/**
+	 * Look for a CalculatedDependencies function registered for the asset(s) in the given package
+	 * and call that function to add calculated dependencies. Calculated dependencies are added only after
+	 * all normal dependencies gathered from the AssetRegistry data stored in the package have been loaded.
+	 */
+	void LoadCalculatedDependencies(FName PackageName, bool& bOutHadActivity);
+	/** Add a watch on a directory that to modify data for a package whenever packages in the directory are modified. */
+	void AddDirectoryReferencer(FName PackageName, const FString& DirectoryLocalPathOrLongPackageName);
+	/** Remove all directory watches for PackageName. */
+	void RemoveDirectoryReferencer(FName PackageName);
 #endif
 
 	/** Adds an asset to the empty package list which contains packages that have no assets left in them */
@@ -382,6 +398,18 @@ private:
 
 	/** The set of object paths that have had their disk cache updated from the in memory version */
 	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;
+
+	/**
+	 * The set of object paths that have had their dependencies gathered since the last idle,
+	 * and that need to check for calculated dependencies at the next idle.
+	 */
+	TSet<FName> PackagesNeedingDependencyCalculation;
+
+	/** A map from directoryname to packagename of Packages that have CalculatedDependencies on packages in the directory. */
+	TMultiMap<FString, FName> DirectoryReferencers;
+
+	/** A map of per asset class dependency gatherer called in LoadCalculatedDependencies */
+	TMap<UClass*, UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer*> RegisteredDependencyGathererClasses;
 #endif
 #if WITH_ENGINE && WITH_EDITOR
 	/** Class names that return true for IsAsset but which should not be treated as assets in uncooked packages */
