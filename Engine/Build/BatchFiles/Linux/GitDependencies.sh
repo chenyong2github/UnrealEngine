@@ -15,14 +15,12 @@ cd "$(dirname "$SCRIPT_PATH")" && SCRIPT_PATH="`pwd`/$(basename "$SCRIPT_PATH")"
 
 BASE_PATH="`dirname "$SCRIPT_PATH"`"
 
-$BASE_PATH/SetupDotnet.sh
-
 # cd to Engine root
 cd ../../../..
 RESULT=0
 
 while : ; do
-        dotnet Engine/Binaries/DotNET/GitDependencies.dll $ARGS
+        ./Engine/Binaries/DotNET/GitDependencies/linux-x64/GitDependencies $ARGS
         RESULT=$?
 
         echo "Result: $RESULT"
