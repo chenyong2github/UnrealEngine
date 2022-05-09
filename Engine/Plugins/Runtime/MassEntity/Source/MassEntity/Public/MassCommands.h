@@ -119,7 +119,9 @@ struct FMassCommandDestroyEntities : public FMassBatchedEntityCommand
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
-		TArray<FMassArchetypeEntityCollection > EntityCollectionsToDestroy;
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandDestroyEntities_Execute);
+
+		TArray<FMassArchetypeEntityCollection> EntityCollectionsToDestroy;
 		UE::Mass::Utils::CreateEntityCollections(System, TargetEntities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollectionsToDestroy);
 		for (FMassArchetypeEntityCollection& Collection : EntityCollectionsToDestroy)
 		{
@@ -142,6 +144,7 @@ struct FMassCommandAddFragments : public FMassBatchedEntityCommand
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandAddFragments_Execute);
 		TArray<FMassArchetypeEntityCollection> EntityCollections;
 		UE::Mass::Utils::CreateEntityCollections(System, TargetEntities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollections);
 		System.BatchChangeFragmentCompositionForEntities(EntityCollections, FragmentsAffected, FMassFragmentBitSet());
@@ -160,6 +163,7 @@ struct FMassCommandRemoveFragments : public FMassBatchedEntityCommand
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandRemoveFragments_Execute);
 		TArray<FMassArchetypeEntityCollection> EntityCollections;
 		UE::Mass::Utils::CreateEntityCollections(System, TargetEntities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollections);
 		System.BatchChangeFragmentCompositionForEntities(EntityCollections, FMassFragmentBitSet(), FragmentsAffected);
@@ -182,6 +186,7 @@ struct FMassCommandChangeTags : public FMassBatchedEntityCommand
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandChangeTags_Execute);
 		TArray<FMassArchetypeEntityCollection> EntityCollections;
 		UE::Mass::Utils::CreateEntityCollections(System, TargetEntities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollections);
 
@@ -268,6 +273,8 @@ protected:
 
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandAddFragmentInstances_Execute);
+
 		TArray<FStructArrayView> GenericMultiArray;
 		GenericMultiArray.Reserve(Fragments.GetNumArrays());
 		Fragments.GetAsGenericMultiArray(GenericMultiArray);
@@ -299,6 +306,8 @@ protected:
 
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandBuildEntity_Execute);
+
 		TArray<FStructArrayView> GenericMultiArray;
 		GenericMultiArray.Reserve(Super::Fragments.GetNumArrays());
 		Super::Fragments.GetAsGenericMultiArray(GenericMultiArray);
@@ -364,6 +373,8 @@ protected:
 
 	virtual void Execute(UMassEntitySubsystem& System) const 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandBuildEntityWithSharedFragments_Execute);
+
 		constexpr int FragmentTypesCount = UE::Mass::TMultiTypeList<TOthers...>::Ordinal + 1;
 		TArray<FStructArrayView> GenericMultiArray;
 		GenericMultiArray.Reserve(FragmentTypesCount);
@@ -463,6 +474,8 @@ protected:
 
 	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MassDeferredCommand_Execute);
+
 		for (const FExecFunction& ExecFunction : DeferredFunctions)
 		{
 			ExecFunction(System);

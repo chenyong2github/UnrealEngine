@@ -398,6 +398,8 @@ void UMassEntitySubsystem::BatchBuildEntities(const FMassArchetypeEntityCollecti
 
 void UMassEntitySubsystem::BatchBuildEntities(const FMassArchetypeEntityCollectionWithPayload& EncodedEntitiesWithPayload, FMassArchetypeCompositionDescriptor&& Composition, const FMassArchetypeSharedFragmentValues& SharedFragmentValues)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchBuildEntities);
+
 	FMassArchetypeEntityCollection::FEntityRangeArray TargetArchetypeEntityRanges;
 
 	// "built" entities case, this is verified during FMassArchetypeEntityCollectionWithPayload construction
@@ -443,6 +445,8 @@ void UMassEntitySubsystem::BatchBuildEntities(const FMassArchetypeEntityCollecti
 
 TSharedRef<UMassEntitySubsystem::FEntityCreationContext> UMassEntitySubsystem::BatchCreateEntities(const FMassArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchCreateEntities);
+
 	FMassArchetypeData* ArchetypePtr = Archetype.DataPtr.Get();
 	check(ArchetypePtr);
 	check(Count > 0);
@@ -499,7 +503,7 @@ void UMassEntitySubsystem::DestroyEntity(FMassEntityHandle Entity)
 
 void UMassEntitySubsystem::BatchDestroyEntities(TConstArrayView<FMassEntityHandle> InEntities)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BatchDestroyEntities");
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchDestroyEntities);
 
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 	
@@ -530,7 +534,7 @@ void UMassEntitySubsystem::BatchDestroyEntities(TConstArrayView<FMassEntityHandl
 
 void UMassEntitySubsystem::BatchDestroyEntityChunks(const FMassArchetypeEntityCollection& EntityCollection)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BatchDestroyEntityChunks");
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchDestroyEntityChunks);
 
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 
@@ -835,6 +839,8 @@ void UMassEntitySubsystem::RemoveTagFromEntity(FMassEntityHandle Entity, const U
 
 void UMassEntitySubsystem::BatchChangeTagsForEntities(TConstArrayView<FMassArchetypeEntityCollection> EntityCollections, const FMassTagBitSet& TagsToAdd, const FMassTagBitSet& TagsToRemove)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchChangeTagsForEntities);
+
 	for (const FMassArchetypeEntityCollection& Collection : EntityCollections)
 	{
 		FMassArchetypeData* CurrentArchetype = Collection.GetArchetype().DataPtr.Get();
@@ -883,6 +889,8 @@ void UMassEntitySubsystem::BatchChangeTagsForEntities(TConstArrayView<FMassArche
 
 void UMassEntitySubsystem::BatchChangeFragmentCompositionForEntities(TConstArrayView<FMassArchetypeEntityCollection> EntityCollections, const FMassFragmentBitSet& FragmentsToAdd, const FMassFragmentBitSet& FragmentsToRemove)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchChangeFragmentCompositionForEntities);
+
 	for (const FMassArchetypeEntityCollection& Collection : EntityCollections)
 	{
 		FMassArchetypeData* CurrentArchetype = Collection.GetArchetype().DataPtr.Get();
@@ -934,6 +942,8 @@ void UMassEntitySubsystem::BatchChangeFragmentCompositionForEntities(TConstArray
 
 void UMassEntitySubsystem::BatchAddFragmentInstancesForEntities(TConstArrayView<FMassArchetypeEntityCollectionWithPayload> EntityCollections, const FMassFragmentBitSet& FragmentsAffected)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchAddFragmentInstancesForEntities);
+
 	// here's the scenario:
 	// * we get entities from potentially different archetypes
 	// * adding a fragment instance consists of two operations: A) add fragment type & B) set fragment value
@@ -1030,6 +1040,8 @@ void UMassEntitySubsystem::SetEntityFragmentsValues(FMassEntityHandle Entity, TA
 
 void UMassEntitySubsystem::BatchSetEntityFragmentsValues(const FMassArchetypeEntityCollection& SparseEntities, TArrayView<const FInstancedStruct> FragmentInstanceList)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchSetEntityFragmentsValues);
+
 	FMassArchetypeData* Archetype = SparseEntities.GetArchetype().DataPtr.Get();
 	check(Archetype);
 

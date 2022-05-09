@@ -212,6 +212,8 @@ void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& Processin
 	, TArrayView<const UScriptStruct*> ObservedTypes
 	/*, const FMassFragmentBitSet& FragmentsBitSet*/, FMassObserversMap& HandlersContainer)
 {	
+	TRACE_CPUPROFILER_EVENT_SCOPE(MassObserver_HandleFragmentsImpl);
+
 	check(ObservedTypes.Num() > 0);
 
 	for (const UScriptStruct* Type : ObservedTypes)
@@ -225,6 +227,8 @@ void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& Processin
 
 void FMassObserverManager::HandleSingleEntityImpl(const UScriptStruct& FragmentType, const FMassArchetypeEntityCollection& EntityCollection, FMassObserversMap& HandlersContainer)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MassObserver_HandleSingleEntityImpl);
+
 	FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
 	ProcessingContext.bFlushCommandBuffer = false;
 	ProcessingContext.AuxData.InitializeAs(&FragmentType);

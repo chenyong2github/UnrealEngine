@@ -163,6 +163,8 @@ void FMassCommandBuffer::CleanUp()
 
 void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandBuffer_MoveAppend);
+
 	// @todo optimize, there surely a way to do faster then this.
 	UE_MT_SCOPED_READ_ACCESS(Other.PendingBatchCommandsDetector);
 	if (Other.HasPendingCommands())
