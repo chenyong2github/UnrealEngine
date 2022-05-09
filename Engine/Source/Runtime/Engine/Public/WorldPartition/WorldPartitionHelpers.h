@@ -31,9 +31,9 @@ public:
 	static void ForEachActorDesc(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func);
 
 	/* Struct of optional parameters passed to foreach actordesc functions. */
-	struct ENGINE_API FForEachActorWithLoadiongParams
+	struct ENGINE_API FForEachActorWithLoadingParams
 	{
-		FForEachActorWithLoadiongParams();
+		FForEachActorWithLoadingParams();
 
 		/* Perform a garbage collection per-actor, useful to test if the caller properly handle GCs. */
 		bool bGCPerActor;
@@ -48,15 +48,13 @@ public:
 		TUniqueFunction<void()> OnPreGarbageCollect;
 	};
 
-	template<class ActorClass = AActor>
-	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
-	{
-		ForEachActorWithLoading(WorldPartition, ActorClass::StaticClass(), Func);
-	}
-
+	UE_DEPRECATED(5.1, "ForEachActorWithLoading is deprecated, ForEachActorWithLoading with FForEachActorWithLoadingParams should be used instead.")
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences = [](){}, bool bGCPerActor = false);
+
+	UE_DEPRECATED(5.1, "ForEachActorWithLoading is deprecated, ForEachActorWithLoading with FForEachActorWithLoadingParams should be used instead.")
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, const TArray<FGuid>& ActorGuids, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences = [](){}, bool bGCPerActor = false);
-	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, const FForEachActorWithLoadiongParams& Params, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func);
+
+	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params = FForEachActorWithLoadingParams());
 	
 	static bool HasExceededMaxMemory();
 	static void DoCollectGarbage();

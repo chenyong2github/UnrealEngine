@@ -476,50 +476,49 @@ bool UDataLayerToAssetCommandlet::RemapActorDataLayersToAssets(TStrongObjectPtr<
 	UE_LOG(LogDataLayerToAssetCommandlet, Log, TEXT("Starting Actor Data Layer Remapping To Data Layer Asset. This can take a while."));
 
 	uint32 ErrorCount = 0;
-	FWorldPartitionHelpers::ForEachActorWithLoading(MainWorld->GetWorldPartition(), AActor::StaticClass(),
-		[&ErrorCount, &CommandletContext, this](const FWorldPartitionActorDesc* ActorDesc)
+	FWorldPartitionHelpers::ForEachActorWithLoading(MainWorld->GetWorldPartition(), [&ErrorCount, &CommandletContext, this](const FWorldPartitionActorDesc* ActorDesc)
+	{
+		uint32 ActorConversionErrors = 0;
+		if (AActor* Actor = ActorDesc->GetActor())
 		{
-			uint32 ActorConversionErrors = 0;
-			if (AActor* Actor = ActorDesc->GetActor())
+			ActorConversionErrors += RemapDataLayersAssetsFromPreviousConversions(CommandletContext, Actor);
+			ActorConversionErrors += RemapActorDataLayers(CommandletContext, Actor);
+
+			if (!PerformAdditionalActorConversions(CommandletContext, Actor))
 			{
-				ActorConversionErrors += RemapDataLayersAssetsFromPreviousConversions(CommandletContext, Actor);
-				ActorConversionErrors += RemapActorDataLayers(CommandletContext, Actor);
-
-				if (!PerformAdditionalActorConversions(CommandletContext, Actor))
-				{
-					ActorConversionErrors++;
-				}
-
-				if (ActorConversionErrors == 0 && bPerformSavePackages)
-				{
-					if (bPerformSavePackages && Actor->GetExternalPackage()->IsDirty())
-					{
-						if (!WorldPartitionCommandletHelpers::CheckoutSaveAdd(Actor->GetExternalPackage(), PackageHelper))
-						{
-							ActorConversionErrors++;
-						}
-					}
-				}
+				ActorConversionErrors++;
 			}
-			else
-			{
-				const TArray<FName>& ActDescDataLayers = ActorDesc->GetDataLayerInstanceNames();
-				if (!ActDescDataLayers.IsEmpty())
-				{
-					FString DataLayerString = FString::JoinBy(ActDescDataLayers, TEXT(", "), [](const FName& DataLayerName) { return DataLayerName.ToString(); });
 
-					UE_LOG(LogDataLayerToAssetCommandlet, Error, TEXT("Actor %s failed to load. Its data layers %s will not be remapped to a data layer asset."),
-						*ActorDesc->GetActorName().ToString(), *DataLayerString);
-					if (!bIgnoreActorLoadingErrors)
+			if (ActorConversionErrors == 0 && bPerformSavePackages)
+			{
+				if (bPerformSavePackages && Actor->GetExternalPackage()->IsDirty())
+				{
+					if (!WorldPartitionCommandletHelpers::CheckoutSaveAdd(Actor->GetExternalPackage(), PackageHelper))
 					{
 						ActorConversionErrors++;
 					}
 				}
 			}
+		}
+		else
+		{
+			const TArray<FName>& ActDescDataLayers = ActorDesc->GetDataLayerInstanceNames();
+			if (!ActDescDataLayers.IsEmpty())
+			{
+				FString DataLayerString = FString::JoinBy(ActDescDataLayers, TEXT(", "), [](const FName& DataLayerName) { return DataLayerName.ToString(); });
 
-			ErrorCount += ActorConversionErrors;
-			return true;
-		});
+				UE_LOG(LogDataLayerToAssetCommandlet, Error, TEXT("Actor %s failed to load. Its data layers %s will not be remapped to a data layer asset."),
+					*ActorDesc->GetActorName().ToString(), *DataLayerString);
+				if (!bIgnoreActorLoadingErrors)
+				{
+					ActorConversionErrors++;
+				}
+			}
+		}
+
+		ErrorCount += ActorConversionErrors;
+		return true;
+	});
 
 	UE_LOG(LogDataLayerToAssetCommandlet, Log, TEXT("Actor Data Layer Remapping To Data Layer Asset Done."));
 

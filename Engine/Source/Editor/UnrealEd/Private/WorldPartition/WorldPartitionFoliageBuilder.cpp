@@ -55,13 +55,6 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	FPackageSourceControlHelper SCCHelper;
 	TArray<FGuid> ExistingActors;
 	
-	// Snapshot existing ActorDescs
-	FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, AInstancedFoliageActor::StaticClass(), [&ExistingActors](const FWorldPartitionActorDesc* ActorDesc)
-	{
-		ExistingActors.Add(ActorDesc->GetGuid());
-		return true;
-	});
-		
 	TMap<UActorPartitionSubsystem::FCellCoord, FGuid> NewActors;
 	UActorPartitionSubsystem* ActorPartitionSubsystem = World->GetSubsystem<UActorPartitionSubsystem>();
 	int32 NumInstances = 0;
@@ -75,8 +68,13 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	// - Save new/reload IFAs that were modified
 	// - Unload the Existing IFA and all the new IFAs
 	// - Repeat for next Existing IFA
-	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ExistingActors, [this, World, WorldPartition, ActorPartitionSubsystem, &SCCHelper, &NewActors, &NumInstances, &NumInstancesProcessed](const FWorldPartitionActorDesc* ActorDesc)
+	FWorldPartitionHelpers::FForEachActorWithLoadingParams ForEachActorWithLoadingParams;
+	ForEachActorWithLoadingParams.ActorClass = AInstancedFoliageActor::StaticClass();
+
+	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, [this, World, WorldPartition, ActorPartitionSubsystem, &SCCHelper, &NewActors, &NumInstances, &NumInstancesProcessed, &ExistingActors](const FWorldPartitionActorDesc* ActorDesc)
 	{
+		ExistingActors.Add(ActorDesc->GetGuid());
+
 		TMap<UFoliageType*, TArray<FFoliageInstance>> FoliageToAdd;
 		FBox InstanceBounds(ForceInit);
 				
@@ -201,7 +199,7 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
         }
 					
 		return true;
-	});
+	}, ForEachActorWithLoadingParams);
 
 	check(NumInstances == NumInstancesProcessed);
 

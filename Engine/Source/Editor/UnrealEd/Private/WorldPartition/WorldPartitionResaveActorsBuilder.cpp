@@ -273,7 +273,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	{
 		TArray<UPackage*> PackagesToSave;
 
-		FWorldPartitionHelpers::FForEachActorWithLoadiongParams ForEachActorWithLoadingParams;
+		FWorldPartitionHelpers::FForEachActorWithLoadingParams ForEachActorWithLoadingParams;
 
 		ForEachActorWithLoadingParams.ActorClass = ActorClass;
 
@@ -299,7 +299,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 			PackagesToSave.Empty();
 		};
 
-		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ForEachActorWithLoadingParams, [this, &PackagesToDelete, &PackagesToSave](const FWorldPartitionActorDesc* ActorDesc)
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, [this, &PackagesToDelete, &PackagesToSave](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			AActor* Actor = ActorDesc->GetActor();
 
@@ -345,7 +345,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 			}
 
 			return true;
-		});
+		}, ForEachActorWithLoadingParams);
 	}
 
 	if (!bReportOnly)

@@ -102,7 +102,7 @@ namespace WorldPartitionHelpers
 	}
 }
 
-FWorldPartitionHelpers::FForEachActorWithLoadiongParams::FForEachActorWithLoadiongParams()
+FWorldPartitionHelpers::FForEachActorWithLoadingParams::FForEachActorWithLoadingParams()
 	: bGCPerActor(false)
 	, ActorClass(AActor::StaticClass())
 {}
@@ -145,7 +145,7 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 	DoCollectGarbage();
 }
 
-void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, const FForEachActorWithLoadiongParams& Params, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params)
 {
 	TMap<FGuid, FWorldPartitionReference> ActorReferences;
 
