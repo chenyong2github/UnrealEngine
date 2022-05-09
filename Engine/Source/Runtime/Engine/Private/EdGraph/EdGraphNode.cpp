@@ -21,6 +21,7 @@
 #include "FindInBlueprintManager.h"
 #include "DiffResults.h"
 #endif
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "EdGraph"
 

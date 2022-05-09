@@ -11,6 +11,7 @@
 #include "BlueprintFieldNodeSpawner.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 
 const FName UK2Node_CastByteToEnum::ByteInputPinName(TEXT("Byte"));
 

@@ -6,6 +6,8 @@
 #include "GraphEditorSettings.h"
 #include "Kismet2/Kismet2NameValidators.h"
 
+#include "Styling/AppStyle.h"
+
 #define LOCTEXT_NAMESPACE "EdGraph"
 
 namespace FEdGraphNode_Comment_Utils

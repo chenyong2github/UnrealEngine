@@ -8,6 +8,7 @@
 #include "EditorCategoryUtils.h"
 #include "Engine/InputAxisKeyDelegateBinding.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "UK2Node_InputAxisKeyEvent"
 

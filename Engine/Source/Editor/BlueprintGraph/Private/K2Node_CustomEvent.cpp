@@ -14,6 +14,7 @@
 #include "BlueprintEventNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "FindInBlueprintManager.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_CustomEvent"
 

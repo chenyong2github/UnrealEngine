@@ -7,6 +7,8 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #endif
 
+#include "Styling/AppStyle.h"
+
 #define LOCTEXT_NAMESPACE "EdGraph"
 
 /////////////////////////////////////////////////////

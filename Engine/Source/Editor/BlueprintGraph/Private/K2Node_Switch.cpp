@@ -10,6 +10,7 @@
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 #include "EditorCategoryUtils.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_Switch"
 

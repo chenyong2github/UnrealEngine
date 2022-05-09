@@ -6,6 +6,7 @@
 #include "K2Node_FunctionEntry.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintNodeTemplateCache.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEventNodeSpawner"
 

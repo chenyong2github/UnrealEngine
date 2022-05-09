@@ -7,6 +7,7 @@
 #include "K2Node_IfThenElse.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "BlueprintNodeSpawnerUtils.h"
+#include "Styling/AppStyle.h"
 
 /*******************************************************************************
  * Static UBlueprintNodeSpawner Helpers

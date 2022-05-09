@@ -10,6 +10,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "Styling/AppStyle.h"
 
 FName UK2Node_GetEnumeratorName::EnumeratorPinName(TEXT("Enumerator"));
 
