@@ -41,7 +41,6 @@ namespace Private
 }
 }
 }
-const TSet<FString>* FConfigCacheIni::IniCacheSet = nullptr;
 
 namespace
 {
@@ -434,7 +433,7 @@ static void FixupArrayOfStructKeysForSection(FConfigSection* Section, const FStr
 /**
  * Check if an ini file exists, allowing a delegate to determine if it will handle loading it
  */
-static bool DoesConfigFileExistWrapper(const TCHAR* IniFile)
+static bool DoesConfigFileExistWrapper(const TCHAR* IniFile, const TSet<FString>* IniCacheSet=nullptr)
 {
 	// will any delegates return contents via PreLoadConfigFileDelegate()?
 	int32 ResponderCount = 0;
@@ -451,7 +450,6 @@ static bool DoesConfigFileExistWrapper(const TCHAR* IniFile)
 	// which would pass by silently. Realistically, in most cases this would never
 	// have caused an issue, but using FPlatformProperties::RequiresCookedData
 	// to prevent using the cache in that case ensures full consistency.
-	const TSet<FString>* const IniCacheSet = FConfigCacheIni::GetIniCacheSet();
 	if (IniCacheSet && FPlatformProperties::RequiresCookedData())
 	{ 
 		const FString IniFileString(IniFile);
@@ -578,7 +576,7 @@ struct FConfigLayer
 	**************************************************/
 
 	// Engine/Base.ini
-	{ TEXT("AbsoluteBase"),				TEXT("{TRUEENGINE}/Config/Base.ini"), EConfigLayerFlags::NoExpand},
+	{ TEXT("AbsoluteBase"),				TEXT("{ENGINE}/Config/Base.ini"), EConfigLayerFlags::NoExpand},
 	
 	// Engine/Base*.ini
 	{ TEXT("Base"),						TEXT("{ENGINE}/Config/Base{TYPE}.ini") },
@@ -1367,7 +1365,7 @@ void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
  * @param ConfigFile - This is the FConfigFile which will have the contents of the .ini loaded into and Combined()
  *
  **/
-/*static */bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FConfigFile& ConfigFile, bool bUseCache)
+static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FConfigFile& ConfigFile, bool bUseCache, const TSet<FString>* IniCacheSet)
 {
 	// Traverse ini list back to front, merging along the way.
 	for (const TPair<int32, FString>& HierarchyIt : HierarchyToLoad)
@@ -1377,7 +1375,7 @@ void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
 		const FString& IniFileName = HierarchyIt.Value;
 
 		// Spit out friendly error if there was a problem locating .inis (e.g. bad command line parameter or missing folder, ...).
-		if (IsUsingLocalIniFile(*IniFileName, nullptr) && !DoesConfigFileExistWrapper(*IniFileName))
+		if (IsUsingLocalIniFile(*IniFileName, nullptr) && !DoesConfigFileExistWrapper(*IniFileName, IniCacheSet))
 		{
 			if (bIsRequired)
 			{
@@ -3517,7 +3515,7 @@ bool FConfigCacheIni::ForEachEntry(const FKeyValueSink& Visitor, const TCHAR* Se
  */
 static bool GenerateDestIniFile(FConfigFile& DestConfigFile, const FString& DestIniFilename, const FConfigFileHierarchy& SourceIniHierarchy, bool bAllowGeneratedINIs, const bool bUseHierarchyCache)
 {
-	bool bResult = LoadIniFileHierarchy(SourceIniHierarchy, *DestConfigFile.SourceConfigFile, bUseHierarchyCache);
+	bool bResult = LoadIniFileHierarchy(SourceIniHierarchy, *DestConfigFile.SourceConfigFile, bUseHierarchyCache, nullptr);
 	if ( bResult == false )
 	{
 		return false;
@@ -3544,7 +3542,7 @@ static bool GenerateDestIniFile(FConfigFile& DestConfigFile, const FString& Dest
 	auto RegenerateFileLambda = [](const FConfigFileHierarchy& InSourceIniHierarchy, FConfigFile& InDestConfigFile, const bool bInUseCache)
 	{
 		// Regenerate the file.
-		bool bReturnValue = LoadIniFileHierarchy(InSourceIniHierarchy, InDestConfigFile, bInUseCache);
+		bool bReturnValue = LoadIniFileHierarchy(InSourceIniHierarchy, InDestConfigFile, bInUseCache, nullptr);
 		if (InDestConfigFile.SourceConfigFile)
 		{
 			delete InDestConfigFile.SourceConfigFile;
@@ -4939,7 +4937,7 @@ void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRoot
 		SourceConfigFile = new FConfigFile();
 
 		// now when Write it called below, it will diff against SourceIniHierarchy
-		LoadIniFileHierarchy(SourceIniHierarchy, *SourceConfigFile, true);
+		LoadIniFileHierarchy(SourceIniHierarchy, *SourceConfigFile, true, nullptr);
 	}
 
 	WriteInternal(DiskFilename, true, SectionTexts, SectionOrder);
@@ -5730,7 +5728,7 @@ void FConfigCacheIni::ClearOtherPlatformConfigs()
  */
 bool GenerateDestIniFile(FConfigContext& Context)
 {
-	bool bResult = LoadIniFileHierarchy(Context.ConfigFile->SourceIniHierarchy, *Context.ConfigFile->SourceConfigFile, Context.bUseHierarchyCache);
+	bool bResult = LoadIniFileHierarchy(Context.ConfigFile->SourceIniHierarchy, *Context.ConfigFile->SourceConfigFile, Context.bUseHierarchyCache, Context.IniCacheSet);
 	if (bResult == false)
 	{
 		return false;
@@ -5758,7 +5756,7 @@ bool GenerateDestIniFile(FConfigContext& Context)
 	auto RegenerateFileLambda = [](const FConfigFileHierarchy& InSourceIniHierarchy, FConfigFile& InDestConfigFile, const bool bInUseCache)
 	{
 		// Regenerate the file.
-		bool bReturnValue = LoadIniFileHierarchy(InSourceIniHierarchy, InDestConfigFile, bInUseCache);
+		bool bReturnValue = LoadIniFileHierarchy(InSourceIniHierarchy, InDestConfigFile, bInUseCache, nullptr);
 		if (InDestConfigFile.SourceConfigFile)
 		{
 			delete InDestConfigFile.SourceConfigFile;
@@ -5935,7 +5933,6 @@ bool GenerateDestIniFile(FConfigContext& Context)
 FString PerformFinalExpansions(FConfigContext& Context, const FString& InString, const FString& Platform)
 {
 	FString OutString = InString.Replace(TEXT("{ENGINE}"), *Context.EngineRootDir);
-	OutString = OutString.Replace(TEXT("{TRUEENGINE}"), *FPaths::EngineDir());
 	OutString = OutString.Replace(TEXT("{PROJECT}"), *Context.ProjectRootDir);
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NFL}"), *Context.ProjectNotForLicenseesDir);
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NR}"), *Context.ProjectNoRedistDir);

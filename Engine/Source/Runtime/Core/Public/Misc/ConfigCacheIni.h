@@ -625,22 +625,6 @@ enum class EConfigCacheType : uint8
 class CORE_API FConfigCacheIni : private TMap<FString,FConfigFile>
 {
 public:
-
-	static void SetIniCacheSet(const TSet<FString>* InIniCacheSet)
-	{
-		IniCacheSet = InIniCacheSet;
-	}
-
-	static const TSet<FString>* GetIniCacheSet()
-	{
-		return IniCacheSet;
-	}
-
-private:
-
-	static const TSet<FString>* IniCacheSet;
-	
-public:
 	
 	// Basic functions.
 	FConfigCacheIni(EConfigCacheType Type);

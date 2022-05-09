@@ -152,6 +152,9 @@ public:
 	bool bDefaultEngineRequired = false;
 	bool bIsForPlugin = false;
 
+	// if this is non-null, it contains a set of pre-scanned ini files to use to find files, instead of looking on disk
+	const TSet<FString>* IniCacheSet = nullptr;
+
 protected:
 
 	bool bDoNotResetConfigFile = false;
@@ -172,4 +175,3 @@ public:
 
 bool GenerateDestIniFile(FConfigContext& Context);
 void LoadAnIniFile(const FString& FilenameToLoad, FConfigFile& ConfigFile);
-//bool LoadIniFileHierarchy(const class FConfigFileHierarchy& HierarchyToLoad, FConfigFile& ConfigFile, bool bUseCache);
