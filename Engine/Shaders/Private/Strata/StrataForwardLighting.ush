@@ -301,8 +301,9 @@ float3 StrataForwardLighting(
 					// Apply a stable offset to the world position used for shadowing, which blurs out high frequency details in the shadowmap with many layers
 					float4 HomogeneousShadowPosition = mul(float4(LWCHackToFloat(AbsoluteWorldPosition) + LightingPositionOffset, 1), TranslucentSelfShadow.WorldToShadowMatrix);
 					float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
+					float ShadowZ = 1 - HomogeneousShadowPosition.z;
 					// Lookup the shadow density at the point being shaded
-					float3 ShadowDensity = CalculateTranslucencyShadowingDensity(ShadowUVs, HomogeneousShadowPosition.z) / GetMaterialTranslucentMultipleScatteringExtinction();
+					float3 ShadowDensity = CalculateTranslucencyShadowingDensity(ShadowUVs, ShadowZ) / GetMaterialTranslucentMultipleScatteringExtinction();
 					// Compute colored transmission based on the density that the light ray passed through
 					float3 SelfShadowing = saturate(exp(-ShadowDensity * GetMaterialTranslucentSelfShadowDensityScale()));
 					// Compute a second shadow gradient to add interesting information in the shadowed area of the first
