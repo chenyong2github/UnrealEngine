@@ -583,32 +583,6 @@ public:
 #endif
 	};
 
-	struct FTextureHintHelper
-	{
-		static ITextureFormat* GetFormatFromModule(ITextureFormatModule* Module)
-		{
-			return Module->GetTextureFormat();
-		}
-		static const TCHAR* GetAllModuleWildcard()
-		{
-			return TEXT("*TextureFormat*");
-		}
-		static const TCHAR* GetFormatDesc()
-		{
-			return TEXT("texture");
-		}
-#if WITH_ENGINE 
-		static void GetHintedModules(ITargetPlatform* Platform, TArray<FName>& Hints)
-		{
-			Platform->GetTextureFormatModuleHints(Hints);
-		}
-		static void GetRequiredFormats(ITargetPlatform* Platform, TArray<FName>& RequiredFormats)
-		{
-			Platform->GetAllTextureFormats(RequiredFormats);
-		}
-#endif
-	};
-
 	virtual const TArray<const IAudioFormat*>& GetAudioFormats() override
 	{
 		return GetFormatsWithHints<IAudioFormat, IAudioFormatModule, FAudioHintHelper>();
@@ -638,7 +612,7 @@ public:
 
 	virtual const TArray<const ITextureFormat*>& GetTextureFormats() override
 	{
-//		return GetFormatsWithHints<ITextureFormat, ITextureFormatModule, FTextureHintHelper>();
+		// note that this gets ALL ITextureFormat Modules, not just ones relevant to the current TargetPlatform
 		return TextureFormatManager->GetTextureFormats();
 	}
 

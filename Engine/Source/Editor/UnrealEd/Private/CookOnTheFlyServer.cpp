@@ -5092,6 +5092,13 @@ void GetAdditionalCurrentIniVersionStrings( const UCookOnTheFlyServer* CookOnThe
 	}
 
 	{
+
+		#if 1
+		// this is the only place that TargetPlatform::GetAllTextureFormats is used
+		// instead use ITextureFormatManagerModule::GetTextureFormats ?
+		//	then GetAllTextureFormats can be removed completely
+
+		// get all texture formats for this target platform, then find the modules that encode them
 		TArray<FName> AllTextureFormats;
 		TargetPlatform->GetAllTextureFormats(AllTextureFormats);
 		TArray<const ITextureFormat*> SupportedTextureFormats;
@@ -5100,13 +5107,18 @@ void GetAdditionalCurrentIniVersionStrings( const UCookOnTheFlyServer* CookOnThe
 			const ITextureFormat* TextureFormat = TPM->FindTextureFormat(TextureName);
 			if ( TextureFormat )
 			{
-				SupportedTextureFormats.Add(TextureFormat);
+				SupportedTextureFormats.AddUnique(TextureFormat);
 			}
 			else
 			{
 				UE_LOG(LogCook, Warning, TEXT("Unable to find texture format \"%s\" which is required by \"%s\""), *TextureName.ToString(), *TargetPlatform->PlatformName());
 			}
 		}
+		#else
+		//note: this gets All ITextureFormat modules in the Engine, not just ones relevant to this TargetPlatform
+		const TArray<const ITextureFormat*> & SupportedTextureFormats = TPM->GetTextureFormats();
+		#endif
+		
 		GetVersionFormatNumbersForIniVersionStrings(IniVersionMap, TEXT("TextureFormat"), SupportedTextureFormats);
 	}
 
