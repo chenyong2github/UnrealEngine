@@ -1052,7 +1052,6 @@ void SunMergeVS_Mobile(
 
 float4 SunColorVignetteIntensity;
 float3 BloomColor;
-float BloomIntensity;
 
 Texture2D BloomDirtMaskTexture;
 SamplerState BloomDirtMaskSampler;
@@ -1109,8 +1108,6 @@ void SunMergePS_Mobile(
 		Sun = HighlightDecompression(Sun);
 		OutColor.rgb += SunColorVignetteIntensity.rgb * Sun;
 	#endif
-
-	OutColor.rgb *= BloomIntensity;
 
 	OutColor.a = 1.0f;
 }
