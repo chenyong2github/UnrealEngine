@@ -126,20 +126,33 @@ void UPackage::Serialize( FArchive& Ar )
 UObject* UPackage::FindAssetInPackage(EObjectFlags RequiredTopLevelFlags) const
 {
 	UObject* Asset = nullptr;
+	bool bAssetValid = false;
 
-	ForEachObjectWithPackage(this, [&Asset, RequiredTopLevelFlags](UObject* Object)
+	ForEachObjectWithPackage(this, [&Asset, &bAssetValid, RequiredTopLevelFlags](UObject* Object)
 		{
 			if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object) &&
 				(RequiredTopLevelFlags == RF_NoFlags || Object->HasAnyFlags(RequiredTopLevelFlags)))
 			{
-				if (FAssetData::IsUAsset(Object))
-				{
-					Asset = Object;
-					return false;
-				}
+				const bool bIsValid = IsValid(Object);
+				const bool bIsUAsset = FAssetData::IsUAsset(Object);
+
 				if (!Asset)
 				{
 					Asset = Object;
+					bAssetValid = bIsValid;
+					// stop iterating if Asset is valid and also a UAsset
+					return !(bIsValid && bIsUAsset);
+				}
+				else if(bIsValid)
+				{
+					// Overwrite found asset if previous was invalid or new one is a UAsset
+					if (!bAssetValid || bIsUAsset)
+					{
+						Asset = Object;
+						bAssetValid = true;
+					}
+					// stop iterating if found asset is a UAsset
+					return !bIsUAsset;
 				}
 			}
 			return true;
