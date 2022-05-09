@@ -12,7 +12,7 @@ class FWorldPartitionActorDesc;
 
 class ENGINE_API FWorldPartitionHelpers
 {
-	static UClass* ResolveActorDescClass(const FWorldPartitionActorDesc* ActorDesc);
+	static bool IsActorDescClassCompatibleWith(const FWorldPartitionActorDesc* ActorDesc, const UClass* Class);
 
 public:
 	template <class ActorClass = AActor>
