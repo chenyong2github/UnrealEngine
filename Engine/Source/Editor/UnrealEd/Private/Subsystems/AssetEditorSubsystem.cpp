@@ -1031,6 +1031,12 @@ void UAssetEditorSubsystem::UnregisterEditorModes()
 	EditorModes.Empty();
 }
 
+void UAssetEditorSubsystem::OnSMInstanceElementsEnabled()
+{
+	// Let the modes know that SM instance elements may have been enabled or disabled and update state accordingly
+	OnEditorModesChanged().Broadcast();
+}
+
 FNamePermissionList& UAssetEditorSubsystem::GetAllowedEditorModes()
 {
 	return AllowedEditorModes;
