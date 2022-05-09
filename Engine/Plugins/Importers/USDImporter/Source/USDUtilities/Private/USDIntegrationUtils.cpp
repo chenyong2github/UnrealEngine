@@ -74,8 +74,6 @@ void UnrealToUsd::ConvertLiveLinkProperties( const UActorComponent* InComponent,
 			Attr.Set( InController->bEvaluateLiveLink, pxr::UsdTimeCode::Default() );
 		}
 	}
-#else
-	return false;
 #endif // WITH_EDITOR
 }
 
