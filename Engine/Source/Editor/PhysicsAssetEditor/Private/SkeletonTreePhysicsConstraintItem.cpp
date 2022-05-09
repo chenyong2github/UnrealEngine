@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonTreePhysicsConstraintItem.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PhysicsAssetRenderUtils.h"
 
 #define LOCTEXT_NAMESPACE "FSkeletonTreePhysicsConstraintItem"
@@ -42,7 +42,7 @@ ECheckBoxState FSkeletonTreePhysicsConstraintItem::IsItemDisplayed() const
 
 const FSlateBrush* FSkeletonTreePhysicsConstraintItem::GetBrush() const
 {
-	return	FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Constraint");
+	return	FAppStyle::GetBrush("PhysicsAssetEditor.Tree.Constraint");
 }
 
 FSlateColor FSkeletonTreePhysicsConstraintItem::GetTextColor() const

@@ -196,7 +196,7 @@ FText UK2Node_InputKey::GetTooltipText() const
 
 FSlateIcon UK2Node_InputKey::GetIconAndTint(FLinearColor& OutColor) const
 {
-	return FSlateIcon("EditorStyle", EKeys::GetMenuCategoryPaletteIcon(InputKey.GetMenuCategory()));
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), EKeys::GetMenuCategoryPaletteIcon(InputKey.GetMenuCategory()));
 }
 
 bool UK2Node_InputKey::IsCompatibleWithGraph(UEdGraph const* Graph) const

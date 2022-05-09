@@ -2,7 +2,7 @@
 
 #include "Toolkits/MediaPlaylistEditorToolkit.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "MediaPlaylist.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -111,7 +111,7 @@ void FMediaPlaylistEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManag
 	InTabManager->RegisterTabSpawner(MediaPlaylistEditorToolkit::DetailsTabId, FOnSpawnTab::CreateSP(this, &FMediaPlaylistEditorToolkit::HandleTabManagerSpawnTab, MediaPlaylistEditorToolkit::DetailsTabId))
 		.SetDisplayName(LOCTEXT("DetailsTabName", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(MediaPlaylistEditorToolkit::MediaTabId, FOnSpawnTab::CreateSP(this, &FMediaPlaylistEditorToolkit::HandleTabManagerSpawnTab, MediaPlaylistEditorToolkit::MediaTabId))
 		.SetDisplayName(LOCTEXT("MediaTabName", "Media Library"))

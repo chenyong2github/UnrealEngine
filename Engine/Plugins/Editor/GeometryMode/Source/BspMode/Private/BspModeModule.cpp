@@ -4,7 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/BrushBuilder.h"
 #include "Builders/ConeBuilder.h"
 #include "Builders/CubeBuilder.h"
@@ -31,7 +31,7 @@ void FBspModeModule::StartupModule()
 	FEditorModeRegistry::Get().RegisterMode<FBspMode>(
 		FGeometryEditingModes::EM_Bsp,
 		NSLOCTEXT("GeometryMode", "DisplayName", "Geometry Editing"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BspMode", "LevelEditor.BspMode.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.BspMode", "LevelEditor.BspMode.Small"),
 		false,		// Visible
 		100			// UI priority order
 		);

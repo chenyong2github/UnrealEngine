@@ -179,7 +179,7 @@ void FMotionControllerDetails::CustomizeModelSourceRow(TSharedRef<IPropertyHandl
 				.ButtonContent()
 				[
 					SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
 						.Padding(FMargin(0, 0, 5, 0))
 					[
 						SNew(SEditableTextBox)

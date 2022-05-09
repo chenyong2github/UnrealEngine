@@ -7,7 +7,7 @@
 #include "EditorWidgetsModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -189,7 +189,7 @@ TSharedRef<SWidget> FCommonVideoPlayerCustomization::HandleCreateMuteToggleWidge
 {
 	return SNew(SButton)
 		.OnClicked(this, &FCommonVideoPlayerCustomization::HandleToggleMuteClicked)
-		.ButtonStyle(FEditorStyle::Get(), TEXT("NoBorder"))
+		.ButtonStyle(FAppStyle::Get(), TEXT("NoBorder"))
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -200,7 +200,7 @@ TSharedRef<SWidget> FCommonVideoPlayerCustomization::HandleCreateMuteToggleWidge
 
 const FSlateBrush* FCommonVideoPlayerCustomization::GetMuteToggleIcon() const
 {
-	static const FVolumeControlStyle VolumeStyle = FEditorStyle::GetWidgetStyle<FVolumeControlStyle>(TEXT("VolumeControl"));
+	static const FVolumeControlStyle VolumeStyle = FAppStyle::GetWidgetStyle<FVolumeControlStyle>(TEXT("VolumeControl"));
 	return VideoPlayer->IsMuted() ? &VolumeStyle.MutedImage : &VolumeStyle.HighVolumeImage;
 }
 

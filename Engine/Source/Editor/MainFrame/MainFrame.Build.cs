@@ -26,7 +26,6 @@ public class MainFrame : ModuleRules
 				"RenderCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"SourceControl",
 				"SourceControlWindows",
 				"TargetPlatform",

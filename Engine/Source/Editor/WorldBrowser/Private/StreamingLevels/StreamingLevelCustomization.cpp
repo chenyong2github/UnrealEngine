@@ -64,7 +64,7 @@ void FStreamingLevelCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 		[
 			SNew(SNumericVectorInputBox<FVector::FReal>)
 			.IsEnabled(this, &FStreamingLevelCustomization::LevelEditTextTransformAllowed)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.bColorAxisLabels(true)
 			.AllowSpin(false)
 			.X(this, &FStreamingLevelCustomization::OnGetLevelPosition, 0)
@@ -98,7 +98,7 @@ void FStreamingLevelCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 				SNew(SNumericEntryBox<int32>)
 
 				.IsEnabled(this, &FStreamingLevelCustomization::LevelEditTextTransformAllowed)
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 				.AllowSpin(true)
 				.MinValue(0)

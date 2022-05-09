@@ -3,7 +3,7 @@
 #include "SLiveLinkSubjectRepresentationPicker.h"
 
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
 #include "LiveLinkEditorPrivate.h"
@@ -173,7 +173,7 @@ void SLiveLinkSubjectRepresentationPicker::Construct(const FArguments& InArgs)
 	else
 	{
 		ComboButtonContent = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(FMargin(0, 0, 5, 0))
 		[
 			SNew(SEditableTextBox)
@@ -303,7 +303,7 @@ TSharedRef<SWidget> SLiveLinkSubjectRepresentationPicker::BuildMenu()
 						SAssignNew(SelectPresetComboButton, SComboButton)
 						.ContentPadding(0)
 						.ForegroundColor(this, &SLiveLinkSubjectRepresentationPicker::GetSelectPresetForegroundColor)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
+						.ButtonStyle(FAppStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
 						.OnGetMenuContent(this, &SLiveLinkSubjectRepresentationPicker::BuildPresetSubMenu)
 						.ButtonContent()
 						[
@@ -331,12 +331,12 @@ TSharedRef<SWidget> SLiveLinkSubjectRepresentationPicker::BuildMenu()
 					[
 						SNew(SButton)
 						.ContentPadding(0)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
+						.ButtonStyle(FAppStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
 						.OnClicked(this, &SLiveLinkSubjectRepresentationPicker::ClearCurrentPreset)
 						.IsEnabled(this, &SLiveLinkSubjectRepresentationPicker::HasCurrentPreset)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 						]
 					]
 				]
@@ -372,7 +372,7 @@ FSlateColor SLiveLinkSubjectRepresentationPicker::GetSelectPresetForegroundColor
 	static const FName InvertedForegroundName("InvertedForeground");
 	static const FName DefaultForegroundName("DefaultForeground");
 	TSharedPtr<SComboButton> SelectPresetComboButtonPin = SelectPresetComboButton.Pin();
-	return (SelectPresetComboButtonPin.IsValid() && SelectPresetComboButtonPin->IsHovered()) ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
+	return (SelectPresetComboButtonPin.IsValid() && SelectPresetComboButtonPin->IsHovered()) ? FAppStyle::GetSlateColor(InvertedForegroundName) : FAppStyle::GetSlateColor(DefaultForegroundName);
 }
 
 FReply SLiveLinkSubjectRepresentationPicker::ClearCurrentPreset()

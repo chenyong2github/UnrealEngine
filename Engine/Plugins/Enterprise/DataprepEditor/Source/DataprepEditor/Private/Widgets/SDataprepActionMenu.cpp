@@ -14,7 +14,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Views/SExpanderArrow.h"
@@ -34,7 +34,7 @@ void SDataprepActionMenu::Construct(const FArguments& InArgs, TUniquePtr<IDatapr
 	ChildSlot
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		.Padding( 5 )
 		[
 			SNew( SBox )

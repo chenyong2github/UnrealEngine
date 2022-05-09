@@ -3,7 +3,7 @@
 #include "Sequencer/MediaTrackEditor.h"
 
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
@@ -69,7 +69,7 @@ void FMediaTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddTrack", "Media Track"),
 		LOCTEXT("AddTooltip", "Adds a new master media track that can play media sources."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Media"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Media"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FMediaTrackEditor::HandleAddMediaTrackMenuEntryExecute)
 		)
@@ -179,7 +179,7 @@ void FMediaTrackEditor::Tick(float DeltaTime)
 
 const FSlateBrush* FMediaTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.Media");
+	return FAppStyle::GetBrush("Sequencer.Tracks.Media");
 }
 
 

@@ -3,7 +3,7 @@
 #include "UserDefinedEnumEditor.h"
 #include "Editor.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
@@ -259,12 +259,12 @@ public:
 		if (IsValidTarget)
 		{
 			CurrentHoverText = FText::Format(LOCTEXT("MoveEnumeratorHere", "Move '{EnumeratorName}' Here"), Args);
-			CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.OK");
+			CurrentIconBrush = FAppStyle::GetBrush("Graph.ConnectorFeedback.OK");
 		}
 		else
 		{
 			CurrentHoverText = FText::Format(LOCTEXT("CannotMoveEnumeratorHere", "Cannot Move '{EnumeratorName}' Here"), Args);
-			CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.Error");
+			CurrentIconBrush = FAppStyle::GetBrush("Graph.ConnectorFeedback.Error");
 		}
 	}
 
@@ -375,7 +375,7 @@ void FUserDefinedEnumEditor::RegisterTabSpawners(const TSharedRef<class FTabMana
 	InTabManager->RegisterTabSpawner( EnumeratorsTabId, FOnSpawnTab::CreateSP(this, &FUserDefinedEnumEditor::SpawnEnumeratorsTab) )
 		.SetDisplayName( LOCTEXT("EnumeratorEditor", "Enumerators") )
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.Enum_16x"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Enum_16x"));
 }
 
 void FUserDefinedEnumEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

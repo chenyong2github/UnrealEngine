@@ -4,7 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FileHelpers.h"
 #include "IMediaEventSink.h"
 #include "IMediaPlayer.h"
@@ -85,7 +85,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 					[
 						// browse button
 						SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+							.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 							.ContentPadding(4.0f)
 							.ForegroundColor(FSlateColor::UseForeground())
 							.IsEnabled_Lambda([this]() -> bool {
@@ -102,7 +102,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							[
 								SNew(SImage)
 									.ColorAndOpacity(FSlateColor::UseForeground())
-									.Image(FEditorStyle::GetBrush("Icons.Search"))
+									.Image(FAppStyle::GetBrush("Icons.Search"))
 							]
 					]
 
@@ -113,7 +113,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 					[
 						// save button
 						SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+							.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 							.ContentPadding(4.0f)
 							.ForegroundColor(FSlateColor::UseForeground())
 							.IsEnabled_Lambda([this]() -> bool {
@@ -128,7 +128,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 									.ColorAndOpacity(FSlateColor::UseForeground())
 									.Image_Lambda([this]() -> const FSlateBrush*
 									{
-										return FEditorStyle::GetBrush(
+										return FAppStyle::GetBrush(
 											((MediaPlayer->GetPlaylistRef().GetFlags() & RF_Transient) != 0)
 												? "LevelEditor.Save"
 												: "LevelEditor.SaveAs"
@@ -155,7 +155,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							.ToolTipText(LOCTEXT("PreviousPlaylistItemButtonToolTip", "Jump to the previous item in the playlist"))
 							[
 								SNew(SImage)
-									.Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
+									.Image(FAppStyle::GetBrush("Icons.CircleArrowLeft"))
 							]
 					]
 
@@ -177,7 +177,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							.ToolTipText(LOCTEXT("NextPlaylistItemButtonToolTip", "Jump to the next item in the playlist"))
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
+								.Image(FAppStyle::GetBrush("Icons.CircleArrowRight"))
 							]
 					]
 			]
@@ -186,7 +186,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 			.FillHeight(1.0f)
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Padding(0.0f)
 					[
 						// media source list

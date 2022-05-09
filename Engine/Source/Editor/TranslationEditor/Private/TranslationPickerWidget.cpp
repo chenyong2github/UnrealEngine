@@ -11,7 +11,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "TranslationPickerFloatingWindow.h"
 #include "TranslationPickerEditWindow.h"
 
@@ -25,10 +25,10 @@ void STranslationWidgetPicker::Construct(const FArguments& InArgs)
 	// Icon for the picker widget button
 	TSharedRef< SWidget > IconWidget =
 		SNew(SImage)
-		.Image(FEditorStyle::GetBrush("TranslationEditor.TranslationPicker"));
+		.Image(FAppStyle::GetBrush("TranslationEditor.TranslationPicker"));
 
 	// Style settings
-	FName StyleSet = FEditorStyle::GetStyleSetName();
+	FName StyleSet = FAppStyle::GetAppStyleSetName();
 	FName StyleName = "Toolbar";
 
 	FText ToolTipText = LOCTEXT("TranslationPickerTooltip", "Open the Translation Picker");
@@ -58,7 +58,7 @@ void STranslationWidgetPicker::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("TranslationPicker", "Translation Picker"))
-					.TextStyle(FEditorStyle::Get(), FName("ToolBar.Label"))	// Smaller font for tool tip labels
+					.TextStyle(FAppStyle::Get(), FName("ToolBar.Label"))	// Smaller font for tool tip labels
 					.ShadowOffset(FVector2D::UnitVector)
 				]
 		];
@@ -71,7 +71,7 @@ void STranslationWidgetPicker::Construct(const FArguments& InArgs)
 			SNew(SCheckBox)
 
 			// Use the tool bar style for this check box
-			.Style(FEditorStyle::Get(), "ToolBar.ToggleButton")
+			.Style(FAppStyle::Get(), "ToolBar.ToggleButton")
 
 			// User will have set the focusable attribute for the block, honor it
 			.IsFocusable(false)
@@ -89,7 +89,7 @@ void STranslationWidgetPicker::Construct(const FArguments& InArgs)
 				// Bind the check box's "checked" state to our user interface action
 				.IsChecked(this, &STranslationWidgetPicker::IsChecked)
 
-				.Padding(FEditorStyle::Get().GetMargin(CheckboxStyle))
+				.Padding(FAppStyle::Get().GetMargin(CheckboxStyle))
 		];
 }
 

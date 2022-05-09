@@ -6,7 +6,7 @@
 
 void FLayersDragDropOp::Construct()
 {
-	const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("Layer.Icon16x"));
+	const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("Layer.Icon16x"));
 	if (Layers.Num() == 1)
 	{
 		SetToolTip(FText::FromName(Layers[0]), Icon);

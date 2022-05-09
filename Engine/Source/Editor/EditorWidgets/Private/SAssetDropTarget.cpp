@@ -64,7 +64,7 @@ bool SAssetDropTarget::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperat
 						TSharedPtr<FDecoratedDragDropOp> DragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(DragDropOperation);
 						if (DragDropOp.IsValid())
 						{
-							DragDropOp->SetToolTip(FailureReason, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+							DragDropOp->SetToolTip(FailureReason, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 						}
 					}
 				}

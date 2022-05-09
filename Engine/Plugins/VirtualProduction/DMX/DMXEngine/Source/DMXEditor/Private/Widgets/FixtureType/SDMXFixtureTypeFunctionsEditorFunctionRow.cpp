@@ -72,12 +72,12 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 					{
 						if (!FunctionItem->ErrorStatus.IsEmpty())
 						{
-							return FEditorStyle::GetBrush("Icons.Error");
+							return FAppStyle::GetBrush("Icons.Error");
 						}
 
 						if (!FunctionItem->WarningStatus.IsEmpty())
 						{
-							return FEditorStyle::GetBrush("Icons.Warning");
+							return FAppStyle::GetBrush("Icons.Warning");
 						}
 
 						static const FSlateBrush EmptyBrush = FSlateNoResource();
@@ -105,7 +105,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
 			.Padding(4.f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			[
 				SAssignNew(StartingChannelEditableTextBlock, SInlineEditableTextBlock)
 				.Text_Lambda([this]()
@@ -127,7 +127,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
 			.Padding(4.f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			[
 				SAssignNew(FunctionNameEditableTextBlock, SInlineEditableTextBlock)
 				.Text_Lambda([this]()
@@ -168,7 +168,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
 			.Padding(4.f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			[
 				SNew(SNameListPicker)
 				.OptionsSource(MakeAttributeLambda(&FDMXAttributeName::GetPossibleValues))

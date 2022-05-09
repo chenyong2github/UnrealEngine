@@ -7,7 +7,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Widgets/SWidget.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/TextureStreamingTypes.h"
 
 class FUICommandList;

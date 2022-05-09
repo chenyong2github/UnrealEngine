@@ -12,7 +12,7 @@
 #include "Widgets/Images/SImage.h"
 
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Widgets/Navigation/SBreadcrumbTrail.h"
@@ -31,7 +31,7 @@ void SMaterialEditorTitleBar::Construct(const FArguments& InArgs)
 
 	// Set-up shared breadcrumb defaults
 	FMargin BreadcrumbTrailPadding = FMargin(4.f, 2.f);
-	const FSlateBrush* BreadcrumbButtonImage = FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter");
+	const FSlateBrush* BreadcrumbButtonImage = FAppStyle::GetBrush("BreadcrumbTrail.Delimiter");
 	
 	this->ChildSlot
 	[
@@ -41,7 +41,7 @@ void SMaterialEditorTitleBar::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
+			.BorderImage( FAppStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
 			.HAlign(HAlign_Fill)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EventGraphTitleBar")))
 			[
@@ -99,7 +99,7 @@ void SMaterialEditorTitleBar::Construct(const FArguments& InArgs)
 								[
 									SNew(STextBlock)
 									.Text(InArgs._TitleText)
-									.TextStyle( FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
+									.TextStyle( FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
 									.Visibility( EVisibility::Visible )
 								]
 								+SHorizontalBox::Slot()
@@ -117,8 +117,8 @@ void SMaterialEditorTitleBar::Construct(const FArguments& InArgs)
 								.VAlign(VAlign_Center)
 								[
 									SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<UEdGraph*>)
-									.ButtonStyle(FEditorStyle::Get(), "GraphBreadcrumbButton")
-									.TextStyle(FEditorStyle::Get(), "GraphBreadcrumbButtonText")
+									.ButtonStyle(FAppStyle::Get(), "GraphBreadcrumbButton")
+									.TextStyle(FAppStyle::Get(), "GraphBreadcrumbButtonText")
 									.ButtonContentPadding( BreadcrumbTrailPadding )
 									.DelimiterImage( BreadcrumbButtonImage )
 									.PersistentBreadcrumbs( true )
@@ -195,7 +195,7 @@ const FSlateBrush* SMaterialEditorTitleBar::GetTypeGlyph() const
 {
 	check(EdGraphObj != nullptr);
 	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(EdGraphObj);
-	return FEditorStyle::GetBrush( MaterialGraph->SubgraphExpression ? TEXT("GraphEditor.SubGraph_24x") : TEXT("GraphEditor.EventGraph_24x") );
+	return FAppStyle::GetBrush( MaterialGraph->SubgraphExpression ? TEXT("GraphEditor.SubGraph_24x") : TEXT("GraphEditor.EventGraph_24x") );
 }
 
 void SMaterialEditorTitleBar::OnBreadcrumbClicked(UEdGraph* const& Item)

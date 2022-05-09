@@ -7,7 +7,7 @@
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "FDMXPortSelectorItem"
@@ -60,7 +60,7 @@ void SDMXPortSelector::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SAssignNew(ContentBorder, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		];
 
 	GenerateWidgetsFromPorts();
@@ -190,17 +190,17 @@ TSharedRef<SWidget> SDMXPortSelector::GenerateComboBoxEntry(TSharedPtr<FDMXPortS
 		return
 			SNew(STextBlock)
 			.Text(FText::FromString(*Item->GetItemName()))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
 	}
 
 	return
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(4.f)
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(*Item->GetItemName()))
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 }
 
@@ -313,7 +313,7 @@ void SDMXPortSelector::GenerateWidgetsFromPorts()
 				.Content()
 				[
 					SAssignNew(PortNameTextBlock, STextBlock)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			]);
 
@@ -348,7 +348,7 @@ void SDMXPortSelector::GenerateWidgetsFromPorts()
 				.Content()
 				[
 					SAssignNew(PortNameTextBlock, STextBlock)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Text(LOCTEXT("NoPortsDefinedInProjectSettings", "No DMX ports defined in Project Settings"))
 				]
 			]);

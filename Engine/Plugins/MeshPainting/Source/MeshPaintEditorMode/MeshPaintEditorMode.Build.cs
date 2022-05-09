@@ -10,10 +10,9 @@ namespace UnrealBuildTool.Rules
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Slate",
-                    "SlateCore",
-                    "EditorStyle",
+					"SlateCore",
 					"EditorSubsystem"
-                }
+				}
             );
 
             PrivateDependencyModuleNames.AddRange(

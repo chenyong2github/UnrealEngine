@@ -2,7 +2,7 @@
 
 #include "AxFOptionsWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/PlatformProcess.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
@@ -78,7 +78,7 @@ void SAxFOptionsWindow::Construct(const FArguments& InArgs)
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FEditorStyle::GetBrush("Icons.Help"))
+						.Image(FAppStyle::GetBrush("Icons.Help"))
 						.OnMouseButtonDown(this, &SAxFOptionsWindow::OnHelp)
 					]
 				]

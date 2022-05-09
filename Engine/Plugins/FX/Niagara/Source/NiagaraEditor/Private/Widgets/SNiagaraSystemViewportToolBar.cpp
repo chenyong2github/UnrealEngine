@@ -2,7 +2,7 @@
 
 #include "SNiagaraSystemViewportToolBar.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraEditorCommands.h"
 #include "EditorViewportCommands.h"
 #include "NiagaraEditorSettings.h"
@@ -104,14 +104,14 @@ void SNiagaraSystemViewportToolBar::ExtendLeftAlignedToolbarSlots(TSharedPtr<SHo
 		SNew(SEditorViewportToolBarButton)
 		.Cursor(EMouseCursor::Default)
 		.ButtonType(EUserInterfaceActionType::Button)
-		.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
+		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
 		.OnClicked(this, &SNiagaraSystemViewportToolBar::OnSimulationRealtimeWarningClicked)
 		.Visibility(this, &SNiagaraSystemViewportToolBar::GetSimulationRealtimeWarningVisibility)
 		.ToolTipText(LOCTEXT("SimulationRealtimeOff_ToolTip", "This simulation is not updating in real time.  Click to turn on real time."))
 		.Content()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
+			.Font(FAppStyle::GetFontStyle("EditorViewportToolBar.Font"))
 			.Text(this, &SNiagaraSystemViewportToolBar::GetSimulationSpeedText)
 			.ColorAndOpacity(FLinearColor::Black)
 		]

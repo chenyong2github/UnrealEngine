@@ -9,7 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/MaterialInterface.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
@@ -559,7 +559,7 @@ void FMaterialInstanceParameterDetails::CreateMaskParameterValueWidget(UDEditorP
 				SNew(STextBlock)
 				.Text(ParameterName)
 				.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 		.ValueContent()
 			.MaxDesiredWidth(200.0f)
@@ -655,7 +655,7 @@ void FMaterialInstanceParameterDetails::CreateVectorChannelMaskParameterValueWid
 			SNew(STextBlock)
 			.Text(ParameterName)
 			.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		]
 		.ValueContent()
 		.MaxDesiredWidth(200.0f)
@@ -706,7 +706,7 @@ void FMaterialInstanceParameterDetails::CreateScalarAtlasPositionParameterValueW
 				SNew(STextBlock)
 				.Text(ParameterName)
 				.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 			.ValueContent()
 			.HAlign(HAlign_Fill)
@@ -774,7 +774,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							SNew(STextBlock)
 							.Text(FText::FromName(Parameter->ParameterInfo.Name))
 						.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						]
 						];
 					DetailWidgetRow.ValueContent()
@@ -821,7 +821,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 								[
 									SNew(STextBlock)
 									.Text(FText::FromName(Red))
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 								]
 								+ SHorizontalBox::Slot()
 								.HAlign(HAlign_Left)
@@ -829,7 +829,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 								[
 									SNew(STextBlock)
 									.Text(TextureParam->ChannelNames.R)
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								]
 							];
 					}
@@ -844,7 +844,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							[
 								SNew(STextBlock)
 								.Text(FText::FromName(Green))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 							]
 						+ SHorizontalBox::Slot()
 							.HAlign(HAlign_Left)
@@ -852,7 +852,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							[
 								SNew(STextBlock)
 								.Text(TextureParam->ChannelNames.G)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							]
 							];
 					}
@@ -867,7 +867,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							[
 								SNew(STextBlock)
 								.Text(FText::FromName(Blue))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 							]
 						+ SHorizontalBox::Slot()
 							.HAlign(HAlign_Left)
@@ -875,7 +875,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							[
 								SNew(STextBlock)
 								.Text(TextureParam->ChannelNames.B)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							]
 							];
 					}
@@ -890,7 +890,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							[
 								SNew(STextBlock)
 								.Text(FText::FromName(Alpha))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 							]
 						+ SHorizontalBox::Slot()
 							.HAlign(HAlign_Left)
@@ -898,7 +898,7 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							[
 								SNew(STextBlock)
 								.Text(TextureParam->ChannelNames.A)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							]
 							];
 					}

@@ -14,7 +14,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Models/ScreenComparisonModel.h"
 #include "Misc/FeedbackContext.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
 #include "DirectoryWatcherModule.h"
 #include "IDirectoryWatcher.h"
@@ -180,8 +180,8 @@ void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManage
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("AddAllNewReports", "Add All New Reports"))
 					.ToolTipText(LOCTEXT("AddAllNewReportsTooltip", "Adds all new screenshots contained in the reports."))
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+					.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 					.IsEnabled_Lambda([this]() -> bool
 						{
 							return ComparisonList.Num() > 0 && ISourceControlModule::Get().IsEnabled();
@@ -216,8 +216,8 @@ void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManage
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("ReplaceAllReports", "Replace All Reports"))
 					.ToolTipText(LOCTEXT("ReplaceAllReportsTooltip", "Replaces all screenshots containing a different result in the reports."))
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Warning")
-					.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Warning")
+					.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 					.IsEnabled_Lambda([this]() -> bool
 						{
 							return ComparisonList.Num() > 0 && ISourceControlModule::Get().IsEnabled();
@@ -252,8 +252,8 @@ void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManage
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("DeleteAllReports", "Delete All Reports"))
 					.ToolTipText(LOCTEXT("DeleteAllReportsTooltip", "Deletes all the current reports.  Reports are not removed unless the user resolves them, \nso if you just want to reset the state of the reports, clear them here and then re-run the tests."))
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
-					.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+					.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 					.IsEnabled_Lambda([this]() -> bool
 						{
 							return ComparisonList.Num() > 0;

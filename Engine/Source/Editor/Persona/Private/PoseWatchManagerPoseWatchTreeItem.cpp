@@ -5,7 +5,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/Commands/UIAction.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PoseWatchManagerDragDrop.h"
 #include "SPoseWatchManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -128,7 +128,7 @@ private:
 
 	const FSlateBrush* GetIcon() const
 	{
-		return FEditorStyle::Get().GetBrush(TEXT("ClassIcon.PoseAsset"));
+		return FAppStyle::Get().GetBrush(TEXT("ClassIcon.PoseAsset"));
 	}
 
 	const FSlateBrush* GetIconOverlay() const

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SAnimationModifiersTab.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 
@@ -19,7 +19,7 @@ public:
 		: FWorkflowTabFactory(AnimationModifiersName, InHostingApp)
 	{
 		TabLabel = LOCTEXT("AnimationModifiersTabLabel", "Animation Data Modifiers");
-		TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier");
+		TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier");
 	}
 
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override

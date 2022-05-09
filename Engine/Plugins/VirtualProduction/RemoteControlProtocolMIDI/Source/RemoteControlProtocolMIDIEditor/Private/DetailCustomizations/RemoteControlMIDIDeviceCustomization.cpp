@@ -144,7 +144,7 @@ void FRemoteControlMIDIDeviceCustomization::CustomizeChildren(TSharedRef<IProper
 		    .ButtonContent()
 		    [
 		        SNew(SBorder)
-		        .BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		        .BorderImage( FAppStyle::GetBrush("NoBorder") )
 		        .Padding(FMargin(0, 0, 5, 0))
 		        [
 		            SNew(SEditableTextBox)
@@ -281,7 +281,7 @@ TSharedRef<SWidget> FRemoteControlMIDIDeviceCustomization::MakeRefreshButton() c
 	[
 		SNew(SButton)
 	    .ForegroundColor(FSlateColor::UseForeground())
-	    .ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Default"))
+	    .ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Default"))
 	    .IsEnabled_Lambda([]()
 	    {
 	    	IRemoteControlProtocolMIDIModule& RemoteControlProtocolMIDI = FModuleManager::GetModuleChecked<IRemoteControlProtocolMIDIModule>("RemoteControlProtocolMIDI");
@@ -305,8 +305,8 @@ TSharedRef<SWidget> FRemoteControlMIDIDeviceCustomization::MakeRefreshButton() c
 	        .VAlign(VAlign_Center)
 	        [
 	            SNew(STextBlock)
-	            .TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-	            .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+	            .TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+	            .Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 	            .Text(FEditorFontGlyphs::Recycle)
 	        ]
 
@@ -317,7 +317,7 @@ TSharedRef<SWidget> FRemoteControlMIDIDeviceCustomization::MakeRefreshButton() c
 	        .Padding(4, 0, 0, 0)
 	        [
 	            SNew(STextBlock)
-	            .TextStyle( FEditorStyle::Get(), "ContentBrowser.TopBar.Font" )
+	            .TextStyle( FAppStyle::Get(), "ContentBrowser.TopBar.Font" )
 	            .Text(LOCTEXT("RefreshDevices", "Refresh"))
 	        ]
 	    ]

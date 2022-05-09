@@ -29,8 +29,8 @@ void FNiagaraBakerTextureSourceDetails::CustomizeHeader(TSharedRef<IPropertyHand
 		SNew(SComboButton)
 		.OnGetMenuContent(this, &FNiagaraBakerTextureSourceDetails::OnGetMenuContent)
 		.ContentPadding(1)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.ButtonContent()
 		[
 			SNew(STextBlock)
@@ -64,7 +64,7 @@ TSharedRef<SWidget> FNiagaraBakerTextureSourceDetails::OnGetMenuContent() const
 	FGraphActionMenuBuilder MenuBuilder;
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)

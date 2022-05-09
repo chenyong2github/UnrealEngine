@@ -271,9 +271,9 @@ const FSlateBrush* SScreenResolutionCustomization::GetAspectRatioSwitchImage() c
 	int32 Width = FCString::Atoi( *WidthString );
 	if ( Height > Width )
 	{
-		return FEditorStyle::Get().GetBrush( "UMGEditor.OrientPortrait" );
+		return FAppStyle::Get().GetBrush( "UMGEditor.OrientPortrait" );
 	}
-	return FEditorStyle::Get().GetBrush( "UMGEditor.OrientLandscape" );
+	return FAppStyle::Get().GetBrush( "UMGEditor.OrientLandscape" );
 }
 
 void SScreenResolutionCustomization::OnSizeChanged()

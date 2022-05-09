@@ -4,6 +4,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "AssetTagsEditor"
 
@@ -30,7 +31,7 @@ public:
 		SToolTip::Construct(
 			SToolTip::FArguments()
 			.TextMargin(1.0f)
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
 			);
 	}
 
@@ -66,11 +67,11 @@ private:
 			[
 				SNew(SBorder)
 				.Padding(6)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 				[
 					SNew(STextBlock)
 					.Text(DisplayName)
-					.Font(FEditorStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
+					.Font(FAppStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
 				]
 			];
 
@@ -83,7 +84,7 @@ private:
 				[
 					SNew(SBorder)
 					.Padding(6)
-					.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+					.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 					[
 						InfoBox
 					]
@@ -92,7 +93,7 @@ private:
 
 		return SNew(SBorder)
 			.Padding(6)
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
 			[
 				OverallTooltipVBox
 			];
@@ -193,7 +194,7 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 		]
 
 		+SHorizontalBox::Slot()
-		.Padding(FEditorStyle::GetMargin("ContentBrowser.AssetTagNamePadding", StyleSpecifier))
+		.Padding(FAppStyle::GetMargin("ContentBrowser.AssetTagNamePadding", StyleSpecifier))
 		.VAlign(VAlign_Center)
 		[
 			NameWidget.ToSharedRef()
@@ -218,13 +219,13 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 	{
 		HBox->AddSlot()
 			.AutoWidth()
-			.Padding(FEditorStyle::GetMargin("ContentBrowser.AssetTagCountPadding", StyleSpecifier))
+			.Padding(FAppStyle::GetMargin("ContentBrowser.AssetTagCountPadding", StyleSpecifier))
 			[
 				SNew(SBorder)
 				.Padding(0.0f)
 				.VAlign(VAlign_Center)
 				.BorderBackgroundColor(this, &SAssetTagItem::GetCountBackgroundColor)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetTagBackground"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.AssetTagBackground"))
 				[
 					SNew(SBox)
 					.VAlign(VAlign_Center)

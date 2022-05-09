@@ -3,7 +3,7 @@
 #include "SLocalizationTargetStatusButton.h"
 #include "HAL/PlatformProcess.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LocalizationTargetTypes.h"
 #include "LocalizationConfigurationScript.h"
 
@@ -15,7 +15,7 @@ void SLocalizationTargetStatusButton::Construct(const FArguments& InArgs, ULocal
 
 	SButton::Construct(
 		SButton::FArguments()
-		.ButtonStyle( FEditorStyle::Get(), TEXT("HoverHintOnly") )
+		.ButtonStyle( FAppStyle::Get(), TEXT("HoverHintOnly") )
 		.OnClicked(this, &SLocalizationTargetStatusButton::OnClicked)
 		);
 
@@ -36,13 +36,13 @@ const FSlateBrush* SLocalizationTargetStatusButton::GetImageBrush() const
 	{
 	default:
 	case ELocalizationTargetConflictStatus::Unknown:
-		return FEditorStyle::GetBrush("Icons.Warning");
+		return FAppStyle::GetBrush("Icons.Warning");
 		break;
 	case ELocalizationTargetConflictStatus::Clear:
-		return FEditorStyle::GetBrush("Symbols.Check");
+		return FAppStyle::GetBrush("Symbols.Check");
 		break;
 	case ELocalizationTargetConflictStatus::ConflictsPresent:
-		return FEditorStyle::GetBrush("Symbols.X");
+		return FAppStyle::GetBrush("Symbols.X");
 		break;
 	}
 }

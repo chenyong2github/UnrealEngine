@@ -18,7 +18,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "ToolMenus.h"
 
@@ -91,15 +91,15 @@ private:
 		{
 			static const FName NAME_VisibleHoveredBrush("Level.VisibleHighlightIcon16x");
 			static const FName NAME_VisibleNotHoveredBrush("Level.VisibleIcon16x");
-			return IsHovered() ? FEditorStyle::GetBrush(NAME_VisibleHoveredBrush) :
-				FEditorStyle::GetBrush(NAME_VisibleNotHoveredBrush);
+			return IsHovered() ? FAppStyle::GetBrush(NAME_VisibleHoveredBrush) :
+				FAppStyle::GetBrush(NAME_VisibleNotHoveredBrush);
 		}
 		else
 		{
 			static const FName NAME_NotVisibleHoveredBrush("Level.NotVisibleHighlightIcon16x");
 			static const FName NAME_NotVisibleNotHoveredBrush("Level.NotVisibleIcon16x");
-			return IsHovered() ? FEditorStyle::GetBrush(NAME_NotVisibleHoveredBrush) :
-				FEditorStyle::GetBrush(NAME_NotVisibleNotHoveredBrush);
+			return IsHovered() ? FAppStyle::GetBrush(NAME_NotVisibleHoveredBrush) :
+				FAppStyle::GetBrush(NAME_NotVisibleNotHoveredBrush);
 		}
 	}
 
@@ -178,7 +178,7 @@ class SMultiBlockDragHandle : public SCompoundWidget
 
 		if (bIsDropDestination)
 		{
-			const FSlateBrush* DropIndicatorBrush = FEditorStyle::GetBrush(bInsertAfter ? "MultiBox.DragBelow" : "MultiBox.DragAbove");
+			const FSlateBrush* DropIndicatorBrush = FAppStyle::GetBrush(bInsertAfter ? "MultiBox.DragBelow" : "MultiBox.DragAbove");
 
 			FSlateDrawElement::MakeBox
 			(
@@ -576,7 +576,7 @@ void SEditToolMenuDialog::BuildWidget()
 		ChildSlot
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "LargeText")
+			.TextStyle(FAppStyle::Get(), "LargeText")
 			.Text(LOCTEXT("Unavailable", "Unavailable"))
 		];
 
@@ -674,7 +674,7 @@ void SEditToolMenuDialog::BuildWidget()
 	[
 		SNew(SBorder)
 		.Padding(20)
-		.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+		.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 		[
 			SNew(SVerticalBox)
 
@@ -684,7 +684,7 @@ void SEditToolMenuDialog::BuildWidget()
 			.Padding(0)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "LargeText")
+				.TextStyle(FAppStyle::Get(), "LargeText")
 				.Text(FText::FromName(ToolMenu->MenuName))
 			]
 

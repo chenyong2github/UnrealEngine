@@ -16,7 +16,7 @@ namespace UnrealBuildTool.Rules
 					"AudioEditor",
 					"SoundUtilities",
 					"AudioMixer",
-                    "EditorStyle",
+                    
                     "Slate",
                     "SlateCore",
                     "ContentBrowser",

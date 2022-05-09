@@ -30,7 +30,7 @@ FEditorViewportCommands::FEditorViewportCommands()
 		TEXT("EditorViewport"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "EditorViewportCommands", "Common Viewport Commands"), // Localized context name for displaying
 		TEXT("MainFrame"),
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 	AddBundle(ShowTextureScaleBundle, LOCTEXT("ShowTextureCommands_TextureScale_Bundle", "Show Texture Scale"));

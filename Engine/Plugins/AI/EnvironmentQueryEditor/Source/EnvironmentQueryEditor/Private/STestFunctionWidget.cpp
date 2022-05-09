@@ -3,7 +3,7 @@
 #include "STestFunctionWidget.h"
 #include "Rendering/DrawElements.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void STestFunctionWidget::Construct(const FArguments& InArgs)
 {
@@ -20,8 +20,8 @@ int32 STestFunctionWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 	// Rendering info
 	bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FEditorStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
 
 	// Draw timeline background
 	FSlateDrawElement::MakeBox(

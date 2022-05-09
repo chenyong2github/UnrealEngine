@@ -109,7 +109,7 @@ TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< 
 	};
 
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+		.BorderImage(FAppStyle::GetBrush("NoBrush"))
 		[
 			SNew(SHorizontalBox)
 			// Input entry label
@@ -129,7 +129,7 @@ TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< 
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("DataprepProducersWidget_DeleteToolTip", "Delete this producer"))
 				.IsFocusable(false)
 				.OnClicked_Lambda(DeleteEntry)
@@ -225,7 +225,7 @@ void SDataprepProducersWidget::Construct( const FArguments & InArgs, UDataprepAs
 	TreeView = SNew( SDataprepProducersTreeView, InAssetProducersPtr, InArgs._ColumnSizeData.ToSharedRef() );
 
 	AddNewMenu = SNew(SComboButton)
-	.ComboButtonStyle( FEditorStyle::Get(), "ToolbarComboButton" )
+	.ComboButtonStyle( FAppStyle::Get(), "ToolbarComboButton" )
 	.ForegroundColor( FLinearColor::White )
 	.ToolTipText( LOCTEXT("AddNewToolTip", "Add a new producer.") )
 	.OnGetMenuContent( this, &SDataprepProducersWidget::CreateAddProducerMenuWidget )
@@ -270,7 +270,7 @@ void SDataprepProducersWidget::Construct( const FArguments & InArgs, UDataprepAs
 			.Padding(20)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 				.ForegroundColor(FLinearColor::White)
 				.ContentPadding(FMargin(30, 2))
 				.ToolTipText( LOCTEXT( "ImportButtonTooltip", "Load inputs' data into the Dataprep Editor"  ) )
@@ -290,7 +290,7 @@ void SDataprepProducersWidget::Construct( const FArguments & InArgs, UDataprepAs
 				.Content()
 				[
 					SNew( STextBlock )
-					.TextStyle( FEditorStyle::Get(), "ContentBrowser.TopBar.Font" )
+					.TextStyle( FAppStyle::Get(), "ContentBrowser.TopBar.Font" )
 					.Text( LOCTEXT( "ImportButton", "Import" ) )
 				]
 			]

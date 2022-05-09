@@ -39,7 +39,7 @@
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
 #include "Styling/AppStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FractureEditor.h"
 #include "FractureEditorCommands.h"
 #include "FractureEditorStyle.h"
@@ -319,10 +319,15 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 void FFractureEditorModeToolkit::RequestModeUITabs()
 {
 	FModeToolkit::RequestModeUITabs();
-	if (ModeUILayer.IsValid())
+	if (TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin())
 	{
-		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-		TSharedRef<FWorkspaceItem> MenuGroup = ModeUILayerPtr->GetModeMenuCategory().ToSharedRef();
+		TSharedPtr<FWorkspaceItem> MenuModeCategoryPtr = ModeUILayerPtr->GetModeMenuCategory();
+
+		if(!MenuModeCategoryPtr)
+		{ 
+			return;
+		}
+		TSharedRef<FWorkspaceItem> MenuGroup = MenuModeCategoryPtr.ToSharedRef();
 		HierarchyTabInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FFractureEditorModeToolkit::CreateHierarchyTab);
 		HierarchyTabInfo.TabLabel = LOCTEXT("FractureHierarchy", "Fracture Hierarchy");
 		HierarchyTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
@@ -342,11 +347,15 @@ void FFractureEditorModeToolkit::InvokeUI()
 {
 	FModeToolkit::InvokeUI();
 
-	if (ModeUILayer.IsValid())
+	if (TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin())
 	{
-		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-		HierarchyTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopRightTabID);
-		StatisticsTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomLeftTabID);
+		TSharedPtr<FTabManager> TabManagerPtr = ModeUILayerPtr->GetTabManager();
+		if (!TabManagerPtr)
+		{
+			return;
+		}
+		HierarchyTab = TabManagerPtr->TryInvokeTab(UAssetEditorUISubsystem::TopRightTabID);
+		StatisticsTab = TabManagerPtr->TryInvokeTab(UAssetEditorUISubsystem::BottomLeftTabID);
 	}
 
 
@@ -540,7 +549,7 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 		.Padding(MorePadding)
 		.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 		.BodyBorderBackgroundColor(FLinearColor(1.0, 0.0, 0.0))
-		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("HistogramDetailsView.CategoryFontStyle"))
+		.AreaTitleFont(FAppStyle::Get().GetFontStyle("HistogramDetailsView.CategoryFontStyle"))
 		.InitiallyCollapsed(true)
 		.Clipping(EWidgetClipping::ClipToBounds)
 		.BodyContent()
@@ -562,10 +571,10 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 		.AreaTitle(FText(LOCTEXT("Outliner", "Outliner")))
 		.HeaderPadding(FMargin(2.0, 2.0))
 		.Padding(MorePadding)
-		.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
 		.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 		.BodyBorderBackgroundColor(FLinearColor(1.0, 0.0, 0.0))
-		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+		.AreaTitleFont(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 		.BodyContent()
 		[
 			SNew(SVerticalBox)
@@ -628,10 +637,10 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateStatisticsTab(const FSpaw
 		.AreaTitle(FText(LOCTEXT("LevelStatistics", "Level Statistics")))
 		.HeaderPadding(FMargin(2.0, 2.0))
 		.Padding(MorePadding)
-		.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
 		.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 		.BodyBorderBackgroundColor(FLinearColor(1.0, 0.0, 0.0))
-		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+		.AreaTitleFont(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 		.BodyContent()
 		[
 			SAssignNew(StatisticsView, SGeometryCollectionStatistics)

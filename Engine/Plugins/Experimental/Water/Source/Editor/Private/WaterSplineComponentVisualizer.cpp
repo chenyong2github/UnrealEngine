@@ -7,7 +7,7 @@
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealWidget.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
@@ -39,7 +39,7 @@ public:
 			"WaterSplineComponentVisualizer",	// Context name for fast lookup
 			LOCTEXT("WaterSplineComponentVisualizer", "WaterSpline Component Visualizer"),	// Localized context name for displaying
 			NAME_None,	// Parent
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 			)
 	{
 	}

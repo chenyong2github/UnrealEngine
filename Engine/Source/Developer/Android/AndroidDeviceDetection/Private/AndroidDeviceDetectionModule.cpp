@@ -39,7 +39,7 @@
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #endif
 #include "String/ParseLines.h"
 
@@ -957,7 +957,7 @@ private:
 			InMenuBuilder.AddMenuEntry(
 				FText::FromString(ModelName),
 				FText(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAsset"),
 				FUIAction(FExecuteAction::CreateLambda(LambdaSaveConfigFile))
 			);
 		}
@@ -973,7 +973,7 @@ private:
 			LOCTEXT("loc_tip_AddAndroidConfigExportMenu", "Export device settings to a Json file."),
 			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& Builder) { AddAndroidConfigExportSubMenus(Builder); }),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.SaveAll")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.SaveAll")
 		);
 	}
 

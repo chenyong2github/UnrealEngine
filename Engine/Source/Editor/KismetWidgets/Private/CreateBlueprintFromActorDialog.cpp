@@ -352,7 +352,7 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 		{ LOCTEXT("CreateMode_Harvest", "Harvest Components"), LOCTEXT("CreateMode_Harvest_Description", "Replace the selected actors with an instance of a new Blueprint Class inherited from the selected parent class that contains the components."), ECreateBlueprintFromActorMode::Harvest, bCanHarvestComponents }
 	};
 
-	const FCheckBoxStyle& RadioStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedCombo.ButtonOnly");
+	const FCheckBoxStyle& RadioStyle = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedCombo.ButtonOnly");
 
 	SAssignNew(CreationMethodSection, SGridPanel)
 	.FillColumn(1, 1.f);
@@ -509,7 +509,7 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 				.Padding(8)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 					+SUniformGridPanel::Slot(0,0)
 					[
 						SNew(SPrimaryButton)
@@ -636,8 +636,8 @@ void SSCreateBlueprintPathPicker::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Bottom)
 				.ContentPadding(FMargin(8, 2, 8, 2))
 				.OnClicked(this, &SSCreateBlueprintPathPicker::OnClickOk)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+				.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 				.Text(LOCTEXT("OkButtonText", "OK"))
 			]
 			+ SHorizontalBox::Slot()
@@ -648,8 +648,8 @@ void SSCreateBlueprintPathPicker::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Bottom)
 				.ContentPadding(FMargin(8, 2, 8, 2))
 				.OnClicked(this, &SSCreateBlueprintPathPicker::OnClickCancel)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-				.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
+				.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 				.Text(LOCTEXT("CancelButtonText", "Cancel"))
 			]
 		]

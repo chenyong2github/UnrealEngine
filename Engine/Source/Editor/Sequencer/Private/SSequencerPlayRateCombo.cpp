@@ -66,7 +66,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 				SNew(STextBlock)
 				.Visibility(this, &SSequencerPlayRateCombo::GetFrameLockedVisibility)
 				.TextStyle(&SequencerToolBarStyle.LabelStyle)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FEditorFontGlyphs::Lock)
 			]
 
@@ -92,7 +92,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 				.ToolTipText(this, &SSequencerPlayRateCombo::GetFrameRateIsMultipleOfErrorDescription)
 				.Visibility(this, &SSequencerPlayRateCombo::GetFrameRateIsMultipleOfErrorVisibility)
 				.TextStyle(&SequencerToolBarStyle.LabelStyle)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			]
 
@@ -105,7 +105,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 				.ToolTipText(this, &SSequencerPlayRateCombo::GetFrameRateMismatchErrorDescription)
 				.Visibility(this, &SSequencerPlayRateCombo::GetFrameRateMismatchErrorVisibility)
 				.TextStyle(&SequencerToolBarStyle.LabelStyle)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			]
 		]
@@ -580,17 +580,17 @@ const FSlateBrush* SSequencerPlayRateCombo::GetClockSourceImage() const
 				case EUpdateClockSource::Tick:
 					return nullptr;
 				case EUpdateClockSource::Platform:
-					return FEditorStyle::GetBrush("Sequencer.ClockSource.Platform");
+					return FAppStyle::GetBrush("Sequencer.ClockSource.Platform");
 				case EUpdateClockSource::Audio:
-					return FEditorStyle::GetBrush("Sequencer.ClockSource.Audio");
+					return FAppStyle::GetBrush("Sequencer.ClockSource.Audio");
 				case EUpdateClockSource::RelativeTimecode:
-					return FEditorStyle::GetBrush("Sequencer.ClockSource.RelativeTimecode");
+					return FAppStyle::GetBrush("Sequencer.ClockSource.RelativeTimecode");
 				case EUpdateClockSource::Timecode:
-					return FEditorStyle::GetBrush("Sequencer.ClockSource.Timecode");
+					return FAppStyle::GetBrush("Sequencer.ClockSource.Timecode");
 				case EUpdateClockSource::PlayEveryFrame:
-					return FEditorStyle::GetBrush("Sequencer.ClockSource.PlayEveryFrame");
+					return FAppStyle::GetBrush("Sequencer.ClockSource.PlayEveryFrame");
 				case EUpdateClockSource::Custom:
-					return FEditorStyle::GetBrush("Sequencer.ClockSource.Custom");
+					return FAppStyle::GetBrush("Sequencer.ClockSource.Custom");
 				default:
 					return nullptr;
 			}

@@ -193,7 +193,7 @@ TSharedRef<SWindow> FPropertyEditorModule::CreateFloatingDetailsView( const TArr
 
 	NewSlateWindow->SetContent(
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush(TEXT("PropertyWindow.WindowBorder")) )
+		.BorderImage( FAppStyle::GetBrush(TEXT("PropertyWindow.WindowBorder")) )
 		[
 			DetailView
 		]
@@ -365,7 +365,7 @@ TSharedRef< IPropertyTableCellPresenter > FPropertyEditorModule::CreateTextPrope
 	if (InFontPtr == NULL)
 	{
 		// Encapsulating reference to Private file PropertyTableConstants.h
-		InFont = FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle );
+		InFont = FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle );
 	}
 	else
 	{

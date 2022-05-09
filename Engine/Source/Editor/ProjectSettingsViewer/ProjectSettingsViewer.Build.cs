@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"MoviePlayer",
 					"NavigationSystem",
 					"AIModule",
-					"EditorStyle",
 					"DeveloperToolSettings",
 				}
 			);

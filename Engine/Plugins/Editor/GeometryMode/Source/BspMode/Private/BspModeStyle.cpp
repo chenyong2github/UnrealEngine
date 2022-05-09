@@ -4,7 +4,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 TSharedPtr< FSlateStyleSet > FBspModeStyle::StyleSet = nullptr;
@@ -48,11 +48,11 @@ void FBspModeStyle::Initialize()
 	const FVector2D Icon128x128(128.0f, 128.0f);
 
 	// We need some colors from Editor Style & this is the only way to do this at the moment
-	const FSlateColor DefaultForeground = FEditorStyle::GetSlateColor("DefaultForeground");
-	const FSlateColor InvertedForeground = FEditorStyle::GetSlateColor("InvertedForeground");
-	const FSlateColor SelectorColor = FEditorStyle::GetSlateColor("SelectorColor");
-	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor");
-	const FSlateColor SelectionColor_Inactive = FEditorStyle::GetSlateColor("SelectionColor_Inactive");
+	const FSlateColor DefaultForeground = FAppStyle::GetSlateColor("DefaultForeground");
+	const FSlateColor InvertedForeground = FAppStyle::GetSlateColor("InvertedForeground");
+	const FSlateColor SelectorColor = FAppStyle::GetSlateColor("SelectorColor");
+	const FSlateColor SelectionColor = FAppStyle::GetSlateColor("SelectionColor");
+	const FSlateColor SelectionColor_Inactive = FAppStyle::GetSlateColor("SelectionColor_Inactive");
 	
 	// Normal Text
 	FTextBlockStyle NormalText = FTextBlockStyle()

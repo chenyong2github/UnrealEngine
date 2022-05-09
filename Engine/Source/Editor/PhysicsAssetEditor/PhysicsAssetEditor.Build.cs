@@ -29,7 +29,6 @@ public class PhysicsAssetEditor : ModuleRules
 				"RenderCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"LevelEditor",
 				"EditorFramework",
 				"UnrealEd",
@@ -47,6 +46,7 @@ public class PhysicsAssetEditor : ModuleRules
 				"PhysicsUtilities",
 				"MeshUtilitiesCommon",
 				"ApplicationCore",
+				"EditorStyle",
 				"ToolWidgets"
 			}
         );

@@ -33,7 +33,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	//	Layers View Section
 	SAssignNew(LayersSection, SBorder)
 		.Padding(5)
-		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+		.BorderImage(FAppStyle::GetBrush("NoBrush"))
 		.Content()
 		[
 			SNew(SVerticalBox)
@@ -59,7 +59,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	//////////////////////////////////////////////////////////////////////////
 	//	Layer Contents Header
 	SAssignNew(LayerContentsHeader, SBorder)
-		.BorderImage(FEditorStyle::GetBrush("LayerBrowser.LayerContentsQuickbarBackground"))
+		.BorderImage(FAppStyle::GetBrush("LayerBrowser.LayerContentsQuickbarBackground"))
 		.Visibility(TAttribute< EVisibility >(this, &SLayerBrowser::GetLayerContentsHeaderVisibility))
 		.Content()
 		[
@@ -70,7 +70,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 			[
 				SAssignNew(ToggleModeButton, SButton)
 				.ContentPadding(FMargin(2, 0, 2, 0))
-				.ButtonStyle(FEditorStyle::Get(), "LayerBrowserButton")
+				.ButtonStyle(FAppStyle::Get(), "LayerBrowserButton")
 				.OnClicked(this, &SLayerBrowser::ToggleLayerContents)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.VAlign(VAlign_Center)
@@ -160,7 +160,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 
 	SAssignNew(LayerContentsSection, SBorder)
 		.Padding(5)
-		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+		.BorderImage(FAppStyle::GetBrush("NoBrush"))
 		.Content()
 		[
 			SceneOutlinerModule.CreateActorBrowser(InitOptions)

@@ -14,7 +14,7 @@
 #include "Layout/Children.h"
 #include "Widgets/SPanel.h"
 #include "Widgets/SCompoundWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FArrangedChildren;
 class FMenuBuilder;
@@ -236,7 +236,7 @@ public:
 		, _OnTrackDragDrop()
 		, _OnSummonContextMenu()
 		, _OnTrackRightClickContextMenu()
-		, _StyleInfo(FEditorStyle::GetBrush( TEXT( "Persona.NotifyEditor.NotifyTrackBackground" )))
+		, _StyleInfo(FAppStyle::GetBrush( TEXT( "Persona.NotifyEditor.NotifyTrackBackground" )))
 	{}
 
 	SLATE_ATTRIBUTE( float, ViewInputMin )

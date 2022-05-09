@@ -22,7 +22,6 @@ public class ChaosClothEditor : ModuleRules
                 "DetailCustomizations",
                 "CoreUObject",
                 "InputCore",
-                "EditorStyle"
             }
         );
 

@@ -66,7 +66,7 @@ TSharedRef<SWidget>	SGraphPinAI::GetDefaultValueWidget()
 
 const FSlateBrush* SGraphPinAI::GetPinBorder() const
 {
-	return FEditorStyle::GetBrush(TEXT("Graph.StateNode.Body"));
+	return FAppStyle::GetBrush(TEXT("Graph.StateNode.Body"));
 }
 
 FSlateColor SGraphPinAI::GetPinColor() const
@@ -345,7 +345,7 @@ FText SGraphNodeAI::GetPreviewCornerText() const
 
 const FSlateBrush* SGraphNodeAI::GetNameIcon() const
 {
-	return FEditorStyle::GetBrush(TEXT("Graph.StateNode.Icon"));
+	return FAppStyle::GetBrush(TEXT("Graph.StateNode.Icon"));
 }
 
 void SGraphNodeAI::SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel)

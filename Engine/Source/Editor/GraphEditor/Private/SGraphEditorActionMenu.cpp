@@ -4,7 +4,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SGraphActionMenu.h"
 
 SGraphEditorActionMenu::~SGraphEditorActionMenu()
@@ -24,7 +24,7 @@ void SGraphEditorActionMenu::Construct( const FArguments& InArgs )
 
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		.Padding(5)
 		[
 			// Achieving fixed width by nesting items within a fixed width box.

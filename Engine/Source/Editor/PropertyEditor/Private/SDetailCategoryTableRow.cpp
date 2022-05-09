@@ -108,7 +108,7 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 
 	STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 		STableRow::FArguments()
-		.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+		.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 		.ShowSelection(false),
 		InOwnerTableView
 	);

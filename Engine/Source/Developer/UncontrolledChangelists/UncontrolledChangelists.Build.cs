@@ -22,7 +22,7 @@ public class UncontrolledChangelists : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                "EditorStyle",
+                
 				"Json",
 				"SourceControl",
 				"AssetRegistry",

@@ -13,8 +13,8 @@
 #include "SourceCodeNavigation.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "UnrealEdGlobals.h"
@@ -100,7 +100,7 @@ void FMainMenu::RegisterEditMenu()
 			"UndoHistory",
 			LOCTEXT("UndoHistoryTabTitle", "Undo History"),
 			LOCTEXT("UndoHistoryTooltipText", "View the entire undo history."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "UndoHistory.TabIcon"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "UndoHistory.TabIcon"),
 			FUIAction(FExecuteAction::CreateLambda([](){  IUndoHistoryEditorModule::Get().ExecuteOpenUndoHistory(); } ))
 			);
 	}
@@ -115,7 +115,7 @@ void FMainMenu::RegisterEditMenu()
 				LOCTEXT("EditorPreferencesSubMenuToolTip", "Configure the behavior and features of this Editor"),
 				FNewToolMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Editor")),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorPreferences.TabIcon")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon")
 			);
 
 			Section.AddSubMenu(
@@ -124,7 +124,7 @@ void FMainMenu::RegisterEditMenu()
 				LOCTEXT("ProjectSettingsSubMenuToolTip", "Change the settings of the currently loaded project"),
 				FNewToolMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Project")),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProjectSettings.TabIcon")
 			);
 		}
 		else
@@ -134,7 +134,7 @@ void FMainMenu::RegisterEditMenu()
 				"EditorPreferencesMenu",
 				LOCTEXT("EditorPreferencesMenuLabel", "Editor Preferences..."),
 				LOCTEXT("EditorPreferencesMenuToolTip", "Configure the behavior and features of the Unreal Editor."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorPreferences.TabIcon"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon"),
 				FUIAction(FExecuteAction::CreateStatic(&FSettingsMenu::OpenSettings, FName("Editor"), FName("General"), FName("Appearance")))
 			);
 #endif
@@ -143,7 +143,7 @@ void FMainMenu::RegisterEditMenu()
 				"ProjectSettingsMenu",
 				LOCTEXT("ProjectSettingsMenuLabel", "Project Settings..."),
 				LOCTEXT("ProjectSettingsMenuToolTip", "Change the settings of the currently loaded project."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProjectSettings.TabIcon"),
 				FUIAction(FExecuteAction::CreateStatic(&FSettingsMenu::OpenSettings, FName("Project"), FName("Project"), FName("General")))
 			);
 		}
@@ -433,7 +433,7 @@ void FMainMenu::RegisterFileProjectMenu()
 			LOCTEXT("SwitchProjectSubMenu_ToolTip", "Select a project to switch to"),
 			FNewToolMenuDelegate::CreateStatic(&FRecentProjectsMenu::MakeMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentProjects")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RecentProjects")
 		);
 	}
 
@@ -536,14 +536,14 @@ void FMainMenu::RegisterToolsMenu()
 		FMainFrameCommands::Get().ViewChangelists,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab")
 	);
 
 	SourceControlSection.AddMenuEntry(
 		FMainFrameCommands::Get().SubmitContent,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Submit")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit")
 	);
 
 	SourceControlSection.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
@@ -556,7 +556,7 @@ void FMainMenu::RegisterToolsMenu()
 				FMainFrameCommands::Get().ChangeSourceControlSettings,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.ChangeSettings")
 			);
 		}
 		else
@@ -565,7 +565,7 @@ void FMainMenu::RegisterToolsMenu()
 				FMainFrameCommands::Get().ConnectToSourceControl,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Connect")
 			);
 		}
 	}));

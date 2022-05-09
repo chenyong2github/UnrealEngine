@@ -112,7 +112,7 @@ TSharedRef<SWidget> SVariantManager::MakeAddButton()
 {
 	return SNew(SButton)
 	.OnClicked(this, &SVariantManager::OnAddVariantSetClicked)
-	.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+	.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 	.Content()
 	[
 		SNew(SHorizontalBox)
@@ -122,8 +122,8 @@ TSharedRef<SWidget> SVariantManager::MakeAddButton()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.TextStyle(FAppStyle::Get(), "NormalText.Important")
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FEditorFontGlyphs::Plus)
 		]
 		+ SHorizontalBox::Slot()
@@ -131,7 +131,7 @@ TSharedRef<SWidget> SVariantManager::MakeAddButton()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+			.TextStyle(FAppStyle::Get(), "NormalText.Important")
 			.Text(LOCTEXT("VariantSetPlusText", "Variant Set"))
 		]
 	];
@@ -348,7 +348,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 		[
 			// Common "background"
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "WhiteBrush" ) )
+			.BorderImage( FAppStyle::GetBrush( "WhiteBrush" ) )
 			.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor("VariantManager.Panels.LightBackgroundColor") )
 			.Padding( FMargin( BorderThickness ) )
 			[
@@ -3441,7 +3441,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeHeaderRowContent( ERightTr
 		.Padding( FMargin( 0.f, 0.f, 4.f, 0.f ) )
 		[
 			SNew( STextBlock )
-			.TextStyle( FEditorStyle::Get(), "NormalText.Important" )
+			.TextStyle( FAppStyle::Get(), "NormalText.Important" )
 			.Text( RowText )
 		];
 
@@ -3454,15 +3454,15 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeHeaderRowContent( ERightTr
 		.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("AddDependencyTooltip", "Add a new dependency to this variant"))
 			.OnClicked(this, &SVariantManager::OnAddDependencyClicked)
 			.ContentPadding(FMargin(2.0f, 1.0f))
 			.Content()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.TextStyle(FAppStyle::Get(), "NormalText.Important")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FEditorFontGlyphs::Plus)
 			]
 		];
@@ -3471,7 +3471,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeHeaderRowContent( ERightTr
 	return
 	// Show a white spacer above the dependencies header row
 	SNew( SBorder )
-	.BorderImage( FEditorStyle::GetBrush( "WhiteBrush" ) )
+	.BorderImage( FAppStyle::GetBrush( "WhiteBrush" ) )
 	.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor( "VariantManager.Panels.LightBackgroundColor" ) )
 	.Padding( FMargin( 0.0f, RowType == ERightTreeRowType::DependenciesHeader ? FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.BorderThickness" ) : 0.0f, 0.0f, 0.0f ) )
 	[
@@ -3481,7 +3481,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeHeaderRowContent( ERightTr
 			SNew( SBorder )
 			.VAlign( VAlign_Center )
 			.HAlign( HAlign_Fill )
-			.BorderImage( FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Expanded" ) )
+			.BorderImage( FAppStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Expanded" ) )
 			.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor( "VariantManager.Panels.HeaderBackgroundColor" ) )
 			.Padding( FMargin( 2.0f, 0.0f, 2.0f, 0.0f ) )
 			[
@@ -3496,7 +3496,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 	float BorderThickness = FVariantManagerStyle::Get()->GetFloat("VariantManager.Spacings.BorderThickness");
 
 	return SNew( SBorder )
-	.BorderImage( FEditorStyle::GetBrush( "WhiteBrush" ) )
+	.BorderImage( FAppStyle::GetBrush( "WhiteBrush" ) )
 	.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor( "VariantManager.Panels.ContentBackgroundColor" ) )
 	.Padding( FMargin( 0.0f, 0.0f, 0.0f, 2.0f ) )
 	[
@@ -3528,7 +3528,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.TextStyle(FAppStyle::Get(), "NormalText.Important")
 						.Text(LOCTEXT("ActorsText", "Actors"))
 					]
 
@@ -3540,7 +3540,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 					.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
 						.ToolTipText(LOCTEXT("AddActorPlusTooltip", "Add a new actor binding to selected variants"))
 						.OnClicked(this, &SVariantManager::OnSummonAddActorMenu)
 						.ContentPadding(FMargin(2.0f, 1.0f))
@@ -3570,8 +3570,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 						.Content()
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+							.TextStyle(FAppStyle::Get(), "NormalText.Important")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 							.Text(FEditorFontGlyphs::Plus)
 						]
 					]
@@ -3632,7 +3632,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+							.TextStyle(FAppStyle::Get(), "NormalText.Important")
 							.Text(LOCTEXT("PropertiesText", "Properties"))
 						]
 
@@ -3644,7 +3644,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 						.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
 						[
 							SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+							.ButtonStyle(FAppStyle::Get(), "NoBorder")
 							.ToolTipText(LOCTEXT("CapturePropertiesPlusTooltip", "Capture properties from the selected actor bindings"))
 							.OnClicked_Lambda([this]
 							{
@@ -3663,8 +3663,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 							.Content()
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+								.TextStyle(FAppStyle::Get(), "NormalText.Important")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 								.Text(FEditorFontGlyphs::Plus)
 							]
 						]
@@ -3680,7 +3680,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.TextStyle(FAppStyle::Get(), "NormalText.Important")
 						.Text(LOCTEXT("PropertiesValuesText", "Values"))
 					]
 				]
@@ -3706,7 +3706,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 	float BorderThickness = FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.BorderThickness" );
 
 	return SNew( SBorder )
-	.BorderImage( FEditorStyle::GetBrush( "WhiteBrush" ) )
+	.BorderImage( FAppStyle::GetBrush( "WhiteBrush" ) )
 	.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor( "VariantManager.Panels.ContentBackgroundColor" ) )
 	.Padding( FMargin( BorderThickness, 0.0f, BorderThickness, 1.0f ) )
 	[
@@ -3750,7 +3750,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 				.VAlign(VAlign_Center)
 				[
 					SNew( STextBlock )
-					.TextStyle( FEditorStyle::Get(), "NormalText.Important" )
+					.TextStyle( FAppStyle::Get(), "NormalText.Important" )
 					.Text( LOCTEXT( "DependenciesVariantSetText", "Variant Set" ) )
 				]
 			]
@@ -3765,7 +3765,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 				.Padding(FMargin(0, 0, 0, 0))
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
 					.Text(LOCTEXT("DependenciesVariantText", "Variant"))
 				]
 			]
@@ -3801,7 +3801,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 		.MaxHeight(24)
 		[
 			SNew(SSeparator)
-			.SeparatorImage(FEditorStyle::GetBrush("ThinLine.Horizontal"))
+			.SeparatorImage(FAppStyle::GetBrush("ThinLine.Horizontal"))
 			.Thickness(4.f)
 			.Orientation(EOrientation::Orient_Horizontal)
 			.ColorAndOpacity(FLinearColor(0.1, 0.1, 0.1, 1.0))

@@ -18,7 +18,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
 #include "MoviePlayerSettings.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/ProjectPackagingSettings.h"
 #if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 #include "Interfaces/IProjectTargetPlatformEditorModule.h"
@@ -97,7 +97,7 @@ public:
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ProjectSettingsTabName, FOnSpawnTab::CreateRaw(this, &FProjectSettingsViewerModule::HandleSpawnSettingsTab))
 			.SetDisplayName(LOCTEXT("ProjectSettingsTabTitle", "Project Settings"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProjectSettings.TabIcon"));
 	}
 
 	virtual void ShutdownModule() override

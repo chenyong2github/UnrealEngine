@@ -4,7 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "EngineGlobals.h"
 #include "Animation/AnimSequence.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AnimationEditorPreviewScene.h"
 #include "Materials/Material.h"
 #include "CanvasItem.h"
@@ -1572,7 +1572,7 @@ void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent
 
 		static const FName SelectionColorName("SelectionColor");
 
-		const FSlateColor SelectionColor = FEditorStyle::GetSlateColor(SelectionColorName);
+		const FSlateColor SelectionColor = FAppStyle::GetSlateColor(SelectionColorName);
 		const FLinearColor LinearSelectionColor( SelectionColor.IsColorSpecified() ? SelectionColor.GetSpecifiedColor() : FLinearColor::White );
 
 		// we could cache parent bones as we calculate, but right now I'm not worried about perf issue of this

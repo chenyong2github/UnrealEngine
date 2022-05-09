@@ -5,7 +5,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Styling/CoreStyle.h"
 #include "CurveEditor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CurveModel.h"
 #include "ICurveEditorBounds.h"
 #include "CurveEditorScreenSpace.h"
@@ -79,7 +79,7 @@ void SCurveEditorEventChannelView::DrawLabels(const FGeometry& AllottedGeometry,
 		return;
 	}
 
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 
 	// Draw some text telling the user how to get retime anchors.
 	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");

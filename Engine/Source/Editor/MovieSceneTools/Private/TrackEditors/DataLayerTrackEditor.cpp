@@ -6,7 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/StyleColors.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Sections/MovieSceneDataLayerSection.h"
 #include "Tracks/MovieSceneDataLayerTrack.h"
 #include "SequencerUtilities.h"

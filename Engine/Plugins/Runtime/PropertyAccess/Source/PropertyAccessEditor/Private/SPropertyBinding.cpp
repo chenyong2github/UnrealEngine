@@ -84,14 +84,14 @@ void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBluepri
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.Visibility(this, &SPropertyBinding::GetGotoBindingVisibility)
 			.OnClicked(this, &SPropertyBinding::HandleGotoBindingClicked)
 			.VAlign(VAlign_Center)
 			.ToolTipText(LOCTEXT("GotoFunction", "Goto Function"))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Search"))
+				.Image(FAppStyle::GetBrush("Icons.Search"))
 			]
 		]
 	];
@@ -361,7 +361,7 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("RemoveBinding", "Remove Binding"),
 			LOCTEXT("RemoveBindingToolTip", "Removes the current binding"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cross"),
 			FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleRemoveBinding))
 			);
 	}
@@ -371,7 +371,7 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CreateBinding", "Create Binding"),
 			LOCTEXT("CreateBindingToolTip", "Creates a new function on the widget blueprint that will return the binding data for this property."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Plus"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plus"),
 			FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleCreateAndAddBinding))
 			);
 	}
@@ -661,7 +661,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 			.Padding(1.0f, 0.0f)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::Get().GetBrush(FunctionIcon))
+				.Image(FAppStyle::Get().GetBrush(FunctionIcon))
 				.ColorAndOpacity(Schema->GetPinTypeColor(PinType))
 			]
 			+SHorizontalBox::Slot()

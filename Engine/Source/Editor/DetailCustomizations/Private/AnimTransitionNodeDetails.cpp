@@ -15,7 +15,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimInstance.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -119,7 +119,7 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 					.OnClicked(this, &FAnimTransitionNodeDetails::OnClickEditBlendGraph)
 					.Visibility( this, &FAnimTransitionNodeDetails::GetBlendGraphButtonVisibility, SelectedObjects.Num() > 1)
 					.Text(LOCTEXT("EditBlendGraph", "Edit Blend Graph"))
-					.TextStyle(&FEditorStyle::Get(), TEXT("TinyText"))
+					.TextStyle(&FAppStyle::Get(), TEXT("TinyText"))
 				]
 			];
 
@@ -487,7 +487,7 @@ TSharedRef<SWidget> FAnimTransitionNodeDetails::GetWidgetForInlineShareMenu(cons
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([bInIsCurrentlyShared, DemoteClick, PromoteClick]() { return bInIsCurrentlyShared.Get() ? DemoteClick.Execute() : PromoteClick.Execute(); } )
 			.Text_Lambda([bInIsCurrentlyShared](){ return bInIsCurrentlyShared.Get() ? LOCTEXT("UnshareLabel", "Unshare") : LOCTEXT("ShareLabel", "Promote To Shared"); } )
-			.TextStyle(&FEditorStyle::Get(), TEXT("TinyText"))
+			.TextStyle(&FAppStyle::Get(), TEXT("TinyText"))
 		];
 }
 

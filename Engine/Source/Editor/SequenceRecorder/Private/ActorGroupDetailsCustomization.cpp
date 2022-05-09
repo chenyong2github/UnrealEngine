@@ -39,9 +39,9 @@ void FActorGroupDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 			.VAlign(VAlign_Center)
 			[
 			 	SNew(SComboButton)
-			 	.ButtonStyle(FEditorStyle::Get(), "ToolBar.Button")
+			 	.ButtonStyle(FAppStyle::Get(), "ToolBar.Button")
 			 	.OnGetMenuContent(this, &FActorGroupDetailsCustomization::FillRecordingProfileOptions)
-			 	.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+			 	.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 			 	.ButtonContent()
 			 	[
 			 		SNew(SVerticalBox)
@@ -105,8 +105,8 @@ TSharedRef<SWidget> FActorGroupDetailsCustomization::CreateRecordingGroupButton(
 	TWeakPtr<FUICommandInfo> LocalCommandPtr = InCommand;
 	return SNew(SButton)
 		.VAlign(EVerticalAlignment::VAlign_Center)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-		.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		.ButtonStyle(FAppStyle::Get(), "FlatButton")
+		.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 		.ToolTipText(InCommand->GetDescription())
 		.IsEnabled_Lambda([this, LocalCommandPtr]()
 		{
@@ -123,7 +123,7 @@ TSharedRef<SWidget> FActorGroupDetailsCustomization::CreateRecordingGroupButton(
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(InGlyph)
 			]
 			+SHorizontalBox::Slot()

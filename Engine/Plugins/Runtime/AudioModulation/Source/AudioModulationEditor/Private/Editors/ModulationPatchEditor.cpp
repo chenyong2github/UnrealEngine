@@ -9,7 +9,7 @@
 #include "Curves/CurveLinearColor.h"
 #include "CurveEditor.h"
 #include "CurveEditorCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -52,9 +52,9 @@ void FModulationPatchEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& 
 	InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FModulationPatchEditor::SpawnTab_Properties))
 		.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	FSlateIcon CurveIcon(FEditorStyle::GetStyleSetName(), "ModulationPatchEditor.Tabs.Properties");
+	FSlateIcon CurveIcon(FAppStyle::GetAppStyleSetName(), "ModulationPatchEditor.Tabs.Properties");
 	InTabManager->RegisterTabSpawner(CurveTabId, FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs& Args) { return SpawnTab_OutputCurve(Args); }))
 		.SetDisplayName(LOCTEXT("TransformCurvesTab", "Transform Curves"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
@@ -343,7 +343,7 @@ TSharedRef<SDockTab> FModulationPatchEditor::SpawnTab_OutputCurve(const FSpawnTa
 		.TabColorScale(GetTabColorScale())
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.0f)
 			[
 				CurvePanel.ToSharedRef()

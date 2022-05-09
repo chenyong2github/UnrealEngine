@@ -16,7 +16,6 @@ public class PixelInspectorModule : ModuleRules
 				"RHI",
 				"RenderCore",
 				"Slate",
-                "EditorStyle",
                 "Engine",
                 "UnrealEd",
                 "PropertyEditor",

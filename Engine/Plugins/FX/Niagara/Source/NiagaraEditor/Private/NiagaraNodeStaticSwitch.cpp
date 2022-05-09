@@ -891,7 +891,7 @@ void UNiagaraNodeStaticSwitch::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> Ou
 		[
 			SNew(SButton)
 			.Visibility(RemoveVisibilityAttribute)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(GetIntegerRemoveButtonTooltipText())
 			.OnPressed(FSimpleDelegate::CreateUObject(this, &UNiagaraNodeStaticSwitch::RemoveIntegerInputPin))
 			[
@@ -904,7 +904,7 @@ void UNiagaraNodeStaticSwitch::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> Ou
 		[
 			SNew(SButton)
 			.Visibility(AddVisibilityAttribute)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(GetIntegerAddButtonTooltipText())
 			.OnPressed(FSimpleDelegate::CreateUObject(this, &UNiagaraNodeStaticSwitch::AddIntegerInputPin))
 			[

@@ -25,7 +25,6 @@ public class CommonMenuExtensions : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"Engine",
 				"MessageLog",
 				"EditorFramework",

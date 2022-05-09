@@ -10,7 +10,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FSocketDragDropOp
@@ -24,7 +24,7 @@ public:
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
 	{
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			.Content()
 			[		
 				SNew(SHorizontalBox)
@@ -75,7 +75,7 @@ public:
 		TSharedRef<FSocketDragDropOp> Operation = MakeShareable(new FSocketDragDropOp);
 		Operation->SocketInfo = InSocketInfo;
 		Operation->bIsAltDrag = bInIsAltDrag;
-		Operation->SetIcon( FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")) );
+		Operation->SetIcon( FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")) );
 		Operation->Construct();
 		return Operation;
 	}

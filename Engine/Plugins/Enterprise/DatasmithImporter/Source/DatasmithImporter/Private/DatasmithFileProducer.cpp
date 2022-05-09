@@ -1551,7 +1551,7 @@ void FDataprepContentProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 
 FSlateColor FDataprepContentProducerDetails::GetStatusColorAndOpacity() const
 {
-	return  IsProducerSuperseded() ? FLinearColor::Red : FEditorStyle::Get().GetSlateColor("DefaultForeground");
+	return  IsProducerSuperseded() ? FLinearColor::Red : FAppStyle::Get().GetSlateColor("DefaultForeground");
 }
 
 bool FDataprepContentProducerDetails::IsProducerSuperseded() const
@@ -1594,7 +1594,7 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		.Padding(0, 0, 3, 0)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.IsEnabled(Options.Num() > 0)
 			.OnClicked_Lambda( [FileProducer]() -> FReply 
@@ -1605,7 +1605,7 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			.ToolTipText(LOCTEXT("ChangeImportSettings_Tooltip", "Import Settings"))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.ColorAndOpacity(FLinearColor::White)
 				.Text(FEditorFontGlyphs::Cog)
 			]
@@ -1616,7 +1616,7 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		.AutoWidth()
 		[
 			SAssignNew(IconText, STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(MakeAttributeLambda([=]
 				{
 					return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::File;
@@ -1818,7 +1818,7 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 		.Padding(0, 0, 3, 0)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.OnClicked_Lambda([DirProducer]() -> FReply
 			{
@@ -1828,7 +1828,7 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 			.ToolTipText(LOCTEXT("ChangeImportSettings_Tooltip", "Import Settings"))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.ColorAndOpacity(FLinearColor::White)
 				.Text(FEditorFontGlyphs::Cog)
 			]
@@ -1839,7 +1839,7 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 		.Padding(0, 3, 3, 0)
 		[
 			SAssignNew(IconText, STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 			.Text(MakeAttributeLambda([=]
 			{
 				return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::Folder;

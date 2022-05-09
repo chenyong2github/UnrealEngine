@@ -8,7 +8,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Editor/UnrealEdEngine.h"
 #include "LevelEditorViewport.h"
@@ -40,7 +40,6 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
-#include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -150,7 +149,7 @@ public:
 		TSharedRef<SWidget> DefaultNamePlate = SNew(STextBlock)
 			.Text(RightContentText)
 			.Visibility(EVisibility::HitTestInvisible)
-			.TextStyle(FEditorStyle::Get(), "SProjectBadge.Text")
+			.TextStyle(FAppStyle::Get(), "SProjectBadge.Text")
 			.ColorAndOpacity(BadgeTextColor);
 
 		SBox::Construct(SBox::FArguments()
@@ -159,7 +158,7 @@ public:
 			.Padding(FMargin(0.0f, 0.0f, 2.0f, 0.0f))
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("SProjectBadge.BadgeShape"))
+				.BorderImage(FAppStyle::GetBrush("SProjectBadge.BadgeShape"))
 				.Padding(FAppStyle::Get().GetMargin("SProjectBadge.BadgePadding"))
 				.BorderBackgroundColor(BadgeBackgroundColor)
 				.VAlign(VAlign_Top)

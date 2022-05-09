@@ -4,7 +4,7 @@
 
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 FName FMovieRenderPipelineStyle::StyleName("MovieRenderPipelineStyle");
 
@@ -41,7 +41,7 @@ FMovieRenderPipelineStyle::FMovieRenderPipelineStyle()
 		.SetNormalPadding( FMargin(0,0,0,1) )
 		.SetPressedPadding( FMargin(0,1,0,0) );
 
-	FButtonStyle FlatButton = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success");
+	FButtonStyle FlatButton = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success");
 	FlatButton.SetNormalPadding(FMargin(0,0,0,1));
 	FlatButton.SetNormalPadding(FMargin(0,1,0,0));
 

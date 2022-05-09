@@ -3,7 +3,7 @@
 #include "WatchPointViewer.h"
 
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -506,7 +506,7 @@ void SWatchViewer::Construct(const FArguments& InArgs, TArray<TSharedRef<FWatchR
 	[
 		SNew(SBorder)
 		.Padding(4)
-		.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+		.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 		[
 			SNew(SOverlay)
 			+SOverlay::Slot()
@@ -1019,7 +1019,7 @@ void WatchViewer::RegisterTabSpawner(FTabManager& TabManager)
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+					.BorderImage( FAppStyle::GetBrush( TEXT("NoBorder") ) )
 					[
 						ToolbarWidget
 					]
@@ -1028,7 +1028,7 @@ void WatchViewer::RegisterTabSpawner(FTabManager& TabManager)
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+					.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 					[
 						SNew(SWatchViewer, Source)
 					]

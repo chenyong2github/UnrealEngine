@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 /**
@@ -18,7 +18,7 @@ public:
 		"LevelEditorModes", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "LevelEditorModes", "Level Editor Modes"), // Localized context name for displaying
 		"MainFrame", // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{
 	}

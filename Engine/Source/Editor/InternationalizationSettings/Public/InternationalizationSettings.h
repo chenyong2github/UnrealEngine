@@ -13,6 +13,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 /* Dependencies
  *****************************************************************************/
 
-#include "EditorStyle.h"
+#include "Styling/AppStyle.h"
 #include "InternationalizationSettingsModel.h"
 #include "InternationalizationSettingsModelDetails.h"

@@ -29,7 +29,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "CookerSettings.h"
 #include "UnrealEdMisc.h"
@@ -76,7 +76,7 @@ FMainFrameCommands::FMainFrameCommands()
 		TEXT("MainFrame"), // Context name for fast lookup
 		LOCTEXT( "MainFrame", "Main Frame" ), // Localized context name for displaying
 		NAME_None,	 // No parent context
-		FEditorStyle::GetStyleSetName() ), // Icon Style Set
+		FAppStyle::GetAppStyleSetName() ), // Icon Style Set
 	  ToggleFullscreenConsoleCommand(
 		TEXT( "MainFrame.ToggleFullscreen" ),
 		TEXT( "Toggles the editor between \"full screen\" mode and \"normal\" mode.  In full screen mode, the task bar and window title area are hidden." ),
@@ -478,7 +478,7 @@ void FMainFrameActionCallbacks::ZipUpProject()
 			FString CommandLine = FString::Printf(TEXT("ZipProjectUp -nocompileeditor -project=\"%s\" -install=\"%s\""), *ProjectPath, *FinalFileName);
 
 			IUATHelperModule::Get().CreateUatTask( CommandLine, GetTargetPlatformManager()->GetRunningTargetPlatform()->DisplayName(), LOCTEXT("ZipTaskName", "Zipping Up Project"),
-				LOCTEXT("ZipTaskShortName", "Zip Project Task"), FEditorStyle::GetBrush(TEXT("MainFrame.CookContent")), IUATHelperModule::UatTaskResultCallack(), FPaths::GetPath(FinalFileName));
+				LOCTEXT("ZipTaskShortName", "Zip Project Task"), FAppStyle::GetBrush(TEXT("MainFrame.CookContent")), IUATHelperModule::UatTaskResultCallack(), FPaths::GetPath(FinalFileName));
 		}
 	}
 }

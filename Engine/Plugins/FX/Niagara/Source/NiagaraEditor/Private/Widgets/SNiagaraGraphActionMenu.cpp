@@ -5,7 +5,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraActions.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorStyle.h"
@@ -39,7 +39,7 @@ void SNiagaraGraphActionMenu::Construct( const FArguments& InArgs )
 	
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		.Padding(5)
 		[
 			SNew(SVerticalBox)
@@ -175,7 +175,7 @@ TSharedRef<SWidget> SNiagaraGraphActionMenu::OnGenerateWidgetForCategory(const F
 
 	return SNew(SRichTextBlock)
 		.Text(TextContent)
-		.DecoratorStyleSet(&FEditorStyle::Get())
+		.DecoratorStyleSet(&FAppStyle::Get())
 		.TextStyle(FNiagaraEditorStyle::Get(), "ActionMenu.HeadingTextBlock");
 }
 

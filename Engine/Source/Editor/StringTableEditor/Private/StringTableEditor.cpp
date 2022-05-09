@@ -3,7 +3,7 @@
 #include "StringTableEditor.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorDirectories.h"
 #include "DesktopPlatformModule.h"
 #include "StringTableEditorModule.h"
@@ -77,7 +77,7 @@ public:
 		else if (ColumnName == FStringTableEditor::StringTableDeleteColumnId)
 		{
 			Return = SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -85,7 +85,7 @@ public:
 				.ToolTipText(LOCTEXT("DeleteEntryTooltip", "Delete this entry from the string table"))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Cross"))
+					.Image(FAppStyle::Get().GetBrush("Cross"))
 				];
 		}
 
@@ -265,7 +265,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 			[
 				SNew(SBorder)
 				.Padding(2)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 
@@ -296,7 +296,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 						SNew(SButton)
 						.Text(LOCTEXT("ImportFromCSVLabel", "Import from CSV"))
 						.OnClicked(this, &FStringTableEditor::OnImportFromCSVClicked)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(FMargin(6, 2))
 					]
@@ -309,7 +309,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 						SNew(SButton)
 						.Text(LOCTEXT("ExportToCSVLabel", "Export to CSV"))
 						.OnClicked(this, &FStringTableEditor::OnExportToCSVClicked)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(FMargin(6, 2))
 					]
@@ -322,7 +322,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 			[
 				SNew(SBorder)
 				.Padding(2)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SAssignNew(SearchBox, SSearchBox)
 					.OnTextChanged(this, &FStringTableEditor::OnFilterTextChanged)
@@ -333,7 +333,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 			[
 				SNew(SBorder)
 				.Padding(2)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SAssignNew(StringTableEntriesListView, SListView<TSharedPtr<FCachedStringTableEntry>>)
 					.ListItemsSource(&CachedStringTableEntries)
@@ -369,7 +369,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 			[
 				SNew(SBorder)
 				.Padding(2)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 
@@ -417,7 +417,7 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 						SNew(SButton)
 						.Text(LOCTEXT("AddLabel", "Add"))
 						.OnClicked(this, &FStringTableEditor::OnAddClicked)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(FMargin(6, 2))
 					]

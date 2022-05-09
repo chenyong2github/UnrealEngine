@@ -9,7 +9,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
@@ -230,7 +230,7 @@ void SReferenceTree::OpenDialog(UObject* InObject)
 		[
 			SNew( SBorder )
 			.Padding( 4.f )
-			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				SAssignNew(ReferenceTreeWidget, SReferenceTree)
 					.Object(InObject)

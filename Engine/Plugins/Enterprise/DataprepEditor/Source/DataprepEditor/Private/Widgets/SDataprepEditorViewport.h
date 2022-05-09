@@ -10,7 +10,7 @@
 
 #include "AdvancedPreviewScene.h"
 #include "Components/StaticMeshComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorViewportClient.h"
 #include "Layout/Visibility.h"
 #include "Math/Box.h"
@@ -67,7 +67,7 @@ public:
 			TEXT("DataprepEditorViewport"), // Context name for fast lookup
 			NSLOCTEXT( "DataprepEditorViewportCommands", "DataprepEditorViewportText", "Dataprep Editor Viewport"), // Localized context name for displaying
 			NAME_None, // Parent
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 			)
 	{
 	}

@@ -5,7 +5,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Models/SessionConsoleCommands.h"
 
 
@@ -29,7 +29,7 @@ void SSessionConsoleToolbar::Construct(const FArguments& InArgs, const TSharedRe
 	ChildSlot
 	[
 		SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.0f)
 			[
 				Toolbar.MakeWidget()

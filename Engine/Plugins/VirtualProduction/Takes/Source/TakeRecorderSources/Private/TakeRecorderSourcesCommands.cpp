@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderSourcesCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "TakeRecorderSourcesCommands"
 
 FTakeRecorderSourcesCommands::FTakeRecorderSourcesCommands()
-	: TCommands<FTakeRecorderSourcesCommands>("TakeRecorderSources", LOCTEXT("Common", "Common"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FTakeRecorderSourcesCommands>("TakeRecorderSources", LOCTEXT("Common", "Common"), NAME_None, FAppStyle::GetAppStyleSetName())
 {
 }
 

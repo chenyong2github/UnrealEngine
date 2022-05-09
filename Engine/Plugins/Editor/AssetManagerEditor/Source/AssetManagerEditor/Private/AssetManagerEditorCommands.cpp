@@ -11,7 +11,7 @@ FAssetManagerEditorCommands::FAssetManagerEditorCommands() : TCommands<FAssetMan
 	"AssetManagerEditorCommands",
 	NSLOCTEXT("Contexts", "AssetManagerEditorCommands", "Asset Management"),
 	NAME_None, 
-	FEditorStyle::GetStyleSetName())
+	FAppStyle::GetAppStyleSetName())
 {
 }
 

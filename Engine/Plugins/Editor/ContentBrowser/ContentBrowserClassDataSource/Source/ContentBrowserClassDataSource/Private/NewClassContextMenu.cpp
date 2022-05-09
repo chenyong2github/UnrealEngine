@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NewClassContextMenu.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
@@ -47,7 +47,7 @@ void FNewClassContextMenu::MakeContextMenu(
 				"NewClass",
 				LOCTEXT("NewClassLabel", "New C++ Class..."),
 				NewClassToolTip,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.AddCodeToProject"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.AddCodeToProject"),
 				FUIAction(
 					FExecuteAction::CreateStatic(&FNewClassContextMenu::ExecuteNewClass, ClassCreationPath, InOnNewClassRequested),
 					CanExecuteClassActionsDelegate

@@ -32,7 +32,7 @@ public class MeshUtilities : ModuleRules
 				"Landscape",
 				"LevelEditor",
 				"PropertyEditor",
-				"EditorStyle",
+				
                 "GraphColor",
                 "MeshBuilderCommon",
                 "MeshUtilitiesCommon",

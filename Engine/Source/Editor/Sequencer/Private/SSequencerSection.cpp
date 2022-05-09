@@ -2,7 +2,7 @@
 
 #include "SSequencerSection.h"
 #include "Rendering/DrawElements.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerSelectionPreview.h"
 #include "SequencerSettings.h"
 #include "Editor.h"
@@ -92,9 +92,9 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			? ESlateDrawEffect::None
 			: ESlateDrawEffect::DisabledEffect;
 
-		static const FSlateBrush* SectionBackgroundBrush = FEditorStyle::GetBrush("Sequencer.Section.Background");
-		static const FSlateBrush* SectionBackgroundTintBrush = FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint");
-		static const FSlateBrush* SelectedSectionOverlay = FEditorStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay");
+		static const FSlateBrush* SectionBackgroundBrush = FAppStyle::GetBrush("Sequencer.Section.Background");
+		static const FSlateBrush* SectionBackgroundTintBrush = FAppStyle::GetBrush("Sequencer.Section.BackgroundTint");
+		static const FSlateBrush* SelectedSectionOverlay = FAppStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay");
 
 		FLinearColor FinalTint = GetFinalTintColor(Tint);
 
@@ -112,7 +112,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			TOptional<FSlateClippingState> PreviousClipState = DrawElements.GetClippingState();
 			DrawElements.PopClip();
 
-			static const FSlateBrush* PreRollBrush = FEditorStyle::GetBrush("Sequencer.Section.PreRoll");
+			static const FSlateBrush* PreRollBrush = FAppStyle::GetBrush("Sequencer.Section.PreRoll");
 			float BrushHeight = 16.f, BrushWidth = 10.f;
 
 			if (Section.HasStartFrame())
@@ -258,7 +258,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			return;
 		}
 
-		SelectionColor = FEditorStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
+		SelectionColor = FAppStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
 
 		// Use a muted selection color for selection previews
 		if (SelectionPreviewState == ESelectionPreviewState::Selected)
@@ -287,7 +287,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMovieSceneBlendType"), true);
 		FText DisplayText = Enum->GetDisplayNameTextByValue((int64)Section.GetBlendType().Get());
 
-		FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("Sequencer.Section.BackgroundText");
+		FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("Sequencer.Section.BackgroundText");
 		FontInfo.Size = 24;
 
 		auto GetFontHeight = [&]
@@ -430,7 +430,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			return;
 		}
 
-		const FSlateBrush* MyBrush = FEditorStyle::Get().GetBrush("Sequencer.Timeline.EaseInOut");
+		const FSlateBrush* MyBrush = FAppStyle::Get().GetBrush("Sequencer.Timeline.EaseInOut");
 
 		FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*MyBrush);
 		const FSlateShaderResourceProxy* ResourceProxy = ResourceHandle.GetResourceProxy();
@@ -443,7 +443,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		const FVector2f Pos = FVector2f(RangeGeometry.GetAbsolutePosition());	// LWC_TODO: Precision loss
 		const FVector2D Size = RangeGeometry.GetLocalSize();
 
-		FLinearColor EaseSelectionColor = FEditorStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
+		FLinearColor EaseSelectionColor = FAppStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
 
 		FColor FillColor(0,0,0,51);
 
@@ -561,8 +561,8 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			return;
 		}
 
-		static const FSlateBrush* PinCusionBrush = FEditorStyle::GetBrush("Sequencer.Section.PinCusion");
-		static const FSlateBrush* OverlapBorderBrush = FEditorStyle::GetBrush("Sequencer.Section.OverlapBorder");
+		static const FSlateBrush* PinCusionBrush = FAppStyle::GetBrush("Sequencer.Section.PinCusion");
+		static const FSlateBrush* OverlapBorderBrush = FAppStyle::GetBrush("Sequencer.Section.OverlapBorder");
 
 		const ESlateDrawEffect DrawEffects = bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
@@ -611,7 +611,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 	void DrawEmptySpace()
 	{
 		const ESlateDrawEffect DrawEffects = bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-		static const FSlateBrush* EmptySpaceBrush = FEditorStyle::GetBrush("Sequencer.Section.EmptySpace");
+		static const FSlateBrush* EmptySpaceBrush = FAppStyle::GetBrush("Sequencer.Section.EmptySpace");
 
 		// Attach contiguous regions together
 		TOptional<FSlateRect> CurrentArea;
@@ -1101,7 +1101,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 	LayerId = SCompoundWidget::OnPaint( Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bEnabled );
 
-	FLinearColor SelectionColor = FEditorStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
+	FLinearColor SelectionColor = FAppStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
 	DrawSectionHandles(AllottedGeometry, OutDrawElements, LayerId, DrawEffects, SelectionColor, Hotspot);
 
 	Painter.LayerId = LayerId;
@@ -1124,7 +1124,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			FEditorStyle::GetBrush(SelectionBorder),
+			FAppStyle::GetBrush(SelectionBorder),
 			DrawEffects,
 			FLinearColor::Red
 		);
@@ -1137,7 +1137,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(),
-			FEditorStyle::GetBrush(SelectionBorder),
+			FAppStyle::GetBrush(SelectionBorder),
 			DrawEffects,
 			FLinearColor::Green
 		);
@@ -1157,7 +1157,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	{
 		FVector2D TopLeft = SectionGeometry.AbsoluteToLocal(Painter.SectionClippingRect.GetTopLeft()) + FVector2D(1.f, -1.f);
 
-		FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("NormalFont");
+		FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("NormalFont");
 
 		TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
 
@@ -1287,7 +1287,7 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 
 		const ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
-		const FSlateBrush* EasingHandle = FEditorStyle::GetBrush("Sequencer.Section.EasingHandle");
+		const FSlateBrush* EasingHandle = FAppStyle::GetBrush("Sequencer.Section.EasingHandle");
 		FVector2D HandleSize(10.f, 10.f);
 
 		if (UnderlappingSectionObj->HasStartFrame() && EnumHasAllFlags(EasingSupportFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseIn))
@@ -1408,8 +1408,8 @@ void SSequencerSection::DrawSectionHandles( const FGeometry& AllottedGeometry, F
 			Opacity = FMath::Clamp(.5f + ThisHandleOffset / GripSize.X * .5f, .5f, 1.f);
 		}
 
-		const FSlateBrush* LeftGripBrush = FEditorStyle::GetBrush("Sequencer.Section.GripLeft");
-		const FSlateBrush* RightGripBrush = FEditorStyle::GetBrush("Sequencer.Section.GripRight");
+		const FSlateBrush* LeftGripBrush = FAppStyle::GetBrush("Sequencer.Section.GripLeft");
+		const FSlateBrush* RightGripBrush = FAppStyle::GetBrush("Sequencer.Section.GripRight");
 
 		// Left Grip
 		if (UnderlappingSectionObj->HasStartFrame())

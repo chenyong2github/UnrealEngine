@@ -704,7 +704,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevic
 			.Text(LOCTEXT("Spawn", "Spawn"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked_Lambda([&]() -> FReply
 			{
 				const FCameraCalibrationStepsController* StepsController = GetStepsController();
@@ -723,7 +723,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevic
 			})
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
 				.Text(FEditorFontGlyphs::Plus)
 				.ColorAndOpacity(FLinearColor::White)
 			]

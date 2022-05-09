@@ -52,7 +52,7 @@ FReply FVariantManagerVariantNode::OnDoubleClick(const FGeometry& InMyGeometry, 
 
 TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow)
 {
-	FSlateFontInfo NodeFont = FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
+	FSlateFontInfo NodeFont = FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
 
 	EditableLabel = SNew(SInlineEditableTextBlock)
 		.IsReadOnly(this, &FVariantManagerDisplayNode::IsReadOnly)
@@ -67,7 +67,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 	RadioButton = SNew(SCheckBox)
 		.HAlign(HAlign_Right)
 		.Padding(FMargin(0))
-		.Style(FEditorStyle::Get(), "Menu.RadioButton")
+		.Style(FAppStyle::Get(), "Menu.RadioButton")
 		.ForegroundColor(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))
 		.ToolTipText(LOCTEXT("ActivateVariantRadioToolTip", "Activate the variant"))
 		.IsChecked(FVariantManagerVariantNode::IsRadioButtonChecked())
@@ -208,7 +208,7 @@ TOptional<EItemDropZone> FVariantManagerVariantNode::CanDrop(const FDragDropEven
 				NumActorsWeCanAdd,
 				GetVariant().GetDisplayText());
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -219,7 +219,7 @@ TOptional<EItemDropZone> FVariantManagerVariantNode::CanDrop(const FDragDropEven
 			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to variant '{0}'!"),
 				GetVariant().GetDisplayText());
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -280,7 +280,7 @@ TOptional<EItemDropZone> FVariantManagerVariantNode::CanDrop(const FDragDropEven
 					NumActorsWeCanAdd,
 					GetVariant().GetDisplayText());
 
-				const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 				VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -291,7 +291,7 @@ TOptional<EItemDropZone> FVariantManagerVariantNode::CanDrop(const FDragDropEven
 				FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to variant '{0}'!"),
 					GetVariant().GetDisplayText());
 
-				const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 				VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -307,7 +307,7 @@ TOptional<EItemDropZone> FVariantManagerVariantNode::CanDrop(const FDragDropEven
 				DraggedVariants.Num(),
 				ParentVarSet->GetDisplayText());
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 			VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 

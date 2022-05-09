@@ -18,7 +18,6 @@ public class DerivedDataEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",

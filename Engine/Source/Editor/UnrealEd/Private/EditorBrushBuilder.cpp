@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Builders/EditorBrushBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Builders/ConeBuilder.h"
 #include "Builders/CubeBuilder.h"
@@ -189,7 +189,7 @@ bool UEditorBrushBuilder::BadParameters(const FText& Msg)
 		Info.bFireAndForget = true;
 		Info.ExpireDuration = Msg.IsEmpty() ? 4.0f : 6.0f;
 		Info.bUseLargeFont = Msg.IsEmpty();
-		Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Error"));
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
 		FSlateNotificationManager::Get().AddNotification( Info );
 	}
 	return 0;

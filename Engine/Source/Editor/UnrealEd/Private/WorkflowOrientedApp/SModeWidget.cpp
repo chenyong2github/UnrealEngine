@@ -8,7 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SCheckBox.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -24,9 +24,9 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 	OnSetActiveMode = InArgs._OnSetActiveMode;
 
 	// Load resources
-	InactiveModeBorderImage = FEditorStyle::GetBrush("ModeSelector.ToggleButton.Normal");
-	ActiveModeBorderImage = FEditorStyle::GetBrush("ModeSelector.ToggleButton.Pressed");
-	HoverBorderImage = FEditorStyle::GetBrush("ModeSelector.ToggleButton.Hovered");
+	InactiveModeBorderImage = FAppStyle::GetBrush("ModeSelector.ToggleButton.Normal");
+	ActiveModeBorderImage = FAppStyle::GetBrush("ModeSelector.ToggleButton.Pressed");
+	HoverBorderImage = FAppStyle::GetBrush("ModeSelector.ToggleButton.Hovered");
 	
 	TSharedRef<SHorizontalBox> InnerRow = SNew(SHorizontalBox);
 

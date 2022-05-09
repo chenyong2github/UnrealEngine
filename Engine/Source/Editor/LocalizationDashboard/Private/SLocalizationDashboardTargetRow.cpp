@@ -9,7 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FileHelpers.h"
 #include "LocalizationDashboard.h"
 #include "IPropertyUtilities.h"
@@ -69,13 +69,13 @@ TSharedRef<SWidget> SLocalizationDashboardTargetRow::GenerateWidgetForColumn( co
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), TEXT("HoverHintOnly") )
+				.ButtonStyle( FAppStyle::Get(), TEXT("HoverHintOnly") )
 				.ToolTipText(LOCTEXT("DeleteButtonLabel", "Delete this target."))
 				.OnClicked(this, &SLocalizationDashboardTargetRow::EnqueueDeletion)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationDashboard.DeleteTarget"))
+					.Image(FAppStyle::GetBrush("LocalizationDashboard.DeleteTarget"))
 				]
 			];
 	}

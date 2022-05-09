@@ -7,7 +7,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "UObject/Package.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Factories/DataAssetFactory.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -410,7 +410,7 @@ TSharedRef<SGraphEditor> FConversationEditor::CreateGraphEditorWidget(UEdGraph* 
 	// Make title bar
 	TSharedRef<SWidget> TitleBarWidget = 
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
+		.BorderImage( FAppStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
 		.HAlign(HAlign_Fill)
 		[
 			SNew(SHorizontalBox)
@@ -420,7 +420,7 @@ TSharedRef<SGraphEditor> FConversationEditor::CreateGraphEditorWidget(UEdGraph* 
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ConversationGraphLabel", "Conversation Editor"))
-				.TextStyle( FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
+				.TextStyle( FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
 			]
 		];
 

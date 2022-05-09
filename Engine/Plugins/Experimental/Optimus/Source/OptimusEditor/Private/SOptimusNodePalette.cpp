@@ -18,7 +18,7 @@ void SOptimusNodePaletteItem::Construct(const FArguments& InArgs, FCreateWidgetF
 
 
 	TSharedPtr<FEdGraphSchemaAction> GraphAction = InCreateData->Action;
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	const FSlateBrush* IconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor IconColor = FSlateColor::UseForeground();
 	FText IconToolTip = GraphAction->GetTooltipDescription();
 	bool bIsReadOnly = false;
@@ -101,7 +101,7 @@ void SOptimusNodePalette::Construct(const FArguments& InArgs, TWeakPtr<FOptimusE
 	[
 		SNew(SBorder)
 		.Padding(2.0f)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SAssignNew(GraphActionMenu, SGraphActionMenu)
 			.OnActionDragged(this, &SOptimusNodePalette::OnActionDragged)

@@ -73,7 +73,7 @@ void SAnimMontagePanel::Construct(const FArguments& InArgs, const TSharedRef<FAn
 	[
 		SAssignNew( PanelArea, SBorder )
 		.Padding(0.0f)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.ColorAndOpacity( FLinearColor::White )
 	];
 

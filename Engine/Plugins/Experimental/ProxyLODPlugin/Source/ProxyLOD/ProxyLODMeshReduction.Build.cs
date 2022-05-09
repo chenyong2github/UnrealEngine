@@ -38,7 +38,6 @@ namespace UnrealBuildTool.Rules
 					"PropertyEditor",
 					"SlateCore",
 					"Slate",
-					"EditorStyle",
 					"RenderCore",
 					"RHI",
 					"QuadricMeshReduction"

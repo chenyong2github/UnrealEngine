@@ -7,7 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/SlateDelegates.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class SEditableTextBox;
 

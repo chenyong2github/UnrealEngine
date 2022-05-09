@@ -41,7 +41,7 @@ public:
 		: FWorkflowTabFactory(TabName, InHostingApp)
 	{
 		TabLabel = LOCTEXT("ClothPaintTabLabel", "Clothing");
-		TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SkeletalMesh");
+		TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SkeletalMesh");
 	}
 
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override

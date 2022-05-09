@@ -15,7 +15,6 @@ public class SkeletonEditor : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"Persona",

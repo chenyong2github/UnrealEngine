@@ -61,7 +61,7 @@ void FControlRigEnumControlProxyValueDetails::CustomizeHeader(TSharedRef<IProper
 		SNew(SEnumComboBox, ProxyBeingCustomized->Enum.EnumType)
 		.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &FControlRigEnumControlProxyValueDetails::OnEnumValueChanged, InStructPropertyHandle))
 		.CurrentValue(this, &FControlRigEnumControlProxyValueDetails::GetEnumValue)
-		.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+		.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 	];
 }
 

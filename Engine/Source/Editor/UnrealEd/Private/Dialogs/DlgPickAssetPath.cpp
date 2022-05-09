@@ -9,29 +9,20 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetToolsModule.h"
 #include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "DlgPickAssetPath"
 
 void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 {
-	const FString DefaultAssetPath = InArgs._DefaultAssetPath.ToString();
-
+	AssetPath = FText::FromString(FPackageName::GetLongPackagePath(InArgs._DefaultAssetPath.ToString()));
+	AssetName = FText::FromString(FPackageName::GetLongPackageAssetName(InArgs._DefaultAssetPath.ToString()));
 	bAllowReadOnlyFolders = InArgs._AllowReadOnlyFolders;
 
-	// Make sure DefaultAssetPath is allowed before setting AssetPath/Name
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (bAllowReadOnlyFolders || AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(DefaultAssetPath))
-	{
-		AssetPath = FText::FromString(FPackageName::GetLongPackagePath(DefaultAssetPath));
-		AssetName = FText::FromString(FPackageName::GetLongPackageAssetName(DefaultAssetPath));
-	}
-	
 	FPathPickerConfig PathPickerConfig;
 	PathPickerConfig.DefaultPath = AssetPath.ToString();
 	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SDlgPickAssetPath::OnPathChange);
@@ -53,7 +44,7 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 			.Padding(2,2,2,4)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -97,9 +88,9 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 			.Padding(8.f, 16.f)
 			[
 				SNew(SUniformGridPanel)
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 
 				+SUniformGridPanel::Slot(0,0)
 				[
@@ -111,7 +102,7 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("Cancel", "Cancel"))
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SDlgPickAssetPath::OnButtonClick, EAppReturnType::Cancel)
 				]
 			]

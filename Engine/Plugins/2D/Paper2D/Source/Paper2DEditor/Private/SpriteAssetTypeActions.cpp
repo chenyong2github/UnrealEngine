@@ -5,7 +5,7 @@
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "Misc/FeedbackContext.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "SpriteEditor/SpriteEditor.h"
 #include "IContentBrowserSingleton.h"
@@ -67,7 +67,7 @@ void FSpriteAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FToo
 		"Sprite_CreateFlipbook",
 		LOCTEXT("Sprite_CreateFlipbook", "Create Flipbook"),
 		LOCTEXT("Sprite_CreateFlipbookTooltip", "Creates flipbooks from the selected sprites."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PaperFlipbook"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PaperFlipbook"),
 		FUIAction(
 		FExecuteAction::CreateSP(this, &FSpriteAssetTypeActions::ExecuteCreateFlipbook, Sprites),
 		FCanExecuteAction()

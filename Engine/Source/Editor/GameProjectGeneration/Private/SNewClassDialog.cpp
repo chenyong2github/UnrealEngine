@@ -13,7 +13,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -273,7 +273,7 @@ void SNewClassDialog::Construct( const FArguments& InArgs )
 	[
 		SNew(SBorder)
 		.Padding(18)
-		.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+		.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 		[
 			SNew(SVerticalBox)
 			.AddMetaData<FTutorialMetaData>(TEXT("AddCodeMajorAnchor"))
@@ -380,7 +380,7 @@ void SNewClassDialog::Construct( const FArguments& InArgs )
 					[
 						SNew(SBorder)
 						.AddMetaData<FTutorialMetaData>(TEXT("AddCodeOptions"))
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						[
 							SNew(SVerticalBox)
 
@@ -466,7 +466,7 @@ void SNewClassDialog::Construct( const FArguments& InArgs )
 						.HAlign(HAlign_Left)
 						[
 							SNew(SHyperlink)
-							.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+							.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 							.OnNavigate(this, &SNewClassDialog::OnEditCodeClicked)
 							.Text(this, &SNewClassDialog::GetSelectedParentClassFilename)
 							.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
@@ -533,7 +533,7 @@ void SNewClassDialog::Construct( const FArguments& InArgs )
 						.AutoHeight()
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+							.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 							.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f ))
 							.Padding(FMargin(6.0f, 4.0f, 7.0f, 4.0f))
 							[
@@ -810,7 +810,7 @@ TSharedRef<ITableRow> SNewClassDialog::MakeParentClassListViewWidget(TSharedPtr<
 	return
 		SNew( STableRow<TSharedPtr<FParentClassItem>>, OwnerTable )
 		.Padding(4)
-		.Style(FEditorStyle::Get(), "NewClassDialog.ParentClassListView.TableRow")
+		.Style(FAppStyle::Get(), "NewClassDialog.ParentClassListView.TableRow")
 		.ToolTip(IDocumentation::Get()->CreateToolTip(ClassFullDescription, nullptr, FEditorClassUtils::GetDocumentationPage(Class), FEditorClassUtils::GetDocumentationExcerpt(Class)))
 		[
 			SNew(SBox)

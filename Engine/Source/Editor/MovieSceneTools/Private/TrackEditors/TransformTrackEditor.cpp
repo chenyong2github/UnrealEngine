@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Components/SceneComponent.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Editor/UnrealEdEngine.h"
 #include "GameFramework/Character.h"
@@ -433,12 +433,12 @@ void F3DTransformTrackEditor::BuildObjectBindingEditButtons(TSharedPtr<SHorizont
 				.IsChecked(this, &F3DTransformTrackEditor::IsCameraLocked, ObjectGuid)
 				.OnCheckStateChanged(this, &F3DTransformTrackEditor::OnLockCameraClicked, ObjectGuid)
 				.ToolTipText(this, &F3DTransformTrackEditor::GetLockCameraToolTip, ObjectGuid)
-				.CheckedImage(FEditorStyle::GetBrush("Sequencer.LockCamera"))
-				.CheckedHoveredImage(FEditorStyle::GetBrush("Sequencer.LockCamera"))
-				.CheckedPressedImage(FEditorStyle::GetBrush("Sequencer.LockCamera"))
-				.UncheckedImage(FEditorStyle::GetBrush("Sequencer.UnlockCamera"))
-				.UncheckedHoveredImage(FEditorStyle::GetBrush("Sequencer.UnlockCamera"))
-				.UncheckedPressedImage(FEditorStyle::GetBrush("Sequencer.UnlockCamera"))
+				.CheckedImage(FAppStyle::GetBrush("Sequencer.LockCamera"))
+				.CheckedHoveredImage(FAppStyle::GetBrush("Sequencer.LockCamera"))
+				.CheckedPressedImage(FAppStyle::GetBrush("Sequencer.LockCamera"))
+				.UncheckedImage(FAppStyle::GetBrush("Sequencer.UnlockCamera"))
+				.UncheckedHoveredImage(FAppStyle::GetBrush("Sequencer.UnlockCamera"))
+				.UncheckedPressedImage(FAppStyle::GetBrush("Sequencer.UnlockCamera"))
 		];
 };
 void F3DTransformTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)

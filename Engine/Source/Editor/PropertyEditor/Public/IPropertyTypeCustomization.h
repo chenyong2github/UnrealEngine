@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FAssetThumbnailPool;
 class FDetailWidgetRow;
@@ -63,12 +63,12 @@ public:
 	/**
 	 * @return the font used for properties and details
 	 */ 
-	static FSlateFontInfo GetRegularFont() { return FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ); }
+	static FSlateFontInfo GetRegularFont() { return FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ); }
 
 	/**
 	 * @return the bold font used for properties and details
 	 */ 
-	static FSlateFontInfo GetBoldFont() { return FEditorStyle::GetFontStyle( TEXT("PropertyWindow.BoldFont") ); }
+	static FSlateFontInfo GetBoldFont() { return FAppStyle::GetFontStyle( TEXT("PropertyWindow.BoldFont") ); }
 	
 	/**
 	 * Gets the thumbnail pool that should be used for rendering thumbnails in the struct                  

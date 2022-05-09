@@ -4,7 +4,7 @@
 #include "DataRegistryEditorToolkit.h"
 
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -19,7 +19,7 @@ void SDataRegistryListViewRow::Construct(const FArguments& InArgs, const TShared
 	DataRegistryEditor = InArgs._DataRegistryEditor;
 	SMultiColumnTableRow<FDataTableEditorRowListViewDataPtr>::Construct(
 		FSuperRowType::FArguments()
-		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+		.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow"),
 		InOwnerTableView
 	);
 
@@ -83,7 +83,7 @@ TSharedRef<SWidget> SDataRegistryListViewRow::MakeCellWidget(const int32 InRowIn
 			.Padding(FMargin(4, 2, 4, 2))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "DataTableEditor.CellText")
+				.TextStyle(FAppStyle::Get(), "DataTableEditor.CellText")
 				.Text(FText::FromString(FString::FromInt(RowDataPtr->RowNum)))
 				.ColorAndOpacity(DataRegistryEdit, &FDataRegistryEditorToolkit::GetRowTextColor, RowDataPtr->RowId)
 				.HighlightText(DataRegistryEdit, &FDataRegistryEditorToolkit::GetFilterText)
@@ -118,7 +118,7 @@ TSharedRef<SWidget> SDataRegistryListViewRow::MakeCellWidget(const int32 InRowIn
 			.Padding(FMargin(4, 2, 4, 2))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "DataTableEditor.CellText")
+				.TextStyle(FAppStyle::Get(), "DataTableEditor.CellText")
 				.ColorAndOpacity(DataRegistryEdit, &FDataRegistryEditorToolkit::GetRowTextColor, RowDataPtr->RowId)
 				.Text(DataRegistryEdit, &FDataRegistryEditorToolkit::GetCellText, RowDataPtr, ColumnIndex)
 				.HighlightText(DataRegistryEdit, &FDataRegistryEditorToolkit::GetFilterText)

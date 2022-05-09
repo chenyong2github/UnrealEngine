@@ -3,7 +3,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "DesktopPlatformModule.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/FileHelper.h"
 #include "Internationalization/Regex.h"
 #include "Misc/MessageDialog.h"
@@ -115,7 +115,7 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.LightGroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.LightGroupBorder"))
 		.Padding(2)
 		[
 			SNew(SVerticalBox)
@@ -128,14 +128,14 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 					.HeaderPadding(5)
 					.Padding(5)
 					.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
-					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.InitiallyCollapsed(false)
 					.HeaderContent()
 					[
 						SNew(SRichTextBlock)
-						.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-						.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+						.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+						.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 						.Text(LOCTEXT("GeneralSettings", "<RichTextBlock.Bold>General Settings</>"))
 					]
 					.BodyContent()
@@ -149,14 +149,14 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 					.HeaderPadding(5)
 					.Padding(5)
 					.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
-					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.InitiallyCollapsed(true)
 					.HeaderContent()
 					[
 						SNew(SRichTextBlock)
-						.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-						.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+						.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+						.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 						.Text(LOCTEXT("OptionalSettings", "<RichTextBlock.Bold>Optional Settings</>"))
 					]
 					.BodyContent()
@@ -174,14 +174,14 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 					.HeaderPadding(5)
 					.Padding(5)
 					.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
-					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.InitiallyCollapsed(true)
 					.HeaderContent()
 					[
 						SNew(SRichTextBlock)
-						.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-						.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+						.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+						.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 						.Text(LOCTEXT("ExpansionFileSettings", "<RichTextBlock.Bold>Expansion Files</>"))
 					]
 					.BodyContent()
@@ -201,7 +201,7 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().FillHeight(1.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					logTextBox
 				]
@@ -209,7 +209,7 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(2.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().AutoWidth()
@@ -230,7 +230,7 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 							SNew(SRichTextBlock)
 							.Text(LOCTEXT("ODHCallout",
 								"<RichTextBlock.Bold>Oculus Developer Hub</> is a desktop companion tool that can upload builds, manage apps and reduce friction in daily Quest development."))
-							.DecoratorStyleSet(&FEditorStyle::Get())
+							.DecoratorStyleSet(&FAppStyle::Get())
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot().AutoHeight()
@@ -391,7 +391,7 @@ void SOculusPlatformToolWidget::BuildTextComboBoxField(TSharedPtr<SVerticalBox> 
 			.WidthOverride(250.f).Padding(textMargin)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.Text(name)
 			]
 		]
@@ -421,7 +421,7 @@ void SOculusPlatformToolWidget::BuildCheckBoxField(TSharedPtr<SVerticalBox> box,
 			.WidthOverride(250.f).Padding(textMargin)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.Text(name)
 			]
 		]
@@ -544,15 +544,15 @@ void SOculusPlatformToolWidget::BuildRiftOptionalFields(TSharedPtr<SVerticalBox>
 		.HeaderPadding(5)
 		.Padding(5)
 		.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
-		.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.BodyBorderBackgroundColor(FLinearColor::White)
 		.InitiallyCollapsed(Options2DCollapsed)
 		.OnAreaExpansionChanged(this, &SOculusPlatformToolWidget::On2DOptionsExpanded)
 		.HeaderContent()
 		[
 			SNew(SRichTextBlock)
-			.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-			.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+			.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+			.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 			.Text(LOCTEXT("2DSettings", "<RichTextBlock.Bold>2D Settings</>"))
 		]
 		.BodyContent()
@@ -582,7 +582,7 @@ void SOculusPlatformToolWidget::BuildRedistPackagesBox(TSharedPtr<SVerticalBox> 
 				.WidthOverride(250.f)
 				[
 					SNew(SRichTextBlock)
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.Text(FText::FromString(Package->Name))
 				]
 			]
@@ -601,15 +601,15 @@ void SOculusPlatformToolWidget::BuildRedistPackagesBox(TSharedPtr<SVerticalBox> 
 		.HeaderPadding(5)
 		.Padding(5)
 		.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
-		.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.BodyBorderBackgroundColor(FLinearColor::White)
 		.InitiallyCollapsed(OptionsRedistPackagesCollapsed)
 		.OnAreaExpansionChanged(this, &SOculusPlatformToolWidget::OnRedistPackagesExpanded)
 		.HeaderContent()
 		[
 			SNew(SRichTextBlock)
-			.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-			.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+			.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+			.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 			.Text(LOCTEXT("RedistPack", "<RichTextBlock.Bold>Redistributable Packages</>"))
 		]
 		.BodyContent()
@@ -651,13 +651,13 @@ void SOculusPlatformToolWidget::BuildExpansionFileBox(TSharedPtr<SVerticalBox> b
 				.HeaderPadding(5)
 				.Padding(5)
 				.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
-				.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.BodyBorderBackgroundColor(FLinearColor::White)
 				.HeaderContent()
 				[
 					SNew(SRichTextBlock)
-					.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-					.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+					.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+					.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 					.Text(FText::FromString((*AssetConfigs)[i].Name))
 				]
 				.BodyContent()
@@ -682,7 +682,7 @@ void SOculusPlatformToolWidget::BuildAssetConfigBox(TSharedPtr<SVerticalBox> box
 			.WidthOverride(250.f)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.Text(LOCTEXT("AssetType", "Asset Type"))
 			]
 		]
@@ -706,7 +706,7 @@ void SOculusPlatformToolWidget::BuildAssetConfigBox(TSharedPtr<SVerticalBox> box
 			.WidthOverride(250.f)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.Text(LOCTEXT("AssetRequired", "Required"))
 			]
 		]

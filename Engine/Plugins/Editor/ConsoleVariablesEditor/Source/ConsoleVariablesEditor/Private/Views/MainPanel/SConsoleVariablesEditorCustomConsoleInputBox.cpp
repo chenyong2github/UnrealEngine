@@ -59,7 +59,7 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 		.MenuContent
 		(
 			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			.Padding( FMargin(2) )
 			[
 				SNew(SBox)

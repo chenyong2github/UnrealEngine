@@ -93,7 +93,7 @@ TSharedRef<SWidget> SGraphPinStruct::GenerateAssetPicker()
 			[ 
 				SNew(SBorder)
 				.Padding(4)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					StructViewerModule.CreateStructViewer(Options, FOnStructPicked::CreateSP(this, &SGraphPinStruct::OnPickedNewStruct))
 				]

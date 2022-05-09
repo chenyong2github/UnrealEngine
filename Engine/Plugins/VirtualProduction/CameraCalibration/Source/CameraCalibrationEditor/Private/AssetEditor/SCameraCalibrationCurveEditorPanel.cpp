@@ -158,7 +158,7 @@ TSharedPtr<FExtender> SCameraCalibrationCurveEditorPanel::GetToolbarExtender()
 					FOnGetContent::CreateSP(InEditorPanel, &SCameraCalibrationCurveEditorPanel::MakeCurveEditorCurveViewOptionsMenu),
 					LOCTEXT("CurveEditorCurveOptions", "Curves Options"),
 					LOCTEXT("CurveEditorCurveOptionsToolTip", "Curve Options"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.VisibilityOptions"));
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.VisibilityOptions"));
 
 			}
 			ToolBarBuilder.EndSection();

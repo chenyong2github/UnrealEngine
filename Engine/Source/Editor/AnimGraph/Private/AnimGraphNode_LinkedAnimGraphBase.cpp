@@ -74,7 +74,7 @@ FLinearColor UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitleColor() const
 
 FSlateIcon UAnimGraphNode_LinkedAnimGraphBase::GetIconAndTint(FLinearColor& OutColor) const
 {
-	return FSlateIcon("EditorStyle", "ClassIcon.AnimBlueprint");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimBlueprint");
 }
 
 FText UAnimGraphNode_LinkedAnimGraphBase::GetTooltipText() const

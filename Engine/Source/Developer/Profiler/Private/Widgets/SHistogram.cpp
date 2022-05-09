@@ -11,7 +11,7 @@
 #include "Widgets/SOverlay.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ProfilerFPSAnalyzer.h"
 
 
@@ -40,9 +40,9 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	// Rendering info.
 	const bool bEnabled  = ShouldBeEnabled( bParentEnabled );
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FEditorStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteTexture");
-	const FSlateBrush* FillImage  = FEditorStyle::GetBrush("TaskGraph.Mono");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* FillImage  = FAppStyle::GetBrush("TaskGraph.Mono");
 
 	// Draw background.
 	FSlateDrawElement::MakeBox

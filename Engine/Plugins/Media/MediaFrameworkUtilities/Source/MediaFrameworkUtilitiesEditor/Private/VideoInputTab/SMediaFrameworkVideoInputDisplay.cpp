@@ -6,7 +6,7 @@
 #include "Containers/Ticker.h"
 #include "EditorFontGlyphs.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformTime.h"
 #include "IMediaControls.h"
@@ -61,7 +61,7 @@ namespace VideoInputDisplayUtilities
 			.WidthOverride(VideoPreviewDesiredSizeY)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetDefaultBrush())
+				.Image(FAppStyle::GetDefaultBrush())
 			];
 	}
 }
@@ -145,7 +145,7 @@ TSharedRef<SWidget> SMediaFrameworkVideoInputDisplay::ConstructVideoStateDisplay
 		.HAlign(EHorizontalAlignment::HAlign_Left)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 			.Text(this, &SMediaFrameworkVideoInputDisplay::HandleSourceStateText)
 			.ColorAndOpacity(this, &SMediaFrameworkVideoInputDisplay::HandleSourceStateColorAndOpacity)
 		]

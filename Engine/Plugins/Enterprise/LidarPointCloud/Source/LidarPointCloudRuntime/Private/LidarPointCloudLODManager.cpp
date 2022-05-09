@@ -15,7 +15,7 @@
 #include "EngineUtils.h"
 
 #if WITH_EDITOR
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "EditorViewportClient.h"
 #endif
 

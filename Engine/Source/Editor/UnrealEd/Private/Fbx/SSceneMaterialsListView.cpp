@@ -7,7 +7,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "AssetRegistry/AssetData.h"
@@ -51,7 +51,7 @@ public:
 
 		SMultiColumnTableRow<FbxMaterialInfoPtr>::Construct(
 			FSuperRowType::FArguments()
-			.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+			.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow"),
 			InOwnerTableView
 			);
 	}
@@ -317,9 +317,9 @@ TSharedPtr<SWidget> SFbxSceneMaterialsListView::OnOpenContextMenu()
 	// We always create a section here, even if there is no parent so that clients can still extend the menu
 	MenuBuilder.BeginSection("FbxScene_MAT_ImportSection");
 	{
-		const FSlateIcon PlusIcon(FEditorStyle::GetStyleSetName(), "Plus");
+		const FSlateIcon PlusIcon(FAppStyle::GetAppStyleSetName(), "Plus");
 		MenuBuilder.AddMenuEntry(LOCTEXT("CheckForImport", "Add Selection To Import"), FText(), PlusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneMaterialsListView::AddSelectionToImport)));
-		const FSlateIcon MinusIcon(FEditorStyle::GetStyleSetName(), "Icons.Minus");
+		const FSlateIcon MinusIcon(FAppStyle::GetAppStyleSetName(), "Icons.Minus");
 		MenuBuilder.AddMenuEntry(LOCTEXT("UncheckForImport", "Remove Selection From Import"), FText(), MinusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneMaterialsListView::RemoveSelectionFromImport)));
 	}
 	MenuBuilder.EndSection();

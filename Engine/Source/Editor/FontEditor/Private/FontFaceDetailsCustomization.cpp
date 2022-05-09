@@ -8,7 +8,7 @@
 #include "FontEditorModule.h"
 #include "DesktopPlatformModule.h"
 #include "Engine/FontFace.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
@@ -60,7 +60,7 @@ void FFontFaceDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(LOCTEXT("FontFilePathPickerToolTip", "Choose a font file from this computer"))
 					.OnClicked(this, &FFontFaceDetailsCustomization::OnBrowseFontPath)
 					.ContentPadding(2.0f)
@@ -68,7 +68,7 @@ void FFontFaceDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 					.IsFocusable(false)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 						.Text(FEditorFontGlyphs::Folder_Open)
 					]
 				]

@@ -17,7 +17,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSlider.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorViewportClient.h"
 #include "UnrealEdGlobals.h"
@@ -171,7 +171,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 
 	// Use a custom style
 	FName ToolBarStyle = "EditorViewportToolBar";
-	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
+	ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
 	// Transform controls cannot be focusable as it fights with the press space to change transform mode feature
@@ -454,7 +454,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 TSharedRef<SWidget> STransformViewportToolBar::FillCameraSpeedMenu()
 {
 	TSharedRef<SWidget> ReturnWidget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+	.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Background")))
 	[
 		SNew( SVerticalBox )
 		+SVerticalBox::Slot()
@@ -464,7 +464,7 @@ TSharedRef<SWidget> STransformViewportToolBar::FillCameraSpeedMenu()
 		[
 			SNew( STextBlock )
 			.Text( LOCTEXT("MouseSettingsCamSpeed", "Camera Speed")  )
-			.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+			.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
 		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -485,7 +485,7 @@ TSharedRef<SWidget> STransformViewportToolBar::FillCameraSpeedMenu()
 			[
 				SNew( STextBlock )
 				.Text(this, &STransformViewportToolBar::GetCameraSpeedLabel )
-				.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+				.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
 			]
 		] // Camera Speed Scalar
 		+ SVerticalBox::Slot()
@@ -495,7 +495,7 @@ TSharedRef<SWidget> STransformViewportToolBar::FillCameraSpeedMenu()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("MouseSettingsCamSpeedScalar", "Camera Speed Scalar"))
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 			]
 		+ SVerticalBox::Slot()
 			.AutoHeight()

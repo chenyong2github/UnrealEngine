@@ -88,7 +88,7 @@ void SDMXFader::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.OnClicked(this, &SDMXFader::OnDeleteClicked)
 						[
 							SNew(STextBlock)
@@ -293,7 +293,7 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 			[
 				SNew(SBorder)
 				.ToolTipText(LOCTEXT("UniverseIDTooltip", "The Universe to which DMX is sent to"))
-				.BorderImage(FEditorStyle::GetBrush("EditableTextBox.Background.Focused"))
+				.BorderImage(FAppStyle::GetBrush("EditableTextBox.Background.Focused"))
 				.OnMouseButtonDown(this, &SDMXFader::OnUniverseIDBorderClicked)
 				[
 					SAssignNew(UniverseIDEditableTextBlock, SInlineEditableTextBlock)						
@@ -323,7 +323,7 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 			[
 				SNew(SBorder)
 				.ToolTipText(LOCTEXT("StartingAdressTooltip", "The Starting Adress of the Channel to which DMX is sent to"))
-				.BorderImage(FEditorStyle::GetBrush("EditableTextBox.Background.Focused"))
+				.BorderImage(FAppStyle::GetBrush("EditableTextBox.Background.Focused"))
 				.OnMouseButtonDown(this, &SDMXFader::OnStartingAddressBorderClicked)
 				[
 					SAssignNew(StartingAddressEditableTextBlock, SInlineEditableTextBlock)
@@ -343,7 +343,7 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 			[
 				SNew(SBorder)
 				.ToolTipText(LOCTEXT("EndingAdressTooltip", "The Ending Adress of the Channel to which DMX is sent to"))
-				.BorderImage(FEditorStyle::GetBrush("EditableTextBox.Background.Focused"))
+				.BorderImage(FAppStyle::GetBrush("EditableTextBox.Background.Focused"))
 				.OnMouseButtonDown(this, &SDMXFader::OnEndingAddressBorderClicked)
 				[
 					SAssignNew(EndingAddressEditableTextBlock, SInlineEditableTextBlock)					
@@ -468,11 +468,11 @@ const FSlateBrush* SDMXFader::GetBorderImage() const
 {
 	if (IsHovered())
 	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
+		return FAppStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
+		return FAppStyle::GetBrush("DetailsView.CategoryMiddle");
 	}
 }
 

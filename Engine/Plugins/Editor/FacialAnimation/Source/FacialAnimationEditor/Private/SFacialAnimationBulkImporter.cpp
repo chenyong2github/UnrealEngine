@@ -10,7 +10,7 @@
 #include "FacialAnimationBulkImporterSettings.h"
 #include "Logging/MessageLog.h"
 #include "IDetailsView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
@@ -43,14 +43,14 @@ void SFacialAnimationBulkImporter::Construct(const FArguments& InArgs)
 		.Padding(4.0f)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ForegroundColor(FLinearColor::White)
 			.ContentPadding(FMargin(6, 2))
 			.IsEnabled(this, &SFacialAnimationBulkImporter::IsImportButtonEnabled)
 			.OnClicked(this, &SFacialAnimationBulkImporter::HandleImportClicked)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 				.Text(LOCTEXT("ImportAllButton", "Import All"))
 			]
 		]

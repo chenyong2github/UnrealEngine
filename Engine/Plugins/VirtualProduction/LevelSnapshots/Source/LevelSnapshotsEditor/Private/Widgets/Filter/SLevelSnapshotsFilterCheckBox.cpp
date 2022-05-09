@@ -2,7 +2,7 @@
 
 #include "Widgets/Filter/SLevelSnapshotsFilterCheckBox.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"

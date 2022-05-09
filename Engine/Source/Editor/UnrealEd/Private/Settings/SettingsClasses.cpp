@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "InputCoreTypes.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "AI/NavigationSystemBase.h"
 #include "Model.h"
 #include "ISourceControlModule.h"

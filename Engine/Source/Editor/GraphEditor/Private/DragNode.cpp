@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraph.h"
 #include "SGraphNode.h"
 #include "SGraphPanel.h"
@@ -86,7 +86,7 @@ void FDragNode::HoverTargetChanged()
 		bValidOperation = false;
 		// Display the place a new node icon, we're not over a valid pin
 		SetSimpleFeedbackMessage(
-			FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")),
+			FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")),
 			FLinearColor::White,
 			NSLOCTEXT("GraphEditor.Feedback", "DragNode", "This node cannot be placed here."));
 	}
@@ -103,12 +103,12 @@ void FDragNode::HoverTargetChanged()
 			switch (ResponseIt->Response)
 			{
 			case CONNECT_RESPONSE_MAKE:
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 				break;
 
 			case CONNECT_RESPONSE_DISALLOW:
 			default:
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 				bValidOperation = false;
 				break;
 			}

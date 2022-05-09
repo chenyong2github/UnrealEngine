@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Unreal StaticMesh editor actions
@@ -20,7 +20,7 @@ public:
 			"StaticMeshEditor", // Context name for fast lookup
 			NSLOCTEXT("Contexts", "StaticMeshEditor", "StaticMesh Editor"), // Localized context name for displaying
 			"EditorViewport",  // Parent
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 			)
 	{
 	}

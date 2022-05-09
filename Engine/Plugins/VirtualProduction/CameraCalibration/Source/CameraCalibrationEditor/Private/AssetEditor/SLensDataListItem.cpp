@@ -244,7 +244,7 @@ void SLensDataItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 				SNew(SButton)
 				.IsEnabled(InArgs._AllowRemoval)
 				.OnClicked(this, &SLensDataItem::OnRemovePointClicked)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton")
 				.ToolTipText(LOCTEXT("RemoveLensDataPoint", "Remove this point"))
 				[
 					SNew(SImage)

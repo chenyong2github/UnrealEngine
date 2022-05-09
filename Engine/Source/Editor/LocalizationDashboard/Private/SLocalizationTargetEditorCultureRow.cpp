@@ -80,14 +80,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), TEXT("HoverHintOnly") )
+				.ButtonStyle( FAppStyle::Get(), TEXT("HoverHintOnly") )
 				.ToolTipText( NSLOCTEXT("LocalizationTargetCultureActions", "EditButtonLabel", "Edit translations for this culture.") )
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanEditText)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::EditText)
 				.Content()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("LocalizationTargetEditor.EditTranslations") )
+					.Image( FAppStyle::GetBrush("LocalizationTargetEditor.EditTranslations") )
 				]
 			];
 
@@ -98,14 +98,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), TEXT("HoverHintOnly") )
+				.ButtonStyle( FAppStyle::Get(), TEXT("HoverHintOnly") )
 				.ToolTipText( NSLOCTEXT("LocalizationTargetCultureActions", "ImportTextButtonLabel", "Import translations for this culture.") )
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanImportText)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::ImportText)
 				.Content()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("LocalizationTargetEditor.ImportTextCulture") )
+					.Image( FAppStyle::GetBrush("LocalizationTargetEditor.ImportTextCulture") )
 				]
 			];
 
@@ -116,14 +116,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), TEXT("HoverHintOnly") )
+				.ButtonStyle( FAppStyle::Get(), TEXT("HoverHintOnly") )
 				.ToolTipText(NSLOCTEXT("LocalizationTargetCultureActions", "ExportTextButtonLabel", "Export translations for this culture."))
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanExportText)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::ExportText)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.ExportTextCulture"))
+					.Image(FAppStyle::GetBrush("LocalizationTargetEditor.ExportTextCulture"))
 				]
 			];
 
@@ -134,14 +134,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), TEXT("HoverHintOnly"))
+				.ButtonStyle(FAppStyle::Get(), TEXT("HoverHintOnly"))
 				.ToolTipText(NSLOCTEXT("LocalizationTargetCultureActions", "ImportDialogueScriptButtonLabel", "Import dialogue scripts for this culture."))
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanImportDialogueScript)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::ImportDialogueScript)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.ImportDialogueScriptCulture"))
+					.Image(FAppStyle::GetBrush("LocalizationTargetEditor.ImportDialogueScriptCulture"))
 				]
 			];
 
@@ -152,14 +152,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), TEXT("HoverHintOnly"))
+				.ButtonStyle(FAppStyle::Get(), TEXT("HoverHintOnly"))
 				.ToolTipText(NSLOCTEXT("LocalizationTargetCultureActions", "ExportDialogueScriptButtonLabel", "Export dialogue scripts for this culture."))
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanExportDialogueScript)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::ExportDialogueScript)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.ExportDialogueScriptCulture"))
+					.Image(FAppStyle::GetBrush("LocalizationTargetEditor.ExportDialogueScriptCulture"))
 				]
 			];
 
@@ -170,14 +170,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), TEXT("HoverHintOnly"))
+				.ButtonStyle(FAppStyle::Get(), TEXT("HoverHintOnly"))
 				.ToolTipText(NSLOCTEXT("LocalizationTargetCultureActions", "ImportDialogueButtonLabel", "Import dialogue WAV files for this culture."))
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanImportDialogue)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::ImportDialogue)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.ImportDialogueCulture"))
+					.Image(FAppStyle::GetBrush("LocalizationTargetEditor.ImportDialogueCulture"))
 				]
 			];
 
@@ -188,14 +188,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), TEXT("HoverHintOnly"))
+				.ButtonStyle(FAppStyle::Get(), TEXT("HoverHintOnly"))
 				.ToolTipText(NSLOCTEXT("LocalizationTargetCultureActions", "CompileTextButtonLabel", "Compile translations for this culture."))
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanCompileText)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::CompileText)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.CompileTextCulture"))
+					.Image(FAppStyle::GetBrush("LocalizationTargetEditor.CompileTextCulture"))
 				]
 			];
 
@@ -206,14 +206,14 @@ TSharedRef<SWidget> SLocalizationTargetEditorCultureRow::GenerateWidgetForColumn
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), TEXT("HoverHintOnly") )
+				.ButtonStyle( FAppStyle::Get(), TEXT("HoverHintOnly") )
 				.ToolTipText(NSLOCTEXT("LocalizationTargetActions", "DeleteButtonLabel", "Delete this culture."))
 				.IsEnabled(this, &SLocalizationTargetEditorCultureRow::CanDelete)
 				.OnClicked(this, &SLocalizationTargetEditorCultureRow::EnqueueDeletion)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.DeleteCulture"))
+					.Image(FAppStyle::GetBrush("LocalizationTargetEditor.DeleteCulture"))
 				]
 			];
 	}

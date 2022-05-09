@@ -15,7 +15,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Class.h"
@@ -230,7 +230,7 @@ TSharedRef< SWidget > SNiagaraSpreadsheetRow::GenerateWidgetForColumn(const FNam
 	}
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(3)
 		.HAlign(EHorizontalAlignment::HAlign_Center)
 		[
@@ -381,8 +381,8 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 			);
 
 		SAssignNew(CaptureData[i].CheckBox, SCheckBox)
-			//.Style(FEditorStyle::Get(), "PlacementBrowser.Tab")
-			.Style(FEditorStyle::Get(), i == 0 ? "Property.ToggleButton.Start" : (i < CaptureData.Num() - 1 ? "Property.ToggleButton.Middle" : "Property.ToggleButton.End"))
+			//.Style(FAppStyle::Get(), "PlacementBrowser.Tab")
+			.Style(FAppStyle::Get(), i == 0 ? "Property.ToggleButton.Start" : (i < CaptureData.Num() - 1 ? "Property.ToggleButton.Middle" : "Property.ToggleButton.End"))
 			.OnCheckStateChanged(this, &SNiagaraSpreadsheetView::OnTabChanged, (EUITab)i)
 			.Visibility(this, &SNiagaraSpreadsheetView::GetTabVisibility, (EUITab)i)
 			.IsChecked(this, &SNiagaraSpreadsheetView::GetTabCheckedState, (EUITab)i)
@@ -393,7 +393,7 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					//.TextStyle(FEditorStyle::Get(), "PlacementBrowser.Tab.Text")
+					//.TextStyle(FAppStyle::Get(), "PlacementBrowser.Tab.Text")
 					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.AttributeSpreadsheetTabText")
 					.Text(CaptureData[i].ColumnName)
 				]
@@ -469,7 +469,7 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
@@ -543,7 +543,7 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()

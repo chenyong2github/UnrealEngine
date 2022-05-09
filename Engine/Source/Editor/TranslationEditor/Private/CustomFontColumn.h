@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/SlateDelegates.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyTableColumn.h"
 #include "IPropertyTableUtilities.h"
 #include "IPropertyTableCell.h"
@@ -19,7 +19,7 @@ class IPropertyTableCellPresenter;
 class FCustomFontColumn : public IPropertyTableCustomColumn
 {
 public:
-	FCustomFontColumn(FSlateFontInfo InFont = FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ), FOnClicked InOnChangeFontButtonClicked = NULL, FOnInt32ValueCommitted InOnFontSizeValueCommitted = NULL)
+	FCustomFontColumn(FSlateFontInfo InFont = FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ), FOnClicked InOnChangeFontButtonClicked = NULL, FOnInt32ValueCommitted InOnFontSizeValueCommitted = NULL)
 		:	Font(InFont)
 		,	OnChangeFontButtonClicked(InOnChangeFontButtonClicked)
 		,	OnFontSizeValueCommitted(InOnFontSizeValueCommitted)

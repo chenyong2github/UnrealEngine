@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FAnimationEditorCommands : public TCommands<FAnimationEditorCommands>
 {
 public:
 	FAnimationEditorCommands()
-		: TCommands<FAnimationEditorCommands>(TEXT("AnimationEditor"), NSLOCTEXT("Contexts", "AnimationEditor", "Animation Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FAnimationEditorCommands>(TEXT("AnimationEditor"), NSLOCTEXT("Contexts", "AnimationEditor", "Animation Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

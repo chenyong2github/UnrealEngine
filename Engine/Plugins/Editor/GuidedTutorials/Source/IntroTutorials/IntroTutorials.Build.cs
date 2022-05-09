@@ -14,7 +14,6 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
                     "Slate",
 					"SlateCore",
-					"EditorStyle",
                     "Documentation",
 					"GraphEditor",
 					"BlueprintGraph",

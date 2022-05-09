@@ -4,7 +4,7 @@
 #include "ScopedTransaction.h"
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/UnrealType.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Layout/SBox.h"

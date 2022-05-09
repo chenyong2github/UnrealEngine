@@ -4,7 +4,7 @@
 #include "ReferenceSectionSelectionWidget.h"
 
 #include "DetailLayoutBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -64,7 +64,7 @@ TSharedRef<ITableRow> SReferenceSectionSelectionWidget::MakeIntegerDisplayWidget
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(ItemString))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 		];
 }
@@ -94,7 +94,7 @@ TSharedRef<SWidget> SReferenceSectionSelectionWidget::CreateSectionListWidgetMen
 	TSharedPtr<SBorder> BorderWidget;
 	SAssignNew(BorderWidget, SBorder)
 	.Padding(6)
-	.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+	.BorderImage(FAppStyle::GetBrush("NoBorder"))
 	.Content()
 	[
 		SNew(SBox)
@@ -107,14 +107,14 @@ TSharedRef<SWidget> SReferenceSectionSelectionWidget::CreateSectionListWidgetMen
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("BoldFont"))
+				.Font(FAppStyle::GetFontStyle("BoldFont"))
 				.Text(TitleText)
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
 				SNew(SSeparator)
-				.SeparatorImage(FEditorStyle::GetBrush("Menu.Separator"))
+				.SeparatorImage(FAppStyle::GetBrush("Menu.Separator"))
 				.Orientation(Orient_Horizontal)
 			]
 			+ SVerticalBox::Slot()

@@ -4,7 +4,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "SSkeletonAnimNotifies.h"
 #include "SAnimBlueprintParentPlayerList.h"
@@ -144,7 +144,7 @@ FMorphTargetTabSummoner::FMorphTargetTabSummoner(TSharedPtr<class FAssetEditorTo
 	, OnPostUndo(InOnPostUndo)
 {
 	TabLabel = LOCTEXT("MorphTargetTabTitle", "Morph Target Previewer");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.MorphTargetPreviewer");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.MorphTargetPreviewer");
 
 	EnableTabPadding();
 	bIsSingleton = true;
@@ -167,7 +167,7 @@ FAnimCurveViewerTabSummoner::FAnimCurveViewerTabSummoner(TSharedPtr<class FAsset
 	, OnObjectsSelected(InOnObjectsSelected)
 {
 	TabLabel = LOCTEXT("AnimCurveViewTabTitle", "Anim Curves");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimCurvePreviewer");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimCurvePreviewer");
 
 	EnableTabPadding();
 	bIsSingleton = true;
@@ -192,7 +192,7 @@ FAnimationAssetBrowserSummoner::FAnimationAssetBrowserSummoner(TSharedPtr<class 
 	, bShowHistory(bInShowHistory)
 {
 	TabLabel = LOCTEXT("AssetBrowserTabTitle", "Asset Browser");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.TabIcon");
 
 	bIsSingleton = true;
 
@@ -256,7 +256,7 @@ FPreviewViewportSummoner::FPreviewViewportSummoner(TSharedPtr<class FAssetEditor
 	, bShowPhysicsMenu(InArgs.bShowPhysicsMenu)
 {
 	TabLabel = FText::Format(LOCTEXT("ViewportTabTitle", "Viewport {0}"), FText::AsNumber(InViewportIndex + 1));
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports");
 
 	bIsSingleton = true;
 
@@ -308,7 +308,7 @@ FTabSpawnerEntry& FPreviewViewportSummoner::RegisterTabSpawner(TSharedRef<FTabMa
 
 		if(!GroupItem.IsValid())
 		{
-			GroupItem = CurrentApplicationMode->GetWorkspaceMenuCategory()->AddGroup(LOCTEXT("ViewportsSubMenu", "Viewports"), LOCTEXT("ViewportsSubMenu_Tooltip", "Open a new viewport on the scene"), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+			GroupItem = CurrentApplicationMode->GetWorkspaceMenuCategory()->AddGroup(LOCTEXT("ViewportsSubMenu", "Viewports"), LOCTEXT("ViewportsSubMenu_Tooltip", "Open a new viewport on the scene"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 		}
 
 		SpawnerEntry.SetGroup(GroupItem.ToSharedRef());
@@ -327,7 +327,7 @@ FRetargetSourcesTabSummoner::FRetargetSourcesTabSummoner(TSharedPtr<class FAsset
 	, OnPostUndo(InOnPostUndo)
 {
 	TabLabel = LOCTEXT("RetargetSourcesTabTitle", "Retarget Sources");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.RetargetManager");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.RetargetManager");
 
 	EnableTabPadding();
 	bIsSingleton = true;
@@ -381,7 +381,7 @@ TSharedRef<SWidget> SPersonaPreviewPropertyEditor::PopulateSlot(TSharedRef<SWidg
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush"))
+			.BorderImage(FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush"))
 			.Visibility_Lambda([this]() { return bPropertyEdited ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
 				SNew(SHorizontalBox)
@@ -473,7 +473,7 @@ TSharedRef<SWidget> FAnimBlueprintPreviewEditorSummoner::CreateTabBody(const FWo
 				.Padding(FMargin( 5.f, 0.f, 2.f, 0.f ))
 				[
 					SNew(SCheckBox)
-					.Style(FEditorStyle::Get(), "RadioButton")
+					.Style(FAppStyle::Get(), "RadioButton")
 					.IsChecked(this, &FAnimBlueprintPreviewEditorSummoner::IsChecked, EAnimBlueprintEditorMode::PreviewMode)
 					.OnCheckStateChanged(const_cast<FAnimBlueprintPreviewEditorSummoner*>(this), &FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged, EAnimBlueprintEditorMode::PreviewMode)
 					.ToolTip(IDocumentation::Get()->CreateToolTip(	LOCTEXT("AnimBlueprintPropertyEditorPreviewMode", "Switch to editing the preview instance properties"),
@@ -490,7 +490,7 @@ TSharedRef<SWidget> FAnimBlueprintPreviewEditorSummoner::CreateTabBody(const FWo
 				.Padding(FMargin( 2.f, 0.f, 0.f, 0.f ))
 				[
 					SNew(SCheckBox)
-					.Style(FEditorStyle::Get(), "RadioButton")
+					.Style(FAppStyle::Get(), "RadioButton")
 					.IsChecked(this, &FAnimBlueprintPreviewEditorSummoner::IsChecked, EAnimBlueprintEditorMode::DefaultsMode)
 					.OnCheckStateChanged(const_cast<FAnimBlueprintPreviewEditorSummoner*>(this), &FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged, EAnimBlueprintEditorMode::DefaultsMode)
 					.ToolTip(IDocumentation::Get()->CreateToolTip(	LOCTEXT("AnimBlueprintPropertyEditorDefaultMode", "Switch to editing the class defaults"),
@@ -510,7 +510,7 @@ TSharedRef<SWidget> FAnimBlueprintPreviewEditorSummoner::CreateTabBody(const FWo
 				[
 					SNew(SBorder)
 					.Padding(0)
-					.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+					.BorderImage( FAppStyle::GetBrush("NoBorder") )
 					.Visibility(this, &FAnimBlueprintPreviewEditorSummoner::IsEditorVisible, EAnimBlueprintEditorMode::PreviewMode)
 					[
 						SNew(SPersonaPreviewPropertyEditor, PreviewScene.Pin().ToSharedRef())
@@ -520,7 +520,7 @@ TSharedRef<SWidget> FAnimBlueprintPreviewEditorSummoner::CreateTabBody(const FWo
 				[
 					SNew(SBorder)
 					.Padding(FMargin(3.0f, 2.0f))
-					.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+					.BorderImage( FAppStyle::GetBrush("NoBorder") )
 					.Visibility(this, &FAnimBlueprintPreviewEditorSummoner::IsEditorVisible, EAnimBlueprintEditorMode::DefaultsMode)
 					[
 						BlueprintEditor.Pin()->GetDefaultEditor()
@@ -583,7 +583,7 @@ FPoseWatchManagerSummoner::FPoseWatchManagerSummoner(TSharedPtr<class FBlueprint
 	, BlueprintEditor(InBlueprintEditor)
 {
 	TabLabel = LOCTEXT("PoseWatchManager", "Pose Watch Manager");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset");
 	bIsSingleton = true;
 }
 
@@ -609,7 +609,7 @@ FAdvancedPreviewSceneTabSummoner::FAdvancedPreviewSceneTabSummoner(TSharedPtr<cl
 	, PreviewScene(InPreviewScene)
 {
 	TabLabel = LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details");	
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details");	
 	bIsSingleton = true;
 	
 	ViewMenuDescription = LOCTEXT("AdvancedPreviewScene", "Preview Scene Settings");
@@ -660,7 +660,7 @@ FPersonaDetailsTabSummoner::FPersonaDetailsTabSummoner(TSharedPtr<class FAssetEd
 	, OnDetailsCreated(InOnDetailsCreated)
 {
 	TabLabel = LOCTEXT("PersonaDetailsTab", "Details");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details");
 	bIsSingleton = true;
 
 	ViewMenuDescription = LOCTEXT("DetailsDescription", "Details");
@@ -744,7 +744,7 @@ FAssetPropertiesSummoner::FAssetPropertiesSummoner(TSharedPtr<class FAssetEditor
 	, OnDetailsCreated(InOnDetailsCreated)
 {
 	TabLabel = LOCTEXT("AssetProperties_TabTitle", "Asset Details");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimAssetDetails");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimAssetDetails");
 
 	bIsSingleton = true;
 

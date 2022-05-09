@@ -95,7 +95,7 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 			SNew(SImage)
 			.Visibility_Lambda([this] { return (DataLayerPtr.IsValid() && DataLayerPtr->IsLocked() && !DataLayerPtr->GetWorld()->IsPlayInEditor()) ? EVisibility::Visible : EVisibility::Collapsed; })
 			.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked")))
+			.Image(FAppStyle::GetBrush(TEXT("PropertyWindow.Locked")))
 			.ToolTipText(LOCTEXT("LockedRuntimeDataLayerEditing", "Locked editing. (To allow editing, in Data Layer Outliner, go to Advanced -> Allow Runtime Data Layer Editing)"))
 		]
 	];
@@ -181,7 +181,7 @@ const FSlateBrush* SDataLayerTreeLabel::GetIcon() const
 			return CachedBrush;
 		}
 
-		const FSlateBrush* FoundSlateBrush = FEditorStyle::GetBrush(IconName);
+		const FSlateBrush* FoundSlateBrush = FAppStyle::GetBrush(IconName);
 		WeakSceneOutliner.Pin()->CacheIconForClass(IconName, FoundSlateBrush);
 		return FoundSlateBrush;
 	}

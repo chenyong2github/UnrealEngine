@@ -22,7 +22,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Engine/BlueprintCore.h"
 #include "Engine/Blueprint.h"
@@ -858,7 +858,7 @@ public:
 				[
 					SNew( SImage )
 					.Image(	ClassIcon )
-					.Visibility( ClassIcon != FEditorStyle::GetDefaultBrush()? EVisibility::Visible : EVisibility::Collapsed )
+					.Visibility( ClassIcon != FAppStyle::GetDefaultBrush()? EVisibility::Visible : EVisibility::Collapsed )
 				]
 
 			+SHorizontalBox::Slot()
@@ -1463,7 +1463,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 	{
 		FiltersWidget = 
 		SNew(SComboButton)
-		.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+		.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 		.ForegroundColor(FLinearColor::White)
 		.ContentPadding(0)
 		.ToolTipText(LOCTEXT("Filters_Tooltip", "Filter options for the Class Viewer."))
@@ -1477,8 +1477,8 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 			]
 			+ SHorizontalBox::Slot()
@@ -1486,7 +1486,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 			.Padding(2, 0, 0, 0)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+				.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
 				.Text(LOCTEXT("Filters", "Filters"))
 			]
 		];
@@ -1557,7 +1557,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 	.MaxDesiredHeight(800.0f)
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush(InitOptions.bShowBackgroundBorder ? "ToolPanel.GroupBorder" : "NoBorder"))
+		.BorderImage(FAppStyle::GetBrush(InitOptions.bShowBackgroundBorder ? "ToolPanel.GroupBorder" : "NoBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -1570,7 +1570,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 				[
 					SNew(STextBlock)
 					.Visibility(bHasTitle ? EVisibility::Visible : EVisibility::Collapsed)
-					.ColorAndOpacity(FEditorStyle::GetColor("MultiboxHookColor"))
+					.ColorAndOpacity(FAppStyle::GetColor("MultiboxHookColor"))
 					.Text(InitOptions.ViewerTitleString)
 				]
 			]

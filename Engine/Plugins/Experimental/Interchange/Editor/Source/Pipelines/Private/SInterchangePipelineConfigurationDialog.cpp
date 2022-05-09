@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SInterchangePipelineConfigurationDialog.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
 #include "IDetailsView.h"
@@ -279,7 +279,7 @@ TSharedPtr<SWidget> SInterchangePipelineStacksTreeView::OnOpenContextMenu()
 			// We always create a section here, even if there is no parent so that clients can still extend the menu
 			MenuBuilder.BeginSection("TreeViewContextMenuStackNodeSection");
 			{
-				const FSlateIcon DefaultIcon(FEditorStyle::GetStyleSetName(), "Icons.Default");
+				const FSlateIcon DefaultIcon(FAppStyle::GetAppStyleSetName(), "Icons.Default");
 				MenuBuilder.AddMenuEntry(LOCTEXT("SetHasDefaultMenuAction", "Set Has Default Stack"), FText(), DefaultIcon, FUIAction(FExecuteAction::CreateSP(this, &SInterchangePipelineStacksTreeView::SetHasDefaultStack, SelectNode->StackName)));
 			}
 			MenuBuilder.EndSection();
@@ -415,7 +415,7 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 	[
 		SNew(SBorder)
 		.Padding(FMargin(10.0f, 3.0f))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()

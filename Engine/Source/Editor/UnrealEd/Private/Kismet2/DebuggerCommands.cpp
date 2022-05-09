@@ -12,8 +12,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/UnrealEdEngine.h"
@@ -280,7 +279,7 @@ void FPlayWorldCommands::SetActiveGlobalPlayWorldActionsWidget(TWeakPtr<SGlobalP
 }
 
 FPlayWorldCommands::FPlayWorldCommands()
-	: TCommands<FPlayWorldCommands>("PlayWorld", LOCTEXT("PlayWorld", "Play World (PIE/SIE)"), "MainFrame", FEditorStyle::GetStyleSetName())
+	: TCommands<FPlayWorldCommands>("PlayWorld", LOCTEXT("PlayWorld", "Play World (PIE/SIE)"), "MainFrame", FAppStyle::GetAppStyleSetName())
 {
 	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 
@@ -380,7 +379,7 @@ void FPlayWorldCommands::AddPIEPreviewDeviceCommands()
 				FName(*CommandLabel.ToString()),
 				CommandLabel,
 				CommandDesc,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PlayInMobilePreview"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PlayInMobilePreview"),
 				EUserInterfaceActionType::Check,
 				FInputChord());
 		}
@@ -816,7 +815,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 					LOCTEXT("TargetedMobilePreviewSubMenu", "Mobile Preview (PIE)"),
 					LOCTEXT("TargetedMobilePreviewSubMenu_ToolTip", "Play this level using a specified mobile device preview (runs in its own process)"),
 					FNewMenuDelegate::CreateStatic(&MakePreviewDeviceMenu), false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PlayInMobilePreview")
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PlayInMobilePreview")
 				);
 			}
 
@@ -1083,11 +1082,11 @@ FSlateIcon FInternalPlayWorldCommandCallbacks::GetPossessEjectImage()
 {
 	if (IsInSIE())
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PossessPlayer");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PossessPlayer");
 	}
 	else
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.EjectFromPlayer");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.EjectFromPlayer");
 	}
 }
 
@@ -1358,7 +1357,7 @@ FSlateIcon FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon()
 
 		// get platform name from DeviceId
 		
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(DeviceId.GetPlatformName()).GetIconStyleName(EPlatformIconSize::Normal));
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(DeviceId.GetPlatformName()).GetIconStyleName(EPlatformIconSize::Normal));
 	}
 
 	return GetLastPlaySessionCommand()->GetIcon();
@@ -1663,11 +1662,11 @@ FSlateIcon FInternalPlayWorldCommandCallbacks::GetResumePlaySessionImage()
 {
 	if (IsInPIE())
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.ResumePlaySession");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.ResumePlaySession");
 	}
 	else if (IsInSIE())
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.Simulate");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.Simulate");
 	}
 	else
 	{

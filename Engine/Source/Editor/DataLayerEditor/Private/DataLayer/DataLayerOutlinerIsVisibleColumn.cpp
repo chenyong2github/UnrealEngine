@@ -8,7 +8,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/STreeView.h"
 #include "ScopedTransaction.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"

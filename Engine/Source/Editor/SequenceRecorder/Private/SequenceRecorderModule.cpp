@@ -16,7 +16,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EngineGlobals.h"
 #include "LevelEditor.h"
 #include "PersonaModule.h"
@@ -99,7 +99,7 @@ public:
 		: FWorkflowTabFactory(TEXT("PersonaSequenceRecorderSettings"), InHostingApp)
 	{
 		TabLabel = LOCTEXT("AnimationRecordingSettings", "Recording Settings");
-		TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon");
+		TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon");
 		ViewMenuDescription = LOCTEXT("AnimationRecordingSettings", "Recording Settings");
 		ViewMenuTooltip = LOCTEXT("AnimationRecordingSettings_Tooltip", "Settings for animation recording");
 
@@ -178,7 +178,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 				.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory())
 				.SetDisplayName(LOCTEXT("SequenceRecorderTabTitle", "Sequence Recorder"))
 				.SetTooltipText(LOCTEXT("SequenceRecorderTooltipText", "Open the Sequence Recorder tab."))
-				.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
+				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon"));
 			};
 			FLevelEditorModule* LocalLevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
 			if (LocalLevelEditorModule && LocalLevelEditorModule->GetLevelEditorTabManager())

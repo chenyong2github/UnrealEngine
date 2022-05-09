@@ -82,7 +82,7 @@ TSharedRef<SWidget> SDMXFixtureTypeTree::GenerateAddNewEntityButton()
 
 	return
 		SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ForegroundColor(FLinearColor::White)
 			.ToolTipText(AddButtonToolTip)
 			.ContentPadding(FMargin(5.0f, 1.0f))
@@ -96,7 +96,7 @@ TSharedRef<SWidget> SDMXFixtureTypeTree::GenerateAddNewEntityButton()
 				.Padding(FMargin(0, 1))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
+					.Image(FAppStyle::GetBrush("Plus"))
 				]
 
 				+ SHorizontalBox::Slot()
@@ -165,7 +165,7 @@ TSharedRef<ITableRow> SDMXFixtureTypeTree::OnGenerateRow(TSharedPtr<FDMXEntityTr
 			[
 				SNew(STextBlock)
 				.Text(Node->GetDisplayNameText())
-				.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			];
 	}
 	else

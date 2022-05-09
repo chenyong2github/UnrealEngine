@@ -212,9 +212,6 @@ void FMovieSceneToolsModule::StartupModule()
 
 	OnObjectsReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddLambda(OnObjectsReplaced);
 
-	// EditorStyle must be initialized by now
-	FModuleManager::Get().LoadModule("EditorStyle");
-
 	FEditorModeRegistry::Get().RegisterMode<FSkeletalAnimationTrackEditMode>(
 		FSkeletalAnimationTrackEditMode::ModeName,
 		NSLOCTEXT("SkeletalAnimationTrackEditorMode", "SkelAnimTrackEditMode", "Skeletal Anim Track Mode"),

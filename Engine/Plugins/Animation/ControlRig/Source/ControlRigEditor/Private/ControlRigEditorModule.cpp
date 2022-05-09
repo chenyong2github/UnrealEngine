@@ -880,7 +880,7 @@ void FControlRigEditorModule::AddControlRigExtenderToToolMenu(FName InToolMenuNa
 			),
 			LOCTEXT("EditInSequencer", "Edit in Sequencer"),
 			LOCTEXT("EditInSequencer_Tooltip", "Edit this Anim Sequence In Sequencer."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.EditInSequencer")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.EditInSequencer")
 		)
 	);
 }
@@ -911,7 +911,7 @@ void FControlRigEditorModule::ExtendAnimSequenceMenu()
 							"OpenLevelSequence",
 							LOCTEXT("OpenLevelSequence", "Open Level Sequence"),
 							LOCTEXT("CreateControlRig_ToolTip", "Opens a Level Sequence if it is driving this Anim Sequence."),
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon"),
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon"),
 							FUIAction(
 								FExecuteAction::CreateLambda([SelectedObjects]()
 									{

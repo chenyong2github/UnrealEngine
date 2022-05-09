@@ -4,7 +4,7 @@
 #include "Sequencer.h"
 #include "SequencerSettings.h"
 #include "SequencerCommonHelpers.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
 
@@ -25,7 +25,7 @@ void SSequencerTransformBox::Construct(const FArguments& InArgs, const TSharedRe
 	ChildSlot
 	[
 		SAssignNew(Border, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			.Padding(6.0f)
 			.Visibility(EVisibility::Collapsed)
 			[

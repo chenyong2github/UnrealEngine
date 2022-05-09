@@ -11,7 +11,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Shared/ProjectLauncherDelegates.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -62,7 +62,7 @@ public:
 		STableRow<ILauncherProfilePtr>::ConstructInternal(
 			STableRow::FArguments()
 			.ShowSelection(false)
-			.Style(FEditorStyle::Get(), "Launcher.NoHoverTableRow"),
+			.Style(FAppStyle::Get(), "Launcher.NoHoverTableRow"),
 			InOwnerTableView
 			);
 
@@ -81,7 +81,7 @@ public:
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("Brushes.Panel"))
+				.BorderImage(FAppStyle::GetBrush("Brushes.Panel"))
 				[
 					SNew(SHorizontalBox)
 
@@ -130,7 +130,7 @@ public:
 					.Padding(4, 0, 0, 0)
 					[
 						SNew(SComboButton)
-						.ComboButtonStyle(FEditorStyle::Get(), "ContentBrowser.NewAsset.Style")
+						.ComboButtonStyle(FAppStyle::Get(), "ContentBrowser.NewAsset.Style")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(0)
 						.OnGetMenuContent(this, &SContentBrowser::MakeCreateAssetContextMenu)

@@ -2768,7 +2768,7 @@ TSharedRef<SWidget> FPhysicsAssetEditorSharedData::CreateGenerateBodiesWidget(co
 					.OnClicked_Lambda([InOnCancel](){ InOnCancel.ExecuteIfBound(); return FReply::Handled(); })
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "PhysicsAssetEditor.Tools.Font")
+						.TextStyle(FAppStyle::Get(), "PhysicsAssetEditor.Tools.Font")
 						.Text(LOCTEXT("Cancel", "Cancel"))
 					]
 				]

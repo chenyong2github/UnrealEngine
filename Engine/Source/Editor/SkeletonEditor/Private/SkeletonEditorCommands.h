@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FSkeletonEditorCommands : public TCommands<FSkeletonEditorCommands>
 {
 public:
 	FSkeletonEditorCommands()
-		: TCommands<FSkeletonEditorCommands>(TEXT("SkeletonEditor"), NSLOCTEXT("Contexts", "SkeletonEditor", "Skeleton Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FSkeletonEditorCommands>(TEXT("SkeletonEditor"), NSLOCTEXT("Contexts", "SkeletonEditor", "Skeleton Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

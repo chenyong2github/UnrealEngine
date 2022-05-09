@@ -9,7 +9,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlModule.h"
 #include "FileHelpers.h"
 #include "LevelEditorActions.h"
@@ -61,7 +61,7 @@ public:
 					.IsChecked(Item->Selected ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("BuildAndSubmit.NormalFont"))
+						.Font(FAppStyle::GetFontStyle("BuildAndSubmit.NormalFont"))
 						.Text(FText::FromString(Item->Name))
 						.ToolTipText(FText::FromString(Item->Name))
 					]
@@ -96,7 +96,7 @@ public:
 				.Padding(5, 0)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("BuildAndSubmit.SmallFont"))
+					.Font(FAppStyle::GetFontStyle("BuildAndSubmit.SmallFont"))
 					.Text(StateText)
 				];
 		}

@@ -3,7 +3,7 @@
 #include "SProjectLauncherCookByTheBookSettings.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
@@ -80,7 +80,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 		.MaxHeight(256.0f)
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(8.0f)
 				[
 					SNew(SVerticalBox)
@@ -109,7 +109,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 		.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(8.0f)
 			[
 				SNew(SVerticalBox)
@@ -197,7 +197,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 		.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(8.0f)
 				[
 					SNew(SVerticalBox)
@@ -223,7 +223,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 								SNew(SCheckBox)
 									.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowAllMaps)
 									.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowAllMaps)
-									.Style(FEditorStyle::Get(), "RadioButton")
+									.Style(FAppStyle::Get(), "RadioButton")
 									[
 										SNew(STextBlock)
 											.Text(LOCTEXT("AllMapsCheckBoxText", "Show all"))
@@ -238,7 +238,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 									SNew(SCheckBox)
 										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowCookedMaps)
 										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowCookedMaps)
-										.Style(FEditorStyle::Get(), "RadioButton")
+										.Style(FAppStyle::Get(), "RadioButton")
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("CookedMapsCheckBoxText", "Show cooked"))
@@ -253,7 +253,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 									SNew(SCheckBox)
 										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowMissingMaps)
 										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowMissingMaps)
-										.Style(FEditorStyle::Get(), "RadioButton")
+										.Style(FAppStyle::Get(), "RadioButton")
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("MissingMapsCheckBoxText", "Show missing"))
@@ -292,7 +292,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 								.AutoWidth()
 								[
 									SNew(SImage)
-										.Image(FEditorStyle::GetBrush(TEXT("Icons.Warning")))
+										.Image(FAppStyle::GetBrush(TEXT("Icons.Warning")))
 								]
 
 							+ SHorizontalBox::Slot()
@@ -896,7 +896,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 		.MaxHeight(256.0f)
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(8.0f)
 				[
 					SNew(SVerticalBox)
@@ -925,7 +925,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 		.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(8.0f)
 				[
 					SNew(SVerticalBox)
@@ -951,7 +951,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 									SNew(SCheckBox)
 										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowAllMaps)
 										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowAllMaps)
-										.Style(FEditorStyle::Get(), "RadioButton")
+										.Style(FAppStyle::Get(), "RadioButton")
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("AllMapsCheckBoxText", "Show all"))
@@ -966,7 +966,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 									SNew(SCheckBox)
 										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowCookedMaps)
 										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowCookedMaps)
-										.Style(FEditorStyle::Get(), "RadioButton")
+										.Style(FAppStyle::Get(), "RadioButton")
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("CookedMapsCheckBoxText", "Show cooked"))
@@ -981,7 +981,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 									SNew(SCheckBox)
 										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowMissingMaps)
 										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowMissingMaps)
-										.Style(FEditorStyle::Get(), "RadioButton")
+										.Style(FAppStyle::Get(), "RadioButton")
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("MissingMapsCheckBoxText", "Show missing"))
@@ -1020,7 +1020,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 							.AutoWidth()
 							[
 								SNew(SImage)
-									.Image(FEditorStyle::GetBrush(TEXT("Icons.Warning")))
+									.Image(FAppStyle::GetBrush(TEXT("Icons.Warning")))
 							]
 
 							+ SHorizontalBox::Slot()

@@ -12,7 +12,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
@@ -26,10 +26,7 @@ static const FName VirtualAssetsStatisticsTabName = FName(TEXT("VirtualAssetsSta
 
 void FDerivedDataEditorModule::StartupModule()
 {
-	// We're going to call a static function in the editor style module, so we need to make sure the module has actually been loaded
-	FModuleManager::Get().LoadModuleChecked("EditorStyle");
-
-	const FSlateIcon ResourceUsageIcon(FEditorStyle::GetStyleSetName(), "DerivedData.ResourceUsage");
+	const FSlateIcon ResourceUsageIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.ResourceUsage");
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(DerivedDataResourceUsageTabName, FOnSpawnTab::CreateRaw(this, &FDerivedDataEditorModule::CreateResourceUsageTab))
 		.SetDisplayName(LOCTEXT("DerivedDataResourceUsageTabTitle", "Resource Usage"))
@@ -37,7 +34,7 @@ void FDerivedDataEditorModule::StartupModule()
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(ResourceUsageIcon);
 
-	const FSlateIcon CacheStatisticsIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics");
+	const FSlateIcon CacheStatisticsIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.Cache.Statistics");
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(DerivedDataCacheStatisticsTabName, FOnSpawnTab::CreateRaw(this, &FDerivedDataEditorModule::CreateCacheStatisticsTab))
 		.SetDisplayName(LOCTEXT("DerivedDataCacheStatisticsTabTitle", "Cache Statistics"))
@@ -45,7 +42,7 @@ void FDerivedDataEditorModule::StartupModule()
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(CacheStatisticsIcon);
 
-	const FSlateIcon VirtaulAssetsStatisticsIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics");
+	const FSlateIcon VirtaulAssetsStatisticsIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.Cache.Statistics");
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(VirtualAssetsStatisticsTabName, FOnSpawnTab::CreateRaw(this, &FDerivedDataEditorModule::CreateVirtualAssetsStatisticsTab))
 		.SetDisplayName(LOCTEXT("VirtualAssetsStatisticsTabTitle", "Virtual Assets"))

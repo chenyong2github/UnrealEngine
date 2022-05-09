@@ -2,7 +2,7 @@
 
 #include "TrackEditors/ReplayTrackEditor.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/EngineTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -49,7 +49,7 @@ TSharedPtr<SWidget> FReplayTrackEditor::BuildOutlinerEditWidget(const FGuid& Obj
 			.ContentPadding(FMargin(5, 2))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.IsEnabled(this, &FReplayTrackEditor::HandleToggleReplayButtonIsEnabled)
 			.ToolTipText(this, &FReplayTrackEditor::HandleToggleReplayButtonToolTipText)
@@ -78,7 +78,7 @@ void FReplayTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddReplayTrack", "Replay Track"),
 		LOCTEXT("AddReplayTrackTooltip", "Adds a replay track."),
-		FSlateIcon(), //FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.CameraCut"),
+		FSlateIcon(), //FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.CameraCut"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FReplayTrackEditor::HandleAddReplayTrackMenuEntryExecute),
 			FCanExecuteAction::CreateRaw(this, &FReplayTrackEditor::HandleAddReplayTrackMenuEntryCanExecute)

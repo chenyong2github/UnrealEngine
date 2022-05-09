@@ -14,7 +14,6 @@ public class PropertyAccessNode : ModuleRules
 				"Slate",	
 				"GraphEditor",
 				"BlueprintGraph",
-				"EditorStyle",
 				"Engine",
 				"UnrealEd",
 				"SlateCore",

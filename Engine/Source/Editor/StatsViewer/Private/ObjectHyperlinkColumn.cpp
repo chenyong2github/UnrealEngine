@@ -3,7 +3,7 @@
 #include "ObjectHyperlinkColumn.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Texture.h"
 #include "Engine/StaticMesh.h"
@@ -73,7 +73,7 @@ FObjectHyperlinkColumn::FObjectHyperlinkColumn(const FObjectHyperlinkColumnIniti
 					SNew( SHyperlink )
 					.Text( InValueAsText )
 					.OnNavigate( FSimpleDelegate::CreateStatic(&Local::HandleNavigate, InObjectPtr, OnObjectHyperlinkClicked) )
-					.Style(FEditorStyle::Get(), "DarkHyperlink")
+					.Style(FAppStyle::Get(), "DarkHyperlink")
 				];
 		}
 

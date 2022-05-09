@@ -4,7 +4,7 @@
 
 #include "CallStackViewer.h"
 #include "Debugging/SKismetDebuggingView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Docking/TabManager.h"
@@ -76,7 +76,7 @@ FBlueprintDebuggerImpl::FBlueprintDebuggerImpl()
 		.SetDisplayName(NSLOCTEXT("BlueprintDebugger", "TabTitle", "Blueprint Debugger"))
 		.SetTooltipText(NSLOCTEXT("BlueprintDebugger", "TooltipText", "Open the Blueprint Debugger tab."))
 		.SetGroup(MenuStructure.GetDeveloperToolsDebugCategory())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDebugger.TabIcon"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDebugger.TabIcon"));
 }
 
 FBlueprintDebuggerImpl::~FBlueprintDebuggerImpl()
@@ -270,7 +270,7 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 		+SVerticalBox::Slot()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			.Padding(FMargin(0.f, 2.f))
 			[
 				TabContents

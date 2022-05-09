@@ -99,7 +99,7 @@ void SGraphNodeSequencePlayer::CreateBelowPinControls(TSharedPtr<SVerticalBox> M
 		.HighDetail()
 		[
 			SNew(SSlider)
-			.Style(&FEditorStyle::Get().GetWidgetStyle<FSliderStyle>("AnimBlueprint.AssetPlayerSlider"))
+			.Style(&FAppStyle::Get().GetWidgetStyle<FSliderStyle>("AnimBlueprint.AssetPlayerSlider"))
 			.ToolTipText(this, &SGraphNodeSequencePlayer::GetPositionTooltip)
 			.Visibility(this, &SGraphNodeSequencePlayer::GetSliderVisibility)
 			.Value(this, &SGraphNodeSequencePlayer::GetSequencePositionRatio)

@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"Engine",
 					"UnrealEd",
-					"EditorStyle",
 					"PropertyEditor",
 					"BlueprintGraph",
 					"ToolMenus",

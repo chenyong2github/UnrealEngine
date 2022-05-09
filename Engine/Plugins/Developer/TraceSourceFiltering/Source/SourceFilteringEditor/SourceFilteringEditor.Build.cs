@@ -12,7 +12,6 @@ public class SourceFilteringEditor : ModuleRules
                     "CoreUObject",
                     "Slate",
                     "SlateCore",
-                    "EditorStyle",
                     "InputCore",
                     "TraceServices",
                     "TraceInsights",

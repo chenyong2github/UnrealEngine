@@ -6,7 +6,7 @@
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorHelpers.h"
 #include "PropertyPathHelpers.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorArrayItem.h"
 
 #define LOCTEXT_NAMESPACE "ItemPropertyNode"

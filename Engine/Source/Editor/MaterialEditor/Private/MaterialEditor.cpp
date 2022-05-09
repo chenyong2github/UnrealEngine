@@ -14,7 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraph.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
 #include "MaterialGraph/MaterialGraph.h"
@@ -376,42 +376,42 @@ void FMaterialEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& In
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PreviewTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Preview) )
 		.SetDisplayName( LOCTEXT("ViewportTab", "Viewport") )
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_MaterialProperties) )
 		.SetDisplayName( LOCTEXT("DetailsTab", "Details") )
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PaletteTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Palette) )
 		.SetDisplayName( LOCTEXT("PaletteTab", "Palette") )
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Palette"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::FindTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Find))
 		.SetDisplayName(LOCTEXT("FindTab", "Find Results"))
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.FindResults"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.FindResults"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PreviewSettingsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_PreviewSettings))
 		.SetDisplayName( LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings") )
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::ParameterDefaultsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_ParameterDefaults))
 		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::CustomPrimitiveTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_CustomPrimitiveData))
 		.SetDisplayName(LOCTEXT("CustomPrimitiveTab", "Custom Primitive Data"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::LayerPropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_LayerProperties))
 		.SetDisplayName(LOCTEXT("LayerPropertiesTab", "Layer Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Layers"));
 
 	MaterialStatsManager->RegisterTabs();
 
@@ -1816,14 +1816,14 @@ void FMaterialEditor::RegisterToolBar()
 				}),
 			LOCTEXT("NodePreview_Label", "Preview State"),
 					LOCTEXT("NodePreviewToolTip", "Preview the graph state for a given feature level, material quality, or static switch value."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
 					false
 					));
 		GraphSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 			FMaterialEditorCommands::Get().ToggleHideUnrelatedNodes,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
 		));
 		GraphSection.AddEntry(FToolMenuEntry::InitComboButton(
 			"HideUnrelatedNodesOptions",
@@ -1935,7 +1935,7 @@ void FMaterialEditor::GeneratePreviewMenuContent(UToolMenu* Menu)
 					bPreviewFeaturesChanged = true;
 				}
 			)
-			.Style(FEditorStyle::Get(), "Menu.CheckBox")
+			.Style(FAppStyle::Get(), "Menu.CheckBox")
 			.ToolTipText(LOCTEXT("StaticSwitchCheckBoxToolTip", "Hide disabled nodes in the graph, according to switch params."))
 			.Content()
 			[
@@ -3556,7 +3556,7 @@ void FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu(UToolMenu* Menu)
 			SNew(SCheckBox)
 				.IsChecked(bLockNodeFadeState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 				.OnCheckStateChanged(this, &FMaterialEditor::OnLockNodeStateCheckStateChanged)
-				.Style(FEditorStyle::Get(), "Menu.CheckBox")
+				.Style(FAppStyle::Get(), "Menu.CheckBox")
 				.ToolTipText(LOCTEXT("LockNodeStateCheckBoxToolTip", "Lock the current state of all nodes."))
 				.Content()
 				[
@@ -3576,7 +3576,7 @@ void FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu(UToolMenu* Menu)
 			SNew(SCheckBox)
 				.IsChecked(bFocusWholeChain ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 				.OnCheckStateChanged(this, &FMaterialEditor::OnFocusWholeChainCheckStateChanged)
-				.Style(FEditorStyle::Get(), "Menu.CheckBox")
+				.Style(FAppStyle::Get(), "Menu.CheckBox")
 				.ToolTipText(LOCTEXT("FocusWholeChainCheckBoxToolTip", "Focus all nodes in the chain."))
 				.Content()
 				[

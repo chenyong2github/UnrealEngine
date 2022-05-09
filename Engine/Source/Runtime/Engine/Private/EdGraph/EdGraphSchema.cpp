@@ -19,7 +19,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "EditorCategoryUtils.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "EdGraph"

@@ -11,8 +11,8 @@ public class WorkspaceMenuStructure : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"EditorStyle",
 				"SlateCore",
+				"Slate"
 			}
 		);
 	}

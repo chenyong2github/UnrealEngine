@@ -14,7 +14,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PListEditorCommands"
 
@@ -69,7 +69,7 @@ public:
 
 	/** Register Command group */
 	FPListEditorCommands() 
-		: TCommands<FPListEditorCommands>("PListEditor", NSLOCTEXT("PListEditor", "PListEditor", "PList Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FPListEditorCommands>("PListEditor", NSLOCTEXT("PListEditor", "PListEditor", "PList Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FAdvancedPreviewSceneCommands : public TCommands<FAdvancedPreviewSceneCommands>
 {
@@ -15,7 +15,7 @@ public:
 		"AdvancedPreviewScene",
 		NSLOCTEXT("Contexts", "AdvancedPreviewScene", "Advanced Preview Scene"),
 		NAME_None,
-		FEditorStyle::Get().GetStyleSetName()
+		FAppStyle::Get().GetStyleSetName()
 	)
 	{}
 	

@@ -23,7 +23,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/Factory.h"
 #include "Factories/CurveFactory.h"
 #include "Editor.h"
@@ -311,7 +311,7 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 				SNew(SBorder)
 				.VAlign(VAlign_Top)
 				.HAlign(HAlign_Left)
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+				.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				.DesiredSizeScale(FVector2D(256.0f,32.0f))
 				.Padding(FMargin(2, 12, 0, 0))
 				[
@@ -327,7 +327,7 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 						.ContentPadding(1)
 						[
 							SNew(SImage) 
-							.Image( FEditorStyle::GetBrush("CurveEd.FitHorizontal") ) 
+							.Image( FAppStyle::GetBrush("CurveEd.FitHorizontal") ) 
 							.ColorAndOpacity( FSlateColor::UseForeground() ) 
 						]
 					]
@@ -342,7 +342,7 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 						.ContentPadding(1)
 						[
 							SNew(SImage) 
-							.Image( FEditorStyle::GetBrush("CurveEd.FitVertical") ) 
+							.Image( FAppStyle::GetBrush("CurveEd.FitVertical") ) 
 							.ColorAndOpacity( FSlateColor::UseForeground() ) 
 						]
 					]
@@ -444,7 +444,7 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 		[
 			SNew( SBorder )
 			.Visibility( this, &SCurveEditor::GetColorGradientVisibility )
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			.BorderBackgroundColor( FLinearColor( .8f, .8f, .8f, .60f ) )
 			.Padding(1.0f)
 			[
@@ -580,7 +580,7 @@ TSharedRef<SWidget> SCurveEditor::CreateCurveSelectionWidget() const
 				.FillWidth(1.0f)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+					.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 					.ColorAndOpacity(CurveViewModel->Color)
 					.Text(FText::FromName(CurveViewModel->CurveInfo.CurveName))
 				]
@@ -626,7 +626,7 @@ TSharedRef<SWidget> SCurveEditor::CreateCurveSelectionWidget() const
 
 	TSharedRef<SBorder> Border = SNew(SBorder)
 		.Padding(FMargin(3, 2, 2, 2))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.BorderBackgroundColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.3f))
 		[
 			CurveBox
@@ -748,8 +748,8 @@ int32 SCurveEditor::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 	// Rendering info
 	bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FEditorStyle::GetBrush("CurveEd.TimelineArea");
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("CurveEd.TimelineArea");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
 
 	FGeometry CurveAreaGeometry = AllottedGeometry;
 
@@ -1004,7 +1004,7 @@ void SCurveEditor::PaintKeys(TSharedPtr<FCurveViewModel> CurveViewModel, FTrackS
 
 		// Get brush
 		bool IsSelected = IsKeySelected(FSelectedCurveKey(Curve,KeyHandle));
-		const FSlateBrush* KeyBrush = IsSelected ? FEditorStyle::GetBrush("CurveEd.CurveKeySelected") : FEditorStyle::GetBrush("CurveEd.CurveKey");
+		const FSlateBrush* KeyBrush = IsSelected ? FAppStyle::GetBrush("CurveEd.CurveKeySelected") : FAppStyle::GetBrush("CurveEd.CurveKey");
 		int32 LayerToUse = IsSelected ? SelectedLayerId: LayerId;
 
 		// Fade out keys that are not selected and whose curve is not selected as well.
@@ -1045,10 +1045,10 @@ void SCurveEditor::PaintTangent( TSharedPtr<FCurveViewModel> CurveViewModel, FTr
 	FVector2D ArriveTangentIconLocation = ArriveTangentLocation - (CONST_TangentSize / 2);
 	FVector2D LeaveTangentIconLocation = LeaveTangentLocation - (CONST_TangentSize / 2);
 
-	const FSlateBrush* TangentBrush = FEditorStyle::GetBrush("CurveEd.Tangent");
-	const FSlateBrush* TangentBrushSelected = FEditorStyle::GetBrush("CurveEd.TangentSelected");
-	const FLinearColor TangentColor = FEditorStyle::GetColor("CurveEd.TangentColor");
-	const FLinearColor TangentColorSelected = FEditorStyle::GetColor("CurveEd.TangentColorSelected");
+	const FSlateBrush* TangentBrush = FAppStyle::GetBrush("CurveEd.Tangent");
+	const FSlateBrush* TangentBrushSelected = FAppStyle::GetBrush("CurveEd.TangentSelected");
+	const FLinearColor TangentColor = FAppStyle::GetColor("CurveEd.TangentColor");
+	const FLinearColor TangentColorSelected = FAppStyle::GetColor("CurveEd.TangentColorSelected");
 
 	bool LeaveTangentSelected = bTangentSelected && bIsLeaveSelected;
 	bool ArriveTangentSelected = bTangentSelected && bIsArrivalSelected;
@@ -1161,7 +1161,7 @@ void SCurveEditor::PaintGridLines(const FGeometry &AllottedGeometry, FTrackScale
 					{
 						FString TimeStr = FString::Printf(TEXT("%.2f"), Time);
 						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(X, 0.0), FVector2D(1.0f, ScaleX )).ToPaintGeometry(),TimeStr,
-							FEditorStyle::GetFontStyle("CurveEd.InfoFont"), DrawEffects, GridTextColor );
+							FAppStyle::GetFontStyle("CurveEd.InfoFont"), DrawEffects, GridTextColor );
 					}
 
 					LinePoints.Empty();
@@ -1205,7 +1205,7 @@ void SCurveEditor::PaintGridLines(const FGeometry &AllottedGeometry, FTrackScale
 					if (bDrawOutputGridNumbers)
 					{
 						FString ValueStr = FString::Printf(TEXT("%.2f"), Value);
-						FSlateFontInfo Font = FEditorStyle::GetFontStyle("CurveEd.InfoFont");
+						FSlateFontInfo Font = FAppStyle::GetFontStyle("CurveEd.InfoFont");
 
 						const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 						FVector2D DrawSize = FontMeasureService->Measure(ValueStr, Font);
@@ -1242,7 +1242,7 @@ void SCurveEditor::PaintMarquee(const FGeometry& AllottedGeometry, const FSlateR
 		OutDrawElements,
 		LayerId,
 		AllottedGeometry.ToPaintGeometry(MarqueTopLeft, MarqueBottomRight - MarqueTopLeft),
-		FEditorStyle::GetBrush(TEXT("MarqueeSelection"))
+		FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 		);
 }
 

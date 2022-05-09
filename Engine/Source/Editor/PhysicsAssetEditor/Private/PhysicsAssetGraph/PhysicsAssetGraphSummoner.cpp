@@ -5,7 +5,7 @@
 #include "PhysicsAssetEditor.h"
 #include "SPhysicsAssetGraph.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetGraphSummoner"
 
@@ -17,7 +17,7 @@ FPhysicsAssetGraphSummoner::FPhysicsAssetGraphSummoner(TSharedPtr<FAssetEditorTo
 	, OnGraphObjectsSelected(InOnGraphObjectsSelected)
 {
 	TabLabel = LOCTEXT("PhysicsAssetGraphTabTitle", "Graph");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "PhysicsAssetEditor.Tabs.Graph");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PhysicsAssetEditor.Tabs.Graph");
 
 	EnableTabPadding();
 	bIsSingleton = true;

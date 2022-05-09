@@ -4,7 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SAssetDropTarget.h"
@@ -43,8 +43,8 @@ void SFilterableActorPicker::Construct( const FArguments& InArgs )
 	];
 
 	AssetComboButton = SNew(SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.OnGetMenuContent_Lambda([&]() -> TSharedRef<SWidget>
 		{
 			FAssetData AssetData;
@@ -99,8 +99,8 @@ void SFilterableActorPicker::Construct( const FArguments& InArgs )
 			[
 				// Show the name of the asset or actor
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.Text(this, &SFilterableActorPicker::OnGetAssetName)
 			]
 		];

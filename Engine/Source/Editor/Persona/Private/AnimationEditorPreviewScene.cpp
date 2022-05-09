@@ -6,7 +6,7 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Components/StaticMeshComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Animation/AnimBlueprint.h"
 #include "AnimPreviewInstance.h"
@@ -888,10 +888,10 @@ FSlateIcon FAnimationEditorPreviewScene::GetRecordStatusImage() const
 {
 	if (IsRecording())
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.StopRecordAnimation");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.StopRecordAnimation");
 	}
 
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.StartRecordAnimation");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.StartRecordAnimation");
 }
 
 FText FAnimationEditorPreviewScene::GetRecordMenuLabel() const

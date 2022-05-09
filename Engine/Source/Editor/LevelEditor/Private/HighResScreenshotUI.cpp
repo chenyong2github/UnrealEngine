@@ -12,7 +12,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "SWarningOrErrorBox.h"
 #include "Styling/StyleColors.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Kismet/KismetSystemLibrary.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 class FNodeSpawnInfo;
@@ -19,7 +19,7 @@ class FBlueprintEditorCommands : public TCommands<FBlueprintEditorCommands>
 public:
 
 	FBlueprintEditorCommands()
-		: TCommands<FBlueprintEditorCommands>( TEXT("BlueprintEditor"), NSLOCTEXT("Contexts", "BlueprintEditor", "Blueprint Editor"), NAME_None, FEditorStyle::GetStyleSetName() )
+		: TCommands<FBlueprintEditorCommands>( TEXT("BlueprintEditor"), NSLOCTEXT("Contexts", "BlueprintEditor", "Blueprint Editor"), NAME_None, FAppStyle::GetAppStyleSetName() )
 	{
 	}	
 
@@ -91,7 +91,7 @@ class FBlueprintSpawnNodeCommands : public TCommands<FBlueprintSpawnNodeCommands
 public:
 
 	FBlueprintSpawnNodeCommands()
-		: TCommands<FBlueprintSpawnNodeCommands>(TEXT("BlueprintEditorSpawnNodes"), NSLOCTEXT("Contexts", "BlueprintEditor_SpawnNodes", "Blueprint Editor - Spawn Nodes by chord"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FBlueprintSpawnNodeCommands>(TEXT("BlueprintEditorSpawnNodes"), NSLOCTEXT("Contexts", "BlueprintEditor_SpawnNodes", "Blueprint Editor - Spawn Nodes by chord"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}	
 
@@ -120,7 +120,7 @@ class FSCSEditorViewportCommands : public TCommands<FSCSEditorViewportCommands>
 public:
 
 	FSCSEditorViewportCommands()
-		: TCommands<FSCSEditorViewportCommands>(TEXT("SCSEditorViewport"), NSLOCTEXT("Contexts", "SCSEditorViewport", "SCS Editor Viewport"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FSCSEditorViewportCommands>(TEXT("SCSEditorViewport"), NSLOCTEXT("Contexts", "SCSEditorViewport", "SCS Editor Viewport"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{}
 
 	virtual void RegisterCommands() override;

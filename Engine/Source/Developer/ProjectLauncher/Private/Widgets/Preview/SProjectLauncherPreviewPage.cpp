@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/SListView.h"
 
 #include "Widgets/Deploy/SProjectLauncherSimpleDeviceListRow.h"
@@ -85,7 +85,7 @@ void SProjectLauncherPreviewPage::Construct( const FArguments& InArgs, const TSh
 											.AutoWidth()
 											[
 												SNew(SImage)
-													.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+													.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 													.Visibility(this, &SProjectLauncherPreviewPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::NoProjectSelected)
 											]
 									]
@@ -117,7 +117,7 @@ void SProjectLauncherPreviewPage::Construct( const FArguments& InArgs, const TSh
 											.AutoWidth()
 											[
 												SNew(SImage)
-													.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+													.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 													.Visibility(this, &SProjectLauncherPreviewPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::NoBuildConfigurationSelected)
 											]
 									]
@@ -149,7 +149,7 @@ void SProjectLauncherPreviewPage::Construct( const FArguments& InArgs, const TSh
 											.AutoWidth()
 											[
 												SNew(SImage)
-													.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+													.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 													.Visibility(this, &SProjectLauncherPreviewPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::NoPlatformSelected)
 											]
 									]
@@ -319,7 +319,7 @@ void SProjectLauncherPreviewPage::Construct( const FArguments& InArgs, const TSh
 											.AutoWidth()
 											[
 												SNew(SImage)
-													.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+													.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 													.Visibility(this, &SProjectLauncherPreviewPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::NoCookedCulturesSelected)
 											]
 									]
@@ -681,7 +681,7 @@ void SProjectLauncherPreviewPage::Construct( const FArguments& InArgs, const TSh
 											.AutoWidth()
 											[
 												SNew(SImage)
-													.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+													.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 													.Visibility(this, &SProjectLauncherPreviewPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::InitialCultureNotAvailable)
 											]
 									]
@@ -713,7 +713,7 @@ void SProjectLauncherPreviewPage::Construct( const FArguments& InArgs, const TSh
 											.AutoWidth()
 											[
 												SNew(SImage)
-													.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+													.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 													.Visibility(this, &SProjectLauncherPreviewPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::InitialMapNotAvailable)
 											]
 									]

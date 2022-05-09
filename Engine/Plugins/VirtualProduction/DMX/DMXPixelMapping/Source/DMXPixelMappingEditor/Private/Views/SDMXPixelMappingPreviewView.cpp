@@ -30,7 +30,7 @@ void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSha
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				.HAlign(HAlign_Fill)
 				.Visibility(this, &SDMXPixelMappingPreviewView::GetTitleBarVisibility)
 				[
@@ -45,14 +45,14 @@ void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSha
 						[
 							SNew(STextBlock)
 							.Text(this, &SDMXPixelMappingPreviewView::GetSelectedComponentParentNameText)
-							.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+							.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 						]
 						+SHorizontalBox::Slot()
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter"))
+							.Image(FAppStyle::GetBrush("BreadcrumbTrail.Delimiter"))
 						]
 						+SHorizontalBox::Slot()
 						.AutoWidth()
@@ -60,7 +60,7 @@ void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSha
 						[
 							SNew(STextBlock)
 							.Text(this, &SDMXPixelMappingPreviewView::GetSelectedComponentNameText)
-						.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+						.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 						]
 					]
 				]
@@ -265,7 +265,7 @@ TSharedRef<SWidget> SDMXPixelMappingPreviewView::CreateOverlayUI()
 			.Padding(6, 2, 0, 0)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.Text(this, &SDMXPixelMappingPreviewView::GetZoomText)
 				.ColorAndOpacity(this, &SDMXPixelMappingPreviewView::GetZoomTextColorAndOpacity)
 			]
@@ -283,10 +283,10 @@ TSharedRef<SWidget> SDMXPixelMappingPreviewView::CreateOverlayUI()
 			[
 				SNew(SButton)
 				.ButtonColorAndOpacity(FLinearColor::Transparent)
-				.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+				.ButtonStyle(FAppStyle::Get(), "ViewportMenu.Button")
 				.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
 				.OnClicked(this, &SDMXPixelMappingPreviewView::HandleZoomToFitClicked)
-				.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
+				.ContentPadding(FAppStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
 				[
 					SNew(SImage)
 					.Image(FDMXPixelMappingEditorStyle::Get().GetBrush("Icons.ZoomToFit"))

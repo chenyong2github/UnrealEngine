@@ -14,7 +14,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraSystemScriptViewModel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/Class.h"
 #include "NiagaraSystem.h"
@@ -81,14 +81,14 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 		.Padding(2, 4, 2, 4)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ToolTipText(LOCTEXT("UpToolTip", "Focus to previous found search term"))
 			.OnClicked(this, &SNiagaraGeneratedCodeView::SearchUpClicked)
 			.Content()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf062"))))
 			]
 		]
@@ -97,14 +97,14 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 		.Padding(2, 4, 2, 4)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ToolTipText(LOCTEXT("DownToolTip", "Focus to next found search term"))
 			.OnClicked(this, &SNiagaraGeneratedCodeView::SearchDownClicked)
 			.Content()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf063"))))
 			]
 		];
@@ -116,7 +116,7 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 		.AutoHeight() // Header block
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -134,7 +134,7 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 					[
 						SAssignNew(ScriptNameCombo, SComboButton)
 						.OnGetMenuContent(this, &SNiagaraGeneratedCodeView::MakeScriptMenu)
-						.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+						.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(0)
 						.ToolTipText(LOCTEXT("ScriptsToolTip", "Select a script to view below."))
@@ -148,7 +148,7 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 								.Padding(2, 0, 0, 0)
 								[
 									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+									.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
 									.Text(LOCTEXT("Scripts", "Scripts"))
 								]
 						]

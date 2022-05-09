@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
 #include "Misc/PackageName.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -21,7 +21,7 @@ void FAssetTypeActions_MaterialInterface::GetActions(const TArray<UObject*>& InO
 		"Material_NewMIC",
 		LOCTEXT("Material_NewMIC", "Create Material Instance"),
 		LOCTEXT("Material_NewMICTooltip", "Creates a parameterized material using this material as a base."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.MaterialInstanceActor"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_MaterialInterface::ExecuteNewMIC, MaterialInterfaces )
 			)

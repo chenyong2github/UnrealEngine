@@ -12,7 +12,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "IAnimBlueprintCompilationContext.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "AnimBlueprintExtension_CallFunction.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_CallFunction"

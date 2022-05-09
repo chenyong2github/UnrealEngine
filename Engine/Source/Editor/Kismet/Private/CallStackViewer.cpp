@@ -3,7 +3,7 @@
 #include "CallStackViewer.h"
 
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -151,8 +151,8 @@ public:
 				if(OwnerPinned->CallStackSource->Num() > 0 && (*OwnerPinned->CallStackSource)[0] == CallStackEntryPinned)
 				{
 					Icon =  SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Kismet.CallStackViewer.CurrentStackFrame"))
-						.ColorAndOpacity( FEditorStyle::GetColor("Kismet.CallStackViewer.CurrentStackFrameColor") );
+						.Image(FAppStyle::GetBrush("Kismet.CallStackViewer.CurrentStackFrame"))
+						.ColorAndOpacity( FAppStyle::GetColor("Kismet.CallStackViewer.CurrentStackFrameColor") );
 				}
 				else
 				{
@@ -169,8 +169,8 @@ public:
 					};
 
 					Icon = SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Kismet.CallStackViewer.CurrentStackFrame"))
-						.ColorAndOpacity( FEditorStyle::GetColor("Kismet.CallStackViewer.LastStackFrameNavigatedToColor") )
+						.Image(FAppStyle::GetBrush("Kismet.CallStackViewer.CurrentStackFrame"))
+						.ColorAndOpacity( FAppStyle::GetColor("Kismet.CallStackViewer.LastStackFrameNavigatedToColor") )
 						.Visibility(
 							TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(NavigationTrackerVisibility, Owner, CallStackEntry))
 						);
@@ -348,7 +348,7 @@ void SCallStackViewer::Construct(const FArguments& InArgs, TArray<TSharedRef<FCa
 	[
 		SNew(SBorder)
 		.Padding(4)
-		.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+		.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 		[
 			SNew(SOverlay)
 			+SOverlay::Slot()
@@ -597,7 +597,7 @@ void CallStackViewer::RegisterTabSpawner(FTabManager& TabManager)
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+					.BorderImage( FAppStyle::GetBrush( TEXT("NoBorder") ) )
 					[
 						ToolbarWidget
 					]
@@ -606,7 +606,7 @@ void CallStackViewer::RegisterTabSpawner(FTabManager& TabManager)
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+					.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 					[
 						SNew(SCallStackViewer, &Private_CallStackSource)
 					]

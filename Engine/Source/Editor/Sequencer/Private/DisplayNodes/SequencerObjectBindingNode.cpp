@@ -10,7 +10,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "GameFramework/Actor.h"
 #include "Containers/ArrayBuilder.h"
@@ -880,7 +880,7 @@ const FSlateBrush* FSequencerObjectBindingNode::GetIconBrush() const
 
 	if (!ClassForObjectBinding)
 	{
-		return FEditorStyle::GetBrush("Sequencer.InvalidSpawnableIcon");
+		return FAppStyle::GetBrush("Sequencer.InvalidSpawnableIcon");
 	}
 
 	return FSlateIconFinder::FindIconBrushForClass(ClassForObjectBinding);
@@ -890,7 +890,7 @@ const FSlateBrush* FSequencerObjectBindingNode::GetIconOverlayBrush() const
 {
 	if (BindingType == EObjectBindingType::Spawnable)
 	{
-		return FEditorStyle::GetBrush("Sequencer.SpawnableIconOverlay");
+		return FAppStyle::GetBrush("Sequencer.SpawnableIconOverlay");
 	}
 	else
 	{
@@ -899,7 +899,7 @@ const FSlateBrush* FSequencerObjectBindingNode::GetIconOverlayBrush() const
 
 		if (NumBoundObjects > 1)
 		{
-			return FEditorStyle::GetBrush("Sequencer.MultipleIconOverlay");
+			return FAppStyle::GetBrush("Sequencer.MultipleIconOverlay");
 		}
 	}
 	return nullptr;

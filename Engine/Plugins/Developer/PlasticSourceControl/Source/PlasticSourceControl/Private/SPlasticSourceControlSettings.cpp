@@ -23,13 +23,13 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SPlasticSourceControlSettings"
 
 void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 {
-	FSlateFontInfo Font = FEditorStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font"));
+	FSlateFontInfo Font = FAppStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font"));
 
 	bAutoCreateIgnoreFile = true;
 	bAutoInitialCommit = true;
@@ -571,7 +571,7 @@ void SPlasticSourceControlSettings::DisplaySuccessNotification(const FName& InOp
 	const FText NotificationText = FText::Format(LOCTEXT("InitWorkspace_Success", "{0} operation was successful!"), FText::FromName(InOperationName));
 	FNotificationInfo Info(NotificationText);
 	Info.bUseSuccessFailIcons = true;
-	Info.Image = FEditorStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
+	Info.Image = FAppStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
 	FSlateNotificationManager::Get().AddNotification(Info);
 	// @todo temporary debug log
 	UE_LOG(LogSourceControl, Log, TEXT("%s"), *NotificationText.ToString());

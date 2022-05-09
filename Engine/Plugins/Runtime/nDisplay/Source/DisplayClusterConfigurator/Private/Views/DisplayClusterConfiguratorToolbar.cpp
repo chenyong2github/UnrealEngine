@@ -25,7 +25,7 @@ public:
 	{
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage(FAppStyle::Get().GetBrush("BlueprintEditor.PipelineSeparator"))
+			.BorderImage(FAppStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
 			.Padding(0.0f)
 		);
 	}
@@ -106,7 +106,7 @@ void FDisplayClusterConfiguratorToolbar::FillModesToolbar(FToolBarBuilder& Toolb
 		.OnGetActiveMode(GetActiveMode)
 		.OnSetActiveMode(SetActiveMode)
 		.ToolTipText(LOCTEXT("nDisplayGraphModeButtonTooltip", "Switch to graph mode"))
-		.IconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToScriptingMode"))
+		.IconImage(FAppStyle::GetBrush("FullBlueprintEditor.SwitchToScriptingMode"))
 	);
 
 	// Right side padding

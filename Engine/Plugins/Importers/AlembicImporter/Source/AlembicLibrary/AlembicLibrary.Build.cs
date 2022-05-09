@@ -21,7 +21,6 @@ public class AlembicLibrary : ModuleRules
                 "PropertyEditor",
                 "SlateCore",
                 "Slate",
-                "EditorStyle",
                 "Eigen",
                 "RenderCore",
                 "RHI"

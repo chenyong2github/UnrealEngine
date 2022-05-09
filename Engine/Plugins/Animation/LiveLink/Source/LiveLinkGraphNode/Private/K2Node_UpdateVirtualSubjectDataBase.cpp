@@ -98,7 +98,7 @@ void UK2Node_UpdateVirtualSubjectDataBase::ExpandNode(FKismetCompilerContext& Co
 FSlateIcon UK2Node_UpdateVirtualSubjectDataBase::GetIconAndTint(FLinearColor& OutColor) const
 {
 	OutColor = GetNodeTitleColor();
-	static const FSlateIcon Icon("EditorStyle", "Kismet.AllClasses.FunctionIcon");
+	static const FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon");
 	return Icon;
 }
 

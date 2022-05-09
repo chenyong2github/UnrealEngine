@@ -5,7 +5,7 @@
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Engine/SkeletalMesh.h"
 #include "RigVMPythonUtils.h"
@@ -2706,7 +2706,7 @@ void URigHierarchyController::ReportAndNotifyError(const FString& InMessage) con
 #if WITH_EDITOR
 	FNotificationInfo Info(FText::FromString(InMessage));
 	Info.bUseSuccessFailIcons = true;
-	Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
+	Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Warning"));
 	Info.bFireAndForget = true;
 	Info.bUseThrobber = true;
 	// longer message needs more time to read

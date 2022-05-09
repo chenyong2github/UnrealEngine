@@ -6,7 +6,7 @@
 
 #include "Misc/Paths.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Stats/StatsData.h"
 #include "ProfilerSession.h"
 #include "Widgets/SMultiDumpBrowser.h"
@@ -26,7 +26,7 @@ FProfilerCommands::FProfilerCommands()
 		TEXT( "ProfilerCommand" ), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "ProfilerCommand", "Profiler Command"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 { }
 

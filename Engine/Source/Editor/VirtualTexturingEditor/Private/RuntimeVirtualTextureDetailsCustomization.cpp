@@ -269,7 +269,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Icons.Warning"))
+			.Image(FAppStyle::GetBrush("Icons.Warning"))
 			.Visibility(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsBuildWarningIconVisible)
 			.ToolTipText(LOCTEXT("Warning_Build_Tooltip", "The settings have changed since the Streaming Texture was last rebuilt. Streaming mips are disabled."))
 		]

@@ -6,7 +6,6 @@
 #include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
-#include "EditorFontGlyphs.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ModelingWidgets/SDynamicNumericEntry.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"

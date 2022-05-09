@@ -3,7 +3,7 @@
 #include "AnimTimelineTrack_VectorCurve.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_VectorCurve"
 

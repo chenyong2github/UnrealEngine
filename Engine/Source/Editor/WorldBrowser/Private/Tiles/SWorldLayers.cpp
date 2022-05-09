@@ -2,7 +2,7 @@
 #include "Tiles/SWorldLayers.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Tiles/WorldTileCollectionModel.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -35,7 +35,7 @@ void SNewWorldLayerPopup::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(10)
 		[
 			SNew(SVerticalBox)
@@ -236,10 +236,10 @@ void SWorldLayerButton::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 				.BorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.2f))
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
 				[
 					SAssignNew(CheckBox, SLayerCheckBox)
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 						.OnCheckStateChanged(this, &SWorldLayerButton::OnCheckStateChanged)
 						.IsChecked(this, &SWorldLayerButton::IsChecked)
 						.OnGetMenuContent(this, &SWorldLayerButton::GetRightClickMenu)

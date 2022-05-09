@@ -7,7 +7,7 @@
 #include "Internationalization/Text.h"
 #include "BufferVisualizationData.h"
 #include "Templates/Function.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "BufferVisualizationMenuCommands"
@@ -47,7 +47,7 @@ FBufferVisualizationMenuCommands::FBufferVisualizationMenuCommands()
 		TEXT("VisualizationMenu"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "VisualizationMenu", "Render Buffer Visualization"), // Localized context name for displaying
 		NAME_None, // Parent context name.  
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	),
 	CommandMap()
 {

@@ -93,7 +93,7 @@ FSlateFontInfo FSequencerSectionCategoryNode::GetDisplayNameFont() const
 	}
 	if (bAllAnimated == true)
 	{
-		return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
+		return FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
 	}
 	return FSequencerDisplayNode::GetDisplayNameFont();
 }

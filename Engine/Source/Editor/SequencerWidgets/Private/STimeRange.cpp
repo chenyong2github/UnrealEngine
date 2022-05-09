@@ -6,7 +6,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
 
@@ -27,7 +27,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.OnValueChanged(this, &STimeRange::OnWorkingStartTimeChanged)
 		.MinValue(TOptional<double>())
 		.MaxValue(TOptional<double>())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 		.TypeInterface(NumericTypeInterface)
 		.ClearKeyboardFocusOnCommit(true)
 		.Delta(this, &STimeRange::GetSpinboxDelta)
@@ -41,7 +41,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.OnValueChanged( this, &STimeRange::OnWorkingEndTimeChanged )
 		.MinValue(TOptional<double>())
 		.MaxValue(TOptional<double>())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 		.TypeInterface(NumericTypeInterface)
 		.ClearKeyboardFocusOnCommit(true)
 		.Delta(this, &STimeRange::GetSpinboxDelta)
@@ -59,7 +59,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.OnValueChanged( this, &STimeRange::OnViewStartTimeChanged )
 		.MinValue(TOptional<double>())
 		.MaxValue(TOptional<double>())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 		.TypeInterface(NumericTypeInterface)
 		.ClearKeyboardFocusOnCommit(true)
 		.Delta(this, &STimeRange::GetSpinboxDelta)
@@ -74,7 +74,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.OnValueChanged( this, &STimeRange::OnViewEndTimeChanged )
 		.MinValue(TOptional<double>())
 		.MaxValue(TOptional<double>())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 		.TypeInterface(NumericTypeInterface)
 		.ClearKeyboardFocusOnCommit(true)
 		.Delta(this, &STimeRange::GetSpinboxDelta)
@@ -92,7 +92,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.OnValueChanged(this, &STimeRange::OnPlayStartTimeChanged)
 		.MinValue(TOptional<double>())
 		.MaxValue(TOptional<double>())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 		.TypeInterface(NumericTypeInterface)
 		.ClearKeyboardFocusOnCommit(true)
 		.Delta(this, &STimeRange::GetSpinboxDelta)
@@ -107,7 +107,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.OnValueChanged( this, &STimeRange::OnPlayEndTimeChanged )
 		.MinValue(TOptional<double>())
 		.MaxValue(TOptional<double>())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 		.TypeInterface(NumericTypeInterface)
 		.ClearKeyboardFocusOnCommit(true)
 		.Delta(this, &STimeRange::GetSpinboxDelta)

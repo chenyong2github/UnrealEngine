@@ -9,7 +9,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Workflow/SWizard.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -39,11 +39,11 @@ void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InAr
 		.AutoHeight()
 		[
 			SNew(SBox)
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+			.Padding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 			[
 					
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(7))
 				[
 					SAssignNew(OptionsBox, SVerticalBox)
@@ -64,7 +64,7 @@ void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InAr
 				.BorderBackgroundColor(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionBorderColor, OptionIndex)
 				[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 						.CheckBoxContentUsesAutoWidth(false)
 						.IsChecked(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionCheckBoxState, OptionIndex)
 						.OnCheckStateChanged(this, &SDisplayClusterConfiguratorNewAssetDialog::OptionCheckBoxStateChanged, OptionIndex)
@@ -72,7 +72,7 @@ void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InAr
 						[
 							// this border catches the double click before the checkbox can
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::Get().GetBrush("NoBorder"))
+							.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 							.OnMouseDoubleClick(this, &SDisplayClusterConfiguratorNewAssetDialog::OnOptionDoubleClicked, OptionIndex)
 							[
 								SNew(SVerticalBox)

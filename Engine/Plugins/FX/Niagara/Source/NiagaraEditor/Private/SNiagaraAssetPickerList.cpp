@@ -11,7 +11,7 @@
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 

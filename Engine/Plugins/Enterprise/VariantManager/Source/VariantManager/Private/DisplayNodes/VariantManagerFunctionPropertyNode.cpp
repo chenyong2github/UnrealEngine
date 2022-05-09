@@ -162,7 +162,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CreateNewFunctionText",    "Create New Function"),
 			LOCTEXT("CreateNewFunctionTooltip", "Creates a new function in this FunctionDirector."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.CreateEventBinding"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.CreateEventBinding"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FVariantManagerFunctionPropertyNode::CreateDirectorFunction, LVS, BoundObjectClass)
 			)
@@ -173,7 +173,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 			LOCTEXT("CreateQuickBinding_Tooltip", "Shows a list of functions on this object binding that can be bound directly to this event"),
 			FNewMenuDelegate::CreateSP(this, &FVariantManagerFunctionPropertyNode::PopulateQuickBindSubMenu, BoundObjectClass),
 			false /* bInOpenSubMenuOnClick */,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.CreateQuickBinding"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.CreateQuickBinding"),
 			true /* bInShouldCloseWindowAfterMenuSelection */
 		);
 	}
@@ -181,7 +181,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("ClearCaller_Text",    "Clear"),
 		LOCTEXT("ClearCaller_Tooltip", "Unbinds the current function from this function caller"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.ClearEventBinding"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.ClearEventBinding"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FVariantManagerFunctionPropertyNode::SetBindingTargetFunction, (UK2Node_FunctionEntry*)nullptr)
 		)
@@ -190,7 +190,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 	UBlueprint* DirectorBP = GetValid(Cast<UBlueprint>(LVS->GetDirectorGeneratedBlueprint()));
 	if (BoundObjectClass && DirectorBP && !DirectorBP->IsUnreachable())
 	{
-		FSlateIcon Icon(FEditorStyle::GetStyleSetName(), "GraphEditor.Function_16x");
+		FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Function_16x");
 
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("ExistingFunctionCallers", "Existing functions"));
 
@@ -285,7 +285,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 
 void FVariantManagerFunctionPropertyNode::PopulateQuickBindSubMenu(FMenuBuilder& MenuBuilder, UClass* TemplateClass)
 {
-	FSlateIcon Icon(FEditorStyle::GetStyleSetName(), "GraphEditor.Function_16x");
+	FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Function_16x");
 
 	TArray<UFunction*> Functions;
 
@@ -361,10 +361,10 @@ const FSlateBrush* FVariantManagerFunctionPropertyNode::GetFunctionIcon() const
 {
 	if (FunctionCaller.IsValidFunction(FunctionCaller.GetFunctionEntry()))
 	{
-		return FEditorStyle::GetBrush("GraphEditor.Function_16x");
+		return FAppStyle::GetBrush("GraphEditor.Function_16x");
 	}
 
-	return FEditorStyle::GetBrush("Sequencer.UnboundEvent");
+	return FAppStyle::GetBrush("Sequencer.UnboundEvent");
 }
 
 FReply FVariantManagerFunctionPropertyNode::ResetMultipleValuesToDefault()
@@ -401,8 +401,8 @@ TSharedPtr<SWidget> FVariantManagerFunctionPropertyNode::GetPropertyValueWidget(
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SComboButton)
-			.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
-			.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+			.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
+			.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 			.OnGetMenuContent(this, &FVariantManagerFunctionPropertyNode::GetMenuContent)
 			.CollapseMenuOnParentFocus(true)
 			.ContentPadding(FMargin(4.f, 0.f))
@@ -424,8 +424,8 @@ TSharedPtr<SWidget> FVariantManagerFunctionPropertyNode::GetPropertyValueWidget(
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), TEXT("PropertyEditor.AssetClass"))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.TextStyle(FAppStyle::Get(), TEXT("PropertyEditor.AssetClass"))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Text_Lambda([this]()
 					{
 						return FText::FromName(FunctionCaller.FunctionName);

@@ -3,7 +3,7 @@
 #include "ActorArrayHyperlinkColumn.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "StatsCellPresenter.h"
 #include "Editor.h"
@@ -63,7 +63,7 @@ public:
 				SNew( SHyperlink )
 					.Text( GetValueAsText() )
 					.OnNavigate( this, &FActorArrayHyperlinkCellPresenter::OnHyperlinkClicked )
-					.Style(FEditorStyle::Get(), "DarkHyperlink")
+					.Style(FAppStyle::Get(), "DarkHyperlink")
 			];
 	}
 

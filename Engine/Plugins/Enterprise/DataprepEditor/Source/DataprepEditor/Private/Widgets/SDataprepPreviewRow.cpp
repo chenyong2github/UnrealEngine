@@ -6,7 +6,7 @@
 #include "PreviewSystem/DataprepPreviewSystem.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Internationalization/Text.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/Layout/SBox.h"
@@ -17,7 +17,7 @@ void SDataprepPreviewRow::Construct(const FArguments& InArgs, const TSharedPtr<F
 {
 	PreviewData = InPreviewData;
 
-	FSlateFontInfo AwsomeFontStyle = FEditorStyle::Get().GetFontStyle("FontAwesome.11");
+	FSlateFontInfo AwsomeFontStyle = FAppStyle::Get().GetFontStyle("FontAwesome.11");
 	AwsomeFontStyle.Size =9 ;
 
 	ChildSlot

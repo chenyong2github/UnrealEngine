@@ -38,12 +38,12 @@ void SClassPropertyRecorderSettings::Construct(const FArguments& Args, const TSh
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("ChoosePropertiesButtonToolTip", "Choose properties to be recorded for this class"))
 			.OnClicked(this, &SClassPropertyRecorderSettings::HandleChoosePropertiesButtonClicked)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+				.Image(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 			]
 		]
 	];
@@ -95,7 +95,7 @@ FReply SClassPropertyRecorderSettings::HandleChoosePropertiesButtonClicked()
 
 		Window->SetContent(
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("PropertyWindow.WindowBorder")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("PropertyWindow.WindowBorder")))
 			[
 				DetailsView
 			]

@@ -10,7 +10,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 
@@ -200,7 +200,7 @@ protected:
 			.Padding(2.0)
 			[
 				SNew(SImage)
-					.Image(FEditorStyle::GetBrush(IconName))
+					.Image(FAppStyle::GetBrush(IconName))
 			]
 
 		+ SHorizontalBox::Slot()
@@ -228,7 +228,7 @@ protected:
 			.Padding(2.0)
 			[
 				SNew(SImage)
-					.Image(FEditorStyle::GetBrush(IconName))
+					.Image(FAppStyle::GetBrush(IconName))
 			]
 
 		+ SHorizontalBox::Slot()

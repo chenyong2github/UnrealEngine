@@ -7,7 +7,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SOutputLog.h"
 
 namespace DebugConsoleDefs
@@ -42,7 +42,7 @@ void SDebugConsole::Construct( const FArguments& InArgs, const EDebugConsoleStyl
 				.HeightOverride( 200.0f )
 				[
 					SNew( SBorder )
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 					.ColorAndOpacity( this, &SDebugConsole::GetAnimatedColorAndOpacity )
 					.BorderBackgroundColor( this, &SDebugConsole::GetAnimatedSlateColor )
 					[

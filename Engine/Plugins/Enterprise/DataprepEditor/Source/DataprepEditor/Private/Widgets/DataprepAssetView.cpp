@@ -47,7 +47,7 @@ namespace DataprepEditorUtils
 {
 	FSlateFontInfo GetGlyphFont()
 	{
-		return FEditorStyle::Get().GetFontStyle( "FontAwesome.11" );
+		return FAppStyle::Get().GetFontStyle( "FontAwesome.11" );
 	}
 }
 
@@ -97,7 +97,7 @@ void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
 	DetailsSplitter = SNew(SSplitter)
 		.MinimumSlotHeight(80.0f)
 		.Orientation(Orient_Vertical)
-		.Style(FEditorStyle::Get(), "SplitterDark")
+		.Style(FAppStyle::Get(), "SplitterDark")
 		.PhysicalSplitterHandleSize(2.0f)
 		+ SSplitter::Slot()
 		.Value(.2f)
@@ -129,7 +129,7 @@ void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(ContextualEditingBorderWidget, SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		]
 	];
 }
@@ -414,7 +414,7 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 	else
 	{
 		ConsumerWidget = SNew( STextBlock )
-			.Font( FEditorStyle::GetFontStyle("BoldFont") )
+			.Font( FAppStyle::GetFontStyle("BoldFont") )
 			.Text( LOCTEXT( "NoConsumer", "No consumer found" ) )
 			.Margin( 5.0f )
 			.ColorAndOpacity( FLinearColor(1, 0, 0, 1) );
@@ -667,7 +667,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 	[
 		SNew(SBorder)
 		.Padding(4.0f)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()

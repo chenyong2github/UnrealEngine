@@ -11,7 +11,7 @@
 #include "NiagaraNodeReroute.h"
 
 #include "GraphEditor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Text/TextLayout.h"
@@ -87,7 +87,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 
 	TSharedRef<SWidget> TitleBarWidget =
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+		.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 		.HAlign(HAlign_Fill)
 		[
 			// Error Indicator and Title
@@ -110,7 +110,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 				[
 					SNew(STextBlock)
 					.Text(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetDisplayName)
-					.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+					.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 					.Justification(ETextJustify::Center)
 				]
 			]
@@ -120,7 +120,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 			.VAlign(VAlign_Fill)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.ScriptGraph.SearchBorderColor"))
 				.Visibility(this, &SNiagaraScriptGraph::GetGraphSearchBoxVisibility)
 				.Padding(5)
@@ -151,7 +151,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.IsFocusable(false)
 						.ForegroundColor(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
 						.ToolTipText(LOCTEXT("CloseGraphSearchBox", "Close Graph search box"))
@@ -160,7 +160,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 						.Content()
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 							.Text(FEditorFontGlyphs::Times)
 						]
 					]

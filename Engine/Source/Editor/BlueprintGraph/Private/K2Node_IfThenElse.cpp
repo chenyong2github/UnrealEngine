@@ -118,7 +118,7 @@ FLinearColor UK2Node_IfThenElse::GetNodeTitleColor() const
 
 FSlateIcon UK2Node_IfThenElse::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Branch_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Branch_16x");
 	return Icon;
 }
 

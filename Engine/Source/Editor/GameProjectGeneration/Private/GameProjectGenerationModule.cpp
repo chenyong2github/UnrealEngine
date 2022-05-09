@@ -4,7 +4,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameProjectGenerationLog.h"
 #include "GameProjectUtils.h"
 #include "SNewClassDialog.h"

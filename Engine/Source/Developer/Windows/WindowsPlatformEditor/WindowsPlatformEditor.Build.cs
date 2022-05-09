@@ -16,7 +16,7 @@ public class WindowsPlatformEditor : ModuleRules
 				"MainFrame",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"PropertyEditor",
 				"SharedSettingsWidgets",
 				"SourceControl",

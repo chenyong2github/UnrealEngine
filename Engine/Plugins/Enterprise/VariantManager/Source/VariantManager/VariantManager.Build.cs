@@ -26,7 +26,7 @@ namespace UnrealBuildTool.Rules
 					"AppFramework", // For color pickers (for color and linear color properties)
                     "BlueprintGraph", // For function director
 					"DesktopPlatform",
-					"EditorStyle", // For standard styles on most of UI
+					"EditorStyle", // For FontAwesome glyphs
 					"GraphEditor", // For DragDropOp, might be removed later
 					"InputCore", // For ListView keyboard control
 					"Projects", // So that we can use the IPluginManager, required for our custom style

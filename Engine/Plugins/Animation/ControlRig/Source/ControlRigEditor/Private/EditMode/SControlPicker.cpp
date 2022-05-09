@@ -9,7 +9,7 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "ScopedTransaction.h"
 #include "ControlRigEditMode.h"

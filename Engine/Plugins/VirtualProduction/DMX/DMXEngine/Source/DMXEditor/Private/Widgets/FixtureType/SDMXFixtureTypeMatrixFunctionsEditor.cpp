@@ -31,7 +31,7 @@ void SDMXFixtureTypeMatrixFunctionsEditor::Construct(const FArguments& InArgs, c
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 		.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 		[
 			SNew(SVerticalBox)
@@ -62,8 +62,8 @@ void SDMXFixtureTypeMatrixFunctionsEditor::Construct(const FArguments& InArgs, c
 
 TSharedRef<SHeaderRow> SDMXFixtureTypeMatrixFunctionsEditor::GenerateHeaderRow()
 {
-	const float StatusColumnWidth = FMath::Max(FEditorStyle::GetBrush("Icons.Warning")->GetImageSize().X + 8.f, FEditorStyle::GetBrush("Icons.Error")->GetImageSize().X + 8.f);
-	const float DeleteAttributeColumnWidth = FEditorStyle::GetBrush("Icons.Delete")->GetImageSize().X + 8.f;
+	const float StatusColumnWidth = FMath::Max(FAppStyle::GetBrush("Icons.Warning")->GetImageSize().X + 8.f, FAppStyle::GetBrush("Icons.Error")->GetImageSize().X + 8.f);
+	const float DeleteAttributeColumnWidth = FAppStyle::GetBrush("Icons.Delete")->GetImageSize().X + 8.f;
 
 	TAttribute<EVisibility> HeaderRowVisiblityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]()
 		{

@@ -8,7 +8,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
 
@@ -58,7 +58,7 @@ void SDMXFixturePatchTreeUniverseRow::Construct(const FArguments& InArgs, const 
 
 	STableRow<TSharedPtr<FDMXEntityTreeCategoryNode>>::ConstructInternal(
 		STableRow<TSharedPtr<FDMXEntityTreeCategoryNode>>::FArguments()
-			.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+			.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 			.ShowSelection(false),
 		InOwnerTableView
 	);
@@ -256,14 +256,14 @@ const FSlateBrush* SDMXFixturePatchTreeUniverseRow::GetBackgroundImageBrush() co
 	if (IsHovered())
 	{
 		return IsItemExpanded()
-			? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered")
-			: FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+			? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered")
+			: FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 	}
 	else
 	{
 		return IsItemExpanded()
-			? FEditorStyle::GetBrush("DetailsView.CategoryTop")
-			: FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+			? FAppStyle::GetBrush("DetailsView.CategoryTop")
+			: FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 	}
 }
 

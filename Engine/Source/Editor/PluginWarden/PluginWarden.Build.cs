@@ -21,7 +21,6 @@ public class PluginWarden : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"PortalServices",

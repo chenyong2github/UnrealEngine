@@ -54,7 +54,7 @@ void SClothPaintWidget::Construct(const FArguments& InArgs, FClothPainter* InPai
 		.Padding(FMargin(0.0f, 3.0f, 0.0f, 0.0f))
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Content()
 			[
 				SNew(SVerticalBox)

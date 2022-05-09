@@ -4,7 +4,7 @@
 #include "Sequencer.h"
 #include "SequencerSettings.h"
 #include "SequencerCommonHelpers.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -26,7 +26,7 @@ void SSequencerStretchBox::Construct(const FArguments& InArgs, const TSharedRef<
 	ChildSlot
 	[
 		SAssignNew(Border, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			.Padding(6.0f)
 			.Visibility(EVisibility::Collapsed)
 			[
@@ -41,7 +41,7 @@ void SSequencerStretchBox::Construct(const FArguments& InArgs, const TSharedRef<
 							.OnClicked(this, &SSequencerStretchBox::OnStretchButtonClicked)
 							[
 								SNew(STextBlock)
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 								.Text(FEditorFontGlyphs::Angle_Right)
 							]
 					]
@@ -69,7 +69,7 @@ void SSequencerStretchBox::Construct(const FArguments& InArgs, const TSharedRef<
 							.OnClicked(this, &SSequencerStretchBox::OnShrinkButtonClicked)
 							[
 								SNew(STextBlock)
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 								.Text(FEditorFontGlyphs::Angle_Left)
 							]
 					]

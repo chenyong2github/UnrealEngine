@@ -120,7 +120,7 @@ TSharedRef< SWidget > SPropertyEditorTableRow::ConstructValueColumnWidget()
 		.VAlign(VAlign_Center)
 		[
 			SNew( SButton )
-			.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.Visibility( this, &SPropertyEditorTableRow::OnGetFavoritesVisibility )
 			.OnClicked( this, &SPropertyEditorTableRow::OnToggleFavoriteClicked )
 			.ContentPadding(0)
@@ -199,10 +199,10 @@ const FSlateBrush* SPropertyEditorTableRow::OnGetFavoriteImage() const
 {
 	if( PropertyEditor->IsFavorite() )
 	{
-		return FEditorStyle::GetBrush(TEXT("Icons.Star"));
+		return FAppStyle::GetBrush(TEXT("Icons.Star"));
 	}
 
-	return FEditorStyle::GetBrush(TEXT("PropertyWindow.Favorites_Disabled"));
+	return FAppStyle::GetBrush(TEXT("PropertyWindow.Favorites_Disabled"));
 }
 
 FReply SPropertyEditorTableRow::OnNameDoubleClicked()

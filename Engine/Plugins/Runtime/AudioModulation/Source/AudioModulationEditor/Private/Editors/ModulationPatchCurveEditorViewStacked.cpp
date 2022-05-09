@@ -6,7 +6,7 @@
 #include "Curves/CurveFloat.h"
 #include "CurveEditor.h"
 #include "CurveModel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IAudioModulation.h"
@@ -215,7 +215,7 @@ void SModulationPatchEditorViewStacked::DrawLabels(const FGeometry& AllottedGeom
 	const double ValuePerPixel = 1.0 / StackedHeight;
 	const double ValueSpacePadding = StackedPadding * ValuePerPixel;
 
-	const FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("CurveEd.LabelFont");
+	const FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("CurveEd.LabelFont");
 	const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
 	const FCurveEditorScreenSpace ViewSpace = GetViewSpace();
 
@@ -279,7 +279,7 @@ void SModulationPatchEditorViewStacked::DrawViewGrids(const FGeometry& AllottedG
 	// Rendering info
 	const float          Width = AllottedGeometry.GetLocalSize().X;
 	const float          Height = AllottedGeometry.GetLocalSize().Y;
-	const FSlateBrush*   WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+	const FSlateBrush*   WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 
 	FModPatchViewGridDrawInfo DrawInfo(&AllottedGeometry, GetViewSpace(), CurveEditor->GetPanel()->GetGridLineTint(), BaseLayerId);
 

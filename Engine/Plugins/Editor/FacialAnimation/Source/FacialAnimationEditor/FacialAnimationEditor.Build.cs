@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
                     "FacialAnimation",
                     "SlateCore",
                     "Slate",
-					"EditorStyle",
 					"EditorFramework",
 					"UnrealEd",
                     "AudioEditor",

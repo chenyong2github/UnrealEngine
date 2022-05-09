@@ -4,7 +4,7 @@
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/SkeletalMesh.h"
 #include "IDetailCustomization.h"
 #include "IDetailPropertyRow.h"

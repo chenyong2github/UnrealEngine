@@ -21,7 +21,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ProfilerDataProvider.h"
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
@@ -85,13 +85,13 @@ public:
 			.Padding( 1.0f )
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), CloseButtonStyle )
+				.ButtonStyle( FAppStyle::Get(), CloseButtonStyle )
 				.OnClicked( this, &SDataGraphSummary::CloseButton_OnClicked )
 				.ContentPadding( 0 )
 				.ToolTipText( ToolTipText )
 				[
 					SNew(SSpacer)
-					.Size( FEditorStyle::GetBrush(CloseButtonStyle, ".Normal" )->ImageSize )
+					.Size( FAppStyle::GetBrush(CloseButtonStyle, ".Normal" )->ImageSize )
 				]
 			]
 
@@ -104,7 +104,7 @@ public:
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity( TextColor )
-				.TextStyle( FEditorStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
 				.Text( this, &SDataGraphSummary::SummaryInformation_GetGroupName )
 			]
 
@@ -117,7 +117,7 @@ public:
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity( TextColor )
-				.TextStyle( FEditorStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
 				.Text( this, &SDataGraphSummary::SummaryInformation_GetStatName )
 			]
 
@@ -130,7 +130,7 @@ public:
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity( TextColor )
-				.TextStyle( FEditorStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
 				.Text( this, &SDataGraphSummary::SummaryInformation_GetSummary )
 			]
 		];
@@ -306,8 +306,8 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	// Rendering info.
 	const bool bEnabled  = ShouldBeEnabled( bParentEnabled );
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FEditorStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
 
 	/** Width of the alloted geometry that is used to draw a data graph. */
 	const float AreaX0 = 0.0f;
@@ -844,7 +844,7 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 					OutDrawElements,
 					LayerId,
 					AllottedGeometry.ToPaintGeometry( FVector2D(LocalGraphSelectionX[Nx]-HalfGraphMarkerWidth,0.0f), FVector2D(GraphMarkerWidth, AllottedGeometry.GetLocalSize().Y) ),
-					FEditorStyle::GetBrush("Brushes.Foldout"),
+					FAppStyle::GetBrush("Brushes.Foldout"),
 					DrawEffects,
 					FColor(64,64,255,128)
 				);
@@ -866,7 +866,7 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 					OutDrawElements,
 					LayerId,
 					AllottedGeometry.ToPaintGeometry( FVector2D(GraphSelectionX0/*+HalfGraphMarkerWidth*/,0.0f), FVector2D(GraphSelectionW/*-GraphMarkerWidth*/, AllottedGeometry.GetLocalSize().Y) ),
-					FEditorStyle::GetBrush("Brushes.Foldout"),
+					FAppStyle::GetBrush("Brushes.Foldout"),
 					DrawEffects,
 					FColor(64,64,255,32)
 				);

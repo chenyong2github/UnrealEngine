@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Fonts/SlateFontInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "ISinglePropertyView.h"
 
@@ -19,7 +19,7 @@ public:
 	SLATE_BEGIN_ARGS( SSingleProperty )
 		: _Object(NULL)
 		, _NotifyHook( NULL )
-		, _PropertyFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) ) 
+		, _PropertyFont( FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) ) 
 		, _NamePlacement( EPropertyNamePlacement::Left )
 		, _NameOverride()
 		, _bShouldHideAssetThumbnail(false)

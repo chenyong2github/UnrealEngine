@@ -11,7 +11,7 @@
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Stats/StatsMisc.h"
 #include "SPositiveActionButton.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -120,7 +120,7 @@ TSharedRef<SDockTab> SLevelSnapshotsEditor::SpawnTab_CustomToolbar(const FSpawnT
         [
 	        SNew(SBorder)
 	        .Padding(0)
-	        .BorderImage(FEditorStyle::GetBrush("NoBorder"))
+	        .BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.HAlign(HAlign_Fill)
 	        [
 				SNew(SHorizontalBox)
@@ -133,7 +133,7 @@ TSharedRef<SDockTab> SLevelSnapshotsEditor::SpawnTab_CustomToolbar(const FSpawnT
 				[
 					SNew(SButton)
 					.VAlign(EVerticalAlignment::VAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+					.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 					.ToolTipText(LOCTEXT("InputPanelToggleTooltip", "Show or hide the input panel"))
 					.ContentPadding(FMargin(1, 0))
 					.ForegroundColor(FSlateColor::UseForeground())
@@ -142,7 +142,7 @@ TSharedRef<SDockTab> SLevelSnapshotsEditor::SpawnTab_CustomToolbar(const FSpawnT
 						SNew(SImage)
 						.Image_Lambda([this] ()
 						{
-							return FEditorStyle::GetBrush(bInputPanelExpanded ? "ContentBrowser.HideSourcesView" : "ContentBrowser.ShowSourcesView");
+							return FAppStyle::GetBrush(bInputPanelExpanded ? "ContentBrowser.HideSourcesView" : "ContentBrowser.ShowSourcesView");
 						})
 					]
 				]
@@ -170,7 +170,7 @@ TSharedRef<SDockTab> SLevelSnapshotsEditor::SpawnTab_CustomToolbar(const FSpawnT
 						SAssignNew(SettingsButtonPtr, SCheckBox)
 						.Padding(FMargin(4.f))
 						.ToolTipText(LOCTEXT("ShowSettings_Tip", "Show the general user/project settings for Level Snapshots"))
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.IsChecked(false)
 						.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckState)

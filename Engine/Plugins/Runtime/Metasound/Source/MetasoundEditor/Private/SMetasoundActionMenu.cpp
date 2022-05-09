@@ -5,7 +5,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "EdGraphSchema_K2.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDocumentation.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
@@ -105,7 +105,7 @@ namespace Metasound
 
 					if (RegistryInfo.IsArrayType())
 					{
-						PinBrush = FEditorStyle::GetBrush("Graph.ArrayPin.Connected");
+						PinBrush = FAppStyle::GetBrush("Graph.ArrayPin.Connected");
 					}
 					else if (Pin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 					{
@@ -117,13 +117,13 @@ namespace Metasound
 
 					if (!PinBrush)
 					{
-						PinBrush = FEditorStyle::GetBrush("Graph.Pin.Connected");
+						PinBrush = FAppStyle::GetBrush("Graph.Pin.Connected");
 					}
 				}
 			}
 
 			SBorder::Construct(SBorder::FArguments()
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding(5)
 				[
 					SNew(SBox)
@@ -175,7 +175,7 @@ namespace Metasound
 									}
 								})
 								// TODO: Move to Metasound Style
-								.Font(FEditorStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont"))
+								.Font(FAppStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont"))
 								.ToolTip(IDocumentation::Get()->CreateToolTip(
 									LOCTEXT("ActionMenuContextTextTooltip", "Describes the current context of the action list"),
 									nullptr,

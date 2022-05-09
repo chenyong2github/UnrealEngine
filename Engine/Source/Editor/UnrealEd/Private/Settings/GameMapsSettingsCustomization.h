@@ -13,7 +13,7 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UIAction.h"
 #include "IDetailCustomization.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -218,7 +218,7 @@ private:
 			{
 				static const FName InvertedForegroundName("InvertedForeground");
 
-				return FEditorStyle::GetSlateColor(InvertedForegroundName);
+				return FAppStyle::GetSlateColor(InvertedForegroundName);
 			}
 		}
 

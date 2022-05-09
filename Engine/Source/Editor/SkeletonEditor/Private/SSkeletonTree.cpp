@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ActorFactories/ActorFactory.h"
 #include "Exporters/Exporter.h"
 #include "Sound/SoundBase.h"
@@ -224,7 +224,7 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 			// Add a border if we are being used as a picker
 			SNew(SBorder)
 			.Visibility_Lambda([this](){ return Mode == ESkeletonTreeMode::Picker ? EVisibility::Visible: EVisibility::Collapsed; })
-			.BorderImage(FEditorStyle::Get().GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
 		]
 		+SOverlay::Slot()
 		[

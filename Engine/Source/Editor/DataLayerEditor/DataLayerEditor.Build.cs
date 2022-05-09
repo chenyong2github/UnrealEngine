@@ -16,7 +16,6 @@ public class DataLayerEditor : ModuleRules
 				"CoreUObject",
 				"EditorFramework",
 				"EditorWidgets",
-				"EditorStyle",
 				"EditorSubsystem",
 				"PropertyEditor",
 				"Engine",

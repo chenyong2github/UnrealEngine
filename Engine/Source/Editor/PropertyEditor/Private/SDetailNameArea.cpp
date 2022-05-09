@@ -6,7 +6,7 @@
 #include "AssetSelection.h"
 #include "Components/ActorComponent.h"
 #include "EditorClassUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorWidgetsModule.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
@@ -73,11 +73,11 @@ const FSlateBrush* SDetailNameArea::OnGetLockButtonImageResource() const
 {
 	if( IsLocked.Get() )
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Locked"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
 	}
 }
 
@@ -165,7 +165,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 				.AutoWidth()
 				[
 					SNew( SButton )
-					.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
+					.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
 					.OnClicked(	OnLockButtonClicked )
 					.ContentPadding(FMargin(4,2))
 					.HAlign(HAlign_Center)

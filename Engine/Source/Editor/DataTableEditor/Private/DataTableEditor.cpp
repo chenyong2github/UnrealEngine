@@ -4,7 +4,7 @@
 #include "DataTableEditorModule.h"
 #include "Dom/JsonObject.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -59,7 +59,7 @@ public:
 	{
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
+			.BorderImage(FAppStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
 			.Padding(0.0f)
 		);
 	}
@@ -527,7 +527,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("ReimportText", "Reimport"),
 			LOCTEXT("ReimportTooltip", "Reimport this DataTable"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Import"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"));
 
 		ToolbarBuilder.AddSeparator();
 
@@ -536,7 +536,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("AddIconText", "Add"),
 			LOCTEXT("AddRowToolTip", "Add a new row to the Data Table"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Plus"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnCopyClicked),
@@ -544,7 +544,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("CopyIconText", "Copy"),
 			LOCTEXT("CopyToolTip", "Copy the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Copy"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnPasteClicked),
@@ -552,7 +552,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("PasteIconText", "Paste"),
 			LOCTEXT("PasteToolTip", "Paste on the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Paste"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Paste"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnDuplicateClicked),
@@ -560,7 +560,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("DuplicateIconText", "Duplicate"),
 			LOCTEXT("DuplicateToolTip", "Duplicate the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Duplicate"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnRemoveClicked),
@@ -568,7 +568,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("RemoveRowIconText", "Remove"),
 			LOCTEXT("RemoveRowToolTip", "Remove the currently selected row from the Data Table"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Delete"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"));
 	}
 	ToolbarBuilder.EndSection();
 
@@ -639,7 +639,7 @@ void FDataTableEditor::RefreshRowNumberColumnWidth()
 {
 
 	TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+	const FTextBlockStyle& CellTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 	const float CellPadding = 10.0f;
 
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
@@ -664,7 +664,7 @@ void FDataTableEditor::RefreshRowNameColumnWidth()
 {
 	
 	TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+	const FTextBlockStyle& CellTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 	static const float CellPadding = 10.0f;
 
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
@@ -787,7 +787,7 @@ TSharedRef<SWidget> FDataTableEditor::MakeCellWidget(FDataTableEditorRowListView
 			.Padding(FMargin(4, 2, 4, 2))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "DataTableEditor.CellText")
+				.TextStyle(FAppStyle::Get(), "DataTableEditor.CellText")
 				.ColorAndOpacity(this, &FDataTableEditor::GetRowTextColor, InRowDataPtr->RowId)
 				.Text(this, &FDataTableEditor::GetCellText, InRowDataPtr, ColumnIndex)
 				.HighlightText(this, &FDataTableEditor::GetFilterText)
@@ -964,7 +964,7 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate(this, &FDataTableEditor::OnEditDataTableStructClicked)
 				.Text(FText::FromName(DataTable->GetRowStructName()))
 				.ToolTipText(LOCTEXT("DataTableRowToolTip", "Open the struct used for each row in this data table"))
@@ -974,7 +974,7 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 			[
 				SNew(SButton)
 				.VAlign(VAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FDataTableEditor::OnFindRowInContentBrowserClicked)
 				.Visibility(UDS ? EVisibility::Visible : EVisibility::Collapsed)
 				.ToolTipText(LOCTEXT("FindRowInCBToolTip", "Find struct in Content Browser"))
@@ -982,7 +982,7 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			];
 	
@@ -1304,7 +1304,7 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_RowEditor(const FSpawnTabArgs& A
 			.Padding(2)
 			.VAlign(VAlign_Top)
 			.HAlign(HAlign_Fill)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				RowEditorTabWidget.ToSharedRef()
 			]
@@ -1330,7 +1330,7 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTable( const FSpawnTabArgs& 
 		[
 			SNew(SBorder)
 			.Padding(2)
-			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				DataTableTabWidget.ToSharedRef()
 			]
@@ -1349,7 +1349,7 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTableDetails(const FSpawnTab
 		[
 			SNew(SBorder)
 			.Padding(2)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				PropertyView.ToSharedRef()
 			]

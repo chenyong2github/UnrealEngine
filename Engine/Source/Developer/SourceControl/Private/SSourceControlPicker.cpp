@@ -15,7 +15,6 @@
 #if SOURCE_CONTROL_WITH_SLATE
 
 #include "SSourceControlLogin.h"
-#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "SSourceControlPicker"
 

@@ -6,7 +6,7 @@
 #include "Widgets/Input/SButton.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"

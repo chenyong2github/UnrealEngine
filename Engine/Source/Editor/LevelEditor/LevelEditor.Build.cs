@@ -42,7 +42,6 @@ public class LevelEditor : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"Engine",
 				"MessageLog",
 				"SourceControl",

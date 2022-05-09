@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Text/STextBlock.h"
@@ -44,7 +44,7 @@ public:
 		Row->OnRefresh()->AddSP( this, &SPropertyTableRow::Refresh );
 		Style = InArgs._Style;
 
-		SMultiColumnTableRow< TSharedRef< class IPropertyTableRow > >::Construct( FSuperRowType::FArguments().Style( FEditorStyle::Get(), "PropertyTable.TableRow" ), InOwnerTableView );
+		SMultiColumnTableRow< TSharedRef< class IPropertyTableRow > >::Construct( FSuperRowType::FArguments().Style( FAppStyle::Get(), "PropertyTable.TableRow" ), InOwnerTableView );
 	}
 
 	FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override

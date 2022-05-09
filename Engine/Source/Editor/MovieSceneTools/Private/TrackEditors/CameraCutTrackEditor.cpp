@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "MovieSceneCommonHelpers.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/WorldSettings.h"
 #include "LevelEditorViewport.h"
 #include "Sections/CameraCutSection.h"
@@ -39,7 +39,7 @@ public:
 		"CameraCutTrack",
 		NSLOCTEXT("Contexts", "CameraCutTrack", "CameraCutTrack"),
 		NAME_None, // "MainFrame" // @todo Fix this crash
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 		, BindingCount(0)
 	{ }
@@ -109,7 +109,7 @@ void FCameraCutTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddCameraCutTrack", "Camera Cut Track"),
 		LOCTEXT("AddCameraCutTooltip", "Adds a camera cut track, as well as a new camera cut at the current scrubber location if a camera is selected."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.CameraCut"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.CameraCut"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FCameraCutTrackEditor::HandleAddCameraCutTrackMenuEntryExecute),
 			FCanExecuteAction::CreateRaw(this, &FCameraCutTrackEditor::HandleAddCameraCutTrackMenuEntryCanExecute)
@@ -212,12 +212,12 @@ TSharedPtr<SWidget> FCameraCutTrackEditor::BuildOutlinerEditWidget(const FGuid& 
 		.IsChecked(this, &FCameraCutTrackEditor::IsCameraLocked)
 		.OnCheckStateChanged(this, &FCameraCutTrackEditor::OnLockCameraClicked)
 		.ToolTipText(this, &FCameraCutTrackEditor::GetLockCameraToolTip)
-		.CheckedImage(FEditorStyle::GetBrush("Sequencer.LockCamera"))
-		.CheckedHoveredImage(FEditorStyle::GetBrush("Sequencer.LockCamera"))
-		.CheckedPressedImage(FEditorStyle::GetBrush("Sequencer.LockCamera"))
-		.UncheckedImage(FEditorStyle::GetBrush("Sequencer.UnlockCamera"))
-		.UncheckedHoveredImage(FEditorStyle::GetBrush("Sequencer.UnlockCamera"))
-		.UncheckedPressedImage(FEditorStyle::GetBrush("Sequencer.UnlockCamera"))
+		.CheckedImage(FAppStyle::GetBrush("Sequencer.LockCamera"))
+		.CheckedHoveredImage(FAppStyle::GetBrush("Sequencer.LockCamera"))
+		.CheckedPressedImage(FAppStyle::GetBrush("Sequencer.LockCamera"))
+		.UncheckedImage(FAppStyle::GetBrush("Sequencer.UnlockCamera"))
+		.UncheckedHoveredImage(FAppStyle::GetBrush("Sequencer.UnlockCamera"))
+		.UncheckedPressedImage(FAppStyle::GetBrush("Sequencer.UnlockCamera"))
 	];
 }
 
@@ -271,7 +271,7 @@ void FCameraCutTrackEditor::Tick(float DeltaTime)
 
 const FSlateBrush* FCameraCutTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.CameraCut");
+	return FAppStyle::GetBrush("Sequencer.Tracks.CameraCut");
 }
 
 

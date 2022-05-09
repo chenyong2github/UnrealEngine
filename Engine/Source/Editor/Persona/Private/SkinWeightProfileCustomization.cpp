@@ -60,7 +60,7 @@ void FSkinWeightProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			[
 				// Show the name of the asset or actor
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text_Lambda([this]() -> FText
 				{
 					FName ProfileName;
@@ -86,7 +86,7 @@ void FSkinWeightProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			// Allows for reimport this skin weight profile and all of the data related to it
 			SNew(SComboButton)
 			.VAlign(EVerticalAlignment::VAlign_Bottom)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("SkinWeightProfileReimportTooltip", "Reimport a Skin Weight Profile (LOD)"))
 			.ContentPadding(4.0f)
 			.ForegroundColor(FSlateColor::UseForeground())
@@ -94,7 +94,7 @@ void FSkinWeightProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			.ButtonContent()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Persona.ReimportAsset"))
+				.Image(FAppStyle::GetBrush("Persona.ReimportAsset"))
 			]
 			.OnGetMenuContent(FOnGetContent::CreateSP(this, &FSkinWeightProfileCustomization::GenerateReimportMenu))
 		]
@@ -105,7 +105,7 @@ void FSkinWeightProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			// Allows for removing this skin weight profile and all of the data related to it
 			SNew(SComboButton)
 			.VAlign(EVerticalAlignment::VAlign_Bottom)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("SkinWeightProfileRemoveTooltip", "Remove a Skin Weight Profile (LOD)"))
 			.ContentPadding(4.0f)
 			.ForegroundColor(FSlateColor::UseForeground())
@@ -113,7 +113,7 @@ void FSkinWeightProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			.ButtonContent()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Minus"))
+				.Image(FAppStyle::GetBrush("Icons.Minus"))
 			]
 			.OnGetMenuContent(FOnGetContent::CreateSP(this, &FSkinWeightProfileCustomization::GenerateRemoveMenu))
 		]
@@ -235,7 +235,7 @@ void FSkinWeightProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHand
 										.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 										[
 											SNew(SButton)
-											.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+											.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 											.ToolTipText(LOCTEXT("SkinWeightProfileSourceFileTooltip", "Choose a different source import file"))
 											.OnClicked_Lambda([this, LODIndex = Pair.Key]()->FReply
 											{
@@ -255,7 +255,7 @@ void FSkinWeightProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHand
 											.IsFocusable(false)
 											[
 												SNew(SImage)
-												.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+												.Image(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 												.ColorAndOpacity(FSlateColor::UseForeground())
 											]
 										]

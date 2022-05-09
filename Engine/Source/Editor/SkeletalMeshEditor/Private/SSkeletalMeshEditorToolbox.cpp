@@ -28,7 +28,7 @@ void SSkeletalMeshEditorToolbox::Construct(
 	ChildSlot
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 		.Padding(0.0f)
 		[
 			SNew( SVerticalBox )
@@ -37,7 +37,7 @@ void SSkeletalMeshEditorToolbox::Construct(
 			.HAlign( HAlign_Left )
 			[
 				SAssignNew( ModeToolBarContainer, SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+				.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				.Padding( FMargin(4, 0, 0, 0) )
 			]
 
@@ -51,14 +51,14 @@ void SSkeletalMeshEditorToolbox::Construct(
 				.AutoHeight()
 				[
 					SAssignNew(ModeToolHeader, SBorder)
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				]
 
 				+ SVerticalBox::Slot()
 				.FillHeight(1)
 				[
 					SAssignNew(InlineContentHolder, SBorder)
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 					.Visibility( this, &SSkeletalMeshEditorToolbox::GetInlineContentHolderVisibility )
 				]
 			]
@@ -118,7 +118,7 @@ void SSkeletalMeshEditorToolbox::UpdateInlineContent(const TSharedPtr<IToolkit>&
 	else
 	{
 		TabName = NSLOCTEXT("SkeletalMeshEditor", "ToolboxTab", "Toolbox");
-		TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
+		TabIcon = FAppStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
 	}
 
 	if (InlineContent.IsValid() && InlineContentHolder.IsValid())
@@ -169,7 +169,7 @@ void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& I
 	{
 		FName ToolbarCustomizationName = InModeToolkit->GetEditorMode() ? InModeToolkit->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : InModeToolkit->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
 		FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
-		ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
+		ModeToolbarBuilder.SetStyle(&FAppStyle::Get(), "PaletteToolBar");
 
 		InModeToolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 

@@ -11,7 +11,7 @@
 #include "ToolMenus.h"
 #include "EdGraph/EdGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "EdGraphNode_Comment.h"
 
 #include "AnimationStateMachineGraph.h"

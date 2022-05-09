@@ -103,7 +103,7 @@ TSharedRef<SWidget> FMaterialGraphEditorSummoner::CreateTabBodyForObject(const F
 
 const FSlateBrush* FMaterialGraphEditorSummoner::GetTabIconForObject(const FWorkflowTabSpawnInfo& Info, UEdGraph* DocumentID) const
 {
-	return FEditorStyle::GetBrush(TEXT("GraphEditor.EventGraph_16x"));
+	return FAppStyle::GetBrush(TEXT("GraphEditor.EventGraph_16x"));
 }
 
 TSharedRef<FGenericTabHistory> FMaterialGraphEditorSummoner::CreateTabHistoryNode(TSharedPtr<FTabPayload> Payload)

@@ -2,7 +2,7 @@
 
 #include "PropertyInfoViewStyle.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Math/Color.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -237,7 +237,7 @@ namespace PropertyInfoViewStyle
 
 	void STextHighlightOverlay::Construct(const FArguments& InArgs)
 	{
-		static FSlateBrush HighlightShape = FSlateBrush(*FEditorStyle::Get().GetBrush("TextBlock.HighlightShape"));
+		static FSlateBrush HighlightShape = FSlateBrush(*FAppStyle::Get().GetBrush("TextBlock.HighlightShape"));
 		HighlightShape.TintColor = FLinearColor(0.f, 0.47f, 1.f, .3f);
 		
 		// uses overlay to create the highlight so that the text widget can be a button,

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonTreePhysicsBodyItem.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PhysicsAssetRenderUtils.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
@@ -42,7 +42,7 @@ ECheckBoxState FSkeletonTreePhysicsBodyItem::IsItemDisplayed() const
 
 const FSlateBrush* FSkeletonTreePhysicsBodyItem::GetBrush() const
 {
-	return BodySetup->PhysicsType == EPhysicsType::PhysType_Kinematic ? FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.KinematicBody") : FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Body");
+	return BodySetup->PhysicsType == EPhysicsType::PhysType_Kinematic ? FAppStyle::GetBrush("PhysicsAssetEditor.Tree.KinematicBody") : FAppStyle::GetBrush("PhysicsAssetEditor.Tree.Body");
 }
 
 FSlateColor FSkeletonTreePhysicsBodyItem::GetTextColor() const

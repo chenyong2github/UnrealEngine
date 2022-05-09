@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Camera/CameraActor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "GameFramework/WorldSettings.h"
@@ -391,7 +391,7 @@ const FSlateBrush* SLevelViewportToolBar::GetDevicePreviewMenuLabelIcon() const
 
 		PlatformIcon = UIManager->GetDeviceIconName( DeviceProfileName );
 
-		return FEditorStyle::GetOptionalBrush( PlatformIcon );
+		return FAppStyle::GetOptionalBrush( PlatformIcon );
 	}
 
 	return nullptr;
@@ -835,7 +835,7 @@ void SLevelViewportToolBar::FillDevicePreviewMenu(UToolMenu* Menu) const
 			FUIAction Action( FExecuteAction::CreateSP( const_cast<SLevelViewportToolBar*>(this), &SLevelViewportToolBar::SetLevelProfile, CurItem ),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP( ViewportRef, &SLevelViewport::IsDeviceProfileStringSet, CurItem ) );
-			Section.AddMenuEntry(NAME_None, FText::FromString(CurItem), FText(), FSlateIcon(FEditorStyle::GetStyleSetName(), PlatformIcon), Action, EUserInterfaceActionType::Button );
+			Section.AddMenuEntry(NAME_None, FText::FromString(CurItem), FText(), FSlateIcon(FAppStyle::GetAppStyleSetName(), PlatformIcon), Action, EUserInterfaceActionType::Button );
 		}
 	}
 	}
@@ -859,7 +859,7 @@ void SLevelViewportToolBar::FillDevicePreviewMenu(UToolMenu* Menu) const
 				FText::GetEmpty(),
 				FNewToolMenuDelegate::CreateRaw( const_cast<SLevelViewportToolBar*>(this), &SLevelViewportToolBar::MakeDevicePreviewSubMenu, DeviceProfiles ),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), PlatformIcon)
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), PlatformIcon)
 				);
 		}
 	}
@@ -893,7 +893,7 @@ void SLevelViewportToolBar::SetLevelProfile( FString DeviceProfileName )
 
 void SLevelViewportToolBar::GeneratePlacedCameraMenuEntries(FToolMenuSection& Section, TArray<ACameraActor*> Cameras) const
 {
-	FSlateIcon CameraIcon( FEditorStyle::GetStyleSetName(), "ClassIcon.CameraComponent" );
+	FSlateIcon CameraIcon( FAppStyle::GetAppStyleSetName(), "ClassIcon.CameraComponent" );
 
 	for( ACameraActor* CameraActor : Cameras )
 	{
@@ -1039,7 +1039,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 
 		FSlimHorizontalToolBarBuilder OnePaneButton(CommandList, FMultiBoxCustomization::None);
 		OnePaneButton.SetLabelVisibility(EVisibility::Collapsed);
-		OnePaneButton.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		OnePaneButton.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		OnePaneButton.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_OnePane);
 
@@ -1064,7 +1064,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportTwoPaneConfigs", LOCTEXT("TwoPaneConfigHeader", "Two Panes"));
 		FSlimHorizontalToolBarBuilder TwoPaneButtons(CommandList, FMultiBoxCustomization::None);
 		TwoPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-		TwoPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		TwoPaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		TwoPaneButtons.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_TwoPanesH, NAME_None, FText());
 		TwoPaneButtons.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_TwoPanesV, NAME_None, FText());
@@ -1090,7 +1090,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportThreePaneConfigs", LOCTEXT("ThreePaneConfigHeader", "Three Panes"));
 		FSlimHorizontalToolBarBuilder ThreePaneButtons(CommandList, FMultiBoxCustomization::None);
 		ThreePaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-		ThreePaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		ThreePaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		ThreePaneButtons.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_ThreePanesLeft, NAME_None, FText());
 		ThreePaneButtons.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_ThreePanesRight, NAME_None, FText());
@@ -1118,7 +1118,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportFourPaneConfigs", LOCTEXT("FourPaneConfigHeader", "Four Panes"));
 		FSlimHorizontalToolBarBuilder FourPaneButtons(CommandList, FMultiBoxCustomization::None);
 		FourPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-		FourPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		FourPaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		FourPaneButtons.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_FourPanes2x2, NAME_None, FText());
 		FourPaneButtons.AddToolBarButton(FLevelViewportCommands::Get().ViewportConfig_FourPanesLeft, NAME_None, FText());
@@ -1286,7 +1286,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateFOVMenu() const
 				[
 					SNew(SSpinBox<float>)
 					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+					.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
 					.MinValue(FOVMin)
 					.MaxValue(FOVMax)
 					.Value( this, &SLevelViewportToolBar::OnGetFOVValue )
@@ -1344,7 +1344,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateScreenPercentageMenu() const
 				[
 					SNew(SSpinBox<int32>)
 					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.MinSliderValue(PreviewScreenPercentageMin)
 					.MaxSliderValue(PreviewScreenPercentageMax)
 					.Value(this, &SLevelViewportToolBar::OnGetScreenPercentageValue)
@@ -1390,7 +1390,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateFarViewPlaneMenu() const
 					.ToolTipText(LOCTEXT("FarViewPlaneTooltip", "Distance to use as the far view plane, or zero to enable an infinite far view plane"))
 					.MinValue(0.0f)
 					.MaxValue(100000.0f)
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.Value(this, &SLevelViewportToolBar::OnGetFarViewPlaneValue)
 					.OnValueChanged(const_cast<SLevelViewportToolBar*>(this), &SLevelViewportToolBar::OnFarViewPlaneValueChanged)
 				]
@@ -1548,7 +1548,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			),
 			EUserInterfaceActionType::RadioButton,
 			/* bInOpenSubMenuOnClick = */ false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeBufferMode")
 		);
 	}
 
@@ -1572,7 +1572,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			),
 			EUserInterfaceActionType::RadioButton,
 			/* bInOpenSubMenuOnClick = */ false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeNaniteMode")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeNaniteMode")
 		);
 	}
 
@@ -1758,7 +1758,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GetScalabilityWarningMenuContent() co
 {
 	return
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			SNew(SScalabilitySettings)
 		];

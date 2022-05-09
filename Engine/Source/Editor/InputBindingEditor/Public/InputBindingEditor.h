@@ -15,7 +15,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 
 #include "Modules/ModuleManager.h"
 #include "SlateBasics.h"
-#include "EditorStyle.h"
+#include "Styling/AppStyle.h"
 
 
 /* Interfaces

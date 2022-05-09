@@ -39,7 +39,7 @@ void FAssetTypeActions_PhysicalMaterialMask::GetActions(const TArray<UObject*>& 
 			"PhysicalMaterialMask_Import",
 			LOCTEXT("PhysicalMaterialMask_ImportMaskTexture", "Import Mask Texture"),
 			LOCTEXT("PhysicalMaterialMask_ImportMaskTextureTooltip", "Imports a texture to use as a physical material mask."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Material"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Material"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_PhysicalMaterialMask::ExecuteImport, SelectedMasks[0]),
 				FCanExecuteAction()

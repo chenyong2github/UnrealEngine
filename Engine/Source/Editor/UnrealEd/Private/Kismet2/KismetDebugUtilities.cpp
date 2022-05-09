@@ -14,7 +14,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "EdGraph/EdGraph.h"
 #include "Editor/UnrealEdEngine.h"
@@ -426,7 +426,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 						.Content()
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SScrollBox)
 								+ SScrollBox::Slot()

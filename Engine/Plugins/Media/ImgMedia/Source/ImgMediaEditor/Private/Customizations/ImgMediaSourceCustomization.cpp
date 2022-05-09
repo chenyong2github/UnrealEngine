@@ -9,7 +9,7 @@
 #include "GameFramework/Actor.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Styling/CoreStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

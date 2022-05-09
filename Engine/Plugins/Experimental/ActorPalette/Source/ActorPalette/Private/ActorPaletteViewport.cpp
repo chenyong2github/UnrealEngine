@@ -37,7 +37,7 @@ public:
 		ChildSlot
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.OnClicked_Lambda([this]()
 			{
@@ -52,7 +52,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.OnClicked_Lambda([this]()
 					{
 						GetMutableDefault<UActorPaletteSettings>()->ToggleFavorite(AssetData);
@@ -65,7 +65,7 @@ public:
 						SNew(SImage)
 						.Image_Lambda([this]()
 						{
-							return FEditorStyle::GetBrush(GetDefault<UActorPaletteSettings>()->FavoritesList.Contains(AssetData.ObjectPath.ToString()) ?
+							return FAppStyle::GetBrush(GetDefault<UActorPaletteSettings>()->FavoritesList.Contains(AssetData.ObjectPath.ToString()) ?
 								TEXT("Icons.Star") :
 								TEXT("PropertyWindow.Favorites_Disabled"));
 						})
@@ -75,7 +75,7 @@ public:
 				.Padding(6.0f, 0.0f, 0.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "Menu.Label")
+					.TextStyle(FAppStyle::Get(), "Menu.Label")
 					.Text(FText::Format(LOCTEXT("OpenFavoriteLevel_Label", "{0}"), FText::FromName(AssetData.AssetName)))
 					.ToolTipText(FText::Format(LOCTEXT("OpenFavoriteLevel_Tooltip", "Use {0} as an Actor Palette"), FText::FromName(AssetData.PackageName)))
 				]

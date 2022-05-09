@@ -7,7 +7,7 @@
 #include "LidarPointCloudEditorCommands.h"
 
 #include "Slate/SceneViewport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ComponentReregisterContext.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Components/StaticMeshComponent.h"
@@ -161,7 +161,7 @@ void SLidarPointCloudEditorViewport::PopulateOverlayText(const TArray<FOverlayTe
 			[
 				SNew(STextBlock)
 				.Text(TextItem.Text)
-				.TextStyle(FEditorStyle::Get(), TextItem.Style)
+				.TextStyle(FAppStyle::Get(), TextItem.Style)
 			];
 	}
 

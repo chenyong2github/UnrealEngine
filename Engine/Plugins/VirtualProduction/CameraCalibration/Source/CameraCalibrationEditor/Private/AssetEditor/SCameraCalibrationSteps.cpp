@@ -7,7 +7,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationStepsController.h"
 #include "CameraCalibrationSubsystem.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -511,7 +511,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 						.ContentPadding(0)
 						.HasDownArrow(false)
 						.CollapseMenuOnParentFocus(true)
-						.ButtonStyle(FEditorStyle::Get(), "Sequencer.AnimationOutliner.ColorStrip") // Style matches the button used in cinematic film overlays
+						.ButtonStyle(FAppStyle::Get(), "Sequencer.AnimationOutliner.ColorStrip") // Style matches the button used in cinematic film overlays
 						.OnGetMenuContent_Lambda([=]() -> TSharedRef<SWidget>
 						{
 							return SNew(SColorPicker)
@@ -604,7 +604,7 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildStepSelectionWidget()
 		const FName StepName = Step->FriendlyName();
 
 		TSharedPtr<SCheckBox> ToggleButton = SNew(SCheckBox) // Toggle buttons are implemented as checkboxes
-			.Style(FEditorStyle::Get(), "PlacementBrowser.Tab")
+			.Style(FAppStyle::Get(), "PlacementBrowser.Tab")
 			.OnCheckStateChanged_Lambda([&, StepName](ECheckBoxState CheckState)->void
 			{
 				SelectStep(StepName);
@@ -643,7 +643,7 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildStepSelectionWidget()
 				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), TEXT("PlacementBrowser.Tab.Text"))
+					.TextStyle(FAppStyle::Get(), TEXT("PlacementBrowser.Tab.Text"))
 					.Text(FText::FromName(Step->FriendlyName()))
 				]
 
@@ -671,7 +671,7 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildStepSelectionWidget()
 
 							if (Step->FriendlyName() == StepName)
 							{
-								return Step->IsActive() ? FEditorStyle::GetBrush(TEXT("PlacementBrowser.ActiveTabBar")) : nullptr;
+								return Step->IsActive() ? FAppStyle::GetBrush(TEXT("PlacementBrowser.ActiveTabBar")) : nullptr;
 							}
 						}
 

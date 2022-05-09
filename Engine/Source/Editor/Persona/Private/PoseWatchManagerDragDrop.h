@@ -114,7 +114,7 @@ public:
 
 		// Set text and icon
 		UClass* CommonSelClass = NULL;
-		CurrentIconBrush = FEditorStyle::Get().GetBrush(TEXT("ClassIcon.PoseAsset"));
+		CurrentIconBrush = FAppStyle::Get().GetBrush(TEXT("ClassIcon.PoseAsset"));
 		CurrentHoverText = PoseWatch->GetLabel();
 
 		SetupDefaults();
@@ -133,7 +133,7 @@ public:
 	{
 		PoseWatchFolder = InPoseWatchFolder;
 
-		CurrentIconBrush = FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
+		CurrentIconBrush = FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		CurrentHoverText = PoseWatchFolder->GetLabel();
 
 

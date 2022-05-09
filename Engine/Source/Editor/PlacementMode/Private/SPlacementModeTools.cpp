@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "AssetThumbnail.h"
@@ -177,7 +177,7 @@ void SPlacementAssetEntry::Construct(const FArguments& InArgs, const TSharedPtr<
 		AssetEntryToolTip = FSlateApplicationBase::Get().MakeToolTip(Item->DisplayName);
 	}
 
-	const FButtonStyle& ButtonStyle = FEditorStyle::GetWidgetStyle<FButtonStyle>( "PlacementBrowser.Asset" );
+	const FButtonStyle& ButtonStyle = FAppStyle::GetWidgetStyle<FButtonStyle>( "PlacementBrowser.Asset" );
 
 	NormalImage = &ButtonStyle.Normal;
 	HoverImage = &ButtonStyle.Hovered;
@@ -239,7 +239,7 @@ void SPlacementAssetEntry::Construct(const FArguments& InArgs, const TSharedPtr<
 						.VAlign(VAlign_Center)
 						[
 							SNew( STextBlock )
-							.TextStyle( FEditorStyle::Get(), "PlacementBrowser.Asset.Name" )
+							.TextStyle( FAppStyle::Get(), "PlacementBrowser.Asset.Name" )
 							.Text( Item->DisplayName )
 							.HighlightText(InArgs._HighlightText)
 						]
@@ -612,7 +612,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(8)
 			[
 				SAssignNew( SearchBoxPtr, SSearchBox )
@@ -627,7 +627,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 		.HAlign(HAlign_Fill)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(8.f, 6.f, 8.f, 8.f))
 			.HAlign(HAlign_Fill)
 			.Visibility(this, &SPlacementModeTools::GetTabsVisibility)
@@ -641,7 +641,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(8.f, 6.f, 8.f, 8.f))
 			.HAlign(HAlign_Center)
 			.Visibility(this, &SPlacementModeTools::GetTabsVisibility)

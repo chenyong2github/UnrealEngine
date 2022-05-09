@@ -3,7 +3,7 @@
 #include "AnimTimelineTrack_TransformCurve.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AnimSequenceTimelineCommands.h"
 #include "ScopedTransaction.h"

@@ -554,16 +554,16 @@ FSlateIcon UK2Node_Variable::GetVarIconFromPinType(const FEdGraphPinType& InPinT
 
 	if (InPinType.IsArray())
 	{
-		return FSlateIcon("EditorStyle", "Kismet.AllClasses.ArrayVariableIcon");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.ArrayVariableIcon");
 	}
 	else if (InPinType.IsSet())
 	{
-		return FSlateIcon("EditorStyle", "Kismet.AllClasses.SetVariableIcon");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.SetVariableIcon");
 	}
 	else if (InPinType.IsMap())
 	{
 		// TODO: Need to properly deal with Key/Value stuff
-		return FSlateIcon("EditorStyle", "Kismet.AllClasses.MapVariableKeyIcon");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.MapVariableKeyIcon");
 	}
 	else if (InPinType.PinSubCategoryObject.IsValid())
 	{
@@ -573,7 +573,7 @@ FSlateIcon UK2Node_Variable::GetVarIconFromPinType(const FEdGraphPinType& InPinT
 		}
 	}
 
-	return FSlateIcon("EditorStyle", "Kismet.AllClasses.VariableIcon");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.VariableIcon");
 }
 
 FText UK2Node_Variable::GetToolTipHeading() const
@@ -693,7 +693,7 @@ FSlateIcon UK2Node_Variable::GetVariableIconAndColor(const UStruct* VarScope, FN
 		}
 	}
 
-	return FSlateIcon("EditorStyle", "Kismet.AllClasses.VariableIcon");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.VariableIcon");
 }
 
 

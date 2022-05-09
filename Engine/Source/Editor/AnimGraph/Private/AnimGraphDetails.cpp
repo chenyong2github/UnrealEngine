@@ -106,7 +106,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 				.ButtonContent()
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.Padding(FMargin(0, 0, 5, 0))
 					[
 						SNew(SEditableTextBox)
@@ -155,8 +155,8 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	.VAlign(VAlign_Center)
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-		.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		.ButtonStyle(FAppStyle::Get(), "RoundButton")
+		.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 		.ContentPadding(FMargin(2, 0))
 		.OnClicked(this, &FAnimGraphDetails::OnAddNewInputPoseClicked)
 		.HAlign(HAlign_Right)
@@ -169,7 +169,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 			.Padding(FMargin(0, 1))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Plus"))
+				.Image(FAppStyle::GetBrush("Plus"))
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -240,14 +240,14 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 						.AutoWidth()
 						[
 							SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-							.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+							.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+							.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 							.ContentPadding(FMargin(2, 2))
 							.OnClicked(this, &FAnimGraphDetails::OnRemoveInputPoseClicked, LinkedInputPoseNode)
 							.ToolTipText(LOCTEXT("RemoveInputPoseTooltip", "Remove this input pose"))
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Cross"))
+								.Image(FAppStyle::GetBrush("Cross"))
 							]
 						]
 					]

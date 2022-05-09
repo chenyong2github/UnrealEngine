@@ -8,7 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealEdMisc.h"
 #include "Interfaces/IPluginManager.h"
 #include "PluginStyle.h"

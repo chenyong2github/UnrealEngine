@@ -6,7 +6,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "NiagaraEditorStyle.h"
@@ -54,7 +54,7 @@ NIAGARAEDITOR_API void SNiagaraParameterDefinitionsPanel::Construct(const FArgum
 		.AllowMultiselect(false)
 		.DefaultCategories(GetDefaultCategories())
 		.ClearSelectionOnClick(true)
-		.CategoryRowStyle(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+		.CategoryRowStyle(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 		.OnGetCategoryBackgroundImage(this, &SNiagaraParameterDefinitionsPanel::GetCategoryBackgroundImage)
 		.CategoryBorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 		.CategoryChildSlotPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
@@ -127,8 +127,8 @@ TSharedRef<SWidget> SNiagaraParameterDefinitionsPanel::OnGenerateWidgetForCatego
 	[
 		SNew(SRichTextBlock)
 		.Text(Category.ParameterDefinitionsNameText)
-		.DecoratorStyleSet(&FEditorStyle::Get())
-		.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+		.DecoratorStyleSet(&FAppStyle::Get())
+		.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 	];
 }
 
@@ -136,11 +136,11 @@ TSharedRef<SWidget> SNiagaraParameterDefinitionsPanel::OnGenerateWidgetForItem(c
 {
 	// Generate the icon widget.
 	FText			   IconToolTip = FText::GetEmpty();
-	FSlateBrush const* IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	FSlateBrush const* IconBrush = FAppStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
 	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Item.GetVariable().GetType());
 	FSlateColor        IconColor = FSlateColor(TypeColor);
 	FString			   IconDocLink, IconDocExcerpt;
-	FSlateBrush const* SecondaryIconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	FSlateBrush const* SecondaryIconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        SecondaryIconColor = IconColor;
 	TSharedRef<SWidget> IconWidget = SNew(SNiagaraIconWidget)
 	.IconToolTip(IconToolTip)
@@ -296,8 +296,8 @@ TSharedRef<SWidget> SNiagaraParameterDefinitionsPanel::CreateAddLibraryButton()
 	TSharedPtr<SComboButton> Button;
 	SAssignNew(AddParameterDefinitionsButton, SComboButton)
 	.IsEnabled(bButtonEnabled) //@todo(ng) tooltip you cannot add parameter libraries if there are none valid
-	.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-	.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+	.ButtonStyle(FAppStyle::Get(), "RoundButton")
+	.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 	.ContentPadding(FMargin(2, 0))
 	.OnGetMenuContent(this, &SNiagaraParameterDefinitionsPanel::CreateAddLibraryMenu)
 	.HAlign(HAlign_Center)
@@ -311,7 +311,7 @@ TSharedRef<SWidget> SNiagaraParameterDefinitionsPanel::CreateAddLibraryButton()
 		.Padding(FMargin(0, 1))
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Plus"))
+			.Image(FAppStyle::GetBrush("Plus"))
 		]
 	];
 
@@ -357,11 +357,11 @@ const FSlateBrush* SNiagaraParameterDefinitionsPanel::GetCategoryBackgroundImage
 {
 	if (bIsCategoryHovered)
 	{
-		return bIsCategoryExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+		return bIsCategoryExpanded ? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 	}
 	else
 	{
-		return bIsCategoryExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+		return bIsCategoryExpanded ? FAppStyle::GetBrush("DetailsView.CategoryTop") : FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 	}
 }
 

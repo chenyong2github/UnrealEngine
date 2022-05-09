@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/PlatformProcess.h"
 #include "Internationalization/Text.h"
 #include "ITargetDeviceProxy.h"
@@ -90,7 +90,7 @@ public:
 				.HeightOverride(24)
 				[
 					SNew(SImage)
-						.Image((PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
+						.Image((PlatformInfo) ? FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
 				];
 		}
 		else if (ColumnName == TEXT("Name"))

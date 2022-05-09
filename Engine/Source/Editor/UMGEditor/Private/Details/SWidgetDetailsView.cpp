@@ -80,7 +80,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 		.Padding(0, 2)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 			.Visibility(this, &SWidgetDetailsView::GetBorderAreaVisibility)
 			[
 				SNew(SVerticalBox)
@@ -98,7 +98,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("UMGEditor.CategoryIcon")))
+						.Image(FAppStyle::GetBrush(TEXT("UMGEditor.CategoryIcon")))
 					]
 
 					+ SHorizontalBox::Slot()

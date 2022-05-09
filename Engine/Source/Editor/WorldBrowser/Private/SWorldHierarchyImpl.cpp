@@ -536,7 +536,7 @@ void SWorldHierarchyImpl::FillFoldersSubmenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("CreateNewFolder", "Create New Folder"),
 		LOCTEXT("CreateNewFolder_Tooltip", "Move the selection to a new folder"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "WorldBrowser.NewFolderIcon"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "WorldBrowser.NewFolderIcon"),
 		FExecuteAction::CreateSP(this, &SWorldHierarchyImpl::CreateFolder, RootItem, RootPath, /*bMoveSelected*/ true)
 	);
 

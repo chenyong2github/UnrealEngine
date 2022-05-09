@@ -2,7 +2,6 @@
 
 #include "SDetailsViewBase.h"
 
-#include "Classes/EditorStyleSettings.h"
 #include "Engine/Engine.h"
 #include "GameFramework/Actor.h"
 #include "Misc/ConfigCacheIni.h"
@@ -292,11 +291,11 @@ const FSlateBrush* SDetailsViewBase::OnGetFilterButtonImageResource() const
 {
 	if (HasActiveSearch())
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.FilterCancel"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.FilterCancel"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.FilterSearch"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.FilterSearch"));
 	}
 }
 

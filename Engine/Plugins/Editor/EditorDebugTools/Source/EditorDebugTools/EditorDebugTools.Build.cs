@@ -43,7 +43,6 @@ public class EditorDebugTools : ModuleRules
 				"SourceCodeAccess",
 				"WorkspaceMenuStructure",
 				"AppFramework",
-				"EditorStyle",
 			}
 			);
 

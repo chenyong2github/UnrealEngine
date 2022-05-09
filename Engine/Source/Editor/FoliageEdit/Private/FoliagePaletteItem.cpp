@@ -6,7 +6,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "FoliageType.h"
 #include "FoliageType_InstancedStaticMesh.h"
@@ -105,12 +105,12 @@ TSharedRef<SToolTip> FFoliagePaletteItemModel::CreateTooltipWidget() const
 	return 
 		SNew(SToolTip)
 		.TextMargin(1)
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
+		.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
 		.Visibility(this, &FFoliagePaletteItemModel::GetTooltipVisibility)
 		[
 			SNew(SBorder)
 			.Padding(3.f)
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
 			[
 				SNew(SVerticalBox)
 
@@ -120,11 +120,11 @@ TSharedRef<SToolTip> FFoliagePaletteItemModel::CreateTooltipWidget() const
 					SNew(SBorder)
 					.Padding(FMargin(6.f))
 					.HAlign(HAlign_Left)
-					.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+					.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(DisplayFName))
-						.Font(FEditorStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
+						.Font(FAppStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
 						.HighlightText(this, &FFoliagePaletteItemModel::GetPaletteSearchText)
 					]
 				]
@@ -144,7 +144,7 @@ TSharedRef<SToolTip> FFoliagePaletteItemModel::CreateTooltipWidget() const
 						.Padding(6.f)
 						.HAlign(HAlign_Center)
 						.Visibility(this, &FFoliagePaletteItemModel::GetTooltipThumbnailVisibility)
-						.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+						.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 						[
 							SNew(SBox)
 							.HeightOverride(64.f)
@@ -159,7 +159,7 @@ TSharedRef<SToolTip> FFoliagePaletteItemModel::CreateTooltipWidget() const
 					[
 						SNew(SBorder)
 						.Padding(6.f)
-						.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+						.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 						[
 							SNew(SVerticalBox)
 
@@ -411,7 +411,7 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 
 	STableRow<FFoliageMeshUIInfoPtr>::Construct(
 		STableRow<FFoliageMeshUIInfoPtr>::FArguments()
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+		.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 		.Padding(1.f)
 		.Content()
 		[
@@ -423,7 +423,7 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 			[
 				SNew(SBorder)
 				.Padding(2.f)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 				.ForegroundColor(FLinearColor::White)
 				.ColorAndOpacity(this, &SFoliagePaletteItemTile::GetTileColorAndOpacity)
 				[
@@ -438,7 +438,7 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 			.Padding(FMargin(3.f))
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 				.Padding(3.f)
 				[
 					Model->CreateActivationCheckBox(IsSelectedGetter, CheckBoxVisibility)

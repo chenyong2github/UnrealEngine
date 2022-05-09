@@ -6,7 +6,7 @@
 #include "Rendering/DrawElements.h"
 #include "Layout/LayoutUtils.h"
 #include "Widgets/SWeakWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SSequencerTrackLane.h"
 #include "SSequencerTreeView.h"
 #include "ISequencerHotspot.h"
@@ -181,7 +181,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 				OutDrawElements,
 				LayerId+1,
 				AllottedGeometry.ToPaintGeometry(FVector2D(0.f, HighlightRegion->Top - 4.f), FVector2D(AllottedGeometry.GetLocalSize().X, 4.f)),
-				FEditorStyle::GetBrush("Sequencer.TrackHoverHighlight_Top"),
+				FAppStyle::GetBrush("Sequencer.TrackHoverHighlight_Top"),
 				ESlateDrawEffect::None,
 				FLinearColor::Black
 			);
@@ -190,7 +190,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 				OutDrawElements,
 				LayerId+1,
 				AllottedGeometry.ToPaintGeometry(FVector2D(0.f, HighlightRegion->Bottom), FVector2D(AllottedGeometry.GetLocalSize().X, 4.f)),
-				FEditorStyle::GetBrush("Sequencer.TrackHoverHighlight_Bottom"),
+				FAppStyle::GetBrush("Sequencer.TrackHoverHighlight_Bottom"),
 				ESlateDrawEffect::None,
 				FLinearColor::Black
 			);
@@ -206,8 +206,8 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 
 			FSlateColor DashColor = bAllowDrop ? FStyleColors::AccentBlue : FStyleColors::Error;
 
-			const FSlateBrush* HorizontalBrush = FEditorStyle::GetBrush("WideDash.Horizontal");
-			const FSlateBrush* VerticalBrush = FEditorStyle::GetBrush("WideDash.Vertical");
+			const FSlateBrush* HorizontalBrush = FAppStyle::GetBrush("WideDash.Horizontal");
+			const FSlateBrush* VerticalBrush = FAppStyle::GetBrush("WideDash.Vertical");
 
 			int32 DashLayer = LayerId + 1;
 

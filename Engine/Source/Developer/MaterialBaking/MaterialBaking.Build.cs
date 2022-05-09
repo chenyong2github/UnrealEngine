@@ -20,7 +20,7 @@ public class MaterialBaking : ModuleRules
                 "Slate",
                 "InputCore",
                 "PropertyEditor",
-                "EditorStyle",
+                
                 "Renderer",
                 "MeshDescription",
 				"StaticMeshDescription"

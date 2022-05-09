@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IConfigEditorModule.h"
 #include "UObject/UnrealType.h"
 #include "ConfigPropertyHelper.h"
@@ -97,7 +97,7 @@ void SConfigPropertyCell::BuildDisplayAreaWidget()
 				[
 					SNew(SBorder)
 					.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-					.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
+					.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
 					.Padding(0.0f)
 					[
 						DisplayedValueWidget.ToSharedRef()
@@ -117,10 +117,10 @@ void SConfigPropertyCell::BuildDisplayAreaWidget()
 			[
 				SAssignNew(AddPropertyToConfigButton, SButton)
 				.OnClicked(this, &SConfigPropertyCell::HandleAddPropertyToConfigClicked)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("Plus")))
+					.Image(FAppStyle::GetBrush(TEXT("Plus")))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -139,10 +139,10 @@ void SConfigPropertyCell::BuildDisplayAreaWidget()
 			[
 				SAssignNew(RemovePropertyFromConfigButton, SButton)
 				.OnClicked(this, &SConfigPropertyCell::HandleRemovePropertyFromConfigClicked)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("Cross")))
+					.Image(FAppStyle::GetBrush(TEXT("Cross")))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

@@ -123,7 +123,7 @@ TSharedPtr<SWidget> FVariantManagerStringPropertyNode::GetPropertyValueWidget()
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("UnsupportedPropertyType", "Unsupported property type!"))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.Font(FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
 			.ToolTipText(FText::Format(
 				LOCTEXT("UnsupportedPropertyTypeTooltip", "Properties of class '{0}' can't be captured yet!"),

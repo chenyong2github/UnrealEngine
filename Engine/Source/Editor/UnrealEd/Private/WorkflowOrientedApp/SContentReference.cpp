@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "ContentBrowserModule.h"
 
@@ -34,13 +34,13 @@ void SContentReference::Construct(const FArguments& InArgs)
 	OnSetReference = InArgs._OnSetReference;
 
 	// Cache resources
-	BorderImageNormal = FEditorStyle::GetBrush(InArgs._Style, ".Background.Normal");
-	BorderImageHovered = FEditorStyle::GetBrush(InArgs._Style, ".Background.Hovered");
+	BorderImageNormal = FAppStyle::GetBrush(InArgs._Style, ".Background.Normal");
+	BorderImageHovered = FAppStyle::GetBrush(InArgs._Style, ".Background.Hovered");
 
 	static const FName InvertedForegroundName("InvertedForeground");
 
 	PickerComboButton = SNew(SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.ContentPadding(1.f)
 		.Visibility(this, &SContentReference::GetPickButtonVisibility)
 		.OnGetMenuContent(this, &SContentReference::MakeAssetPickerMenu)
@@ -49,7 +49,7 @@ void SContentReference::Construct(const FArguments& InArgs)
 		.ButtonContent()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(InArgs._Style, ".PickAsset"))
+			.Image(FAppStyle::GetBrush(InArgs._Style, ".PickAsset"))
 		];
 
 	// Create the widgets
@@ -64,9 +64,9 @@ void SContentReference::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(AssetReferenceNameBorderWidget, SBorder)
 			.BorderImage(this, &SContentReference::GetBorderImage)
-			.Padding(FEditorStyle::GetMargin(InArgs._Style, ".BorderPadding"))
+			.Padding(FAppStyle::GetMargin(InArgs._Style, ".BorderPadding"))
 			.BorderBackgroundColor( FLinearColor::White )
-			.ForegroundColor(FEditorStyle::GetSlateColor(InvertedForegroundName))
+			.ForegroundColor(FAppStyle::GetSlateColor(InvertedForegroundName))
 			.ToolTipText(this, &SContentReference::GetAssetFullName)
 			.OnMouseDoubleClick(this, &SContentReference::OnDoubleClickedOnAssetName)
 			[
@@ -97,14 +97,14 @@ void SContentReference::Construct(const FArguments& InArgs)
 		.Padding(1,0)
 		[
 			SNew(SButton)
-			.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.OnClicked(this, &SContentReference::OnClickFindButton)
 			.ContentPadding(0)
 			.Visibility(this, &SContentReference::GetFindButtonVisibility)
 			.ToolTipText(LOCTEXT("Find", "Find in content browser"))
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush(InArgs._Style, ".FindInContentBrowser") )
+				.Image( FAppStyle::GetBrush(InArgs._Style, ".FindInContentBrowser") )
 			]
 		]
 			
@@ -116,14 +116,14 @@ void SContentReference::Construct(const FArguments& InArgs)
 		.Padding(1,0)
 		[
 			SNew(SButton)
-			.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.OnClicked(this, &SContentReference::OnClickClearButton)
 			.ContentPadding(1.f)
 			.Visibility( this, &SContentReference::GetClearButtonVisibility)
 			.ToolTipText(LOCTEXT("Clear", "Clear"))
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush(InArgs._Style, ".Clear") )
+				.Image( FAppStyle::GetBrush(InArgs._Style, ".Clear") )
 			]
 		]
 		
@@ -135,14 +135,14 @@ void SContentReference::Construct(const FArguments& InArgs)
 		.Padding(1,0)
 		[
 			SNew(SButton)
-			.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.OnClicked(InArgs._OnClickedTools)
 			.ContentPadding(1.f)
 			.Visibility(this, &SContentReference::GetToolsButtonVisibility)
 			.ToolTipText(LOCTEXT("Tools", "Tools"))
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush(InArgs._Style, ".Tools") )
+				.Image( FAppStyle::GetBrush(InArgs._Style, ".Tools") )
 			]
 		]
 	];

@@ -4,7 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Widgets/Views/STreeView.h"
 #include "IPoseWatchManager.h"

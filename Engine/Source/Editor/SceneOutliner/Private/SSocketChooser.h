@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -97,15 +97,15 @@ public:
 	/** Called to create a widget for each socket */
 	TSharedRef<ITableRow> MakeItemWidget( TSharedPtr<FSocketInfo> SocketInfo, const TSharedRef<STableViewBase>& OwnerTable )
 	{
-		const FSlateBrush* Brush = FEditorStyle::GetBrush(TEXT("SocketIcon.None"));
+		const FSlateBrush* Brush = FAppStyle::GetBrush(TEXT("SocketIcon.None"));
 		
 		if (SocketInfo->Description.Type == EComponentSocketType::Socket)
 		{
-			Brush = FEditorStyle::GetBrush( TEXT("SocketIcon.Socket") );
+			Brush = FAppStyle::GetBrush( TEXT("SocketIcon.Socket") );
 		}
 		else if (SocketInfo->Description.Type == EComponentSocketType::Bone) 
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("SocketIcon.Bone"));
+			Brush = FAppStyle::GetBrush(TEXT("SocketIcon.Bone"));
 		}
 		
 		return	
@@ -184,7 +184,7 @@ public:
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Background")))
 			.Padding(5)
 			.Content()
 			[
@@ -194,7 +194,7 @@ public:
 				.Padding(0.0f, 1.0f)
 				[
 					SNew(STextBlock)
-					.Font( FEditorStyle::GetFontStyle(TEXT("SocketChooser.TitleFont")) )
+					.Font( FAppStyle::GetFontStyle(TEXT("SocketChooser.TitleFont")) )
 					.Text( NSLOCTEXT("SocketChooser", "ChooseSocketOrBoneLabel", "Choose Socket or Bone") )
 				]
 				+SVerticalBox::Slot()

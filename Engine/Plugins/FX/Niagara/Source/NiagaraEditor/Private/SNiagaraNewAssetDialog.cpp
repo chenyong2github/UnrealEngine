@@ -11,7 +11,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Workflow/SWizard.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -49,11 +49,11 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 		.AutoHeight()
 		[
 			SNew(SBox)
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+			.Padding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 			[
 					
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(7))
 				[
 					SAssignNew(OptionsBox, SVerticalBox)
@@ -74,7 +74,7 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 				.BorderBackgroundColor(this, &SNiagaraNewAssetDialog::GetOptionBorderColor, OptionIndex)
 				[
 					SNew(SCheckBox)
-					.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 					.CheckBoxContentUsesAutoWidth(false)
 					.IsChecked(this, &SNiagaraNewAssetDialog::GetOptionCheckBoxState, OptionIndex)
 					.OnCheckStateChanged(this, &SNiagaraNewAssetDialog::OptionCheckBoxStateChanged, OptionIndex)
@@ -82,7 +82,7 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 					[
 						// this border catches the double click before the checkbox can
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::Get().GetBrush("NoBorder"))
+						.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 						.OnMouseDoubleClick(this, &SNiagaraNewAssetDialog::OnOptionDoubleClicked, OptionIndex)
 						[
 							SNew(SVerticalBox)

@@ -15,7 +15,7 @@
 #include "Widgets/Layout/SScrollBar.h"
 #include "Framework/Layout/Overscroll.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DataTableEditorModule.h"
 #include "PropertyEditorModule.h"
 #include "Editor.h"
@@ -153,7 +153,7 @@ TSharedRef<SDockTab> FCompositeDataTableEditor::SpawnTab_Stack(const FSpawnTabAr
 			.Padding(2)
 			.VAlign(VAlign_Top)
 			.HAlign(HAlign_Fill)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				StackTabWidget.ToSharedRef()
 			]

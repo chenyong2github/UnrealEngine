@@ -117,34 +117,34 @@ SGraphPin::SGraphPin()
 	switch(StyleType)
 	{
 	case BPST_VariantA:
-		CachedImg_Pin_Connected = FEditorStyle::GetBrush( NAME_Pin_Connected_VarA );
-		CachedImg_Pin_Disconnected = FEditorStyle::GetBrush( NAME_Pin_Disconnected_VarA );
+		CachedImg_Pin_Connected = FAppStyle::GetBrush( NAME_Pin_Connected_VarA );
+		CachedImg_Pin_Disconnected = FAppStyle::GetBrush( NAME_Pin_Disconnected_VarA );
 		break;
 	case BPST_Original:
 	default:
-		CachedImg_Pin_Connected = FEditorStyle::GetBrush( NAME_Pin_Connected );
-		CachedImg_Pin_Disconnected = FEditorStyle::GetBrush( NAME_Pin_Disconnected );
+		CachedImg_Pin_Connected = FAppStyle::GetBrush( NAME_Pin_Connected );
+		CachedImg_Pin_Disconnected = FAppStyle::GetBrush( NAME_Pin_Disconnected );
 		break;
 	}
 
-	CachedImg_RefPin_Connected = FEditorStyle::GetBrush( NAME_RefPin_Connected );
-	CachedImg_RefPin_Disconnected = FEditorStyle::GetBrush( NAME_RefPin_Disconnected );
+	CachedImg_RefPin_Connected = FAppStyle::GetBrush( NAME_RefPin_Connected );
+	CachedImg_RefPin_Disconnected = FAppStyle::GetBrush( NAME_RefPin_Disconnected );
 
-	CachedImg_ArrayPin_Connected = FEditorStyle::GetBrush( NAME_ArrayPin_Connected );
-	CachedImg_ArrayPin_Disconnected = FEditorStyle::GetBrush( NAME_ArrayPin_Disconnected );
+	CachedImg_ArrayPin_Connected = FAppStyle::GetBrush( NAME_ArrayPin_Connected );
+	CachedImg_ArrayPin_Disconnected = FAppStyle::GetBrush( NAME_ArrayPin_Disconnected );
 
-	CachedImg_DelegatePin_Connected = FEditorStyle::GetBrush( NAME_DelegatePin_Connected );
-	CachedImg_DelegatePin_Disconnected = FEditorStyle::GetBrush( NAME_DelegatePin_Disconnected );
+	CachedImg_DelegatePin_Connected = FAppStyle::GetBrush( NAME_DelegatePin_Connected );
+	CachedImg_DelegatePin_Disconnected = FAppStyle::GetBrush( NAME_DelegatePin_Disconnected );
 
-	CachedImg_PosePin_Connected = FEditorStyle::GetBrush(NAME_PosePin_Connected);
-	CachedImg_PosePin_Disconnected = FEditorStyle::GetBrush(NAME_PosePin_Disconnected);
+	CachedImg_PosePin_Connected = FAppStyle::GetBrush(NAME_PosePin_Connected);
+	CachedImg_PosePin_Disconnected = FAppStyle::GetBrush(NAME_PosePin_Disconnected);
 
-	CachedImg_SetPin = FEditorStyle::GetBrush(NAME_SetPin);
-	CachedImg_MapPinKey = FEditorStyle::GetBrush(NAME_MapPinKey);
-	CachedImg_MapPinValue = FEditorStyle::GetBrush(NAME_MapPinValue);
+	CachedImg_SetPin = FAppStyle::GetBrush(NAME_SetPin);
+	CachedImg_MapPinKey = FAppStyle::GetBrush(NAME_MapPinKey);
+	CachedImg_MapPinValue = FAppStyle::GetBrush(NAME_MapPinValue);
 
-	CachedImg_Pin_Background = FEditorStyle::GetBrush( NAME_Pin_Background );
-	CachedImg_Pin_BackgroundHovered = FEditorStyle::GetBrush( NAME_Pin_BackgroundHovered );
+	CachedImg_Pin_Background = FAppStyle::GetBrush( NAME_Pin_Background );
+	CachedImg_Pin_BackgroundHovered = FAppStyle::GetBrush( NAME_Pin_BackgroundHovered );
 }
 
 SGraphPin::~SGraphPin()
@@ -195,7 +195,7 @@ void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 	static const FName NAME_NoBorder("NoBorder");
 	TSharedRef<SWidget> PinStatusIndicator =
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), NAME_NoBorder)
+		.ButtonStyle(FAppStyle::Get(), NAME_NoBorder)
 		.Visibility(this, &SGraphPin::GetPinStatusIconVisibility)
 		.ContentPadding(0)
 		.OnClicked(this, &SGraphPin::ClickedOnPinStatusIcon)
@@ -336,7 +336,7 @@ TSharedRef<SWidget> SGraphPin::GetLabelWidget(const FName& InLabelStyle)
 {
 	return SNew(STextBlock)
 		.Text(this, &SGraphPin::GetPinLabel)
-		.TextStyle(FEditorStyle::Get(), InLabelStyle)
+		.TextStyle(FAppStyle::Get(), InLabelStyle)
 		.Visibility(this, &SGraphPin::GetPinLabelVisibility)
 		.ColorAndOpacity(this, &SGraphPin::GetPinTextColor);
 }
@@ -739,7 +739,7 @@ FReply SGraphPin::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent&
 				{
 					Node->GetSchema()->GetAssetsPinHoverMessage(AssetOp->GetAssets(), GraphPinObj, TooltipText, bOkIcon);
 				}
-				const FSlateBrush* TooltipIcon = bOkIcon ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));;
+				const FSlateBrush* TooltipIcon = bOkIcon ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));;
 				AssetOp->SetToolTip(FText::FromString(TooltipText), TooltipIcon);
 					
 				return FReply::Handled();
@@ -1147,7 +1147,7 @@ const FSlateBrush* SGraphPin::GetPinStatusIcon() const
 
 			if (FKismetDebugUtilities::DoesPinHaveWatches(Blueprint, WatchedPin))
 			{
-				return FEditorStyle::GetBrush(TEXT("Graph.WatchedPinIcon_Pinned"));
+				return FAppStyle::GetBrush(TEXT("Graph.WatchedPinIcon_Pinned"));
 			}
 		}
 	}

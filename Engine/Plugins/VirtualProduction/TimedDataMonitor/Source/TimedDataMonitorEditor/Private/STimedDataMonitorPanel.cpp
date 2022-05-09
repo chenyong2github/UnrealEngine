@@ -158,7 +158,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 		FText PerformanceWarningText = FText::Format(LOCTEXT("PerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
 
 		PerformanceWidget = SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
+			.BorderImage(FAppStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
 			.BorderBackgroundColor(FColor(166, 137, 0))
 			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
 			.Visibility(this, &STimedDataMonitorPanel::ShowEditorPerformanceThrottlingWarning)
@@ -170,7 +170,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Text(PerformanceWarningText)
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 					.ShadowColorAndOpacity(FLinearColor::Black.CopyWithNewOpacity(0.3f))
 					.ShadowOffset(FVector2D::UnitVector)
 				]
@@ -256,7 +256,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 						.Text(FEditorFontGlyphs::Eraser)
 						.ColorAndOpacity(FLinearColor::White)
 					]
@@ -304,7 +304,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				.OnClicked(this, &STimedDataMonitorPanel::OnGeneralUserSettingsClicked)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text(FEditorFontGlyphs::Cogs)
 					.ColorAndOpacity(FLinearColor::White)
 				]
@@ -321,7 +321,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 			.Padding(4.f)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.18"))
 				.Text(FEditorFontGlyphs::Circle)
 				.ColorAndOpacity(this, &STimedDataMonitorPanel::GetEvaluationStateColorAndOpacity)
 			]
@@ -445,7 +445,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
+			.BorderImage(FAppStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
 			.BorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.5f))
 			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
 			.Visibility(this, &STimedDataMonitorPanel::GetThrobberVisibility)

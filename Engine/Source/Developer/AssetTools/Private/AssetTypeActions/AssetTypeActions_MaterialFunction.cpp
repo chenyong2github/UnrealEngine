@@ -5,7 +5,7 @@
 #include "ToolMenus.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
@@ -34,7 +34,7 @@ void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InOb
 		"MaterialFunction_NewMFI",
 		GetInstanceText(),
 		LOCTEXT("Material_NewMFITooltip", "Creates a parameterized function using this function as a base."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.MaterialInstanceActor"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_MaterialFunction::ExecuteNewMFI, Functions)
 		)
@@ -46,7 +46,7 @@ void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InOb
 			"MaterialFunction_FindMaterials",
 			LOCTEXT("MaterialFunction_FindMaterials", "Find Materials Using This"),
 			LOCTEXT("MaterialFunction_FindMaterialsTooltip", "Finds the materials that reference this material function and visually displays them with the light version of the Reference Viewer."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetTypeActions_MaterialFunction::ExecuteFindMaterials, Functions ),
 				FCanExecuteAction()

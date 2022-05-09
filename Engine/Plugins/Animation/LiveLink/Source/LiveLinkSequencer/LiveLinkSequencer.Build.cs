@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"HeadMountedDisplay",
-					"EditorStyle",
 					"LevelSequence",
 					"LiveLink",
 					"MovieSceneTools",

@@ -27,7 +27,7 @@ public:
 		(
 			"LightActor", // Context name for fast lookup
 			NSLOCTEXT("Contexts", "LightActor", "Light Actor"), // Localized context name for displaying
-			NAME_None, FEditorStyle::GetStyleSetName()
+			NAME_None, FAppStyle::GetAppStyleSetName()
 			)
 	{
 	}

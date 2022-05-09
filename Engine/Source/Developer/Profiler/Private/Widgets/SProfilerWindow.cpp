@@ -12,7 +12,7 @@
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SProfilerToolbar.h"
 #include "Widgets/SFiltersAndPresets.h"
 #include "Widgets/SMultiDumpBrowser.h"
@@ -190,7 +190,7 @@ void SProfilerWindow::Construct( const FArguments& InArgs )
 													.AutoWidth()
 														[
 															SNew(SImage)
-															.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
+															.Image(FAppStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
 														]
 
 													+ SHorizontalBox::Slot()
@@ -225,7 +225,7 @@ void SProfilerWindow::Construct( const FArguments& InArgs )
 														.AutoWidth()
 														[
 															SNew(SImage)
-																.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
+																.Image(FAppStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
 														]
 
 													+ SHorizontalBox::Slot()
@@ -269,7 +269,7 @@ void SProfilerWindow::Construct( const FArguments& InArgs )
 																.AutoWidth()
 																[
 																	SNew(SImage)
-																		.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.GraphView")))
+																		.Image(FAppStyle::GetBrush(TEXT("Profiler.Tab.GraphView")))
 																]
 
 															+ SHorizontalBox::Slot()
@@ -304,7 +304,7 @@ void SProfilerWindow::Construct( const FArguments& InArgs )
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FAppStyle::GetBrush("NotificationList.ItemBackground"))
 						.Padding(8.0f)
 						.Visibility(this, &SProfilerWindow::IsSessionOverlayVissible)
 						[
@@ -354,7 +354,7 @@ void SProfilerWindow::ManageEventGraphTab( const FGuid ProfilerInstanceID, const
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush( TEXT("Profiler.Tab.EventGraph") ) )
+				.Image( FAppStyle::GetBrush( TEXT("Profiler.Tab.EventGraph") ) )
 			]
 
 			+SHorizontalBox::Slot()
@@ -629,7 +629,7 @@ void SProfilerWindow::OpenProfilerSettings()
 	(*OverlaySettingsSlot)
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NotificationList.ItemBackground") )
+		.BorderImage( FAppStyle::GetBrush("NotificationList.ItemBackground") )
 		.Padding( 8.0f )
 		[
 		 	SNew(SProfilerSettings)

@@ -16,7 +16,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WorldBrowserModule.h"
 #include "LevelModel.h"
 #include "LevelCollectionModel.h"
@@ -174,7 +174,7 @@ FReply SWorldHierarchy::OnSummonComposition()
 
 const FSlateBrush* SWorldHierarchy::GetSummonCompositionBrush() const
 {
-	return FEditorStyle::GetBrush("WorldBrowser.CompositionButtonBrush");
+	return FAppStyle::GetBrush("WorldBrowser.CompositionButtonBrush");
 }
 
 TSharedRef<SWidget> SWorldHierarchy::GetFileButtonContent()

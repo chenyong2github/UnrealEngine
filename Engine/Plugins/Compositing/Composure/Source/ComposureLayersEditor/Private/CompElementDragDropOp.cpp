@@ -5,7 +5,7 @@
 
 void FCompElementDragDropOp::Construct()
 {
-	const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("Layer.Icon16x"));
+	const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("Layer.Icon16x"));
 	if (Elements.Num() == 1)
 	{
 		FDecoratedDragDropOp::SetToolTip(FText::FromName(Elements[0]), Icon);

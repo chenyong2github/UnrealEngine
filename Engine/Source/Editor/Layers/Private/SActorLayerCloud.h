@@ -10,7 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ActorLayerCollectionViewModel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
@@ -90,7 +90,7 @@ private:
 				[
 					SNew( SBorder )
 					.BorderBackgroundColor( FLinearColor(.2f,.2f,.2f,.2f) )
-					.BorderImage( FEditorStyle::GetBrush( TEXT( "LayerCloud.Item.BorderImage" ) ) )
+					.BorderImage( FAppStyle::GetBrush( TEXT( "LayerCloud.Item.BorderImage" ) ) )
 					.Content()
 					[
 						SNew( SHorizontalBox )
@@ -100,7 +100,7 @@ private:
 							.Padding( 4, 0 )
 							[
 								SNew( STextBlock )
-								.Font( FEditorStyle::GetFontStyle( FName( "LayerCloud.Item.LabelFont" ) ) )
+								.Font( FAppStyle::GetFontStyle( FName( "LayerCloud.Item.LabelFont" ) ) )
 								.ColorAndOpacity( FSlateColor::UseForeground() )
 								.Text( Layer.Get(), &FActorLayerViewModel::GetName )
 							]
@@ -113,12 +113,12 @@ private:
 								.ContentPadding( 0 )
 								.VAlign( VAlign_Center )
 								.OnClicked( this, &SActorLayerCloud::OnRemoveLayerFromActorsClicked, Layer )
-								.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+								.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 								.ToolTipText( LOCTEXT("RemoveLayerButton", "Remove from Layer") )
 								.Content()
 								[
 									SNew( SImage )
-									.Image( FEditorStyle::GetBrush( TEXT( "LayerCloud.Item.ClearButton" ) ) )
+									.Image( FAppStyle::GetBrush( TEXT( "LayerCloud.Item.ClearButton" ) ) )
 								]
 							]
 					]

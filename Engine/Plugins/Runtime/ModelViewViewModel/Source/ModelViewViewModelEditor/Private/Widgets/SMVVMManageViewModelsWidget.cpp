@@ -220,7 +220,7 @@ void SMVVMManageViewModelsWidget::Construct(const FArguments& InArgs)
 	if (InArgs._ButtonsPanel.Widget == SNullWidget::NullWidget)
 	{
 		SAssignNew(ButtonsPanelContent, SUniformGridPanel)
-			.SlotPadding(FEditorStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+			.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
 			+ SUniformGridPanel::Slot(0, 0)
 			[
 				SNew(SPrimaryButton)
@@ -241,7 +241,7 @@ void SMVVMManageViewModelsWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()

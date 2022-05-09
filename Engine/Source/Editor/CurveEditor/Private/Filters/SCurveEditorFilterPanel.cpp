@@ -101,7 +101,7 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 				// by name.
 				SNew(STextBlock)
 				.Text(this, &SCurveEditorFilterPanel::GetCurrentFilterText)
-				.TextStyle(FEditorStyle::Get(), "LargeText")
+				.TextStyle(FAppStyle::Get(), "LargeText")
 			]
 
 			+ SHorizontalBox::Slot()

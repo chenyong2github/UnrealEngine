@@ -9,7 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MarqueeRect.h"
 #include "SAnimTrackPanel.h"
 #include "SAnimEditorBase.h"
@@ -148,7 +148,7 @@ class FAnimNotifyPanelCommands : public TCommands<FAnimNotifyPanelCommands>
 {
 public:
 	FAnimNotifyPanelCommands()
-		: TCommands<FAnimNotifyPanelCommands>("AnimNotifyPanel", NSLOCTEXT("Contexts", "AnimNotifyPanel", "Anim Notify Panel"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FAnimNotifyPanelCommands>("AnimNotifyPanel", NSLOCTEXT("Contexts", "AnimNotifyPanel", "Anim Notify Panel"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 
 	}

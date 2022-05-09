@@ -4,7 +4,7 @@
 
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Tools/InteractiveToolsCommands.h"
 
 
@@ -16,7 +16,7 @@ public:
 			"MeshPaint",
 			NSLOCTEXT("MeshPaintEditorMode", "MeshPaintingModeCommands", "Mesh Painting Mode"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 			)
 	{}
 
@@ -70,7 +70,7 @@ public:
 			"MeshPaintingTools", // Context name for fast lookup
 			NSLOCTEXT("MeshPaintEditorMode", "MeshPaintingToolsCommands", "Mesh Painting Tools"), // Localized context name for displaying
 			NAME_None, // Parent
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 			)
 	{
 	}

@@ -15,7 +15,6 @@ public class ClothPainter : ModuleRules
                 "InputCore",
                 "Slate",
                 "SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
                 "MainFrame",

@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PaperTileMapComponent.h"
 #include "PaperTileMap.h"
 
@@ -102,7 +102,7 @@ void FTileMapEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 		.HAlign(HAlign_Right)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.Visibility(this, &FTileMapEdModeToolkit::GetTileSetPaletteCornerTextVisibility)
 			.OnClicked(this, &FTileMapEdModeToolkit::ClickedOnTileSetPaletteCornerText)
 			.Content()
@@ -125,7 +125,7 @@ void FTileMapEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 	// Create the contents of the editor mode toolkit
 	MyWidget = 
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ))
+		.BorderImage(FAppStyle::GetBrush( "ToolPanel.GroupBorder" ))
 		.Content()
 		[
 			SNew(SVerticalBox)
@@ -329,7 +329,7 @@ TSharedRef<SWidget> FTileMapEdModeToolkit::BuildToolBar() const
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 			[
 				SelectionFlipToolsToolbar.MakeWidget()
@@ -343,7 +343,7 @@ TSharedRef<SWidget> FTileMapEdModeToolkit::BuildToolBar() const
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 			[
 				ToolsToolbar.MakeWidget()

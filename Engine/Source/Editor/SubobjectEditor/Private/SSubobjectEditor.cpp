@@ -42,7 +42,7 @@
 #include "GameProjectGenerationModule.h"	// Adding new component classes
 #include "AddToProjectConfig.h"
 #include "FeaturedClasses.inl"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 
 #include "Subsystems/PanelExtensionSubsystem.h"	// SExtensionPanel
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -527,7 +527,7 @@ void FSubobjectRowDragDropOp::HoverTargetChanged()
 	bool bHoverHandled = false;
 
 	FSlateColor IconTint = FLinearColor::White;
-	const FSlateBrush* ErrorSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	const FSlateBrush* ErrorSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 	if(SourceNodes.Num() > 1)
 	{
@@ -712,8 +712,8 @@ void SSubobject_RowWidget::Construct(const FArguments& InArgs, TWeakPtr<SSubobje
 
 	FSuperRowType::FArguments Args = FSuperRowType::FArguments()
 		.Style(bIsSeparator ?
-			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow") :
-			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow")) //@todo create editor style for the SCS tree
+			&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow") :
+			&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow")) //@todo create editor style for the SCS tree
 		.Padding(FMargin(0.f, 4.f, 0.f, 4.f))
 		.ShowSelection(!bIsSeparator)
 		.OnDragDetected(this, &SSubobject_RowWidget::HandleOnDragDetected)
@@ -896,7 +896,7 @@ EVisibility SSubobject_RowWidget::GetAssetVisibility() const
 
 const FSlateBrush* SSubobject_RowWidget::GetIconBrush() const
 {
-	const FSlateBrush* ComponentIcon = FEditorStyle::GetBrush("SCS.NativeComponent");
+	const FSlateBrush* ComponentIcon = FAppStyle::GetBrush("SCS.NativeComponent");
 
 	if (FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr())
 	{
@@ -1223,8 +1223,8 @@ void SSubobject_RowWidget::HandleOnDragEnter(const FDragDropEvent& DragDropEvent
 		}
 		
 		const FSlateBrush* StatusSymbol = DragRowOp->PendingDropAction != FSubobjectRowDragDropOp::DropAction_None
-			? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"))
-			: FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"))
+			: FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 	
 		if (Message.IsEmpty())
 		{
@@ -1415,7 +1415,7 @@ void SSubobject_RowWidget::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& I
 		  .Padding(0, 0, 4, 0)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(),
+			.TextStyle(FAppStyle::Get(),
 			           bImportant ? "SCSEditor.ComponentTooltip.ImportantLabel" : "SCSEditor.ComponentTooltip.Label")
 		.Text(FText::Format(LOCTEXT("AssetViewTooltipFormat", "{0}:"), Key))
 		]
@@ -1430,7 +1430,7 @@ void SSubobject_RowWidget::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& I
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(),
+			.TextStyle(FAppStyle::Get(),
 			           bImportant ? "SCSEditor.ComponentTooltip.ImportantValue" : "SCSEditor.ComponentTooltip.Value")
 		.Text(Value)
 		]
@@ -1477,7 +1477,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateComponentTooltipWidget(const FS
 				       .Padding(FMargin(0, 2, 0, 4))
 				[
 					SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "SCSEditor.ComponentTooltip.ClassDescription")
+						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.ClassDescription")
 						.Text(ClassTooltip)
 						.WrapTextAt(400.0f)
 				];
@@ -1514,7 +1514,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateComponentTooltipWidget(const FS
 	}
 
 	TSharedRef<SBorder> TooltipContent = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(0)
 	[
 		SNew(SVerticalBox)
@@ -1534,7 +1534,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateComponentTooltipWidget(const FS
 				  .Padding(2)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "SCSEditor.ComponentTooltip.Title")
+					.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.Title")
 					.Text(this, &SSubobject_RowWidget::GetTooltipText)
 				]
 			]
@@ -1544,7 +1544,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateComponentTooltipWidget(const FS
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Padding(2)
 			[
 				InfoBox
@@ -1572,7 +1572,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateActorTooltipWidget(const FSubob
 	AddToToolTipInfoBox(InfoBox, LOCTEXT("TooltipMobility", "Mobility"), SNullWidget::NullWidget, TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SSubobject_RowWidget::GetActorMobilityText)), false);
 
 	TSharedRef<SBorder> TooltipContent = SNew(SBorder)
-        .BorderImage(FEditorStyle::GetBrush("NoBorder"))
+        .BorderImage(FAppStyle::GetBrush("NoBorder"))
         .Padding(0)
         [
             SNew(SVerticalBox)
@@ -1594,7 +1594,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateActorTooltipWidget(const FSubob
                     .Padding(4)
                     [
                         SNew(STextBlock)
-                        .TextStyle(FEditorStyle::Get(), "SCSEditor.ComponentTooltip.Title")
+                        .TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.Title")
                         .Text(this, &SSubobject_RowWidget::GetActorDisplayText)
                     ]
                 ]
@@ -1604,7 +1604,7 @@ TSharedRef<SToolTip> SSubobject_RowWidget::CreateActorTooltipWidget(const FSubob
             .AutoHeight()
             [
                 SNew(SBorder)
-                .BorderImage(FEditorStyle::GetBrush("NoBorder"))
+                .BorderImage(FAppStyle::GetBrush("NoBorder"))
                 .Padding(4)
                 [
                     InfoBox
@@ -1733,7 +1733,7 @@ TSharedRef<SWidget> SSubobject_RowWidget::GetInheritedLinkWidget()
 		static const FText NativeCppLabel = LOCTEXT("NativeCppInheritedLabel", "Edit in C++");
 
 		return SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+			.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 			.OnNavigate(this, &SSubobject_RowWidget::OnEditNativeCppClicked)
 			.Text(NativeCppLabel)
 			.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()));	
@@ -1745,7 +1745,7 @@ TSharedRef<SWidget> SSubobject_RowWidget::GetInheritedLinkWidget()
 		static const FText InheritedBPLabel = LOCTEXT("InheritedBpLabel", "Edit in Blueprint");
 		
 		return SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+			.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
 			.OnNavigate(this, &SSubobject_RowWidget::OnEditBlueprintClicked)
 			.Text(InheritedBPLabel)
 			.ToolTipText(LOCTEXT("EditBlueprint_ToolTip", "Click to edit the blueprint"));
@@ -1878,11 +1878,11 @@ FSlateBrush const* SSubobject_RowWidget::GetMobilityIconImage() const
 			{
 				if (SceneComponentTemplate->Mobility == EComponentMobility::Movable)
 				{
-					return FEditorStyle::GetBrush(TEXT("ClassIcon.MovableMobilityIcon"));
+					return FAppStyle::GetBrush(TEXT("ClassIcon.MovableMobilityIcon"));
 				}
 				else if (SceneComponentTemplate->Mobility == EComponentMobility::Stationary)
 				{
-					return FEditorStyle::GetBrush(TEXT("ClassIcon.StationaryMobilityIcon"));
+					return FAppStyle::GetBrush(TEXT("ClassIcon.StationaryMobilityIcon"));
 				}
 				// static components don't get an icon (because static is the most common
 				// mobility type, and we'd like to keep the icon clutter to a minimum)
@@ -3460,7 +3460,7 @@ FSubobjectDataHandle SSubobjectEditor::PerformComboAddClass(TSubclassOf<UActorCo
 			}
 			
 			FNotificationInfo Info(OutFailReason);
-			Info.Image = FEditorStyle::GetBrush(TEXT("Icons.Error"));
+			Info.Image = FAppStyle::GetBrush(TEXT("Icons.Error"));
 			Info.bFireAndForget = true;
 			Info.bUseSuccessFailIcons = false;
 			Info.ExpireDuration = 5.0f;

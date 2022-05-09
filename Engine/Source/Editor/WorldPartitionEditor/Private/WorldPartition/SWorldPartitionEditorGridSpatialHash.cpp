@@ -20,7 +20,7 @@
 #include "Brushes/SlateColorBrush.h"
 #include "ObjectTools.h"
 #include "UObject/ObjectResource.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Selection.h"
 #include "Engine/World.h"
 #include "Engine/Texture2D.h"

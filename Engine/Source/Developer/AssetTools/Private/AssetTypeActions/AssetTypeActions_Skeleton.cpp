@@ -20,7 +20,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
@@ -154,14 +154,14 @@ public:
 			.Padding(8.0f, 4.0f, 8.0f, 4.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SCreateRigDlg::ChangeAllOptions, true)
 					.Text(LOCTEXT("SkeletonMergeSelectAll", "Select All"))
 				]
@@ -169,7 +169,7 @@ public:
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SCreateRigDlg::ChangeAllOptions, false)
 					.Text(LOCTEXT("SkeletonMergeDeselectAll", "Deselect All"))
 				]
@@ -186,14 +186,14 @@ public:
 			.Padding(8.0f, 4.0f, 8.0f, 4.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked( this, &SCreateRigDlg::OnButtonClick, FCreateRigDlg::Confirm )
 					.Text(LOCTEXT("SkeletonMergeOk", "OK"))
 				]
@@ -201,7 +201,7 @@ public:
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked( this, &SCreateRigDlg::OnButtonClick, FCreateRigDlg::Cancel )
 					.Text(LOCTEXT("SkeletonMergeCancel", "Cancel"))
 				]
@@ -346,7 +346,7 @@ FCreateRigDlg::FCreateRigDlg( USkeleton* InSkeleton )
 
 		TSharedPtr<SBorder> DialogWrapper = 
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4.0f)
 			[
 				SAssignNew(DialogWidget, SCreateRigDlg)
@@ -440,7 +440,7 @@ void FAssetTypeActions_Skeleton::GetActions(const TArray<UObject*>& InObjects, F
 			LOCTEXT("CreateSkeletonSubmenu_ToolTip", "Create assets for this skeleton"),
 			FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_Skeleton::FillCreateMenu, Skeletons),
 			false, 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
 			);
 }
 

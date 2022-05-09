@@ -7,7 +7,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Components/ActorComponent.h"
 #include "DetailLayoutBuilder.h"

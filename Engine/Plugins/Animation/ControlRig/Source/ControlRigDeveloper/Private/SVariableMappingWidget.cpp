@@ -106,7 +106,7 @@ void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedR
 					[
 						SNew(STextBlock)
 						.Text(this, &SVariableMappingTreeRow::GetVarOptionComboBoxContent)
-						//.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						//.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						.ToolTipText(this, &SVariableMappingTreeRow::GetVarOptionComboBoxToolTip)
 					]
 				]
@@ -262,7 +262,7 @@ TSharedPtr<FString> SVariableMappingTreeRow::GetVarOptionString(FName VarOptionN
 
 TSharedRef<SWidget> SVariableMappingTreeRow::MakeVarOptionComboWidget(TSharedPtr<FString> InItem)
 {
-	return SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+	return SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 //////////////////////////////////////////////////////////////////////////
 // SVariableMappingWidget

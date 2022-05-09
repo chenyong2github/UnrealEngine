@@ -4,7 +4,7 @@
 
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 
 FPluginStyleSet::FPluginStyleSet(const FName& InPluginName, const FName& InStyleSetName)

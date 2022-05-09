@@ -8,7 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSlider.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Settings/EditorSettings.h"
 #include "Editor/EditorPerformanceSettings.h"
@@ -75,7 +75,7 @@ FText SScalabilitySettings::GetResolutionScaleString() const
 TSharedRef<SWidget> SScalabilitySettings::MakeButtonWidget(const FText& InName, const TCHAR* InGroupName, int32 InQualityLevel, const FText& InToolTip)
 {
 	return SNew(SCheckBox)
-		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 		.OnCheckStateChanged(this, &SScalabilitySettings::OnGroupQualityLevelChanged, InGroupName, InQualityLevel)
 		.IsChecked(this, &SScalabilitySettings::IsGroupQualityLevelSelected, InGroupName, InQualityLevel)
 		.ToolTipText(InToolTip)
@@ -209,8 +209,8 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 	const FText FiveNames[5] = { NamesLow, NamesMedium, NamesHigh, NamesEpic, NamesCine };
 	const FText FiveDistanceNames[5] = { DistanceNear, DistanceMedium, DistanceFar, DistanceEpic, DistanceCinematic };
 
-	auto TitleFont = FEditorStyle::GetFontStyle( FName( "Scalability.TitleFont" ) );
-	auto GroupFont = FEditorStyle::GetFontStyle( FName( "Scalability.GroupFont" ) );
+	auto TitleFont = FAppStyle::GetFontStyle( FName( "Scalability.TitleFont" ) );
+	auto GroupFont = FAppStyle::GetFontStyle( FName( "Scalability.GroupFont" ) );
 
 	InitialQualityLevels = CachedQualityLevels = Scalability::GetQualityLevels();
 	static float Padding = 1.0f;
@@ -235,17 +235,17 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 		SNew(SGridPanel)
 		.FillColumn(0, QualityColumnCoeff)
 
-		+MakeGridSlot(0,1,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,2,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,3,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,4,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,5,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,6,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,7,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,8,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,9,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,10,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,11,TotalWidth,1) [ SNew (SBorder).BorderImage(FEditorStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,1,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,2,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,3,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,4,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,5,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,6,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,7,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,8,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,9,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,10,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+		+MakeGridSlot(0,11,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
 
 		+MakeGridSlot(0,0).VAlign(VAlign_Center) [ SNew(STextBlock).Text(LOCTEXT("QualityLabel", "Quality")).Font(TitleFont) ]
 		+MakeGridSlot(1,0) [ MakeHeaderButtonWidget(NamesLow, 0, LOCTEXT("QualityLow", "Set all groups to low quality"), Scalability::EQualityLevelBehavior::EAbsolute) ]

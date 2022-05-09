@@ -23,7 +23,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "FileHelpers.h"
@@ -91,7 +91,7 @@ class FLocalizationTargetEditorCommands : public TCommands<FLocalizationTargetEd
 {
 public:
 	FLocalizationTargetEditorCommands() 
-		: TCommands<FLocalizationTargetEditorCommands>("LocalizationTargetEditor", NSLOCTEXT("Contexts", "LocalizationTargetEditor", "Localization Target Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FLocalizationTargetEditorCommands>("LocalizationTargetEditor", NSLOCTEXT("Contexts", "LocalizationTargetEditor", "Localization Target Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 
@@ -245,28 +245,28 @@ void FLocalizationTargetDetailCustomization::CustomizeDetails(IDetailLayoutBuild
 			return CanGatherText() ? FLocalizationTargetEditorCommands::Get().GatherText->GetDescription() : LOCTEXT("GatherDisabledToolTip", "Must have a native culture specified in order to gather.");
 		}));
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().GatherText, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::GatherText), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanGatherText));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().GatherText, NAME_None, TAttribute<FText>(), GatherToolTipTextAttribute, FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.GatherText"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().GatherText, NAME_None, TAttribute<FText>(), GatherToolTipTextAttribute, FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.GatherText"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().ImportTextAllCultures, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::ImportTextAllCultures), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanImportTextAllCultures));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ImportTextAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.ImportTextAllCultures"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ImportTextAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.ImportTextAllCultures"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().ExportTextAllCultures, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::ExportTextAllCultures), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanExportTextAllCultures));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ExportTextAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.ExportTextAllCultures"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ExportTextAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.ExportTextAllCultures"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().ImportDialogueScriptAllCultures, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::ImportDialogueScriptAllCultures), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanImportDialogueScriptAllCultures));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ImportDialogueScriptAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.ImportDialogueScriptAllCultures"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ImportDialogueScriptAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.ImportDialogueScriptAllCultures"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().ExportDialogueScriptAllCultures, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::ExportDialogueScriptAllCultures), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanExportDialogueScriptAllCultures));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ExportDialogueScriptAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.ExportDialogueScriptAllCultures"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ExportDialogueScriptAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.ExportDialogueScriptAllCultures"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().ImportDialogueAllCultures, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::ImportDialogueAllCultures), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanImportDialogueAllCultures));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ImportDialogueAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.ImportDialogueAllCultures"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().ImportDialogueAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.ImportDialogueAllCultures"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().CountWords, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CountWords), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanCountWords));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().CountWords, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.CountWords"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().CountWords, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.CountWords"));
 
 		CommandList->MapAction(FLocalizationTargetEditorCommands::Get().CompileTextAllCultures, FExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CompileTextAllCultures), FCanExecuteAction::CreateSP(this, &FLocalizationTargetDetailCustomization::CanCompileTextAllCultures));
-		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().CompileTextAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LocalizationTargetEditor.CompileTextAllCultures"));
+		ToolBarBuilder.AddToolBarButton(FLocalizationTargetEditorCommands::Get().CompileTextAllCultures, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationTargetEditor.CompileTextAllCultures"));
 
 		if (ILocalizationServiceModule::Get().IsEnabled())
 		{

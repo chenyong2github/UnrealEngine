@@ -4,7 +4,7 @@
 
 #include "DataprepEditorModule.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
@@ -96,11 +96,11 @@ void FDataprepEditorStyle::Initialize()
 		StyleSet->Set("DataprepAction.BackgroundColor", FLinearColor(FColor(61, 61, 61)));
 
 		{
-			FTextBlockStyle TilteTextStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
+			FTextBlockStyle TilteTextStyle = FAppStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 			TilteTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
 			StyleSet->Set("DataprepAction.TitleTextStyle", TilteTextStyle);
 
-			FEditableTextBoxStyle TitleEditableText = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("LegacyViewportMenu").EditableTextStyle;
+			FEditableTextBoxStyle TitleEditableText = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("LegacyViewportMenu").EditableTextStyle;
 			TitleEditableText.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
 
 			StyleSet->Set( "DataprepAction.TitleInlineEditableText", FInlineEditableTextBlockStyle()
@@ -138,7 +138,7 @@ void FDataprepEditorStyle::Initialize()
 
 		StyleSet->Set("DataprepActionBlock.ContentBackgroundColor.Old", FLinearColor(0.11f, 0.11f, 0.11f));
 		{
-			FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
+			FTextBlockStyle TilteTextBlockStyle = FAppStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 			TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 10));
 			StyleSet->Set("DataprepActionBlock.TitleTextBlockStyle", TilteTextBlockStyle);
 		}
@@ -147,7 +147,7 @@ void FDataprepEditorStyle::Initialize()
 		StyleSet->Set("Graph.ActionStepNode.PreviewColor", FLinearColor(0.822786f, 0.715693f, 0.0f, 1.f));
 
 		{
-			FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
+			FTextBlockStyle TilteTextBlockStyle = FAppStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 			TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Italic", 7))
 				.SetShadowOffset(FVector2D::ZeroVector)
 				.SetColorAndOpacity(GetColor("Graph.ActionStepNode.PreviewColor"))

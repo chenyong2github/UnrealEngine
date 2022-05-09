@@ -15,7 +15,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
 #include "SequencerSectionPainter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Sound/SoundCue.h"
 #include "UnrealEdGlobals.h"
@@ -721,7 +721,7 @@ int32 FAudioSection::OnPaintSection( FSequencerSectionPainter& Painter ) const
 
 	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();
 
-	static const FSlateBrush* GenericDivider = FEditorStyle::GetBrush("Sequencer.GenericDivider");
+	static const FSlateBrush* GenericDivider = FAppStyle::GetBrush("Sequencer.GenericDivider");
 
 	if (!Section.HasStartFrame() || !Section.HasEndFrame())
 	{
@@ -926,7 +926,7 @@ void FAudioTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddTrack", "Audio Track"),
 		LOCTEXT("AddTooltip", "Adds a new master audio track that can play sounds."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Audio"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Audio"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FAudioTrackEditor::HandleAddAudioTrackMenuEntryExecute)
 		)
@@ -968,7 +968,7 @@ void CopyInterpSoundTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackSound* M
 
 const FSlateBrush* FAudioTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.Audio");
+	return FAppStyle::GetBrush("Sequencer.Tracks.Audio");
 }
 
 bool FAudioTrackEditor::IsResizable(UMovieSceneTrack* InTrack) const

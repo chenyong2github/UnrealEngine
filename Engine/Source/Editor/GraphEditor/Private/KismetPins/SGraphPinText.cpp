@@ -113,7 +113,7 @@ void SGraphPinText::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinO
 TSharedRef<SWidget>	SGraphPinText::GetDefaultValueWidget()
 {
 	return SNew(STextPropertyEditableTextBox, MakeShareable(new FEditableTextGraphPin(GraphPinObj)))
-		.Style(FEditorStyle::Get(), "Graph.EditableTextBox")
+		.Style(FAppStyle::Get(), "Graph.EditableTextBox")
 		.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
 		.ForegroundColor(FSlateColor::UseForeground())
 		.IsEnabled(this, &SGraphPin::GetDefaultValueIsEditable)

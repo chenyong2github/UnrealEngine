@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "GameplayDebuggerConfig"
 
@@ -34,7 +34,7 @@ void FGameplayDebuggerToolkit::Init(const TSharedPtr<class IToolkitHost>& InitTo
 {
 	MyWidget =
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Content()
 		[
 			SNew(SVerticalBox)

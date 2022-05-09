@@ -47,7 +47,6 @@ public class EditorInteractiveToolsFramework : ModuleRules
                 "ContentBrowser",
                 "LevelEditor",
                 "ApplicationCore",
-                "EditorStyle",
                 "InteractiveToolsFramework",
 				"MeshDescription",
 				"StaticMeshDescription",

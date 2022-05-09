@@ -6,7 +6,7 @@
 #include "Brushes/SlateBorderBrush.h"
 #include "Brushes/SlateImageBrush.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyle.h"
@@ -87,20 +87,20 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	Style->Set("LevelSnapshotsEditor.IgnoreFilterBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
 
 	// Buttons
-	FButtonStyle RemoveFilterButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton");
+	FButtonStyle RemoveFilterButtonStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton");
 	RemoveFilterButtonStyle.Normal = FSlateNoResource();
 	RemoveFilterButtonStyle.NormalPadding = FMargin(0, 1.5f);
 	RemoveFilterButtonStyle.PressedPadding = FMargin(0, 1.5f);
 	Style->Set("LevelSnapshotsEditor.RemoveFilterButton", RemoveFilterButtonStyle);
 
-	FTextBlockStyle ButtonTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
+	FTextBlockStyle ButtonTextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
 	FLinearColor ButtonTextColor = ButtonTextStyle.ColorAndOpacity.GetSpecifiedColor();
 	ButtonTextColor.A /= 2;
 	ButtonTextStyle.ColorAndOpacity = ButtonTextColor;
 	ButtonTextStyle.ShadowColorAndOpacity.A /= 2;
 	Style->Set("LevelSnapshotsEditor.Button.TextStyle", ButtonTextStyle);
 
-	FTextBlockStyle AndTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Graph.CompactNode.Title");
+	FTextBlockStyle AndTextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Graph.CompactNode.Title");
 	FTextBlockStyle OrTextStyle = AndTextStyle;
 	AndTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("BoldCondensed", 16 ));
 	OrTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("BoldCondensed", 18 ));

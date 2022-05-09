@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/ActorComponent.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node.h"
@@ -490,7 +490,7 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 	TargetProfile = FContextMenuTargetProfile(MenuContext);
 	OnTargetMaskChanged = InArgs._OnTargetMaskChanged;
 
-	FSlateFontInfo HeaderFontStyle = FEditorStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont");
+	FSlateFontInfo HeaderFontStyle = FAppStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont");
 	HeaderFontStyle.Size -= 2.f;
 	FText const HeaderText = ContextMenuTargetProfileImpl::GetProfileDescription(MenuContext);
 
@@ -519,7 +519,7 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 
 	TSharedPtr<SHorizontalBox> MenuBody;
 	SBorder::Construct(SBorder::FArguments()
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5.f)
 		.ToolTipText(MenuToolTip)
 		[
@@ -533,8 +533,8 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 				.AutoHeight()
 				[
 					SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-						.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+						.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 					[
 						SNew(STextBlock)
 							.Text(HeaderText)

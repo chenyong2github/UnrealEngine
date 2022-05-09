@@ -97,7 +97,7 @@ public:
 
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage( FEditorStyle::GetBrush( "PropertyEditor.SlateBrushPreview" ) )
+			.BorderImage( FAppStyle::GetBrush( "PropertyEditor.SlateBrushPreview" ) )
 			.Padding( FMargin( 4.0f, 4.0f, 4.0f, 14.0f ) )
 			[
 				SNew( SBox )
@@ -108,7 +108,7 @@ public:
 					+SOverlay::Slot()
 					[
 						SNew( SImage )
-						.Image( FEditorStyle::GetBrush( "Checkerboard" ) )
+						.Image( FAppStyle::GetBrush( "Checkerboard" ) )
 					]
 
 					+SOverlay::Slot()
@@ -133,7 +133,7 @@ public:
 						+SHorizontalBox::Slot()
 						[
 							SNew( SImage )
-							.Image( FEditorStyle::GetBrush( "PropertyEditor.VerticalDottedLine" ) )
+							.Image( FAppStyle::GetBrush( "PropertyEditor.VerticalDottedLine" ) )
 							.Visibility( this, &SSlateBrushPreview::GetMarginLineVisibility )
 						]
 					]
@@ -152,7 +152,7 @@ public:
 						+SHorizontalBox::Slot()
 						[
 							SNew( SImage )
-							.Image( FEditorStyle::GetBrush( "PropertyEditor.VerticalDottedLine" ) )
+							.Image( FAppStyle::GetBrush( "PropertyEditor.VerticalDottedLine" ) )
 							.Visibility( this, &SSlateBrushPreview::GetMarginLineVisibility )
 						]
 					]
@@ -171,7 +171,7 @@ public:
 						+SVerticalBox::Slot()
 						[
 							SNew( SImage )
-							.Image( FEditorStyle::GetBrush( "PropertyEditor.HorizontalDottedLine" ) )
+							.Image( FAppStyle::GetBrush( "PropertyEditor.HorizontalDottedLine" ) )
 							.Visibility( this, &SSlateBrushPreview::GetMarginLineVisibility )
 						]
 					]
@@ -190,7 +190,7 @@ public:
 						+SVerticalBox::Slot()
 						[
 							SNew( SImage )
-							.Image( FEditorStyle::GetBrush( "PropertyEditor.HorizontalDottedLine" ) )
+							.Image( FAppStyle::GetBrush( "PropertyEditor.HorizontalDottedLine" ) )
 							.Visibility( this, &SSlateBrushPreview::GetMarginLineVisibility )
 						]
 					]
@@ -221,7 +221,7 @@ public:
 
 		return
 			SNew( SUniformGridPanel )
-			.SlotPadding( FEditorStyle::GetMargin( "StandardDialog.SlotPadding" ) )
+			.SlotPadding( FAppStyle::GetMargin( "StandardDialog.SlotPadding" ) )
 			+SUniformGridPanel::Slot( 0, 0 )
 			.HAlign( HAlign_Right )
 			.VAlign( VAlign_Center )

@@ -121,7 +121,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 				}
 
 				OutSecondaryIconWidget = SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FNiagaraStackEditorWidgetsUtilities::GetIconTextForInputMode(UNiagaraStackFunctionInput::EValueMode::Dynamic))
 					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(UNiagaraStackFunctionInput::EValueMode::Dynamic)) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f));
 
@@ -152,7 +152,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 
 				OutSecondaryIconWidget =
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FNiagaraStackEditorWidgetsUtilities::GetIconTextForInputMode(UNiagaraStackFunctionInput::EValueMode::Data))
 					.ToolTipText(FNiagaraStackEditorWidgetsUtilities::GetIconToolTipForInputMode(UNiagaraStackFunctionInput::EValueMode::Data))
 					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(UNiagaraStackFunctionInput::EValueMode::Data)) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f));
@@ -168,7 +168,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 			{
 				OutIconWidget =
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 					.Text(FEditorFontGlyphs::Circle)
 					.ColorAndOpacity(InCurveSelectionTreeNode->GetCurveColor());
 

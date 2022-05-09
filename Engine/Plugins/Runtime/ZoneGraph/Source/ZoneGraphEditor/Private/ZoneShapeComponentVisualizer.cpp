@@ -8,7 +8,7 @@
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorViewportCommands.h"
@@ -41,7 +41,7 @@ public:
 			"ZoneShapeComponentVisualizer",	// Context name for fast lookup
 			LOCTEXT("ZoneShapeComponentVisualizer", "Zone Shape Component Visualizer"),	// Localized context name for displaying
 			FName(),	// Parent
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 			)
 	{
 	}

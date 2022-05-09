@@ -47,7 +47,7 @@ void FActorLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyH
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("Layer.Icon16x")))
+				.Image(FAppStyle::GetBrush(TEXT("Layer.Icon16x")))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 
@@ -59,7 +59,7 @@ void FActorLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyH
 				SNew(SComboButton)
 				.ToolTipText(LOCTEXT("ComboButtonTip", "Drag and drop a layer onto this property, or choose one from the drop down."))
 				.OnGetMenuContent(this, &FActorLayerPropertyTypeCustomization::OnGetLayerMenu)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(FMargin(0))
 				.ButtonContent()
@@ -75,14 +75,14 @@ void FActorLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyH
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("SelectTip", "Select all actors in this layer"))
 				.OnClicked(this, &FActorLayerPropertyTypeCustomization::OnSelectLayer)
 				.Visibility(this, &FActorLayerPropertyTypeCustomization::GetSelectLayerVisibility)
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(FEditorFontGlyphs::Sign_In)
 				]
 			]
@@ -142,7 +142,7 @@ TSharedRef<SWidget> FActorLayerPropertyTypeCustomization::OnGetLayerMenu()
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("OpenLayersBrowser", "Browse Layers..."),
 		FText(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Layers"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FActorLayerPropertyTypeCustomization::OpenLayerBrowser)
 		)
@@ -162,7 +162,7 @@ TSharedRef<SWidget> FActorLayerPropertyTypeCustomization::OnGetLayerMenu()
 				MenuBuilder.AddMenuEntry(
 					GetLayerDescription(Layer),
 					FText(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Layer.Icon16x"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Layer.Icon16x"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FActorLayerPropertyTypeCustomization::AssignLayer, Layer->GetLayerName())
 					)

@@ -113,7 +113,7 @@ public:
 					SNew(SBorder)
 					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
-					.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
+					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 					.BorderBackgroundColor(InArgs._ColorAndOpacity)
 					.Padding(FMargin(20, 10, 30, 10))
 					.ForegroundColor(InArgs._ForegroundColor)
@@ -459,7 +459,7 @@ int32 SDisplayClusterConfiguratorWindowNode::GetBorderLayerOffset() const
 
 const FSlateBrush* SDisplayClusterConfiguratorWindowNode::GetNodeShadowBrush() const
 {
-	return FAppStyle::Get().GetBrush(TEXT("Graph.Node.Shadow"));
+	return FAppStyle::GetBrush(TEXT("Graph.Node.Shadow"));
 }
 
 FMargin SDisplayClusterConfiguratorWindowNode::GetBackgroundPosition() const

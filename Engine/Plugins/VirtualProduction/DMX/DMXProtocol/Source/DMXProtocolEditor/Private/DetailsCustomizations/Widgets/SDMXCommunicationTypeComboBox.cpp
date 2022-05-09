@@ -4,7 +4,7 @@
 
 #include "DMXProtocolModule.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Text/STextBlock.h" 
 
@@ -30,7 +30,7 @@ void SDMXCommunicationTypeComboBox::Construct(const FArguments& InArgs)
 			.Content()
 			[
 				SAssignNew(CommunicationTypeTextBlock, STextBlock)
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 		];
 
@@ -144,7 +144,7 @@ TSharedRef<SWidget> SDMXCommunicationTypeComboBox::GenerateCommunicationTypeComb
 	return
 		SNew(STextBlock)
 		.Text(FText::FromString(*InCommunicationType))
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 void SDMXCommunicationTypeComboBox::HandleCommunicationTypeSelectionChanged(TSharedPtr<FString> InCommunicationType, ESelectInfo::Type InSelectInfo)

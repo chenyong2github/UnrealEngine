@@ -82,7 +82,7 @@ int32 FGroomCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) cons
 
 	int32 LayerId = Painter.PaintSectionBackground();
 
-	static const FSlateBrush* GenericDivider = FEditorStyle::GetBrush("Sequencer.GenericDivider");
+	static const FSlateBrush* GenericDivider = FAppStyle::GetBrush("Sequencer.GenericDivider");
 
 	if (!Section.HasStartFrame() || !Section.HasEndFrame())
 	{
@@ -149,7 +149,7 @@ int32 FGroomCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) cons
 			const float MajorTickHeight = 9.0f;
 			FVector2D TextOffset(TextPosition, Painter.SectionGeometry.Size.Y - (MajorTickHeight + TextSize.Y));
 
-			const FLinearColor DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
+			const FLinearColor DrawColor = FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 			const FVector2D BoxPadding = FVector2D(4.0f, 2.0f);
 			// draw time string
 
@@ -157,7 +157,7 @@ int32 FGroomCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) cons
 				Painter.DrawElements,
 				LayerId + 5,
 				Painter.SectionGeometry.ToPaintGeometry(TextOffset - BoxPadding, TextSize + 2.0f * BoxPadding),
-				FEditorStyle::GetBrush("WhiteBrush"),
+				FAppStyle::GetBrush("WhiteBrush"),
 				ESlateDrawEffect::None,
 				FLinearColor::Black.CopyWithNewOpacity(0.5f)
 			);

@@ -4,7 +4,7 @@
 
 #include "UVEditorCommands.h"
 #include "EditorViewportCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UVEditorStyle.h"
 #include "Widgets/Layout/SBorder.h"
@@ -71,7 +71,7 @@ TSharedRef<SWidget> SUVEditor3DViewportToolBar::MakeToolBar(const TSharedPtr<FEx
 
 	//// Use a custom style
 	FName ToolBarStyle = "EditorViewportToolBar";
-	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
+	ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
 	ToolbarBuilder.BeginSection("OrbitFlyToggle");

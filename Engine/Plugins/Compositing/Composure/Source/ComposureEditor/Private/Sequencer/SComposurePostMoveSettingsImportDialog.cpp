@@ -6,7 +6,7 @@
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SFrameRatePicker.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorDirectories.h"
 
 #define LOCTEXT_NAMESPACE "PostMoveSettingsImportDialog"
@@ -33,7 +33,7 @@ void SComposurePostMoveSettingsImportDialog::Construct(const FArguments& InArgs,
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				.Padding(10)
 				[
 					SNew(SGridPanel)
@@ -53,8 +53,8 @@ void SComposurePostMoveSettingsImportDialog::Construct(const FArguments& InArgs,
 					.Padding(0, 0, 0, 0)
 					[
 						SNew(SFilePathPicker)
-						.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-						.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+						.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a post moves text file..."))
 						.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 						.BrowseTitle(LOCTEXT("BrowseButtonTitle", "Choose a post moves text file"))

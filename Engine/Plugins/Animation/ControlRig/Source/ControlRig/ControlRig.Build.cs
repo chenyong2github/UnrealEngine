@@ -43,7 +43,6 @@ namespace UnrealBuildTool.Rules
 					{
 						"Slate",
 						"SlateCore",
-						"EditorStyle",
 						"RigVMDeveloper",
                         "AnimGraph",
                         "Json",

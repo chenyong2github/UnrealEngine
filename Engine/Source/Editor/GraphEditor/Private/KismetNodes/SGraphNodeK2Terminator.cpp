@@ -33,13 +33,13 @@ void SGraphNodeK2Terminator::UpdateGraphNode()
 
 	if(K2Node->DrawNodeAsEntry())
 	{
-		TopBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.NodeEntryTop"));
-		BottomBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.NodeEntryBottom"));
+		TopBrush = FAppStyle::GetBrush(TEXT("Graph.Node.NodeEntryTop"));
+		BottomBrush = FAppStyle::GetBrush(TEXT("Graph.Node.NodeEntryBottom"));
 	}
 	else
 	{
-		TopBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.NodeExitTop"));
-		BottomBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.NodeExitBottom"));
+		TopBrush = FAppStyle::GetBrush(TEXT("Graph.Node.NodeExitTop"));
+		BottomBrush = FAppStyle::GetBrush(TEXT("Graph.Node.NodeExitBottom"));
 	}
 
 
@@ -76,7 +76,7 @@ void SGraphNodeK2Terminator::UpdateGraphNode()
 		[
 			SNew(SBorder)
 			. Padding( 3 )
-			. BorderImage( FEditorStyle::GetBrush(TEXT("WhiteTexture")) )
+			. BorderImage( FAppStyle::GetBrush(TEXT("WhiteTexture")) )
 			. HAlign(HAlign_Center)
 			. BorderBackgroundColor( this, &SGraphNode::GetNodeTitleColor )
 			[
@@ -90,7 +90,7 @@ void SGraphNodeK2Terminator::UpdateGraphNode()
 		[
 			// NODE CONTENT AREA
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush(TEXT("Graph.Node.NodeBackground")) )
+			.BorderImage( FAppStyle::GetBrush(TEXT("Graph.Node.NodeBackground")) )
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding( FMargin(0,3) )
@@ -110,7 +110,7 @@ void SGraphNodeK2Terminator::UpdateGraphNode()
 				[
 					// MIDDLE
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush(TEXT("WhiteTexture")) )
+					.Image( FAppStyle::GetBrush(TEXT("WhiteTexture")) )
 					.ColorAndOpacity(FLinearColor(1.f,1.f,1.f,0.f))
 				]
 				+SHorizontalBox::Slot()
@@ -142,10 +142,10 @@ const FSlateBrush* SGraphNodeK2Terminator::GetShadowBrush(bool bSelected) const
 
 	if(K2Node->DrawNodeAsEntry())
 	{
-		return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.Node.NodeEntryShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.Node.NodeEntryShadow"));
+		return bSelected ? FAppStyle::GetBrush(TEXT("Graph.Node.NodeEntryShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.Node.NodeEntryShadow"));
 	}
 	else
 	{
-		return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.Node.NodeExitShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.Node.NodeExitShadow"));
+		return bSelected ? FAppStyle::GetBrush(TEXT("Graph.Node.NodeExitShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.Node.NodeExitShadow"));
 	}
 }

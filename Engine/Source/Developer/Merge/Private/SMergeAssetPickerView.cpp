@@ -14,7 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "BlueprintMergeData.h"
@@ -109,7 +109,7 @@ void SMergeAssetPickerPanel::Construct(const FArguments InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SBox)
 				.HAlign(HAlign_Center)
@@ -147,13 +147,13 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPicker()
 {
 	TSharedPtr<SButton> BrowseButton;
 	SAssignNew(BrowseButton, SButton)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.OnClicked(FOnClicked::CreateSP(this, &SMergeAssetPickerPanel::OnBrowseToPickedAsset))
 		.ContentPadding(0)
 		.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Browse", "Show the selected asset in the content browser."))
 	[
 		SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("Icons.Search")))
+			.Image(FAppStyle::GetBrush(TEXT("Icons.Search")))
 	];
 	BrowseButton->SetEnabled(TAttribute<bool>(this, &SMergeAssetPickerPanel::IsBrowseButtonEnabled));
 
@@ -163,7 +163,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPicker()
 		.MaxWidth(150.0f)
 	[
 		SAssignNew(AssetPicker, SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+			.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
 			.ContentPadding(FMargin(2, 2, 2, 1))
 			.OnGetMenuContent(this, &SMergeAssetPickerPanel::MakeAssetPickerMenu)
 			.ButtonContent()
@@ -171,8 +171,8 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPicker()
 			SNew(SBox).WidthOverride(150.f)
 			[
 				SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 					.Text(this, &SMergeAssetPickerPanel::GetAssetPickerTextValue)
 			]
 		]
@@ -183,13 +183,13 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPicker()
 		.VAlign(VAlign_Center)
 	[
 		SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(FOnClicked::CreateSP(this, &SMergeAssetPickerPanel::OnUseSelectedAssetClick))
 			.ContentPadding(1.f)
 			.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Use", "Use content browser selection."))
 		[
 			SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")))
+				.Image(FAppStyle::GetBrush(TEXT("Icons.CircleArrowLeft")))
 		]
 	]
 	+ SHorizontalBox::Slot()
@@ -282,7 +282,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPickerMenu()
 		.HeightOverride(300)
 	[
 		SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 		]
@@ -305,7 +305,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeRevisionPicker()
 		.MaxWidth(150.0f)
 	[
 		SAssignNew(AssetPicker, SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+			.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
 			.ContentPadding(FMargin(2, 2, 2, 1))
 			.OnGetMenuContent(this, &SMergeAssetPickerPanel::MakeRevisionPickerMenu)
 			.ButtonContent()
@@ -313,8 +313,8 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeRevisionPicker()
 			SNew(SBox).WidthOverride(150.f)
 			[
 				SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 					.Text(this, &SMergeAssetPickerPanel::GetRevisionTextValue)
 			]
 		]
@@ -350,7 +350,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeRevisionPickerMenu()
 	if (SelectedAsset == nullptr)
 	{
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			SNew(STextBlock).Text(LOCTEXT("SelectAssetFirst", "Select an asset first."))
 		];
@@ -373,7 +373,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeRevisionPickerMenu()
 		MenuBuilder.EndSection();
 
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			MenuBuilder.MakeWidget()
 		];

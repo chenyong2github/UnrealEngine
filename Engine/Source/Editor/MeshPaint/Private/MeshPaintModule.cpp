@@ -3,7 +3,7 @@
 #include "MeshPaintModule.h"
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorModeRegistry.h"
 #include "EditorModes.h"
 #include "MeshPainterCommands.h"

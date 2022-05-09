@@ -6,7 +6,7 @@
 #include "UObject/Package.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Engine/DataTable.h"
 #include "Modules/ModuleManager.h"

@@ -15,7 +15,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -91,7 +91,7 @@ void FMediaProfileSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 			[
 				SNew(SBorder)
 				.BorderBackgroundColor(this, &FMediaProfileSettingsCustomization::GetBorderColor)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.LightGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.LightGroupBorder"))
 				.Padding(8.0f)
 				[
 					SNew(SWidgetSwitcher)
@@ -106,7 +106,7 @@ void FMediaProfileSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 						.VAlign(VAlign_Center)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("SettingsEditor.WarningIcon"))
+							.Image(FAppStyle::GetBrush("SettingsEditor.WarningIcon"))
 						]
 						+ SHorizontalBox::Slot()
 						.FillWidth(1.0f)
@@ -135,7 +135,7 @@ void FMediaProfileSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 						.VAlign(VAlign_Center)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("SettingsEditor.GoodIcon"))
+							.Image(FAppStyle::GetBrush("SettingsEditor.GoodIcon"))
 						]
 						+ SHorizontalBox::Slot()
 						.FillWidth(1.0f)

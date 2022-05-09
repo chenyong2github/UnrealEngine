@@ -28,7 +28,7 @@
 // UnrealEd includes
 #include "ScopedTransaction.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "MovieRenderPipelineStyle.h"
 
@@ -152,7 +152,7 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 				SNew(STextBlock)
 				.ToolTipText(this, &FMoviePipelineSettingTreeItem::GetSettingErrorTooltipText)
 				.Visibility(this, &FMoviePipelineSettingTreeItem::GetSettingErrorVisibility)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 				.ColorAndOpacity(FLinearColor::Yellow)
 			]

@@ -7,7 +7,7 @@
 #include "CameraShakeTrackEditorBase.h"
 #include "CommonMovieSceneTools.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
@@ -103,9 +103,9 @@ void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& 
 	static const float   BoxOffsetPx   = 10.f;
 	static const FString AutoShakeText = LOCTEXT("AutoShake", "(Automatic)").ToString();
 
-	const FSlateFontInfo FontAwesomeFont = FEditorStyle::Get().GetFontStyle("FontAwesome.10");
+	const FSlateFontInfo FontAwesomeFont = FAppStyle::Get().GetFontStyle("FontAwesome.10");
 	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
-	const FLinearColor   DrawColor       = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
+	const FLinearColor   DrawColor       = FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 
 	const FString ShakeText = (ShakeClass.Get() != nullptr) ? ShakeClass.Get()->GetName() : AutoShakeText;
 
@@ -128,7 +128,7 @@ void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& 
 		Painter.DrawElements,
 		LayerId + 1,
 		Painter.SectionGeometry.ToPaintGeometry(BoxOffset, TextSize),
-		FEditorStyle::GetBrush("WhiteBrush"),
+		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.5f)
 	);

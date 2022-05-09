@@ -3,7 +3,7 @@
 #include "Interfaces/IPluginManager.h"
 
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ISequencerModule.h"

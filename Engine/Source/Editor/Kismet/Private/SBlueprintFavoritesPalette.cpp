@@ -10,7 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SToolTip.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BlueprintEditor.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "BlueprintPaletteFavorites.h"
@@ -178,7 +178,7 @@ struct SBlueprintFavoritesPaletteUtils
 
 				// build the text that goes in the sub-menu
 				TSharedRef<STextBlock> MenuTextEntry = SNew(STextBlock)
-					.TextStyle(MenuBuilder.GetStyleSet(), FEditorStyle::Join("Menu", ".Label"))
+					.TextStyle(MenuBuilder.GetStyleSet(), FAppStyle::Join("Menu", ".Label"))
 					// @TODO how do we best localize this
 					.Text(FText::FromString(FriendlyProfileName));
 
@@ -254,7 +254,7 @@ public:
 		( "BlueprintFavoritesPalette"
 		, LOCTEXT("FavoritesPaletteContext", "Favorites Palette")
 		, NAME_None
-		, FEditorStyle::GetStyleSetName() )
+		, FAppStyle::GetAppStyleSetName() )
 	{
 	}
 
@@ -290,7 +290,7 @@ void SBlueprintFavoritesPalette::Construct(FArguments const& InArgs, TWeakPtr<FB
 {
 	SBlueprintSubPalette::FArguments SuperArgs;
 	SuperArgs._Title       = LOCTEXT("PaletteTitle", "Favorites");
-	SuperArgs._Icon        = FEditorStyle::GetBrush("Icons.Star");
+	SuperArgs._Icon        = FAppStyle::GetBrush("Icons.Star");
 	SuperArgs._ToolTipText = LOCTEXT("PaletteToolTip", "A listing of your favorite and most used nodes.");
 
 	static FString const ShowFreqUsedConfigKey("bShowFrequentlyUsed");

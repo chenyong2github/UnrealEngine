@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_ForceFeedbackEffect.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "AssetRegistry/AssetData.h"
 #include "Framework/Application/SlateApplication.h"
@@ -25,7 +25,7 @@ void FAssetTypeActions_ForceFeedbackEffect::GetActions(const TArray<UObject*>& I
 		"ForceFeedbackEffect_PlayEffect",
 		LOCTEXT("ForceFeedbackEffect_PlayEffect", "Play"),
 		LOCTEXT("ForceFeedbackEffect_PlayEffectTooltip", "Plays the selected force feedback effect."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_ForceFeedbackEffect::ExecutePlayEffect, Effects ),
 			FCanExecuteAction::CreateSP( this, &FAssetTypeActions_ForceFeedbackEffect::CanExecutePlayCommand, Effects )
@@ -36,7 +36,7 @@ void FAssetTypeActions_ForceFeedbackEffect::GetActions(const TArray<UObject*>& I
 		"ForceFeedbackEffect_StopEffect",
 		LOCTEXT("ForceFeedbackEffect_StopEffect", "Stop"),
 		LOCTEXT("ForceFeedbackEffect_StopEffectTooltip", "Stops the selected force feedback effect."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_ForceFeedbackEffect::ExecuteStopEffect, Effects ),
 			FCanExecuteAction()
@@ -164,10 +164,10 @@ TSharedPtr<SWidget> FAssetTypeActions_ForceFeedbackEffect::GetThumbnailOverlay(c
 	{
 		if (IsEffectPlaying(AssetData))
 		{
-			return FEditorStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
+			return FAppStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
 		}
 
-		return FEditorStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
+		return FAppStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
 	};
 
 	FAssetTypeActions_ForceFeedbackEffect* MutableThis = const_cast<FAssetTypeActions_ForceFeedbackEffect*>(this);
@@ -211,7 +211,7 @@ TSharedPtr<SWidget> FAssetTypeActions_ForceFeedbackEffect::GetThumbnailOverlay(c
 	};
 
 	TSharedRef<SButton> BoxContent = SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ToolTipText_Lambda(OnToolTipTextLambda)
 		.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so we need to override that here
 		.ForegroundColor(FSlateColor::UseForeground())

@@ -13,7 +13,7 @@
 #include "SequencerSettings.h"
 #include "MovieSceneCommonHelpers.h"
 #include "GameFramework/Actor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "KeyDrawParams.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -1528,7 +1528,7 @@ void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSect
 	if (const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Owner))
 	{
 		TArray<FKeyBarCurveModel::FBarRange> Ranges = FControlRigSpaceChannelHelpers::FindRanges(Channel, Owner);
-		const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+		const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 		const ESlateDrawEffect DrawEffects = ESlateDrawEffect::None;
 
 		const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
@@ -1611,8 +1611,8 @@ void DrawKeys(FMovieSceneControlRigSpaceChannel* Channel, TArrayView<const FKeyH
 
 			FKeyDrawParams Params;
 			static const FName SquareKeyBrushName("Sequencer.KeySquare");
-			const FSlateBrush* SquareKeyBrush = FEditorStyle::GetBrush(SquareKeyBrushName);
-			Params.FillBrush = FEditorStyle::Get().GetBrush("FilledBorder");
+			const FSlateBrush* SquareKeyBrush = FAppStyle::GetBrush(SquareKeyBrushName);
+			Params.FillBrush = FAppStyle::Get().GetBrush("FilledBorder");
 			Params.BorderBrush = SquareKeyBrush;
 			const int32 KeyIndex = ChannelInterface.GetIndex(Handle);
 

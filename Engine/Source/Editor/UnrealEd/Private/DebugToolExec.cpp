@@ -12,7 +12,7 @@
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "CollisionQueryParams.h"
@@ -62,7 +62,7 @@ void FDebugToolExec::EditObject(UObject* Object, bool bShouldShowNonEditable)
 		.Title( FText::FromString( Object->GetName() ) )
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()

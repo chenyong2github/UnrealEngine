@@ -12,7 +12,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 #include "Logging/MessageLog.h"
@@ -737,7 +737,7 @@ void FUDNParser::AddContentToExcerpt(TSharedPtr<SVerticalBox> Box, const FString
 		AppendExcerpt(Box,
 			SNew(STextBlock)
 			.Text(FText::FromString(ContentSource))
-			.TextStyle(FEditorStyle::Get(), Style.ContentStyleName)
+			.TextStyle(FAppStyle::Get(), Style.ContentStyleName)
 			.WrapTextAt(WrapAt)
 		);
 
@@ -874,7 +874,7 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 				AppendExcerpt(Box,
 					SNew(STextBlock)
 					.Text(FText::FromString(Line.AdditionalContent[0]))
-					.TextStyle(FEditorStyle::Get(), Style.BoldContentStyleName)
+					.TextStyle(FAppStyle::Get(), Style.BoldContentStyleName)
 					);
 
 				AddLineSeperator(Excerpt);
@@ -900,7 +900,7 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 						.Padding(FMargin(0,0,0,10))
 						[
 							SNew(SSeparator)
-							.SeparatorImage(FEditorStyle::GetBrush(Style.SeparatorStyleName))
+							.SeparatorImage(FAppStyle::GetBrush(Style.SeparatorStyleName))
 						]
 					];
 
@@ -913,7 +913,7 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 				AppendExcerpt(Box,
 					SNew(STextBlock)
 					.Text(FText::FromString(Line.AdditionalContent[0]))
-					.TextStyle(FEditorStyle::Get(), Style.Header1StyleName)
+					.TextStyle(FAppStyle::Get(), Style.Header1StyleName)
 					);
 
 				AddLineSeperator(Excerpt);
@@ -926,7 +926,7 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 				AppendExcerpt(Box,
 					SNew(STextBlock)
 					.Text(FText::FromString(Line.AdditionalContent[0]))
-					.TextStyle(FEditorStyle::Get(), Style.Header2StyleName)
+					.TextStyle(FAppStyle::Get(), Style.Header2StyleName)
 					);
 
 				AddLineSeperator(Excerpt);
@@ -939,8 +939,8 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 				AppendExcerpt(Box,
 					SNew(SHyperlink)
 					.Text(FText::FromString(Line.AdditionalContent[0]))
-					.TextStyle(FEditorStyle::Get(), Style.HyperlinkTextStyleName)
-					.UnderlineStyle(FEditorStyle::Get(), Style.HyperlinkButtonStyleName)
+					.TextStyle(FAppStyle::Get(), Style.HyperlinkTextStyleName)
+					.UnderlineStyle(FAppStyle::Get(), Style.HyperlinkButtonStyleName)
 					.OnNavigate( this, &FUDNParser::HandleHyperlinkNavigate, Line.AdditionalContent[1])
 					);
 
@@ -997,7 +997,7 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 					AppendExcerpt(Box,
 						SNew(SButton)
 						.ContentPadding(0)
-						.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+						.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 						.OnClicked( FOnClicked::CreateSP( this, &FUDNParser::OnImageLinkClicked, Line.AdditionalContent[2] ) )
 						[
 							SNew( SImage )

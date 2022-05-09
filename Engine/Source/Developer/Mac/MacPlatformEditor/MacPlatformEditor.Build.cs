@@ -16,7 +16,7 @@ public class MacPlatformEditor : ModuleRules
 				"MainFrame",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"PropertyEditor",
 				"SharedSettingsWidgets",
 				"SourceControl",

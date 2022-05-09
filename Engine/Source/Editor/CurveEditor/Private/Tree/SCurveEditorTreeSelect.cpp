@@ -8,7 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/STableRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 
 
@@ -21,7 +21,7 @@ void SCurveEditorTreeSelect::Construct(const FArguments& InArgs, TWeakPtr<FCurve
 	ChildSlot
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.Visibility(this, &SCurveEditorTreeSelect::GetSelectVisibility)
 		.OnClicked(this, &SCurveEditorTreeSelect::SelectAll)
 		[
@@ -104,5 +104,5 @@ EVisibility SCurveEditorTreeSelect::GetSelectVisibility() const
 
 const FSlateBrush* SCurveEditorTreeSelect::GetSelectBrush() const
 {
-	return FEditorStyle::GetBrush("GenericCurveEditor.Select");
+	return FAppStyle::GetBrush("GenericCurveEditor.Select");
 }

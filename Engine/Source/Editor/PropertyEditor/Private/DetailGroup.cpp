@@ -223,7 +223,7 @@ TSharedRef<SWidget> FDetailGroup::MakeNameWidget()
 {
 	return
 		SNew( SButton )
-		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+		.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 		.ContentPadding(FMargin(0,2,0,2))
 		.OnClicked( this, &FDetailGroup::OnNameClicked )				
 		.ForegroundColor( FSlateColor::UseForeground() )

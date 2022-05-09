@@ -6,7 +6,7 @@
 #include "LidarPointCloudImportUI.h"
 #include "LidarPointCloudEditor.h"
 #include "IO/LidarPointCloudFileIO.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
 #include "Misc/ScopedSlowTask.h"
@@ -44,7 +44,7 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("LidarPointCloud_Reimport", "Reimport Selected"),
 			LOCTEXT("LidarPointCloud_ReimportTooltip", "Reimports this point cloud asset."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "TextureEditor.Reimport"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "TextureEditor.Reimport"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteReimport, PointClouds),
 				FCanExecuteAction()
@@ -88,7 +88,7 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("LidarPointCloud_CalculateNormals", "Calculate Normals"),
 		LOCTEXT("LidarPointCloud_CalculateNormalsTooltip", "Calculates normals for all selected point cloud assets."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.SetShowNormals"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.SetShowNormals"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteNormals, PointClouds),
 			FCanExecuteAction()

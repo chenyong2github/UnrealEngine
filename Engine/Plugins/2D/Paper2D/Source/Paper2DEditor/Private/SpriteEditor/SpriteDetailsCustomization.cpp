@@ -5,7 +5,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/Material.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -47,7 +47,7 @@ FSpriteDetailsCustomization::FSpriteDetailsCustomization(TAttribute<ESpriteEdito
 FDetailWidgetRow& FSpriteDetailsCustomization::GenerateWarningRow(IDetailCategoryBuilder& WarningCategory, bool bExperimental, const FText& WarningText, const FText& Tooltip, const FString& ExcerptLink, const FString& ExcerptName)
 {
 	const FText SearchString = WarningText;
-	const FSlateBrush* WarningIcon = FEditorStyle::GetBrush(bExperimental ? "PropertyEditor.ExperimentalClass" : "PropertyEditor.EarlyAccessClass");
+	const FSlateBrush* WarningIcon = FAppStyle::GetBrush(bExperimental ? "PropertyEditor.ExperimentalClass" : "PropertyEditor.EarlyAccessClass");
 
 	FDetailWidgetRow& WarningRow = WarningCategory.AddCustomRow(SearchString)
 		.WholeRowContent()
@@ -159,7 +159,7 @@ void FSpriteDetailsCustomization::BuildRenderingSection(IDetailCategoryBuilder& 
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("TinyText"))
+						.Font(FAppStyle::GetFontStyle("TinyText"))
 						.Text(this, &FSpriteDetailsCustomization::GetRenderingHeaderContentText, MakeWeakObjectPtr(SpriteBeingEdited))
 						.ToolTipText(TypesOfMaterialsTooltip)
 					]
@@ -209,7 +209,7 @@ void FSpriteDetailsCustomization::BuildCollisionSection(IDetailCategoryBuilder& 
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("TinyText"))
+				.Font(FAppStyle::GetFontStyle("TinyText"))
 				.Text(this, &FSpriteDetailsCustomization::GetCollisionHeaderContentText, SpriteCollisionDomainProperty)
 			]
 		]

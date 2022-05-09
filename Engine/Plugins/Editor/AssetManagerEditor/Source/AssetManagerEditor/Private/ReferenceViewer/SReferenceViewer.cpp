@@ -17,7 +17,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "ReferenceViewer/EdGraph_ReferenceViewer.h"
 #include "ReferenceViewer/EdGraphNode_Reference.h"
@@ -153,14 +153,14 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.Padding(1,0)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+				.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
+				.ForegroundColor( FAppStyle::GetSlateColor(DefaultForegroundName) )
 				.ToolTipText( this, &SReferenceViewer::GetHistoryBackTooltip )
 				.ContentPadding( 0 )
 				.OnClicked(this, &SReferenceViewer::BackClicked)
 				.IsEnabled(this, &SReferenceViewer::IsBackEnabled)
 				[
-					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
+					SNew(SImage) .Image(FAppStyle::GetBrush("Icons.CircleArrowLeft"))
 				]
 			]
 
@@ -171,14 +171,14 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+				.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
+				.ForegroundColor( FAppStyle::GetSlateColor(DefaultForegroundName) )
 				.ToolTipText( this, &SReferenceViewer::GetHistoryForwardTooltip )
 				.ContentPadding( 0 )
 				.OnClicked(this, &SReferenceViewer::ForwardClicked)
 				.IsEnabled(this, &SReferenceViewer::IsForwardEnabled)
 				[
-					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
+					SNew(SImage) .Image(FAppStyle::GetBrush("Icons.CircleArrowRight"))
 				]
 			]
 
@@ -189,13 +189,13 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+				.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
+				.ForegroundColor( FAppStyle::GetSlateColor(DefaultForegroundName) )
 				.ToolTipText(LOCTEXT("RefreshTooltip", "Refresh current view"))
 				.ContentPadding( 0 )
 				.OnClicked(this, &SReferenceViewer::RefreshClicked)
 				[
-					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.Refresh"))
+					SNew(SImage) .Image(FAppStyle::GetBrush("Icons.Refresh"))
 				]
 			]
 
@@ -205,7 +205,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.FillWidth(1.f)
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					SNew(SEditableTextBox)
 					.Text(this, &SReferenceViewer::GetAddressBarText)
@@ -213,7 +213,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.OnTextChanged(this, &SReferenceViewer::OnAddressBarTextChanged)
 					.SelectAllTextWhenFocused(true)
 					.SelectAllTextOnCommit(true)
-					.Style(FEditorStyle::Get(), "ReferenceViewer.PathText")
+					.Style(FAppStyle::Get(), "ReferenceViewer.PathText")
 				]
 			]
 		]
@@ -235,7 +235,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.Padding(8)
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()

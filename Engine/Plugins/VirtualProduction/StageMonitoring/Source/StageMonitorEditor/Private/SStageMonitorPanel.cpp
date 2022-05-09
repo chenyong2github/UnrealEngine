@@ -217,7 +217,7 @@ void SStageMonitorPanel::Construct(const FArguments& InArgs)
 		[
 			//Overlay present when saving/loading requests are being done
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
+			.BorderImage(FAppStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
 			.BorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.5f))
 			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
 			.Visibility(this, &SStageMonitorPanel::GetThrobberVisibility)
@@ -282,7 +282,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 		.Padding(4.f)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("LoadSession", "Loads a previous stage monitoring session."))
 			.ContentPadding(FMargin(4.f, 4.f))
 			.HAlign(HAlign_Center)
@@ -291,7 +291,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.IsEnabled(MakeAttributeLambda([this] { return !bIsShowingLiveSession; }))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 				.Text(FEditorFontGlyphs::Folder_Open)
 				.ColorAndOpacity(FLinearColor::White)
 			]
@@ -303,7 +303,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 		.Padding(4.f)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("SaveSession", "Save current stage monitoring session."))
 			.ContentPadding(FMargin(4.f, 4.f))
 			.HAlign(HAlign_Center)
@@ -312,7 +312,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.IsEnabled(MakeAttributeLambda([this] { return bIsShowingLiveSession; }))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 				.Text(FText::FromString(FString(TEXT("\xf0c7"))) /*fa-save*/)
 				.ColorAndOpacity(FLinearColor::White)
 			]
@@ -328,7 +328,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.FillWidth(1.f)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 				.ToolTipText(LOCTEXT("ClearButton_ToolTip", "Clear unresponsive providers and all entries."))
 				.ContentPadding(FMargin(4.f, 4.f))
 				.HAlign(HAlign_Center)
@@ -336,7 +336,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 				.OnClicked(this, &SStageMonitorPanel::OnClearClicked)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text(FEditorFontGlyphs::Eraser)
 					.ColorAndOpacity(FLinearColor::White)
 				]
@@ -345,7 +345,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.AutoWidth()
 			[
 				SNew(SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnGetMenuContent(this, &SStageMonitorPanel::OnClearBuildMenu)
@@ -358,7 +358,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 		.Padding(4.f)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("ShowMessageViewer_ToolTip", "Open the message viewer"))
 			.ContentPadding(FMargin(4, 2))
 			.HAlign(HAlign_Center)
@@ -366,7 +366,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.OnClicked(this, &SStageMonitorPanel::OnShowMessageViewerClicked)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::Get().GetBrush("GenericViewButton"))
+				.Image(FAppStyle::Get().GetBrush("GenericViewButton"))
 			]
 		]*/
 		// Settings button
@@ -376,7 +376,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("ShowProjectSettings_Tip", "Show the StageMonitor project settings"))
 			.ContentPadding(FMargin(4.f, 4.f))
 			.HAlign(HAlign_Center)
@@ -384,7 +384,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.OnClicked(this, &SStageMonitorPanel::OnShowProjectSettingsClicked)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
 				.Text(FEditorFontGlyphs::Cogs)
 				.ColorAndOpacity(FLinearColor::White)
 			]
@@ -409,7 +409,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			.Padding(4.f)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.18"))
 				.Text(FEditorFontGlyphs::Circle)
 				.ColorAndOpacity(this, &SStageMonitorPanel::GetStageStatus)
 			]
@@ -435,7 +435,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 				[
 					SNew(STextBlock)
 					.Text(this, &SStageMonitorPanel::GetStageActiveStateReasonText)
-					.TextStyle(FEditorStyle::Get(), "LargeText")
+					.TextStyle(FAppStyle::Get(), "LargeText")
 					.ColorAndOpacity(FLinearColor::White)
 				]
 			]

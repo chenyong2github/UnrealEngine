@@ -5,7 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "IDetailsView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"

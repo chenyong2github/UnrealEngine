@@ -91,7 +91,7 @@ void SAnimationModifiersTab::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(2.0f)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
@@ -127,7 +127,7 @@ void SAnimationModifiersTab::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(2.0f)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[				
 					SNew(SSplitter)
 					.Orientation(EOrientation::Orient_Vertical)

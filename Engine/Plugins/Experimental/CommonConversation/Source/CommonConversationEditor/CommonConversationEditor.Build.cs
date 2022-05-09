@@ -46,7 +46,6 @@ public class CommonConversationEditor : ModuleRules
 				"PropertyEditor",
 				"Kismet",
 				"InputCore",
-				"EditorStyle",
 				"ApplicationCore",
 				// ... add private dependencies that you statically link with here ...	
 			}

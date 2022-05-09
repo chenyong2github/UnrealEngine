@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
 * Class containing commands for curve viewer actions
@@ -18,7 +18,7 @@ public:
 			TEXT("CurveViewer"), // Context name for fast lookup
 			NSLOCTEXT("Contexts", "CurveViewer", "Curve Viewer"), // Localized context name for displaying
 			NAME_None, // Parent context name.  
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 	{}
 

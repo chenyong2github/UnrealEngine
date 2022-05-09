@@ -6,7 +6,7 @@
 #include "DragDrop/DMXEntityDragDropOp.h"
 #include "Library/DMXLibrary.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
@@ -53,7 +53,7 @@ void SDMXEntityTreeViewBase::Construct(const FArguments& InArgs)
 
 	TSharedPtr<SBorder> HeaderBox = SNew(SBorder)
 		.Padding(0)
-		.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 		.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 		[
 			SNew(SHorizontalBox)
@@ -111,7 +111,7 @@ void SDMXEntityTreeViewBase::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(2.0f)
-			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+			.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 			[
 				EntitiesTreeWidget.ToSharedRef()
 			]

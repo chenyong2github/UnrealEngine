@@ -11,7 +11,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "CameraShakePreviewerModule.h"
 #include "EditorDirectories.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
 #include "MatineeCameraShake.h"
@@ -408,7 +408,7 @@ void SCameraShakePreviewer::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.OnClicked(this, &SCameraShakePreviewer::OnPlayStopAllShakes)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("PlayStopAllShakes", "Play/Stop All"))
 					.ToolTipText(LOCTEXT("PlayStopAllShakesTooltip", "Play/stop all shakes in the list"))
@@ -441,7 +441,7 @@ void SCameraShakePreviewer::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), TEXT("Log.Warning"))
+					.TextStyle(FAppStyle::Get(), TEXT("Log.Warning"))
 					.Text(this, &SCameraShakePreviewer::GetActiveViewportWarnings)
 				]
 			]

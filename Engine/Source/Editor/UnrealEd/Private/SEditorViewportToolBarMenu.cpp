@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void SEditorViewportToolbarMenu::Construct( const FArguments& Declaration )
 {
@@ -18,7 +18,7 @@ void SEditorViewportToolbarMenu::Construct( const FArguments& Declaration )
 	SetToolTipText(FText::GetEmpty());
 
 	const FName ImageName = Declaration._Image;
-	const FSlateBrush* ImageBrush = FEditorStyle::GetBrush( ImageName );
+	const FSlateBrush* ImageBrush = FAppStyle::GetBrush( ImageName );
 
 	LabelIconBrush = Declaration._LabelIcon;
 

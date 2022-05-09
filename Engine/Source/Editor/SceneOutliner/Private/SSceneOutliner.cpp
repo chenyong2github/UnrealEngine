@@ -6,7 +6,7 @@
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorModeManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
@@ -485,7 +485,7 @@ FSlateColor SSceneOutliner::GetViewButtonForegroundColor() const
 	static const FName InvertedForegroundName("InvertedForeground");
 	static const FName DefaultForegroundName("DefaultForeground");
 
-	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
+	return ViewOptionsComboButton->IsHovered() ? FAppStyle::GetSlateColor(InvertedForegroundName) : FAppStyle::GetSlateColor(DefaultForegroundName);
 }
 	 
 TSharedRef<SWidget> SSceneOutliner::GetViewButtonContent(bool bShowFilters)
@@ -1179,7 +1179,7 @@ void SSceneOutliner::FillFoldersSubMenu(UToolMenu* Menu) const
 
 	FToolMenuSection& Section = Menu->AddSection("Section");
 	Section.AddMenuEntry("CreateNew", LOCTEXT( "CreateNew", "Create New Folder" ), LOCTEXT( "CreateNew_ToolTip", "Move to a new folder" ),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"), FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::CreateFolder));
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon"), FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::CreateFolder));
 
 	AddMoveToFolderOutliner(Menu);
 }
@@ -2037,11 +2037,11 @@ const FSlateBrush* SSceneOutliner::GetFilterButtonGlyph() const
 {
 	if( IsTextFilterActive() )
 	{
-		return FEditorStyle::GetBrush(TEXT("SceneOutliner.FilterCancel"));
+		return FAppStyle::GetBrush(TEXT("SceneOutliner.FilterCancel"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("SceneOutliner.FilterSearch"));
+		return FAppStyle::GetBrush(TEXT("SceneOutliner.FilterSearch"));
 	}
 }
 

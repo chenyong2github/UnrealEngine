@@ -56,7 +56,7 @@ void FCollisionAnalyzerStyle::FStyle::Initialize()
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleInstance.Get());
 
-	SetParentStyleName(FEditorStyle::GetStyleSetName());
+	SetParentStyleName(FAppStyle::GetAppStyleSetName());
 }
 
 

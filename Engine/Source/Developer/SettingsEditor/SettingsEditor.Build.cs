@@ -23,7 +23,7 @@ public class SettingsEditor : ModuleRules
 				"Analytics",
                 "CoreUObject",
 				"DesktopPlatform",
-                "EditorStyle",
+                
 				"Engine",
                 "InputCore",
 				"PropertyEditor",

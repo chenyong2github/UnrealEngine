@@ -6,7 +6,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UObject/StructOnScope.h"
 #include "Misc/MessageDialog.h"
 
@@ -464,14 +464,14 @@ void SRowEditor::ConstructInternal(UDataTable* Changed)
 				.Visibility(this, &SRowEditor::GetResetToDefaultVisibility)
 				.ContentPadding(FMargin(5.f, 0.f))
 				.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 				]
 			]
 

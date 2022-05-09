@@ -18,7 +18,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/StyleColors.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealEdMisc.h"
 #include "IDocumentation.h"
 #include "SPrimaryButton.h"
@@ -52,7 +52,7 @@ void SAboutScreen::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("AboutScreen.Background")))
+				.Image(FAppStyle::GetBrush(TEXT("AboutScreen.Background")))
 			]
 
 			+SVerticalBox::Slot()

@@ -23,8 +23,7 @@ public class BinkMediaPlayerEditor : ModuleRules
 			new string[] {
 				"ContentBrowser",
 				"Core",
-				"CoreUObject",
-				"EditorStyle",
+				"CoreUObject",			
 				"Engine",
 				"InputCore",
 				"PropertyEditor",

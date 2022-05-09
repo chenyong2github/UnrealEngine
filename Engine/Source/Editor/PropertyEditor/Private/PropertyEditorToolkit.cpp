@@ -3,7 +3,7 @@
 #include "PropertyEditorToolkit.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
@@ -32,17 +32,17 @@ void FPropertyEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabMana
 	InTabManager->RegisterTabSpawner( GridTabId, FOnSpawnTab::CreateSP(this, &FPropertyEditorToolkit::SpawnTab_PropertyTable) )
 		.SetDisplayName( LOCTEXT("PropertyTableTab", "Grid") )
 		.SetGroup( WorkspaceMenuCategory.ToSharedRef() )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner( TreeTabId, FOnSpawnTab::CreateSP(this, &FPropertyEditorToolkit::SpawnTab_PropertyTree) )
 		.SetDisplayName( LOCTEXT("PropertiesTab", "Display") )
 		.SetGroup( WorkspaceMenuCategory.ToSharedRef() )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyEditor.Grid.TabIcon"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyEditor.Grid.TabIcon"));
 
 	InTabManager->RegisterTabSpawner(DetailsTabId, FOnSpawnTab::CreateSP(this, &FPropertyEditorToolkit::SpawnTab_DetailsPanel))
 		.SetDisplayName(LOCTEXT("DetailsTab", "Property Editor"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 void FPropertyEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -198,7 +198,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTree( const FSpawn
 		[
 			SNew(SBorder)
 			.Padding(4)
-			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			.Content()
 			[
 				PropertyTree.ToSharedRef()
@@ -236,7 +236,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTable( const FSpaw
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush( "PropertyEditor.AddColumnOverlay" ) )
+					.Image( FAppStyle::GetBrush( "PropertyEditor.AddColumnOverlay" ) )
 					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
 				]
 
@@ -246,7 +246,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTable( const FSpaw
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush( "Icons.Unpinned" ) )
+					.Image( FAppStyle::GetBrush( "Icons.Unpinned" ) )
 					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
 				]
 
@@ -257,10 +257,10 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTable( const FSpaw
 				.Padding( FMargin( 0, 0, 3, 0 ) )
 				[
 					SNew( STextBlock )
-					.Font( FEditorStyle::GetFontStyle( "PropertyEditor.AddColumnMessage.Font" ) )
+					.Font( FAppStyle::GetFontStyle( "PropertyEditor.AddColumnMessage.Font" ) )
 					.Text( LOCTEXT("GenericPropertiesTitle", "Pin Properties to Add Columns") )
 					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
-					.ColorAndOpacity( FEditorStyle::GetColor( "PropertyEditor.AddColumnMessage.ColorAndOpacity" ) )
+					.ColorAndOpacity( FAppStyle::GetColor( "PropertyEditor.AddColumnMessage.ColorAndOpacity" ) )
 				]
 			]
 		];	
@@ -321,13 +321,13 @@ void FPropertyEditorToolkit::ConstructTreeColumns( const TSharedRef< class SHead
 	[
 		SNew(SBorder)
 		.Padding( 0 )
-		.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "NoBorder" ) )
 		.HAlign( HAlign_Center )
 		.VAlign( VAlign_Center )
 		.ToolTipText( LOCTEXT("AddColumnLabel", "Push Pins to Add Columns") )
 		[
 			SNew( SImage )
-			.Image( FEditorStyle::GetBrush(TEXT("Icons.Unpinned")) )
+			.Image( FAppStyle::GetBrush(TEXT("Icons.Unpinned")) )
 			.ColorAndOpacity(FStyleColors::Foreground)
 		]
 	];
@@ -344,11 +344,11 @@ TSharedRef< SWidget > FPropertyEditorToolkit::ConstructTreeCell( const FName& Co
 
 		return SNew( SBorder )
 			.Padding( 0 )
-			.BorderImage( &FEditorStyle::GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow").ColumnStyle.NormalBrush )
+			.BorderImage( &FAppStyle::GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow").ColumnStyle.NormalBrush )
 			[
 				SNew(SButton)
 				.ToolTipText(NSLOCTEXT("PropertyEditor", "ToggleColumnButtonToolTip", "Toggle Column"))
-				.ButtonStyle( FEditorStyle::Get(), "HoverOnlyButton" )
+				.ButtonStyle( FAppStyle::Get(), "HoverOnlyButton" )
 				.ContentPadding(0) 
 				.OnClicked( this, &FPropertyEditorToolkit::OnToggleColumnClicked, RowPtr )
 				.HAlign( HAlign_Center )
@@ -653,10 +653,10 @@ const FSlateBrush* FPropertyEditorToolkit::GetToggleColumnButtonImageBrush( cons
 {
 	if ( IsExposedAsColumn( Row ) )
 	{
-		return FEditorStyle::GetBrush("Icons.Pinned");
+		return FAppStyle::GetBrush("Icons.Pinned");
 	}
 
-	return FEditorStyle::GetBrush("Icons.Unpinned");
+	return FAppStyle::GetBrush("Icons.Unpinned");
 }
 
 FString FPropertyEditorToolkit::GetWorldCentricTabPrefix() const

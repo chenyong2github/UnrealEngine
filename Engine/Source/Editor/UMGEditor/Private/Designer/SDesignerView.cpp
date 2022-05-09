@@ -99,7 +99,7 @@ public:
 		ChildSlot
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::Get().GetBrush("UMGEditor.ResizeAreaHandle"))
+			.Image(FAppStyle::Get().GetBrush("UMGEditor.ResizeAreaHandle"))
 		];
 	}
 
@@ -408,7 +408,7 @@ EActiveTimerReturnType SDesignerView::EnsureTick(double InCurrentTime, float InD
 
 TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 {
-	const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar");
+	const FToolBarStyle& ToolBarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar");
 
 	return SNew(SOverlay)
 
@@ -429,7 +429,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		[
 			SNew(SImage)
 			.ColorAndOpacity(this, &SDesignerView::GetDesignerOutlineColor)
-			.Image(FEditorStyle::GetBrush(TEXT("UMGEditor.DesignerMessageBorder")))
+			.Image(FAppStyle::GetBrush(TEXT("UMGEditor.DesignerMessageBorder")))
 		]
 
 		// Top-right corner text indicating PIE is active
@@ -439,7 +439,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Graph.SimulatingText")
+			.TextStyle(FAppStyle::Get(), "Graph.SimulatingText")
 			.ColorAndOpacity(this, &SDesignerView::GetDesignerOutlineColor)
 			.Text(this, &SDesignerView::GetDesignerOutlineText)
 		]
@@ -458,7 +458,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		.Padding(6, 2, 0, 0)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+			.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 			.Text(this, &SDesignerView::GetZoomText)
 			.ColorAndOpacity(this, &SDesignerView::GetZoomTextColorAndOpacity)
 			.Visibility(EVisibility::SelfHitTestInvisible)
@@ -470,7 +470,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		.Padding(40, 2, 0, 0)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+			.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 			.Font(FCoreStyle::GetDefaultFontStyle(TEXT("BoldCondensed"), 14))
 			.Text(this, &SDesignerView::GetCursorPositionText)
 			.ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))
@@ -503,7 +503,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("UMGEditor.ZoomToFit"))
+				.Image(FAppStyle::GetBrush("UMGEditor.ZoomToFit"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
@@ -536,7 +536,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("UMGEditor.Mirror"))
+					.Image(FAppStyle::Get().GetBrush("UMGEditor.Mirror"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -640,7 +640,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		SNew(SDisappearingBar)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(FLinearColor(0.10, 0.10, 0.10, 0.75))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
@@ -648,7 +648,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.Visibility(this, &SDesignerView::GetInfoBarVisibility)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.Text(this, &SDesignerView::GetInfoBarText)
 			]
 		]
@@ -669,7 +669,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			[
 				SNew(STextBlock)
 				.Visibility(this, &SDesignerView::GetResolutionTextVisibility)
-				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.Text(this, &SDesignerView::GetCurrentScaleFactorText)
 				.ColorAndOpacity(this, &SDesignerView::GetResolutionTextColorAndOpacity)
 			]
@@ -677,7 +677,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			[
 				SNew(STextBlock)
 				.Visibility(this, &SDesignerView::GetResolutionTextVisibility)
-				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.Text(this, &SDesignerView::GetCurrentSafeZoneText)
 				.ColorAndOpacity(this, &SDesignerView::GetResolutionTextColorAndOpacity)
 			]
@@ -685,7 +685,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			[			
 				SNew(STextBlock)
 				.Visibility(this, &SDesignerView::GetResolutionTextVisibility)
-				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.Text(this, &SDesignerView::GetCurrentResolutionText)
 				.ColorAndOpacity(this, &SDesignerView::GetResolutionTextColorAndOpacity)
 			]
@@ -702,7 +702,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Bottom)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.Text(this, &SDesignerView::GetCurrentDPIScaleText)
 				.ColorAndOpacity(this, &SDesignerView::GetCurrentDPIScaleColor)
 			]
@@ -713,7 +713,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Bottom)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ContentPadding(FMargin(3, 1))
 				.OnClicked(this, &SDesignerView::HandleDPISettingsClicked)
 				.ToolTipText(LOCTEXT("DPISettingsTooltip", "Configure the UI Scale Curve to control how the UI is scaled on different resolutions."))
@@ -721,7 +721,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("UMGEditor.DPISettings"))
+					.Image(FAppStyle::GetBrush("UMGEditor.DPISettings"))
 				]
 			]
 		]
@@ -2119,7 +2119,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 {
 		const float UnsafeZoneAlpha = 0.2f;
 		const FLinearColor UnsafeZoneColor(1.0f, 0.5f, 0.5f, UnsafeZoneAlpha);
-		const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+		const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 			
 		FGeometry PreviewGeometry = PreviewAreaConstraint->GetTickSpaceGeometry();
 		PreviewGeometry.AppendTransform(FSlateLayoutTransform(Inverse(PaintArgs.Args.GetWindowToDesktopTransform())));
@@ -2386,7 +2386,7 @@ void SDesignerView::DrawResolution(const FDebugResolution& Resolution, const FGe
 	const float Scale = GetZoomAmount();
 	const FVector2D ZeroSpace = AllottedGeometry.AbsoluteToLocal(GridOrigin);
 
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 
 	FVector2D ResolutionSize(Resolution.Width, Resolution.Height);
 
@@ -2399,7 +2399,7 @@ void SDesignerView::DrawResolution(const FDebugResolution& Resolution, const FGe
 		Resolution.Color
 	);
 
-	FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("UMGEditor.ResizeResolutionFont");
+	FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("UMGEditor.ResizeResolutionFont");
 
 	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
@@ -3410,9 +3410,9 @@ const FSlateBrush* SDesignerView::GetAspectRatioSwitchImage() const
 {
 	if (PreviewHeight > PreviewWidth)
 	{
-		return FEditorStyle::Get().GetBrush("UMGEditor.OrientPortrait");
+		return FAppStyle::Get().GetBrush("UMGEditor.OrientPortrait");
 	}
-	return FEditorStyle::Get().GetBrush("UMGEditor.OrientLandscape");
+	return FAppStyle::Get().GetBrush("UMGEditor.OrientLandscape");
 }
 
 bool SDesignerView::GetAspectRatioSwitchEnabled() const

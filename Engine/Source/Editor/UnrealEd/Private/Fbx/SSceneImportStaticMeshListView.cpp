@@ -7,7 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "SFbxSceneOptionWindow.h"
 #include "FbxImporter.h"
@@ -54,7 +54,7 @@ public:
 
 		SMultiColumnTableRow<FbxMeshInfoPtr>::Construct(
 			FSuperRowType::FArguments()
-			.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+			.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow"),
 			InOwnerTableView
 			);
 	}
@@ -129,9 +129,9 @@ public:
 	{
 		if (UFbxSceneImportFactory::DefaultOptionName.Compare(FbxMeshInfo->OptionName) != 0)
 		{
-			return FEditorStyle::GetBrush("FBXIcon.ImportOptionsOverride");
+			return FAppStyle::GetBrush("FBXIcon.ImportOptionsOverride");
 		}
-		return FEditorStyle::GetBrush("FBXIcon.ImportOptionsDefault");
+		return FAppStyle::GetBrush("FBXIcon.ImportOptionsDefault");
 	}
 
 private:
@@ -299,9 +299,9 @@ TSharedPtr<SWidget> SFbxSceneStaticMeshListView::OnOpenContextMenu()
 	const bool bCloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(bCloseAfterSelection, TSharedPtr<FUICommandList>());
 
-	const FSlateIcon PlusIcon(FEditorStyle::GetStyleSetName(), "Plus");
+	const FSlateIcon PlusIcon(FAppStyle::GetAppStyleSetName(), "Plus");
 	MenuBuilder.AddMenuEntry(LOCTEXT("CheckForImport", "Add Selection To Import"), FText(), PlusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneStaticMeshListView::AddSelectionToImport)));
-	const FSlateIcon MinusIcon(FEditorStyle::GetStyleSetName(), "Icons.Minus");
+	const FSlateIcon MinusIcon(FAppStyle::GetAppStyleSetName(), "Icons.Minus");
 	MenuBuilder.AddMenuEntry(LOCTEXT("UncheckForImport", "Remove Selection From Import"), FText(), MinusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneStaticMeshListView::RemoveSelectionFromImport)));
 
 	AddBakePivotMenu(MenuBuilder);

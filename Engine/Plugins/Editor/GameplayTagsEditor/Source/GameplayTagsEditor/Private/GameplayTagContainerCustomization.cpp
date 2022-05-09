@@ -168,7 +168,7 @@ TSharedRef<ITableRow> FGameplayTagContainerCustomization::MakeListViewWidget(TSh
 		SNew(SBorder)
 		.OnMouseButtonDown(this, &FGameplayTagContainerCustomization::OnSingleTagMouseButtonPressed, TagName)
 		.Padding(0.0f)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -179,12 +179,12 @@ TSharedRef<ITableRow> FGameplayTagContainerCustomization::MakeListViewWidget(TSh
 				SNew(SButton)
 				.IsEnabled(!StructPropertyHandle->IsEditConst())
 				.ContentPadding(FMargin(0))
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.OnClicked(this, &FGameplayTagContainerCustomization::OnRemoveTagClicked, *Item.Get())
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FEditorFontGlyphs::Times)
 				]
 			]

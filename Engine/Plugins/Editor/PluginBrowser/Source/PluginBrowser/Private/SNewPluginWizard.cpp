@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ModuleDescriptor.h"
 #include "PluginDescriptor.h"
 #include "Interfaces/IPluginManager.h"
@@ -316,12 +316,12 @@ TSharedRef<ITableRow> SNewPluginWizard::OnGenerateTemplateTile(TSharedRef<FPlugi
 	return SNew(STableRow< TSharedRef<FPluginTemplateDescription> >, OwnerTable)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Padding(PaddingAmount)
 			.ToolTipText(InItem->Description)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(PaddingAmount)
 				[
 					SNew(SVerticalBox)
@@ -375,11 +375,11 @@ TSharedRef<ITableRow> SNewPluginWizard::OnGenerateTemplateRow(TSharedRef<FPlugin
 	return SNew(STableRow< TSharedRef<FPluginTemplateDescription> >, OwnerTable)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Padding(PaddingAmount)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(PaddingAmount)
 				[
 					SNew(SHorizontalBox)

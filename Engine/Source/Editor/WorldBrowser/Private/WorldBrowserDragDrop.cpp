@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldBrowserDragDrop.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WorldTreeItemTypes.h"
 #include "LevelCollectionModel.h"
 
@@ -89,7 +89,7 @@ namespace WorldHierarchy
 		Decorator->AddSlot()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			[
 				SNew(SHorizontalBox)
 

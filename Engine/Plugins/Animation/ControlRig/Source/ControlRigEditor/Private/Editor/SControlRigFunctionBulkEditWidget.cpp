@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/ConsoleManager.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/RigVMController.h"
@@ -40,7 +40,7 @@ void SControlRigFunctionBulkEditWidget::Construct(const FArguments& InArgs, UCon
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::Visible)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			[
 				MakeAssetViewForReferencedAssets()
 			]
@@ -173,14 +173,14 @@ void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
                 .Padding(5)
                 [
                     SNew(SUniformGridPanel)
-                    .SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-                    .MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-                    .MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+                    .SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+                    .MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+                    .MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
                     +SUniformGridPanel::Slot(0, 0)
                     [
                         SNew(SButton)
                         .HAlign(HAlign_Center)
-                        .ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+                        .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("OK", "OK"))
                         .OnClicked(this, &SControlRigFunctionBulkEditDialog::OnButtonClick, EAppReturnType::Ok)
                     ]
@@ -188,7 +188,7 @@ void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
                     [
                         SNew(SButton)
                         .HAlign(HAlign_Center)
-                        .ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+                        .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("Cancel", "Cancel"))
                         .OnClicked(this, &SControlRigFunctionBulkEditDialog::OnButtonClick, EAppReturnType::Cancel)
                     ]

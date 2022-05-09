@@ -13,7 +13,7 @@ public class AudioSettingsEditor : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"PropertyEditor",
 				"SharedSettingsWidgets",
 				"EditorFramework",

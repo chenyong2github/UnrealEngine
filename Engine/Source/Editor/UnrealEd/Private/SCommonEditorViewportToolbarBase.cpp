@@ -6,7 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "STransformViewportToolbar.h"
 #include "EditorShowFlags.h"
@@ -469,7 +469,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateFOVMenu() const
 				[
 					SNew(SSpinBox<float>)
 					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+					.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
 					.MinValue(FOVMin)
 					.MaxValue(FOVMax)
 					.Value(this, &SCommonEditorViewportToolbarBase::OnGetFOVValue)
@@ -512,7 +512,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateScreenPercentageMe
 				[
 					SNew(SSpinBox<int32>)
 					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.MinSliderValue(PreviewScreenPercentageMin)
 					.MaxSliderValue(PreviewScreenPercentageMax)
 					.Value(this, &SCommonEditorViewportToolbarBase::OnGetScreenPercentageValue)
@@ -559,7 +559,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateFarViewPlaneMenu()
 					.ToolTipText(LOCTEXT("FarViewPlaneTooltip", "Distance to use as the far view plane, or zero to enable an infinite far view plane"))
 					.MinValue(0.0f)
 					.MaxValue(100000.0f)
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.Value(this, &SCommonEditorViewportToolbarBase::OnGetFarViewPlaneValue)
 					.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnFarViewPlaneValueChanged)
 				]
@@ -676,7 +676,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GetScalabilityWarningMenuC
 {
 	return
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			SNew(SScalabilitySettings)
 		];

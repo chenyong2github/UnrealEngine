@@ -38,7 +38,7 @@ int32 FNiagaraEmitterSection::OnPaintSection(FSequencerSectionPainter& InPainter
 		InPainter.DrawElements,
 		InPainter.LayerId + 1,
 		InPainter.SectionGeometry.ToPaintGeometry(),
-		FEditorStyle::GetBrush("CurveEd.TimelineArea"),
+		FAppStyle::GetBrush("CurveEd.TimelineArea"),
 		ESlateDrawEffect::None,
 		FLinearColor(0.3f, 0.3f, 0.6f)
 	);
@@ -54,7 +54,7 @@ int32 FNiagaraEmitterSection::OnPaintSection(FSequencerSectionPainter& InPainter
 			InPainter.DrawElements,
 			InPainter.LayerId + 1,
 			InPainter.SectionGeometry.ToOffsetPaintGeometry(FVector2D(GeomW*(Loop + 1), 0.0f)),
-			FEditorStyle::GetBrush("CurveEd.TimelineArea"),
+			FAppStyle::GetBrush("CurveEd.TimelineArea"),
 			ESlateDrawEffect::None,
 			FLinearColor(0.3f, 0.3f, 0.6f, 0.25f)
 		);

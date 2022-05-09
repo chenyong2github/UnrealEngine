@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Widgets/SWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyTableCellPresenter.h"
 #include "UserInterface/PropertyTable/PropertyTableConstants.h"
 
@@ -12,7 +12,7 @@ class FTextPropertyTableCellPresenter : public TSharedFromThis< FTextPropertyTab
 {
 public:
 
-	FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont = FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) );
+	FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont = FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) );
 
 	virtual ~FTextPropertyTableCellPresenter() {}
 

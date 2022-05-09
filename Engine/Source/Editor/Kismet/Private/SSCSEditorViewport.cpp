@@ -4,7 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BlueprintEditorCommands.h"
 #include "SSubobjectEditor.h"
 #include "Slate/SceneViewport.h"

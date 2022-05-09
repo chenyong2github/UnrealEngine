@@ -5,7 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Text/WidgetLayoutBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SRichTextHyperlink.h"
 #include "EditorTutorialStyle.h"
 

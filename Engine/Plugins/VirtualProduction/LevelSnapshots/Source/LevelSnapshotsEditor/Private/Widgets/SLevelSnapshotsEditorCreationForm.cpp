@@ -7,7 +7,7 @@
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorSettings.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDetailCustomization.h"
@@ -103,7 +103,7 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 			.VAlign(VAlign_Top)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -150,14 +150,14 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 							.IsFocusable(false)
 							.ToolTipText(
 								NSLOCTEXT("LevelSnapshots", "CreationForm_ResetNameTooltipText", "Reset the overridden name to the one defined in Project Settings."))
-							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+							.ButtonStyle(FAppStyle::Get(), "NoBorder")
 							.ContentPadding(0)
 							.Visibility(this, &SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibility)
 							.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnResetNameClicked)
 							.Content()
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+								.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 							]
 						]
 					]
@@ -186,7 +186,7 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 			.VAlign(VAlign_Bottom)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+				.TextStyle(FAppStyle::Get(), "NormalText.Important")
 				.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveDirLabel", "Save Directory"))
 			]
 

@@ -44,7 +44,7 @@ namespace NiagaraBakerWidgetLocal
 			.WidthOverride(100.0f)
 			[
 				SNew(SSpinBox<TType>)
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.MinValue(MinValue)
 				.MaxValue(MaxValue)
 				.MinSliderValue(MinSliderValue)
@@ -72,7 +72,7 @@ namespace NiagaraBakerWidgetLocal
 				.MaxWidth(60.0f)
 				[
 					SNew(SSpinBox<float>)
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.MinValue(MinValue.IsSet() ? MinValue.GetValue()[i] : TOptional<float>())
 					.MaxValue(MaxValue.IsSet() ? MaxValue.GetValue()[i] : TOptional<float>())
 					.MinSliderValue(MinSliderValue.IsSet() ? MinSliderValue.GetValue()[i] : TOptional<float>())
@@ -112,7 +112,7 @@ namespace NiagaraBakerWidgetLocal
 					.MaxWidth(60.0f)
 					[
 						SNew(SSpinBox<float>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+						.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 						.Value_Lambda([=]() { return GetValue.Execute().Pitch; })
 						.OnValueChanged_Lambda([=](float InValue) { FRotator VectorValue = GetValue.Execute(); VectorValue.Pitch = InValue; SetValue.Execute(VectorValue); })
 					]
@@ -121,7 +121,7 @@ namespace NiagaraBakerWidgetLocal
 					.MaxWidth(60.0f)
 					[
 						SNew(SSpinBox<float>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+						.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 						.Value_Lambda([=]() { return GetValue.Execute().Yaw; })
 						.OnValueChanged_Lambda([=](float InValue) { FRotator VectorValue = GetValue.Execute(); VectorValue.Yaw = InValue; SetValue.Execute(VectorValue); })
 					]
@@ -130,7 +130,7 @@ namespace NiagaraBakerWidgetLocal
 					.MaxWidth(60.0f)
 					[
 						SNew(SSpinBox<float>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+						.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 						.Value_Lambda([=]() { return GetValue.Execute().Roll; })
 						.OnValueChanged_Lambda([=](float InValue) { FRotator VectorValue = GetValue.Execute(); VectorValue.Roll = InValue; SetValue.Execute(VectorValue); })
 					]

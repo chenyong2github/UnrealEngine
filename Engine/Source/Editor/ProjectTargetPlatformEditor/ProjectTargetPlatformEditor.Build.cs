@@ -20,7 +20,6 @@ public class ProjectTargetPlatformEditor : ModuleRules
 			{
 				"CoreUObject",
 				"InputCore",
-				"EditorStyle",
 				"TargetPlatform",
 				"DesktopPlatform",
 				"Settings",

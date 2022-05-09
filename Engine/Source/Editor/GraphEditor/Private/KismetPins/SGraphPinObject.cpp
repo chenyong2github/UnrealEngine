@@ -56,7 +56,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 	if(ShouldDisplayAsSelfPin())
 	{
 		return SNew(SEditableTextBox)
-			.Style( FEditorStyle::Get(), "Graph.EditableTextBox" )
+			.Style( FAppStyle::Get(), "Graph.EditableTextBox" )
 			.Text( this, &SGraphPinObject::GetValue )
 			.SelectAllTextWhenFocused(false)
 			.Visibility( this, &SGraphPinObject::GetDefaultValueVisibility )
@@ -75,7 +75,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 			.MaxWidth(100.0f)
 			[
 				SAssignNew(AssetPickerAnchor, SComboButton)
-				.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
+				.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
 				.ForegroundColor( this, &SGraphPinObject::OnGetComboForeground)
 				.ContentPadding( FMargin(2,2,2,1) )
 				.ButtonColorAndOpacity( this, &SGraphPinObject::OnGetWidgetBackground )
@@ -85,8 +85,8 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 				[
 					SNew(STextBlock)
 					.ColorAndOpacity( this, &SGraphPinObject::OnGetComboForeground )
-					.TextStyle( FEditorStyle::Get(), "PropertyEditor.AssetClass" )
-					.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+					.TextStyle( FAppStyle::Get(), "PropertyEditor.AssetClass" )
+					.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 					.Text( this, &SGraphPinObject::OnGetComboTextValue )
 					.ToolTipText( this, &SGraphPinObject::GetObjectToolTip )
 				]
@@ -99,7 +99,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(UseButton, SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ButtonColorAndOpacity( this, &SGraphPinObject::OnGetWidgetBackground )
 				.OnClicked( GetOnUseButtonDelegate() )
 				.ContentPadding(1.f)
@@ -108,7 +108,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SGraphPinObject::OnGetWidgetForeground )
-					.Image( FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
+					.Image( FAppStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
 				]
 			]
 			// Browse button
@@ -118,7 +118,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(BrowseButton, SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ButtonColorAndOpacity( this, &SGraphPinObject::OnGetWidgetBackground )
 				.OnClicked( GetOnBrowseButtonDelegate() )
 				.ContentPadding(0)
@@ -126,7 +126,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SGraphPinObject::OnGetWidgetForeground )
-					.Image( FEditorStyle::GetBrush(TEXT("Icons.Search")) )
+					.Image( FAppStyle::GetBrush(TEXT("Icons.Search")) )
 				]
 			];
 	}
@@ -241,7 +241,7 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 		.WidthOverride(300)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+			.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 			]

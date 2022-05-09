@@ -38,7 +38,7 @@ void FDataprepEditor::CreateGraphEditor()
 		// Create the title bar widget
 		TSharedRef<SWidget> TitleBarWidget =
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 			.HAlign(HAlign_Fill)
 			.Padding( 4.f )
 			[
@@ -50,7 +50,7 @@ void FDataprepEditor::CreateGraphEditor()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("DataprepRecipeEditor_TitleBar_Label", "Dataprep Recipe"))
-			.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+			.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 			]
 		];
 

@@ -2,7 +2,7 @@
 
 #include "SSourceControlChangelists.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Algo/Transform.h"
 
@@ -87,7 +87,7 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4)
 			[
 				SNew(SHorizontalBox)
@@ -158,14 +158,14 @@ TSharedRef<SWidget> SSourceControlChangelistsWidget::MakeToolBar()
 		NAME_None,
 		LOCTEXT("SourceControl_RefreshButton", "Refresh"),
 		LOCTEXT("SourceControl_RefreshButton_Tooltip", "Refreshes changelists from source control provider."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Refresh"));
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"));
 
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnNewChangelist)),
 		NAME_None,
 		LOCTEXT("SourceControl_NewChangelistButton", "New Changelist"),
 		LOCTEXT("SourceControl_NewChangelistButton_Tooltip", "Creates an empty changelist"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Add"));
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Add"));
 
 	return ToolBarBuilder.MakeWidget();
 }
@@ -1508,8 +1508,8 @@ public:
 	{
 		if (ColumnName == TEXT("Change"))
 		{
-			const FSlateBrush* IconBrush = (TreeItem != nullptr) ? FEditorStyle::GetBrush(TreeItem->ChangelistState->GetSmallIconName())
-																 : FEditorStyle::GetBrush("SourceControl.Changelist");
+			const FSlateBrush* IconBrush = (TreeItem != nullptr) ? FAppStyle::GetBrush(TreeItem->ChangelistState->GetSmallIconName())
+																 : FAppStyle::GetBrush("SourceControl.Changelist");
 
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -1627,8 +1627,8 @@ public:
 	{
 		if (ColumnName == TEXT("Change"))
 		{
-			const FSlateBrush* IconBrush = (TreeItem != nullptr) ? FEditorStyle::GetBrush(TreeItem->UncontrolledChangelistState->GetSmallIconName())
-				: FEditorStyle::GetBrush("SourceControl.Changelist");
+			const FSlateBrush* IconBrush = (TreeItem != nullptr) ? FAppStyle::GetBrush(TreeItem->UncontrolledChangelistState->GetSmallIconName())
+				: FAppStyle::GetBrush("SourceControl.Changelist");
 
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -1859,7 +1859,7 @@ public:
 				.Padding(40, 0, 4, 0)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(FName("SourceControl.OfflineFile_Small")))
+					.Image(FAppStyle::GetBrush(FName("SourceControl.OfflineFile_Small")))
 				]
 
 			+ SHorizontalBox::Slot()
@@ -1965,7 +1965,7 @@ public:
 					.Padding(5, 0, 0, 0)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("SourceControl.ShelvedChangelist"))
+						.Image(FAppStyle::GetBrush("SourceControl.ShelvedChangelist"))
 					]
 				+ SHorizontalBox::Slot()
 					.Padding(2.0f, 0.0f)

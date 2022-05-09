@@ -203,7 +203,8 @@ public class Launch : ModuleRules
 					"OutputLog",
 					"TextureCompressor",
 					"MeshUtilities",
-					"SourceCodeAccess"
+					"SourceCodeAccess",
+					"EditorStyle"
 			});
 
 			if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -242,13 +243,6 @@ public class Launch : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// Clang 9.0.1 lld seems to end up having issues with resolving EditorStyle
-			// when dealing with circular dependencies on SourceControl module
-			if (Target.bBuildEditor == true)
-			{
-				PrivateDependencyModuleNames.Add("EditorStyle");
-			}
-
 			PrivateDependencyModuleNames.Add("UnixCommonStartup");
 		}
 

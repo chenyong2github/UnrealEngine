@@ -4,7 +4,7 @@
 #include "SAnimationEditorViewport.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -365,13 +365,13 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 		{
 		case EMessageSeverity::CriticalError:
 		case EMessageSeverity::Error:
-			return FEditorStyle::GetBrush("AnimViewport.Notification.Error");
+			return FAppStyle::GetBrush("AnimViewport.Notification.Error");
 		case EMessageSeverity::PerformanceWarning:
 		case EMessageSeverity::Warning:
-			return FEditorStyle::GetBrush("AnimViewport.Notification.Warning");
+			return FAppStyle::GetBrush("AnimViewport.Notification.Warning");
 		default:
 		case EMessageSeverity::Info:
-			return FEditorStyle::GetBrush("AnimViewport.Notification.Message");
+			return FAppStyle::GetBrush("AnimViewport.Notification.Message");
 		}
 	});
 
@@ -424,7 +424,7 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 	[
 		SNew(SButton)
 		.Visibility_Lambda(GetDismissButtonVisibility)
-		.ButtonStyle(FEditorStyle::Get(), "AnimViewport.Notification.CloseButton")
+		.ButtonStyle(FAppStyle::Get(), "AnimViewport.Notification.CloseButton")
 		.ToolTipText(LOCTEXT("DismissNotificationToolTip", "Dismiss this notification."))
 		.OnClicked_Lambda(DismissNotification)
 	];
@@ -2228,8 +2228,8 @@ void SAnimationEditorViewportTabBody::AddRecordingNotification()
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Video_Camera)
 			]
 			+SHorizontalBox::Slot()
@@ -2238,7 +2238,7 @@ void SAnimationEditorViewportTabBody::AddRecordingNotification()
 			[
 				SNew(STextBlock)
 				.Text_Lambda(GetRecordingStateText)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		]
 		+SHorizontalBox::Slot()
@@ -2247,7 +2247,7 @@ void SAnimationEditorViewportTabBody::AddRecordingNotification()
 		[
 			SNew(SButton)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ToolTipText(LOCTEXT("RecordingInViewportStop", "Stop recording animation."))
 			.OnClicked_Lambda(StopRecording)
 			[
@@ -2258,8 +2258,8 @@ void SAnimationEditorViewportTabBody::AddRecordingNotification()
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FEditorFontGlyphs::Stop)
 				]
 				+SHorizontalBox::Slot()
@@ -2267,7 +2267,7 @@ void SAnimationEditorViewportTabBody::AddRecordingNotification()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 					.Text(LOCTEXT("AnimViewportStopRecordingButtonLabel", "Stop"))
 				]
 			]
@@ -2368,8 +2368,8 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			]
 			+SHorizontalBox::Slot()
@@ -2378,7 +2378,7 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 			[
 				SNew(STextBlock)
 				.Text_Lambda(GetText)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		]
 		+SHorizontalBox::Slot()
@@ -2387,7 +2387,7 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 		[
 			SNew(SButton)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ToolTipText_Lambda(GetButtonTooltipText)
 			.OnClicked_Lambda(EnablePostProcess)
 			[
@@ -2398,8 +2398,8 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text_Lambda(GetButtonIcon)
 				]
 				+SHorizontalBox::Slot()
@@ -2407,7 +2407,7 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 					.Text_Lambda(GetButtonText)
 				]
 			]
@@ -2418,7 +2418,7 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 		[
 			SNew(SButton)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ToolTipText(LOCTEXT("EditPostProcessAnimBPButtonToolTip", "Edit the post process Animation Blueprint."))
 			.OnClicked_Lambda(EditPostProcess)
 			[
@@ -2429,8 +2429,8 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FEditorFontGlyphs::Pencil)
 				]
 				+SHorizontalBox::Slot()
@@ -2438,7 +2438,7 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 					.Text(LOCTEXT("EditPostProcessAnimBPButtonText", "Edit"))
 				]
 			]
@@ -2480,8 +2480,8 @@ void SAnimationEditorViewportTabBody::AddMinLODNotification()
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Level_Down)
 			]
 			+SHorizontalBox::Slot()
@@ -2490,7 +2490,7 @@ void SAnimationEditorViewportTabBody::AddMinLODNotification()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("MinLODNotification", "Min LOD applied"))
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		],
 		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetMinLODNotificationVisibility))
@@ -2541,8 +2541,8 @@ void SAnimationEditorViewportTabBody::AddSkinWeightProfileNotification()
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Eye)
 			]
 			+SHorizontalBox::Slot()
@@ -2551,7 +2551,7 @@ void SAnimationEditorViewportTabBody::AddSkinWeightProfileNotification()
 			[
 				SNew(STextBlock)
 				.Text_Lambda(GetSkinWeightProfileNotificationText)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		],
 		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetSkinWeightProfileNotificationVisibility))

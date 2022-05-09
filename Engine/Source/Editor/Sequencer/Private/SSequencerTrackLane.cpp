@@ -2,7 +2,7 @@
 
 #include "SSequencerTrackLane.h"
 #include "Rendering/DrawElements.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SSequencerTreeView.h"
 
 class SResizeArea : public SCompoundWidget
@@ -122,7 +122,7 @@ void DrawLane(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const FGeome
 
 	if (SequencerSelection.IsSelected(DisplayNode))
 	{
-		FLinearColor SelectionColor = FEditorStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
+		FLinearColor SelectionColor = FAppStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
@@ -131,7 +131,7 @@ void DrawLane(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const FGeome
 				FVector2D(0, 0),
 				FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
 			),
-			FEditorStyle::GetBrush(BorderName),
+			FAppStyle::GetBrush(BorderName),
 			ESlateDrawEffect::None,
 			SelectionColor
 		);
@@ -162,7 +162,7 @@ void DrawLane(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const FGeome
 					FVector2D(0, 0),
 					FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
 				),
-				FEditorStyle::GetBrush(BorderName),
+				FAppStyle::GetBrush(BorderName),
 				ESlateDrawEffect::None,
 				HighlightColor
 			);

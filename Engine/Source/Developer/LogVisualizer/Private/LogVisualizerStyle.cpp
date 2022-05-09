@@ -5,7 +5,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/StarshipCoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleMacros.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
@@ -70,9 +70,9 @@ TSharedRef< FSlateStyleSet > FLogVisualizerStyle::Create()
 		Style.Set("LogVisualizer.LogBar.EntryDefault", new BOX_BRUSH("Common/TaskGraph_Mono", FMargin(5.f / 12.f)));
 		Style.Set("LogVisualizer.LogBar.TimeMark", new BOX_BRUSH("Icons/LV_BarMark", FMargin(5.f / 12.f)));
 
-		//Style.Set("ToolPanel.GroupBorder", FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"));
+		//Style.Set("ToolPanel.GroupBorder", FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"));
 		Style.Set("ToolPanel.GroupBorder", new BOX_BRUSH("Common/GroupBorder", FMargin(4.0f / 16.0f)));
-		//Style.Set("NoBorder", FEditorStyle::Get().GetBrush("NoBorder"));
+		//Style.Set("NoBorder", FAppStyle::Get().GetBrush("NoBorder"));
 		Style.Set("NoBorder", new FSlateNoResource());
 		Style.Set("ToolBar.Button.Normal", new FSlateNoResource());
 		Style.Set("ToolBar.Button.Hovered", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, FLinearColor(0.728f, 0.364f, 0.003f)));
@@ -151,12 +151,12 @@ TSharedRef< FSlateStyleSet > FLogVisualizerStyle::Create()
 	// Filters
 	{
 		Style.Set("Filters.FilterIcon", new IMAGE_BRUSH("Icons/Profiler/Profiler_Filter_Events_16x", Icon16x16));
-		Style.Set("Filters.Style", FEditorStyle::Get().GetWidgetStyle<FComboButtonStyle>("ToolbarComboButton"));
+		Style.Set("Filters.Style", FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ToolbarComboButton"));
 		Style.Set("ContentBrowser.FilterButtonBorder", new BOX_BRUSH("Common/RoundedSelection_16x", FMargin(4.0f / 16.0f)));
-		//FSlateBrush *FilterButtonBorder = FEditorStyle::Get().GetBrush("ToolbarComboButton");
+		//FSlateBrush *FilterButtonBorder = FAppStyle::Get().GetBrush("ToolbarComboButton");
 		//Style.Set("ContentBrowser.FilterButtonBorder", FilterButtonBorder);
 		
-		//Style.Set("ContentBrowser.FilterButton", FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ContentBrowser.FilterButton"));
+		//Style.Set("ContentBrowser.FilterButton", FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ContentBrowser.FilterButton"));
 		const FCheckBoxStyle ContentBrowserFilterButtonCheckBoxStyle = FCheckBoxStyle()
 			.SetUncheckedImage(IMAGE_BRUSH("ContentBrowser/FilterUnchecked", FVector2D(10.0f, 14.0f)))
 			.SetUncheckedHoveredImage(IMAGE_BRUSH("ContentBrowser/FilterUnchecked", FVector2D(10.0f, 14.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))

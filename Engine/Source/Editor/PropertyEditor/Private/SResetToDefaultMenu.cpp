@@ -4,7 +4,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyHandle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -31,14 +31,14 @@ void SResetToDefaultMenu::Construct( const FArguments& InArgs )
 		SNew(SComboButton)
 		.ToolTipText(NSLOCTEXT( "PropertyEditor", "ResetToDefault", "Reset to Default" ))
 		.HasDownArrow(false)
-		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+		.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 		.ContentPadding(0) 
 		.Visibility( this, &SResetToDefaultMenu::GetResetToDefaultVisibility )
 		.OnGetMenuContent( this, &SResetToDefaultMenu::OnGenerateResetToDefaultMenuContent )
 		.ButtonContent()
 		[
 			SNew(SImage)
-			.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
+			.Image( FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
 		]
 	];
 }

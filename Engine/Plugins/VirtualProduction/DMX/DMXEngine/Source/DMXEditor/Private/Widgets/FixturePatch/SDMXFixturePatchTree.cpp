@@ -19,7 +19,7 @@
 #include "Library/DMXLibrary.h"
 #include "Widgets/SDMXEntityDropdownMenu.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -85,7 +85,7 @@ TSharedRef<SWidget> SDMXFixturePatchTree::GenerateAddNewEntityButton()
 				.Padding(FMargin(0, 1))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
+					.Image(FAppStyle::GetBrush("Plus"))
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -104,8 +104,8 @@ TSharedRef<SWidget> SDMXFixturePatchTree::GenerateAddNewEntityButton()
 			]
 			.IsFocusable(true)
 			.ContentPadding(FMargin(5.0f, 1.0f))
-			.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ForegroundColor(FLinearColor::White)
 			.ToolTipText(AddButtonToolTip)
 			.OnComboBoxOpened(FOnComboBoxOpened::CreateLambda([this]() 
@@ -316,7 +316,7 @@ TSharedRef<ITableRow> SDMXFixturePatchTree::OnGenerateRow(TSharedPtr<FDMXEntityT
 			[
 				SNew(STextBlock)
 				.Text(InNode->GetDisplayNameText())
-				.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			];
 	}
 	else

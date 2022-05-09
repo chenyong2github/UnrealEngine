@@ -2,7 +2,7 @@
 
 #include "SGenlockProviderTab.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineCustomTimeStep.h"
 #include "Framework/Application/SlateApplication.h"
@@ -98,11 +98,11 @@ void SGenlockProviderTab::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()

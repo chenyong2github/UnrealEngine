@@ -31,7 +31,7 @@ void SDMXFixtureModeEditor::Construct(const FArguments& InArgs, const TSharedRef
 		SAssignNew(ContentBorder, SBorder)
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(4.f)
 	];
 

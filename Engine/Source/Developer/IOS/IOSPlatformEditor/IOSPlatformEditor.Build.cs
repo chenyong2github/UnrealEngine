@@ -18,7 +18,7 @@ public class IOSPlatformEditor : ModuleRules
 				"MainFrame",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"PropertyEditor",
 				"SharedSettingsWidgets",
 				"SourceControl",

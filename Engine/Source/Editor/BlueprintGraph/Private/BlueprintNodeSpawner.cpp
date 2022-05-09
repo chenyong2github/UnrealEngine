@@ -203,7 +203,7 @@ FBlueprintActionUiSpec const& UBlueprintNodeSpawner::PrimeDefaultUiSpec(UEdGraph
 		if (!MenuSignature.Icon.IsSet() && (TargetGraph != nullptr))
 		{
 			// want to set it to something so we won't end up back in this condition
-			MenuSignature.Icon = FSlateIcon("EditorStyle", "GraphEditor.Default_16x");
+			MenuSignature.Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Default_16x");
 		}
 		bTemplateNodeFetched = true;
 	}

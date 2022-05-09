@@ -175,14 +175,14 @@ void FCurveColorCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InS
 						.Padding(1,0)
 						[
 							SNew(SButton)
-							.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+							.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 							.ContentPadding(1.f)
 							.ToolTipText(LOCTEXT("ConvertInternalCurveTooltip", "Convert to Internal Color Curve"))
 							.OnClicked(this, &FCurveColorCustomization::OnConvertButtonClicked)
 							.IsEnabled(this, &FCurveColorCustomization::IsConvertButtonEnabled)
 							[
 								SNew(SImage)
-								.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Clear")) )
+								.Image( FAppStyle::GetBrush(TEXT("PropertyWindow.Button_Clear")) )
 							]
 						]
 					]

@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraph.h"
 
 #define LOCTEXT_NAMESPACE "SequencerDisplayNodeDragDropOp"
@@ -39,7 +39,7 @@ void FSequencerDisplayNodeDragDropOp::Construct()
 
 	SetFeedbackMessage(
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 		.Content()
 		[
 			SNew(SHorizontalBox)
@@ -126,7 +126,7 @@ void FSequencerDisplayNodeDragDropOp::HoverTargetChanged()
 	if (GetHoveredGraph() && GetDraggedBindings().Num() > 0)
 	{
 		CurrentHoverText = LOCTEXT("CreateNode", "Add binding ID to graph");
-		CurrentIconBrush = FEditorStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.NewNode" ) );
+		CurrentIconBrush = FAppStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.NewNode" ) );
 	}
 	else
 	{

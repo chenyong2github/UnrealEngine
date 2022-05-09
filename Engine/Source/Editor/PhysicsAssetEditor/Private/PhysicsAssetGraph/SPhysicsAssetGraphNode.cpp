@@ -31,7 +31,7 @@ public:
 
 		// Set up a hover for pins that is tinted the color of the pin.
 		SBorder::Construct(SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.BorderBackgroundColor(this, &SPhysicsAssetGraphNodeOutputPin::GetPinColor)
 			.OnMouseButtonDown(this, &SPhysicsAssetGraphNodeOutputPin::OnPinMouseDown)
 			.Cursor(this, &SPhysicsAssetGraphNodeOutputPin::GetPinCursor)
@@ -53,8 +53,8 @@ protected:
 	const FSlateBrush* GetPinImage() const
 	{
 		return (IsHovered())
-			? FEditorStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Pin.BackgroundHovered"))
-			: FEditorStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Pin.Background"));
+			? FAppStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Pin.BackgroundHovered"))
+			: FAppStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Pin.Background"));
 	}
 };
 
@@ -86,7 +86,7 @@ void SPhysicsAssetGraphNode::UpdateGraphNode()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("PhysicsAssetEditor.Graph.NodeBody") )
+			.BorderImage( FAppStyle::GetBrush("PhysicsAssetEditor.Graph.NodeBody") )
 			.BorderBackgroundColor(this, &SPhysicsAssetGraphNode::GetNodeColor)
 			.Padding(0)
 			[
@@ -111,7 +111,7 @@ void SPhysicsAssetGraphNode::UpdateGraphNode()
 					.AutoHeight()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "PhysicsAssetEditor.Graph.TextStyle")
+						.TextStyle(FAppStyle::Get(), "PhysicsAssetEditor.Graph.TextStyle")
 						.Text(this, &SPhysicsAssetGraphNode::GetNodeTitle)
 					]
 					+SVerticalBox::Slot()
@@ -136,7 +136,7 @@ void SPhysicsAssetGraphNode::UpdateGraphNode()
 
 const FSlateBrush* SPhysicsAssetGraphNode::GetShadowBrush(bool bSelected) const
 {
-	return bSelected ? FEditorStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Node.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Node.Shadow"));
+	return bSelected ? FAppStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Node.ShadowSelected")) : FAppStyle::GetBrush(TEXT("PhysicsAssetEditor.Graph.Node.Shadow"));
 }
 
 void SPhysicsAssetGraphNode::CreatePinWidgets()

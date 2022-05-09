@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/Modes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)

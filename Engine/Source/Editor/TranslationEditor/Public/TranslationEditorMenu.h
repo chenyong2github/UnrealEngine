@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 class FExtender;
@@ -30,7 +30,7 @@ class FTranslationEditorCommands : public TCommands<FTranslationEditorCommands>
 public:
 	/** Constructor */
 	FTranslationEditorCommands() 
-		: TCommands<FTranslationEditorCommands>("TranslationEditor", NSLOCTEXT("Contexts", "TranslationEditor", "Translation Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FTranslationEditorCommands>("TranslationEditor", NSLOCTEXT("Contexts", "TranslationEditor", "Translation Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

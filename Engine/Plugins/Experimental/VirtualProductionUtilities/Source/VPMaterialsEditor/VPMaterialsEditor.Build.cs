@@ -12,8 +12,7 @@ public class VPMaterialsEditor : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
-				"EditorStyle",
+				"CoreUObject",			
 				"Engine",
 				"InputCore",
 				"Landscape",

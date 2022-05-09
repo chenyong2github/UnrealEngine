@@ -85,14 +85,14 @@ void SGraphNodeDocumentation::UpdateGraphNode()
 		+SOverlay::Slot()
 		[
 			SNew( SImage )
-			.Image( FEditorStyle::GetBrush( "Graph.Node.TitleGloss" ))
+			.Image( FAppStyle::GetBrush( "Graph.Node.TitleGloss" ))
 		]
 		+SOverlay::Slot()
 		.HAlign( HAlign_Left )
 		.VAlign( VAlign_Center )
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "Graph.Node.ColorSpill" ))
+			.BorderImage( FAppStyle::GetBrush( "Graph.Node.ColorSpill" ))
 			.Padding( FMargin( 10, 5, 30, 3 ))
 			.BorderBackgroundColor( this, &SGraphNodeDocumentation::GetNodeTitleColor )
 			[
@@ -101,7 +101,7 @@ void SGraphNodeDocumentation::UpdateGraphNode()
 				.AutoHeight()
 				[
 					SAssignNew( InlineEditableText,SInlineEditableTextBlock )
-					.Style( FEditorStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
+					.Style( FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
 					.Text( this, &SGraphNodeDocumentation::GetDocumentationTitle )
 				]
 				+SVerticalBox::Slot()
@@ -116,7 +116,7 @@ void SGraphNodeDocumentation::UpdateGraphNode()
 		[
 			SNew( SBorder )
 			.Visibility( EVisibility::HitTestInvisible )			
-			.BorderImage( FEditorStyle::GetBrush( "Graph.Node.TitleHighlight" ))
+			.BorderImage( FAppStyle::GetBrush( "Graph.Node.TitleHighlight" ))
 			[
 				SNew( SSpacer )
 				.Size( FVector2D( 20, 20 ))
@@ -129,7 +129,7 @@ void SGraphNodeDocumentation::UpdateGraphNode()
 	.LowDetail()
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush( "Graph.Node.ColorSpill" ))
+		.BorderImage( FAppStyle::GetBrush( "Graph.Node.ColorSpill" ))
 		.BorderBackgroundColor( this, &SGraphNodeDocumentation::GetNodeTitleColor )
 	]
 	.HighDetail()
@@ -152,7 +152,7 @@ void SGraphNodeDocumentation::UpdateGraphNode()
 		.VAlign( VAlign_Fill )
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "Graph.Node.Body" ))
+			.BorderImage( FAppStyle::GetBrush( "Graph.Node.Body" ))
 			.Visibility( this, &SGraphNodeDocumentation::GetWidgetVisibility )
 			.Padding( 0.f )
 			[

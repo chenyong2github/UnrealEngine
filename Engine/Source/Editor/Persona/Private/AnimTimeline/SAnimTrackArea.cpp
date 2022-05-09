@@ -6,7 +6,7 @@
 #include "Rendering/DrawElements.h"
 #include "Layout/LayoutUtils.h"
 #include "Widgets/SWeakWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SAnimTrack.h"
 #include "SAnimOutliner.h"
 #include "AnimTimelineTrack.h"

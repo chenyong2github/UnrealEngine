@@ -14,7 +14,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SFilePathPicker.h"
 #include "EditorDirectories.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -64,8 +64,8 @@ void SGitSourceControlSettings::Construct(const FArguments& InArgs)
 			.FillWidth(2.0f)
 			[
 				SNew(SFilePathPicker)
-				.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-				.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+				.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.BrowseButtonToolTip(LOCTEXT("BinaryPathLabel_Tooltip", "Path to Git binary"))
 				.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 				.BrowseTitle(LOCTEXT("BinaryPathBrowseTitle", "File picker..."))
@@ -535,7 +535,7 @@ void SGitSourceControlSettings::DisplaySuccessNotification(const FSourceControlO
 	const FText NotificationText = FText::Format(LOCTEXT("InitialCommit_Success", "{0} operation was successfull!"), FText::FromName(InOperation->GetName()));
 	FNotificationInfo Info(NotificationText);
 	Info.bUseSuccessFailIcons = true;
-	Info.Image = FEditorStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
+	Info.Image = FAppStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
 	FSlateNotificationManager::Get().AddNotification(Info);
 }
 

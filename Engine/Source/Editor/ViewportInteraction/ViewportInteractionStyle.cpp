@@ -2,7 +2,7 @@
 
 #include "ViewportInteractionStyle.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Brushes/SlateImageBrush.h"

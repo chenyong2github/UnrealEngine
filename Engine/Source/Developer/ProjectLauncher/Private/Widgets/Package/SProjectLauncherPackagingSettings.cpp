@@ -3,7 +3,7 @@
 #include "SProjectLauncherPackagingSettings.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/SlateTypes.h"
 #include "SlateOptMacros.h"
@@ -47,7 +47,7 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 			[
 				SNew(SBorder)
 					.Padding(8.0)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SVerticalBox)
 

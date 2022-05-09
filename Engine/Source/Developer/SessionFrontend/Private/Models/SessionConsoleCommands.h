@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/InputChord.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 #define LOCTEXT_NAMESPACE "SessionConsoleCommands"
@@ -22,7 +22,7 @@ public:
 		: TCommands<FSessionConsoleCommands>(
 			"SessionConsole",
 			NSLOCTEXT("Contexts", "SessionConsole", "Session Console"),
-			NAME_None, FEditorStyle::GetStyleSetName()
+			NAME_None, FAppStyle::GetAppStyleSetName()
 		)
 	{ }
 

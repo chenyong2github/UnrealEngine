@@ -9,7 +9,7 @@
 #include "ContentBrowserModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorReimportHandler.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
@@ -151,7 +151,7 @@ TSharedRef<FExtender> FAxFImporterModule::OnExtendContentBrowserAssetSelectionMe
 			        MenuBuilder.AddMenuEntry(
 			            NSLOCTEXT("AssetTypeActions_Material", "ObjectContext_ReimportAxFMaterial", "Reimport Material"),
 			            NSLOCTEXT("AssetTypeActions_Material", "ObjectContext_ReimportAxFMaterialTooltip", "Reimport the selected material(s)."),
-			            FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+			            FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 			            FUIAction(FExecuteAction::CreateStatic(&FAxFImporterModule::ExecuteReimportMaterials, SelectedAssets), FCanExecuteAction()));
 		        }));
 	}

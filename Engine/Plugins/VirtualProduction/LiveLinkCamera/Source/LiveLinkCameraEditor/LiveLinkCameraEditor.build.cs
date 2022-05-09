@@ -34,7 +34,7 @@ public class LiveLinkCameraEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DetailCustomizations",
-				"EditorStyle",
+				
 				"LiveLinkInterface",
 				"LiveLinkCamera",
 				"LiveLinkComponents",

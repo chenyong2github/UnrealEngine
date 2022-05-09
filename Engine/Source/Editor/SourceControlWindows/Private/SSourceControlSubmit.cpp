@@ -19,7 +19,7 @@
 #include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "UObject/UObjectHash.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
@@ -134,7 +134,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SAssignNew(Contents, SVerticalBox)
 		]
@@ -211,7 +211,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(ChangelistIconName))
+				.Image(FAppStyle::GetBrush(ChangelistIconName))
 			]
 			+SHorizontalBox::Slot()
 			[
@@ -255,14 +255,14 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	.Padding(0.0f,AdditionalTopPadding,0.0f,5.0f)
 	[
 		SNew(SUniformGridPanel)
-		.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-		.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-		.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+		.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+		.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+		.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 		+SUniformGridPanel::Slot(0,0)
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
-			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			.IsEnabled(this, &SSourceControlSubmitWidget::IsSubmitEnabled)
 			.Text( NSLOCTEXT("SourceControl.SubmitPanel", "OKButton", "Submit") )
 			.OnClicked(this, &SSourceControlSubmitWidget::SubmitClicked)
@@ -271,7 +271,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
-			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			.Text( NSLOCTEXT("SourceControl.SubmitPanel", "CancelButton", "Cancel") )
 			.OnClicked(this, &SSourceControlSubmitWidget::CancelClicked)
 		]
@@ -297,7 +297,7 @@ TSharedPtr<SWidget> SSourceControlSubmitWidget::OnCreateContextMenu()
 			MenuBuilder.AddMenuEntry(
 				NSLOCTEXT("SourceControl.SubmitWindow.Menu", "DiffAgainstDepot", "Diff Against Depot"),
 				NSLOCTEXT("SourceControl.SubmitWindow.Menu", "DiffAgainstDepotTooltip", "Look at differences between your version of the asset and that in source control."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Diff"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &SSourceControlSubmitWidget::OnDiffAgainstDepot),
 					FCanExecuteAction::CreateSP(this, &SSourceControlSubmitWidget::CanDiffAgainstDepot)
@@ -394,7 +394,7 @@ TSharedRef<SWidget> SSourceControlSubmitWidget::GenerateWidgetForItemAndColumn(T
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(Item->GetIconName()))
+				.Image(FAppStyle::GetBrush(Item->GetIconName()))
 				.ToolTipText(Item->GetIconTooltip())
 			];
 	}

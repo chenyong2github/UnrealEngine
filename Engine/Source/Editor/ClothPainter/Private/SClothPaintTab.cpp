@@ -74,7 +74,7 @@ void SClothPaintTab::Construct(const FArguments& InArgs)
 
 	ModeWidget = nullptr;
 	
-	FSlateIcon TexturePaintIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode.TexturePaint");
+	FSlateIcon TexturePaintIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.MeshPaintMode.TexturePaint");
 
 	this->ChildSlot
 	.Padding(4.f)

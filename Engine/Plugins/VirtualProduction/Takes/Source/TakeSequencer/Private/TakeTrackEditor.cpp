@@ -2,7 +2,7 @@
 
 #include "TakeTrackEditor.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerSectionPainter.h"
 
 #include "MovieSceneTakeSection.h"
@@ -60,7 +60,7 @@ TSharedRef<ISequencerSection> FTakeTrackEditor::MakeSectionInterface(UMovieScene
 
 const FSlateBrush* FTakeTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.GenericDivider");
+	return FAppStyle::GetBrush("Sequencer.GenericDivider");
 }
 
 	

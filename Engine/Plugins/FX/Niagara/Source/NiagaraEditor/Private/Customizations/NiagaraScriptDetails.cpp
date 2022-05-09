@@ -46,7 +46,7 @@ class SAddParameterButton : public SCompoundWidget
 		[
 			SAssignNew(ComboButton, SComboButton)
 			.HasDownArrow(false)
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			.ButtonStyle(FAppStyle::Get(), "RoundButton")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.OnGetMenuContent(this, &SAddParameterButton::GetAddParameterMenuContent)
 			.Visibility(CollectionViewModel.ToSharedRef(), &INiagaraParameterCollectionViewModel::GetAddButtonVisibility)
@@ -62,7 +62,7 @@ class SAddParameterButton : public SCompoundWidget
 				[
 					SNew(SImage)
 					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FEditorStyle::GetBrush("Plus"))
+					.Image(FAppStyle::GetBrush("Plus"))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()

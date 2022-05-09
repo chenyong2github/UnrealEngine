@@ -2,7 +2,7 @@
 
 #include "CameraShakeTrackEditorBase.h"
 #include "CommonMovieSceneTools.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerSectionPainter.h"
@@ -82,7 +82,7 @@ bool FCameraShakeSectionBase::IsReadOnly() const
 
 int32 FCameraShakeSectionBase::OnPaintSection(FSequencerSectionPainter& Painter) const
 {
-	static const FSlateBrush* GenericDivider = FEditorStyle::GetBrush("Sequencer.GenericDivider");
+	static const FSlateBrush* GenericDivider = FAppStyle::GetBrush("Sequencer.GenericDivider");
 
 	Painter.LayerId = Painter.PaintSectionBackground();
 
@@ -152,7 +152,7 @@ int32 FCameraShakeSectionBase::OnPaintSection(FSequencerSectionPainter& Painter)
 							FVector2D(OverflowSizeInPixels, Painter.SectionGeometry.Size.Y),
 							FSlateLayoutTransform(FVector2D(OffsetPixel, 0))
 						).ToPaintGeometry(),
-						FEditorStyle::GetBrush("WhiteBrush"),
+						FAppStyle::GetBrush("WhiteBrush"),
 						ESlateDrawEffect::None,
 						FLinearColor::Black.CopyWithNewOpacity(0.5f)
 				);
@@ -219,7 +219,7 @@ int32 FCameraShakeSectionBase::OnPaintSection(FSequencerSectionPainter& Painter)
 						FVector2D(SectionDurationInPixels, Painter.SectionGeometry.Size.Y),
 						FSlateLayoutTransform(FVector2D(SectionStartTimeInPixels, 0))
 					).ToPaintGeometry(),
-					FEditorStyle::GetBrush("WhiteBrush"),
+					FAppStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None,
 					FLinearColor(1.f, 0.5f, 0.f, 0.5f)
 			);
@@ -235,7 +235,7 @@ int32 FCameraShakeSectionBase::OnPaintSection(FSequencerSectionPainter& Painter)
 					FVector2D(SectionDurationInPixels, Painter.SectionGeometry.Size.Y),
 					FSlateLayoutTransform(FVector2D(SectionStartTimeInPixels, 0))
 					).ToPaintGeometry(),
-				FEditorStyle::GetBrush("WhiteBrush"),
+				FAppStyle::GetBrush("WhiteBrush"),
 				ESlateDrawEffect::None,
 				FLinearColor::Red.CopyWithNewOpacity(0.5f)
 				);

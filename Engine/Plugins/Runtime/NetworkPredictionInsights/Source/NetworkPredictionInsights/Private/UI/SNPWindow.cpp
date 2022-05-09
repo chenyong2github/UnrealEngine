@@ -2,7 +2,7 @@
 
 #include "SNPWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -187,7 +187,7 @@ void SNPWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& 
 				[
 					SNew(SBorder)
 						//.Visibility(this, &SNetworkingProfilerWindow::IsSessionOverlayVisible)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FAppStyle::GetBrush("NotificationList.ItemBackground"))
 						.Padding(8.0f)
 						[
 							SNew(STextBlock)

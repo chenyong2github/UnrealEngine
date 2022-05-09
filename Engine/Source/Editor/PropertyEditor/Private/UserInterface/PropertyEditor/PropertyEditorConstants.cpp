@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 
 const FName PropertyEditorConstants::PropertyFontStyle( TEXT("PropertyWindow.NormalFont") );
@@ -13,7 +13,7 @@ const FName PropertyEditorConstants::MD_UseEnumValuesAsMaskValuesInEditor( TEXT(
 
 const FSlateBrush* PropertyEditorConstants::GetOverlayBrush(const TSharedRef<class FPropertyEditor> PropertyEditor )
 {
-	return FEditorStyle::GetBrush( TEXT("PropertyWindow.NoOverlayColor") );
+	return FAppStyle::GetBrush( TEXT("PropertyWindow.NoOverlayColor") );
 }
 
 FSlateColor PropertyEditorConstants::GetRowBackgroundColor(int32 IndentLevel, bool IsHovered) 

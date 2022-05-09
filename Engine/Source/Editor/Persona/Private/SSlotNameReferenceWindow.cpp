@@ -2,7 +2,7 @@
 
 #include "SSlotNameReferenceWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -72,7 +72,7 @@ TSharedRef<SWidget> SMontageReferenceListRow::GenerateWidgetForColumn(const FNam
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -85,7 +85,7 @@ TSharedRef<SWidget> SMontageReferenceListRow::GenerateWidgetForColumn(const FNam
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("SystemWideCommands.SummonOpenAssetDialog"))
+					.Image(FAppStyle::GetBrush("SystemWideCommands.SummonOpenAssetDialog"))
 				]
 			];
 	}
@@ -148,7 +148,7 @@ TSharedRef<SWidget> SBlueprintReferenceListRow::GenerateWidgetForColumn(const FN
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -161,7 +161,7 @@ TSharedRef<SWidget> SBlueprintReferenceListRow::GenerateWidgetForColumn(const FN
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("SystemWideCommands.SummonOpenAssetDialog"))
+					.Image(FAppStyle::GetBrush("SystemWideCommands.SummonOpenAssetDialog"))
 				]
 			];
 	}
@@ -303,7 +303,7 @@ TSharedRef<SWidget> SSlotNameReferenceWindow::GetContent()
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			[
 				// List of montages
 				SNew(SMontageReferenceList)
@@ -335,7 +335,7 @@ TSharedRef<SWidget> SSlotNameReferenceWindow::GetContent()
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			[
 				// List of montages
 				SNew(SBlueprintReferenceList)

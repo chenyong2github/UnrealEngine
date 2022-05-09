@@ -22,7 +22,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "AssetViewSortManager.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STileView.h"
 #include "Textures/SlateIcon.h"
@@ -701,7 +701,7 @@ public:
 
 		SMultiColumnTableRow< TSharedPtr<FAssetViewItem> >::Construct( 
 			FSuperRowType::FArguments()
-				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+				.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 				.OnDragDetected(InArgs._OnDragDetected), 
 			InOwnerTableView);
 		Content = this->AssetColumnItem;

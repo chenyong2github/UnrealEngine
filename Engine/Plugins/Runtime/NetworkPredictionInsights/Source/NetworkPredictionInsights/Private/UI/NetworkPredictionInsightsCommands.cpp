@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionInsightsCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionCommands"
 
@@ -10,7 +10,7 @@ FNetworkPredictionInsightsCommands::FNetworkPredictionInsightsCommands()
 		TEXT("NetworkPredictionCommand"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "NetworkPredictionCommand", "Network Prediction Insights"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 }

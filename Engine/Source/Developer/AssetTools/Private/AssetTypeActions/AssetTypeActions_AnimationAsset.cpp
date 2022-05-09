@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "AssetTools.h"
 #include "PersonaModule.h"

@@ -9,7 +9,7 @@
 
 #include "Templates/SharedPointer.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "StateTreeEditorStyle.h"
 
@@ -89,7 +89,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(2.0f)
 			[
 				SNew(SHorizontalBox)
@@ -101,7 +101,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 					.ToolTipText(LOCTEXT("AddStateToolTip", "Add New State"))
 					.OnClicked(this, &SStateTreeView::HandleAddStateButton)
 					[
@@ -113,8 +113,8 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 						[
 							SNew(STextBlock)
 							.Text(FEditorFontGlyphs::File)
-							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 						]
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -122,7 +122,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("AddState", "Add State"))
-							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+							.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						]
 					]
 				]

@@ -4,7 +4,7 @@
 #include "Misc/CommandLine.h"
 #include "Styling/CoreStyle.h"
 
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 
 #include "SlateOptMacros.h"
 
@@ -31,13 +31,13 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
  *****************************************************************************/
 
 TSharedPtr< FSlateEditorStyle::FStyle > FSlateEditorStyle::StyleInstance = NULL;
-TWeakObjectPtr< UEditorStyleSettings > FSlateEditorStyle::Settings = NULL;
+TWeakObjectPtr< class UEditorStyleSettings > FSlateEditorStyle::Settings = NULL;
 
 
 /* FSlateEditorStyle interface
  *****************************************************************************/
 
-FSlateEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings >& InSettings )
+FSlateEditorStyle::FStyle::FStyle( const TWeakObjectPtr< class UEditorStyleSettings >& InSettings )
 	: FSlateStyleSet("EditorStyle")
 
 	// Note, these sizes are in Slate Units.
@@ -124,14 +124,14 @@ void FSlateEditorStyle::FStyle::SyncSettings()
 {
 	if ( Settings.IsValid() )
 	{
-		// Sync the colors used by FEditorStyle
+		// Sync the colors used by FAppStyle
 		SetColor( SelectionColor_LinearRef, Settings->SelectionColor );
 
 		// The subdued selection color is derived from the selection color
 		auto SubduedSelectionColor = Settings->GetSubduedSelectionColor();
 		SetColor( SelectionColor_Subdued_LinearRef, SubduedSelectionColor );
 
-		// Also sync the colors used by FCoreStyle, as FEditorStyle isn't yet being used as an override everywhere
+		// Also sync the colors used by FCoreStyle, as FAppStyle isn't yet being used as an override everywhere
 		FCoreStyle::SetSelectionColor( Settings->SelectionColor );
 
 		// Sync the window background settings
@@ -703,8 +703,8 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "ProgressBar.ThinBackground", new BOX_BRUSH( "Common/ProgressBar_Thin_Background", FMargin(5.f/12.f) ) );
 		Set( "ProgressBar.ThinFill", new BOX_BRUSH( "Common/ProgressBar_Thin_Fill", FMargin(5.f/12.f) ) );
 
-		// Legacy ProgressBar styles; kept here because other FEditorStyle controls (mis)use them
-		// todo: jdale - Widgets using these styles should be updated to use SlateStyle types once FEditorStyle has been obliterated from the Slate core
+		// Legacy ProgressBar styles; kept here because other FAppStyle controls (mis)use them
+		// todo: jdale - Widgets using these styles should be updated to use SlateStyle types once FAppStyle has been obliterated from the Slate core
 		Set( "ProgressBar.Background", new BOX_BRUSH( "Common/ProgressBar_Background", FMargin(5.f/12.f) ) );
 		Set( "ProgressBar.Marquee", new IMAGE_BRUSH( "Common/ProgressBar_Marquee", FVector2D(20,12), FLinearColor::White, ESlateBrushTileType::Horizontal ) );
 		Set( "ProgressBar.BorderPadding", FVector2D(1,0) );

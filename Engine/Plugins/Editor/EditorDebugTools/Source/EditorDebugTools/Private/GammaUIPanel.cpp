@@ -7,7 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorDebugToolsStyle.h"
 
 void SGammaUIPanel::Construct(const SGammaUIPanel::FArguments& InArgs)

@@ -2,7 +2,7 @@
 
 #include "EditorModeRegistry.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdMode.h"
 #include "EditorModes.h"
 
@@ -13,7 +13,6 @@
 #include "Editor/SceneDepthPickerMode/Public/SceneDepthPickerMode.h"
 #include "Editor/FoliageEdit/Public/FoliageEditModule.h"
 #include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
-#include "Classes/EditorStyleSettings.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 FEditorModeFactory::FEditorModeFactory(const FEditorModeInfo& InModeInfo)

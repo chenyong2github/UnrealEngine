@@ -12,7 +12,7 @@ public class AssetTagsEditor : ModuleRules
 				"CoreUObject",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 			}
         );
 	}

@@ -5,7 +5,7 @@
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
@@ -114,7 +114,7 @@ int32 SObjectNameEditableTextBox::OnPaint( const FPaintArgs& Args, const FGeomet
 		const FVector2D DrawPosition = FVector2D( HighlightLeftX, HighlightTopY );
 		const FVector2D DrawSize = FVector2D( HighlightRightX - HighlightLeftX, HighlightBottomY - HighlightTopY );
 
-		const FSlateBrush* StyleInfo = FEditorStyle::GetBrush("DetailsView.NameChangeCommitted");
+		const FSlateBrush* StyleInfo = FAppStyle::GetBrush("DetailsView.NameChangeCommitted");
 
 		// NOTE: We rely on scissor clipping for the highlight rectangle
 		FSlateDrawElement::MakeBox(

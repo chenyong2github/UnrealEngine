@@ -9,7 +9,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "IPropertyUtilities.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -54,7 +54,7 @@ void FRemoteControlProtocolDMXSettingsDetails::CustomizeDetails(IDetailLayoutBui
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("NoInputPortAvailableText", "No input port available. Please create one under Project Settings -> Plugins -> DMX"))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				];
 			return;
 		}
@@ -66,7 +66,7 @@ void FRemoteControlProtocolDMXSettingsDetails::CustomizeDetails(IDetailLayoutBui
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("DefaultPortLabel", "Default Input Port"))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 		.ValueContent()
 			[

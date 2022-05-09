@@ -350,11 +350,11 @@ void FGroomRenderingDetails::AddNewGroupButton(IDetailCategoryBuilder& FilesCate
 			SNew(SButton)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &FGroomRenderingDetails::OnAddGroup, Property)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			]
 		]
 	];
@@ -1186,11 +1186,11 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 				SNew(SButton)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Right)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FGroomRenderingDetails::OnRemoveLODClicked, GroupIndex, LODIndex, Property)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+					.Image(FAppStyle::GetBrush("Icons.Delete"))
 				]
 			]
 			
@@ -1211,11 +1211,11 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameButtonCustomization(int
 		return SNew(SButton)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &FGroomRenderingDetails::OnAddLODClicked, GroupIndex, Property)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			];
 	}
 	break;
@@ -1224,11 +1224,11 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameButtonCustomization(int
 		return SNew(SButton)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &FGroomRenderingDetails::OnRemoveGroupClicked, GroupIndex, Property)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				.Image(FAppStyle::GetBrush("Icons.Delete"))
 			];
 	}
 	break;
@@ -1237,11 +1237,11 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameButtonCustomization(int
 		return SNew(SButton)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &FGroomRenderingDetails::OnRemoveGroupClicked, GroupIndex, Property)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				.Image(FAppStyle::GetBrush("Icons.Delete"))
 			];
 	}
 	break;
@@ -1556,12 +1556,12 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 								SNew(SButton)
 								.VAlign(VAlign_Center)
 								.HAlign(HAlign_Center)
-								.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+								.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 								.ToolTipText(ToolTipTextForReloading)
 								.OnClicked(this, &FGroomRenderingDetails::OnRefreshCards, GroupIndex, Property)
 								[
 									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+									.Image(FAppStyle::GetBrush("Icons.Refresh"))
 								]
 							];
 					}

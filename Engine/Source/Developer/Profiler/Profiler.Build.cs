@@ -23,7 +23,7 @@ public class Profiler : ModuleRules
 				"RHI",
 				"RenderCore",
 				"Slate",
-                "EditorStyle",
+                
 				"ProfilerClient",
 				"DesktopPlatform",
 			}

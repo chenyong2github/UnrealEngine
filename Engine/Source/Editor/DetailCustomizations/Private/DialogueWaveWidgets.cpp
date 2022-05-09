@@ -114,8 +114,8 @@ void SDialogueVoicePropertyEditor::Construct( const FArguments& InArgs, const TS
 				[
 					SAssignNew( ComboButton, SComboButton )
 					.ToolTipText( this, &SDialogueVoicePropertyEditor::OnGetToolTip )
-					.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
+					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 					.OnGetMenuContent( this, &SDialogueVoicePropertyEditor::OnGetMenuContent )
 					.ContentPadding(2.0f)
 					.ButtonContent()
@@ -824,7 +824,7 @@ void SDialogueContextHeaderWidget::Construct( const FArguments& InArgs, const TS
 			.AutoWidth()
 			[
 				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("DialogueWaveDetails.SpeakerToTarget") )
+				.Image( FAppStyle::GetBrush("DialogueWaveDetails.SpeakerToTarget") )
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			]
 			+SHorizontalBox::Slot()

@@ -13,7 +13,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Styling/AppStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserSingleton.h"
 #include "ContentBrowserUtils.h"
@@ -202,7 +202,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 			.Value(0.25f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					PathPicker.ToSharedRef()
 				]
@@ -212,7 +212,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 			.Value(0.75f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					AssetPicker.ToSharedRef()
 				]
@@ -231,7 +231,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 			[
 				SNew(SBorder)
 				.Visibility( this, &SAssetDialog::GetNameErrorLabelVisibility )
-				.BorderImage( FEditorStyle::GetBrush("AssetDialog.ErrorLabelBorder") )
+				.BorderImage( FAppStyle::GetBrush("AssetDialog.ErrorLabelBorder") )
 				.Content()
 				[
 					SNew(STextBlock)
@@ -677,8 +677,8 @@ void SAssetDialog::SetupContextMenuContent(FMenuBuilder& MenuBuilder, const TArr
 
 	MenuBuilder.BeginSection("AssetDialogOptions", LOCTEXT("AssetDialogMenuHeading", "Options"));
 
-	MenuBuilder.AddMenuEntry(FContentBrowserCommands::Get().CreateNewFolder, NAME_None, LOCTEXT("NewFolder", "New Folder"), NewFolderToolTip, FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"));
-	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("RenameFolder", "Rename"), LOCTEXT("RenameFolderTooltip", "Rename the selected folder."), FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename"));
+	MenuBuilder.AddMenuEntry(FContentBrowserCommands::Get().CreateNewFolder, NAME_None, LOCTEXT("NewFolder", "New Folder"), NewFolderToolTip, FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.NewFolderIcon"));
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("RenameFolder", "Rename"), LOCTEXT("RenameFolderTooltip", "Rename the selected folder."), FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Rename"));
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, LOCTEXT("DeleteFolder", "Delete"), LOCTEXT("DeleteFolderTooltip", "Removes this folder and all assets it contains."));
 
 	MenuBuilder.EndSection();
@@ -688,7 +688,7 @@ void SAssetDialog::SetupContextMenuContent(FMenuBuilder& MenuBuilder, const TArr
 		MenuBuilder.BeginSection("AssetDialogExplore", LOCTEXT("AssetDialogExploreHeading", "Explore"));
 		MenuBuilder.AddMenuEntry(ContentBrowserUtils::GetExploreFolderText(),
 			LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
 			FUIAction(FExecuteAction::CreateSP(this, &SAssetDialog::ExecuteExplore)));
 		MenuBuilder.EndSection();
 	}

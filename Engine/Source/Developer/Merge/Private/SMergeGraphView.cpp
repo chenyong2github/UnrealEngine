@@ -6,7 +6,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GraphDiffControl.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -449,7 +449,7 @@ void SMergeGraphView::Construct(const FArguments InArgs
 					[
 						SNew(SImage)
 						.ColorAndOpacity(Color)
-						.Image(bIsPresent ? FEditorStyle::GetBrush("BlueprintDif.HasGraph") : FEditorStyle::GetBrush("BlueprintDif.MissingGraph"))
+						.Image(bIsPresent ? FAppStyle::GetBrush("BlueprintDif.HasGraph") : FAppStyle::GetBrush("BlueprintDif.MissingGraph"))
 					]);
 			};
 
@@ -604,7 +604,7 @@ FReply SMergeGraphView::OnToggleLockView()
 
 const FSlateBrush* SMergeGraphView::GetLockViewImage() const
 {
-	return bViewsAreLocked ? FEditorStyle::GetBrush("Icons.Lock") : FEditorStyle::GetBrush("Icons.Unlock");
+	return bViewsAreLocked ? FAppStyle::GetBrush("Icons.Lock") : FAppStyle::GetBrush("Icons.Unlock");
 }
 
 #undef LOCTEXT_NAMESPACE

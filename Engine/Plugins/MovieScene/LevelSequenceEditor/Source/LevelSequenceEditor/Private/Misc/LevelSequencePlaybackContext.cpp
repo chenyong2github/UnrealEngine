@@ -20,7 +20,7 @@
 
 #include "MovieSceneCaptureDialogModule.h"
 #include "LevelSequenceEditorModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Editor.h"
 
@@ -70,7 +70,7 @@ private:
 
 		if (CurrentWorld->WorldType == EWorldType::PIE)
 		{
-			return GEditor->bIsSimulatingInEditor ? FEditorStyle::GetBrush("LevelViewport.StartingSimulateBorder") : FEditorStyle::GetBrush("LevelViewport.StartingPlayInEditorBorder");
+			return GEditor->bIsSimulatingInEditor ? FAppStyle::GetBrush("LevelViewport.StartingSimulateBorder") : FAppStyle::GetBrush("LevelViewport.StartingPlayInEditorBorder");
 		}
 		else
 		{

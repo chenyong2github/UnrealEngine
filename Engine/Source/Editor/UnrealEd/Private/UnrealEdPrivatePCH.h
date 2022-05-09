@@ -606,9 +606,6 @@
 #include "Components/LightComponent.h"
 #include "Components/LightComponentBase.h"
 
-// From EditorStyle:
-#include "EditorStyleSet.h"
-
 // From BlueprintGraph:
 #include "BlueprintNodeSignature.h"
 #include "K2Node.h"

@@ -52,16 +52,16 @@ public:
 							.Label()
 							[
 								SNew(STextBlock)
-								.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+								.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 								.Text(LOCTEXT("VectorNodeXAxisValueLabel", "X"))
 								.ColorAndOpacity(LabelClr)
 							]
 							.Value(this, &SVector4TextBox::GetTypeInValue_0)
 								.OnValueCommitted(InArgs._OnFloatCommitted_Box_0)
-								.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+								.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 								.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 								.ToolTipText(LOCTEXT("VectorNodeXAxisValueLabel_ToolTip", "X value"))
-								.EditableTextBoxStyle(&FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
+								.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
 								.BorderForegroundColor(FLinearColor::White)
 								.BorderBackgroundColor(FLinearColor::White)
 						]
@@ -74,16 +74,16 @@ public:
 								.Label()
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+									.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 									.Text(LOCTEXT("VectorNodeYAxisValueLabel", "Y"))
 									.ColorAndOpacity(LabelClr)
 								]
 								.Value(this, &SVector4TextBox::GetTypeInValue_1)
 									.OnValueCommitted(InArgs._OnFloatCommitted_Box_1)
-									.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+									.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 									.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 									.ToolTipText(LOCTEXT("VectorNodeYAxisValueLabel_ToolTip", "Y value"))
-									.EditableTextBoxStyle(&FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
+									.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
 									.BorderForegroundColor(FLinearColor::White)
 									.BorderBackgroundColor(FLinearColor::White)
 							]
@@ -96,16 +96,16 @@ public:
 								.Label()
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+									.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 									.Text(LOCTEXT("VectorNodeZAxisValueLabel", "Z"))
 									.ColorAndOpacity(LabelClr)
 								]
 								.Value(this, &SVector4TextBox::GetTypeInValue_2)
 									.OnValueCommitted(InArgs._OnFloatCommitted_Box_2)
-									.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+									.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 									.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 									.ToolTipText(LOCTEXT("VectorNodeZAxisValueLabel_ToolTip", "Z value"))
-									.EditableTextBoxStyle(&FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
+									.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
 									.BorderForegroundColor(FLinearColor::White)
 									.BorderBackgroundColor(FLinearColor::White)
 							]
@@ -118,16 +118,16 @@ public:
 								.Label()
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+									.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 									.Text(LOCTEXT("VectorNodeWAxisValueLabel", "W"))
 									.ColorAndOpacity(LabelClr)
 								]
 								.Value(this, &SVector4TextBox::GetTypeInValue_3)
 									.OnValueCommitted(InArgs._OnFloatCommitted_Box_3)
-									.Font(FEditorStyle::GetFontStyle("Graph.VectorEditableTextBox"))
+									.Font(FAppStyle::GetFontStyle("Graph.VectorEditableTextBox"))
 									.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 									.ToolTipText(LOCTEXT("VectorNodeWAxisValueLabel_ToolTip", "W value"))
-									.EditableTextBoxStyle(&FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
+									.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("Graph.VectorEditableTextBox"))
 									.BorderForegroundColor(FLinearColor::White)
 									.BorderBackgroundColor(FLinearColor::White)
 							]

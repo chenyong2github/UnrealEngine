@@ -703,7 +703,7 @@ TSharedRef<SWidget> SProjectDialog::MakeTemplateProjectView()
 				[
 					SNew(STextBlock)
 					.AutoWrapText(true)
-					.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+					.TextStyle(FAppStyle::Get(), "DialogButtonText")
 					.Font(FAppStyle::Get().GetFontStyle("HeadingExtraSmall"))
 					.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White"))
 					.Text(this, &SProjectDialog::GetSelectedTemplateProperty, &FTemplateItem::Name)
@@ -738,7 +738,7 @@ TSharedRef<SWidget> SProjectDialog::MakeTemplateProjectView()
 								+ SVerticalBox::Slot()
 								[
 									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+									.TextStyle(FAppStyle::Get(), "DialogButtonText")
 									.Text(LOCTEXT("ProjectTemplateAssetTypes", "Asset Type References"))
 								]
 								+ SVerticalBox::Slot()
@@ -759,7 +759,7 @@ TSharedRef<SWidget> SProjectDialog::MakeTemplateProjectView()
 								+ SVerticalBox::Slot()
 								[
 									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+									.TextStyle(FAppStyle::Get(), "DialogButtonText")
 									.Text(LOCTEXT("ProjectTemplateClassTypes", "Class Type References"))
 								]
 								+ SVerticalBox::Slot()
@@ -878,7 +878,7 @@ TSharedRef<SWidget> SProjectDialog::MakeProjectOptionsWidget()
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
 			[
 				SNew(STextBlock)	
-				.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+				.TextStyle(FAppStyle::Get(), "DialogButtonText")
 				.Text(LOCTEXT("ProjectDefaults", "Project Defaults"))
 			]
 		]
@@ -1058,7 +1058,7 @@ TSharedRef<SWidget> SProjectDialog::MakeProjectOptionsWidget()
 			[
 				// Warning when enabled for mobile, since the current starter content is bad for mobile
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Warning"))
+				.Image(FAppStyle::GetBrush("Icons.Warning"))
 				.ToolTipText(this, &SNewProjectWizard::GetStarterContentWarningTooltip)
 				.Visibility(this, &SNewProjectWizard::GetStarterContentWarningVisibility)
 			];
@@ -1072,12 +1072,12 @@ TSharedRef<SWidget> SProjectDialog::MakeProjectOptionsWidget()
 	{
 		TArray<SDecoratedEnumCombo<int32>::FComboOption> VirtualRealityOptions;
 		VirtualRealityOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.XRDisabled"),
+			0, FSlateIcon(FAppStyle::GetAppStyleSetName(), "GameProjectDialog.XRDisabled"),
 			LOCTEXT("XRDisabled", "XR Disabled")));
 
 		VirtualRealityOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
 			1, 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.XREnabled"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "GameProjectDialog.XREnabled"),
 			LOCTEXT("XREnabled", "XR Enabled")));
 
 		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(VirtualRealityOptions))
@@ -1088,7 +1088,7 @@ TSharedRef<SWidget> SProjectDialog::MakeProjectOptionsWidget()
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
 			.Text(LOCTEXT("ProjectDialog_XREnabledDescription", "Choose if XR should be enabled in the new project."))
 			.AutoWrapText(true)
-			.DecoratorStyleSet(&FEditorStyle::Get());
+			.DecoratorStyleSet(&FAppStyle::Get());
 	}
 #endif 
 
@@ -1496,8 +1496,8 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> > SProjectDialog::FindTemplateProj
 		BlankTemplate->Description = LOCTEXT("BlankProjectDescription", "A clean empty project with no code and default settings.");
 		BlankTemplate->Key = TEXT("Blank");
 		BlankTemplate->SortKey = TEXT("_1");
-		BlankTemplate->Thumbnail = MakeShareable(new FSlateBrush(*FEditorStyle::GetBrush("GameProjectDialog.BlankProjectThumbnail")));
-		BlankTemplate->PreviewImage = MakeShareable(new FSlateBrush(*FEditorStyle::GetBrush("GameProjectDialog.BlankProjectPreview")));
+		BlankTemplate->Thumbnail = MakeShareable(new FSlateBrush(*FAppStyle::GetBrush("GameProjectDialog.BlankProjectThumbnail")));
+		BlankTemplate->PreviewImage = MakeShareable(new FSlateBrush(*FAppStyle::GetBrush("GameProjectDialog.BlankProjectPreview")));
 		BlankTemplate->BlueprintProjectFile = TEXT("");
 		BlankTemplate->CodeProjectFile = TEXT("");
 		BlankTemplate->bIsEnterprise = false;

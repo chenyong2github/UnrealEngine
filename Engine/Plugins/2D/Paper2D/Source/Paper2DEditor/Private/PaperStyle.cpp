@@ -4,7 +4,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 
@@ -51,7 +51,7 @@ void FPaperStyle::Initialize()
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	const FTextBlockStyle& NormalText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 
 	// Shared editors
 	{
@@ -127,7 +127,7 @@ void FPaperStyle::Initialize()
 		const FLinearColor LayerSelectionColor = FLinearColor(0.13f, 0.70f, 1.00f);
 
 		// Selection color for the active row should be ??? to align with the editor viewport.
-		const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+		const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 
 		StyleSet->Set("TileMapEditor.LayerBrowser.TableViewRow",
 			FTableRowStyle(NormalTableRowStyle)

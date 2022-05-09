@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SCompElementPreviewPane.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
@@ -54,7 +54,7 @@ SCompElementPreviewPane::~SCompElementPreviewPane()
 
 void SCompElementPreviewPane::Construct(const FArguments& InArgs)
 {
-	const FSlateBrush* ImageBrush = FEditorStyle::GetBrush("EditorViewportToolBar.MenuDropdown");
+	const FSlateBrush* ImageBrush = FAppStyle::GetBrush("EditorViewportToolBar.MenuDropdown");
 	const float MenuIconSize = 16.0f;
 	const FMargin ToolbarSlotPadding(2.0f, 2.0f);
 
@@ -119,7 +119,7 @@ void SCompElementPreviewPane::Construct(const FArguments& InArgs)
 							.ClickMethod(EButtonClickMethod::MouseDown)
 							.ContentPadding(FMargin(5.0f, 2.0f))
 							.VAlign(VAlign_Center)
-							.ButtonStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButton")
+							.ButtonStyle(FAppStyle::Get(), "EditorViewportToolBar.MenuButton")
 							.OnClicked(this, &SCompElementPreviewPane::OnMenuClicked)
 							[
 								SNew(SBox)

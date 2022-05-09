@@ -23,7 +23,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IIntroTutorials.h"
 #include "IntroTutorials.h"
 #include "IDocumentationPage.h"
@@ -165,7 +165,7 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 					.ContentPadding(0.0f)
 					[
 						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("Symbols.X"))
+						.Image(FAppStyle::GetBrush("Symbols.X"))
 						.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f))
 					]
 				]
@@ -809,7 +809,7 @@ const FSlateBrush* STutorialContent::GetBackButtonBrush() const
 	{
 		return FEditorTutorialStyle::Get().GetBrush("Tutorials.Navigation.BackButton");
 	}
-	return FAppStyle::Get().GetDefaultBrush();
+	return FAppStyle::GetDefaultBrush();
 }
 
 EVisibility STutorialContent::GetBackButtonVisibility() const

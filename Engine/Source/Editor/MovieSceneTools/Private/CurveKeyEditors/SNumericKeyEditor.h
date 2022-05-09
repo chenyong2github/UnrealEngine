@@ -9,7 +9,7 @@
 #include "Editor.h"
 #include "SequencerKeyEditor.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerKeyEditor.h"
 
 #define LOCTEXT_NAMESPACE "NumericKeyEditor"
@@ -44,8 +44,8 @@ public:
 		ChildSlot
 		[
 			SNew(SNonThrottledSpinBox<NumericType>)
-			.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+			.Font(FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 			.MinValue(TOptional<NumericType>())
 			.MaxValue(TOptional<NumericType>())
 			.MaxSliderValue(TOptional<NumericType>())

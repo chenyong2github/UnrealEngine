@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_Texture2D.h"
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/SlateBrushAssetFactory.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Factories/VolumeTextureFactory.h"
@@ -26,7 +26,7 @@ void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, 
 		"Texture2D_CreateSlateBrush",
 		LOCTEXT("Texture2D_CreateSlateBrush", "Create Slate Brush"),
 		LOCTEXT("Texture2D_CreateSlateBrushToolTip", "Creates a new slate brush using this texture."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SlateBrushAsset"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SlateBrushAsset"),
 		FUIAction(FExecuteAction::CreateSP( this, &FAssetTypeActions_Texture2D::ExecuteCreateSlateBrush, Textures ), FCanExecuteAction())
 		);
 
@@ -37,7 +37,7 @@ void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, 
 			"Texture_Texture2DArray",
 			LOCTEXT("Texture_Texture2DArray", "Create Texture Array"),
 			LOCTEXT("Texture_CreateTexture2DArrayTooltip", "Creates a new texture array."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D"),
 			FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_Texture2D::ExecuteCreateTextureArray, Textures), FCanExecuteAction())
 			);
 	}
@@ -48,7 +48,7 @@ void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, 
 			"Texture2D_CreateVolumeTexture",
 			LOCTEXT("Texture2D_CreateVolumeTexture", "Create Volume Texture"),
 			LOCTEXT("Texture2D_CreateVolumeTextureToolTip", "Creates a new volume texture using this texture."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.VolumeTexture"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.VolumeTexture"),
 			FUIAction(FExecuteAction::CreateSP( this, &FAssetTypeActions_Texture2D::ExecuteCreateVolumeTexture, Textures ), FCanExecuteAction())
 			);
 	}

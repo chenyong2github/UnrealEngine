@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/ConsoleManager.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 
@@ -158,7 +158,7 @@ void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, 
 			[
 				SNew(SBorder)
 				.Visibility(EVisibility::Visible)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
 					SNew(SListView<TSharedPtr<SControlRigFunctionLocalizationItem>>)
 					.ListItemsSource(&FunctionItems)
@@ -259,14 +259,14 @@ void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
                 .Padding(5)
                 [
                     SNew(SUniformGridPanel)
-                    .SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-                    .MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-                    .MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+                    .SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+                    .MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+                    .MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
                     +SUniformGridPanel::Slot(0, 0)
                     [
                         SNew(SButton)
                         .HAlign(HAlign_Center)
-                        .ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+                        .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("OK", "OK"))
                         .OnClicked(this, &SControlRigFunctionLocalizationDialog::OnButtonClick, EAppReturnType::Ok)
                         .IsEnabled(this, &SControlRigFunctionLocalizationDialog::IsOkButtonEnabled)
@@ -275,7 +275,7 @@ void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
                     [
                         SNew(SButton)
                         .HAlign(HAlign_Center)
-                        .ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+                        .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("Cancel", "Cancel"))
                         .OnClicked(this, &SControlRigFunctionLocalizationDialog::OnButtonClick, EAppReturnType::Cancel)
                     ]

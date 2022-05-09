@@ -2,7 +2,7 @@
 
 #include "CodeProjectEditorToolbar.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CodeProjectEditorCommands.h"
 #include "LevelEditorActions.h"
 #include "SourceCodeNavigation.h"
@@ -57,7 +57,7 @@ void FCodeProjectEditorToolbar::FillEditorToolbar(FToolBarBuilder& ToolbarBuilde
 				NAME_None,
 				NSLOCTEXT( "LevelEditorToolBar", "CompileMenuButton", "Compile" ),
 				NSLOCTEXT( "LevelEditorActions", "RecompileGameCode_ToolTip", "Recompiles and reloads C++ code for game systems on the fly" ),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Recompile")
 				);
 		}
 		ToolbarBuilder.EndSection();

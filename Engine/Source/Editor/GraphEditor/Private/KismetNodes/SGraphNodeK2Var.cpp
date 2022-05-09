@@ -45,7 +45,7 @@ TSharedRef<SWidget> SGraphNodeK2Var::UpdateTitleWidget(FText InTitleText, TShare
 	if(!TitleWidget.IsValid())
 	{
 		TitleWidget = SNew(STextBlock)
-		.TextStyle( FEditorStyle::Get(), "Graph.Node.NodeTitle" )
+		.TextStyle( FAppStyle::Get(), "Graph.Node.NodeTitle" )
 		.Text(InTitleText);
 	}
 
@@ -158,7 +158,7 @@ void SGraphNodeK2Var::UpdateGraphNode()
 				[
 					SNew(STextBlock)
 						.WrapTextAt(128.0f)
-						.TextStyle( FEditorStyle::Get(), "Graph.Node.NodeTitle" )
+						.TextStyle( FAppStyle::Get(), "Graph.Node.NodeTitle" )
 						.Text(TitleText)
 				]
 
@@ -169,7 +169,7 @@ void SGraphNodeK2Var::UpdateGraphNode()
 					SNew(STextBlock)
 						.Visibility(TitleText.IsEmpty()? EVisibility::Collapsed : EVisibility::Visible)
 						.WrapTextAt(128.0f)
-						.TextStyle( FEditorStyle::Get(), "Graph.Node.NodeTitleExtraLines" )
+						.TextStyle( FAppStyle::Get(), "Graph.Node.NodeTitleExtraLines" )
 						.Text(SubTitleText)
 				]
 			];
@@ -212,19 +212,19 @@ void SGraphNodeK2Var::UpdateGraphNode()
 			+ SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.VarNode.Body") )
+				.Image( FAppStyle::GetBrush("Graph.VarNode.Body") )
 			]
 			+ SOverlay::Slot()
 			.VAlign(VAlign_Top)
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.VarNode.ColorSpill") )
+				.Image( FAppStyle::GetBrush("Graph.VarNode.ColorSpill") )
 				.ColorAndOpacity( this, &SGraphNodeK2Var::GetVariableColor )
 			]
 			+ SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.VarNode.Gloss") )
+				.Image( FAppStyle::GetBrush("Graph.VarNode.Gloss") )
 			]
 			+SOverlay::Slot()
 			.VAlign(VAlign_Top)
@@ -329,5 +329,5 @@ void SGraphNodeK2Var::UpdateGraphNode()
 
 const FSlateBrush* SGraphNodeK2Var::GetShadowBrush(bool bSelected) const
 {
-	return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
+	return bSelected ? FAppStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
 }

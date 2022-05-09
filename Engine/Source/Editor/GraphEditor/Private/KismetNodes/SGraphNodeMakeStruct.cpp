@@ -184,7 +184,7 @@ TSharedRef<SWidget> SOptionalPinStateView::CreateSelectionWidget(UEdGraphPin* In
 	{
 		return
 			SNew(SComboBox<TSharedPtr<FOptionalPinOverrideState>>)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ForegroundColor(FLinearColor::White)
 				.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
 				.OptionsSource(&ListItems)
@@ -194,7 +194,7 @@ TSharedRef<SWidget> SOptionalPinStateView::CreateSelectionWidget(UEdGraphPin* In
 				[
 					SNew(SBorder)
 					.Padding(0.0f)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.ColorAndOpacity(this, &SOptionalPinStateView::GetPinOverrideIconColor, &InPropertyEntry)
 					[
 						SNew(SImage)
@@ -205,13 +205,13 @@ TSharedRef<SWidget> SOptionalPinStateView::CreateSelectionWidget(UEdGraphPin* In
 	}
 	return
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.OnClicked(this, &SOptionalPinStateView::OnOverrideStateToggled, InPin, &InPropertyEntry)
 		.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
 		[
 			SNew(SBorder)
 			.Padding(0.0f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.ColorAndOpacity(this, &SOptionalPinStateView::GetPinOverrideIconColor, &InPropertyEntry)
 			[
 				SNew(SImage)
@@ -235,7 +235,7 @@ TSharedRef<SWidget> SOptionalPinStateView::OnGenerateWidget(TSharedPtr<FOptional
 		[
 			SNew(SBorder)
 			.Padding(0.0f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.ColorAndOpacity(Color)
 			[
 				SNew(SImage)
@@ -258,15 +258,15 @@ void SOptionalPinStateView::GetIconForOptionalPinOverrideState(bool bInIsOverrid
 	const FSlateBrush* Brush = nullptr;
 	if (!bInIsOverridePinVisible || (bInIsOverridePinVisible && !bInIsOverrideEnabled && bIsSetValuePinVisible))
 	{
-		Brush = FEditorStyle::GetBrush("Icons.Warning");
+		Brush = FAppStyle::GetBrush("Icons.Warning");
 	}
 	else if (!bInIsOverrideEnabled && !bIsSetValuePinVisible)
 	{
-		Brush = FEditorStyle::GetBrush("Kismet.VariableList.HideForInstance");
+		Brush = FAppStyle::GetBrush("Kismet.VariableList.HideForInstance");
 	}
 	else
 	{
-		Brush = FEditorStyle::GetBrush("Kismet.VariableList.ExposeForInstance");
+		Brush = FAppStyle::GetBrush("Kismet.VariableList.ExposeForInstance");
 	}
 	OutBrush = Brush;
 }

@@ -9,7 +9,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/FbxImportUI.h"
 #include "Editor.h"
 
@@ -323,7 +323,7 @@ namespace FbxAutomationBuilder
 				[
 					SNew(STextBlock)
 					.Text(FText::FromString(ItemString))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			];
 	}
@@ -426,7 +426,7 @@ namespace FbxAutomationBuilder
 				[
 					SNew(STextBlock)
 					.Text(FText::FromString(ItemString))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			];
 	}

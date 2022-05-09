@@ -44,7 +44,7 @@ FSubSectionPainterResult FSubSectionPainterUtil::PaintSection(TSharedPtr<const I
 
     FVector2D TopLeft = InPainter.SectionGeometry.AbsoluteToLocal(InPainter.SectionClippingRect.GetTopLeft()) + FVector2D(1.f, -1.f);
 
-    FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("NormalFont");
+    FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("NormalFont");
 
     TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
 
@@ -168,7 +168,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                     FVector2D(0.0f, 0.f),
                     FVector2D(StartOffset * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
                     ),
-                FEditorStyle::GetBrush("WhiteBrush"),
+                FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
                 FLinearColor::Black.CopyWithNewOpacity(0.5f)
                 );
@@ -181,7 +181,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                     FVector2D(StartOffset * PixelsPerFrame, 0.f),
                     FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
                     ),
-                FEditorStyle::GetBrush("WhiteBrush"),
+                FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
                 FColor(32, 128, 32, GhostAlpha)	// 120, 75, 50 (HSV)
                 );
@@ -199,7 +199,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                     FVector2D(EndOffset * PixelsPerFrame, 0.f),
                     FVector2D((SectionSize - EndOffset) * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
                     ),
-                FEditorStyle::GetBrush("WhiteBrush"),
+                FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
                 FLinearColor::Black.CopyWithNewOpacity(0.5f)
                 );
@@ -213,7 +213,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                     FVector2D(EndOffset * PixelsPerFrame, 0.f),
                     FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
                     ),
-                FEditorStyle::GetBrush("WhiteBrush"),
+                FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
                 FColor(128, 32, 32, GhostAlpha)	// 0, 75, 50 (HSV)
                 );
@@ -259,7 +259,7 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
                 FVector2D(CurOffset * PixelsPerFrame, 0.f),
                 FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
             ),
-            FEditorStyle::GetBrush("WhiteBrush"),
+            FAppStyle::GetBrush("WhiteBrush"),
             DrawEffects,
             FColor(32, 128, 32, GhostAlpha)	// 120, 75, 50 (HSV)
         );
@@ -272,7 +272,7 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
                     FVector2D(CurOffset * PixelsPerFrame - 1.f, 0.f),
                     FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
                 ),
-                FEditorStyle::GetBrush("WhiteBrush"),
+                FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
                 FColor(128, 32, 32, GhostAlpha)	// 0, 75, 50 (HSV)
             );

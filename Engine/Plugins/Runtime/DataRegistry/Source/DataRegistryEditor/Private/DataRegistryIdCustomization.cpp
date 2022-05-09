@@ -69,7 +69,7 @@ void SDataRegistryItemNameWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Text(this, &SDataRegistryItemNameWidget::OnGetNameValueText)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			]
 		]
@@ -290,7 +290,7 @@ void FDataRegistryIdCustomization::CustomizeChildren(TSharedRef<class IPropertyH
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ItemName", "Item Name"))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 			.ValueContent()
 			.MaxDesiredWidth(0.0f)

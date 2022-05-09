@@ -181,7 +181,7 @@ FText UK2Node_InputDebugKey::GetTooltipText() const
 
 FSlateIcon UK2Node_InputDebugKey::GetIconAndTint(FLinearColor& OutColor) const
 {
-	return FSlateIcon("EditorStyle", EKeys::GetMenuCategoryPaletteIcon(InputKey.GetMenuCategory()));
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), EKeys::GetMenuCategoryPaletteIcon(InputKey.GetMenuCategory()));
 }
 
 bool UK2Node_InputDebugKey::IsCompatibleWithGraph(UEdGraph const* Graph) const

@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "Internationalization/Internationalization.h"
 #include "Widgets/Docking/SDockTab.h"

@@ -102,10 +102,10 @@ const FSlateBrush* SControlRigVariableBinding::GetBindingImage() const
 	{
 		if(ModelPins[0]->IsArray())
 		{
-			return FEditorStyle::GetBrush(ArrayTypeIcon);
+			return FAppStyle::GetBrush(ArrayTypeIcon);
 		}
 	}
-	return FEditorStyle::GetBrush(TypeIcon);
+	return FAppStyle::GetBrush(TypeIcon);
 }
 
 FLinearColor SControlRigVariableBinding::GetBindingColor() const

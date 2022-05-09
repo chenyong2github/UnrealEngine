@@ -12,7 +12,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ILocalizationServiceModule.h"
 #include "OneSkyConnectionInfo.h"
 #include "OneSkyLocalizationServiceModule.h"
@@ -42,7 +42,7 @@ class FOneSkyLocalizationTargetEditorCommands : public TCommands<FOneSkyLocaliza
 {
 public:
 	FOneSkyLocalizationTargetEditorCommands()
-		: TCommands<FOneSkyLocalizationTargetEditorCommands>("OneSkyLocalizationTargetEditor", NSLOCTEXT("OneSky", "OneSkyLocalizationTargetEditor", "OneSky Localization Target Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FOneSkyLocalizationTargetEditorCommands>("OneSkyLocalizationTargetEditor", NSLOCTEXT("OneSky", "OneSkyLocalizationTargetEditor", "OneSky Localization Target Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 		}
 
@@ -491,13 +491,13 @@ void FOneSkyLocalizationServiceProvider::AddTargetToolbarButtons(FToolBarBuilder
 {
 	bool bIsTargetSet = false;
 	CommandList->MapAction(FOneSkyLocalizationTargetEditorCommands::Get().ImportAllCulturesForTargetFromOneSky, FExecuteAction::CreateRaw(this, &FOneSkyLocalizationServiceProvider::ImportAllCulturesForTargetFromOneSky, InLocalizationTarget, bIsTargetSet));
-	ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ImportAllCulturesForTargetFromOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
+	ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ImportAllCulturesForTargetFromOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
 
 	// Don't add "export all" buttons for engine targets
 	if (!InLocalizationTarget->IsMemberOfEngineTargetSet())
 	{
 		CommandList->MapAction(FOneSkyLocalizationTargetEditorCommands::Get().ExportAllCulturesForTargetToOneSky, FExecuteAction::CreateRaw(this, &FOneSkyLocalizationServiceProvider::ExportAllCulturesForTargetToOneSky, InLocalizationTarget, bIsTargetSet));
-		ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ExportAllCulturesForTargetToOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
+		ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ExportAllCulturesForTargetToOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
 	}
 }
 
@@ -513,13 +513,13 @@ void FOneSkyLocalizationServiceProvider::CustomizeTargetSetToolbar(TSharedRef<FE
 void FOneSkyLocalizationServiceProvider::AddTargetSetToolbarButtons(FToolBarBuilder& ToolbarBuilder, TWeakObjectPtr<ULocalizationTargetSet> InLocalizationTargetSet, TSharedRef< FUICommandList > CommandList)
 {
 	CommandList->MapAction(FOneSkyLocalizationTargetEditorCommands::Get().ImportAllTargetsAllCulturesForTargetSetFromOneSky, FExecuteAction::CreateRaw(this, &FOneSkyLocalizationServiceProvider::ImportAllTargetsForTargetSetFromOneSky, InLocalizationTargetSet));
-	ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ImportAllTargetsAllCulturesForTargetSetFromOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
+	ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ImportAllTargetsAllCulturesForTargetSetFromOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
 
 	// Don't add "export all" button for the engine target set
 	if (InLocalizationTargetSet.IsValid() && InLocalizationTargetSet->TargetObjects.Num() > 0 && !(InLocalizationTargetSet->TargetObjects[0]->IsMemberOfEngineTargetSet()))
 	{
 		CommandList->MapAction(FOneSkyLocalizationTargetEditorCommands::Get().ExportAllTargetsAllCulturesForTargetSetFromOneSky, FExecuteAction::CreateRaw(this, &FOneSkyLocalizationServiceProvider::ExportAllTargetsForTargetSetToOneSky, InLocalizationTargetSet));
-		ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ExportAllTargetsAllCulturesForTargetSetFromOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
+		ToolbarBuilder.AddToolBarButton(FOneSkyLocalizationTargetEditorCommands::Get().ExportAllTargetsAllCulturesForTargetSetFromOneSky, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "TranslationEditor.ImportLatestFromLocalizationService"));
 	}
 }
 

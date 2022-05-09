@@ -30,7 +30,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"EditorFramework",
 					"UnrealEd",
-					"EditorStyle"
                 }
 			);
 

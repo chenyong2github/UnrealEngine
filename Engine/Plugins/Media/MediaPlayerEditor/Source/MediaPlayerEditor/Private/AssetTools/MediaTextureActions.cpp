@@ -6,7 +6,7 @@
 #include "Misc/PackageName.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/Material.h"
 #include "Factories/MaterialFactoryNew.h"
 #include "MediaTexture.h"
@@ -31,7 +31,7 @@ void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FToolMe
 		"MediaTexture_CreateMaterial",
 		LOCTEXT("MediaTexture_CreateMaterial", "Create Material"),
 		LOCTEXT("MediaTexture_CreateMaterialTooltip", "Creates a new material using this texture."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Material"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Material"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FMediaTextureActions::ExecuteCreateMaterial, Textures),
 			FCanExecuteAction()
@@ -41,7 +41,7 @@ void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FToolMe
 /*	MenuBuilder.AddMenuEntry(
 		LOCTEXT("MediaTexture_CreateSlateBrush", "Create Slate Brush"),
 		LOCTEXT("MediaTexture_CreateSlateBrushToolTip", "Creates a new slate brush using this texture."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SlateBrushAsset"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SlateBrushAsset"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_MediaTexture::ExecuteCreateSlateBrush, Textures),
 			FCanExecuteAction()

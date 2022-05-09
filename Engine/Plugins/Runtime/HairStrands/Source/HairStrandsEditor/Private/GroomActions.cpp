@@ -56,7 +56,7 @@ void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSecti
 		"RebuildGroom",
 		LOCTEXT("RebuildGroom", "Rebuild"),
 		LOCTEXT("RebuildGroomTooltip", "Rebuild the groom with new build settings"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteRebuild, GroomAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomActions::CanRebuild, GroomAssets)
@@ -67,7 +67,7 @@ void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSecti
 		"CreateBindingAsset",
 		LOCTEXT("CreateBindingAsset", "Create Binding"),
 		LOCTEXT("CreateBindingAssetTooltip", "Create a binding asset between a skeletal mesh and a groom asset"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateBindingAsset, GroomAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateBindingAsset, GroomAssets)
@@ -78,7 +78,7 @@ void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSecti
 		"CreateFollicleTexture",
 		LOCTEXT("CreateFollicleTexture", "Create Follicle Texture"),
 		LOCTEXT("CreateFollicleTextureTooltip", "Create a follicle texture for the selected groom assets"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateFollicleTexture, GroomAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateFollicleTexture, GroomAssets)
@@ -89,7 +89,7 @@ void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSecti
 		"CreateStrandsTextures",
 		LOCTEXT("CreateStrandsTextures", "Create Strands Textures"),
 		LOCTEXT("CreateStrandsTexturesTooltip", "Create projected strands textures onto meshes"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateStrandsTextures, GroomAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateStrandsTextures, GroomAssets)

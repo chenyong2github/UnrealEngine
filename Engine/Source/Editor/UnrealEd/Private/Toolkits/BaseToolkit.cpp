@@ -410,7 +410,7 @@ void FModeToolkit::InvokeUI()
 TSharedRef<SDockTab> FModeToolkit::CreatePrimaryModePanel(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SWidget> TabContent = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(0.0f)
 		[
 			SNew(SVerticalBox)
@@ -419,7 +419,7 @@ TSharedRef<SDockTab> FModeToolkit::CreatePrimaryModePanel(const FSpawnTabArgs& A
 			.HAlign(HAlign_Left)
 			[
 				SAssignNew(ModeToolBarContainer, SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4, 0, 0, 0))
 			]
 
@@ -433,14 +433,14 @@ TSharedRef<SDockTab> FModeToolkit::CreatePrimaryModePanel(const FSpawnTabArgs& A
 				.AutoHeight()
 				[
 					SAssignNew(ModeToolHeader, SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				]
 
 				+ SVerticalBox::Slot()
 				.FillHeight(1)
 				[
 					SAssignNew(InlineContentHolder, SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Visibility(this, &FModeToolkit::GetInlineContentHolderVisibility)
 				]
 		]
@@ -734,7 +734,7 @@ void FModeToolkit::RebuildModeToolBar()
 							PaletteTabBox->AddSlot()
 								[
 									SNew(SCheckBox)
-									.Style(FEditorStyle::Get(), "ToolPalette.DockingTab")
+									.Style(FAppStyle::Get(), "ToolPalette.DockingTab")
 								.OnCheckStateChanged_Lambda([PaletteSwitcher, Row, this](const ECheckBoxState) {
 										PaletteSwitcher->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
 										SetCurrentPalette(Row.PaletteName);
@@ -763,7 +763,7 @@ void FModeToolkit::RebuildModeToolBar()
 					+ SOverlay::Slot()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("ToolPalette.DockingWell"))
+					.Image(FAppStyle::GetBrush("ToolPalette.DockingWell"))
 				]
 
 			+ SOverlay::Slot()

@@ -14,7 +14,6 @@ public class BspMode : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",

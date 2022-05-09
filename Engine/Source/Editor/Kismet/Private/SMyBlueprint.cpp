@@ -90,7 +90,7 @@ public:
 
 	virtual void HoverTargetChanged() override
 	{
-		const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("NoBrush")); 
+		const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("NoBrush")); 
 		FText Message = DraggedCategory;
 
 		FFormatNamedArguments Args;
@@ -100,26 +100,26 @@ public:
 		{
 			if(HoveredCategoryName.EqualTo(DraggedCategory))
 			{
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 				
 				Message = FText::Format( LOCTEXT("MoveCatOverSelf", "Cannot insert category '{DraggedCategory}' before itself."), Args );
 			}
 			else
 			{
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 				Args.Add(TEXT("HoveredCategory"), HoveredCategoryName);
 				Message = FText::Format( LOCTEXT("MoveCatOK", "Move category '{DraggedCategory}' before '{HoveredCategory}'"), Args );
 			}
 		}
 		else if (HoveredAction.IsValid())
 		{
-			StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 			Message = LOCTEXT("MoveCatOverAction", "Can only insert before another category.");
 		}
 		else
 		{
-			StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 			Message = FText::Format(LOCTEXT("MoveCatAction", "Moving category '{DraggedCategory}'"), Args);
 		}
 
@@ -483,7 +483,7 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 		[
 			SNew(SBorder)
 			.Padding(4.0f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("MyBlueprintPanel")))
 			[
 				SNew(SVerticalBox)
@@ -783,7 +783,7 @@ TSharedRef<SWidget> SMyBlueprint::OnGetSectionWidget(TSharedRef<SWidget> RowWidg
 					SAssignNew(FunctionSectionButton, SComboButton)
 					.IsEnabled(this, &SMyBlueprint::IsEditingMode)
 					.Visibility(this, &SMyBlueprint::OnGetSectionTextVisibility, WeakRowWidget, InSectionID)
-					.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+					.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 					.OnGetMenuContent(this, &SMyBlueprint::OnGetFunctionListMenu)
 					.ContentPadding(0)
 					.HasDownArrow(true)
@@ -836,7 +836,7 @@ TSharedRef<SWidget> SMyBlueprint::CreateAddToSectionButton(int32 InSectionID, TW
 {
 	return 
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.OnClicked(this, &SMyBlueprint::OnAddButtonClickedOnSection, InSectionID)
 		.IsEnabled(this, &SMyBlueprint::CanAddNewElementToSection, InSectionID)
 		.ContentPadding(FMargin(1, 0))
@@ -2437,7 +2437,7 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 					FText::GetEmpty(),
 					FNewMenuDelegate::CreateSP(this, &SMyBlueprint::BuildOverridableFunctionsMenu),
 					false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintEditor.AddNewFunction.Small"));
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintEditor.AddNewFunction.Small"));
 			}
 		}
 

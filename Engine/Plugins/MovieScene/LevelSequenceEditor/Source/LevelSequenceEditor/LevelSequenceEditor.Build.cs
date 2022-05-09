@@ -29,7 +29,6 @@ public class LevelSequenceEditor : ModuleRules
 				"CoreUObject",
 				"CurveEditor",
 				"EditorFramework",
-                "EditorStyle",
 				"EditorSubsystem",
 				"Engine",
                 "InputCore",

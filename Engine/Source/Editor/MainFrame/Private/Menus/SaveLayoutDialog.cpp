@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SaveLayoutDialog.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/FileHelper.h"
@@ -260,7 +260,7 @@ void SSaveLayoutDialog::Construct(const FArguments& InArgs, const TSharedRef<FSa
 					[
 						SNew(SBorder)
 						.Visibility( this, &SSaveLayoutDialog::GetNameErrorLabelVisibility )
-						.BorderImage( FEditorStyle::GetBrush("AssetDialog.ErrorLabelBorder") )
+						.BorderImage( FAppStyle::GetBrush("AssetDialog.ErrorLabelBorder") )
 						.Content()
 						[
 							SNew(STextBlock)

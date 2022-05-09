@@ -10,7 +10,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IOSRuntimeSettings.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -501,8 +501,8 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 							[
 								SNew(SRichTextBlock)
 								.Text(LOCTEXT("ProvisionMessage", "<RichTextBlock.TextHighlight>Note</>: If no provision is selected the one in green will be used to provision the IPA."))
-								.TextStyle(FEditorStyle::Get(), "MessageLog")
-								.DecoratorStyleSet(&FEditorStyle::Get())
+								.TextStyle(FAppStyle::Get(), "MessageLog")
+								.DecoratorStyleSet(&FAppStyle::Get())
 								.AutoWrapText(true)
 							]
 
@@ -660,8 +660,8 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 								[
 									SNew(SRichTextBlock)
 									.Text(LOCTEXT("CertificateMessage", "<RichTextBlock.TextHighlight>Note</>: If no certificate is selected then the one in green will be used to sign the IPA."))
-									.TextStyle(FEditorStyle::Get(), "MessageLog")
-									.DecoratorStyleSet(&FEditorStyle::Get())
+									.TextStyle(FAppStyle::Get(), "MessageLog")
+									.DecoratorStyleSet(&FAppStyle::Get())
 									.AutoWrapText(true)
 								]
 								+ SHorizontalBox::Slot()
@@ -729,8 +729,8 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 			[
 				SNew(SRichTextBlock)
 				.Text(LOCTEXT("IOSUpgradeInfoMessage", "<RichTextBlock.TextHighlight>Note to users from 4.6 or earlier</>: We now <RichTextBlock.TextHighlight>GENERATE</> an Info.plist when building, so if you have customized your .plist file, you will need to put all of your changes into the below settings. Note that we don't touch the .plist file that is in your project directory, so you can use it as reference."))
-				.TextStyle(FEditorStyle::Get(), "MessageLog")
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.TextStyle(FAppStyle::Get(), "MessageLog")
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.AutoWrapText(true)
 				// + SRichTextBlock::HyperlinkDecorator(TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnBrowserLinkClicked))
 			 ]
@@ -1538,11 +1538,11 @@ const FSlateBrush* FIOSTargetSettingsCustomization::GetProvisionStatus() const
 {
 	if( bProvisionInstalled )
 	{
-		return FEditorStyle::GetBrush("Automation.Success");
+		return FAppStyle::GetBrush("Automation.Success");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("Automation.Fail");
+		return FAppStyle::GetBrush("Automation.Fail");
 	}
 }
 
@@ -1550,11 +1550,11 @@ const FSlateBrush* FIOSTargetSettingsCustomization::GetCertificateStatus() const
 {
 	if( bCertificateInstalled )
 	{
-		return FEditorStyle::GetBrush("Automation.Success");
+		return FAppStyle::GetBrush("Automation.Success");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("Automation.Fail");
+		return FAppStyle::GetBrush("Automation.Fail");
 	}
 }
 

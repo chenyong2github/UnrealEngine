@@ -1838,7 +1838,7 @@ void UControlRigComponent::ReportError(const FString& InMessage)
 
 		FNotificationInfo Info(FText::FromString(InMessage));
 		Info.bUseSuccessFailIcons = true;
-		Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Warning"));
 		Info.bFireAndForget = true;
 		Info.bUseThrobber = true;
 		Info.FadeOutDuration = 8.0f;

@@ -31,7 +31,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailWidgetRow.h"
 
 #include "Core/Public/Modules/ModuleManager.h"
@@ -88,12 +88,12 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.ColorAndOpacity(FLinearColor(0.75f, 0.75f, 0.75f))
 					.Padding(FMargin(6.0f, 4.0f))
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("BoldFont"))
+						.Font(FAppStyle::GetFontStyle("BoldFont"))
 						.Text(GetDisplayName())
 					]
 				];
@@ -268,7 +268,7 @@ public:
 	{
 		static const FName ButtonIconSyle = TEXT("FontAwesome.10");
 		// This font is used to render a small square box filled with the avatar color.
-		FSlateFontInfo ClientIconFontInfo = FEditorStyle::Get().GetFontStyle(ButtonIconSyle);
+		FSlateFontInfo ClientIconFontInfo = FAppStyle::Get().GetFontStyle(ButtonIconSyle);
 		ClientIconFontInfo.Size = 8;
 		ClientIconFontInfo.OutlineSettings.OutlineSize = 1;
 

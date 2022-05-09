@@ -89,7 +89,7 @@ public:
 
 	const FSlateBrush* GetShadowBrush(bool bSelected) const
 	{
-		return  FEditorStyle::GetNoBrush();
+		return  FAppStyle::GetNoBrush();
 	}
 
 	virtual bool ShouldAllowCulling() const override { return false; }
@@ -172,7 +172,7 @@ public:
 		if(StepIndex != InParent->GetDataprepAction()->GetStepsCount())
 		{
 			Separator = SNew( SSeparator )
-				.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+				.SeparatorImage(FAppStyle::GetBrush( "ThinLine.Horizontal" ))
 				.Thickness(2.f)
 				.Orientation(EOrientation::Orient_Horizontal)
 				.ColorAndOpacity(this, &SDataprepEmptyActionStepNode::GetDragAndDropColor);
@@ -212,7 +212,7 @@ public:
 				[
 					SNew(SImage)
 					.ColorAndOpacity(MoveTemp(OuterColorAndOpacity))
-					.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+					.Image(FAppStyle::GetBrush( "Graph.StateNode.Body" ))
 				]
 
 				+ SOverlay::Slot()
@@ -222,7 +222,7 @@ public:
 				[
 					SNew(SImage)
 					.ColorAndOpacity(MoveTemp(InnerColorAndOpacity))
-					.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+					.Image(FAppStyle::GetBrush( "Graph.StateNode.Body" ))
 				]
 
 				+ SOverlay::Slot()
@@ -573,7 +573,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.Padding(5.f, 5.f, 5.f, 5.f)
 						[
 							SAssignNew(ExpandActionButton, SButton)
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
+							.ButtonStyle(FAppStyle::Get(), "FlatButton.Primary")
 							.ButtonColorAndOpacity(FLinearColor::Transparent)
 							.ForegroundColor(FLinearColor::White)
 							.ContentPadding(FMargin(6, 2))
@@ -581,8 +581,8 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 							[
 
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+								.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 								.Text_Lambda([this](){ return DataprepActionPtr->GetAppearance()->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
 							]
 							.OnClicked_Lambda([this]()
@@ -598,7 +598,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 					.Padding(FMargin(5.0f, 0.0f, 7.0f, 2.0f))
 					[
 						SNew( SSeparator )
-						.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+						.SeparatorImage(FAppStyle::GetBrush( "ThinLine.Horizontal" ))
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
 						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparatorActionNode.Color"))
@@ -685,7 +685,7 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateNodeContentArea()
 
 const FSlateBrush* SDataprepGraphActionNode::GetShadowBrush(bool bSelected) const
 {
-	return FEditorStyle::GetNoBrush();
+	return FAppStyle::GetNoBrush();
 }
 
 FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -1116,7 +1116,7 @@ void SDataprepGraphActionGroupNode::UpdateGraphNode()
 					.Padding(5.f, 2.f)
 					[
 						SNew( SSeparator )
-						.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+						.SeparatorImage(FAppStyle::GetBrush( "ThinLine.Horizontal" ))
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
 						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparatorActionNode.Color"))
@@ -1359,7 +1359,7 @@ FReply SDataprepGraphActionGroupNode::OnDrop( const FGeometry& MyGeometry, const
 
 const FSlateBrush* SDataprepGraphActionGroupNode::GetShadowBrush(bool bSelected) const
 {
-	return FEditorStyle::GetNoBrush();
+	return FAppStyle::GetNoBrush();
 }
 
 void SDataprepGraphActionGroupNode::UpdateExecutionOrder()

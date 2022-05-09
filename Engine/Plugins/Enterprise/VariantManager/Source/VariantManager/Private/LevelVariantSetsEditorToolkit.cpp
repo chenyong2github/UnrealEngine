@@ -8,7 +8,7 @@
 #include "EngineGlobals.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -25,9 +25,8 @@
 
 #define LOCTEXT_NAMESPACE "LevelVariantSetsEditor"
 
-FLevelVariantSetsEditorToolkit::FLevelVariantSetsEditorToolkit(const TSharedRef<ISlateStyle>& InStyle)
+FLevelVariantSetsEditorToolkit::FLevelVariantSetsEditorToolkit()
 	: LevelVariantSets(nullptr)
-	, Style(InStyle)
 {
 }
 

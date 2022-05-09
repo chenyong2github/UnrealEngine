@@ -304,7 +304,7 @@ FReply SGraphNode::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 			}
 			bool bReadOnly = OwnerGraphPanelPtr.IsValid() ? !OwnerGraphPanelPtr.Pin()->IsGraphEditable() : false;
 			bOkIcon = bReadOnly ? false : bOkIcon;
-			const FSlateBrush* TooltipIcon = bOkIcon ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));;
+			const FSlateBrush* TooltipIcon = bOkIcon ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));;
 			AssetOp->SetToolTip(FText::FromString(TooltipText), TooltipIcon);
 		}
 		return FReply::Handled();
@@ -597,7 +597,7 @@ FSlateColor SGraphNode::GetNodeBodyColor() const
 
 const FSlateBrush *  SGraphNode::GetNodeBodyBrush() const
 {
-	return FEditorStyle::GetBrush("Graph.Node.Body");
+	return FAppStyle::GetBrush("Graph.Node.Body");
 }
 
 FSlateColor SGraphNode::GetNodeTitleIconColor() const
@@ -699,23 +699,23 @@ void SGraphNode::UpdateErrorInfo()
 		if (GraphNode->ErrorType <= EMessageSeverity::Error)
 		{
 			ErrorMsg = FString( TEXT("ERROR!") );
-			ErrorColor = FEditorStyle::GetColor("ErrorReporting.BackgroundColor");
+			ErrorColor = FAppStyle::GetColor("ErrorReporting.BackgroundColor");
 		}
 		else if (GraphNode->ErrorType <= EMessageSeverity::Warning)
 		{
 			ErrorMsg = FString( TEXT("WARNING!") );
-			ErrorColor = FEditorStyle::GetColor("ErrorReporting.WarningBackgroundColor");
+			ErrorColor = FAppStyle::GetColor("ErrorReporting.WarningBackgroundColor");
 		}
 		else
 		{
 			ErrorMsg = FString( TEXT("NOTE") );
-			ErrorColor = FEditorStyle::GetColor("InfoReporting.BackgroundColor");
+			ErrorColor = FAppStyle::GetColor("InfoReporting.BackgroundColor");
 		}
 	}
 	else if (!GraphNode->NodeUpgradeMessage.IsEmpty())
 	{
 		ErrorMsg = FString(TEXT("UPGRADE NOTE"));
-		ErrorColor = FEditorStyle::GetColor("InfoReporting.BackgroundColor");
+		ErrorColor = FAppStyle::GetColor("InfoReporting.BackgroundColor");
 	}
 	else 
 	{
@@ -803,7 +803,7 @@ void SGraphNode::UpdateGraphNode()
 		+SOverlay::Slot()
 		[
 			SNew(SImage)
-			.Image( FEditorStyle::GetBrush("Graph.Node.TitleGloss") )
+			.Image( FAppStyle::GetBrush("Graph.Node.TitleGloss") )
 			.ColorAndOpacity( this, &SGraphNode::GetNodeTitleIconColor )
 		]
 		+SOverlay::Slot()
@@ -815,7 +815,7 @@ void SGraphNode::UpdateGraphNode()
 			.HAlign(HAlign_Fill)
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("Graph.Node.ColorSpill") )
+				.BorderImage( FAppStyle::GetBrush("Graph.Node.ColorSpill") )
 				// The extra margin on the right
 				// is for making the color spill stretch well past the node title
 				.Padding( FMargin(10,5,30,3) )
@@ -861,7 +861,7 @@ void SGraphNode::UpdateGraphNode()
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::HitTestInvisible)			
-			.BorderImage( FEditorStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
+			.BorderImage( FAppStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
 			.BorderBackgroundColor( this, &SGraphNode::GetNodeTitleIconColor )
 			[
 				SNew(SSpacer)
@@ -877,7 +877,7 @@ void SGraphNode::UpdateGraphNode()
 		.LowDetail()
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("Graph.Node.ColorSpill") )
+			.BorderImage( FAppStyle::GetBrush("Graph.Node.ColorSpill") )
 			.Padding( FMargin(75.0f, 22.0f) ) // Saving enough space for a 'typical' title so the transition isn't quite so abrupt
 			.BorderBackgroundColor( this, &SGraphNode::GetNodeTitleColor )
 		]
@@ -1020,7 +1020,7 @@ TSharedPtr<SWidget> SGraphNode::GetEnabledStateWidget()
 			NSLOCTEXT("SGraphNode", "DisabledNodeTooltip", "This node is currently disabled and will not be executed");
 
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(bDevelopmentOnly ? "Graph.Node.DevelopmentBanner" : "Graph.Node.DisabledBanner"))
+			.BorderImage(FAppStyle::GetBrush(bDevelopmentOnly ? "Graph.Node.DevelopmentBanner" : "Graph.Node.DisabledBanner"))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
@@ -1041,7 +1041,7 @@ TSharedRef<SWidget> SGraphNode::CreateNodeContentArea()
 {
 	// NODE CONTENT AREA
 	return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		.Padding( FMargin(0,3) )
@@ -1089,7 +1089,7 @@ ECheckBoxState SGraphNode::IsAdvancedViewChecked() const
 const FSlateBrush* SGraphNode::GetAdvancedViewArrow() const
 {
 	const bool bAdvancedPinsHidden = GraphNode && (ENodeAdvancedPins::Hidden == GraphNode->AdvancedPinDisplay);
-	return FEditorStyle::GetBrush(bAdvancedPinsHidden ? TEXT("Icons.ChevronDown") : TEXT("Icons.ChevronUp"));
+	return FAppStyle::GetBrush(bAdvancedPinsHidden ? TEXT("Icons.ChevronDown") : TEXT("Icons.ChevronUp"));
 }
 
 /** Create widget to show/hide advanced pins */
@@ -1110,7 +1110,7 @@ void SGraphNode::CreateAdvancedViewArrow(TSharedPtr<SVerticalBox> MainBox)
 			.OnCheckStateChanged( this, &SGraphNode::OnAdvancedViewChanged )
 			.IsChecked( this, &SGraphNode::IsAdvancedViewChecked )
 			.Cursor(EMouseCursor::Default)
-			.Style(FEditorStyle::Get(), "Graph.Node.AdvancedView")
+			.Style(FAppStyle::Get(), "Graph.Node.AdvancedView")
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -1531,7 +1531,7 @@ TSharedRef<SWidget> SGraphNode::AddPinButtonContent(FText PinText, FText PinTool
 		. Padding( 7,0,0,0 )
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+			.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 		];
 	}
 	else
@@ -1543,7 +1543,7 @@ TSharedRef<SWidget> SGraphNode::AddPinButtonContent(FText PinText, FText PinTool
 		. Padding( 0,0,7,0 )
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+			.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 		]
 		+SHorizontalBox::Slot()
 		.AutoWidth()
@@ -1568,7 +1568,7 @@ TSharedRef<SWidget> SGraphNode::AddPinButtonContent(FText PinText, FText PinTool
 
 	TSharedRef<SButton> AddPinButton = SNew(SButton)
 	.ContentPadding(0.0f)
-	.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+	.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 	.OnClicked( this, &SGraphNode::OnAddPin )
 	.IsEnabled( this, &SGraphNode::IsNodeEditable )
 	.ToolTipText(PinTooltipText)

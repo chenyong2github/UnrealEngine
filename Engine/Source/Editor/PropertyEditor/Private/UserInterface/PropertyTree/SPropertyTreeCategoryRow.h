@@ -9,7 +9,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 
 class FPropertyNode;
@@ -34,13 +34,13 @@ public:
 				[
 					SNew(SBorder)
 					.VAlign(VAlign_Center)
-					.BorderImage(FEditorStyle::GetBrush("PropertyWindow.CategoryBackground"))
+					.BorderImage(FAppStyle::GetBrush("PropertyWindow.CategoryBackground"))
 					.Padding(FMargin(5,1,5,0))
-					.ForegroundColor(FEditorStyle::GetColor("PropertyWindow.CategoryForeground"))
+					.ForegroundColor(FAppStyle::GetColor("PropertyWindow.CategoryForeground"))
 					[
 						SNew( STextBlock )
 						.Text( InArgs._DisplayName )
-						.Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::CategoryFontStyle ) )
+						.Font( FAppStyle::GetFontStyle( PropertyEditorConstants::CategoryFontStyle ) )
 					]
 				]
 			, InOwnerTable );

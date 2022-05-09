@@ -116,7 +116,7 @@ void FDragConnection::HoverTargetChanged()
 	{
 		// Display the place a new node icon, we're not over a valid pin and have no message from the schema
 		SetSimpleFeedbackMessage(
-			FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.NewNode")),
+			FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.NewNode")),
 			FLinearColor::White,
 			NSLOCTEXT("GraphEditor.Feedback", "PlaceNewNode", "Place a new node."));
 	}
@@ -135,20 +135,20 @@ void FDragConnection::HoverTargetChanged()
 			case CONNECT_RESPONSE_BREAK_OTHERS_A:
 			case CONNECT_RESPONSE_BREAK_OTHERS_B:
 			case CONNECT_RESPONSE_BREAK_OTHERS_AB:
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 				break;
 
 			case CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE:
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ViaCast"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ViaCast"));
 				break;
 
 			case CONNECT_RESPONSE_MAKE_WITH_PROMOTION:
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ViaCast"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ViaCast"));
 				break;
 
 			case CONNECT_RESPONSE_DISALLOW:
 			default:
-				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 				break;
 			}
 

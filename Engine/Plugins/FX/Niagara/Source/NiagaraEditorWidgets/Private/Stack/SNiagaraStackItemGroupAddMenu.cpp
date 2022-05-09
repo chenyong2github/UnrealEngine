@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraActions.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
@@ -42,7 +42,7 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, UNiagara
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SVerticalBox)
@@ -242,7 +242,7 @@ TSharedRef<SWidget> SNiagaraStackItemGroupAddMenu::OnGenerateWidgetForCategory(c
 
 	return SNew(SRichTextBlock)
         .Text(TextContent)
-        .DecoratorStyleSet(&FEditorStyle::Get())
+        .DecoratorStyleSet(&FAppStyle::Get())
         .TextStyle(FNiagaraEditorStyle::Get(), "ActionMenu.HeadingTextBlock");
 }
 

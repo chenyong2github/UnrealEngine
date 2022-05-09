@@ -36,7 +36,7 @@ void FDMXLibraryDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		.VAlign(VAlign_Top)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ForegroundColor(FLinearColor::White)
 			.ToolTipText(LOCTEXT("OpenSettingsTooltip", "Opens the DMX Project Settings"))
 			.ContentPadding(FMargin(4.0f, 1.0f))

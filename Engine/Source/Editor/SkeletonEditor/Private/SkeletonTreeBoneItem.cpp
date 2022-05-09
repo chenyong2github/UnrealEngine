@@ -6,7 +6,7 @@
 #include "IDocumentation.h"
 #include "Animation/BlendProfile.h"
 #include "IEditableSkeleton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "BoneDragDropOp.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -58,7 +58,7 @@ const FSlateBrush* FSkeletonTreeBoneItem::GetLODIcon() const
 
 void FSkeletonTreeBoneItem::GenerateWidgetForNameColumn( TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected )
 {
-	const FSlateBrush* LODIcon = FEditorStyle::GetBrush("SkeletonTree.Bone");
+	const FSlateBrush* LODIcon = FAppStyle::GetBrush("SkeletonTree.Bone");
 
 	Box->AddSlot()
 		.AutoWidth()
@@ -187,7 +187,7 @@ FSlateColor FSkeletonTreeBoneItem::GetRetargetingComboButtonForegroundColor() co
 
 	if (RetargetingComboButton.IsValid())
 	{
-		return RetargetingComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
+		return RetargetingComboButton->IsHovered() ? FAppStyle::GetSlateColor(InvertedForegroundName) : FAppStyle::GetSlateColor(DefaultForegroundName);
 	}
 	return FSlateColor::UseForeground();
 }
@@ -255,11 +255,11 @@ FSlateFontInfo FSkeletonTreeBoneItem::GetBoneTextFont() const
 {
 	if (!bRequiredBone)
 	{
-		return FEditorStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.ItalicFont").Font;
+		return FAppStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.ItalicFont").Font;
 	}
 	else
 	{
-		return FEditorStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.NormalFont").Font;
+		return FAppStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.NormalFont").Font;
 	}
 }
 
@@ -391,12 +391,12 @@ void FSkeletonTreeBoneItem::HandleDragEnter(const FDragDropEvent& DragDropEvent)
 		if (BoneName != DragConnectionOp->GetSocketInfo().Socket->BoneName)
 		{
 			// The socket can be dropped here if we're a bone and NOT the socket's existing parent
-			DragConnectionOp->SetIcon( FEditorStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Ok" ) ) );
+			DragConnectionOp->SetIcon( FAppStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Ok" ) ) );
 		}
 		else if (DragConnectionOp->IsAltDrag())
 		{
 			// For Alt-Drag, dropping onto the existing parent is fine, as we're going to copy, not move the socket
-			DragConnectionOp->SetIcon( FEditorStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Ok" ) ) );
+			DragConnectionOp->SetIcon( FAppStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Ok" ) ) );
 		}
 	}
 }
@@ -407,7 +407,7 @@ void FSkeletonTreeBoneItem::HandleDragLeave(const FDragDropEvent& DragDropEvent)
 	if (DragConnectionOp.IsValid())
 	{
 		// Reset the drag/drop icon when leaving this row
-		DragConnectionOp->SetIcon( FEditorStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Error" ) ) );
+		DragConnectionOp->SetIcon( FAppStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Error" ) ) );
 	}
 }
 

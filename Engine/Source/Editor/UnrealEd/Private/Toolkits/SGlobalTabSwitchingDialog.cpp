@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Views/SListView.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #include "EngineGlobals.h"
@@ -122,7 +122,7 @@ public:
 			.Padding(8.0f, 0.0f, 8.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ControlTabMenu.AssetNameStyle")
+				.TextStyle(FAppStyle::Get(), "ControlTabMenu.AssetNameStyle")
 				.Text(AssetText)
 			];
 	}
@@ -270,7 +270,7 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverOnlyHyperlinkButton")
+				.ButtonStyle(FAppStyle::Get(), "HoverOnlyHyperlinkButton")
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
 				.OnClicked(this, &SGlobalTabSwitchingDialog::OnBrowseToSelectedAsset)
@@ -282,7 +282,7 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Search"))
+						.Image(FAppStyle::GetBrush("Icons.Search"))
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -290,7 +290,7 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "ControlTabMenu.AssetPathStyle")
+						.TextStyle(FAppStyle::Get(), "ControlTabMenu.AssetPathStyle")
 						.Text(SelectedItem->GetPathString())
 					]
 				]
@@ -305,7 +305,7 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 			.HAlign(HAlign_Right)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ControlTabMenu.AssetTypeStyle")
+				.TextStyle(FAppStyle::Get(), "ControlTabMenu.AssetTypeStyle")
 				.Text(SelectedItem->GetTypeString())
 			];
 	}
@@ -410,7 +410,7 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ControlTabMenu.HeadingStyle")
+			.TextStyle(FAppStyle::Get(), "ControlTabMenu.HeadingStyle")
 			.Text(LOCTEXT("OpenAssetsHeading", "Active Files"))
 		]
 		+SVerticalBox::Slot()
@@ -425,7 +425,7 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::Get().GetBrush("ControlTabMenu.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("ControlTabMenu.Background"))
 		.ForegroundColor(FCoreStyle::Get().GetSlateColor("DefaultForeground"))
 		[
 			SNew(SBox)

@@ -21,7 +21,7 @@
 #include "UnrealEdGlobals.h"
 #include "ToolMenus.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ZoneGraphDelegates.h"
 #include "ZoneGraphEditorStyle.h"
 
@@ -42,7 +42,7 @@ class FZoneGraphEditorCommands : public TCommands<FZoneGraphEditorCommands>
 public:
 
 	FZoneGraphEditorCommands()
-		: TCommands<FZoneGraphEditorCommands>(TEXT("ZoneGraphEditorCommands"), NSLOCTEXT("Contexts", "FZoneGraphEditorModule", "Zone Graph Editor Plugin"), FName(), FEditorStyle::GetStyleSetName())
+		: TCommands<FZoneGraphEditorCommands>(TEXT("ZoneGraphEditorCommands"), NSLOCTEXT("Contexts", "FZoneGraphEditorModule", "Zone Graph Editor Plugin"), FName(), FAppStyle::GetAppStyleSetName())
 	{
 	}
 

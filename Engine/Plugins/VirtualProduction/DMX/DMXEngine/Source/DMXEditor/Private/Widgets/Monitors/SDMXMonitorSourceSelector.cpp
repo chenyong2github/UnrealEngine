@@ -6,7 +6,7 @@
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -47,7 +47,7 @@ void SDMXMonitorSourceSelector::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.Text(LOCTEXT("MonitorAllLabel", "Monitor All Ports"))
 			]
 
@@ -77,7 +77,7 @@ void SDMXMonitorSourceSelector::Construct(const FArguments& InArgs)
 				.MinDesiredWidth(40.f)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Text(LOCTEXT("SourceLabel", "Source"))
 				]
 			]
@@ -97,7 +97,7 @@ void SDMXMonitorSourceSelector::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(MonitoredIODirectionTextBlock, STextBlock)
 						.Text(*InitialDirection)
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					]
 				]
 			]
@@ -119,7 +119,7 @@ void SDMXMonitorSourceSelector::Construct(const FArguments& InArgs)
 				.MinDesiredWidth(40.f)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Text(LOCTEXT("PortLabel", "Port"))	
 				]
 			]
@@ -289,7 +289,7 @@ TSharedRef<SWidget> SDMXMonitorSourceSelector::GenerateIODirectionEntry(TSharedP
 	return
 		SNew(STextBlock)
 		.Text(*IODirectionNameToAdd)
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 void SDMXMonitorSourceSelector::OnMonitorAllPortsCheckBoxChanged(const ECheckBoxState NewCheckState)

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonTreeSummoner.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDocumentation.h"
 #include "SkeletonEditor.h"
 
@@ -12,7 +12,7 @@ FSkeletonTreeSummoner::FSkeletonTreeSummoner(TSharedPtr<FAssetEditorToolkit> InH
 	, SkeletonTreePtr(InSkeletonTree)
 {
 	TabLabel = LOCTEXT("SkeletonTreeTabTitle", "Skeleton Tree");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.SkeletonTree");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.SkeletonTree");
 
 	EnableTabPadding();
 	bIsSingleton = true;

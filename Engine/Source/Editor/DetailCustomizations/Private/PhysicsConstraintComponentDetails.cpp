@@ -13,7 +13,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PhysicsEngine/PhysicsConstraintActor.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -134,11 +134,11 @@ namespace ConstraintDetails
 				.Visibility_Lambda([Prop1]() { return Prop1->DiffersFromDefault() ? EVisibility::Visible : EVisibility::Collapsed; })
 				.ContentPadding(FMargin(5.f, 0.f))
 				.ToolTipText(Prop1->GetResetToDefaultLabel())
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 				]
 			];
 	}
@@ -249,7 +249,7 @@ void FPhysicsConstraintComponentDetails::AddLinearLimits(IDetailLayoutBuilder& D
 				.HAlign(HAlign_Left)
 				[
 					SNew(SCheckBox)
-					.Style(FEditorStyle::Get(), "RadioButton")
+					.Style(FAppStyle::Get(), "RadioButton")
 					.IsChecked(this, &FPhysicsConstraintComponentDetails::IsLimitRadioChecked, CurProperty, LinearLimitEnum[0])
 					.OnCheckStateChanged(this, &FPhysicsConstraintComponentDetails::OnLimitRadioChanged, CurProperty, LinearLimitEnum[0])
 					.ToolTipText(LinearLimitOptionTooltips[0])
@@ -265,7 +265,7 @@ void FPhysicsConstraintComponentDetails::AddLinearLimits(IDetailLayoutBuilder& D
 					.Padding(5, 0, 0, 0)
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "RadioButton")
+						.Style(FAppStyle::Get(), "RadioButton")
 						.IsChecked(this, &FPhysicsConstraintComponentDetails::IsLimitRadioChecked, CurProperty, LinearLimitEnum[1])
 						.OnCheckStateChanged(this, &FPhysicsConstraintComponentDetails::OnLimitRadioChanged, CurProperty, LinearLimitEnum[1])
 						.ToolTipText(LinearLimitOptionTooltips[1])
@@ -281,7 +281,7 @@ void FPhysicsConstraintComponentDetails::AddLinearLimits(IDetailLayoutBuilder& D
 					.Padding(5, 0, 0, 0)
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "RadioButton")
+						.Style(FAppStyle::Get(), "RadioButton")
 						.IsChecked(this, &FPhysicsConstraintComponentDetails::IsLimitRadioChecked, CurProperty, LinearLimitEnum[2])
 						.OnCheckStateChanged(this, &FPhysicsConstraintComponentDetails::OnLimitRadioChanged, CurProperty, LinearLimitEnum[2])
 						.ToolTipText(LinearLimitOptionTooltips[2])
@@ -391,7 +391,7 @@ void FPhysicsConstraintComponentDetails::AddAngularLimits(IDetailLayoutBuilder& 
 				.HAlign(HAlign_Left)
 				[
 					SNew(SCheckBox)
-					.Style(FEditorStyle::Get(), AxisStyleNames[PropertyIdx])
+					.Style(FAppStyle::Get(), AxisStyleNames[PropertyIdx])
 					.IsChecked(this, &FPhysicsConstraintComponentDetails::IsLimitRadioChecked, CurProperty, AngularLimitEnum[0])
 					.OnCheckStateChanged(this, &FPhysicsConstraintComponentDetails::OnLimitRadioChanged, CurProperty, AngularLimitEnum[0])
 					.ToolTipText(AngularLimitOptionTooltips[0])
@@ -407,7 +407,7 @@ void FPhysicsConstraintComponentDetails::AddAngularLimits(IDetailLayoutBuilder& 
 					.Padding(5, 0, 0, 0)
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), AxisStyleNames[PropertyIdx])
+						.Style(FAppStyle::Get(), AxisStyleNames[PropertyIdx])
 						.IsChecked(this, &FPhysicsConstraintComponentDetails::IsLimitRadioChecked, CurProperty, AngularLimitEnum[1])
 						.OnCheckStateChanged(this, &FPhysicsConstraintComponentDetails::OnLimitRadioChanged, CurProperty, AngularLimitEnum[1])
 						.ToolTipText(AngularLimitOptionTooltips[1])
@@ -423,7 +423,7 @@ void FPhysicsConstraintComponentDetails::AddAngularLimits(IDetailLayoutBuilder& 
 					.Padding(5, 0, 0, 0)
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), AxisStyleNames[PropertyIdx])
+						.Style(FAppStyle::Get(), AxisStyleNames[PropertyIdx])
 						.IsChecked(this, &FPhysicsConstraintComponentDetails::IsLimitRadioChecked, CurProperty, AngularLimitEnum[2])
 						.OnCheckStateChanged(this, &FPhysicsConstraintComponentDetails::OnLimitRadioChanged, CurProperty, AngularLimitEnum[2])
 						.ToolTipText(AngularLimitOptionTooltips[2])
@@ -923,7 +923,7 @@ void FPhysicsConstraintComponentDetails::CustomizeDetails( IDetailLayoutBuilder&
 			.VAlign(VAlign_Center)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.Text_Lambda([Objects]()
 				{
 					if (Objects.Num() > 0)

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 /**
@@ -18,7 +18,7 @@ public:
 			TEXT("SkeletonTree"), // Context name for fast lookup
 			NSLOCTEXT("Contexts", "SkelTree", "Skeleton Tree"), // Localized context name for displaying
 			NAME_None, // Parent context name.  
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 	{
 

@@ -5,7 +5,7 @@
 #include "DMXEditorLog.h"
 #include "DMXNameListItem.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SListViewSelectorDropdownMenu.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
@@ -57,7 +57,7 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 	SAssignNew(NamesListDropdown, SListViewSelectorDropdownMenu< TSharedPtr<FName> >, SearchBox, OptionsListView)
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(2)
 		[
 			SNew(SBox)
@@ -93,7 +93,7 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 			.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Warning"))
+				.Image(FAppStyle::GetBrush("Icons.Warning"))
 				.ToolTipText(LOCTEXT("WarningToolTip", "Value was removed. Please, select another one."))
 				.Visibility(this, &SNameListPicker::GetWarningVisibility)
 			]

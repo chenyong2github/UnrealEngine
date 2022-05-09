@@ -27,7 +27,6 @@ public class StaticMeshEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"RenderCore",
 				"RHI",
 				"EditorFramework",

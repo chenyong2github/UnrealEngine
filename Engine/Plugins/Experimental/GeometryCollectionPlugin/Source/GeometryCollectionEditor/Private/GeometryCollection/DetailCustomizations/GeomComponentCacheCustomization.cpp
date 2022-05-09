@@ -160,7 +160,7 @@ void FGeomComponentCacheParametersCustomization::CustomizeChildren(TSharedRef<IP
 				[
 					SNew(STextBlock)
 					.TextStyle(*Style, "GeomCacheCompat.Font")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Font(FAppStyle::GetFontStyle("FontAwesome.10"))
 					.Text_Lambda(GetIcon)
 				]
 				+SHorizontalBox::Slot()

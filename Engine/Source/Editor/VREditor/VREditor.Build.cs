@@ -18,7 +18,7 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
 				    "Slate",
 					"SlateCore",
-                    "EditorStyle",
+                    
 					"EditorFramework",
 					"UnrealEd",
 					"UMG",

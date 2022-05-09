@@ -2,7 +2,7 @@
 
 #include "BPFunctionDragDropAction.h"
 #include "EdGraph/EdGraph.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
 #include "K2Node_CustomEvent.h"
@@ -108,7 +108,7 @@ void FKismetDragDropAction::HoverTargetChanged()
 	FText CannotDropReason = FText::GetEmpty();
 	if (ActionWillShowExistingNode())
 	{
-		FSlateBrush const* ShowsExistingIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
+		FSlateBrush const* ShowsExistingIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
 		FText DragingText = FText::Format(LOCTEXT("ShowExistingNode", "Show '{0}'"), SourceAction->GetMenuDescription());
 		SetSimpleFeedbackMessage(ShowsExistingIcon, FLinearColor::White, DragingText);
 	}

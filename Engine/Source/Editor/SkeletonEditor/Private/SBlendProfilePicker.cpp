@@ -15,7 +15,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorEngine.h"
 #include "EngineGlobals.h"
 #include "Animation/BlendProfile.h"
@@ -61,7 +61,7 @@ public:
 		OnProfileModeChangedDelegate = InArgs._OnProfileModeChangedDelegate;
 		BlendProfile = InArgs._BlendProfile;
 
-		FSlateFontInfo MenuEntryFont = FEditorStyle::GetFontStyle( "Menu.Label.Font" );
+		FSlateFontInfo MenuEntryFont = FAppStyle::GetFontStyle( "Menu.Label.Font" );
 
 		TSharedPtr<SHorizontalBox> HorizontalBox;
 
@@ -70,7 +70,7 @@ public:
 		ChildSlot
 		[
 			SNew(SButton)
-			.ButtonStyle( FEditorStyle::Get(), "Menu.Button" )
+			.ButtonStyle( FAppStyle::Get(), "Menu.Button" )
 			.ForegroundColor( TAttribute<FSlateColor>::Create( TAttribute<FSlateColor>::FGetter::CreateRaw( this, &SBlendProfileMenuEntry::InvertOnHover ) ) )
 			.ToolTipText(LOCTEXT("OpenBlendProfileToolTip", "Select this profile for editing."))
 			.OnClicked(this, &SBlendProfileMenuEntry::OnOpen)
@@ -108,9 +108,9 @@ public:
 				[
 					SNew(SComboButton)
 					.ButtonColorAndOpacity(FLinearColor::Transparent)
-					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+					.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
 					.HasDownArrow(false)
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 					.ContentPadding(2.0f)
 					.ToolTipText(FText::Format(LOCTEXT("ModifyBlendProfileToolTipFmt", "Modify {0}"), DisplayName))
 					.MenuPlacement(MenuPlacement_MenuRight)
@@ -279,8 +279,8 @@ void SBlendProfilePicker::Construct(const FArguments& InArgs, TSharedRef<class I
 	BlendProfileSelectedDelegate = InArgs._OnBlendProfileSelected;
 
 	TSharedRef<SWidget> TextBlock = SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
-		.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+		.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
+		.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 		.Text(this, &SBlendProfilePicker::GetSelectedProfileName);
 
 	TSharedPtr<SWidget> ButtonContent;
@@ -294,7 +294,7 @@ void SBlendProfilePicker::Construct(const FArguments& InArgs, TSharedRef<class I
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("SkeletonTree.BlendProfile"))
+				.Image(FAppStyle::GetBrush("SkeletonTree.BlendProfile"))
 			]
 			+SHorizontalBox::Slot()
 			.Padding(2.0f, 0, 8.0f, 0)
@@ -311,8 +311,8 @@ void SBlendProfilePicker::Construct(const FArguments& InArgs, TSharedRef<class I
 	ChildSlot
 	[
 		SNew(SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.ContentPadding(2.0f)
 		.OnGetMenuContent(this, &SBlendProfilePicker::GetMenuContent)
 		.ButtonContent()

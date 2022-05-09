@@ -65,7 +65,7 @@
 #include "K2Node_VariableSet.h"
 #include "K2Node_SetFieldsInStruct.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Editor.h"
 
 #include "Kismet/BlueprintMapLibrary.h"

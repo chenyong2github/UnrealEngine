@@ -44,9 +44,11 @@ FString GetInstallationDescription(const FString &Id, const FString &RootDir)
 
 static void InitSlate()
 {
+#if WITH_EDITOR
 	FCoreStyle::ResetToDefault();
 	
 	FModuleManager::Get().LoadModuleChecked("EditorStyle");
+#endif
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 }
 

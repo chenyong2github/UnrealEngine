@@ -4,7 +4,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PhysicsAssetRenderUtils.h"
 
 #define LOCTEXT_NAMESPACE "FSkeletonTreePhysicsItem"
@@ -33,7 +33,7 @@ void FSkeletonTreePhysicsItem::GenerateWidgetForNameColumn(TSharedPtr< SHorizont
 			.ColorAndOpacity(this, &FSkeletonTreePhysicsItem::GetTextColor)
 			.Text(FText::FromName(GetRowItemName()))
 			.HighlightText(FilterText)
-			.Font(FEditorStyle::GetFontStyle("PhysicsAssetEditor.Tree.Font"))
+			.Font(FAppStyle::GetFontStyle("PhysicsAssetEditor.Tree.Font"))
 			.ToolTipText(GetNameColumnToolTip())
 		];
 }
@@ -53,12 +53,12 @@ TSharedRef< SWidget > FSkeletonTreePhysicsItem::GenerateWidgetForDataColumn(cons
 			.ToolTipText(LOCTEXT("SkeletonTreePhysicsItemVisibilityCheckBoxToolTip", "Click to toggle visibility of debug draw for this item"))
 			.OnCheckStateChanged(this, &FSkeletonTreePhysicsItem::OnToggleItemDisplayed)
 			.IsChecked(this, &FSkeletonTreePhysicsItem::IsItemDisplayed)
-			.CheckedHoveredImage(FEditorStyle::GetBrush("Level.VisibleIcon16x"))
-			.CheckedImage(FEditorStyle::GetBrush("Level.VisibleIcon16x"))
-			.CheckedPressedImage(FEditorStyle::GetBrush("Level.VisibleIcon16x"))
-			.UncheckedHoveredImage(FEditorStyle::GetBrush("Level.NotVisibleIcon16x"))
-			.UncheckedImage(FEditorStyle::GetBrush("Level.NotVisibleIcon16x"))
-			.UncheckedPressedImage(FEditorStyle::GetBrush("Level.NotVisibleIcon16x"))
+			.CheckedHoveredImage(FAppStyle::GetBrush("Level.VisibleIcon16x"))
+			.CheckedImage(FAppStyle::GetBrush("Level.VisibleIcon16x"))
+			.CheckedPressedImage(FAppStyle::GetBrush("Level.VisibleIcon16x"))
+			.UncheckedHoveredImage(FAppStyle::GetBrush("Level.NotVisibleIcon16x"))
+			.UncheckedImage(FAppStyle::GetBrush("Level.NotVisibleIcon16x"))
+			.UncheckedPressedImage(FAppStyle::GetBrush("Level.NotVisibleIcon16x"))
 		];
 	}
 

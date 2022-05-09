@@ -51,7 +51,7 @@ public:
 	{
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
+			.BorderImage(FAppStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
 			.Padding(0.0f)
 			);
 	}
@@ -165,7 +165,7 @@ void FKismet2Menu::FillDebugMenu(UToolMenu* InMenu)
 			FBlueprintEditorCommands::Get().OpenBlueprintDebugger,
 			/* InLabelOverride = */ LOCTEXT("BpDebuggerTitle", "Blueprint Debugger"),
 			/* InTooltipOverride = */ LOCTEXT("BpDebuggerTooltip","Open the Blueprint Debugger."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDebugger.TabIcon")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDebugger.TabIcon")
 		);
 	}
 	
@@ -424,7 +424,7 @@ void FBlueprintEditorToolbar::AddScriptingToolbar(UToolMenu* InMenu)
 				FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
 			));
 
 			InSection.AddEntry(FToolMenuEntry::InitComboButton(
@@ -484,13 +484,13 @@ FSlateIcon FBlueprintEditorToolbar::GetStatusImage() const
 	default:
 	case BS_Unknown:
 	case BS_Dirty:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	case BS_Error:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
 	case BS_UpToDate:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusGood);
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusGood);
 	case BS_UpToDateWithWarnings:
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusWarning);
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusWarning);
 	}
 }
 

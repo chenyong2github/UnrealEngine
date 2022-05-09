@@ -29,7 +29,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Settings/EditorSettings.h"
@@ -263,7 +263,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				[
 					SNew(SButton)
 					.VAlign(EVerticalAlignment::VAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 					.ToolTipText( this, &SContentBrowser::GetHistoryBackTooltip )
 					.ContentPadding( FMargin(1, 0) )
 					.OnClicked(this, &SContentBrowser::BackClicked)
@@ -282,7 +282,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				[
 					SNew(SButton)
 					.VAlign(EVerticalAlignment::VAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 					.ToolTipText( this, &SContentBrowser::GetHistoryForwardTooltip )
 					.ContentPadding( FMargin(1, 0) )
 					.OnClicked(this, &SContentBrowser::ForwardClicked)
@@ -302,7 +302,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				[
 					SAssignNew( PathPickerButton, SComboButton )
 					.Visibility( ( Config != nullptr ? Config->bUsePathPicker : true ) ? EVisibility::Visible : EVisibility::Collapsed )
-					.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 					.ToolTipText( LOCTEXT( "PathPickerTooltip", "Choose a path" ) )
 					.OnGetMenuContent( this, &SContentBrowser::GetPathPickerContent )
 					.HasDownArrow( false )
@@ -385,7 +385,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				[
 					SNew(SBorder)
 					.Padding(FMargin(0))
-					.BorderImage(FEditorStyle::GetBrush("Brushes.Recessed"))
+					.BorderImage(FAppStyle::GetBrush("Brushes.Recessed"))
 
 					[
 						// Note: If adding more widgets here, fix ContentBrowserSourcesWidgetSwitcherIndex and the code that uses it!
@@ -755,8 +755,8 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 							.Visibility((Config != nullptr ? Config->bCanShowAssetSearch : true) ? EVisibility::Visible : EVisibility::Collapsed)
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+								.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 								.Text(FEditorFontGlyphs::Floppy_O)
 							]
 						]
@@ -967,7 +967,7 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.ToolTipText(LOCTEXT("AddCollectionButtonTooltip", "Add a collection."))
 				.OnClicked(this, &SContentBrowser::OnAddCollectionClicked)
 				.ContentPadding(FMargin(1, 0))

@@ -70,7 +70,7 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		[
 			SNew(SEditableTextBox)
 			.Text(FText::FromName(ChainElement.Pin()->ChainName))
-			.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
 			.OnTextCommitted(this, &SIKRigRetargetChainRow::OnRenameChain)
 		];
 		return ChainWidget;
@@ -304,7 +304,7 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("RetargetRootLabel", "Retarget Root:"))
-				.TextStyle(FEditorStyle::Get(), "NormalText")
+				.TextStyle(FAppStyle::Get(), "NormalText")
 			]
 				
 			+ SHorizontalBox::Slot()
@@ -315,7 +315,7 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 			[
 				SAssignNew(RetargetRootTextBox, SEditableTextBox)
 				.Text(FText::FromName(InEditorController->AssetController->GetRetargetRoot()))
-				.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
 				.IsReadOnly(true)
 			]
         ]

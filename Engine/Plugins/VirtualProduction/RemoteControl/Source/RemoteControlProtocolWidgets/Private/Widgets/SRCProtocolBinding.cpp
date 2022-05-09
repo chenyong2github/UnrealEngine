@@ -31,7 +31,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 		[
 			SNew(STextBlock)
 			.Text(ViewModel->GetProtocolName())
-			.TextStyle(FEditorStyle::Get(), "LargeText")
+			.TextStyle(FAppStyle::Get(), "LargeText")
 		];
 
 	// Validation warning
@@ -61,14 +61,14 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 		.Padding(0)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.IsFocusable(false)
 			.OnClicked(this, &SRCProtocolBinding::OnDelete)
 			.Content()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf00d"))))
 			]
 		];
@@ -80,7 +80,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 		.Padding(0)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("RecordingButtonToolTip", "Status of the protocol entity binding"))
 			.ForegroundColor(FSlateColor::UseForeground())
 			.OnClicked(this, &SRCProtocolBinding::ToggleRecording)
@@ -88,7 +88,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity_Raw(this, &SRCProtocolBinding::GetRecordingButtonColor)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FEditorFontGlyphs::Circle)
 			]
 		];
@@ -100,7 +100,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 		.Content()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(Padding)
 			.VAlign(VAlign_Fill)
 			[

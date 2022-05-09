@@ -5,7 +5,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailPropertyRow.h"
 #include "LiveLinkCameraController.h"
 #include "LiveLinkComponents/Public/LiveLinkComponentController.h"

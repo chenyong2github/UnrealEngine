@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 					"DatasmithContent",
 					"DesktopPlatform",
 					"EditorFramework",
-					"EditorStyle",
 					"Engine",
 					"Projects",
 					"UnrealEd",

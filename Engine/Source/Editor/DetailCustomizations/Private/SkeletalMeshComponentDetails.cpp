@@ -7,7 +7,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimBlueprint.h"
 #include "Editor.h"
@@ -304,8 +304,8 @@ TSharedRef<SWidget> FSkeletalMeshComponentDetails::GetClassPickerMenuContent()
 
 	return SNew(SBorder)
 		.Padding(3)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.ForegroundColor(FEditorStyle::GetColor("DefaultForeground"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
+		.ForegroundColor(FAppStyle::GetColor("DefaultForeground"))
 		[
 			SNew(SBox)
 			.WidthOverride(280)

@@ -14,7 +14,7 @@ public class WindowsMixedRealityPlatformEditor : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"EditorWidgets",
 				"DesktopWidgets",
 				"PropertyEditor",

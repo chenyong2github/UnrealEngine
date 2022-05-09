@@ -14,7 +14,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Input/Reply.h"
 
 #define LOCTEXT_NAMESPACE "DataTableFactory"
@@ -107,7 +107,7 @@ bool UDataTableFactory::ConfigureProperties()
 					[
 						SNew(SBorder)
 						.Padding(4)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							StructViewerModule.CreateStructViewer(Options, FOnStructPicked::CreateSP(this, &FDataTableFactoryUI::OnPickedStruct))
 						]
@@ -132,7 +132,7 @@ bool UDataTableFactory::ConfigureProperties()
 				.SupportsMaximize(false)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 					.Padding(10)
 					[
 						SNew(SVerticalBox)

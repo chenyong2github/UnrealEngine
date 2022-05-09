@@ -408,7 +408,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			ExtensionWidget->SetEnabled(IsEnabledAttribute);
 
 			TSharedRef<SSplitter> Splitter = SNew(SSplitter)
-					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+					.Style(FAppStyle::Get(), "DetailsView.Splitter")
 					.PhysicalSplitterHandleSize(1.0f)
 					.HitDetectionSplitterHandleSize(5.0f)
 					.HighlightedHandleIndex(ColumnSizeData.GetHoveredSplitterIndex())
@@ -701,7 +701,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 
 	STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 		STableRow::FArguments()
-			.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+			.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 			.ShowSelection(false)
 			.OnDragLeave(DragLeaveDelegate)
 			.OnAcceptDrop(AcceptDropDelegate)
@@ -854,7 +854,7 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			FavoriteText,
 			FavoriteTooltipText,
-			FSlateIcon(FEditorStyle::Get().GetStyleSetName(), FavoriteIcon),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), FavoriteIcon),
 			FavoriteAction);
 	}
 
@@ -1317,11 +1317,11 @@ void FArrayRowDragDropOp::SetValidTarget(bool IsValidTarget)
 	if (IsValidTarget)
 	{
 		CurrentHoverText = NSLOCTEXT("ArrayDragDrop", "PlaceRowHere", "Place Row Here");
-		CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.OK");
+		CurrentIconBrush = FAppStyle::GetBrush("Graph.ConnectorFeedback.OK");
 	}
 	else
 	{
 		CurrentHoverText = NSLOCTEXT("ArrayDragDrop", "CannotPlaceRowHere", "Cannot Place Row Here");
-		CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.Error");
+		CurrentIconBrush = FAppStyle::GetBrush("Graph.ConnectorFeedback.Error");
 	}
 }

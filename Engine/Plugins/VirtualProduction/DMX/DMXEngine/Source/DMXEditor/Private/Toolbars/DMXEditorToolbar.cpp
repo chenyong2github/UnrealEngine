@@ -19,7 +19,7 @@ void FDMXEditorToolbar::AddCompileToolbar(TSharedPtr<FExtender> Extender)
 
 FSlateIcon FDMXEditorToolbar::GetStatusImage() const
 {
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Status.Good");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Status.Good");
 }
 
 FText FDMXEditorToolbar::GetStatusTooltip() const

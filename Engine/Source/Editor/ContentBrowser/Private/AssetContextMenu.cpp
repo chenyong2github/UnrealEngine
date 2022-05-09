@@ -13,7 +13,7 @@
 #include "SAssetView.h"
 #include "ContentBrowserModule.h"
 #include "ContentBrowserSingleton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/FileManager.h"
 
 #include "ICollectionManager.h"
@@ -503,7 +503,7 @@ bool FAssetContextMenu::AddPublicStateMenuOptions(UToolMenu* Menu)
 				"MarkSelectedAsPublic",
 				LOCTEXT("MarkSelectedAsPublic", "Mark Selected As Public"),
 				LOCTEXT("MarkSelectedAsPublicTooltip", "Sets all selected assets to be publicly available for reference by other plugins"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.PublicAssetToggle"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.PublicAssetToggle"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteBulkSetPublicAsset),
 					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteBulkSetPublicAsset)
@@ -514,7 +514,7 @@ bool FAssetContextMenu::AddPublicStateMenuOptions(UToolMenu* Menu)
 				"MarkSelectedAsPrivate",
 				LOCTEXT("MarkSelectedAsPrivate", "Mark Selected As Private"),
 				LOCTEXT("MarkSelectedAsPrivateTooltip", "Sets all selected assets to be private and unavailable for reference by other plugins"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.PublicAssetToggle"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.PublicAssetToggle"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteBulkUnsetPublicAsset),
 					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteBulkSetPublicAsset)

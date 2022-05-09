@@ -2,7 +2,6 @@
 
 #include "STimingViewTrackList.h"
 
-#include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SCheckBox.h"

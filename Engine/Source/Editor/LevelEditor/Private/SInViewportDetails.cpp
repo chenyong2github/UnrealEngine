@@ -14,7 +14,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Selection.h"
 #include "UnrealEdGlobals.h"
@@ -80,7 +80,7 @@ public:
 		{
  
 			RowWidget = SNew(SSplitter)
-				.Style(FEditorStyle::Get(), "PropertyTable.InViewport.Splitter")
+				.Style(FAppStyle::Get(), "PropertyTable.InViewport.Splitter")
 				.PhysicalSplitterHandleSize(1.0f)
  				.HitDetectionSplitterHandleSize(5.0f)
  				+ SSplitter::Slot()

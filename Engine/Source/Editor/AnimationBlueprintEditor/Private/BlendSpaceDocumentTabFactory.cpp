@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlendSpaceDocumentTabFactory.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AnimationBlueprintEditor.h"
 #include "PersonaModule.h"
 #include "BlendSpaceGraph.h"
@@ -307,11 +307,11 @@ const FSlateBrush* FBlendSpaceDocumentTabFactory::GetTabIcon(const FWorkflowTabS
 
 	if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(BlendSpaceGraph->BlendSpace))
 	{
-		return FEditorStyle::GetBrush("ClassIcon.BlendSpace1D");
+		return FAppStyle::GetBrush("ClassIcon.BlendSpace1D");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("ClassIcon.BlendSpace");
+		return FAppStyle::GetBrush("ClassIcon.BlendSpace");
 	}
 }
 

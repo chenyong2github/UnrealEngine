@@ -254,7 +254,7 @@ TSharedPtr<SWidget> SUserTraceFilteringWidget::OnContextMenuOpening()
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("OpenFilterLabel", "Open Filter Blueprint"),
 					LOCTEXT("OpenFilterTooltip", "Opens this Filter's Blueprint."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Blueprint"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Blueprint"),
 					FUIAction(
 						FExecuteAction::CreateLambda([FilterSelection]()
 						{

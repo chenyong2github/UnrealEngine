@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/InputChord.h"
 #include "Internationalization/Text.h"
@@ -26,7 +26,7 @@ public:
 		: TCommands<FDeviceDetailsCommands>(
 			"DeviceDetails",
 			NSLOCTEXT("Contexts", "DeviceDetails", "Device Details"),
-			NAME_None, FEditorStyle::GetStyleSetName()
+			NAME_None, FAppStyle::GetAppStyleSetName()
 		)
 	{ }
 

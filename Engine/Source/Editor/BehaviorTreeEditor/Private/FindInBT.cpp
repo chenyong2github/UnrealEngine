@@ -4,7 +4,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BehaviorTreeGraphNode_Decorator.h"
 #include "BehaviorTreeGraphNode_Service.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -45,15 +45,15 @@ TSharedRef<SWidget> FFindInBTResult::CreateIcon() const
 	{
 		if (Cast<UBehaviorTreeGraphNode_Service>(GraphNode.Get()))
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.PinIcon"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.PinIcon"));
 		}
 		else if (Cast<UBehaviorTreeGraphNode_Decorator>(GraphNode.Get()))
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.RefPinIcon"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.RefPinIcon"));
 		}
 		else
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.FIB_Event"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.FIB_Event"));
 		}
 	}
 	
@@ -136,7 +136,7 @@ void SFindInBT::Construct( const FArguments& InArgs, TSharedPtr<FBehaviorTreeEdi
 			.Padding(0.f, 4.f, 0.f, 0.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
 					SAssignNew(TreeView, STreeViewType)
 					.ItemHeight(24)

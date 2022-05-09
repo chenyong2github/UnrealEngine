@@ -2,7 +2,7 @@
 
 #include "MergeProxyUtils/SMeshProxyCommonDialog.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "IDetailChildrenBuilder.h"
 #include "Modules/ModuleManager.h"
@@ -57,13 +57,13 @@ void SMeshProxyCommonDialog::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				// We want to emulate the style of the table we'll place here
-				.BorderImage(&FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row").EvenRowBackgroundBrush)
+				.BorderImage(&FAppStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row").EvenRowBackgroundBrush)
 				[
 					SNew(SVerticalBox)
 					// Selected components count
 					+ SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
@@ -77,7 +77,7 @@ void SMeshProxyCommonDialog::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Left)
-						.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+						.Padding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 						[
 							SNew(STextBlock)
 							.Text_Lambda([this]() -> FText
@@ -89,7 +89,7 @@ void SMeshProxyCommonDialog::Construct(const FArguments& InArgs)
 					// List of selected/unselected components
 					+ SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding") + FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+					.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding") + FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 					[
 						SAssignNew(ComponentSelectionControl.ComponentsListView, SListView<TSharedPtr<FMergeComponentData>>)
 						.ListItemsSource(&ComponentSelectionControl.SelectedComponents)
@@ -102,7 +102,7 @@ void SMeshProxyCommonDialog::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SettingsView->AsShared()
 				]
@@ -116,7 +116,7 @@ void SMeshProxyCommonDialog::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor::Yellow)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Visibility_Lambda([this]()->EVisibility { return this->GetContentEnabledState() ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				SNew(STextBlock)
@@ -131,7 +131,7 @@ void SMeshProxyCommonDialog::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor::Green)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Visibility_Lambda([this]()->EVisibility { return this->GetPredictedResultsText().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				SNew(STextBlock)

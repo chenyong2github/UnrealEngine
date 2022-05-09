@@ -12,7 +12,7 @@
 #include "ControlRig.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SSearchBox.h"
 
@@ -62,17 +62,17 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 		}
 		case ERigStackEntry::Info:
 		{
-			Icon = FEditorStyle::GetBrush("Icons.Info");
+			Icon = FAppStyle::GetBrush("Icons.Info");
 			break;
 		}
 		case ERigStackEntry::Warning:
 		{
-			Icon = FEditorStyle::GetBrush("Icons.Warning");
+			Icon = FAppStyle::GetBrush("Icons.Warning");
 			break;
 		}
 		case ERigStackEntry::Error:
 		{
-			Icon = FEditorStyle::GetBrush("Icons.Error");
+			Icon = FAppStyle::GetBrush("Icons.Error");
 			break;
 		}
 		default:
@@ -282,7 +282,7 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 		[
 			SNew(SBorder)
 			.Padding(0.0f)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+			.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			[
 				SNew(SVerticalBox)
@@ -309,7 +309,7 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 		[
 			SNew(SBorder)
 			.Padding(2.0f)
-			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+			.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 			[
 				SAssignNew(TreeView, STreeView<TSharedPtr<FRigStackEntry>>)
 				.TreeItemsSource(&Operators)

@@ -6,7 +6,7 @@
 #include "WorldBrowserModule.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
@@ -16,7 +16,7 @@ void SWorldPartitionEditor::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SAssignNew(ContentParent, SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+		.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 	];
 
 	OnBrowseWorld(InArgs._InWorld);
@@ -102,7 +102,7 @@ TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 			.VAlign(VAlign_Top)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				[
 					SNew(SVerticalBox)
 
@@ -119,7 +119,7 @@ TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 			.VAlign(VAlign_Bottom)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				[
 					SNew(SVerticalBox)
 

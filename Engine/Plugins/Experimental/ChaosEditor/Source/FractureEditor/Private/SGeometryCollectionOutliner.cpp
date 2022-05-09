@@ -42,7 +42,7 @@ void FGeometryCollectionTreeItem::OnDragLeave(const FDragDropEvent& InDragDropEv
 		if (Operation->IsOfType<FGeometryCollectionBoneDragDrop>())
 		{
 			TSharedPtr<FGeometryCollectionBoneDragDrop> GeometryCollectionBoneOp = InDragDropEvent.GetOperationAs<FGeometryCollectionBoneDragDrop>();
-			const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 			GeometryCollectionBoneOp->SetToolTip(FText(), Icon);
 		}
 	}
@@ -103,7 +103,7 @@ void FGeometryCollectionTreeItemBone::OnDragEnter(FDragDropEvent const& InDragDr
 				FGeometryCollection* GeometryCollection = GeometryCollectionObject->GetGeometryCollection().Get();
 				FText HoverText;
 				bool bValid = GeometryCollectionBoneOp->ValidateDrop(GeometryCollection, BoneIndex, HoverText);
-				const FSlateBrush* Icon = bValid ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				const FSlateBrush* Icon = bValid ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 				GeometryCollectionBoneOp->SetToolTip(HoverText, Icon);
 			}
 		}

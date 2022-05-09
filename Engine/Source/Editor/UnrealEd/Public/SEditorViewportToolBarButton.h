@@ -10,7 +10,7 @@
 #include "Framework/SlateDelegates.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Styling/ToolBarStyle.h"
 
@@ -25,8 +25,8 @@ class UNREALED_API SEditorViewportToolBarButton : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SEditorViewportToolBarButton)
 		: _ButtonType(EUserInterfaceActionType::Button)
-		, _ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ButtonStyle)
-		, _CheckBoxStyle(&FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ToggleButton)
+		, _ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ButtonStyle)
+		, _CheckBoxStyle(&FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ToggleButton)
 		, _IsChecked(false)
 		{}
 

@@ -7,7 +7,7 @@
 #include "ISequencerSection.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "CommonMovieSceneTools.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ISequencer.h"
 #include "Misc/QualifiedFrameTime.h"

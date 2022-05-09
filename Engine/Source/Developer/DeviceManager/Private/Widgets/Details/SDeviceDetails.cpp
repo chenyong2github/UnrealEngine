@@ -4,7 +4,7 @@
 #include "Widgets/SOverlay.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/IDeviceManagerCustomPlatformWidgetCreator.h"
 #include "Widgets/Shared/SDeviceQuickInfo.h"
@@ -90,7 +90,7 @@ void SDeviceDetails::Construct(const FArguments& InArgs, const TSharedRef<FDevic
 					.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 					[
 						SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(0.0f)
 							[
 								// feature list view
@@ -120,7 +120,7 @@ void SDeviceDetails::Construct(const FArguments& InArgs, const TSharedRef<FDevic
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+					.BorderImage(FAppStyle::GetBrush("NotificationList.ItemBackground"))
 					.Padding(8.0f)
 					.Visibility_Lambda(HandleSelectDeviceOverlayVisibility)
 					[

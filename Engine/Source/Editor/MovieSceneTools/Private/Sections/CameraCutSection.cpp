@@ -13,7 +13,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EngineUtils.h"
 #include "Camera/CameraComponent.h"
 
@@ -174,7 +174,7 @@ FMargin FCameraCutSection::GetContentPadding() const
 
 int32 FCameraCutSection::OnPaintSection(FSequencerSectionPainter& InPainter) const
 {
-	static const FSlateBrush* FilmBorder = FEditorStyle::GetBrush("Sequencer.Section.FilmBorder");
+	static const FSlateBrush* FilmBorder = FAppStyle::GetBrush("Sequencer.Section.FilmBorder");
 
 	InPainter.LayerId = InPainter.PaintSectionBackground();
 	return FViewportThumbnailSection::OnPaintSection(InPainter);

@@ -197,7 +197,7 @@ public:
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Background")))
 			.Padding(5)
 			.Content()
 			[

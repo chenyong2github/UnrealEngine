@@ -11,7 +11,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Lightmass/LightmassPrimitiveSettingsObject.h"
 #include "UnrealEdGlobals.h"
@@ -71,7 +71,7 @@ void SSurfaceProperties::Construct( const FArguments& InArgs )
 		ScalingFactors.Add(MakeShareable(new FString(FString::Printf(TEXT("%f"),ScalingValues[Idx]))));
 	}
 
-	static const FSlateBrush* BorderStyle =  FEditorStyle::GetBrush( "DetailsView.GroupSection" );
+	static const FSlateBrush* BorderStyle =  FAppStyle::GetBrush( "DetailsView.GroupSection" );
 	static const FLinearColor BorderColor = FLinearColor(.2f,.2f,.2f,.2f);
 
 	ChildSlot
@@ -194,7 +194,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTexturePan()
 			SNew( SCheckBox )
 			.IsChecked( this, &SSurfaceProperties::IsUsingNegativePanning, Channels[i] )
 			.OnCheckStateChanged( this, &SSurfaceProperties::OnTogglePanningDirection, Channels[i])
-			.Style( FEditorStyle::Get(), "TransparentCheckBox" )
+			.Style( FAppStyle::Get(), "TransparentCheckBox" )
 			.ToolTipText( LOCTEXT("InvertPanningDirection", "Toggle panning direction.") )
 			[
 				SNew( SImage )
@@ -266,7 +266,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTexturePan()
 			.MenuContent()
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+				.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				[
 					SAssignNew(NumberBox, SNumericEntryBox<int32>)
 					.OnValueCommitted( this, &SSurfaceProperties::OnCustomPanValueCommitted,(TextureCoordChannel)i)
@@ -313,7 +313,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureRotate()
 		SNew( SCheckBox )
 		.IsChecked( this, &SSurfaceProperties::IsUsingNegativeRotation )
 		.OnCheckStateChanged( this, &SSurfaceProperties::OnToggleRotationDirection )
-		.Style( FEditorStyle::Get(), "TransparentCheckBox" )
+		.Style( FAppStyle::Get(), "TransparentCheckBox" )
 		.ToolTipText( LOCTEXT("InvertRotation", "Toggle Rotation direction.") )
 		[
 			SNew( SImage )
@@ -356,7 +356,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureRotate()
 				.MenuContent()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 					[
 						SAssignNew(NumberBox, SNumericEntryBox<int32>)
 						.OnValueCommitted( this, &SSurfaceProperties::OnCustomRotateValueCommitted)
@@ -450,7 +450,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureScale()
 					.Text(this, &SSurfaceProperties::GetScalingLabel)
 					.ToolTipText(LOCTEXT("ScalingRelativeToggle", "Toggle between Absolute and Relative scaling"))
 					.OnNavigate( this, &SSurfaceProperties::OnScaleLabelClicked )
-					.TextStyle(FEditorStyle::Get(), "DetailsView.HyperlinkStyle")
+					.TextStyle(FAppStyle::Get(), "DetailsView.HyperlinkStyle")
 			]
 	];
 
@@ -510,7 +510,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureScale()
 		SNew( SCheckBox )
 		.IsChecked( this, &SSurfaceProperties::IsPreserveScaleRatioChecked )
 		.OnCheckStateChanged( this, &SSurfaceProperties::OnPreserveScaleRatioToggled )
-		.Style( FEditorStyle::Get(), "TransparentCheckBox" )
+		.Style( FAppStyle::Get(), "TransparentCheckBox" )
 		.ToolTipText( LOCTEXT("PreserveScaleSurfaceToolTip", "When locked changes to ether scaling value will be applied to the other.") )
 		[
 			SNew( SImage )
@@ -953,7 +953,7 @@ FReply SSurfaceProperties::OnApplyScaling()
 
 const FSlateBrush* SSurfaceProperties::GetPreserveScaleRatioImage() const
 {
-	return bPreserveScaleRatio ? FEditorStyle::GetBrush( TEXT("Icons.Lock") ) : FEditorStyle::GetBrush( TEXT("Icons.Unlock") ) ;
+	return bPreserveScaleRatio ? FAppStyle::GetBrush( TEXT("Icons.Lock") ) : FAppStyle::GetBrush( TEXT("Icons.Unlock") ) ;
 }
 
 ECheckBoxState SSurfaceProperties::IsPreserveScaleRatioChecked() const
@@ -982,10 +982,10 @@ const FSlateBrush* SSurfaceProperties::GetTogglePanDirectionImage( TextureCoordC
 {
 	if (Channel == UChannel)
 	{
-		return bUseNegativePanningU ? FEditorStyle::GetBrush( TEXT("SurfaceDetails.PanUNegative") ) : FEditorStyle::GetBrush( TEXT("SurfaceDetails.PanUPositive") ) ;
+		return bUseNegativePanningU ? FAppStyle::GetBrush( TEXT("SurfaceDetails.PanUNegative") ) : FAppStyle::GetBrush( TEXT("SurfaceDetails.PanUPositive") ) ;
 	}
 
-	return bUseNegativePanningV ? FEditorStyle::GetBrush( TEXT("SurfaceDetails.PanVNegative") ) : FEditorStyle::GetBrush( TEXT("SurfaceDetails.PanVPositive") ) ;
+	return bUseNegativePanningV ? FAppStyle::GetBrush( TEXT("SurfaceDetails.PanVNegative") ) : FAppStyle::GetBrush( TEXT("SurfaceDetails.PanVPositive") ) ;
 }
 
 ECheckBoxState SSurfaceProperties::IsUsingNegativePanning( TextureCoordChannel Channel ) const
@@ -1006,7 +1006,7 @@ void SSurfaceProperties::OnTogglePanningDirection( ECheckBoxState NewState, Text
 
 const FSlateBrush* SSurfaceProperties::GetToggleRotationDirectionImage() const
 {
-	return bUseNegativeRotation ? FEditorStyle::GetBrush( TEXT("SurfaceDetails.ClockwiseRotation") ) : FEditorStyle::GetBrush( TEXT("SurfaceDetails.AntiClockwiseRotation") ) ;
+	return bUseNegativeRotation ? FAppStyle::GetBrush( TEXT("SurfaceDetails.ClockwiseRotation") ) : FAppStyle::GetBrush( TEXT("SurfaceDetails.AntiClockwiseRotation") ) ;
 }
 
 ECheckBoxState SSurfaceProperties::IsUsingNegativeRotation() const

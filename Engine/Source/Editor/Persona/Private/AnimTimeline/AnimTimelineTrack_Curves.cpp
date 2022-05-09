@@ -34,7 +34,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::GenerateContainerWidgetForOutline
 	TSharedPtr<SHorizontalBox> InnerHorizontalBox;
 	OutlinerWidget = GenerateStandardOutlinerWidget(InRow, false, OuterBorder, InnerHorizontalBox);
 
-	OuterBorder->SetBorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
+	OuterBorder->SetBorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
 
 	InnerHorizontalBox->AddSlot()
 		.VAlign(VAlign_Center)
@@ -43,7 +43,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::GenerateContainerWidgetForOutline
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
+			.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
 			.Text(this, &FAnimTimelineTrack_Curves::GetLabel)
 			.HighlightText(InRow->GetHighlightText())
 		];
@@ -55,7 +55,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::GenerateContainerWidgetForOutline
 		.Padding(5.0f, 1.0f)
 		[
 			SNew(STextBlock)
-			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TinyText"))
+			.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("TinyText"))
 			.Text_Lambda([this]()
 			{ 
 				UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
@@ -383,7 +383,7 @@ void FAnimTimelineTrack_Curves::FillVariableCurveMenu(FMenuBuilder& Builder)
 						+ SOverlay::Slot()
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("Graph.StateNode.Body"))
+							.BorderImage(FAppStyle::GetBrush("Graph.StateNode.Body"))
 							.BorderBackgroundColor(FAppStyle::Get().GetSlateColor("Colors.Input"))
 						]
 						+SOverlay::Slot()

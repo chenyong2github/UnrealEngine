@@ -5,7 +5,7 @@
 #include "Data/LevelSnapshotsEditorData.h"
 #include "Widgets/SLevelSnapshotsEditorFilterRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -52,13 +52,13 @@ bool FFavoriteFilterDragDrop::OnDropOnRow(const TSharedRef<SLevelSnapshotsEditor
 
 void FFavoriteFilterDragDrop::ShowCannotDropFilter()
 {
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 	ShowFeedbackMessage(StatusSymbol, LOCTEXT("CannotDropFilter", "Drop onto a filter group to create filter"));
 }
 
 void FFavoriteFilterDragDrop::ShowCanDropFilter()
 {
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+	const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 	ShowFeedbackMessage(StatusSymbol, LOCTEXT("CanDropFilter", "Create new filter"));
 }
 
@@ -70,7 +70,7 @@ void FFavoriteFilterDragDrop::ShowFeedbackMessage(const FSlateBrush* Icon, const
 		CursorDecoratorWindow->SetContent
 		(
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -93,7 +93,7 @@ void FFavoriteFilterDragDrop::ShowFeedbackMessage(const FSlateBrush* Icon, const
 					SNew(STextBlock)
 					.WrapTextAt(480.0f)
 					.Text(Message)
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				]
 			]
 		);

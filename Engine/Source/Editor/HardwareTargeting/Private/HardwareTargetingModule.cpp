@@ -8,7 +8,7 @@
 #include "GameFramework/InputSettings.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISettingsModule.h"
 #include "Widgets/SWidget.h"
 

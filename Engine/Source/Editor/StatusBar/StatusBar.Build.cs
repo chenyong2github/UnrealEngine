@@ -21,6 +21,8 @@ public class StatusBar : ModuleRules
 				"OutputLog",
 				"Slate",
 				"SlateCore",
+				"InputCore",
+				"EditorFramework",
 				"SourceControlWindows",
 				"ToolMenus",
 				"ToolWidgets",

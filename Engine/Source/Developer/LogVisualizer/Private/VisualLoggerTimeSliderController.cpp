@@ -5,7 +5,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "TimeSlider"
@@ -79,9 +79,9 @@ FVisualLoggerTimeSliderController::FVisualLoggerTimeSliderController(const FVisu
 	, bDraggingScrubber( false )
 	, bPanning( false )
 {
-	ScrubHandleUp = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubHandleUp" ) ); 
-	ScrubHandleDown = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubHandleDown" ) );
-	CursorBackground = FEditorStyle::GetBrush("Sequencer.SectionArea.Background");
+	ScrubHandleUp = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubHandleUp" ) ); 
+	ScrubHandleDown = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubHandleDown" ) );
+	CursorBackground = FAppStyle::GetBrush("Sequencer.SectionArea.Background");
 }
 
 float FVisualLoggerTimeSliderController::DetermineOptimalSpacing(float InPixelsPerInput, uint32 MinTick, float MinTickSpacing) const

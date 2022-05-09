@@ -345,7 +345,7 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 
 	TSharedRef<SWidget> AddPointButton =
 			 SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			.ToolTipText(LOCTEXT("AddLensDataPoint", "Add a lens data point"))
@@ -361,7 +361,7 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 
 	TSharedRef<SWidget> ClearAllButton =
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.VAlign(VAlign_Center)
 			.ToolTipText(LOCTEXT("DeleteLensData", "Delete all calibrated lens data"))
 			.OnClicked(this, &SLensDataViewer::OnClearLensFileClicked)

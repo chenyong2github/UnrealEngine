@@ -214,12 +214,12 @@ public:
 						[
 							SNew(SButton)
 							.OnClicked(FOnClicked::CreateSP(NodeGroupNode.ToSharedRef(), &FSequencerNodeGroupNode::OnEnableFilterClicked))
-							.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+							.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 							.Content()
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+								.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 								.Text(FEditorFontGlyphs::Filter)
 								.ColorAndOpacity(NodeGroupNode->Group->GetEnableFilter() ? FLinearColor::White : FLinearColor(0.66f, 0.66f, 0.66f, 0.66f))
 							]
@@ -259,7 +259,7 @@ private:
 
 			if (AllowedDropZone.IsSet() == false)
 			{
-				DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 			}
 			return AllowedDropZone;
 		}
@@ -332,7 +332,7 @@ void SSequencerGroupManager::Construct(const FArguments& InArgs, TWeakPtr<FSeque
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 

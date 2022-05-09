@@ -4,7 +4,7 @@
 #include "Editor.h"
 #include "Fonts/FontMeasure.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerCommonHelpers.h"
 #include "SSequencer.h"
 #include "ISequencerHotspot.h"
@@ -407,7 +407,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 
 				const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
 				const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-				const FLinearColor DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
+				const FLinearColor DrawColor = FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 				const FVector2D BoxPadding = FVector2D(4.0f, 2.0f);
 				const float MousePadding = 20.0f;
 
@@ -457,7 +457,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 					OutDrawElements,
 					LayerId + 2, 
 					AllottedGeometry.ToPaintGeometry(TimePos - BoxPadding, TimeStringSize + 2.0f * BoxPadding),
-					FEditorStyle::GetBrush("WhiteBrush"),
+					FAppStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None, 
 					FLinearColor::Black.CopyWithNewOpacity(0.5f)
 				);
@@ -482,7 +482,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 					OutDrawElements,
 					LayerId + 2, 
 					AllottedGeometry.ToPaintGeometry(OffsetPos - BoxPadding, OffsetStringSize + 2.0f * BoxPadding),
-					FEditorStyle::GetBrush("WhiteBrush"),
+					FAppStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None, 
 					FLinearColor::Black.CopyWithNewOpacity(0.5f)
 				);

@@ -6,7 +6,7 @@
 //#include "Brushes/SlateImageBrush.h"
 #include "Containers/Ticker.h"
 #include "CoreGlobals.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/TabManager.h"
@@ -164,7 +164,6 @@ void FUserInterfaceCommand::Run()
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
 	// Load required modules.
-	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 	FModuleManager::Get().LoadModuleChecked("TraceInsights");
 
 	// Load plug-ins.
@@ -244,8 +243,6 @@ void FUserInterfaceCommand::Run()
 void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, const TCHAR* TraceFile)
 {
 	FSlateApplication::InitHighDPI(true);
-
-	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 
 	//const FSlateBrush* AppIcon = new FSlateImageBrush(FPaths::EngineContentDir() / "Editor/Slate/Icons/Insights/AppIcon_24x.png", FVector2D(24.0f, 24.0f));
 	//FSlateApplication::Get().SetAppIcon(AppIcon);

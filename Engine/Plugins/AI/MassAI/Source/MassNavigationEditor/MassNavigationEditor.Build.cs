@@ -23,7 +23,6 @@ namespace UnrealBuildTool.Rules
 				"RHI",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"PropertyEditor",
 				"MassEntity",
 				"DetailCustomizations",

@@ -5,7 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Animation/Skeleton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailWidgetRow.h"
 #include "IDetailPropertyRow.h"
 #include "DetailLayoutBuilder.h"
@@ -65,7 +65,7 @@ void FSkeletalMeshSocketDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 				[
 					SNew(STextBlock)
 					.Text(PropertyName)
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 				]
 			.ValueContent()
@@ -95,7 +95,7 @@ void FSkeletalMeshSocketDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 				[
 					SNew(STextBlock)
 					.Text(ParentBoneProperty->GetPropertyDisplayName())
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			]
 			.ValueContent()

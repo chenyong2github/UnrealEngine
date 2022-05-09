@@ -999,13 +999,13 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 				.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("FocusNodeButtonTip", "Open the graph that contains this node in read-only mode and focus on the node"), NULL, "Shared/Editors/Persona", "FocusNodeButton"))
 				.OnClicked(FOnClicked::CreateSP(this, &SParentPlayerTreeRow::OnFocusNodeButtonClicked))
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("GenericViewButton"))
+					.Image(FAppStyle::GetBrush("GenericViewButton"))
 				]
 				
 			];
@@ -1030,14 +1030,14 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.Visibility(this, &SParentPlayerTreeRow::GetResetToDefaultVisibility)
 					.OnClicked(this, &SParentPlayerTreeRow::OnResetButtonClicked)
 					.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("ResetToParentButtonTip", "Undo the override, returning to the default asset for this node"), NULL, "Shared/Editors/Persona", "ResetToParentButton"))
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 					]
 				];
 		}
@@ -1134,13 +1134,13 @@ void FPlayerTreeViewEntry::GenerateNameWidget(TSharedPtr<SHorizontalBox> Box)
 	switch(EntryType)
 	{
 		case EPlayerTreeViewEntryType::Blueprint:
-			EntryImageBrush = FEditorStyle::GetBrush("ClassIcon.Blueprint");
+			EntryImageBrush = FAppStyle::GetBrush("ClassIcon.Blueprint");
 			break;
 		case EPlayerTreeViewEntryType::Graph:
-			EntryImageBrush = FEditorStyle::GetBrush("GraphEditor.EventGraph_16x");
+			EntryImageBrush = FAppStyle::GetBrush("GraphEditor.EventGraph_16x");
 			break;
 		case EPlayerTreeViewEntryType::Node:
-			EntryImageBrush = FEditorStyle::GetBrush("GraphEditor.Default_16x");
+			EntryImageBrush = FAppStyle::GetBrush("GraphEditor.Default_16x");
 			break;
 		default:
 			break;

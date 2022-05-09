@@ -237,7 +237,7 @@ namespace Metasound
 						[
 							SNew(STextBlock)
 							.Text(ClassGuidName)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						]
 					]
 					.ValueContent()

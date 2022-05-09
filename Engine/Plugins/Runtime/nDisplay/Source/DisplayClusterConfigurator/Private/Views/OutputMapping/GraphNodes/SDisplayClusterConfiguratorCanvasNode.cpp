@@ -30,7 +30,7 @@ void SDisplayClusterConfiguratorCanvasNode::UpdateGraphNode()
 	TAttribute<const FSlateBrush*> SelectedBrush = TAttribute<const FSlateBrush*>::Create(TAttribute<const FSlateBrush*>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorCanvasNode::GetSelectedBrush));
 
 	CanvasSizeTextWidget = SNew(SBorder)
-	.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+	.BorderImage(FAppStyle::GetBrush("NoBorder"))
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -57,7 +57,7 @@ void SDisplayClusterConfiguratorCanvasNode::UpdateGraphNode()
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()

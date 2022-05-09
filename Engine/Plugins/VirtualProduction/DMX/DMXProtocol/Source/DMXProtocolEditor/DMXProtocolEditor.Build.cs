@@ -23,7 +23,7 @@ public class DMXProtocolEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"EditorStyle",
+				
 				"Engine",
 				"InputCore",
 				"Projects",

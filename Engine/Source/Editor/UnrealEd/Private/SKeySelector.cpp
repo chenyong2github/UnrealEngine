@@ -191,7 +191,7 @@ const FSlateBrush* SKeySelector::GetKeyIconImage() const
 		const FKey& Key = CurrentKeyValue.GetValue();
 		if (Key.IsValid() && (Key.IsDeprecated() || !Key.IsBindableToActions()))
 		{
-			return FEditorStyle::GetBrush("Icons.Warning");
+			return FAppStyle::GetBrush("Icons.Warning");
 		}
 		return GetIconFromKey(CurrentKeyValue.GetValue());
 	}
@@ -543,7 +543,7 @@ bool SKeySelector::GetChildrenMatchingSearch(const TArray<FString>& InSearchToke
 
 const FSlateBrush* SKeySelector::GetIconFromKey(FKey Key) const
 {
-	return FEditorStyle::GetBrush(EKeys::GetMenuCategoryPaletteIcon(Key.GetMenuCategory()));
+	return FAppStyle::GetBrush(EKeys::GetMenuCategoryPaletteIcon(Key.GetMenuCategory()));
 }
 
 #undef LOCTEXT_NAMESPACE

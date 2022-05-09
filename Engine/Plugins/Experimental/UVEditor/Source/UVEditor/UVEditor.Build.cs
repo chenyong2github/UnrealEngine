@@ -49,8 +49,7 @@ public class UVEditor : ModuleRules
 				"ContentBrowser",
 				"DynamicMesh",
 				"EditorFramework", // FEditorModeInfo
-				"EditorInteractiveToolsFramework",
-				"EditorStyle",
+				"EditorInteractiveToolsFramework",			
 				"EditorSubsystem",
 				"GeometryCore",
 				"LevelEditor",

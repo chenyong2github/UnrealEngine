@@ -68,7 +68,7 @@ FText UK2Node_MakeSet::GetTooltipText() const
 
 FSlateIcon UK2Node_MakeSet::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.MakeSet_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.MakeSet_16x");
 	return Icon;
 }
 

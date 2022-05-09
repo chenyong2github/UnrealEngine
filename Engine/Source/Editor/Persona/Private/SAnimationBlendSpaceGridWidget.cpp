@@ -19,14 +19,14 @@
 
 #include "IDetailsView.h"
 #include "UObject/StructOnScope.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "IStructureDetailsView.h"
 
 #include "Customization/BlendSampleDetails.h"
 #include "AssetRegistry/AssetData.h"
 #include "DragAndDrop/AssetDragDropOp.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Fonts/FontMeasure.h"
@@ -250,31 +250,31 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	InvalidSamplePositionDragDropText = FText::FromString(TEXT("Invalid Sample Position"));
 
 	// Retrieve UI color values
-	KeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Regular");
-	HighlightKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Highlight");
-	SelectKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Pressed");
-	PreDragKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Pressed");
-	DragKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Drag");
-	InvalidColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Invalid");
-	DropKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Drop");
-	PreviewKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Preview");
+	KeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Regular");
+	HighlightKeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Highlight");
+	SelectKeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Pressed");
+	PreDragKeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Pressed");
+	DragKeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Drag");
+	InvalidColor = FAppStyle::GetSlateColor("BlendSpaceKey.Invalid");
+	DropKeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Drop");
+	PreviewKeyColor = FAppStyle::GetSlateColor("BlendSpaceKey.Preview");
 	GridLinesColor = GetDefault<UEditorStyleSettings>()->RegularColor;
 	GridOutlineColor = GetDefault<UEditorStyleSettings>()->RuleColor;
 	TriangulationColor = FSlateColor(EStyleColor::Foreground);
 	TriangulationCurrentColor = FSlateColor(EStyleColor::Highlight);
 
 	// Retrieve background and sample key brushes 
-	BackgroundImage = FEditorStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
-	KeyBrush = FEditorStyle::GetBrush("CurveEd.CurveKey");
-	PreviewBrush = FEditorStyle::GetBrush("BlendSpaceEditor.PreviewIcon");
-	ArrowBrushes[(uint8)EArrowDirection::Up] = FEditorStyle::GetBrush("BlendSpaceEditor.ArrowUp");
-	ArrowBrushes[(uint8)EArrowDirection::Down] = FEditorStyle::GetBrush("BlendSpaceEditor.ArrowDown");
-	ArrowBrushes[(uint8)EArrowDirection::Right] = FEditorStyle::GetBrush("BlendSpaceEditor.ArrowRight");
-	ArrowBrushes[(uint8)EArrowDirection::Left] = FEditorStyle::GetBrush("BlendSpaceEditor.ArrowLeft");
-	LabelBrush = FEditorStyle::GetBrush(TEXT("BlendSpaceEditor.LabelBackground"));
+	BackgroundImage = FAppStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
+	KeyBrush = FAppStyle::GetBrush("CurveEd.CurveKey");
+	PreviewBrush = FAppStyle::GetBrush("BlendSpaceEditor.PreviewIcon");
+	ArrowBrushes[(uint8)EArrowDirection::Up] = FAppStyle::GetBrush("BlendSpaceEditor.ArrowUp");
+	ArrowBrushes[(uint8)EArrowDirection::Down] = FAppStyle::GetBrush("BlendSpaceEditor.ArrowDown");
+	ArrowBrushes[(uint8)EArrowDirection::Right] = FAppStyle::GetBrush("BlendSpaceEditor.ArrowRight");
+	ArrowBrushes[(uint8)EArrowDirection::Left] = FAppStyle::GetBrush("BlendSpaceEditor.ArrowLeft");
+	LabelBrush = FAppStyle::GetBrush(TEXT("BlendSpaceEditor.LabelBackground"));
 	
 	// Retrieve font data 
-	FontInfo = FEditorStyle::GetFontStyle("CurveEd.InfoFont");
+	FontInfo = FAppStyle::GetFontStyle("CurveEd.InfoFont");
 
 	// Initialize UI layout values
 	KeySize = FVector2D(11.0f, 11.0f);
@@ -304,7 +304,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 					SNew(SBorder)
 					.VAlign(VAlign_Top)
 					.HAlign(HAlign_Left)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.DesiredSizeScale(FVector2D(1.0f, 1.0f))
 					.Padding_Lambda([&]() { return FMargin(GridMargin.Left + 6, 0, 0, 0) + GridRatioMargin; })
 					[
@@ -317,18 +317,18 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
 								.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetTriangulationButtonVisibility)))		
 								.VAlign(VAlign_Center)
 								[
 									SNew(SButton)
 									.ToolTipText(LOCTEXT("ShowTriangulation", "Show Triangulation"))
 									.OnClicked(this, &SBlendSpaceGridWidget::ToggleTriangulationVisibility)
-									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bShowTriangulation ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
+									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bShowTriangulation ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
 									.ContentPadding(1)
 									[
 										SNew(SImage)
-										.Image(FEditorStyle::GetBrush("BlendSpaceEditor.ToggleTriangulation"))
+										.Image(FAppStyle::GetBrush("BlendSpaceEditor.ToggleTriangulation"))
 										.ColorAndOpacity(FSlateColor::UseForeground())
 									]
 								]
@@ -338,18 +338,18 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
 								.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetAnimationNamesButtonVisibility)))
 								.VAlign(VAlign_Center)
 								[
 									SNew(SButton)
 									.ToolTipText(LOCTEXT("ShowAnimationNames", "Show Sample Names"))
 									.OnClicked(this, &SBlendSpaceGridWidget::ToggleShowAnimationNames)
-									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bShowAnimationNames ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
+									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bShowAnimationNames ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
 									.ContentPadding(1)
 									[
 										SNew(SImage)
-										.Image(FEditorStyle::GetBrush("BlendSpaceEditor.ToggleLabels"))
+										.Image(FAppStyle::GetBrush("BlendSpaceEditor.ToggleLabels"))
 										.ColorAndOpacity(FSlateColor::UseForeground())
 									]
 								]
@@ -359,7 +359,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
 								.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetFittingButtonVisibility)))
 								.VAlign(VAlign_Center)
 								[
@@ -367,10 +367,10 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 									.ToolTipText(this, &SBlendSpaceGridWidget::GetFittingTypeButtonToolTipText)
 									.OnClicked(this, &SBlendSpaceGridWidget::ToggleFittingType)
 									.ContentPadding(1)
-									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bStretchToFit ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
+									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bStretchToFit ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
 									[
 										SNew(SImage)
-										.Image(FEditorStyle::GetBrush("BlendSpaceEditor.ZoomToFit"))
+										.Image(FAppStyle::GetBrush("BlendSpaceEditor.ZoomToFit"))
 										.ColorAndOpacity(FSlateColor::UseForeground())
 									]
 								]
@@ -380,7 +380,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
 								.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetInputBoxVisibility, 0)))
 								.VAlign(VAlign_Center)
 								[
@@ -392,7 +392,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.BorderImage(FAppStyle::GetBrush("NoBorder"))
 								.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetInputBoxVisibility, 1)))
 								.VAlign(VAlign_Center)
 								[
@@ -407,7 +407,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("BlendSpaceSamplesToolTip", "Drag and Drop Animations from the Asset Browser to place Sample Points"))
-							.Font(FEditorStyle::GetFontStyle(TEXT("AnimViewport.MessageFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("AnimViewport.MessageFont")))
 							.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.7f))
 							.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetSampleToolTipVisibility)))
 						]
@@ -418,7 +418,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("BlendspacePreviewToolTip", "Hold Control to set the Preview Point (Green)" ))
-							.Font(FEditorStyle::GetFontStyle(TEXT("AnimViewport.MessageFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("AnimViewport.MessageFont")))
 							.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.7f))
 							.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetPreviewToolTipVisibility)))
 						]
@@ -478,7 +478,7 @@ SBlendSpaceGridWidget::~SBlendSpaceGridWidget()
 TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateGridEntryBox(const int32 BoxIndex, const bool bShowLabel)
 {
 	return SNew(SNumericEntryBox<float>)
-		.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+		.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 		.Value(this, &SBlendSpaceGridWidget::GetInputBoxValue, BoxIndex)
 		.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 		.OnValueCommitted(this, &SBlendSpaceGridWidget::OnInputBoxValueCommited, BoxIndex)
@@ -1446,7 +1446,7 @@ void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuild
 			InMenuBuilder.AddMenuEntry(
 				ShowTriangulation,
 				ShowTriangulationToolTip,
-				FSlateIcon("EditorStyle", "BlendSpaceEditor.ToggleTriangulation"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlendSpaceEditor.ToggleTriangulation"),
 				FUIAction(
 					FExecuteAction::CreateLambda([this](){ bShowTriangulation = !bShowTriangulation; }),
 					FCanExecuteAction(),
@@ -1460,7 +1460,7 @@ void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuild
 		InMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAnimationNames", "Show Sample Names"),
 			LOCTEXT("ShowAnimationNamesToolTip", "Show the names of each of the samples"),
-			FSlateIcon("EditorStyle", "BlendSpaceEditor.ToggleLabels"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlendSpaceEditor.ToggleLabels"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this](){ bShowAnimationNames = !bShowAnimationNames; }),
 				FCanExecuteAction(),
@@ -1473,7 +1473,7 @@ void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuild
 		InMenuBuilder.AddMenuEntry(
 			LOCTEXT("StretchFittingText", "Stretch Grid to Fit"),
 			LOCTEXT("StretchFittingTextToolTip", "Whether to stretch the grid to fit or to fit the grid to the largest axis"),
-			FSlateIcon("EditorStyle", "BlendSpaceEditor.ZoomToFit"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlendSpaceEditor.ZoomToFit"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this](){ ToggleFittingType(); }),
 				FCanExecuteAction(),
@@ -1573,7 +1573,7 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateNewBlendSampleContextMenu(const
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("AddNewSample", "Add New Sample"),
 					LOCTEXT("AddNewSampleTooltip", "Add a new sample to the blendspace at this location"),
-						FSlateIcon("EditorStyle", "Icons.Plus"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus"),
 						FUIAction(
 							FExecuteAction::CreateLambda(
 								[this, NewSampleValue]()

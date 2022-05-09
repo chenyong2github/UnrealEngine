@@ -28,7 +28,6 @@ public class Cascade : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"DistCurveEditor",
 				"EditorFramework",
 				"UnrealEd",

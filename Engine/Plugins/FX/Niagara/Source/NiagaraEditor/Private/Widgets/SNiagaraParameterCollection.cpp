@@ -151,10 +151,10 @@ TSharedPtr<SWidget> FParamCollectionDragDropAction::GetDefaultDecorator() const
 	return SNew(SBox)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			[
 				SNew(STextBlock)
-				.ColorAndOpacity(FEditorStyle::GetColor("DefaultForeground"))
+				.ColorAndOpacity(FAppStyle::GetColor("DefaultForeground"))
 				.Text(this, &FParamCollectionDragDropAction::GetBodyText)
 			]
 		];
@@ -254,7 +254,7 @@ void SNiagaraParameterCollection::Construct(const FArguments& InArgs, TSharedRef
 	[
 		SAssignNew(ExpandableArea, SExpandableArea)
 		.InitiallyCollapsed(Collection->GetIsExpanded() == false)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 		.OnAreaExpansionChanged(this, &SNiagaraParameterCollection::AreaExpandedChanged)
 		.Padding(0)
 		.HeaderContent()
@@ -277,7 +277,7 @@ void SNiagaraParameterCollection::Construct(const FArguments& InArgs, TSharedRef
 				[
 					SAssignNew(AddButton, SComboButton)
 					.HasDownArrow(false)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.OnGetMenuContent(this, &SNiagaraParameterCollection::GetAddMenuContent)
 					.Visibility(Collection.ToSharedRef(), &INiagaraParameterCollectionViewModel::GetAddButtonVisibility)
@@ -290,13 +290,13 @@ void SNiagaraParameterCollection::Construct(const FArguments& InArgs, TSharedRef
 						[
 							SNew(SImage)
 							.ColorAndOpacity(FSlateColor::UseForeground())
-							.Image(FEditorStyle::GetBrush("Plus"))
+							.Image(FAppStyle::GetBrush("Plus"))
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "SmallText")
+							.TextStyle(FAppStyle::Get(), "SmallText")
 							.Text(Collection.ToSharedRef(), &INiagaraParameterCollectionViewModel::GetAddButtonText)
 							.Visibility(this, &SNiagaraParameterCollection::GetAddButtonTextVisibility)
 						]
@@ -308,7 +308,7 @@ void SNiagaraParameterCollection::Construct(const FArguments& InArgs, TSharedRef
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				ParameterListView.ToSharedRef()
 			]

@@ -102,7 +102,7 @@ void STrackNode::Construct(const FArguments& InArgs)
 
 	Font = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
-	const FSlateBrush* StyleInfo = FEditorStyle::GetBrush( TEXT("SpecialEditableTextImageNormal") ); // FIXME: make slate argument for STrackNode
+	const FSlateBrush* StyleInfo = FAppStyle::GetBrush( TEXT("SpecialEditableTextImageNormal") ); // FIXME: make slate argument for STrackNode
 
 	if(InArgs._OverrideContent.Widget != SNullWidget::NullWidget)
 	{

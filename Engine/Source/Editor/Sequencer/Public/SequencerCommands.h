@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FSequencerCommands : public TCommands<FSequencerCommands>
 {
@@ -15,7 +15,7 @@ public:
 		"Sequencer",
 		NSLOCTEXT("Contexts", "Sequencer", "Sequencer"),
 		NAME_None, // "MainFrame" // @todo Fix this crash
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{}
 	

@@ -6,7 +6,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Images/SImage.h"
@@ -67,8 +67,8 @@ void FFileMediaSourceCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 					.MinDesiredWidth(125.0f)
 					[
 						SNew(SFilePathPicker)
-							.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-							.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+							.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+							.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 							.BrowseButtonToolTip(LOCTEXT("FilePathBrowseButtonToolTip", "Choose a file from this computer"))
 							.BrowseDirectory(FPaths::ProjectContentDir() / TEXT("Movies"))
 							.FilePath(this, &FFileMediaSourceCustomization::HandleFilePathPickerFilePath)

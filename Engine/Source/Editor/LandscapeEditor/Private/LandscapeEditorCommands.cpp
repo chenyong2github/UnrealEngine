@@ -13,7 +13,7 @@ FLandscapeEditorCommands::FLandscapeEditorCommands()
 	FLandscapeEditorCommands::LandscapeContext, // Context name for fast lookup
 	NSLOCTEXT("Contexts", "LandscapeEditor", "Landscape Editor"), // Localized context name for displaying
 	NAME_None, //"LevelEditor" // Parent
-	FEditorStyle::GetStyleSetName() // Icon Style Set
+	FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 }

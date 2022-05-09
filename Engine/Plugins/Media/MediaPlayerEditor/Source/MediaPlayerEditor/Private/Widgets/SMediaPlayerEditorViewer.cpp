@@ -11,7 +11,7 @@
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -269,7 +269,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 										SNew(SImage)
 											.Image(InStyle->GetBrush("MediaPlayerEditor.SourceButton"))
 									]
-									.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+									.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 									.ForegroundColor(FSlateColor::UseForeground())
 									.MenuContent()
 									[
@@ -350,7 +350,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 					[
 						// playback controls
 						SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.ForegroundColor(FLinearColor::Gray)
 							.Padding(6.0f)
 							[
@@ -517,7 +517,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 																	.Text(LOCTEXT("OptionsButton", "Playback Options"))
 															]
 													]
-													.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+													.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 													.ForegroundColor(FSlateColor::UseForeground())
 													.MenuContent()
 													[
@@ -533,7 +533,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 			[
 				// drag & drop indicator
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 					.BorderBackgroundColor_Lambda([this]() -> FLinearColor {
 						return DragValid
 							? FLinearColor(0.0f, 1.0f, 0.0f, 0.15f)

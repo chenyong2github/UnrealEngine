@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IContentBrowserSingleton.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorNewBlueprintDialog"

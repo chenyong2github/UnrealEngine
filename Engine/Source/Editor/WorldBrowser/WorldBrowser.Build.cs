@@ -34,7 +34,6 @@ public class WorldBrowser : ModuleRules
 				"Landscape",
                 "Slate",
 				"SlateCore",
-                "EditorStyle",
                 "EditorWidgets",
                 "ToolWidgets",
 				"EditorFramework",

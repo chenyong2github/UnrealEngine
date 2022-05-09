@@ -627,7 +627,7 @@ TSharedRef<SWidget> SEditorViewport::BuildFixedEV100Menu()  const
 				[
 					SNew(SSpinBox<float>)
 					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+					.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
 					.MinValue(EV100Min)
 					.MaxValue(EV100Max)
 					.Value( this, &SEditorViewport::OnGetFixedEV100Value )

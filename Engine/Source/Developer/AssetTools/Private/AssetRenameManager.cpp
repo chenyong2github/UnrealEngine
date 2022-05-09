@@ -27,7 +27,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
@@ -143,7 +143,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+			.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 			.Padding(FMargin(4, 8, 4, 4))
 			[
 				SNew(SVerticalBox)
@@ -161,7 +161,7 @@ public:
 				.FillHeight(1.f)
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+					.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 					[
 						SNew(SListView<TSharedRef<FText>>)
 						.ListItemsSource(&FailedRenames)

@@ -21,7 +21,6 @@ public class DetailCustomizations : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"EditorWidgets",

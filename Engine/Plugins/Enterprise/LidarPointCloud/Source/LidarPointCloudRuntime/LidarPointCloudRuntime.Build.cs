@@ -33,7 +33,6 @@ namespace UnrealBuildTool.Rules
 						"EditorFramework",
 						"UnrealEd",
 						"PropertyEditor",
-						"EditorStyle",
 						"ContentBrowser",
 						"AssetRegistry"
 					}

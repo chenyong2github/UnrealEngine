@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "K2Node_ActorBoundEvent.h"
 #include "K2Node_ComponentBoundEvent.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Editor/EditorEngine.h"
 #include "ObjectEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -64,7 +64,7 @@ UBlueprintBoundEventNodeSpawner* UBlueprintBoundEventNodeSpawner::Create(TSubcla
 	MenuSignature.Category = BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuCategory(EventDelegate);
 	//MenuSignature.Tooltip,  will be pulled from the node template
 	//MenuSignature.Keywords, will be pulled from the node template
-	MenuSignature.Icon = FSlateIcon("EditorStyle", "GraphEditor.Event_16x");
+	MenuSignature.Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 
 	return NodeSpawner;
 }

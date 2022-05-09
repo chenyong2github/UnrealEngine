@@ -86,7 +86,7 @@ namespace UE
 						[
 							SNew( STextBlock )
 							.Text( FText::FromString( LevelName ) )
-							.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+							.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 						]
 					);
 				}
@@ -273,7 +273,7 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 	[
 		SNew( STextBlock )
 		.Text( FText::FromString( TEXT( "Levels To Export" ) ) )
-		.Font( FEditorStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+		.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 	]
 	.ValueContent()
 	.MinDesiredWidth(300)

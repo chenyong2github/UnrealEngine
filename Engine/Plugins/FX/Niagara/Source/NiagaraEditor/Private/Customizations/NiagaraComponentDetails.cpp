@@ -16,7 +16,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraSystemInstance.h"
 #include "ViewModels/NiagaraParameterViewModel.h"
 #include "NiagaraEditorUtilities.h"
@@ -471,11 +471,11 @@ public:
 						.Visibility(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetResetToDefaultVisibility)
 						.ContentPadding(FMargin(5.f, 0.f))
 						.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
 						.Content()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 						]
 					]
 				];
@@ -649,7 +649,7 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 			.WholeRowContent()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "SmallText")
+				.TextStyle(FAppStyle::Get(), "SmallText")
 				.Text(LOCTEXT("OverrideParameterMultiselectionUnsupported", "Multiple override parameter sets cannot be edited simultaneously."))
 			];
 	}

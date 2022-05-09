@@ -13,7 +13,10 @@ public class SlateViewerTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 
 		LaunchModuleName = "SlateViewer";
-		ExtraModuleNames.Add("EditorStyle");
+		if (bBuildEditor)
+		{
+			ExtraModuleNames.Add("EditorStyle");
+		}
 
 		bBuildDeveloperTools = false;
 

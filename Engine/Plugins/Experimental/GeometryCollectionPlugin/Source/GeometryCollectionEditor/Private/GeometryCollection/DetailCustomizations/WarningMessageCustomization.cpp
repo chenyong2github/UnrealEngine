@@ -38,7 +38,7 @@ void FWarningMessageCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> S
 	{
 		static const FText ToolTipMessage = NSLOCTEXT("GeometryCollectionDebugDrawWarningMessage", "WarningMessage_ToolTip", "The actor must be playing for these debug draw properties to have any effect.");
 		static const FText Message = NSLOCTEXT("GeometryCollectionDebugDrawWarningMessage", "WarningMessage_MessageWaiting", "Waiting for Play");
-		static const FSlateColor Color = FEditorStyle::GetSlateColor("SelectionColor");
+		static const FSlateColor Color = FAppStyle::GetSlateColor("SelectionColor");
 
 		// Add buttons
 		HeaderRow.ValueContent()
@@ -50,13 +50,13 @@ void FWarningMessageCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> S
 			.Padding(0.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.ToolTipText(ToolTipMessage)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(FEditorFontGlyphs::Exclamation_Triangle)
 					.ColorAndOpacity(Color)
 				]
@@ -66,7 +66,7 @@ void FWarningMessageCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> S
 			.Padding(4.f, 0.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.ToolTipText(ToolTipMessage)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)

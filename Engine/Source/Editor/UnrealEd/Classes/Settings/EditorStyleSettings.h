@@ -49,7 +49,7 @@ enum class ELogCategoryColorizationMode : uint8
  * Implements the Editor style settings.
  */
 UCLASS(config=EditorPerProjectUserSettings)
-class EDITORSTYLE_API UEditorStyleSettings : public UObject
+class UNREALED_API UEditorStyleSettings : public UObject
 {
 public:
 
@@ -199,10 +199,7 @@ public:
 protected:
 
 	// UObject overrides
-
-#if WITH_EDITOR
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
-#endif
 
 private:
 

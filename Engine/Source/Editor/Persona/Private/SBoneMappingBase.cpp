@@ -7,7 +7,7 @@
 #include "Widgets/SWindow.h"
 #include "ReferenceSkeleton.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "AssetNotifications.h"
 #include "Animation/Rig.h"

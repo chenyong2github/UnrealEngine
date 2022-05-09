@@ -10,7 +10,7 @@
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
 #include "CurveEditorSnapMetrics.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UObject/Package.h"
 
 
@@ -260,7 +260,7 @@ void FRichCurveEditorModel::GetKeyDrawInfo(ECurvePointType PointType, const FKey
 {
 	if (PointType == ECurvePointType::ArriveTangent || PointType == ECurvePointType::LeaveTangent)
 	{
-		OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.TangentHandle");
+		OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.TangentHandle");
 		OutDrawInfo.ScreenSize = FVector2D(9, 9);
 	}
 	else
@@ -272,19 +272,19 @@ void FRichCurveEditorModel::GetKeyDrawInfo(ECurvePointType PointType, const FKey
 		switch (KeyType)
 		{
 		case ERichCurveInterpMode::RCIM_Constant:
-			OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.ConstantKey");
+			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.ConstantKey");
 			OutDrawInfo.Tint = FLinearColor(0, 0.45f, 0.70f);
 			break;
 		case ERichCurveInterpMode::RCIM_Linear:
-			OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.LinearKey");
+			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.LinearKey");
 			OutDrawInfo.Tint = FLinearColor(0, 0.62f, 0.46f);
 			break;
 		case ERichCurveInterpMode::RCIM_Cubic:
-			OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.CubicKey");
+			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.CubicKey");
 			OutDrawInfo.Tint = FLinearColor::White;
 			break;
 		default:
-			OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.Key");
+			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.Key");
 			OutDrawInfo.Tint = FLinearColor::White;
 			break;
 		}

@@ -28,7 +28,6 @@ public class DataValidation : ModuleRules
 				"CollectionManager",
 				"ContentBrowser",
 				"WorkspaceMenuStructure",
-				"EditorStyle",
 				"AssetTools",
 				"PropertyEditor",
 				"GraphEditor",

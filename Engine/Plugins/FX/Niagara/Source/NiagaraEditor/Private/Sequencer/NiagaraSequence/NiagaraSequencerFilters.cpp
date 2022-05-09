@@ -4,7 +4,7 @@
 #include "MovieScene/MovieSceneNiagaraTrack.h"
 #include "NiagaraActor.h"
 #include "NiagaraComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSequencerTrackFilters"
 
@@ -16,7 +16,7 @@ class FSequencerTrackFilter_NiagaraTracks : public FSequencerTrackFilter
 	virtual FString GetName() const override { return TEXT("SequencerNiagaraTrackFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_NiagaraTracks", "Niagara"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_NiagaraTracksToolTip", "Show only Niagara tracks."); }
-	virtual FSlateIcon GetIcon() const { return FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.ParticleSystem"); }
+	virtual FSlateIcon GetIcon() const { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.ParticleSystem"); }
 
 	// IFilter implementation
 	virtual bool PassesFilter(FTrackFilterType InItem) const override

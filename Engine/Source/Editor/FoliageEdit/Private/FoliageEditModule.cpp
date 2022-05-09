@@ -3,7 +3,7 @@
 #include "FoliageEditModule.h"
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
@@ -49,7 +49,7 @@ public:
 		FEditorModeRegistry::Get().RegisterMode<FEdModeFoliage>(
 			FBuiltinEditorModes::EM_Foliage,
 			NSLOCTEXT("EditorModes", "FoliageMode", "Foliage"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.FoliageMode", "LevelEditor.FoliageMode.Small"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.FoliageMode", "LevelEditor.FoliageMode.Small"),
 			true, 400
 			);
 

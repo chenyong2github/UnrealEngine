@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 
 /** Case sensitive hashing function for TMap */
@@ -71,7 +71,7 @@ void SAssetSearchBox::Construct( const FArguments& InArgs )
 			.MenuContent
 				(
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding( FMargin(2) )
 				[
 					SNew(SBox)
@@ -272,8 +272,8 @@ TSharedRef<ITableRow> SAssetSearchBox::MakeSuggestionListItemWidget(TSharedPtr<F
 			.Padding(0.0f, 4.0f, 0.0f, 2.0f) // Add some empty space before the line, and a tiny bit after it
 			[
 				SNew(SBorder)
-				.Padding(FEditorStyle::GetMargin("Menu.Separator.Padding")) // We'll use the border's padding to actually create the horizontal line
-				.BorderImage(FEditorStyle::GetBrush("Menu.Separator"))
+				.Padding(FAppStyle::GetMargin("Menu.Separator.Padding")) // We'll use the border's padding to actually create the horizontal line
+				.BorderImage(FAppStyle::GetBrush("Menu.Separator"))
 			];
 		}
 
@@ -282,7 +282,7 @@ TSharedRef<ITableRow> SAssetSearchBox::MakeSuggestionListItemWidget(TSharedPtr<F
 		[
 			SNew(STextBlock)
 			.Text(Suggestion->DisplayName.ToUpper())
-			.TextStyle(FEditorStyle::Get(), "Menu.Heading")
+			.TextStyle(FAppStyle::Get(), "Menu.Heading")
 		];
 
 		RowWidget = HeaderVBox;
@@ -291,7 +291,7 @@ TSharedRef<ITableRow> SAssetSearchBox::MakeSuggestionListItemWidget(TSharedPtr<F
 	{
 		RowWidget =
 			SNew(SBox)
-			.Padding(FEditorStyle::GetMargin(bIdentItems ? "Menu.Block.IndentedPadding" : "Menu.Block.Padding"))
+			.Padding(FAppStyle::GetMargin(bIdentItems ? "Menu.Block.IndentedPadding" : "Menu.Block.Padding"))
 			[
 				SNew(STextBlock)
 				.Text(Suggestion->DisplayName)

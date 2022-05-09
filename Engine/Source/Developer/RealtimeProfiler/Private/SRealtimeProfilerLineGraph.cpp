@@ -5,7 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "RealtimeProfiler.h"
 #include "SRealtimeProfilerVisualizer.h"
 
@@ -40,7 +40,7 @@ void SRealtimeProfilerLineGraph::Construct(const FArguments& InArgs)
 			.Visibility(this, &SRealtimeProfilerLineGraph::GetStartButtonVisibility)
 			[
 				SNew(SImage) 
-				.Image( FEditorStyle::GetBrush("Profiler.Start") ) 
+				.Image( FAppStyle::GetBrush("Profiler.Start") ) 
 			]
 		]
 
@@ -55,7 +55,7 @@ void SRealtimeProfilerLineGraph::Construct(const FArguments& InArgs)
 			.Visibility(this, &SRealtimeProfilerLineGraph::GetPauseButtonVisibility)
 			[
 				SNew(SImage) 
-				.Image( FEditorStyle::GetBrush("Profiler.Pause") ) 
+				.Image( FAppStyle::GetBrush("Profiler.Pause") ) 
 			]
 		]
 
@@ -69,7 +69,7 @@ void SRealtimeProfilerLineGraph::Construct(const FArguments& InArgs)
 			.ContentPadding(1)
 			[
 				SNew(SImage) 
-				.Image( FEditorStyle::GetBrush("Profiler.Stop") ) 
+				.Image( FAppStyle::GetBrush("Profiler.Stop") ) 
 			]
 		]
 
@@ -83,7 +83,7 @@ void SRealtimeProfilerLineGraph::Construct(const FArguments& InArgs)
 			.ContentPadding(1)
 			[
 				SNew(SImage) 
-				.Image( FEditorStyle::GetBrush("Profiler.SwitchView") ) 
+				.Image( FAppStyle::GetBrush("Profiler.SwitchView") ) 
 			]
 		]
 
@@ -112,8 +112,8 @@ int32 SRealtimeProfilerLineGraph::OnPaint( const FPaintArgs& Args, const FGeomet
 	// Rendering info
 	bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FEditorStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
 
 
 	// Draw timeline background

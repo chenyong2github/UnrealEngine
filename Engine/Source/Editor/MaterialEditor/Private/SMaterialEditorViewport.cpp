@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/MeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Editor/UnrealEdEngine.h"
@@ -1259,7 +1259,7 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 			SNew( SBorder )
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Top)
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -1348,7 +1348,7 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 						SNew( SComboButton )
 						.ContentPadding(0)
 						.ForegroundColor( FSlateColor::UseForeground() )
-						.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+						.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
 						.MenuContent()
 						[
@@ -1357,7 +1357,7 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 						.ButtonContent()
 						[
 							SNew(SImage)
-							.Image( FEditorStyle::GetBrush("GenericViewButton") )
+							.Image( FAppStyle::GetBrush("GenericViewButton") )
 						]
 					]
 				]
@@ -1370,7 +1370,7 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 			.HAlign( HAlign_Center )
 			.VAlign( VAlign_Center )
 			.OnMouseButtonUp(this, &SMaterialEditorUIPreviewViewport::OnViewportClicked)
-			.BorderImage( FEditorStyle::GetBrush("BlackBrush") )
+			.BorderImage( FAppStyle::GetBrush("BlackBrush") )
 			.Clipping(EWidgetClipping::ClipToBounds)
 			[
 				SAssignNew( PreviewZoomer, SMaterialEditorUIPreviewZoomer, PreviewMaterial )

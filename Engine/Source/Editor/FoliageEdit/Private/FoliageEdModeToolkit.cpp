@@ -4,7 +4,6 @@
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "SFoliageEdit.h"
-#include "Classes/EditorStyleSettings.h"
 
 #include "FoliageEditActions.h"
 #include "FoliagePaletteCommands.h"

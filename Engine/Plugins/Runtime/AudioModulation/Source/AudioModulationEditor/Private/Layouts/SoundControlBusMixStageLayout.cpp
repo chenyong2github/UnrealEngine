@@ -6,7 +6,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IAudioModulation.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"

@@ -46,7 +46,7 @@ int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeomet
 	//////////////////////////////////////////////////////////////////////////
 	// Draw boxes to show frames
 	{
-		const FSlateBrush* BoxBrush = FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint");
+		const FSlateBrush* BoxBrush = FAppStyle::GetBrush("Sequencer.Section.BackgroundTint");
 		const FLinearColor BoxTints[2] = { FLinearColor(0.5f, 0.5f, 0.5f, 1.0f), FLinearColor(0.3f, 0.3f, 0.3f, 1.0f) };
 		const FLinearColor CurrentTint(0.5f, 0.5f, 1.0f, 1.0f);
 		if (NumFrames > 0)

@@ -52,7 +52,7 @@ void SPListEditorPanel::Construct( const FArguments& InArgs )
 				+SVerticalBox::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("PListEditor.HeaderRow.Background") )
+					.BorderImage( FAppStyle::GetBrush("PListEditor.HeaderRow.Background") )
 					.Content()
 					[
 						SNew(SVerticalBox)

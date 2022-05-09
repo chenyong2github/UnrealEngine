@@ -2,7 +2,7 @@
 
 #include "SLevelsTreeWidget.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "LevelCollectionModel.h"
 #include "AssetSelection.h"
@@ -34,12 +34,12 @@ FReply SLevelsTreeWidget::OnDragOver(const FGeometry& MyGeometry, const FDragDro
 		FText LevelName = FText::FromString(Models[0]->GetDisplayName());
 
 		FText ToolTipText = FText::Format(LOCTEXT("OnDragHierarchyItemsOver_Invalid", "Cannot attach selected items to {0}"), LevelName);
-		const FSlateBrush* ToolTipIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+		const FSlateBrush* ToolTipIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 		if (CanAttachAllItemsToRoot(HierarchyOp->GetDraggedItems()))
 		{
 			ToolTipText = FText::Format(LOCTEXT("OnDragHierarchyItemsOver_Success", "Attach selected items to {0}"), LevelName);
-			ToolTipIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			ToolTipIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 		}
 
 		HierarchyOp->SetToolTip(ToolTipText, ToolTipIcon);
@@ -52,7 +52,7 @@ FReply SLevelsTreeWidget::OnDragOver(const FGeometry& MyGeometry, const FDragDro
 		if (GetWorldAssetsFromDrag(DragDropEvent, AssetList) && DragDropEvent.GetOperation()->IsOfType<FAssetDragDropOp>())
 		{
 			TSharedPtr< FAssetDragDropOp > AssetOp = DragDropEvent.GetOperationAs< FAssetDragDropOp >();
-			AssetOp->SetToolTip(LOCTEXT("OnDragWorldAssetsOverFolder", "Add Level(s)"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			AssetOp->SetToolTip(LOCTEXT("OnDragWorldAssetsOverFolder", "Add Level(s)"), FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 
 			return FReply::Handled();
 		}

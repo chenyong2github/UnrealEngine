@@ -13,7 +13,7 @@ public class TakeRecorderSources : ModuleRules
 				"CoreUObject",
 				"EditorFramework",
 				"Engine",
-				"EditorStyle",
+				
 				"InputCore",
 				"LevelEditor",
 				"LevelSequence",

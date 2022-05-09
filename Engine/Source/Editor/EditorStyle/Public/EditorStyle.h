@@ -22,11 +22,10 @@ MONOLITHIC_HEADER_BOILERPLATE()
  *****************************************************************************/
 
 #include "Interfaces/IEditorStyleModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 /* Classes
  *****************************************************************************/
 
-#include "Classes/EditorStyleSettings.h"
 #include "EditorFontGlyphs.h"

@@ -10,7 +10,7 @@
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "ScopedTransaction.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
@@ -38,7 +38,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerDeleteButtonColumn::ConstructRowWidg
 		return SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ButtonStyle(FEditorStyle::Get(), "DataLayerBrowserButton")
+			.ButtonStyle(FAppStyle::Get(), "DataLayerBrowserButton")
 			.ContentPadding(0)
 			.Visibility_Lambda([this, TreeItem, DataLayerActorItem]()
 			{
@@ -82,7 +82,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerDeleteButtonColumn::ConstructRowWidg
 			.ToolTipText(LOCTEXT("RemoveFromDataLayerButtonText", "Remove from Data Layer"))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("DataLayerBrowser.Actor.RemoveFromDataLayer")))
+				.Image(FAppStyle::GetBrush(TEXT("DataLayerBrowser.Actor.RemoveFromDataLayer")))
 			];
 	}
 	return SNullWidget::NullWidget;

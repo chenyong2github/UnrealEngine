@@ -7,7 +7,7 @@
 #include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ObjectEditorUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "MotoSynthSourceFactory.h"
@@ -44,7 +44,7 @@ void FMotoSynthExtension::RegisterMenus()
 
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateMotoSource", "Create MotoSynth Source");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateMotoSynthSourceTooltip", "Creates a MotoSynth Source asset using the selected sound wave.");
-		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MotoSynthSource");
+		const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.MotoSynthSource");
 		const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&FMotoSynthExtension::ExecuteCreateMotoSynthSource);
 
 		InSection.AddMenuEntry("SoundWave_CreateMotoSynthSource", Label, ToolTip, Icon, UIAction);

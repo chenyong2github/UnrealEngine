@@ -112,7 +112,7 @@ void SIKRigSolverStackItem::Construct(
 						FText Warning;
 						return !GetWarningMessage(Warning);
 					})
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
 	            ]
 
 	            + SHorizontalBox::Slot()
@@ -129,7 +129,7 @@ void SIKRigSolverStackItem::Construct(
 						GetWarningMessage(Message);
 						return Message;
 					})
-					.TextStyle(FEditorStyle::Get(), "NormalText.Subdued")
+					.TextStyle(FAppStyle::Get(), "NormalText.Subdued")
 				]
             ]
 
@@ -202,7 +202,7 @@ TSharedPtr<SWidget> FIKRigSolverStackDragDropOp::GetDefaultDecorator() const
 {
 	return SNew(SBorder)
         .Visibility(EVisibility::Visible)
-        .BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+        .BorderImage(FAppStyle::GetBrush("Menu.Background"))
         [
             SNew(STextBlock)
             .Text(Element.Pin()->DisplayName)
@@ -231,7 +231,7 @@ void SIKRigSolverStack::Construct(const FArguments& InArgs, TSharedRef<FIKRigEdi
         [
             SNew(SBorder)
             .Padding(0.0f)
-            .BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+            .BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
             .BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
             [
                 SNew(SVerticalBox)

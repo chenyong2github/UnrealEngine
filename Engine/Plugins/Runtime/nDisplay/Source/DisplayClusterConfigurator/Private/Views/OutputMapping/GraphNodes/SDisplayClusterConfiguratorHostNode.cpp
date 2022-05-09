@@ -117,7 +117,7 @@ public:
 			.AutoSize(true)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.Padding(5)
 				[
 					SNew(STextBlock)

@@ -14,7 +14,7 @@ public class AnimationEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+                
 				"EditorFramework",
                 "UnrealEd",
                 "Persona",

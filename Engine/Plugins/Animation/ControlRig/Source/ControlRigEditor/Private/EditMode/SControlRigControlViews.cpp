@@ -5,7 +5,7 @@
 #include "ControlRig.h"
 #include "Tools/ControlRigPose.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Editor/EditorEngine.h"
 #include "AssetViewUtils.h"
@@ -232,7 +232,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 				.Value(0.33f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
@@ -277,7 +277,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 				.Value(0.33f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
@@ -374,7 +374,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 							.Padding(3.f)
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 								.Padding(FMargin(3.0f, 2.0f))
 								.Visibility(EVisibility::HitTestInvisible)
 								[
@@ -387,7 +387,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 							.Padding(1.0f)
 								[
 									SNew(SBorder)
-									.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+									.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 								.Padding(FMargin(3.0f, 0.0f))
 								.Visibility(EVisibility::HitTestInvisible)
 								[
@@ -406,7 +406,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 				.Value(0.33f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()

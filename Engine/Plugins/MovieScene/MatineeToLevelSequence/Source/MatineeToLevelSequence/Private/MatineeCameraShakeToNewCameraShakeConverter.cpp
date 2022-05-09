@@ -139,7 +139,7 @@ public:
 					SNew(SButton)
 					.Text(LOCTEXT("ConvertSelectedCameraAnims", "Convert Camera Anims"))
 					.ToolTipText(LOCTEXT("ConvertSelectedSimple_Tooltip", "Upgrade the Matinee camera animation part of a shake into a Sequence. Shakes with no camera animation (only oscillation) will not be modified."))
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 					.IsEnabled(this, &SMatineeCameraShakeConverterWidget::IsConvertSelectedButtonEnabled)
 					.OnPressed(this, &SMatineeCameraShakeConverterWidget::OnConvertSelected)
 				]
@@ -152,7 +152,7 @@ public:
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("Cancel", "Cancel"))
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
 					.OnPressed_Lambda([this]() { FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow(); })
 				]
 			]

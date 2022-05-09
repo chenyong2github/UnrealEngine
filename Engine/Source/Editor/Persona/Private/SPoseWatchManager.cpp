@@ -6,7 +6,7 @@
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorModeManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
@@ -764,11 +764,11 @@ const FSlateBrush* SPoseWatchManager::GetFilterButtonGlyph() const
 {
 	if (IsTextFilterActive())
 	{
-		return FEditorStyle::GetBrush(TEXT("SceneOutliner.FilterCancel"));
+		return FAppStyle::GetBrush(TEXT("SceneOutliner.FilterCancel"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("SceneOutliner.FilterSearch"));
+		return FAppStyle::GetBrush(TEXT("SceneOutliner.FilterSearch"));
 	}
 }
 

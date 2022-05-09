@@ -2,7 +2,7 @@
 
 #include "ConsoleVariablesEditorStyle.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/CoreStyle.h"

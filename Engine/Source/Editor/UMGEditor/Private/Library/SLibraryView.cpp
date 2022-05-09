@@ -14,7 +14,7 @@
 #include "SAssetView.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 #include "DragDrop/WidgetTemplateDragDropOp.h"
@@ -91,7 +91,7 @@ void SLibraryViewItem::Construct(const FArguments& InArgs, TSharedPtr<FWidgetTem
 				.ToolTipText(this, &SLibraryViewItem::GetFavoriteToggleToolTipText)
 				.IsChecked(this, &SLibraryViewItem::GetFavoritedState)
 				.OnCheckStateChanged(this, &SLibraryViewItem::OnFavoriteToggled)
-				.Style(FEditorStyle::Get(), "UMGEditor.Library.FavoriteToggleStyle")
+				.Style(FAppStyle::Get(), "UMGEditor.Library.FavoriteToggleStyle")
 				.Visibility(this, &SLibraryViewItem::GetFavoritedStateVisibility)
 			]
 			+ SHorizontalBox::Slot()

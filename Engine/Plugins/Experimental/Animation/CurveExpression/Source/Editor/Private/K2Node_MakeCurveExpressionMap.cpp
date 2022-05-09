@@ -141,7 +141,7 @@ FText UK2Node_MakeCurveExpressionMap::GetTooltipText() const
 
 FSlateIcon UK2Node_MakeCurveExpressionMap::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.MakeMap_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.MakeMap_16x");
 	return Icon;
 }
 

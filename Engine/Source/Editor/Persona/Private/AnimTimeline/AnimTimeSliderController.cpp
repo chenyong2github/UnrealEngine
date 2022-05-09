@@ -12,7 +12,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MovieSceneTimeHelpers.h"
 #include "CommonFrameRates.h"
 #include "AnimModel.h"
@@ -93,10 +93,10 @@ FAnimTimeSliderController::FAnimTimeSliderController( const FTimeSliderArgs& InA
 	, DraggedTimeIndex(INDEX_NONE)
 	, SecondaryNumericTypeInterface(InSecondaryNumericTypeInterface)
 {
-	ScrubFillBrush              = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubFill" ) );
-	ScrubHandleUpBrush          = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
-	ScrubHandleDownBrush        = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
-	EditableTimeBrush            = FEditorStyle::GetBrush( TEXT( "AnimTimeline.SectionMarker" ) );
+	ScrubFillBrush              = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.ScrubFill" ) );
+	ScrubHandleUpBrush          = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
+	ScrubHandleDownBrush        = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
+	EditableTimeBrush            = FAppStyle::GetBrush( TEXT( "AnimTimeline.SectionMarker" ) );
 }
 
 FFrameTime FAnimTimeSliderController::ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping) const
@@ -307,8 +307,8 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 
 		// draw playback & selection range
 		FPaintPlaybackRangeArgs PlaybackRangeArgs(
-			bMirrorLabels ? FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L") : FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_L"),
-			bMirrorLabels ? FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R") : FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_R"),
+			bMirrorLabels ? FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L") : FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_L"),
+			bMirrorLabels ? FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R") : FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_R"),
 			6.f
 		);
 
@@ -425,7 +425,7 @@ int32 FAnimTimeSliderController::DrawSelectionRange(const FGeometry& AllottedGeo
 	{
 		const float SelectionRangeL = RangeToScreen.InputToLocalX(SelectionRange.GetLowerBoundValue()) - 1;
 		const float SelectionRangeR = RangeToScreen.InputToLocalX(SelectionRange.GetUpperBoundValue()) + 1;
-		const auto DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
+		const auto DrawColor = FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 
 		if (Args.SolidFillOpacity > 0.f)
 		{
@@ -433,7 +433,7 @@ int32 FAnimTimeSliderController::DrawSelectionRange(const FGeometry& AllottedGeo
 				OutDrawElements,
 				LayerId + 1,
 				AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeL, 0.f), FVector2D(SelectionRangeR - SelectionRangeL, AllottedGeometry.Size.Y)),
-				FEditorStyle::GetBrush("WhiteBrush"),
+				FAppStyle::GetBrush("WhiteBrush"),
 				ESlateDrawEffect::None,
 				DrawColor.CopyWithNewOpacity(Args.SolidFillOpacity)
 			);
@@ -499,7 +499,7 @@ int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeom
 		OutDrawElements,
 		LayerId+1,
 		AllottedGeometry.ToPaintGeometry(FVector2D(0.f, 0.f), FVector2D(PlaybackRangeL, AllottedGeometry.Size.Y)),
-		FEditorStyle::GetBrush("WhiteBrush"),
+		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.f)
 	);
@@ -508,7 +508,7 @@ int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeom
 		OutDrawElements,
 		LayerId+1,
 		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR, 0.f), FVector2D(AllottedGeometry.Size.X - PlaybackRangeR, AllottedGeometry.Size.Y)),
-		FEditorStyle::GetBrush("WhiteBrush"),
+		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.f)
 	);

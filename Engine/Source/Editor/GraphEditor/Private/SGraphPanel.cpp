@@ -14,7 +14,7 @@
 #include "GraphEditorSettings.h"
 #include "GraphEditorDragDropAction.h"
 #include "NodeFactory.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
@@ -108,7 +108,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 	// First paint the background
 	const UEditorExperimentalSettings& Options = *GetDefault<UEditorExperimentalSettings>();
 
-	const FSlateBrush* DefaultBackground = FEditorStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
+	const FSlateBrush* DefaultBackground = FAppStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
 	const FSlateBrush* CustomBackground = &GetDefault<UEditorStyleSettings>()->GraphBackgroundBrush;
 	const FSlateBrush* BackgroundImage = CustomBackground->HasUObject() ? CustomBackground : DefaultBackground;
 	PaintBackgroundAsLines(BackgroundImage, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
@@ -465,7 +465,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 
 	// Draw a shadow overlay around the edges of the graph
 	++MaxLayerId;
-	PaintSurroundSunkenShadow(FEditorStyle::GetBrush(TEXT("Graph.Shadow")), AllottedGeometry, MyCullingRect, OutDrawElements, MaxLayerId);
+	PaintSurroundSunkenShadow(FAppStyle::GetBrush(TEXT("Graph.Shadow")), AllottedGeometry, MyCullingRect, OutDrawElements, MaxLayerId);
 
 	if (ShowGraphStateOverlay.Get())
 	{
@@ -473,12 +473,12 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 		if ((GEditor->bIsSimulatingInEditor || GEditor->PlayWorld != nullptr))
 		{
 			// Draw a surrounding indicator when PIE is active, to make it clear that the graph is read-only, etc...
-			BorderBrush = FEditorStyle::GetBrush(TEXT("Graph.PlayInEditor"));
+			BorderBrush = FAppStyle::GetBrush(TEXT("Graph.PlayInEditor"));
 		}
 		else if (!IsEditable.Get())
 		{
 			// Draw a different border when we're not simulating but the graph is read-only
-			BorderBrush = FEditorStyle::GetBrush(TEXT("Graph.ReadOnlyBorder"));
+			BorderBrush = FAppStyle::GetBrush(TEXT("Graph.ReadOnlyBorder"));
 		}
 
 		if (BorderBrush != nullptr)
@@ -912,7 +912,7 @@ FReply SGraphPanel::OnDragOver( const FGeometry& MyGeometry, const FDragDropEven
 				{
 					Tooltip = NSLOCTEXT( "GraphPanel", "DragDropOperation", "Graph is Read-Only" );
 				}
-				AssetOp->SetToolTip(Tooltip, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+				AssetOp->SetToolTip(Tooltip, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 			}
 		}
 		return FReply::Handled();
@@ -950,7 +950,7 @@ FReply SGraphPanel::OnDragOver( const FGeometry& MyGeometry, const FDragDropEven
 					bOkIcon = false;
 				}
 			}
-			const FSlateBrush* TooltipIcon = bOkIcon ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			const FSlateBrush* TooltipIcon = bOkIcon ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 			AssetOp->SetToolTip(TooltipText, TooltipIcon);
 		}
 		return FReply::Handled();

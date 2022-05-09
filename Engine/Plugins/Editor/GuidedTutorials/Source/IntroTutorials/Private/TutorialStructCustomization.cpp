@@ -462,7 +462,7 @@ public:
 				.IsFocusable(false)
 				[
 					SNew( SImage )
-					.Image(FAppStyle::Get().GetBrush("Icons.EyeDropper") )
+					.Image( FAppStyle::GetBrush("Icons.EyeDropper") )
 					.ColorAndOpacity( FSlateColor::UseForeground() )
 				]
 			]

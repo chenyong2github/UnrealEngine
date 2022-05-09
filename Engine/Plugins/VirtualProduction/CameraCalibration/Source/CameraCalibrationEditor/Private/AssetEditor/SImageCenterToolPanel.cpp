@@ -176,7 +176,7 @@ TSharedRef<SWidget> SImageCenterToolPanel::BuildImageCenterAlgoPickerWidget()
 			.ToolTipText(LOCTEXT("ShowHelp_Tip", "Help about this algo"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked_Lambda([&]() -> FReply
 			{
 				if (!ImageCenterTool.IsValid())
@@ -206,7 +206,7 @@ TSharedRef<SWidget> SImageCenterToolPanel::BuildImageCenterAlgoPickerWidget()
 			})
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
 				.Text(FEditorFontGlyphs::Info_Circle)
 				.ColorAndOpacity(FLinearColor::White)
 			]

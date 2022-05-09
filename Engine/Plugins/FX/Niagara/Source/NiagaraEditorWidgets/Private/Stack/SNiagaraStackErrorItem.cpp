@@ -3,7 +3,7 @@
 #include "Stack/SNiagaraStackErrorItem.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "Widgets/SBoxPanel.h"

@@ -14,7 +14,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CanvasItem.h"
 #include "ExtractSprites/PaperExtractSpritesSettings.h"
 
@@ -189,7 +189,7 @@ void SPaperExtractSpritesDialog::Construct(const FArguments& InArgs, UTexture2D*
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 		.Padding(FMargin(0.0f, 3.0f, 1.0f, 0.0f))
 		[
 			SNew(SHorizontalBox)
@@ -224,7 +224,7 @@ void SPaperExtractSpritesDialog::Construct(const FArguments& InArgs, UTexture2D*
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(FMargin(6, 2))
 						.Text(LOCTEXT("PaperExtractSpritesExtractButton", "Extract..."))
@@ -233,7 +233,7 @@ void SPaperExtractSpritesDialog::Construct(const FArguments& InArgs, UTexture2D*
 					+ SUniformGridPanel::Slot(1, 0)
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(FMargin(6, 2))
 						.Text(LOCTEXT("PaperExtractSpritesCancelButton", "Cancel"))

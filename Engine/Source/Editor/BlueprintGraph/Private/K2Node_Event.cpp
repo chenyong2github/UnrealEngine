@@ -852,7 +852,7 @@ UObject* UK2Node_Event::GetJumpTargetForDoubleClick() const
 
 FSlateIcon UK2Node_Event::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Event_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 	return Icon;
 }
 

@@ -44,16 +44,16 @@ public:
 					.Label()
 					[
 						SNew( STextBlock )
-						.Font( FEditorStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
+						.Font( FAppStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
 						.Text( LOCTEXT("VectorNodeXAxisValueLabel", "X") )
 						.ColorAndOpacity( LabelClr )
 					]
 					.Value( this, &SVector2DTextBox::GetTypeInValue_X )
 					.OnValueCommitted( InArgs._OnFloatCommitted_Box_X )
-					.Font( FEditorStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
+					.Font( FAppStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
 					.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
 					.ToolTipText(LOCTEXT("VectorNodeXAxisValueLabel_ToolTip", "X value") )
-					.EditableTextBoxStyle( &FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>( "Graph.VectorEditableTextBox" ))
+					.EditableTextBoxStyle( &FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>( "Graph.VectorEditableTextBox" ))
 					.BorderForegroundColor( FLinearColor::White )
 					.BorderBackgroundColor( FLinearColor::White )
 				]
@@ -66,16 +66,16 @@ public:
 					.Label()
 					[
 						SNew( STextBlock )
-						.Font( FEditorStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
+						.Font( FAppStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
 						.Text( LOCTEXT("VectorNodeYAxisValueLabel", "Y") )
 						.ColorAndOpacity( LabelClr )
 					]
 					.Value( this, &SVector2DTextBox::GetTypeInValue_Y )
 					.OnValueCommitted( InArgs._OnFloatCommitted_Box_Y )
-					.Font( FEditorStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
+					.Font( FAppStyle::GetFontStyle( "Graph.VectorEditableTextBox" ) )
 					.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
 					.ToolTipText(LOCTEXT("VectorNodeYAxisValueLabel_ToolTip", "Y value"))
-					.EditableTextBoxStyle( &FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>( "Graph.VectorEditableTextBox" ))
+					.EditableTextBoxStyle( &FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>( "Graph.VectorEditableTextBox" ))
 					.BorderForegroundColor( FLinearColor::White )
 					.BorderBackgroundColor( FLinearColor::White )
 				]

@@ -8,7 +8,7 @@
 #include "Commands/DMXEditorCommands.h"
 #include "Library/DMXEntityFixtureType.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
@@ -31,7 +31,7 @@ void SDMXFixtureTypeFunctionsEditorCategoryRow::Construct(const FArguments& InAr
 	[
 		SNew(SBorder)
 		.Padding(3.0f)
-		.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 		.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 		[
 			SNew(SHorizontalBox)
@@ -55,7 +55,7 @@ void SDMXFixtureTypeFunctionsEditorCategoryRow::Construct(const FArguments& InAr
 			[
 				SNew(SButton)
 				.IsEnabled(this, &SDMXFixtureTypeFunctionsEditorCategoryRow::GetIsAddFunctionButtonEnabled)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 				.ForegroundColor(FLinearColor::White)
 				.ToolTipText(this, &SDMXFixtureTypeFunctionsEditorCategoryRow::GetAddFunctionButtonTooltipText)
 				.ContentPadding(FMargin(5.0f, 1.0f))
@@ -68,7 +68,7 @@ void SDMXFixtureTypeFunctionsEditorCategoryRow::Construct(const FArguments& InAr
 					.Padding(FMargin(0.f, 1.f))
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Plus"))
+						.Image(FAppStyle::GetBrush("Plus"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)

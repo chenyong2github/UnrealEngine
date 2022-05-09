@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SWorldDetails.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelCollectionModel.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
@@ -201,7 +201,7 @@ void SWorldDetails::OnSelectionChanged()
 				.Padding(0,4,0,0)
 				[
 					SAssignNew(VerticalBoxBorder, SBorder)
-					.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+					.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 					[
 						WorldDetailsView.ToSharedRef()
 					]

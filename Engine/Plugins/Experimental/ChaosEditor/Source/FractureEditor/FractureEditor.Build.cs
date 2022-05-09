@@ -39,7 +39,6 @@ public class FractureEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"EditorStyle",
 				"Engine",
 				"Slate",
 				"SlateCore",

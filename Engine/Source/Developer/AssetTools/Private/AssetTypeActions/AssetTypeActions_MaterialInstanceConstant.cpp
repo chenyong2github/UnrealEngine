@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetTools.h"
 #include "MaterialEditorModule.h"
 
@@ -18,7 +18,7 @@ void FAssetTypeActions_MaterialInstanceConstant::GetActions(const TArray<UObject
 		"MaterialInstanceConstant_FindParent",
 		LOCTEXT("MaterialInstanceConstant_FindParent", "Find Parent"),
 		LOCTEXT("MaterialInstanceConstant_FindParentTooltip", "Finds the material this instance is based on in the content browser."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_MaterialInstanceConstant::ExecuteFindParent, MICs ),
 			FCanExecuteAction()

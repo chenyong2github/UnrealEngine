@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 /**
@@ -18,7 +18,7 @@ public:
 		"FoliagePalette", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "FoliagePalette", "Foliage Palette"), // Localized context name for displaying
 		"FoliageEditMode", // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 	{
 	}

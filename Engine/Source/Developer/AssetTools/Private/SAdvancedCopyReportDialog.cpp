@@ -10,7 +10,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -165,7 +165,7 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+		.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 		.Padding(FMargin(4, 8, 4, 4))
 		[
 			SNew(SVerticalBox)
@@ -177,7 +177,7 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 			[
 				SNew(STextBlock)
 				.Text(this, &SAdvancedCopyReportDialog::GetHeaderText, InReportMessage)
-				.TextStyle( FEditorStyle::Get(), "PackageMigration.DialogTitle" )
+				.TextStyle( FAppStyle::Get(), "PackageMigration.DialogTitle" )
 				.AutoWrapText(true)
 			]
 
@@ -186,7 +186,7 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 			.FillHeight(1.f)
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					SAssignNew( ReportTreeView, SAdvancedCopyReportTree )
 					.HeaderRow(HeaderRowWidget)
@@ -251,14 +251,14 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 			.Padding(0,4,0,0)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+					.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 					.OnClicked(this, &SAdvancedCopyReportDialog::OkClicked)
 					.Text(LOCTEXT("OkButton", "OK"))
 				]
@@ -266,7 +266,7 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+					.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 					.OnClicked(this, &SAdvancedCopyReportDialog::CancelClicked)
 					.Text(LOCTEXT("CancelButton", "Cancel"))
 				]
@@ -444,7 +444,7 @@ void SAdvancedCopyTreeRow::Construct(const FArguments& InArgs, const TSharedRef<
 	Item = InArgs._Item;
 	ReportDialogWeak = AdvancedCopyReport;
 	auto Args = FSuperRowType::FArguments()
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
+		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 
 	SMultiColumnTableRow<TSharedPtr<FAdvancedCopyReportNode>>::Construct(Args, OutlinerTreeView);
 }

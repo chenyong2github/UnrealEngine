@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SEnumCombo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/SToolTip.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

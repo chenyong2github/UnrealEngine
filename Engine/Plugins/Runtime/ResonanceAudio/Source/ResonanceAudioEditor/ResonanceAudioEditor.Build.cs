@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
                     "UnrealEd",
                     "LevelEditor",
-                    "EditorStyle",
+                    
                     "RenderCore",
                     "RHI",
                     "AudioEditor",
@@ -61,7 +61,7 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
                     "PropertyEditor",
                     "Projects",
-                    "EditorStyle",
+                    
                     "ResonanceAudio",
 					"Eigen"
                  }

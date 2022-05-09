@@ -19,7 +19,7 @@
 #include "ISourceControlModule.h"
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Logging/MessageLog.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "ISequencerModule.h"
@@ -1036,7 +1036,7 @@ TSharedRef<SDockTab> FConcertWorkspaceUI::CreateHistoryTab(const FName& Resource
 				[
 					SNew(SImage)
 					// Todo: Find another icon for the history tab.
-					.Image( FEditorStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
+					.Image( FAppStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
 				]
 
 				+SHorizontalBox::Slot()
@@ -1045,7 +1045,7 @@ TSharedRef<SDockTab> FConcertWorkspaceUI::CreateHistoryTab(const FName& Resource
 				[
 					SNew(STextBlock)
 					.Text(FText::Format(LOCTEXT("AssetsHistory", "{0}'s history."), FText::FromString(ResourceName.ToString())))
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.ShadowOffset(FVector2D(1.0f, 1.0f))
 				]
 			]
@@ -1053,7 +1053,7 @@ TSharedRef<SDockTab> FConcertWorkspaceUI::CreateHistoryTab(const FName& Resource
 			+SVerticalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 2.0f))
 				[
 					SNew(SSessionHistoryWrapper, SessionHistoryController)

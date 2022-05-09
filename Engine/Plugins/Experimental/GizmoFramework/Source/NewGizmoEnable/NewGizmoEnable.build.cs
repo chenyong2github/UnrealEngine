@@ -43,7 +43,6 @@ public class NewGizmoEnable : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
-				"EditorStyle",
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

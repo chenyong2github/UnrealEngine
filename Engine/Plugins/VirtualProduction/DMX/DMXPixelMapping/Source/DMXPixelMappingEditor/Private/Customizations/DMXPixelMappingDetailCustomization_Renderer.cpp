@@ -156,7 +156,7 @@ bool FDMXPixelMappingDetailCustomization_Renderer::IsNotSelectedRendererType(EDM
 
 void FDMXPixelMappingDetailCustomization_Renderer::AddInputTextureWarning(IDetailCategoryBuilder& InCategory)
 {
-	const FSlateBrush* WarningIcon = FEditorStyle::GetBrush("SettingsEditor.WarningIcon");
+	const FSlateBrush* WarningIcon = FAppStyle::GetBrush("SettingsEditor.WarningIcon");
 
 	InCategory.AddCustomRow(FText::GetEmpty())
 			.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarning))

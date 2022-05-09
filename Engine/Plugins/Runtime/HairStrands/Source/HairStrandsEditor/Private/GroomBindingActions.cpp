@@ -30,7 +30,7 @@ void FGroomBindingActions::GetActions(const TArray<UObject*>& InObjects, FToolMe
 		"RebuildGroomBinding",
 		LOCTEXT("RebuildGroomBinding", "Rebuild"),
 		LOCTEXT("RebuildGroomBindingTooltip", "Rebuild the groom binding"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomBindingActions::ExecuteRebuildBindingAsset, GroomBindingAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomBindingActions::CanRebuildBindingAsset, GroomBindingAssets)

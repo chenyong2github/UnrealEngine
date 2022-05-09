@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 class FCachingEditorCommands : public TCommands<FCachingEditorCommands>
@@ -11,7 +11,7 @@ class FCachingEditorCommands : public TCommands<FCachingEditorCommands>
 public:
 	FCachingEditorCommands()
 		: TCommands<FCachingEditorCommands>(
-			TEXT("ChaosCacheEditor"), NSLOCTEXT("ChaosCacheEditorCommands", "ContextDesc", "Chaos Cache"), NAME_None, FEditorStyle::GetStyleSetName())
+			TEXT("ChaosCacheEditor"), NSLOCTEXT("ChaosCacheEditorCommands", "ContextDesc", "Chaos Cache"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

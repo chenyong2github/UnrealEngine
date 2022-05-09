@@ -79,7 +79,7 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AssetTypeActions_LevelSnapshot_OpenSnapshot", "Open Snapshot in Editor"),
 		LOCTEXT("AssetTypeActions_LevelSnapshot_OpenSnapshotToolTip", "Open this snapshot in the Level Snapshots Editor. Select only one Level Snapshot asset at a time."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=] {
 					OpenAssetWithLevelSnapshotsEditor(InObjects);

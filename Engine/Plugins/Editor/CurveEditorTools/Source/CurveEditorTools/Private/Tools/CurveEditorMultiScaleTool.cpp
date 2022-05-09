@@ -15,7 +15,6 @@
 #include "CurveEditorSelection.h"
 #include "CurveModel.h"
 #include "CurveDataAbstraction.h"
-#include "EditorFontGlyphs.h"
 #include "Rendering/SlateRenderer.h"
 #include "Application/SlateApplicationBase.h"
 #include "Fonts/FontMeasure.h"
@@ -112,11 +111,11 @@ void FCurveEditorMultiScaleTool::OnPaint(const FPaintArgs& Args, const FGeometry
 		MultiScaleWidget.GetXSliderGeometry(BoundsGeometry, DragDelta.Get(FVector2D::ZeroVector).X, XSliderGeometry);
 		MultiScaleWidget.GetYSliderGeometry(BoundsGeometry, DragDelta.Get(FVector2D::ZeroVector).Y, YSliderGeometry);
 
-		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSliderGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, XSliderHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSliderGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSliderGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, XSliderHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSliderGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 
-		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSliderGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, YSliderHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSliderGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSliderGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, YSliderHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSliderGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 	}
 
 	// Draw Sidebars
@@ -124,8 +123,8 @@ void FCurveEditorMultiScaleTool::OnPaint(const FPaintArgs& Args, const FGeometry
 		FGeometry XSidebarGeometry, YSidebarGeometry;
 		MultiScaleWidget.GetXSidebarGeometry(BoundsGeometry, AllottedGeometry, bXSliderHovered, XSidebarGeometry);
 		MultiScaleWidget.GetYSidebarGeometry(BoundsGeometry, AllottedGeometry, bYSliderHovered, YSidebarGeometry);
-		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
-		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSidebarGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSidebarGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 	}
 
 	// Draw pivots

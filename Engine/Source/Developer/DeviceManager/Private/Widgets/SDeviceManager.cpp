@@ -9,7 +9,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Models/DeviceDetailsCommands.h"
 #include "Widgets/Apps/SDeviceApps.h"

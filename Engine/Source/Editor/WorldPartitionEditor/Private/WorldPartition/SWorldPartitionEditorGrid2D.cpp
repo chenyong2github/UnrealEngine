@@ -45,7 +45,7 @@ SWorldPartitionEditorGrid2D::FEditorCommands::FEditorCommands()
 	"WorldPartitionEditor",
 	NSLOCTEXT("Contexts", "WorldPartition", "World Partition"),
 	NAME_None,
-	FEditorStyle::GetStyleSetName()
+	FAppStyle::GetAppStyleSetName()
 )
 {}
 
@@ -96,7 +96,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Top)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 			[
 				SNew(SVerticalBox)
 
@@ -496,7 +496,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 					OutDrawElements,
 					++LayerId,
 					ActorGeometry,
-					FEditorStyle::GetBrush(TEXT("Border")),
+					FAppStyle::GetBrush(TEXT("Border")),
 					ESlateDrawEffect::None,
 					ActorColor
 				);
@@ -541,7 +541,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintScaleRuler(const FGeometry& AllottedGeo
 		LayerId,
 		AllottedGeometry.ToOffsetPaintGeometry(FVector2D(10, 27)),
 		RulerText,
-		FEditorStyle::GetFontStyle("NormalFont"),
+		FAppStyle::GetFontStyle("NormalFont"),
 		ESlateDrawEffect::None,
 		FLinearColor::White);
 
@@ -555,7 +555,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintScaleRuler(const FGeometry& AllottedGeo
 		LayerId,
 		AllottedGeometry.ToOffsetPaintGeometry(FVector2D(10, 67)),
 		RulerText,
-		FEditorStyle::GetFontStyle("NormalFont"),
+		FAppStyle::GetFontStyle("NormalFont"),
 		ESlateDrawEffect::None,
 		FLinearColor::White);
 
@@ -570,7 +570,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintViewer(const FGeometry& AllottedGeometr
 	if (GetObserverView(ObserverPosition, ObserverRotation))
 	{
 		FVector2D LocalViewLocation = WorldToScreen.TransformPoint(FVector2D(ObserverPosition));
-		const FSlateBrush* CameraImage = FEditorStyle::GetBrush(TEXT("WorldPartition.SimulationViewPosition"));
+		const FSlateBrush* CameraImage = FAppStyle::GetBrush(TEXT("WorldPartition.SimulationViewPosition"));
 	
 		FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry(
 			LocalViewLocation - CameraImage->ImageSize * 0.5f, 
@@ -594,7 +594,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintViewer(const FGeometry& AllottedGeometr
 	if (GetPlayerView(PlayerPosition, PlayerRotation))
 	{
 		FVector2D LocalViewLocation = WorldToScreen.TransformPoint(FVector2D(PlayerPosition));
-		const FSlateBrush* CameraImage = FEditorStyle::GetBrush(TEXT("WorldPartition.SimulationViewPosition"));
+		const FSlateBrush* CameraImage = FAppStyle::GetBrush(TEXT("WorldPartition.SimulationViewPosition"));
 	
 		FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry(
 			LocalViewLocation - CameraImage->ImageSize * 0.5f, 
@@ -695,7 +695,7 @@ int32 SWorldPartitionEditorGrid2D::OnPaint(const FPaintArgs& Args, const FGeomet
 				OutDrawElements,
 				LayerId,
 				AllottedGeometry.ToPaintGeometry(),
-				FEditorStyle::GetBrush(TEXT("Graph.PlayInEditor"))
+				FAppStyle::GetBrush(TEXT("Graph.PlayInEditor"))
 			);
 		}
 	}
@@ -707,7 +707,7 @@ int32 SWorldPartitionEditorGrid2D::PaintSoftwareCursor(const FGeometry& Allotted
 {
 	if (bIsDragging)
 	{
-		const FSlateBrush* Brush = FEditorStyle::GetBrush(TEXT("SoftwareCursor_Grab"));
+		const FSlateBrush* Brush = FAppStyle::GetBrush(TEXT("SoftwareCursor_Grab"));
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,

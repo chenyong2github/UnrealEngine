@@ -12,7 +12,7 @@
 #include "Library/DMXLibrary.h"
 
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -81,7 +81,7 @@ namespace
 						[
 							SNew(STextBlock)
 							.ToolTipText(LOCTEXT("PortReferenceEnabledTextTooltip", "Enables or disables the port for the Library"))
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 							.Text(FText::FromString(Port->GetPortName()))
 						]
 					]
@@ -113,7 +113,7 @@ namespace
 					.Padding(FMargin(16.f, 0.f, 4.f, 0.f))
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+						.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 						.Text(LOCTEXT("PortReferenceEnabledLabel", "Enabled"))
 					]
 
@@ -207,7 +207,7 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 		.VAlign(VAlign_Top)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.Text(LOCTEXT("InputPortsLabel", "Input Ports"))
 		]
 		.ValueContent()
@@ -215,7 +215,7 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 		.VAlign(VAlign_Top)
 		[
 			SAssignNew(InputPortReferenceContentBorder, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		];
 
 	ChildBuilder
@@ -236,7 +236,7 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 		.HAlign(HAlign_Left)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.Text(LOCTEXT("OutputPortsLabel", "Output Ports"))
 		]
 		.ValueContent()
@@ -244,7 +244,7 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 		.VAlign(VAlign_Top)
 		[
 			SAssignNew(OutputPortReferenceContentBorder, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		];
 
 	// Bind to port reference array changes
@@ -360,7 +360,7 @@ TSharedRef<SWidget> FDMXLibraryPortReferencesCustomization::GeneratePortInfoWidg
 		IDMXProtocolPtr Protocol = Port->GetProtocol();
 		if(Protocol.IsValid())
 		{
-			static const FSlateFontInfo PropertyWindowNormalFont = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
+			static const FSlateFontInfo PropertyWindowNormalFont = FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
 			static const FLinearColor FontColor = FLinearColor(0.6f, 0.6f, 0.6f);
 
 			const int32 LocalUniverseStart = Port->GetLocalUniverseStart();

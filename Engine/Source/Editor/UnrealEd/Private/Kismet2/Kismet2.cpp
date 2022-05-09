@@ -81,7 +81,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/InheritableComponentHandler.h"
 #include "Stats/StatsHierarchical.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "ToolMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 

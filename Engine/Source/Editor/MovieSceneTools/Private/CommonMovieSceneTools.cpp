@@ -3,7 +3,7 @@
 #include "CommonMovieSceneTools.h"
 #include "FrameNumberNumericInterface.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "SequencerSectionPainter.h"
 
@@ -33,7 +33,7 @@ void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& Cu
 	const float MajorTickHeight = 9.0f;
 	FVector2D TextOffset(TextPosition, InPainter.SectionGeometry.Size.Y - (MajorTickHeight + TextSize.Y));
 
-	const FLinearColor DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle()).CopyWithNewOpacity(InPainter.GhostAlpha);
+	const FLinearColor DrawColor = FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle()).CopyWithNewOpacity(InPainter.GhostAlpha);
 	const FVector2D BoxPadding = FVector2D(4.0f, 2.0f);
 	// draw time string
 
@@ -41,7 +41,7 @@ void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& Cu
 		InPainter.DrawElements,
 		InPainter.LayerId + 5,
 		InPainter.SectionGeometry.ToPaintGeometry(TextOffset - BoxPadding, TextSize + 2.0f * BoxPadding),
-		FEditorStyle::GetBrush("WhiteBrush"),
+		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.5f * InPainter.GhostAlpha)
 	);

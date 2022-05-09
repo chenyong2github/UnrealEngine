@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 					"DatasmithContent",
 					"EditorFramework",
 					"EditorScriptingUtilities",
-					"EditorStyle",
 					"Engine",
 					"GraphEditor",
 					"InputCore",

@@ -21,7 +21,6 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"EditorFramework",
 					"UnrealEd",
-					"EditorStyle",
 					"PropertyEditor",
 					"Kismet",  // for FWorkflowCentricApplication
 					"InputCore",

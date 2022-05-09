@@ -16,7 +16,7 @@ public class LinuxPlatformEditor : ModuleRules
 				"MainFrame",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"PropertyEditor",
 				"SharedSettingsWidgets",
 				"SourceControl",

@@ -23,7 +23,7 @@ public class BlueprintGraph : ModuleRules
 				"Engine",
                 "InputCore",
 				"Slate",
-                "EditorStyle",
+                
 				"EditorSubsystem",
 				"DeveloperSettings"
 			}
@@ -31,7 +31,7 @@ public class BlueprintGraph : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange( 
 			new string[] {
-				"EditorStyle",
+				
                 "KismetCompiler",
 				"EditorFramework",
 				"UnrealEd",

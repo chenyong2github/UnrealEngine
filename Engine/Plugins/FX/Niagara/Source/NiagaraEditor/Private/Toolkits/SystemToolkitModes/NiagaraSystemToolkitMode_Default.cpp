@@ -139,7 +139,7 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 					FOnGetContent::CreateRaw(Toolkit, &FNiagaraSystemToolkit::GenerateCompileMenuContent),
 					LOCTEXT("BuildCombo_Label", "Auto-Compile Options"),
 					LOCTEXT("BuildComboToolTip", "Auto-Compile options menu"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Build"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Build"),
 					true);
 			}
 			ToolbarBuilder.EndSection();

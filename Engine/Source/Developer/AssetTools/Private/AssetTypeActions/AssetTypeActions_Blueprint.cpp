@@ -5,7 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "Misc/PackageName.h"
 #include "Misc/MessageDialog.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/BlueprintFactory.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "Kismet2/BlueprintEditorUtils.h"

@@ -16,7 +16,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "EngineGlobals.h"
 #include "Editor.h"
@@ -51,7 +51,7 @@ public:
 		[
 			SNew(SBorder)
 			.HAlign(HAlign_Fill)
-			.BorderImage(FEditorStyle::GetBrush("ChildWindow.Background"))
+			.BorderImage(FAppStyle::GetBrush("ChildWindow.Background"))
 			[
 				SNew(SBox)
 				.WidthOverride(500.0f)
@@ -82,7 +82,7 @@ public:
 							SNew(SToolTip)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Scalability.ScalabilitySettings"))
+								.Image(FAppStyle::GetBrush("Scalability.ScalabilitySettings"))
 							]
 						)
 						.AutoWrapText(true)

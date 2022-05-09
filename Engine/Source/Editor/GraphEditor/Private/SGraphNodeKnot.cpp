@@ -319,7 +319,7 @@ void SGraphNodeKnot::UpdateGraphNode()
 	//@TODO: Keyboard focus on edit doesn't work unless the node is visible, but the text is just the comment and it's already shown in a bubble, so Transparent black it is...
 	InlineEditableText = SNew(SInlineEditableTextBlock)
 		.ColorAndOpacity(FLinearColor::Transparent)
-		.Style(FEditorStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
+		.Style(FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
 		.Text(this, &SGraphNodeKnot::GetEditableNodeTitleAsText)
 		.OnVerifyTextChanged(this, &SGraphNodeKnot::OnVerifyNameTextChanged)
 		.OnTextCommitted(this, &SGraphNodeKnot::OnNameTextCommited)
@@ -398,7 +398,7 @@ void SGraphNodeKnot::UpdateGraphNode()
 
 const FSlateBrush* SGraphNodeKnot::GetShadowBrush(bool bSelected) const
 {
-	return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FEditorStyle::GetNoBrush();
+	return bSelected ? FAppStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FAppStyle::GetNoBrush();
 }
 
 TSharedPtr<SGraphPin> SGraphNodeKnot::CreatePinWidget(UEdGraphPin* Pin) const

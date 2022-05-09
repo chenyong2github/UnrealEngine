@@ -136,7 +136,7 @@ FSlateFontInfo FSequencerSectionKeyAreaNode::GetDisplayNameFont() const
 		FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
 		if (Channel && Channel->GetNumKeys() > 0)
 		{
-			return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
+			return FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
 		}
 	}
 	return FSequencerDisplayNode::GetDisplayNameFont();

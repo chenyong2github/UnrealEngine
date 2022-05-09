@@ -4,7 +4,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MaterialGraph/MaterialGraphNode_Comment.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "Materials/MaterialExpressionComment.h"
@@ -73,22 +73,22 @@ TSharedRef<SWidget> FFindInMaterialResult::CreateIcon() const
 	{
 		if (ResolvedPin->PinType.IsArray())
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.ArrayPinIcon"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.ArrayPinIcon"));
 		}
 		else if (ResolvedPin->PinType.bIsReference)
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.RefPinIcon"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.RefPinIcon"));
 		}
 		else
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.PinIcon"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.PinIcon"));
 		}
 		const UEdGraphSchema* Schema = ResolvedPin->GetSchema();
 			IconColor = Schema->GetPinTypeColor(ResolvedPin->PinType);
 		}
 	else if (GraphNode.IsValid())
 	{
-		Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.NodeGlyph"));
+		Brush = FAppStyle::GetBrush(TEXT("GraphEditor.NodeGlyph"));
 	}
 
 	return 	SNew(SImage)
@@ -163,7 +163,7 @@ void SFindInMaterial::Construct(const FArguments& InArgs, TSharedPtr<FMaterialEd
 		.Padding(0.f, 4.f, 0.f, 0.f)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			[
 				SAssignNew(TreeView, STreeViewType)
 				.ItemHeight(24)

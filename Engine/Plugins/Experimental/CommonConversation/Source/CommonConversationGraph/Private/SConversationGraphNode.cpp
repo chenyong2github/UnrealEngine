@@ -95,7 +95,7 @@ public:
 		OnHoverStateChangedEvent = InArgs._OnHoverStateChanged;
 		OnGetIndexColorEvent = InArgs._OnGetIndexColor;
 
-		const FSlateBrush* IndexBrush = FEditorStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Index"));
+		const FSlateBrush* IndexBrush = FAppStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Index"));
 
 		ChildSlot
 		[
@@ -122,7 +122,7 @@ public:
 				[
 					SNew(STextBlock)
 					.Text(InArgs._Text)
-					.Font(FEditorStyle::GetFontStyle("BTEditor.Graph.BTNode.IndexText"))
+					.Font(FAppStyle::GetFontStyle("BTEditor.Graph.BTNode.IndexText"))
 				]
 			]
 		];
@@ -336,7 +336,7 @@ void SConversationGraphNode::UpdateGraphNode()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
+			.BorderImage( FAppStyle::GetBrush( "Graph.StateNode.Body" ) )
 			.Padding(0.0f)
 			.BorderBackgroundColor( this, &SConversationGraphNode::GetBorderBackgroundColor )
 			.OnMouseButtonDown(this, &SConversationGraphNode::OnMouseDown)
@@ -375,7 +375,7 @@ void SConversationGraphNode::UpdateGraphNode()
 						.AutoHeight()
 						[
 							SAssignNew(NodeBody, SBorder)
-							.BorderImage( FEditorStyle::GetBrush("BTEditor.Graph.BTNode.Body") )
+							.BorderImage( FAppStyle::GetBrush("BTEditor.Graph.BTNode.Body") )
 							.BorderBackgroundColor( this, &SConversationGraphNode::GetBackgroundColor )
 							.HAlign(HAlign_Fill)
 							.VAlign(VAlign_Center)
@@ -429,7 +429,7 @@ void SConversationGraphNode::UpdateGraphNode()
 													.AutoHeight()
 													[
 														SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-														.Style( FEditorStyle::Get(), "Graph.StateNode.NodeTitleInlineEditableText" )
+														.Style( FAppStyle::Get(), "Graph.StateNode.NodeTitleInlineEditableText" )
 														.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 														.OnVerifyTextChanged(this, &SConversationGraphNode::OnVerifyNameTextChanged)
 														.OnTextCommitted(this, &SConversationGraphNode::OnNameTextCommited)
@@ -517,7 +517,7 @@ void SConversationGraphNode::UpdateGraphNode()
 					SNew(SBorder)
 					.BorderBackgroundColor(ConversationEditorColors::Action::DragMarker)
 					.ColorAndOpacity(ConversationEditorColors::Action::DragMarker)
-					.BorderImage(FEditorStyle::GetBrush("BTEditor.Graph.BTNode.Body"))
+					.BorderImage(FAppStyle::GetBrush("BTEditor.Graph.BTNode.Body"))
 					.Visibility(this, &SConversationGraphNode::GetDragOverMarkerVisibility)
 					[
 						SNew(SBox)
@@ -531,7 +531,7 @@ void SConversationGraphNode::UpdateGraphNode()
 				.VAlign(VAlign_Top)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Blueprint")))
+					.Image(FAppStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Blueprint")))
 					.Visibility(this, &SConversationGraphNode::GetBlueprintIconVisibility)
 				]
 			]
@@ -814,7 +814,7 @@ TSharedPtr<SToolTip> SConversationGraphNode::GetComplexTooltip()
 const FSlateBrush* SConversationGraphNode::GetNameIcon() const
 {	
 	UConversationGraphNode* BTGraphNode = Cast<UConversationGraphNode>(GraphNode);
-	return BTGraphNode != nullptr ? FEditorStyle::GetBrush(BTGraphNode->GetNameIcon()) : FEditorStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Icon"));
+	return BTGraphNode != nullptr ? FAppStyle::GetBrush(BTGraphNode->GetNameIcon()) : FAppStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Icon"));
 }
 
 static UConversationGraphNode* GetParentNode(UEdGraphNode* GraphNode)
@@ -860,7 +860,7 @@ FSlateColor SConversationGraphNode::GetIndexColor(bool bHovered) const
 	static const FName HoveredColor("BTEditor.Graph.BTNode.Index.HoveredColor");
 	static const FName DefaultColor("BTEditor.Graph.BTNode.Index.Color");
 
-	return bHighlightHover ? FEditorStyle::Get().GetSlateColor(HoveredColor) : FEditorStyle::Get().GetSlateColor(DefaultColor);
+	return bHighlightHover ? FAppStyle::Get().GetSlateColor(HoveredColor) : FAppStyle::Get().GetSlateColor(DefaultColor);
 }
 
 EVisibility SConversationGraphNode::GetIndexVisibility() const
@@ -958,8 +958,8 @@ void SConversationGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D W
 // 	{
 // 		FOverlayBrushInfo BreakpointOverlayInfo;
 // 		BreakpointOverlayInfo.Brush = BTNode->bIsBreakpointEnabled ?
-// 			FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Enabled")) :
-// 			FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Disabled"));
+// 			FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Enabled")) :
+// 			FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Disabled"));
 // 
 // 		if (BreakpointOverlayInfo.Brush)
 // 		{
@@ -975,8 +975,8 @@ void SConversationGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D W
 // 		{
 // 			FOverlayBrushInfo IPOverlayInfo;
 // 
-// 			IPOverlayInfo.Brush = BTNode->bDebuggerMarkBreakpointTrigger ? FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.BreakOnBreakpointPointer")) : 
-// 				FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.ActiveNodePointer"));
+// 			IPOverlayInfo.Brush = BTNode->bDebuggerMarkBreakpointTrigger ? FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.BreakOnBreakpointPointer")) : 
+// 				FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.ActiveNodePointer"));
 // 			if (IPOverlayInfo.Brush)
 // 			{
 // 				float Overlap = 10.f;
@@ -992,7 +992,7 @@ void SConversationGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D W
 // 		{
 // 			FOverlayBrushInfo IPOverlayInfo;
 // 
-// 			IPOverlayInfo.Brush = FEditorStyle::GetBrush(BTNode->bDebuggerMarkSearchTrigger ?
+// 			IPOverlayInfo.Brush = FAppStyle::GetBrush(BTNode->bDebuggerMarkSearchTrigger ?
 // 				TEXT("BTEditor.DebuggerOverlay.SearchTriggerPointer") :
 // 				TEXT("BTEditor.DebuggerOverlay.FailedTriggerPointer") );
 // 

@@ -20,7 +20,7 @@ public class CollisionAnalyzer : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+                
 				"Engine",
 				"WorkspaceMenuStructure",
 			}

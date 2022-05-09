@@ -388,7 +388,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 							"CreateFolder",
 							LOCTEXT("CreateFolder", "Create Folder"),
 							FText(),
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"),
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon"),
 							FUIAction(FExecuteAction::CreateSP(SceneOutliner, &SSceneOutliner::CreateFolder)));
 					}
 					else

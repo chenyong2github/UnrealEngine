@@ -14,7 +14,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SSeparator.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IAssetFamily.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -70,7 +70,7 @@ public:
 		bMultipleAssetsExist = Assets.Num() > 1;
 		AssetDirtyBrush = FAppStyle::Get().GetBrush("Icons.DirtyBadge");
 
-		const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("ToolBar");
+		const FToolBarStyle& ToolBarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("ToolBar");
 
 		ChildSlot
 		[
@@ -250,7 +250,7 @@ public:
 	FSlateColor GetAssetTextColor() const
 	{
 		static const FName InvertedForeground("InvertedForeground");
-		return GetCheckState() == ECheckBoxState::Checked || CheckBox->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForeground) : FSlateColor::UseForeground();
+		return GetCheckState() == ECheckBoxState::Checked || CheckBox->IsHovered() ? FAppStyle::GetSlateColor(InvertedForeground) : FSlateColor::UseForeground();
 	}
 
 	TSharedRef<SWidget> HandleGetMenuContent()
@@ -265,7 +265,7 @@ public:
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ShowInContentBrowser", "Show In Content Browser"),
 				LOCTEXT("ShowInContentBrowser_ToolTip", "Show this asset in the content browser."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Search"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Search"),
 				FUIAction(FExecuteAction::CreateSP(this, &SAssetShortcut::HandleShowInContentBrowser)));
 		}
 		MenuBuilder.EndSection();

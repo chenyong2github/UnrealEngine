@@ -2,7 +2,7 @@
 
 #include "BlueprintActionMenuBuilder.h"
 #include "UObject/UnrealType.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Engine/Blueprint.h"
 #include "Editor/EditorEngine.h"
 #include "BlueprintNodeBinder.h"

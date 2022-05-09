@@ -13,7 +13,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Colors/SColorBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PaperFlipbook.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "ScopedTransaction.h"
@@ -55,7 +55,7 @@ void SFlipbookTimeline::Construct(const FArguments& InArgs, TSharedPtr<FUIComman
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SScrollBox)
 			.Orientation(Orient_Horizontal)

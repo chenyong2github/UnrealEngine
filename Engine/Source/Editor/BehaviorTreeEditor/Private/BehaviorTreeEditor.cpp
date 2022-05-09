@@ -11,7 +11,7 @@
 #include "BehaviorTree/BTDecorator.h"
 #include "BehaviorTree/BTCompositeNode.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "BlackboardDataFactory.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -571,7 +571,7 @@ TSharedRef<SGraphEditor> FBehaviorTreeEditor::CreateGraphEditorWidget(UEdGraph* 
 	// Make title bar
 	TSharedRef<SWidget> TitleBarWidget = 
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
+		.BorderImage( FAppStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
 		.HAlign(HAlign_Fill)
 		[
 			SNew(SHorizontalBox)
@@ -581,7 +581,7 @@ TSharedRef<SGraphEditor> FBehaviorTreeEditor::CreateGraphEditorWidget(UEdGraph* 
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("BehaviorTreeGraphLabel", "Behavior Tree"))
-				.TextStyle( FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
+				.TextStyle( FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
 			]
 		];
 
@@ -629,7 +629,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnProperties()
 			[
 				SNew(SBorder)
 				.BorderBackgroundColor(BehaviorTreeColors::NodeBody::InjectedSubNode)
-				.BorderImage(FEditorStyle::GetBrush("Graph.StateNode.Body"))
+				.BorderImage(FAppStyle::GetBrush("Graph.StateNode.Body"))
 				.Visibility(this, &FBehaviorTreeEditor::GetInjectedNodeVisibility)
 				.Padding(FMargin(5.0f))
 				[
@@ -643,7 +643,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnProperties()
 			[
 				SNew(SBorder)
 				.BorderBackgroundColor(BehaviorTreeColors::NodeBody::InjectedSubNode)
-				.BorderImage(FEditorStyle::GetBrush("Graph.StateNode.Body"))
+				.BorderImage(FAppStyle::GetBrush("Graph.StateNode.Body"))
 				.Visibility(this, &FBehaviorTreeEditor::GetRootLevelNodeVisibility)
 				.Padding(FMargin(5.0f))
 				[
@@ -657,7 +657,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnProperties()
 			[
 				SNew(SBorder)
 				.BorderBackgroundColor(BehaviorTreeColors::NodeBorder::HighlightAbortRange0)
-				.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
+				.BorderImage( FAppStyle::GetBrush( "Graph.StateNode.Body" ) )
 				.Visibility(this, &FBehaviorTreeEditor::GetRangeLowerVisibility)
 				.Padding(FMargin(5.0f))
 				[
@@ -671,7 +671,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnProperties()
 			[
 				SNew(SBorder)
 				.BorderBackgroundColor(BehaviorTreeColors::NodeBorder::HighlightAbortRange1)
-				.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
+				.BorderImage( FAppStyle::GetBrush( "Graph.StateNode.Body" ) )
 				.Visibility(this, &FBehaviorTreeEditor::GetRangeSelfVisibility)
 				.Padding(FMargin(5.0f))
 				[

@@ -31,7 +31,7 @@ void FDialogueContextStructCustomization::CustomizeHeader( TSharedRef<IPropertyH
 		HeaderRow
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("DialogueWaveDetails.HeaderBorder") )
+			.BorderImage( FAppStyle::GetBrush("DialogueWaveDetails.HeaderBorder") )
 			[
 				SNew( SVerticalBox )
 				+SVerticalBox::Slot()
@@ -106,8 +106,8 @@ void SSpeakerDropDown::Construct( const FArguments& InArgs, const TSharedRef<IPr
 		.AutoHeight()
 		[
 			SAssignNew( ComboBox, SComboBox< TSharedPtr<UDialogueVoice*> > )
-			.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
-			.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+			.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
+			.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 			.OptionsSource( &OptionsSource )
 			.OnGenerateWidget( this, &SSpeakerDropDown::MakeComboButtonItemWidget )
 			.OnSelectionChanged( this, &SSpeakerDropDown::OnSelectionChanged )
@@ -330,8 +330,8 @@ void STargetSetDropDown::Construct( const FArguments& InArgs, const TSharedRef<I
 		.AutoHeight()
 		[
 			SAssignNew( ComboBox, SComboBox< TSharedPtr<FTargetSet> > )
-			.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
-			.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+			.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
+			.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 			.OptionsSource( &OptionsSource )
 			.OnGenerateWidget( this, &STargetSetDropDown::MakeComboButtonItemWidget )
 			.OnSelectionChanged( this, &STargetSetDropDown::OnSelectionChanged )
@@ -649,7 +649,7 @@ void SValidatedDialogueContextHeaderWidget::Construct( const FArguments& InArgs,
 		ChildSlot
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("DialogueWaveDetails.HeaderBorder") )
+			.BorderImage( FAppStyle::GetBrush("DialogueWaveDetails.HeaderBorder") )
 			[
 				SNew( SVerticalBox )
 				+SVerticalBox::Slot()
@@ -735,7 +735,7 @@ void SValidatedDialogueContextHeaderWidget::Construct( const FArguments& InArgs,
 					.AutoWidth()
 					[
 						SNew( SImage )
-						.Image( FEditorStyle::GetBrush("DialogueWaveDetails.SpeakerToTarget") )
+						.Image( FAppStyle::GetBrush("DialogueWaveDetails.SpeakerToTarget") )
 						.ColorAndOpacity( FSlateColor::UseForeground() )
 					]
 					+SHorizontalBox::Slot()

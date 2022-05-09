@@ -20,7 +20,6 @@ public class SceneOutliner : ModuleRules
                 "InputCore",
 				"Slate", 
 				"SlateCore",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",

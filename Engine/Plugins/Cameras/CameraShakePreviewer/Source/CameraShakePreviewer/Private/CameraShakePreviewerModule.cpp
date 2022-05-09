@@ -38,7 +38,7 @@ public:
 				TEXT("CameraShakePreviewer"),
 				LOCTEXT("CameraShakePreviewerContextDescription", "Camera Shake Previewer"),
 				TEXT("EditorViewport"),
-				FEditorStyle::GetStyleSetName())
+				FAppStyle::GetAppStyleSetName())
 	{
 	}
 

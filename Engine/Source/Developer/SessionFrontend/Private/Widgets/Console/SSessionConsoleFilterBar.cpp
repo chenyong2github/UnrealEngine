@@ -7,7 +7,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "SSessionConsoleFilterBar"
@@ -167,7 +167,7 @@ void SSessionConsoleFilterBar::AddCategoryFilter(const FName& Category)
 void SSessionConsoleFilterBar::AddVerbosityFilter(ELogVerbosity::Type Verbosity, const FString& Name, const FName& Icon)
 {
 	VerbositiesList.Add(MakeShareable(
-		new FSessionConsoleVerbosityFilter(Verbosity, FEditorStyle::GetBrush(Icon), true, Name,
+		new FSessionConsoleVerbosityFilter(Verbosity, FAppStyle::GetBrush(Icon), true, Name,
 			FOnSessionConsoleVerbosityFilterStateChanged::CreateSP(this, &SSessionConsoleFilterBar::HandleVerbosityFilterStateChanged))
 		)
 	);

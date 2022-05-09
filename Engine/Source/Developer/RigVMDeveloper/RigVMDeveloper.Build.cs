@@ -25,7 +25,7 @@ public class RigVMDeveloper : ModuleRules
                     "UnrealEd",
 					"Slate",
 					"SlateCore",
-					"EditorStyle",
+					
 					"MessageLog",
 					"BlueprintGraph"
 				}

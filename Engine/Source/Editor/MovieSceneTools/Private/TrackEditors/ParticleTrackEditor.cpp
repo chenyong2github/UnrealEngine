@@ -5,7 +5,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Curves/IntegralCurve.h"
 #include "SequencerSectionPainter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Particles/Emitter.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -194,14 +194,14 @@ int32 FParticleSection::OnPaintSection( FSequencerSectionPainter& InPainter ) co
 			InPainter.DrawElements,
 			InPainter.LayerId,
 			InPainter.SectionGeometry.ToPaintGeometry( FVector2D( XOffset, (InPainter.SectionGeometry.GetLocalSize().Y - SequencerSectionConstants::KeySize.Y) / 2 ), FVector2D( XSize, SequencerSectionConstants::KeySize.Y ) ),
-			FEditorStyle::GetBrush( "Sequencer.Section.Background" ),
+			FAppStyle::GetBrush( "Sequencer.Section.Background" ),
 			DrawEffects
 			);
 		FSlateDrawElement::MakeBox(
 			InPainter.DrawElements,
 			InPainter.LayerId,
 			InPainter.SectionGeometry.ToPaintGeometry( FVector2D( XOffset, (InPainter.SectionGeometry.GetLocalSize().Y - SequencerSectionConstants::KeySize.Y) / 2 ), FVector2D( XSize, SequencerSectionConstants::KeySize.Y ) ),
-			FEditorStyle::GetBrush( "Sequencer.Section.BackgroundTint" ),
+			FAppStyle::GetBrush( "Sequencer.Section.BackgroundTint" ),
 			DrawEffects,
 			TrackColor
 			);

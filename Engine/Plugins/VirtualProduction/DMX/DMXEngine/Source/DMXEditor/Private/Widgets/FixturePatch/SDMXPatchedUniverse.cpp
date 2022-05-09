@@ -13,7 +13,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -53,8 +53,8 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 					.ToolTipText(FText::Format(LOCTEXT("UniverseListCategoryTooltip", "Patches assigned to Universe {0}"), UniverseID))
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
-						.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+						.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+						.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 						.Text(this, &SDMXPatchedUniverse::GetHeaderText)
 					]
 				]
@@ -62,7 +62,7 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 				+ SOverlay::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("Graph.Node.DevelopmentBanner"))
+					.BorderImage(FAppStyle::GetBrush("Graph.Node.DevelopmentBanner"))
 					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Fill)
 					.Visibility(this, &SDMXPatchedUniverse::GetPatchedUniverseReachabilityBannerVisibility)

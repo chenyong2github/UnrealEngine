@@ -5,7 +5,7 @@
 #define LOCTEXT_NAMESPACE "DMXEditorCommands"
 
 FDMXEditorCommands::FDMXEditorCommands()
-	: TCommands<FDMXEditorCommands>(TEXT("DMXEditor"), LOCTEXT("DMXEditor", "DMX Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FDMXEditorCommands>(TEXT("DMXEditor"), LOCTEXT("DMXEditor", "DMX Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 {}
 
 void FDMXEditorCommands::RegisterCommands()

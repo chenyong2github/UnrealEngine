@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"DirectoryWatcher",
+						"EditorStyle",
 					}
 				);
 
@@ -54,7 +55,6 @@ namespace UnrealBuildTool.Rules
 
 				PrivateDependencyModuleNames.AddRange(
 					new string[] {
-						"EditorStyle",
 						"EngineSettings",
 						"Sequencer",
 						"EditorFramework",
@@ -62,6 +62,7 @@ namespace UnrealBuildTool.Rules
 						"ViewportInteraction",
 						"LevelEditor",
 						"VREditor",
+						"EditorStyle",
 					}
 				);
 			}

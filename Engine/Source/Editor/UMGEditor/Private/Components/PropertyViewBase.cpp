@@ -28,7 +28,7 @@ TSharedRef<SWidget> UPropertyViewBase::RebuildWidget()
 		.Padding(0.0f)
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"));
+		.BorderImage(FAppStyle::GetBrush("NoBorder"));
 	
 	BuildContentWidget();
 

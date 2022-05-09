@@ -37,7 +37,7 @@ public class RemoteControlCommon : ModuleRules
 					"BlueprintGraph",
 					"DeveloperSettings",
 					"EditorWidgets",
-					"EditorStyle",
+					
 					"EditorSubsystem",
 					"Projects",
 					"PropertyEditor",

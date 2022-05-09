@@ -16,7 +16,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/STextEntryPopup.h"
 
 #define LOCTEXT_NAMESPACE "SSessionConsoleShortcutWindow"
@@ -245,8 +245,8 @@ TSharedRef<ITableRow> SSessionConsoleShortcutWindow::HandleShortcutListViewGener
 				[
 					// edit options pull-down
 					SNew(SComboButton)
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-						.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
+						.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 						.ContentPadding(FMargin(6.f, 2.f))
 						.MenuContent()
 						[

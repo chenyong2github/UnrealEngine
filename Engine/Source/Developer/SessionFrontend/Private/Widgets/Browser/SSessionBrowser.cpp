@@ -4,7 +4,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/App.h"
 #include "SlateOptMacros.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Models/SessionBrowserTreeItems.h"
 #include "Widgets/Browser/SSessionBrowserTreeGroupRow.h"
 #include "Widgets/Browser/SSessionBrowserTreeInstanceRow.h"
@@ -52,7 +52,7 @@ void SSessionBrowser::Construct( const FArguments& InArgs, TSharedRef<ISessionMa
 		[
 			// session tree
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.0f)
 			[
 				SAssignNew(SessionTreeView, STreeView<TSharedPtr<FSessionBrowserTreeItem>>)

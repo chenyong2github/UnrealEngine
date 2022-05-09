@@ -5,7 +5,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/Commands/UIAction.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PoseWatchManagerDragDrop.h"
 #include "SPoseWatchManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -129,16 +129,16 @@ private:
 		auto TreeItem = TreeItemPtr.Pin();
 		if (!TreeItem.IsValid())
 		{
-			return FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		}
 
 		if (TreeItemPtr.Pin()->IsExpanded() && TreeItem->PoseWatchFolder->HasChildren())
 		{
-			return FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderOpen"));
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderOpen"));
 		}
 		else
 		{
-			return FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		}
 	}
 

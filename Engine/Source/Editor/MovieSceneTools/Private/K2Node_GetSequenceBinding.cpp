@@ -251,7 +251,7 @@ FText UK2Node_GetSequenceBinding::GetMenuCategory() const
 
 FSlateIcon UK2Node_GetSequenceBinding::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.GetSequenceBinding");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.GetSequenceBinding");
 	return Icon;
 }
 
@@ -391,7 +391,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 				.WidthOverride(300)
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+					.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 					[
 						ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 					]
@@ -438,7 +438,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 				.MaxWidth(200.0f)
 				[
 					SNew(SComboButton)
-					.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
+					.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
 					.ForegroundColor(this, &SGraphNodeGetSequenceBinding::OnGetComboForeground)
 					.ButtonColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetBackground)
 					.ContentPadding(FMargin(2,2,2,1))
@@ -447,8 +447,8 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 					[
 						SNew(STextBlock)
 						.ColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetComboForeground)
-						.TextStyle( FEditorStyle::Get(), "PropertyEditor.AssetClass" )
-						.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+						.TextStyle( FAppStyle::Get(), "PropertyEditor.AssetClass" )
+						.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 						.Text( this, &SGraphNodeGetSequenceBinding::GetAssetName )
 					]
 					.OnGetMenuContent(this, &SGraphNodeGetSequenceBinding::GenerateAssetPicker)
@@ -461,7 +461,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 					.OnClicked(this, &SGraphNodeGetSequenceBinding::UseSelectedAsset)
 					.ButtonColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetBackground)
 					.ContentPadding(1.f)
@@ -469,7 +469,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 					[
 						SNew(SImage)
 						.ColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetForeground)
-						.Image( FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
+						.Image( FAppStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
 					]
 				]
 
@@ -480,7 +480,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 					.OnClicked(this, &SGraphNodeGetSequenceBinding::BrowseToAsset)
 					.ButtonColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetBackground)
 					.ContentPadding(0)
@@ -488,7 +488,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 					[
 						SNew(SImage)
 						.ColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetForeground)
-						.Image( FEditorStyle::GetBrush(TEXT("Icons.Search")) )
+						.Image( FAppStyle::GetBrush(TEXT("Icons.Search")) )
 					]
 				]
 			];
@@ -504,7 +504,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 				.Padding(FMargin(2,0))
 				[
 					SNew(SComboButton)
-					.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
+					.ButtonStyle( FAppStyle::Get(), "PropertyEditor.AssetComboStyle" )
 					.ToolTipText(this, &SGraphNodeGetSequenceBinding::GetToolTipText)
 					.ForegroundColor(this, &SGraphNodeGetSequenceBinding::OnGetComboForeground)
 					.ButtonColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetBackground)
@@ -514,8 +514,8 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 					[
 						GetCurrentItemWidget(
 							SNew(STextBlock)
-							.TextStyle( FEditorStyle::Get(), "PropertyEditor.AssetClass" )
-							.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+							.TextStyle( FAppStyle::Get(), "PropertyEditor.AssetClass" )
+							.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 							.ColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetComboForeground)
 						)
 					]

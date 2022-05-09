@@ -4,7 +4,7 @@
 #include "Misc/MessageDialog.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
@@ -40,7 +40,7 @@ void SControlRigMappingWindow::Construct(const FArguments& InArgs, const TWeakOb
 			// explain this is Control Rig  window
 			// and what it is
 			SNew(STextBlock)
-			.TextStyle( FEditorStyle::Get(), "Persona.RetargetManager.ImportantText" )
+			.TextStyle( FAppStyle::Get(), "Persona.RetargetManager.ImportantText" )
 			.Text(LOCTEXT("ControlRigMapping_Title", "Configure Control Rig Settings"))
 		]
 
@@ -56,7 +56,7 @@ void SControlRigMappingWindow::Construct(const FArguments& InArgs, const TWeakOb
 																			NULL,
 																			DocLink,
 																			TEXT("NodeMapping")))
-			.Font(FEditorStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")))
 			.Text(LOCTEXT("ControlRigMappingDescription", "You can add/delete Control Rig Mapping Configuration."))
 		]
 
@@ -80,7 +80,7 @@ void SControlRigMappingWindow::Construct(const FArguments& InArgs, const TWeakOb
 				[
 					SNew(STextBlock)
 					.Text(this, &SControlRigMappingWindow::HandleMappingOptionBoxContentText)
-					.Font(FEditorStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")))
 				]
 			]
 
@@ -158,7 +158,7 @@ TSharedRef<SWidget> SControlRigMappingWindow::HandleMappingOptionBoxGenerateWidg
 	// @todo: create tooltip with path
 	return SNew(STextBlock)
 		.Text(FText::FromString(*(*Item)->GetDisplayName()))
-		.Font(FEditorStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")));
 }
 
 void SControlRigMappingWindow::HandleMappingOptionBoxSelectionChanged(TSharedPtr<class UNodeMappingContainer*> Item, ESelectInfo::Type SelectInfo)
@@ -281,7 +281,7 @@ void SControlRigMappingWindow::OnAddNodeMapping()
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(8)
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)

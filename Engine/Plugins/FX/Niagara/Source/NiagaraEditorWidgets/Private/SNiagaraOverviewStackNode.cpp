@@ -153,7 +153,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 			SNew(SButton)
 			.IsFocusable(false)
 			.ToolTipText(LOCTEXT("OpenAndFocusParentEmitterToolTip", "Open and Focus Parent Emitter"))
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ContentPadding(2)
 			.OnClicked(this, &SNiagaraOverviewStackNode::OpenParentEmitter)
 			.Visibility(this, &SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility)
@@ -325,7 +325,7 @@ void SNiagaraOverviewStackNode::CreateBottomSummaryExpander()
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.ToolTipText(this, &SNiagaraOverviewStackNode::GetSummaryViewCollapseTooltipText)
@@ -362,7 +362,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 	
 	// NODE CONTENT AREA
 	TSharedRef<SWidget> NodeWidget = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		.Padding(FMargin(2, 2, 2, 4))
@@ -477,7 +477,7 @@ void SNiagaraOverviewStackNode::FillTopContentBar()
 			.Padding(2, 0, 0, 0)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.HAlign(HAlign_Center)
 				.ContentPadding(1)
 				.ToolTipText(this, &SNiagaraOverviewStackNode::GetToggleIsolateToolTip)
@@ -609,7 +609,7 @@ FSlateColor SNiagaraOverviewStackNode::GetToggleIsolateImageColor() const
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
 	return EmitterHandleViewModel.IsValid() && 
 		EmitterHandleViewModel->GetIsIsolated()
-		? FEditorStyle::GetSlateColor("SelectionColor")
+		? FAppStyle::GetSlateColor("SelectionColor")
 		: FLinearColor::Gray;
 }
 

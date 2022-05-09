@@ -24,7 +24,7 @@
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "SDropTarget.h"
 #include "SPositiveActionButton.h"
@@ -496,8 +496,8 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 				.Padding(FMargin(2, 0))
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 					.Text(FEditorFontGlyphs::Caret_Down)
 				]
 			]
@@ -951,8 +951,8 @@ TSharedRef<SWidget> SQueueShotListRow::GenerateWidgetForColumn(const FName& Colu
 				.Padding(FMargin(2, 0))
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 					.Text(FEditorFontGlyphs::Caret_Down)
 				]
 			]
@@ -1102,8 +1102,8 @@ TSharedRef<SWidget> SMoviePipelineQueueEditor::RemoveSelectedJobButton()
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.TextStyle(FAppStyle::Get(), "NormalText.Important")
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FEditorFontGlyphs::Minus)
 		];
 }

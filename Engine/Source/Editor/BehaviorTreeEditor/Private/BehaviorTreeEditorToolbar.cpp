@@ -11,7 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "BehaviorTreeEditor.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
@@ -29,7 +29,7 @@ public:
 	{
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
+			.BorderImage(FAppStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
 			.Padding(0.0f)
 			);
 	}
@@ -134,7 +134,7 @@ void FBehaviorTreeEditorToolbar::FillModesToolbar(FToolBarBuilder& ToolbarBuilde
 		.OnSetActiveMode(SetActiveMode)
 		.CanBeSelected(BehaviorTreeEditorPtr.Get(), &FBehaviorTreeEditor::CanAccessBehaviorTreeMode)
 		.ToolTipText(LOCTEXT("BehaviorTreeModeButtonTooltip", "Switch to Behavior Tree Mode"))
-		.IconImage(FEditorStyle::GetBrush("BTEditor.SwitchToBehaviorTreeMode"))
+		.IconImage(FAppStyle::GetBrush("BTEditor.SwitchToBehaviorTreeMode"))
 	);
 
 	BehaviorTreeEditorPtr->AddToolbarWidget(SNew(SSpacer).Size(FVector2D(10.0f, 1.0f)));
@@ -145,7 +145,7 @@ void FBehaviorTreeEditorToolbar::FillModesToolbar(FToolBarBuilder& ToolbarBuilde
 		.OnSetActiveMode(SetActiveMode)
 		.CanBeSelected(BehaviorTreeEditorPtr.Get(), &FBehaviorTreeEditor::CanAccessBlackboardMode)
 		.ToolTipText(LOCTEXT("BlackboardModeButtonTooltip", "Switch to Blackboard Mode"))
-		.IconImage(FEditorStyle::GetBrush("BTEditor.SwitchToBlackboardMode"))
+		.IconImage(FAppStyle::GetBrush("BTEditor.SwitchToBlackboardMode"))
 	);
 		
 	// Right side padding
@@ -169,7 +169,7 @@ void FBehaviorTreeEditorToolbar::FillBehaviorTreeToolbar(FToolBarBuilder& Toolba
 		{
 			const FText NewTaskLabel = LOCTEXT( "NewTask_Label", "New Task" );
 			const FText NewTaskTooltip = LOCTEXT( "NewTask_ToolTip", "Create a new task node Blueprint from a base class" );
-			const FSlateIcon NewTaskIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.Graph.NewTask");
+			const FSlateIcon NewTaskIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "BTEditor.Graph.NewTask");
 
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
@@ -199,7 +199,7 @@ void FBehaviorTreeEditorToolbar::FillBehaviorTreeToolbar(FToolBarBuilder& Toolba
 
 			const FText NewDecoratorLabel = LOCTEXT( "NewDecorator_Label", "New Decorator" );
 			const FText NewDecoratorTooltip = LOCTEXT( "NewDecorator_ToolTip", "Create a new decorator node Blueprint from a base class" );
-			const FSlateIcon NewDecoratorIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.Graph.NewDecorator");
+			const FSlateIcon NewDecoratorIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "BTEditor.Graph.NewDecorator");
 
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
@@ -229,7 +229,7 @@ void FBehaviorTreeEditorToolbar::FillBehaviorTreeToolbar(FToolBarBuilder& Toolba
 
 			const FText NewServiceLabel = LOCTEXT( "NewService_Label", "New Service" );
 			const FText NewServiceTooltip = LOCTEXT( "NewService_ToolTip", "Create a new service node Blueprint from a base class" );
-			const FSlateIcon NewServiceIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.Graph.NewService");
+			const FSlateIcon NewServiceIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "BTEditor.Graph.NewService");
 
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(

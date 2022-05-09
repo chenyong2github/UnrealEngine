@@ -68,7 +68,7 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FNa
 		[
 			SNew(STextBlock)
 			.Text(FText::FromName(ChainMapElement.Pin()->ChainMap->TargetChain))
-			.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
 		];
 		return NewWidget;
 	}
@@ -156,7 +156,7 @@ void SIKRetargetChainMapList::Construct(
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("TargetRootLabel", "Target: "))
-				.TextStyle(FEditorStyle::Get(), "NormalText")
+				.TextStyle(FAppStyle::Get(), "NormalText")
 			]
 
 			+ SHorizontalBox::Slot()
@@ -177,7 +177,7 @@ void SIKRetargetChainMapList::Construct(
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("SourceRootLabel", "Source: "))
-				.TextStyle(FEditorStyle::Get(), "NormalText")
+				.TextStyle(FAppStyle::Get(), "NormalText")
 			]
 
 			+ SHorizontalBox::Slot()

@@ -13,7 +13,6 @@ public class OutputLog : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
                 "TargetPlatform",
                 "DesktopPlatform"
 			}

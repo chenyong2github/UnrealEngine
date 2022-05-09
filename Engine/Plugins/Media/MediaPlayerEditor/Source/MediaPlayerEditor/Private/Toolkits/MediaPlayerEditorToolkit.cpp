@@ -4,7 +4,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
 #include "SlateOptMacros.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "MediaPlaylist.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -167,7 +167,7 @@ void FMediaPlayerEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager
 	InTabManager->RegisterTabSpawner(MediaPlayerEditorToolkit::DetailsTabId, FOnSpawnTab::CreateSP(this, &FMediaPlayerEditorToolkit::HandleTabManagerSpawnTab, MediaPlayerEditorToolkit::DetailsTabId))
 		.SetDisplayName(LOCTEXT("DetailsTabName", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(MediaPlayerEditorToolkit::InfoTabId, FOnSpawnTab::CreateSP(this, &FMediaPlayerEditorToolkit::HandleTabManagerSpawnTab, MediaPlayerEditorToolkit::InfoTabId))
 		.SetDisplayName(LOCTEXT("InfoTabName", "Info"))

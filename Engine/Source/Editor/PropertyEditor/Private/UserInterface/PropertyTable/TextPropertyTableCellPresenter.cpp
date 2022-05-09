@@ -20,7 +20,7 @@
 #include "UserInterface/PropertyEditor/SPropertyEditorDateTime.h"
 
 
-FTextPropertyTableCellPresenter::FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont /*= FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) */ )
+FTextPropertyTableCellPresenter::FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont /*= FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) */ )
 	: PropertyWidget( NULL )
 	, PropertyEditor( InPropertyEditor )
 	, PropertyUtilities( InPropertyUtilities )
@@ -77,7 +77,7 @@ TSharedRef< class SWidget > FTextPropertyTableCellPresenter::ConstructEditModeDr
 	{
 		TSharedPtr< SHorizontalBox > ButtonBox;
 		Result = SNew( SBorder )
-			.BorderImage(FEditorStyle::GetBrush("PropertyTable.Cell.DropDown.Background"))
+			.BorderImage(FAppStyle::GetBrush("PropertyTable.Cell.DropDown.Background"))
 			.Padding( 0 )
 			.Content()
 			[

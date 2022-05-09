@@ -113,7 +113,7 @@ static TSharedRef<SWidget> BuildTransformFieldLabel(bool* bValuePtr, const FText
 			[
 				SNew(SComboButton)
 				.ContentPadding( 0 )
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ForegroundColor( FSlateColor::UseForeground() )
 				.MenuContent()
 				[

@@ -34,6 +34,7 @@ class UAnimGraphNode_Root;
 class UBlueprint;
 struct FBPInterfaceDescription;
 class UFunction;
+class UK2Node_CallFunction;
 
 /** 
   * Flags describing how to handle graph removal

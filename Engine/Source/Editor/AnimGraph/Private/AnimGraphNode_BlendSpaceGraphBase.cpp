@@ -49,7 +49,7 @@ FLinearColor UAnimGraphNode_BlendSpaceGraphBase::GetNodeTitleColor() const
 
 FSlateIcon UAnimGraphNode_BlendSpaceGraphBase::GetIconAndTint(FLinearColor& OutColor) const
 {
-	return FSlateIcon("EditorStyle", "ClassIcon.BlendSpace");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.BlendSpace");
 }
 
 FText UAnimGraphNode_BlendSpaceGraphBase::GetTooltipText() const

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Class containing commands for persona viewport show actions
@@ -19,7 +19,7 @@ public:
 			TEXT("AnimViewportShowCmd"), // Context name for fast lookup
 			NSLOCTEXT("Contexts", "AnimViewportShowCmd", "Animation Viewport Show Command"), // Localized context name for displaying
 			NAME_None, // Parent context name. 
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 	{
 	}

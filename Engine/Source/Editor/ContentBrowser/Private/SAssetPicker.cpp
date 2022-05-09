@@ -14,7 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FrontendFilters.h"
 #include "SAssetSearchBox.h"
 #include "SFilterList.h"
@@ -125,7 +125,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.Padding(4.f, 0.0f, 0.0f, 0.0f)
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckBox")
+			.Style(FAppStyle::Get(), "ToggleButtonCheckBox")
 			.ToolTipText(this, &SAssetPicker::GetShowOtherDevelopersToolTip)
 			.OnCheckStateChanged(this, &SAssetPicker::HandleShowOtherDevelopersCheckStateChanged)
 			.IsChecked(this, &SAssetPicker::GetShowOtherDevelopersCheckState)
@@ -133,7 +133,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FEditorStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon"))
+				.Image(FAppStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon"))
 			]
 		];
 	}
@@ -187,8 +187,8 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 				.AutoHeight()
 				[
 					SNew(SButton)
-						.ButtonStyle( FEditorStyle::Get(), "ContentBrowser.NoneButton" )
-						.TextStyle( FEditorStyle::Get(), "ContentBrowser.NoneButtonText" )
+						.ButtonStyle( FAppStyle::Get(), "ContentBrowser.NoneButton" )
+						.TextStyle( FAppStyle::Get(), "ContentBrowser.NoneButtonText" )
 						.Text( LOCTEXT("NoneButtonText", "( None )") )
 						.ToolTipText( LOCTEXT("NoneButtonTooltip", "Clears the asset selection.") )
 						.HAlign(HAlign_Center)

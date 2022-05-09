@@ -11,7 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ConversationEditor.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
@@ -35,7 +35,7 @@ public:
 	{
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
+			.BorderImage(FAppStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
 			.Padding(0.0f)
 			);
 	}
@@ -135,7 +135,7 @@ void FConversationEditorToolbar::FillConversationEditorToolbar(FToolBarBuilder& 
 				FOnGetContent::CreateSP(ConversationEditorPtr.Get(), &FConversationEditor::HandleCreateNewClassMenu, UConversationTaskNode::StaticClass()),
 				LOCTEXT("NewTask_Label", "New Task"),
 				LOCTEXT("NewTask_ToolTip", "Create a new task node Blueprint from a base class"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.Graph.NewTask")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "BTEditor.Graph.NewTask")
 			);
 
 			ToolbarBuilder.AddComboButton(
@@ -147,7 +147,7 @@ void FConversationEditorToolbar::FillConversationEditorToolbar(FToolBarBuilder& 
 				FOnGetContent::CreateSP(ConversationEditorPtr.Get(), &FConversationEditor::HandleCreateNewClassMenu, UConversationRequirementNode::StaticClass()),
 				LOCTEXT("NewRequirement_Label", "New Requirement"),
 				LOCTEXT("NewRequirement_ToolTip", "Create a new requirement node Blueprint from a base class"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.Graph.NewDecorator")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "BTEditor.Graph.NewDecorator")
 			);
 
 			ToolbarBuilder.AddComboButton(
@@ -159,7 +159,7 @@ void FConversationEditorToolbar::FillConversationEditorToolbar(FToolBarBuilder& 
 				FOnGetContent::CreateSP(ConversationEditorPtr.Get(), &FConversationEditor::HandleCreateNewClassMenu, UConversationSideEffectNode::StaticClass()),
 				LOCTEXT("NewSideEffect_Label", "New Side Effect"),
 				LOCTEXT("NewSideEffect_ToolTip", "Create a new side effect node Blueprint from a base class"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.Graph.NewService")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "BTEditor.Graph.NewService")
 			);
 		}
 		ToolbarBuilder.EndSection();

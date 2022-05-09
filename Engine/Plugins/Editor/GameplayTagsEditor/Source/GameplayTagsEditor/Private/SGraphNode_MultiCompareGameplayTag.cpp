@@ -39,7 +39,7 @@ void SGraphNode_MultiCompareGameplayTag::CreateOutputSideRemoveButton(TSharedPtr
 		.Padding(7, 0, 0, 0)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("Icons.Minus")))
+			.Image(FAppStyle::GetBrush(TEXT("Icons.Minus")))
 		];
 
 	TSharedPtr<SToolTip> Tooltip;
@@ -47,7 +47,7 @@ void SGraphNode_MultiCompareGameplayTag::CreateOutputSideRemoveButton(TSharedPtr
 
 	TSharedRef<SButton> RemovePinButton = SNew(SButton)
 		.ContentPadding(0.0f)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.OnClicked(this, &SGraphNode_MultiCompareGameplayTag::OnRemovePin)
 		.ToolTipText(NSLOCTEXT("CompareNode", "CompareNodeRemovePinButton_Tooltip", "Remove last pin"))
 		.ToolTip(Tooltip)

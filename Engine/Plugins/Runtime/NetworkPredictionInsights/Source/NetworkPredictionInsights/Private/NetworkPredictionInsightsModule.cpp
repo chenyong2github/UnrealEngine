@@ -17,7 +17,7 @@
 
 #include "UI/SNPWindow.h"
 #include "UI/NetworkPredictionInsightsManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #if WITH_ENGINE
 #include "Engine/Engine.h"
@@ -84,7 +84,7 @@ void FNetworkPredictionInsightsModule::StartupModule()
 	}))
 		.SetDisplayName(NSLOCTEXT("FNetworkPredictionInsightsModule", "NetworkPredictionTabTitle", "Network Prediction Insights"))
 		.SetTooltipText(NSLOCTEXT("FNetworkPredictionInsightsModule", "FilteringTabTooltip", "Opens the Network Prediction Insights tab."))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.StatsProfiler.Small"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProfilerCommand.StatsProfiler.Small"));
 
 	//TabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
 	TabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());

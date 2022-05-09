@@ -4,7 +4,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Package.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 
@@ -715,7 +715,7 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::NoDiffe
 	{
 		return SNew(STextBlock)
 			.ColorAndOpacity(FLinearColor(.7f, .7f, .7f))
-			.TextStyle(FEditorStyle::Get(), TEXT("BlueprintDif.ItalicText"))
+			.TextStyle(FAppStyle::Get(), TEXT("BlueprintDif.ItalicText"))
 			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "NoDifferencesLabel", "No differences detected..."));
 	};
 
@@ -733,7 +733,7 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::Unknown
 	{
 		return SNew(STextBlock)
 			.ColorAndOpacity(FLinearColor(.7f, .7f, .7f))
-			.TextStyle(FEditorStyle::Get(), TEXT("BlueprintDif.ItalicText"))
+			.TextStyle(FAppStyle::Get(), TEXT("BlueprintDif.ItalicText"))
 			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "BlueprintTypeNotSupported", "Warning: Detecting differences in this Blueprint type specific data is not yet supported..."));
 	};
 
@@ -1036,7 +1036,7 @@ SHorizontalBox::FSlot::FSlotArguments DiffViewUtils::Box(bool bIsPresent, FLinea
 		[
 			SNew(SImage)
 			.ColorAndOpacity(Color)
-			.Image(bIsPresent ? FEditorStyle::GetBrush("BlueprintDif.HasGraph") : FEditorStyle::GetBrush("BlueprintDif.MissingGraph"))
+			.Image(bIsPresent ? FAppStyle::GetBrush("BlueprintDif.HasGraph") : FAppStyle::GetBrush("BlueprintDif.MissingGraph"))
 		]);
 };
 

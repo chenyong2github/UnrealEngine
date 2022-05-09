@@ -14,7 +14,7 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Algo/Sort.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"

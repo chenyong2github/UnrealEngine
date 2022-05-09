@@ -6,7 +6,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Sound/SoundWave.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/SoundCueFactoryNew.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Sound/DialogueVoice.h"
@@ -40,7 +40,7 @@ void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, 
 			"SoundWave_CreateCue",
 			LOCTEXT("SoundWave_CreateCue", "Create Cue"),
 			LOCTEXT("SoundWave_CreateCueTooltip", "Creates a sound cue using this sound wave."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes, bCreateCueForEachSoundWave),
 				FCanExecuteAction()
@@ -54,7 +54,7 @@ void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, 
 			"SoundWave_CreateSingleCue",
 			LOCTEXT("SoundWave_CreateSingleCue", "Create Single Cue"),
 			LOCTEXT("SoundWave_CreateSingleCueTooltip", "Creates a single sound cue using these sound waves."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes, bCreateCueForEachSoundWave),
 				FCanExecuteAction()
@@ -66,7 +66,7 @@ void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, 
 			"SoundWave_CreateMultiCue",
 			LOCTEXT("SoundWave_CreateMultiCue", "Create Multiple Cues"),
 			LOCTEXT("SoundWave_CreateMultiCueTooltip", "Creates multiple sound cues, one from each selected sound wave."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes, bCreateCueForEachSoundWave),
 				FCanExecuteAction()
@@ -240,10 +240,10 @@ TSharedPtr<SWidget> FAssetTypeActions_SoundWave::GetThumbnailOverlay(const FAsse
 	{
 		if (IsSoundPlaying(AssetData))
 		{
-			return FEditorStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
+			return FAppStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
 		}
 
-		return FEditorStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
+		return FAppStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
 	};
 
 	auto OnClickedLambda = [this, AssetData]() -> FReply
@@ -288,7 +288,7 @@ TSharedPtr<SWidget> FAssetTypeActions_SoundWave::GetThumbnailOverlay(const FAsse
 
 	TSharedPtr<SButton> Widget;
 	SAssignNew(Widget, SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ToolTipText_Lambda(OnToolTipTextLambda)
 		.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so we need to override that here
 		.ForegroundColor(FSlateColor::UseForeground())

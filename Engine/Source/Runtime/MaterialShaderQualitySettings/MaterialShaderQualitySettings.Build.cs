@@ -25,7 +25,6 @@ public class MaterialShaderQualitySettings : ModuleRules
                 new string[] {            
        				"Slate",
 				    "SlateCore",
-				    "EditorStyle",
                     "PropertyEditor",
                     "TargetPlatform",
                     "InputCore",

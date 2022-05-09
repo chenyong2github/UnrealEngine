@@ -11,7 +11,7 @@
 #include "FileHelpers.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
 #include "LevelEditorActions.h"
@@ -26,7 +26,7 @@ FSourceControlCommands::FSourceControlCommands()
 	"SourceControl",
 	NSLOCTEXT("Contexts", "SourceControl", "Source Control"),
 	"LevelEditor",
-	FEditorStyle::GetStyleSetName()
+	FAppStyle::GetAppStyleSetName()
 )
 {}
 
@@ -143,21 +143,21 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 		FSourceControlCommands::Get().ViewChangelists,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab")
 	);
 
 	Section.AddMenuEntry(
 		FSourceControlCommands::Get().SubmitContent,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Submit")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit")
 	);
 
 	Section.AddMenuEntry(
 		FSourceControlCommands::Get().CheckOutModifiedFiles,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.CheckOut")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut")
 	);
 
 	Section.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
@@ -169,7 +169,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 				FSourceControlCommands::Get().ChangeSourceControlSettings,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.ChangeSettings")
 			);
 		}
 		else
@@ -178,7 +178,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 				FSourceControlCommands::Get().ConnectToSourceControl,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Connect")
 			);
 		}
 	}));

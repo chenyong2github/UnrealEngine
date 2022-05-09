@@ -44,7 +44,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	//////////////////////////////////////////////////////////////////////////
 	//	DataLayer Contents Header
 	SAssignNew(DataLayerContentsHeader, SBorder)
-	.BorderImage(FEditorStyle::GetBrush("DataLayerBrowser.DataLayerContentsQuickbarBackground"))
+	.BorderImage(FAppStyle::GetBrush("DataLayerBrowser.DataLayerContentsQuickbarBackground"))
 	.Visibility(EVisibility::Visible);
 
 	//////////////////////////////////////////////////////////////////////////
@@ -115,7 +115,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 
 	SAssignNew(DataLayerContentsSection, SBorder)
 	.Padding(5)
-	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+	.BorderImage(FAppStyle::GetBrush("NoBrush"))
 	.Content()
 	[
 		SNew(SVerticalBox)

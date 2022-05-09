@@ -123,7 +123,7 @@ void FLevelInstanceActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 				SNew(SMultiLineEditableTextBox)
 				.Visibility_Static(&LevelInstanceActorDetailsCallbacks::GetEditCommitReasonVisibility, EditingObject)
 				.Font(DetailBuilder.GetDetailFontBold())
-				.BackgroundColor(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateLambda([]() { return FEditorStyle::GetColor("ErrorReporting.WarningBackgroundColor"); })))
+				.BackgroundColor(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateLambda([]() { return FAppStyle::GetColor("ErrorReporting.WarningBackgroundColor"); })))
 				.Text_Static(&LevelInstanceActorDetailsCallbacks::GetEditCommitReasonText, EditingObject)
 				.AutoWrapText(true)
 				.IsReadOnly(true)

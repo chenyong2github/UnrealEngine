@@ -27,7 +27,7 @@
 #include "Widgets/SWindow.h"
 
 #if WITH_EDITOR
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SWidgetHittestGrid"
@@ -278,13 +278,13 @@ void SWidgetHittestGrid::Construct(const FArguments& InArgs, TSharedPtr<const SW
 		+SVerticalBox::Slot()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
+			.BorderImage(FAppStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
 			.BorderBackgroundColor(FColor(166, 137, 0))
 			.Visibility_Lambda([](){ return GSlateHitTestGridDebugging ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("GSlateHitTestGridDebuggingEnabled", "The console variable GSlateHitTestGridDebugging is enabled. That will prevent the Widget Reflector to control how the debug information is displayed."))
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.ShadowColorAndOpacity(FLinearColor::Black.CopyWithNewOpacity(0.3f))
 				.ShadowOffset(FVector2D::UnitVector)
 			]

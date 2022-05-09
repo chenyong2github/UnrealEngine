@@ -5,7 +5,7 @@
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "Editor.h"
 #include "Engine/BookmarkBase.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditorViewport.h"
 #include "VPBookmarkBlueprintLibrary.h"
 #include "VPBookmarkEditorBlueprintLibrary.h"
@@ -49,13 +49,13 @@ namespace VPBookmarkList
 				SAssignNew(ExpandableArea, SExpandableArea)
 				.BorderImage(this, &SVPBookmarkCategoryListView::GetBackgroundImage)
 				.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
-				.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.BodyBorderBackgroundColor(FLinearColor::White)
 				.HeaderContent()
 				[
 					SNew(STextBlock)
 					.Text(FText::FromName(Category))
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.ShadowOffset(FVector2D(1.0f, 1.0f))
 				]
 				.BodyContent()
@@ -88,11 +88,11 @@ namespace VPBookmarkList
 		{
 			if (IsHovered())
 			{
-				return (ExpandableArea.IsValid() && ExpandableArea->IsExpanded()) ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+				return (ExpandableArea.IsValid() && ExpandableArea->IsExpanded()) ? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 			}
 			else
 			{
-				return (ExpandableArea.IsValid() && ExpandableArea->IsExpanded()) ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+				return (ExpandableArea.IsValid() && ExpandableArea->IsExpanded()) ? FAppStyle::GetBrush("DetailsView.CategoryTop") : FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 			}
 		}
 
@@ -138,7 +138,7 @@ void SVPBookmarkListView::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(0.0f)
 		[
 			SAssignNew(BookmarkCategoryContainer, SScrollBox)

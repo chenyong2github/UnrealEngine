@@ -2,7 +2,7 @@
 
 #include "TimedDataMonitorEditorStyle.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyleMacros.h"
@@ -109,7 +109,7 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 		SectionComboButton.UnlinkColors();
 		Set("FlatComboButton", SectionComboButton);
 
-		const FCheckBoxStyle& ToggleButtonStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
+		const FCheckBoxStyle& ToggleButtonStyle = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
 		FComboButtonStyle ToggleComboButton = FComboButtonStyle()
 			.SetButtonStyle(
 				FButtonStyle()
@@ -134,7 +134,7 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 			.SetPressedPadding(FMargin(0, 1, 0, 0));
 		Set("FlatButton", FlatButton);
 
-		const FCheckBoxStyle& ToggleButtonStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
+		const FCheckBoxStyle& ToggleButtonStyle = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
 		FButtonStyle ToggleButton = FButtonStyle()
 			.SetNormal(ToggleButtonStyle.UncheckedImage)
 			.SetHovered(ToggleButtonStyle.UncheckedHoveredImage)

@@ -15,7 +15,6 @@ public class GeometryMode : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"RenderCore",

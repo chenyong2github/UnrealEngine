@@ -31,7 +31,6 @@ namespace UnrealBuildTool.Rules
                     "EditorWidgets",
                     "Kismet",
                     "KismetWidgets",
-                    "EditorStyle",
                     "Persona",
                     "SkeletonEditor",
                     "ContentBrowser",

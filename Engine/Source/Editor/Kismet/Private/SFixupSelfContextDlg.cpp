@@ -73,7 +73,7 @@ void SFixupSelfContextDialog::Construct(const FArguments& InArgs, const TArray< 
 				.MinDesiredHeight(100.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 					[
 						SNew(SListView<FListViewItem>)
 						.ItemHeight(24.0f)
@@ -144,7 +144,7 @@ bool SFixupSelfContextDialog::CreateModal(const TArray<UK2Node_CallFunction*>& N
 		[
 			SNew(SBorder)
 			.Padding(4.f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SAssignNew(Widget, SFixupSelfContextDialog, NodesToFixup, InFromBP, BlueprintEditor, bOtherPastedNodes)
 			]

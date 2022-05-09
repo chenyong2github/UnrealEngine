@@ -10,7 +10,7 @@
 #include "ContentBrowserModule.h"
 
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_NiagaraParameterCollection"
 
@@ -42,7 +42,7 @@ void FAssetTypeActions_NiagaraParameterCollection::GetActions(const TArray<UObje
 		"Niagara_NewNPC",
 		LOCTEXT("NewNPC", "Create Niagara Parameter Collection Instance"),
 		LOCTEXT("NewNPCTooltip", "Creates an instance of this Niagara Parameter Collection."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.MaterialInstanceActor"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_NiagaraParameterCollection::ExecuteNewNPC, Collections)
 		)

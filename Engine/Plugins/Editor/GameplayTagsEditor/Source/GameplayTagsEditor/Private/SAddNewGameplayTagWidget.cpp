@@ -132,7 +132,7 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 			.VAlign(VAlign_Center)
 			[
 				SNew( SButton )
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.Visibility(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility)
 				.OnClicked(this, &SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked)
 				.ToolTipText(LOCTEXT("ToggleFavoriteTooltip", "Toggle whether or not this tag source is your favorite source (new tags will go into your favorite source by default)"))
@@ -185,7 +185,7 @@ const FSlateBrush* SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage() const
 	const FName ActiveTagSource = *TagSourcesComboBox->GetSelectedItem().Get();
 	const bool bIsFavoriteTagSource = FGameplayTagSource::GetFavoriteName() == ActiveTagSource;
 
-	return FEditorStyle::GetBrush(bIsFavoriteTagSource ? TEXT("Icons.Star") : TEXT("PropertyWindow.Favorites_Disabled"));
+	return FAppStyle::GetBrush(bIsFavoriteTagSource ? TEXT("Icons.Star") : TEXT("PropertyWindow.Favorites_Disabled"));
 }
 
 void SAddNewGameplayTagWidget::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

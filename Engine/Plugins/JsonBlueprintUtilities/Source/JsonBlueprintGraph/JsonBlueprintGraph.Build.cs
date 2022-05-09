@@ -34,8 +34,7 @@ public class JsonBlueprintGraph : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"AssetTools",
-					"EditorStyle",
+					"AssetTools",		
 					"Projects",
 					"PropertyEditor",
 					"UnrealEd",

@@ -5,7 +5,7 @@
 #include "SEditorViewportViewMenuContext.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorViewportCommands.h"
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "GPUSkinCacheVisualizationMenuCommands.h"
@@ -228,7 +228,7 @@ void SEditorViewportViewMenu::FillViewMenu(UToolMenu* Menu) const
 								);
 						})),
 					EUserInterfaceActionType::RadioButton,
-					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.QuadOverdrawMode"));
+					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.QuadOverdrawMode"));
 			}
 
 #if RHI_RAYTRACING
@@ -274,7 +274,7 @@ void SEditorViewportViewMenu::FillViewMenu(UToolMenu* Menu) const
 								return (ViewMode == VMI_LODColoration || ViewMode == VMI_HLODColoration);
 						})),
 					EUserInterfaceActionType::RadioButton,
-					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.GroupLODColorationMode"));
+					/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.GroupLODColorationMode"));
 			}
 
 			if (GEnableGPUSkinCache)

@@ -15,7 +15,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerCommonHelpers.h"
 #include "MovieSceneCommonHelpers.h"
 #include "ScopedTransaction.h"
@@ -46,7 +46,7 @@ public:
 
 		DisplayNode = InDisplayNode;
 
-		const FSlateBrush* NoBorder = FEditorStyle::GetBrush( "NoBorder" );
+		const FSlateBrush* NoBorder = FAppStyle::GetBrush( "NoBorder" );
 
 		TAttribute<FLinearColor> HoverTint(this, &SKeyNavigationButtons::GetHoverTint);
 
@@ -66,7 +66,7 @@ public:
 				.ColorAndOpacity(HoverTint)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(PreviousKeyToolTip)
 					.OnClicked(this, &SKeyNavigationButtons::OnPreviousKeyClicked)
 					.ForegroundColor( FSlateColor::UseForeground() )
@@ -74,7 +74,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.7"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.7"))
 						.Text(FText::FromString(FString(TEXT("\xf060"))) /*fa-arrow-left*/)
 					]
 				]
@@ -91,7 +91,7 @@ public:
 				.IsEnabled(!InDisplayNode->GetSequencer().IsReadOnly())
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(SetKeyToolTip)
 					.OnClicked(this, &SKeyNavigationButtons::OnAddKeyClicked)
 					.ForegroundColor( FSlateColor::UseForeground() )
@@ -99,7 +99,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.7"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.7"))
 						.Text(FText::FromString(FString(TEXT("\xf055"))) /*fa-plus-circle*/)
 					]
 				]
@@ -115,7 +115,7 @@ public:
 				.ColorAndOpacity(HoverTint)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(NextKeyToolTip)
 					.OnClicked(this, &SKeyNavigationButtons::OnNextKeyClicked)
 					.ContentPadding(2)
@@ -123,7 +123,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.7"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.7"))
 						.Text(FText::FromString(FString(TEXT("\xf061"))) /*fa-arrow-right*/)
 					]
 				]

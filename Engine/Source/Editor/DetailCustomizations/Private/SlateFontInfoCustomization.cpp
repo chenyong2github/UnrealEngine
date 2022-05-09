@@ -223,7 +223,7 @@ TSharedRef<SWidget> FSlateFontInfoStructCustomization::MakeFontEntryWidget(TShar
 	return
 		SNew(STextBlock)
 		.Text(FText::FromName(*InFontEntry))
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 FText FSlateFontInfoStructCustomization::GetFontEntryComboText() const

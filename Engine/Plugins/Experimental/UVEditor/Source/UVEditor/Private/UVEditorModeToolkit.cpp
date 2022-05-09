@@ -2,7 +2,7 @@
 
 #include "UVEditorModeToolkit.h"
 
-#include "EditorStyleSet.h" //FEditorStyle
+#include "Styling/AppStyle.h" //FAppStyle
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -51,7 +51,7 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 	+ SVerticalBox::Slot()
 	[
 		SAssignNew(ToolDetailsContainer, SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 	];
 }
 
@@ -266,7 +266,7 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateDisplaySettingsWidget(UObject* S
 {
 	TSharedRef<SBorder> GridDetailsContainer =
 		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"));
+		.BorderImage(FAppStyle::GetBrush("NoBorder"));
 
 	TSharedRef<SWidget> Widget = SNew(SBorder)
 		.HAlign(HAlign_Fill)

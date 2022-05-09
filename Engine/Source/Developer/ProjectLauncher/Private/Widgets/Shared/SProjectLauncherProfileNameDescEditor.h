@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Models/ProjectLauncherModel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Implements a build configuration selector widget.
@@ -44,8 +44,8 @@ private:
 	const FSlateBrush* HandleProfileImage() const
 	{
 		//const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(SimpleProfile->GetDeviceVariant()));
-		//return (PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Large)) : FStyleDefaults::GetNoBrush();
-		return FEditorStyle::GetBrush("LauncherCommand.QuickLaunch");
+		//return (PlatformInfo) ? FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Large)) : FStyleDefaults::GetNoBrush();
+		return FAppStyle::GetBrush("LauncherCommand.QuickLaunch");
 	}
 
 	// Callback to get the name of the launch profile.

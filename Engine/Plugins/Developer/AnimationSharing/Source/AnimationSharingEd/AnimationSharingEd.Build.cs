@@ -20,7 +20,6 @@ public class AnimationSharingEd : ModuleRules
                 "Slate",
                 "SlateCore",
                 "PropertyEditor",
-                "EditorStyle"
             }
 		);
 

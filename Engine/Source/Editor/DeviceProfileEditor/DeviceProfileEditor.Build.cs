@@ -27,7 +27,6 @@ public class DeviceProfileEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"LevelEditor",
 				"EditorFramework",
 				"UnrealEd",

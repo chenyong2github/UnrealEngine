@@ -22,7 +22,6 @@ public class StructViewer : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"ContentBrowserData",

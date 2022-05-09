@@ -8,7 +8,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditor.h"
 
 #include "WorkspaceMenuStructure.h"
@@ -55,11 +55,8 @@ void FSourceControlWindowsModule::StartupModule()
 {
 	ISourceControlWindowsModule::StartupModule();
 
-	// We're going to call a static function in the editor style module, so we need to make sure the module has actually been loaded
-	FModuleManager::Get().LoadModuleChecked("EditorStyle");
-
 	// Create a Source Control group under the Tools category
-	const FSlateIcon SourceControlIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab");
+	const FSlateIcon SourceControlIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab");
 
 	// Register the changelist tab spawner
 	FGlobalTabmanager::Get()->RegisterTabSpawner(SourceControlChangelistsTabName, FOnSpawnTab::CreateRaw(this, &FSourceControlWindowsModule::CreateChangelistsTab))

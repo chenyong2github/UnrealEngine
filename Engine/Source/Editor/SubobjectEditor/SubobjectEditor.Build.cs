@@ -27,7 +27,6 @@ public class SubobjectEditor : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"UnrealEd",
 				"InputCore",
 				"KismetWidgets",

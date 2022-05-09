@@ -237,8 +237,8 @@ void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandl
 		Args.OnNewFunctionBindingCreated = FOnNewFunctionBindingCreated::CreateLambda(OnNewFunctionBindingCreated);
 		Args.CurrentBindingText = MakeAttributeLambda(CurrentBindingText);
 		Args.CurrentBindingToolTipText = MakeAttributeLambda(CurrentBindingToolTipText);
-		Args.CurrentBindingImage = FEditorStyle::GetBrush("GraphEditor.Function_16x");
-		Args.CurrentBindingColor = FEditorStyle::GetSlateColor("Colors.Foreground").GetSpecifiedColor();
+		Args.CurrentBindingImage = FAppStyle::GetBrush("GraphEditor.Function_16x");
+		Args.CurrentBindingColor = FAppStyle::GetSlateColor("Colors.Foreground").GetSpecifiedColor();
 		Args.bGeneratePureBindings = false;
 		Args.bAllowFunctionBindings = bFunctionReference;
 		Args.bAllowFunctionLibraryBindings = bAllowFunctionLibraryReferences;

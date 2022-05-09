@@ -6,7 +6,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SPinTypeSelector.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -271,7 +271,7 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 				.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveUpTooltip", "Move this parameter up in the list."))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
+					.Image(FAppStyle::GetBrush("Icons.ChevronUp"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -287,7 +287,7 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 				.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveDownTooltip", "Move this parameter down in the list."))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
+					.Image(FAppStyle::GetBrush("Icons.ChevronDown"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -759,7 +759,7 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	.HAlign(HAlign_Right)
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ContentPadding(FMargin(1, 0))
 		.OnClicked(this, &FControlRigGraphDetails::OnAddNewInputClicked)
 		.Visibility(this, &FControlRigGraphDetails::GetAddNewInputOutputVisibility)
@@ -790,7 +790,7 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	.HAlign(HAlign_Right)
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ContentPadding(FMargin(1, 0))
 		.OnClicked(this, &FControlRigGraphDetails::OnAddNewOutputClicked)
 		.Visibility(this, &FControlRigGraphDetails::GetAddNewInputOutputVisibility)
@@ -932,7 +932,7 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	.ValueContent()
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "Menu.Button")
+		.ButtonStyle(FAppStyle::Get(), "Menu.Button")
 		.OnClicked(this, &FControlRigGraphDetails::OnNodeColorClicked)
 		[
 			SAssignNew(ColorBlock, SColorBlock)

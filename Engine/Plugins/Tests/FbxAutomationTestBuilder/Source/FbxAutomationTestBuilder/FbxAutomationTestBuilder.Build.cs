@@ -13,7 +13,7 @@ public class FbxAutomationTestBuilder : ModuleRules
                 "InputCore",
                 "CoreUObject",
 				"Slate",
-                "EditorStyle",
+                
                 "Engine",
                 "UnrealEd",
                 "PropertyEditor",

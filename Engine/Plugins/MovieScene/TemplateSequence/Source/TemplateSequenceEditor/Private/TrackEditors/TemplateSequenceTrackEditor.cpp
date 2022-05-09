@@ -213,7 +213,7 @@ public:
 					[
 						SNew(STextBlock)
 						.Margin(FMargin(5.f))
-						.TextStyle(FEditorStyle::Get(), "SmallText.Subdued")
+						.TextStyle(FAppStyle::Get(), "SmallText.Subdued")
 						.Visibility(this, &STemplateSequenceAssetSubMenu::GetBottomRowVisibility)
 						.Text_Lambda([this]()
 							{
@@ -229,7 +229,7 @@ public:
 						SNew(SButton)
 						.HAlign(EHorizontalAlignment::HAlign_Center)
 						.VAlign(EVerticalAlignment::VAlign_Center)
-						.TextStyle(FEditorStyle::Get(), "SmallText")
+						.TextStyle(FAppStyle::Get(), "SmallText")
 						.Visibility(this, &STemplateSequenceAssetSubMenu::GetBottomRowVisibility)
 						.Text_Lambda([this]() { return !bShowingHiddenAssets ? 
 								LOCTEXT("ShowOutdatedAssetsButton", "Show Outdated Assets") : 

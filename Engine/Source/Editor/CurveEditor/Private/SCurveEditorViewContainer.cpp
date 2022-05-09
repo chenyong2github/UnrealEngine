@@ -11,7 +11,7 @@
 #include "DragOperations/CurveEditorDragOperation_Zoom.h"
 #include "DragOperations/CurveEditorDragOperation_Marquee.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "SCurveEditorViewContainer"
@@ -86,7 +86,7 @@ int32 SCurveEditorViewContainer::OnPaint(const FPaintArgs& Args, const FGeometry
 	const ESlateDrawEffect DrawEffects = ShouldBeEnabled(bParentEnabled) ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 	
 	static const FName BackgroundBrushName("Brushes.Panel");
-	const FSlateBrush* Background = FEditorStyle::GetBrush(BackgroundBrushName);
+	const FSlateBrush* Background = FAppStyle::GetBrush(BackgroundBrushName);
 	FSlateDrawElement::MakeBox(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Background, DrawEffects, Background->GetTint(InWidgetStyle));
 
 	SVerticalBox::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
@@ -109,8 +109,8 @@ int32 SCurveEditorViewContainer::OnPaint(const FPaintArgs& Args, const FGeometry
 		PaintArgs.bDisplayScrubPosition = true;
 		PaintArgs.bDisplayMarkedFrames = false;
 		PaintArgs.PlaybackRangeArgs = FPaintPlaybackRangeArgs(
-			FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L"),
-			FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R"),
+			FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L"),
+			FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R"),
 			6.f);
 
 		TimeSliderController->OnPaintViewArea(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + CurveViewConstants::ELayerOffset::GridOverlays, bParentEnabled, PaintArgs);

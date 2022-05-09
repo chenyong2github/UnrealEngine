@@ -6270,7 +6270,7 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 			.ButtonContent()
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.Padding(FMargin(0, 0, 5, 0))
 				[
 					SNew(SEditableTextBox)
@@ -7063,7 +7063,7 @@ void FBlueprintDocumentationDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 			.ButtonContent()
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush( "NoBorder" ))
+				.BorderImage( FAppStyle::GetBrush( "NoBorder" ))
 				.Padding( FMargin( 0, 0, 5, 0 ))
 				[
 					SNew( STextBlock )

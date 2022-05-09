@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Widgets/SWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
@@ -16,7 +16,7 @@ class SPropertyEditorEditInline : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS( SPropertyEditorEditInline ) 
-		: _Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
+		: _Font( FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
 		{}
 		SLATE_ARGUMENT( FSlateFontInfo, Font )
 	SLATE_END_ARGS()

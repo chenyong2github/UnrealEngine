@@ -5,7 +5,7 @@
 #if STATS
 
 #include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 SProfilerThreadView::SProfilerThreadView()
@@ -86,8 +86,8 @@ int32 SProfilerThreadView::OnPaint( const FPaintArgs& Args, const FGeometry& All
 	// Rendering info.
 	const bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* BackgroundBrush = FEditorStyle::GetBrush( "Profiler.LineGraphArea" );
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush( "WhiteTexture" );
+	const FSlateBrush* BackgroundBrush = FAppStyle::GetBrush( "Profiler.LineGraphArea" );
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush( "WhiteTexture" );
 
 	// Paint state for this call to OnPaint, valid only in this scope.
 	PaintState = new((void*)PaintStateMemory) FSlateOnPaintState( AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, DrawEffects );
@@ -254,7 +254,7 @@ void SProfilerThreadView::DrawUIStackNodes() const
 	const double ThreadViewOffsetPx = PositionXMS*NumPixelsPerMillisecond;
 	PaintState->LayerId++;
 
-	static const FSlateBrush* BorderBrush = FEditorStyle::GetBrush( "Profiler.ThreadView.SampleBorder" );
+	static const FSlateBrush* BorderBrush = FAppStyle::GetBrush( "Profiler.ThreadView.SampleBorder" );
 	const FColor GameThreadColor = FColorList::Red;
 	const FColor RenderThreadColor = FColorList::Blue;
 	const FColor ThreadColors[2] = {GameThreadColor, RenderThreadColor};

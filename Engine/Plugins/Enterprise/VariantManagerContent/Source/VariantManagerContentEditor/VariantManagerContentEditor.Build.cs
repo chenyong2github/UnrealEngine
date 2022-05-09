@@ -21,7 +21,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"EditorStyle",
 					"InputCore", // For ListView keyboard control
 					"Slate",
 					"SlateCore",

@@ -33,7 +33,6 @@ namespace UnrealBuildTool.Rules
                     "SlateCore",
                     "MainFrame",
                     "InputCore",
-                    "EditorStyle",
                     "MaterialEditor",
                     "Projects"
                 }

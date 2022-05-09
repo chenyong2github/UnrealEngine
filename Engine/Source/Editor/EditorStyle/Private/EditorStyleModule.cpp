@@ -39,7 +39,7 @@ public:
 			FSlateEditorStyle::Initialize();
 
 			// set the application style to be the editor style
-			FAppStyle::SetAppStyleSetName(FEditorStyle::GetStyleSetName());
+			FAppStyle::SetAppStyleSetName(FAppStyle::GetAppStyleSetName());
 		}
 	}
 

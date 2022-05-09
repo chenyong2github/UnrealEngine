@@ -7,7 +7,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "UnrealEdGlobals.h"
@@ -50,7 +50,7 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 			SNew(SButton)
 			.Visibility(this, &SThumbnailEditModeTools::GetPrimitiveToolsVisibility)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.OnClicked(this, &SThumbnailEditModeTools::ChangePrimitive)
 			.ToolTipText(LOCTEXT("CyclePrimitiveThumbnailShapes", "Cycle through primitive shape for this thumbnail"))
 			.Content()
@@ -72,7 +72,7 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("ContentBrowser.ResetPrimitiveToDefault"))
+				.Image(FAppStyle::GetBrush("ContentBrowser.ResetPrimitiveToDefault"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
@@ -107,10 +107,10 @@ const FSlateBrush* SThumbnailEditModeTools::GetCurrentPrimitiveBrush() const
 		EThumbnailPrimType PrimType = ThumbnailInfo->bUserModifiedShape ? ThumbnailInfo->PrimitiveType.GetValue() : GetDefaultThumbnailType();
 		switch (PrimType)
 		{
-		case TPT_None: return FEditorStyle::GetBrush("ContentBrowser.PrimitiveCustom");
-		case TPT_Sphere: return FEditorStyle::GetBrush("ContentBrowser.PrimitiveSphere");
-		case TPT_Cube: return FEditorStyle::GetBrush("ContentBrowser.PrimitiveCube");
-		case TPT_Cylinder: return FEditorStyle::GetBrush("ContentBrowser.PrimitiveCylinder");
+		case TPT_None: return FAppStyle::GetBrush("ContentBrowser.PrimitiveCustom");
+		case TPT_Sphere: return FAppStyle::GetBrush("ContentBrowser.PrimitiveSphere");
+		case TPT_Cube: return FAppStyle::GetBrush("ContentBrowser.PrimitiveCube");
+		case TPT_Cylinder: return FAppStyle::GetBrush("ContentBrowser.PrimitiveCylinder");
 		case TPT_Plane:
 		default:
 			// Fall through and return a plane
@@ -118,7 +118,7 @@ const FSlateBrush* SThumbnailEditModeTools::GetCurrentPrimitiveBrush() const
 		}
 	}
 
-	return FEditorStyle::GetBrush( "ContentBrowser.PrimitivePlane" );
+	return FAppStyle::GetBrush( "ContentBrowser.PrimitivePlane" );
 }
 
 FReply SThumbnailEditModeTools::ChangePrimitive()

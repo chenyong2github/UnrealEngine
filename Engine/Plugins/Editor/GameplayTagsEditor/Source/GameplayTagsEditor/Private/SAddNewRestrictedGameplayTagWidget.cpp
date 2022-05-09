@@ -283,7 +283,7 @@ void SAddNewRestrictedGameplayTagWidget::ValidateNewRestrictedTag()
 		FNotificationInfo Info(LOCTEXT("NoRestrictedSource", "You must specify a source file for restricted gameplay tags."));
 		Info.ExpireDuration = 10.f;
 		Info.bUseSuccessFailIcons = true;
-		Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Error"));
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
 
 		AddRestrictedGameplayTagDialog = FSlateNotificationManager::Get().AddNotification(Info);
 

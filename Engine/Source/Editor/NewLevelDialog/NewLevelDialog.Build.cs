@@ -16,7 +16,6 @@ public class NewLevelDialog : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"ToolWidgets",

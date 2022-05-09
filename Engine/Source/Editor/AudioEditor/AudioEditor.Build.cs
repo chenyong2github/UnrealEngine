@@ -47,7 +47,7 @@ public class AudioEditor : ModuleRules
 				"UnrealEd",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"RenderCore",
 				"LevelEditor",
 				"Landscape",

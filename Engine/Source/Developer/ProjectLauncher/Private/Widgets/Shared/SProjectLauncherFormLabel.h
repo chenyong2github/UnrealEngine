@@ -9,7 +9,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Implements a widget for form input field labels with optional validation errors.
@@ -62,7 +62,7 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("Icons.Error")))
+				.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
 				.ToolTipText(InArgs._ErrorToolTipText)
 				.Visibility(InArgs._ErrorVisibility)
 			]

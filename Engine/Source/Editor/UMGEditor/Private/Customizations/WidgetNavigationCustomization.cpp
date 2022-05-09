@@ -280,7 +280,7 @@ TSharedRef<SWidget> FWidgetNavigationCustomization::OnGenerateWidgetList(TWeakPt
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ResetFunction", "Reset"),
 				LOCTEXT("ResetFunctionTooltip", "Reset this navigation option and clear it out."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cross"),
 				FUIAction(FExecuteAction::CreateSP(this, &FWidgetNavigationCustomization::HandleResetCustomNavigationFunction, PropertyHandle, Nav))
 			);
 		}

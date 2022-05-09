@@ -13,7 +13,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"

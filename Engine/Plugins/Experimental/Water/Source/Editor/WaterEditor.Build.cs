@@ -16,7 +16,6 @@ public class WaterEditor : ModuleRules
 				"CoreUObject",
                 "ComponentVisualizers",
 				"DetailCustomizations",
-				"EditorStyle",
 				"Engine",
 				"InputCore",
 				"SlateCore",

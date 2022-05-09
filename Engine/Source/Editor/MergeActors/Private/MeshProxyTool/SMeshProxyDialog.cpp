@@ -2,7 +2,7 @@
 
 #include "MeshProxyTool/SMeshProxyDialog.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/MeshMerging.h"
 #include "Engine/Selection.h"
 #include "MeshProxyTool/MeshProxyTool.h"
@@ -93,21 +93,21 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 		[
 			// Simplygon logo
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("MeshProxy.SimplygonLogo"))
+			.Image(FAppStyle::GetBrush("MeshProxy.SimplygonLogo"))
 		]
 			
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				// Proxy options
 				SNew(SVerticalBox)
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -116,7 +116,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("OnScreenSizeLabel", "On Screen Size (pixels)"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.ToolTipText(GetPropertyToolTipText(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, ScreenSize)))
 					]
 					+ SHorizontalBox::Slot()
@@ -130,7 +130,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 						.MaxDesiredWidth(100.0f)
 						[
 							SNew(SNumericEntryBox<int32>)
-							.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+							.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 							.MinValue(40)
 							.MaxValue(1200)
 							.MinSliderValue(40)
@@ -144,7 +144,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -153,7 +153,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("MergeDistanceLabel", "Merge Distance (pixels)"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.ToolTipText(GetPropertyToolTipText(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, MergeDistance)))
 					]
 					+ SHorizontalBox::Slot()
@@ -167,7 +167,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 						.MaxDesiredWidth(100.0f)
 						[
 							SNew(SNumericEntryBox<int32>)
-							.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+							.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 							.MinValue(0)
 							.MaxValue(300)
 							.MinSliderValue(0)
@@ -181,7 +181,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -190,7 +190,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TextureResolutionLabel", "Texture Resolution"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 					+ SHorizontalBox::Slot()
 					.FillWidth(0.5f)
@@ -198,7 +198,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextComboBox)
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.OptionsSource(&TextureResolutionOptions)
 						.InitiallySelectedItem(TextureResolutionOptions[TextureResEntryIndex])
 						.OnSelectionChanged(this, &SThirdPartyMeshProxyDialog::SetTextureResolution)
@@ -207,7 +207,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -216,7 +216,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("LightMapResolutionLabel", "LightMap Resolution"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.ToolTipText(GetPropertyToolTipText(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, LightMapResolution)))
 					]
 					+ SHorizontalBox::Slot()
@@ -225,7 +225,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextComboBox)
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.OptionsSource(&TextureResolutionOptions)
 						.InitiallySelectedItem(TextureResolutionOptions[LightMapResEntryIndex])
 						.OnSelectionChanged(this, &SThirdPartyMeshProxyDialog::SetLightMapResolution)
@@ -234,7 +234,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -244,7 +244,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("HardAngleLabel", "Hard Edge Angle"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.ToolTipText(GetPropertyToolTipText(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, HardAngleThreshold)))
 					]
 					+SHorizontalBox::Slot()
@@ -258,7 +258,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 						.MaxDesiredWidth(100.0f)
 						[
 							SNew(SNumericEntryBox<float>)
-							.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+							.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 							.MinValue(0.f)
 							.MaxValue(180.f)
 							.MinSliderValue(0.f)
@@ -273,7 +273,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SCheckBox)
 					.Type(ESlateCheckBoxType::CheckBox)
@@ -283,14 +283,14 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("RecalcNormalsLabel", "Recalculate Normals"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 						.ToolTipText(GetPropertyToolTipText(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, bRecalculateNormals)))
 					]
 				]
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SCheckBox)
 					.Type(ESlateCheckBoxType::CheckBox)
@@ -300,13 +300,13 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ExportNormalMapLabel", "Export Normal Map"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 				]
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SCheckBox)
 					.Type(ESlateCheckBoxType::CheckBox)
@@ -316,13 +316,13 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ExportMetallicMapLabel", "Export Metallic Map"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 				]
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SCheckBox)
 					.Type(ESlateCheckBoxType::CheckBox)
@@ -332,13 +332,13 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ExportRoughnessMapLabel", "Export Roughness Map"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 				]
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SCheckBox)
 					.Type(ESlateCheckBoxType::CheckBox)
@@ -348,7 +348,7 @@ void  SThirdPartyMeshProxyDialog::CreateLayout()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ExportSpecularMapLabel", "Export Specular Map"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 				]
 			]

@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SExpanderArrow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "SSequencer.h"
 #include "ScopedTransaction.h"
@@ -40,28 +40,28 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 
 	if (bIsOuterTopLevelNode)
 	{
-		ExpandedBackgroundBrush = FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Expanded" );
-		CollapsedBackgroundBrush = FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Collapsed" );
+		ExpandedBackgroundBrush = FAppStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Expanded" );
+		CollapsedBackgroundBrush = FAppStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Collapsed" );
 	}
 	else
 	{
-		ExpandedBackgroundBrush = FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.DefaultBorder" );
-		CollapsedBackgroundBrush = FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.DefaultBorder" );
+		ExpandedBackgroundBrush = FAppStyle::GetBrush( "Sequencer.AnimationOutliner.DefaultBorder" );
+		CollapsedBackgroundBrush = FAppStyle::GetBrush( "Sequencer.AnimationOutliner.DefaultBorder" );
 	}
 
 	FMargin InnerNodePadding;
 	if ( bIsInnerTopLevelNode )
 	{
-		InnerBackgroundBrush = FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Expanded" );
+		InnerBackgroundBrush = FAppStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Expanded" );
 		InnerNodePadding = FMargin(0.f, 1.f);
 	}
 	else
 	{
-		InnerBackgroundBrush = FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.TransparentBorder" );
+		InnerBackgroundBrush = FAppStyle::GetBrush( "Sequencer.AnimationOutliner.TransparentBorder" );
 		InnerNodePadding = FMargin(0.f);
 	}
 
-	TableRowStyle = &FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	TableRowStyle = &FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 
 	EditableLabel = SNew(SInlineEditableTextBlock)
 		.IsReadOnly(this, &SAnimationOutlinerTreeNode::IsNodeLabelReadOnly)
@@ -131,7 +131,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 					.Padding( InnerNodePadding )
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Collapsed" ) )
+						.BorderImage( FAppStyle::GetBrush( "Sequencer.AnimationOutliner.TopLevelBorder_Collapsed" ) )
 						.BorderBackgroundColor( this, &SAnimationOutlinerTreeNode::GetNodeInnerBackgroundTint )
 						.Padding( FMargin(0) )
 						[
@@ -195,7 +195,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 				.VAlign(VAlign_Fill)
 				.IsFocusable(false) // Intentionally false so that it's easier to tab to the next numeric input
 				.IsEnabled(!DisplayNode->GetSequencer().IsReadOnly())
-				.ButtonStyle(FEditorStyle::Get(), "Sequencer.AnimationOutliner.ColorStrip")
+				.ButtonStyle(FAppStyle::Get(), "Sequencer.AnimationOutliner.ColorStrip")
 				.OnClicked(this, &SAnimationOutlinerTreeNode::OnSetTrackColor)
 				.Content()
 				[
@@ -203,7 +203,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 					.WidthOverride(6.f)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("WhiteBrush"))
+						.Image(FAppStyle::GetBrush("WhiteBrush"))
 						.ColorAndOpacity(this, &SAnimationOutlinerTreeNode::GetTrackColorTint)
 					]
 				]

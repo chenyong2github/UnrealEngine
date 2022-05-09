@@ -14,7 +14,7 @@
 #include "Animation/CurveSourceInterface.h"
 #include "AudioCurveSourceComponent.h"
 #include "WorkspaceMenuStructure.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "FacialAnimationEditor"

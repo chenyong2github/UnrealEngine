@@ -12,7 +12,7 @@
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
 #include "CurveEditorSnapMetrics.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BuiltInChannelEditors.h"
 #include "SequencerChannelTraits.h"
 #include "ISequencer.h"

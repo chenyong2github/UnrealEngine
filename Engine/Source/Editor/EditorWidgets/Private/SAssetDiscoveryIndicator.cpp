@@ -6,7 +6,7 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetDiscoveryIndicator"
@@ -72,7 +72,7 @@ void SAssetDiscoveryIndicator::Construct( const FArguments& InArgs )
 		.HAlign(HAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			.BorderBackgroundColor(this, &SAssetDiscoveryIndicator::GetBorderBackgroundColor)
 			.ColorAndOpacity(this, &SAssetDiscoveryIndicator::GetIndicatorColorAndOpacity)
 			.DesiredSizeScale(this, &SAssetDiscoveryIndicator::GetIndicatorDesiredSizeScale)
@@ -92,7 +92,7 @@ void SAssetDiscoveryIndicator::Construct( const FArguments& InArgs )
 					.AutoHeight()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("AssetDiscoveryIndicator.MainStatusFont"))
+						.Font(FAppStyle::GetFontStyle("AssetDiscoveryIndicator.MainStatusFont"))
 						.Text(this, &SAssetDiscoveryIndicator::GetMainStatusText)
 						.WrapTextAt(this, &SAssetDiscoveryIndicator::GetStatusTextWrapWidth)
 						.Justification(ETextJustify::Center)
@@ -106,7 +106,7 @@ void SAssetDiscoveryIndicator::Construct( const FArguments& InArgs )
 						.Visibility(this, &SAssetDiscoveryIndicator::GetSubStatusTextVisibility)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::GetFontStyle("AssetDiscoveryIndicator.SubStatusFont"))
+							.Font(FAppStyle::GetFontStyle("AssetDiscoveryIndicator.SubStatusFont"))
 							.Text(this, &SAssetDiscoveryIndicator::GetSubStatusText)
 							.WrapTextAt(this, &SAssetDiscoveryIndicator::GetStatusTextWrapWidth)
 							.Justification(ETextJustify::Center)

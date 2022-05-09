@@ -59,6 +59,7 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "SkeletalMeshEditorContextMenuContext.h"
+#include "Styling/AppStyle.h"
 #include "InterchangeAssetImportData.h"
 
 const FName SkeletalMeshEditorAppIdentifier = FName(TEXT("SkeletalMeshEditorApp"));
@@ -216,7 +217,7 @@ void FSkeletalMeshEditor::RegisterTabSpawners(const TSharedRef<class FTabManager
 		)
 		.SetDisplayName(LOCTEXT("ToolboxTab", "Toolbox"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Modes" ));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Modes" ));
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 }
@@ -429,7 +430,7 @@ void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName
 				"ReimportGeometryContentLabel",
 				LOCTEXT("ReimportGeometryContentLabel", "Geometry"),
 				LOCTEXT("ReimportGeometryContentLabelTooltipTooltip", "Reimport Geometry Only"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 				FToolMenuExecuteAction::CreateLambda(ReimportMeshWithNewFileAction, 1)
 			);
 
@@ -437,7 +438,7 @@ void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName
 				"ReimportSkinningAndWeightsContentLabel",
 				LOCTEXT("ReimportSkinningAndWeightsContentLabel", "Skinning And Weights"),
 				LOCTEXT("ReimportSkinningAndWeightsContentLabelTooltipTooltip", "Reimport Skinning And Weights Only"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 				FToolMenuExecuteAction::CreateLambda(ReimportMeshWithNewFileAction, 2)
 			);
 		}
@@ -513,7 +514,7 @@ void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName
 							NAME_None,
 							ReimportLabel,
 							ReimportLabelTooltip,
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 							FToolMenuExecuteAction::CreateLambda(ReimportAction, SourceFileIndex, bReimportAll, bWithNewFile)
 						);
 					}
@@ -1159,14 +1160,14 @@ void FSkeletalMeshEditor::ExtendMenu()
 						.HAlign(HAlign_Fill)
 						.VAlign(VAlign_Fill)
 						//.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SBox)
 							.HAlign(HAlign_Center)
 							.VAlign(VAlign_Center)
 							[
 								SNew(STextBlock)
-								.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+								.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 								.Text(FText::Format(LOCTEXT("MeshClickMenu_SectionInfo", "LOD{0} - Section {1}"), LodIndex, SectionIndex))
 							]
 						]

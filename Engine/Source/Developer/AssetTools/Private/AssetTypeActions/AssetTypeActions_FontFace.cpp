@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_FontFace.h"
 #include "FontEditorModule.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
@@ -16,7 +16,7 @@ void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, F
 		"ReimportFontFaceLabel",
 		LOCTEXT("ReimportFontFaceLabel", "Reimport"),
 		LOCTEXT("ReimportFontFaceTooltip", "Reimport the selected font(s)."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_FontFace::ExecuteReimport, FontFaces),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_FontFace::CanExecuteReimport, FontFaces)

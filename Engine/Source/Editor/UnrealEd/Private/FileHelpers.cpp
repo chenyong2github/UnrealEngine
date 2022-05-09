@@ -19,7 +19,7 @@
 #include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Brush.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Editor/EditorEngine.h"
@@ -3490,7 +3490,7 @@ static void InternalNotifyNoPackagesSaved(const bool bUseDialog)
 	if (bUseDialog)
 	{
 		FNotificationInfo NotificationInfo(LOCTEXT("NoAssetsToSave", "No new changes to save!"));
-		NotificationInfo.Image = FEditorStyle::GetBrush(FTokenizedMessage::GetSeverityIconName(EMessageSeverity::Info));
+		NotificationInfo.Image = FAppStyle::GetBrush(FTokenizedMessage::GetSeverityIconName(EMessageSeverity::Info));
 		NotificationInfo.bFireAndForget = true;
 		NotificationInfo.ExpireDuration = 4.0f; // Need this message to last a little longer than normal since the user may have expected there to be modified files.
 		NotificationInfo.bUseThrobber = true;

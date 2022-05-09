@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
@@ -47,7 +47,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				SNew(SVerticalBox)
 			
@@ -86,14 +86,14 @@ public:
 				.HAlign(HAlign_Right)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+SUniformGridPanel::Slot(0,0)
 					[
 						SNew(SButton) 
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.Text( NSLOCTEXT("ModalDialogs", "SDlgDeltaTransform_OK", "OK") )
 						.OnClicked( this, &SDlgDeltaTransform::OnButtonClick, FDlgDeltaTransform::OK )
 					]
@@ -101,7 +101,7 @@ public:
 					[
 						SNew(SButton) 
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.Text( NSLOCTEXT("ModalDialogs", "SDlgDeltaTransform_Cancel", "Cancel") )
 						.OnClicked( this, &SDlgDeltaTransform::OnButtonClick, FDlgDeltaTransform::Cancel )
 					]

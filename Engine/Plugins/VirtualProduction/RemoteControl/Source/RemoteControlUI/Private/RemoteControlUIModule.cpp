@@ -4,9 +4,9 @@
 
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
+#include "Styling/AppStyle.h"
 #include "Commands/RemoteControlCommands.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "EditorStyleSet.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

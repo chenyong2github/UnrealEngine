@@ -17,7 +17,7 @@
 #include "UObject/MetaData.h"
 #include "Misc/PackageName.h"
 #include "Async/TaskGraphInterfaces.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "TickableEditorObject.h"
@@ -827,7 +827,7 @@ void FSourceCodeNavigation::NavigateToFunctionSourceAsync( const FString& Functi
 	};
 
 	FNotificationInfo Info( LOCTEXT("ReadingSymbols", "Reading C++ Symbols") );
-	Info.Image = FEditorStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));
+	Info.Image = FAppStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));
 	Info.ExpireDuration = 2.0f;
 	Info.bFireAndForget = false;
 

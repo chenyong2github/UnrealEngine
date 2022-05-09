@@ -11,7 +11,7 @@
 #include "RemoteControlProtocolDMXSettings.h"
 #include "Library/DMXEntityFixtureType.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyUtilities.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
@@ -103,7 +103,7 @@ void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeChildren
 			[
 				SNew(STextBlock)
 				.Text(NSLOCTEXT("RemoteControlProtocolDMXEditorTypeCustomization", "PortLabel", "Input Port"))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 		.ValueContent()
 			[
@@ -120,7 +120,7 @@ void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeChildren
 			[
 				SNew(STextBlock)
 				.Text(NSLOCTEXT("RemoteControlProtocolDMXEditorTypeCustomization", "NoPortAvailableText", "No ports available, please create an Input Port in Project Settings -> Plugins -> DMX"))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			];
 	}
 }

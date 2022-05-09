@@ -15,9 +15,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 
-// EditorStyle includes
-#include "EditorStyleSet.h"
-#include "EditorFontGlyphs.h"
+// Style includes
+#include "Styling/AppStyle.h"
 
 // UnrealEd includes
 #include "FileHelpers.h"
@@ -76,7 +75,7 @@ void STakePresetAssetEditor::Construct(const FArguments& InArgs, TSharedPtr<FTak
 				[
 					SNew(SButton)
 					.ContentPadding(TakeRecorder::ButtonPadding)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(LOCTEXT("SavePresetButton", "Save this take preset"))
 					.ForegroundColor(FSlateColor::UseForeground())
 					.OnClicked(this, &STakePresetAssetEditor::OnSavePreset)
@@ -93,7 +92,7 @@ void STakePresetAssetEditor::Construct(const FArguments& InArgs, TSharedPtr<FTak
 				[
 					SNew(SButton)
 					.ContentPadding(TakeRecorder::ButtonPadding)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(LOCTEXT("NewRecording", "Start a new recording using this Take Preset as a base"))
 					.ForegroundColor(FSlateColor::UseForeground())
 					.OnClicked(this, &STakePresetAssetEditor::NewRecordingFromThis)

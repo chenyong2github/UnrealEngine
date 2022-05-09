@@ -47,7 +47,7 @@ namespace PropertyCustomizationHelpers
 
 		SLATE_BEGIN_ARGS( SPropertyEditorButton ) 
 			: _Text( )
-			, _Image( FEditorStyle::GetBrush("Default") )
+			, _Image( FAppStyle::GetBrush("Default") )
 			, _IsFocusable( true )
 		{}
 			SLATE_ATTRIBUTE( FText, Text )
@@ -101,7 +101,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew(SPropertyEditorButton)
 			.Text(OptionalToolTipText.Get().IsEmpty() ? LOCTEXT("ResetButtonToolTipText", "Reset Element to Default Value") : OptionalToolTipText)
-			.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+			.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 			.OnClickAction(OnResetClicked)
 			.IsEnabled(IsEnabled)
 			.Visibility(IsEnabled.Get() ? EVisibility::Visible : EVisibility::Collapsed)
@@ -114,7 +114,7 @@ namespace PropertyCustomizationHelpers
 		return	
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "AddButtonToolTipText", "Add Element") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.PlusCircle") )
+			.Image( FAppStyle::GetBrush("Icons.PlusCircle") )
 			.OnClickAction( OnAddClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -125,7 +125,7 @@ namespace PropertyCustomizationHelpers
 		return	
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "RemoveButtonToolTipText", "Remove Element") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.Minus") )
+			.Image( FAppStyle::GetBrush("Icons.Minus") )
 			.OnClickAction( OnRemoveClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -136,7 +136,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "EmptyButtonToolTipText", "Remove All Elements") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.Delete") )
+			.Image( FAppStyle::GetBrush("Icons.Delete") )
 			.OnClickAction( OnEmptyClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -147,7 +147,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "UseButtonToolTipText", "Use Selected Asset from Content Browser") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.Use") )
+			.Image( FAppStyle::GetBrush("Icons.Use") )
 			.OnClickAction( OnUseSelectedClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -158,7 +158,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "DeleteButtonToolTipText", "Delete") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.Delete") )
+			.Image( FAppStyle::GetBrush("Icons.Delete") )
 			.OnClickAction( OnDeleteClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -190,13 +190,13 @@ namespace PropertyCustomizationHelpers
 			.OnClicked( OnVisibilityClicked )
 			.IsEnabled(true)
 			.IsFocusable( false )
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("ToggleVisibility", "Toggle Visibility"))
 			.ContentPadding(2.0f)
 			.ForegroundColor(FSlateColor::UseForeground())
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(DynamicVisibilityAttribute)
 			];
 	}
@@ -219,7 +219,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "NewBlueprintButtonToolTipText", "Create New Blueprint") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.PlusCircle") )
+			.Image( FAppStyle::GetBrush("Icons.PlusCircle") )
 			.OnClickAction( OnNewBlueprintClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -358,7 +358,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew(SPropertyEditorButton)
 			.Text(OptionalToolTipText.Get().IsEmpty() ? LOCTEXT("EditConfigHierarchyButtonToolTipText", "Edit the config values of this property") : OptionalToolTipText)
-			.Image(FEditorStyle::GetBrush("DetailsView.EditConfigProperties"))
+			.Image(FAppStyle::GetBrush("DetailsView.EditConfigProperties"))
 			.OnClickAction(OnEditConfigClicked)
 			.IsEnabled(IsEnabled)
 			.IsFocusable(false);
@@ -390,7 +390,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew(SPropertyEditorButton)
 			.Text(OptionalToolTipText.Get().IsEmpty() ? LOCTEXT("SaveButtonTooltipText", "Save the currently selected asset.") : OptionalToolTipText)
-			.Image(FEditorStyle::GetBrush("Icons.Save"))
+			.Image(FAppStyle::GetBrush("Icons.Save"))
 			.OnClickAction(OnSaveClicked)
 			.IsEnabled(IsEnabled)
 			.IsFocusable(false);
@@ -1334,7 +1334,7 @@ void FSectionList::AddSectionItem(FDetailWidgetRow& Row, int32 LodIndex, const s
 			.VAlign(VAlign_Top)
 			[
 				SNew(SHyperlink)
-				.TextStyle(FEditorStyle::Get(), "MaterialList.HyperlinkStyle")
+				.TextStyle(FAppStyle::Get(), "MaterialList.HyperlinkStyle")
 				.Text(FText::Format(LOCTEXT("DisplayAllSectionLinkText", "Display {NumSections} Sections"), Arguments))
 				.ToolTipText(LOCTEXT("DisplayAllSectionLink_ToolTip", "Display all Sections. Drag and drop a Section here to replace all Sections."))
 				.OnNavigate(this, &FSectionList::OnDisplaySectionsForLod, LodIndex)

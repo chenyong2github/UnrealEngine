@@ -11,7 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
@@ -167,7 +167,7 @@ void SPluginTile::RecreateWidgets()
 				[
 					SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderDeveloper"))
+						.Image(FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderDeveloper"))
 				]
 
 			+ SHorizontalBox::Slot()
@@ -685,7 +685,7 @@ void SPluginTile::OnPackagePlugin()
 #endif
 
 	IUATHelperModule::Get().CreateUatTask(CommandLine, PlatformName, LOCTEXT("PackagePluginTaskName", "Packaging Plugin"),
-		LOCTEXT("PackagePluginTaskShortName", "Package Plugin Task"), FEditorStyle::GetBrush(TEXT("MainFrame.CookContent")));
+		LOCTEXT("PackagePluginTaskShortName", "Package Plugin Task"), FAppStyle::GetBrush(TEXT("MainFrame.CookContent")));
 }
 
 FText SPluginTile::GetBetaOrExperimentalHelpText() const

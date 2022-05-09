@@ -12,7 +12,7 @@
 #include "Widgets/SDMXPortSelector.h"
 
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h" 
 #include "IPropertyUtilities.h"
@@ -43,7 +43,7 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 
 	// Create the info content border, so the port can set its info during its construction
 	SAssignNew(InfoContentBorder, SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"));
+		.BorderImage(FAppStyle::GetBrush("NoBorder"));
 
 	// Add the port selector row
 	EDMXPortSelectorMode PortSelectorMode = IsInputPort() ? EDMXPortSelectorMode::SelectFromAvailableInputs : EDMXPortSelectorMode::SelectFromAvailableOutputs;
@@ -53,7 +53,7 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.Text(LOCTEXT("PortLabel", "Port"))
 		]
 		.ValueContent()

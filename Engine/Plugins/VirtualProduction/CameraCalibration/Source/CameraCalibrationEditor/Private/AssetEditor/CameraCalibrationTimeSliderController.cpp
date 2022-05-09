@@ -4,7 +4,7 @@
 
 #include "CameraCalibrationSettings.h"
 #include "CameraCalibrationStepsController.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "LensFile.h"
 #include "LiveLinkCameraController.h"
@@ -40,8 +40,8 @@ FCameraCalibrationTimeSliderController::FCameraCalibrationTimeSliderController(c
 	: CalibrationStepsControllerWeakPtr(InCalibrationStepsController)
 	, LensFileWeakPtr(InLensFile)
 {
-	ScrubHandleUpBrush          = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
-	ScrubHandleDownBrush        = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
+	ScrubHandleUpBrush          = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
+	ScrubHandleDownBrush        = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
 
 	TimeSliderArgs.DisplayRate = FFrameRate(30, 1);
 	TimeSliderArgs.TickResolution =  FFrameRate(30000, 1);
@@ -70,8 +70,8 @@ int32 FCameraCalibrationTimeSliderController::OnPaintTimeSlider( bool bMirrorLab
 
 		// draw playback & selection range
 		FPaintPlaybackRangeArgs PlaybackRangeArgs(
-			bMirrorLabels ? FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L") : FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_L"),
-			bMirrorLabels ? FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R") : FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_R"),
+			bMirrorLabels ? FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L") : FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_L"),
+			bMirrorLabels ? FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R") : FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_R"),
 			6.f
 		);
 

@@ -22,7 +22,6 @@ public class CustomizableSequencerTracksEditor : ModuleRules
 				"CoreUObject",
 				"CustomizableSequencerTracks",
 				"EditorFramework",
-				"EditorStyle",
 				"MovieScene",
 				"Sequencer",
 				"SlateCore",

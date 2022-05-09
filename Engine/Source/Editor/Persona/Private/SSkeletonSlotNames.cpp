@@ -8,7 +8,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Animation/Skeleton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
@@ -107,7 +107,7 @@ FSkeletonSlotNamesSummoner::FSkeletonSlotNamesSummoner(TSharedPtr<class FAssetEd
 	, OnObjectSelected(InOnObjectSelected)
 {
 	TabLabel = LOCTEXT("AnimSlotManagerTabTitle", "Anim Slot Manager");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimSlotManager");
 
 	EnableTabPadding();
 	bIsSingleton = true;
@@ -141,7 +141,7 @@ void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IE
 		, NAME_None
 		, LOCTEXT("AnimSlotManagerToolbarSaveLabel", "Save")
 		, LOCTEXT("AnimSlotManagerToolbarSaveTooltip", "Saves changes into Skeleton asset")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimSlotManager.SaveSkeleton")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimSlotManager.SaveSkeleton")
 		);
 
 	ToolbarBuilder.AddSeparator();
@@ -152,7 +152,7 @@ void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IE
 		, NAME_None
 		, LOCTEXT("AnimSlotManagerToolbarAddSlotLabel", "Add Slot")
 		, LOCTEXT("AnimSlotManagerToolbarAddSlotTooltip", "Create a new unique Slot name")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimSlotManager.AddSlot")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimSlotManager.AddSlot")
 		);
 
 	// Add Group
@@ -161,7 +161,7 @@ void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IE
 		, NAME_None
 		, LOCTEXT("AnimSlotManagerToolbarAddGroupLabel", "Add Group")
 		, LOCTEXT("AnimSlotManagerToolbarAddGroupTooltip", "Create a new unique Group name")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimSlotManager.AddGroup")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimSlotManager.AddGroup")
 		);
 
 	this->ChildSlot
@@ -630,7 +630,7 @@ void SSkeletonSlotNames::OnDeleteSlot(FName SlotName)
 				(
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SAssignNew(ReferenceWidget, SSlotNameReferenceWindow)
 					.ReferencingMontages(&CompatibleMontages)
@@ -839,7 +839,7 @@ void SSkeletonSlotNames::OnRenameSlotPopupCommitted(const FText & InNewSlotText,
 					(
 					SNew(SBorder)
 					.Padding(FMargin(3))
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SAssignNew(ReferenceWidget, SSlotNameReferenceWindow)
 						.ReferencingMontages(&CompatibleMontages)
@@ -960,7 +960,7 @@ void SSkeletonSlotNames::OnDeleteSlotGroup(FName GroupName)
 				(
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SAssignNew(ReferenceWidget, SSlotNameReferenceWindow)
 					.ReferencingMontages(&CompatibleMontages)

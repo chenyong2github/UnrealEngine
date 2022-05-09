@@ -28,7 +28,7 @@
 #include "Async/Async.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "EngineAnalytics.h"
@@ -203,7 +203,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	ChildSlot
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+		.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 		[
 			SNew( SVerticalBox )
 
@@ -247,7 +247,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					+SSplitter::Slot()
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
+						.BorderImage( FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 						[
 							SAssignNew( UsdStageTreeView, SUsdStageTreeView, ViewModel.UsdStageActor.Get() )
 							.OnPrimSelectionChanged( this, &SUsdStage::OnPrimSelectionChanged )
@@ -258,7 +258,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					+SSplitter::Slot()
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						[
 							SAssignNew( UsdPrimInfoWidget, SUsdPrimInfo, UsdStage, TEXT("/") )
 						]
@@ -270,7 +270,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 				.Value( 0.3f )
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
+					.BorderImage( FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 					[
 						SAssignNew( UsdLayersTreeView, SUsdLayersTreeView, ViewModel.UsdStageActor.Get() )
 					]

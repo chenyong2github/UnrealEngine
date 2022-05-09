@@ -5,7 +5,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Internationalization/Internationalization.h"
 #include "Algo/Transform.h"
 #include "Widgets/Views/SListView.h"

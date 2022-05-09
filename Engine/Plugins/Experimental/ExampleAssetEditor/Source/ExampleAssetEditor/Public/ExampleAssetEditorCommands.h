@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FExampleAssetEditorCommands : public TCommands<FExampleAssetEditorCommands>
 {
 public:
 
 	FExampleAssetEditorCommands()
-		: TCommands<FExampleAssetEditorCommands>(TEXT("ExampleAssetEditor"), NSLOCTEXT("Contexts", "FExampleAssetEditorModule", "Example Asset Editor Plugin"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FExampleAssetEditorCommands>(TEXT("ExampleAssetEditor"), NSLOCTEXT("Contexts", "FExampleAssetEditorModule", "Example Asset Editor Plugin"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

@@ -4,7 +4,7 @@
 #include "UObject/UObjectHash.h"
 #include "GraphEditorSettings.h"
 #include "EdGraphSchema_K2.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"

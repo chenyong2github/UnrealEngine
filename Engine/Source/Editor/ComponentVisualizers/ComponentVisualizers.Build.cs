@@ -20,7 +20,6 @@ public class ComponentVisualizers : ModuleRules
 				"UnrealEd",
 				"LevelEditor",
                 "PropertyEditor",
-                "EditorStyle",
 				"AIModule",
 				"ViewportInteraction"
 			}

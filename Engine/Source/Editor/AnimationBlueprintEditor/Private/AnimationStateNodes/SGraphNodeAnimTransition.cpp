@@ -124,7 +124,7 @@ TSharedRef<SWidget> SGraphNodeAnimTransition::GenerateRichTooltip()
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FEditorStyle::Get(), TEXT("Graph.TransitionNode.TooltipName") )
+			.TextStyle( FAppStyle::Get(), TEXT("Graph.TransitionNode.TooltipName") )
 			.Text(TooltipDesc)
 		];
 
@@ -135,7 +135,7 @@ TSharedRef<SWidget> SGraphNodeAnimTransition::GenerateRichTooltip()
 			.Padding( 2.0f )
 			[
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule") )
+				.TextStyle( FAppStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule") )
 				.Text(LOCTEXT("AnimGraphNodeAutomaticRule_ToolTip", "Automatic Rule"))
 			];
 	}
@@ -146,7 +146,7 @@ TSharedRef<SWidget> SGraphNodeAnimTransition::GenerateRichTooltip()
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FEditorStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule") )
+			.TextStyle( FAppStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule") )
 			.Text(LOCTEXT("AnimGraphNodeTransitionRule_ToolTip", "Transition Rule (in words)"))
 		];
 
@@ -194,7 +194,7 @@ void SGraphNodeAnimTransition::UpdateGraphNode()
 			+SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.TransitionNode.ColorSpill") )
+				.Image( FAppStyle::GetBrush("Graph.TransitionNode.ColorSpill") )
 				.ColorAndOpacity( this, &SGraphNodeAnimTransition::GetTransitionColor )
 			]
 			+SOverlay::Slot()
@@ -339,8 +339,8 @@ const FSlateBrush* SGraphNodeAnimTransition::GetTransitionIconImage() const
 {
 	UAnimStateTransitionNode* TransNode = CastChecked<UAnimStateTransitionNode>(GraphNode);
 	return (TransNode->LogicType == ETransitionLogicType::TLT_Inertialization)
-		? FEditorStyle::GetBrush("Graph.TransitionNode.Icon_Inertialization")
-		: FEditorStyle::GetBrush("Graph.TransitionNode.Icon");
+		? FAppStyle::GetBrush("Graph.TransitionNode.Icon_Inertialization")
+		: FAppStyle::GetBrush("Graph.TransitionNode.Icon");
 }
 
 FString SGraphNodeAnimTransition::GetCurrentDuration() const

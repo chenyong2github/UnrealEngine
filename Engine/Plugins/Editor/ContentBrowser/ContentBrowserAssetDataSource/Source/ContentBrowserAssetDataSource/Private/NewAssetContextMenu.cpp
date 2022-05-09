@@ -13,7 +13,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Factories/Factory.h"
 #include "IAssetTools.h"
@@ -149,7 +149,7 @@ public:
 						.HeightOverride(InArgs._Height + 4)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("AssetThumbnail.AssetBackground"))
+							.BorderImage(FAppStyle::GetBrush("AssetThumbnail.AssetBackground"))
 							.BorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f))
 							.Padding(2.0f)
 							.VAlign(VAlign_Center)
@@ -166,7 +166,7 @@ public:
 					.VAlign(VAlign_Bottom)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+						.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 						.BorderBackgroundColor(AssetColor)
 						.Padding(FMargin(0, FMath::Max(FMath::CeilToFloat(InArgs._Width * 0.025f), 3.0f), 0, 0))
 					]
@@ -182,7 +182,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("LevelViewportContextMenu.AssetLabel.Text.Font"))
+					.Font(FAppStyle::GetFontStyle("LevelViewportContextMenu.AssetLabel.Text.Font"))
 					.Text(Factory->GetDisplayName())
 				]
 			]

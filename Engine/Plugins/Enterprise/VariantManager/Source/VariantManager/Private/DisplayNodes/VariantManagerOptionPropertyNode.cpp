@@ -8,7 +8,7 @@
 #include "VariantObjectBinding.h"
 
 #include "Algo/Transform.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SComboBox.h"

@@ -50,7 +50,7 @@ void FGPULightmassEditorModule::StartupModule()
 	}), FCanExecuteAction());
 
 	FToolMenuEntry& Entry = Section.AddMenuEntry(NAME_None, LOCTEXT("GPULightmassSettingsTitle", "GPU Lightmass"),
-		LOCTEXT("OpensGPULightmassSettings", "Opens GPU Lightmass settings tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.LightingScenarioIcon16x"), ActionOpenGPULightmassSettingsTab,
+		LOCTEXT("OpensGPULightmassSettings", "Opens GPU Lightmass settings tab."), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Level.LightingScenarioIcon16x"), ActionOpenGPULightmassSettingsTab,
 		EUserInterfaceActionType::Button);
 
 
@@ -68,7 +68,7 @@ void FGPULightmassEditorModule::RegisterTabSpawner()
 	LevelEditorTabManager->RegisterTabSpawner(GPULightmassSettingsTabName, FOnSpawnTab::CreateRaw(this, &FGPULightmassEditorModule::SpawnSettingsTab))
 		.SetDisplayName(LOCTEXT("GPULightmassSettingsTitle", "GPU Lightmass"))
 		//.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.LightingScenarioIcon16x"))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Level.LightingScenarioIcon16x"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
 }
 
@@ -106,7 +106,7 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 					.IsEnabled(IsRayTracingEnabled() && IsAllowStaticLightingEnabled())
 					.Visibility_Lambda([](){ return IsRunning() ? EVisibility::Collapsed : EVisibility::Visible; })
 					.OnClicked_Raw(this, &FGPULightmassEditorModule::OnStartClicked)
@@ -117,8 +117,8 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							.Text(FEditorFontGlyphs::Lightbulb_O)
 						]
 						+ SHorizontalBox::Slot()
@@ -127,7 +127,7 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 						.Padding(4, 0, 0, 0)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+							.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 							.Text_Lambda( []()
 							{ 
 								return FGPULightmassEditorModule::IsBakeWhatYouSeeMode() ? 
@@ -146,7 +146,7 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 					.Visibility_Lambda([](){ return IsRunning() && IsBakeWhatYouSeeMode() ? EVisibility::Visible : EVisibility::Collapsed; })
 					.OnClicked_Raw(this, &FGPULightmassEditorModule::OnSaveAndStopClicked)
 					[
@@ -156,8 +156,8 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							.Text(FEditorFontGlyphs::Lightbulb_O)
 						]
 						+ SHorizontalBox::Slot()
@@ -166,7 +166,7 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 						.Padding(4, 0, 0, 0)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+							.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 							.Text(LOCTEXT("GPULightmassSettingsSaveAndStop", "Save And Stop Building"))
 						]
 					]
@@ -179,11 +179,11 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
 					.Visibility_Lambda([](){ return IsRunning() ? EVisibility::Visible: EVisibility::Collapsed; })
 					.OnClicked_Raw(this, &FGPULightmassEditorModule::OnCancelClicked)
 					.Text(LOCTEXT("GPULightmassSettingsCancel", "Cancel Build"))
-					.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+					.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 				]
 				
 
@@ -424,7 +424,7 @@ void FGPULightmassEditorModule::CreateBuildMenu(FMenuBuilder& Builder)
 	}), FCanExecuteAction());
 
 	Builder.AddMenuEntry(LOCTEXT("GPULightmassSettingsTitle", "GPU Lightmass"),
-		LOCTEXT("OpensGPULightmassSettings", "Opens GPU Lightmass settings tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.LightingScenarioIcon16x"), ActionOpenGPULightmassSettingsTab,
+		LOCTEXT("OpensGPULightmassSettings", "Opens GPU Lightmass settings tab."), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Level.LightingScenarioIcon16x"), ActionOpenGPULightmassSettingsTab,
 		NAME_None, EUserInterfaceActionType::Button);
 }
 

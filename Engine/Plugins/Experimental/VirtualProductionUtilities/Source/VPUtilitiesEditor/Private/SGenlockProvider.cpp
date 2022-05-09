@@ -3,7 +3,7 @@
 #include "SGenlockProvider.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineCustomTimeStep.h"
 #include "FixedFrameRateCustomTimeStep.h"
@@ -144,7 +144,7 @@ TSharedRef<SWidget> SGenlockProvider::ConstructDesiredFPS() const
 TSharedRef<SWidget> SGenlockProvider::ConstructStateDisplay() const
 {
 	return SNew(STextBlock)
-		.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 		.Text(this, &SGenlockProvider::HandleStateText)
 		.ColorAndOpacity(this, &SGenlockProvider::HandleStateColorAndOpacity);
 }

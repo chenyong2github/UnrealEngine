@@ -5,7 +5,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EngineDefines.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyHandle.h"
 #include "IDetailGroup.h"
 #include "IDetailChildrenBuilder.h"
@@ -2563,7 +2563,7 @@ void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder
 				.Padding(2.0f, 1.0f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.Text(LOCTEXT("AddLODLevelCategories_MaterialArrayOpAdd", "Add Material Slot"))
 					.ToolTipText(LOCTEXT("AddLODLevelCategories_MaterialArrayOpAdd_Tooltip", "Add Material Slot at the end of the Material slot array. Those Material slots can be used to override a LODs section, (not the base LOD)"))
 					.ContentPadding(4.0f)
@@ -2573,7 +2573,7 @@ void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+						.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
@@ -3386,14 +3386,14 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 			[
 				SNew(SButton)
 				.OnClicked(this, &FLevelOfDetailSettingsLayout::ResetToDefault)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("QualityLevelMinLodToolTip", "Clear MinLOD conversion data"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsEnabled(TAttribute<bool>::CreateLambda([this]() { return GetMinLOD().PerPlatform.Num() != 0 || GetMinLOD().Default != 0; }))
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+					.Image(FAppStyle::GetBrush("Icons.Delete"))
 				]
 			]
 		]
@@ -3785,8 +3785,8 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 					.MaxDesiredWidth(0.0f)
 				[
 					SNew(SFilePathPicker)
-						.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-						.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+						.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a source import file"))
 						.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 						.BrowseTitle(LOCTEXT("PropertyEditorTitle", "Source import file picker..."))

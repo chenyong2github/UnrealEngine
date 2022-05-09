@@ -10,7 +10,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PlatformInfo.h"
 #include "GameProjectGenerationModule.h"
 #include "Interfaces/IProjectManager.h"
@@ -27,7 +27,7 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 		PlatformsListBox->AddSlot()
 			.AutoHeight()
 			[
-				MakePlatformRow(FText::FromName(DDPI->IniPlatformName), DDPI->IniPlatformName, FEditorStyle::GetBrush(DDPI->GetIconStyleName(EPlatformIconSize::Normal)))
+				MakePlatformRow(FText::FromName(DDPI->IniPlatformName), DDPI->IniPlatformName, FAppStyle::GetBrush(DDPI->GetIconStyleName(EPlatformIconSize::Normal)))
 			];
 	}
 
@@ -39,7 +39,7 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(5.0f)
 			[
 				SNew(SVerticalBox)
@@ -47,7 +47,7 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					MakePlatformRow(LOCTEXT("AllPlatforms", "All Platforms"), NAME_None, FEditorStyle::GetBrush("Launcher.Platform.AllPlatforms"))
+					MakePlatformRow(LOCTEXT("AllPlatforms", "All Platforms"), NAME_None, FAppStyle::GetBrush("Launcher.Platform.AllPlatforms"))
 				]
 
 				+SVerticalBox::Slot()
@@ -70,7 +70,7 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 		.Padding(FMargin(0.0f, 5.0f))
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(5.0f)
 			[
 				SNew(STextBlock)

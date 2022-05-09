@@ -15,7 +15,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Colors/SColorBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"

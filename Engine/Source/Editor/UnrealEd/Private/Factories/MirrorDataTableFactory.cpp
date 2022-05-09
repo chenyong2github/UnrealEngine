@@ -112,7 +112,7 @@ public:
 				[
 					SNew(SBorder)
 					.Padding(4)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						StructViewerModule.CreateStructViewer(Options, FOnStructPicked::CreateSP(this, &SMirrorDataTableFactoryWindow::OnPickedStruct))
 					]
@@ -167,7 +167,7 @@ public:
 			.SupportsMaximize(false)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+			.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()
@@ -204,9 +204,9 @@ public:
 						.AutoHeight()
 						[
 							SNew(SUniformGridPanel)
-							.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-							.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-							.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+							.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+							.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+							.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 							+ SUniformGridPanel::Slot(0, 0)
 							.VAlign(VAlign_Center)
 							[
@@ -243,15 +243,15 @@ public:
 				.Padding(3,3)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("Accept", "Accept"))
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.IsEnabled(this, &SMirrorDataTableFactoryWindow::CanAccept)
 						.OnClicked_Raw(this, &SMirrorDataTableFactoryWindow::OnAccept)
 					]
@@ -260,7 +260,7 @@ public:
 						SNew(SButton)
 						.Text(LOCTEXT("Cancel", "Cancel"))
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked_Raw(this, &SMirrorDataTableFactoryWindow::OnCancel)
 					]
 				]

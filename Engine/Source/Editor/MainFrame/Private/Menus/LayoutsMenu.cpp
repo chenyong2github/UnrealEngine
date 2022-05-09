@@ -24,7 +24,7 @@
 #include "DesktopPlatformModule.h"
 #include "ToolMenus.h"
 // Editor
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Dialog/SCustomDialog.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Frame/MainFrameActions.h"

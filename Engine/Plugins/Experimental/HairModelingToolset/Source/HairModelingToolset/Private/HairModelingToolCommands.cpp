@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairModelingToolCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "InputCoreTypes.h"
 #include "HairModelingToolsStyle.h"
 

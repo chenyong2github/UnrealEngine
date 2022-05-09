@@ -55,7 +55,7 @@ void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -84,7 +84,7 @@ void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.HAlign(HAlign_Center)
 					.IsEnabled(this, &SNewLevelInstanceDialog::IsOkEnabled)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SNewLevelInstanceDialog::OnOkClicked)
 					.Text(LOCTEXT("OkButton", "Ok"))
 				]
@@ -94,7 +94,7 @@ void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SNewLevelInstanceDialog::OnCancelClicked)
 					.Text(LOCTEXT("CancelButton", "Cancel"))
 				]

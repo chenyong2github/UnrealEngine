@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
 				"TraceInsights",
 				"AssetRegistry",
 				"ApplicationCore",
-				"EditorStyle",
+				
 			});
 
             if (Target.bCompileAgainstEngine)

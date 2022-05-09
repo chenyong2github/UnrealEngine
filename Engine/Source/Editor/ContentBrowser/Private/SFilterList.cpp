@@ -18,7 +18,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
@@ -1264,7 +1264,7 @@ void SFilterList::CreateOtherFiltersMenuCategory(FToolMenuSection& Section, TSha
 				NAME_None,
 				FrontendFilter->GetDisplayName(),
 				FrontendFilter->GetToolTipText(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), FrontendFilter->GetIconName()),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), FrontendFilter->GetIconName()),
 				FUIAction(
 				FExecuteAction::CreateSP(const_cast<SFilterList*>(this), &SFilterList::FrontendFilterClicked, FrontendFilter),
 				FCanExecuteAction(),

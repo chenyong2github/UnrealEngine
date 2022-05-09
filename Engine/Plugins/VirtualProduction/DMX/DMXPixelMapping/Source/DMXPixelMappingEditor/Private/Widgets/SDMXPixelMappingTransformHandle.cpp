@@ -9,7 +9,7 @@
 #include "Views/SDMXPixelMappingDesignerView.h"
 
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 
 
@@ -31,7 +31,7 @@ void SDMXPixelMappingTransformHandle::Construct(const FArguments& InArgs, TShare
 	[
 		SNew(SImage)
 		.Visibility(this, &SDMXPixelMappingTransformHandle::GetHandleVisibility)
-		.Image(FEditorStyle::Get().GetBrush("UMGEditor.TransformHandle"))
+		.Image(FAppStyle::Get().GetBrush("UMGEditor.TransformHandle"))
 	];
 }
 

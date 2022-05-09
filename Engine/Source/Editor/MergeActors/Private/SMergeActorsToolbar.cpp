@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 #include "LevelEditor.h"
@@ -44,7 +44,7 @@ void SMergeActorsToolbar::Construct(const FArguments& InArgs)
 		.Padding(0, 0, 0, 0)
 		[
 			SAssignNew(ToolbarContainer, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(10)
 		]
 
@@ -70,14 +70,14 @@ void SMergeActorsToolbar::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Bottom)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(10)
 			[
 				SNew(SHorizontalBox) 
 
 				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Left)
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				[
 					SNew(SCheckBox)
 					.Type(ESlateCheckBoxType::CheckBox)
@@ -87,7 +87,7 @@ void SMergeActorsToolbar::Construct(const FArguments& InArgs)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ReplaceSourceActorsLabel", "Replace Source Actors"))
-						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+						.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 				]
 
@@ -192,7 +192,7 @@ void SMergeActorsToolbar::UpdateToolbar()
 	}
 
 	// Build combo box
-	const ISlateStyle& StyleSet = FEditorStyle::Get();
+	const ISlateStyle& StyleSet = FAppStyle::Get();
 
 	TSharedRef <SComboBox<TSharedPtr<FDropDownItem> > > ComboBox =
 		SNew(SComboBox<TSharedPtr<FDropDownItem> >)
@@ -209,7 +209,7 @@ void SMergeActorsToolbar::UpdateToolbar()
 			[
 				SNew(SImage)
 				.Image_Lambda([this](){
-					return FEditorStyle::Get().GetBrush(ToolDropDownEntries[CurrentlySelectedTool]->IconName);
+					return FAppStyle::Get().GetBrush(ToolDropDownEntries[CurrentlySelectedTool]->IconName);
 				})
 			]
 			+ SHorizontalBox::Slot()
@@ -289,7 +289,7 @@ TSharedRef<SWidget> SMergeActorsToolbar::MakeWidgetFromEntry(TSharedPtr<FDropDow
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::Get().GetBrush(InItem->IconName))
+			.Image(FAppStyle::Get().GetBrush(InItem->IconName))
 		]
 		+ SHorizontalBox::Slot()
 		.FillWidth(1)

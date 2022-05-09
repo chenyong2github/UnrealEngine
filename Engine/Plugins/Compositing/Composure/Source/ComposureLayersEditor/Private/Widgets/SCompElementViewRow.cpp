@@ -8,7 +8,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/SCompElementPreviewDialog.h"
@@ -105,7 +105,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 			.FillWidth(1.0f)
 			[
 				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
-					.Font(FEditorStyle::GetFontStyle("LayersView.LayerNameFont"))
+					.Font(FAppStyle::GetFontStyle("LayersView.LayerNameFont"))
 					.Text(ViewModel.Get(), &FCompElementViewModel::GetNameAsText)
 					.ColorAndOpacity(this, &SCompElementViewRow::GetColorAndOpacity)
 					.HighlightText(HighlightText)
@@ -124,7 +124,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 		TableRowContent =
 			SAssignNew(VisibilityButton, SButton)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(this, &SCompElementViewRow::OnToggleVisibility)
 			.ToolTipText(LOCTEXT("RenderingButtonToolTip", "Toggle Element Rendering"))
 			.IsEnabled(this, &SCompElementViewRow::VisibilityToggleEnabled)
@@ -173,7 +173,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 				.ButtonContent()
 				[
 					SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
 						.Padding(FMargin(0, 0, 5, 0))
 					[
 						SNew(SNumericEntryBox<float>)
@@ -183,7 +183,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 							.TypeInterface(MakeShareable(new FPercentTypeInterface))
 							.MinValue(0.0f)
 							.MaxValue(1.0f)
-							.Font(FEditorStyle::GetFontStyle("LayersView.LayerNameFont"))
+							.Font(FAppStyle::GetFontStyle("LayersView.LayerNameFont"))
 					]
 				]
 				.MenuContent()
@@ -206,7 +206,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 		TableRowContent =
 			SAssignNew(MediaCaptureToggle, SContextMenuButton)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("MediaCaptureToggleTooltip", "Turn Media Capture On/Off"))
 			.OnClicked(this, &SCompElementViewRow::OnToggleMediaCapture)
 			.IsEnabled(this, &SCompElementViewRow::IsMediaCaptureToggleEnabled)
@@ -230,7 +230,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 		TableRowContent =
 			SAssignNew(FreezeFrameButton, SButton)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("FreezeToggleTooltip", "Toggle Freeze Framing"))
 			.OnClicked(this, &SCompElementViewRow::OnToggleFreezeFrame)
 			.IsEnabled(this, &SCompElementViewRow::IsFreezeFrameToggleEnabled)
@@ -371,13 +371,13 @@ const FSlateBrush* SCompElementViewRow::GetVisibilityBrushForElement() const
 {
 	if (ViewModel->IsSetToRender() && !ViewModel->IsRenderingExternallyDisabled())
 	{
-		return IsHovered() ? FEditorStyle::GetBrush("Level.VisibleHighlightIcon16x") :
-			FEditorStyle::GetBrush("Level.VisibleIcon16x");
+		return IsHovered() ? FAppStyle::GetBrush("Level.VisibleHighlightIcon16x") :
+			FAppStyle::GetBrush("Level.VisibleIcon16x");
 	}
 	else
 	{
-		return IsHovered() ? FEditorStyle::GetBrush("Level.NotVisibleHighlightIcon16x") :
-			FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+		return IsHovered() ? FAppStyle::GetBrush("Level.NotVisibleHighlightIcon16x") :
+			FAppStyle::GetBrush("Level.NotVisibleIcon16x");
 	}
 }
 

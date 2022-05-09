@@ -2,13 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UnrealType.h"
 
-#if WITH_EDITOR
-	#include "UObject/UnrealType.h"
-#endif
 
 /* UEditorStyleSettings interface
  *****************************************************************************/
@@ -57,8 +55,6 @@ FLinearColor UEditorStyleSettings::GetSubduedSelectionColor() const
 	return SubduedSelectionColor.HSVToLinearRGB();
 }
 
-#if WITH_EDITOR
-
 void UEditorStyleSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -80,4 +76,3 @@ void UEditorStyleSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 	SettingChangedEvent.Broadcast(PropertyName);
 }
 
-#endif

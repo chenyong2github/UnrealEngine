@@ -3,7 +3,7 @@
 #include "SkeletonTreePhysicsShapeItem.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "ScopedTransaction.h"
 
@@ -19,23 +19,23 @@ FSkeletonTreePhysicsShapeItem::FSkeletonTreePhysicsShapeItem(USkeletalBodySetup*
 	switch (ShapeType)
 	{
 	case EAggCollisionShape::Sphere:
-		ShapeBrush = FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Sphere");
+		ShapeBrush = FAppStyle::GetBrush("PhysicsAssetEditor.Tree.Sphere");
 		DefaultLabel = *FText::Format(LOCTEXT("SphereLabel", "{0} Sphere {1}"), FText::FromName(InBoneName), FText::AsNumber(ShapeIndex)).ToString();
 		break;
 	case EAggCollisionShape::Box:
-		ShapeBrush = FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Box");
+		ShapeBrush = FAppStyle::GetBrush("PhysicsAssetEditor.Tree.Box");
 		DefaultLabel = *FText::Format(LOCTEXT("BoxLabel", "{0} Box {1}"), FText::FromName(InBoneName), FText::AsNumber(ShapeIndex)).ToString();
 		break;
 	case EAggCollisionShape::Sphyl:
-		ShapeBrush = FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Sphyl");
+		ShapeBrush = FAppStyle::GetBrush("PhysicsAssetEditor.Tree.Sphyl");
 		DefaultLabel = *FText::Format(LOCTEXT("CapsuleLabel", "{0} Capsule {1}"), FText::FromName(InBoneName), FText::AsNumber(ShapeIndex)).ToString();
 		break;
 	case EAggCollisionShape::Convex:
-		ShapeBrush = FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.Convex");
+		ShapeBrush = FAppStyle::GetBrush("PhysicsAssetEditor.Tree.Convex");
 		DefaultLabel = *FText::Format(LOCTEXT("ConvexLabel", "{0} Convex {1}"), FText::FromName(InBoneName), FText::AsNumber(ShapeIndex)).ToString();
 		break;
 	case EAggCollisionShape::TaperedCapsule:
-		ShapeBrush = FEditorStyle::GetBrush("PhysicsAssetEditor.Tree.TaperedCapsule");
+		ShapeBrush = FAppStyle::GetBrush("PhysicsAssetEditor.Tree.TaperedCapsule");
 		DefaultLabel = *FText::Format(LOCTEXT("TaperedCapsuleLabel", "{0} Tapered Capsule {1}"), FText::FromName(InBoneName), FText::AsNumber(ShapeIndex)).ToString();
 		break;
 	default:
@@ -60,7 +60,7 @@ void FSkeletonTreePhysicsShapeItem::GenerateWidgetForNameColumn( TSharedPtr< SHo
 						.Text(this, &FSkeletonTreePhysicsShapeItem::GetNameAsText)
 						.ToolTipText(this, &FSkeletonTreePhysicsShapeItem::GetNameAsText)
 						.HighlightText(FilterText)
-						.Font(FEditorStyle::GetFontStyle("PhysicsAssetEditor.Tree.Font"))
+						.Font(FAppStyle::GetFontStyle("PhysicsAssetEditor.Tree.Font"))
 						.OnTextCommitted(this, &FSkeletonTreePhysicsShapeItem::HandleTextCommitted)
 						.IsSelected(InIsSelected);
 

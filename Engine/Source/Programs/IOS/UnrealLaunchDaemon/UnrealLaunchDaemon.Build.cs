@@ -21,7 +21,6 @@ public class UnrealLaunchDaemon : ModuleRules
 				"StreamingFile",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"StandaloneRenderer",
 				"LaunchDaemonMessages",
 				"Projects",

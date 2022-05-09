@@ -68,14 +68,14 @@ TSharedPtr<class SWidget> FMediaSourceActions::GetThumbnailOverlay(const FAssetD
 {
 	return nullptr;
 /*	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetNoBrush())
+		.BorderImage(FAppStyle::GetNoBrush())
 		.Visibility(EVisibility::HitTestInvisible)
 		.Padding(3.0f)
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Top)
 		[
 			SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Error"))
+				.Image(FAppStyle::GetBrush("Icons.Error"))
 		];*/
 }
 

@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DesktopWidgets",
 					"EditorFramework",
-					"EditorStyle",
 					"Engine",
 					"LevelEditor",
 					"OpenColorIO",

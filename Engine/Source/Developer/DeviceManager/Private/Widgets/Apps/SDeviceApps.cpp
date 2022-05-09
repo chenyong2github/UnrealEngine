@@ -2,7 +2,7 @@
 
 #include "SDeviceApps.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
@@ -76,7 +76,7 @@ void SDeviceApps::Construct(const FArguments& InArgs, const TSharedRef<FDeviceMa
 					[
 						// applications list
 						SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(0.0f)
 							[
 								SAssignNew(AppListView, SListView<TSharedPtr<FString> >)
@@ -107,7 +107,7 @@ void SDeviceApps::Construct(const FArguments& InArgs, const TSharedRef<FDeviceMa
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+					.BorderImage(FAppStyle::GetBrush("NotificationList.ItemBackground"))
 					.Padding(8.0f)
 					.Visibility_Lambda(SelectDeviceOverlayVisibility)
 					[

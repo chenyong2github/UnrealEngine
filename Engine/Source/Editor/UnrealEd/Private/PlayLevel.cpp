@@ -29,8 +29,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SViewport.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Engine/EngineTypes.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "GameFramework/Actor.h"
@@ -1510,7 +1510,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 			.HAlign(HAlign_Left)
 			[
 				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
 				.OnNavigate(FSimpleDelegate::CreateLambda([BlueprintPtr, &CustomDialog]() { Local::OnHyperlinkClicked(BlueprintPtr, CustomDialog); }))
 				.Text(FText::FromString(Blueprint->GetName()))
 				.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"))

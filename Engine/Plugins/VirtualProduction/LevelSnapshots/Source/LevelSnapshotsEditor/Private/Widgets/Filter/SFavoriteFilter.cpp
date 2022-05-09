@@ -4,7 +4,7 @@
 
 #include "Data/DragDrop/FavoriteFilterDragDrop.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -23,12 +23,12 @@ void SFavoriteFilter::Construct(const FArguments& InArgs, const TSubclassOf<ULev
 		SNew(SBorder)
 		.Padding(2.f)
 		.BorderBackgroundColor(FLinearColor(0.2, 0.2, 0.2, 1))
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterBackground"))
+		.BorderImage(FAppStyle::GetBrush("ContentBrowser.FilterBackground"))
 		.Padding(3.f)
 		[
 			SNew(STextBlock)
 				.ColorAndOpacity(FLinearColor::White)
-				.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
+				.Font(FAppStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
 				.ShadowOffset(FVector2D(1.f, 1.f))
 				.Text(InArgs._FilterName)
 		]

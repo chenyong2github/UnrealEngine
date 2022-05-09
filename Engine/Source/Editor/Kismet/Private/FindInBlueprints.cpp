@@ -11,7 +11,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphSchema_K2.h"
@@ -215,7 +215,7 @@ FText FFindInBlueprintsResult::GetDisplayString() const
 // FFindInBlueprintsGraphNode
 
 FFindInBlueprintsGraphNode::FFindInBlueprintsGraphNode()
-	: Glyph("EditorStyle", "")
+	: Glyph(FAppStyle::GetAppStyleSetName(), "")
 	, Class(nullptr)
 {
 }
@@ -542,11 +542,11 @@ TSharedRef<SWidget> FFindInBlueprintsGraph::CreateIcon() const
 	const FSlateBrush* Brush = NULL;
 	if(GraphType == GT_Function)
 	{
-		Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.Function_16x"));
+		Brush = FAppStyle::GetBrush(TEXT("GraphEditor.Function_16x"));
 	}
 	else if(GraphType == GT_Macro)
 	{
-		Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.Macro_16x"));
+		Brush = FAppStyle::GetBrush(TEXT("GraphEditor.Macro_16x"));
 	}
 
 	return 	SNew(SImage)
@@ -636,7 +636,7 @@ void SFindInBlueprints::Construct( const FArguments& InArgs, TSharedPtr<FBluepri
 					.ToolTipText(LOCTEXT("OpenInGlobalFindResultsButtonTooltip", "Find in all Blueprints"))
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "FindResults.FindInBlueprints")
+						.TextStyle(FAppStyle::Get(), "FindResults.FindInBlueprints")
 						.Text(FText::FromString(FString(TEXT("\xf1e5"))) /*fa-binoculars*/)
 					]
 				]
@@ -744,7 +744,7 @@ void SFindInBlueprints::ConditionallyAddCacheBar()
 						.Content()
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SScrollBox)
 								+SScrollBox::Slot()
@@ -1441,7 +1441,7 @@ const FSlateBrush* SFindInBlueprints::GetCacheBarImage() const
 	if ((IsCacheInProgress() || bKeepCacheBarProgressVisible) && !FFindInBlueprintSearchManager::Get().IsUnindexedCacheInProgress())
 	{
 		// Allow the content area to show through for a non-unindexed operation.
-		ReturnBrush = FEditorStyle::GetBrush("NoBorder");
+		ReturnBrush = FAppStyle::GetBrush("NoBorder");
 	}
 	return ReturnBrush;
 }

@@ -2,7 +2,7 @@
 
 #include "SEnvQueryLoadGraph.h"
 #include "Rendering/DrawElements.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void SEnvQueryLoadGraph::Construct(const FArguments& InArgs)
 {
@@ -19,8 +19,8 @@ int32 SEnvQueryLoadGraph::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	// Rendering info
 	bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FEditorStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
 
 	// Draw timeline background
 	FSlateDrawElement::MakeBox(

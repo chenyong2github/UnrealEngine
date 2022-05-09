@@ -39,7 +39,7 @@
 #include "ObjectEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Framework/Commands/UIAction.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/MessageDialog.h"

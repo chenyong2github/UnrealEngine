@@ -23,7 +23,6 @@ public class LocalizationService : ModuleRules
                 new string[] {
                     "Slate",
                     "SlateCore",
-                    "EditorStyle"
                 }
             );
         }

@@ -2,7 +2,7 @@
 
 #include "GroomCreateBindingOptionsWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GroomCreateBindingOptions.h"
 #include "IDetailsView.h"
@@ -44,14 +44,14 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+					.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 					.Text(LOCTEXT("CurrentFile", "Current File: "))
 				]
 				+ SHorizontalBox::Slot()
@@ -60,7 +60,7 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+					.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 					.Text(InArgs._FullPath)
 				]
 			]

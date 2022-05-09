@@ -38,7 +38,7 @@ void SResetToDefaultPropertyEditor::Construct(const FArguments& InArgs, const TS
 		.Content()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+			.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/SlateFontInfo.h"
 #include "ITargetDeviceService.h"
 #include "Misc/Paths.h"
@@ -264,7 +264,7 @@ private:
 			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(DeviceService->GetDevicePlatformName());
 			if(PlatformInfo)
 			{
-				return FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::XLarge));
+				return FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::XLarge));
 			}
 		}
 

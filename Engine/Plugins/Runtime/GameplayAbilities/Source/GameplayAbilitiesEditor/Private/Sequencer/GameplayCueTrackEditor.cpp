@@ -5,7 +5,7 @@
 #include "Sequencer/MovieSceneGameplayCueSections.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UObject/Package.h"
 #include "Tracks/MovieSceneEventTrack.h"
 #include "ISequencerSection.h"
@@ -145,7 +145,7 @@ bool FGameplayCueTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) 
 
 const FSlateBrush* FGameplayCueTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.Event");
+	return FAppStyle::GetBrush("Sequencer.Tracks.Event");
 }
 
 void FGameplayCueTrackEditor::AddTracks(TRange<FFrameNumber> SectionTickRange, UClass* SectionClass, TArray<FGuid> InObjectBindingIDs)

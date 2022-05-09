@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IMainFrameModule.h"
 
 #define LOCTEXT_NAMESPACE "PackageReportDialog"
@@ -112,16 +112,16 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InReportMessage, TArray<ReportPackageData>& InPackageNames, const FOnReportConfirmed& InOnReportConfirmed )
 {
 	OnReportConfirmed = InOnReportConfirmed;
-	FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
-	FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
-	PackageBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+	FolderOpenBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
+	FolderClosedBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
+	PackageBrush = FAppStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
 
 	ConstructNodeTree(InPackageNames);
 	
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+		.BorderImage( FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
 		.Padding(FMargin(4, 8, 4, 4))
 		[
 			SNew(SVerticalBox)
@@ -133,7 +133,7 @@ void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InR
 			[
 				SNew(STextBlock)
 				.Text(InReportMessage)
-				.TextStyle( FEditorStyle::Get(), "PackageMigration.DialogTitle" )
+				.TextStyle( FAppStyle::Get(), "PackageMigration.DialogTitle" )
 			]
 
 			// Tree of packages in the report
@@ -141,7 +141,7 @@ void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InR
 			.FillHeight(1.f)
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					SAssignNew( ReportTreeView, PackageReportTree )
 					.TreeItemsSource(&PackageReportRootNode.Children)
@@ -159,14 +159,14 @@ void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InR
 			.Padding(0,4,0,0)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+					.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 					.OnClicked(this, &SPackageReportDialog::OkClicked)
 					.Text(LOCTEXT("OkButton", "OK"))
 				]
@@ -174,7 +174,7 @@ void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InR
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+					.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 					.OnClicked(this, &SPackageReportDialog::CancelClicked)
 					.Text(LOCTEXT("CancelButton", "Cancel"))
 				]

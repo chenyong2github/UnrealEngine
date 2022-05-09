@@ -46,7 +46,7 @@ public:
 		ChildSlot
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SimpleSharpButton")
+			.ButtonStyle(FAppStyle::Get(), "SimpleSharpButton")
 			.ButtonColorAndOpacity(FLinearColor(FColor(40, 40, 40)))
 			.OnClicked(this, &SAnchorPreviewWidget::OnAnchorClicked, AnchorsHandle, AlignmentHandle, OffsetsHandle, Anchors)
 			.ContentPadding(FMargin(2.0f, 2.0f))
@@ -57,7 +57,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("UMGEditor.AnchorGrid"))
+					.BorderImage(FAppStyle::GetBrush("UMGEditor.AnchorGrid"))
 					.Padding(0)
 					[
 						SNew(SBox)
@@ -81,7 +81,7 @@ public:
 									.Alignment(FVector2D(Anchors.IsStretchedHorizontal() ? 0 : Anchors.Minimum.X, Anchors.IsStretchedVertical() ? 0 : Anchors.Minimum.Y))
 									[
 										SNew(SImage)
-										.Image(FEditorStyle::Get().GetBrush("UMGEditor.AnchoredWidget"))
+										.Image(FAppStyle::Get().GetBrush("UMGEditor.AnchoredWidget"))
 									]
 								]
 							]
@@ -342,11 +342,11 @@ void FCanvasSlotCustomization::CustomizeAnchors(TSharedPtr<IPropertyHandle> Prop
 			.MenuContent()
 			[
 				SNew(SBorder)
-				//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))FEditorStyle::GetBrush("WhiteBrush")/*FEditorStyle::GetBrush("ToolPanel.GroupBorder")*/)
+				//.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))FAppStyle::GetBrush("WhiteBrush")/*FAppStyle::GetBrush("ToolPanel.GroupBorder")*/)
 				.Padding(5)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 					.BorderBackgroundColor(FLinearColor(FColor(66, 139, 202)))
 					.Padding(0)
 					[
@@ -471,7 +471,7 @@ void FCanvasSlotCustomization::CustomizeAnchors(TSharedPtr<IPropertyHandle> Prop
 						.AutoHeight()
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+							.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 							.BorderBackgroundColor(FLinearColor(0.016f, 0.016f, 0.016f))
 							[
 								SNew(SVerticalBox)

@@ -4,7 +4,7 @@
 #include "SlateOptMacros.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STreeView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HierarchicalLODType.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "LODActorItem.h"
@@ -16,7 +16,7 @@ namespace HLODOutliner
 {
 	static void UpdateOperationDecorator(const FDragDropEvent& Event, const FDragValidationInfo& ValidationInfo)
 	{
-		const FSlateBrush* Icon = ValidationInfo.IsValid() ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+		const FSlateBrush* Icon = ValidationInfo.IsValid() ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 		FDragDropOperation* Operation = Event.GetOperation().Get();
 		if (Operation)

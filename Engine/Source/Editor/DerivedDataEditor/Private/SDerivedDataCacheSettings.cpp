@@ -125,7 +125,7 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 				//.Padding(0.0f)
 				//[
 				//	SNew(SExpandableArea)
-				//	.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				//	.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				//	.InitiallyCollapsed(true)
 				//	.HeaderContent()
 				//	[

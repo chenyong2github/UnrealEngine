@@ -3,7 +3,7 @@
 #include "SCurveViewerPanel.h"
 #include "Rendering/DrawElements.h"
 #include "CurveDrawInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/Attribute.h"
 #include "CurveEditorScreenSpace.h"
 #include "Views/SInteractiveCurveEditorView.h"

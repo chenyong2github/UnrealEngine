@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerKeyRenderer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CommonMovieSceneTools.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerSectionPainter.h"
@@ -22,12 +22,12 @@ FKeyRenderer::FPaintStyle::FPaintStyle(const FWidgetStyle& InWidgetStyle)
 	static const FName SelectedTrackTintBrushName("Sequencer.Section.SelectedTrackTint");
 	static const FName BackgroundTrackTintBrushName("Sequencer.Section.BackgroundTint");
 
-	SelectionColor = FEditorStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
+	SelectionColor = FAppStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
 
-	BackgroundTrackTintBrush = FEditorStyle::GetBrush(BackgroundTrackTintBrushName);
-	SelectedTrackTintBrush = FEditorStyle::GetBrush(SelectedTrackTintBrushName);
-	StripeOverlayBrush = FEditorStyle::GetBrush(StripeOverlayBrushName);
-	HighlightBrush = FEditorStyle::GetBrush(HighlightBrushName);
+	BackgroundTrackTintBrush = FAppStyle::GetBrush(BackgroundTrackTintBrushName);
+	SelectedTrackTintBrush = FAppStyle::GetBrush(SelectedTrackTintBrushName);
+	StripeOverlayBrush = FAppStyle::GetBrush(StripeOverlayBrushName);
+	HighlightBrush = FAppStyle::GetBrush(HighlightBrushName);
 }
 
 FKeyRenderer::FCachedState::FCachedState(const FSequencerSectionPainter& InPainter, FSequencer* Sequencer)
@@ -412,7 +412,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 
 		if (EnumHasAnyFlags(NewKey.Flags, EKeyRenderingFlags::PartialKey))
 		{
-			static const FSlateBrush* PartialKeyBrush = FEditorStyle::GetBrush("Sequencer.PartialKey");
+			static const FSlateBrush* PartialKeyBrush = FAppStyle::GetBrush("Sequencer.PartialKey");
 			NewKey.Params.FillBrush = NewKey.Params.BorderBrush = PartialKeyBrush;
 		}
 
@@ -780,7 +780,7 @@ void FKeyRenderer::DrawLayoutElement(FSequencer* Sequencer, const FSequencerSect
 	if (ChannelColor.IsSet())
 	{
 		static float BoxThickness = 5.f;
-		static const FSlateBrush* const StripeOverlayBrush = FEditorStyle::GetBrush("Sequencer.Section.StripeOverlay");
+		static const FSlateBrush* const StripeOverlayBrush = FAppStyle::GetBrush("Sequencer.Section.StripeOverlay");
 
 		FVector2D KeyAreaSize = KeyAreaGeometry.GetLocalSize();
 		FSlateDrawElement::MakeBox( 

@@ -6,7 +6,7 @@
 #include "Input/DragAndDrop.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/BrushBuilder.h"
 #include "Editor.h"
 #include "Widgets/Layout/SBorder.h"
@@ -88,7 +88,7 @@ public:
 			.HeightOverride(100.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("AssetThumbnail.ClassBackground"))
+				.BorderImage(FAppStyle::GetBrush("AssetThumbnail.ClassBackground"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[

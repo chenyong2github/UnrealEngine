@@ -5,7 +5,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "GraphEditorDragDropAction.h"
 #include "EdGraphSchema_K2.h"
@@ -64,7 +64,7 @@ public:
 
 		STableRow < ItemType >::ConstructInternal(
 			typename STableRow< ItemType >::FArguments()
-			.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+			.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 			.ShowSelection(false),
 			InOwnerTableView
 			);
@@ -996,7 +996,7 @@ TSharedRef<ITableRow> SGraphActionMenu::MakeWidget( TSharedPtr<FGraphActionNode>
 			.Padding( 0.0f, 1.f, 0.0f, 1.f )
 			[
 				SNew(SSeparator)
-				.SeparatorImage(FEditorStyle::Get().GetBrush("Menu.Separator"))
+				.SeparatorImage(FAppStyle::Get().GetBrush("Menu.Separator"))
 				.Thickness(1.0f)
 			];
 		}
@@ -1010,7 +1010,7 @@ TSharedRef<ITableRow> SGraphActionMenu::MakeWidget( TSharedPtr<FGraphActionNode>
 				SNew(SRichTextBlock)
 				.Text(SectionTitle)
 				.TransformPolicy(ETextTransformPolicy::ToUpper)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			]
 

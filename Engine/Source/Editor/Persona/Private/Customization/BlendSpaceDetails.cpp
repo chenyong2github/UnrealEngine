@@ -286,7 +286,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 						.ContentPadding(1)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+							.Image(FAppStyle::GetBrush("Icons.Refresh"))
 							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					];
@@ -362,12 +362,12 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 					[
 						SNew(STextBlock)
 						.Text(AxisTexts[AxisIndex])
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					]
 					.ValueContent()
 					[
 						SNew(STextComboBox)
-						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+						.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 						.OptionsSource(&AnalysisFunctionNames[AxisIndex])
 						.InitiallySelectedItem(CurrentlySelectedFunction)
 						.OnSelectionChanged_Lambda(
@@ -424,7 +424,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 						.ContentPadding(1)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("Icons.Delete"))
+							.Image(FAppStyle::GetBrush("Icons.Delete"))
 							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					];

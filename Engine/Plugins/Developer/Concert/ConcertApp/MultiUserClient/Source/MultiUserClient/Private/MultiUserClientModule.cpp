@@ -41,9 +41,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Delegates/IDelegateInstance.h"
-#include "Interfaces/IEditorStyleModule.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -453,7 +452,7 @@ public:
 				.Padding(FMargin(0, 1, 0, 1)) // To ensure the text has same size as the default one.
 				[
 					SAssignNew(OutTextBox, SEditableTextBox)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Text(InitialValue)
 					.SelectAllTextWhenFocused(true)
 					.SelectAllTextOnCommit(true)
@@ -788,9 +787,6 @@ private:
 
 		// Initialize Style
 		FConcertFrontendStyle::Initialize();
-
-		// Multi-User front end currently relies on EditorStyle being loaded
-		FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
 
 #if WITH_EDITOR
 		RegisterTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());

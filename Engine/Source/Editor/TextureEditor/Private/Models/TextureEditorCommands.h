@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Holds the UI commands for the TextureEditorToolkit widget.
@@ -18,7 +18,7 @@ public:
 	 * Default constructor.
 	 */
 	FTextureEditorCommands( ) 
-		: TCommands<FTextureEditorCommands>("TextureEditor", NSLOCTEXT("Contexts", "TextureEditor", "Texture Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FTextureEditorCommands>("TextureEditor", NSLOCTEXT("Contexts", "TextureEditor", "Texture Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{ }
 
 public:

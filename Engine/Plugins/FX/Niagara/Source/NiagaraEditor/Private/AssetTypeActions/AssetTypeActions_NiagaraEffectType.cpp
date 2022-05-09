@@ -8,7 +8,7 @@
 #include "ContentBrowserModule.h"
 
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_NiagaraEffectType"
 

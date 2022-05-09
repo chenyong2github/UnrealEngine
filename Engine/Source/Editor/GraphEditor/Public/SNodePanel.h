@@ -22,7 +22,7 @@
 #include "GraphEditor.h"
 #include "Layout/ArrangedChildren.h"
 #include "Types/PaintArgs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Layout/LayoutUtils.h"
 #include "MarqueeOperation.h"
 #include "Templates/UniquePtr.h"
@@ -564,7 +564,7 @@ public:
 		/** @return The brush to use for drawing the shadow for this node */
 		virtual const FSlateBrush* GetShadowBrush(bool bSelected) const
 		{
-			return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.Node.Shadow"));
+			return bSelected ? FAppStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.Node.Shadow"));
 		}
 
 		/** Populate the brushes array with any overlay brushes to render */
@@ -636,7 +636,7 @@ public:
 	protected:
 		SNode()
 		: BorderImage( FCoreStyle::Get().GetBrush( "NoBorder" ) )
-		, BorderBackgroundColor( FEditorStyle::GetColor("Graph.ForegroundColor"))
+		, BorderBackgroundColor( FAppStyle::GetColor("Graph.ForegroundColor"))
 		, DesiredSizeScale(FVector2D(1,1))
 		, Children(this)
 		{

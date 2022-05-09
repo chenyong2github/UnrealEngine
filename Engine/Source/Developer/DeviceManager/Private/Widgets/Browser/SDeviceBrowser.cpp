@@ -2,7 +2,7 @@
 
 #include "SDeviceBrowser.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandList.h"
 #include "ITargetDeviceServiceManager.h"
 #include "SlateOptMacros.h"
@@ -84,7 +84,7 @@ void SDeviceBrowser::Construct(const FArguments& InArgs, const TSharedRef<FDevic
 			.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Padding(0.0f)
 					[
 						// device list

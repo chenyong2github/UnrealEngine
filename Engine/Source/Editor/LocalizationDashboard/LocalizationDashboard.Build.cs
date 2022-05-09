@@ -25,7 +25,6 @@ public class LocalizationDashboard : ModuleRules
 				"InputCore",
 				"EditorFramework",
                 "UnrealEd",
-                "EditorStyle",
 				"DesktopPlatform",
                 "TranslationEditor",
                 "MainFrame",

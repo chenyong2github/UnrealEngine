@@ -7,7 +7,7 @@
 #include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Internationalization/Text.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -24,7 +24,7 @@ void SDataprepParameterizationLinkIcon::Construct(const FArguments& InArgs, UDat
 			ChildSlot
 			[
 					SNew( STextBlock )
-					.Font( FEditorStyle::Get().GetFontStyle("FontAwesome.11") )
+					.Font( FAppStyle::Get().GetFontStyle("FontAwesome.11") )
 					.Text( FEditorFontGlyphs::Link )
 					.Justification( ETextJustify::Center )
 					.ColorAndOpacity( FColor( 170, 238, 160 ) )

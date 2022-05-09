@@ -90,8 +90,8 @@ void FAnimTimelineTrack_MontagePanel::RefreshOutlinerWidget()
 		SlotBox->SetContent(
 			SNew(SBorder)
 			.ToolTipText_Lambda(LabelLambda)
-			.BorderImage(FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint"))
-			.BorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.ItemColor"))
+			.BorderImage(FAppStyle::GetBrush("Sequencer.Section.BackgroundTint"))
+			.BorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.ItemColor"))
 			[
 				SAssignNew(HorizontalBox, SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -107,7 +107,7 @@ void FAnimTimelineTrack_MontagePanel::RefreshOutlinerWidget()
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("AnimSlotManager.Warning"))
+						.Image(FAppStyle::GetBrush("AnimSlotManager.Warning"))
 						.Visibility(this, &FAnimTimelineTrack_MontagePanel::GetSlotWarningVisibility, SlotIndex)
 						.ToolTipText(this, &FAnimTimelineTrack_MontagePanel::GetSlotWarningText, SlotIndex)
 					]
@@ -116,7 +116,7 @@ void FAnimTimelineTrack_MontagePanel::RefreshOutlinerWidget()
 					.FillWidth(1.0f)
 					[
 						SNew(STextBlock)
-						.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
+						.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
 						.Text_Lambda(LabelLambda)
 					]
 				]

@@ -10,7 +10,7 @@
 #include "Stats/Stats.h"
 #include "TickableEditorObject.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/WidgetPath.h"
@@ -48,7 +48,7 @@ namespace InternalEditorPythonRunner
 			ChildSlot
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4, 8, 4, 4))
 				[
 					SNew(SVerticalBox)

@@ -7,7 +7,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ActorActionUtility.h"
 #include "EditorUtilityBlueprint.h"
 #include "LevelEditor.h"

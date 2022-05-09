@@ -268,11 +268,11 @@ void SPropertyEditorStruct::OnDragEnter(const FGeometry& MyGeometry, const FDrag
 		if (const UScriptStruct* Struct = Cast<UScriptStruct>(Object))
 		{
 			// This was pointing to a struct directly
-			UnloadedStructOp->SetToolTip(FText::GetEmpty(), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			UnloadedStructOp->SetToolTip(FText::GetEmpty(), FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 		}
 		else
 		{
-			UnloadedStructOp->SetToolTip(FText::GetEmpty(), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+			UnloadedStructOp->SetToolTip(FText::GetEmpty(), FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 		}
 	}
 }

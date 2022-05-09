@@ -106,14 +106,14 @@ void FVertexPaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(NSLOCTEXT("VertexPaintSettings", "SwapColors", "Swap Paint and Erase Colors"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked(this, &FVertexPaintingSettingsCustomization::OnSwapColorsClicked, PaintColor, EraseColor)
 				.ContentPadding(0)
 				[
-					SNew(SImage).Image(FEditorStyle::GetBrush("MeshPaint.Swap"))
+					SNew(SImage).Image(FAppStyle::GetBrush("MeshPaint.Swap"))
 				]
 			]
 		];
@@ -512,14 +512,14 @@ void FTexturePaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.ToolTipText(NSLOCTEXT("VertexPaintSettings", "SwapColors", "Swap Paint and Erase Colors"))
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
 						.OnClicked(this, &FTexturePaintingSettingsCustomization::OnSwapColorsClicked, PaintColor, EraseColor)
 						.ContentPadding(0)
 						[
-							SNew(SImage).Image(FEditorStyle::GetBrush("MeshPaint.Swap"))
+							SNew(SImage).Image(FAppStyle::GetBrush("MeshPaint.Swap"))
 						]
 					]
 				];

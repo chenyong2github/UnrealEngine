@@ -16,7 +16,7 @@ public class ScreenShotComparisonTools : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AutomationMessages",
-				"EditorStyle",
+				
 				"ImageWrapper",
 				"Json",
 				"JsonUtilities",

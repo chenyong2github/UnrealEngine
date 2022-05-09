@@ -3,7 +3,7 @@
 #include "SPropertyAccessNode.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "PropertyAccess.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraphSchema_K2.h"
 #include "IPropertyAccessEditor.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -177,7 +177,7 @@ TSharedRef<SWidget> SPropertyAccessNode::UpdateTitleWidget(FText InTitleText, TS
 			if(Cast<UFunction>(Property->GetOwnerUField()) != nullptr)
 			{
 				static FName FunctionIcon(TEXT("GraphEditor.Function_16x"));
-				return FEditorStyle::GetBrush(FunctionIcon);
+				return FAppStyle::GetBrush(FunctionIcon);
 			}
 			else
 			{
@@ -190,7 +190,7 @@ TSharedRef<SWidget> SPropertyAccessNode::UpdateTitleWidget(FText InTitleText, TS
 		}
 
 		static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
-		return FEditorStyle::GetBrush(PropertyIcon);
+		return FAppStyle::GetBrush(PropertyIcon);
 	});
 
 	Args.CurrentBindingColor = MakeAttributeLambda([K2Node_PropertyAccess]()
@@ -265,7 +265,7 @@ TSharedRef<SWidget> SPropertyAccessNode::UpdateTitleWidget(FText InTitleText, TS
 		PropertyBindingWidget = SNullWidget::NullWidget;
 	}
 	
-	const FTextBlockStyle& TextBlockStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
+	const FTextBlockStyle& TextBlockStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
 	
 	InTitleWidget =
 		SNew(SLevelOfDetailBranchNode)
@@ -287,7 +287,7 @@ TSharedRef<SWidget> SPropertyAccessNode::UpdateTitleWidget(FText InTitleText, TS
 			[
 				SNew(SBorder)
 				.Padding(1.0f)
-				.BorderImage(FEditorStyle::GetBrush("PropertyAccess.CompiledContext.Border"))
+				.BorderImage(FAppStyle::GetBrush("PropertyAccess.CompiledContext.Border"))
 				.RenderTransform_Lambda([K2Node_PropertyAccess, &TextBlockStyle]()
 				{
 					const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();

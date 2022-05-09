@@ -10,7 +10,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "SGraphActionMenu.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2_Actions.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
@@ -32,7 +32,7 @@ class FMyBlueprintCommands : public TCommands<FMyBlueprintCommands>
 public:
 	/** Constructor */
 	FMyBlueprintCommands() 
-		: TCommands<FMyBlueprintCommands>(TEXT("MyBlueprint"), NSLOCTEXT("Contexts", "My Blueprint", "My Blueprint"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FMyBlueprintCommands>(TEXT("MyBlueprint"), NSLOCTEXT("Contexts", "My Blueprint", "My Blueprint"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

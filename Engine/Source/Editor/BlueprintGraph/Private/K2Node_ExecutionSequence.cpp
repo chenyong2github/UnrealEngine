@@ -154,7 +154,7 @@ FText UK2Node_ExecutionSequence::GetNodeTitle(ENodeTitleType::Type TitleType) co
 
 FSlateIcon UK2Node_ExecutionSequence::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Sequence_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Sequence_16x");
 	return Icon;
 }
 

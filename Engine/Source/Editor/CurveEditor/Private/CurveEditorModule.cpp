@@ -14,7 +14,6 @@ public:
 	{
 		if (GIsEditor)
 		{
-			FModuleManager::Get().LoadModule("EditorStyle");
 			FCurveEditorCommands::Register();
 		}
 	}

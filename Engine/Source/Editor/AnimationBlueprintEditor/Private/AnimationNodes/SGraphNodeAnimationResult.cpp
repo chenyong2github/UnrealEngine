@@ -22,7 +22,7 @@ void SGraphNodeAnimationResult::Construct(const FArguments& InArgs, UAnimGraphNo
 TSharedRef<SWidget> SGraphNodeAnimationResult::CreateNodeContentArea()
 {
 	return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		.Padding( FMargin(0,3) )
@@ -41,7 +41,7 @@ TSharedRef<SWidget> SGraphNodeAnimationResult::CreateNodeContentArea()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.AnimationResultNode.Body") )
+				.Image( FAppStyle::GetBrush("Graph.AnimationResultNode.Body") )
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()

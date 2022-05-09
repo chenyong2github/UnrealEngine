@@ -17,8 +17,7 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
@@ -31,6 +30,10 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "OutputLogModule.h"
 #include "Widgets/Text/SlateEditableTextTypes.h"
+
+#if WITH_EDITOR
+#include "Settings/EditorStyleSettings.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
 
@@ -207,7 +210,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 			+SHorizontalBox::Slot()
 			[
 				SAssignNew(InputText, SMultiLineEditableTextBox)
-				.Font(FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
+				.Font(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
 				.HintText(this, &SConsoleInputBox::GetActiveCommandExecutorHintText)
 				.AllowMultiLine(this, &SConsoleInputBox::GetActiveCommandExecutorAllowMultiLine)
 				.OnTextCommitted(this, &SConsoleInputBox::OnTextCommitted)
@@ -222,7 +225,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 		.MenuContent
 		(
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			.Padding( FMargin(2) )
 			[
 				SNew(SBox)
@@ -312,7 +315,7 @@ TSharedRef<ITableRow> SConsoleInputBox::MakeSuggestionListItemWidget(TSharedPtr<
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(SanitizedText))
-			.TextStyle(FEditorStyle::Get(), "Log.Normal")
+			.TextStyle(FAppStyle::Get(), "Log.Normal")
 			.HighlightText(Suggestions.SuggestionsHighlight)
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
@@ -841,7 +844,10 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 		MakeDirty();
 	}
 
-	const ELogCategoryColorizationMode CategoryColorizationMode = GetDefault<UEditorStyleSettings>()->CategoryColorizationMode;
+
+#if WITH_EDITOR
+	ELogCategoryColorizationMode CategoryColorizationMode = GetDefault<UEditorStyleSettings>()->CategoryColorizationMode;
+#endif
 
 	TArray<FTextLayout::FNewLineData> LinesToAdd;
 	LinesToAdd.Reserve(NumPendingMessages);
@@ -873,12 +879,13 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 
 		++NumAddedMessages;
 
-		const FTextBlockStyle& MessageTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>(Message->Style);
+		const FTextBlockStyle& MessageTextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>(Message->Style);
 
 		TSharedRef<FString> LineText = Message->Message;
 
 		TArray<TSharedRef<IRun>> Runs;
 
+#if WITH_EDITOR
 		switch (CategoryColorizationMode)
 		{
 		case ELogCategoryColorizationMode::None:
@@ -934,6 +941,9 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 			}
 			break;
 		}
+#else
+		Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle));
+#endif
 
 		if (!Message->Category.IsNone() && (Message->Category == CategoryToHighlight))
 		{
@@ -1048,8 +1058,8 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(InArgs._Messages, &Filter);
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
-		.Style(FEditorStyle::Get(), "Log.TextBox")
-		.TextStyle(FEditorStyle::Get(), "Log.Normal")
+		.Style(FAppStyle::Get(), "Log.TextBox")
+		.TextStyle(FAppStyle::Get(), "Log.Normal")
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
 		.AlwaysShowScrollbars(true)
@@ -1167,10 +1177,12 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 	// Remove itself on crash (crashmalloc has limited memory and echoing logs here at that point is useless).
 	FCoreDelegates::OnHandleSystemError.AddRaw(this, &SOutputLog::OnCrash);
 
+#if WITH_EDITOR
 	// Listen for style changes
 	UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
 	SettingsWatchHandle = Settings->OnSettingChanged().AddRaw(this, &SOutputLog::HandleSettingChanged);
-	
+#endif
+
 	bIsUserScrolled = false;
 	RequestForceScroll();
 }
@@ -1184,11 +1196,14 @@ SOutputLog::~SOutputLog()
 	}
 	FCoreDelegates::OnHandleSystemError.RemoveAll(this);
 
+#if WITH_EDITOR
 	if (UObjectInitialized() && !GExitPurge)
 	{
 		UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
 		Settings->OnSettingChanged().Remove(SettingsWatchHandle);
 	}
+#endif
+
 }
 
 void SOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -1249,11 +1264,13 @@ bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosit
 
 		// Determine how to format timestamps
 		static ELogTimes::Type LogTimestampMode = ELogTimes::None;
+#if WITH_EDITOR
 		if (UObjectInitialized() && !GExitPurge)
 		{
 			// Logging can happen very late during shutdown, even after the UObject system has been torn down, hence the init check above
 			LogTimestampMode = GetDefault<UEditorStyleSettings>()->LogTimestampMode;
 		}
+#endif
 
 		const int32 OldNumMessages = OutMessages.Num();
 
@@ -1787,7 +1804,7 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent(EOutputLogSettingsMenuFlags
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("FindSourceFile", "Open Source Location"),
 			LOCTEXT("FindSourceFileTooltip", "Opens the folder containing the source of the Output Log."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "OutputLog.OpenSourceLocation"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "OutputLog.OpenSourceLocation"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SOutputLog::OpenLogFileInExplorer)
 			)
@@ -1800,7 +1817,7 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent(EOutputLogSettingsMenuFlags
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenInExternalEditor", "Open In External Editor"),
 			LOCTEXT("OpenInExternalEditorTooltip", "Opens the Output Log in the default external editor."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "OutputLog.OpenInExternalEditor"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "OutputLog.OpenInExternalEditor"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SOutputLog::OpenLogFileInExternalEditor)
 			)

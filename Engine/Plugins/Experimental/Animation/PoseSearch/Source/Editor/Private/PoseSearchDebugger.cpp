@@ -343,7 +343,7 @@ namespace DebuggerDatabaseColumns
 		
 		virtual TSharedRef<SWidget> GenerateWidget(const FRowDataRef& RowData) const override
 		{
-			static FSlateFontInfo RowFont = FEditorStyle::Get().GetFontStyle("DetailsView.CategoryTextStyle");
+			static FSlateFontInfo RowFont = FAppStyle::Get().GetFontStyle("DetailsView.CategoryTextStyle");
 			
 			return SNew(STextBlock)
             	.Font(RowFont)
@@ -683,7 +683,7 @@ class SDebuggerDatabaseRow : public SMultiColumnTableRow<TSharedRef<FDebuggerDat
 		// Get column
 		const TSharedRef<DebuggerDatabaseColumns::IColumn>& Column = (*ColumnMap.Get())[InColumnName];
 		
-		static FSlateFontInfo NormalFont = FEditorStyle::Get().GetFontStyle("DetailsView.CategoryTextStyle");
+		static FSlateFontInfo NormalFont = FAppStyle::Get().GetFontStyle("DetailsView.CategoryTextStyle");
 		const TSharedRef<SWidget> Widget = Column->GenerateWidget(Row.ToSharedRef());
 		
 		return
@@ -729,7 +729,7 @@ class SDebuggerMessageBox : public SCompoundWidget
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(Message))
-				.Font(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 		];
 	}
@@ -1188,8 +1188,8 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 		.SelectionMode(ESelectionMode::SingleToggle)
 		.ConsumeMouseWheel(EConsumeMouseWheel::Never);
 
-	ActiveView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
-	ActiveView.RowBrush = *FEditorStyle::GetBrush("DetailsView.CategoryTop");
+	ActiveView.RowStyle = FAppStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	ActiveView.RowBrush = *FAppStyle::GetBrush("DetailsView.CategoryTop");
 
 	// ContinuingPose Row
 	ContinuingPoseView.HeaderRow = SNew(SHeaderRow).Visibility(EVisibility::Collapsed);
@@ -1231,10 +1231,10 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 		.ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible)
 		.OnSelectionChanged(this, &SDebuggerDatabaseView::OnDatabaseRowSelectionChanged);
 
-	FilteredDatabaseView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	FilteredDatabaseView.RowStyle = FAppStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	// Set selected color to white to retain visibility when multi-selecting
 	FilteredDatabaseView.RowStyle.SetSelectedTextColor(FLinearColor(FVector3f(0.8f)));
-	FilteredDatabaseView.RowBrush = *FEditorStyle::GetBrush("ToolPanel.GroupBorder");
+	FilteredDatabaseView.RowBrush = *FAppStyle::GetBrush("ToolPanel.GroupBorder");
 
 	ChildSlot
 	[
@@ -1258,7 +1258,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Fill)
@@ -1283,7 +1283,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				[
 					SNew(SBorder)
 					
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.Padding(0.0f)
 					[
 						ActiveView.ListView.ToSharedRef()
@@ -1371,7 +1371,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.Padding(0.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Fill)
@@ -1397,7 +1397,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 			.Padding(0.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+				.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 				.Padding(FMargin(0.0f, 3.0f, 0.0f, 3.0f))
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
@@ -1434,7 +1434,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.Padding(0.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.Padding(0.0f)
 					[
 						FilteredDatabaseView.ListView.ToSharedRef()
@@ -2025,7 +2025,7 @@ TSharedRef<SHorizontalBox> SDebuggerView::GenerateReturnButtonView()
 			SNew(SButton)
 			.VAlign(VAlign_Center)
 			.Visibility_Lambda([this] { return ViewModel.Get()->GetNodesNum() > 1 ? EVisibility::Visible : EVisibility::Hidden; })
-			.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.ContentPadding( FMargin(1, 0) )
 			.OnClicked(this, &SDebuggerView::OnUpdateNodeSelection, static_cast<int32>(INDEX_NONE))
 			// Contents of button, icon then text

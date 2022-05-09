@@ -2,7 +2,7 @@
 
 #include "SConcertSandboxPersistWidget.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -70,7 +70,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(Item->GetIconName()))
+					.Image(FAppStyle::GetBrush(Item->GetIconName()))
 				.ToolTipText(Item->GetIconTooltip())
 				];
 		}
@@ -105,7 +105,7 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -230,14 +230,14 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 			.Padding(0.0f,0.0f,0.0f,5.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.IsEnabled(this, &SConcertSandboxPersistWidget::IsOKEnabled)
 					.Text(this, &SConcertSandboxPersistWidget::GetOKButtonText )
 					.OnClicked(this, &SConcertSandboxPersistWidget::OKClicked)
@@ -246,7 +246,7 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.Text( LOCTEXT("CancelButton", "Cancel") )
 					.OnClicked(this, &SConcertSandboxPersistWidget::CancelClicked)
 				]

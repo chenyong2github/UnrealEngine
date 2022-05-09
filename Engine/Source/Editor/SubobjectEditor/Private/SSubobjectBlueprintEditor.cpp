@@ -52,7 +52,7 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 	CreateCommandList();
 
 	// Build the tree widget
-	FSlateBrush const* MobilityHeaderBrush = FEditorStyle::GetBrush(TEXT("ClassIcon.ComponentMobilityHeaderIcon"));
+	FSlateBrush const* MobilityHeaderBrush = FAppStyle::GetBrush(TEXT("ClassIcon.ComponentMobilityHeaderIcon"));
 	
 	ConstructTreeWidget();
 

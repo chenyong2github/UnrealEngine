@@ -121,16 +121,16 @@ private:
 		auto TreeItem = TreeItemPtr.Pin();
 		if (!TreeItem.IsValid())
 		{
-			return FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		}
 
 		if (TreeItem->Flags.bIsExpanded && TreeItem->GetChildren().Num())
 		{
-			return FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderOpen"));
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderOpen"));
 		}
 		else
 		{
-			return FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		}
 	}
 

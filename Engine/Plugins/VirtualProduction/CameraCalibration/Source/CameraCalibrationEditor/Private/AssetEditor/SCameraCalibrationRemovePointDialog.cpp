@@ -356,7 +356,7 @@ void SCameraCalibrationRemovePointDialog::Construct(const FArguments& InArgs, co
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SButton)
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				.OnClicked(this, &SCameraCalibrationRemovePointDialog::OnRemoveButtonClicked)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("RemoveSelectedLabel", "Remove Selected"))
@@ -364,7 +364,7 @@ void SCameraCalibrationRemovePointDialog::Construct(const FArguments& InArgs, co
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SButton)
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				.OnClicked(this, &SCameraCalibrationRemovePointDialog::OnCancelButtonClicked)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("CancelLabel", "Cancel"))

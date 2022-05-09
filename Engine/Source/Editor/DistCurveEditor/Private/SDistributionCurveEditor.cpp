@@ -14,7 +14,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "CurveEditorViewportClient.h"
@@ -353,7 +353,7 @@ TSharedRef<SHorizontalBox> SDistributionCurveEditor::BuildToolBar()
 	[
 		SNew(SBorder)
 		.Padding(0)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 		[
 			ToolbarBuilder.MakeWidget()

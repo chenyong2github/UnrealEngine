@@ -12,7 +12,6 @@ public class ActorLayerUtilitiesEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"EditorWidgets",
-				"EditorStyle",
 				"Engine",
 				"Layers",
 				"LevelEditor",
@@ -21,6 +20,7 @@ public class ActorLayerUtilitiesEditor : ModuleRules
 				"Slate",
 				"EditorFramework",
 				"UnrealEd",
+				"EditorStyle",
 			}
 		);
 	}

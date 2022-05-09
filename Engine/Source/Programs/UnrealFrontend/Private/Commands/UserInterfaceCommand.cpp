@@ -40,7 +40,6 @@ void FUserInterfaceCommand::Run(  )
 	GetTargetPlatformManager();
 
 	// load required modules
-	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 	FModuleManager::Get().LoadModuleChecked("Messaging");
 	FModuleManager::Get().LoadModuleChecked("OutputLog");
 

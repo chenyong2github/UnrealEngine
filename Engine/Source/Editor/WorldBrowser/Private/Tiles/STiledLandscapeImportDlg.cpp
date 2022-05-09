@@ -58,7 +58,7 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -77,7 +77,7 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &STiledLandscapeImportDlg::OnClickedSelectHeightmapTiles)
 					.Text(LOCTEXT("TiledLandscapeImport_SelectButtonText", "Select Heightmap Tiles..."))
 				]
@@ -222,7 +222,7 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 			// Layers
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+			.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			[
 				SAssignNew(LayerDataListView, SListView<TSharedPtr<FTiledLandscapeImportSettings::LandscapeLayerSettings>>)
 				.ListItemsSource( &LayerDataList )
@@ -235,7 +235,7 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 			.AutoHeight()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
-			.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+			.Padding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			[
 				SNew(STextBlock)
 				.Text(this, &STiledLandscapeImportDlg::GetImportSummaryText)
@@ -250,14 +250,14 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 			.Padding(0,10,0,10)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.IsEnabled(this, &STiledLandscapeImportDlg::IsImportEnabled)
 					.OnClicked(this, &STiledLandscapeImportDlg::OnClickedImport)
 					.Text(LOCTEXT("TiledLandscapeImport_ImportButtonText", "Import"))
@@ -266,7 +266,7 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &STiledLandscapeImportDlg::OnClickedCancel)
 					.Text(LOCTEXT("TiledLandscapeImport_CancelButtonText", "Cancel"))
 				]
@@ -354,7 +354,7 @@ TSharedRef<ITableRow> STiledLandscapeImportDlg::OnGenerateWidgetForLayerDataList
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &STiledLandscapeImportDlg::OnClickedSelectWeightmapTiles, InLayerData)
 						.Text(LOCTEXT("TiledLandscapeImport_SelectWeightmapButtonText", "Select Weightmap Tiles..."))
 					]

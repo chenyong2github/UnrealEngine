@@ -2,7 +2,7 @@
 
 #include "ShowFlagMenuCommands.h"
 #include "EditorShowFlags.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
 
@@ -36,7 +36,7 @@ FShowFlagMenuCommands::FShowFlagMenuCommands()
 		TEXT("ShowFlagsMenu"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "ShowFlagsMenu", "Show Flags Menu"), // Localized context name for displaying
 		NAME_None, // Parent context name.  
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	),
 	ShowFlagCommands(),
 	bCommandsInitialised(false)
@@ -198,7 +198,7 @@ void FShowFlagMenuCommands::StaticCreateShowFlagsSubMenu(UToolMenu* Menu, TArray
 FSlateIcon FShowFlagMenuCommands::GetShowFlagIcon(const FShowFlagData& Flag) const
 {
 	return Flag.Group == EShowFlagGroup::SFG_Normal
-		? FSlateIcon(FEditorStyle::GetStyleSetName(), FEditorStyle::Join(GetContextName(), TCHAR_TO_ANSI(*FString::Printf(TEXT(".%s"), *Flag.ShowFlagName.ToString()))))
+		? FSlateIcon(FAppStyle::GetAppStyleSetName(), FAppStyle::Join(GetContextName(), TCHAR_TO_ANSI(*FString::Printf(TEXT(".%s"), *Flag.ShowFlagName.ToString()))))
 		: FSlateIcon();
 }
 

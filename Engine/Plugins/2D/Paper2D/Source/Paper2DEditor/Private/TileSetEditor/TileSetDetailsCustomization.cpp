@@ -6,7 +6,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
@@ -61,7 +61,7 @@ void FTileSetDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("TinyText"))
+				.Font(FAppStyle::GetFontStyle("TinyText"))
 				.Text(this, &FTileSetDetailsCustomization::GetCellDimensionHeaderText)
 				.ColorAndOpacity(this, &FTileSetDetailsCustomization::GetCellDimensionHeaderColor)
 				.ToolTipText(LOCTEXT("NumCellsTooltip", "Number of tile cells in this tile set"))
@@ -105,7 +105,7 @@ void FTileSetDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("TinyText"))
+						.Font(FAppStyle::GetFontStyle("TinyText"))
 						.Text(TileIndexHeaderText)
 					]
 				]

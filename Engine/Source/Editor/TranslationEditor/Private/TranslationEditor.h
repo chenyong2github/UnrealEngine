@@ -9,7 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Toolkits/IToolkitHost.h"
 #include "TranslationDataManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ITranslationEditor.h"
 #include "IPropertyTable.h"
 #include "CustomFontColumn.h"
@@ -90,8 +90,8 @@ private:
 	FTranslationEditor(TSharedRef< FTranslationDataManager > InDataManager, const FString& InManifestFile, const FString& InArchiveFile, ULocalizationTarget* const LocalizationTarget)
 		: ITranslationEditor(InManifestFile, InArchiveFile, LocalizationTarget)
 	, DataManager(InDataManager)
-	, SourceFont(FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ))
-	, TranslationTargetFont(FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ))
+	, SourceFont(FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ))
+	, TranslationTargetFont(FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ))
 	, SourceColumn(MakeShareable(new FCustomFontColumn(SourceFont)))
 	, TranslationColumn(MakeShareable(new FCustomFontColumn(TranslationTargetFont)))
 	, PreviewTextBlock(SNew(STextBlock)

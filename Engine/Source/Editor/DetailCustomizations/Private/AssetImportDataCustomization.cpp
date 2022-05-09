@@ -90,12 +90,12 @@ void FAssetImportDataCustomization::CustomizeChildren( TSharedRef<IPropertyHandl
 					SNew(SButton)
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.OnClicked(this, &FAssetImportDataCustomization::OnClearPathClicked, Index)
 					.ToolTipText(LOCTEXT("ClearPath_Tooltip", "Clear this source file information from the asset"))
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Cross"))
+						.Image(FAppStyle::GetBrush("Cross"))
 					]
 				]
 			];
@@ -123,13 +123,13 @@ void FAssetImportDataCustomization::CustomizeChildren( TSharedRef<IPropertyHandl
 						SNew(SButton)
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Center)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.IsEnabled(this, &FAssetImportDataCustomization::IsPropagateFromAbovePathEnable, Index)
 						.OnClicked(this, &FAssetImportDataCustomization::OnPropagateFromAbovePathClicked, Index)
 						.ToolTipText(LOCTEXT("PropagateFromAbovePath_Tooltip", "Use the above source path to set this path."))
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("ArrowDown"))
+							.Image(FAppStyle::GetBrush("ArrowDown"))
 						]
 					]
 					+ SHorizontalBox::Slot()
@@ -140,13 +140,13 @@ void FAssetImportDataCustomization::CustomizeChildren( TSharedRef<IPropertyHandl
 						SNew(SButton)
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Center)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.IsEnabled(this, &FAssetImportDataCustomization::IsPropagateFromBelowPathEnable, Index)
 						.OnClicked(this, &FAssetImportDataCustomization::OnPropagateFromBelowPathClicked, Index)
 						.ToolTipText(LOCTEXT("PropagateFromBelowPath_Tooltip", "Use the below source path to set this path."))
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("ArrowUp"))
+							.Image(FAppStyle::GetBrush("ArrowUp"))
 						]
 					]
 				];
@@ -167,12 +167,12 @@ void FAssetImportDataCustomization::CustomizeChildren( TSharedRef<IPropertyHandl
 				SNew(SButton)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FAssetImportDataCustomization::OnClearAllPathsClicked)
 				.ToolTipText(LOCTEXT("ClearAllSourceData_Tooltip", "Clear all the source file information from the asset."))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Cross"))
+					.Image(FAppStyle::GetBrush("Cross"))
 				]
 			];
 	}

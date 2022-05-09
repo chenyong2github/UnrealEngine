@@ -96,7 +96,7 @@ public:
 		OnHoverStateChangedEvent = InArgs._OnHoverStateChanged;
 		OnGetIndexColorEvent = InArgs._OnGetIndexColor;
 
-		const FSlateBrush* IndexBrush = FEditorStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Index"));
+		const FSlateBrush* IndexBrush = FAppStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Index"));
 
 		ChildSlot
 		[
@@ -123,7 +123,7 @@ public:
 				[
 					SNew(STextBlock)
 					.Text(InArgs._Text)
-					.Font(FEditorStyle::GetFontStyle("BTEditor.Graph.BTNode.IndexText"))
+					.Font(FAppStyle::GetFontStyle("BTEditor.Graph.BTNode.IndexText"))
 				]
 			]
 		];
@@ -387,7 +387,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
+			.BorderImage( FAppStyle::GetBrush( "Graph.StateNode.Body" ) )
 			.Padding(0.0f)
 			.BorderBackgroundColor( this, &SGraphNode_BehaviorTree::GetBorderBackgroundColor )
 			.OnMouseButtonDown(this, &SGraphNode_BehaviorTree::OnMouseDown)
@@ -426,7 +426,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 						.AutoHeight()
 						[
 							SAssignNew(NodeBody, SBorder)
-							.BorderImage( FEditorStyle::GetBrush("BTEditor.Graph.BTNode.Body") )
+							.BorderImage( FAppStyle::GetBrush("BTEditor.Graph.BTNode.Body") )
 							.BorderBackgroundColor( this, &SGraphNode_BehaviorTree::GetBackgroundColor )
 							.HAlign(HAlign_Fill)
 							.VAlign(VAlign_Center)
@@ -480,7 +480,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 													.AutoHeight()
 													[
 														SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-														.Style( FEditorStyle::Get(), "Graph.StateNode.NodeTitleInlineEditableText" )
+														.Style( FAppStyle::Get(), "Graph.StateNode.NodeTitleInlineEditableText" )
 														.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 														.OnVerifyTextChanged(this, &SGraphNode_BehaviorTree::OnVerifyNameTextChanged)
 														.OnTextCommitted(this, &SGraphNode_BehaviorTree::OnNameTextCommited)
@@ -510,7 +510,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 								.VAlign(VAlign_Fill)
 								[
 									SNew(SBorder)
-									.BorderImage( FEditorStyle::GetBrush("BTEditor.Graph.BTNode.Body") )
+									.BorderImage( FAppStyle::GetBrush("BTEditor.Graph.BTNode.Body") )
 									.BorderBackgroundColor(BehaviorTreeColors::Debugger::SearchFailed)
 									.Padding(FMargin(4.0f, 0.0f))
 									.Visibility(this, &SGraphNode_BehaviorTree::GetDebuggerSearchFailedMarkerVisibility)
@@ -553,7 +553,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 					SNew(SBorder)
 					.BorderBackgroundColor(BehaviorTreeColors::Action::DragMarker)
 					.ColorAndOpacity(BehaviorTreeColors::Action::DragMarker)
-					.BorderImage(FEditorStyle::GetBrush("BTEditor.Graph.BTNode.Body"))
+					.BorderImage(FAppStyle::GetBrush("BTEditor.Graph.BTNode.Body"))
 					.Visibility(this, &SGraphNode_BehaviorTree::GetDragOverMarkerVisibility)
 					[
 						SNew(SBox)
@@ -567,7 +567,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 				.VAlign(VAlign_Top)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Blueprint")))
+					.Image(FAppStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Blueprint")))
 					.Visibility(this, &SGraphNode_BehaviorTree::GetBlueprintIconVisibility)
 				]
 			]
@@ -847,7 +847,7 @@ TSharedPtr<SToolTip> SGraphNode_BehaviorTree::GetComplexTooltip()
 const FSlateBrush* SGraphNode_BehaviorTree::GetNameIcon() const
 {	
 	UBehaviorTreeGraphNode* BTGraphNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
-	return BTGraphNode != nullptr ? FEditorStyle::GetBrush(BTGraphNode->GetNameIcon()) : FEditorStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Icon"));
+	return BTGraphNode != nullptr ? FAppStyle::GetBrush(BTGraphNode->GetNameIcon()) : FAppStyle::GetBrush(TEXT("BTEditor.Graph.BTNode.Icon"));
 }
 
 static UBehaviorTreeGraphNode* GetParentNode(UEdGraphNode* GraphNode)
@@ -892,7 +892,7 @@ FSlateColor SGraphNode_BehaviorTree::GetIndexColor(bool bHovered) const
 	static const FName HoveredColor("BTEditor.Graph.BTNode.Index.HoveredColor");
 	static const FName DefaultColor("BTEditor.Graph.BTNode.Index.Color");
 
-	return bHighlightHover ? FEditorStyle::Get().GetSlateColor(HoveredColor) : FEditorStyle::Get().GetSlateColor(DefaultColor);
+	return bHighlightHover ? FAppStyle::Get().GetSlateColor(HoveredColor) : FAppStyle::Get().GetSlateColor(DefaultColor);
 }
 
 EVisibility SGraphNode_BehaviorTree::GetIndexVisibility() const
@@ -996,8 +996,8 @@ void SGraphNode_BehaviorTree::GetOverlayBrushes(bool bSelected, const FVector2D 
 	{
 		FOverlayBrushInfo BreakpointOverlayInfo;
 		BreakpointOverlayInfo.Brush = BTNode->bIsBreakpointEnabled ?
-			FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Enabled")) :
-			FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Disabled"));
+			FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Enabled")) :
+			FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.Breakpoint.Disabled"));
 
 		if (BreakpointOverlayInfo.Brush)
 		{
@@ -1013,8 +1013,8 @@ void SGraphNode_BehaviorTree::GetOverlayBrushes(bool bSelected, const FVector2D 
 		{
 			FOverlayBrushInfo IPOverlayInfo;
 
-			IPOverlayInfo.Brush = BTNode->bDebuggerMarkBreakpointTrigger ? FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.BreakOnBreakpointPointer")) : 
-				FEditorStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.ActiveNodePointer"));
+			IPOverlayInfo.Brush = BTNode->bDebuggerMarkBreakpointTrigger ? FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.BreakOnBreakpointPointer")) : 
+				FAppStyle::GetBrush(TEXT("BTEditor.DebuggerOverlay.ActiveNodePointer"));
 			if (IPOverlayInfo.Brush)
 			{
 				float Overlap = 10.f;
@@ -1030,7 +1030,7 @@ void SGraphNode_BehaviorTree::GetOverlayBrushes(bool bSelected, const FVector2D 
 		{
 			FOverlayBrushInfo IPOverlayInfo;
 
-			IPOverlayInfo.Brush = FEditorStyle::GetBrush(BTNode->bDebuggerMarkSearchTrigger ?
+			IPOverlayInfo.Brush = FAppStyle::GetBrush(BTNode->bDebuggerMarkSearchTrigger ?
 				TEXT("BTEditor.DebuggerOverlay.SearchTriggerPointer") :
 				TEXT("BTEditor.DebuggerOverlay.FailedTriggerPointer") );
 

@@ -5,7 +5,7 @@
 #include "DMXProtocolSettings.h"
 
 #include "CommonFrameRates.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SFrameRateEntryBox.h"

@@ -12,7 +12,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/EngineBuildSettings.h"
 
 #define LOCTEXT_NAMESPACE "CreditsScreen"
@@ -38,7 +38,7 @@ void SCreditsScreen::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot()
 		[
 			SAssignNew(ScrollBox, SScrollBox)
-			.Style( FEditorStyle::Get(), "ScrollBox" )
+			.Style( FAppStyle::Get(), "ScrollBox" )
 			.OnUserScrolled(this, &SCreditsScreen::HandleUserScrolled)
 
 			+ SScrollBox::Slot()
@@ -50,8 +50,8 @@ void SCreditsScreen::Construct(const FArguments& InArgs)
 				[
 					SNew(SRichTextBlock)
 					.Text(FText::FromString(CreditsText))
-					.TextStyle(FEditorStyle::Get(), "Credits.Normal")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FAppStyle::Get(), "Credits.Normal")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.Justification(ETextJustify::Center)
 					+ SRichTextBlock::HyperlinkDecorator(TEXT("browser"), this, &SCreditsScreen::OnBrowserLinkClicked)
 				]
@@ -67,7 +67,7 @@ void SCreditsScreen::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "Credits.Button")
+				.ButtonStyle(FAppStyle::Get(), "Credits.Button")
 				.OnClicked(this, &SCreditsScreen::HandleTogglePlayPause)
 				[
 					SNew(SImage)
@@ -131,11 +131,11 @@ const FSlateBrush* SCreditsScreen::GetTogglePlayPauseBrush() const
 
 	if ( bIsPlaying )
 	{
-		return FEditorStyle::GetBrush(PauseIcon);
+		return FAppStyle::GetBrush(PauseIcon);
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(PlayIcon);
+		return FAppStyle::GetBrush(PlayIcon);
 	}
 }
 

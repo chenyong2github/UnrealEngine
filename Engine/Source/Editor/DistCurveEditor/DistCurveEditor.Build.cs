@@ -17,7 +17,6 @@ public class DistCurveEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"LevelEditor",
 				"EditorFramework",
 				"UnrealEd"

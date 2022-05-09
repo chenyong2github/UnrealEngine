@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -52,7 +52,7 @@ void SVerbChoiceDialog::Construct( const FArguments& InArgs )
 	ParentWindow->SetWidgetToFocusOnActivate(SharedThis(this));
 	Response = EAppReturnType::Cancel;
 
-	FSlateFontInfo MessageFont( FEditorStyle::GetFontStyle("StandardDialog.LargeFont"));
+	FSlateFontInfo MessageFont( FAppStyle::GetFontStyle("StandardDialog.LargeFont"));
 	Message = InArgs._Message;
 	Hyperlinks = InArgs._Hyperlinks;
 	Buttons = InArgs._Buttons;
@@ -63,7 +63,7 @@ void SVerbChoiceDialog::Construct( const FArguments& InArgs )
 	this->ChildSlot
 		[	
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -98,9 +98,9 @@ void SVerbChoiceDialog::Construct( const FArguments& InArgs )
 								.Padding(5.0f)
 								[
 									SAssignNew( HyperlinksBox, SUniformGridPanel )
-										.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-										.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-										.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+										.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+										.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+										.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 								]
 
 							+ SHorizontalBox::Slot()
@@ -110,9 +110,9 @@ void SVerbChoiceDialog::Construct( const FArguments& InArgs )
 								.Padding(5.0f)
 								[
 									SAssignNew( ButtonBox, SUniformGridPanel )
-										.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-										.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-										.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+										.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+										.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+										.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 								]
 						]
 				]
@@ -143,7 +143,7 @@ void SVerbChoiceDialog::Construct( const FArguments& InArgs )
 				SNew( SButton )
 				.Text( Buttons.Get()[Idx] )
 				.OnClicked( this, &SVerbChoiceDialog::HandleButtonClicked, Idx )
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				.HAlign(HAlign_Center)
 			];
 	}

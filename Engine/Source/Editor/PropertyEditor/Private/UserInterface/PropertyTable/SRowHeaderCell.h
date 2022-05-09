@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "IPropertyTable.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SOverlay.h"
 #include "PropertyEditorHelpers.h"
 #include "IPropertyTableCell.h"
@@ -45,7 +45,7 @@ class SRowHeaderCell : public SCompoundWidget
 
 		TSharedRef< SWidget > Content = 
 			SNew(SImage)
-			.Image( FEditorStyle::GetBrush("ContentBrowser.ContentDirty") )
+			.Image( FAppStyle::GetBrush("ContentBrowser.ContentDirty") )
 			.Visibility( this, &SRowHeaderCell::GetDirtyImageVisibility );
 
 		if ( RequiredButtons.Contains( EPropertyButton::Insert_Delete_Duplicate ) )
@@ -102,7 +102,7 @@ private:
 
 	const FSlateBrush* GetBorder() const 
 	{
-		return FEditorStyle::GetBrush( Style, ".RowHeader.Background" );
+		return FAppStyle::GetBrush( Style, ".RowHeader.Background" );
 	}
 
 	EVisibility GetDirtyImageVisibility() const

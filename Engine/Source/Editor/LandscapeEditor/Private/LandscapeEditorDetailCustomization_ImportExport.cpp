@@ -46,7 +46,7 @@ void FLandscapeEditorDetailCustomization_ImportExport::CustomizeDetails(IDetailL
 		+ SUniformGridPanel::Slot(0, 0)
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "RadioButton")
+			.Style(FAppStyle::Get(), "RadioButton")
 			.IsChecked_Static(&FLandscapeEditorDetailCustomization_ImportExport::ModeIsChecked, EImportExportMode::Import)
 			.OnCheckStateChanged_Static(&FLandscapeEditorDetailCustomization_ImportExport::OnModeChanged, EImportExportMode::Import)
 			[
@@ -57,7 +57,7 @@ void FLandscapeEditorDetailCustomization_ImportExport::CustomizeDetails(IDetailL
 		+ SUniformGridPanel::Slot(1, 0)
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "RadioButton")
+			.Style(FAppStyle::Get(), "RadioButton")
 			.IsChecked_Static(&FLandscapeEditorDetailCustomization_ImportExport::ModeIsChecked, EImportExportMode::Export)
 			.OnCheckStateChanged_Static(&FLandscapeEditorDetailCustomization_ImportExport::OnModeChanged, EImportExportMode::Export)
 			[

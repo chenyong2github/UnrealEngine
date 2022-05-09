@@ -16,7 +16,6 @@ public class EditorWidgets : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"ToolWidgets"

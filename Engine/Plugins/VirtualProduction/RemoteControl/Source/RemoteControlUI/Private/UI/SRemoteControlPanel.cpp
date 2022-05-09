@@ -491,13 +491,13 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton")
 					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
 					.ToolTipText(LOCTEXT("EntityDetailsToolTip", "Open the details panel for the selected exposed entity."))
 					.OnClicked_Lambda([this](){ ToggleDetailsView(); return FReply::Handled(); })
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
+						.Image(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 					]
 				]
 				// Edit Mode

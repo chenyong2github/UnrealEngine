@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Input/DragAndDrop.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -26,7 +26,7 @@ public:
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
 	{
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			.Content()
 			[		
 				SNew(SHorizontalBox)
@@ -66,7 +66,7 @@ public:
 		TSharedRef<FBoneDragDropOp> Operation = MakeShareable(new FBoneDragDropOp);
 		Operation->BoneName = InBoneName;
 		Operation->EditableSkeleton = EditableSkeleton;
-		Operation->SetIcon( FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")) );
+		Operation->SetIcon( FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")) );
 		Operation->Construct();
 		return Operation;
 	}

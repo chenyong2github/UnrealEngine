@@ -207,7 +207,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Item.GetVariable().GetType());
 	FSlateColor        IconColor = FSlateColor(TypeColor);
 	FString			   IconDocLink, IconDocExcerpt;
-	FSlateBrush const* SecondaryIconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	FSlateBrush const* SecondaryIconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        SecondaryIconColor = IconColor;
 	TSharedRef<SWidget> IconWidget = SNew(SScaleBox)
 	[
@@ -238,7 +238,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 					.MinDesiredWidth(20.0f)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 						.Text(FEditorFontGlyphs::Share_Alt)
 						.ToolTipText(LOCTEXT("ParameterDefinitionDefaultValueOverridingToolTip", "Parameter is overriding the linked Parameter Definition default value."))
 					]
@@ -252,7 +252,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 				.MinDesiredWidth(20.0f)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 					.Text(FEditorFontGlyphs::Book)
 					.ToolTipText(LOCTEXT("ParameterDefinitionSubscribedToolTip", "Parameter is linked to a Parameter Definition."))
 				]
@@ -288,7 +288,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 				.MinDesiredWidth(20.0f)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 					.Text(FEditorFontGlyphs::Book)
 					.ColorAndOpacity(FLinearColor::Red)
 					.ToolTipText(LinkedParameterToolTipText)
@@ -307,7 +307,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 			.MinDesiredWidth(20.0f)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 				.Text(FEditorFontGlyphs::Lock)
 				.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
 			]
@@ -322,7 +322,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 			.MinDesiredWidth(20.0f)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 				.Text(FEditorFontGlyphs::Database)
 				.ToolTipText(LOCTEXT("DataInterfaceSourceToolTip", "This parameter is a child variable of an existing Data Interface, meant to be used in Simulation Stage based stacks where the parent Data Interface is the Iteration Source."))
 			]
@@ -385,7 +385,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 		[
 			SNew(SComboButton)
 			.HasDownArrow(false)
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			.ButtonStyle(FAppStyle::Get(), "RoundButton")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ContentPadding(FMargin(2.0f))
 			.HAlign(HAlign_Right)
@@ -465,8 +465,8 @@ TSharedRef<SWidget> SNiagaraParameterPanel::CreateAddToCategoryButton(const FNia
 {
 	TSharedPtr<SComboButton> Button;
 	SAssignNew(Button, SComboButton)
-	.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-	.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+	.ButtonStyle(FAppStyle::Get(), "RoundButton")
+	.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 	.ContentPadding(FMargin(2, 0))
 	.OnGetMenuContent(this, &SNiagaraParameterPanel::OnGetParameterMenu, Category)
 	.IsEnabled(this, &SNiagaraParameterPanel::GetCanAddParametersToCategory, Category)
@@ -481,7 +481,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::CreateAddToCategoryButton(const FNia
 		.Padding(FMargin(0, 1))
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Plus"))
+			.Image(FAppStyle::GetBrush("Plus"))
 		]
 	];
 
@@ -659,11 +659,11 @@ const FSlateBrush* SNiagaraParameterPanel::GetCategoryBackgroundImage(bool bIsCa
 {
 	if (bIsCategoryHovered)
 	{
-		return bIsCategoryExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+		return bIsCategoryExpanded ? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 	}
 	else
 	{
-		return bIsCategoryExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+		return bIsCategoryExpanded ? FAppStyle::GetBrush("DetailsView.CategoryTop") : FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 	}
 }
 
@@ -719,7 +719,7 @@ const FSlateBrush* SNiagaraParameterPanel::GetViewOptionsBorderBrush()
 	UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
 	return Settings->GetDisplayAdvancedParameterPanelCategories()
 		? FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.DepressedHighlightedButtonBrush")
-		: FEditorStyle::GetBrush("NoBrush");
+		: FAppStyle::GetBrush("NoBrush");
 }
 
 #undef LOCTEXT_NAMESPACE // "NiagaraParameterPanel"

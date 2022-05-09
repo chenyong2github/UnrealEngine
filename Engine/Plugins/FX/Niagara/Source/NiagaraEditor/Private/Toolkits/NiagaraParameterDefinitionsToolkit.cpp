@@ -57,7 +57,7 @@ void FNiagaraParameterDefinitionsToolkit::RegisterTabSpawners(const TSharedRef<c
 	InTabManager->RegisterTabSpawner(SelectedDetailsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::SpawnTab_SelectedScriptVarDetails))
 		.SetDisplayName(LOCTEXT("SelectedDetailsTab", "Selected Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(ParameterPanelTabId, FOnSpawnTab::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::SpawnTab_ParameterPanel))
 		.SetDisplayName(LOCTEXT("ParameterPanel", "Parameters"))

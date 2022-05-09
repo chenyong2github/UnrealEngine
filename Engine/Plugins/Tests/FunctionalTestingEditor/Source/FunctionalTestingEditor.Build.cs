@@ -14,7 +14,7 @@ public class FunctionalTestingEditor : ModuleRules
                 "CoreUObject",
                 "SlateCore",
                 "Slate",
-                "EditorStyle",
+                
                 "Engine",
                 "AssetRegistry"
 			}

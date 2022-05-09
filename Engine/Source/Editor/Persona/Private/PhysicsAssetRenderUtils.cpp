@@ -10,7 +10,7 @@
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "Chaos/Core.h"
 #include "SkeletalMeshTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Internationalization/TextKey.h"

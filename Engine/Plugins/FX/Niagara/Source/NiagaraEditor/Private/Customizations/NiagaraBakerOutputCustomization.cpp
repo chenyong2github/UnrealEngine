@@ -183,7 +183,7 @@ struct FNiagaraBakerOutputDetails : public IDetailCustomization
 					.OnClicked(OnClicked)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Icons.Search")))
+						.Image(FAppStyle::GetBrush(TEXT("Icons.Search")))
 					]
 				]
 			];

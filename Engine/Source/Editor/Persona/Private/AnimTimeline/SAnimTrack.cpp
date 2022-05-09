@@ -2,7 +2,7 @@
 
 #include "SAnimTrack.h"
 #include "Rendering/DrawElements.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SAnimOutliner.h"
 #include "SAnimTrackResizeArea.h"
 #include "Widgets/SOverlay.h"
@@ -47,7 +47,7 @@ int32 SAnimTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeome
 						FVector2D(0, 0),
 						FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
 					),
-					FEditorStyle::GetBrush(BorderName),
+					FAppStyle::GetBrush(BorderName),
 					ESlateDrawEffect::None,
 					FLinearColor(1.0f, 1.0f, 1.0f, 0.05f)
 				);

@@ -4,7 +4,7 @@
 #include "Misc/MessageDialog.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SButton.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -41,7 +41,7 @@ void SRetargetSources::Construct(
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Persona.RetargetManager.ImportantText")
+			.TextStyle(FAppStyle::Get(), "Persona.RetargetManager.ImportantText")
 			.Text(LOCTEXT("BasePose_Title", "Edit Retarget Base Pose"))
 		]
 
@@ -91,7 +91,7 @@ void SRetargetSources::Construct(
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Persona.RetargetManager.ImportantText")
+			.TextStyle(FAppStyle::Get(), "Persona.RetargetManager.ImportantText")
 			.Text(LOCTEXT("RetargetSource_Title", "Manage Retarget Sources"))
 		]
 		
@@ -116,7 +116,7 @@ void SRetargetSources::Construct(
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Persona.RetargetManager.ImportantText")
+			.TextStyle(FAppStyle::Get(), "Persona.RetargetManager.ImportantText")
 			.Text(LOCTEXT("CompatibleSkeletons_Title", "Manage Compatible Skeletons"))
 		]
 
@@ -181,7 +181,7 @@ TSharedRef<SWidget> SRetargetSources::OnModifyPoseContextMenu()
 		(
 			LOCTEXT("ModifyPoseContextMenu_Reset", "Reset"),
 			LOCTEXT("ModifyPoseContextMenu_Reset_Desc", "Reset to reference pose"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.SelectStack"), Action_ReferencePose, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.SelectStack"), Action_ReferencePose, NAME_None, EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_UseCurrentPose
@@ -193,7 +193,7 @@ TSharedRef<SWidget> SRetargetSources::OnModifyPoseContextMenu()
 		(
 			LOCTEXT("ModifyPoseContextMenu_UseCurrentPose", "Use CurrentPose"),
 			LOCTEXT("ModifyPoseContextMenu_UseCurrentPose_Desc", "Use Current Pose"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.SelectStack"), Action_UseCurrentPose, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.SelectStack"), Action_UseCurrentPose, NAME_None, EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuSeparator();

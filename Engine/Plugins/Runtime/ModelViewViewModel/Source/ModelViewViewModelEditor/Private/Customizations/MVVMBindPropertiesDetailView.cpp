@@ -8,7 +8,7 @@
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "MVVMPropertyAccess.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
 
@@ -89,7 +89,7 @@ void FMVVMBindPropertiesDetailView::CreatePropertyRowExtension(const FOnGenerate
 		if (GetBindingInfo(InArgs.PropertyHandle, BindingInfo))
 		{
 			FPropertyRowExtensionButton& ExposeButton = OutExtensions.AddDefaulted_GetRef();
-			ExposeButton.Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "Level.ScriptIcon16x");
+			ExposeButton.Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Level.ScriptIcon16x");
 			ExposeButton.Label = LOCTEXT("ExposeProperty", "MVVM Property");
 			ExposeButton.ToolTip = LOCTEXT("ExposePropertyToolTip", "Bind a View property to a ViewModel.");
 			ExposeButton.UIAction = FUIAction(

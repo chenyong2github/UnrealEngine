@@ -1,12 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/SlateColor.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Styling/StyleDefaults.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/AppStyle.h"
+#include "UObject/NameTypes.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Math/Color.h"
+#include "Styling/SlateColor.h"
+#include "Layout/Margin.h"
+#include "Styling/SlateBrush.h"
+#include "Brushes/SlateDynamicImageBrush.h"
+#include "Sound/SlateSound.h"
+#include "Templates/SharedPointer.h"
 
 struct FSlateDynamicImageBrush;
 

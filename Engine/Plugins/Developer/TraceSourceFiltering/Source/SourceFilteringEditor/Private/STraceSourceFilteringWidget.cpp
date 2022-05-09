@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STraceSourceFilteringWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/SoftObjectPath.h"

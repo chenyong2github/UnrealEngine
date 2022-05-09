@@ -16,7 +16,7 @@ public class UnrealVersionSelectorTarget : TargetRules
 
 		bool bUsingSlate = (Target.Platform == UnrealTargetPlatform.Linux);
 
-		if (bUsingSlate)
+		if (bUsingSlate && bBuildEditor)
 		{
 			ExtraModuleNames.Add("EditorStyle");
 		}

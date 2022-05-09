@@ -18,7 +18,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Layout/SBox.h"
@@ -99,7 +99,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "LargeText")
+					.TextStyle(FAppStyle::Get(), "LargeText")
 					.Text(this, &SProjectLauncherProgress::GetSelectedProfileNameText)
 				]
 
@@ -129,7 +129,7 @@ public:
 				.Value(0.33f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Padding(0.0f)
 					[
 						SAssignNew(TaskListView, SListView<ILauncherTaskPtr>)
@@ -173,7 +173,7 @@ public:
 				.Value(0.66f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Padding(0.0f)
 					[
 						SNew(SGridPanel)

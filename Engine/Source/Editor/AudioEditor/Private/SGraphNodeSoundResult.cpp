@@ -17,7 +17,7 @@ void SGraphNodeSoundResult::Construct(const FArguments& InArgs, USoundCueGraphNo
 TSharedRef<SWidget> SGraphNodeSoundResult::CreateNodeContentArea()
 {
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		.Padding(FMargin(0, 3))
@@ -36,7 +36,7 @@ TSharedRef<SWidget> SGraphNodeSoundResult::CreateNodeContentArea()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Graph.SoundResultNode.Body"))
+				.Image(FAppStyle::GetBrush("Graph.SoundResultNode.Body"))
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()

@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
                 "SlateCore",
 				"EditorFramework",
                 "UnrealEd",
-                "EditorStyle",
                 "KismetWidgets",
                 "PropertyEditor",
                 "ApplicationCore",

@@ -233,11 +233,11 @@ const FSlateBrush* FSceneOutlinerActorSCCColumn::GetHeaderIcon() const
 {
 	if (ISourceControlModule::Get().IsEnabled())
 	{
-		return FEditorStyle::GetBrush("SourceControl.StatusIcon.On");
+		return FAppStyle::GetBrush("SourceControl.StatusIcon.On");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("SourceControl.StatusIcon.Off");
+		return FAppStyle::GetBrush("SourceControl.StatusIcon.Off");
 	}
 }
 

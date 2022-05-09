@@ -141,7 +141,7 @@ void SAssetEditorViewport::GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const
 	{
 		FSlimHorizontalToolBarBuilder OnePaneButton(CommandList, FMultiBoxCustomization::None);
 		OnePaneButton.SetLabelVisibility(EVisibility::Collapsed);
-		OnePaneButton.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		OnePaneButton.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		OnePaneButton.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_OnePane);
 
@@ -166,7 +166,7 @@ void SAssetEditorViewport::GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const
 	{
 		FSlimHorizontalToolBarBuilder TwoPaneButtons(CommandList, FMultiBoxCustomization::None);
 		TwoPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-		TwoPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		TwoPaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		TwoPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_TwoPanesH, NAME_None, FText());
 		TwoPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_TwoPanesV, NAME_None, FText());
@@ -192,7 +192,7 @@ void SAssetEditorViewport::GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const
 	{
 		FSlimHorizontalToolBarBuilder ThreePaneButtons(CommandList, FMultiBoxCustomization::None);
 		ThreePaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-		ThreePaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		ThreePaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		ThreePaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_ThreePanesLeft, NAME_None, FText());
 		ThreePaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_ThreePanesRight, NAME_None, FText());
@@ -220,7 +220,7 @@ void SAssetEditorViewport::GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const
 	{
 		FSlimHorizontalToolBarBuilder FourPaneButtons(CommandList, FMultiBoxCustomization::None);
 		FourPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-		FourPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+		FourPaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 		FourPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_FourPanes2x2, NAME_None, FText());
 		FourPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_FourPanesLeft, NAME_None, FText());

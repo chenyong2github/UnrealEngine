@@ -98,7 +98,7 @@ void SGraphNodeK2Base::UpdateCompactNode()
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-					.TextStyle( FEditorStyle::Get(), "Graph.CompactNode.Title" )
+					.TextStyle( FAppStyle::Get(), "Graph.CompactNode.Title" )
 					.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 					.WrapTextAt(128.0f)
 			]
@@ -181,12 +181,12 @@ void SGraphNodeK2Base::UpdateCompactNode()
 			+SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.VarNode.Body") )
+				.Image( FAppStyle::GetBrush("Graph.VarNode.Body") )
 			]
 			+ SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.VarNode.Gloss") )
+				.Image( FAppStyle::GetBrush("Graph.VarNode.Gloss") )
 			]
 			+SOverlay::Slot()
 			.Padding( FMargin(0,3) )
@@ -316,7 +316,7 @@ TSharedPtr<SToolTip> SGraphNodeK2Base::GetComplexTooltip()
 				.AutoHeight()
 			[
 				SNew(STextBlock)
-					.TextStyle( FEditorStyle::Get(), "Documentation.SDocumentationTooltipSubdued")
+					.TextStyle( FAppStyle::Get(), "Documentation.SDocumentationTooltipSubdued")
 					.Text(this, &SGraphNodeK2Base::GetToolTipHeading)
 			]
 			+SVerticalBox::Slot()
@@ -326,7 +326,7 @@ TSharedPtr<SToolTip> SGraphNodeK2Base::GetComplexTooltip()
 				SNew(SBorder)
 				// use the border's padding to actually create the horizontal line
 				.Padding(1.f)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Separator")))
 			]
 		]
 		// tooltip body
@@ -355,7 +355,7 @@ TSharedPtr<SToolTip> SGraphNodeK2Base::GetComplexTooltip()
 				SNew( STextBlock )
 				.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
 				.Text( LOCTEXT( "NativeNodeName", "hold (Alt) for native node name" ) )
-				.TextStyle( &FEditorStyle::GetWidgetStyle<FTextBlockStyle>(TEXT("Documentation.SDocumentationTooltip")) )
+				.TextStyle( &FAppStyle::GetWidgetStyle<FTextBlockStyle>(TEXT("Documentation.SDocumentationTooltip")) )
 				.Visibility_Static(&Local::GetNativeNodeNameVisibility)
 			];
 	}
@@ -416,11 +416,11 @@ void SGraphNodeK2Base::GetOverlayBrushes(bool bSelected, const FVector2D WidgetS
 
 		if (Breakpoint->IsEnabledByUser())
 		{
-			BreakpointOverlayInfo.Brush = FEditorStyle::GetBrush(FKismetDebugUtilities::IsBreakpointValid(*Breakpoint) ? TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid") : TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndInvalid"));
+			BreakpointOverlayInfo.Brush = FAppStyle::GetBrush(FKismetDebugUtilities::IsBreakpointValid(*Breakpoint) ? TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid") : TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndInvalid"));
 		}
 		else
 		{
-			BreakpointOverlayInfo.Brush = FEditorStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.Disabled"));
+			BreakpointOverlayInfo.Brush = FAppStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.Disabled"));
 		}
 
 		if(BreakpointOverlayInfo.Brush != NULL)
@@ -439,7 +439,7 @@ void SGraphNodeK2Base::GetOverlayBrushes(bool bSelected, const FVector2D WidgetS
 		// Pick icon depending on whether we are on a hit breakpoint
 		const bool bIsOnHitBreakpoint = FKismetDebugUtilities::GetMostRecentBreakpointHit() == GraphNode;
 		
-		IPOverlayInfo.Brush = FEditorStyle::GetBrush( bIsOnHitBreakpoint ? TEXT("Kismet.DebuggerOverlay.InstructionPointerBreakpoint") : TEXT("Kismet.DebuggerOverlay.InstructionPointer") );
+		IPOverlayInfo.Brush = FAppStyle::GetBrush( bIsOnHitBreakpoint ? TEXT("Kismet.DebuggerOverlay.InstructionPointerBreakpoint") : TEXT("Kismet.DebuggerOverlay.InstructionPointer") );
 
 		if (IPOverlayInfo.Brush != NULL)
 		{
@@ -460,7 +460,7 @@ void SGraphNodeK2Base::GetOverlayBrushes(bool bSelected, const FVector2D WidgetS
 		if (Timeline && Timeline->bAutoPlay)
 		{
 			FOverlayBrushInfo IPOverlayInfo;
-			IPOverlayInfo.Brush = FEditorStyle::GetBrush( TEXT("Graph.Node.Autoplay") );
+			IPOverlayInfo.Brush = FAppStyle::GetBrush( TEXT("Graph.Node.Autoplay") );
 
 			if (IPOverlayInfo.Brush != NULL)
 			{
@@ -474,7 +474,7 @@ void SGraphNodeK2Base::GetOverlayBrushes(bool bSelected, const FVector2D WidgetS
 		if (Timeline && Timeline->bLoop)
 		{
 			FOverlayBrushInfo IPOverlayInfo;
-			IPOverlayInfo.Brush = FEditorStyle::GetBrush( TEXT("Graph.Node.Loop") );
+			IPOverlayInfo.Brush = FAppStyle::GetBrush( TEXT("Graph.Node.Loop") );
 
 			if (IPOverlayInfo.Brush != NULL)
 			{
@@ -494,7 +494,7 @@ void SGraphNodeK2Base::GetOverlayBrushes(bool bSelected, const FVector2D WidgetS
 		{
 			FOverlayBrushInfo IPOverlayInfo;
 
-			IPOverlayInfo.Brush = FEditorStyle::GetBrush( ClientIcon );
+			IPOverlayInfo.Brush = FAppStyle::GetBrush( ClientIcon );
 
 			if (IPOverlayInfo.Brush != NULL)
 			{
@@ -661,7 +661,7 @@ const FSlateBrush* SGraphNodeK2Base::GetShadowBrush(bool bSelected) const
 
 	if (bSelected && bCompactMode)
 	{
-		return FEditorStyle::GetBrush( "Graph.VarNode.ShadowSelected" );
+		return FAppStyle::GetBrush( "Graph.VarNode.ShadowSelected" );
 	}
 	else
 	{

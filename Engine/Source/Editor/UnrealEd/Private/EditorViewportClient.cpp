@@ -9,7 +9,7 @@
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Settings/LevelEditorViewportSettings.h"
@@ -6288,7 +6288,7 @@ FViewportNavigationCommands::FViewportNavigationCommands()
 		"EditorViewportClient", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "ViewportNavigation", "Viewport Navigation"), // Localized context name for displaying
 		FName(),
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 }

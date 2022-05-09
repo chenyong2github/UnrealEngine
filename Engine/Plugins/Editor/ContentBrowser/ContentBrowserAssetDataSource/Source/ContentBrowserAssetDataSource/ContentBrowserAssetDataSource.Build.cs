@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"EditorFramework",
 					"UnrealEd",
-					"EditorStyle",
 					"EditorWidgets",
 					"Projects",
 					"ToolMenus",

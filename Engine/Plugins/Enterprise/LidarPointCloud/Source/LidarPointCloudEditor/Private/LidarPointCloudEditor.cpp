@@ -9,7 +9,7 @@
 #include "LidarPointCloudEditorCommands.h"
 
 #include "Misc/ScopedSlowTask.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SSingleObjectDetailsPanel.h"
 #include "Widgets/Layout/SBorder.h"
@@ -136,12 +136,12 @@ void FLidarPointCloudEditor::RegisterTabSpawners(const TSharedRef<class FTabMana
 	InTabManager->RegisterTabSpawner(FLidarPointCloudEditor::DetailsTabId, FOnSpawnTab::CreateSP(this, &FLidarPointCloudEditor::SpawnTab_Details))
 		.SetDisplayName(LOCTEXT("DetailsTabLabel", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FLidarPointCloudEditor::ViewportTabId, FOnSpawnTab::CreateSP(this, &FLidarPointCloudEditor::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("ViewportTabLabel", "Viewport"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 }
 
 void FLidarPointCloudEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -596,13 +596,13 @@ void FLidarPointCloudEditor::ExtendToolBar()
 
 			ToolbarBuilder.BeginSection("Camera");
 			{
-				ToolbarBuilder.AddToolBarButton(Commands->ResetCamera, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "StaticMeshEditor.ResetCamera"));
+				ToolbarBuilder.AddToolBarButton(Commands->ResetCamera, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "StaticMeshEditor.ResetCamera"));
 			}
 			ToolbarBuilder.EndSection();
 
 			ToolbarBuilder.BeginSection("LidarPointCloud");
 			{
-				ToolbarBuilder.AddToolBarButton(Commands->Center, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.TranslateMode"));
+				ToolbarBuilder.AddToolBarButton(Commands->Center, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.TranslateMode"));
 				ToolbarBuilder.AddToolBarButton(Commands->Merge);
 				ToolbarBuilder.AddToolBarButton(Commands->Align);
 				ToolbarBuilder.AddComboButton(
@@ -646,7 +646,7 @@ void FLidarPointCloudEditor::ExtendToolBar()
 					FOnGetContent::CreateSP(ThisEditor, &FLidarPointCloudEditor::GenerateNormalsMenuContent),
 					LOCTEXT("Normals_Label", "Normals"),
 					LOCTEXT("Normals_Tooltip", "Normal Calculation options"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.SetShowNormals")
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.SetShowNormals")
 				);
 			}
 			ToolbarBuilder.EndSection();

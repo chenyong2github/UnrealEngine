@@ -8,8 +8,7 @@ public class VirtualHeightfieldMeshEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(new string[] {
 			"Core",
-			"CoreUObject",
-			"EditorStyle",
+			"CoreUObject",		
 			"Engine",
 			"RenderCore",
 			"Renderer",

@@ -24,13 +24,13 @@ void FTextJustifyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> Prop
 		.Value(this, &FTextJustifyCustomization::GetCurrentJustification, PropertyHandle)
 		.OnValueChanged(this, &FTextJustifyCustomization::OnJustificationChanged, PropertyHandle)
 		+ SSegmentedControl<ETextJustify::Type>::Slot(ETextJustify::Left)
-		.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Left"))
+		.Icon(FAppStyle::GetBrush("HorizontalAlignment_Left"))
 		.ToolTip(LOCTEXT("AlignTextLeft", "Align Text Left"))
 		+ SSegmentedControl<ETextJustify::Type>::Slot(ETextJustify::Center)
-		.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Center"))
+		.Icon(FAppStyle::GetBrush("HorizontalAlignment_Center"))
 		.ToolTip(LOCTEXT("AlignTextCenter", "Align Text Center"))
 		+ SSegmentedControl<ETextJustify::Type>::Slot(ETextJustify::Right)
-		.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Right"))
+		.Icon(FAppStyle::GetBrush("HorizontalAlignment_Right"))
 		.ToolTip(LOCTEXT("AlignTextRight", "Align Text Right"))
 	];
 }

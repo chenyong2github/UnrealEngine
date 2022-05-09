@@ -632,7 +632,7 @@ void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
 		.Padding(3)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ControlRig.Curve.Menu"))
+			.Font(FAppStyle::GetFontStyle("ControlRig.Curve.Menu"))
 			.Text(LOCTEXT("ImportMesh_Title", "Select Mesh"))
 			.ToolTipText(LOCTEXT("ImportMesh_Tooltip", "Select Mesh to import Curve from... It will only import if the node doens't exists in the current Curve."))
 		]

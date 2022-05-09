@@ -6,7 +6,7 @@
 #include "CompositingElement.h"
 #include "CompositingElements/CompositingElementPasses.h"
 #include "Algo/Find.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"

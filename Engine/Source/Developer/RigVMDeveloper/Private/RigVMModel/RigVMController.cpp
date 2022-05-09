@@ -30,7 +30,7 @@
 #include "UObject/CoreRedirects.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #endif
 
@@ -14631,7 +14631,7 @@ void URigVMController::SendUserFacingNotification(const FString& InMessage, floa
 	
 	FNotificationInfo Info(FText::FromString(InMessage));
 	Info.bUseSuccessFailIcons = true;
-	Info.Image = FEditorStyle::GetBrush(InBrushName);
+	Info.Image = FAppStyle::GetBrush(InBrushName);
 	Info.bFireAndForget = true;
 	Info.bUseThrobber = true;
 	// longer message needs more time to read

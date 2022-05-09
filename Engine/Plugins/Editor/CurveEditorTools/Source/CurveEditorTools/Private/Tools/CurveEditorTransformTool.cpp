@@ -533,8 +533,8 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 		FGeometry CenterGeometry;
 		InTransformWidget.GetCenterGeometry(InAllottedGeometry, CenterGeometry);
 
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, CenterGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, CenterHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, InAllottedGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, CenterGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, CenterHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, InAllottedGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 	}
 
 	// Draw edge highlight regions on mouse hover
@@ -548,13 +548,13 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 		InTransformWidget.GetSidebarGeometry(InAllottedGeometry, LeftSidebarGeometry, RightSidebarGeometry, TopSidebarGeometry, BottomSidebarGeometry);
 
 		// Left Edge
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, LeftSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, LeftEdgeHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, LeftSidebarGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, LeftEdgeHighlightColor);
 		// Right Edge
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, RightSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, RightEdgeHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, RightSidebarGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, RightEdgeHighlightColor);
 		// Top Edge
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, TopEdgeHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopSidebarGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, TopEdgeHighlightColor);
 		// Bottom Edge
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, BottomEdgeHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomSidebarGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, BottomEdgeHighlightColor);
 
 		// Draw arrow markers if falloff is on
 		if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
@@ -623,21 +623,21 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 
 		const float Rotate = FMath::DegreesToRadians(45.f);
 		// Top Left (Highlight, Corner Icon)
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopLeftFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopLeftFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
 			TOptional<FVector2D>(), FSlateDrawElement::RelativeToElement, TopLeftHighlightColor);
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopLeftFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopLeftFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
 		// Top Right										 
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopRightFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopRightFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
 			TOptional<FVector2D>(), FSlateDrawElement::RelativeToElement, TopRightHighlightColor);
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopRightFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopRightFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
 		// Bottom Left										 
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, LeftFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, LeftFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
 			TOptional<FVector2D>(), FSlateDrawElement::RelativeToElement, BottomLeftHighlightColor);
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, LeftFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, LeftFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
 		// Bottom Right										 
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, RightFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, RightFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
 			TOptional<FVector2D>(), FSlateDrawElement::RelativeToElement, BottomRightHighlightColor);
-		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, RightFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
+		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, RightFalloffGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")), ESlateDrawEffect::None, Rotate);
 
 		// Draw falloff weights
 		FGeometry GradientGeometry;
@@ -721,7 +721,7 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 			InTransformWidget.GetCenterIndicatorGeometry(InAllottedGeometry, CenterIndicatorGeometry);
 			FLinearColor CenterIndicatorHighlightColor = FLinearColor::White.CopyWithNewOpacity(CurveEditorTransformTool::EdgeHighlightAlpha);
 
-			FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, CenterIndicatorGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, CenterIndicatorHighlightColor);
+			FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, CenterIndicatorGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, CenterIndicatorHighlightColor);
 		}
 	}
 
@@ -741,17 +741,17 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 		FLinearColor BottomRightHighlightColor	= bBottomRight  ? FLinearColor::White.CopyWithNewOpacity(CurveEditorTransformTool::EdgeHighlightAlpha) : FLinearColor::Transparent;
 
 		// Top Left (Highlight, Corner Icon)
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopLeftCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, TopLeftHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopLeftCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopLeftCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, TopLeftHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopLeftCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 		// Top Right										 
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopRightCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, TopRightHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopRightCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopRightCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, TopRightHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, TopRightCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 		// Bottom Left										 
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomLeftCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, BottomLeftHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomLeftCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomLeftCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, BottomLeftHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomLeftCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 		// Bottom Right										 
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomRightCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, BottomRightHighlightColor);
-		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomRightCornerGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomRightCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, BottomRightHighlightColor);
+		FSlateDrawElement::MakeBox(OutDrawElements, InPaintOnLayerId, BottomRightCornerGeometry.ToPaintGeometry(), FAppStyle::GetBrush(TEXT("MarqueeSelection")));
 	}
 }
 

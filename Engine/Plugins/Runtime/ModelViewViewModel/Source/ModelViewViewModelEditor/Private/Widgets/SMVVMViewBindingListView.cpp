@@ -5,7 +5,7 @@
 #include "Bindings/MVVMBindingHelper.h"
 #include "Dialog/SCustomDialog.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

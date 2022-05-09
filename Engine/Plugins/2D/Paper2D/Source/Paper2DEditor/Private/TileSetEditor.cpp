@@ -2,7 +2,7 @@
 
 #include "TileSetEditor.h"
 #include "UObject/Package.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PaperTileSet.h"
 #include "SSingleObjectDetailsPanel.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -144,18 +144,18 @@ void FTileSetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& In
 		.SetDisplayName(LOCTEXT("TextureViewTabMenu_Description", "Tile Set View"))
 		.SetTooltipText(LOCTEXT("TextureViewTabMenu_ToolTip", "Shows the tile set viewport"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner(FTileSetEditorTabs::DetailsID, FOnSpawnTab::CreateSP(this, &FTileSetEditor::SpawnTab_Details))
 		.SetDisplayName(LOCTEXT("DetailsTabLabel", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FTileSetEditorTabs::SingleTileEditorID, FOnSpawnTab::CreateSP(this, &FTileSetEditor::SpawnTab_SingleTileEditor))
 		.SetDisplayName(LOCTEXT("SingleTileEditTabMenu_Description", "Single Tile Editor"))
 		.SetTooltipText(LOCTEXT("SingleTileEditTabMenu_ToolTip", "Shows the single tile editor viewport"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 }
 
 void FTileSetEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

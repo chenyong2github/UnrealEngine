@@ -27,7 +27,7 @@ public:
 		World = InWorld;
 		RootObject = InRootObject;
 
-		CurrentIconBrush = FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
+		CurrentIconBrush = FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		if (Folders.Num() == 1)
 		{
 			CurrentHoverText = FText::FromName(FEditorFolderUtils::GetLeafName(Folders[0]));

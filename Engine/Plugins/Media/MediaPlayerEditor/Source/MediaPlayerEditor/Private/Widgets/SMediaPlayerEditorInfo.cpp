@@ -2,7 +2,7 @@
 
 #include "SMediaPlayerEditorInfo.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IMediaControls.h"
 #include "MediaPlayer.h"
@@ -88,7 +88,7 @@ void SMediaPlayerEditorInfo::Construct(const FArguments& InArgs, UMediaPlayer& I
 			.AutoHeight()
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.HAlign(HAlign_Right)
 					.Padding(2.0f)
 					[

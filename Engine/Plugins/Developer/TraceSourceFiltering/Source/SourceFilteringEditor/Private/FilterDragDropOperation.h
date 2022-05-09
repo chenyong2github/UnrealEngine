@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Input/DragAndDrop.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -36,7 +36,7 @@ public:
 				[
 					SNew(STextBlock)
 					.TextStyle(FSourceFilterStyle::Get(), "SourceFilter.TextStyle")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
 					.Text(this, &FFilterDragDropOp::GetIconText)
 				]
 				+SHorizontalBox::Slot()

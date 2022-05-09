@@ -4,7 +4,7 @@
 #include "ToolMenus.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "AssetTools.h"
 #include "MaterialEditorModule.h"
@@ -24,7 +24,7 @@ void FAssetTypeActions_MaterialFunctionInstance::GetActions(const TArray<UObject
 		"MaterialFunctionInstance_FindParent",
 		LOCTEXT("MaterialFunctionInstance_FindParent", "Find Parent"),
 		LOCTEXT("MaterialFunctionInstance_FindParentTooltip", "Finds the function this instance is based on in the content browser."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_MaterialFunctionInstance::ExecuteFindParent, MFIs ),
 			FCanExecuteAction()

@@ -6,7 +6,7 @@
 #include "Misc/IFilter.h"
 #include "CollectionManagerTypes.h"
 #include "Styling/SlateIconFinder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerDisplayNode.h"
 #include "MovieSceneSequence.h"
 
@@ -219,7 +219,7 @@ class FSequencerTrackFilter_AudioTracks : public FSequencerTrackFilter_ClassType
 	virtual FString GetName() const override { return TEXT("SequencerAudioTracksFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_AudioTracks", "Audio"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_AudioTracksToolTip", "Show only Audio tracks."); }
-	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Audio"); }
+	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Audio"); }
 
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
 	{
@@ -236,7 +236,7 @@ class FSequencerTrackFilter_EventTracks : public FSequencerTrackFilter_ClassType
 	virtual FString GetName() const override { return TEXT("SequencerEventTracksFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_EventTracks", "Event"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_EventTracksToolTip", "Show only Event tracks."); }
-	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Event"); }
+	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Event"); }
 
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
 	{
@@ -253,7 +253,7 @@ class FSequencerTrackFilter_LevelVisibilityTracks : public FSequencerTrackFilter
 	virtual FString GetName() const override { return TEXT("SequencerLevelVisibilityTracksFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_LevelVisibilityTracks", "Level Visibility"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_LevelVisibilityTracksToolTip", "Show only Level Visibility tracks."); }
-	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.LevelVisibility"); }
+	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.LevelVisibility"); }
 };
 
 class FSequencerTrackFilter_ParticleTracks : public FSequencerTrackFilter_ClassType< UMovieSceneParticleTrack >
@@ -285,7 +285,7 @@ class FSequencerTrackFilter_LightObjects : public FSequencerTrackFilter_Componen
 	virtual FString GetName() const override { return TEXT("SequencerLightObjectsFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_LightObjects", "Lights"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_LightObjectsToolTip", "Show only Light objects."); }
-	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Light"); }
+	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Light"); }
 };
 
 class FSequencerTrackFilter_LevelFilter : public FSequencerTrackFilter
@@ -327,7 +327,7 @@ public:
 	virtual FString GetName() const override { return TEXT("AnimatedFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequenceTrackFilter_Animated", "Animated Tracks"); }
 	virtual FText GetToolTipText() const override;
-	virtual FSlateIcon GetIcon() const { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"); }
+	virtual FSlateIcon GetIcon() const { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyUser"); }
 
 	virtual bool ShouldUpdateOnTrackValueChanged() const override
 	{

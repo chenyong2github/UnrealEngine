@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SBarVisualizer.h"
 #include "SEventsTree.h"
 #include "SRealtimeProfilerTimeline.h"
@@ -19,7 +19,7 @@ void SRealtimeProfilerVisualizer::Construct( const FArguments& InArgs )
 {
 	//TSharedPtr<SDockNode> InitialContent;
 
-	//const FSlateBrush* ContentAreaBrush = FEditorStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" );
+	//const FSlateBrush* ContentAreaBrush = FAppStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" );
 
 	//ChildSlot
 	//[
@@ -138,7 +138,7 @@ void SRealtimeProfilerVisualizer::DisplayFrameDetails(TSharedPtr< FVisualizerEve
 		RightSplitter->RemoveAt(0);
 	}
 
-	const FSlateBrush* ContentAreaBrush = FEditorStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" );
+	const FSlateBrush* ContentAreaBrush = FAppStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" );
 
 	RightSplitter->AddSlot()
 		.Value(1.0f)

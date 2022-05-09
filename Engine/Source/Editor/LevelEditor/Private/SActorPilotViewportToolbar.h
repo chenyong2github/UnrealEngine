@@ -15,7 +15,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditorViewport.h"
 #include "SViewportToolBar.h"
 #include "LevelViewportActions.h"
@@ -65,8 +65,8 @@ public:
 
 		// Use a custom style
 		FName ToolBarStyle = "LegacyViewportMenu";
-		ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
-		ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
+		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
+		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
 		ToolbarBuilder.BeginSection("ActorPilot");
@@ -92,7 +92,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "LevelViewport.ActorPilotText")
+					.TextStyle(FAppStyle::Get(), "LevelViewport.ActorPilotText")
 					.Text(this, &SActorPilotViewportToolbar::GetActiveText)
 				]
 				+ SHorizontalBox::Slot()
@@ -101,7 +101,7 @@ public:
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "LevelViewport.ActorPilotText")
+					.TextStyle(FAppStyle::Get(), "LevelViewport.ActorPilotText")
 					.ColorAndOpacity(FLinearColor::Red)
 					.Text(LOCTEXT("ActorLockedText", "(Locked)"))
 					.ToolTipText(LOCTEXT("ActorLockedToolTipText", "This actor has locked movement so it will not be updated based on camera position"))
@@ -114,7 +114,7 @@ public:
 		ChildSlot
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.Padding(FMargin(4.f, 0.f))
 			[
 				ToolbarBuilder.MakeWidget()

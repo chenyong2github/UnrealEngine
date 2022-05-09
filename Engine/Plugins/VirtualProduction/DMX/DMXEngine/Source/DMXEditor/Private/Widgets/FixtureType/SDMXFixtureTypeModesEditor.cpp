@@ -9,7 +9,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Widgets/FixtureType/DMXFixtureTypeModesEditorModeItem.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"

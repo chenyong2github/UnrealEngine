@@ -81,7 +81,7 @@ void SPropertyEditorCombo::Construct( const FArguments& InArgs, const TSharedPtr
 
 	if (!ComboArgs.Font.HasValidFont())
 	{
-		ComboArgs.Font = FEditorStyle::GetFontStyle(PropertyEditorConstants::PropertyFontStyle);
+		ComboArgs.Font = FAppStyle::GetFontStyle(PropertyEditorConstants::PropertyFontStyle);
 	}
 
 	GenerateComboBoxStrings(ComboItems, RichToolTips, Restrictions);

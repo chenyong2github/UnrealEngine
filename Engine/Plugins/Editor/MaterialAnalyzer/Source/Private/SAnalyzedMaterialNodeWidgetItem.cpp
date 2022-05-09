@@ -8,7 +8,7 @@
 #include "MaterialShaderType.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "MaterialAnalyzer"
 
@@ -35,7 +35,7 @@ void SAnalyzedMaterialNodeWidgetItem::Construct(const FArguments& InArgs, const 
 
 	SMultiColumnTableRow< FAnalyzedMaterialNodeRef >::Construct(SMultiColumnTableRow< FAnalyzedMaterialNodeRef >::FArguments()
 		.Padding(0)
-		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow")
+		.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow")
 		, InOwnerTableView);
 }
 
@@ -65,13 +65,13 @@ TSharedRef<SWidget> SAnalyzedMaterialNodeWidgetItem::GenerateWidgetForColumn(con
 		[
 			SNew(SButton)
 			.OnClicked(this, &SAnalyzedMaterialNodeWidgetItem::FindInContentBrowser)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("BrowseInContentBrowser", "Browse to this asset in the Content Browser"))
 			.DesiredSizeScale(FVector2D(0.4f, 0.4f))
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser").GetIcon())
+				.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser").GetIcon())
 			]
 		];
 	}

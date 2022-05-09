@@ -18,7 +18,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Misc/App.h"
 #include "SlateOptMacros.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Models/SessionBrowserTreeItems.h"
 
 #define LOCTEXT_NAMESPACE "SSessionBrowserTreeRow"
@@ -74,7 +74,7 @@ public:
 							[
 								SNew(STextBlock)
 									.Text(this, &SSessionBrowserTreeSessionRow::HandleSessionNameText)
-									.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+									.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 							]
 					]
 			];
@@ -82,7 +82,7 @@ public:
 		STableRow<TSharedPtr<FSessionBrowserSessionTreeItem>>::ConstructInternal(
 			STableRow<TSharedPtr<FSessionBrowserSessionTreeItem>>::FArguments()
 				.ShowSelection(false)
-				.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow"),
+				.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow"),
 			InOwnerTableView
 		);
 	}
@@ -154,14 +154,14 @@ private:
 		if (IsHovered())
 		{
 			return IsItemExpanded()
-				? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered")
-				: FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+				? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered")
+				: FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 		}
 		else
 		{
 			return IsItemExpanded()
-				? FEditorStyle::GetBrush("DetailsView.CategoryTop")
-				: FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+				? FAppStyle::GetBrush("DetailsView.CategoryTop")
+				: FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 		}
 	}
 

@@ -20,7 +20,7 @@
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SSlider.h"
 #include "SPositiveActionButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FoliagePaletteCommands.h"
 #include "AssetThumbnail.h"
 #include "PropertyEditorModule.h"
@@ -65,7 +65,7 @@ public:
 		this->ChildSlot
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(this, &SFoliageDragDropHandler::GetBackgroundColor)
 				.Padding(FMargin(30))
 				[
@@ -131,7 +131,7 @@ public:
 		ChildSlot
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
@@ -141,16 +141,16 @@ public:
 					.Padding(2)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
+						.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
 					]
 					+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
 						.Padding(2)
 						[
 							SNew(SRichTextBlock)
-							.DecoratorStyleSet(&FEditorStyle::Get())
+							.DecoratorStyleSet(&FAppStyle::Get())
 							.Justification(ETextJustify::Left)
-							.TextStyle(FEditorStyle::Get(), "DetailsView.BPMessageTextStyle")
+							.TextStyle(FAppStyle::Get(), "DetailsView.BPMessageTextStyle")
 							.Text(InArgs._WarningText)
 							.AutoWrapText(true)
 							+ SRichTextBlock::HyperlinkDecorator(TEXT("HyperlinkDecorator"), InArgs._OnHyperlinkClicked)
@@ -253,7 +253,7 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 				[
 					SNew(SImage)
             		.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
+					.Image(FAppStyle::GetBrush("LevelEditor.Tabs.Details"))
 				]
 			]
 
@@ -279,7 +279,7 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 		[
 			SNew(SSplitter)
 			.Orientation(Orient_Vertical)
-			.Style(FEditorStyle::Get(), "FoliageEditMode.Splitter")
+			.Style(FAppStyle::Get(), "FoliageEditMode.Splitter")
 
 			+ SSplitter::Slot()
 			.Value(0.6f)
@@ -616,7 +616,7 @@ TSharedRef<SWidgetSwitcher> SFoliagePalette::CreatePaletteViews()
 	WidgetSwitcher->AddSlot(EFoliagePaletteViewMode::Tree)
 	[
 		SNew(SScrollBorder, TreeViewWidget.ToSharedRef())
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FScrollBorderStyle>("FoliageEditMode.TreeView.ScrollBorder"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FScrollBorderStyle>("FoliageEditMode.TreeView.ScrollBorder"))
 		.Content()
 		[
 			TreeViewWidget.ToSharedRef()
@@ -893,7 +893,7 @@ TSharedPtr<SWidget> SFoliagePalette::ConstructFoliageTypeContextMenu()
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("SaveAsFoliageType", "Save As Foliage Type..."),
 					LOCTEXT("SaveAsFoliageType_ToolTip", "Creates a Foliage Type asset with these settings that can be reused in other levels."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.SaveIcon16x"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Level.SaveIcon16x"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &SFoliagePalette::OnSaveSelected)
 						),
@@ -910,7 +910,7 @@ TSharedPtr<SWidget> SFoliagePalette::ConstructFoliageTypeContextMenu()
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("SaveSelectedFoliageTypes", "Save"),
 					LOCTEXT("SaveSelectedFoliageTypes_ToolTip", "Saves any changes to the selected foliage type asset(s)."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.SaveIcon16x"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Level.SaveIcon16x"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &SFoliagePalette::OnSaveSelected),
 						FCanExecuteAction::CreateSP(this, &SFoliagePalette::OnCanSaveAnySelectedAssets),
@@ -1377,7 +1377,7 @@ FText SFoliagePalette::GetShowHideDetailsTooltipText() const
 const FSlateBrush* SFoliagePalette::GetShowHideDetailsImage() const
 {
 	const bool bDetailsCurrentlyVisible = DetailsWidget->GetVisibility() != EVisibility::Collapsed;
-	return FEditorStyle::Get().GetBrush(bDetailsCurrentlyVisible ? "Symbols.DoubleDownArrow" : "Symbols.DoubleUpArrow");
+	return FAppStyle::Get().GetBrush(bDetailsCurrentlyVisible ? "Symbols.DoubleDownArrow" : "Symbols.DoubleUpArrow");
 }
 
 void SFoliagePalette::OnShowHideDetailsClicked(const ECheckBoxState InCheckedState) const

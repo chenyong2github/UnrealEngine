@@ -9,7 +9,7 @@ FMeshPainterCommands::FMeshPainterCommands()
 		"MeshPainter", 
 		NSLOCTEXT("Contexts", "MeshPainter", "Mesh Painter"), 
 		NAME_None, 
-		FEditorStyle::GetStyleSetName())
+		FAppStyle::GetAppStyleSetName())
 {
 }
 

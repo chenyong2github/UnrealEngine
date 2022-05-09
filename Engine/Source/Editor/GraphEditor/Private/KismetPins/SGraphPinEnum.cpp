@@ -28,7 +28,7 @@ void SPinComboBox::Construct( const FArguments& InArgs )
 			[
 				SNew( STextBlock ).ToolTipText(NSLOCTEXT("PinComboBox", "ToolTip", "Select enum values from the list"))
 				.Text( this, &SPinComboBox::OnGetVisibleTextInternal )
-				.Font( FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
+				.Font( FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
 			]
 		]
 		.MenuContent()
@@ -38,7 +38,7 @@ void SPinComboBox::Construct( const FArguments& InArgs )
 			.MaxHeight(450.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding( 0 )
 				[
 					SAssignNew( ComboList, SComboList )
@@ -91,7 +91,7 @@ TSharedRef<ITableRow> SPinComboBox::OnGenerateComboWidget( TSharedPtr<int32> InC
 				SNew(STextBlock)
 				.Text( this, &SPinComboBox::GetRowString, RowIndex )
 				.ToolTipText( this, &SPinComboBox::GetRowTooltip, RowIndex )
-				.Font( FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
+				.Font( FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
 			]
 		];
 }

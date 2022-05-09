@@ -5,7 +5,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ConversationGraphNode.h"
 //#include "ConversationGraphNode_Decorator.h"
 //#include "ConversationGraphNode_Service.h"
@@ -47,16 +47,16 @@ TSharedRef<SWidget> FFindInConversationResult::CreateIcon() const
 	{
 // 		if (Cast<UConversationGraphNode_Service>(GraphNode.Get()))
 // 		{
-// 			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.PinIcon"));
+// 			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.PinIcon"));
 // 		}
 // 		else 
 // 		if (Cast<UConversationGraphNode_Decorator>(GraphNode.Get()))
 // 		{
-// 			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.RefPinIcon"));
+// 			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.RefPinIcon"));
 // 		}
 //		else
 		{
-			Brush = FEditorStyle::GetBrush(TEXT("GraphEditor.FIB_Event"));
+			Brush = FAppStyle::GetBrush(TEXT("GraphEditor.FIB_Event"));
 		}
 	}
 	
@@ -139,7 +139,7 @@ void SFindInConversation::Construct( const FArguments& InArgs, TSharedPtr<FConve
 			.Padding(0.f, 4.f, 0.f, 0.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
 					SAssignNew(TreeView, STreeViewType)
 					.ItemHeight(24)

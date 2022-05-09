@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 class GEOMETRYCOLLECTIONEDITOR_API FGeometryCollectionSelectionCommands : public TCommands<FGeometryCollectionSelectionCommands>
@@ -15,7 +15,7 @@ public:
 			TEXT("GeometryCollectionSelection"),
 			NSLOCTEXT("Contexts", "GeometryCollectionSelection", "Geometry Collection Selection Commands"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		)
 	{
 	}

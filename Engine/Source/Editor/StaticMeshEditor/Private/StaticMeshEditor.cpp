@@ -7,7 +7,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorFramework/AssetImportData.h"
@@ -611,7 +611,7 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_SecondaryToolbar( const FSpawnT
 		[
 			SAssignNew(SecondaryToolbarWidgetContent, SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		];
 
 	if ( SecondaryToolbar.IsValid() )
@@ -897,7 +897,7 @@ void FStaticMeshEditor::ExtendToolBar()
 						FNewToolMenuDelegate::CreateSP(StaticMeshEditor.ToSharedRef(), &FStaticMeshEditor::GenerateUVChannelComboList),
 						LOCTEXT("UVToolbarText", "UV"),
 						LOCTEXT("UVToolbarTooltip", "Toggles display of the static mesh's UVs for the specified channel."),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "StaticMeshEditor.SetDrawUVs")
+						FSlateIcon(FAppStyle::GetStyleSetName(), "StaticMeshEditor.SetDrawUVs")
 					));
 					UVToolbarEntry.StyleNameOverride = "CalloutToolbar";
 				}

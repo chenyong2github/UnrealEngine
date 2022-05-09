@@ -19,7 +19,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SToolTip.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Templates/SubclassOf.h"
 
@@ -166,7 +166,7 @@ public:
 			typename SListViewSelectorDropdownMenu<TSharedPtr<FDMXEntityEntry> >::FArguments()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding(2)
 				[
 					SNew(SBox)
@@ -420,7 +420,7 @@ private:
 		{
 			return 
 				SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-				.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
+				.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 				.ShowSelection(false)
 				[
 					SNew(SBox)
@@ -428,7 +428,7 @@ private:
 					[
 						SNew(STextBlock)
 						.Text(Entry->GetLabelText())
-						.TextStyle(FEditorStyle::Get(), TEXT("Menu.Heading"))
+						.TextStyle(FAppStyle::Get(), TEXT("Menu.Heading"))
 					]
 				];
 		}
@@ -436,15 +436,15 @@ private:
 		{
 			return 
 				SNew(STableRow<TSharedPtr<FString>>, OwnerTable )
-				.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
+				.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 				.ShowSelection(false)
 				[
 					SNew(SBox)
 					.Padding(1.f)
 					[
 						SNew(SBorder)
-						.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
-						.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
+						.Padding(FAppStyle::GetMargin(TEXT("Menu.Separator.Padding")))
+						.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Separator")))
 					]
 				];
 		}
@@ -631,8 +631,8 @@ public:
 					[
 						// Show the name of the asset or actor
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
-						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+						.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
+						.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 						.Text(this, &SDMXEntityPickerType::OnGetSelectedEntityName)
 					]
 					.MenuContent()
@@ -647,8 +647,8 @@ public:
 					.IsFocusable(true)
 					.ToolTipText(this, &SDMXEntityPickerType::OnGetSelectedEntityName)
 					.ContentPadding(2.0f)
-					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 					.OnComboBoxOpened(FOnComboBoxOpened::CreateLambda([EntitiesDropdownList]()
 						{
 							EntitiesDropdownList->ClearSelection();

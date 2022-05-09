@@ -12,7 +12,7 @@
 #include "Widgets/Monitors/SDMXActivityInUniverse.h"
 #include "Widgets/Monitors/SDMXMonitorSourceSelector.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Containers/UnrealString.h"
 #include "Widgets/Input/SButton.h"
@@ -90,7 +90,7 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 						.MinDesiredWidth(40.f)
 						[
 							SAssignNew(MinUniverseIDEditableTextBox, SEditableTextBox)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							.Text(FText::FromString(FString::FromInt(MinUniverseID)))
 							.OnTextCommitted(this, &SDMXActivityMonitor::OnMinUniverseIDValueCommitted)
 						]
@@ -113,7 +113,7 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 						.MinDesiredWidth(40.f)
 						[
 							SAssignNew(MaxUniverseIDEditableTextBox, SEditableTextBox)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							.Text(FText::FromString(FString::FromInt(MaxUniverseID)))
 							.OnTextCommitted(this, &SDMXActivityMonitor::OnMaxUniverseIDValueCommitted)
 						]

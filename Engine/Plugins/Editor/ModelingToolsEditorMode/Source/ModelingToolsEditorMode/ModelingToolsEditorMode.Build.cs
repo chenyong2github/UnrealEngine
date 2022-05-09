@@ -42,7 +42,6 @@ public class ModelingToolsEditorMode : ModuleRules
 				"UnrealEd",
 				"ContentBrowserData",
 				"StatusBar",
-				"EditorStyle",
 				"Projects",
 				"TypedElementRuntime",
 				"InteractiveToolsFramework",

@@ -5,7 +5,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CollisionAnalyzer.h"
 #include "CollisionAnalyzerStyle.h"
 #include "CollisionAnalyzerLog.h"
@@ -31,7 +31,7 @@ void FCollisionAnalyzerModule::StartupModule()
 		.SetDisplayName(NSLOCTEXT("CollisionAnalyzerModule", "TabTitle", "Collision Analyzer"))
 		.SetTooltipText(NSLOCTEXT("CollisionAnalyzerModule", "TooltipText", "Open the Collision Analyzer tab."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "CollisionAnalyzer.TabIcon"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "CollisionAnalyzer.TabIcon"));
 }
 
 void FCollisionAnalyzerModule::ShutdownModule() 

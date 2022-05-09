@@ -8,8 +8,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Styling/StarshipCoreStyle.h"
-#include "Classes/EditorStyleSettings.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 

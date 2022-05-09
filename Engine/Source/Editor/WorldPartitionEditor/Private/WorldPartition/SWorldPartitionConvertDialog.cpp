@@ -30,7 +30,7 @@ void SWorldPartitionConvertDialog::Construct(const FArguments& InArgs)
 	this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -54,7 +54,7 @@ void SWorldPartitionConvertDialog::Construct(const FArguments& InArgs)
 						SNew(SButton)
 						.HAlign(HAlign_Center)
 						.IsEnabled(this, &SWorldPartitionConvertDialog::IsOkEnabled)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SWorldPartitionConvertDialog::OnOkClicked)
 						.Text(LOCTEXT("OkButton", "Ok"))
 					]
@@ -64,7 +64,7 @@ void SWorldPartitionConvertDialog::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SWorldPartitionConvertDialog::OnCancelClicked)
 						.Text(LOCTEXT("CancelButton", "Cancel"))
 					]

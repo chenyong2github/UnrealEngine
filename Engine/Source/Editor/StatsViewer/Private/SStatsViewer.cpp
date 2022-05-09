@@ -12,7 +12,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorEngine.h"
 #include "StatsViewerModule.h"
 #include "PropertyEditorModule.h"
@@ -87,7 +87,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			.Padding(4.0f)
 			[
 				SNew( SHorizontalBox )
@@ -140,7 +140,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 				.Padding(0.0f)
 				[
 					SAssignNew( CustomContent, SBorder )
-					.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+					.BorderImage( FAppStyle::GetBrush("NoBorder") )
 					.Padding(0.0f)
 					.Visibility( this, &SStatsViewer::OnGetStatsVisibility )
 				]
@@ -150,7 +150,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 				.HAlign(HAlign_Right)
 				[
 					SAssignNew( CustomFilter, SBorder )
-					.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+					.BorderImage( FAppStyle::GetBrush("NoBorder") )
 					.Padding(0.0f)
 				]
 			]
@@ -160,7 +160,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 		.FillHeight(1.0f)
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			.Visibility( this, &SStatsViewer::OnGetStatsVisibility )
 			.Padding(4.0f)
 			[
@@ -172,7 +172,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 		.AutoHeight()
 		[	
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			.Visibility( this, &SStatsViewer::OnGetStatsVisibility )
 			.Padding(4.0f)
 			[

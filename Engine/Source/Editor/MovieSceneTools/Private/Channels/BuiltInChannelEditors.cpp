@@ -13,7 +13,7 @@
 #include "SequencerSettings.h"
 #include "MovieSceneCommonHelpers.h"
 #include "GameFramework/Actor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "CurveKeyEditors/SNumericKeyEditor.h"
 #include "CurveKeyEditors/SBoolCurveKeyEditor.h"
@@ -458,13 +458,13 @@ public:
 				SNew(SComboButton)
 				.OnGetMenuContent(this, &SActorReferenceBox::GetPickerMenu)
 				.ContentPadding(FMargin(0.0, 0.0))
-				.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-				.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+				.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+				.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 				.ButtonContent()
 				[
 					GetCurrentItemWidget(
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
+						.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
 						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 					)
 				]
@@ -766,10 +766,10 @@ void DrawKeysImpl(ChannelType* Channel, TArrayView<const FKeyHandle> InKeyHandle
 	static const FName SquareKeyBrushName("Sequencer.KeySquare");
 	static const FName TriangleKeyBrushName("Sequencer.KeyTriangle");
 
-	const FSlateBrush* CircleKeyBrush = FEditorStyle::GetBrush(CircleKeyBrushName);
-	const FSlateBrush* DiamondKeyBrush = FEditorStyle::GetBrush(DiamondKeyBrushName);
-	const FSlateBrush* SquareKeyBrush = FEditorStyle::GetBrush(SquareKeyBrushName);
-	const FSlateBrush* TriangleKeyBrush = FEditorStyle::GetBrush(TriangleKeyBrushName);
+	const FSlateBrush* CircleKeyBrush = FAppStyle::GetBrush(CircleKeyBrushName);
+	const FSlateBrush* DiamondKeyBrush = FAppStyle::GetBrush(DiamondKeyBrushName);
+	const FSlateBrush* SquareKeyBrush = FAppStyle::GetBrush(SquareKeyBrushName);
+	const FSlateBrush* TriangleKeyBrush = FAppStyle::GetBrush(TriangleKeyBrushName);
 
 	TMovieSceneChannelData<ChannelValueType> ChannelData = Channel->GetData();
 	TArrayView<const ChannelValueType> Values = ChannelData.GetValues();
@@ -839,9 +839,9 @@ void DrawKeys(FMovieSceneParticleChannel* Channel, TArrayView<const FKeyHandle> 
 	static const FName KeyRightBrushName("Sequencer.KeyRight");
 	static const FName KeyDiamondBrushName("Sequencer.KeyDiamond");
 
-	const FSlateBrush* LeftKeyBrush = FEditorStyle::GetBrush(KeyLeftBrushName);
-	const FSlateBrush* RightKeyBrush = FEditorStyle::GetBrush(KeyRightBrushName);
-	const FSlateBrush* DiamondBrush = FEditorStyle::GetBrush(KeyDiamondBrushName);
+	const FSlateBrush* LeftKeyBrush = FAppStyle::GetBrush(KeyLeftBrushName);
+	const FSlateBrush* RightKeyBrush = FAppStyle::GetBrush(KeyRightBrushName);
+	const FSlateBrush* DiamondBrush = FAppStyle::GetBrush(KeyDiamondBrushName);
 
 	TMovieSceneChannelData<uint8> ChannelData = Channel->GetData();
 
@@ -878,10 +878,10 @@ void DrawKeys(FMovieSceneEventChannel* Channel, TArrayView<const FKeyHandle> InK
 
 	FKeyDrawParams ValidEventParams, InvalidEventParams;
 
-	ValidEventParams.BorderBrush   = ValidEventParams.FillBrush   = FEditorStyle::Get().GetBrush("Sequencer.KeyDiamond");
+	ValidEventParams.BorderBrush   = ValidEventParams.FillBrush   = FAppStyle::Get().GetBrush("Sequencer.KeyDiamond");
 
-	InvalidEventParams.FillBrush   = FEditorStyle::Get().GetBrush("Sequencer.KeyDiamond");
-	InvalidEventParams.BorderBrush = FEditorStyle::Get().GetBrush("Sequencer.KeyDiamondBorder");
+	InvalidEventParams.FillBrush   = FAppStyle::Get().GetBrush("Sequencer.KeyDiamond");
+	InvalidEventParams.BorderBrush = FAppStyle::Get().GetBrush("Sequencer.KeyDiamondBorder");
 	InvalidEventParams.FillTint    = FLinearColor(1.f,1.f,1.f,.2f);
 
 	TMovieSceneChannelData<FMovieSceneEvent> ChannelData = Channel->GetData();
@@ -931,7 +931,7 @@ struct TCurveChannelKeyMenuExtension : FExtender, TSharedFromThis<TCurveChannelK
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
 				LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyAuto"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyAuto"),
 				FUIAction(
 					FExecuteAction::CreateLambda([SharedThis]{ SharedThis->SetInterpTangentMode(RCIM_Cubic, RCTM_Auto); }),
 					FCanExecuteAction(),
@@ -943,7 +943,7 @@ struct TCurveChannelKeyMenuExtension : FExtender, TSharedFromThis<TCurveChannelK
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SetKeyInterpolationUser", "Cubic (User)"),
 				LOCTEXT("SetKeyInterpolationUserTooltip", "Set key interpolation to user"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyUser"),
 				FUIAction(
 					FExecuteAction::CreateLambda([SharedThis]{ SharedThis->SetInterpTangentMode(RCIM_Cubic, RCTM_User); }),
 					FCanExecuteAction(),
@@ -955,7 +955,7 @@ struct TCurveChannelKeyMenuExtension : FExtender, TSharedFromThis<TCurveChannelK
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SetKeyInterpolationBreak", "Cubic (Break)"),
 				LOCTEXT("SetKeyInterpolationBreakTooltip", "Set key interpolation to break"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyBreak"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyBreak"),
 				FUIAction(
 					FExecuteAction::CreateLambda([SharedThis]{ SharedThis->SetInterpTangentMode(RCIM_Cubic, RCTM_Break); }),
 					FCanExecuteAction(),
@@ -967,7 +967,7 @@ struct TCurveChannelKeyMenuExtension : FExtender, TSharedFromThis<TCurveChannelK
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SetKeyInterpolationLinear", "Linear"),
 				LOCTEXT("SetKeyInterpolationLinearTooltip", "Set key interpolation to linear"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyLinear"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyLinear"),
 				FUIAction(
 					FExecuteAction::CreateLambda([SharedThis]{ SharedThis->SetInterpTangentMode(RCIM_Linear, RCTM_Auto); }),
 					FCanExecuteAction(),
@@ -979,7 +979,7 @@ struct TCurveChannelKeyMenuExtension : FExtender, TSharedFromThis<TCurveChannelK
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SetKeyInterpolationConstant", "Constant"),
 				LOCTEXT("SetKeyInterpolationConstantTooltip", "Set key interpolation to constant"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyConstant"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyConstant"),
 				FUIAction(
 					FExecuteAction::CreateLambda([SharedThis]{ SharedThis->SetInterpTangentMode(RCIM_Constant, RCTM_Auto); }),
 					FCanExecuteAction(),
@@ -1216,7 +1216,7 @@ struct TCurveChannelSectionMenuExtension : FExtender, TSharedFromThis<TCurveChan
 					.IsEnabled_Lambda([=]() { return SharedThis->IsShowCurve() && Settings->HasKeyAreaCurveExtents(KeyAreaName); })
 					[
 						SNew(SSpinBox<float>)
-						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
 						.OnValueChanged_Lambda([=](float NewValue) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
 						.Value_Lambda([=]() -> float { return GetKeyAreaCurveMin(KeyAreaName); })
@@ -1230,7 +1230,7 @@ struct TCurveChannelSectionMenuExtension : FExtender, TSharedFromThis<TCurveChan
 					.IsEnabled_Lambda([=]() { return SharedThis->IsShowCurve() && Settings->HasKeyAreaCurveExtents(KeyAreaName); })
 					[
 						SNew(SSpinBox<float>)
-						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
 						.OnValueChanged_Lambda([=](float NewValue) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
 						.Value_Lambda([=]() -> float { return GetKeyAreaCurveMax(KeyAreaName); })
@@ -1252,7 +1252,7 @@ struct TCurveChannelSectionMenuExtension : FExtender, TSharedFromThis<TCurveChan
 					.WidthOverride(50.f)
 					[
 						SNew(SSpinBox<int32>)
-						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](int32 Value, ETextCommit::Type CommitType) { OnKeyAreaHeightChanged(Value); })
 						.OnValueChanged_Lambda(OnKeyAreaHeightChanged)
 						.MinValue(15)

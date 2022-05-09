@@ -2,7 +2,7 @@
 
 #include "SAddContentDialog.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SAddContentWidget.h"
 
 #define LOCTEXT_NAMESPACE "AddContentDialog"
@@ -18,7 +18,7 @@ void SAddContentDialog::Construct(const FArguments& InArgs)
 		.SupportsMaximize(false)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Brushes.Panel"))
+			.BorderImage(FAppStyle::GetBrush("Brushes.Panel"))
 			.Padding(FMargin(10,0))
 			[
 				SNew(SAddContentWidget)

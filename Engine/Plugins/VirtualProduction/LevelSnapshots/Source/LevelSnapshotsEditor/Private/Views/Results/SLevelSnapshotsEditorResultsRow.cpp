@@ -157,7 +157,7 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 	if (bDoesRowNeedSplitter)
 	{
 		SAssignNew(OuterSplitterPtr, SSplitter)
-		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+		.Style(FAppStyle::Get(), "DetailsView.Splitter")
 		.PhysicalSplitterHandleSize(5.0f)
 		.HitDetectionSplitterHandleSize(5.0f);
 
@@ -173,7 +173,7 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::CalculateAndReturnNestedColumnSize)))
 		[
 			SAssignNew(NestedSplitterPtr, SSplitter)
-			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+			.Style(FAppStyle::Get(), "DetailsView.Splitter")
 			.PhysicalSplitterHandleSize(5.0f)
 			.HitDetectionSplitterHandleSize(5.0f)
 		];
@@ -242,8 +242,8 @@ void SLevelSnapshotsEditorResultsRow::GenerateAddedAndRemovedRowComponents(
 	.Padding(FMargin(5, 0))
 	[
 		SNew(STextBlock)
-		.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-        .TextStyle(FEditorStyle::Get(), "NormalText.Important")
+		.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
+        .TextStyle(FAppStyle::Get(), "NormalText.Important")
         .Text(PinnedItem->GetRowType() == FLevelSnapshotsEditorResultsRow::RemovedComponentToAdd ? FEditorFontGlyphs::Plus : FEditorFontGlyphs::Minus)
 	];
 

@@ -4,7 +4,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 
 #include "Styling/StyleColors.h"
@@ -39,18 +39,18 @@ void FStateTreeEditorStyle::Initialize()
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	const FScrollBarStyle ScrollBar = FEditorStyle::GetWidgetStyle<FScrollBarStyle>("ScrollBar");
-	const FTextBlockStyle& NormalText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FScrollBarStyle ScrollBar = FAppStyle::GetWidgetStyle<FScrollBarStyle>("ScrollBar");
+	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 
 	// State
 	{
 		FTextBlockStyle StateIcon = FTextBlockStyle(NormalText)
-			.SetFont(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+			.SetFont(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.5f));
 		StyleSet->Set("StateTree.Icon", StateIcon);
 
 		FTextBlockStyle StateDetailsIcon = FTextBlockStyle(NormalText)
-			.SetFont(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.SetFont(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 		    .SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.5f));
 		StyleSet->Set("StateTree.DetailsIcon", StateDetailsIcon);
 
@@ -84,18 +84,18 @@ void FStateTreeEditorStyle::Initialize()
 	// Details rich text
 	{
 		StyleSet->Set("Details.Normal", FTextBlockStyle(NormalText)
-			.SetFont(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"))));
+			.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"))));
 
 		StyleSet->Set("Details.Bold", FTextBlockStyle(NormalText)
-			.SetFont(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont"))));
+			.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont"))));
 
 		StyleSet->Set("Details.Subdued", FTextBlockStyle(NormalText)
 			.SetColorAndOpacity(FSlateColor::UseSubduedForeground())
-			.SetFont(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"))));
+			.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"))));
 	}
 
 	const FLinearColor SelectionColor = FColor(0, 0, 0, 32);
-	const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	StyleSet->Set("StateTree.Selection",
 		FTableRowStyle(NormalTableRowStyle)
 		.SetActiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))

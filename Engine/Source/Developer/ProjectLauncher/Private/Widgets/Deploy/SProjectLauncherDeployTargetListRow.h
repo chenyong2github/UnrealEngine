@@ -19,7 +19,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "PlatformInfo.h"
 #include "Widgets/Shared/SProjectLauncherVariantSelector.h"
@@ -274,7 +274,7 @@ private:
 			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(NAME_None));
 			if (PlatformInfo)
 			{
-				FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal));
+				FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal));
 			}
 		}
 		return FStyleDefaults::GetNoBrush();

@@ -1073,7 +1073,7 @@ void SReplaceReferencesConfirmation::Construct(const FArguments& InArgs)
 				.MinDesiredHeight(100.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 					[
 						SNew(SListView<FListViewItem>)
 						.ItemHeight(24.0f)
@@ -1134,7 +1134,7 @@ SReplaceReferencesConfirmation::EDialogResponse SReplaceReferencesConfirmation::
 		[
 			SNew(SBorder)
 			.Padding(4.f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SAssignNew(Widget, SReplaceReferencesConfirmation)
 				.FindResults(InFindResults)

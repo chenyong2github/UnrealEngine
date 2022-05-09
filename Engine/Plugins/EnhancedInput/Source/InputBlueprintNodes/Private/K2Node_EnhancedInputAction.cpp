@@ -199,7 +199,7 @@ FText UK2Node_EnhancedInputAction::GetTooltipText() const
 
 FSlateIcon UK2Node_EnhancedInputAction::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Event_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 	return Icon;
 }
 

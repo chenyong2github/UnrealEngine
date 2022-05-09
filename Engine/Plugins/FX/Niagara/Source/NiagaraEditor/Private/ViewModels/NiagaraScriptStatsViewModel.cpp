@@ -267,7 +267,7 @@ public:
 
 		SMultiColumnTableRow<TSharedPtr<FGuid>>::Construct(
 			FSuperRowType::FArguments()
-			.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+			.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow"),
 			InOwnerTableView
 		);
 	}
@@ -357,14 +357,14 @@ public:
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
 						SNew(SComboButton)
-						.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+						.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(0)
 						.OnGetMenuContent(this, &SNiagaraScriptStatsWidget::MakePlatformsWidget)
@@ -377,7 +377,7 @@ public:
 							.VAlign(VAlign_Center)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.StatsViewer"))
+								.Image(FAppStyle::GetBrush("LevelEditor.Tabs.StatsViewer"))
 							]
 							// Text
 							+ SHorizontalBox::Slot()
@@ -386,7 +386,7 @@ public:
 							.Padding(0, 0, 2, 0)
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+								.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 								.Text(LOCTEXT("PlatformsButton", "Platforms"))
 							]
 						]
@@ -406,7 +406,7 @@ public:
 			+ SVerticalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				.HAlign(HAlign_Fill)
 				[
 					SNew(SHorizontalBox)
@@ -497,7 +497,7 @@ public:
 					.Content()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "RichTextBlock.Bold")
+						.TextStyle(FAppStyle::Get(), "RichTextBlock.Bold")
 						.Text(FText::FromName(Details.DisplayName))
 						.Margin(FMargin(2.0f, 2.0f, 4.0f, 2.0f))
 					];

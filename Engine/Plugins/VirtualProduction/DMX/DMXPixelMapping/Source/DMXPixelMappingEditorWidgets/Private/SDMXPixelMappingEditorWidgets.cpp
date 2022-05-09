@@ -7,7 +7,7 @@
 #include "DMXProtocolConstants.h"
 #include "DMXRuntimeUtils.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Widgets/SOverlay.h"
@@ -95,7 +95,7 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 								.Padding(FMargin(8.f, 4.f))
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
 									.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([this, XYIndex, bShouldAddChannels]()
 									{ 
@@ -182,7 +182,7 @@ void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 								.Padding(FMargin(8.f, 4.f))
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
 									.Text(FText::Format(LOCTEXT("Num_Pixels", "{0} x {1} pixels"), NumXCells, NumYCells))
 								]
@@ -192,7 +192,7 @@ void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 								.Padding(FMargin(8.f, 4.f))
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
 									.Text(FText::Format(LOCTEXT("UniverseAndAddress", "Universe: {0}, Start Address: {1}"), LocalUniverse, StartAddress))
 								]
@@ -240,7 +240,7 @@ void SDMXPixelMappingCell::Construct(const FArguments& InArgs)
 								.Padding(FMargin(8.f, 4.f))
 								[
 									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
 									.Text(FText::Format(LOCTEXT("CellID", "{0}"), CellID))
 								]

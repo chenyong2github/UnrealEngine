@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/Material.h"
@@ -605,7 +605,7 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 	Info.ExpireDuration = 4.0f;
 	Info.bUseLargeFont = true;
 	Info.bUseSuccessFailIcons = false;
-	Info.Image = FEditorStyle::GetBrush( "ClassThumbnail.Material" );
+	Info.Image = FAppStyle::GetBrush( "ClassThumbnail.Material" );
 	FSlateNotificationManager::Get().AddNotification( Info );
 
 	return UnrealMaterial;

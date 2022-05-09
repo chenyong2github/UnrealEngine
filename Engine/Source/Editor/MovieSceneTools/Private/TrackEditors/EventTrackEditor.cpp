@@ -3,7 +3,7 @@
 #include "TrackEditors/EventTrackEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UObject/Package.h"
 #include "Tracks/MovieSceneEventTrack.h"
 #include "ISequencerSection.h"
@@ -98,7 +98,7 @@ void FEventTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("AddEventTooltip", "Adds a new event track that can trigger events on the timeline."),
 			FNewMenuDelegate::CreateRaw(this, &FEventTrackEditor::AddEventSubMenu, TArray<FGuid>()),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Event")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Event")
 		);
 	}
 }
@@ -246,7 +246,7 @@ bool  FEventTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 
 const FSlateBrush* FEventTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.Event");
+	return FAppStyle::GetBrush("Sequencer.Tracks.Event");
 }
 
 /* FEventTrackEditor callbacks

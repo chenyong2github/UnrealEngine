@@ -8,7 +8,7 @@
 #include "SGraphActionMenu.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "SoundClassGraph/SoundClassGraphSchema.h"
 
@@ -134,7 +134,7 @@ void SSoundClassActionMenu::Construct( const FArguments& InArgs )
 
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		.Padding(5)
 		[
 			SNew(SBox)

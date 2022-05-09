@@ -2,7 +2,7 @@
 
 #include "SRigHierarchy.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -63,11 +63,11 @@ TSharedPtr<SWidget> FRigElementHierarchyDragDropOp::GetDefaultDecorator() const
 {
 	return SNew(SBorder)
 		.Visibility(EVisibility::Visible)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(GetJoinedElementNames()))
-			//.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			//.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 		];
 }
 
@@ -135,7 +135,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		[
 			SNew(SBorder)
 			.Padding(0.0f)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+			.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			[
 				SNew(SVerticalBox)
@@ -153,7 +153,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 					.Padding(3.0f, 1.0f)
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 						.ForegroundColor(FLinearColor::White)
 						.OnClicked(FOnClicked::CreateSP(this, &SRigHierarchy::OnImportSkeletonClicked))
 						.Text(FText::FromString(TEXT("Import Hierarchy")))
@@ -174,7 +174,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 					[
 						SNew(SComboButton)
 						.Visibility(EVisibility::Visible)
-						.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+						.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 						.ForegroundColor(FLinearColor::White)
 						.ContentPadding(0.0f)
 						.OnGetMenuContent(this, &SRigHierarchy::CreateFilterMenu)
@@ -186,8 +186,8 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 							.VAlign(VAlign_Center)
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+								.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 								.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 							]
 							+ SHorizontalBox::Slot()
@@ -196,7 +196,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 							.VAlign(VAlign_Center)
 							[
 								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+								.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
 								.Text(LOCTEXT("FilterMenuLabel", "Options"))
 							]
 						]
@@ -231,7 +231,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 			[
 				SNew(SBorder)
 				.Padding(2.0f)
-				.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+				.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 				[
 					SAssignNew(TreeView, SRigHierarchyTreeView)
 					.RigTreeDelegates(Delegates)
@@ -246,7 +246,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		[
 			SNew(SBorder)
 			.Padding(2.0f)
-			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+			.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 			[
 			SNew(SSpacer)
 			]
@@ -1220,7 +1220,7 @@ void SRigHierarchy::CreateRefreshMenu(FMenuBuilder& MenuBuilder)
 		.Padding(3)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
+			.Font(FAppStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
 			.Text(LOCTEXT("RefreshMesh_Title", "Select Mesh"))
 			.ToolTipText(LOCTEXT("RefreshMesh_Tooltip", "Select Mesh to refresh transform from... It will refresh init transform from selected mesh. This doesn't change hierarchy. If you want to reimport hierarchy, please delete all nodes, and use import hierarchy."))
 		]
@@ -1304,7 +1304,7 @@ void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
 		.Padding(3)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
+			.Font(FAppStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
 			.Text(LOCTEXT("ImportMesh_Title", "Select Mesh"))
 			.ToolTipText(LOCTEXT("ImportMesh_Tooltip", "Select Mesh to import hierarchy from... It will only import if the node doens't exists in the current hierarchy."))
 		]

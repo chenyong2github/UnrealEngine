@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/StandardToolModeCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "StandardToolModeCommands"
 
@@ -11,7 +11,7 @@ FStandardToolModeCommands::FStandardToolModeCommands() :
 		"StandardToolCommands", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "StandardToolCommands", "Standard Tool Commands"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 {}
 

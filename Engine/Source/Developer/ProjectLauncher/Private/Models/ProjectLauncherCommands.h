@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "InputCoreTypes.h"
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
@@ -26,7 +26,7 @@ public:
 			"LauncherCommand",
 			NSLOCTEXT("Contexts", "LauncherCommand", "Project Launcher Command"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		)
 	{ }
 	

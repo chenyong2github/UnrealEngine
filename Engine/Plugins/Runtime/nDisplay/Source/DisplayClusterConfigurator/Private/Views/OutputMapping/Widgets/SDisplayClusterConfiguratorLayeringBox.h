@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"
 
 /**
@@ -17,7 +17,7 @@ class SDisplayClusterConfiguratorLayeringBox : public SBox
 public:
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorLayeringBox)
 		: _LayerOffset(0)
-		, _ShadowBrush(FEditorStyle::GetNoBrush())
+		, _ShadowBrush(FAppStyle::GetNoBrush())
 		, _ShadowSize(FVector2D(12.0f))
 	{}
 		SLATE_DEFAULT_SLOT(FArguments, Content)

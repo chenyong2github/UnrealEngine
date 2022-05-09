@@ -24,7 +24,7 @@
 #include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserDataSource.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
@@ -1710,7 +1710,7 @@ void FAssetFileContextMenu::ExecuteShowAssetMetaData()
 					[
 						SNew(SBorder)
 						.Padding(4.f)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SMetaDataView, *TagValues)
 						]

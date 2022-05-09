@@ -10,7 +10,7 @@
 #include "SlateOptMacros.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "TimedDataMonitorEditorStyle.h"
 
 #include "Widgets/Images/SImage.h"
@@ -88,7 +88,7 @@ public:
 					.ButtonContent()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 						.Text(FEditorFontGlyphs::Pencil_Square)
 						.ColorAndOpacity(FLinearColor::White)
 					]
@@ -156,12 +156,12 @@ private:
 				[
 					SNew(SCheckBox)
 					.Padding(4.f)
-					.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 					.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &STimedDataNumericEntryBox::CloseComboButton)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 						.Text(FEditorFontGlyphs::Check)
 					]
 				]

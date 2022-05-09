@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "Framework/Commands/InputChord.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 #define LOCTEXT_NAMESPACE "LevelCollectionCommands"
@@ -23,7 +23,7 @@ public:
 		"WorldBrowser", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "WorldBrowser", "World Browser"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{
 	}

@@ -10,7 +10,7 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SViewport.h"
@@ -57,7 +57,7 @@ TSharedPtr<SWidget> SAssetAuditBrowser::OnGetAssetContextMenu(const TArray<FAsse
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Load", "Load..."),
 			LOCTEXT("LoadTooltip", "Loads selected assets into memory."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenLevel"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.OpenLevel"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SAssetAuditBrowser::LoadSelectedAssets),
 				FCanExecuteAction::CreateSP(this, &SAssetAuditBrowser::IsAnythingSelected)
@@ -67,7 +67,7 @@ TSharedPtr<SWidget> SAssetAuditBrowser::OnGetAssetContextMenu(const TArray<FAsse
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SaveSelectedAssets", "Save..."),
 			LOCTEXT("SaveSelectedAssets_ToolTip", "Save the selected assets."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Save"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Save"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SAssetAuditBrowser::SaveSelectedAssets),
 				FCanExecuteAction::CreateSP(this, &SAssetAuditBrowser::IsAnythingSelectedAndLoaded)
@@ -329,15 +329,15 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.OnClicked(this, &SAssetAuditBrowser::OnGoBackInHistory)
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ContentPadding(FMargin(1, 0))
 			.IsEnabled(this, &SAssetAuditBrowser::CanStepBackwardInHistory)
 			.ToolTipText(LOCTEXT("Backward_Tooltip", "Step backward in the asset history. Right click to see full history."))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FText::FromString(FString(TEXT("\xf060"))) /*fa-arrow-left*/)
 			]
 		];
@@ -348,15 +348,15 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.OnClicked(this, &SAssetAuditBrowser::OnGoForwardInHistory)
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ContentPadding(FMargin(1, 0))
 			.IsEnabled(this, &SAssetAuditBrowser::CanStepForwardInHistory)
 			.ToolTipText(LOCTEXT("Forward_Tooltip", "Step forward in the asset history. Right click to see full history."))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FText::FromString(FString(TEXT("\xf061"))) /*fa-arrow-right*/)
 			]
 		];
@@ -370,7 +370,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 			SNew(SBorder)
 			.Visibility(this, &SAssetAuditBrowser::GetHistoryVisibility)
 			.Padding(FMargin(3))
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -382,7 +382,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 					[
 						SNew(SBorder)
 						.OnMouseButtonDown(this, &SAssetAuditBrowser::OnMouseDownHistory, TWeakPtr<SMenuAnchor>(BackMenuAnchorPtr))
-						.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+						.BorderImage( FAppStyle::GetBrush("NoBorder") )
 						[
 							BackMenuAnchorPtr
 						]
@@ -393,7 +393,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 					[
 						SNew(SBorder)
 						.OnMouseButtonDown(this, &SAssetAuditBrowser::OnMouseDownHistory, TWeakPtr<SMenuAnchor>(FwdMenuAnchorPtr))
-						.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+						.BorderImage( FAppStyle::GetBrush("NoBorder") )
 						[
 							FwdMenuAnchorPtr
 						]
@@ -509,7 +509,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(Config)
 			]

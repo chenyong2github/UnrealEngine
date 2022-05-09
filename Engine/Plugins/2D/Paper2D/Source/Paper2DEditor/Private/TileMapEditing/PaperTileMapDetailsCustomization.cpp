@@ -9,7 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 
 #include "PropertyHandle.h"
@@ -95,7 +95,7 @@ void FPaperTileMapDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("TinyText"))
+				.Font(FAppStyle::GetFontStyle("TinyText"))
 				.Text_Lambda([this] { return IsInstanced() ? LOCTEXT("Instanced", "Instanced") : LOCTEXT("Asset", "Asset"); })
 				.ToolTipText(LOCTEXT("InstancedVersusAssetTooltip", "Tile map components can either own a unique tile map instance, or reference a shareable tile map asset"))
 			]
@@ -257,7 +257,7 @@ void FPaperTileMapDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("TinyText"))
+						.Font(FAppStyle::GetFontStyle("TinyText"))
 						.Text(this, &FPaperTileMapDetailsCustomization::GetLayerSettingsHeadingText)
 						.ToolTipText(LOCTEXT("LayerSettingsTooltip", "Properties specific to the currently selected layer"))
 					]

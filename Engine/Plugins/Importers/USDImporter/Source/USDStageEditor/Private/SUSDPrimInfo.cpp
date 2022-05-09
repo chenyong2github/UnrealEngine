@@ -15,6 +15,8 @@
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/SdfPath.h"
 
+#include "Styling/AppStyle.h"
+
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -23,7 +25,6 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/World.h"
-#include "EditorStyleSet.h"
 #include "Algo/Find.h"
 
 #if USE_USD_SDK

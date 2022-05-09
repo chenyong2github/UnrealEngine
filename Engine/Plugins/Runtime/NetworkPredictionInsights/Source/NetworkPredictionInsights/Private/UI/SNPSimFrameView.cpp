@@ -4,7 +4,7 @@
 #include "NetworkPredictionDrawHelpers.h"
 #include "SNPWindow.h"
 #include "Insights/IUnrealInsightsModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Commands/UIAction.h"
@@ -16,9 +16,9 @@
 FSimFrameViewDrawHelper::FSimFrameViewDrawHelper(const FDrawContext& InDrawContext, const FSimFrameViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
-	, WhiteBrush(FEditorStyle::Get().GetBrush("WhiteBrush"))
-	, HoveredEventBorderBrush(FEditorStyle::Get().GetBrush("HoveredEventBorder"))
-	, SelectedEventBorderBrush(FEditorStyle::Get().GetBrush("SelectedEventBorder"))
+	, WhiteBrush(FAppStyle::Get().GetBrush("WhiteBrush"))
+	, HoveredEventBorderBrush(FAppStyle::Get().GetBrush("HoveredEventBorder"))
+	, SelectedEventBorderBrush(FAppStyle::Get().GetBrush("SelectedEventBorder"))
 	, SelectionFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
 
@@ -1034,7 +1034,7 @@ int32 SNPSimFrameView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 
-	const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush(TEXT("WhiteBrush")); //FInsightsStyle::Get().GetBrush("WhiteBrush");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush(TEXT("WhiteBrush")); //FInsightsStyle::Get().GetBrush("WhiteBrush");
 
 	const float ViewWidth = AllottedGeometry.Size.X;
 	const float ViewHeight = AllottedGeometry.Size.Y;

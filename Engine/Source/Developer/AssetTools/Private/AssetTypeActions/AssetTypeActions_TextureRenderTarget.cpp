@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTarget.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
@@ -25,7 +25,7 @@ void FAssetTypeActions_TextureRenderTarget::GetActions(const TArray<UObject*>& I
 		"TextureRenderTarget_CreateStatic",
 		LOCTEXT("TextureRenderTarget_CreateStatic", "Create Static Texture"),
 		LOCTEXT("TextureRenderTarget_CreateStaticTooltip", "Creates a static texture from the selected render targets."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_TextureRenderTarget::ExecuteCreateStatic, RenderTargets ),
 			FCanExecuteAction()

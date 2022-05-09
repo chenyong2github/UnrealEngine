@@ -41,7 +41,7 @@ void FBlendParameterDetails::CustomizeChildren(TSharedRef<IPropertyHandle> Struc
 				[
 					SAssignNew(RangeBoxes[RangeValueIndex], SNumericEntryBox<float>)
 					.AllowSpin(false)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Value(this, &FBlendParameterDetails::GetRangeValue, RangeValueIndex)
 					.OnValueChanged(this, &FBlendParameterDetails::OnRangeNumValueChanged, RangeValueIndex)
 					.OnValueCommitted(this, &FBlendParameterDetails::OnRangeNumValueCommitted, RangeValueIndex)

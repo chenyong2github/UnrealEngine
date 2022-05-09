@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Layout/Margin.h"
 #include "Widgets/SCompoundWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Layers/Layer.h"
 #include "LayerViewModel.h"
@@ -74,7 +74,7 @@ public:
 			.Padding( 0.0f, 0.0f, 6.0f, 0.0f )
 			[
 				SAssignNew( LastCreatedButton, SButton )
-				.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+				.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 				.ContentPadding( FMargin( 1 ) )
 				.ForegroundColor( FSlateColor::UseForeground() )
 				.OnClicked( this, &SLayerStats::SelectLayerActorsOfSpecificType, StatsActorClass )
@@ -143,7 +143,7 @@ private:
 
 		static const FName InvertedForegroundName("InvertedForeground");
 
-		return ( Button.IsValid() && ( Button->IsHovered() || Button->IsPressed() ) ) ? FEditorStyle::GetSlateColor(InvertedForegroundName): FSlateColor::UseForeground();
+		return ( Button.IsValid() && ( Button->IsHovered() || Button->IsPressed() ) ) ? FAppStyle::GetSlateColor(InvertedForegroundName): FSlateColor::UseForeground();
 	}
 
 	/**

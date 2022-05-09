@@ -15,7 +15,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "GameMapsSettings.h"
 #include "GameFramework/PlayerController.h"
@@ -660,8 +660,8 @@ void LevelEditorActionHelpers::GetBlueprintSettingsSubMenu(UToolMenu* Menu, FBlu
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
 
-	FSlateIcon EditBPIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("Icons.Edit"));
-	FSlateIcon NewBPIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("Icons.PlusCircle"));
+	FSlateIcon EditBPIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Edit"));
+	FSlateIcon NewBPIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.PlusCircle"));
 	FText RootClassName = FText::FromString(InSettingsData.RootClass->GetName());
 
 	// If there is currently a valid GameMode Blueprint, offer to edit the Blueprint
@@ -709,7 +709,7 @@ void LevelEditorActionHelpers::GetBlueprintSettingsSubMenu(UToolMenu* Menu, FBlu
 
 		TAttribute<FText> CheckOutTooltip;
 		CheckOutTooltip.BindStatic(&GetCheckOutTooltip);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().CheckOutProjectSettingsConfig, CheckOutLabel, CheckOutTooltip, FSlateIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("Icons.Error")));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().CheckOutProjectSettingsConfig, CheckOutLabel, CheckOutTooltip, FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Error")));
 	}
 
 	auto CannotCreateSelectNativeProjectGameMode = [](bool bInIsProjectSettings) -> bool
@@ -1217,7 +1217,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				FLevelEditorCommands::Get().Save,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAsset"),
 				NAME_None,
 				FName("SaveAllLevels")
 			));
@@ -1442,7 +1442,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 					});
 				if(Item)
 				{
-					return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? Item->ActiveIconName : Item->InactiveIconName);
+					return FSlateIcon(FAppStyle::GetAppStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? Item->ActiveIconName : Item->InactiveIconName);
 				}
 
 				EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(GEditor->PreviewPlatform.PreviewShaderFormatName);
@@ -1455,11 +1455,11 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				{
 					case ERHIFeatureLevel::ES3_1:
 					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.Enabled" : "LevelEditor.PreviewMode.Disabled");
+						return FSlateIcon(FAppStyle::GetAppStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.Enabled" : "LevelEditor.PreviewMode.Disabled");
 					}
 					default:
 					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.Enabled" : "LevelEditor.PreviewMode.Disabled");
+						return FSlateIcon(FAppStyle::GetAppStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.Enabled" : "LevelEditor.PreviewMode.Disabled");
 					}
 				}
 			}
@@ -1493,7 +1493,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateQuickSettingsMenu, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
 				LOCTEXT("QuickSettingsCombo", "Settings"),
 				LOCTEXT("QuickSettingsCombo_ToolTip", "Project and Editor settings"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.GameSettings"),
 				false,
 				"LevelToolbarQuickSettings");
 		SettingsEntry.StyleNameOverride = "CalloutToolbar";
@@ -1679,7 +1679,7 @@ void FLevelEditorToolBar::RegisterQuickSettingsMenu()
 			"ProjectSettings",
 			LOCTEXT("ProjectSettingsMenuLabel", "Project Settings..."),
 			LOCTEXT("ProjectSettingsMenuToolTip", "Change the settings of the currently loaded project"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProjectSettings.TabIcon"),
 			FUIAction(FExecuteAction::CreateStatic(&Local::OpenSettings, FName("Project"), FName("Project"), FName("General")))
 			);
 
@@ -1827,7 +1827,7 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 			ULevelEditorMenuContext* Context = InMenu->FindContext<ULevelEditorMenuContext>();
 			if (Context && Context->LevelEditor.IsValid())
 			{
-				FSlateIcon EditBP(FEditorStyle::Get().GetStyleSetName(), TEXT("LevelEditor.OpenLevelBlueprint"));
+				FSlateIcon EditBP(FAppStyle::Get().GetStyleSetName(), TEXT("LevelEditor.OpenLevelBlueprint"));
 
 				{
 					FToolMenuSection& Section = InMenu->AddSection("SubLevels", LOCTEXT("SubLevelsHeading", "Sub-Level Blueprints"));
@@ -1904,7 +1904,7 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprint);
 
 		// Open an existing Blueprint Class...
-		FSlateIcon OpenBPIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenClassBlueprint");
+		FSlateIcon OpenBPIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.OpenClassBlueprint");
 		Section.AddSubMenu(
 			"OpenBlueprintClass",
 			LOCTEXT("OpenBlueprintClassSubMenu", "Open Blueprint Class..."),
@@ -1932,7 +1932,7 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 						LOCTEXT("SubLevelsSubMenu", "Sub-Levels"),
 						LOCTEXT("SubLevelsSubMenu_ToolTip", "Shows available sub-level Blueprints that can be edited."),
 						FNewToolMenuDelegate::CreateStatic(&FBlueprintMenus::MakeSubLevelsMenu),
-						FUIAction(), EUserInterfaceActionType::Button, false, FSlateIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("LevelEditor.OpenLevelBlueprint")));
+						FUIAction(), EUserInterfaceActionType::Button, false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("LevelEditor.OpenLevelBlueprint")));
 				}
 			}
 		}));

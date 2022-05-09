@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /** Base set of mesh painter commands */
 class MESHPAINT_API FMeshPainterCommands : public TCommands<FMeshPainterCommands>

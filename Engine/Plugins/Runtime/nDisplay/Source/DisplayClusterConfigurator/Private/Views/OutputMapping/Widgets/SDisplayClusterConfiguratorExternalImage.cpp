@@ -4,7 +4,7 @@
 
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
@@ -31,12 +31,12 @@ void SDisplayClusterConfiguratorExternalImage::Construct(const FArguments& InArg
 		+SVerticalBox::Slot()
 		[
 			SNew(SBorder)
-			.BorderImage(InArgs._ShowShadow ? FEditorStyle::Get().GetBrush("ExternalImagePicker.ThumbnailShadow") : FEditorStyle::Get().GetBrush("NoBorder"))
+			.BorderImage(InArgs._ShowShadow ? FAppStyle::Get().GetBrush("ExternalImagePicker.ThumbnailShadow") : FAppStyle::Get().GetBrush("NoBorder"))
 			.Padding(4.0f)
 			.Content()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.BlankImage"))
+				.BorderImage(FAppStyle::Get().GetBrush("ExternalImagePicker.BlankImage"))
 				.Padding(0.0f)
 				.Content()
 				[
@@ -122,7 +122,7 @@ FVector2D SDisplayClusterConfiguratorExternalImage::GetConstrainedImageSize() co
 
 const FSlateBrush* SDisplayClusterConfiguratorExternalImage::GetImageBrush() const
 {
-	return ImageBrush.IsValid() ? ImageBrush.Get() : FEditorStyle::Get().GetBrush("ExternalImagePicker.BlankImage");
+	return ImageBrush.IsValid() ? ImageBrush.Get() : FAppStyle::Get().GetBrush("ExternalImagePicker.BlankImage");
 }
 
 FOptionalSize SDisplayClusterConfiguratorExternalImage::GetImageWidth() const

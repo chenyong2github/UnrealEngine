@@ -2,7 +2,7 @@
 
 #include "SUSDStageEditorStyle.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"

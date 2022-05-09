@@ -11,7 +11,7 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AutomationTestExcludelist.h"
 #include "SAutomationWindow.h"
 
@@ -45,7 +45,7 @@ void SAutomationTestItem::Construct( const FArguments& InArgs, const TSharedRef<
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& ColumnName )
 {
-	FSlateFontInfo ItemEditorFont = FEditorStyle::GetFontStyle(TEXT("NormalFont"));
+	FSlateFontInfo ItemEditorFont = FAppStyle::GetFontStyle(TEXT("NormalFont"));
 
 	if( ColumnName == AutomationTestWindowConstants::Title)
 	{
@@ -56,7 +56,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		{
 #if WITH_EDITOR
 			TestNameWidget = SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda([=] {
 					GEngine->Exec(nullptr, *TestStatus->GetOpenCommand());
 				})
@@ -67,7 +67,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		{
 #if WITH_EDITOR
 			TestNameWidget = SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda([=] {
 					FString AssetPath = TestStatus->GetAssetPath();
 					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -90,7 +90,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		else if ( !TestStatus->GetSourceFile().IsEmpty() )
 		{
 			TestNameWidget = SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda([=] { FSlateApplication::Get().GotoLineInSource(TestStatus->GetSourceFile(), TestStatus->GetSourceFileLine()); })
 				.Text(FText::FromString(TestStatus->GetDisplayNameWithDecoration()));
 		}
@@ -148,7 +148,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 				HBox->AddSlot()
 					[
 						SNew( SImage )
-						.Image( FEditorStyle::GetBrush("Automation.Participant") )
+						.Image( FAppStyle::GetBrush("Automation.Participant") )
 					];
 				HBox->AddSlot()
 					[
@@ -165,7 +165,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 					.HAlign(HAlign_Center)
 					[
 						SNew( SImage )
-						.Image( FEditorStyle::GetBrush("Automation.ParticipantsWarning") )
+						.Image( FAppStyle::GetBrush("Automation.ParticipantsWarning") )
 						.ToolTipText( LOCTEXT("ParticipantsWarningToolTip", "Some tests require multiple participants") )
 					];
 			}
@@ -189,7 +189,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 				.FillWidth(1.0)
 				[			
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("ErrorReporting.Box") )
+					.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.Padding( FMargin(3,0) )
@@ -231,7 +231,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 				.FillWidth(1.0)
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("ErrorReporting.Box") )
+					.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.Padding( FMargin(3,0) )
@@ -320,11 +320,11 @@ const FSlateBrush* SAutomationTestItem::GetSmokeTestImage() const
 	{
 		if ( TestStatus->IsParent() )
 		{
-			ImageToUse = FEditorStyle::GetBrush("Automation.SmokeTest");
+			ImageToUse = FAppStyle::GetBrush("Automation.SmokeTest");
 		}
 		else
 		{
-			ImageToUse = FEditorStyle::GetBrush("Automation.SmokeTestParent");
+			ImageToUse = FAppStyle::GetBrush("Automation.SmokeTestParent");
 		}
 	}
 
@@ -598,32 +598,32 @@ const FSlateBrush* SAutomationTestItem::ItemStatus_StatusImage(const int32 Clust
 			//If there were ANY warnings in the results
 			if (CompleteState.NumEnabledTestsWarnings || CompleteState.NumDisabledTestsWarnings)
 			{
-				ImageToUse = FEditorStyle::GetBrush("Automation.Warning");
+				ImageToUse = FAppStyle::GetBrush("Automation.Warning");
 			}
 			else
 			{
-				ImageToUse = FEditorStyle::GetBrush("Automation.Success");
+				ImageToUse = FAppStyle::GetBrush("Automation.Success");
 			}
 		}
 		break;
 
 	case EAutomationState::Fail:
-		ImageToUse = FEditorStyle::GetBrush("Automation.Fail");
+		ImageToUse = FAppStyle::GetBrush("Automation.Fail");
 		break;
 
 	case EAutomationState::NotRun:
 		{
-			ImageToUse = FEditorStyle::GetBrush("Automation.NotRun");
+			ImageToUse = FAppStyle::GetBrush("Automation.NotRun");
 		}
 		break;
 
 	case EAutomationState::Skipped:
-		ImageToUse = FEditorStyle::GetBrush("Automation.Skipped");
+		ImageToUse = FAppStyle::GetBrush("Automation.Skipped");
 		break;
 
 	default:
 	case EAutomationState::InProcess:
-		ImageToUse = FEditorStyle::GetBrush("Automation.InProcess");
+		ImageToUse = FAppStyle::GetBrush("Automation.InProcess");
 		break;
 	}
 

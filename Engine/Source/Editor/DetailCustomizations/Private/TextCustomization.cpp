@@ -131,7 +131,7 @@ void FTextCustomization::CustomizeHeader( TSharedRef<class IPropertyHandle> InPr
 		.MaxDesiredWidth(600.f)
 		[
 			SNew(STextPropertyEditableTextBox, EditableTextProperty)
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.AutoWrapText(true)
 		];
 }

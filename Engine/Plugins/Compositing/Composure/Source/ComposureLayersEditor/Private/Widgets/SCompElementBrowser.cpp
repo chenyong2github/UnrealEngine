@@ -25,7 +25,7 @@ void SCompElementBrowser::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 			.Padding(5)
-			.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+			.BorderImage(FAppStyle::GetBrush("NoBrush"))
 			.Content()
 		[
 			SNew(SVerticalBox)

@@ -9,7 +9,7 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "DataValidationCommandlet.h"
@@ -121,7 +121,7 @@ void FDataValidationModule::RegisterMenus()
 		"ValidateData",
 		TAttribute<FText>::Create(&Menu_ValidateDataGetTitle),
 		LOCTEXT("ValidateDataTooltip", "Validates all user data in content directory."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "DeveloperTools.MenuIcon"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "DeveloperTools.MenuIcon"),
 		FUIAction(FExecuteAction::CreateStatic(&FDataValidationModule::Menu_ValidateData))
 	));
 }

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SGraphPin.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SComboBox.h"

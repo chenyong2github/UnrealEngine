@@ -27,7 +27,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "ScopedTransaction.h"
 
@@ -170,7 +170,7 @@ public:
 			[
 				SNew(SImage)
 				.Visibility(BindingNode->bIsSpawnable ? EVisibility::Visible : EVisibility::Collapsed)
-				.Image(FEditorStyle::GetBrush("Sequencer.SpawnableIconOverlay"))
+				.Image(FAppStyle::GetBrush("Sequencer.SpawnableIconOverlay"))
 			]
 		]
 
@@ -248,7 +248,7 @@ void SObjectBindingTagManager::Construct(const FArguments& InArgs, TWeakPtr<FSeq
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 

@@ -50,7 +50,7 @@ void SNiagaraNamePropertySelector::Construct(const FArguments& InArgs, TSharedRe
 			SNew(SListViewSelectorDropdownMenu<TSharedPtr<FName>>, SearchBox, ElementsListView)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding(2)
 				[
 					SNew(SBox)
@@ -96,7 +96,7 @@ void SNiagaraNamePropertySelector::Construct(const FArguments& InArgs, TSharedRe
 			SNew(SListViewSelectorDropdownMenu<TSharedPtr<FName>>, SearchBox, ElementsListView)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding(2)
 				[
 					SNew(SBox)
@@ -188,7 +188,7 @@ TSharedRef<ITableRow> SNiagaraNamePropertySelector::GenerateAddElementRow(TShare
 {
 	return
 		SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 		.ShowSelection(true)
 		[
 			SNew(SBox)

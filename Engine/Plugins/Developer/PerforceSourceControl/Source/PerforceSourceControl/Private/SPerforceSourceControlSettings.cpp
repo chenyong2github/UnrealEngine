@@ -12,6 +12,9 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Styling/AppStyle.h"
+#include "ISourceControlModule.h"
+#include "PerforceSourceControlModule.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
@@ -352,7 +355,7 @@ TSharedRef<SWidget> SPerforceSourceControlSettings::OnGetMenuContent()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("WorkspacesOperationInProgress", "Looking for Perforce workspaces..."))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))	
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))	
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -374,7 +377,7 @@ TSharedRef<SWidget> SPerforceSourceControlSettings::OnGetMenuContent()
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("NoWorkspaces", "No Workspaces found!"))
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))	
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))	
 			.Visibility(this, &SPerforceSourceControlSettings::GetNoWorkspacesVisibility)
 		]
 		+SHorizontalBox::Slot()
@@ -415,7 +418,7 @@ TSharedRef<ITableRow> SPerforceSourceControlSettings::OnGenerateWorkspaceRow(TSh
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(*InItem))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 		];
 }
@@ -448,11 +451,11 @@ const FSlateBrush* SPerforceSourceControlSettings::GetAdvancedPulldownImage() co
 {
 	if( ExpanderButton->IsHovered() )
 	{
-		return bAreAdvancedSettingsExpanded ? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered") : FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
+		return bAreAdvancedSettingsExpanded ? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered") : FAppStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
 	}
 	else
 	{
-		return bAreAdvancedSettingsExpanded ? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up") : FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down");
+		return bAreAdvancedSettingsExpanded ? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up") : FAppStyle::GetBrush("DetailsView.PulldownArrow.Down");
 	}
 }
 

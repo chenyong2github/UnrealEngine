@@ -5,7 +5,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ContentBrowserUtils.h"
 #include "SPathView.h"
 #include "IContentBrowserDataModule.h"
@@ -140,7 +140,7 @@ TSharedPtr<SWidget> SPathPicker::GetFolderContextMenu(const TArray<FString> & Se
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("NewFolder", "New Folder"),
 		NewFolderToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.NewFolderIcon"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &SPathPicker::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), InOnCreateNewFolder),
 			FCanExecuteAction::CreateLambda( [bCanCreateNewFolder] { return bCanCreateNewFolder; } )

@@ -5,7 +5,7 @@
 #include "AnimationEditorUtils.h"
 #include "ToolMenus.h"
 #include "AssetTools.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -33,7 +33,7 @@ void FAssetTypeActions_AnimMontage::GetActions(const TArray<UObject*>& InObjects
 			"AnimMontage_CreateChildMontage",
 			LOCTEXT("AnimMontage_CreateChildMontage", "Create Child Montage"),
 			LOCTEXT("AnimMontage_CreateChildMontageTooltip", "Create Child Animation Montage and remap to another animation assets."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimMontage"),
 			FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimMontage::CreateChildAnimMontage, Montages))
 		);
 	}

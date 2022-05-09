@@ -6,13 +6,13 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 
 #include "ScopedTransaction.h"
@@ -386,7 +386,7 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(0)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 		[
 			ToolbarBuilder.MakeWidget()
@@ -401,7 +401,7 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 			[
 				RightToolbarBuilder.MakeWidget()
@@ -608,7 +608,7 @@ void SPathDialogWithAllowList::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -635,14 +635,14 @@ void SPathDialogWithAllowList::Construct(const FArguments& InArgs)
 			.Padding(5)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("OK", "OK"))
 					.OnClicked(this, &SPathDialogWithAllowList::OnButtonClick, EAppReturnType::Ok)
 					.IsEnabled(this, &SPathDialogWithAllowList::IsOkButtonEnabled)
@@ -651,7 +651,7 @@ void SPathDialogWithAllowList::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("Cancel", "Cancel"))
 					.OnClicked(this, &SPathDialogWithAllowList::OnButtonClick, EAppReturnType::Cancel)
 				]
@@ -789,7 +789,7 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 				.Value(0.33f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					PathPicker.ToSharedRef()
 				]
@@ -799,7 +799,7 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 				.Value(0.66f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						AssetPicker.ToSharedRef()
 					]
@@ -809,7 +809,7 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 		.Value(0.4f)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SAssignNew(ViewContainer, SBox)
 				.Padding(FMargin(5.0f, 0, 0, 0))

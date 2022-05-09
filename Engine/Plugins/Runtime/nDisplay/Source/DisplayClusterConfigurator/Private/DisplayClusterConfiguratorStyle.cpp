@@ -2,7 +2,7 @@
 
 #include "DisplayClusterConfiguratorStyle.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -142,26 +142,26 @@ void FDisplayClusterConfiguratorStyle::Initialize()
 
 	// Node Text
 	{
-		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+		FTextBlockStyle TilteTextBlockStyle = FAppStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 28));
 		Set("DisplayClusterConfigurator.Node.Text.Regular", TilteTextBlockStyle);
 	}
 
 	{
-		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+		FTextBlockStyle TilteTextBlockStyle = FAppStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 28));
 		Set("DisplayClusterConfigurator.Node.Text.Bold", TilteTextBlockStyle);
 	}
 
 	{
-		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("Graph.StateNode.NodeTitle");
+		FTextBlockStyle TilteTextBlockStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("Graph.StateNode.NodeTitle");
 		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 36));
 		TilteTextBlockStyle.SetShadowColorAndOpacity(FLinearColor::Transparent);
 		Set("DisplayClusterConfigurator.Host.Text.Title", TilteTextBlockStyle);
 	}
 
 	{
-		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+		FTextBlockStyle TilteTextBlockStyle = FAppStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
 		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Italic", 18));
 		Set("DisplayClusterConfigurator.Node.Text.Small", TilteTextBlockStyle);
 	}

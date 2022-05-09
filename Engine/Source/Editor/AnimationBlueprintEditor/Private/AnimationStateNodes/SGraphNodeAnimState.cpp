@@ -66,8 +66,8 @@ TSharedRef<SWidget>	SStateMachineOutputPin::GetDefaultValueWidget()
 const FSlateBrush* SStateMachineOutputPin::GetPinBorder() const
 {
 	return ( IsHovered() )
-		? FEditorStyle::GetBrush( TEXT("Graph.StateNode.Pin.BackgroundHovered") )
-		: FEditorStyle::GetBrush( TEXT("Graph.StateNode.Pin.Background") );
+		? FAppStyle::GetBrush( TEXT("Graph.StateNode.Pin.BackgroundHovered") )
+		: FAppStyle::GetBrush( TEXT("Graph.StateNode.Pin.Background") );
 }
 
 /////////////////////////////////////////////////////
@@ -237,7 +237,7 @@ void SGraphNodeAnimState::UpdateGraphNode()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
+			.BorderImage( FAppStyle::GetBrush( "Graph.StateNode.Body" ) )
 			.Padding(0)
 			.BorderBackgroundColor( this, &SGraphNodeAnimState::GetBorderBackgroundColor )
 			[
@@ -258,7 +258,7 @@ void SGraphNodeAnimState::UpdateGraphNode()
 				.Padding(10.0f)
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("Graph.StateNode.ColorSpill") )
+					.BorderImage( FAppStyle::GetBrush("Graph.StateNode.ColorSpill") )
 					.BorderBackgroundColor( TitleShadowColor )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
@@ -288,7 +288,7 @@ void SGraphNodeAnimState::UpdateGraphNode()
 								.AutoHeight()
 							[
 								SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-								.Style( FEditorStyle::Get(), "Graph.StateNode.NodeTitleInlineEditableText" )
+								.Style( FAppStyle::Get(), "Graph.StateNode.NodeTitleInlineEditableText" )
 								.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 								.OnVerifyTextChanged(this, &SGraphNodeAnimState::OnVerifyNameTextChanged)
 								.OnTextCommitted(this, &SGraphNodeAnimState::OnNameTextCommited)
@@ -374,7 +374,7 @@ FText SGraphNodeAnimState::GetPreviewCornerText() const
 
 const FSlateBrush* SGraphNodeAnimState::GetNameIcon() const
 {
-	return FEditorStyle::GetBrush( TEXT("Graph.StateNode.Icon") );
+	return FAppStyle::GetBrush( TEXT("Graph.StateNode.Icon") );
 }
 
 /////////////////////////////////////////////////////
@@ -399,7 +399,7 @@ FText SGraphNodeAnimConduit::GetPreviewCornerText() const
 
 const FSlateBrush* SGraphNodeAnimConduit::GetNameIcon() const
 {
-	return FEditorStyle::GetBrush( TEXT("Graph.ConduitNode.Icon") );
+	return FAppStyle::GetBrush( TEXT("Graph.ConduitNode.Icon") );
 }
 
 #undef LOCTEXT_NAMESPACE

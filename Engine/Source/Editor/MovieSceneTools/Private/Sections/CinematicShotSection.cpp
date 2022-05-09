@@ -11,7 +11,7 @@
 #include "MovieScene.h"
 #include "TrackEditors/CinematicShotTrackEditor.h"
 #include "SequencerSectionPainter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
@@ -262,7 +262,7 @@ void FCinematicShotSection::Tick(const FGeometry& AllottedGeometry, const FGeome
 
 int32 FCinematicShotSection::OnPaintSection(FSequencerSectionPainter& InPainter) const
 {
-	static const FSlateBrush* FilmBorder = FEditorStyle::GetBrush("Sequencer.Section.FilmBorder");
+	static const FSlateBrush* FilmBorder = FAppStyle::GetBrush("Sequencer.Section.FilmBorder");
 
 	InPainter.LayerId = InPainter.PaintSectionBackground();
 
@@ -399,7 +399,7 @@ void FCinematicShotSection::AddTakesMenu(FMenuBuilder& MenuBuilder)
 				MenuBuilder.AddMenuEntry(
 					FText::Format(LOCTEXT("TakeNumber", "Take {0}"), FText::AsNumber(TakeNumber)),
 					FText::Format(LOCTEXT("TakeNumberTooltip", "Switch to {0}"), FText::FromString(TakeObject->GetPathName())),
-					TakeNumber == CurrentTakeNumber ? FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Star") : FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Empty"),
+					TakeNumber == CurrentTakeNumber ? FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Star") : FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Empty"),
 					FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::SwitchTake, TakeObject))
 				);
 			}

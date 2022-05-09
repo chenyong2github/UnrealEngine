@@ -256,7 +256,7 @@ public:
 									SubMenuBuilder.AddMenuEntry(
 										FText::FromString(FPaths::GetBaseFilename(AssociatedMap)),
 										FText(),
-										FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Levels"),
+										FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Levels"),
 										FExecuteAction::CreateLambda(
 											[AssociatedMap]
 											{
@@ -268,7 +268,7 @@ public:
 							}
 						),
 						false,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Levels")
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Levels")
 					);
 				}
 			}
@@ -279,8 +279,6 @@ public:
 	{
 		if (GIsEditor)
 		{
-			// EditorStyle must be initialized by now
-			FModuleManager::Get().LoadModule("EditorStyle");
 			FSequencerCommands::Register();
 
 			FEditorModeRegistry::Get().RegisterMode<FSequencerEdMode>(

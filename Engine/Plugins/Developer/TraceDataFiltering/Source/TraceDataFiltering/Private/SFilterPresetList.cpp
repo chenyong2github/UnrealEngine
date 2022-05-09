@@ -19,7 +19,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Layout/WidgetPath.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "SFilterPreset.h"
 #include "TraceDataFilteringModule.h"

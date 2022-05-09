@@ -5,7 +5,7 @@
 #include "Algo/Transform.h"
 #include "Bindings/MVVMBindingHelper.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -412,7 +412,7 @@ namespace UE::MVVM::Private
 					.Padding(1.0f, 0.0f)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::Get().GetBrush("GraphEditor.Function_16x"))
+						.Image(FAppStyle::Get().GetBrush("GraphEditor.Function_16x"))
 					]
 				+ SHorizontalBox::Slot()
 					.AutoWidth()
@@ -556,7 +556,7 @@ namespace UE::MVVM::Private
 			ChildSlot
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("AssetDeleteDialog.Background"))
+				.BorderImage(FAppStyle::GetBrush("AssetDeleteDialog.Background"))
 				.Padding(10)
 				[
 					SNew(SVerticalBox)
@@ -564,11 +564,11 @@ namespace UE::MVVM::Private
 					.AutoHeight()
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(5.0f)
 						[
 							SNew(STextBlock)
-							.Font( FEditorStyle::GetFontStyle( "BoldFont" ) )
+							.Font( FAppStyle::GetFontStyle( "BoldFont" ) )
 							.Text(LOCTEXT("References", "This ViewModel is still referenced by the following bindings"))
 							.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 						]
@@ -577,7 +577,7 @@ namespace UE::MVVM::Private
 					.FillHeight(1.0f)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(5.0f)
 						[
 							ConflictListViewWidget.ToSharedRef()
@@ -591,8 +591,8 @@ namespace UE::MVVM::Private
 						.HAlign(HAlign_Center)
 						.Text( LOCTEXT("MVVMViewModelForceDelete", "Force Delete ViewModel"))
 						.ToolTipText(LOCTEXT("MVVMViewModelForceDeleteTooltipText", "These bindings will be in an invalid state and you must remove or fix them manually."))
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+						.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						.OnClicked(this, &SMVVMViewModelDeleteConfirmationDialog::HandleForceDelete)
 					]
 					+ SVerticalBox::Slot()
@@ -603,8 +603,8 @@ namespace UE::MVVM::Private
 						.HAlign(HAlign_Center)
 						.Text( LOCTEXT("Cancel", "Cancel"))
 						.ToolTipText(LOCTEXT("CancelDeleteTooltipText", "Cancel the delete"))
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
+						.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						.OnClicked(this, &SMVVMViewModelDeleteConfirmationDialog::HandleCancel)
 					]
 				]
@@ -687,7 +687,7 @@ void SMVVMViewModelContextListWidget::Construct(const FArguments& InArgs)
 	if (InArgs._ButtonsPanel.Widget == SNullWidget::NullWidget && WeakParentWindow.IsValid())
 	{
 		SAssignNew(ButtonsPanelContent, SUniformGridPanel)
-			.SlotPadding(FEditorStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+			.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
 			+ SUniformGridPanel::Slot(0, 0)
 			[
 				SNew(SPrimaryButton)

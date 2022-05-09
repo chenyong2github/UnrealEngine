@@ -37,8 +37,8 @@ void FWidgetTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> Prope
 	.MaxDesiredWidth(FDetailWidgetRow::DefaultValueMaxWidth * 2)
 	[
 		SAssignNew(WidgetListComboButton, SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.OnGetMenuContent(this, &FWidgetTypeCustomization::GetPopupContent)
 		.ContentPadding(2.0f)
 		.IsEnabled(!PropertyHandle->IsEditConst())

@@ -10,7 +10,7 @@
 #include "Models/ProjectLauncherModel.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
@@ -108,7 +108,7 @@ private:
 			{
 //				if (TargetPlatform->HasValidBuild(SelectedProfile->GetProjectPath(), SelectedProfile->GetBuildConfiguration()))
 				{
-					return FEditorStyle::GetColor("Foreground");
+					return FAppStyle::GetColor("Foreground");
 				}
 			}
 		}

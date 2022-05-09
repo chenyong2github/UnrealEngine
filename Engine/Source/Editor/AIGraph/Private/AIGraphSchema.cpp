@@ -5,7 +5,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "EdGraph/EdGraph.h"
 #include "AIGraphNode.h"
 #include "GraphEditorActions.h"

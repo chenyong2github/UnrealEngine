@@ -11,7 +11,7 @@
 #include "Widgets/SDMXChannel.h"
 #include "Widgets/Monitors/SDMXMonitorSourceSelector.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Containers/UnrealString.h"
 #include "Widgets/Input/SButton.h"
@@ -66,7 +66,7 @@ void SDMXChannelsMonitor::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						.Text(LOCTEXT("UniverseIDLabel", "Local Universe"))
 					]
 
@@ -78,7 +78,7 @@ void SDMXChannelsMonitor::Construct(const FArguments& InArgs)
 						.MinDesiredWidth(40.f)
 						[
 							SAssignNew(UniverseIDEditableTextBox, SEditableTextBox)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							.Text(FText::FromString(LexToString(UniverseID)))
 							.OnTextCommitted(this, &SDMXChannelsMonitor::OnUniverseIDValueCommitted)
 						]
@@ -94,7 +94,7 @@ void SDMXChannelsMonitor::Construct(const FArguments& InArgs)
 					.OnClicked(this, &SDMXChannelsMonitor::OnClearButtonClicked)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						.Text(LOCTEXT("ClearTextLabel", "Clear DMX Buffers"))
 					]
 				]

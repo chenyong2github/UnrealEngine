@@ -11,7 +11,7 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "FileCacheUtilities.h"
 #include "MessageLogModule.h"
@@ -123,7 +123,7 @@ public:
 				.Padding(FMargin(4,0,4,0))
 				[
 					SAssignNew(PauseButton, SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(LOCTEXT("PauseTooltip", "Temporarily pause processing of these source content files"))
 					.OnClicked(this, &SReimportFeedback::OnPauseClicked, InArgs._OnPauseClicked)
 					[
@@ -138,13 +138,13 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(AbortButton, SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(LOCTEXT("AbortTooltip", "Permanently abort processing of these source content files"))
 					.OnClicked(this, &SReimportFeedback::OnAbortClicked, InArgs._OnAbortClicked)
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FLinearColor(0.8f,0.8f,0.8f,1.f))
-						.Image(FEditorStyle::GetBrush("GenericStop"))
+						.Image(FAppStyle::GetBrush("GenericStop"))
 					]
 				]
 			]
@@ -244,7 +244,7 @@ private:
 	/** Get the play/pause image */
 	const FSlateBrush* GetPlayPauseBrush() const
 	{
-		return bPaused ? FEditorStyle::GetBrush("GenericPlay") : FEditorStyle::GetBrush("GenericPause");
+		return bPaused ? FAppStyle::GetBrush("GenericPlay") : FAppStyle::GetBrush("GenericPause");
 	}
 
 	/** Called when pause is clicked */

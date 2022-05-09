@@ -2,7 +2,7 @@
 
 #include "SProjectLauncherBuildPage.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SBoxPanel.h"
@@ -94,7 +94,7 @@ void SProjectLauncherBuildPage::Construct(const FArguments& InArgs, const TShare
 			.Padding(0, 3, 0, 3)
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Visibility(this, &SProjectLauncherBuildPage::ShowBuildConfiguration)
 					[
 						SNew(SHorizontalBox)

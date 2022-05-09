@@ -230,7 +230,7 @@ FLinearColor UK2Node_Switch::GetNodeTitleColor() const
 
 FSlateIcon UK2Node_Switch::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Switch_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Switch_16x");
 	return Icon;
 }
 

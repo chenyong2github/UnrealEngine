@@ -192,7 +192,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 							.AutoWidth()
 							.VAlign(VAlign_Center)
 							[
-								SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton"))
+								SNew(SImage).Image(FAppStyle::GetBrush("GenericViewButton"))
 							]
 
 							+ SHorizontalBox::Slot()

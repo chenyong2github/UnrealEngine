@@ -27,7 +27,7 @@ FKismetConnectionDrawingPolicy::FKismetConnectionDrawingPolicy(int32 InBackLayer
 	// But we do want to draw midpoint arrowheads
 	if (GetDefault<UBlueprintEditorSettings>()->bDrawMidpointArrowsInBlueprints)
 	{
-		MidpointImage = FEditorStyle::GetBrush( TEXT("Graph.Arrow") );
+		MidpointImage = FAppStyle::GetBrush( TEXT("Graph.Arrow") );
 		MidpointRadius = MidpointImage->ImageSize * ZoomFactor * 0.5f;
 	}
 

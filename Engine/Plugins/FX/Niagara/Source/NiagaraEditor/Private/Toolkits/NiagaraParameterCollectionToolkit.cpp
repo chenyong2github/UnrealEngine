@@ -13,7 +13,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Framework/Docking/WorkspaceItem.h"
 
@@ -41,7 +41,7 @@ void FNiagaraParameterCollectionToolkit::RegisterTabSpawners(const TSharedRef<cl
 	InTabManager->RegisterTabSpawner(MainTabID, FOnSpawnTab::CreateSP(this, &FNiagaraParameterCollectionToolkit::SpawnTab_Main))
 		.SetDisplayName(LOCTEXT("Parameters", "Parameters"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 }
 
 void FNiagaraParameterCollectionToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

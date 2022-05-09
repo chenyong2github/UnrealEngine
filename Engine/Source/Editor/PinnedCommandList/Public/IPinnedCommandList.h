@@ -94,7 +94,7 @@ public:
 
 	/** 
 	 * Set a menu style to use when building command widgets.
-	 * @param	InStyleSet		The style set to use, e.g. &FEditorStyle::Get()
+	 * @param	InStyleSet		The style set to use, e.g. &FAppStyle::Get()
 	 * @param	InStyleName		The name of the menu button style to use, e.g. "Menu"
 	 */
 	virtual void SetStyle(const ISlateStyle* InStyleSet, const FName& InStyleName) = 0;

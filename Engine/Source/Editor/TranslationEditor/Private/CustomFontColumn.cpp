@@ -41,7 +41,7 @@ TSharedPtr< SWidget > FCustomFontColumn::CreateColumnLabel( const TSharedRef< IP
 	.FillWidth(2)
 	[
 		SNew( STextBlock )
-		.Font( FEditorStyle::GetFontStyle( Style ) )
+		.Font( FAppStyle::GetFontStyle( Style ) )
 		.Text( Column->GetDisplayName() )
 	]
 	+SHorizontalBox::Slot()

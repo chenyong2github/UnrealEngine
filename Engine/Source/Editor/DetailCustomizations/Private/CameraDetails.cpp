@@ -13,7 +13,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Camera/CameraComponent.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -40,7 +40,7 @@ TSharedRef<IDetailCustomization> FCameraDetails::MakeInstance()
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void FCameraDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
-	FSlateFontInfo FontStyle = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
+	FSlateFontInfo FontStyle = FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
 
 	LastParsedAspectRatioValue = -1.0f;
 
@@ -128,7 +128,7 @@ void FCameraDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 					SNew(SComboButton)
 					.OnGetMenuContent( this, &FCameraDetails::OnGetComboContent )
 					.ContentPadding(0.0f)
-					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+					.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 					.ForegroundColor(FSlateColor::UseForeground())
 					.VAlign(VAlign_Center)
 					.ButtonContent()

@@ -17,7 +17,7 @@
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/IProjectTargetPlatformEditorModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Dialogs/Dialogs.h"
 #include "PlatformInfo.h"
 #include "Widgets/SProjectTargetPlatformSettings.h"
@@ -100,7 +100,7 @@ public:
 					.HeightOverride(MenuIconSize)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(PlatformInfo.GetIconStyleName(EPlatformIconSize::Normal)))
+						.Image(FAppStyle::GetBrush(PlatformInfo.GetIconStyleName(EPlatformIconSize::Normal)))
 					]
 				]
 				+SOverlay::Slot()
@@ -114,7 +114,7 @@ public:
 					[
 						SNew(SImage)
 						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&Local::IsUnsupportedPlatformWarningVisible, PlatformInfo.VanillaInfo->Name)))
-						.Image(FEditorStyle::GetBrush("Launcher.Platform.Warning"))
+						.Image(FAppStyle::GetBrush("Launcher.Platform.Warning"))
 					]
 				]
 			]
@@ -124,7 +124,7 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "Menu.Label")
+				.TextStyle(FAppStyle::Get(), "Menu.Label")
 				.Text((DisplayNameOverride.IsEmpty()) ? PlatformInfo.DisplayName : DisplayNameOverride)
 			];
 	}

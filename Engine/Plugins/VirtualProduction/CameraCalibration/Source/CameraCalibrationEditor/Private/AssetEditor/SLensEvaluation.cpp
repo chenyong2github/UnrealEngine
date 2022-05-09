@@ -164,7 +164,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("TrackedCameraLabelSection", "Tracked Camera"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.ShadowOffset(FVector2D(1.0f, 1.0f))
 			]
 			+ SGridPanel::Slot(0, 1)
@@ -179,7 +179,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("LiveLinkLabelSection", "Selected LiveLink Subject"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.ShadowOffset(FVector2D(1.0f, 1.0f))
 			]
 			+ SGridPanel::Slot(0, 3)
@@ -252,7 +252,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeRawInputFIZWidget() const
 			SNew(STextBlock)
 			.Text(LOCTEXT("FIZ Section", "Raw FIZ Input"))
 			.ToolTipText(LOCTEXT("FIZSectionTooltip", "The raw values for Focus/Iris/Zoom (FIZ) used to evaluate the lens file"))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			.ShadowOffset(FVector2D(1.0f, 1.0f))
 		]
 		+ SVerticalBox::Slot()
@@ -266,19 +266,19 @@ TSharedRef<SWidget> SLensEvaluation::MakeRawInputFIZWidget() const
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("FocusLabel", "Focus"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(0, 1)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("IrisLabel", "Iris"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(0, 2)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ZoomLabel", "Zoom"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 
 			+ SGridPanel::Slot(1, 0)
@@ -359,7 +359,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeEvaluatedFIZWidget() const
 			SNew(STextBlock)
 			.Text(LOCTEXT("EvaluatedFIZSection", "Evaluated Camera Settings"))
 			.ToolTipText(LOCTEXT("EvaluatedFIZSectionTooltip", "Camera settings that were evaluated from the lens file using the raw input FIZ data"))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			.ShadowOffset(FVector2D(1.0f, 1.0f))
 		]
 		+ SVerticalBox::Slot()
@@ -371,28 +371,28 @@ TSharedRef<SWidget> SLensEvaluation::MakeEvaluatedFIZWidget() const
 				SNew(STextBlock)
 				.MinDesiredWidth(100.0f)
 				.Text(LOCTEXT("FocusDistanceLabel", "Focus Distance"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(0, 1)
 			[
 				SNew(STextBlock)
 				.MinDesiredWidth(100.0f)
 				.Text(LOCTEXT("ApertureLabel", "Aperture"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(0, 2)
 			[
 				SNew(STextBlock)
 				.MinDesiredWidth(100.0f)
 				.Text(LOCTEXT("FocalLengthLabel", "Focal Length"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(0, 3)
 			[
 				SNew(STextBlock)
 				.MinDesiredWidth(100.0f)
 				.Text(LOCTEXT("FOVLabel", "Horizontal FOV"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 
 			+ SGridPanel::Slot(1, 0)
@@ -538,7 +538,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeDistortionWidget() const
 	const TSharedRef<SWidget> Title = SNew(STextBlock)
 		.Text(LOCTEXT("DistortionSection", "Distortion Parameters"))
 		.ToolTipText(LOCTEXT("DistortionSectionTooltip", "Coefficients associated with the distortion equation of the selected lens model"))
-		.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+		.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 		.ShadowOffset(FVector2D(1.0f, 1.0f));
 
 	//if there are no parameters, create a simpler widget
@@ -581,7 +581,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeDistortionWidget() const
 						return LOCTEXT("InvalidParam", "Invalid");
 					}
 				}))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			];
 
 		ParameterGrid->AddSlot(1, Index)
@@ -630,7 +630,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 			SNew(STextBlock)
 			.Text(LOCTEXT("IntrinsicsSection", "Normalized Camera Intrinsics"))
 			.ToolTipText(LOCTEXT("IntrinsicsSectionTooltip", "Normalized values from the camera intrinsic matrix"))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			.ShadowOffset(FVector2D(1.0f, 1.0f))
 		]
 		+ SVerticalBox::Slot()
@@ -645,7 +645,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				.Text(LOCTEXT("ImageCenterLabel", "Image Center"))
 				.ToolTipText(LOCTEXT("ImageCenterTooltip", "Normalized Center in the range [0, 1], with (0, 0) representing the top left corner of the image"))
 				.MinDesiredWidth(100.0f)
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(1, 0)
 			[
@@ -667,7 +667,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				.Text(LOCTEXT("FxFyLabel", "FxFy"))
 				.ToolTipText(LOCTEXT("FxFyTooltip", "Normalized values representing the camera focal length divided by the sensor/image size. The ratio of Fx to Fy should roughly equal the camera's aspect ratio"))
 				.MinDesiredWidth(100.0f)
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(1, 1)
 			[
@@ -704,7 +704,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 			SNew(STextBlock)
 			.Text(LOCTEXT("NodalOffsetSection", "Nodal Point Offset"))
 			.ToolTipText(LOCTEXT("NodalOffsetTooltip", "The offset required to go from the tracked camera transform to the nodal point of the physical lens"))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			.ShadowOffset(FVector2D(1.0f, 1.0f))
 		]
 		+ SVerticalBox::Slot()
@@ -718,7 +718,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				SNew(STextBlock)
 				.Text(LOCTEXT("LocationOffsetLabel", "Location"))
 				.MinDesiredWidth(75.0f)
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(1, 0)
 			[
@@ -742,7 +742,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				SNew(STextBlock)
 				.Text(LOCTEXT("RotationOffsetLabel", "Rotation"))
 				.MinDesiredWidth(75.0f)
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(1, 1)
 			[

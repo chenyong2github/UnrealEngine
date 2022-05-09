@@ -10,7 +10,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlModule.h"
 #include "SSettingsEditorCheckoutNotice.h"
 #include "DesktopPlatformModule.h"
@@ -64,7 +64,7 @@ void SSettingsSectionHeader::Construct(const FArguments& InArgs, const UObject* 
 					+ SHorizontalBox::Slot()// category title
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("SettingsEditor.CatgoryAndSectionFont"))
+						.Font(FAppStyle::GetFontStyle("SettingsEditor.CatgoryAndSectionFont"))
 						.Text(GetSettingsBoxTitleText())
 					]
 				]

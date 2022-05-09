@@ -16,7 +16,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Brush.h"
 #include "BspModeStyle.h"
 #include "DragAndDrop/BrushBuilderDragDropOp.h"
@@ -169,7 +169,7 @@ TSharedRef<ITableRow> SBspPalette::MakeListViewWidget(TSharedPtr<FBspBuilderType
 					.VAlign(VAlign_Center)
 					[
 							SNew( STextBlock )
-							.TextStyle( FEditorStyle::Get(), "PlacementBrowser.Asset.Name" )
+							.TextStyle( FAppStyle::Get(), "PlacementBrowser.Asset.Name" )
 							.Text(BspBuilder->Text)
 					]
 				]

@@ -147,7 +147,7 @@ FSlateIcon UK2Node_EaseFunction::GetIconAndTint(FLinearColor& OutColor) const
 {
 	// The function icon seams the best choice!
 	OutColor = GetNodeTitleColor();
-	static FSlateIcon Icon("EditorStyle", "Kismet.AllClasses.FunctionIcon");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon");
 	return Icon;
 }
 

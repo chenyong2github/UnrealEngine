@@ -51,7 +51,7 @@ enum class EPlatformIconSize : uint8
 // 	NotInstalled,
 // };
 
-/** Information about where to find the platform icons (for use by FEditorStyle) */
+/** Information about where to find the platform icons (for use by FAppStyle) */
 struct FPlatformIconPaths
 {
 	FPlatformIconPaths()
@@ -167,7 +167,7 @@ public:
 	// setting moved from PlatformInfo::FTargetPlatformInfo
 
 
-	/** Information about where to find the platform icons (for use by FEditorStyle) */
+	/** Information about where to find the platform icons (for use by FAppStyle) */
 	FPlatformIconPaths IconPaths;
 
 	/** Path under CarefullyRedist for the SDK.  FString so case sensitive platforms don't get messed up by a pre-existing FName of a different casing. */
@@ -203,7 +203,7 @@ public:
 
 
 
-	/** Get the icon name (for FEditorStyle) used by the given icon type for this platform */
+	/** Get the icon name (for FAppStyle) used by the given icon type for this platform */
 	FName GetIconStyleName(const EPlatformIconSize InIconSize) const
 	{
 		switch (InIconSize)
@@ -220,7 +220,7 @@ public:
 		return NAME_None;
 	}
 
-	/** Get the path to the icon on disk (for FEditorStyle) for the given icon type for this platform */
+	/** Get the path to the icon on disk (for FAppStyle) for the given icon type for this platform */
 	const FString& GetIconPath(const EPlatformIconSize InIconSize) const
 	{
 		switch (InIconSize)

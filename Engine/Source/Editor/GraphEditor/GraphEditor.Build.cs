@@ -38,7 +38,7 @@ public class GraphEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+                
 				"EditorWidgets",
 				"EditorFramework",
 				"UnrealEd",

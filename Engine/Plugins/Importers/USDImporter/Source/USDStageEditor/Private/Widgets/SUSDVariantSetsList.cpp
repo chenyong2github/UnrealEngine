@@ -7,7 +7,7 @@
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
@@ -43,7 +43,7 @@ TSharedRef< SWidget > SUsdVariantRow::GenerateWidgetForColumn( const FName& Colu
 	{
 		SAssignNew( ColumnWidget, STextBlock )
 		.Text( FText::FromString( VariantSet->SetName ) )
-		.Font( FEditorStyle::GetFontStyle( UsdVariantSetsListConstants::NormalFont ) );
+		.Font( FAppStyle::GetFontStyle( UsdVariantSetsListConstants::NormalFont ) );
 	}
 	else
 	{
@@ -61,7 +61,7 @@ TSharedRef< SWidget > SUsdVariantRow::GenerateWidgetForColumn( const FName& Colu
 				.OptionsSource( &VariantSet->Variants )
 				.InitiallySelectedItem( InitialSelection )
 				.OnSelectionChanged( this, &SUsdVariantRow::OnSelectionChanged )
-				.Font( FEditorStyle::GetFontStyle( UsdVariantSetsListConstants::NormalFont ) );
+				.Font( FAppStyle::GetFontStyle( UsdVariantSetsListConstants::NormalFont ) );
 	}
 
 	return SNew(SBox)

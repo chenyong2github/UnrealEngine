@@ -27,7 +27,7 @@ public class ProjectLauncher : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+                
                 "WorkspaceMenuStructure",
 				"ToolWidgets",
 			}

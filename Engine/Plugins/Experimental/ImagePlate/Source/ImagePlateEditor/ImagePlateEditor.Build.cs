@@ -13,7 +13,6 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"EditorFramework",
-					"EditorStyle",
 					"Engine",
 					"ImagePlate",
 					"RHI",

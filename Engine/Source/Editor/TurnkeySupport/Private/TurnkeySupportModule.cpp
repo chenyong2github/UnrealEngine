@@ -40,7 +40,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Developer/DerivedDataCache/Public/DerivedDataCacheInterface.h"
 #include "Misc/MonitoredProcess.h"
-#include "EditorStyleSet.h"
 #include "CookerSettings.h"
 #include "UObject/UObjectIterator.h"
 #include "ToolMenus.h"
@@ -386,7 +385,7 @@ public:
 		{
 			ContentPrepDescription = LOCTEXT("PackagingProjectTaskName", "Packaging project");
 			ContentPrepTaskName = LOCTEXT("PackagingTaskName", "Packaging");
-			ContentPrepIcon = FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject"));
+			ContentPrepIcon = FAppStyle::Get().GetBrush(TEXT("MainFrame.PackageProject"));
 
 			// let the user pick a target directory
 			if (AllPlatformPackagingSettings->StagingDirectory.Path.IsEmpty())
@@ -521,7 +520,7 @@ public:
 		{
 			ContentPrepDescription = LOCTEXT("CookingContentTaskName", "Cooking content");
 			ContentPrepTaskName = LOCTEXT("CookingTaskName", "Cooking");
-			ContentPrepIcon = FEditorStyle::GetBrush(TEXT("MainFrame.CookContent"));
+			ContentPrepIcon = FAppStyle::Get().GetBrush(TEXT("MainFrame.CookContent"));
 
 
 			UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
@@ -809,7 +808,7 @@ private:
 	friend class TCommands<FTurnkeySupportCommands>;
 
 	FTurnkeySupportCommands()
-		: TCommands<FTurnkeySupportCommands>("TurnkeySupport", LOCTEXT("TurnkeySupport", "Turnkey and General Platform Options"), "MainFrame", FEditorStyle::GetStyleSetName())
+		: TCommands<FTurnkeySupportCommands>("TurnkeySupport", LOCTEXT("TurnkeySupport", "Turnkey and General Platform Options"), "MainFrame", FAppStyle::Get().GetStyleSetName())
 	{
 
 	}
@@ -863,7 +862,7 @@ static void TurnkeyInstallSdk(FString IniPlatformName, bool bPreferFull, bool bF
 	CommandLine.Appendf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s %s %s -noturnkeyvariables -utf8output -WaitForUATMutex"), *IniPlatformName, *OptionalOptions, *ITurnkeyIOModule::Get().GetUATParams());
 
 	FText TaskName = LOCTEXT("InstallingSdk", "Installing Sdk");
-	FTurnkeyEditorSupport::RunUAT(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")),
+	FTurnkeyEditorSupport::RunUAT(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")),
 		[IniPlatformName](FString, double)
 	{
 		AsyncTask(ENamedThreads::GameThread, [IniPlatformName]()
@@ -946,19 +945,19 @@ static FSlateIcon MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr
 
 			if (Status == ETurnkeyPlatformSdkStatus::OutOfDate || Status == ETurnkeyPlatformSdkStatus::NoSdk || bDeviceWarning)
 			{
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Icons.Warning"));
+				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Warning"));
 			}
 			else if (Status == ETurnkeyPlatformSdkStatus::Error)
 			{
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Icons.Error"));
+				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Error"));
 			}
 			else if (Status == ETurnkeyPlatformSdkStatus::Unknown)
 			{
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Icons.Help"));
+				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Help"));
 			}
 			else
 			{
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).GetIconStyleName(EPlatformIconSize::Normal));
+				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).GetIconStyleName(EPlatformIconSize::Normal));
 			}
 		}
 //		));
@@ -1534,7 +1533,7 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 	// 	if (DeviceProxy->IsAggregated())
 	// 	{
 	// 		FString AggregateDevicedName(FString::Printf(TEXT("  %s"), *DeviceProxy->GetName())); //align with the other menu entries
-	// 		FSlateIcon AggregateDeviceIcon(FEditorStyle::GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
+	// 		FSlateIcon AggregateDeviceIcon(FAppStyle::Get().GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
 	// 
 	// 		MenuBuilder.AddSubMenu(
 	// 			FText::FromString(AggregateDevicedName),
@@ -1916,7 +1915,7 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenuWidget() const
 				NAME_None,
 				LOCTEXT("OpenProjectLauncher", "Project Launcher..."),
 				LOCTEXT("OpenProjectLauncher_ToolTip", "Open the Project Launcher for advanced packaging, deploying and launching of your projects"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Launcher.TabIcon"),
 				FUIAction(FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::OpenProjectLauncher))
 			);
 
@@ -1924,7 +1923,7 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenuWidget() const
 				NAME_None,
 				LOCTEXT("OpenDeviceManager", "Device Manager..."),
 				LOCTEXT("OpenDeviceManager_ToolTip", "View and manage connected devices."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "DeviceDetails.TabIcon"),
 				FUIAction(FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::OpenDeviceManager))
 			);
 
@@ -1956,7 +1955,7 @@ void FTurnkeySupportModule::MakeTurnkeyMenu(FToolMenuSection& MenuSection) const
 		FOnGetContent::CreateLambda([this] { return MakeTurnkeyMenuWidget(); }),
 		LOCTEXT("PlatformMenu", "Platforms"),
 		LOCTEXT("PlatformMenu_Tooltip", "Platform related actions and settings (Launching, Packaging, custom builds, etc)"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.RepeatLastLaunch"), // not great name for a good "platforms" icon
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlayWorld.RepeatLastLaunch"), // not great name for a good "platforms" icon
 		false,
 		"PlatformsMenu");
 	Entry.StyleNameOverride = "CalloutToolbar";
@@ -2469,14 +2468,14 @@ bool FTurnkeySupportModule::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevi
 	{
 		// run Turnkey via UAT. The Cmd is added at the end in case the user wants to run additional commands
 		const FString CommandLine = FString::Printf( TEXT("Turnkey %s %s %s"), *ITurnkeyIOModule::Get().GetUATParams(), *FTurnkeyEditorSupport::GetUATOptions(), Cmd );
-		FTurnkeyEditorSupport::RunUAT(CommandLine, FText::GetEmpty(), LOCTEXT("Turnkey_CustomTurnkeyName", "Executing Turnkey"), LOCTEXT("Turnkey_CustomTurnkeyShortName", "Turnkey"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+		FTurnkeyEditorSupport::RunUAT(CommandLine, FText::GetEmpty(), LOCTEXT("Turnkey_CustomTurnkeyName", "Executing Turnkey"), LOCTEXT("Turnkey_CustomTurnkeyShortName", "Turnkey"), FAppStyle::Get().GetBrush(TEXT("MainFrame.PackageProject")));
 		return true;
 	}
 	else if ( FParse::Command( &Cmd, TEXT("RunUAT")) )
 	{
 		// run UAT directly. The Cmd is added at the start on the assumption that it contains the command to run
 		const FString CommandLine = FString::Printf( TEXT("%s %s %s"), Cmd, *ITurnkeyIOModule::Get().GetUATParams(), *FTurnkeyEditorSupport::GetUATOptions() );
-		FTurnkeyEditorSupport::RunUAT(CommandLine, FText::GetEmpty(), LOCTEXT("Turnkey_CustomUATName", "Executing Custom UAT Task"), LOCTEXT("Turnkey_CustomUATShortName", "UAT"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+		FTurnkeyEditorSupport::RunUAT(CommandLine, FText::GetEmpty(), LOCTEXT("Turnkey_CustomUATName", "Executing Custom UAT Task"), LOCTEXT("Turnkey_CustomUATShortName", "UAT"), FAppStyle::Get().GetBrush(TEXT("MainFrame.PackageProject")));
 		return true;
 	}
 

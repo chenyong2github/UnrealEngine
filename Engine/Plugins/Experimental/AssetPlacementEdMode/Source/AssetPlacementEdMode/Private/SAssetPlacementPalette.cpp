@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetThumbnail.h"
 
 #include "IContentBrowserSingleton.h"

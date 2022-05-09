@@ -13,7 +13,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealEdMisc.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -135,8 +135,8 @@ public:
 				SNew(SRichTextBlock)
 				.AutoWrapText(false)
 				.Justification(ETextJustify::Left)
-				.TextStyle(FEditorStyle::Get(), "HardwareTargets.Normal")
-				.DecoratorStyleSet(&FEditorStyle::Get());
+				.TextStyle(FAppStyle::Get(), "HardwareTargets.Normal")
+				.DecoratorStyleSet(&FAppStyle::Get());
 
 			SettingRegions.Add(Settings.SettingsObject, EditPropertiesBlock);
 

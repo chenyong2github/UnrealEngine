@@ -2,7 +2,7 @@
 
 #include "Widgets/SMediaImage.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/Material.h"
 #include "Styling/SlateBrush.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -77,7 +77,7 @@ void SMediaImage::Construct(const FArguments& InArgs, UTexture* InTexture)
 		.Stretch_Lambda([]() -> EStretch::Type { return EStretch::Fill;	})
 		[
 			SNew(SImage)
-			.Image(MaterialBrush.IsValid() ? MaterialBrush.Get() : FEditorStyle::GetBrush("WhiteTexture"))
+			.Image(MaterialBrush.IsValid() ? MaterialBrush.Get() : FAppStyle::GetBrush("WhiteTexture"))
 		]
 	];
 }

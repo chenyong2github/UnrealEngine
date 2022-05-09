@@ -9,7 +9,7 @@
 
 #include "Dialogs/Dialogs.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Layout/SBorder.h"
@@ -64,13 +64,13 @@ TArray<UClass*> FDMXEntityDragDropOperation::GetDraggedEntityTypes() const
 
 void FDMXEntityDragDropOperation::SetFeedbackMessageError(const FText& Message)
 {
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 	SetFeedbackMessage(StatusSymbol, Message);
 }
 
 void FDMXEntityDragDropOperation::SetFeedbackMessageOK(const FText& Message)
 {
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+	const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 	SetFeedbackMessage(StatusSymbol, Message);
 }
 
@@ -82,7 +82,7 @@ void FDMXEntityDragDropOperation::SetFeedbackMessage(const FSlateBrush* Icon, co
 		CursorDecoratorWindow->SetContent
 		(
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -105,7 +105,7 @@ void FDMXEntityDragDropOperation::SetFeedbackMessage(const FSlateBrush* Icon, co
 					SNew(STextBlock)
 					.WrapTextAt(480.0f)
 					.Text(Message)
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				]
 			]
 		);

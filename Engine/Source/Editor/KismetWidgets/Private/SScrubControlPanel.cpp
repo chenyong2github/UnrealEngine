@@ -5,7 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorWidgets/Public/EditorWidgetsModule.h"
 
 
@@ -91,7 +91,7 @@ void SScrubControlPanel::Construct( const SScrubControlPanel::FArguments& InArgs
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Visibility(this, &SScrubControlPanel::GetRealtimeControlVisibility, false)
 			[
 				EditorWidgetsModule.CreateTransportControl(TransportControlArgs)
@@ -103,7 +103,7 @@ void SScrubControlPanel::Construct( const SScrubControlPanel::FArguments& InArgs
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Visibility(this, &SScrubControlPanel::GetRealtimeControlVisibility, true)
 			[
 				EditorWidgetsModule.CreateTransportControl(TransportControlArgsForRealtimeStreamingMode)

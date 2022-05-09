@@ -96,7 +96,7 @@ TSharedRef<SToolTip> SWorldTileItem::CreateToolTipWidget()
 	
 	SAssignNew(TooltipWidget, SToolTip)
 	.TextMargin(2)
-	.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
+	.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
 	[
 		SNew(SVerticalBox)
 
@@ -107,7 +107,7 @@ TSharedRef<SToolTip> SWorldTileItem::CreateToolTipWidget()
 		[
 			SNew(SBorder)
 			.Padding(6)
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 			[
 				SNew(SVerticalBox)
 					
@@ -125,7 +125,7 @@ TSharedRef<SToolTip> SWorldTileItem::CreateToolTipWidget()
 					[
 						SNew(STextBlock)
 						.Text(this, &SWorldTileItem::GetLevelNameText) 
-						.Font(FEditorStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
+						.Font(FAppStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
 					]
 				]
 			]
@@ -137,7 +137,7 @@ TSharedRef<SToolTip> SWorldTileItem::CreateToolTipWidget()
 		[
 			SNew(SBorder)
 			.Padding(6)
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 			[
 				SNew(SUniformGridPanel)
 
@@ -220,7 +220,7 @@ TSharedPtr<FLevelModel> SWorldTileItem::GetLevelModel() const
 
 const FSlateBrush* SWorldTileItem::GetShadowBrush(bool bSelected) const
 {
-	return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.CompactNode.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.Node.Shadow"));
+	return bSelected ? FAppStyle::GetBrush(TEXT("Graph.CompactNode.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.Node.Shadow"));
 }
 
 FOptionalSize SWorldTileItem::GetItemWidth() const

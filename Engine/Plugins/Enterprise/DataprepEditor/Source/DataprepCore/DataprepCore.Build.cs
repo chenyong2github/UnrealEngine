@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"EditorFramework",
 					"EditorScriptingUtilities",
-					"EditorStyle",
 					"EditorWidgets",
 					"Engine",
 					"GraphEditor",

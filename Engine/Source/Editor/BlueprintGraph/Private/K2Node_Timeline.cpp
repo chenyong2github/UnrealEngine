@@ -652,7 +652,7 @@ FName UK2Node_Timeline::GetCornerIcon() const
 
 FSlateIcon UK2Node_Timeline::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Timeline_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Timeline_16x");
 	return Icon;
 }
 

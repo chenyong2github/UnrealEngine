@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimViewportPlaybackCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AnimationEditorViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "AnimViewportPlaybackCommands"
@@ -11,7 +11,7 @@ FAnimViewportPlaybackCommands::FAnimViewportPlaybackCommands() : TCommands<FAnim
 	TEXT("AnimViewportPlayback"), // Context name for fast lookup
 	NSLOCTEXT("Contexts", "AnimViewportPlayback", "Animation Viewport Playback"), // Localized context name for displaying
 	NAME_None, // Parent context name.  
-	FEditorStyle::GetStyleSetName() // Icon Style Set
+	FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 	PlaybackSpeedCommands.AddZeroed(EAnimationPlaybackSpeeds::NumPlaybackSpeeds);

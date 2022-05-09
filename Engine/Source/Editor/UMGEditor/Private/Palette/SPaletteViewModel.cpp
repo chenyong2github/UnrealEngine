@@ -8,7 +8,7 @@
 #include "Editor.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 #include "ClassViewerModule.h"
@@ -202,7 +202,7 @@ void FWidgetTemplateViewModel::RemoveFromFavorites()
 TSharedRef<ITableRow> FWidgetHeaderViewModel::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<TSharedPtr<FWidgetViewModel>>, OwnerTable)
-		.Style(FEditorStyle::Get(), "UMGEditor.PaletteHeader")
+		.Style(FAppStyle::Get(), "UMGEditor.PaletteHeader")
 		.Padding(5.0f)
 		.ShowSelection(false)
 		[

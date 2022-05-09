@@ -74,7 +74,7 @@ public:
 	MenuBuilder.AddMenuEntry(
 		NSLOCTEXT("AnimStreamable", "AnimSequence_ReimportWithNewSource", "LOGGER"),
 		NSLOCTEXT("AnimStreamable", "AnimSequence_ReimportWithNewSourceTooltip", "Reimport the selected sequence(s) from a new source file."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.ReimportAnim"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.ReimportAnim"),
 		FUIAction(FExecuteAction::CreateLambda(Logger))
 	);
 }*/

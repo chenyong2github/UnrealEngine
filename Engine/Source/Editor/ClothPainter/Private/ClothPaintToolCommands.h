@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 namespace ClothPaintToolCommands
@@ -16,7 +16,7 @@ class FClothPaintToolCommands_Gradient : public TCommands<FClothPaintToolCommand
 public:
 
 	FClothPaintToolCommands_Gradient()
-		: TCommands<FClothPaintToolCommands_Gradient>(TEXT("ClothPainter"), NSLOCTEXT("Contexts", "ClothFillTool", "Cloth Painter - Fill Tool"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FClothPaintToolCommands_Gradient>(TEXT("ClothPainter"), NSLOCTEXT("Contexts", "ClothFillTool", "Cloth Painter - Fill Tool"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 
 	}

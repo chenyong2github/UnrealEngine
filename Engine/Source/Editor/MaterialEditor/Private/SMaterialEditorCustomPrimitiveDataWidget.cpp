@@ -124,7 +124,7 @@ void SMaterialCustomPrimitiveDataPanel::Construct(const FArguments& InArgs, UMat
 			+ SVerticalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered"))
+				.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered"))
 				.Padding(FMargin(4.0f))
 				[
 					SNew(SVerticalBox)
@@ -140,7 +140,7 @@ void SMaterialCustomPrimitiveDataPanel::Construct(const FArguments& InArgs, UMat
 						[
 							SNew(STextBlock)
 							.Text(FText::FromString("Custom Primitive Data Parameters"))
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 							.ShadowOffset(FVector2D(1.0f, 1.0f))
 						]
 					]
@@ -148,7 +148,7 @@ void SMaterialCustomPrimitiveDataPanel::Construct(const FArguments& InArgs, UMat
 					.Padding(FMargin(3.0f, 2.0f, 3.0f, 3.0f))
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 						[
 							SNew(SScrollBox)
 							+ SScrollBox::Slot()

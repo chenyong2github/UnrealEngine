@@ -37,13 +37,13 @@
 //		MenuBuilder.AddMenuEntry(
 //			LOCTEXT("RemoveBinding", "Remove Binding"),
 //			LOCTEXT("RemoveBindingToolTip", "Removes the current binding"),
-//			FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"),
+//			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cross"),
 //			FUIAction()
 //		);
 //		MenuBuilder.AddMenuEntry(
 //			LOCTEXT("CreateBinding", "Create Binding"),
 //			LOCTEXT("CreateBindingToolTip", "Creates a new function on the widget blueprint that will return the binding data for this property."),
-//			FSlateIcon(FEditorStyle::GetStyleSetName(), "Plus"),
+//			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plus"),
 //			FUIAction()
 //		);
 //		MenuBuilder.EndSection();
@@ -125,7 +125,7 @@
 //		.Padding(1.0f, 0.0f)
 //		[
 //			SNew(SImage)
-//			.Image(FEditorStyle::Get().GetBrush(FunctionIcon))
+//			.Image(FAppStyle::Get().GetBrush(FunctionIcon))
 //			.ColorAndOpacity(Schema->GetPinTypeColor(PinType))
 //		]
 //		+ SHorizontalBox::Slot()

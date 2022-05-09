@@ -22,7 +22,7 @@ public class SoundCueTemplatesEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"EditorStyle",
+				
 				"Engine",
 				"GameProjectGeneration",
 				"UnrealEd",

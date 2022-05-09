@@ -6,7 +6,7 @@
 #include "Data/FavoriteFilterContainer.h"
 #include "Widgets/Filter/SFilterSearchMenu.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 

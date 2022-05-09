@@ -2,7 +2,7 @@
 
 #include "SMaterialEditorViewportToolBar.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MaterialEditorActions.h"
 #include "PreviewProfileController.h"
 
@@ -18,7 +18,7 @@ void SMaterialEditorViewportPreviewShapeToolBar::Construct(const FArguments& InA
 	FToolBarBuilder ToolbarBuilder(InViewport->GetCommandList(), FMultiBoxCustomization::None, nullptr, bForceSmallIcons);
 
 	// Use a custom style
-	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), "LegacyViewportMenu");
+	ToolbarBuilder.SetStyle(&FAppStyle::Get(), "LegacyViewportMenu");
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 	ToolbarBuilder.SetIsFocusable(false);
 	
@@ -37,8 +37,8 @@ void SMaterialEditorViewportPreviewShapeToolBar::Construct(const FArguments& InA
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-		.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
+		.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
 		.HAlign(HAlign_Right)
 		[
 			ToolbarBuilder.MakeWidget()

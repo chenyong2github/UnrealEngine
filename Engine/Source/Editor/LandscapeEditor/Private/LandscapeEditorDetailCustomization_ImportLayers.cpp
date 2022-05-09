@@ -175,7 +175,7 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::CustomizeChildre
 				.VAlign(VAlign_Center)
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.HasDownArrow(false)
 					.ContentPadding(4.0f)
 					.ForegroundColor(FSlateColor::UseForeground())
@@ -186,7 +186,7 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::CustomizeChildre
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("LandscapeEditor.Target_Create"))
+						.Image(FAppStyle::GetBrush("LandscapeEditor.Target_Create"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]

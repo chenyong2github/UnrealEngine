@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "SPlistEditor.h"
@@ -278,11 +278,11 @@ const FSlateBrush* FPListNodeString::GetOverlayBrush()
 {
 	if(bFiltered)
 	{
-		return FEditorStyle::GetBrush( TEXT("PListEditor.FilteredColor") );
+		return FAppStyle::GetBrush( TEXT("PListEditor.FilteredColor") );
 	}
 	else
 	{
-		return FEditorStyle::GetBrush( TEXT("PListEditor.NoOverlayColor") );
+		return FAppStyle::GetBrush( TEXT("PListEditor.NoOverlayColor") );
 	}
 }
 
@@ -326,7 +326,7 @@ FSlateColor FPListNodeString::GetKeyBackgroundColor() const
 
 	if(!bKeyValid)
 	{
-		return FEditorStyle::GetColor("ErrorReporting.BackgroundColor");
+		return FAppStyle::GetColor("ErrorReporting.BackgroundColor");
 	}
 	else
 	{
@@ -341,17 +341,17 @@ FSlateColor FPListNodeString::GetKeyForegroundColor() const
 
 	if(bArrayMember)
 	{
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		return FAppStyle::GetSlateColor(InvertedForegroundName);
 	}
 
 	if(!bKeyValid)
 	{
 		static const FName ForegroundColor("ErrorReporting.ForegroundColor");
-		return FEditorStyle::GetColor(ForegroundColor);
+		return FAppStyle::GetColor(ForegroundColor);
 	}
 	else
 	{
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		return FAppStyle::GetSlateColor(InvertedForegroundName);
 	}
 }
 
@@ -362,7 +362,7 @@ FSlateColor FPListNodeString::GetValueBackgroundColor() const
 	if(!bValueValid)
 	{
 		static const FName BackgroundColor("ErrorReporting.BackgroundColor");
-		return FEditorStyle::GetColor(BackgroundColor);
+		return FAppStyle::GetColor(BackgroundColor);
 	}
 	else
 	{
@@ -376,12 +376,12 @@ FSlateColor FPListNodeString::GetValueForegroundColor() const
 	if(!bValueValid)
 	{
 		static const FName ForegroundColor("ErrorReporting.ForegroundColor");
-		return FEditorStyle::GetSlateColor(ForegroundColor);
+		return FAppStyle::GetSlateColor(ForegroundColor);
 	}
 	else
 	{
 		static const FName InvertedForegroundName("InvertedForeground");
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		return FAppStyle::GetSlateColor(InvertedForegroundName);
 	}
 }
 

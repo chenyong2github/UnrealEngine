@@ -2628,7 +2628,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 						.Padding(2.0f, 1.0f)
 						[
 							SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+							.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 							.Text(LOCTEXT("AddLODLevelCategories_MaterialArrayOpAdd", "Add Material Slot"))
 							.ToolTipText(LOCTEXT("AddLODLevelCategories_MaterialArrayOpAdd_Tooltip", "Add Material Slot at the end of the Material slot array. Those Material slots can be used to override a LODs section, (not the base LOD)"))
 							.ContentPadding(4.0f)
@@ -2638,7 +2638,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 							.IsFocusable(false)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+								.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 						]
@@ -3047,14 +3047,14 @@ void FPersonaMeshDetails::CustomizeSkinWeightProfiles(IDetailLayoutBuilder& Deta
 		[
 			SNew(SComboButton)
 			.VAlign(EVerticalAlignment::VAlign_Bottom)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ContentPadding(4.0f)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.HasDownArrow(false)
 			.ButtonContent()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			]
 			.OnGetMenuContent(this, &FPersonaMeshDetails::CreateSkinWeightProfileMenuContent)
 			.ToolTipText(LOCTEXT("ImportSkinWeightButtonToolTip", "Import a new Skin Weight Profile"))
@@ -3309,14 +3309,14 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 			[
 				SNew(SButton)
 				.OnClicked(this, &FPersonaMeshDetails::ResetToDefault)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("QualityLevelMinLodToolTip", "Clear MinLOD conversion data"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsEnabled(TAttribute<bool>::CreateLambda([this]() { return GetMinLod().PerPlatform.Num() != 0 || GetMinLod().Default != 0; }))
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+					.Image(FAppStyle::GetBrush("Icons.Delete"))
 				]
 			]
 		]
@@ -6106,7 +6106,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 			.ToolTipText(LOCTEXT("ReimportApexFileTip", "Reimport this APEX asset"))
 			[ 
 				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("Persona.ReimportAsset") )
+				.Image( FAppStyle::GetBrush("Persona.ReimportAsset") )
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			]
 		]
@@ -6128,7 +6128,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 			.ToolTipText(LOCTEXT("RemoveClothingAssetTip", "Remove this clothing asset"))
 			[ 
 				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Clear") )
+				.Image( FAppStyle::GetBrush("PropertyWindow.Button_Clear") )
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			]
 		]

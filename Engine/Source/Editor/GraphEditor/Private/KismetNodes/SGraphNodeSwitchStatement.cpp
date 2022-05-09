@@ -71,7 +71,7 @@ void SGraphNodeSwitchStatement::CreatePinWidgets()
 			.Padding(1.0f)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Graph.Pin.DefaultPinSeparator"))
+				.Image(FAppStyle::GetBrush("Graph.Pin.DefaultPinSeparator"))
 			];
 
 		// Create the pin itself

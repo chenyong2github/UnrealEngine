@@ -7,7 +7,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDocumentation.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
@@ -43,14 +43,14 @@ void SDNAAssetImportWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+			.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 		.Text(LOCTEXT("Import_CurrentFileTitle", "Current Asset: "))
 		]
 	+ SHorizontalBox::Slot()
@@ -59,7 +59,7 @@ void SDNAAssetImportWindow::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+			.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 		.Text(InArgs._FullPath)
 		.ToolTipText(InArgs._FullPath)
 		]
@@ -115,7 +115,7 @@ void SDNAAssetImportWindow::Construct(const FArguments& InArgs)
 	ImportTypeDisplay->SetContent(
 		SNew(SBorder)
 		.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()

@@ -1390,7 +1390,7 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 							OutFailReason = LOCTEXT("AddComponentFailed_Generic", "Failed to add component!");
 						}
 						FNotificationInfo Info(OutFailReason);
-						Info.Image = FEditorStyle::GetBrush(TEXT("Icons.Error"));
+						Info.Image = FAppStyle::GetBrush(TEXT("Icons.Error"));
 						Info.bFireAndForget = true;
 						Info.bUseSuccessFailIcons = false;
 						Info.ExpireDuration = 5.0f;
@@ -1457,7 +1457,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorWrapper()
 		[
 			SNew(STextBlock)
 			.Visibility(EVisibility::HitTestInvisible)
-			.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+			.TextStyle(FAppStyle::Get(), "Graph.CornerText")
 			.Text(LOCTEXT("CornerText","STEP 1"))
 		];
 }

@@ -8,7 +8,7 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "OutputLogModule.h"
 #include "LevelEditor.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -22,7 +22,7 @@
 // FGlobalEditorCommonCommands
 
 FGlobalEditorCommonCommands::FGlobalEditorCommonCommands()
-	: TCommands<FGlobalEditorCommonCommands>(TEXT("SystemWideCommands"), NSLOCTEXT("Contexts", "SystemWideCommands", "System-wide"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FGlobalEditorCommonCommands>(TEXT("SystemWideCommands"), NSLOCTEXT("Contexts", "SystemWideCommands", "System-wide"), NAME_None, FAppStyle::GetAppStyleSetName())
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner("GlobalAssetPicker", FOnSpawnTab::CreateStatic(&FGlobalEditorCommonCommands::SpawnAssetPicker))
 		.SetDisplayName(LOCTEXT("AssetPickerTabTitle", "Open Asset"))

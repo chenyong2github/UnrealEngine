@@ -8,7 +8,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/FbxSceneImportData.h"
 #include "Engine/StaticMesh.h"
 #include "AssetRegistry/AssetData.h"
@@ -62,7 +62,7 @@ public:
 
 		SMultiColumnTableRow<FbxMeshInfoPtr>::Construct(
 			FSuperRowType::FArguments()
-			.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+			.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow"),
 			InOwnerTableView
 			);
 	}
@@ -165,9 +165,9 @@ private:
 	{
 		if(UFbxSceneImportFactory::DefaultOptionName.Compare(FbxMeshInfo->OptionName) != 0)
 		{
-			return FEditorStyle::GetBrush("FBXIcon.ImportOptionsOverride");
+			return FAppStyle::GetBrush("FBXIcon.ImportOptionsOverride");
 		}
-		return FEditorStyle::GetBrush("FBXIcon.ImportOptionsDefault");
+		return FAppStyle::GetBrush("FBXIcon.ImportOptionsDefault");
 	}
 	
 	FText GetOptionName() const
@@ -194,7 +194,7 @@ private:
 	{
 		AssetStatus = LOCTEXT("SFbxMeshReimportItemTableListViewRow_NoValidStatus", "No valid status").ToString();
 		AssetStatusTooltip = LOCTEXT("SFbxMeshReimportItemTableListViewRow_CannotBeReimport", "This item cannot be reimport because there is no valid status").ToString();
-		SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportError");
+		SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportError");
 		if (MeshStatusMap->Contains(FbxMeshInfo->OriginalImportPath))
 		{
 			EFbxSceneReimportStatusFlags ReimportFlags = *MeshStatusMap->Find(FbxMeshInfo->OriginalImportPath);
@@ -208,13 +208,13 @@ private:
 			{
 				if ((ReimportFlags & EFbxSceneReimportStatusFlags::Added) != EFbxSceneReimportStatusFlags::None)
 				{
-					SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportAdded");
+					SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportAdded");
 					AssetStatus = LOCTEXT("SFbxMeshReimportItemTableListViewRow_AddCreateContent", "Added, create content").ToString();
 					AssetStatusTooltip = LOCTEXT("SFbxMeshReimportItemTableListViewRow_AddCreateContentTooltip", "This item was added to the fbx scene file, content will be create if this item is select for reimport").ToString();
 				}
 				else if ((ReimportFlags & EFbxSceneReimportStatusFlags::Same) != EFbxSceneReimportStatusFlags::None)
 				{
-					SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportSame");
+					SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportSame");
 					AssetStatus = LOCTEXT("SFbxMeshReimportItemTableListViewRow_SameCreateContent", "Same, create content").ToString();
 					AssetStatusTooltip = LOCTEXT("SFbxMeshReimportItemTableListViewRow_SameCreateContentTooltip", "This item match the old fbx but no content was found, content will be create if this item is select for reimport").ToString();
 				}
@@ -223,19 +223,19 @@ private:
 			{
 				if ((ReimportFlags & EFbxSceneReimportStatusFlags::Added) != EFbxSceneReimportStatusFlags::None)
 				{
-					SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportAddedContent");
+					SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportAddedContent");
 					AssetStatus = LOCTEXT("SFbxMeshReimportItemTableListViewRow_AddOverrideContent", "Added, override content").ToString();
 					AssetStatusTooltip = LOCTEXT("SFbxMeshReimportItemTableListViewRow_AddOverrideContentTooltip", "This item was added but a content was found, content will be override if this item is select for reimport").ToString();
 				}
 				else if ((ReimportFlags & EFbxSceneReimportStatusFlags::Removed) != EFbxSceneReimportStatusFlags::None)
 				{
-					SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportRemovedContent");
+					SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportRemovedContent");
 					AssetStatus = LOCTEXT("SFbxMeshReimportItemTableListViewRow_RemoveDeleteContent", "Removed, delete content").ToString();
 					AssetStatusTooltip = LOCTEXT("SFbxMeshReimportItemTableListViewRow_RemoveDeleteContentTooltip", "This item was deleted but a content was found, content will be delete if this item is select for reimport").ToString();
 				}
 				else if ((ReimportFlags & EFbxSceneReimportStatusFlags::Same) != EFbxSceneReimportStatusFlags::None)
 				{
-					SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportSameContent");
+					SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportSameContent");
 					AssetStatus = LOCTEXT("SFbxMeshReimportItemTableListViewRow_SameReplaceContent", "Same, replace content").ToString();
 					AssetStatusTooltip = LOCTEXT("SFbxMeshReimportItemTableListViewRow_SameReplaceContentTooltip", "This item match the old fbx, content will be replace if this item is select for reimport").ToString();
 				}
@@ -448,9 +448,9 @@ TSharedPtr<SWidget> SFbxSceneStaticMeshReimportListView::OnOpenContextMenu()
 	// We always create a section here, even if there is no parent so that clients can still extend the menu
 	MenuBuilder.BeginSection("FbxScene_SM_ImportSection");
 	{
-		const FSlateIcon PlusIcon(FEditorStyle::GetStyleSetName(), "Plus");
+		const FSlateIcon PlusIcon(FAppStyle::GetAppStyleSetName(), "Plus");
 		MenuBuilder.AddMenuEntry(LOCTEXT("CheckForImport", "Add Selection To Import"), FText(), PlusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneStaticMeshReimportListView::AddSelectionToImport)));
-		const FSlateIcon MinusIcon(FEditorStyle::GetStyleSetName(), "Icons.Minus");
+		const FSlateIcon MinusIcon(FAppStyle::GetAppStyleSetName(), "Icons.Minus");
 		MenuBuilder.AddMenuEntry(LOCTEXT("UncheckForImport", "Remove Selection From Import"), FText(), MinusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneStaticMeshReimportListView::RemoveSelectionFromImport)));
 	}
 	MenuBuilder.EndSection();

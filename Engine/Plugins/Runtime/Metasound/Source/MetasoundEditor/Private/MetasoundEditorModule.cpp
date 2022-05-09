@@ -9,7 +9,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphUtilities.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/IConsoleManager.h"
 #include "IDetailCustomization.h"
 #include "ISettingsModule.h"
@@ -102,7 +102,7 @@ namespace Metasound
 			FSlateStyle()
 				: FSlateStyleSet("MetaSoundStyle")
 			{
-				SetParentStyleName(FEditorStyle::GetStyleSetName());
+				SetParentStyleName(FAppStyle::GetAppStyleSetName());
 
 				SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Runtime/Metasound/Content/Editor/Slate"));
 				SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));

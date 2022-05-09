@@ -22,7 +22,7 @@
 #include "ToolMenus.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Brush.h"
 #include "Editor/UnrealEdEngine.h"
@@ -530,7 +530,7 @@ void FActorDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder)
 				.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 				[
 					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("GraphEditor.Event_16x"))
+					.Image(FAppStyle::GetBrush("GraphEditor.Event_16x"))
 				]
 
 				+ SHorizontalBox::Slot()

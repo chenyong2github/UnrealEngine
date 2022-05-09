@@ -25,9 +25,7 @@ public class AssetTools : ModuleRules
                 "InputCore",
 				"ApplicationCore",
 				"Slate",
-                "EditorStyle",
 				"SourceControl",
-				"TextureEditor",
 				"PropertyEditor",
 				"Kismet",
 				"Landscape",
@@ -71,7 +69,8 @@ public class AssetTools : ModuleRules
                 "SkeletalMeshEditor",
                 "AnimationEditor",
                 "AnimationBlueprintEditor",
-                "AnimationModifiers"
+                "AnimationModifiers",
+			    "TextureEditor",
 			}
 		);
 

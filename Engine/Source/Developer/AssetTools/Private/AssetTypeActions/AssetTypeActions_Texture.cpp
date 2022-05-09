@@ -4,7 +4,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Engine/Texture2D.h"
 #include "Misc/PackageName.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialFunctionInstance.h"
@@ -283,7 +283,7 @@ public:
 					.HAlign(HAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(ErrorIcon))
+						.Image(FAppStyle::GetBrush(ErrorIcon))
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
@@ -349,7 +349,7 @@ public:
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SConvertToVTDlg::OnFilterButtonClicked)
 						.IsEnabled(this, &SConvertToVTDlg::GetFilterButtonEnabled)
 						.Text(LOCTEXT("ConvertToVT_Filter", "Apply Filter"))
@@ -369,14 +369,14 @@ public:
 				.Padding(8.0f, 4.0f, 8.0f, 4.0f)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SConvertToVTDlg::OnButtonClick, FConvertToVTDlg::Confirm)
 						.IsEnabled(this, &SConvertToVTDlg::GetOkButtonEnabled)
 						.Text(LOCTEXT("ConvertToVT_OK", "OK"))
@@ -385,7 +385,7 @@ public:
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SConvertToVTDlg::OnButtonClick, FConvertToVTDlg::Cancel)
 						.Text(LOCTEXT("ConvertToVT_Cancel", "Cancel"))
 					]
@@ -511,7 +511,7 @@ private:
 					.Padding(2.0f)
 					[
 						(SeverityIcon == NAME_None) ? SNullWidget::NullWidget :
-						static_cast<TSharedRef<SWidget>>(SNew(SImage).Image(FEditorStyle::GetBrush(SeverityIcon)))
+						static_cast<TSharedRef<SWidget>>(SNew(SImage).Image(FAppStyle::GetBrush(SeverityIcon)))
 					]
 				]
 				// Fold out button with asset name
@@ -856,7 +856,7 @@ FConvertToVTDlg::FConvertToVTDlg(const TArray<UTexture2D *> &Textures, bool bBac
 
 		TSharedPtr<SBorder> DialogWrapper =
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4.0f)
 			[
 				SAssignNew(DialogWidget, SConvertToVTDlg)

@@ -9,7 +9,7 @@
 #include "ContentBrowserModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorReimportHandler.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
@@ -152,7 +152,7 @@ TSharedRef<FExtender> FMDLImporterModule::OnExtendContentBrowserAssetSelectionMe
 			        MenuBuilder.AddMenuEntry(
 			            NSLOCTEXT("AssetTypeActions_Material", "ObjectContext_ReimportMDLMaterial", "Reimport Material"),
 			            NSLOCTEXT("AssetTypeActions_Material", "ObjectContext_ReimportMDLMaterialTooltip", "Reimport the selected material(s)."),
-			            FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+			            FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 			            FUIAction(FExecuteAction::CreateStatic(&FMDLImporterModule::ExecuteReimportMaterials, SelectedAssets), FCanExecuteAction()));
 		        }));
 	}

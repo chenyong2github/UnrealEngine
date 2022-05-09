@@ -7,7 +7,7 @@
 #include "EngineGlobals.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -207,7 +207,7 @@ void SPropertyTreeViewImpl::ConstructPropertyTree()
 				.Visibility( bFavoritesAllowed ? EVisibility::Visible : EVisibility::Collapsed )
 				.OnClicked( this, &SPropertyTreeViewImpl::OnToggleFavoritesClicked )
 				.ContentPadding(1)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				[
 					SNew( SImage )
 						.Image( this, &SPropertyTreeViewImpl::OnGetFavoriteButtonImageResource )
@@ -222,7 +222,7 @@ void SPropertyTreeViewImpl::ConstructPropertyTree()
 				.Visibility( bLockable ? EVisibility::Visible : EVisibility::Collapsed )
 				.OnClicked( this, &SPropertyTreeViewImpl::OnLockButtonClicked )
 				.ContentPadding(1)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				[
 					SNew( SImage )
 					.Image( this, &SPropertyTreeViewImpl::OnGetLockButtonImageResource )
@@ -273,7 +273,7 @@ void SPropertyTreeViewImpl::ConstructPropertyTree()
 					[
 						SNew(SBorder)
 						.Padding(3)
-						.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+						.BorderImage( FAppStyle::GetBrush("NoBorder") )
 						[
 							SNew(STextBlock)
 							.Text( NSLOCTEXT("PropertyEditor", "NameColumn", "Name") )
@@ -284,7 +284,7 @@ void SPropertyTreeViewImpl::ConstructPropertyTree()
 					[
 						SNew(SBorder)
 						.Padding(3)
-						.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+						.BorderImage( FAppStyle::GetBrush("NoBorder") )
 						[
 							SNew(STextBlock)
 							.Text( NSLOCTEXT("PropertyEditor", "PropertyColumn", "Value") )
@@ -375,11 +375,11 @@ const FSlateBrush* SPropertyTreeViewImpl::OnGetFilterButtonImageResource() const
 {
 	if( bHasActiveFilter )
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.FilterCancel"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.FilterCancel"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.FilterSearch"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.FilterSearch"));
 	}
 }
 
@@ -388,11 +388,11 @@ const FSlateBrush* SPropertyTreeViewImpl::OnGetFavoriteButtonImageResource() con
 {
 	if( bFavoritesEnabled )
 	{
-		return FEditorStyle::GetBrush(TEXT("Icons.Star"));
+		return FAppStyle::GetBrush(TEXT("Icons.Star"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Favorites_Disabled"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Favorites_Disabled"));
 	}
 }
 
@@ -401,11 +401,11 @@ const FSlateBrush* SPropertyTreeViewImpl::OnGetLockButtonImageResource() const
 {
 	if( bIsLocked )
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Locked"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
 	}
 }
 

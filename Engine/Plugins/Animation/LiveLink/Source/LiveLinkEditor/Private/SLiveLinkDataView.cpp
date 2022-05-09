@@ -129,7 +129,7 @@ void SLiveLinkDataView::Construct(const FArguments& Args, FLiveLinkClient* InCli
 				SNew(SComboButton)
 				.ContentPadding(0)
 				.ForegroundColor(FSlateColor::UseForeground())
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 				.MenuContent()
 				[
 					DetailViewOptions.MakeWidget()
@@ -142,7 +142,7 @@ void SLiveLinkDataView::Construct(const FArguments& Args, FLiveLinkClient* InCli
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericViewButton"))
+						.Image(FAppStyle::GetBrush("GenericViewButton"))
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()

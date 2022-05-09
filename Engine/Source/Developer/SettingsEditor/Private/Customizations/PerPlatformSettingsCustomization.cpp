@@ -4,7 +4,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/PlatformSettings.h"
 #include "IDetailGroup.h"
 #include "IDetailChildrenBuilder.h"

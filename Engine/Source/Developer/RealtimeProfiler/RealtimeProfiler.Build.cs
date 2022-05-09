@@ -13,7 +13,7 @@ public class RealtimeProfiler : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+                
 				"TaskGraph",
 				"Engine"
 			}

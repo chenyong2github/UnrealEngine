@@ -585,10 +585,10 @@ void SDataprepEditorViewport::PopulateViewportOverlays(TSharedRef<SOverlay> Over
 	SEditorViewport::PopulateViewportOverlays(Overlay);
 
 	FPSText = SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), "TextBlock.ShadowedText");
+		.TextStyle(FAppStyle::Get(), "TextBlock.ShadowedText");
 
 	DrawCallsText = SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), "TextBlock.ShadowedText");
+		.TextStyle(FAppStyle::Get(), "TextBlock.ShadowedText");
 
 	Overlay->AddSlot()
 	.VAlign(VAlign_Top)
@@ -700,7 +700,7 @@ void SDataprepEditorViewport::UpdateOverlayText()
 		[
 			SNew(STextBlock)
 			.Text(TextItem.Text)
-			.TextStyle(FEditorStyle::Get(), TextItem.Style)
+			.TextStyle(FAppStyle::Get(), TextItem.Style)
 		];
 	}
 }

@@ -3,12 +3,11 @@
 #include "ModelingWidgets/SDynamicNumericEntry.h"
 
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyHandle.h"
 #include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
-#include "EditorFontGlyphs.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Math/Interval.h"
@@ -26,7 +25,7 @@ void SDynamicNumericEntry::Construct(const FArguments& InArgs)
 	.AllowSpin(true)
 	.Value_Lambda([this]() { return this->Source->GetValue(); })
 	//.Font(InArgs._Font)
-	.Font( FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )		// standard details panel font
+	.Font( FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )		// standard details panel font
 	.MinValue_Lambda([this]() { return this->Source->GetValueRange().Min; })
 	.MaxValue_Lambda([this]() { return this->Source->GetValueRange().Max; })
 	.MinSliderValue_Lambda([this]() { return this->Source->GetUIRange().Min; })

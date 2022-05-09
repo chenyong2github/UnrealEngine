@@ -10,7 +10,7 @@
 #include "Application/ThrottleManager.h"
 #include "Widgets/Layout/SBox.h"
 #include "SequencerSectionPainter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditorViewport.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "PropertyEditorModule.h"
@@ -40,7 +40,7 @@ FThumbnailSection::FThumbnailSection(TSharedPtr<ISequencer> InSequencer, TShared
 	, AdditionalDrawEffect(ESlateDrawEffect::None)
 	, TimeSpace(ETimeSpace::Global)
 {
-	WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+	WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 	RedrawThumbnailDelegateHandle = GetMutableDefault<UMovieSceneUserThumbnailSettings>()->OnForceRedraw().AddRaw(this, &FThumbnailSection::RedrawThumbnails);
 }
 
@@ -52,7 +52,7 @@ FThumbnailSection::FThumbnailSection(TSharedPtr<ISequencer> InSequencer, TShared
 	, AdditionalDrawEffect(ESlateDrawEffect::None)
 	, TimeSpace(ETimeSpace::Global)
 {
-	WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+	WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 	RedrawThumbnailDelegateHandle = GetMutableDefault<UMovieSceneUserThumbnailSettings>()->OnForceRedraw().AddRaw(this, &FThumbnailSection::RedrawThumbnails);
 }
 
@@ -187,7 +187,7 @@ float FThumbnailSection::GetSectionHeight() const
 	}
 	else
 	{
-		return FEditorStyle::GetFontStyle("NormalFont").Size + 8.f;
+		return FAppStyle::GetFontStyle("NormalFont").Size + 8.f;
 	}
 }
 

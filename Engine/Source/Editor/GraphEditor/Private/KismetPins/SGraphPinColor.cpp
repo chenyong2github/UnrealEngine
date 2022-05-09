@@ -18,7 +18,7 @@ void SGraphPinColor::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPin
 TSharedRef<SWidget>	SGraphPinColor::GetDefaultValueWidget()
 {
 	return SAssignNew(DefaultValueWidget, SBorder)
-		.BorderImage( FEditorStyle::GetBrush("FilledBorder") )
+		.BorderImage( FAppStyle::GetBrush("FilledBorder") )
 		.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
 		.IsEnabled(this, &SGraphPin::GetDefaultValueIsEditable)
 		.Padding(1)

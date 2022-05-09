@@ -2,7 +2,7 @@
 
 #include "SwitchboardEditorStyle.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyleMacros.h"

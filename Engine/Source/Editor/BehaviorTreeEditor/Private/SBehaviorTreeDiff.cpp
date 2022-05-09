@@ -10,7 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "DiffResults.h"
@@ -69,7 +69,7 @@ class FDiffListCommands : public TCommands<FDiffListCommands>
 public:
 	/** Constructor */
 	FDiffListCommands() 
-		: TCommands<FDiffListCommands>("DiffList", LOCTEXT("Diff", "Behavior Tree Diff"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FDiffListCommands>("DiffList", LOCTEXT("Diff", "Behavior Tree Diff"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 
@@ -121,7 +121,7 @@ void SBehaviorTreeDiff::Construct( const FArguments& InArgs )
 	this->ChildSlot
 	[	
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Content()
 		[
 			SNew(SSplitter)
@@ -212,8 +212,8 @@ TSharedRef<SWidget> SBehaviorTreeDiff::GenerateDiffListWidget()
 		KeyCommands->MapAction(Commands.Next, FExecuteAction::CreateSP(this, &SBehaviorTreeDiff::NextDiff));
 
 		FToolBarBuilder ToolbarBuilder(KeyCommands.ToSharedRef(), FMultiBoxCustomization::None);
-		ToolbarBuilder.AddToolBarButton(Commands.Previous, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDif.PrevDiff"));
-		ToolbarBuilder.AddToolBarButton(Commands.Next, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDif.NextDiff"));
+		ToolbarBuilder.AddToolBarButton(Commands.Previous, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDif.PrevDiff"));
+		ToolbarBuilder.AddToolBarButton(Commands.Next, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDif.NextDiff"));
 
 		TSharedRef<SHorizontalBox> Result =	SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
@@ -232,9 +232,9 @@ TSharedRef<SWidget> SBehaviorTreeDiff::GenerateDiffListWidget()
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("PropertyWindow.CategoryBackground"))
+				.BorderImage(FAppStyle::GetBrush("PropertyWindow.CategoryBackground"))
 				.Padding(FMargin(2.0f))
-				.ForegroundColor(FEditorStyle::GetColor("PropertyWindow.CategoryForeground"))
+				.ForegroundColor(FAppStyle::GetColor("PropertyWindow.CategoryForeground"))
 				.ToolTipText(LOCTEXT("BehvaiorTreeDifDifferencesToolTip", "List of differences found between revisions, click to select"))
 				.HAlign(HAlign_Center)
 				[
@@ -478,7 +478,7 @@ void SBehaviorTreeDiff::FBehaviorTreeDiffPanel::GeneratePanel(UEdGraph* Graph, U
 			.Appearance(AppearanceInfo)
 			.GraphEvents(InEvents);
 
-		const FSlateBrush* ContentAreaBrush = FEditorStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" );
+		const FSlateBrush* ContentAreaBrush = FAppStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" );
 
 		auto NewWidget = SNew(SSplitter)
 			.Orientation(Orient_Vertical)

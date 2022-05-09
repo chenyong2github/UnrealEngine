@@ -270,7 +270,7 @@ TSharedPtr<SWidget> FIKRigSkeletonDragDropOp::GetDefaultDecorator() const
 {
 	return SNew(SBorder)
         .Visibility(EVisibility::Visible)
-        .BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+        .BorderImage(FAppStyle::GetBrush("Menu.Background"))
         [
             SNew(STextBlock)
             .Text(FText::FromString(Element.Pin()->Key.ToString()))
@@ -293,7 +293,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
         [
             SNew(SBorder)
             .Padding(2.0f)
-            .BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+            .BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
             [
                 SAssignNew(TreeView, SIKRigSkeletonTreeView)
                 .TreeItemsSource(&RootElements)

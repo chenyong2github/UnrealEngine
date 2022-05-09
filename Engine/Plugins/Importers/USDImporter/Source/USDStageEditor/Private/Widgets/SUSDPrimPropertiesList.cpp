@@ -10,7 +10,7 @@
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
@@ -378,10 +378,10 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 						// also specify a custom kind/purpose/etc. if he wants to
 						SNew( SEditableTextBox )
 						.Text( this, &SUsdPrimPropertyRow::GetValueText )
-						.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+						.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 						.Padding( FMargin( 3.0f ) )
 						// Fixed foreground color or else it will flip when our row is selected, and we already have a background
-						.ForegroundColor( FEditorStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) ) )
+						.ForegroundColor( FAppStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) ) )
 						.OnTextCommitted( this, &SUsdPrimPropertyRow::OnTextBoxTextCommitted )
 					]
 				];
@@ -449,7 +449,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget( const TAttribute<
 		[
 			SNew( STextBlock )
 			.Text( Attribute )
-			.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 			.Margin( UsdPrimPropertiesListConstants::RightRowPadding )
 		];
 }
@@ -464,10 +464,10 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateEditableTextWidget( const TAt
 			SNew( SEditableTextBox )
 			.Text( Attribute )
 			.IsReadOnly( bIsReadOnly )
-			.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 			.OnTextCommitted( this, &SUsdPrimPropertyRow::OnTextBoxTextCommitted )
 			// Fixed foreground color or else it will flip when our row is selected, and we already have a background
-			.ForegroundColor( FEditorStyle::GetSlateColor( bIsReadOnly ? TEXT( "Colors.Foreground" ) : TEXT( "Colors.ForegroundHover" ) ) )
+			.ForegroundColor( FAppStyle::GetSlateColor( bIsReadOnly ? TEXT( "Colors.Foreground" ) : TEXT( "Colors.ForegroundHover" ) ) )
 		];
 }
 
@@ -517,7 +517,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 
 			TSharedRef<SWidget> EntryBox = SNew( SNumericEntryBox<T> )
 				.AllowSpin( true )
-				.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+				.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 				.ShiftMouseMovePixelPerDelta( 1 )
 				.SupportDynamicSliderMaxValue( true )
 				.SupportDynamicSliderMinValue( true )

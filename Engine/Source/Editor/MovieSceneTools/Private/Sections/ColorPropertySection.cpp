@@ -6,7 +6,7 @@
 #include "SequencerSectionPainter.h"
 #include "MovieSceneSectionHelpers.h"
 #include "ISectionLayoutBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CommonMovieSceneTools.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "ISequencer.h"
@@ -67,7 +67,7 @@ int32 FColorPropertySection::OnPaintSection( FSequencerSectionPainter& Painter )
 			Painter.DrawElements,
 			LayerId,
 			PaintGeometry,
-			FEditorStyle::GetBrush( "Checker" ),
+			FAppStyle::GetBrush( "Checker" ),
 			DrawEffects);
 
 		FLinearColor DefaultColor = GetPropertyValueAsLinearColor();

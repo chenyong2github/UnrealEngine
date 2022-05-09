@@ -15,7 +15,7 @@
 #include "PropertyEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "IPropertyRowGenerator.h"
@@ -130,7 +130,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 				SNew(STextBlock)
 				.Text(NameOverride)
 				.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 			.ValueContent()
 			.MaxDesiredWidth(200.0f)
@@ -161,7 +161,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					SNew(STextBlock)
 					.Text(ParameterName)
 					.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 				.ValueContent()
 				.HAlign(HAlign_Fill)
@@ -204,7 +204,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 							[
 								SNew(STextBlock)
 								.Text(FText::FromName(StackParameterData->Parameter->ParameterInfo.Name))
-								.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							]
 						];
 
@@ -250,7 +250,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(FText::FromName(Red))
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 								]
 								+ SHorizontalBox::Slot()
 								.HAlign(HAlign_Left)
@@ -258,7 +258,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(TextureParam->ChannelNames.R)
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								]
 							];
 					}
@@ -273,7 +273,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(FText::FromName(Green))
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 								]
 								+ SHorizontalBox::Slot()
 								.HAlign(HAlign_Left)
@@ -281,7 +281,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(TextureParam->ChannelNames.G)
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								]
 							];
 					}
@@ -296,7 +296,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(FText::FromName(Blue))
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 								]
 								+ SHorizontalBox::Slot()
 								.HAlign(HAlign_Left)
@@ -304,7 +304,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(TextureParam->ChannelNames.B)
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								]
 							];
 					}
@@ -319,7 +319,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(FText::FromName(Alpha))
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 								]
 								+ SHorizontalBox::Slot()
 								.HAlign(HAlign_Left)
@@ -327,7 +327,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 								[
 									SNew(STextBlock)
 									.Text(TextureParam->ChannelNames.A)
-									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								]
 							];
 					}
@@ -353,7 +353,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					SNew(STextBlock)
 					.Text(NameOverride)
 					.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			]
 			.ValueContent()
@@ -437,7 +437,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 						SNew(STextBlock)
 						.Text(NameOverride)
 						.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					]
 				];
 			}
@@ -483,7 +483,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					.BorderBackgroundColor(this, &SMaterialParametersOverviewTreeItem::GetOuterBackgroundColor, StackParameterData)
 					[
 						SNew(SSplitter)
-						.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+						.Style(FAppStyle::Get(), "DetailsView.Splitter")
 						.PhysicalSplitterHandleSize(1.0f)
 						.HitDetectionSplitterHandleSize(5.0f)
 						+ SSplitter::Slot()
@@ -533,7 +533,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 
 	STableRow< TSharedPtr<FSortedParamData> >::ConstructInternal(
 		STableRow::FArguments()
-		.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+		.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 		.ShowSelection(false),
 		InOwnerTableView
 	);
@@ -818,7 +818,7 @@ void SMaterialParametersOverviewTree::ShowSubParameters()
 
 const FSlateBrush* SMaterialParametersOverviewPanel::GetBackgroundImage() const
 {
-	return FEditorStyle::GetBrush("DetailsView.CategoryTop");
+	return FAppStyle::GetBrush("DetailsView.CategoryTop");
 }
 
 int32 SMaterialParametersOverviewPanel::GetPanelIndex() const

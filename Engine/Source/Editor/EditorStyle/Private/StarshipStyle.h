@@ -9,11 +9,10 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateTypes.h"
 #include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "ISettingsModule.h"
 
 #if WITH_EDITOR
-#include "EditorStyleSettingsCustomization.h"
 #include "PropertyEditorModule.h"
 #endif
 

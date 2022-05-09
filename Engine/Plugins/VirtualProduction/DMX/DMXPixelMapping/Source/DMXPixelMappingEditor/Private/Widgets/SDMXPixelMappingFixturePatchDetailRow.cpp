@@ -4,7 +4,7 @@
 
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyHandle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -37,7 +37,7 @@ void SDMXPixelMappingFixturePatchDetailRow::Construct(const FArguments& InArgs)
 		.Padding(-3.f) // Need to overdraw to avoid having gaps between the detail rows
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor_Lambda([this]()
 				{
 					return bHighlight ? HighlightBGColor : NormalBGColor;
@@ -62,7 +62,7 @@ void SDMXPixelMappingFixturePatchDetailRow::Construct(const FArguments& InArgs)
 						// The user object should take care of not showing invalid patches.
 						return FText::GetEmpty();
 					})
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.ColorAndOpacity_Lambda([this]()
 					{
 						return bHighlight ? FLinearColor::Black : FLinearColor::White;

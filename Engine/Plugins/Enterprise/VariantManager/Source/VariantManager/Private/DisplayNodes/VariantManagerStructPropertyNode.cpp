@@ -2,7 +2,7 @@
 
 #include "DisplayNodes/VariantManagerStructPropertyNode.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "PropertyValue.h"
 #include "ScopedTransaction.h"
@@ -137,7 +137,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNu
 
 	return SNew(SNumericEntryBox<double>)
 	.AllowSpin(true)
-	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+	.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
 	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnFloatEndSliderMovement, Prop, RecordedElementSize, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnFloatValueChanged, Prop)
@@ -174,7 +174,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(FN
 
 	return SNew(SNumericEntryBox<int64>)
 	.AllowSpin(true)
-	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+	.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
 	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnSignedEndSliderMovement, Prop, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnSignedValueChanged, Prop)
@@ -211,7 +211,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateUnsignedEntryBox(
 
 	return SNew(SNumericEntryBox<uint64>)
 	.AllowSpin(true)
-	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+	.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
 	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnUnsignedEndSliderMovement, Prop, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnUnsignedValueChanged, Prop)

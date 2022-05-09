@@ -9,7 +9,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "ToolMenus.h"
@@ -76,7 +76,7 @@ TSharedPtr<SWidget> FControlRigBlueprintActions::GetThumbnailOverlay(const FAsse
 	const FSlateBrush* Icon = FSlateIconFinder::FindIconBrushForClass(UControlRigBlueprint::StaticClass());
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetNoBrush())
+		.BorderImage(FAppStyle::GetNoBrush())
 		.Visibility(EVisibility::HitTestInvisible)
 		.Padding(FMargin(0.0f, 0.0f, 0.0f, 3.0f))
 		.HAlign(HAlign_Right)

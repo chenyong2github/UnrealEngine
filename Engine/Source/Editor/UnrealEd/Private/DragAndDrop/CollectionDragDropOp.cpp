@@ -39,8 +39,8 @@ TSharedPtr<SWidget> FCollectionDragDropOp::GetDefaultDecorator() const
 {
 	return SNew(SBorder)
 		.Padding(0)
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetDragDropTooltipBackground"))
-		//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ContentBrowser.AssetDragDropTooltipBackground"))
+		//.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SAssetTagItem)
 			.ViewMode(AssetTagViewMode)

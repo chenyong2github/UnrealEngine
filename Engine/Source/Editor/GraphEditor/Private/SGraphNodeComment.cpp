@@ -154,7 +154,7 @@ void SGraphNodeComment::UpdateGraphNode()
 		.VAlign(VAlign_Fill)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("Kismet.Comment.Background") )
+			.BorderImage( FAppStyle::GetBrush("Kismet.Comment.Background") )
 			.ColorAndOpacity( FLinearColor::White )
 			.BorderBackgroundColor( this, &SGraphNodeComment::GetCommentBodyColor )
 			.Padding(  FMargin(3.0f) )
@@ -168,7 +168,7 @@ void SGraphNodeComment::UpdateGraphNode()
 				.VAlign(VAlign_Top)
 				[
 					SAssignNew(TitleBar, SBorder)
-					.BorderImage( FEditorStyle::GetBrush("Graph.Node.TitleBackground") )
+					.BorderImage( FAppStyle::GetBrush("Graph.Node.TitleBackground") )
 					.BorderBackgroundColor( this, &SGraphNodeComment::GetCommentTitleBarColor )
 					.Padding( FMargin(10,5,5,3) )
 					.HAlign(HAlign_Fill)
@@ -199,7 +199,7 @@ void SGraphNodeComment::UpdateGraphNode()
 				[
 					// NODE CONTENT AREA
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+					.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				]
 			]
 		];
@@ -350,7 +350,7 @@ void SGraphNodeComment::GetOverlayBrushes(bool bSelected, const FVector2D Widget
 
 	HandleSelection(bSelected);
 
-	FOverlayBrushInfo HandleBrush = FEditorStyle::GetBrush( TEXT("Graph.Node.Comment.Handle") );
+	FOverlayBrushInfo HandleBrush = FAppStyle::GetBrush( TEXT("Graph.Node.Comment.Handle") );
 
 	HandleBrush.OverlayOffset.X = WidgetSize.X - HandleBrush.Brush->ImageSize.X - Fudge;
 	HandleBrush.OverlayOffset.Y = WidgetSize.Y - HandleBrush.Brush->ImageSize.Y - Fudge;

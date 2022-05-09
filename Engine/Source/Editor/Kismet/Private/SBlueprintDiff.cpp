@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimBlueprint.h"
 #include "K2Node_MathExpression.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -929,7 +929,7 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 		, NAME_None
 		, LOCTEXT("PrevDiffLabel", "Prev")
 		, LOCTEXT("PrevDiffTooltip", "Go to previous difference")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDif.PrevDiff")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDif.PrevDiff")
 	);
 	NavToolBarBuilder.AddToolBarButton(
 		FUIAction(
@@ -939,7 +939,7 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 		, NAME_None
 		, LOCTEXT("NextDiffLabel", "Next")
 		, LOCTEXT("NextDiffTooltip", "Go to next difference")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDif.NextDiff")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDif.NextDiff")
 	);
 
 	FToolBarBuilder GraphToolbarBuilder(TSharedPtr< const FUICommandList >(), FMultiBoxCustomization::None);
@@ -971,7 +971,7 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 		[
 			SNew(STextBlock)
 			.Visibility(EVisibility::HitTestInvisible)
-			.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			.Text(Text)
 		];
 	};
@@ -1023,7 +1023,7 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 	this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" ))
+			.BorderImage(FAppStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" ))
 			[
 				SNew(SOverlay)
 				+ SOverlay::Slot()
@@ -1063,7 +1063,7 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 						.Value(.2f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								DifferencesTreeView.ToSharedRef()
 							]
@@ -1289,12 +1289,12 @@ void SBlueprintDiff::OnToggleSplitViewMode()
 
 FSlateIcon SBlueprintDiff::GetLockViewImage() const
 {
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), bLockViews ? "Icons.Lock" : "Icons.Unlock");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), bLockViews ? "Icons.Lock" : "Icons.Unlock");
 }
 
 FSlateIcon SBlueprintDiff::GetSplitViewModeImage() const
 {
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), bVerticalSplitGraphMode ? "BlueprintDif.VerticalDiff.Small" : "BlueprintDif.HorizontalDiff.Small");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), bVerticalSplitGraphMode ? "BlueprintDif.VerticalDiff.Small" : "BlueprintDif.HorizontalDiff.Small");
 }
 
 void SBlueprintDiff::ResetGraphEditors()
@@ -1823,7 +1823,7 @@ TSharedRef<SBox> SBlueprintDiff::GenerateRevisionInfoWidgetForPanel(TSharedPtr<S
 		.HAlign(HAlign_Left)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			.Text(InRevisionText)
 			.ShadowColorAndOpacity(FColor::Black)
 			.ShadowOffset(FVector2D(1.4,1.4))

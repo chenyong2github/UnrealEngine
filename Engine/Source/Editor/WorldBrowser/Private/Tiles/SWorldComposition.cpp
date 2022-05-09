@@ -278,7 +278,7 @@ public:
 				OutDrawElements,
 				++LayerId,
 				EditableArea,
-				FEditorStyle::GetBrush(TEXT("Graph.CompactNode.ShadowSelected")),
+				FAppStyle::GetBrush(TEXT("Graph.CompactNode.ShadowSelected")),
 				ESlateDrawEffect::None,
 				PaintColor
 				);
@@ -297,7 +297,7 @@ public:
 				OutDrawElements,
 				LayerId,
 				AllottedGeometry.ToPaintGeometry(),
-				FEditorStyle::GetBrush(TEXT("Graph.PlayInEditor"))
+				FAppStyle::GetBrush(TEXT("Graph.PlayInEditor"))
 				);
 		}
 
@@ -308,7 +308,7 @@ public:
 			if (WorldModel->GetObserverView(ObserverPosition, ObserverRotation))
 			{
 				FVector2D ObserverPositionScreen = GraphCoordToPanelCoord(FVector2D(ObserverPosition.X, ObserverPosition.Y));
-				const FSlateBrush* CameraImage = FEditorStyle::GetBrush(TEXT("WorldBrowser.SimulationViewPosition"));
+				const FSlateBrush* CameraImage = FAppStyle::GetBrush(TEXT("WorldBrowser.SimulationViewPosition"));
 	
 				//AllottedGeometry.GetAccumulatedRenderTransform();
 				//FSlateLayoutTransform LayoutTransform(Scale, AllottedGeometry.GetAccumulatedLayoutTransform().GetTranslation() - InflateAmount);
@@ -336,7 +336,7 @@ public:
 			if (WorldModel->GetPlayerView(PlayerPosition, PlayerRotation))
 			{
 				FVector2D PlayerPositionScreen = GraphCoordToPanelCoord(FVector2D(PlayerPosition.X, PlayerPosition.Y));
-				const FSlateBrush* CameraImage = FEditorStyle::GetBrush(TEXT("WorldBrowser.SimulationViewPosition"));
+				const FSlateBrush* CameraImage = FAppStyle::GetBrush(TEXT("WorldBrowser.SimulationViewPosition"));
 	
 				FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry(
 					PlayerPositionScreen - CameraImage->ImageSize*0.5f, 
@@ -557,7 +557,7 @@ protected:
 			LayerId,
 			AllottedGeometry.ToOffsetPaintGeometry(FVector2D(10, 27)),
 			RulerText,
-			FEditorStyle::GetFontStyle("NormalFont"),
+			FAppStyle::GetFontStyle("NormalFont"),
 			ESlateDrawEffect::None,
 			FColor(200, 200, 200));
 		
@@ -937,7 +937,7 @@ void SWorldComposition::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SAssignNew(ContentParent, SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+		.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 	];
 	
 	OnBrowseWorld(InArgs._InWorld);
@@ -1000,7 +1000,7 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 			.VAlign(VAlign_Top)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				[
 					SNew(SVerticalBox)
 
@@ -1026,13 +1026,13 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush( "WorldBrowser.WorldOrigin" ))
+							.Image(FAppStyle::GetBrush( "WorldBrowser.WorldOrigin" ))
 						]
 						+SHorizontalBox::Slot()
 						.Padding(5,0,0,0)
 						[
 							SNew(STextBlock)
-							.TextStyle( FEditorStyle::Get(), "WorldBrowser.StatusBarText" )
+							.TextStyle( FAppStyle::Get(), "WorldBrowser.StatusBarText" )
 							.Text(this, &SWorldComposition::GetCurrentOriginText)
 						]
 
@@ -1042,7 +1042,7 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 						.Padding(0,0,5,0)
 						[
 							SNew(STextBlock)
-							.TextStyle( FEditorStyle::Get(), "WorldBrowser.StatusBarText" )
+							.TextStyle( FAppStyle::Get(), "WorldBrowser.StatusBarText" )
 							.Text(this, &SWorldComposition::GetCurrentLevelText)
 						]											
 					]
@@ -1053,7 +1053,7 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 			.VAlign(VAlign_Bottom)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				[
 					SNew(SVerticalBox)
 
@@ -1067,13 +1067,13 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush( "WorldBrowser.MouseLocation" ))
+							.Image(FAppStyle::GetBrush( "WorldBrowser.MouseLocation" ))
 						]
 						+SHorizontalBox::Slot()
 						.Padding(5,0,0,0)
 						[
 							SNew(STextBlock)
-							.TextStyle( FEditorStyle::Get(), "WorldBrowser.StatusBarText" )
+							.TextStyle( FAppStyle::Get(), "WorldBrowser.StatusBarText" )
 							.Text(this, &SWorldComposition::GetMouseLocationText)
 						]
 
@@ -1082,13 +1082,13 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush( "WorldBrowser.MarqueeRectSize" ))
+							.Image(FAppStyle::GetBrush( "WorldBrowser.MarqueeRectSize" ))
 						]
 						+SHorizontalBox::Slot()
 						.Padding(5,0,0,0)
 						[
 							SNew(STextBlock)
-							.TextStyle( FEditorStyle::Get(), "WorldBrowser.StatusBarText" )
+							.TextStyle( FAppStyle::Get(), "WorldBrowser.StatusBarText" )
 							.Text(this, &SWorldComposition::GetMarqueeSelectionSizeText)
 						]
 
@@ -1102,14 +1102,14 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 							.AutoWidth()
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush( "WorldBrowser.WorldSize" ))
+								.Image(FAppStyle::GetBrush( "WorldBrowser.WorldSize" ))
 							]
 
 							+SHorizontalBox::Slot()
 							.Padding(5,0,5,0)
 							[
 								SNew(STextBlock)
-								.TextStyle( FEditorStyle::Get(), "WorldBrowser.StatusBarText" )
+								.TextStyle( FAppStyle::Get(), "WorldBrowser.StatusBarText" )
 								.Text(this, &SWorldComposition::GetWorldSizeText)
 							]
 						]											
@@ -1125,7 +1125,7 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 			[
 				SNew(STextBlock)
 				.Visibility(this, &SWorldComposition::IsSimulationVisible)
-				.TextStyle( FEditorStyle::Get(), "Graph.SimulatingText" )
+				.TextStyle( FAppStyle::Get(), "Graph.SimulatingText" )
 				.Text(LOCTEXT("SimulatingNotification", "SIMULATING"))
 			]
 		];
@@ -1157,7 +1157,7 @@ void SWorldComposition::PopulateLayersList()
 		.Content()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("WorldBrowser.AddLayer"))
+			.Image(FAppStyle::GetBrush("WorldBrowser.AddLayer"))
 		]
 	];
 }

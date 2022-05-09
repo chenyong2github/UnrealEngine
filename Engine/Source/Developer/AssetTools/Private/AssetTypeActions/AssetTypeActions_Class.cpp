@@ -4,7 +4,7 @@
 #include "ToolMenus.h"
 #include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SourceCodeNavigation.h"
 #include "AddToProjectConfig.h"
 #include "GameProjectGenerationModule.h"
@@ -115,7 +115,7 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToo
 		"NewDerivedCppClass",
 		NewDerivedCppClassLabel,
 		NewDerivedCppClassToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.C++"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.C++"),
 		FUIAction(
 			FExecuteAction::CreateLambda(CreateCreateDerivedCppClass),
 			FCanExecuteAction::CreateLambda(CanCreateDerivedCppClass),
@@ -128,7 +128,7 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToo
 		"NewDerivedBlueprintClass",
 		NewDerivedBlueprintClassLabel,
 		NewDerivedBlueprintClassToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Blueprint"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Blueprint"),
 		FUIAction(
 			FExecuteAction::CreateLambda(CreateCreateDerivedBlueprintClass),
 			FCanExecuteAction::CreateLambda(CanCreateDerivedBlueprintClass)

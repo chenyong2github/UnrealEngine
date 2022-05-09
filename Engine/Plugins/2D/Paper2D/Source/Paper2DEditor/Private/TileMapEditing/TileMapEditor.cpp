@@ -4,7 +4,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "EditorViewportClient.h"
 #include "UObject/Package.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SEditorViewport.h"
 #include "SSingleObjectDetailsPanel.h"
 #include "PaperTileMap.h"
@@ -234,7 +234,7 @@ TSharedRef<SDockTab> FTileMapEditor::SpawnTab_Viewport(const FSpawnTabArgs& Args
 				[
 					SNew(STextBlock)
 					.Visibility(EVisibility::HitTestInvisible)
-					.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+					.TextStyle(FAppStyle::Get(), "Graph.CornerText")
 					.Text(LOCTEXT("TileMapEditorViewportEarlyAccessPreviewWarning", "Beta preview"))
 				]
 		];
@@ -274,17 +274,17 @@ void FTileMapEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& In
 	InTabManager->RegisterTabSpawner(FTileMapEditorTabs::ViewportID, FOnSpawnTab::CreateSP(this, &FTileMapEditor::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner(FTileMapEditorTabs::ToolboxHostID, FOnSpawnTab::CreateSP(this, &FTileMapEditor::SpawnTab_ToolboxHost))
 		.SetDisplayName(LOCTEXT("ToolboxHostLabel", "Toolbox"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Modes"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Modes"));
 
 	InTabManager->RegisterTabSpawner(FTileMapEditorTabs::DetailsID, FOnSpawnTab::CreateSP(this, &FTileMapEditor::SpawnTab_Details))
 		.SetDisplayName(LOCTEXT("DetailsTabLabel", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 void FTileMapEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -307,7 +307,7 @@ void FTileMapEditor::InitTileMapEditor(const EToolkitMode::Type Mode, const TSha
 
 	ViewportPtr = SNew(STileMapEditorViewport, SharedThis(this));
 	ToolboxPtr = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(0.f);
 
 	// Default layout

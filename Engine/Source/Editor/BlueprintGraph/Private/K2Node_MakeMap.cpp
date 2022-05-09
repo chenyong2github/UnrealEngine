@@ -140,7 +140,7 @@ FText UK2Node_MakeMap::GetTooltipText() const
 
 FSlateIcon UK2Node_MakeMap::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.MakeMap_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.MakeMap_16x");
 	return Icon;
 }
 

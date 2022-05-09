@@ -6,11 +6,11 @@
 #include "ToolMenus.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionFilter.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_MacroInstance"
 
@@ -208,7 +208,7 @@ void UK2Node_MacroInstance::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNod
 				"MacroInstanceFindInContentBrowser",
 				NSLOCTEXT("K2Node", "MacroInstanceFindInContentBrowser", "Find in Content Browser"),
 				NSLOCTEXT("K2Node", "MacroInstanceFindInContentBrowserTooltip", "Finds the Blueprint Macro Library that contains this Macro in the Content Browser"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Search"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Search"),
 				FUIAction( FExecuteAction::CreateStatic( &UK2Node_MacroInstance::FindInContentBrowser, MakeWeakObjectPtr(const_cast<UK2Node_MacroInstance*>(this)) ) )
 				);
 		}
@@ -401,7 +401,7 @@ FSlateIcon UK2Node_MacroInstance::GetIconAndTint(FLinearColor& OutColor) const
 		}
 	}
 
-	return FSlateIcon("EditorStyle", IconName);
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), IconName);
 }
 
 FText UK2Node_MacroInstance::GetCompactNodeTitle() const

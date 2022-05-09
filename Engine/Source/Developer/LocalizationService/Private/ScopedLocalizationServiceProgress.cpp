@@ -13,7 +13,7 @@
 	#include "Widgets/Layout/SUniformGridPanel.h"
 	#include "Widgets/Input/SButton.h"
 	#include "Framework/Docking/TabManager.h"
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // LOCALIZATION_SERVICES_WITH_SLATE
 
 #if LOCALIZATION_SERVICES_WITH_SLATE
@@ -48,7 +48,7 @@ public:
 		TimeStamp = FPlatformTime::Seconds();
 
 		SBorder::Construct( SBorder::FArguments()
-		.BorderImage( FEditorStyle::GetBrush("ChildWindow.Background") )
+		.BorderImage( FAppStyle::GetBrush("ChildWindow.Background") )
 		.Padding(16.0f)
 		.VAlign(VAlign_Center)
 		[
@@ -75,7 +75,7 @@ public:
 					.HAlign(HAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("LocalizationService.ProgressWindow.Warning"))
+						.Image(FAppStyle::GetBrush("LocalizationService.ProgressWindow.Warning"))
 					]
 					+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -104,9 +104,9 @@ public:
 					[
 						// buttons
 						SNew(SUniformGridPanel)
-						.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-						.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-						.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+						.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+						.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+						.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 						+SUniformGridPanel::Slot(0, 0)
 						[
 							SNew(SButton)

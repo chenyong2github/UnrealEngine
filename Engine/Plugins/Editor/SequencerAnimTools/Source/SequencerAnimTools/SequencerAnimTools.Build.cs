@@ -14,7 +14,6 @@ public class SequencerAnimTools: ModuleRules
 				"Core",
                 "Slate",
                 "SlateCore",
-                "EditorStyle"
 			}
 		);
 			

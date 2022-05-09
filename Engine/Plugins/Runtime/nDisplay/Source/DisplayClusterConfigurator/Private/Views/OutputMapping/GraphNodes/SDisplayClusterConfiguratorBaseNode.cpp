@@ -24,7 +24,7 @@ void SAlignmentRuler::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(FMargin(0.5f))
-		.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
+		.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 		.BorderBackgroundColor(InArgs._ColorAndOpacity)
 		[
 			SAssignNew(BoxWidget, SBox)
@@ -321,7 +321,7 @@ void SDisplayClusterConfiguratorBaseNode::EndUserInteraction() const
 
 const FSlateBrush* SDisplayClusterConfiguratorBaseNode::GetShadowBrush(bool bSelected) const
 {
-	return FStyleDefaults::GetNoBrush();
+	return FAppStyle::GetNoBrush();
 }
 
 bool SDisplayClusterConfiguratorBaseNode::CanBeSelected(const FVector2D& MousePositionInNode) const

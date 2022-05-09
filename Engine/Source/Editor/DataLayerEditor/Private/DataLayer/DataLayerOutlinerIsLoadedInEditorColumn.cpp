@@ -8,7 +8,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/STreeView.h"
 #include "DataLayerTransaction.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
@@ -30,7 +30,7 @@ SHeaderRow::FColumn::FArguments FDataLayerOutlinerIsLoadedInEditorColumn::Constr
 		.DefaultTooltip(FText::FromName(GetColumnID()))
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("DataLayer.LoadedInEditor")))
+			.Image(FAppStyle::GetBrush(TEXT("DataLayer.LoadedInEditor")))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }

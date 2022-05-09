@@ -37,13 +37,13 @@ TSharedRef<SWidget> SNiagaraGraphNodeConvert::CreateTitleWidget(TSharedPtr<SNode
 		.HAlign(HAlign_Right)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ToolTipText(LOCTEXT("ShowWiring_Tooltip", "Toggle visibility of the internal wiring switchboard."))
 			.OnClicked(this, &SNiagaraGraphNodeConvert::ToggleShowWiring)
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Edit"))
+				.Image(FAppStyle::GetBrush("Icons.Edit"))
 			]
 		];
 }

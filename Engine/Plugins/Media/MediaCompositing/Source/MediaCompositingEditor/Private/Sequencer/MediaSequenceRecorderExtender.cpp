@@ -8,7 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISinglePropertyView.h"
@@ -70,7 +70,7 @@ public:
 				SNew(SButton)
 				.ContentPadding(0)
 				.OnClicked(this, &SSequenceRecorderMediaPlayerListRow::ToggleRecordingActive)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ToolTipText(LOCTEXT("ActiveButtonToolTip", "Toggle Recording Active"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -86,7 +86,7 @@ public:
 				SNew(SButton)
 				.ContentPadding(0)
 				.OnClicked(this, &SSequenceRecorderMediaPlayerListRow::ToggleRecordingFrame)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ToolTipText(LOCTEXT("VideoFramesButtonToolTip", "Toggle Recording Video Frames\nSelect Media Player to show Media Player Recording Options"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -125,11 +125,11 @@ private:
 	{
 		if (RecordingPtr.IsValid() && RecordingPtr.Get()->RecordingSettings.bActive)
 		{
-			return FEditorStyle::GetBrush("SequenceRecorder.Common.RecordingActive");
+			return FAppStyle::GetBrush("SequenceRecorder.Common.RecordingActive");
 		}
 		else
 		{
-			return FEditorStyle::GetBrush("SequenceRecorder.Common.RecordingInactive");
+			return FAppStyle::GetBrush("SequenceRecorder.Common.RecordingInactive");
 		}
 	}
 
@@ -146,11 +146,11 @@ private:
 	{
 		if (RecordingPtr.IsValid() && RecordingPtr.Get()->RecordingSettings.bRecordMediaFrame)
 		{
-			return FEditorStyle::GetBrush("SequenceRecorder.Common.RecordingActive");
+			return FAppStyle::GetBrush("SequenceRecorder.Common.RecordingActive");
 		}
 		else
 		{
-			return FEditorStyle::GetBrush("SequenceRecorder.Common.RecordingInactive");
+			return FAppStyle::GetBrush("SequenceRecorder.Common.RecordingInactive");
 		}
 	}
 

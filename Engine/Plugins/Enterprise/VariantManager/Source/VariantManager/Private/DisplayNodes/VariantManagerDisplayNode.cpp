@@ -2,7 +2,7 @@
 
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "VariantManager.h"
 #include "VariantManagerNodeTree.h"
 #include "Input/DragAndDrop.h"
@@ -20,7 +20,7 @@ FVariantManagerDisplayNode::FVariantManagerDisplayNode(TSharedPtr<FVariantManage
 	, bExpanded( false )
 	, bSelected( false )
 {
-	BackgroundBrush = FEditorStyle::GetBrush("Sequencer.AnimationOutliner.DefaultBorder");
+	BackgroundBrush = FAppStyle::GetBrush("Sequencer.AnimationOutliner.DefaultBorder");
 }
 
 FSlateColor FVariantManagerDisplayNode::GetDisplayNameColor() const
@@ -88,7 +88,7 @@ FSlateColor FVariantManagerDisplayNode::GetNodeBackgroundTint() const
 {
 	if (IsSelected())
 	{
-		return FEditorStyle::GetSlateColor("SelectionColor_Pressed");
+		return FAppStyle::GetSlateColor("SelectionColor_Pressed");
 	}
 	else if (IsHovered())
 	{

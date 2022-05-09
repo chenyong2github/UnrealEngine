@@ -31,7 +31,7 @@
 #include "Editor.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -237,7 +237,7 @@ public:
 			if (EntryPtr->IsVirtualSubject())
 			{
 				return SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.OnClicked(this, &SLiveLinkClientPanelSubjectRow::OnRemoveClicked)
@@ -247,7 +247,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Delete"))
+						.Image(FAppStyle::GetBrush("Icons.Delete"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					];
 			}
@@ -258,7 +258,7 @@ public:
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 						.ColorAndOpacity(this, &SLiveLinkClientPanelSubjectRow::OnGetActivityColor)
 						.Text(FEditorFontGlyphs::Circle)
 					];
@@ -340,7 +340,7 @@ public:
 		else if (ColumnName == SourceListUI::ActionsColumnName)
 		{
 			return	SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.OnClicked(this, &SLiveLinkClientPanelSourcesRow::OnRemoveClicked)
@@ -350,7 +350,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Delete"))
+						.Image(FAppStyle::GetBrush("Icons.Delete"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					];
 		}
@@ -477,7 +477,7 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("MessageLog.ListBorder")) // set panel background color to same color as message log at the bottom
+		.BorderImage(FAppStyle::GetBrush("MessageLog.ListBorder")) // set panel background color to same color as message log at the bottom
 		.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
 		[
 			SNew(SVerticalBox)
@@ -506,7 +506,7 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 						.Value(0.25f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(FMargin(4.0f, 4.0f))
 							[
 								SAssignNew(SourceListView, SLiveLinkSourceListView)
@@ -537,7 +537,7 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 						.Value(0.75f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(FMargin(4.0f, 4.0f))
 							[
 								SubjectsTreeView->AsShared()

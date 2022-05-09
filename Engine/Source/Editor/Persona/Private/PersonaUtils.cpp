@@ -13,7 +13,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
@@ -146,7 +146,7 @@ TSharedRef<SWidget> MakeTrackButton(FText HoverText, FOnGetContent MenuContent, 
 
 		SNew(SComboButton)
 		.HasDownArrow(false)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ForegroundColor( FSlateColor::UseForeground() )
 		.OnGetMenuContent(MenuContent)
 		.ContentPadding(FMargin(5, 2))
@@ -163,7 +163,7 @@ TSharedRef<SWidget> MakeTrackButton(FText HoverText, FOnGetContent MenuContent, 
 			[
 				SNew(SImage)
 				.ColorAndOpacity( FSlateColor::UseForeground() )
-				.Image(FEditorStyle::GetBrush("ComboButton.Arrow"))
+				.Image(FAppStyle::GetBrush("ComboButton.Arrow"))
 			]
 
 			+ SHorizontalBox::Slot()

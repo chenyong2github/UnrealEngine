@@ -12,7 +12,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/SNullWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FbxCompareWindow.h"
 #include "FbxImporter.h"
 

@@ -14,8 +14,8 @@ const FSlateBrush* SPoseWatchOverlay::IconNotVisible = nullptr;
 
 void SPoseWatchOverlay::Construct(const FArguments& InArgs, UEdGraphNode* InNode)
 {
-	IconVisible = FEditorStyle::GetBrush("Level.VisibleIcon16x");
-	IconNotVisible = FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+	IconVisible = FAppStyle::GetBrush("Level.VisibleIcon16x");
+	IconNotVisible = FAppStyle::GetBrush("Level.NotVisibleIcon16x");
 
 	GraphNode = InNode;
 

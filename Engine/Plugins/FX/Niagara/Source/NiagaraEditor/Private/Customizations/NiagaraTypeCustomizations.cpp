@@ -80,7 +80,7 @@ void FNiagaraBoolCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> Prop
 			SNew(SCheckBox)
 			.OnCheckStateChanged(this, &FNiagaraBoolCustomization::OnCheckStateChanged)
 			.IsChecked(this, &FNiagaraBoolCustomization::OnGetCheckState)
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
+			.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
 			.Padding(0.0f)
 		];
 }
@@ -235,7 +235,7 @@ TSharedRef<SWidget> FNiagaraVariableAttributeBindingCustomization::OnGetMenuCont
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
 	
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
@@ -483,14 +483,14 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 						SNew(SButton)
 						.IsFocusable(false)
 						.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
 						.ContentPadding(0)
 						.Visibility(this, &FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible)
 						.OnClicked(this, &FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked)
 						.Content()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					]
@@ -796,7 +796,7 @@ TSharedRef<SWidget> FNiagaraMaterialAttributeBindingCustomization::OnGetNiagaraM
 		.ShowFilterTextBox(true);
 	
 	TSharedRef<SWidget> MenuContent =  SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
@@ -1046,7 +1046,7 @@ TSharedRef<SWidget> FNiagaraMaterialAttributeBindingCustomization::OnGetMaterial
 		.ShowFilterTextBox(true);
 
 	TSharedRef<SWidget> MenuContent = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
@@ -1234,8 +1234,8 @@ void FNiagaraMaterialAttributeBindingCustomization::CustomizeChildren(TSharedRef
 					.OnGetMenuContent(this, &FNiagaraMaterialAttributeBindingCustomization::OnGetMaterialMenuContent)
 					.ContentPadding(1)
 					.ToolTipText(this, &FNiagaraMaterialAttributeBindingCustomization::GetMaterialTooltipText)
-					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 					.ButtonContent()
 					[
 						SNew(STextBlock)
@@ -1258,8 +1258,8 @@ void FNiagaraMaterialAttributeBindingCustomization::CustomizeChildren(TSharedRef
 					.OnGetMenuContent(this, &FNiagaraMaterialAttributeBindingCustomization::OnGetNiagaraMenuContent)
 					.ContentPadding(1)
 					.ToolTipText(this, &FNiagaraMaterialAttributeBindingCustomization::GetNiagaraTooltipText)
-					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 					.ButtonContent()
 					[
 						SNew(SHorizontalBox)
@@ -1320,7 +1320,7 @@ TSharedRef<SWidget> FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent(
 	FGraphActionMenuBuilder MenuBuilder;
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
@@ -1478,8 +1478,8 @@ void FNiagaraDataInterfaceBindingCustomization::CustomizeHeader(TSharedRef<IProp
 				.OnGetMenuContent(this, &FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent)
 				.ContentPadding(1)
 				.ToolTipText(this, &FNiagaraDataInterfaceBindingCustomization::GetTooltipText)
-				.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-				.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+				.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+				.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 				.ButtonContent()
 				[
 					SNew(SNiagaraParameterName)
@@ -1543,7 +1543,7 @@ TSharedRef<SWidget> FNiagaraScriptVariableBindingCustomization::OnGetMenuContent
 	FGraphActionMenuBuilder MenuBuilder; // TODO: Is this necessary? It's included in all the other implementations above, but it's never used. Spooky
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
@@ -1822,8 +1822,8 @@ void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPro
 				.OnGetMenuContent(this, &FNiagaraScriptVariableBindingCustomization::OnGetMenuContent)
 				.ContentPadding(1)
 				.ToolTipText(this, &FNiagaraScriptVariableBindingCustomization::GetTooltipText)
-				.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-				.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+				.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+				.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 				.ButtonContent()
 				[
 					SNew(SNiagaraParameterName)

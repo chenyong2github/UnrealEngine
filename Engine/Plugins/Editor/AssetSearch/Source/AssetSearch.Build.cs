@@ -22,7 +22,6 @@ public class AssetSearch : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"SQLiteCore",
-				"EditorStyle",
 				"InputCore",
 				"Slate",
 				"SlateCore",

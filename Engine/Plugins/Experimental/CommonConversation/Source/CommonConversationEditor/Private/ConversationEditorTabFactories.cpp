@@ -2,7 +2,7 @@
 
 #include "ConversationEditorTabFactories.h"
 #include "Engine/Blueprint.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ConversationEditorTabs.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "ConversationDatabase.h"
@@ -17,7 +17,7 @@ FConversationDetailsSummoner::FConversationDetailsSummoner(TSharedPtr<FConversat
 	, ConversationEditorPtr(InConversationEditorPtr)
 {
 	TabLabel = LOCTEXT("ConversationDetailsLabel", "Details");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Components");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Components");
 
 	bIsSingleton = true;
 
@@ -44,7 +44,7 @@ FConversationSearchSummoner::FConversationSearchSummoner(TSharedPtr<FConversatio
 	, ConversationEditorPtr(InConversationEditorPtr)
 {
 	TabLabel = LOCTEXT("ConversationSearchLabel", "Search");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.FindResults");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.FindResults");
 
 	bIsSingleton = true;
 
@@ -70,7 +70,7 @@ FConversationTreeEditorSummoner::FConversationTreeEditorSummoner(TSharedPtr<FCon
 	, ConversationEditorPtr(InConversationEditorPtr)
 {
 	TabLabel = LOCTEXT("ConversationTreeEditorLabel", "Conversation Tree");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Tree");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Tree");
 
 	bIsSingleton = true;
 
@@ -123,7 +123,7 @@ TSharedRef<SWidget> FConversationGraphEditorSummoner::CreateTabBodyForObject(con
 
 const FSlateBrush* FConversationGraphEditorSummoner::GetTabIconForObject(const FWorkflowTabSpawnInfo& Info, UEdGraph* DocumentID) const
 {
-	return FEditorStyle::GetBrush("NoBrush");
+	return FAppStyle::GetBrush("NoBrush");
 }
 
 void FConversationGraphEditorSummoner::SaveState(TSharedPtr<SDockTab> Tab, TSharedPtr<FTabPayload> Payload) const

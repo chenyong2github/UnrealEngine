@@ -97,7 +97,7 @@ FText SGraphNodeAnimStateAlias::GetPreviewCornerText() const
 
 const FSlateBrush* SGraphNodeAnimStateAlias::GetNameIcon() const
 {
-	return FEditorStyle::GetBrush(TEXT("Graph.AliasNode.Icon"));
+	return FAppStyle::GetBrush(TEXT("Graph.AliasNode.Icon"));
 }
 
 TSharedPtr<SToolTip> SGraphNodeAnimStateAlias::GetComplexTooltip()

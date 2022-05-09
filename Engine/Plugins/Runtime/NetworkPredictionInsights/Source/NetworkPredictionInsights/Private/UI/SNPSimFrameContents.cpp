@@ -7,7 +7,7 @@
 #include "INetworkPredictionProvider.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Framework/Text/RichTextLayoutMarshaller.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SNPSimFrameContents"
 
@@ -111,7 +111,7 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		TSharedRef<FRichTextLayoutMarshaller> RichTextMarshaller = FRichTextLayoutMarshaller::Create(
 			TArray<TSharedRef<ITextDecorator>>(), 
 			//&FCoreStyle::Get()
-			&FEditorStyle::Get()
+			&FAppStyle::Get()
 			);		
 
 		return SNew(SVerticalBox)
@@ -130,7 +130,7 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 				//.HighlightText( FText::FromString(TEXT("Loc:")))
 				//.TextStyle(&TextStyle)
 				//.AutoWrapText(true)
-				//.DecoratorStyleSet( &FEditorStyle::Get() )
+				//.DecoratorStyleSet( &FAppStyle::Get() )
 				.DecoratorStyleSet( &FCoreStyle::Get() )
 				+SRichTextBlock::HyperlinkDecorator( TEXT("engine"), FSlateHyperlinkRun::FOnClick::CreateLambda([this, EngineFrameHyperLink](const FSlateHyperlinkRun::FMetadata& Metadata) { NPWindow->SetEngineFrame(EngineFrameHyperLink, true); } ) )
 			]
@@ -241,7 +241,7 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	if (InContent.SimTick)
 	{
 		TSharedRef<FRichTextLayoutMarshaller> RichTextMarshaller = FRichTextLayoutMarshaller::Create(
-			TArray<TSharedRef<ITextDecorator>>(), &FEditorStyle::Get());
+			TArray<TSharedRef<ITextDecorator>>(), &FAppStyle::Get());
 
 		FString TickText;
 

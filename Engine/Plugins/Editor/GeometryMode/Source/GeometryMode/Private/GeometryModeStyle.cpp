@@ -4,7 +4,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 
@@ -44,7 +44,7 @@ void FGeometryModeStyle::Initialize()
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	const FTextBlockStyle& NormalText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 
 	StyleSet->Set("GeometryMode.EditTool",              new IMAGE_PLUGIN_BRUSH("Icons/BSP_Edit_20x", Icon20x20));
 	StyleSet->Set("GeometryMode.EditTool.Small",        new IMAGE_PLUGIN_BRUSH("Icons/BSP_Edit_20x", Icon20x20));

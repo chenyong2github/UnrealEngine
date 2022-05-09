@@ -13,7 +13,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimBlueprint.h"
 #include "Factories/AnimBlueprintFactory.h"
@@ -91,7 +91,7 @@ void SCreateAnimationAssetDlg::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -149,14 +149,14 @@ void SCreateAnimationAssetDlg::Construct(const FArguments& InArgs)
 				.Padding(5)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.Text(LOCTEXT("OK", "OK"))
 						.OnClicked(this, &SCreateAnimationAssetDlg::OnButtonClick, EAppReturnType::Ok)
 					]
@@ -164,7 +164,7 @@ void SCreateAnimationAssetDlg::Construct(const FArguments& InArgs)
 						[
 							SNew(SButton)
 							.HAlign(HAlign_Center)
-							.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+							.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 							.Text(LOCTEXT("Cancel", "Cancel"))
 							.OnClicked(this, &SCreateAnimationAssetDlg::OnButtonClick, EAppReturnType::Cancel)
 						]
@@ -355,7 +355,7 @@ void SAnimationCompressionSelectionDialog::Construct(const FArguments& InArgs, c
 			.Value(0.75f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					AssetPicker.ToSharedRef()
 				]
@@ -654,7 +654,7 @@ namespace AnimationEditorUtils
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("Skeleton_NewAnimBlueprint", "Anim Blueprint"),
 					LOCTEXT("Skeleton_NewAnimBlueprintTooltip", "Creates an Anim Blueprint using the selected skeleton."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimBlueprint"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimBlueprint"),
 					FUIAction(
 						FExecuteAction::CreateStatic(&CreateNewAnimBlueprint, SkeletonsOrSkeletalMeshes, AssetCreated, bInContentBrowser),
 						FCanExecuteAction()
@@ -667,7 +667,7 @@ namespace AnimationEditorUtils
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("Skeleton_NewAnimComposite", "Anim Composite"),
 					LOCTEXT("Skeleton_NewAnimCompositeTooltip", "Creates an AnimComposite using the selected skeleton."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimComposite"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimComposite"),
 					FUIAction(
 						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimCompositeFactory, UAnimComposite>, SkeletonsOrSkeletalMeshes, FString("_Composite"), AssetCreated, bInContentBrowser),
 						FCanExecuteAction()
@@ -680,7 +680,7 @@ namespace AnimationEditorUtils
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("Skeleton_NewAnimMontage", "Anim Montage"),
 					LOCTEXT("Skeleton_NewAnimMontageTooltip", "Creates an AnimMontage using the selected skeleton."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimMontage"),
 					FUIAction(
 						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimMontageFactory, UAnimMontage>, SkeletonsOrSkeletalMeshes, FString("_Montage"), AssetCreated, bInContentBrowser),
 						FCanExecuteAction()
@@ -697,7 +697,7 @@ namespace AnimationEditorUtils
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("SkeletalMesh_New2DBlendspace", "Blend Space"),
 					LOCTEXT("SkeletalMesh_New2DBlendspaceTooltip", "Creates a Blend Space using the selected skeleton."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlendSpace"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.BlendSpace"),
 					FUIAction(
 						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactoryNew, UBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace"), AssetCreated, bInContentBrowser),
 						FCanExecuteAction()
@@ -710,7 +710,7 @@ namespace AnimationEditorUtils
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("SkeletalMesh_New1DBlendspace", "Blend Space 1D"),
 					LOCTEXT("SkeletalMesh_New1DBlendspaceTooltip", "Creates a 1D Blend Space using the selected skeleton."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlendSpace1D"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.BlendSpace1D"),
 					FUIAction(
 						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactory1D, UBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace1D"), AssetCreated, bInContentBrowser),
 						FCanExecuteAction()

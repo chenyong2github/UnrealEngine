@@ -9,7 +9,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SSegmentedControl.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Styling/StyleColors.h"
@@ -314,7 +314,7 @@ TSharedRef<SWidget> SAddContentWidget::CreateContentSourceDetail(TSharedPtr<FCon
 			.Padding(FMargin(10, 0, 0, 5))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+				.TextStyle(FAppStyle::Get(), "DialogButtonText")
 				.Font(FAppStyle::Get().GetFontStyle("HeadingExtraSmall"))
 				.ColorAndOpacity(FStyleColors::ForegroundHover)
 				.Text(ContentSource->GetName())
@@ -334,7 +334,7 @@ TSharedRef<SWidget> SAddContentWidget::CreateContentSourceDetail(TSharedPtr<FCon
 			[
 				SNew(STextBlock)						
 				.Visibility(ContentSource->GetAssetTypes().IsEmpty() == false ? EVisibility::Visible : EVisibility::Collapsed)
-				.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+				.TextStyle(FAppStyle::Get(), "DialogButtonText")
 				.Text(LOCTEXT("FeaturePackAssetReferences", "Asset Types Used"))
 			]
 			+ SScrollBox::Slot()
@@ -350,7 +350,7 @@ TSharedRef<SWidget> SAddContentWidget::CreateContentSourceDetail(TSharedPtr<FCon
 			.Padding(FMargin(10, 0, 0, 0))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+				.TextStyle(FAppStyle::Get(), "DialogButtonText")
 				.Visibility(ContentSource->GetClassTypes().IsEmpty() == false ? EVisibility::Visible : EVisibility::Collapsed)
 				.Text(LOCTEXT("FeaturePackClassReferences", "Class Types Used"))
 			] 

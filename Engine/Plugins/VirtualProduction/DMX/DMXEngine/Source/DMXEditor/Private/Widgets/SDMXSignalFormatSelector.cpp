@@ -4,7 +4,7 @@
 
 #include "DMXProtocolTypes.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SComboBox.h"
 
 
@@ -57,7 +57,7 @@ void SDMXSignalFormatSelector::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(SelectionTextBlock, STextBlock)
 			.Text(FText::FromString(*InitialSelection))
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		]
 	];
 
@@ -103,7 +103,7 @@ TSharedRef<SWidget> SDMXSignalFormatSelector::GenerateComboBoxWidget(TSharedPtr<
 					return FText::FromString(*Item);
 				}
 			})
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 void SDMXSignalFormatSelector::OnSignalFormatSelected(TSharedPtr<FString> SelectedItem, ESelectInfo::Type SelectInfo)

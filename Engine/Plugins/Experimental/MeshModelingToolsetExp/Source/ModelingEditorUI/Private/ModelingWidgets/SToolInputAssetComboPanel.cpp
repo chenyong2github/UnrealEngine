@@ -202,7 +202,7 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 			.WidthOverride(FlyoutSize.X)
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+				.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 				[
 					AssetPickerWidget
 				]

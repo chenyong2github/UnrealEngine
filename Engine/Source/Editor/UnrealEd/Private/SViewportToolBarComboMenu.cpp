@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/ToolBarStyle.h"
 
 void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )

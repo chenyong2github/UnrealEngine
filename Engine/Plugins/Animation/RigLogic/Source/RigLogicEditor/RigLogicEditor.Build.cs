@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
                     "SlateCore",
                     "ApplicationCore",
                     "Slate",
-                    "EditorStyle",
                     "InputCore"
                 }
             );

@@ -135,7 +135,7 @@ bool ULiveLinkBlueprintVirtualSubjectFactory::ConfigureProperties()
 					[
 						SNew(SBorder)
 						.Padding(4)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &FVirtualSubjectFactoryUI::OnPickedRole))
 						]
@@ -160,7 +160,7 @@ bool ULiveLinkBlueprintVirtualSubjectFactory::ConfigureProperties()
 				.SupportsMaximize(false)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 					.Padding(10)
 					[
 						SNew(SVerticalBox)

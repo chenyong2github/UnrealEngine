@@ -21,7 +21,7 @@ public:
 	* Default constructor.
 	*/
 	FNiagaraGraphNodeInputCommands()
-		: TCommands<FNiagaraGraphNodeInputCommands>("NiagaraInputNodeEditor", NSLOCTEXT("Contexts", "NiagaraInputNodeEditor", "Niagara Input Node Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FNiagaraGraphNodeInputCommands>("NiagaraInputNodeEditor", NSLOCTEXT("Contexts", "NiagaraInputNodeEditor", "Niagara Input Node Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{ }
 
 public:
@@ -122,7 +122,7 @@ TSharedRef<SWidget> SNiagaraGraphNodeInput::CreateTitleWidget(TSharedPtr<SNodeTi
 				SNew(SButton)
 				.ClickMethod(EButtonClickMethod::MouseDown)
 				.VAlign(VAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton")
 				.ToolTipText(LOCTEXT("ShowExposureOptions_Tooltip", "Set the Exposure Options for this Input node."))
 				.OnClicked(this, &SNiagaraGraphNodeInput::HandleExposureOptionsMenuButtonClicked)
 				[
@@ -134,7 +134,7 @@ TSharedRef<SWidget> SNiagaraGraphNodeInput::CreateTitleWidget(TSharedPtr<SNodeTi
 					.Padding(2.0f)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("ComboButton.Arrow"))
+						.Image(FAppStyle::GetBrush("ComboButton.Arrow"))
 						.Visibility(this, &SNiagaraGraphNodeInput::GetExposureOptionsVisibility)
 					]
 				]

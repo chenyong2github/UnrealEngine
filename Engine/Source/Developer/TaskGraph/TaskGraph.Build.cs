@@ -12,7 +12,7 @@ public class TaskGraph : ModuleRules
 				"CoreUObject",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"Engine",
 				"InputCore"
 			}

@@ -7,7 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/IConsoleManager.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -176,7 +176,7 @@ void FGameplayAbilitiesEditorModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("GameplayAbilitiesEditorModule", "GameplayCueTooltipText", "Open GameplayCue Editor tab."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		//.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ExpandHotPath16"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.ExpandHotPath16"));
 		
 	ApplyGameplayModEvaluationChannelAliasesToEnumMetadata();
 

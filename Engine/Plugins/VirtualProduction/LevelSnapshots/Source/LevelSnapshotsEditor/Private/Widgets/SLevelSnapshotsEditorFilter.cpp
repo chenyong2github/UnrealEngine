@@ -8,7 +8,7 @@
 #include "Widgets/Filter/SLevelSnapshotsFilterCheckBox.h"
 #include "Widgets/Filter/SHoverableFilterActions.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -76,7 +76,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 			SNew(SBorder)
 			.Padding(0)
 			.BorderBackgroundColor(FLinearColor(0.2, 0.2, 0.2, 1))
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterBackground"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.FilterBackground"))
 			.ColorAndOpacity_Lambda([this](){ return SnapshotFilter.IsValid() && SnapshotFilter->IsIgnored() ? FLinearColor(0.175f, 0.175f, 0.175f, 1.f) : FLinearColor(1,1,1,1); })
 			[
 				SAssignNew(ToggleButtonPtr, SLevelSnapshotsFilterCheckBox) 
@@ -88,7 +88,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 					SAssignNew(FilterNamePtr, SClickableText)
 					.MinDesiredWidth(65.f)	//  SHoverableFilterActions (see below) makes clicking filters with short names difficult
 					.ColorAndOpacity(FLinearColor::White)
-					.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
+					.Font(FAppStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
 					.ShadowOffset(FVector2D(1.f, 1.f))
 					.Text_Lambda([InFilter]()
 					{

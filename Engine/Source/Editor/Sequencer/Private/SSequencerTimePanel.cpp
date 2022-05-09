@@ -15,7 +15,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "ScopedTransaction.h"
 #include "Sequencer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MovieSceneToolHelpers.h"
 
 
@@ -149,7 +149,7 @@ void SSequencerTimePanel::Construct(const FArguments& InArgs, TWeakPtr<FSequence
 				[
 					SNew(STextBlock)
 					.ColorAndOpacity(WarningColor)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(FText::FromString(FString(TEXT("\xf071"))) /*fa-exclamation-triangle*/)
 				]
 

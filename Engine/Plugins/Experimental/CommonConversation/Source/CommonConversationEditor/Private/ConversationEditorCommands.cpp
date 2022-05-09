@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationEditorCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "ConversationEditorCommands"
 
@@ -9,7 +9,7 @@
 //
 
 FConversationEditorCommonCommands::FConversationEditorCommonCommands()
-	: TCommands<FConversationEditorCommonCommands>("ConversationEditor.Common", LOCTEXT("ComversationEditorCommandsLabel", "Conversation Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FConversationEditorCommonCommands>("ConversationEditor.Common", LOCTEXT("ComversationEditorCommandsLabel", "Conversation Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 {
 }
 
@@ -22,7 +22,7 @@ void FConversationEditorCommonCommands::RegisterCommands()
 //
 
 FConversationDebuggerCommands::FConversationDebuggerCommands()
-	: TCommands<FConversationDebuggerCommands>("ConversationEditor.Debugger", LOCTEXT("Debugger", "Debugger"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FConversationDebuggerCommands>("ConversationEditor.Debugger", LOCTEXT("Debugger", "Debugger"), NAME_None, FAppStyle::GetAppStyleSetName())
 {
 }
 

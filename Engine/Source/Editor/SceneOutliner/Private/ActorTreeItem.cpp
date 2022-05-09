@@ -204,7 +204,7 @@ private:
 		{
 			if (Actor->ActorHasTag(SequencerActorTag))
 			{
-				return FEditorStyle::GetBrush("Sequencer.SpawnableIconOverlay");
+				return FAppStyle::GetBrush("Sequencer.SpawnableIconOverlay");
 			}
 		}
 		return nullptr;
@@ -453,7 +453,7 @@ void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 	if (LevelInstance && LevelInstance->IsEditing())
 	{
 		auto SharedOutliner = StaticCastSharedRef<SSceneOutliner>(Outliner.AsShared());
-		const FSlateIcon NewFolderIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon");
+		const FSlateIcon NewFolderIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon");
 		FToolMenuSection& Section = Menu->AddSection("Section");
 		Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
 	}

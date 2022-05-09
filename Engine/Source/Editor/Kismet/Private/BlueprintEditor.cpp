@@ -23,7 +23,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
@@ -196,7 +196,7 @@ FSelectionDetailsSummoner::FSelectionDetailsSummoner(TSharedPtr<class FAssetEdit
 	: FWorkflowTabFactory(FBlueprintEditorTabs::DetailsID, InHostingApp)
 {
 	TabLabel = LOCTEXT("DetailsView_TabTitle", "Details");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details");
 
 	bIsSingleton = true;
 
@@ -612,7 +612,7 @@ bool FBlueprintEditor::IsASubGraph( const UEdGraph* GraphPtr )
 /** Util for finding a glyph for a graph */
 const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, bool bInLargeIcon)
 {
-	const FSlateBrush* ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x") );
+	const FSlateBrush* ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x") );
 
 	check(Graph != nullptr);
 	const UEdGraphSchema* Schema = Graph->GetSchema();
@@ -624,7 +624,7 @@ const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, boo
 		default:
 		case GT_StateMachine:
 			{
-				ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.StateMachine_24x") : TEXT("GraphEditor.StateMachine_16x") );
+				ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.StateMachine_24x") : TEXT("GraphEditor.StateMachine_16x") );
 			}
 			break;
 		case GT_Function:
@@ -634,11 +634,11 @@ const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, boo
 					UObject* GraphOuter = Graph->GetOuter();
 					if ( GraphOuter != nullptr && GraphOuter->IsA(UAnimStateConduitNode::StaticClass()) )
 					{
-						ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Conduit_24x") : TEXT("GraphEditor.Conduit_16x") );
+						ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Conduit_24x") : TEXT("GraphEditor.Conduit_16x") );
 					}
 					else
 					{
-						ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Rule_24x") : TEXT("GraphEditor.Rule_16x") );
+						ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Rule_24x") : TEXT("GraphEditor.Rule_16x") );
 					}
 				}
 				else
@@ -646,49 +646,49 @@ const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, boo
 					//Check for subgraph
 					if( IsASubGraph( Graph ) )
 					{
-						ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.SubGraph_24x") : TEXT("GraphEditor.SubGraph_16x") );
+						ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.SubGraph_24x") : TEXT("GraphEditor.SubGraph_16x") );
 					}
 					else
 					{
-						ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x") );
+						ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x") );
 					}
 				}
 			}
 			break;
 		case GT_Macro:
 			{
-				ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Macro_24x") : TEXT("GraphEditor.Macro_16x") );
+				ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Macro_24x") : TEXT("GraphEditor.Macro_16x") );
 			}
 			break;
 		case GT_Ubergraph:
 			{
-				ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.EventGraph_24x") : TEXT("GraphEditor.EventGraph_16x") );
+				ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.EventGraph_24x") : TEXT("GraphEditor.EventGraph_16x") );
 			}
 			break;
 		case GT_Animation:
 			{
 				if ( Graph->IsA(UAnimationStateGraph::StaticClass()) )
 				{
-					ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.State_24x") : TEXT("GraphEditor.State_16x") );
+					ReturnValue = FAppStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.State_24x") : TEXT("GraphEditor.State_16x") );
 				}
 				else if ( Graph->IsA(UBlendSpaceGraph::StaticClass()) )
 				{
-					ReturnValue = FEditorStyle::GetBrush(TEXT("BlendSpace.Graph") );
+					ReturnValue = FAppStyle::GetBrush(TEXT("BlendSpace.Graph") );
 				}
 				else if ( Graph->IsA(UAnimationBlendSpaceSampleGraph::StaticClass()) )
 				{
-					ReturnValue = FEditorStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
+					ReturnValue = FAppStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
 				}
 				else
 				{
 					// If it has overriden an interface, show it as a function
 					if ( Graph->InterfaceGuid.IsValid() )
 					{ 
-						ReturnValue = FEditorStyle::GetBrush(bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x"));
+						ReturnValue = FAppStyle::GetBrush(bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x"));
 					}
 					else
 					{
-						ReturnValue = FEditorStyle::GetBrush(bInLargeIcon ? TEXT("GraphEditor.Animation_24x") : TEXT("GraphEditor.Animation_16x"));	
+						ReturnValue = FAppStyle::GetBrush(bInLargeIcon ? TEXT("GraphEditor.Animation_24x") : TEXT("GraphEditor.Animation_16x"));	
 					}
 				}
 			}
@@ -705,7 +705,7 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
 		return GetVarIconAndColorFromProperty(Property, IconColorOut, SecondaryBrushOut, SecondaryColorOut);
 	}
-	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	return FAppStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
 }
 
 FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
@@ -720,7 +720,7 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FPrope
 			return GetVarIconAndColorFromPinType(PinType, IconColorOut, SecondaryBrushOut, SecondaryColorOut);
 		}
 	}
-	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	return FAppStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
 }
 
 FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromPinType(const FEdGraphPinType& PinType,
@@ -2419,7 +2419,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 				SNew(STextBlock)
 				.ShadowOffset(FVector2D::UnitVector)
 				.Text(this, &FBlueprintEditor::GetParentClassNameText)
-				.TextStyle(FEditorStyle::Get(), "Common.InheritedFromBlueprintTextStyle")
+				.TextStyle(FAppStyle::Get(), "Common.InheritedFromBlueprintTextStyle")
 				.ToolTipText(LOCTEXT("ParentClassToolTip", "The class that the current Blueprint is based on. The parent provides the base definition, which the current Blueprint extends."))
 				.Visibility(this, &FBlueprintEditor::GetParentClassNameVisibility)
 			]
@@ -2428,7 +2428,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 			[
 				SNew(SButton)
 				.VAlign(VAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FBlueprintEditor::OnFindParentClassInContentBrowserClicked)
 				.IsEnabled(this, &FBlueprintEditor::IsParentClassABlueprint)
 				.Visibility(this, &FBlueprintEditor::GetFindParentClassVisibility)
@@ -2437,7 +2437,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -2445,7 +2445,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 			[
 				SNew(SButton)
 				.VAlign(VAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FBlueprintEditor::OnEditParentClassClicked)
 				.IsEnabled(this, &FBlueprintEditor::IsParentClassAnEditableBlueprint)
 				.Visibility(this, &FBlueprintEditor::GetEditParentClassVisibility)
@@ -2454,7 +2454,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Edit"))
+					.Image(FAppStyle::GetBrush("Icons.Edit"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -2462,7 +2462,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.IsEnabled(this, &FBlueprintEditor::IsNativeParentClassCodeLinkEnabled)
 				.Visibility(this, &FBlueprintEditor::GetNativeParentClassButtonsVisibility)
 				.OnNavigate(this, &FBlueprintEditor::OnEditParentClassNativeCodeClicked)
@@ -2623,7 +2623,7 @@ void FBlueprintEditor::PostLayoutBlueprintEditorInitialization()
 			if (FocusedGraphEdPtr.IsValid())
 			{
 				FNotificationInfo Info( NSLOCTEXT("Kismet", "Blueprint Modified", "Blueprint requires updating. Please resave.") );
-				Info.Image = FEditorStyle::GetBrush(TEXT("Icons.Info"));
+				Info.Image = FAppStyle::GetBrush(TEXT("Icons.Info"));
 				Info.bFireAndForget = true;
 				Info.bUseSuccessFailIcons = false;
 				Info.ExpireDuration = 5.0f;
@@ -8135,7 +8135,7 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 			[
 				SNew(STextBlock)
 					.Text(LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"))
-					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
+					.TextStyle(FAppStyle::Get(), "Menu.Heading")
 			]
 		];
 
@@ -8144,7 +8144,7 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 			SNew(SCheckBox)
 				.IsChecked(bLockNodeFadeState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 				.OnCheckStateChanged(this, &FBlueprintEditor::OnLockNodeStateCheckStateChanged)
-				.Style(FEditorStyle::Get(), "Menu.CheckBox")
+				.Style(FAppStyle::Get(), "Menu.CheckBox")
 				.ToolTipText(LOCTEXT("LockNodeStateCheckBoxToolTip", "Lock the current state of all nodes."))
 				.Content()
 				[

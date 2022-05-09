@@ -3,7 +3,7 @@
 #include "SAnimNodeReference.h"
 
 #include "SLevelOfDetailBranchNode.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "K2Node_AnimNodeReference.h"
 #include "SGraphPin.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -46,7 +46,7 @@ TSharedRef<SWidget> SAnimNodeReference::UpdateTitleWidget(FText InTitleText, TSh
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("NodeSubTitle", "Anim Node Reference"))
-				.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimGraph.AnimNodeReference.Subtitle"))
+				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimGraph.AnimNodeReference.Subtitle"))
 			]
 		];
 

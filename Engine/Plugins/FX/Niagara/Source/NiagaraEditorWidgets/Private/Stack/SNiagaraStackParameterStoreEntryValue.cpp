@@ -40,7 +40,7 @@ void SNiagaraStackParameterStoreEntryValue::Construct(const FArguments& InArgs, 
 			.WidthOverride(TextIconSize)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(this, &SNiagaraStackParameterStoreEntryValue::GetInputIconText)
 				.ToolTipText(this, &SNiagaraStackParameterStoreEntryValue::GetInputIconToolTip)
 				.ColorAndOpacity(this, &SNiagaraStackParameterStoreEntryValue::GetInputIconColor)
@@ -71,21 +71,21 @@ void SNiagaraStackParameterStoreEntryValue::Construct(const FArguments& InArgs, 
 			SNew(SButton)
 			.IsFocusable(false)
 			.ToolTipText(LOCTEXT("ResetToolTip", "Reset to the default value"))
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ContentPadding(0)
 			.Visibility(this, &SNiagaraStackParameterStoreEntryValue::GetResetButtonVisibility)
 			.OnClicked(this, &SNiagaraStackParameterStoreEntryValue::ResetButtonPressed)
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 			]
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ToolTipText(LOCTEXT("DeleteToolTip", "Delete this parameter"))
@@ -93,7 +93,7 @@ void SNiagaraStackParameterStoreEntryValue::Construct(const FArguments& InArgs, 
 			.Content()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf1f8"))))
 			]
 		]

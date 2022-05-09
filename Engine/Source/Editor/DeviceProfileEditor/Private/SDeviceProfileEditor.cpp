@@ -14,7 +14,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
@@ -186,7 +186,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Unlock"))
+						.Image(FAppStyle::GetBrush("Icons.Unlock"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -213,7 +213,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Lock"))
+						.Image(FAppStyle::GetBrush("Icons.Lock"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -288,7 +288,7 @@ void SDeviceProfileEditor::Construct( const FArguments& InArgs )
 
 		TabManager->RegisterTabSpawner( DeviceProfileEditorTabName, FOnSpawnTab::CreateRaw( this, &SDeviceProfileEditor::HandleTabManagerSpawnTab, DeviceProfileEditorTabName) )
 			.SetDisplayName(LOCTEXT("DeviceProfilePropertyEditorLabel", "Device Profile Property Editor..."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.ProfileEditor"))
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "DeviceDetails.Tabs.ProfileEditor"))
 			.SetGroup( DeviceManagerMenuGroup.ToSharedRef() );
 	}
 
@@ -375,7 +375,7 @@ TSharedPtr< SWidget > SDeviceProfileEditor::CreateMainDeviceProfilePanel()
 		.Value( 1.0f )
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
+			.BorderImage( FAppStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
 			[
 				SAssignNew( DeviceProfileSelectionPanel, SDeviceProfileSelectionPanel, DeviceProfileManager )
 				.OnDeviceProfilePinned( this, &SDeviceProfileEditor::HandleDeviceProfilePinned )
@@ -387,7 +387,7 @@ TSharedPtr< SWidget > SDeviceProfileEditor::CreateMainDeviceProfilePanel()
 		.SizeRule(SSplitter::ESizeRule::SizeToContent)
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
+			.BorderImage( FAppStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
 			[
 				SNew( STextBlock )
 				.AutoWrapText(true)
@@ -406,7 +406,7 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 	if( TabIdentifier == DeviceProfileEditorTabName )
 	{
 		TabWidget = SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SOverlay)
 				+ SOverlay::Slot()
@@ -433,7 +433,7 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 					+ SVerticalBox::Slot()
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
@@ -442,7 +442,7 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 							.VAlign(VAlign_Center)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyEditor.AddColumnOverlay"))
+								.Image(FAppStyle::GetBrush("PropertyEditor.AddColumnOverlay"))
 							]
 
 							+ SHorizontalBox::Slot()
@@ -451,7 +451,7 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 							.VAlign(VAlign_Center)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyEditor.RemoveColumn"))
+								.Image(FAppStyle::GetBrush("PropertyEditor.RemoveColumn"))
 							]
 
 							+ SHorizontalBox::Slot()
@@ -461,9 +461,9 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 							.Padding(FMargin(0, 0, 3, 0))
 							[
 								SNew(STextBlock)
-								.Font(FEditorStyle::GetFontStyle("PropertyEditor.AddColumnMessage.Font"))
+								.Font(FAppStyle::GetFontStyle("PropertyEditor.AddColumnMessage.Font"))
 								.Text(LOCTEXT("GenericPropertiesTitle", "Pin Profiles to Add Columns"))
-								.ColorAndOpacity(FEditorStyle::GetColor("PropertyEditor.AddColumnMessage.Color"))
+								.ColorAndOpacity(FAppStyle::GetColor("PropertyEditor.AddColumnMessage.Color"))
 							]
 						]
 					]
@@ -535,7 +535,7 @@ void SDeviceProfileEditor::HandleDeviceProfileViewAlone( const TWeakObjectPtr< U
 
 		TabManager->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &SDeviceProfileEditor::HandleTabManagerSpawnSingleProfileTab, DeviceProfile))
 			.SetDisplayName(FText::FromName(TabId))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.ProfileEditorSingleProfile"))
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "DeviceDetails.Tabs.ProfileEditorSingleProfile"))
 			.SetGroup(DeviceManagerMenuGroup.ToSharedRef());
 	}
 

@@ -2,7 +2,7 @@
 
 #include "SProjectLauncherSettings.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -67,7 +67,7 @@ void SProjectLauncherSettings::Construct(const FArguments& InArgs, const TShared
 			[
 				SNew(SBorder)
 					.Padding(2)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SHorizontalBox)
 
@@ -305,7 +305,7 @@ TSharedRef<SWidget> SProjectLauncherSettings::MakeToolbar(const TSharedRef<FUICo
 
 	ToolBarBuilder.BeginSection("Tasks");
 	{
-		ToolBarBuilder.AddToolBarButton(FProjectLauncherCommands::Get().CloseSettings, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Icons.Previous")));
+		ToolBarBuilder.AddToolBarButton(FProjectLauncherCommands::Get().CloseSettings, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Previous")));
 	}
 
 	return ToolBarBuilder.MakeWidget();

@@ -2,7 +2,7 @@
 
 
 #include "BoneSelectionWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SComboButton.h"
@@ -36,7 +36,7 @@ void SBoneTreeMenu::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(6)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Content()
 		[
 			SNew(SBox)
@@ -49,14 +49,14 @@ void SBoneTreeMenu::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("BoldFont"))
+					.Font(FAppStyle::GetFontStyle("BoldFont"))
 					.Text(TitleToUse)
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
 					SNew(SSeparator)
-					.SeparatorImage(FEditorStyle::GetBrush("Menu.Separator"))
+					.SeparatorImage(FAppStyle::GetBrush("Menu.Separator"))
 					.Orientation(Orient_Horizontal)
 				]
 				+ SVerticalBox::Slot()

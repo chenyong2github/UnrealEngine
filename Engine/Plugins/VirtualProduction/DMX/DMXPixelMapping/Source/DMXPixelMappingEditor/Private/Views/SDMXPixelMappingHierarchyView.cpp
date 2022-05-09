@@ -105,7 +105,7 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 	ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -113,7 +113,7 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 				[
 					SAssignNew(TreeViewArea, SBorder)
 					.Padding(0)
-					.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+					.BorderImage(FAppStyle::GetBrush("NoBrush"))
 				]
 			]
 		];

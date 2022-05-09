@@ -124,7 +124,7 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 	const int32 NodeArrayIndex = PropertyNode->GetArrayIndex();
 	FProperty* Property = PropertyNode->GetProperty();
 	
-	FSlateFontInfo FontStyle = FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle );
+	FSlateFontInfo FontStyle = FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle );
 	TSharedPtr<SWidget> PropertyWidget; 
 	if( Property )
 	{

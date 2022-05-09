@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsActions.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DynamicMeshSculptTool.h"
 #include "EditMeshMaterialsTool.h"
 #include "MeshVertexSculptTool.h"
@@ -28,7 +28,7 @@ FModelingModeActionCommands::FModelingModeActionCommands() :
 		"ModelingModeCommands", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "ModelingModeCommands", "Modeling Mode Shortcuts"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 {
 }
@@ -62,7 +62,7 @@ FModelingToolActionCommands::FModelingToolActionCommands() :
 		"ModelingToolsEditMode", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "ModelingToolsEditMode", "Modeling Tools - Shared Shortcuts"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 }
@@ -181,7 +181,7 @@ void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Too
 
 #define DEFINE_TOOL_ACTION_COMMANDS(CommandsClassName, ContextNameString, SettingsDialogString, ToolClassName ) \
 CommandsClassName::CommandsClassName() : TInteractiveToolCommands<CommandsClassName>( \
-ContextNameString, NSLOCTEXT("Contexts", ContextNameString, SettingsDialogString), NAME_None, FEditorStyle::GetStyleSetName()) {} \
+ContextNameString, NSLOCTEXT("Contexts", ContextNameString, SettingsDialogString), NAME_None, FAppStyle::GetAppStyleSetName()) {} \
 void CommandsClassName::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) \
 {\
 	ToolCDOs.Add(GetMutableDefault<ToolClassName>()); \

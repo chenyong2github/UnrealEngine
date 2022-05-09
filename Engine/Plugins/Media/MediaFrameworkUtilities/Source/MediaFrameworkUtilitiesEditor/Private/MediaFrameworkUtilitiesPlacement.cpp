@@ -4,7 +4,7 @@
 
 #include "Application/SlateApplicationBase.h"
 #include "AssetThumbnail.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -95,7 +95,7 @@ public:
 
 		TSharedRef< STableRow<TSharedPtr<FMediaPlacementListItem>> > TableRowWidget =
 			SNew(STableRow<TSharedPtr<FMediaPlacementListItem>>, OwnerTable)
-			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+			.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.TableRow")
 			.OnDragDetected(this, &SMediaPlacementPalette::OnDraggingListViewWidget);
 
 		// Get the MediaSource thumbnail or the MediaBundle is not loaded
@@ -125,14 +125,14 @@ public:
 				[
 					SNew(SBorder)
 					.Padding(4.0f)
-					.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
+					.BorderImage(FAppStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 					[
 						SNew(SBox)
 						.WidthOverride(35.0f)
 						.HeightOverride(35.0f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
+							.BorderImage(FAppStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 							.HAlign(HAlign_Center)
 							.VAlign(VAlign_Center)
 							[
@@ -152,7 +152,7 @@ public:
 					.AutoHeight()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "PlacementBrowser.Asset.Name")
+						.TextStyle(FAppStyle::Get(), "PlacementBrowser.Asset.Name")
 						.Text(MediaPlacement->DisplayName)
 					]
 				]

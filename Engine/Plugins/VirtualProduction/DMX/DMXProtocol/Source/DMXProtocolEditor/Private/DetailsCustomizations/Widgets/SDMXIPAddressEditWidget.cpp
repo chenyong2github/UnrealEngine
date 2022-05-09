@@ -6,7 +6,7 @@
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUtils.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPAddress.h"
 #include "SocketSubsystem.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -20,7 +20,7 @@ void SDMXIPAddressEditWidget::Construct(const FArguments& InArgs)
 	LocalAdapterAddressSource = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
 
 	const TSharedRef<SEditableTextBox> IPAddressEditTextBox = SAssignNew(IPAddressEditableTextBlock, SEditableTextBox)
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		.Text(FText::FromString(InArgs._InitialValue))
 		.OnTextCommitted(this, &SDMXIPAddressEditWidget::OnIPAddressTextCommmited);
 
@@ -72,5 +72,5 @@ TSharedRef<SWidget> SDMXIPAddressEditWidget::GenerateLocalAdapterAddressComboBox
 	return
 		SNew(STextBlock)
 		.Text(FText::FromString(*InAddress))
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }

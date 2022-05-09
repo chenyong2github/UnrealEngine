@@ -72,7 +72,7 @@ namespace SteamAudio
 			+SVerticalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					BakedSourcesListView.ToSharedRef()
 				]

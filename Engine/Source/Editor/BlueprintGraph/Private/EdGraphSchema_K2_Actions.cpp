@@ -17,7 +17,7 @@
 #include "EdGraphNode_Comment.h"
 
 #include "ScopedTransaction.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "ComponentAssetBroker.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphUtilities.h"

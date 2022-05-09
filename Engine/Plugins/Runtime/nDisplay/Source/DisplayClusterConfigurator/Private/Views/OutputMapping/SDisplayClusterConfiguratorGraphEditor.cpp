@@ -192,7 +192,7 @@ FActionMenuContent SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu
 				NAME_None,
 				LOCTEXT("GoToDocsForActor", "View Documentation"),
 				LOCTEXT("GoToDocsForActor_ToolTip", "Click to open documentation for nDisplay"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Help")
 				);
 		}
 		MenuBuilder->EndSection();

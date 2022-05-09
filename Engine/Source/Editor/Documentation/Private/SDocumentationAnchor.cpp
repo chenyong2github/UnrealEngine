@@ -3,7 +3,7 @@
 #include "SDocumentationAnchor.h"
 
 #include "EditorClassUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDocumentation.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"

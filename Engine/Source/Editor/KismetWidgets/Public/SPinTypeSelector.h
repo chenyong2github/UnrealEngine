@@ -16,7 +16,7 @@
 #include "Types/SlateStructs.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraphSchema_K2.h"
 
 class SComboButton;
@@ -66,7 +66,7 @@ public:
 		, _bAllowArrays(true)
 		, _TreeViewWidth(300.f)
 		, _TreeViewHeight(400.f)
-		, _Font(FEditorStyle::GetFontStyle(TEXT("NormalFont")))
+		, _Font(FAppStyle::GetFontStyle(TEXT("NormalFont")))
 		, _SelectorType(ESelectorType::Full)
 		, _ReadOnly(false)
 		{}

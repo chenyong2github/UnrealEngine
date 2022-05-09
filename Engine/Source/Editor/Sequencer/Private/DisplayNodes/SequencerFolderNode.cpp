@@ -4,7 +4,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Widgets/Views/STableRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EngineGlobals.h"
@@ -28,8 +28,8 @@ FSequencerFolderNode::FSequencerFolderNode( UMovieSceneFolder& InMovieSceneFolde
 	: FSequencerDisplayNode( InMovieSceneFolder.GetFolderName(), InParentTree )
 	, MovieSceneFolder(InMovieSceneFolder)
 {
-	FolderOpenBrush = FEditorStyle::GetBrush( "ContentBrowser.AssetTreeFolderOpen" );
-	FolderClosedBrush = FEditorStyle::GetBrush( "ContentBrowser.AssetTreeFolderClosed" );
+	FolderOpenBrush = FAppStyle::GetBrush( "ContentBrowser.AssetTreeFolderOpen" );
+	FolderClosedBrush = FAppStyle::GetBrush( "ContentBrowser.AssetTreeFolderClosed" );
 
 	SortType = EDisplayNodeSortType::Folders;
 }

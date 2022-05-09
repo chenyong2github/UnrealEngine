@@ -15,7 +15,7 @@ public class AnimationModifiers : ModuleRules
                 "InputCore",
                 "Slate",
                 "SlateCore",
-                "EditorStyle",
+                
 				"EditorFramework",
                 "UnrealEd",
                 "MainFrame",

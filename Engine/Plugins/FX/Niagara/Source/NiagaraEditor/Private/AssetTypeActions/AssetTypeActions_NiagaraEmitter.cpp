@@ -10,7 +10,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -62,7 +62,7 @@ void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObje
 		"Emitter_NewNiagaraSystem",
 		LOCTEXT("Emitter_NewNiagaraSystem", "Create Niagara System"),
 		LOCTEXT("Emitter_NewNiagaraSystemTooltip", "Creates a niagara system using this emitter as a base."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.ParticleSystem"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.ParticleSystem"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_NiagaraEmitter::ExecuteNewNiagaraSystem, NiagaraEmitters)
 		)

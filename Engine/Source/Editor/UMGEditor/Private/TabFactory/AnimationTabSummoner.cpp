@@ -16,7 +16,7 @@
 #include "Widgets/Views/SListView.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 #include "Blueprint/WidgetTree.h"
 
@@ -299,11 +299,11 @@ private:
 		{
 			if (InItemDropZone == EItemDropZone::OntoItem)
 			{
-				DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 			}
 			else
 			{
-				DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Ok"));
+				DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Ok"));
 			}
 			return InItemDropZone;
 		}
@@ -382,7 +382,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding( FMargin(bIsDrawerTab ? 8.0 : 2.0, 2.0) )
 			[
 				SNew(SOverlay)

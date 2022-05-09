@@ -51,7 +51,7 @@ FText UEdGraphNode_Documentation::GetNodeTitle( ENodeTitleType::Type TitleType )
 
 FSlateIcon UEdGraphNode_Documentation::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "Icons.Documentation");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation");
 	return Icon;
 }
 

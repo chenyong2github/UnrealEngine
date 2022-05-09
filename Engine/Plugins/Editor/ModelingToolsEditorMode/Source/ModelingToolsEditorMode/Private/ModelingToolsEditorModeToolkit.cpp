@@ -365,10 +365,10 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 	TSharedPtr<SExpandableArea> AssetConfigPanel = SNew(SExpandableArea)
 		.HeaderPadding(FMargin(2.0f))
 		.Padding(FMargin(2.f))
-		.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
 		.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 		.BodyBorderBackgroundColor(FLinearColor::Transparent)
-		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+		.AreaTitleFont(FAppStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
 		.BodyContent()
 		[
 			Content->AsShared()
@@ -378,7 +378,7 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 			SNew(STextBlock)
 			.Text(LOCTEXT("ModelingSettingsPanelHeader", "Modeling Mode Quick Settings"))
 			.Justification(ETextJustify::Center)
-			.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+			.Font(FAppStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
 		];
 
 	return AssetConfigPanel;

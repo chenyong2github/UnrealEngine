@@ -79,7 +79,7 @@ FText UK2Node_InputTouch::GetTooltipText() const
 
 FSlateIcon UK2Node_InputTouch::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.TouchEvent_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.TouchEvent_16x");
 	return Icon;
 }
 

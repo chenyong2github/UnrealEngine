@@ -9,7 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SToolTip.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "IDocumentationPage.h"
 #include "IDocumentation.h"
@@ -27,10 +27,10 @@
 void SDocumentationToolTip::Construct( const FArguments& InArgs )
 {
 	TextContent = InArgs._Text;
-	StyleInfo = FEditorStyle::GetWidgetStyle<FTextBlockStyle>(InArgs._Style);
-	SubduedStyleInfo = FEditorStyle::GetWidgetStyle<FTextBlockStyle>(InArgs._SubduedStyle);
-	HyperlinkTextStyleInfo = FEditorStyle::GetWidgetStyle<FTextBlockStyle>(InArgs._HyperlinkTextStyle);
-	HyperlinkButtonStyleInfo = FEditorStyle::GetWidgetStyle<FButtonStyle>(InArgs._HyperlinkButtonStyle);
+	StyleInfo = FAppStyle::GetWidgetStyle<FTextBlockStyle>(InArgs._Style);
+	SubduedStyleInfo = FAppStyle::GetWidgetStyle<FTextBlockStyle>(InArgs._SubduedStyle);
+	HyperlinkTextStyleInfo = FAppStyle::GetWidgetStyle<FTextBlockStyle>(InArgs._HyperlinkTextStyle);
+	HyperlinkButtonStyleInfo = FAppStyle::GetWidgetStyle<FButtonStyle>(InArgs._HyperlinkButtonStyle);
 	ColorAndOpacity = InArgs._ColorAndOpacity;
 	DocumentationLink = InArgs._DocumentationLink;
 	IsDisplayingDocumentationLink = false;

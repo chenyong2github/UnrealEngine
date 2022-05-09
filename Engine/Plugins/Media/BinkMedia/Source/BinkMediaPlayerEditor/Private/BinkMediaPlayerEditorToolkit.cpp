@@ -95,12 +95,12 @@ void FBinkMediaPlayerEditorToolkit::RegisterTabSpawners( const TSharedRef<class 
 	TabManagerParam->RegisterTabSpawner( ViewerTabId, FOnSpawnTab::CreateSP( this, &FBinkMediaPlayerEditorToolkit::HandleTabManagerSpawnTab, ViewerTabId ) )
 		.SetDisplayName( LOCTEXT( "PlayerTabName", "Player" ) )
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon( FSlateIcon( FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports" ) );
+		.SetIcon( FSlateIcon( FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports" ) );
 
 	TabManagerParam->RegisterTabSpawner( DetailsTabId, FOnSpawnTab::CreateSP( this, &FBinkMediaPlayerEditorToolkit::HandleTabManagerSpawnTab, DetailsTabId ) )
 		.SetDisplayName( LOCTEXT( "DetailsTabName", "Details" ) )
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon( FSlateIcon( FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details" ) );
+		.SetIcon( FSlateIcon( FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details" ) );
 }
 
 

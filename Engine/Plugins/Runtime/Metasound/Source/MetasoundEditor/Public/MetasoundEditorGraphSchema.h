@@ -75,7 +75,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction : public FEdGraphSchemaAc
 
 	virtual const FSlateBrush* GetIconBrush() const
 	{
-		return FEditorStyle::GetBrush("NoBrush");
+		return FAppStyle::GetBrush("NoBrush");
 	}
 
 	virtual const FLinearColor& GetIconColor() const

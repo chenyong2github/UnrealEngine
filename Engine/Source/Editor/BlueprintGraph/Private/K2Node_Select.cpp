@@ -887,7 +887,7 @@ void UK2Node_Select::PostPasteNode()
 
 FSlateIcon UK2Node_Select::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Select_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Select_16x");
 	return Icon;
 }
 

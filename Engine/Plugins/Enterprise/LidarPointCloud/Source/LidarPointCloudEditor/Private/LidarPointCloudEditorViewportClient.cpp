@@ -12,7 +12,7 @@
 #include "CanvasItem.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "AssetViewerSettings.h"
 
 #include "GeomTools.h"

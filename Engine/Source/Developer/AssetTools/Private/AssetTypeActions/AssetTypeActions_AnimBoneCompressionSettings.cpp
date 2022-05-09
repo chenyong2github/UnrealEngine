@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_AnimBoneCompressionSettings.h"
 #include "Animation/AnimSequence.h"
 #include "Dialogs/Dialogs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
@@ -38,7 +38,7 @@ void FAssetTypeActions_AnimBoneCompressionSettings::AddToolbarExtension(FToolBar
 		NAME_None,
 		LOCTEXT("AnimBoneCompressionSettings_Compress", "Compress"),
 		LOCTEXT("AnimBoneCompressionSettings_CompressTooltip", "All animation sequences that use these settings will be compressed."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ApplyCompression")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ApplyCompression")
 	);
 	Builder.EndSection();
 }
@@ -55,7 +55,7 @@ void FAssetTypeActions_AnimBoneCompressionSettings::GetActions(const TArray<UObj
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimBoneCompressionSettings_Compress", "Compress"),
 		LOCTEXT("AnimBoneCompressionSettings_CompressTooltip", "All animation sequences that use these settings will be compressed."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ApplyCompression.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ApplyCompression.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimBoneCompressionSettings::ExecuteCompression, SettingAssets[0])
 		)

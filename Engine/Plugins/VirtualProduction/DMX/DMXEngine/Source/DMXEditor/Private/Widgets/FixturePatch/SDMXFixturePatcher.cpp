@@ -14,7 +14,7 @@
 #include "Library/DMXLibrary.h"
 #include "Widgets/SNullWidget.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -57,7 +57,7 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 						SNew(SBorder)					
 						.HAlign(HAlign_Fill)
 						.BorderBackgroundColor(BackgroundTint)
-						.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 						[
 							SNew(SHorizontalBox)			
 
@@ -68,8 +68,8 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 							[
 								SNew(STextBlock)							
 								.MinDesiredWidth(75.0f)
-								.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
-								.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+								.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+								.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 								.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
 								.Text(LOCTEXT("UniverseSelectorLabel", "Universe"))
 							]
@@ -110,7 +110,7 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 							.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
 							[
 								SNew(STextBlock)
-								.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+								.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 								.Text(LOCTEXT("UniverseDisplayAllText", "Show all patched Universes"))
 							]
 
@@ -453,14 +453,14 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateDragDropDecorator(TWeakObjectPtr<U
 		FText ChannelRangeName = FText::Format(LOCTEXT("ChannelRangeName", "Channel {0} - {1}"), StartingChannel, EndingChannel);
 
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			[
 				SNew(SVerticalBox)				
 				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Fill)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 					.Text(ChannelRangeName)
 				]
 				+ SVerticalBox::Slot()
@@ -468,7 +468,7 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateDragDropDecorator(TWeakObjectPtr<U
 				[
 					SNew(STextBlock)
 					.Text(PatchName)
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 					.ColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.9f, 1.0f))
 				]
 			];

@@ -91,7 +91,7 @@ void FComposureColorPickerCustomization::MakeHeaderRow(TSharedRef<IPropertyHandl
 			.Padding(2, 0, 0, 0)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FComposureColorPickerCustomization::OnOpenPickerClick, InStructPropertyHandle)
 				//.ToolTipText( InArgs._Text )
 				.ContentPadding(4.0f)
@@ -597,7 +597,7 @@ void FCompositingMaterialPassCustomization::CustomizeChildren(TSharedRef<IProper
 					.ButtonContent()
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
 						.Padding(FMargin(0, 0, 5, 0))
 						[
 							SNew(SEditableTextBox)
@@ -690,7 +690,7 @@ void FCompositingMaterialPassCustomization::CustomizeChildren(TSharedRef<IProper
 						.ButtonContent()
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+							.BorderImage(FAppStyle::GetBrush("NoBorder"))
 							.Padding(FMargin(0, 0, 5, 0))
 							[
 								SNew(SEditableTextBox)
@@ -807,14 +807,14 @@ void FCompositingMaterialPassCustomization::CustomizeChildren(TSharedRef<IProper
 							SNew(SButton)
 							.IsFocusable(false)
 							.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+							.ButtonStyle(FAppStyle::Get(), "NoBorder")
 							.ContentPadding(0)
 							.Visibility(this, &FCompositingMaterialPassCustomization::IsResetScalarParameterVisible, ScalarParam)
 							.OnClicked(this, &FCompositingMaterialPassCustomization::OnResetScalarParameterClicked, ScalarParam)
 							.Content()
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+								.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 							]
 						]
 					];

@@ -62,7 +62,7 @@ void SNiagaraGraphActionWidget::Construct(const FArguments& InArgs, const FCreat
         .HAlign(HAlign_Right)
         [
             SNew(SImage)
-            .Image(NiagaraAction->IsExperimental ? FEditorStyle::GetBrush("Icons.Info") : nullptr)
+            .Image(NiagaraAction->IsExperimental ? FAppStyle::GetBrush("Icons.Info") : nullptr)
             .Visibility(NiagaraAction->IsExperimental ? EVisibility::Visible : EVisibility::Collapsed)
             .ToolTipText(NiagaraAction->IsExperimental ? LOCTEXT("ScriptExperimentalToolTip", "This script is experimental, use with care!") : FText::GetEmpty())
         ]
@@ -133,7 +133,7 @@ void SNiagaraActionWidget::Construct(const FArguments& InArgs, const FCreateNiag
         .HAlign(HAlign_Right)
         [
             SNew(SImage)
-            .Image(ActionPtr->bIsExperimental ? FEditorStyle::GetBrush("Icons.Info") : nullptr)
+            .Image(ActionPtr->bIsExperimental ? FAppStyle::GetBrush("Icons.Info") : nullptr)
             .Visibility(ActionPtr->bIsExperimental ? EVisibility::Visible : EVisibility::Collapsed)
             .ToolTipText(ActionPtr->bIsExperimental ? LOCTEXT("ScriptExperimentalToolTip", "This script is experimental, use with care!") : FText::GetEmpty())
         ]

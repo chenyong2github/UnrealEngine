@@ -9,7 +9,7 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraStackEditorData.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void UNiagaraStackItem::Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey)
 {

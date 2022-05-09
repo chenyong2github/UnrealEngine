@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /*-----------------------------------------------------------------------------
    FSoundCueGraphEditorCommands
@@ -15,7 +15,7 @@ class FSoundCueGraphEditorCommands : public TCommands<FSoundCueGraphEditorComman
 public:
 	/** Constructor */
 	FSoundCueGraphEditorCommands() 
-		: TCommands<FSoundCueGraphEditorCommands>("SoundCueGraphEditor", NSLOCTEXT("Contexts", "SoundCueGraphEditor", "SoundCue Graph Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FSoundCueGraphEditorCommands>("SoundCueGraphEditor", NSLOCTEXT("Contexts", "SoundCueGraphEditor", "SoundCue Graph Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 	

@@ -351,7 +351,7 @@ const FSlateBrush* UOptimusEditorGraphSchema::GetIconFromPinType(
 	const FEdGraphPinType& InPinType
 	)
 {
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
+	const FSlateBrush* IconBrush = FAppStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
 	const UObject *TypeObject = InPinType.PinSubCategoryObject.Get();
 
 	if (TypeObject)

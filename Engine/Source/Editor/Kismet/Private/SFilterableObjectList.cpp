@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Widgets/Input/SSearchBox.h"
 
@@ -97,7 +97,7 @@ void SFilterableObjectList::InternalConstruct()
 				.OnClicked( this, &SFilterableObjectList::OnRefreshButtonClicked )
 				[
 					SNew(SImage)
-						.Image( FEditorStyle::GetBrush(TEXT("AnimEditor.RefreshButton")) )
+						.Image( FAppStyle::GetBrush(TEXT("AnimEditor.RefreshButton")) )
 				]
 			]
 		]

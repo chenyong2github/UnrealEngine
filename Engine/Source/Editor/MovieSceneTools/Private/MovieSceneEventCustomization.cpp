@@ -45,7 +45,7 @@
 #include "BlueprintActionMenuItem.h"
 #include "BlueprintFunctionNodeSpawner.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneEventCustomization"
@@ -212,7 +212,7 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.OnGetMenuContent(this, &FMovieSceneEventCustomization::GetMenuContent)
 			.CollapseMenuOnParentFocus(true)
@@ -305,7 +305,7 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 		.ValueContent()
 		[
 			SNew(SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ToolTipText(BoundObjectPinTooltip)
 			.OnGetMenuContent(this, &FMovieSceneEventCustomization::GetBoundObjectPinMenuContent)
@@ -430,8 +430,8 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "Log.Warning")
-					.Font(FEditorStyle::GetFontStyle("FontAwesome.10"))
+					.TextStyle(FAppStyle::Get(), "Log.Warning")
+					.Font(FAppStyle::GetFontStyle("FontAwesome.10"))
 					.Text(FEditorFontGlyphs::Exclamation_Triangle)
 				]
 
@@ -439,7 +439,7 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 				.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "Log.Warning")
+					.TextStyle(FAppStyle::Get(), "Log.Warning")
 					.Text(LOCTEXT("PayloadOutOfDateError", "Payload variables may be out-of-date. Please compile the blueprint."))
 				]
 			];
@@ -709,7 +709,7 @@ TSharedRef<SWidget> FMovieSceneEventCustomization::GetMenuContent()
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("CreateEventEndpoint_Text",    "Create New Endpoint"),
 		LOCTEXT("CreateEventEndpoint_Tooltip", "Creates a new event endpoint in this sequence's blueprint."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.CreateEventBinding"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.CreateEventBinding"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FMovieSceneEventCustomization::CreateEventEndpoint)
 		)
@@ -723,7 +723,7 @@ TSharedRef<SWidget> FMovieSceneEventCustomization::GetMenuContent()
 			LOCTEXT("CreateQuickBinding_Tooltip", "Shows a list of functions on this object binding that can be bound directly to this event."),
 			FNewMenuDelegate::CreateSP(this, &FMovieSceneEventCustomization::PopulateQuickBindSubMenu, Sequence),
 			false /* bInOpenSubMenuOnClick */,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.CreateQuickBinding"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.CreateQuickBinding"),
 			false /* bInShouldWindowAfterMenuSelection */
 		);
 	}
@@ -734,14 +734,14 @@ TSharedRef<SWidget> FMovieSceneEventCustomization::GetMenuContent()
 			LOCTEXT("Rebind_Text_Tooltip", "Rebinds this event to a different function call or event node."),
 			FNewMenuDelegate::CreateSP(this, &FMovieSceneEventCustomization::PopulateRebindSubMenu, Sequence),
 			false /* bInOpenSubMenuOnClick */,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.CreateQuickBinding"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.CreateQuickBinding"),
 			false /* bInShouldCloseWindowAfterMenuSelection */
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ClearEventEndpoint_Text",    "Clear"),
 			LOCTEXT("ClearEventEndpoint_Tooltip", "Unbinds this event from its current binding."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.ClearEventBinding"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.ClearEventBinding"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FMovieSceneEventCustomization::ClearEventEndpoint)
 			)
@@ -850,7 +850,7 @@ const FSlateBrush* FMovieSceneEventCustomization::GetBoundObjectPinIcon() const
 		return nullptr;
 	}
 
-	return FEditorStyle::GetBrush("Graph.Pin.Disconnected_VarA");
+	return FAppStyle::GetBrush("Graph.Pin.Disconnected_VarA");
 }
 
 FText FMovieSceneEventCustomization::GetBoundObjectPinText() const
@@ -1171,11 +1171,11 @@ const FSlateBrush* FMovieSceneEventCustomization::GetEventIcon() const
 		PropertyHandle->AccessRawData(RawData);
 		if (RawData.Num() > 1)
 		{
-			return FEditorStyle::GetBrush("Sequencer.MultipleEvents");
+			return FAppStyle::GetBrush("Sequencer.MultipleEvents");
 		}
 	}
 
-	return FEditorStyle::GetBrush("Sequencer.UnboundEvent");
+	return FAppStyle::GetBrush("Sequencer.UnboundEvent");
 }
 
 FText FMovieSceneEventCustomization::GetEventName() const

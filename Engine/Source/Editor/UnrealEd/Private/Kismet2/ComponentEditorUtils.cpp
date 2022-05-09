@@ -6,7 +6,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/MeshComponent.h"
 #include "Exporters/Exporter.h"
@@ -1097,7 +1097,7 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, con
 					"GoToAssetForComponent",
 					LOCTEXT("GoToAssetForComponent", "Find Class in Content Browser"),
 					LOCTEXT("GoToAssetForComponent_ToolTip", "Summons the content browser and goes to the class for this component."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
 					FUIAction(
 					FExecuteAction::CreateStatic(&FComponentEditorUtils::OnGoToComponentAssetInBrowser, Component->GetClass()->ClassGeneratedBy),
 					FCanExecuteAction()));
@@ -1128,7 +1128,7 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, con
 						"GoToAssetForComponent",
 						LOCTEXT("GoToAssetForComponent", "Find Class in Content Browser"),
 						LOCTEXT("GoToAssetForComponent_ToolTip", "Summons the content browser and goes to the class for this component."),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
 						FUIAction(
 						FExecuteAction::CreateStatic(&FComponentEditorUtils::OnGoToComponentAssetInBrowser, (UObject*)Component->GetClass()),
 						FCanExecuteAction()));

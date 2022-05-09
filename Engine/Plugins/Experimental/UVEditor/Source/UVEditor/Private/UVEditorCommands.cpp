@@ -2,7 +2,7 @@
 
 #include "UVEditorCommands.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/InputChord.h"
 #include "UVEditorStyle.h"
 

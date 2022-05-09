@@ -4,7 +4,7 @@
 #include "Misc/CommandLine.h"
 #include "Styling/StarshipCoreStyle.h"
 
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 
 #include "SlateOptMacros.h"
 #include "Styling/SlateStyleMacros.h"
@@ -30,25 +30,6 @@ void FStarshipEditorStyle::Initialize()
 	// The core style must be initialized before the editor style
 	FSlateApplication::InitializeCoreStyle();
 
-#if WITH_EDITOR
-	Settings = GetMutableDefault<UEditorStyleSettings>();
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-
-	if (SettingsModule != nullptr)
-	{
-		SettingsModule->RegisterSettings("Editor", "General", "Appearance",
-			LOCTEXT("Appearance_UserSettingsName", "Appearance"),
-			LOCTEXT("Appearance_UserSettingsDescription", "Customize the look of the editor."),
-			Settings
-		);
-	}
-
-
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule.RegisterCustomClassLayout("EditorStyleSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FEditorStyleSettingsCustomization::MakeInstance));
-	PropertyEditorModule.RegisterCustomPropertyTypeLayout("StyleColorList", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStyleColorListCustomization::MakeInstance));
-#endif // #if WITH_EDITOR
-
 #if WITH_EDITOR || IS_PROGRAM
 	// Selection highlight
 	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User2, USlateThemeManager::Get().GetColor(EStyleColor::Highlight));
@@ -73,21 +54,6 @@ void FStarshipEditorStyle::Initialize()
 
 void FStarshipEditorStyle::Shutdown()
 {
-#if WITH_EDITOR
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-
-	if (SettingsModule != nullptr)
-	{
-		SettingsModule->UnregisterSettings("Editor", "General", "Appearance");
-	}
-
-	FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-	if (PropertyEditorModule)
-	{
-		PropertyEditorModule->UnregisterCustomClassLayout("EditorStyleSettings");
-	}
-#endif
-	//FEditorStyle::SetStyle()
 	StyleInstance.Reset();
 }
 

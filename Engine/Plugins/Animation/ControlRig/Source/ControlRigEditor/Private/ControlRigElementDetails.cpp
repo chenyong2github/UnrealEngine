@@ -233,7 +233,7 @@ void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruct
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(UseSelectedButton, SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ButtonColorAndOpacity_Lambda([this]() { return OnGetWidgetBackground(UseSelectedButton); })
 				.OnClicked(this, &FRigElementKeyDetails::OnGetSelectedClicked)
 				.ContentPadding(1.f)
@@ -241,7 +241,7 @@ void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruct
 				[
 					SNew(SImage)
 					.ColorAndOpacity_Lambda( [this]() { return OnGetWidgetForeground(UseSelectedButton); })
-					.Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
+					.Image(FAppStyle::GetBrush("Icons.CircleArrowLeft"))
 				]
 			]
 			// Select in hierarchy button
@@ -251,7 +251,7 @@ void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruct
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(SelectElementButton, SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ButtonColorAndOpacity_Lambda([this]() { return OnGetWidgetBackground(SelectElementButton); })
 				.OnClicked(this, &FRigElementKeyDetails::OnSelectInHierarchyClicked)
 				.ContentPadding(0)
@@ -259,7 +259,7 @@ void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruct
 				[
 					SNew(SImage)
 					.ColorAndOpacity_Lambda( [this]() { return OnGetWidgetForeground(SelectElementButton); })
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			]			
 		];

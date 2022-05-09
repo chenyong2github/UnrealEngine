@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 /**
@@ -18,7 +18,7 @@ public:
 			TEXT("GenericCurveEditor"),
 			NSLOCTEXT("Contexts", "GenericCurveEditor", "Curve Editor"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		)
 	{
 	}

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -119,7 +119,7 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 						SNew(SButton)
 						.IsFocusable(false)
 						.ToolTipText(LOCTEXT("DeleteDependency", "Delete this dependency"))
-						.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+						.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 						.ContentPadding(0.0f)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
@@ -127,8 +127,8 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 						.OnClicked(this, &SDependencyRow::OnDeleteRowClicked)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+							.TextStyle(FAppStyle::Get(), "NormalText.Important")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 							.Text(FEditorFontGlyphs::Trash)
 						]
 					]
@@ -147,7 +147,7 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 						SNew(SButton)
 						.IsFocusable(false)
 						.ToolTipText(LOCTEXT("ToggleDependency", "Enable or disable this dependency"))
-						.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+						.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 						.ContentPadding(0.0f)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
@@ -159,9 +159,9 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 							{
 								if(Dependency && Dependency->bEnabled)
 								{
-									return FEditorStyle::GetBrush("Level.VisibleIcon16x");
+									return FAppStyle::GetBrush("Level.VisibleIcon16x");
 								}
-								return FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+								return FAppStyle::GetBrush("Level.NotVisibleIcon16x");
 							})
 						]
 					]

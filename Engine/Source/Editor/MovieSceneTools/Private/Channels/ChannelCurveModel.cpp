@@ -12,7 +12,7 @@
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
 #include "CurveEditorSnapMetrics.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BuiltInChannelEditors.h"
 #include "SequencerChannelTraits.h"
 #include "ISequencer.h"
@@ -130,7 +130,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetKeys(const FCurv
 template <class ChannelType, class ChannelValue, class KeyType>
 void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetKeyDrawInfo(ECurvePointType PointType, const FKeyHandle InKeyHandle, FKeyDrawInfo& OutDrawInfo) const
 {
-	OutDrawInfo.Brush = FEditorStyle::Get().GetBrush("Sequencer.KeyDiamond");
+	OutDrawInfo.Brush = FAppStyle::Get().GetBrush("Sequencer.KeyDiamond");
 	OutDrawInfo.ScreenSize = FVector2D(10, 10);
 }
 

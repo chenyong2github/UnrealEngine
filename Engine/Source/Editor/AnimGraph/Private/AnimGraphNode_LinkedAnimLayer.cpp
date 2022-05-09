@@ -64,7 +64,7 @@ void UAnimGraphNode_LinkedAnimLayer::ReconstructNode()
 
 FSlateIcon UAnimGraphNode_LinkedAnimLayer::GetIconAndTint(FLinearColor& OutColor) const
 {
-	return FSlateIcon("EditorStyle", "ClassIcon.AnimLayerInterface");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimLayerInterface");
 }
 
 FText UAnimGraphNode_LinkedAnimLayer::GetTooltipText() const

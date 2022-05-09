@@ -5,7 +5,7 @@
 #include "DataRegistry.h"
 #include "DataRegistrySource.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -401,14 +401,14 @@ void FDataRegistryEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("RefreshText", "Refresh"),
 			LOCTEXT("RefreshTooltip", "Refresh the registry preview window"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.ReimportAsset"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.ReimportAsset"));
 
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(FExecuteAction::CreateSP(this, &FDataRegistryEditorToolkit::OnCopyClicked)),
 			NAME_None,
 			LOCTEXT("CopyIconText", "Copy"),
 			LOCTEXT("CopyToolTip", "Copy the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Copy"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DataTableEditor.Copy"));
 
 	}
 	ToolbarBuilder.EndSection();
@@ -464,7 +464,7 @@ void FDataRegistryEditorToolkit::RefreshRowNumberColumnWidth()
 {
 
 	TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+	const FTextBlockStyle& CellTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 	const float CellPadding = 10.0f;
 
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
@@ -489,7 +489,7 @@ void FDataRegistryEditorToolkit::RefreshRowNameColumnWidth()
 {
 
 	TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+	const FTextBlockStyle& CellTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 	static const float CellPadding = 10.0f;
 
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
@@ -609,7 +609,7 @@ void FDataRegistryEditorToolkit::PostRegenerateMenusAndToolbars()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate(this, &FDataRegistryEditorToolkit::OnEditDataTableStructClicked)
 				.Text(FText::FromString(GetNameSafe(DataRegistry->GetItemStruct())))
 				.ToolTipText(LOCTEXT("DataRegistryStructToolTip", "Open the struct used for each row in this data table"))
@@ -619,7 +619,7 @@ void FDataRegistryEditorToolkit::PostRegenerateMenusAndToolbars()
 			[
 				SNew(SButton)
 				.VAlign(VAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FDataRegistryEditorToolkit::OnFindRowInContentBrowserClicked)
 				.Visibility(UDS ? EVisibility::Visible : EVisibility::Collapsed)
 				.ToolTipText(LOCTEXT("FindRowInCBToolTip", "Find struct in Content Browser"))
@@ -627,7 +627,7 @@ void FDataRegistryEditorToolkit::PostRegenerateMenusAndToolbars()
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			];
 	
@@ -721,7 +721,7 @@ void FDataRegistryEditorToolkit::RefreshCachedDataRegistry(const FName InCachedS
 		{
 			// Prepend the fake columns for source info
 			TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+			const FTextBlockStyle& CellTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 			static const float CellPadding = 10.0f;
 
 			const int32 SourceColumnIdx = 0;
@@ -1000,7 +1000,7 @@ TSharedRef<SDockTab> FDataRegistryEditorToolkit::SpawnTab_RowList(const FSpawnTa
 		[
 			SNew(SBorder)
 			.Padding(2)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				RowListTabWidget.ToSharedRef()
 			]

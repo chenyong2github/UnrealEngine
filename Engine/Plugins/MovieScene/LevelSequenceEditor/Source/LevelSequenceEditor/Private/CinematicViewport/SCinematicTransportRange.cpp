@@ -4,7 +4,7 @@
 #include "Rendering/DrawElements.h"
 #include "SequencerKeyCollection.h"
 #include "MovieSceneSequence.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styles/LevelSequenceEditorStyle.h"
 #include "MovieScene.h"
 #include "ISequencer.h"
@@ -133,7 +133,7 @@ void SCinematicTransportRange::DrawKeys(const FGeometry& AllottedGeometry, FSlat
 	const FSlateBrush* KeyBrush = FLevelSequenceEditorStyle::Get()->GetBrush("LevelSequenceEditor.CinematicViewportTransportRangeKey");
 	const FQualifiedFrameTime CurrentTime = Sequencer->GetLocalTime();
 
-	FLinearColor KeyColor = KeyColors.Num() ? KeyColors[0] : FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
+	FLinearColor KeyColor = KeyColors.Num() ? KeyColors[0] : FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 
 	int32 KeyIndex = 0;
 	for (const FFrameNumber Time : Keys)
@@ -193,7 +193,7 @@ int32 SCinematicTransportRange::OnPaint(const FPaintArgs& Args, const FGeometry&
 		OutDrawElements,
 		LayerId,
 		AllottedGeometry.ToPaintGeometry( FVector2D(0.f, TrackOffsetY),  FVector2D(AllottedGeometry.GetLocalSize().X, TrackHeight)),
-		FEditorStyle::GetBrush("WhiteBrush"),
+		FAppStyle::GetBrush("WhiteBrush"),
 		DrawEffects,
 		FLinearColor(DarkGray)
 	);
@@ -208,7 +208,7 @@ int32 SCinematicTransportRange::OnPaint(const FPaintArgs& Args, const FGeometry&
 		OutDrawElements,
 		++LayerId,
 		AllottedGeometry.ToPaintGeometry( FVector2D(AllottedGeometry.GetLocalSize().X*PlaybackStartLerp, TrackOffsetY),  FVector2D(AllottedGeometry.GetLocalSize().X*(PlaybackEndLerp - PlaybackStartLerp), TrackHeight)),
-		FEditorStyle::GetBrush("WhiteBrush"),
+		FAppStyle::GetBrush("WhiteBrush"),
 		DrawEffects,
 		FLinearColor(MidGray)
 	);
@@ -224,7 +224,7 @@ int32 SCinematicTransportRange::OnPaint(const FPaintArgs& Args, const FGeometry&
 			OutDrawElements,
 			++LayerId,
 			AllottedGeometry.ToPaintGeometry( FVector2D(AllottedGeometry.GetLocalSize().X*PlaybackStartLerp, TrackOffsetY), FVector2D(AllottedGeometry.GetLocalSize().X * (ClampedProgressLerp - PlaybackStartLerp), TrackHeight) ),
-			FEditorStyle::GetBrush("WhiteBrush"),
+			FAppStyle::GetBrush("WhiteBrush"),
 			DrawEffects,
 			FLinearColor(LightGray)
 		);
@@ -232,7 +232,7 @@ int32 SCinematicTransportRange::OnPaint(const FPaintArgs& Args, const FGeometry&
 
 	bool bPlayMarkerOnKey = false;
 
-	const FLinearColor KeyframeColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
+	const FLinearColor KeyframeColor = FAppStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 
 	// Draw the current key collection tick marks
 	if (ActiveKeyCollection.IsValid())

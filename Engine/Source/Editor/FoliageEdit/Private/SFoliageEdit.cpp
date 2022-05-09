@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SFoliageEdit.h"
-#include "EditorFontGlyphs.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SBoxPanel.h"
@@ -17,10 +16,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "Classes/EditorStyleSettings.h"
 
 #include "FoliageEditActions.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -49,7 +47,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 	FMargin StandardLeftPadding(6.f, 3.f, 3.f, 3.f);
 	FMargin StandardRightPadding(3.f, 3.f, 6.f, 3.f);
 
-	FSlateFontInfo StandardFont = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
+	FSlateFontInfo StandardFont = FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
 
 	const FText BlankText = FText::GetEmpty();
 
@@ -72,7 +70,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				.Padding(StandardPadding)
 				[
 					SNew(SVerticalBox)
@@ -89,7 +87,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(this, &SFoliageEdit::GetActiveToolName)
-							.TextStyle(FEditorStyle::Get(), "FoliageEditMode.ActiveToolName.Text")
+							.TextStyle(FAppStyle::Get(), "FoliageEditMode.ActiveToolName.Text")
 						]
 					]
 
@@ -474,7 +472,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageSelectAll", "All"),
 		LOCTEXT("FoliageSelectAllTooltip", "Select All Foliage"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SelectAll")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.SelectAll")
 		);
 
 	// Deselect All
@@ -483,7 +481,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageDeselectAll", "Deselect"),
 		LOCTEXT("FoliageDeselectAllTooltip", "Deselect All Foliage Instances"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.DeselectAll")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.DeselectAll")
 		);
 
 	// Select Invalid
@@ -492,7 +490,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageSelectInvalid", "Invalid"),
 		LOCTEXT("FoliageSelectInvalidTooltip", "Select Invalid Foliage Instances"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SelectInvalid")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.SelectInvalid")
 		);
 
 	//  Lasso
@@ -515,7 +513,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliagePaint", "Paint"),
 		LOCTEXT("FoliagePaintTooltip", "Paint the Selected Foliage"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SetPaint"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.SetPaint"),
 		EUserInterfaceActionType::ToggleButton
 
 	);
@@ -535,7 +533,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageReapply", "Reapply"),
 		LOCTEXT("FoliageReapplyTooltip", "Reapply current settings to foliage instances"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SetReapplySettings"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.SetReapplySettings"),
 		EUserInterfaceActionType::ToggleButton
 	);
 
@@ -549,7 +547,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliagePlace", "Single"),
 		LOCTEXT("FoliagePlaceTooltip", "Place a Single Instance of the Selected Foliage"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Foliage"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.Foliage"),
 		EUserInterfaceActionType::ToggleButton
 	);
 
@@ -566,7 +564,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageFill", "Fill"),
 		LOCTEXT("FoliageFillTooltip", "Fill the selected target with foliage."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SetPaintBucket"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.SetPaintBucket"),
 		EUserInterfaceActionType::ToggleButton
 	);
 
@@ -580,7 +578,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageErase", "Erase"),
 		LOCTEXT("FoliageEraseTooltip", "Erase the selected foliage"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Erase"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.Erase"),
 		EUserInterfaceActionType::ToggleButton
 	);
 
@@ -592,7 +590,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageRemove", "Remove"),
 		LOCTEXT("FoliageRemoveTooltip", "Remove the selected foliage"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Remove"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.Remove"),
 		EUserInterfaceActionType::Button
 	);
 
@@ -602,7 +600,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		NAME_None,
 		LOCTEXT("FoliageMoveToCurrentLevel", "Move"),
 		LOCTEXT("FoliageMoveToCurrentLevelTooltip", "Move the Selected Foliage to the Current Level"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.MoveToCurrentLevel")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "FoliageEditMode.MoveToCurrentLevel")
 	);
 
 }
@@ -748,7 +746,7 @@ TSharedRef<SWidget> SFoliageEdit::BuildToolBar()
 {
 	FVerticalToolBarBuilder Toolbar(FoliageEditMode->UICommandList, FMultiBoxCustomization::None);
 	Toolbar.SetLabelVisibility(EVisibility::Collapsed);
-	Toolbar.SetStyle(&FEditorStyle::Get(), "FoliageEditToolbar");
+	Toolbar.SetStyle(&FAppStyle::Get(), "FoliageEditToolbar");
 	{
 		Toolbar.AddToolBarButton(FFoliageEditCommands::Get().SetPaint);
 		Toolbar.AddToolBarButton(FFoliageEditCommands::Get().SetReapplySettings);
@@ -768,7 +766,7 @@ TSharedRef<SWidget> SFoliageEdit::BuildToolBar()
 				SNew(SBorder)
 				.HAlign(HAlign_Center)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 				[
 					Toolbar.MakeWidget()

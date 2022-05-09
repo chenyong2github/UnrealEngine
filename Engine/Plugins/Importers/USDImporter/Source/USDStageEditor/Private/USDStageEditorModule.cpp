@@ -7,7 +7,7 @@
 #include "USDMemory.h"
 #include "USDStageActor.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EngineUtils.h"
 #include "Framework/Docking/TabManager.h"
 #include "IAssetTools.h"
@@ -31,7 +31,7 @@ public:
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					SNew( SUsdStage )
 				]
@@ -47,7 +47,7 @@ public:
 				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( "LevelEditor" );
 				TSharedPtr< FTabManager > LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-				const FSlateIcon LayersIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.USDStage");
+				const FSlateIcon LayersIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.USDStage");
 
 				LevelEditorTabManager->RegisterTabSpawner( TEXT("USDStage"), FOnSpawnTab::CreateStatic( &FUsdStageEditorModule::SpawnUsdStageTab ) )
 					.SetDisplayName( LOCTEXT( "USDStage", "USD Stage" ) )

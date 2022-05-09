@@ -6,7 +6,7 @@
 #include "DisplayNodes/VariantManagerVariantNode.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "SVariantManager.h"
@@ -96,7 +96,7 @@ FReply SVariantManagerActorListView::OnDragOver( const FGeometry& MyGeometry, co
 				NumActors,
 				VariantsThatCanAccept);
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -108,7 +108,7 @@ FReply SVariantManagerActorListView::OnDragOver( const FGeometry& MyGeometry, co
 		{
 			FText NewHoverText = FText( LOCTEXT("AllActorsAlreadyBound", "Actors already bound to all selected variants"));
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 		}

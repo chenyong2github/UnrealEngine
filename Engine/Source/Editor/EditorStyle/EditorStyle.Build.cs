@@ -6,6 +6,11 @@ public class EditorStyle : ModuleRules
 {
     public EditorStyle(ReadOnlyTargetRules Target) : base(Target)
 	{
+		if (Target.Type != TargetType.Editor)
+		{
+			throw new BuildException("Unable to instantiate EditorStyle module for non-editor targets.");
+		}
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -18,6 +23,7 @@ public class EditorStyle : ModuleRules
 			new string[] {
 				"SlateCore",
 				"ToolWidgets",
+				"UnrealEd",
 			}
 		);
 

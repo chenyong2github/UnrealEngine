@@ -5,7 +5,7 @@
 #include "SDisplayClusterConfiguratorExternalImage.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SResetToDefaultMenu.h"
 #include "Widgets/SBoxPanel.h"
@@ -49,7 +49,7 @@ void SDisplayClusterConfiguratorExternalImagePicker::Construct(const FArguments&
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("FileButtonToolTipText", "Choose a file from this computer") )
 			.OnClicked(FOnClicked::CreateSP(this, &SDisplayClusterConfiguratorExternalImagePicker::OpenFileDialog))
 			.ContentPadding(2.0f)
@@ -57,7 +57,7 @@ void SDisplayClusterConfiguratorExternalImagePicker::Construct(const FArguments&
 			.IsFocusable(false)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::Get().GetBrush("ExternalImagePicker.PickImageButton"))
+				.Image(FAppStyle::Get().GetBrush("ExternalImagePicker.PickImageButton"))
 				.ColorAndOpacity( FSlateColor::UseForeground())
 			]
 		]

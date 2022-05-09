@@ -8,7 +8,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 
 
@@ -160,7 +160,7 @@ void SToolSelector::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNa
 	
 	const FString MetaTag = FString::Printf(TEXT("LandscapeToolButton.%s"), Label.IsSet() == true ? *Label.Get().ToString() : TEXT("NoLabel"));
 
-	static FTextBlockStyle LabelStyle = FTextBlockStyle(FEditorStyle::GetWidgetStyle< FTextBlockStyle >(FEditorStyle::Join(StyleName, ".Label"))).SetShadowOffset(FVector2D::UnitVector);
+	static FTextBlockStyle LabelStyle = FTextBlockStyle(FAppStyle::GetWidgetStyle< FTextBlockStyle >(FAppStyle::Join(StyleName, ".Label"))).SetShadowOffset(FVector2D::UnitVector);
 	static FTextBlockStyle SmallTextStyle = FTextBlockStyle(LabelStyle).SetFontSize(LabelStyle.Font.Size - 1).SetColorAndOpacity(FSlateColor::UseSubduedForeground());
 
 	// Create the content for our button
@@ -203,13 +203,13 @@ void SToolSelector::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNa
 		];
 		
 	EMultiBlockLocation::Type BlockLocation = GetMultiBlockLocation();
-	FName BlockStyle = EMultiBlockLocation::ToName(FEditorStyle::Join( StyleName, ".Button" ), BlockLocation);
+	FName BlockStyle = EMultiBlockLocation::ToName(FAppStyle::Join( StyleName, ".Button" ), BlockLocation);
 
 	ChildSlot
 	[
 		SNew(SComboButton)
 			.ContentPadding(0)
-			.ButtonStyle( FEditorStyle::Get(), BlockStyle )
+			.ButtonStyle( FAppStyle::Get(), BlockStyle )
 			.ToolTipText(ToolSelectorButtonBlock->ToolTip)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ButtonContent()
@@ -219,7 +219,7 @@ void SToolSelector::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNa
 			.OnGetMenuContent(this, &SToolSelector::OnGetMenuContent)
 	];
 
-	ChildSlot.Padding(FEditorStyle::GetMargin(FEditorStyle::Join(StyleName, ".SToolBarComboButtonBlock.Padding")));
+	ChildSlot.Padding(FAppStyle::GetMargin(FAppStyle::Join(StyleName, ".SToolBarComboButtonBlock.Padding")));
 
 	// Bind our widget's enabled state to whether or not our action can execute
 	SetEnabled(TAttribute<bool>(this, &SToolSelector::IsEnabled));

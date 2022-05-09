@@ -503,7 +503,7 @@ TOptional<EItemDropZone> FNiagaraStackEditorWidgetsUtilities::RequestDropForStac
 			{
 				if (DecoratedDragDropOp.IsValid())
 				{
-					DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush("Icons.Error");
+					DecoratedDragDropOp->CurrentIconBrush = FAppStyle::GetBrush("Icons.Error");
 					DecoratedDragDropOp->CurrentIconColorAndOpacity = FLinearColor::White;
 				}
 			}

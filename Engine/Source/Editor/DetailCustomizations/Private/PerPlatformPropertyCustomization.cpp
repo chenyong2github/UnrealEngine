@@ -316,13 +316,13 @@ void FPerPlatformPropertyCustomNodeBuilder::GenerateHeaderRowContent(FDetailWidg
 		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
-			.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 			.HasDownArrow(false)
 			.ToolTipText(NSLOCTEXT("SPerPlatformPropertiesWidget", "AddOverrideToolTip", "Add an override for a specific platform or platform group"))
 			.ButtonContent()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			.MenuContent()
@@ -388,7 +388,7 @@ void FPerPlatformPropertyCustomNodeBuilder::AddPlatformToMenu(const FName Platfo
 	AddPlatformMenuBuilder.AddMenuEntry(
 		MenuText,
 		MenuTooltipText,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "PerPlatformWidget.AddPlatform"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "PerPlatformWidget.AddPlatform"),
 		FUIAction(FExecuteAction::CreateSP(this, &FPerPlatformPropertyCustomNodeBuilder::OnAddPlatformOverride, PlatformName))
 	);
 }

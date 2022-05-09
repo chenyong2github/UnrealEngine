@@ -886,7 +886,7 @@ TSharedRef<FSequencerPlaylistItemDragDropOp> FSequencerPlaylistItemDragDropOp::N
 
 	Operation->MouseCursor = EMouseCursor::GrabHandClosed;
 	Operation->Decorator = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 		.Content()
 		[
 			SNew(SHorizontalBox)
@@ -1307,7 +1307,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				.WidthOverride(18.0f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ContentPadding(0)
 					.OnClicked_Lambda([this]() { DetailsAnchor->SetIsOpen(!DetailsAnchor->IsOpen()); return FReply::Handled(); })
 					.VAlign(VAlign_Center)
@@ -1508,7 +1508,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::BuildContextMenu(const TArray<
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ItemContextRemove", "Remove from Playlist"),
 			LOCTEXT("ItemContextRemoveTooltip", "Remove this item from the Playlist"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Delete"),
 			FUIAction(FExecuteAction::CreateLambda([this]() { RemoveClickedDelegate.Execute(*this); }))
 		);
 	}

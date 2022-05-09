@@ -8,7 +8,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IAudioModulation.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Attribute.h"
@@ -228,7 +228,7 @@ namespace ModDestinationLayoutUtils
 				[
 					SNew(SButton)
 					.ToolTipText(LOCTEXT("ResetToParameterDefaultToolTip", "Reset to parameter's default"))
-					.ButtonStyle(FEditorStyle::Get(), TEXT("NoBorder"))
+					.ButtonStyle(FAppStyle::Get(), TEXT("NoBorder"))
 					.ContentPadding(0.0f)
 					.Visibility(TAttribute<EVisibility>::Create([ParamName, ValueHandle]
 					{
@@ -250,7 +250,7 @@ namespace ModDestinationLayoutUtils
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 					]
 				]
 		];

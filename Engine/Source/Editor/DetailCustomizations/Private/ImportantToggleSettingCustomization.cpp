@@ -11,7 +11,7 @@
 #include "Styling/SlateTypes.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/PlatformProcess.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -127,7 +127,7 @@ void FImportantToggleSettingCustomization::CustomizeDetails(IDetailLayoutBuilder
 					.AutoWidth()
 					[
 						SNew(SImportantToggleButton)
-						.CheckBoxStyle(FEditorStyle::Get(), "Property.ToggleButton.Start")
+						.CheckBoxStyle(FAppStyle::Get(), "Property.ToggleButton.Start")
 						.Text(ToggleSettingInterface->GetFalseStateLabel())
 						.ToolTipText(ToggleSettingInterface->GetFalseStateTooltip())
 						.IsSet(this, &FImportantToggleSettingCustomization::IsToggleValue, false)
@@ -137,7 +137,7 @@ void FImportantToggleSettingCustomization::CustomizeDetails(IDetailLayoutBuilder
 					.AutoWidth()
 					[
 						SNew(SImportantToggleButton)
-						.CheckBoxStyle(FEditorStyle::Get(), "Property.ToggleButton.End")
+						.CheckBoxStyle(FAppStyle::Get(), "Property.ToggleButton.End")
 						.Text(ToggleSettingInterface->GetTrueStateLabel())
 						.ToolTipText(ToggleSettingInterface->GetTrueStateTooltip())
 						.IsSet(this, &FImportantToggleSettingCustomization::IsToggleValue, true)

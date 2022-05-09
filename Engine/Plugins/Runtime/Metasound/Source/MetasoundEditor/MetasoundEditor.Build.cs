@@ -39,7 +39,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DetailCustomizations",
-					"EditorStyle",
+					
 					"Engine",
 					"GraphEditor",
 					"InputCore",

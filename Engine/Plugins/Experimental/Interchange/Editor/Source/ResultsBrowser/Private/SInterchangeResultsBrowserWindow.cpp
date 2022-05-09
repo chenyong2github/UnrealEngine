@@ -2,7 +2,7 @@
 
 #include "SInterchangeResultsBrowserWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDocumentation.h"
 #include "Modules/ModuleManager.h"
@@ -96,7 +96,7 @@ void SInterchangeResultsBrowserWindow::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(FMargin(10.0f, 3.0f))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -141,7 +141,7 @@ void SInterchangeResultsBrowserWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(SBorder)
 					.Padding(3)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SBox)
 						.Padding(10)

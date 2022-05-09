@@ -13,7 +13,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Blueprint.h"
 #include "Editor/UnrealEdEngine.h"
@@ -108,7 +108,7 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Brushes.Panel"))
+		.BorderImage(FAppStyle::GetBrush("Brushes.Panel"))
 		[
 			SNew(SBox)
 			.WidthOverride(610.0f)
@@ -173,7 +173,7 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 				.Padding(8)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 					+SUniformGridPanel::Slot(0,0)
 					[
 						SNew(SPrimaryButton)

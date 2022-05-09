@@ -10,7 +10,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ContentBrowserDelegates.h"
 #include "Interfaces/IPluginManager.h"
 #include "Widgets/Docking/SDockTab.h"

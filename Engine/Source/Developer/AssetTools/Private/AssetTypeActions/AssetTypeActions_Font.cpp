@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_Font.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "FontEditorModule.h"
 
@@ -16,7 +16,7 @@ void FAssetTypeActions_Font::GetActions(const TArray<UObject*>& InObjects, FTool
 		"ReimportFont",
 		LOCTEXT("ReimportFontLabel", "Reimport"),
 		LOCTEXT("ReimportFontTooltip", "Reimport the selected font(s)."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_Font::ExecuteReimport, Fonts),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_Font::CanExecuteReimport, Fonts)

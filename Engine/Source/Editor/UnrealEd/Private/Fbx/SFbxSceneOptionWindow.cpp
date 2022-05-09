@@ -6,7 +6,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/FbxSceneImportOptions.h"
 #include "Factories/FbxSceneImportOptionsSkeletalMesh.h"
 #include "Factories/FbxSceneImportOptionsStaticMesh.h"
@@ -329,7 +329,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSkeletalMeshReimportTab(const F
 						+ SUniformGridPanel::Slot(1, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -353,7 +353,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSkeletalMeshReimportTab(const F
 						+ SUniformGridPanel::Slot(2, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -377,7 +377,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSkeletalMeshReimportTab(const F
 						+ SUniformGridPanel::Slot(3, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -401,7 +401,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSkeletalMeshReimportTab(const F
 						+ SUniformGridPanel::Slot(4, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -700,7 +700,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnMaterialTab(const FSpawnTabArgs
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SEditableText)
 						.SelectAllTextWhenFocused(true)
@@ -959,7 +959,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnStaticMeshReimportTab(const FSp
 						+ SUniformGridPanel::Slot(1, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -983,7 +983,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnStaticMeshReimportTab(const FSp
 						+ SUniformGridPanel::Slot(2, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -1007,7 +1007,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnStaticMeshReimportTab(const FSp
 						+ SUniformGridPanel::Slot(3, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -1031,7 +1031,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnStaticMeshReimportTab(const FSp
 						+ SUniformGridPanel::Slot(4, 0)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -1249,7 +1249,7 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(FMargin(10.0f, 3.0f))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -1258,14 +1258,14 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+						.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 						.Text(LOCTEXT("FbxSceneImport_CurrentPath", "Import Asset Path: "))
 					]
 					+SHorizontalBox::Slot()
@@ -1274,7 +1274,7 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+						.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 						.Text(FText::FromString(FullPath))
 					]
 				]

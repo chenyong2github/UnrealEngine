@@ -6,7 +6,7 @@
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -36,7 +36,7 @@ void SDMXOutputConsolePortSelector::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.Text(LOCTEXT("MonitorAllLabel", "Send to All Ports"))
 			]
 
@@ -66,7 +66,7 @@ void SDMXOutputConsolePortSelector::Construct(const FArguments& InArgs)
 				.MinDesiredWidth(20.f)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.Text(LOCTEXT("PortLabel", "Port"))	
 				]
 			]

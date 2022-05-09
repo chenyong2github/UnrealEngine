@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SScrollBorder.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 
@@ -90,7 +90,7 @@ void SPaletteViewItem::Construct(const FArguments& InArgs, TSharedPtr<FWidgetTem
 				.ToolTipText(this, &SPaletteViewItem::GetFavoriteToggleToolTipText)
 				.IsChecked(this, &SPaletteViewItem::GetFavoritedState)
 				.OnCheckStateChanged(this, &SPaletteViewItem::OnFavoriteToggled)
-				.Style(FEditorStyle::Get(), "UMGEditor.Palette.FavoriteToggleStyle")
+				.Style(FAppStyle::Get(), "UMGEditor.Palette.FavoriteToggleStyle")
 				.Visibility(this, &SPaletteViewItem::GetFavoritedStateVisibility)
 			]
 			+ SHorizontalBox::Slot()

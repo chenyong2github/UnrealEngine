@@ -50,7 +50,7 @@ public class EditorTests : ModuleRules
 				"JsonUtilities",
 				"Analytics",
 				"ContentBrowser",
-				"EditorStyle",
+				
 				"SourceControl",
 				"RHI",
 				"BlueprintGraph",

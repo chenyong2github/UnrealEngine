@@ -6,7 +6,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MediaTexture.h"
 #include "Toolkits/MediaPlayerEditorToolkit.h"
 #include "Factories/MediaTextureFactoryNew.h"

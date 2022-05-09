@@ -27,7 +27,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PackageTools.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -124,7 +124,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 
 				SNew(SVerticalBox)
@@ -140,7 +140,7 @@ public:
 				.Padding(10,0)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Padding(5)
 					[
 						SNew(SCheckBox)
@@ -191,14 +191,14 @@ public:
 					.Padding(5)
 					[
 						SNew(SUniformGridPanel)
-						.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-						.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-						.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+						.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+						.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+						.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 						+SUniformGridPanel::Slot(0,0)
 						[
 							SNew(SButton) 
 							.HAlign(HAlign_Center)
-							.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+							.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 							.OnClicked(this, &SSourceControlRevertWidget::OKClicked)
 							.IsEnabled(this, &SSourceControlRevertWidget::IsOKEnabled)
 							.Text(LOCTEXT("RevertButton", "Revert"))
@@ -207,7 +207,7 @@ public:
 						[
 							SNew(SButton) 
 							.HAlign(HAlign_Center)
-							.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+							.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 							.OnClicked(this, &SSourceControlRevertWidget::CancelClicked)
 							.Text(LOCTEXT("CancelButton", "Cancel"))
 						]
@@ -273,7 +273,7 @@ private:
 				.HAlign(HAlign_Right)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("ContentBrowser.ContentDirty")))
+					.Image(FAppStyle::GetBrush(TEXT("ContentBrowser.ContentDirty")))
 					.Visibility(ListItemPtr.ToSharedRef(), &FRevertCheckBoxListViewItem::OnGetModifiedStateVisibility)
 					.ToolTipText(LOCTEXT("ModifiedFileToolTip","This file has been modified from the source version"))
 				]

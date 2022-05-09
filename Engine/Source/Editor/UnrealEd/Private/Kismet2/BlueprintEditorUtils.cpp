@@ -25,7 +25,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Exporters/Exporter.h"
 #include "Animation/AnimInstance.h"
 #include "Editor/EditorEngine.h"
@@ -8732,7 +8732,7 @@ void FBlueprintEditorUtils::OpenReparentBlueprintMenu( const TArray< UBlueprint*
 		.HeightOverride(400)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			[
 				ClassPicker
 			]
@@ -9849,30 +9849,30 @@ void FBlueprintEditorUtils::PostSetupObjectPinType(UBlueprint* InBlueprint, FBPV
 
 const FSlateBrush* FBlueprintEditorUtils::GetIconFromPin( const FEdGraphPinType& PinType, bool bIsLarge )
 {
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
+	const FSlateBrush* IconBrush = FAppStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
 	const UObject* PinSubObject = PinType.PinSubCategoryObject.Get();
 	if( PinType.IsArray() && PinType.PinCategory != UEdGraphSchema_K2::PC_Exec )
 	{
-		IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.ArrayTypeIcon"));
+		IconBrush = FAppStyle::GetBrush(TEXT("Kismet.VariableList.ArrayTypeIcon"));
 	}
 	else if (PinType.IsMap() && PinType.PinCategory != UEdGraphSchema_K2::PC_Exec)
 	{
-		IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.MapKeyTypeIcon"));
+		IconBrush = FAppStyle::GetBrush(TEXT("Kismet.VariableList.MapKeyTypeIcon"));
 	}
 	else if (PinType.IsSet() && PinType.PinCategory != UEdGraphSchema_K2::PC_Exec)
 	{
 		if( bIsLarge )
 		{
-			IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.SetTypeIconLarge"));
+			IconBrush = FAppStyle::GetBrush(TEXT("Kismet.VariableList.SetTypeIconLarge"));
 		}
 		else
 		{
-			IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.SetTypeIcon"));
+			IconBrush = FAppStyle::GetBrush(TEXT("Kismet.VariableList.SetTypeIcon"));
 		}
 	}
 	else if (PinType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate)
 	{
-		IconBrush = FEditorStyle::GetBrush(TEXT("GraphEditor.Delegate_16x"));
+		IconBrush = FAppStyle::GetBrush(TEXT("GraphEditor.Delegate_16x"));
 	}
 	else if( PinSubObject )
 	{
@@ -9889,7 +9889,7 @@ const FSlateBrush* FBlueprintEditorUtils::GetSecondaryIconFromPin(const FEdGraph
 {
 	if (PinType.IsMap() && PinType.PinCategory != UEdGraphSchema_K2::PC_Exec)
 	{
-		return FEditorStyle::GetBrush(TEXT("Kismet.VariableList.MapValueTypeIcon"));
+		return FAppStyle::GetBrush(TEXT("Kismet.VariableList.MapValueTypeIcon"));
 	}
 	return nullptr;
 }

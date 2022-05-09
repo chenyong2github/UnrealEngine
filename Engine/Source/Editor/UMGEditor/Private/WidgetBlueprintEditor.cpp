@@ -18,7 +18,7 @@
 #include "WidgetBlueprintToolMenuContext.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 #include "Algo/AllOf.h"
@@ -1069,7 +1069,7 @@ TSharedRef<SWidget> FWidgetBlueprintEditor::CreateSequencerTabWidget()
 	{
 		NoAnimationTextBlockPtr =
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "UMGEditor.NoAnimationFont")
+			.TextStyle(FAppStyle::Get(), "UMGEditor.NoAnimationFont")
 			.Text(LOCTEXT("NoAnimationSelected", "No Animation Selected"));
 		NoAnimationTextBlockTab = NoAnimationTextBlockPtr;
 	}
@@ -1101,7 +1101,7 @@ TSharedRef<SWidget> FWidgetBlueprintEditor::CreateSequencerDrawerWidget()
 	{
 		NoAnimationTextBlockPtr =
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "UMGEditor.NoAnimationFont")
+			.TextStyle(FAppStyle::Get(), "UMGEditor.NoAnimationFont")
 			.Text(LOCTEXT("NoAnimationSelected", "No Animation Selected"));
 		NoAnimationTextBlockDrawer = NoAnimationTextBlockPtr;
 	}

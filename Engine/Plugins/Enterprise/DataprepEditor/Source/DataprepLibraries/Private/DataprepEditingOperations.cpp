@@ -696,14 +696,14 @@ TSharedRef< SWidget > FDataprepSpawnActorsAtLocationDetails::CreateWidget()
 		.MaxWidth(100.0f)
 		[
 			SAssignNew(AssetPickerAnchor, SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+			.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
 			.ContentPadding(FMargin(2, 2, 2, 1))
 			.MenuPlacement(MenuPlacement_BelowAnchor)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(this, &FDataprepSpawnActorsAtLocationDetails::OnGetComboTextValue)
 				.ToolTipText(this, &FDataprepSpawnActorsAtLocationDetails::GetObjectToolTip)
 			]
@@ -779,7 +779,7 @@ TSharedRef<SWidget> FDataprepSpawnActorsAtLocationDetails::GenerateAssetPicker()
 		.WidthOverride(300)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 			]

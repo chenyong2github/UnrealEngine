@@ -15,7 +15,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "PackageTools.h"
 #include "FileHelpers.h"
@@ -349,7 +349,7 @@ void FPlasticSourceControlMenu::DisplaySucessNotification(const FName& InOperati
 	);
 	FNotificationInfo Info(NotificationText);
 	Info.bUseSuccessFailIcons = true;
-	Info.Image = FEditorStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
+	Info.Image = FAppStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
 	FSlateNotificationManager::Get().AddNotification(Info);
 	UE_LOG(LogSourceControl, Log, TEXT("%s"), *NotificationText.ToString());
 }
@@ -393,7 +393,7 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 	Builder.AddMenuEntry(
 		LOCTEXT("PlasticSync",			"Sync/Update Workspace"),
 		LOCTEXT("PlasticSyncTooltip",	"Update all files in the workspace to the latest version."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Sync"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::SyncProjectClicked),
 			FCanExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::IsSourceControlConnected)
@@ -403,7 +403,7 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 	Builder.AddMenuEntry(
 		LOCTEXT("PlasticRevertUnchanged",			"Revert Unchanged"),
 		LOCTEXT("PlasticRevertUnchangedTooltip",	"Revert checked-out but unchanged files in the workspace."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Revert"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RevertUnchangedClicked),
 			FCanExecuteAction()
@@ -413,7 +413,7 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 	Builder.AddMenuEntry(
 		LOCTEXT("PlasticRevertAll",			"Revert All"),
 		LOCTEXT("PlasticRevertAllTooltip",	"Revert all files in the workspace to their controlled/unchanged state."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Revert"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RevertAllClicked),
 			FCanExecuteAction()
@@ -423,7 +423,7 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 	Builder.AddMenuEntry(
 		LOCTEXT("PlasticRefresh",			"Refresh"),
 		LOCTEXT("PlasticRefreshTooltip",	"Update the source control status of all files in the workspace."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Refresh"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RefreshClicked),
 			FCanExecuteAction()

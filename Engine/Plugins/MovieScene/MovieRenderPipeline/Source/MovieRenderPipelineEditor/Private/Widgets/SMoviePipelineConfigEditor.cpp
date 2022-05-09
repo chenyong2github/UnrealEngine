@@ -37,7 +37,7 @@
 #include "SPositiveActionButton.h"
 
 // EditorStyle includes
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "ScopedTransaction.h"
 #include "PropertyEditorModule.h"
@@ -79,7 +79,7 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(4)
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SettingsWidget.ToSharedRef()
 			]
@@ -101,7 +101,7 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Visibility(this, &SMoviePipelineConfigEditor::IsSettingFooterVisible)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SBox)
 					.MaxDesiredHeight(96)
@@ -121,7 +121,7 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Visibility(this, &SMoviePipelineConfigEditor::IsValidationWarningVisible)
 				[
 					SNew(SHorizontalBox)
@@ -131,7 +131,7 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 					.Padding(2, 0, 4, 0)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 						.Text(FEditorFontGlyphs::Exclamation_Triangle)
 						.ColorAndOpacity(FLinearColor::Yellow)
 					]

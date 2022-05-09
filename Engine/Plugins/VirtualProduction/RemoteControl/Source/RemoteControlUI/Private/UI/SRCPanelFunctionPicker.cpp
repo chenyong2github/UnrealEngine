@@ -3,7 +3,7 @@
 #include "SRCPanelFunctionPicker.h"
 
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Engine/GameEngine.h"

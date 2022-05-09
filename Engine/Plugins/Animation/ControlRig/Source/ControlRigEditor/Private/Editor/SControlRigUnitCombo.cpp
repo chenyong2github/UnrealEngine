@@ -12,7 +12,7 @@
 #include "ControlRigEditorStyle.h"
 #include "Units/RigUnit.h"
 #include "UObject/UObjectIterator.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ControlRigBlueprintUtils.h"
 #include "SGraphEditorActionMenu.h"
 #include "Graph/ControlRigGraph.h"
@@ -45,8 +45,8 @@ void SControlRigUnitCombo::Construct(const FArguments& InArgs, TSharedRef<FContr
 		.Padding(1.0f, 1.0f)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
 		]
 		+SHorizontalBox::Slot()
@@ -55,13 +55,13 @@ void SControlRigUnitCombo::Construct(const FArguments& InArgs, TSharedRef<FContr
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("AddRigUnitButtonLabel", "Add Rig Unit"))
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+			.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 		]
 	]
 	.IsFocusable(true)
 	.ContentPadding(FMargin(5.0f, 0.0f))
-	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-	.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+	.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
+	.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 	.ForegroundColor(FLinearColor::White)
 	.OnGetMenuContent(this, &SControlRigUnitCombo::HandleGetMenuContent);
 

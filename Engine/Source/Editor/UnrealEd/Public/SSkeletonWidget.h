@@ -15,7 +15,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetData.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "PreviewScene.h"
@@ -215,15 +215,15 @@ public:
 		.VAlign(VAlign_Bottom)
 		[
 			SNew(SUniformGridPanel)
-			.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-			.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+			.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+			.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+			.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 			+SUniformGridPanel::Slot(0,0)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("Accept", "Accept"))
 				.HAlign(HAlign_Center)
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				.OnClicked_Raw( this, &SSkeletonSelectorWindow::OnAccept )
 			]
 			+SUniformGridPanel::Slot(1,0)
@@ -231,7 +231,7 @@ public:
 				SNew(SButton)
 				.Text(LOCTEXT("Cancel", "Cancel"))
 				.HAlign(HAlign_Center)
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				.OnClicked_Raw( this, &SSkeletonSelectorWindow::OnCancel )
 			]
 		];

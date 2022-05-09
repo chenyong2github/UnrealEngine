@@ -30,7 +30,7 @@ FAnimMontageSectionsSummoner::FAnimMontageSectionsSummoner(TSharedPtr<class FAss
 	, OnSectionsChanged(InOnSectionsChanged)
 {
 	TabLabel = LOCTEXT("MontageSectionsTabTitle", "Montage Sections");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimSlotManager");
 
 	bIsSingleton = true;
 
@@ -71,7 +71,7 @@ void SAnimMontageSectionsPanel::Construct(const FArguments& InArgs, const TShare
 	this->ChildSlot
 	[
 		SAssignNew( PanelArea, SBorder )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.ColorAndOpacity( FLinearColor::White )
 	];
 
@@ -136,7 +136,7 @@ void SAnimMontageSectionsPanel::Update()
 					.Padding(2.0f)
 					[				
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 						.IsEnabled(!bChildAnimMontage)
 						.ToolTipText( LOCTEXT("CreateDefaultToolTip", "Reconstructs section ordering based on start time") )
 						.OnClicked(this, &SAnimMontageSectionsPanel::MakeDefaultSequence)
@@ -149,8 +149,8 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text(FEditorFontGlyphs::File)
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							]
 							+SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
@@ -158,7 +158,7 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text( LOCTEXT("CreateDefault", "Create Default") )
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 							]
 						]
 					]
@@ -169,8 +169,8 @@ void SAnimMontageSectionsPanel::Update()
 					.Padding(2.0f)
 					[				
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+						.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						.IsEnabled(!bChildAnimMontage)
 						.ToolTipText( LOCTEXT("ClearToolTip", "Resets section orderings") )
 						.OnClicked(this, &SAnimMontageSectionsPanel::ClearSequence)
@@ -183,8 +183,8 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text(FEditorFontGlyphs::Times)
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							]
 							+SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
@@ -192,7 +192,7 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text( LOCTEXT("Clear", "Clear") )
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 							]
 						]
 					]
@@ -203,7 +203,7 @@ void SAnimMontageSectionsPanel::Update()
 					.Padding(2.0f)
 					[				
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton")
 						.ToolTipText( LOCTEXT("PreviewAllToolTip", "Preview all sections in their specified order") )
 						.OnClicked(this, &SAnimMontageSectionsPanel::PreviewAllSectionsClicked)
 						[
@@ -215,8 +215,8 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text(FEditorFontGlyphs::Play)
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							]
 							+SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
@@ -224,7 +224,7 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text( LOCTEXT("PreviewAll", "Preview All") )
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 							]
 						]
 					]
@@ -288,8 +288,8 @@ void SAnimMontageSectionsPanel::Update()
 				[
 					SNew(SButton)
 					.ToolTipText( LOCTEXT("PreviewToolTip", "Preview this track") )
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-					.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton")
+					.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 					.OnClicked(this, &SAnimMontageSectionsPanel::PreviewSectionClicked, SectionIdx)
 					[
 						SNew(SHorizontalBox)
@@ -300,8 +300,8 @@ void SAnimMontageSectionsPanel::Update()
 						[
 							SNew(STextBlock)
 							.Text(FEditorFontGlyphs::Play)
-							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 						]
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -309,7 +309,7 @@ void SAnimMontageSectionsPanel::Update()
 						[
 							SNew(STextBlock)
 							.Text( LOCTEXT("Preview", "Preview") )
-							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+							.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						]
 					]
 				]
@@ -341,7 +341,7 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text(FText::FromName(Montage->CompositeSections[SectionIdx].SectionName))
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 							]
 						]
 					];
@@ -385,7 +385,7 @@ void SAnimMontageSectionsPanel::Update()
 							SNew(SComboButton)
 							.ToolTipText(ToolTipText)
 							.IsEnabled(!bChildAnimMontage)
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+							.ButtonStyle(FAppStyle::Get(), "FlatButton")
 							.HasDownArrow(false)
 							.OnGetMenuContent(this, &SAnimMontageSectionsPanel::OnGetSectionMenuContent, SectionIdx)
 							.ContentPadding(FMargin(4.0, 2.0))
@@ -393,8 +393,8 @@ void SAnimMontageSectionsPanel::Update()
 							[
 								SNew(STextBlock)
 								.Text(TextIcon)
-								.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+								.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							]
 						]
 					];

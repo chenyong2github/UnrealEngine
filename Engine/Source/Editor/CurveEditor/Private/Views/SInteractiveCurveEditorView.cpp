@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SInteractiveCurveEditorView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 #include "CurveEditor.h"
@@ -197,7 +197,7 @@ void SInteractiveCurveEditorView::DrawBackground(const FGeometry& AllottedGeomet
 	if (BackgroundTint != FLinearColor::White)
 	{
 		FSlateDrawElement::MakeBox(OutDrawElements, BaseLayerId + CurveViewConstants::ELayerOffset::Background, AllottedGeometry.ToPaintGeometry(),
-			FEditorStyle::GetBrush("ToolPanel.GroupBorder"), DrawEffects, BackgroundTint);
+			FAppStyle::GetBrush("ToolPanel.GroupBorder"), DrawEffects, BackgroundTint);
 	}
 }
 
@@ -385,7 +385,7 @@ void SInteractiveCurveEditorView::DrawGridLines(TSharedRef<FCurveEditor> CurveEd
 void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const
 {
 	static const FName SelectionColorName("SelectionColor");
-	FLinearColor SelectionColor = FEditorStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
+	FLinearColor SelectionColor = FAppStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
 
 	const FVector2D      VisibleSize = AllottedGeometry.GetLocalSize();
 	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();

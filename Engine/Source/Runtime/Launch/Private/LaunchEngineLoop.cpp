@@ -92,7 +92,7 @@
 
 #if WITH_EDITOR
 	#include "Blueprint/BlueprintSupport.h"
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 	#include "Misc/RemoteConfigIni.h"
 	#include "EditorCommandLineUtils.h"
 	#include "Input/Reply.h"
@@ -103,7 +103,6 @@
 	#include "UnrealEdGlobals.h"
 	#include "Editor/UnrealEdEngine.h"
 	#include "Settings/EditorExperimentalSettings.h"
-	#include "Interfaces/IEditorStyleModule.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "AssetCompilingManager.h"
 	#include "Serialization/BulkDataRegistry.h"
@@ -4028,7 +4027,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 	SlowTask.EnterProgressFrame(10);
 #if WITH_EDITOR
 	FModuleManager::Get().LoadModuleChecked("UnrealEd");
-	FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
 	FModuleManager::Get().LoadModuleChecked("LandscapeEditorUtilities");
 	FModuleManager::Get().LoadModuleChecked("SubobjectDataInterface");
 #endif //WITH_EDITOR
@@ -4047,6 +4045,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 	}
 
 #if WITH_EDITOR
+	FModuleManager::Get().LoadModule("EditorStyle");
 	// In dedicated server builds with the editor, we need to load UMG/UMGEditor for compiling blueprints.
 	// UMG must be loaded for runtime and cooking.
 	FModuleManager::Get().LoadModule("UMG");
@@ -4064,11 +4063,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 	{
 #if WITH_UNREAL_DEVELOPER_TOOLS
 		FModuleManager::Get().LoadModule("MessageLog");
-		if (!FPlatformProperties::RequiresCookedData())
-		{
-			// Message Logs Developer implementation depends on the Editor style, it should be converted to core styles.
-			FModuleManager::Get().LoadModule("EditorStyle");
-		}
 #endif	// WITH_UNREAL_DEVELOPER_TOOLS
 #if WITH_EDITOR
 		FModuleManager::Get().LoadModule("CollisionAnalyzer");

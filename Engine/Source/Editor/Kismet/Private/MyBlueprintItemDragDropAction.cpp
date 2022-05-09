@@ -5,7 +5,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
 
@@ -120,13 +120,13 @@ void FMyBlueprintItemDragDropAction::HoverTargetChanged()
 
 void FMyBlueprintItemDragDropAction::SetFeedbackMessageError(const FText& Message)
 {
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 	SetSimpleFeedbackMessage(StatusSymbol, FLinearColor::White, Message);
 }
 
 void FMyBlueprintItemDragDropAction::SetFeedbackMessageOK(const FText& Message)
 {
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+	const FSlateBrush* StatusSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 	SetSimpleFeedbackMessage(StatusSymbol, FLinearColor::White, Message);
 }
 

@@ -4,7 +4,7 @@
 
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleMacros.h"
 
 FName FFractureEditorStyle::StyleName("FractureEditorStyle");
@@ -80,7 +80,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 
 	Set("FractureEditor.SetInitialDynamicState", new IMAGE_BRUSH_SVG("FractureState", IconSize));
 
-	Set("FractureEditor.SpinBox", FSpinBoxStyle(FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
+	Set("FractureEditor.SpinBox", FSpinBoxStyle(FAppStyle::GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
 		.SetTextPadding(FMargin(0))
 		.SetBackgroundBrush(FSlateNoResource())
 		.SetHoveredBackgroundBrush(FSlateNoResource())

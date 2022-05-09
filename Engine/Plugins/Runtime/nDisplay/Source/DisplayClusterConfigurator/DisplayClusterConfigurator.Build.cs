@@ -25,7 +25,7 @@ public class DisplayClusterConfigurator : ModuleRules
 				"BlueprintGraph",
 				"GraphEditor",
 				"EditorFramework",
-				"EditorStyle",
+				
 				"EditorSubsystem",
 				"EditorWidgets",
 				"Engine",

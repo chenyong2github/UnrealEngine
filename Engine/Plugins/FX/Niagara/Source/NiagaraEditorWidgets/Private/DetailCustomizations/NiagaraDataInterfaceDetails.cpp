@@ -57,7 +57,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Error"))
+					.Image(FAppStyle::GetBrush("Icons.Error"))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -151,7 +151,7 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(bWarning ? "Icons.Warning" : "Icons.Info"))
+				.Image(FAppStyle::GetBrush(bWarning ? "Icons.Warning" : "Icons.Info"))
 			]
 		+ SHorizontalBox::Slot()
 			.AutoWidth()

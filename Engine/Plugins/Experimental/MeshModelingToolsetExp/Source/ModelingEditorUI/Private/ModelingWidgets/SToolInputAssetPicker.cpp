@@ -12,7 +12,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FrontendFilters.h"
 #include "SAssetSearchBox.h"
 #include "SAssetView.h"
@@ -98,8 +98,8 @@ void SToolInputAssetPicker::Construct( const FArguments& InArgs )
 				.AutoHeight()
 				[
 					SNew(SButton)
-						.ButtonStyle( FEditorStyle::Get(), "ContentBrowser.NoneButton" )
-						.TextStyle( FEditorStyle::Get(), "ContentBrowser.NoneButtonText" )
+						.ButtonStyle( FAppStyle::Get(), "ContentBrowser.NoneButton" )
+						.TextStyle( FAppStyle::Get(), "ContentBrowser.NoneButtonText" )
 						.Text( LOCTEXT("NoneButtonText", "( None )") )
 						.ToolTipText( LOCTEXT("NoneButtonTooltip", "Clears the asset selection.") )
 						.HAlign(HAlign_Center)

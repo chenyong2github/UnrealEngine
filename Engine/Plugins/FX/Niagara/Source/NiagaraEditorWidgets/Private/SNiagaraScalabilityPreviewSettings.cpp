@@ -121,7 +121,7 @@ TSharedRef<SWidget> SNiagaraScalabilityPreviewSettings::CreatePreviewPlatformWid
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &SNiagaraScalabilityPreviewSettings::OnResetPreviewPlatformClicked)
 			.ToolTipText(LOCTEXT("ResetPreviewPlatformToolTip", "Reset the platform to preview."))
 			.Visibility_Lambda([=]()
@@ -137,7 +137,7 @@ TSharedRef<SWidget> SNiagaraScalabilityPreviewSettings::CreatePreviewPlatformWid
 		.AutoWidth()
 		[
 			SNew(SButton)
-	       .ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+	       .ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 	       .ForegroundColor(FSlateColor::UseForeground())
 	       .ToolTipText(LOCTEXT("ChoosePreviewPlatform", "Choose a platform to preview. This is cosmetic only."))
 	       .OnClicked(this, &SNiagaraScalabilityPreviewSettings::TogglePlatformMenuOpen)
@@ -215,8 +215,8 @@ const FSlateBrush* SNiagaraScalabilityPreviewSettings::GetActivePreviewPlatformI
 	
 	if (const PlatformInfo::FTargetPlatformInfo* Info = PlatformInfo::FindPlatformInfo(PlatformName))
 	{
-		const FSlateBrush* DeviceProfileTypeIcon = FEditorStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
-		if (DeviceProfileTypeIcon != FEditorStyle::Get().GetDefaultBrush())
+		const FSlateBrush* DeviceProfileTypeIcon = FAppStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
+		if (DeviceProfileTypeIcon != FAppStyle::Get().GetDefaultBrush())
 		{
 			return DeviceProfileTypeIcon;
 		}
@@ -326,7 +326,7 @@ TSharedRef<SWidget> SNiagaraScalabilityPreviewSettings::GenerateDeviceProfileTre
 
 	TSharedPtr<FNiagaraDeviceProfileViewModel> ClearViewModel = nullptr;
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::Get().GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
 		[
 			SAssignNew(DeviceProfileTreeWidget, STreeView<TSharedPtr<FNiagaraDeviceProfileViewModel>>)
 			.TreeItemsSource(TreeToUse)
@@ -350,8 +350,8 @@ TSharedRef<ITableRow> SNiagaraScalabilityPreviewSettings::OnGenerateDeviceProfil
 	{
 		if (const PlatformInfo::FTargetPlatformInfo* Info = PlatformInfo::FindPlatformInfo(*InItem->Profile->DeviceType))
 		{
-			const FSlateBrush* DeviceProfileTypeIcon = FEditorStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
-			if (DeviceProfileTypeIcon != FEditorStyle::Get().GetDefaultBrush())
+			const FSlateBrush* DeviceProfileTypeIcon = FAppStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
+			if (DeviceProfileTypeIcon != FAppStyle::Get().GetDefaultBrush())
 			{
 				RowContainer->AddSlot()
 					.AutoWidth()
@@ -380,13 +380,13 @@ TSharedRef<ITableRow> SNiagaraScalabilityPreviewSettings::OnGenerateDeviceProfil
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(this, &SNiagaraScalabilityPreviewSettings::OnProfileMenuButtonClicked, InItem)
 			.ForegroundColor(TextColor)
 			.ToolTipText(NameTooltip)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), TextStyleName)
+				.TextStyle(FAppStyle::Get(), TextStyleName)
 				.Text(FText::FromString(InItem->Profile->GetName()))
 			]
 		];

@@ -8,7 +8,7 @@
 #include "Input/DragAndDrop.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SToolTip.h"
 
@@ -104,12 +104,12 @@ private:
 
 	static const FSlateBrush* GetIconForGroup()
 	{
-		return FEditorStyle::GetBrush( TEXT( "Profiler.Misc.GenericGroup" ) );
+		return FAppStyle::GetBrush( TEXT( "Profiler.Misc.GenericGroup" ) );
 	}
 
 	const FSlateBrush* GetIcon() const
 	{
-		return bShowOkIcon ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+		return bShowOkIcon ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 	}
 
 private:

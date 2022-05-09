@@ -9,7 +9,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
@@ -30,7 +30,7 @@ void SDeviceProfileDetailsPanel::Construct( const FArguments& InArgs )
 	ChildSlot
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
+		.BorderImage( FAppStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
 		[
 			SNew( SVerticalBox )
 			+ SVerticalBox::Slot()
@@ -44,14 +44,14 @@ void SDeviceProfileDetailsPanel::Construct( const FArguments& InArgs )
 				.Padding( 0.0f, 0.0f, 4.0f, 0.0f )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
+					.Image( FAppStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
 				]
 				+ SHorizontalBox::Slot()
 					.VAlign( VAlign_Center )
 					[
 						SNew( STextBlock )
 						.Text( LOCTEXT("CVarsLabel", "Console Variables") )
-						.TextStyle( FEditorStyle::Get(), "Docking.TabFont" )
+						.TextStyle( FAppStyle::Get(), "Docking.TabFont" )
 					]
 			]
 
@@ -96,11 +96,11 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 
 	if( ViewingProfile.IsValid() )
 	{
-		const FSlateBrush* DeviceProfileTypeIcon = FEditorStyle::GetDefaultBrush();
+		const FSlateBrush* DeviceProfileTypeIcon = FAppStyle::GetDefaultBrush();
 		TArray<ITargetPlatform*> TargetPlatforms = GetTargetPlatformManager()->GetTargetPlatforms();
 		if (TargetPlatforms.Num())
 		{
-			DeviceProfileTypeIcon = FEditorStyle::GetBrush(TargetPlatforms[0]->GetPlatformInfo().GetIconStyleName(EPlatformIconSize::Normal));
+			DeviceProfileTypeIcon = FAppStyle::GetBrush(TargetPlatforms[0]->GetPlatformInfo().GetIconStyleName(EPlatformIconSize::Normal));
 		}
 
 		SettingsView->SetObject(&*ViewingProfile);
@@ -108,7 +108,7 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 		DetailsViewBox->AddSlot()
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				SNew( SVerticalBox )
 				+ SVerticalBox::Slot()
@@ -147,7 +147,7 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 					+ SScrollBox::Slot()
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
+						.BorderImage( FAppStyle::GetBrush( "Docking.Tab.ContentAreaBrush" ) )
 						[
 							SNew( SVerticalBox )
 							+ SVerticalBox::Slot()
@@ -168,7 +168,7 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 		DetailsViewBox->AddSlot()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+				.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()

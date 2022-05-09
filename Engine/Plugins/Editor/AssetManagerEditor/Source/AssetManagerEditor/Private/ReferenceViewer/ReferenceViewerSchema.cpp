@@ -6,7 +6,7 @@
 #include "SReferenceViewer.h"
 #include "ToolMenus.h"
 #include "EdGraph/EdGraph.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CollectionManagerTypes.h"
 #include "AssetManagerEditorCommands.h"
 #include "AssetManagerEditorModule.h"
@@ -241,17 +241,17 @@ void UReferenceViewerSchema::GetMakeCollectionWithReferencersOrDependenciesSubMe
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().MakeLocalCollectionWithReferencers, 
 			TAttribute<FText>(),
 			ECollectionShareType::GetDescription(ECollectionShareType::CST_Local), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Local))
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Local))
 			);
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().MakePrivateCollectionWithReferencers,
 			TAttribute<FText>(),
 			ECollectionShareType::GetDescription(ECollectionShareType::CST_Private), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Private))
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Private))
 			);
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().MakeSharedCollectionWithReferencers,
 			TAttribute<FText>(),
 			ECollectionShareType::GetDescription(ECollectionShareType::CST_Shared), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Shared))
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Shared))
 			);
 	}
 	else
@@ -259,17 +259,17 @@ void UReferenceViewerSchema::GetMakeCollectionWithReferencersOrDependenciesSubMe
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().MakeLocalCollectionWithDependencies, 
 			TAttribute<FText>(),
 			ECollectionShareType::GetDescription(ECollectionShareType::CST_Local), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Local))
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Local))
 			);
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().MakePrivateCollectionWithDependencies,
 			TAttribute<FText>(),
 			ECollectionShareType::GetDescription(ECollectionShareType::CST_Private), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Private))
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Private))
 			);
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().MakeSharedCollectionWithDependencies,
 			TAttribute<FText>(),
 			ECollectionShareType::GetDescription(ECollectionShareType::CST_Shared), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Shared))
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Shared))
 			);
 	}
 }

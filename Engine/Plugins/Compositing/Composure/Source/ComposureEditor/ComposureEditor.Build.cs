@@ -28,7 +28,6 @@ namespace UnrealBuildTool.Rules
 				"SlateCore",
 				"TimeManagement",
 				"DesktopWidgets",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd"
 			});

@@ -25,7 +25,7 @@ public class DMXPixelMappingBlueprintGraph : ModuleRules
 				"CoreUObject",
 				"KismetCompiler",
 				"BlueprintGraph",
-				"EditorStyle",
+				
 				"Engine",
 				"Slate",
 				"SlateCore",

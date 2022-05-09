@@ -4,7 +4,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "CascadeActions.h"
 #include "Cascade.h"
@@ -19,8 +19,8 @@ void SCascadePreviewViewportToolBar::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-		.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
+		.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()

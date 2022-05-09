@@ -190,7 +190,7 @@ protected:
 		
 		if (DecoratedDragDropOp.IsValid())
 		{
-			DecoratedDragDropOp->SetToolTip(LOCTEXT("OnDragOver", "Add Actors to New Layer"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			DecoratedDragDropOp->SetToolTip(LOCTEXT("OnDragOver", "Add Actors to New Layer"), FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 		}
 
 		// We leave the event unhandled so the children of the ListView get a chance to grab the drag/drop

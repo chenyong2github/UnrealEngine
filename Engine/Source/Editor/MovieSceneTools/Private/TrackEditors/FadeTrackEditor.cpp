@@ -3,7 +3,7 @@
 #include "TrackEditors/FadeTrackEditor.h"
 #include "Rendering/DrawElements.h"
 #include "SequencerSectionPainter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Tracks/MovieSceneFadeTrack.h"
 #include "Sections/MovieSceneFadeSection.h"
 #include "ISequencerSection.h"
@@ -101,7 +101,7 @@ void FFadeTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddFadeTrack", "Fade Track"),
 		LOCTEXT("AddFadeTrackTooltip", "Adds a new track that controls the fade of the sequence."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Fade"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Fade"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FFadeTrackEditor::HandleAddFadeTrackMenuEntryExecute),
 			FCanExecuteAction::CreateRaw(this, &FFadeTrackEditor::HandleAddFadeTrackMenuEntryCanExecute)
@@ -122,7 +122,7 @@ bool FFadeTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 
 const FSlateBrush* FFadeTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.Fade");
+	return FAppStyle::GetBrush("Sequencer.Tracks.Fade");
 }
 
 

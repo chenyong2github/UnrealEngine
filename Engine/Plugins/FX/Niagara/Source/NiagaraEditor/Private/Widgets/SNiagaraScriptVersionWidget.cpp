@@ -121,10 +121,10 @@ void SNiagaraScriptVersionWidget::Construct(const FArguments& InArgs, UNiagaraSc
 					[
 						// enable versioning button
 				        SNew(SButton)
-		                .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-		                .ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+		                .ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+		                .ButtonStyle(FAppStyle::Get(), "FlatButton.Dark")
 		                .ContentPadding(FMargin(6, 2))
-		                .TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+		                .TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 		                .Text(LOCTEXT("NiagaraAEnableVersioning", "Enable versioning"))
 		                .OnClicked(this, &SNiagaraScriptVersionWidget::EnableVersioning)
 	                ]
@@ -344,8 +344,8 @@ TSharedRef<SWidget> SNiagaraScriptVersionWidget::GetVersionSelectionHeaderWidget
 {
 	// creates the add version button
 	return SNew(SComboButton)
-        .ButtonStyle(FEditorStyle::Get(), "RoundButton")
-        .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+        .ButtonStyle(FAppStyle::Get(), "RoundButton")
+        .ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
         .ContentPadding(FMargin(2, 0))
         .OnGetMenuContent(this, &SNiagaraScriptVersionWidget::OnGetAddVersionMenu)
         .HAlign(HAlign_Center)
@@ -360,7 +360,7 @@ TSharedRef<SWidget> SNiagaraScriptVersionWidget::GetVersionSelectionHeaderWidget
             .Padding(FMargin(0, 1))
             [
                 SNew(SImage)
-                .Image(FEditorStyle::GetBrush("Plus"))
+                .Image(FAppStyle::GetBrush("Plus"))
             ]
 
             + SHorizontalBox::Slot()

@@ -211,7 +211,7 @@ int32 SDesignSurface::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 
 void SDesignSurface::OnPaintBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-	const FSlateBrush* BackgroundImage = FEditorStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
+	const FSlateBrush* BackgroundImage = FAppStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
 	PaintBackgroundAsLines(BackgroundImage, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 }
 
@@ -539,7 +539,7 @@ FVector2D SDesignSurface::PanelCoordToGraphCoord(const FVector2D& PanelSpaceCoor
 
 int32 SDesignSurface::GetGraphRulePeriod() const
 {
-	return (int32)FEditorStyle::GetFloat("Graph.Panel.GridRulePeriod");
+	return (int32)FAppStyle::GetFloat("Graph.Panel.GridRulePeriod");
 }
 
 float SDesignSurface::GetGridScaleAmount() const
@@ -554,9 +554,9 @@ void SDesignSurface::PaintBackgroundAsLines(const FSlateBrush* BackgroundImage, 
 	const int32 RulePeriod = GetGraphRulePeriod();
 	check(RulePeriod > 0);
 
-	const FLinearColor RegularColor(FEditorStyle::GetColor("Graph.Panel.GridLineColor"));
-	const FLinearColor RuleColor(FEditorStyle::GetColor("Graph.Panel.GridRuleColor"));
-	const FLinearColor CenterColor(FEditorStyle::GetColor("Graph.Panel.GridCenterColor"));
+	const FLinearColor RegularColor(FAppStyle::GetColor("Graph.Panel.GridLineColor"));
+	const FLinearColor RuleColor(FAppStyle::GetColor("Graph.Panel.GridRuleColor"));
+	const FLinearColor CenterColor(FAppStyle::GetColor("Graph.Panel.GridCenterColor"));
 	const float GraphSmallestGridSize = 8.0f;
 	const float RawZoomFactor = GetZoomAmount();
 	const float NominalGridSize = GetSnapGridSize() * GetGridScaleAmount();

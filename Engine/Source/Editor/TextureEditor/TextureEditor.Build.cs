@@ -41,7 +41,6 @@ public class TextureEditor : ModuleRules
 				"RHI",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
                 "PropertyEditor",

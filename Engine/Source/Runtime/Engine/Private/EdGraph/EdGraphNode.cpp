@@ -564,7 +564,7 @@ FString UEdGraphNode::GetDocumentationExcerptName() const
 
 FSlateIcon UEdGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static const FSlateIcon Icon = FSlateIcon("EditorStyle", "GraphEditor.Default_16x");
+	static const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Default_16x");
 	return Icon;
 }
 

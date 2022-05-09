@@ -7,7 +7,7 @@
 #include "DMXFixturePatchEditorDefinitions.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
@@ -36,7 +36,7 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, TSharedPtr<FD
 	SetVisibility(EVisibility::HitTestInvisible);
 
 	FMargin MinimalTextMargin = FMargin(3.0f, 2.0f, 4.0f, 1.0f);
-	ShadowSize = FEditorStyle::GetVector(TEXT("Graph.Node.ShadowSize"));
+	ShadowSize = FAppStyle::GetVector(TEXT("Graph.Node.ShadowSize"));
 
 	// We do not need graph node feats, but mimic its visuals
 	ChildSlot
@@ -50,20 +50,20 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, TSharedPtr<FD
 				+ SOverlay::Slot()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("Graph.VarNode.Body") )		
+					.Image( FAppStyle::GetBrush("Graph.VarNode.Body") )		
 					.ColorAndOpacity( this, &SDMXFixturePatchFragment::GetColor )
 				]
 				+ SOverlay::Slot()
 				.VAlign(VAlign_Top)
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("Graph.VarNode.ColorSpill") )
+					.Image( FAppStyle::GetBrush("Graph.VarNode.ColorSpill") )
 					.ColorAndOpacity( this, &SDMXFixturePatchFragment::GetColor )
 				]
 				+ SOverlay::Slot()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("Graph.VarNode.Gloss") )
+					.Image( FAppStyle::GetBrush("Graph.VarNode.Gloss") )
 					.ColorAndOpacity( this, &SDMXFixturePatchFragment::GetColor )
 				]
 				+ SOverlay::Slot()
@@ -71,14 +71,14 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, TSharedPtr<FD
 					SNew(SBorder)
 					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Fill)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
 					.Padding(MinimalTextMargin)
 					.BorderBackgroundColor( this, &SDMXFixturePatchFragment::GetColor )
 					.OnMouseButtonDown(this, &SDMXFixturePatchFragment::OnMouseButtonDown)
 					[	
 						SNew(STextBlock)
 						.Text(this, &SDMXFixturePatchFragment::GetText)
-						.TextStyle(FEditorStyle::Get(), "SmallText")
+						.TextStyle(FAppStyle::Get(), "SmallText")
 						.ColorAndOpacity(FLinearColor::White)						
 					]
 				]
@@ -87,7 +87,7 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, TSharedPtr<FD
 				[
 					SNew(SBorder)
 					.Visibility(EVisibility::HitTestInvisible)			
-					.BorderImage( FEditorStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
+					.BorderImage( FAppStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
 					.BorderBackgroundColor( FLinearColor::White )
 					[
 						SNew(SSpacer)
@@ -155,7 +155,7 @@ FSlateColor SDMXFixturePatchFragment::GetColor() const
 
 const FSlateBrush* SDMXFixturePatchFragment::GetShadowBrush(bool bSelected) const
 {
-	return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
+	return bSelected ? FAppStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -584,9 +584,6 @@
 #include "Animation/AnimSequence.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
-// From EditorStyle:
-#include "EditorStyleSet.h"
-
 // From BlueprintGraph:
 #include "BlueprintNodeSignature.h"
 #include "K2Node.h"

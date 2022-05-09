@@ -18,7 +18,6 @@ namespace UnrealBuildTool.Rules
 					"MotoSynth",
 					"AudioMixer",
 					"ToolMenus",
-					"EditorStyle",
 					"Slate",
 					"SlateCore",
 					"ContentBrowser",

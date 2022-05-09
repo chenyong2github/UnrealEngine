@@ -4,7 +4,7 @@
 
 #include "DatasmithUtils.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/PlatformProcess.h"
 #include "HttpModule.h"
 #include "IDetailRootObjectCustomization.h"
@@ -113,7 +113,7 @@ void SDatasmithOptionsWindow::Construct(const FArguments& InArgs)
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FEditorStyle::GetBrush("Icons.Help"))
+						.Image(FAppStyle::GetBrush("Icons.Help"))
 						.OnMouseButtonDown(this, &SDatasmithOptionsWindow::OnHelp)
 					]
 				]
@@ -205,7 +205,7 @@ TSharedRef< SCompoundWidget > SDatasmithOptionsWindow::ConstructWarningWidget( f
 	TSharedRef< SCompoundWidget > WarningWidget =
 		SNew(SBorder)
 		.BorderBackgroundColor( MessageColor )
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SGridPanel)
 			+ SGridPanel::Slot(0, 0)
@@ -218,7 +218,7 @@ TSharedRef< SCompoundWidget > SDatasmithOptionsWindow::ConstructWarningWidget( f
 				[
 					SNew(SImage)
 					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FEditorStyle::GetBrush(*IconName))
+					.Image(FAppStyle::GetBrush(*IconName))
 				]
 			]
 			+ SGridPanel::Slot(1, 0)

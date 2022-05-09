@@ -6,7 +6,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
@@ -225,7 +225,7 @@ void SPathView::Construct( const FArguments& InArgs )
 				.AutoHeight()
 				[
 					SNew(STextBlock)
-					.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont") )
+					.Font( FAppStyle::GetFontStyle("ContentBrowser.SourceTitleFont") )
 					.Text(this, &SPathView::GetTreeTitle)
 					.Visibility(InArgs._ShowTreeTitle ? EVisibility::Visible : EVisibility::Collapsed)
 				]
@@ -285,7 +285,7 @@ void SPathView::PopulatePathViewFiltersMenu(UToolMenu* Menu)
 				NAME_None,
 				Filter->GetDisplayName(),
 				Filter->GetToolTipText(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), Filter->GetIconName()),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), Filter->GetIconName()),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &SPathView::PluginPathFilterClicked, Filter),
 					FCanExecuteAction(),
@@ -2215,7 +2215,7 @@ TSharedRef<ITableRow> SFavoritePathView::GenerateTreeRow(TSharedPtr<FTreeItem> T
 			.IsItemExpanded(false)
 			.HighlightText(this, &SFavoritePathView::GetHighlightText)
 			.IsSelected(this, &SFavoritePathView::IsTreeItemSelected, TreeItem)
-			.FontOverride(FEditorStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont"))
+			.FontOverride(FAppStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont"))
 		];
 }
 

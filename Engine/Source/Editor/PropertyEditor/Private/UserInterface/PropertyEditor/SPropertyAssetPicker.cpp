@@ -31,7 +31,7 @@ void SPropertyAssetPicker::Construct( const FArguments& InArgs )
 		.FillHeight(1)
 		[
 			SNew( SButton )
-			.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+			.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 			.OnClicked( this, &SPropertyAssetPicker::OnClicked )
 			.ToolTipText(LOCTEXT("PickButtonLabel", "Pick Asset"))
 			.ContentPadding(0)
@@ -39,7 +39,7 @@ void SPropertyAssetPicker::Construct( const FArguments& InArgs )
 			.IsFocusable(false)
 			[ 
 				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("PropertyWindow.Button_PickAsset") )
+				.Image( FAppStyle::GetBrush("PropertyWindow.Button_PickAsset") )
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			]
 		]
@@ -87,7 +87,7 @@ TSharedRef<SWidget> SPropertyAssetPicker::OnGenerateAssetPicker()
 		.WidthOverride(300)
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+			.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 			]

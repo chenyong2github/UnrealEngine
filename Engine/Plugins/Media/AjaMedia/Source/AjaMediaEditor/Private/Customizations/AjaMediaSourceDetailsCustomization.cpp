@@ -8,7 +8,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SBoxPanel.h"
@@ -42,7 +42,7 @@ void FAjaMediaSourceDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 		.WholeRowWidget
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.LightGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.LightGroupBorder"))
 			[
 				SNew(SButton)
 				.OnClicked(FOnClicked::CreateRaw(this, &FAjaMediaSourceDetailsCustomization::OnAutoDetectClicked))

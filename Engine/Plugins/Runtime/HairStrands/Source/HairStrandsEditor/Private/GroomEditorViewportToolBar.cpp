@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "UObject/Package.h"
 #include "GroomComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Slate/SceneViewport.h"
 #include "ComponentReregisterContext.h"
 #include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"

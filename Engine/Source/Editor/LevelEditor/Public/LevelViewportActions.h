@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BufferVisualizationMenuCommands.h"
 #include "NaniteVisualizationMenuCommands.h"
 #include "LumenVisualizationMenuCommands.h"
@@ -47,7 +47,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			TEXT("LevelViewport"), // Context name for fast lookup
 			NSLOCTEXT("Contexts", "LevelViewports", "Level Viewports"), // Localized context name for displaying
 			TEXT("EditorViewport"), // Parent context name.  
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 		),
 		ClearAllBookMarks(nullptr)
 	{

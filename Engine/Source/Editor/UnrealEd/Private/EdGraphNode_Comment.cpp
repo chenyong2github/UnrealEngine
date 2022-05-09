@@ -107,7 +107,7 @@ FSlateIcon UEdGraphNode_Comment::GetIconAndTint(FLinearColor& OutColor) const
 {
 	OutColor = FLinearColor::White;
 	
-	static FSlateIcon Icon("EditorStyle", "Icons.Comment");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "Icons.Comment");
 	return Icon;
 }
 

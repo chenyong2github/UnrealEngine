@@ -44,7 +44,7 @@ void SAnimCompositePanel::Construct(const FArguments& InArgs, const TSharedRef<F
 	this->ChildSlot
 	[
 		SAssignNew( PanelArea, SBorder )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.Padding(0.0f)
 		.ColorAndOpacity( FLinearColor::White )
 	];

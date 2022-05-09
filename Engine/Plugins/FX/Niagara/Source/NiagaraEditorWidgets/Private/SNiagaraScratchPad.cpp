@@ -17,7 +17,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/WidgetPath.h"
@@ -71,7 +71,7 @@ public:
 
 		SButton::Construct(
 			SButton::FArguments()
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.OnClicked(this, &SNiagaraPinButton::OnButtonClicked)
 			.ContentPadding(FMargin(3, 2, 2, 2))
@@ -85,7 +85,7 @@ public:
 				.RenderTransformPivot(FVector2D(0.5f, 0.5f))
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 					.Text(FEditorFontGlyphs::Thumb_Tack)
 				]
 			]);
@@ -658,7 +658,7 @@ class SNiagaraScratchPadScriptEditorList : public SCompoundWidget
 		ChildSlot
 		[
 			SAssignNew(ContentBorder, SBorder)
-			.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
 		];
 		UpdateContentFromEditScriptViewModels();
 	}
@@ -955,7 +955,7 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 				.Value(0.15f)
 				[
 					SNew(SSplitter)
-					.Style(FEditorStyle::Get(), "SplitterDark")
+					.Style(FAppStyle::Get(), "SplitterDark")
 					.Orientation(Orient_Vertical)
 					.PhysicalSplitterHandleSize(4.0f)
 					.HitDetectionSplitterHandleSize(6.0f)
@@ -991,7 +991,7 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 				.Value(0.3f)
 				[
 					SNew(SSplitter)
-					.Style(FEditorStyle::Get(), "SplitterDark")
+					.Style(FAppStyle::Get(), "SplitterDark")
 					.Orientation(Orient_Vertical)
 					.PhysicalSplitterHandleSize(4.0f)
 					.HitDetectionSplitterHandleSize(6.0f)

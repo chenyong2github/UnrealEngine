@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
 				"UnrealEd",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"LevelEditor",
 				"PropertyEditor",
 				"ZoneGraph",

@@ -16,7 +16,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/PackageName.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Internationalization/StringTable.h"
@@ -156,7 +156,7 @@ void STextPropertyEditableStringTableReference::Construct(const FArguments& InAr
 					.OnClicked(this, &STextPropertyEditableStringTableReference::OnUnlinkClicked)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Icons.Delete"))
+						.Image(FAppStyle::GetBrush("Icons.Delete"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]

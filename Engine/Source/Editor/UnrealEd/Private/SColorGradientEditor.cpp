@@ -17,7 +17,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Colors/SColorPicker.h"
@@ -169,7 +169,7 @@ int32 SColorGradientEditor::OnPaint( const FPaintArgs& Args, const FGeometry& Al
 
 		// If any transparency (A < 1) is found, we'll draw a checkerboard to visualize the color with alpha
 		bool bHasTransparency = false;
-		static const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+		static const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 
 		if (bColorAreaHovered)
 		{
@@ -235,7 +235,7 @@ int32 SColorGradientEditor::OnPaint( const FPaintArgs& Args, const FGeometry& Al
 					OutDrawElements,
 					LayerId,
 					GradientAreaGeometry.ToPaintGeometry(),
-					FEditorStyle::GetBrush("Checkerboard"),
+					FAppStyle::GetBrush("Checkerboard"),
 					DrawEffects 
 				);
 			}
@@ -613,14 +613,14 @@ void SColorGradientEditor::OpenGradientStopColorPicker()
 		// Show a slider to change the alpha value
 		TSharedRef<SWidget> AlphaSlider = 
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		[
 			SNew( SVerticalBox )
 			+ SVerticalBox::Slot()
 			[
 				SNew( STextBlock )
 				.Text( LOCTEXT("AlphaLabel","Opacity") )
-				.TextStyle( FEditorStyle::Get(), "Menu.Heading" )
+				.TextStyle( FAppStyle::Get(), "Menu.Heading" )
 			]
 			+ SVerticalBox::Slot()
 			.Padding( 3.0f, 2.0f, 3.0f, 5.0f )
@@ -755,10 +755,10 @@ void SColorGradientEditor::OnSetGradientStopTimeFromPopup( const FText& NewText,
 
 void SColorGradientEditor::DrawGradientStopMark( const FGradientStopMark& Mark, const FGeometry& Geometry, float XPos, const FLinearColor& Color, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FSlateRect& InClippingRect, ESlateDrawEffect DrawEffects, bool bColor, const FWidgetStyle& InWidgetStyle ) const
 {
-	static const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
-	static const FSlateBrush* ColorStopBrush = FEditorStyle::GetBrush("CurveEditor.Gradient.HandleDown");
-	static const FSlateBrush* AlphaStopBrush = FEditorStyle::GetBrush("CurveEditor.Gradient.HandleUp");
-	static const FLinearColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor( InWidgetStyle );
+	static const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
+	static const FSlateBrush* ColorStopBrush = FAppStyle::GetBrush("CurveEditor.Gradient.HandleDown");
+	static const FSlateBrush* AlphaStopBrush = FAppStyle::GetBrush("CurveEditor.Gradient.HandleUp");
+	static const FLinearColor SelectionColor = FAppStyle::GetSlateColor("SelectionColor").GetColor( InWidgetStyle );
 
 	const float HandleSize = 13.0f;
 

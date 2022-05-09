@@ -2,7 +2,7 @@
 
 #include "SSequencerTreeView.h"
 #include "SSequencerTrackLane.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Algo/BinarySearch.h"
 #include "Algo/Copy.h"
 #include "SequencerDisplayNodeDragDropOp.h"
@@ -105,7 +105,7 @@ TOptional<EItemDropZone> SSequencerTreeViewRow::OnCanAcceptDrop( const FDragDrop
 		TOptional<EItemDropZone> AllowedDropZone = DisplayNode->CanDrop( *DragDropOp, InItemDropZone );
 		if ( AllowedDropZone.IsSet() == false )
 		{
-			DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Error" ) );
+			DragDropOp->CurrentIconBrush = FAppStyle::GetBrush( TEXT( "Graph.ConnectorFeedback.Error" ) );
 		}
 		return AllowedDropZone;
 	}
@@ -271,7 +271,7 @@ int32 SSequencerTreeView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 			OutDrawElements,
 			LayerId+1,
 			AllottedGeometry.ToPaintGeometry(FVector2D(2.f, HighlightRegion->Top - 4.f), FVector2D(AllottedGeometry.Size.X - 4.f, 4.f)),
-			FEditorStyle::GetBrush("Sequencer.TrackHoverHighlight_Top"),
+			FAppStyle::GetBrush("Sequencer.TrackHoverHighlight_Top"),
 			ESlateDrawEffect::None,
 			FLinearColor::Black
 		);
@@ -280,7 +280,7 @@ int32 SSequencerTreeView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 			OutDrawElements,
 			LayerId+1,
 			AllottedGeometry.ToPaintGeometry(FVector2D(2.f, HighlightRegion->Bottom), FVector2D(AllottedGeometry.Size.X - 4.f, 4.f)),
-			FEditorStyle::GetBrush("Sequencer.TrackHoverHighlight_Bottom"),
+			FAppStyle::GetBrush("Sequencer.TrackHoverHighlight_Bottom"),
 			ESlateDrawEffect::None,
 			FLinearColor::Black
 		);

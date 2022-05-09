@@ -335,7 +335,7 @@ void SNiagaraDebuggerObjectInputBox::Construct(const FArguments& InArgs)
 			.MenuContent
 			(
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding(FMargin(2))
 				[
 					SNew(SBox)
@@ -486,7 +486,7 @@ TSharedRef<ITableRow> SNiagaraDebuggerObjectInputBox::MakeSuggestionListItemWidg
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(SanitizedText))
-			.TextStyle(FEditorStyle::Get(), "Log.Normal")
+			.TextStyle(FAppStyle::Get(), "Log.Normal")
 			.HighlightText(Suggestions.SuggestionsHighlight)
 		];
 }

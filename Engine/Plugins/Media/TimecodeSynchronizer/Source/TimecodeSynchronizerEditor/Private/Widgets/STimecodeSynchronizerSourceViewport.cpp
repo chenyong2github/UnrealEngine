@@ -3,7 +3,7 @@
 #include "Widgets/STimecodeSynchronizerSourceViewport.h"
 #include "TimecodeSynchronizer.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Texture.h"
 #include "Materials/Material.h"
 #include "Misc/App.h"

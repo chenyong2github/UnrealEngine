@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/SWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 
@@ -104,17 +104,17 @@ private:
 		{
 			if (TaskPtr->GetStatus() == ELauncherTaskStatus::Canceled)
 			{
-				return FEditorStyle::GetBrush("Icons.Cross");
+				return FAppStyle::GetBrush("Icons.Cross");
 			}
 
 			if (TaskPtr->GetStatus() == ELauncherTaskStatus::Completed)
 			{
-				return FEditorStyle::GetBrush("Symbols.Check");
+				return FAppStyle::GetBrush("Symbols.Check");
 			}
 
 			if (TaskPtr->GetStatus() == ELauncherTaskStatus::Failed)
 			{
-				return FEditorStyle::GetBrush("Icons.Cross");
+				return FAppStyle::GetBrush("Icons.Cross");
 			}
 		}
 

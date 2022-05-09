@@ -6,7 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "LayersViewCommands"
 
@@ -24,7 +24,7 @@ public:
 		"LayersView", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "LayersView", "Layers"), // Localized context name for displaying
 		"LevelEditor", // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{
 	}

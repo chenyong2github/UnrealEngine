@@ -10,7 +10,7 @@ public class TakeSequencer : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"EditorStyle",
+				
 				"Slate",
 				"SlateCore",
 				"UnrealEd"

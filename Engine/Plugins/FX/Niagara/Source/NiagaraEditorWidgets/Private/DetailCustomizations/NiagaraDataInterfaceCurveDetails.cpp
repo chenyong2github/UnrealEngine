@@ -84,7 +84,7 @@ struct FNiagaraCurveDetailsTreeItem : public ICurveEditorTreeItem, TSharedFromTh
 				.Padding(0, 0, 5, 0)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 					.Text(FEditorFontGlyphs::Circle)
 					.ColorAndOpacity(FSlateColor(CurveData.Color))
 				]
@@ -179,7 +179,7 @@ public:
 				.Content()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 					.Text(FEditorFontGlyphs::Expand)
 				]

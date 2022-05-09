@@ -26,7 +26,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/GroupActor.h"
 #include "LevelEditorViewport.h"
 #include "EditorModes.h"
@@ -985,7 +985,7 @@ FSlateColor InvertOnHover( const TWeakPtr< SWidget > WidgetPtr )
 	if ( Widget.IsValid() && Widget->IsHovered() )
 	{
 		static const FName InvertedForegroundName("InvertedForeground");
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		return FAppStyle::GetSlateColor(InvertedForegroundName);
 	}
 
 	return FSlateColor::UseForeground();
@@ -1198,14 +1198,14 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 			[
 				SNew(SButton)
 				.ToolTipText( LOCTEXT( "PickButtonLabel", "Pick a parent actor to attach to") )
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(FOnClicked::CreateStatic(&Local::OnInteractiveActorPickerClicked))
 				.ContentPadding(4.0f)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsFocusable(false)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.EyeDropper"))
+					.Image(FAppStyle::GetBrush("Icons.EyeDropper"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

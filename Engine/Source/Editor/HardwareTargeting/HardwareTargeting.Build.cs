@@ -19,7 +19,6 @@ public class HardwareTargeting : ModuleRules
 				"InputCore",
 				"SlateCore",
 				"Slate",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"EditorWidgets",

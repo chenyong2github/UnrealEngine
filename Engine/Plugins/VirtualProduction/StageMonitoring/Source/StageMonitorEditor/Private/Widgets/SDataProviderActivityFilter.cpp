@@ -3,7 +3,7 @@
 #include "SDataProviderActivityFilter.h"
 
 #include "CoreGlobals.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
@@ -175,7 +175,7 @@ void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWea
 		.AutoWidth()
 		[
 			SNew(SComboButton)
-			.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+			.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 			.ForegroundColor(FLinearColor::White)
 			.ToolTipText(LOCTEXT("AddFilterToolTip", "Configure activity filter."))
 			.OnGetMenuContent(this, &SDataProviderActivityFilter::MakeAddFilterMenu)
@@ -187,8 +187,8 @@ void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWea
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 				]
 
@@ -197,7 +197,7 @@ void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWea
 				.Padding(2, 0, 0, 0)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+					.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
 					.Text(LOCTEXT("Filters", "Filters"))
 				]
 			]

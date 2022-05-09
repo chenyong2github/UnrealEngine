@@ -182,7 +182,7 @@ bool FFbxImportUIDetails::ShowCompareResult()
 					LOCTEXT("MaterialConflict_ButtonShowTooltip", "Show a detailed view of the materials conflict."),
 					LOCTEXT("MaterialConflict_ButtonShow", "Show Conflict"),
 					EConflictDialogType::Conflict_Material,
-					FEditorStyle::GetBrush("Icons.Error"),
+					FAppStyle::GetBrush("Icons.Error"),
 					LOCTEXT("MaterialConflict_IconTooltip", "There is one or more material(s) that do not match.")
 				);
 			}
@@ -203,9 +203,9 @@ bool FFbxImportUIDetails::ShowCompareResult()
 					IconTooltip = (LOCTEXT("SkeletonConflictAddedBones_IconTooltip", "(Info) Added bones: Some bones in the incoming fbx do not exist in the current skeletalmesh asset."));
 				}
 				 
-				const FSlateBrush* Brush = (SkeletonCompareResult & ImportCompareHelper::ECompareResult::SCR_SkeletonBadRoot) > ImportCompareHelper::ECompareResult::SCR_None ? FEditorStyle::GetBrush("Icons.Error")
-					: (SkeletonCompareResult & ImportCompareHelper::ECompareResult::SCR_SkeletonMissingBone) > ImportCompareHelper::ECompareResult::SCR_None ? FEditorStyle::GetBrush("Icons.Warning")
-					: FEditorStyle::GetBrush("Icons.Info");
+				const FSlateBrush* Brush = (SkeletonCompareResult & ImportCompareHelper::ECompareResult::SCR_SkeletonBadRoot) > ImportCompareHelper::ECompareResult::SCR_None ? FAppStyle::GetBrush("Icons.Error")
+					: (SkeletonCompareResult & ImportCompareHelper::ECompareResult::SCR_SkeletonMissingBone) > ImportCompareHelper::ECompareResult::SCR_None ? FAppStyle::GetBrush("Icons.Warning")
+					: FAppStyle::GetBrush("Icons.Info");
 
 				BuildConflictRow(LOCTEXT("SkeletonConflict_RowFilter", "Skeleton conflict"),
 					LOCTEXT("SkeletonConflict_NameContent", "Unmatched Skeleton joints"),

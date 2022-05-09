@@ -19,7 +19,7 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Preferences/CascadeOptions.h"
 #include "Distributions/DistributionFloatUniform.h"
 #include "Distributions/DistributionFloatUniformCurve.h"
@@ -98,22 +98,22 @@ void FCascade::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabMan
 	InTabManager->RegisterTabSpawner( Cascade_PreviewViewportTab, FOnSpawnTab::CreateSP( this, &FCascade::SpawnTab, Cascade_PreviewViewportTab ) )
 		.SetDisplayName(NSLOCTEXT("Cascade", "SummonViewport", "Viewport"))
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner( Cascade_EmmitterCanvasTab, FOnSpawnTab::CreateSP( this, &FCascade::SpawnTab, Cascade_EmmitterCanvasTab ) )
 		.SetDisplayName(NSLOCTEXT("Cascade", "SummonCanvas", "Emitters"))
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Emitter"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Emitter"));
 
 	InTabManager->RegisterTabSpawner( Cascade_PropertiesTab, FOnSpawnTab::CreateSP( this, &FCascade::SpawnTab, Cascade_PropertiesTab ) )
 		.SetDisplayName(NSLOCTEXT("Cascade", "SummonProperties", "Details"))
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner( Cascade_CurveEditorTab, FOnSpawnTab::CreateSP( this, &FCascade::SpawnTab, Cascade_CurveEditorTab ) )
 		.SetDisplayName(NSLOCTEXT("Cascade", "SummonCurveEditor", "CurveEditor"))
 		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.CurveBase"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.CurveBase"));
 }
 
 void FCascade::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -2079,8 +2079,8 @@ void FCascade::ExtendToolbar()
 
 			ToolbarBuilder.BeginSection("CascadeHistory");
 			{
-				ToolbarBuilder.AddToolBarButton(FGenericCommands::Get().Undo, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon( FEditorStyle::GetStyleSetName(), TEXT("Cascade.Undo") ) );
-				ToolbarBuilder.AddToolBarButton(FGenericCommands::Get().Redo, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon( FEditorStyle::GetStyleSetName(), TEXT("Cascade.Redo") ) );
+				ToolbarBuilder.AddToolBarButton(FGenericCommands::Get().Undo, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon( FAppStyle::GetAppStyleSetName(), TEXT("Cascade.Undo") ) );
+				ToolbarBuilder.AddToolBarButton(FGenericCommands::Get().Redo, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon( FAppStyle::GetAppStyleSetName(), TEXT("Cascade.Redo") ) );
 			}
 			ToolbarBuilder.EndSection();
 
@@ -2098,7 +2098,7 @@ void FCascade::ExtendToolbar()
 					FOnGetContent::CreateStatic(&FCascade::GenerateBoundsMenuContent, ToolkitCommands),
 					LOCTEXT( "BoundsMenuCombo_Label", "Bounds Options" ),
 					LOCTEXT( "BoundsMenuCombo_ToolTip", "Bounds options"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Cascade.ToggleBounds"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cascade.ToggleBounds"),
 					true
 					);
 				ToolbarBuilder.AddToolBarButton(FCascadeCommands::Get().ToggleOriginAxis);

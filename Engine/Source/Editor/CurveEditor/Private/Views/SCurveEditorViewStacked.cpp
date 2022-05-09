@@ -8,7 +8,7 @@
 
 #include "Widgets/Text/STextBlock.h"
 #include "Algo/Copy.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 void SCurveEditorViewStacked::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor)
@@ -108,7 +108,7 @@ void SCurveEditorViewStacked::DrawViewGrids(const FGeometry& AllottedGeometry, c
 	const FLinearColor   MajorGridColor = CurveEditor->GetPanel()->GetGridLineTint();
 	const FLinearColor   MinorGridColor = MajorGridColor.CopyWithNewOpacity(MajorGridColor.A * .5f);
 	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
-	const FSlateBrush*   WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+	const FSlateBrush*   WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 
 	TArray<float> MajorGridLines, MinorGridLines;
 	TArray<FText> MajorGridLabels;

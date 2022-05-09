@@ -1743,11 +1743,11 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		EndMarkerNodeOverlay->Paint(Args.WithNewParent(this), AllottedGeometry.MakeChild(MarkerOffset, MarkerSize, 1.0f), MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 	}
 
-	const FSlateBrush* StyleInfo = FEditorStyle::GetBrush( TEXT("SpecialEditableTextImageNormal") );
+	const FSlateBrush* StyleInfo = FAppStyle::GetBrush( TEXT("SpecialEditableTextImageNormal") );
 
 	FText Text = GetNotifyText();
 	FLinearColor NodeColor = SAnimNotifyNode::GetNotifyColor();
-	FLinearColor BoxColor = bSelected ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : SAnimNotifyNode::GetNotifyColor();
+	FLinearColor BoxColor = bSelected ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : SAnimNotifyNode::GetNotifyColor();
 
 	float HalfScrubHandleWidth = ScrubHandleSize.X / 2.0f;
 
@@ -1842,7 +1842,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 			OutDrawElements,
 			BranchPointLayerID,
 			AllottedGeometry.ToPaintGeometry(BranchPointIconPos, BranchingPointIconSize),
-			FEditorStyle::GetBrush(TEXT("AnimNotifyEditor.BranchingPoint")),
+			FAppStyle::GetBrush(TEXT("AnimNotifyEditor.BranchingPoint")),
 			ESlateDrawEffect::None,
 			FLinearColor::White
 			);
@@ -2077,7 +2077,7 @@ void SAnimNotifyNode::DrawScrubHandle( float ScrubHandleCentre, FSlateWindowElem
 		OutDrawElements,
 		ScrubHandleID, 
 		AllottedGeometry.ToPaintGeometry(ScrubHandlePosition, ScrubHandleSize), 
-		FEditorStyle::GetBrush( TEXT( "Sequencer.KeyDiamond" ) ),
+		FAppStyle::GetBrush( TEXT( "Sequencer.KeyDiamond" ) ),
 		ESlateDrawEffect::None,
 		NodeColour
 		);
@@ -2086,9 +2086,9 @@ void SAnimNotifyNode::DrawScrubHandle( float ScrubHandleCentre, FSlateWindowElem
 		OutDrawElements,
 		ScrubHandleID, 
 		AllottedGeometry.ToPaintGeometry(ScrubHandlePosition, ScrubHandleSize), 
-		FEditorStyle::GetBrush( TEXT( "Sequencer.KeyDiamondBorder" ) ),
+		FAppStyle::GetBrush( TEXT( "Sequencer.KeyDiamondBorder" ) ),
 		ESlateDrawEffect::None,
-		bSelected ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::Black
+		bSelected ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::Black
 		);
 }
 
@@ -2111,7 +2111,7 @@ void SAnimNotifyNode::DrawHandleOffset( const float& Offset, const float& Handle
 		OutDrawElements,
 		MarkerLayer, 
 		AllottedGeometry.ToPaintGeometry(MarkerPosition, MarkerSize), 
-		FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.NotifyAlignmentMarker" ) ),
+		FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.NotifyAlignmentMarker" ) ),
 		ESlateDrawEffect::None,
 		NodeColor
 		);
@@ -2204,7 +2204,7 @@ void SAnimNotifyTrack::Construct(const FArguments& InArgs)
 	[
 			SAssignNew( TrackArea, SBorder )
 			.Visibility(EVisibility::SelfHitTestInvisible)
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.Padding( FMargin(0.f, 0.f) )
 	];
 
@@ -2221,7 +2221,7 @@ FVector2D SAnimNotifyTrack::ComputeDesiredSize( float ) const
 
 int32 SAnimNotifyTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	const FSlateBrush* StyleInfo = FEditorStyle::GetBrush( TEXT( "Persona.NotifyEditor.NotifyTrackBackground" ) );
+	const FSlateBrush* StyleInfo = FAppStyle::GetBrush( TEXT( "Persona.NotifyEditor.NotifyTrackBackground" ) );
 	FLinearColor Color = TrackColor.Get();
 
 	FPaintGeometry MyGeometry = AllottedGeometry.ToPaintGeometry();
@@ -2761,7 +2761,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 						.WidthOverride(100.0f)
 						[
 							SNew(SNumericEntryBox<float>)
-							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0.0f)
 							.MaxValue(Sequence->GetPlayLength())
 							.Value(NodeObject->GetTime())
@@ -2807,7 +2807,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 						.WidthOverride(100.0f)
 						[
 							SNew(SNumericEntryBox<int32>)
-							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0)
 							.MaxValue(Sequence->GetNumberOfSampledKeys())
 							.Value(Sequence->GetFrameAtTime(NodeObject->GetTime()))
@@ -2855,7 +2855,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 							.WidthOverride(100.0f)
 							[
 								SNew(SNumericEntryBox<float>)
-								.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+								.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 								.MinValue(0.0f)
 								.MaxValue(1.0f)
 								.Value(NotifyEvent->TriggerWeightThreshold)
@@ -2891,7 +2891,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 								.WidthOverride(100.0f)
 								[
 									SNew(SNumericEntryBox<float>)
-									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.MinValue(SAnimNotifyNode::MinimumStateDuration)
 									.MinSliderValue(SAnimNotifyNode::MinimumStateDuration)
 									.MaxSliderValue(100.0f)
@@ -2931,7 +2931,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 								.WidthOverride(100.0f)
 								[
 									SNew(SNumericEntryBox<int32>)
-									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.MinValue(1)
 									.MinSliderValue(1)
 									.MaxSliderValue(Sequence->GetNumberOfSampledKeys())
@@ -3881,7 +3881,7 @@ void SAnimNotifyPanel::Construct(const FArguments& InArgs, const TSharedRef<FAni
 		SAssignNew(PanelArea, SBorder)
 		.Visibility(EVisibility::SelfHitTestInvisible)
 		.AddMetaData<FTagMetaData>(TEXT("AnimNotify.Notify"))
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(0.0f)
 		.ColorAndOpacity(FLinearColor::White)
 	];
@@ -4162,7 +4162,7 @@ FReply SAnimNotifyPanel::OnNotifyNodeDragStarted(TArray<TSharedPtr<SAnimNotifyNo
 {
 	TSharedRef<SOverlay> NodeDragDecoratorOverlay = SNew(SOverlay);
 	TSharedRef<SBorder> NodeDragDecorator = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+	.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 	[
 		NodeDragDecoratorOverlay
 	];
@@ -4736,7 +4736,7 @@ int32 SAnimNotifyPanel::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 			OutDrawElements,
 			LayerId++,
 			AllottedGeometry.ToPaintGeometry(Marquee.Rect.GetUpperLeft(), Marquee.Rect.GetSize()),
-			FEditorStyle::GetBrush(TEXT("MarqueeSelection"))
+			FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 			);
 	}
 

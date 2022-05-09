@@ -35,7 +35,7 @@ void SNiagaraSourceFilterCheckBox::Construct(const FArguments& Args, EScriptSour
 	
 	SCheckBox::FArguments ParentArgs;
 	ParentArgs
-	.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
+	.Style(FAppStyle::Get(), "ContentBrowser.FilterButton")
 	.IsChecked(Args._IsChecked)
 	.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState NewState)
     {
@@ -203,7 +203,7 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
     	.Padding(2.f)
     	[
     		SNew(SBorder)
-    		.BorderImage(FEditorStyle::GetBrush(TEXT("NoBorder")))
+    		.BorderImage(FAppStyle::GetBrush(TEXT("NoBorder")))
 			.Padding(3.f)
     		[
     			SNew(SNiagaraSourceFilterCheckBox, (EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex))

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerChannelTraits.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CurveModel.h"
 
 namespace Sequencer
@@ -12,7 +12,7 @@ void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandle
 {
 	// By default just render diamonds for keys
 	FKeyDrawParams DefaultParams;
-	DefaultParams.BorderBrush = DefaultParams.FillBrush = FEditorStyle::Get().GetBrush("Sequencer.KeyDiamond");
+	DefaultParams.BorderBrush = DefaultParams.FillBrush = FAppStyle::Get().GetBrush("Sequencer.KeyDiamond");
 
 	for (FKeyDrawParams& Param : OutKeyDrawParams)
 	{

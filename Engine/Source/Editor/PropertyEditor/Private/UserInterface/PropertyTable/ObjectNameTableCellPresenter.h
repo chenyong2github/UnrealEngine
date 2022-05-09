@@ -11,7 +11,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SToolTip.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyTableCell.h"
 #include "Widgets/Layout/SBox.h"
 #include "IPropertyTableCellPresenter.h"
@@ -57,7 +57,7 @@ public:
 			[
 				SAssignNew( NewFocusWidget, SEditableTextBox )
 				.Text( Cell, &IPropertyTableCell::GetValueAsText )
-				.Font( FEditorStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) )
+				.Font( FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) )
 				.IsReadOnly( true )
 			];
 
@@ -93,7 +93,7 @@ private:
 				.AutoWidth()
 				[
 					SNew( STextBlock )
-					.Font( FEditorStyle::GetFontStyle( TextFontStyle ) )
+					.Font( FAppStyle::GetFontStyle( TextFontStyle ) )
 					.Text( FText::FromString(DisplayNamePieces[ Index ]) )
 				];
 
@@ -106,7 +106,7 @@ private:
 					[
 						SNew( SImage )
 						.ColorAndOpacity( FSlateColor::UseForeground() )
-						.Image( FEditorStyle::GetBrush( "PropertyTable.HeaderRow.Column.PathDelimiter" ) )
+						.Image( FAppStyle::GetBrush( "PropertyTable.HeaderRow.Column.PathDelimiter" ) )
 					];
 			}
 		}

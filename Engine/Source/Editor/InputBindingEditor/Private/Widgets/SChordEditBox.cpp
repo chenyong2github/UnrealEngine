@@ -9,7 +9,7 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SChordEditor.h"
 #include "Widgets/Layout/SBox.h"
 
@@ -22,9 +22,9 @@
 
 void SChordEditBox::Construct( const FArguments& InArgs, TSharedPtr<FUICommandInfo> InputCommand, EMultipleKeyBindingIndex InChordIndex)
 {
-	BorderImageNormal = FEditorStyle::GetBrush( "EditableTextBox.Background.Normal" );
-	BorderImageHovered = FEditorStyle::GetBrush( "EditableTextBox.Background.Hovered" );
-	BorderImageFocused = FEditorStyle::GetBrush( "EditableTextBox.Background.Focused" );
+	BorderImageNormal = FAppStyle::GetBrush( "EditableTextBox.Background.Normal" );
+	BorderImageHovered = FAppStyle::GetBrush( "EditableTextBox.Background.Hovered" );
+	BorderImageFocused = FAppStyle::GetBrush( "EditableTextBox.Background.Focused" );
 
 	static const FName InvertedForegroundName("InvertedForeground");
 
@@ -42,7 +42,7 @@ void SChordEditBox::Construct( const FArguments& InArgs, TSharedPtr<FUICommandIn
 				.VAlign(VAlign_Center)
 				.Padding( FMargin( 4.0f, 2.0f ) )
 				.BorderImage( this, &SChordEditBox::GetBorderImage )
-				.ForegroundColor( FEditorStyle::GetSlateColor(InvertedForegroundName) )
+				.ForegroundColor( FAppStyle::GetSlateColor(InvertedForegroundName) )
 				[
 					SNew( SHorizontalBox )
 					+ SHorizontalBox::Slot()
@@ -63,7 +63,7 @@ void SChordEditBox::Construct( const FArguments& InArgs, TSharedPtr<FUICommandIn
 						// Remove binding button
 						SNew(SButton)
 						.Visibility( this, &SChordEditBox::GetChordRemoveButtonVisibility )
-						.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+						.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 						.ContentPadding(0)
 						.OnClicked( this, &SChordEditBox::OnChordRemoveButtonClicked )
 						.ForegroundColor( FSlateColor::UseForeground() )
@@ -71,7 +71,7 @@ void SChordEditBox::Construct( const FArguments& InArgs, TSharedPtr<FUICommandIn
 						.ToolTipText(LOCTEXT("ChordEditButtonRemove_ToolTip", "Remove this binding") )
 						[
 							SNew( SImage )
-							.Image( FEditorStyle::GetBrush( "Symbols.X" ) )
+							.Image( FAppStyle::GetBrush( "Symbols.X" ) )
 							.ColorAndOpacity( FLinearColor(.7f,0,0,.75f) )
 						]
 					]
@@ -200,7 +200,7 @@ FReply SChordEditBox::OnAcceptNewChordButtonClicked()
 TSharedRef<SWidget> SChordEditBox::OnGetContentForConflictPopup()
 {
 	return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NotificationList.ItemBackground")  )
+		.BorderImage( FAppStyle::GetBrush("NotificationList.ItemBackground")  )
 		[
 			SNew( SVerticalBox )
 
@@ -233,7 +233,7 @@ TSharedRef<SWidget> SChordEditBox::OnGetContentForConflictPopup()
 								.AutoWidth()
 								[
 									SNew( SImage )
-										.Image( FEditorStyle::GetBrush( "Symbols.Check" ) )
+										.Image( FAppStyle::GetBrush( "Symbols.Check" ) )
 										.ColorAndOpacity( FLinearColor(0,.7f,0,.75f) )
 								]
 

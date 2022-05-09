@@ -18,8 +18,8 @@
 
 void SNiagaraGraphParameterMapGetNode::Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode)
 {
-	BackgroundBrush = FEditorStyle::GetBrush("Graph.Pin.Background");
-	BackgroundHoveredBrush = FEditorStyle::GetBrush("PlainBorder");
+	BackgroundBrush = FAppStyle::GetBrush("Graph.Pin.Background");
+	BackgroundHoveredBrush = FAppStyle::GetBrush("PlainBorder");
 
 	GraphNode = InGraphNode; 
 	RegisterNiagaraGraphNode(InGraphNode);
@@ -64,7 +64,7 @@ TSharedRef<SWidget> SNiagaraGraphParameterMapGetNode::CreateNodeContentArea()
 		.Content()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding(FMargin(0, 3))

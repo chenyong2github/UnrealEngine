@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /** Asset editor common commands */
 class FAssetEditorCommonCommands : public TCommands< FAssetEditorCommonCommands >
@@ -13,7 +13,7 @@ class FAssetEditorCommonCommands : public TCommands< FAssetEditorCommonCommands 
 public:
 
 	FAssetEditorCommonCommands()
-		: TCommands< FAssetEditorCommonCommands >( TEXT("AssetEditor"), NSLOCTEXT("Contexts", "AssetEditor", "Asset Editor"), TEXT("EditorViewport"), FEditorStyle::GetStyleSetName() )
+		: TCommands< FAssetEditorCommonCommands >( TEXT("AssetEditor"), NSLOCTEXT("Contexts", "AssetEditor", "Asset Editor"), TEXT("EditorViewport"), FAppStyle::GetAppStyleSetName() )
 	{
 	}	
 

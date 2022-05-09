@@ -76,7 +76,7 @@ void SOptimusDataTypeSelector::Construct(const FArguments& InArgs)
 			.OnGetMenuContent(this, &SOptimusDataTypeSelector::GetMenuContent)
 			.ContentPadding(0)
 			.HasDownArrow(false)
-			.ButtonStyle(FEditorStyle::Get(), "BlueprintEditor.CompactPinTypeSelector")
+			.ButtonStyle(FAppStyle::Get(), "BlueprintEditor.CompactPinTypeSelector")
 			.ButtonContent()
 			[
 				ViewWidget.ToSharedRef()
@@ -258,7 +258,7 @@ TSharedRef<ITableRow> SOptimusDataTypeSelector::GenerateTypeListRow(
 				SNew(STextBlock)
 				.Text_Lambda([InItem, this]() { return SOptimusDataTypeSelector::GetTypeDescription(InItem); })
 				.HighlightText(FilterText)
-				.Font(FEditorStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")))
 			]
 		];
 }

@@ -19,8 +19,6 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "EditorStyleSet.h"
-
 #define LOCTEXT_NAMESPACE "SourceControlProgress"
 
 namespace SourceControlConstants
@@ -50,7 +48,7 @@ public:
 		TimeStamp = FPlatformTime::Seconds();
 
 		SBorder::Construct( SBorder::FArguments()
-		.BorderImage( FEditorStyle::GetBrush("ChildWindow.Background") )
+		.BorderImage( FAppStyle::Get().GetBrush("ChildWindow.Background") )
 		.Padding(16.0f)
 		.VAlign(VAlign_Center)
 		[
@@ -77,7 +75,7 @@ public:
 					.HAlign(HAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("SourceControl.ProgressWindow.Warning"))
+						.Image(FAppStyle::Get().GetBrush("SourceControl.ProgressWindow.Warning"))
 					]
 					+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -106,9 +104,9 @@ public:
 					[
 						// buttons
 						SNew(SUniformGridPanel)
-						.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-						.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-						.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+						.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+						.MinDesiredSlotWidth(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotWidth"))
+						.MinDesiredSlotHeight(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotHeight"))
 						+SUniformGridPanel::Slot(0, 0)
 						[
 							SNew(SButton)

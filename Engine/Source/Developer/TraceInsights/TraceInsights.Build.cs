@@ -22,7 +22,6 @@ public class TraceInsights : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DesktopPlatform",
-				"EditorStyle",
 				"InputCore",
 				"RenderCore",
 				"RHI",

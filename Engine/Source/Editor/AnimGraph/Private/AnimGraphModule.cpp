@@ -91,7 +91,7 @@ void FAnimGraphModule::StartupModule()
 				FSlateBrush(),
 				LOCTEXT("Pose", "Pose"),
 				LOCTEXT("PoseToolTip", "Pose: Transforms for all bones in the current LOD, blendable"),
-				FEditorStyle::GetSlateColor("AnimGraph.Attribute.Pose.Color"),
+				FAppStyle::GetSlateColor("AnimGraph.Attribute.Pose.Color"),
 				EAnimGraphAttributesDisplayMode::HideOnPins)
 		);
 
@@ -99,10 +99,10 @@ void FAnimGraphModule::StartupModule()
 			FAnimGraphAttributeDesc(
 				UE::Anim::FAttributes::Curves,
 				EAnimGraphAttributeBlend::Blendable,
-				*FEditorStyle::GetBrush("AnimGraph.Attribute.Curves.Icon"),
+				*FAppStyle::GetBrush("AnimGraph.Attribute.Curves.Icon"),
 				LOCTEXT("Curves", "Curves"),
 				LOCTEXT("CurvesToolTip", "Curves: Floating point curve attributes, blendable"),
-				FEditorStyle::GetSlateColor("AnimGraph.Attribute.Curves.Color"),
+				FAppStyle::GetSlateColor("AnimGraph.Attribute.Curves.Color"),
 				EAnimGraphAttributesDisplayMode::Automatic)
 		);
 
@@ -110,10 +110,10 @@ void FAnimGraphModule::StartupModule()
 			FAnimGraphAttributeDesc(
 				UE::Anim::FAttributes::Attributes,
 				EAnimGraphAttributeBlend::Blendable,
-				*FEditorStyle::GetBrush("AnimGraph.Attribute.Attributes.Icon"),
+				*FAppStyle::GetBrush("AnimGraph.Attribute.Attributes.Icon"),
 				LOCTEXT("Attributes", "Attributes"),
 				LOCTEXT("AttributesToolTip", "Attributes: Misc. custom attributes, blendable"),
-				FEditorStyle::GetSlateColor("AnimGraph.Attribute.Attributes.Color"),
+				FAppStyle::GetSlateColor("AnimGraph.Attribute.Attributes.Color"),
 				EAnimGraphAttributesDisplayMode::Automatic)
 		);
 
@@ -121,10 +121,10 @@ void FAnimGraphModule::StartupModule()
 			FAnimGraphAttributeDesc(
 				UE::Anim::FAnimSync::Attribute,
 				EAnimGraphAttributeBlend::NonBlendable,
-				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.Sync.Icon"),
+				*FAppStyle::Get().GetBrush("AnimGraph.Attribute.Sync.Icon"),
 				LOCTEXT("Sync", "Sync"),
 				LOCTEXT("SyncToolTip", "Sync: Synchronization between the playback of different assets present in the graph, not blendable"),
-				FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.Sync.Color"),
+				FAppStyle::Get().GetSlateColor("AnimGraph.Attribute.Sync.Color"),
 				EAnimGraphAttributesDisplayMode::Automatic)
 		);
 
@@ -132,10 +132,10 @@ void FAnimGraphModule::StartupModule()
 			FAnimGraphAttributeDesc(
 				UE::Anim::IAnimRootMotionProvider::AttributeName,
 				EAnimGraphAttributeBlend::Blendable,
-				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.RootMotionDelta.Icon"),
+				*FAppStyle::Get().GetBrush("AnimGraph.Attribute.RootMotionDelta.Icon"),
 				LOCTEXT("RootMotionDelta", "Root Motion Delta"),
 				LOCTEXT("RootMotionDeltaToolTip", "Root Motion Delta: Per-frame root motion delta transform, blendable"),
-				FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.RootMotionDelta.Color"),
+				FAppStyle::Get().GetSlateColor("AnimGraph.Attribute.RootMotionDelta.Color"),
 				EAnimGraphAttributesDisplayMode::Automatic)
 		);
 
@@ -143,10 +143,10 @@ void FAnimGraphModule::StartupModule()
 			FAnimGraphAttributeDesc(
 				UE::Anim::IInertializationRequester::Attribute,
 				EAnimGraphAttributeBlend::NonBlendable,
-				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.InertialBlending.Icon"),
+				*FAppStyle::Get().GetBrush("AnimGraph.Attribute.InertialBlending.Icon"),
 				LOCTEXT("InertialBlending", "Inertialize"),
 				LOCTEXT("InertialBlendingToolTip", "Inertial Blending: Used to blend between poses preserving bone velocities, not blendable"),
-				FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.InertialBlending.Color"),
+				FAppStyle::Get().GetSlateColor("AnimGraph.Attribute.InertialBlending.Color"),
 				EAnimGraphAttributesDisplayMode::Automatic)
 		);
 	}

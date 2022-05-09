@@ -14,7 +14,6 @@ public class PlasticSourceControl : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
-				"EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",

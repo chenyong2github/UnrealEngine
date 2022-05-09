@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
 					"ContentBrowser",
 					"Core",
 					"CoreUObject",
-					"EditorStyle",
 					"Engine",
 					"LevelEditor",					
 					"Settings",

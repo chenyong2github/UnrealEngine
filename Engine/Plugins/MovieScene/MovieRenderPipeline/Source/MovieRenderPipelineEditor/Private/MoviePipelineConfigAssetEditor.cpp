@@ -107,7 +107,7 @@ TSharedRef<SDockTab> FMoviePipelineConfigAssetEditor::SpawnTab_ConfigEditor(cons
 				[
 					SNew(SBorder)
 					.Padding(4.f)
-					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 					.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 					.Content()
 					[
@@ -119,7 +119,7 @@ TSharedRef<SDockTab> FMoviePipelineConfigAssetEditor::SpawnTab_ConfigEditor(cons
 						.Padding(0, 0, 4, 0)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 							.Text(FEditorFontGlyphs::Exclamation_Triangle)
 							.ColorAndOpacity(FLinearColor::Yellow)
 						]

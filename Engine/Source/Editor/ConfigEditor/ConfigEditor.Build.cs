@@ -24,7 +24,6 @@ public class ConfigEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"EditorStyle",
 				"InputCore",
 				"PropertyEditor",
 				"Slate",

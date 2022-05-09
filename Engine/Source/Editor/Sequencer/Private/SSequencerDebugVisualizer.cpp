@@ -2,7 +2,7 @@
 
 #include "SSequencerDebugVisualizer.h"
 #include "CommonMovieSceneTools.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -104,8 +104,8 @@ void SSequencerEvaluationTemplateDebugVisualizer::Refresh()
 
 	AverageComplexity /= SegmentComplexity.Num();
 
-	static const FSlateBrush* SectionBackgroundBrush = FEditorStyle::GetBrush("Sequencer.Section.Background");
-	static const FSlateBrush* SectionBackgroundTintBrush = FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint");
+	static const FSlateBrush* SectionBackgroundBrush = FAppStyle::GetBrush("Sequencer.Section.Background");
+	static const FSlateBrush* SectionBackgroundTintBrush = FAppStyle::GetBrush("Sequencer.Section.BackgroundTint");
 
 	UMovieSceneSequence* ActiveSequence = WeakSequencer.Pin()->GetFocusedMovieSceneSequence();
 	const FFrameRate SequenceResolution = ActiveSequence->GetMovieScene()->GetTickResolution();
@@ -304,7 +304,7 @@ class SSequencerDebugComponentSlot : public SBorder
 
 	void Construct(const FArguments& InArgs, const int32 InComponentBitIndex, const FText& InComponentName)
 	{
-		static const FSlateBrush* SectionBackgroundBrush = FEditorStyle::GetBrush("Sequencer.Section.Background");
+		static const FSlateBrush* SectionBackgroundBrush = FAppStyle::GetBrush("Sequencer.Section.Background");
 
 		ComponentBitIndex = InComponentBitIndex;
 
@@ -330,7 +330,7 @@ private:
 
 void SSequencerEntityComponentSystemDebugSlot::Construct(const FArguments& InArgs, TWeakPtr<FSequencer> InWeakSequencer, UMovieSceneSection* InSection)
 {
-	static const FSlateBrush* SectionBackgroundBrush = FEditorStyle::GetBrush("Sequencer.Section.Background");
+	static const FSlateBrush* SectionBackgroundBrush = FAppStyle::GetBrush("Sequencer.Section.Background");
 
 	WeakSequencer = InWeakSequencer;
 	Section = InSection;

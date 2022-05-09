@@ -74,14 +74,14 @@ void SFunctionSelector::Construct(const FArguments& InArgs, TSharedRef<FWidgetBl
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.Visibility(this, &SFunctionSelector::GetGotoBindingVisibility)
 			.OnClicked(this, &SFunctionSelector::HandleGotoBindingClicked)
 			.VAlign(VAlign_Center)
 			.ToolTipText(LOCTEXT("GotoFunction", "Goto Function"))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Search"))
+				.Image(FAppStyle::GetBrush("Icons.Search"))
 			]
 		]
 	];
@@ -126,7 +126,7 @@ TSharedRef<SWidget> SFunctionSelector::OnGenerateDelegateMenu()
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ResetFunction", "Reset"),
 				LOCTEXT("ResetFunctionTooltip", "Reset this function and clear it out."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cross"),
 				FUIAction(FExecuteAction::CreateSP(this, &SFunctionSelector::HandleRemoveBinding))
 			);
 		}
@@ -134,7 +134,7 @@ TSharedRef<SWidget> SFunctionSelector::OnGenerateDelegateMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CreateFunction", "Create Function"),
 			LOCTEXT("CreateBindingToolTip", "Creates a new function"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Plus"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plus"),
 			FUIAction(FExecuteAction::CreateSP(this, &SFunctionSelector::HandleCreateAndAddBinding))
 		);
 	}
@@ -180,7 +180,7 @@ void SFunctionSelector::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* Own
 				MenuBuilder.AddMenuEntry(
 					Info->DisplayName,
 					FText::FromString(Info->Tooltip),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), FunctionIcon),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), FunctionIcon),
 					FUIAction(FExecuteAction::CreateSP(this, &SFunctionSelector::HandleAddFunctionBinding, Info))
 					);
 			});

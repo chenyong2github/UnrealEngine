@@ -19,7 +19,6 @@ public class ActorSequenceEditor : ModuleRules
 				"MovieScene",
 				"MovieSceneTools",
 				"Sequencer",
-				"EditorStyle",
 				"Slate",
 				"SlateCore",
 				"SubobjectEditor",

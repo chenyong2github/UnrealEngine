@@ -32,7 +32,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/PoseAsset.h"
 #include "Animation/MirrorDataTable.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerTimeSliderController.h"
@@ -196,14 +196,14 @@ void SAnimSequenceOptionsWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+			.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 		.Text(LOCTEXT("Export_CurrentFileTitle", "Current File: "))
 		]
 	+ SHorizontalBox::Slot()
@@ -212,7 +212,7 @@ void SAnimSequenceOptionsWindow::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+			.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 		.Text(InArgs._FullPath)
 		]
 		]
@@ -260,7 +260,7 @@ void SAnimSequenceOptionsWindow::Construct(const FArguments& InArgs)
 	HeaderToolBox->SetContent(
 		SNew(SBorder)
 		.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -600,7 +600,7 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 
 	int32 LayerId = Painter.PaintSectionBackground();
 
-	static const FSlateBrush* GenericDivider = FEditorStyle::GetBrush("Sequencer.GenericDivider");
+	static const FSlateBrush* GenericDivider = FAppStyle::GetBrush("Sequencer.GenericDivider");
 
 	if (!Section.HasStartFrame() || !Section.HasEndFrame())
 	{

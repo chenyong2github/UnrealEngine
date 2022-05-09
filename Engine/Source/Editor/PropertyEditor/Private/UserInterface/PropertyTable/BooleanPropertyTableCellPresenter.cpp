@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditorBool.h"
 #include "SResetToDefaultPropertyEditor.h"
@@ -23,7 +23,7 @@ TSharedRef< class SWidget > FBooleanPropertyTableCellPresenter::ConstructDisplay
 		.Padding( 0 )
 		.VAlign( VAlign_Center )
 		.HAlign( HAlign_Center )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.Content()
 		[	
 			SAssignNew( HorizontalBox, SHorizontalBox )
@@ -34,7 +34,7 @@ TSharedRef< class SWidget > FBooleanPropertyTableCellPresenter::ConstructDisplay
 			.Padding( FMargin( 2, 0, 2, 0 ) )
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "PropertyTable.ContentBorder" ) )
+				.BorderImage( FAppStyle::GetBrush( "PropertyTable.ContentBorder" ) )
 				.Padding( 0 )
 				.Content()
 				[

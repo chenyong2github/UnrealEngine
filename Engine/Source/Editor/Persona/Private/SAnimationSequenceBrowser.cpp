@@ -13,7 +13,7 @@
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimSequence.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
 #include "PersonaModule.h"
@@ -640,7 +640,7 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 			Section.AddMenuEntry("OpenSequenceInNewWindow",
 				LOCTEXT("AnimSequenceBase_OpenInNewWindow", "Open In New Window"),
 				LOCTEXT("AnimSequenceBase_OpenInNewWindowTooltip", "Will always open asset in a new window, and not re-use existing window. (Shift+Double-Click)"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
+				FSlateIcon(FAppStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &SAnimationSequenceBrowser::OpenInNewWindow, SelectedAssets),
 					FCanExecuteAction()
@@ -926,15 +926,15 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 		[
 			SNew(SButton)
 			.OnClicked(this, &SAnimationSequenceBrowser::OnGoBackInHistory)
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ContentPadding(FMargin(1, 0))
 			.IsEnabled(this, &SAnimationSequenceBrowser::CanStepBackwardInHistory)
 			.ToolTipText(LOCTEXT("Backward_Tooltip", "Step backward in the asset history. Right click to see full history."))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FText::FromString(FString(TEXT("\xf060"))) /*fa-arrow-left*/)
 			]
 		];
@@ -945,15 +945,15 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 		[
 			SNew(SButton)
 			.OnClicked(this, &SAnimationSequenceBrowser::OnGoForwardInHistory)
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.ContentPadding(FMargin(1, 0))
 			.IsEnabled(this, &SAnimationSequenceBrowser::CanStepForwardInHistory)
 			.ToolTipText(LOCTEXT("Forward_Tooltip", "Step forward in the asset history. Right click to see full history."))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FText::FromString(FString(TEXT("\xf061"))) /*fa-arrow-right*/)
 			]
 		];
@@ -967,7 +967,7 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 			SNew(SBorder)
 			.Visibility(this, &SAnimationSequenceBrowser::GetHistoryVisibility)
 			.Padding(FMargin(3))
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 		[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -979,7 +979,7 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 			[
 				SNew(SBorder)
 						.OnMouseButtonDown(this, &SAnimationSequenceBrowser::OnMouseDownHistory, TWeakPtr<SMenuAnchor>(BackMenuAnchorPtr))
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+				.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				[
 					BackMenuAnchorPtr
 				]
@@ -990,7 +990,7 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 			[
 				SNew(SBorder)
 						.OnMouseButtonDown(this, &SAnimationSequenceBrowser::OnMouseDownHistory, TWeakPtr<SMenuAnchor>(FwdMenuAnchorPtr))
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+				.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				[
 					FwdMenuAnchorPtr
 				]
@@ -1003,7 +1003,7 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(Config)
 			]
@@ -1325,11 +1325,11 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 	TSharedPtr<SHorizontalBox> ContentBox = nullptr;
 	TSharedRef<SToolTip> ToolTipWidget = SNew(SToolTip)
 	.TextMargin(1)
-	.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
+	.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
 	[
 		SNew(SBorder)
 		.Padding(6)
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
+		.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -1338,14 +1338,14 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 			[
 				SNew(SBorder)
 				.Padding(6)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 				[
 					SNew(SBox)
 					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(AssetData.AssetName))
-						.Font(FEditorStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
+						.Font(FAppStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
 					]
 				]
 			]
@@ -1359,7 +1359,7 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 					SNew(SBorder)
 					.Padding(6)
 					.Visibility(AssetClass->IsChildOf<UAnimationAsset>() ? EVisibility::Visible : EVisibility::Collapsed)
-					.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+					.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 					[
 						SNew(SOverlay)
 						+SOverlay::Slot()
@@ -1388,7 +1388,7 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 	[
 		SNew(SBorder)
 		.Padding(6)
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+		.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 		[
 			DescriptionBox
 		]

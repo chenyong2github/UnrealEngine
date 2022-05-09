@@ -15,7 +15,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 #include "SlateOptMacros.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Models/SessionBrowserTreeItems.h"
 #include "Widgets/Images/SImage.h"
 
@@ -66,7 +66,7 @@ public:
 								SNew(STextBlock)
 									.ColorAndOpacity(this, &SSessionBrowserTreeGroupRow::HandleGroupNameColorAndOpacity)
 									.Text(this, &SSessionBrowserTreeGroupRow::HandleGroupNameText)
-									.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+									.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 									.ShadowOffset(FVector2D(1.0f, 1.0f))
 							]
 
@@ -83,7 +83,7 @@ public:
 		STableRow<TSharedPtr<FSessionBrowserGroupTreeItem>>::ConstructInternal(
 			STableRow<TSharedPtr<FSessionBrowserGroupTreeItem>>::FArguments()
 				.ShowSelection(false)
-				.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow"),
+				.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow"),
 			InOwnerTableView
 		);
 	}
@@ -115,14 +115,14 @@ private:
 		if (IsHovered())
 		{
 			return IsItemExpanded()
-				? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered")
-				: FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+				? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered")
+				: FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 		}
 		else
 		{
 			return IsItemExpanded()
-				? FEditorStyle::GetBrush("DetailsView.CategoryTop")
-				: FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+				? FAppStyle::GetBrush("DetailsView.CategoryTop")
+				: FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 		}
 	}
 
@@ -153,14 +153,14 @@ private:
 		if (IsHovered())
 		{
 			return IsItemExpanded()
-				? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered")
-				: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
+				? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered")
+				: FAppStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
 		}
 		else
 		{
 			return IsItemExpanded()
-				? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up")
-				: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down");
+				? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up")
+				: FAppStyle::GetBrush("DetailsView.PulldownArrow.Down");
 		}
 	}
 

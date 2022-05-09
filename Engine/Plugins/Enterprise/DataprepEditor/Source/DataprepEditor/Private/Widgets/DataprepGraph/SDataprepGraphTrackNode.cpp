@@ -70,7 +70,7 @@ public:
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Outer.Hovered"))
-				.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+				.Image(FAppStyle::GetBrush( "Graph.StateNode.Body" ))
 			]
 
 			+ SOverlay::Slot()
@@ -80,7 +80,7 @@ public:
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Background.Hovered"))
-				.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+				.Image(FAppStyle::GetBrush( "Graph.StateNode.Body" ))
 			]
 
 			+ SOverlay::Slot()
@@ -439,7 +439,7 @@ void SDataprepGraphTrackNode::UpdateGraphNode()
 	.VAlign(VAlign_Center)
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "NoBorder" ) )
 		.Padding(0.f)
 		.BorderBackgroundColor( FLinearColor( 0.3f, 0.3f, 0.3f, 1.0f ) )
 		[
@@ -571,7 +571,7 @@ void SDataprepGraphTrackNode::MoveTo(const FVector2D& NewPosition, FNodeSet& Nod
 
 const FSlateBrush* SDataprepGraphTrackNode::GetShadowBrush(bool bSelected) const
 {
-	return  FEditorStyle::GetNoBrush();
+	return  FAppStyle::GetNoBrush();
 }
 
 FReply SDataprepGraphTrackNode::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
@@ -1371,7 +1371,7 @@ void SDataprepGraphTrackWidget::CreateHelperWidgets()
 
 	DropIndicator = SNew(SBorder)
 		.BorderBackgroundColor( DragAndDropColor )
-		.BorderImage(FEditorStyle::GetBrush("Graph.StateNode.Body"))
+		.BorderImage(FAppStyle::GetBrush("Graph.StateNode.Body"))
 		.HAlign(EHorizontalAlignment::HAlign_Center)
 		[
 			SNew(SBox)

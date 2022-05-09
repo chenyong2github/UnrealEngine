@@ -7,7 +7,7 @@
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
@@ -37,7 +37,7 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 	{
 		SAssignNew( ColumnWidget, STextBlock )
 		.Text( FText::FromString( Reference->AssetPath ) )
-		.Font( FEditorStyle::GetFontStyle( UsdReferencesListConstants::NormalFont ) );
+		.Font( FAppStyle::GetFontStyle( UsdReferencesListConstants::NormalFont ) );
 	}
 
 	return SNew( SBox )

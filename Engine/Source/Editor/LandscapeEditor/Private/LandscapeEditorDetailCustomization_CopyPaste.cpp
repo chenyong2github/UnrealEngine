@@ -172,7 +172,7 @@ void FLandscapeEditorDetailCustomization_CopyPaste::CustomizeDetails(IDetailLayo
 			.HAlign(HAlign_Left)
 			[
 				SNew(SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.CollapseMenuOnParentFocus(true)
 				.IsEnabled(this, &FLandscapeEditorDetailCustomization_CopyPaste::GetGizmoGuessSizeButtonIsEnabled)

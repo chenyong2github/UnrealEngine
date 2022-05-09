@@ -47,7 +47,7 @@ void FAssetTypeActions_SoundClass::GetActions(const TArray<UObject*>& InObjects,
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("Sound_MuteSoundClass", "Mute"),
 		LOCTEXT("Sound_MuteSoundClassTooltip", "Mutes anything using this SoundClass"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Mute.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Mute.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundClass::ExecuteMute, Sounds),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_SoundClass::CanExecuteMuteCommand, Sounds),
@@ -60,7 +60,7 @@ void FAssetTypeActions_SoundClass::GetActions(const TArray<UObject*>& InObjects,
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("Sound_SoloSoundClass", "Solo"),
 		LOCTEXT("Sound_SoloSoundClassTooltip", "Mutes anything using this SoundClass"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Solo.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Solo.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundClass::ExecuteSolo, Sounds),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_SoundClass::CanExecuteSoloCommand, Sounds),

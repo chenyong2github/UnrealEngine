@@ -9,7 +9,7 @@
 #include "SSCSEditor.h"
 #include "Styling/SlateIconFinder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorUndoClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Editor.h"
@@ -101,7 +101,7 @@ private:
 
 	TSharedRef<ITableRow> GenerateRow(TSharedPtr<FSCSEditorTreeNode> InNodePtr, const TSharedRef<STableViewBase>& OwnerTable)
 	{
-		const FSlateBrush* ComponentIcon = FEditorStyle::GetBrush("SCS.NativeComponent");
+		const FSlateBrush* ComponentIcon = FAppStyle::GetBrush("SCS.NativeComponent");
 		if (InNodePtr->GetComponentTemplate() != NULL)
 		{
 			ComponentIcon = FSlateIconFinder::FindIconBrushForClass( InNodePtr->GetComponentTemplate()->GetClass(), TEXT("SCS.Component") );
@@ -252,7 +252,7 @@ public:
 
 		{
 			const FName CurveEditorTabName = FName(TEXT("SequencerGraphEditor"));
-			const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
+			const FSlateIcon SequencerGraphIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon");
 			if (WeakBlueprintEditor.IsValid() && !WeakBlueprintEditor.Pin()->GetTabManager()->HasTabSpawner(CurveEditorTabName))
 			{
 				// Register an empty tab to spawn the Curve Editor in so that layouts restore properly.

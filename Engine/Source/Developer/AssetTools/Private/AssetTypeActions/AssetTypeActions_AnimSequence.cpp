@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_AnimSequence.h"
 #include "Animation/AnimSequence.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "Animation/AnimMontage.h"
 #include "Factories/AnimCompositeFactory.h"
@@ -47,14 +47,14 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 		LOCTEXT("CreateAnimSubmenu_ToolTip", "Create assets from this anim sequence"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_AnimSequence::FillCreateMenu, Sequences),
 		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
 		);
 
 	Section.AddMenuEntry(
 		"AnimSequence_ReimportWithNewSource",
 		LOCTEXT("AnimSequence_ReimportWithNewSource", "Reimport with New Source"),
 		LOCTEXT("AnimSequence_ReimportWithNewSourceTooltip", "Reimport the selected sequence(s) from a new source file."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.ReimportAnim"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.ReimportAnim"),
 		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteReimportWithNewSource, Sequences))
 		);
 
@@ -63,7 +63,7 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 		MenuBuilder.AddMenuEntry(
 	        LOCTEXT("AnimSequence_AddAnimationModifier", "Add Modifiers"),
 	        LOCTEXT("AnimSequence_AddAnimationModifierTooltip", "Add new animation modifier(s)."),
-	       FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier"),
+	       FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier"),
 	        FUIAction(FExecuteAction::CreateLambda([Sequences]()
 	        {
 		        TArray<UAnimSequence*> AnimSequences;
@@ -88,7 +88,7 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 	    MenuBuilder.AddMenuEntry(
 	        LOCTEXT("AnimSequence_ApplyAnimationModifier", "Apply Modifiers"),
 	        LOCTEXT("AnimSequence_ApplyAnimationModifierTooltip", "Applies all contained animation modifier(s)."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier"),
 	        FUIAction(FExecuteAction::CreateLambda([Sequences]()
 	        {
 		        TArray<UAnimSequence*> AnimSequences;
@@ -112,7 +112,7 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AnimSequence_ApplyOutOfDataAnimationModifier", "Apply out-of-date Modifiers"),
 			LOCTEXT("AnimSequence_ApplyOutOfDataAnimationModifierTooltip", "Applies all contained animation modifier(s), if they are out of date."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier"),
 			FUIAction(FExecuteAction::CreateLambda([Sequences]()
 			{
 			TArray<UAnimSequence*> AnimSequences;
@@ -138,7 +138,7 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 	LOCTEXT("AnimSequence_AnimationModifiersTooltip", "Animation Modifier actions"),
 		FNewToolMenuChoice(MenuDelegate),
 		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier")
 	);
 
 	FAssetTypeActions_AnimationAsset::GetActions(InObjects, Section);
@@ -149,7 +149,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewAnimComposite", "Create AnimComposite"),
 		LOCTEXT("AnimSequence_NewAnimCompositeTooltip", "Creates an AnimComposite using the selected anim sequence."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimComposite"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimComposite"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimComposite, Sequences),
 			FCanExecuteAction()
@@ -159,7 +159,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewAnimMontage", "Create AnimMontage"),
 		LOCTEXT("AnimSequence_NewAnimMontageTooltip", "Creates an AnimMontage using the selected anim sequence."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimMontage"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimMontage, Sequences),
 			FCanExecuteAction()
@@ -171,7 +171,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AnimSequence_NewAnimStreamable", "Create AnimStreamable"),
 			LOCTEXT("AnimSequence_NewAnimStreamableTooltip", "Creates an AnimStreamable using the selected anim sequence."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimMontage"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimStreamable, Sequences),
 				FCanExecuteAction()
@@ -182,7 +182,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewPoseAsset", "Create PoseAsset"),
 		LOCTEXT("AnimSequence_NewPoseAssetTooltip", "Creates an PoseAsset using the selected anim sequence."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset"),
 		FUIAction(
 		FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewPoseAsset, Sequences),
 		FCanExecuteAction()

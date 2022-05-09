@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FNewGizmoEnableCommands : public TCommands<FNewGizmoEnableCommands>
 {
 public:
 
 	FNewGizmoEnableCommands()
-		: TCommands<FNewGizmoEnableCommands>(TEXT("NewGizmoEnable"), NSLOCTEXT("Contexts", "NewGizmoEnable", "NewGizmoEnable Plugin"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FNewGizmoEnableCommands>(TEXT("NewGizmoEnable"), NSLOCTEXT("Contexts", "NewGizmoEnable", "NewGizmoEnable Plugin"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

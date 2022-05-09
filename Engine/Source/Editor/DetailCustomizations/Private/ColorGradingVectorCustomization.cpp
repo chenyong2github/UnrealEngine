@@ -840,7 +840,7 @@ void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 		.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 			.Type(ESlateCheckBoxType::ToggleButton)
 			.IsChecked(this, &FColorGradingCustomBuilder::OnGetChangeColorMode, ColorModeType::RGB)
 			.OnCheckStateChanged(this, &FColorGradingCustomBuilder::OnChangeColorModeClicked, ColorModeType::RGB)
@@ -851,7 +851,7 @@ void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 			[
 				SNew(STextBlock)
 				.Text(this, &FColorGradingCustomBuilder::OnChangeColorModeText, ColorModeType::RGB)
-				.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+				.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -861,7 +861,7 @@ void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 		.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 			.Type(ESlateCheckBoxType::ToggleButton)
 			.IsChecked(this, &FColorGradingCustomBuilder::OnGetChangeColorMode, ColorModeType::HSV)
 			.OnCheckStateChanged(this, &FColorGradingCustomBuilder::OnChangeColorModeClicked, ColorModeType::HSV)
@@ -872,7 +872,7 @@ void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 			[
 				SNew(STextBlock)
 				.Text(this, &FColorGradingCustomBuilder::OnChangeColorModeText, ColorModeType::HSV)
-				.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
+				.Font(FAppStyle::GetFontStyle("StandardDialog.SmallFont"))
 			]
 		]
 	];

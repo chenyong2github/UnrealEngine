@@ -2,7 +2,7 @@
 
 #include "UnrealInsightsLauncher.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IUATHelperModule.h"
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
@@ -36,7 +36,7 @@ void FUnrealInsightsLauncher::RegisterMenus()
 		Section.AddMenuEntry("OpenUnrealInsights",
 			LOCTEXT("OpenUnrealInsights_Label", "Run Unreal Insights"),
 			LOCTEXT("OpenUnrealInsights_Desc", "Run the Unreal Insights standalone application."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "UnrealInsights.MenuIcon"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "UnrealInsights.MenuIcon"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FUnrealInsightsLauncher::RunUnrealInsights_Execute), FCanExecuteAction())
 		);
 	}
@@ -70,7 +70,7 @@ void FUnrealInsightsLauncher::RunUnrealInsights_Execute()
 #endif
 
 		IUATHelperModule::Get().CreateUatTask(Arguments, PlatformName, LOCTEXT("BuildingUnrealInsights", "Building Unreal Insights"),
-			LOCTEXT("BuildUnrealInsightsTask", "Build Unreal Insights Task"), FEditorStyle::GetBrush(TEXT("MainFrame.CookContent")), [this, Path](FString Result, double Time)
+			LOCTEXT("BuildUnrealInsightsTask", "Build Unreal Insights Task"), FAppStyle::GetBrush(TEXT("MainFrame.CookContent")), [this, Path](FString Result, double Time)
 			{
 				if (Result.Equals(TEXT("Completed")))
 				{

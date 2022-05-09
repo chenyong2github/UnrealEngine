@@ -20,7 +20,6 @@ public class PaperSpriteSheetImporter : ModuleRules
 				"Paper2DEditor",
 				"AssetTools",
 				"ContentBrowser",
-                "EditorStyle",
 				"ToolMenus",
 			});
 

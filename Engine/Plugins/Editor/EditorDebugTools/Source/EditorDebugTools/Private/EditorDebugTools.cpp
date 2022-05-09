@@ -54,7 +54,7 @@ TSharedRef<SDockTab> CreateModulesTab(const FSpawnTabArgs& Args)
 		[
 			SNew(SBorder)
 			.Padding(2)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SModuleUI)
 			]

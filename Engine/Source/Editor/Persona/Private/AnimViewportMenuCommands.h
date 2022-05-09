@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Class containing commands for viewport menu actions
@@ -18,7 +18,7 @@ public:
 			TEXT("AnimViewportMenu"), // Context name for fast lookup
 			NSLOCTEXT("Contexts", "AnimViewportMenu", "Animation Viewport Menu"), // Localized context name for displaying
 			NAME_None, // Parent context name.  
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 	{
 	}

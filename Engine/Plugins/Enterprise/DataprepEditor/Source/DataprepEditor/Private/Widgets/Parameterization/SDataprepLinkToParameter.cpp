@@ -7,7 +7,7 @@
 #include "DataprepParameterizableObject.h"
 
 #include "Async/ParallelFor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SEditableTextBox.h"

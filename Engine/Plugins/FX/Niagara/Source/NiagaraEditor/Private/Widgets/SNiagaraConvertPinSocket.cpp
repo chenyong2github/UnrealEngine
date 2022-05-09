@@ -38,11 +38,11 @@ void SNiagaraConvertPinSocket::Construct(const FArguments& InArgs, TSharedRef<FN
 {
 	SocketViewModel = InSocketViewModel;
 
-	BackgroundBrush = FEditorStyle::GetBrush("Graph.Pin.Background");
-	BackgroundHoveredBrush = FEditorStyle::GetBrush("Graph.Pin.BackgroundHovered");
+	BackgroundBrush = FAppStyle::GetBrush("Graph.Pin.Background");
+	BackgroundHoveredBrush = FAppStyle::GetBrush("Graph.Pin.BackgroundHovered");
 
-	ConnectedBrush = FEditorStyle::GetBrush("Graph.Pin.Connected");
-	DisconnectedBrush = FEditorStyle::GetBrush("Graph.Pin.Disconnected");
+	ConnectedBrush = FAppStyle::GetBrush("Graph.Pin.Connected");
+	DisconnectedBrush = FAppStyle::GetBrush("Graph.Pin.Disconnected");
 
 	bIsDraggedOver = false;
 	
@@ -232,15 +232,15 @@ FReply SNiagaraConvertPinSocket::OnDragOver(const FGeometry& MyGeometry, const F
 		DragDropOp->CurrentHoverText = ConnectionMessage;
 		if (bCanConnectSockets == false)
 		{
-			DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 		}
 		else if (bWarning)
 		{
-			DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OKWarn"));
+			DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OKWarn"));
 		}
 		else
 		{
-			DragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 		}
 
 		return FReply::Handled();

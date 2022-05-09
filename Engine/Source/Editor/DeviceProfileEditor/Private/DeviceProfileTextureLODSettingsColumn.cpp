@@ -6,7 +6,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyTableCellPresenter.h"
 
 // Property table includes
@@ -105,7 +105,7 @@ TSharedRef<class SWidget> FTextureLODSettingsCellPresenter::ConstructDisplayWidg
 	.Padding(0.0f)
 	.VAlign(VAlign_Center)
 	.HAlign(HAlign_Center)
-	.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+	.BorderImage(FAppStyle::GetBrush("NoBorder"))
 	.Content()
 	[
 		SNew(SButton)
@@ -114,7 +114,7 @@ TSharedRef<class SWidget> FTextureLODSettingsCellPresenter::ConstructDisplayWidg
 		.ButtonStyle(FAppStyle::Get(), "DeviceDetails.EditButton")
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Icons.Edit"))
+			.Image(FAppStyle::GetBrush("Icons.Edit"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];

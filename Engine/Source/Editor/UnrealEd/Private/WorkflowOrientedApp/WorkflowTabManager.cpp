@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Misc/NamePermissionList.h"
@@ -311,7 +311,7 @@ TSharedRef< SWidget > FTabInfo::CreateHistoryNavigationWidget()
 			[
 				SNew(SBorder)
 				.OnMouseButtonDown(this, &FTabInfo::OnMouseDownHistory, BackMenuAnchorPtr)
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+				.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				[
 					SAssignNew(BackMenuAnchorPtr, SMenuAnchor)
 					.Placement( MenuPlacement_BelowAnchor )
@@ -319,12 +319,12 @@ TSharedRef< SWidget > FTabInfo::CreateHistoryNavigationWidget()
 					[
 						SNew(SButton)
 						.OnClicked( this, &FTabInfo::OnGoBackInHistory )
-						.ButtonStyle( FEditorStyle::Get(), "GraphBreadcrumbButton" )
+						.ButtonStyle( FAppStyle::Get(), "GraphBreadcrumbButton" )
 						.IsEnabled(this, &FTabInfo::CanStepBackwardInHistory)
 						.ToolTipText(NSLOCTEXT("WorkflowNavigationBrowser", "Backward_Tooltip", "Step backward in the tab history. Right click to see full history."))
 						[
 							SNew(SImage)
-							.Image( FEditorStyle::GetBrush("GraphBreadcrumb.BrowseBack") )
+							.Image( FAppStyle::GetBrush("GraphBreadcrumb.BrowseBack") )
 						]
 					]
 				]
@@ -335,7 +335,7 @@ TSharedRef< SWidget > FTabInfo::CreateHistoryNavigationWidget()
 			[
 				SNew(SBorder)
 				.OnMouseButtonDown(this, &FTabInfo::OnMouseDownHistory, FwdMenuAnchorPtr)
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+				.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				[
 					SAssignNew(FwdMenuAnchorPtr, SMenuAnchor)
 					.Placement( MenuPlacement_BelowAnchor )
@@ -343,12 +343,12 @@ TSharedRef< SWidget > FTabInfo::CreateHistoryNavigationWidget()
 					[
 						SNew(SButton)
 						.OnClicked( this, &FTabInfo::OnGoForwardInHistory )
-						.ButtonStyle( FEditorStyle::Get(), "GraphBreadcrumbButton" )
+						.ButtonStyle( FAppStyle::Get(), "GraphBreadcrumbButton" )
 						.IsEnabled(this, &FTabInfo::CanStepForwardInHistory)
 						.ToolTipText(NSLOCTEXT("WorkflowNavigationBrowser", "Forward_Tooltip", "Step forward in the tab history. Right click to see full history."))
 						[
 							SNew(SImage)
-							.Image( FEditorStyle::GetBrush("GraphBreadcrumb.BrowseForward") )
+							.Image( FAppStyle::GetBrush("GraphBreadcrumb.BrowseForward") )
 						]
 					]
 				]

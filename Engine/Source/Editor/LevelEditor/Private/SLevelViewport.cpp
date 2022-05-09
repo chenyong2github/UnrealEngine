@@ -27,7 +27,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Exporters/ExportTextContainer.h"
 #include "Camera/CameraActor.h"
@@ -2512,7 +2512,7 @@ TSharedRef< ISceneOutlinerColumn > SLevelViewport::CreateActorLockSceneOutlinerC
 					.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(bLocked ? "PropertyWindow.Locked" : "PropertyWindow.Unlocked"))
+						.Image(FAppStyle::GetBrush(bLocked ? "PropertyWindow.Locked" : "PropertyWindow.Unlocked"))
 					.ColorAndOpacity(bLocked ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
 					];
 			}
@@ -2859,7 +2859,7 @@ void SActorPreview::Construct( const FArguments& InArgs )
 
 		.Visibility(EVisibility::SelfHitTestInvisible)
 
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Bottom)
 		.Padding(FMargin(0, 0, PaddingBeforeBorder, PaddingBeforeBorder))
@@ -2870,7 +2870,7 @@ void SActorPreview::Construct( const FArguments& InArgs )
 				SNew( SBorder )
 					.Visibility(BorderVisibility)
 					.Padding( 16.0f )
-					.BorderImage( FEditorStyle::GetBrush( "UniformShadow_Tint" ) )
+					.BorderImage( FAppStyle::GetBrush( "UniformShadow_Tint" ) )
 					.BorderBackgroundColor( this, &SActorPreview::GetBorderColorAndOpacity )
 					.ColorAndOpacity( this, &SActorPreview::GetColorAndOpacity )
 
@@ -2918,7 +2918,7 @@ void SActorPreview::Construct( const FArguments& InArgs )
 				SNew(SButton)
 					.ContentPadding(0)
 					.ForegroundColor(FSlateColor::UseForeground())
-					.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+					.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 
 					.IsFocusable(false)
 					[
@@ -2947,7 +2947,7 @@ void SActorPreview::Construct( const FArguments& InArgs )
 					SNew( SButton )
 						.ContentPadding(0)
 						.ForegroundColor( FSlateColor::UseForeground() )
-						.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+						.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 
 						.IsFocusable(false)
 						[
@@ -2977,7 +2977,7 @@ void SActorPreview::Construct( const FArguments& InArgs )
 					SNew(SButton)
 						.ContentPadding(0)
 						.ForegroundColor(FSlateColor::UseForeground())
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+						.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 						.IsFocusable(false)
 						[
 							SNew(SImage)
@@ -3041,11 +3041,11 @@ const FSlateBrush * SActorPreview::GetVRPinButtonIconBrush() const
 	{
 		if (ParentViewportPtr->IsActorPreviewPinned(PreviewActorPtr))
 		{
-			IconBrush = FEditorStyle::GetBrush("VRViewportActorPreview.Pinned");
+			IconBrush = FAppStyle::GetBrush("VRViewportActorPreview.Pinned");
 		}
 		else
 		{
-			IconBrush = FEditorStyle::GetBrush("VRViewportActorPreview.Unpinned");
+			IconBrush = FAppStyle::GetBrush("VRViewportActorPreview.Unpinned");
 		}
 
 	}
@@ -3063,11 +3063,11 @@ const FSlateBrush* SActorPreview::GetPinButtonIconBrush() const
 	{
 		if ( ParentViewportPtr->IsActorPreviewPinned(PreviewActorPtr) )
 		{
-			IconBrush = FEditorStyle::GetBrush( "ViewportActorPreview.Pinned" );
+			IconBrush = FAppStyle::GetBrush( "ViewportActorPreview.Pinned" );
 		}
 		else
 		{
-			IconBrush = FEditorStyle::GetBrush( "ViewportActorPreview.Unpinned" );
+			IconBrush = FAppStyle::GetBrush( "ViewportActorPreview.Unpinned" );
 		}
 
 	}
@@ -3114,11 +3114,11 @@ const FSlateBrush* SActorPreview::GetDetachButtonIconBrush() const
 	{
 		if (ParentViewportPtr->IsActorPreviewDetached(PreviewActorPtr))
 		{
-			IconBrush = FEditorStyle::GetBrush("VRViewportActorPreview.Attached");
+			IconBrush = FAppStyle::GetBrush("VRViewportActorPreview.Attached");
 		}
 		else
 		{
-			IconBrush = FEditorStyle::GetBrush("VRViewportActorPreview.Detached");
+			IconBrush = FAppStyle::GetBrush("VRViewportActorPreview.Detached");
 		}
 
 	}
@@ -3238,7 +3238,7 @@ FSlateColor SActorPreview::GetBorderColorAndOpacity() const
 	if (HighlightSequence.IsPlaying())
 	{
 		static const FName SelectionColorName("SelectionColor");
-		const FLinearColor SelectionColor = FEditorStyle::Get().GetSlateColor(SelectionColorName).GetSpecifiedColor().CopyWithNewOpacity(0.5f);
+		const FLinearColor SelectionColor = FAppStyle::Get().GetSlateColor(SelectionColorName).GetSpecifiedColor().CopyWithNewOpacity(0.5f);
 		
 		const float Interp = FMath::Sin(HighlightSequence.GetLerp()*6*PI) / 2 + 1;
 		Color = FMath::Lerp(SelectionColor, Color, Interp);
@@ -3996,7 +3996,7 @@ FLinearColor SLevelViewport::GetMouseCaptureLabelColorAndOpacity() const
 {
 	static const FName DefaultForegroundName("DefaultForeground");
 
-	FSlateColor SlateColor = FEditorStyle::GetSlateColor(DefaultForegroundName);
+	FSlateColor SlateColor = FAppStyle::GetSlateColor(DefaultForegroundName);
 	FLinearColor Col = SlateColor.IsColorSpecified() ? SlateColor.GetSpecifiedColor() : FLinearColor::White; 
 
 	float Alpha = 0.0f;
@@ -4060,14 +4060,14 @@ void SLevelViewport::ShowMouseCaptureLabel(ELabelAnchorMode AnchorMode)
 		.VAlign(VAlign)
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.Visibility(this, &SLevelViewport::GetMouseCaptureLabelVisibility)
 			.ColorAndOpacity( this, &SLevelViewport::GetMouseCaptureLabelColorAndOpacity )
 			.ForegroundColor( FLinearColor::White )
 			.Padding(15.0f)
 			[
 				SNew( SButton )
-				.ButtonStyle( FEditorStyle::Get(), "EditorViewportToolBar.MenuButton" )
+				.ButtonStyle( FAppStyle::Get(), "EditorViewportToolBar.MenuButton" )
 				.IsFocusable(false)
 				.ButtonColorAndOpacity( FSlateColor(FLinearColor::Black) )
 				.ForegroundColor( FLinearColor::White )
@@ -4083,7 +4083,7 @@ void SLevelViewport::ShowMouseCaptureLabel(ELabelAnchorMode AnchorMode)
 						.MaxHeight(16.f)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("LevelViewport.CursorIcon"))
+							.Image(FAppStyle::GetBrush("LevelViewport.CursorIcon"))
 						]
 					]
 					+ SHorizontalBox::Slot()

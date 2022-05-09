@@ -44,7 +44,6 @@ public class CommonConversationGraph : ModuleRules
 				"AIModule",
 				"UnrealEd",
 				"KismetWidgets",
-				"EditorStyle",
 				"ToolMenus",
 				"PropertyEditor",
 				"GameplayTags"

@@ -37,7 +37,7 @@ public:
 		, _AllowAdd(false)
 		, _ShowBakeButton(false)
 		, _Title()
-		, _BackgroundBrush(FEditorStyle::GetBrush("Menu.Background"))
+		, _BackgroundBrush(FAppStyle::GetBrush("Menu.Background"))
 		{}
 		SLATE_ARGUMENT(URigHierarchy*, Hierarchy)
 		SLATE_ARGUMENT(TArray<FRigElementKey>, Controls)

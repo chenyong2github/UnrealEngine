@@ -33,7 +33,6 @@ public class ModelingEditorUI : ModuleRules
 				"ContentBrowserData",
                 "LevelEditor",
 				"StatusBar",
-				"EditorStyle",
                 "Projects",
 				"ToolWidgets",
 				"EditorWidgets",

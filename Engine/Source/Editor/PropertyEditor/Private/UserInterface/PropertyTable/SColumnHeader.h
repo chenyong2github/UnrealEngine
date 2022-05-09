@@ -13,7 +13,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SToolTip.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyTableCustomColumn.h"
 #include "PropertyEditorHelpers.h"
 #include "IDocumentation.h"
@@ -107,7 +107,7 @@ protected:
 			.AutoWidth()
 			[
 				SNew( STextBlock )
-				.Font( FEditorStyle::GetFontStyle( TextFontStyle ) )
+				.Font( FAppStyle::GetFontStyle( TextFontStyle ) )
 				.Text( FText::FromString(DisplayNamePieces[ Index ]) )
 			];
 
@@ -119,7 +119,7 @@ protected:
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush( Style, ".HeaderRow.Column.PathDelimiter" ) )
+					.Image( FAppStyle::GetBrush( Style, ".HeaderRow.Column.PathDelimiter" ) )
 				];
 			}
 		}

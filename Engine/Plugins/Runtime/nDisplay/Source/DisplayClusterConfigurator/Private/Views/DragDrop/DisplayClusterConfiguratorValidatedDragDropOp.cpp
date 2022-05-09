@@ -21,7 +21,7 @@ void FDisplayClusterConfiguratorValidatedDragDropOp::SetDropAsInvalid(FText Mess
 	bCanBeDropped = false;
 	CurrentHoverText = !Message.IsEmpty() ? FText::Format(LOCTEXT("HoverText_Formatted", "{0}: {1}"), GetHoverText(), Message) : DefaultHoverText;
 
-	CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 }
 
 void FDisplayClusterConfiguratorValidatedDragDropOp::SetDropAsValid(FText Message)
@@ -29,7 +29,7 @@ void FDisplayClusterConfiguratorValidatedDragDropOp::SetDropAsValid(FText Messag
 	bCanBeDropped = true;
 	CurrentHoverText = !Message.IsEmpty() ? FText::Format(LOCTEXT("HoverText_Formatted", "{0}: {1}"), GetHoverText(), Message) : DefaultHoverText;
 
-	CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+	CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 }
 
 #undef LOCTEXT_NAMESPACE

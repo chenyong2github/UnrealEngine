@@ -335,14 +335,14 @@ void FClothCreateSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 			SNew(SComboButton)
 			.OnGetMenuContent(this, &FClothCreateSettingsCustomization::OnGetTargetAssetMenu)
 			.ContentPadding(2)
-			.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-			.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+			.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+			.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 			.CollapseMenuOnParentFocus(true)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
 				.Text(this, &FClothCreateSettingsCustomization::GetTargetAssetText)
-				.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
+				.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
 				.Font(DetailBuilder.GetDetailFont())
 			]
 		];

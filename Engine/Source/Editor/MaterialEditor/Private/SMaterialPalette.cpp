@@ -4,7 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/SOverlay.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Materials/MaterialFunction.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 
@@ -42,7 +42,7 @@ void SMaterialPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForA
 	}
 
 	// Find icons
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	const FSlateBrush* IconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor IconColor = FSlateColor::UseForeground();
 	FText IconToolTip = GraphAction->GetTooltipDescription();
 	bool bIsReadOnly = false;
@@ -113,7 +113,7 @@ void SMaterialPalette::Construct(const FArguments& InArgs, TWeakPtr<FMaterialEdi
 	[
 		SNew(SBorder)
 		.Padding(2.0f)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 

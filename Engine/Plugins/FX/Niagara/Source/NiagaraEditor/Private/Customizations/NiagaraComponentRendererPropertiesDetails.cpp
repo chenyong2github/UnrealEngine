@@ -175,7 +175,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 					[
 						// The binding selector
 						SNew(SComboButton)
-						.ButtonStyle(FEditorStyle::Get(), StyleName)
+						.ButtonStyle(FAppStyle::Get(), StyleName)
 						.OnGetMenuContent(this, &FNiagaraComponentRendererPropertiesDetails::GetAddBindingMenuContent, PropHandle)
 						.ContentPadding(1)
 						.ToolTipText(Tooltip)
@@ -194,7 +194,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 					[
 						// Delete binding button
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.ContentPadding(FMargin(2))
 						.ToolTipText(LOCTEXT("NiagaraRemoveBindingToolTip", "Remove the particle attribute binding"))
@@ -203,7 +203,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 						.Content()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("Icons.Delete"))
+							.Image(FAppStyle::GetBrush("Icons.Delete"))
 						]
 					]
 				];
@@ -238,7 +238,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 						// Override binding button
 						SNew(SComboButton)
 						.IsEnabled(this, &FNiagaraComponentRendererPropertiesDetails::IsOverridableType, PropHandle)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.ContentPadding(FMargin(2))
 						.ToolTipText(LOCTEXT("NiagaraRendererChangePropertyBindingToolTip", "Bind to a particle attribute to update this parameter each tick"))

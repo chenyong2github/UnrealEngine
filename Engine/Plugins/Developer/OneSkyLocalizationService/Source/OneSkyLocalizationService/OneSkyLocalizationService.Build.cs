@@ -14,7 +14,6 @@ public class OneSkyLocalizationService : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
                 "LocalizationService",
                 "Json",
                 "HTTP",

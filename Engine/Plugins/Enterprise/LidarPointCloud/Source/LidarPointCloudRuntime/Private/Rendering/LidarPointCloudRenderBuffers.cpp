@@ -10,7 +10,7 @@
 #include "MeshMaterialShader.h"
 
 #if WITH_EDITOR
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #endif
 
 #define BINDPARAM(Name) Name.Bind(ParameterMap, TEXT(#Name))

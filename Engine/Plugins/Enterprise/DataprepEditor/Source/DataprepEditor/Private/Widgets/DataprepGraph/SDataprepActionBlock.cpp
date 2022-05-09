@@ -61,7 +61,7 @@ void SDataprepActionBlock::Construct(const FArguments& InArgs, const TSharedRef<
 		.Padding(5.f, 2.f)
 		[
 			SNew( SSeparator )
-			.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+			.SeparatorImage(FAppStyle::GetBrush( "ThinLine.Horizontal" ))
 			.Thickness(1.f)
 			.Orientation(EOrientation::Orient_Horizontal)
 			.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))

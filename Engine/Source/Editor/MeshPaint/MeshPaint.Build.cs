@@ -25,7 +25,6 @@ public class MeshPaint : ModuleRules
                 "RHI",
                 "Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
                 "MeshDescription",

@@ -14,7 +14,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 struct FGroupedEasing
 {
@@ -122,7 +122,7 @@ public:
 		{
 			FVector2D PointOffset(0.f, VerticalBottom - CurveHeight*InterpValue.Y - 4.f);
 
-			static const FSlateBrush* InterpPointBrush = FEditorStyle::GetBrush("Sequencer.InterpLine");
+			static const FSlateBrush* InterpPointBrush = FAppStyle::GetBrush("Sequencer.InterpLine");
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId+1,
@@ -197,7 +197,7 @@ void FMovieSceneBuiltInEasingFunctionCustomization::CustomizeDetails(IDetailLayo
 				.HeightOverride(50.f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.OnClicked(this, &FMovieSceneBuiltInEasingFunctionCustomization::SetType, Value)
 					[
 						SNew(SBuiltInFunctionVisualizer, Value)

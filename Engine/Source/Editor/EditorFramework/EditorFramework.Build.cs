@@ -20,7 +20,6 @@ public class EditorFramework : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"EditorStyle",
 				"Engine",
 				"InputCore",
 				"RenderCore",

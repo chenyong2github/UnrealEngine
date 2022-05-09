@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 				"UnrealEd",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"PropertyEditor",
 				"MassSpawner",
 				"MassEntity",

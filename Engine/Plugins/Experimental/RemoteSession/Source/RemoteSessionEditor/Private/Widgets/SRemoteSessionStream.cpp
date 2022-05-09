@@ -2,7 +2,7 @@
 
 #include "Widgets/SRemoteSessionStream.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -177,7 +177,7 @@ void SRemoteSessionStream::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3.f))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.IsEnabled_Lambda([this]() { return !IsStreaming(); })
 				[
 					DetailView.ToSharedRef()
@@ -187,7 +187,7 @@ void SRemoteSessionStream::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3.f))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				[
 					SNew(SScaleBox)
 					.Stretch(this, &SRemoteSessionStream::GetViewportStretch)
@@ -213,7 +213,7 @@ const FSlateBrush* SRemoteSessionStream::GetImageBorderImage() const
 	{
 		return FCoreStyle::Get().GetBrush("ColorPicker.AlphaBackground");
 	}
-	return FEditorStyle::GetBrush("ToolPanel.GroupBorder");
+	return FAppStyle::GetBrush("ToolPanel.GroupBorder");
 }
 
 EStretch::Type SRemoteSessionStream::GetViewportStretch() const

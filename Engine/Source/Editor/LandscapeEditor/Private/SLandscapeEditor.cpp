@@ -9,7 +9,7 @@
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Notifications/SErrorText.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "LandscapeEditorCommands.h"

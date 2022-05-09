@@ -17,8 +17,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
 
-// EditorStyle includes
-#include "EditorStyleSet.h"
+// Style includes
+#include "Styling/AppStyle.h"
 
 // UnrealEd includes
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -125,7 +125,7 @@ TSharedRef<SWidget> FScopedSequencerPanel::MakeToggleButton()
 	return SNew(SCheckBox)
 	.Padding(TakeRecorder::ButtonPadding)
 	.ToolTipText(NSLOCTEXT("TakeRecorder", "ToggleSequencer_Tip", "Show/Hide the Level Sequence that is used for setting up this take"))
-	.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+	.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 	.IsChecked(this, &FScopedSequencerPanel::GetToggleCheckState)
 	.OnCheckStateChanged(this, &FScopedSequencerPanel::Toggle)
 	[

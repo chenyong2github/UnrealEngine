@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FCurveTableEditorCommands : public TCommands<FCurveTableEditorCommands>
 {
 public:
 	FCurveTableEditorCommands()
-		: TCommands<FCurveTableEditorCommands>(TEXT("CurveTableEditor"), NSLOCTEXT("Contexts", "CurveTableEditor", "Curve Table Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FCurveTableEditorCommands>(TEXT("CurveTableEditor"), NSLOCTEXT("Contexts", "CurveTableEditor", "Curve Table Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

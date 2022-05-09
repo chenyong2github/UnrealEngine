@@ -22,7 +22,7 @@
 #include "K2Node_TemporaryVariable.h"
 #include "K2Node_ExecutionSequence.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"
@@ -1438,25 +1438,25 @@ FSlateIcon UK2Node_CallFunction::GetPaletteIconForFunction(UFunction const* Func
 
 	if (Function && Function->HasMetaData(NativeMakeFunc))
 	{
-		static FSlateIcon Icon("EditorStyle", "GraphEditor.MakeStruct_16x");
+		static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.MakeStruct_16x");
 		return Icon;
 	}
 	else if (Function && Function->HasMetaData(NativeBrakeFunc))
 	{
-		static FSlateIcon Icon("EditorStyle", "GraphEditor.BreakStruct_16x");
+		static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.BreakStruct_16x");
 		return Icon;
 	}
 	// Check to see if the function is calling an function that could be an event, display the event icon instead.
 	else if (Function && UEdGraphSchema_K2::FunctionCanBePlacedAsEvent(Function))
 	{
-		static FSlateIcon Icon("EditorStyle", "GraphEditor.Event_16x");
+		static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 		return Icon;
 	}
 	else
 	{
 		OutColor = GetPalletteIconColor(Function);
 
-		static FSlateIcon Icon("EditorStyle", "Kismet.AllClasses.FunctionIcon");
+		static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon");
 		return Icon;
 	}
 }

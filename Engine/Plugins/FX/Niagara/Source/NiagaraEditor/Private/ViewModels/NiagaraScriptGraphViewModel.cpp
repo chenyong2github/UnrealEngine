@@ -11,7 +11,7 @@
 #include "ScopedTransaction.h"
 #include "EdGraphUtilities.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeReroute.h"
@@ -38,7 +38,7 @@ FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(TAttribute<FText> InD
 		GEditor->RegisterForUndo(this);
 	}
 
-	ErrorColor = FEditorStyle::GetColor("ErrorReporting.BackgroundColor");
+	ErrorColor = FAppStyle::GetColor("ErrorReporting.BackgroundColor");
 }
 
 FNiagaraScriptGraphViewModel::~FNiagaraScriptGraphViewModel()

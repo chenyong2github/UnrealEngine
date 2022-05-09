@@ -6,7 +6,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
-#include "EditorFontGlyphs.h"
+
 
 #include "PropertySets/AxisFilterPropertyType.h"
 

@@ -4,7 +4,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 
@@ -34,7 +34,7 @@ void  SDeviceProfileEditorSingleProfileView::Construct(const FArguments& InArgs,
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		[
 			SettingsView.ToSharedRef()
 		]

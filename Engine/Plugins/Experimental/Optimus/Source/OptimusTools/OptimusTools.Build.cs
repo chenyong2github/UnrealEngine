@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Slate",
 					"SlateCore",
-					"EditorStyle",
 					"EditorFramework",
 					"Engine",
 					"ToolMenus",

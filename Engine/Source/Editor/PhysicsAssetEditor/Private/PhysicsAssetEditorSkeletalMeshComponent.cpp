@@ -18,7 +18,7 @@
 #include "SkeletalMeshTypes.h"
 #include "AnimPreviewInstance.h"
 #include "UObject/Package.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 namespace
 {
@@ -97,7 +97,7 @@ void UPhysicsAssetEditorSkeletalMeshComponent::DebugDraw(const FSceneView* View,
 	BoneNoCollisionMaterial->SetScalarParameterValue(OpacityName, SharedData->EditorOptions->bSolidRenderingForSelectedOnly ? 0.0f : SharedData->EditorOptions->CollisionOpacity);
 
 	static FName SelectionColorName(TEXT("SelectionColor"));
-	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor(SelectionColorName);
+	const FSlateColor SelectionColor = FAppStyle::GetSlateColor(SelectionColorName);
 	const FLinearColor LinearSelectionColor(SelectionColor.IsColorSpecified() ? SelectionColor.GetSpecifiedColor() : FLinearColor::White);
 
 	ElemSelectedMaterial->SetVectorParameterValue(SelectionColorName, LinearSelectionColor);
@@ -244,7 +244,7 @@ FColor UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveColor(const int32 B
 	FPhysicsAssetEditorSharedData::FSelection Body(BodyIndex, PrimitiveType, PrimitiveIndex);
 
 	static FName SelectionColorName(TEXT("SelectionColor"));
-	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor(SelectionColorName);
+	const FSlateColor SelectionColor = FAppStyle::GetSlateColor(SelectionColorName);
 	const FLinearColor SelectionColorLinear(SelectionColor.IsColorSpecified() ? SelectionColor.GetSpecifiedColor() : FLinearColor::White);
 	const FColor ElemSelectedColor = SelectionColorLinear.ToFColor(true);
 	const FColor ElemSelectedBodyColor = (SelectionColorLinear* 0.5f).ToFColor(true);

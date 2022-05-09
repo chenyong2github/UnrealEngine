@@ -18,8 +18,7 @@ public class AnalyticsMulticastEditor : ModuleRules
 				"EditorFramework",
 				"UnrealEd", // for Asset Editor Subsystem
 				"PropertyEditor",
-				"WorkspaceMenuStructure",
-				"EditorStyle",
+				"WorkspaceMenuStructure",				
 				"EditorWidgets",
 				"Projects",
 				"DeveloperSettings"

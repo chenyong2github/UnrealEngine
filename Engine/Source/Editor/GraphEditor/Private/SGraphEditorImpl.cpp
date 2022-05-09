@@ -11,7 +11,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "GraphEditorModule.h"
 #include "SGraphPanel.h"
@@ -718,7 +718,7 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 		.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)
-			.TextStyle( FEditorStyle::Get(), "Graph.ZoomText" )
+			.TextStyle( FAppStyle::Get(), "Graph.ZoomText" )
 			.Text( this, &SGraphEditorImpl::GetZoomText )
 			.ColorAndOpacity( this, &SGraphEditorImpl::GetZoomTextColorAndOpacity )
 		]
@@ -740,14 +740,14 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 			[
 				SNew(SBorder)
 				.Padding(FMargin(10.f, 4.f))
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.InstructionBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.InstructionBackground")))
 				.BorderBackgroundColor(this, &SGraphEditorImpl::InstructionBorderColor)
 				.HAlign(HAlign_Center)
 				.ColorAndOpacity(this, &SGraphEditorImpl::InstructionTextTint)
 				.Visibility(this, &SGraphEditorImpl::InstructionTextVisibility)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "Graph.InstructionText")
+					.TextStyle(FAppStyle::Get(), "Graph.InstructionText")
 					.Text(this, &SGraphEditorImpl::GetInstructionText)
 				]
 			]			
@@ -761,7 +761,7 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 		[
 			SNew(STextBlock)
 			.Visibility( EVisibility::HitTestInvisible )
-			.TextStyle( FEditorStyle::Get(), "Graph.CornerText" )
+			.TextStyle( FAppStyle::Get(), "Graph.CornerText" )
 			.Text(Appearance.Get().CornerText)
 		]
 
@@ -773,7 +773,7 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 		[
 			SNew(STextBlock)
 			.Visibility(this, &SGraphEditorImpl::PIENotification)
-			.TextStyle( FEditorStyle::Get(), "Graph.SimulatingText" )
+			.TextStyle( FAppStyle::Get(), "Graph.SimulatingText" )
 			.Text( PIENotifyText )
 		]
 
@@ -785,7 +785,7 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 		[
 			SNew(STextBlock)
 			.Visibility(this, &SGraphEditorImpl::ReadOnlyVisibility)
-			.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+			.TextStyle(FAppStyle::Get(), "Graph.CornerText")
 			.Text(ReadOnlyText)
 		]
 

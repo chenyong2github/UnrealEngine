@@ -20,7 +20,6 @@ public class WorldPartitionEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"EditorFramework",
-				"EditorStyle",
 				"Engine",
 				"InputCore",
 				"Slate",

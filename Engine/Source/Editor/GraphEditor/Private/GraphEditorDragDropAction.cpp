@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SGraphPanel.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "SPinTypeSelector.h"
@@ -124,7 +124,7 @@ void FGraphEditorDragDropAction::SetFeedbackMessage(const TSharedPtr<SWidget>& M
 		CursorDecoratorWindow->SetContent
 		(
 			SNew(SBorder)
-			. BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			. BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 			[
 				Message.ToSharedRef()
 			]				
@@ -160,7 +160,7 @@ void FGraphEditorDragDropAction::SetSimpleFeedbackMessage(const FSlateBrush* Ico
 			[
 				SNew(SImage)
 				.Visibility(ErrorIconVisibility)
-				.Image( FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.Error") ))
+				.Image( FAppStyle::GetBrush( TEXT("Graph.ConnectorFeedback.Error") ))
 				.ColorAndOpacity( FLinearColor::White )
 			]
 		]
@@ -216,7 +216,7 @@ void FGraphSchemaActionDragDropAction::HoverTargetChanged()
 
 void FGraphSchemaActionDragDropAction::GetDefaultStatusSymbol(const FSlateBrush*& PrimaryBrushOut, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut) const
 {
-	PrimaryBrushOut = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.NewNode"));
+	PrimaryBrushOut = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.NewNode"));
 	IconColorOut = FLinearColor::White;
 	SecondaryBrushOut = nullptr;
 	SecondaryColorOut = FLinearColor::White;

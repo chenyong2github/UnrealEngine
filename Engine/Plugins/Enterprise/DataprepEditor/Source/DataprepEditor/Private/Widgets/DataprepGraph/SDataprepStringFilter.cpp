@@ -122,7 +122,7 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 						.AutoWidth()
 						[
 							SNew( SButton )
-							.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+							.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 							.ToolTipText_Lambda( [this]()
 							{
 								return Filter->GetMatchInArray() ?
@@ -136,7 +136,7 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 								.Image_Lambda( [this]()
 								{
 									return Filter->GetMatchInArray() ? 
-										FEditorStyle::GetBrush(TEXT("Kismet.VariableList.ArrayTypeIcon")) : FEditorStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
+										FAppStyle::GetBrush(TEXT("Kismet.VariableList.ArrayTypeIcon")) : FAppStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
 								})
 								.ColorAndOpacity( Settings->StringPinTypeColor )
 							]

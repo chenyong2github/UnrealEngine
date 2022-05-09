@@ -20,7 +20,6 @@ public class SkeletalMeshEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
                 "UnrealEd",
                 "SkeletonEditor",

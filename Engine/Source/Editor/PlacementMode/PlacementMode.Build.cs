@@ -24,7 +24,6 @@ public class PlacementMode : ModuleRules
                 "LevelEditor",
                 "AssetTools",
                 "ToolMenus",
-                "EditorStyle"
             } 
         );
     }

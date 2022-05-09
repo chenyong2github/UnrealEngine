@@ -326,7 +326,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.SelectFirst")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.SelectFirst")
 			.ContentPadding(2.0f)
 			.ToolTipText(LOCTEXT("SelectFirstSplinePointToolTip", "Select first spline point."))
 			.OnClicked(this, &FSplinePointDetails::OnSelectFirstLastSplinePoint, true)
@@ -337,7 +337,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.AddPrev")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.AddPrev")
 			.ContentPadding(2.f)
 			.ToolTipText(LOCTEXT("SelectAddPrevSplinePointToolTip", "Add previous spline point to current selection."))
 			.OnClicked(this, &FSplinePointDetails::OnSelectPrevNextSplinePoint, false, true)
@@ -349,7 +349,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.SelectPrev")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.SelectPrev")
 			.ContentPadding(2.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -363,7 +363,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.SelectAll")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.SelectAll")
 			.ContentPadding(2.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -376,7 +376,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.SelectNext")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.SelectNext")
 			.ContentPadding(2.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -390,7 +390,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.AddNext")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.AddNext")
 			.ContentPadding(2.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -404,7 +404,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 		.Padding(ButtonPadding)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "SplineComponentDetails.SelectLast")
+			.ButtonStyle(FAppStyle::Get(), "SplineComponentDetails.SelectLast")
 			.ContentPadding(2.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -1324,7 +1324,7 @@ TSharedRef<SWidget> FSplinePointDetails::BuildSplinePointPropertyLabel(ESplinePo
 	return
 		SNew(SComboButton)
 		.ContentPadding(0)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.ForegroundColor(FSlateColor::UseForeground())
 		.MenuContent()
 		[

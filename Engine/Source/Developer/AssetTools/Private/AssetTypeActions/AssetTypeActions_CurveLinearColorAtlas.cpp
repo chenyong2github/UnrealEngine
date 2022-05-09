@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_CurveLinearColorAtlas.h"
 #include "ToolMenus.h"
 #include "Engine/Texture2D.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"

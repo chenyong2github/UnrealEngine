@@ -3,7 +3,7 @@
 #include "STimecodeProvider.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Misc/App.h"
 #include "Widgets/SBoxPanel.h"
@@ -17,7 +17,7 @@ void STimecodeProvider::Construct(const FArguments& InArgs)
 	OverrideTimecodeProvider = InArgs._OverrideTimecodeProvider;
 
 	TSharedRef<SWidget> StateWidget = InArgs._DisplaySynchronizationState ? SNew(STextBlock)
-		.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 		.Text(this, &STimecodeProvider::HandleStateText)
 		.ColorAndOpacity(this, &STimecodeProvider::HandleIconColorAndOpacity)
 		: SNullWidget::NullWidget;

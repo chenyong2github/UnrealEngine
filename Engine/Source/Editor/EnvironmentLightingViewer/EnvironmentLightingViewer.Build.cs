@@ -22,7 +22,6 @@ public class EnvironmentLightingViewer : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"UnrealEd",
                 "Settings",
             }

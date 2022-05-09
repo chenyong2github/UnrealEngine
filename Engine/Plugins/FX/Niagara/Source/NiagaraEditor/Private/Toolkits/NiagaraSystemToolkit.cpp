@@ -32,6 +32,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 
+#include "Styling/AppStyle.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "ScopedTransaction.h"
 

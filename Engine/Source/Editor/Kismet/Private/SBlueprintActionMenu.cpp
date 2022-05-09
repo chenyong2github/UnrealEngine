@@ -11,7 +11,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "EdGraphSchema_K2.h"
 #include "SBlueprintPalette.h"
@@ -116,7 +116,7 @@ public:
 					.ToolTipText(this, &SBlueprintActionFavoriteToggle::GetToolTipText)
 					.IsChecked(this, &SBlueprintActionFavoriteToggle::GetFavoritedState)
 					.OnCheckStateChanged(this, &SBlueprintActionFavoriteToggle::OnFavoriteToggled)
-					.Style(FEditorStyle::Get(), "Kismet.Palette.FavoriteToggleStyle")
+					.Style(FAppStyle::Get(), "Kismet.Palette.FavoriteToggleStyle")
 			]
 		];
 	}
@@ -247,7 +247,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 		{
 			// Get the type color and icon
 			TypeColor = Schema->GetPinTypeColor(OnePin->PinType);
-			ContextIcon = FEditorStyle::GetBrush( OnePin->PinType.IsArray() ? TEXT("Graph.ArrayPin.Connected") : TEXT("Graph.Pin.Connected") );
+			ContextIcon = FAppStyle::GetBrush( OnePin->PinType.IsArray() ? TEXT("Graph.ArrayPin.Connected") : TEXT("Graph.Pin.Connected") );
 		}
 	}
 
@@ -285,7 +285,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 	SAssignNew(TargetContextSubMenuButton, SComboButton)
 		.MenuPlacement(MenuPlacement_MenuRight)
 		.HasDownArrow(false)
-		.ButtonStyle(FEditorStyle::Get(), "BlueprintEditor.ContextMenu.TargetsButton")
+		.ButtonStyle(FAppStyle::Get(), "BlueprintEditor.ContextMenu.TargetsButton")
 		.ContentPadding(FMargin(5))
 		.MenuContent()
 		[
@@ -299,7 +299,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		.Padding(5)
 		[
 			// Achieving fixed width by nesting items within a fixed width box.
@@ -335,7 +335,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 					[
 						SNew(STextBlock)
 						.Text(this, &SBlueprintActionMenu::GetSearchContextDesc)
-						.Font(FEditorStyle::GetFontStyle(FName("BlueprintEditor.ActionMenu.ContextDescriptionFont")))
+						.Font(FAppStyle::GetFontStyle(FName("BlueprintEditor.ActionMenu.ContextDescriptionFont")))
 						.ToolTip(IDocumentation::Get()->CreateToolTip(
 							LOCTEXT("BlueprintActionMenuContextTextTooltip", "Describes the current context of the action list"),
 							NULL,

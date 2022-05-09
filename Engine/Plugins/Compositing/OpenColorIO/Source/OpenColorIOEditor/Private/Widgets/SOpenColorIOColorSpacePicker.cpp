@@ -2,7 +2,7 @@
 
 #include "SOpenColorIOColorSpacePicker.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "OpenColorIOConfiguration.h"
 #include "SResetToDefaultMenu.h"
@@ -60,12 +60,12 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 			SNew(SButton)
 			.ContentPadding(0)
 			.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton") 
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton") 
 			.OnClicked(this, &SOpenColorIOColorSpacePicker::OnResetToDefault)
 			.Visibility(this, &SOpenColorIOColorSpacePicker::ShouldShowResetToDefaultButton)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 			]
 		]
 	];

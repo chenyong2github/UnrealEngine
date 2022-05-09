@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyHandle.h"
 #include "IDetailPropertyRow.h"
+#include "Styling/AppStyle.h"
 
 class IDetailCategoryBuilder;
 class IDetailsView;
@@ -41,17 +42,17 @@ public:
 	/**
 	 * @return the font used for properties and details
 	 */ 
-	static FSlateFontInfo GetDetailFont() { return FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ); }
+	static FSlateFontInfo GetDetailFont() { return FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ); }
 
 	/**
 	 * @return the bold font used for properties and details
 	 */ 
-	static FSlateFontInfo GetDetailFontBold() { return FEditorStyle::GetFontStyle( TEXT("PropertyWindow.BoldFont") ); }
+	static FSlateFontInfo GetDetailFontBold() { return FAppStyle::GetFontStyle( TEXT("PropertyWindow.BoldFont") ); }
 	
 	/**
 	 * @return the italic font used for properties and details
 	 */ 
-	static FSlateFontInfo GetDetailFontItalic() { return FEditorStyle::GetFontStyle( TEXT("PropertyWindow.ItalicFont") ); }
+	static FSlateFontInfo GetDetailFontItalic() { return FAppStyle::GetFontStyle( TEXT("PropertyWindow.ItalicFont") ); }
 	
 	/**
 	 * @return the parent detail view for this layout builder

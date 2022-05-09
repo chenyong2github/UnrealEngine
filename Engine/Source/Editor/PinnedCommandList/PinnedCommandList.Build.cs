@@ -30,7 +30,6 @@ public class PinnedCommandList : ModuleRules
 				"ApplicationCore",
                 "Slate",
                 "SlateCore",
-                "EditorStyle",
                 "InputCore",
             }
         );

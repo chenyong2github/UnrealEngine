@@ -6,7 +6,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SWindow.h"
 #include "Misc/MessageDialog.h"
 #include "GameplayTagsModule.h"
@@ -155,7 +155,7 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -172,12 +172,12 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 					SNew( SCheckBox )
 					.IsChecked(this, &SGameplayTagWidget::GetAddTagSectionExpansionState) 
 					.OnCheckStateChanged(this, &SGameplayTagWidget::OnAddTagSectionExpansionStateChanged)
-					.CheckedImage(FEditorStyle::GetBrush("TreeArrow_Expanded"))
-					.CheckedHoveredImage(FEditorStyle::GetBrush("TreeArrow_Expanded_Hovered"))
-					.CheckedPressedImage(FEditorStyle::GetBrush("TreeArrow_Expanded"))
-					.UncheckedImage(FEditorStyle::GetBrush("TreeArrow_Collapsed"))
-					.UncheckedHoveredImage(FEditorStyle::GetBrush("TreeArrow_Collapsed_Hovered"))
-					.UncheckedPressedImage(FEditorStyle::GetBrush("TreeArrow_Collapsed"))
+					.CheckedImage(FAppStyle::GetBrush("TreeArrow_Expanded"))
+					.CheckedHoveredImage(FAppStyle::GetBrush("TreeArrow_Expanded_Hovered"))
+					.CheckedPressedImage(FAppStyle::GetBrush("TreeArrow_Expanded"))
+					.UncheckedImage(FAppStyle::GetBrush("TreeArrow_Collapsed"))
+					.UncheckedHoveredImage(FAppStyle::GetBrush("TreeArrow_Collapsed_Hovered"))
+					.UncheckedPressedImage(FAppStyle::GetBrush("TreeArrow_Collapsed"))
 					.Visibility( this, &SGameplayTagWidget::DetermineExpandableUIVisibility )
 					[
 						SNew( STextBlock )
@@ -224,12 +224,12 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 					SNew(SCheckBox)
 					.IsChecked(this, &SGameplayTagWidget::GetAddSourceSectionExpansionState)
 					.OnCheckStateChanged(this, &SGameplayTagWidget::OnAddSourceSectionExpansionStateChanged)
-					.CheckedImage(FEditorStyle::GetBrush("TreeArrow_Expanded"))
-					.CheckedHoveredImage(FEditorStyle::GetBrush("TreeArrow_Expanded_Hovered"))
-					.CheckedPressedImage(FEditorStyle::GetBrush("TreeArrow_Expanded"))
-					.UncheckedImage(FEditorStyle::GetBrush("TreeArrow_Collapsed"))
-					.UncheckedHoveredImage(FEditorStyle::GetBrush("TreeArrow_Collapsed_Hovered"))
-					.UncheckedPressedImage(FEditorStyle::GetBrush("TreeArrow_Collapsed"))
+					.CheckedImage(FAppStyle::GetBrush("TreeArrow_Expanded"))
+					.CheckedHoveredImage(FAppStyle::GetBrush("TreeArrow_Expanded_Hovered"))
+					.CheckedPressedImage(FAppStyle::GetBrush("TreeArrow_Expanded"))
+					.UncheckedImage(FAppStyle::GetBrush("TreeArrow_Collapsed"))
+					.UncheckedHoveredImage(FAppStyle::GetBrush("TreeArrow_Collapsed_Hovered"))
+					.UncheckedPressedImage(FAppStyle::GetBrush("TreeArrow_Collapsed"))
 					.Visibility(this, &SGameplayTagWidget::DetermineAddNewSourceExpandableUIVisibility)
 					[
 						SNew(STextBlock)
@@ -499,7 +499,7 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 	}
 
 	return SNew(STableRow< TSharedPtr<FGameplayTagNode> >, OwnerTable)
-		.Style(FEditorStyle::Get(), "GameplayTagTreeView")
+		.Style(FAppStyle::Get(), "GameplayTagTreeView")
 		[
 			SNew( SHorizontalBox )
 
@@ -552,7 +552,7 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 				SNew( SButton )
 				.ToolTipText( LOCTEXT("AddSubtag", "Add Subtag") )
 				.Visibility(this, &SGameplayTagWidget::DetermineAddNewSubTagWidgetVisibility, InItem)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked( this, &SGameplayTagWidget::OnAddSubtagClicked, InItem )
 				.DesiredSizeScale(FVector2D(0.75f, 0.75f))
 				.ContentPadding(4.0f)
@@ -561,7 +561,7 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 				.IsFocusable( false )
 				[
 					SNew( SImage )
-					.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+					.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -573,7 +573,7 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 			[
 				SNew( SComboButton )
 				.ToolTipText( LOCTEXT("MoreActions", "More Actions...") )
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ContentPadding(0)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.HasDownArrow(true)

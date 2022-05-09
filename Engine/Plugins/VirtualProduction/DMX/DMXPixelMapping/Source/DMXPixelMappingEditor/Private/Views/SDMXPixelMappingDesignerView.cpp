@@ -54,7 +54,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+				.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 				.HAlign(HAlign_Fill)
 				[
 					SNew(SHorizontalBox)
@@ -68,14 +68,14 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 						[
 							SNew(STextBlock)
 							.Text(this, &SDMXPixelMappingDesignerView::GetHoveredComponentParentNameText)
-							.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+							.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 						]
 						+SHorizontalBox::Slot()
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter"))
+							.Image(FAppStyle::GetBrush("BreadcrumbTrail.Delimiter"))
 						]
 						+SHorizontalBox::Slot()
 						.AutoWidth()
@@ -83,7 +83,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 						[
 							SNew(STextBlock)
 							.Text(this, &SDMXPixelMappingDesignerView::GetHoveredComponentNameText)
-							.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+							.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 						]
 					]
 				]

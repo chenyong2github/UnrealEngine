@@ -10,7 +10,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 
@@ -119,7 +119,7 @@ void SNPToolbar::Construct(const FArguments& InArgs, TSharedPtr<SNPWindow> InPar
 				[
 					SNew(STextBlock)
 					//.TextStyle(FSourceFilterStyle::Get(), "SourceFilter.TextStyle")
-					//.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					//.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FText::FromString(FString(TEXT("\xf0b0"))))
 				]*/
 				+SHorizontalBox::Slot()
@@ -165,7 +165,7 @@ void SNPToolbar::Construct(const FArguments& InArgs, TSharedPtr<SNPWindow> InPar
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 				[
 					ToolbarBuilder.MakeWidget()
@@ -216,7 +216,7 @@ void SNPToolbar::Construct(const FArguments& InArgs, TSharedPtr<SNPWindow> InPar
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 				[
 					SNew(SNumericEntryBox<uint64>)

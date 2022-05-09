@@ -10,7 +10,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
@@ -29,8 +29,8 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(TArray<TSharedPtr<FOutputLogMessage>>(), &Filter);
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
-		.Style(FEditorStyle::Get(), "Log.TextBox")
-		.TextStyle(FEditorStyle::Get(), "Log.Normal")
+		.Style(FAppStyle::Get(), "Log.TextBox")
+		.TextStyle(FAppStyle::Get(), "Log.Normal")
 		.ForegroundColor(FLinearColor::Gray)
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
@@ -59,7 +59,7 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				[
 					SAssignNew(TargetDeviceComboButton, SComboButton)
-					.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+					.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 					.ForegroundColor(FLinearColor::White)
 					.OnGetMenuContent(this, &SDeviceOutputLog::MakeDeviceComboButtonMenu)
 					.ContentPadding(FMargin(4.0f, 0.0f))
@@ -81,7 +81,7 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+							.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
 							.Text(this, &SDeviceOutputLog::GetSelectedTargetDeviceText)
 						]
 					]
@@ -278,7 +278,7 @@ void SDeviceOutputLog::AddDeviceEntry(ITargetDeviceRef TargetDevice)
 	TSharedPtr<FTargetDeviceEntry> DeviceEntry = MakeShareable(new FTargetDeviceEntry());
 	
 	DeviceEntry->DeviceId = TargetDevice->GetId();
-	DeviceEntry->DeviceIconBrush = FEditorStyle::GetBrush(DeviceIconStyleName);
+	DeviceEntry->DeviceIconBrush = FAppStyle::GetBrush(DeviceIconStyleName);
 	DeviceEntry->DeviceWeakPtr = TargetDevice;
 	
 	DeviceList.Add(DeviceEntry);
@@ -364,7 +364,7 @@ const FSlateBrush* SDeviceOutputLog::GetTargetDeviceBrush(FTargetDeviceEntryPtr 
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("Launcher.Instance_Unknown");
+		return FAppStyle::GetBrush("Launcher.Instance_Unknown");
 	}
 }
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 /*-----------------------------------------------------------------------------
@@ -15,7 +15,7 @@ class FCascadeCommands : public TCommands<FCascadeCommands>
 public:
 	/** Constructor */
 	FCascadeCommands() 
-		: TCommands<FCascadeCommands>("Cascade", NSLOCTEXT("Contexts", "Cascade", "Cascade"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FCascadeCommands>("Cascade", NSLOCTEXT("Contexts", "Cascade", "Cascade"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 	

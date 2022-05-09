@@ -11,7 +11,7 @@
 #include "EngineGlobals.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Engine.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Framework/Application/SlateApplication.h"
@@ -81,7 +81,7 @@ public:
 				.WidthOverride(100.0f)
 				[
 					SNew(SNumericEntryBox<float>)
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.ToolTipText(LOCTEXT("WindStrength_ToolTip", "Change wind strength"))
 					.MinValue(0)
 					.AllowSpin(true)
@@ -132,7 +132,7 @@ public:
 				.WidthOverride(100.0f)
 				[
 					SNew(SSpinBox<float>)
-					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 					.ToolTipText(LOCTEXT("GravityScale_ToolTip", "Change gravity scale"))
 					.MinValue(0)
 					.MaxValue(4)
@@ -276,7 +276,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 			.ToolTipText(LOCTEXT("PlaybackSpeedMenuTooltip", "Playback Speed Options. Control the time dilation of the scene's update.\nShift-clicking items will 'pin' them to the toolbar."))
 			.ParentToolBar(SharedThis(this))
 			.Label(this, &SAnimViewportToolBar::GetPlaybackMenuLabel)
-			.LabelIcon(FEditorStyle::GetBrush("AnimViewportMenu.PlayBackSpeed"))
+			.LabelIcon(FAppStyle::GetBrush("AnimViewportMenu.PlayBackSpeed"))
 			.OnGetMenuContent(this, &SAnimViewportToolBar::GeneratePlaybackMenu)
 		]
 		+ SHorizontalBox::Slot()
@@ -297,7 +297,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 	// Create our pinned commands before we bind commands
 	IPinnedCommandListModule& PinnedCommandListModule = FModuleManager::LoadModuleChecked<IPinnedCommandListModule>(TEXT("PinnedCommandList"));
 	PinnedCommands = PinnedCommandListModule.CreatePinnedCommandList((InArgs._ContextName != NAME_None) ? InArgs._ContextName : TEXT("PersonaViewport"));
-	PinnedCommands->SetStyle(&FEditorStyle::Get(), TEXT("ViewportPinnedCommandList"));
+	PinnedCommands->SetStyle(&FAppStyle::Get(), TEXT("ViewportPinnedCommandList"));
 
 	ChildSlot
 	[
@@ -322,9 +322,9 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 		[
 			// Display text (e.g., item being previewed)
 			SNew(SRichTextBlock)
-			.DecoratorStyleSet(&FEditorStyle::Get())
+			.DecoratorStyleSet(&FAppStyle::Get())
 			.Text(InViewport.Get(), &SAnimationEditorViewportTabBody::GetDisplayString)
-			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimViewport.MessageText"))
+			.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimViewport.MessageText"))
 		]
 	];
 	
@@ -358,7 +358,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFloorOffsetWidget() const
 			.WidthOverride(100.0f)
 			[
 				SNew(SSpinBox<float>)
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.MinSliderValue(-100.0f)
 				.MaxSliderValue(100.0f)
 				.Value(this, &SAnimViewportToolBar::OnGetFloorOffset)
@@ -384,7 +384,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFOVWidget() const
 			.WidthOverride(100.0f)
 			[
 				SNew(SNumericEntryBox<float>)
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.AllowSpin(true)
 				.MinValue(FOVMin)
 				.MaxValue(FOVMax)
@@ -400,12 +400,12 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFOVWidget() const
 TSharedRef<SWidget> SAnimViewportToolBar::MakeFollowBoneComboWidget() const
 {
 	TSharedRef<SComboButton> ComboButton = SNew(SComboButton)
-		.ComboButtonStyle(FEditorStyle::Get(), "ViewportPinnedCommandList.ComboButton")
+		.ComboButtonStyle(FAppStyle::Get(), "ViewportPinnedCommandList.ComboButton")
 		.ContentPadding(0.0f)
 		.ButtonContent()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ViewportPinnedCommandList.Label")
+			.TextStyle(FAppStyle::Get(), "ViewportPinnedCommandList.Label")
 			.Text_Lambda([this]()
 			{ 
 				const FName BoneName = Viewport.Pin()->GetCameraFollowBoneName();
@@ -505,7 +505,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateViewMenu() const
 				LOCTEXT("TurnTableTooltip", "Set up auto-rotation of preview."),
 				FNewMenuDelegate::CreateRaw(this, &SAnimViewportToolBar::GenerateTurnTableMenu),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.TurnTableSpeed")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.TurnTableSpeed")
 				);
 		}
 	}
@@ -538,7 +538,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateViewMenu() const
 				InSubMenuBuilder.EndSection();
 			}),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.CameraFollow")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.CameraFollow")
 			);
 
 		InMenuBuilder.AddWidget(MakeFOVWidget(), LOCTEXT("Viewport_FOVLabel", "Field Of View"));
@@ -1014,7 +1014,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateViewportTypeMenu() const
 
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder InMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList, MenuExtender);
-	InMenuBuilder.SetStyle(&FEditorStyle::Get(), "Menu");
+	InMenuBuilder.SetStyle(&FAppStyle::Get(), "Menu");
 	InMenuBuilder.PushCommandList(CommandList.ToSharedRef());
 	InMenuBuilder.PushExtender(MenuExtender.ToSharedRef());
 
@@ -1297,7 +1297,7 @@ TSharedRef<FExtender> SAnimViewportToolBar::GetViewMenuExtender(TSharedPtr<class
 				"VisualizeBufferViewMode",
 				EUserInterfaceActionType::RadioButton,
 				/* bInOpenSubMenuOnClick = */ false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode")
+				FSlateIcon(FAppStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode")
 				);
 		}));
 

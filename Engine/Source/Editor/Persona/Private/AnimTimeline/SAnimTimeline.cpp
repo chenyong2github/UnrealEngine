@@ -13,7 +13,7 @@
 #include "FrameNumberNumericInterface.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -186,7 +186,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 							[
 								// Current Play Time 
 								SNew(SSpinBox<double>)
-								.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.PlayTimeSpinBox"))
+								.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.PlayTimeSpinBox"))
 								.Value_Lambda([this]() -> double
 								{
 									return Model.Pin()->GetScrubPosition().Value;
@@ -269,7 +269,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 					.RowSpan(2)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SSpacer)
 						]
@@ -279,7 +279,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 					.Padding(ResizeBarPadding)
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						.BorderBackgroundColor( FLinearColor(.50f, .50f, .50f, 1.0f ) )
 						.Padding(0)
 						.Clipping(EWidgetClipping::ClipToBounds)
@@ -297,7 +297,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 						.DisplayScrubPosition( false )
 						.DisplayTickLines( true )
 						.Clipping(EWidgetClipping::ClipToBounds)
-						.PaintPlaybackRangeArgs(FPaintPlaybackRangeArgs(FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_L"), FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_R"), 6.f))
+						.PaintPlaybackRangeArgs(FPaintPlaybackRangeArgs(FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_L"), FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_R"), 6.f))
 					]
 
 					// Overlay that draws the scrub position
@@ -316,7 +316,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 					.Padding(ResizeBarPadding)
 					[
 						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						.BorderBackgroundColor( FLinearColor(0.5f, 0.5f, 0.5f, 1.0f ) )
 						.Clipping(EWidgetClipping::ClipToBounds)
 						.Padding(0)
@@ -329,7 +329,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 				[
 					// track area virtual splitter overlay
 					SNew(SAnimTimelineSplitterOverlay)
-					.Style(FEditorStyle::Get(), "AnimTimeline.Outliner.Splitter")
+					.Style(FAppStyle::Get(), "AnimTimeline.Outliner.Splitter")
 					.Visibility(EVisibility::SelfHitTestInvisible)
 
 					+ SSplitter::Slot()

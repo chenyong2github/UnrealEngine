@@ -15,7 +15,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/FbxAnimSequenceImportData.h"
 #include "IDocumentation.h"
 #include "PropertyEditorModule.h"
@@ -86,7 +86,7 @@ void SFbxSkeltonConflictWindow::Construct(const FArguments& InArgs)
 			.FillHeight(1.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
@@ -144,7 +144,7 @@ EVisibility SFbxSkeltonConflictWindow::IsSectionVisible(EFBXCompareSection Secti
 
 const FSlateBrush* SFbxSkeltonConflictWindow::GetCollapsableArrow(EFBXCompareSection SectionIndex) const
 {
-	return bShowSectionFlag[SectionIndex] ? FEditorStyle::GetBrush("Symbols.DownArrow") : FEditorStyle::GetBrush("Symbols.RightArrow");
+	return bShowSectionFlag[SectionIndex] ? FAppStyle::GetBrush("Symbols.DownArrow") : FAppStyle::GetBrush("Symbols.RightArrow");
 }
 
 void RecursivelyExpandTreeItem(TSharedPtr<STreeView<TSharedPtr<FSkeletonCompareData>>> CompareTree, TSharedPtr<FSkeletonCompareData> RowData)
@@ -189,7 +189,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonComparison()
 	[
 		SNew(SBorder)
 		.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -204,7 +204,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonComparison()
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.IsFocusable(false)
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.OnClicked(this, &SFbxSkeltonConflictWindow::SetSectionVisible, EFBXCompareSection_Skeleton)
 					[
 						SNew(SImage).Image(this, &SFbxSkeltonConflictWindow::GetCollapsableArrow, EFBXCompareSection_Skeleton)
@@ -214,7 +214,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonComparison()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.Text(LOCTEXT("SFbxSkeltonConflictWindow_SkeletonCompareHeader", "Skeleton"))
 				]
 			]
@@ -227,7 +227,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonComparison()
 				[
 					SNew(SBorder)
 					.Padding(FMargin(3))
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 					[
 						SNew(SVerticalBox)
 						+SVerticalBox::Slot()
@@ -235,7 +235,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonComparison()
 						.Padding(2)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 							.Text(SkeletonStatus)
 							.ColorAndOpacity(ResultData->CompSkeleton.bSkeletonFitMesh ? FSlateColor::UseForeground() : FSlateColor(FLinearColor(0.7f, 0.3f, 0.0f)))
 						]
@@ -277,7 +277,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonReference()
 	[
 		SNew(SBorder)
 		.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -292,7 +292,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonReference()
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.IsFocusable(false)
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.OnClicked(this, &SFbxSkeltonConflictWindow::SetSectionVisible, EFBXCompareSection_References)
 					[
 						SNew(SImage).Image(this, &SFbxSkeltonConflictWindow::GetCollapsableArrow, EFBXCompareSection_References)
@@ -302,7 +302,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonReference()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.Text(LOCTEXT("SFbxSkeltonConflictWindow_SkeletonReferencesHeader", "References"))
 				]
 			]
@@ -315,7 +315,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonReference()
 				[
 					SNew(SBorder)
 					.Padding(FMargin(3))
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 					[
 						SNew(SVerticalBox)
 						+SVerticalBox::Slot()
@@ -323,7 +323,7 @@ TSharedPtr<SWidget> SFbxSkeltonConflictWindow::ConstructSkeletonReference()
 						.Padding(2)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 							.Text(FText::FromString(SkeletonReferenceStatistic))
 						]
 						+SVerticalBox::Slot()
@@ -381,7 +381,7 @@ public:
 		check(SourceData != nullptr);
 		check(ResultData != nullptr);
 
-		const FSlateBrush* JointIcon = SkeletonCompareData->bMatchJoint ? FEditorStyle::GetDefaultBrush() : SkeletonCompareData->FbxJointIndex != INDEX_NONE ? FEditorStyle::GetBrush("FBXIcon.ReimportCompareAdd") : FEditorStyle::GetBrush("FBXIcon.ReimportCompareRemoved");
+		const FSlateBrush* JointIcon = SkeletonCompareData->bMatchJoint ? FAppStyle::GetDefaultBrush() : SkeletonCompareData->FbxJointIndex != INDEX_NONE ? FAppStyle::GetBrush("FBXIcon.ReimportCompareAdd") : FAppStyle::GetBrush("FBXIcon.ReimportCompareRemoved");
 
 		//Prepare the tooltip
 		FString Tooltip = SkeletonCompareData->bMatchJoint ? TEXT("") : FText(SkeletonCompareData->FbxJointIndex != INDEX_NONE ? LOCTEXT("SCompareSkeletonTreeViewItem_AddJoint_tooltip", "Fbx reimport will add this joint") : LOCTEXT("SCompareSkeletonTreeViewItem_RemoveJoint_tooltip", "Fbx reimport will remove this joint")).ToString();
@@ -403,7 +403,7 @@ public:
 				[
 					SNew(SImage)
 					.Image(JointIcon)
-					.Visibility(JointIcon != FEditorStyle::GetDefaultBrush() ? EVisibility::Visible : EVisibility::Collapsed)
+					.Visibility(JointIcon != FAppStyle::GetDefaultBrush() ? EVisibility::Visible : EVisibility::Collapsed)
 				]
 				+ SHorizontalBox::Slot()
 				.FillWidth(1.0f)
@@ -460,7 +460,7 @@ TSharedRef<ITableRow> SFbxSkeltonConflictWindow::OnGenerateRowAssetReferencingSk
 	return SNew(STableRow<TSharedPtr<FString> >, OwnerTable)
 		[
 			SNew(SBorder)
-			.BorderImage(LightBackgroundColor ? FEditorStyle::GetBrush("ToolPanel.GroupBorder") : FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(LightBackgroundColor ? FAppStyle::GetBrush("ToolPanel.GroupBorder") : FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(*(InItem.Get())))

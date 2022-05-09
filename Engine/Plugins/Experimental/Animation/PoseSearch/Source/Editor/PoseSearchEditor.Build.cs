@@ -32,7 +32,6 @@ public class PoseSearchEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"RewindDebuggerInterface",
-				"EditorStyle",
 				"UnrealEd",
 				"InputCore"
 			}

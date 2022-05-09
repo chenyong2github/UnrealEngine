@@ -23,7 +23,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimBlueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
@@ -78,7 +78,7 @@ public:
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::Visible)
-			.BorderImage(FEditorStyle::GetBrush("ChildWindow.Background"))
+			.BorderImage(FAppStyle::GetBrush("ChildWindow.Background"))
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()
@@ -95,7 +95,7 @@ public:
 						.HeightOverride(400.0f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
+							.BorderImage(FAppStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
 							[	
 								SNew(SVerticalBox)
 								+SVerticalBox::Slot()
@@ -114,14 +114,14 @@ public:
 									[
 										SNew(STextBlock)
 										.Text(LOCTEXT("SpecificSkeleton", "Specific Skeleton"))
-										.TextStyle( FEditorStyle::Get(), "NormalText" )
-										.ToolTipText(LOCTEXT("SpecoficSkeletonTooltip", "Choose a specific skeleton to bind your new Animation Blueprint to. The Blueprint will be able to use assets that are compatible with this skeleton."))
+										.TextStyle( FAppStyle::Get(), "NormalText" )
+										.ToolTipText(LOCTEXT("SpecificSkeletonTooltip", "Choose a specific skeleton to bind your new Animation Blueprint to. The Blueprint will be able to use assets that are compatible with this skeleton."))
 									]
 									+SSegmentedControl<bool>::Slot(true)
 									[
 										SNew(STextBlock)
 										.Text(LOCTEXT("Template", "Template"))
-										.TextStyle(FEditorStyle::Get(), "NormalText")
+										.TextStyle(FAppStyle::Get(), "NormalText")
 										.ToolTipText(TemplateDesc)
 									]
 								]
@@ -142,7 +142,7 @@ public:
 										.Justification(ETextJustify::Center)
 										.AutoWrapText(true)
 										.Text(TemplateDesc)
-										.TextStyle(FEditorStyle::Get(), "NormalText")
+										.TextStyle(FAppStyle::Get(), "NormalText")
 									]
 								]
 							]
@@ -153,7 +153,7 @@ public:
 					.Padding(10.0f, 0.0f, 10.0f, 0.0f)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
+						.BorderImage(FAppStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
 						[
 							MakeParentClassPicker()
 						]
@@ -276,7 +276,7 @@ private:
 					{
 						return FText::Format(LOCTEXT("ParentClassFormat", "Parent Class: {0}"), FText::FromString(ParentClass->GetName()));
 					})
-					.TextStyle( FEditorStyle::Get(), "NormalText" )
+					.TextStyle( FAppStyle::Get(), "NormalText" )
 				]
 			]
 			.BodyContent()

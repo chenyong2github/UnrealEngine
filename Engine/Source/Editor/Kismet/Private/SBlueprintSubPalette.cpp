@@ -9,7 +9,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SToolTip.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node.h"
 #include "EdGraphSchema_K2_Actions.h"
@@ -176,7 +176,7 @@ public:
 		( "BlueprintPalette"
 		, LOCTEXT("PaletteContext", "Palette")
 		, NAME_None
-		, FEditorStyle::GetStyleSetName() )
+		, FAppStyle::GetAppStyleSetName() )
 	{
 	}
 
@@ -230,7 +230,7 @@ void SBlueprintSubPalette::Construct(FArguments const& InArgs, TWeakPtr<FBluepri
  	[
 		SNew(SBorder)
 		.Padding(2.f)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew( SVerticalBox )
 			+SVerticalBox::Slot()
@@ -485,7 +485,7 @@ TSharedRef<SVerticalBox> SBlueprintSubPalette::ConstructHeadingWidget(FSlateBrus
 			SNew(SBorder)
 			// use the border's padding to actually create the horizontal line
 			.Padding(1.f)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Separator")))
 		];	
 }
 

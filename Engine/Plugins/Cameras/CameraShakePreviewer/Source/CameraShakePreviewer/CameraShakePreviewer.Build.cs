@@ -20,7 +20,6 @@ public class CameraShakePreviewer : ModuleRules
 				"ApplicationCore",
 				"SlateCore",
 				"AppFramework",
-				"EditorStyle",
 				"GameplayCameras",
 				"LevelEditor",
 				"PropertyEditor",

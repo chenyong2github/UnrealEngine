@@ -2,9 +2,8 @@
 
 #include "SNiagaraDebugger.h"
 #include "SNiagaraDebuggerSpawn.h"
-#include "Editor/EditorStyle/Private/SlateEditorStyle.h"
 #include "NiagaraEditorStyle.h"
-
+#include "Styling/AppStyle.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Modules/ModuleManager.h"
@@ -153,9 +152,9 @@ namespace NiagaraPerformanceTab
 				.AutoWidth()
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
@@ -334,7 +333,7 @@ namespace NiagaraOutlinerTab
  			// Capture delay
  			{
 				TSharedRef<SWidget> DelayWidget = SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.Padding(FMargin(3.0, 0.0f, 3.0f, 0.0f))
 				.ToolTipText(LOCTEXT("OutlinerDelayTooltip", "Number of frames to delay between a capture being triggered and it being taken.\nThis provides time to affect the scene and also defines the length of time performance data is gathered."))				
 				[
@@ -451,7 +450,7 @@ namespace NiagaraOutlinerTab
 				.OnGetMenuContent(FOnGetContent::CreateLambda([Debugger, FiltersData, FilterDetails]()
 				{
 					return SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+						.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 						.Padding(FMargin(2))
 						[
 							FilterDetails->GetWidget().ToSharedRef()
@@ -505,7 +504,7 @@ namespace NiagaraOutlinerTab
 								NAME_None,
 								LOCTEXT("SortDecsending", "Descending"),
 								LOCTEXT("SortDecsendingTooltip", "Sort Descending or Ascending"),
-								FSlateIcon(FSlateEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.Misc.SortDescending"),
 								EUserInterfaceActionType::ToggleButton
 								);
 				}
@@ -1117,7 +1116,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 			NAME_None,
 			LOCTEXT("Refresh", "Refresh"),
 			LOCTEXT("RefreshTooltip", "Refesh the settings on the target device.  Used if we get out of sync."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Refresh")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Refresh")
 		);
 	}
 
@@ -1214,7 +1213,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 			FOnGetContent::CreateSP(this, &SNiagaraDebugger::MakePlaybackOptionsMenu),
 			FText(),
 			LOCTEXT("PlaybackOptionsTooltip", "Additional options to control playback."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MaterialEditor.ToggleMaterialStats"),
 			true
 		);
 	}

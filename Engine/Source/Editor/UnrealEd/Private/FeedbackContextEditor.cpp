@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Dialogs/SBuildProgress.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -142,7 +142,7 @@ public:
 		}
 
 		SBorder::Construct( SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("Brushes.Header"))
+			.BorderImage(FAppStyle::GetBrush("Brushes.Header"))
 			.VAlign(VAlign_Center)
 			.Padding(FMargin(FixedPaddingH))
 			[

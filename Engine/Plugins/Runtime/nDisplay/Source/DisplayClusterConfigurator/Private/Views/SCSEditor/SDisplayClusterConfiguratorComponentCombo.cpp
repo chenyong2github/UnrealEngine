@@ -15,7 +15,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/SceneComponent.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Selection.h"
@@ -63,7 +63,7 @@ void SDisplayClusterConfiguratorComponentClassCombo::Construct(const FArguments&
 			SNew(SListViewSelectorDropdownMenu<FComponentClassComboEntryPtr>, SearchBox, ComponentClassListView)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				.Padding(2)
 				[
 					SNew(SBox)

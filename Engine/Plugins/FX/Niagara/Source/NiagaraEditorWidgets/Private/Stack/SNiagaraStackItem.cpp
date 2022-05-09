@@ -5,7 +5,7 @@
 #include "EditorFontGlyphs.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Widgets/SBoxPanel.h"
@@ -103,13 +103,13 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 			.Visibility(this, &SNiagaraStackItem::GetResetToBaseButtonVisibility)
 			.IsFocusable(false)
 			.ToolTipText(this, &SNiagaraStackItem::GetResetToBaseButtonToolTipText)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ContentPadding(0)
 			.OnClicked(this, &SNiagaraStackItem::ResetToBaseButtonClicked)
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 				.ColorAndOpacity(FSlateColor(FLinearColor::Green))
 			]
 		];
@@ -136,7 +136,7 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 		.Padding(0, 0, 2, 0)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ToolTipText(this, &SNiagaraStackItem::GetDeleteButtonToolTipText)
 			.Visibility(this, &SNiagaraStackItem::GetDeleteButtonVisibility)

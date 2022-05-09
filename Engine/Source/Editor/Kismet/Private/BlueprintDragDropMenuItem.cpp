@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintDragDropMenuItem.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BlueprintActionMenuItem.h"
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintDelegateNodeSpawner.h"
@@ -72,7 +72,7 @@ FSlateBrush const* FBlueprintDragDropMenuItem::GetMenuIcon(FSlateColor& ColorOut
 	UBlueprintNodeSpawner const* SampleAction = GetSampleAction();
 	if (UBlueprintDelegateNodeSpawner const* DelegateSpawner = Cast<UBlueprintDelegateNodeSpawner const>(SampleAction))
 	{
-		IconBrush = FEditorStyle::GetBrush(TEXT("GraphEditor.Delegate_16x"));
+		IconBrush = FAppStyle::GetBrush(TEXT("GraphEditor.Delegate_16x"));
 	}
 	else if (UBlueprintVariableNodeSpawner const* VariableSpawner = Cast<UBlueprintVariableNodeSpawner const>(SampleAction))
 	{

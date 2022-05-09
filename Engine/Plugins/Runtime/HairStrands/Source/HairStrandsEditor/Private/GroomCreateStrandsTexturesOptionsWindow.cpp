@@ -2,7 +2,7 @@
 
 #include "GroomCreateStrandsTexturesOptionsWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GroomCreateStrandsTexturesOptions.h"
 #include "GroomTextureBuilder.h"
@@ -47,14 +47,14 @@ void SGroomCreateStrandsTexturesOptionsWindow::Construct(const FArguments& InArg
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+					.Font(FAppStyle::GetFontStyle("CurveEd.LabelFont"))
 					.Text(LOCTEXT("CurrentFile", "Current File: "))
 				]
 				+ SHorizontalBox::Slot()
@@ -63,7 +63,7 @@ void SGroomCreateStrandsTexturesOptionsWindow::Construct(const FArguments& InArg
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+					.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 					.Text(InArgs._FullPath)
 				]
 			]

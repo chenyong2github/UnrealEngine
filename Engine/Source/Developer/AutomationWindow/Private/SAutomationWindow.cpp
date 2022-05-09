@@ -22,7 +22,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SAutomationWindowCommandBar.h"
 #include "AutomationFilter.h"
 #include "AutomationPresetManager.h"
@@ -55,7 +55,7 @@ public:
 		: TCommands<FAutomationWindowCommands>(
 		TEXT("AutomationWindow"),
 		NSLOCTEXT("Contexts", "AutomationWindow", "Automation Window"),
-		NAME_None, FEditorStyle::GetStyleSetName()
+		NAME_None, FAppStyle::GetAppStyleSetName()
 		)
 	{
 	}
@@ -230,7 +230,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 			SNew(SImage)
 			.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.4f))
 			.ToolTipText( LOCTEXT( "Smoke Test", "Smoke Test" ) )
-			.Image(FEditorStyle::GetBrush("Automation.SmokeTest"))
+			.Image(FAppStyle::GetBrush("Automation.SmokeTest"))
 		]
 
 		+ SHeaderRow::Column( AutomationTestWindowConstants::RequiredDeviceCount )
@@ -241,7 +241,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 		.VAlignCell(VAlign_Center)
 		[
 			SNew( SImage )
-			.Image( FEditorStyle::GetBrush("Automation.ParticipantsWarning") )
+			.Image( FAppStyle::GetBrush("Automation.ParticipantsWarning") )
 			.ToolTipText( LOCTEXT( "RequiredDeviceCountWarningToolTip", "Number of devices required." ) )
 		]
 
@@ -478,7 +478,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 								[
 									//list of results for the selected test
 									SNew(SBorder)
-									.BorderImage(FEditorStyle::GetBrush("MessageLog.ListBorder"))
+									.BorderImage(FAppStyle::GetBrush("MessageLog.ListBorder"))
 									[
 										SNew(SScrollBox)
 										.Orientation(EOrientation::Orient_Horizontal)
@@ -499,7 +499,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 								.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 								[
 									SNew(SBorder)
-									.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+									.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 									.Padding(FMargin(8.0f, 6.0f))
 									[
 										// Add the command bar
@@ -526,7 +526,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 			.Padding( 15.0f )
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+					.BorderImage(FAppStyle::GetBrush("NotificationList.ItemBackground"))
 					.Padding(8.0f)
 					.Visibility(this, &SAutomationWindow::HandleSelectSessionOverlayVisibility)
 					[
@@ -565,14 +565,14 @@ const FSlateBrush* SAutomationWindow::GetTestBackgroundBorderImage() const
 	switch(TestBackgroundType)
 	{
 	case EAutomationTestBackgroundStyle::Game:
-		return FEditorStyle::GetBrush("AutomationWindow.GameGroupBorder");
+		return FAppStyle::GetBrush("AutomationWindow.GameGroupBorder");
 
 	case EAutomationTestBackgroundStyle::Editor:
-		return FEditorStyle::GetBrush("AutomationWindow.EditorGroupBorder");
+		return FAppStyle::GetBrush("AutomationWindow.EditorGroupBorder");
 
 	case EAutomationTestBackgroundStyle::Unknown:
 	default:
-		return FEditorStyle::GetBrush("ToolPanel.GroupBorder");
+		return FAppStyle::GetBrush("ToolPanel.GroupBorder");
 	}
 }
 
@@ -648,7 +648,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 					FOnGetContent::CreateStatic( &SAutomationWindow::GenerateTestsOptionsMenuContent, InAutomationWindow ),
 					TAttribute<FText>(),
 					LOCTEXT( "TestOptionsToolTip", "Test Options" ),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "AutomationWindow.TestOptions"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "AutomationWindow.TestOptions"),
 					false);
 
 				// Added button for running the currently open level test.
@@ -658,7 +658,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 					NAME_None,
 					TAttribute<FText>(),
 					LOCTEXT("RunLevelTest_ToolTip", "If the currently loaded editor level is a test map, click this to select the test and run it immediately."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "AutomationWindow.RunTests"));
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "AutomationWindow.RunTests"));
 #endif
 
 				ToolbarBuilder.AddToolBarButton( FAutomationWindowCommands::Get().RefreshTests );
@@ -680,7 +680,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 					FOnGetContent::CreateStatic( &SAutomationWindow::GenerateGroupOptionsMenuContent, InAutomationWindow ),
 					LOCTEXT( "GroupOptions_Label", "Device Groups" ),
 					LOCTEXT( "GroupOptionsToolTip", "Device Group Options" ),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "AutomationWindow.GroupSettings"));
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "AutomationWindow.GroupSettings"));
 			}
 			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("Presets");
@@ -693,7 +693,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 
 	TSharedRef<SWidget> RunTests = 
 		SNew( SButton )
-		.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+		.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 		.ToolTipText( LOCTEXT( "StartStop Tests", "Start / Stop tests" ) )
 		.OnClicked( this, &SAutomationWindow::RunTests )
 		.IsEnabled( this, &SAutomationWindow::IsAutomationRunButtonEnabled )
@@ -723,7 +723,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 						.Text( this, &SAutomationWindow::OnGetNumEnabledTestsString )
 						.ColorAndOpacity( FLinearColor::White )
 						.ShadowOffset( FVector2D::UnitVector )
-						.Font( FEditorStyle::GetFontStyle( FName( "ToggleButton.LabelFont" ) ) )
+						.Font( FAppStyle::GetFontStyle( FName( "ToggleButton.LabelFont" ) ) )
 					]
 				]
 				+ SVerticalBox::Slot()
@@ -733,7 +733,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 					SNew( STextBlock )
 					.Visibility( this, &SAutomationWindow::GetLargeToolBarVisibility )
 					.Text( this, &SAutomationWindow::GetRunAutomationLabel )
-					.Font( FEditorStyle::GetFontStyle( FName( "ToggleButton.LabelFont" ) ) )
+					.Font( FAppStyle::GetFontStyle( FName( "ToggleButton.LabelFont" ) ) )
 					.ColorAndOpacity(FLinearColor::White)
 					.ShadowOffset( FVector2D::UnitVector )
 				]
@@ -805,14 +805,14 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 			.AutoWidth()
 			[
 				SNew( SButton )
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.OnClicked( this, &SAutomationWindow::HandleNewPresetClicked )
 				.ToolTipText( LOCTEXT("AutomationPresetNewButtonTooltip", "Create a new preset") )
 				.IsEnabled(this, &SAutomationWindow::IsAddButtonEnabled)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("AutomationWindow.PresetNew"))
+					.Image(FAppStyle::Get().GetBrush("AutomationWindow.PresetNew"))
 				]
 			]
 
@@ -821,14 +821,14 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 			.AutoWidth()
 			[
 				SNew( SButton )
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.OnClicked( this, &SAutomationWindow::HandleSavePresetClicked )
 				.ToolTipText( LOCTEXT("AutomationPresetSaveButtonTooltip", "Save the current test list") )
 				.IsEnabled(this, &SAutomationWindow::IsSaveButtonEnabled)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("AutomationWindow.PresetSave"))
+					.Image(FAppStyle::Get().GetBrush("AutomationWindow.PresetSave"))
 				]
 			]
 
@@ -838,14 +838,14 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 			[
 				// remove button
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.OnClicked( this, &SAutomationWindow::HandleRemovePresetClicked )
 				.ToolTipText(LOCTEXT("AutomationPresetRemoveButtonTooltip", "Remove the selected preset"))
 				.IsEnabled(this, &SAutomationWindow::IsRemoveButtonEnabled)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("AutomationWindow.PresetRemove"))
+					.Image(FAppStyle::Get().GetBrush("AutomationWindow.PresetRemove"))
 				]
 			]
 		];
@@ -862,7 +862,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 		[
 			SNew( SBorder )
 			.Padding(0)
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 			[
 				ToolbarBuilder.MakeWidget()
@@ -1580,7 +1580,7 @@ void SAutomationWindow::RebuildPlatformIcons()
 		const FDataDrivenPlatformInfo* DDPI = TargetPlatformInfo ? TargetPlatformInfo->DataDrivenPlatformInfo : nullptr;
 		FName DeviceImageName = DDPI ? DDPI->GetIconStyleName(EPlatformIconSize::Normal) : NAME_None;
 
-		const FSlateBrush* ImageToUse = FAppStyle::Get().GetBrush(DeviceImageName);
+		const FSlateBrush* ImageToUse = FAppStyle::GetBrush(DeviceImageName);
 
 		PlatformsHBox->AddSlot()
 		.AutoWidth()
@@ -1590,7 +1590,7 @@ void SAutomationWindow::RebuildPlatformIcons()
 			+ SOverlay::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ErrorReporting.Box") )
+				.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Padding( FMargin(3,0) )
@@ -1689,8 +1689,8 @@ TSharedRef<ITableRow> SAutomationWindow::OnGenerateWidgetForLog(TSharedPtr<FAuto
 		MessageString.RightChopInline(FileAndLineRegexMatcher.GetMatchEnding(), false);
 
 		SourceLink = SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
-			.TextStyle(FEditorStyle::Get(), Message->Style)
+			.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
+			.TextStyle(FAppStyle::Get(), Message->Style)
 			.OnNavigate_Lambda([=] { FSlateApplication::Get().GotoLineInSource(FileName, LineNumber); })
 			.Text(FText::FromString(FileAndLineRegexMatcher.GetCaptureGroup(0)));
 	}
@@ -1711,7 +1711,7 @@ TSharedRef<ITableRow> SAutomationWindow::OnGenerateWidgetForLog(TSharedPtr<FAuto
 			.Padding(0)
 			[
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), Message->Style )
+				.TextStyle( FAppStyle::Get(), Message->Style )
 				.Text(FText::FromString(MessageString))
 			]
 		];
@@ -2045,7 +2045,7 @@ const FSlateBrush* SAutomationWindow::GetRunAutomationIcon() const
 		Brush += TEXT( ".RunTests" );
 	}
 	Brush += GetSmallIconExtension();
-	return FEditorStyle::GetBrush( *Brush );
+	return FAppStyle::GetBrush( *Brush );
 }
 
 

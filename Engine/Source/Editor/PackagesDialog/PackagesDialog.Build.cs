@@ -17,7 +17,6 @@ public class PackagesDialog : ModuleRules
                 "InputCore",
 				"Slate", 
 				"SlateCore",
-                "EditorStyle",
 				"UnrealEd",
 				"SourceControl",
 				"EditorWidgets",

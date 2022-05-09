@@ -289,7 +289,7 @@ TSharedRef<SWidget>	SPrimaryAssetIdGraphPin::GetDefaultValueWidget()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ButtonColorAndOpacity(this, &SPrimaryAssetIdGraphPin::OnGetWidgetBackground)
 			.OnClicked(this, &SPrimaryAssetIdGraphPin::OnUseSelected)
 			.ContentPadding(1.f)
@@ -297,7 +297,7 @@ TSharedRef<SWidget>	SPrimaryAssetIdGraphPin::GetDefaultValueWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(this, &SPrimaryAssetIdGraphPin::OnGetWidgetForeground)
-				.Image(FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")))
+				.Image(FAppStyle::GetBrush(TEXT("Icons.CircleArrowLeft")))
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -306,7 +306,7 @@ TSharedRef<SWidget>	SPrimaryAssetIdGraphPin::GetDefaultValueWidget()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ButtonColorAndOpacity(this, &SPrimaryAssetIdGraphPin::OnGetWidgetBackground)
 			.OnClicked(this, &SPrimaryAssetIdGraphPin::OnBrowseTo)
 			.ContentPadding(0)
@@ -314,7 +314,7 @@ TSharedRef<SWidget>	SPrimaryAssetIdGraphPin::GetDefaultValueWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(this, &SPrimaryAssetIdGraphPin::OnGetWidgetForeground)
-				.Image(FEditorStyle::GetBrush(TEXT("Icons.Search")))
+				.Image(FAppStyle::GetBrush(TEXT("Icons.Search")))
 			]
 		];
 }

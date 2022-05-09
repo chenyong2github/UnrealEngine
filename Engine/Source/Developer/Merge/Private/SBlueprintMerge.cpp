@@ -12,7 +12,7 @@
 #include "Editor.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
@@ -95,14 +95,14 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		, NAME_None
 		, LOCTEXT("PrevMergeLabel", "Prev")
 		, LOCTEXT("PrevMergeTooltip", "Go to previous difference")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.PrevDiff")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.PrevDiff")
 	);
 	ToolbarBuilder.AddToolBarButton(
 		FUIAction(FExecuteAction::CreateSP(this, &SBlueprintMerge::NextDiff), FCanExecuteAction::CreateSP(this, &SBlueprintMerge::HasNextDiff))
 		, NAME_None
 		, LOCTEXT("NextMergeLabel", "Next")
 		, LOCTEXT("NextMergeTooltip", "Go to next difference")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.NextDiff") 
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.NextDiff") 
 	);
 
 	auto IsInPassiveMode = [this]()
@@ -117,14 +117,14 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		, NAME_None
 		, LOCTEXT("PrevConflictLabel", "Prev Conflict")
 		, LOCTEXT("PrevConflictTooltip", "Go to previous conflict")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.PrevDiff")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.PrevDiff")
 	);
 	ToolbarBuilder.AddToolBarButton(
 		FUIAction(FExecuteAction::CreateSP(this, &SBlueprintMerge::NextConflict), FCanExecuteAction::CreateSP(this, &SBlueprintMerge::HasNextConflict))
 		, NAME_None
 		, LOCTEXT("NextConflictLabel", "Next Conflict")
 		, LOCTEXT("NextConflictTooltip", "Go to next conflict")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.NextDiff") 
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.NextDiff") 
 	);
 
 	// buttons for finishing the merge:
@@ -138,7 +138,7 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		, NAME_None
 		, LOCTEXT("StartMergeLabel", "Start Merge")
 		, LOCTEXT("StartMergeTooltip", "Loads the selected blueprints and switches to an active merge (using your selections for the remote/base/local)")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.StartMerge")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.StartMerge")
 	);
 	ToolbarBuilder.AddToolBarButton(
 		FUIAction(
@@ -148,7 +148,7 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		, NAME_None
 		, LOCTEXT("AcceptRemoteLabel", "Accept Source")
 		, LOCTEXT("AcceptRemoteTooltip", "Complete the merge operation - Replaces the Blueprint with a copy of the remote file.")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.AcceptSource")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.AcceptSource")
 	);
 	ToolbarBuilder.AddToolBarButton(
 		FUIAction(
@@ -158,7 +158,7 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		, NAME_None
 		, LOCTEXT("AcceptLocalLabel", "Accept Target")
 		, LOCTEXT("AcceptLocalTooltip", "Complete the merge operation - Leaves the target Blueprint unchanged.")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.AcceptTarget")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.AcceptTarget")
 	);
 	ToolbarBuilder.AddToolBarButton(
 		FUIAction(
@@ -168,14 +168,14 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		, NAME_None
 		, LOCTEXT("FinishMergeLabel", "Finish Merge")
 		, LOCTEXT("FinishMergeTooltip", "Complete the merge operation - saves the blueprint and resolves the conflict with the SCC provider")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.Finish")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.Finish")
 	);
 	ToolbarBuilder.AddToolBarButton(
 		FUIAction(FExecuteAction::CreateSP(this, &SBlueprintMerge::OnCancelClicked))
 		, NAME_None
 		, LOCTEXT("CancelMergeLabel", "Cancel")
 		, LOCTEXT("CancelMergeTooltip", "Abort the merge operation")
-		, FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintMerge.Cancel")
+		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintMerge.Cancel")
 	);
 
 	TSharedRef<SWidget> Overlay = SNew(SHorizontalBox);
@@ -185,7 +185,7 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 		{
 			return SNew(STextBlock)
 				.Visibility(EVisibility::HitTestInvisible)
-				.TextStyle(FEditorStyle::Get(), "GraphPreview.CornerText")
+				.TextStyle(FAppStyle::Get(), "GraphPreview.CornerText")
 				.Text(Text);
 		};
 
@@ -225,7 +225,7 @@ void SBlueprintMerge::Construct(const FArguments InArgs, const FBlueprintMergeDa
 			.Value(.2f)
 			[
 				SAssignNew(TreeViewContainer, SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			]
 			+ SSplitter::Slot()
 			.Value(.8f)

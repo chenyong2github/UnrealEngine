@@ -84,10 +84,10 @@ void FMovieSceneSectionDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 			.ContentPadding(0)
 			.ToolTipText(LOCTEXT("LockedRangeBounds", "Some sections support infinite ranges and fixed ranges. Toggling this will change the bound type."))
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(this, &FMovieSceneSectionDetailsCustomization::GetRangeStartButtonIcon)
 			]
 		]
@@ -130,10 +130,10 @@ void FMovieSceneSectionDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 			.ContentPadding(0)
 			.ToolTipText(LOCTEXT("LockedRangeBounds", "Some sections support infinite ranges and fixed ranges. Toggling this will change the bound type."))
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(this, &FMovieSceneSectionDetailsCustomization::GetRangeEndButtonIcon)
 			]
 		]

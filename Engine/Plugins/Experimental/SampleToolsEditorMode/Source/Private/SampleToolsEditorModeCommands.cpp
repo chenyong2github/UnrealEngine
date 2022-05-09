@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SampleToolsEditorModeCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FSampleToolsEditorMode"
 
@@ -9,7 +9,7 @@ FSampleToolsEditorModeCommands::FSampleToolsEditorModeCommands()
 	: TCommands<FSampleToolsEditorModeCommands>("SampleToolsEditorMode",
 		NSLOCTEXT("SampleToolsEditorMode", "SampleToolsEditorModeCommands", "Sample Tools Editor Mode"),
 		NAME_None,
-		FEditorStyle::GetStyleSetName())
+		FAppStyle::GetAppStyleSetName())
 {
 }
 

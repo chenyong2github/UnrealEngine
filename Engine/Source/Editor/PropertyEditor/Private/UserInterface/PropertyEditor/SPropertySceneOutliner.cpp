@@ -30,7 +30,7 @@ void SPropertySceneOutliner::Construct( const FArguments& InArgs )
 		.FillHeight(1)
 		[
 			SNew( SButton )
-			.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+			.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 			.OnClicked( this, &SPropertySceneOutliner::OnClicked )
 			.ToolTipText(LOCTEXT("PickButtonLabel", "Pick Actor"))
 			.ContentPadding(0)
@@ -38,7 +38,7 @@ void SPropertySceneOutliner::Construct( const FArguments& InArgs )
 			.IsFocusable(false)
 			[ 
 				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("PropertyWindow.Button_PickActor") )
+				.Image( FAppStyle::GetBrush("PropertyWindow.Button_PickActor") )
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			]
 		]
@@ -64,7 +64,7 @@ TSharedRef<SWidget> SPropertySceneOutliner::OnGenerateSceneOutliner()
 		.WidthOverride(300)
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+			.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 			[
 				SceneOutlinerModule.CreateActorPicker(InitOptions, FOnActorPicked::CreateSP(this, &SPropertySceneOutliner::OnActorSelectedFromOutliner))
 			]

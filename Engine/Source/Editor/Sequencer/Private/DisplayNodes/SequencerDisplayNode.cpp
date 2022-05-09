@@ -13,7 +13,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "DisplayNodes/SequencerSectionCategoryNode.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
@@ -280,7 +280,7 @@ int32 SSequencerCombinedKeysTrack::OnPaint(const FPaintArgs& Args, const FGeomet
 					),
 					SequencerNodeConstants::KeyMarkSize
 				),
-				FEditorStyle::GetBrush("Sequencer.KeyMark"),
+				FAppStyle::GetBrush("Sequencer.KeyMark"),
 				ESlateDrawEffect::None,
 				FLinearColor(1.f, 1.f, 1.f, 1.f)
 			);
@@ -823,7 +823,7 @@ bool FSequencerDisplayNode::IsDimmed() const
 
 FSlateFontInfo FSequencerDisplayNode::GetDisplayNameFont() const
 {
-	FSlateFontInfo NodeFont = FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
+	FSlateFontInfo NodeFont = FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
 	return NodeFont;
 }
 
@@ -1150,7 +1150,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("DeleteNode", "Delete"),
 			LOCTEXT("DeleteNodeTooltip", "Delete this or selected tracks"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Delete"),
 			FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::DeleteNode, ThisNode, false), CanExecute)
 		);
 
@@ -1159,7 +1159,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("DeleteNodeAndKeepState", "Delete and Keep State"),
 				LOCTEXT("DeleteNodeAndKeepStateTooltip", "Delete this object's tracks and keep its current animated state"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Delete"),
 				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::DeleteNode, ThisNode, true), CanExecute)
 			);
 		}

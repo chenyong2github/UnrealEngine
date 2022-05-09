@@ -16,7 +16,7 @@
 #include "SessionLogMessage.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Images/SImage.h"
 
@@ -65,13 +65,13 @@ public:
 				[
 					SNew(SBorder)
 						.BorderBackgroundColor(this, &SSessionConsoleLogTableRow::HandleGetBorderColor)
-						.BorderImage(FEditorStyle::GetBrush("ErrorReporting.Box"))
+						.BorderImage(FAppStyle::GetBrush("ErrorReporting.Box"))
 						.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						.Padding(FMargin(6.0f, 3.0f))
 						.Content()
 						[
 							SNew(STextBlock)
-								.Font(FEditorStyle::GetFontStyle("BoldFont"))
+								.Font(FAppStyle::GetFontStyle("BoldFont"))
 								.Text(FText::FromString(LogMessage->InstanceName))
 						]
 				];
@@ -111,15 +111,15 @@ public:
 			if ((LogMessage->Verbosity == ELogVerbosity::Error) ||
 				(LogMessage->Verbosity == ELogVerbosity::Fatal))
 			{
-				Icon = FEditorStyle::GetBrush("Icons.Error");
+				Icon = FAppStyle::GetBrush("Icons.Error");
 			}
 			else if (LogMessage->Verbosity == ELogVerbosity::Warning)
 			{
-				Icon = FEditorStyle::GetBrush("Icons.Warning");
+				Icon = FAppStyle::GetBrush("Icons.Warning");
 			}
 			else
 			{
-				Icon = FEditorStyle::GetBrush("Icons.Info");
+				Icon = FAppStyle::GetBrush("Icons.Info");
 			}
 
 			return SNew(SBox)

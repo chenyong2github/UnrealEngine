@@ -10,7 +10,7 @@ public class SessionFrontend : ModuleRules
 			new string[] {
 				"Core",
 				"Slate",
-                "EditorStyle",
+                
 			}
 		);
 

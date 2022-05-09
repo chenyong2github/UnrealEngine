@@ -9,7 +9,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Hash/CityHash.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "CollectionManagerTypes.h"
 #include "CollectionManagerModule.h"
@@ -408,7 +408,7 @@ TSharedRef< ITableRow > SMaterialAnalyzer::OnGenerateSuggestionRow(TSharedPtr<FP
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "SimpleSharpButton")
+						.ButtonStyle(FAppStyle::Get(), "SimpleSharpButton")
 						.Visibility(this, &SMaterialAnalyzer::ShouldShowAdvancedRecommendations, Item)
 						.OnClicked(this, &SMaterialAnalyzer::CreateLocalSuggestionCollection, Item)
 						.ContentPadding(FMargin(2.0f))

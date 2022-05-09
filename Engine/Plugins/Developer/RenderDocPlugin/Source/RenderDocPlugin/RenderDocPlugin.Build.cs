@@ -30,7 +30,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"Slate"
 					, "SlateCore"
-					, "EditorStyle"
 					, "EditorFramework"
 					, "UnrealEd"
 					, "MainFrame"

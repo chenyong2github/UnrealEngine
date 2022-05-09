@@ -31,7 +31,7 @@ void SNiagaraOverviewGraphTitleBar::RebuildWidget()
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 			.HAlign(HAlign_Fill)
 			[
 				SNew(SNiagaraSystemEffectTypeBar, SystemViewModel.Pin()->GetSystem())
@@ -44,12 +44,12 @@ void SNiagaraOverviewGraphTitleBar::RebuildWidget()
 	.AutoHeight()
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+		.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 		.HAlign(HAlign_Fill)
 		[
 			SNew(STextBlock)
 			.Text(SystemViewModel.Pin()->GetOverviewGraphViewModel().Get(), &FNiagaraOverviewGraphViewModel::GetDisplayName)
-			.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+			.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 			.Justification(ETextJustify::Center)
 		]
 	];

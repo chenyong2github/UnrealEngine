@@ -11,7 +11,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Toolkits/IToolkit.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "TexAligner/TexAligner.h"
 #include "LightmapResRatioAdjust.h"
 #include "Elements/Framework/TypedElementHandle.h"

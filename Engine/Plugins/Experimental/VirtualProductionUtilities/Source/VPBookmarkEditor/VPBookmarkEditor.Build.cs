@@ -22,8 +22,7 @@ public class VPBookmarkEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"EditorFramework",
-				"EditorStyle",
+				"EditorFramework",		
 				"HeadMountedDisplay",
 				"InputCore",
 				"LevelEditor",

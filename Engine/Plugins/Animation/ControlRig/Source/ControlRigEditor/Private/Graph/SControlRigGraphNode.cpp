@@ -30,7 +30,7 @@
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "IDocumentation.h"
 #include "DetailLayoutBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SControlRigGraphPinVariableBinding.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "Slate/SlateTextures.h"
@@ -329,7 +329,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		[
 			SNew(SButton)
 			.ContentPadding(0.0f)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(this, &SControlRigGraphNode::HandleAddArrayElement, InModelPin->GetPinPath())
 			.IsEnabled(this, &SGraphNode::IsNodeEditable)
 			.Cursor(EMouseCursor::Default)
@@ -342,7 +342,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+					.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 				]
 			]
 		];
@@ -495,7 +495,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 				[
 					SNew(STextBlock)
 					.Text(FText::FromName(ExternalVariable->Name))
-					.TextStyle(FEditorStyle::Get(), NAME_DefaultPinLabelStyle)
+					.TextStyle(FAppStyle::Get(), NAME_DefaultPinLabelStyle)
 					.ColorAndOpacity(this, &SControlRigGraphNode::GetVariableLabelTextColor, WeakFunctionReferenceNode, ExternalVariable->Name)
 					.ToolTipText(this, &SControlRigGraphNode::GetVariableLabelTooltipText, WeakControlRigBlueprint, ExternalVariable->Name)
 				]
@@ -754,10 +754,10 @@ const FSlateBrush * SControlRigGraphNode::GetNodeBodyBrush() const
 	{
 		if(RigNode->bEnableProfiling)
 		{
-			return FEditorStyle::GetBrush("Graph.Node.TintedBody");
+			return FAppStyle::GetBrush("Graph.Node.TintedBody");
 		}
 	}
-	return FEditorStyle::GetBrush("Graph.Node.Body");
+	return FAppStyle::GetBrush("Graph.Node.Body");
 }
 
 FReply SControlRigGraphNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -926,7 +926,7 @@ void SControlRigGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D Wid
 		{
 			FOverlayBrushInfo BreakpointOverlayInfo;
 
-			BreakpointOverlayInfo.Brush = FEditorStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid"));
+			BreakpointOverlayInfo.Brush = FAppStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid"));
 			if (BreakpointOverlayInfo.Brush != NULL)
 			{
 				BreakpointOverlayInfo.OverlayOffset -= BreakpointOverlayInfo.Brush->ImageSize / 2.f;
@@ -940,7 +940,7 @@ void SControlRigGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D Wid
 			FOverlayBrushInfo IPOverlayInfo;
 			if (VMNode->ExecutionIsHaltedAtThisNode())
 			{
-				IPOverlayInfo.Brush = FEditorStyle::GetBrush( TEXT("Kismet.DebuggerOverlay.InstructionPointerBreakpoint") );
+				IPOverlayInfo.Brush = FAppStyle::GetBrush( TEXT("Kismet.DebuggerOverlay.InstructionPointerBreakpoint") );
 				if (IPOverlayInfo.Brush != NULL)
 				{
 					float Overlap = 10.f;

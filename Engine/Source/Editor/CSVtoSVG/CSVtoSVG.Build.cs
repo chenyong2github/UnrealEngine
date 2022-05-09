@@ -28,7 +28,6 @@ public class CSVtoSVG : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"ContentBrowserData",

@@ -502,7 +502,7 @@ void SSplineGeneratorPanel::Construct(const FArguments& InArgs, TWeakPtr<FSpline
 		ShapeSelectorWidget->AddSlot()
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "RadioButton")
+			.Style(FAppStyle::Get(), "RadioButton")
 			.IsChecked_Lambda(IsRadioChecked)
 			.OnCheckStateChanged_Lambda(OnRadioChanged)
 			.Padding(FMargin(10.f, 3.f))
@@ -531,7 +531,7 @@ void SSplineGeneratorPanel::Construct(const FArguments& InArgs, TWeakPtr<FSpline
 		[
 			SNew(SBorder)
 			.Padding(FMargin(5.f, 5.f))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			.Content()
 			[
 				ShapeSelectorWidget

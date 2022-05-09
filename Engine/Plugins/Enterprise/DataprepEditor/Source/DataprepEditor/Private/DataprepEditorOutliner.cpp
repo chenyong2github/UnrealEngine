@@ -295,15 +295,15 @@ namespace DataprepEditorSceneOutlinerUtils
 			{
 				static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
 				static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
-				return IsHovered() ? FEditorStyle::GetBrush(NAME_VisibleHoveredBrush) :
-					FEditorStyle::GetBrush(NAME_VisibleNotHoveredBrush);
+				return IsHovered() ? FAppStyle::GetBrush(NAME_VisibleHoveredBrush) :
+					FAppStyle::GetBrush(NAME_VisibleNotHoveredBrush);
 			}
 			else
 			{
 				static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
 				static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
-				return IsHovered() ? FEditorStyle::GetBrush(NAME_NotVisibleHoveredBrush) :
-					FEditorStyle::GetBrush(NAME_NotVisibleNotHoveredBrush);
+				return IsHovered() ? FAppStyle::GetBrush(NAME_NotVisibleHoveredBrush) :
+					FAppStyle::GetBrush(NAME_NotVisibleNotHoveredBrush);
 			}
 		}
 
@@ -402,7 +402,7 @@ void FDataprepEditor::CreateScenePreviewTab()
 
 	SAssignNew(ScenePreviewView, SDataprepScenePreviewView)
 		.Padding(2.f)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()

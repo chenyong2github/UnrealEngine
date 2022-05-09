@@ -30,7 +30,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealEdMisc.h"
 #include "LocalizationSettings.h"
 #include "LocalizationConfigurationScript.h"
@@ -180,7 +180,7 @@ namespace
 					.Padding(0.0, 32.0, 8.0, 0.0)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(0.0f)
 						[
 							SAssignNew(TaskListView, SListView< TSharedPtr<FTaskListModel> >)
@@ -205,7 +205,7 @@ namespace
 					.Padding(0.0, 32.0, 8.0, 0.0)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(0.0f)
 						[
 							SNew(SHorizontalBox)
@@ -217,7 +217,7 @@ namespace
 								.FillHeight(1.0f)
 								[
 									SNew(SMultiLineEditableText)
-									.TextStyle(FEditorStyle::Get(), "LocalizationDashboard.CommandletLog.Text")
+									.TextStyle(FAppStyle::Get(), "LocalizationDashboard.CommandletLog.Text")
 									.Text(this, &SLocalizationCommandletExecutor::GetLogString)
 									.IsReadOnly(true)
 									.HScrollBar(HorizontalScrollBar)
@@ -600,10 +600,10 @@ namespace
 			switch(TaskListModel->State)
 			{
 			case SLocalizationCommandletExecutor::FTaskListModel::EState::Succeeded:
-				return FEditorStyle::GetBrush("Symbols.Check");
+				return FAppStyle::GetBrush("Symbols.Check");
 				break;
 			case SLocalizationCommandletExecutor::FTaskListModel::EState::Failed:
-				return FEditorStyle::GetBrush("Icons.Cross");
+				return FAppStyle::GetBrush("Icons.Cross");
 				break;
 			}
 		}

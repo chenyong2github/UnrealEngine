@@ -11,7 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "ContentBrowserUtils.h"
 #include "Widgets/SToolTip.h"
@@ -55,7 +55,7 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 				"GetContent",
 				LOCTEXT( "GetContentText", "Add Feature or Content Pack..." ),
 				LOCTEXT( "GetContentTooltip", "Add features and content packs to the project." ),
-				FSlateIcon( FEditorStyle::GetStyleSetName(), "ContentBrowser.AddContent" ),
+				FSlateIcon( FAppStyle::GetAppStyleSetName(), "ContentBrowser.AddContent" ),
 				FUIAction( FExecuteAction::CreateStatic( &FNewAssetOrClassContextMenu::ExecuteGetContent, InOnGetContentRequested ) )
 				);
 		}
@@ -93,7 +93,7 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 				"NewFolder",
 				LOCTEXT("NewFolderLabel", "New Folder"),
 				NewFolderToolTip,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.NewFolderIcon"),
 				FUIAction(
 					FExecuteAction::CreateStatic(&FNewAssetOrClassContextMenu::ExecuteNewFolder, FirstSelectedPath, InOnNewFolderRequested),
 					CanExecuteFolderActionsDelegate

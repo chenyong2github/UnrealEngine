@@ -15,7 +15,6 @@ public class HierarchicalLODOutliner : ModuleRules
 				"RHI",
 				"RenderCore",
 				"Slate",
-                "EditorStyle",
                 "Engine",
                 "UnrealEd",
                 "PropertyEditor",

@@ -21,7 +21,7 @@ class FLevelVariantSetsEditorToolkit
 {
 public:
 
-	FLevelVariantSetsEditorToolkit(const TSharedRef<ISlateStyle>& InStyle);
+	FLevelVariantSetsEditorToolkit();
 	virtual ~FLevelVariantSetsEditorToolkit();
 
 	void Initialize(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, ULevelVariantSets* LevelVariantSets);
@@ -59,9 +59,6 @@ private:
 
 	/** The VariantManager used by this editor. */
 	TSharedPtr<FVariantManager> VariantManager;
-
-	/** Pointer to the style set to use for toolkits. */
-	TSharedRef<ISlateStyle> Style;
 
 	// Keep track of the tab we create so that we can close it when the asset closes
 	TWeakPtr<SDockTab> CreatedTab;

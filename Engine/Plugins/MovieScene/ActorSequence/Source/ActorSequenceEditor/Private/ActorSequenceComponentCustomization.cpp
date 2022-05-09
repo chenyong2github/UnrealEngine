@@ -4,7 +4,7 @@
 
 #include "ActorSequence.h"
 #include "ActorSequenceComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "IDetailsView.h"
 #include "DetailLayoutBuilder.h"

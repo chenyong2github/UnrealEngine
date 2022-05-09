@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_TextureCube.h"
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/SlateBrushAssetFactory.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Factories/TextureCubeArrayFactory.h"
@@ -26,7 +26,7 @@ void FAssetTypeActions_TextureCube::GetActions(const TArray<UObject*>& InObjects
 			"Texture_TextureCuberray",
 			LOCTEXT("Texture_TextureCuberray", "Create Texture Cube Array"),
 			LOCTEXT("Texture_CreateTextureCubeArrayTooltip", "Creates a new texture cube array."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.TextureCube"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.TextureCube"),
 			FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_TextureCube::ExecuteCreateTextureArray, Textures), FCanExecuteAction())
 		);
 	}

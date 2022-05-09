@@ -4,7 +4,7 @@
 #include "BlueprintEditor.h"
 #include "BlueprintEditorSettings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
@@ -41,7 +41,7 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Text(this, &SGraphTitleBarAddNewBookmark::GetPopupTitleText)
-				.Font(FEditorStyle::GetFontStyle("StandardDialog.LargeFont"))
+				.Font(FAppStyle::GetFontStyle("StandardDialog.LargeFont"))
 			]
 			+ SVerticalBox::Slot()
 			.Padding(8, 4, 8, 8)
@@ -91,9 +91,9 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SButton)
@@ -116,7 +116,7 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 			]
 		]
 	]
-	.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
+	.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 	.ToolTipText(LOCTEXT("AddBookmarkButtonToolTip", "Bookmark Current Location"))
 	.OnComboBoxOpened(this, &SGraphTitleBarAddNewBookmark::OnComboBoxOpened);
 

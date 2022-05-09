@@ -1505,7 +1505,7 @@ AActor* FLevelEditorActionCallbacks::ReplaceActors( UActorFactory* ActorFactory,
 	else
 	{
 		FNotificationInfo ErrorNotification( ErrorMessage );
-		ErrorNotification.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Error"));
+		ErrorNotification.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
 		ErrorNotification.bFireAndForget = true;
 		ErrorNotification.ExpireDuration = 3.0f; // Need this message to last a little longer than normal since the user may want to "Show Log"
 		ErrorNotification.bUseThrobber = true;
@@ -1545,7 +1545,7 @@ void FLevelEditorActionCallbacks::ReplaceActorsFromClass_Clicked( UClass* ActorC
 			else
 			{
 				FNotificationInfo ErrorNotification( ErrorMessage );
-				ErrorNotification.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Error"));
+				ErrorNotification.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
 				ErrorNotification.bFireAndForget = true;
 				ErrorNotification.ExpireDuration = 3.0f; // Need this message to last a little longer than normal since the user may want to "Show Log"
 				ErrorNotification.bUseThrobber = true;
@@ -3321,7 +3321,7 @@ FLevelEditorCommands::FLevelEditorCommands()
 		"LevelEditor", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "LevelEditor", "Level Editor"), // Localized context name for displaying
 		"LevelViewport", // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 {
 	AddBundle(OpenRecentFileBundle, NSLOCTEXT("LevelEditorCommands", "OpenRecentFileBundle", "Open Recent File"));

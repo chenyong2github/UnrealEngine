@@ -199,7 +199,6 @@ public class Engine : ModuleRules
 
 		if (Target.bCompileAgainstEditor)
 		{
-			PrivateDependencyModuleNames.Add("EditorStyle");
 			PrivateIncludePathModuleNames.Add("Foliage");
 		}
 

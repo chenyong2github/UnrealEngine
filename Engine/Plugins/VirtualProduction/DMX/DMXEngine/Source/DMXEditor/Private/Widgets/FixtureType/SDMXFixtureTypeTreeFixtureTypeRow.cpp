@@ -10,7 +10,7 @@
 #include "Library/DMXLibrary.h"
 #include "Widgets/DMXEntityTreeNode.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -328,12 +328,12 @@ const FSlateBrush* SDMXFixtureTypeTreeFixtureTypeRow::GetStatusIcon() const
 	{
 		if (!EntityNode->GetErrorStatus().IsEmpty())
 		{
-			return FEditorStyle::GetBrush("Icons.Error");
+			return FAppStyle::GetBrush("Icons.Error");
 		}
 
 		if (!EntityNode->GetWarningStatus().IsEmpty())
 		{
-			return FEditorStyle::GetBrush("Icons.Warning");
+			return FAppStyle::GetBrush("Icons.Warning");
 		}
 	}
 

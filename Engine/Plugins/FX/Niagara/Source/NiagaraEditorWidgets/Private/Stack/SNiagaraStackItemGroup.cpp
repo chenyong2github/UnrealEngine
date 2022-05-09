@@ -3,7 +3,7 @@
 #include "Stack/SNiagaraStackItemGroup.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Stack/SNiagaraStackInheritanceIcon.h"
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
@@ -55,7 +55,7 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 		.Padding(0, 0, 2, 0)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ToolTipText(this, &SNiagaraStackItemGroup::GetDeleteButtonToolTip)
 			.OnClicked(this, &SNiagaraStackItemGroup::DeleteClicked)

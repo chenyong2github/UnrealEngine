@@ -10,7 +10,7 @@
 #include "SAssetView.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 #include "DragDrop/WidgetTemplateDragDropOp.h"
@@ -257,7 +257,7 @@ TSharedRef<ITableRow> FWidgetTemplateListViewModel::BuildRow(const TSharedRef<ST
 		.Padding(2.0f)
 		.ShowSelection(false)
 		.ShowWires(false)
-		.Style(FEditorStyle::Get(), "UMGEditor.LibraryView")
+		.Style(FAppStyle::Get(), "UMGEditor.LibraryView")
 		[
 			AssetViewPtr.ToSharedRef()
 		];

@@ -20,13 +20,13 @@ public class CurveEditorTools : ModuleRules
 				"InputCore",
 				"SlateCore",
 				"Slate",
-				"EditorStyle",
 				"SequencerWidgets",
 				"EditorFramework",
 				"UnrealEd",
 				"CoreUObject",
 				"AudioMixer",
 				"SignalProcessing",
+				"EditorStyle",
 			}
 		);
 	}

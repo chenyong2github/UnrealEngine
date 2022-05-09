@@ -10,7 +10,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ProfilerCommands.h"
 #include "ProfilerManager.h"
 #include "Widgets/SProfilerFPSChartPanel.h"
@@ -88,7 +88,7 @@ void SProfilerToolbar::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 			[
 				ToolbarBuilder.MakeWidget()

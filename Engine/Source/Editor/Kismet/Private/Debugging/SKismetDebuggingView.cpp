@@ -14,7 +14,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Editor/EditorEngine.h"
 #include "EngineGlobals.h"
@@ -263,7 +263,7 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			[
 				SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+					.BorderImage( FAppStyle::GetBrush( TEXT("NoBorder") ) )
 					[
 						ToolbarWidget
 					]

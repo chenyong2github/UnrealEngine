@@ -30,7 +30,7 @@ public class LogVisualizer : ModuleRules
 				"Json",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"Engine",
 				"EditorFramework",
 				"UnrealEd",

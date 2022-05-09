@@ -4,7 +4,7 @@
 
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FClothingAssetListCommands : public TCommands<FClothingAssetListCommands>
 {
@@ -14,7 +14,7 @@ public:
 			TEXT("ClothAssetList"), 
 			NSLOCTEXT("Contexts", "ClothAssetList", "Clothing Asset List"), 
 			NAME_None, 
-			FEditorStyle::GetStyleSetName())
+			FAppStyle::GetAppStyleSetName())
 	{}
 
 	virtual void RegisterCommands() override;

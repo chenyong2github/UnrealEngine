@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDataprepStats.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
@@ -97,7 +97,7 @@ namespace DataprepStats
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(ItemPtr->StatCategory))
-						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+						.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 					];
 				}
 				else

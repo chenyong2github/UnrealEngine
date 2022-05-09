@@ -6,7 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "CompElementEditorCommands"
 
@@ -18,7 +18,7 @@ class FCompElementEditorCommands : public TCommands<FCompElementEditorCommands>
 
 public:
 	FCompElementEditorCommands() 
-		: TCommands<FCompElementEditorCommands>("CompElementEditor", LOCTEXT("CompositingCmdsDesc", "Composure Compositing"), /*Parent =*/"GenericCommands", FEditorStyle::GetStyleSetName())
+		: TCommands<FCompElementEditorCommands>("CompElementEditor", LOCTEXT("CompositingCmdsDesc", "Composure Compositing"), /*Parent =*/"GenericCommands", FAppStyle::GetAppStyleSetName())
 	{
 	}
 	

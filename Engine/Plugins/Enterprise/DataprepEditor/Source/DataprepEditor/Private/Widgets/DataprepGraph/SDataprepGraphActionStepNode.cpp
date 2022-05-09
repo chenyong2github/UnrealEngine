@@ -178,7 +178,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 		.Padding(FMargin(5.0f, 0.0f, 10.0f, 0.0f))
 		[
 			SNew( SSeparator )
-			.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+			.SeparatorImage(FAppStyle::GetBrush( "ThinLine.Horizontal" ))
 			.Thickness(2.f)
 			.Orientation(EOrientation::Orient_Horizontal)
 			.ColorAndOpacity(this, &SDataprepGraphActionStepNode::GetDragAndDropColor)

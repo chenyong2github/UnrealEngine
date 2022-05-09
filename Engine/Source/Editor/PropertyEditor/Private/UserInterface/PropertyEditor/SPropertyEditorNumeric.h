@@ -10,7 +10,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
 #include "Layout/Margin.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
@@ -41,7 +41,7 @@ class SPropertyEditorNumeric : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS( SPropertyEditorNumeric<NumericType> )
-		: _Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) ) 
+		: _Font( FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) ) 
 		{}
 		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
 	SLATE_END_ARGS()

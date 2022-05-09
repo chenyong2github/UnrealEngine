@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "PropertyNode.h"
 #include "Fonts/SlateFontInfo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/Text/STextBlock.h"
@@ -19,8 +19,8 @@ class SPropertyEditorTitle : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS( SPropertyEditorTitle )
-		: _PropertyFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
-		, _CategoryFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::CategoryFontStyle ) )
+		: _PropertyFont( FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
+		, _CategoryFont( FAppStyle::GetFontStyle( PropertyEditorConstants::CategoryFontStyle ) )
 		{}
 		SLATE_ATTRIBUTE( FSlateFontInfo, PropertyFont )
 		SLATE_ATTRIBUTE( FSlateFontInfo, CategoryFont )

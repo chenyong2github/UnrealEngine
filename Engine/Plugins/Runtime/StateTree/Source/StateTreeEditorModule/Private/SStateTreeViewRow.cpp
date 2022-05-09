@@ -7,7 +7,7 @@
 #include "ScopedTransaction.h"
 #include "Templates/SharedPointer.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "StateTreeEditorStyle.h"
 
@@ -86,7 +86,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
             .VAlign(VAlign_Fill)
             [
                 SNew(SBorder)
-                .BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+                .BorderImage(FAppStyle::GetBrush("WhiteBrush"))
                 .BorderBackgroundColor(this, &SStateTreeViewRow::GetTitleColor)
                 .Padding(FMargin(16.0f, 0.0f, 16.0f, 0.0f))
                 [
@@ -149,7 +149,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 			.Visibility(this, &SStateTreeViewRow::GetEvaluatorsVisibility)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(EvaluatorsBackground)
 				.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
 				[
@@ -190,7 +190,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 			.Visibility(this, &SStateTreeViewRow::GetTasksVisibility)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(TasksBackground)
 				.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
 				[

@@ -14,7 +14,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SComboBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "BlueprintRuntime.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -164,11 +164,11 @@ void SBlueprintWarningsConfigurationPanel::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(Label, SBorder)
 				.Padding(3)
-				.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+				.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 				.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.Text(LOCTEXT("BlueprintWarningSettings", "Warning Behavior"))
 			]
 		]
@@ -176,7 +176,7 @@ void SBlueprintWarningsConfigurationPanel::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SAssignNew(ListView, FBlueprintWarningListView)
 					.SelectionMode(ESelectionMode::Multi)

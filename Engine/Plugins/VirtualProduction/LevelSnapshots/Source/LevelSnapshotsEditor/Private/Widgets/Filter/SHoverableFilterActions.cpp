@@ -2,7 +2,7 @@
 
 #include "SHoverableFilterActions.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelSnapshotsEditorStyle.h"
 
 #include "Widgets/SBoxPanel.h"
@@ -59,7 +59,7 @@ void SHoverableFilterActions::Construct(FArguments InArgs, TWeakPtr<SWidget> InH
 				.ButtonStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.RemoveFilterButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+					.Image(FAppStyle::GetBrush("Icons.Delete"))
 				]
 			]
 		]

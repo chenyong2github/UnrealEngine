@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 class FLevelSnapshotsEditorCommands
@@ -13,7 +13,7 @@ class FLevelSnapshotsEditorCommands
 public:
 	FLevelSnapshotsEditorCommands()
 		: TCommands<FLevelSnapshotsEditorCommands>(TEXT("LevelSnapshotsEditor"),
-			NSLOCTEXT("Contexts", "LevelSnapshotsEditor", "Level Snapshots Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+			NSLOCTEXT("Contexts", "LevelSnapshotsEditor", "Level Snapshots Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{ }
 
 	virtual void RegisterCommands() override;

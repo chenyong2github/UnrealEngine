@@ -31,7 +31,7 @@ void FAssetTypeActions_SoundCueTemplate::GetActions(const TArray<UObject*>& InOb
 		"SoundCueTemplate_CopyToSoundCue",
 		LOCTEXT("SoundCueTemplate_CopyToSoundCue", "Copy To Sound Cue"),
 		LOCTEXT("SoundCueTemplate_CopyToSoundCueTooltip", "Exports a Sound Cue Template to a Sound Cue."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundCueTemplate::ExecuteCopyToSoundCue, Cues),
 			FCanExecuteAction()
@@ -105,7 +105,7 @@ void FAssetActionExtender_SoundCueTemplate::RegisterMenus()
 
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSoundCueTemplate", "Create SoundCueTemplate");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSoundCueTemplateToolTip", "Creates a SoundCueTemplate from the selected sound waves.");
-		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue");
+		const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue");
 		const FToolMenuExecuteAction UIExecuteAction = FToolMenuExecuteAction::CreateStatic(&FAssetActionExtender_SoundCueTemplate::ExecuteCreateSoundCueTemplate);
 
 		InSection.AddMenuEntry("SoundWave_CreateSoundCueTemplate", Label, ToolTip, Icon, UIExecuteAction);

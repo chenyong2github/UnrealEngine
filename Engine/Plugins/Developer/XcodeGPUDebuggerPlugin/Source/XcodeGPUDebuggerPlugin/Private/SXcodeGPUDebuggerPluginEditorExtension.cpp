@@ -12,7 +12,7 @@
 #include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
 #include "Editor/UnrealEd/Public/SViewportToolBarComboMenu.h"
 #include "Editor/UnrealEd/Public/Kismet2/DebuggerCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -39,7 +39,7 @@ public:
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Bottom)
-			.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+			.ButtonStyle(FAppStyle::Get(), "ViewportMenu.Button")
 			.ContentPadding(FMargin(1.0f))
 			.ToolTipText(FXcodeGPUDebuggerPluginCommands::Get().CaptureFrameCommand->GetDescription())
 			.OnClicked_Lambda([this]()

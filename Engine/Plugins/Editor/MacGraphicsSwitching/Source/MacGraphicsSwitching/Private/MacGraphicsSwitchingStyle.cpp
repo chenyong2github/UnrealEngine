@@ -3,7 +3,7 @@
 #include "MacGraphicsSwitchingStyle.h"
 #include "MacGraphicsSwitchingModule.h"
 #include "Styling/SlateStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateStyleRegistry.h"
 
@@ -39,7 +39,7 @@ void FMacGraphicsSwitchingStyle::Initialize()
 		.SetPressedPadding(FMargin(2, 3, 2, 1));
 		
 		const FComboButtonStyle ComboButton = FComboButtonStyle()
-		.SetButtonStyle(FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+		.SetButtonStyle(FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
 		.SetDownArrowImage(IMAGE_BRUSH("Common/ComboArrow", Icon8x8))
 		.SetMenuBorderBrush(BOX_BRUSH("Tutorials/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(1), FLinearColor(0.05f,0.05f,0.05f)))
 		.SetMenuBorderPadding(FMargin(0.0f));

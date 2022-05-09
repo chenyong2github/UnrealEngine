@@ -2,7 +2,7 @@
 #include "MetasoundEditorSettings.h"
 
 #include "UObject/UnrealType.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 UMetasoundEditorSettings::UMetasoundEditorSettings(const FObjectInitializer& ObjectInitializer)

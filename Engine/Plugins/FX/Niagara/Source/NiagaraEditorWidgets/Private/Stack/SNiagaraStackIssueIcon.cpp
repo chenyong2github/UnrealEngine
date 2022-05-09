@@ -7,7 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraEditorStyle.h"
 #include "Internationalization/Text.h"
 #include "NiagaraEditorWidgetsStyle.h"
@@ -255,7 +255,7 @@ void SNiagaraStackIssueIcon::UpdateFromEntry(ENiagaraStructureChangedFlags Flags
 {
 	if (StackEntry.IsValid() == false || StackEntry->IsFinalized() || StackEntry->HasIssuesOrAnyChildHasIssues() == false)
 	{
-		IconBrush = FEditorStyle::GetBrush("NoBrush");
+		IconBrush = FAppStyle::GetBrush("NoBrush");
 		IconHeight = 0;
 		IconToolTipCache = FText();
 		return;

@@ -71,7 +71,7 @@ public:
         		+ SHorizontalBox::Slot()
         		[
         			SNew(SButton)
-        			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+        			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
         			.OnClicked(this, &SLensDataEditPointDialog::OnSaveDataPointClicked)
         			.HAlign(HAlign_Center)
         			.Text(LOCTEXT("SaveDataPoint", "Save"))
@@ -79,7 +79,7 @@ public:
         		+ SHorizontalBox::Slot()
         		[
         			SNew(SButton)
-        			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+        			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
         			.OnClicked(this, &SLensDataEditPointDialog::OnCancelDataPointClicked)
         			.HAlign(HAlign_Center)
         			.Text(LOCTEXT("CancelEditDataPoint", "Cancel"))

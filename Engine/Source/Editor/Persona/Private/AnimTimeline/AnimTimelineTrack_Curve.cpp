@@ -6,7 +6,7 @@
 #include "RichCurveEditorModel.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AnimSequenceTimelineCommands.h"
 #include "ScopedTransaction.h"
@@ -235,8 +235,8 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curve::MakeTimelineWidgetContainer()
 	return 
 		SAssignNew(TimelineWidgetContainer, SBorder)
 		.Padding(0.0f)
-		.BorderImage(FEditorStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"))
-		.BorderBackgroundColor_Lambda([this](){ return GetModel()->IsTrackSelected(AsShared()) ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor().CopyWithNewOpacity(0.75f) : BackgroundColor.Desaturate(0.75f); })
+		.BorderImage(FAppStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"))
+		.BorderBackgroundColor_Lambda([this](){ return GetModel()->IsTrackSelected(AsShared()) ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor().CopyWithNewOpacity(0.75f) : BackgroundColor.Desaturate(0.75f); })
 		[
 			CurveWidget
 		];

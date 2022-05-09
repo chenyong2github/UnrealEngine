@@ -8,7 +8,7 @@
 #include "Sound/SoundWave.h"
 #include "ToolMenus.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/AudioComponent.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
@@ -29,7 +29,7 @@ void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, 
 		"Sound_PlaySound",
 		LOCTEXT("Sound_PlaySound", "Play"),
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_SoundBase::ExecutePlaySound, Sounds ),
 			FCanExecuteAction::CreateSP( this, &FAssetTypeActions_SoundBase::CanExecutePlayCommand, Sounds )
@@ -40,7 +40,7 @@ void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, 
 		"Sound_StopSound",
 		LOCTEXT("Sound_StopSound", "Stop"),
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetTypeActions_SoundBase::ExecuteStopSound, Sounds ),
 			FCanExecuteAction()
@@ -51,7 +51,7 @@ void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, 
 		"Sound_SoundMute",
 		LOCTEXT("Sound_MuteSound", "Mute"),
 		LOCTEXT("Sound_MuteSoundTooltip", "Mutes the selected sounds."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Mute.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Mute.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundBase::ExecuteMuteSound, Sounds),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_SoundBase::CanExecuteMuteCommand, Sounds),
@@ -64,7 +64,7 @@ void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, 
 		"Sound_StopSolo",
 		LOCTEXT("Sound_SoloSound", "Solo"),
 		LOCTEXT("Sound_SoloSoundTooltip", "Solos the selected sounds."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Solo.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Solo.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundBase::ExecuteSoloSound, Sounds),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_SoundBase::CanExecuteSoloCommand, Sounds),
@@ -178,10 +178,10 @@ TSharedPtr<SWidget> FAssetTypeActions_SoundBase::GetThumbnailOverlay(const FAsse
 	{
 		if (IsSoundPlaying(AssetData))
 		{
-			return FEditorStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
+			return FAppStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
 		}
 
-		return FEditorStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
+		return FAppStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
 	};
 
 	auto OnClickedLambda = [this, AssetData]() -> FReply
@@ -226,7 +226,7 @@ TSharedPtr<SWidget> FAssetTypeActions_SoundBase::GetThumbnailOverlay(const FAsse
 
 	TSharedPtr<SButton> Widget;
 	SAssignNew(Widget, SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ToolTipText_Lambda(OnToolTipTextLambda)
 		.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so we need to override that here
 		.ForegroundColor(FSlateColor::UseForeground())

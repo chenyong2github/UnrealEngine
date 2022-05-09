@@ -21,7 +21,7 @@ struct FSlateWidgetStyle;
 
 /**
  * A slate style chunk that contains a collection of named properties that guide the appearance of Slate.
- * At the moment, basically FEditorStyle.
+ * At the moment, basically FAppStyle.
  */
 class SLATECORE_API FSlateStyleSet : public ISlateStyle
 {

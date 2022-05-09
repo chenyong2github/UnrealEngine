@@ -20,7 +20,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PlatformInfo.h"
 #include "Widgets/Shared/SProjectLauncherBuildConfigurationSelector.h"
 #include "Widgets/Shared/SProjectLauncherCookModeSelector.h"
@@ -441,7 +441,7 @@ private:
 			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(SimpleProfile->GetDeviceVariant()));
 			if (PlatformInfo)
 			{
-				return FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Large));
+				return FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Large));
 			}
 		}
 		return FStyleDefaults::GetNoBrush();

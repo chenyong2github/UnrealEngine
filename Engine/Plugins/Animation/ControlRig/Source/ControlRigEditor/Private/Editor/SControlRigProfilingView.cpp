@@ -11,7 +11,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "ControlRigEditorStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "HAL/ConsoleManager.h"
 
@@ -519,7 +519,7 @@ void SControlRigProfilingView::Construct( const FArguments& InArgs)
 				[
 					SNew(SEditableTextBox)
 					.MinDesiredWidth(250)
-					.Font(FEditorStyle::GetFontStyle("ContentBrowser.AssetTileViewNameFont"))
+					.Font(FAppStyle::GetFontStyle("ContentBrowser.AssetTileViewNameFont"))
 					.Text(GetSearchText())
 					.HintText(LOCTEXT("Search", "Search"))
 					.OnTextCommitted(this, &SControlRigProfilingView::OnSearchTextCommitted)
@@ -570,7 +570,7 @@ void SControlRigProfilingView::Construct( const FArguments& InArgs)
 				SNew(SBorder)
 				.Padding(2.0f)
 				.BorderBackgroundColor(this, &SControlRigProfilingView::GetTreeBackgroundColor)
-				.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+				.BorderImage(FAppStyle::GetBrush("SCSEditor.TreePanel"))
 				[
 					SAssignNew(TreeView, STreeView<TSharedPtr<FStatsTreeElement>>)
 					.ItemHeight(28)

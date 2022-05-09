@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 
@@ -11,7 +11,7 @@ class FOptimusToolsCommands : public TCommands<FOptimusToolsCommands>
 {
 public:
 	FOptimusToolsCommands()
-	    : TCommands<FOptimusToolsCommands>(TEXT("OptimusTools"), NSLOCTEXT("Contexts", "OptimusTools", "Optimus Tools"), NAME_None, FEditorStyle::GetStyleSetName())
+	    : TCommands<FOptimusToolsCommands>(TEXT("OptimusTools"), NSLOCTEXT("Contexts", "OptimusTools", "Optimus Tools"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

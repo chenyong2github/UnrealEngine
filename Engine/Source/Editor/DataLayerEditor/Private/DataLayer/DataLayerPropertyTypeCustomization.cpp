@@ -19,7 +19,6 @@
 #include "SDropTarget.h"
 #include "Editor.h"
 #include "LevelEditor.h"
-#include "EditorFontGlyphs.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
@@ -69,7 +68,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 				})
 				.ToolTipText(LOCTEXT("ComboButtonTip", "Drag and drop a Data Layer onto this property, or choose one from the drop down."))
 				.OnGetMenuContent(this, &FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(FMargin(0))
 				.ButtonContent()
@@ -92,7 +91,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 					return (DataLayer && DataLayer->IsLocked()) ? EVisibility::Visible : EVisibility::Collapsed;
 				})
 				.ColorAndOpacity(this, &FDataLayerPropertyTypeCustomization::GetForegroundColor)
-				.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked")))
+				.Image(FAppStyle::GetBrush(TEXT("PropertyWindow.Locked")))
 				.ToolTipText(LOCTEXT("LockedRuntimeDataLayerEditing", "Locked editing. (To allow editing, in Data Layer Outliner, go to Advanced -> Allow Runtime Data Layer Editing)"))
 			]
 
@@ -102,7 +101,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("SelectTip", "Select all actors in this Data Layer"))
 				.OnClicked(this, &FDataLayerPropertyTypeCustomization::OnSelectDataLayer)
 				.Visibility(this, &FDataLayerPropertyTypeCustomization::GetSelectDataLayerVisibility)
@@ -156,13 +155,13 @@ const FSlateBrush* FDataLayerPropertyTypeCustomization::GetDataLayerIcon() const
 	const UDataLayerInstance* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
 	if (!DataLayer)
 	{
-		return FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
+		return FAppStyle::GetBrush(TEXT("DataLayer.Editor"));
 	}
 	if (PropertyAccessResult == FPropertyAccess::MultipleValues)
 	{
-		return FEditorStyle::GetBrush(TEXT("LevelEditor.Tabs.DataLayers"));
+		return FAppStyle::GetBrush(TEXT("LevelEditor.Tabs.DataLayers"));
 	}
-	return FEditorStyle::GetBrush(DataLayer->GetDataLayerIconName());
+	return FAppStyle::GetBrush(DataLayer->GetDataLayerIconName());
 }
 
 FText FDataLayerPropertyTypeCustomization::GetDataLayerText() const

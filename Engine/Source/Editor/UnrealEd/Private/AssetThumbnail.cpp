@@ -19,7 +19,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SViewport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "RenderingThread.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "RenderUtils.h"
@@ -151,7 +151,7 @@ public:
 					.Text(GetLabelText())
 					.Font(GetTextFont())
 					.Justification(ETextJustify::Center)
-					.ColorAndOpacity(FEditorStyle::GetColor(Style, ".ColorAndOpacity"))
+					.ColorAndOpacity(FAppStyle::GetColor(Style, ".ColorAndOpacity"))
 					.HighlightText(HighlightedText)
 				]
 
@@ -213,7 +213,7 @@ public:
 			.Padding(GetClassIconPadding())
 			[
 				SAssignNew(ClassIconWidget, SBorder)
-				.BorderImage(FEditorStyle::GetNoBrush())
+				.BorderImage(FAppStyle::GetNoBrush())
 				[
 					SNew(SImage)
 					.Image(this, &SAssetThumbnail::GetClassIconBrush)
@@ -229,7 +229,7 @@ public:
 				.Padding(FMargin(2, 2, 2, 2))
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush(Style, ".HintBackground"))
+					.BorderImage(FAppStyle::GetBrush(Style, ".HintBackground"))
 					.BorderBackgroundColor(this, &SAssetThumbnail::GetHintBackgroundColor) //Adjust the opacity of the border itself
 					.ColorAndOpacity(HintColorAndOpacity) //adjusts the opacity of the contents of the border
 					.Visibility(this, &SAssetThumbnail::GetHintTextVisibility)
@@ -238,7 +238,7 @@ public:
 						SAssignNew(HintTextBlock, STextBlock)
 						.Text(GetLabelText())
 						.Font(GetHintTextFont())
-						.ColorAndOpacity(FEditorStyle::GetColor(Style, ".HintColorAndOpacity"))
+						.ColorAndOpacity(FAppStyle::GetColor(Style, ".HintColorAndOpacity"))
 						.HighlightText(HighlightedText)
 					]
 				];
@@ -250,7 +250,7 @@ public:
 		.VAlign(ColorStripOrientation == EThumbnailColorStripOrientation::HorizontalBottomEdge ? VAlign_Bottom : VAlign_Fill)
 		[
 			SAssignNew(AssetColorStripWidget, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(AssetColor)
 			.Padding(this, &SAssetThumbnail::GetAssetColorStripPadding)
 		];
@@ -397,12 +397,12 @@ private:
 
 	FSlateFontInfo GetTextFont() const
 	{
-		return FEditorStyle::GetFontStyle( WidthLastFrame <= 64 ? FEditorStyle::Join(Style, ".FontSmall") : FEditorStyle::Join(Style, ".Font") );
+		return FAppStyle::GetFontStyle( WidthLastFrame <= 64 ? FAppStyle::Join(Style, ".FontSmall") : FAppStyle::Join(Style, ".Font") );
 	}
 
 	FSlateFontInfo GetHintTextFont() const
 	{
-		return FEditorStyle::GetFontStyle( WidthLastFrame <= 64 ? FEditorStyle::Join(Style, ".HintFontSmall") : FEditorStyle::Join(Style, ".HintFont") );
+		return FAppStyle::GetFontStyle( WidthLastFrame <= 64 ? FAppStyle::Join(Style, ".HintFontSmall") : FAppStyle::Join(Style, ".HintFont") );
 	}
 
 	float GetTextWrapWidth() const
@@ -412,13 +412,13 @@ private:
 
 	const FSlateBrush* GetAssetBackgroundBrush() const
 	{
-		return FEditorStyle::GetBrush(AssetBackgroundBrushName);
+		return FAppStyle::GetBrush(AssetBackgroundBrushName);
 	}
 
 	const FSlateBrush* GetClassBackgroundBrush() const
 	{
 
-		return FEditorStyle::GetBrush(ClassBackgroundBrushName);
+		return FAppStyle::GetBrush(ClassBackgroundBrushName);
 	}
 
 	FLinearColor GetViewportColorAndOpacity() const

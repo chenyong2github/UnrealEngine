@@ -14,7 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /** Validation check */
 bool FPListNodeDictionary::IsValid()
@@ -119,7 +119,7 @@ TSharedRef<SWidget> FPListNodeDictionary::GenerateWidgetForColumn(const FName& C
 				+ SHorizontalBox::Slot()
 				[
 					SAssignNew(ExpanderArrow, SButton)
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 					.ClickMethod( EButtonClickMethod::MouseDown )
 					.Visibility( this, &FPListNodeDictionary::GetExpanderVisibility )
 					.OnClicked( this, &FPListNodeDictionary::OnArrowClicked )
@@ -279,11 +279,11 @@ const FSlateBrush* FPListNodeDictionary::GetOverlayBrush()
 {
 	if(bFiltered)
 	{
-		return FEditorStyle::GetBrush( TEXT("PListEditor.FilteredColor") );
+		return FAppStyle::GetBrush( TEXT("PListEditor.FilteredColor") );
 	}
 	else
 	{
-		return FEditorStyle::GetBrush( TEXT("PListEditor.NoOverlayColor") );
+		return FAppStyle::GetBrush( TEXT("PListEditor.NoOverlayColor") );
 	}
 }
 
@@ -318,7 +318,7 @@ const FSlateBrush* FPListNodeDictionary::GetExpanderImage() const
 		}
 	}
 
-	return FEditorStyle::GetBrush( ResourceName );
+	return FAppStyle::GetBrush( ResourceName );
 }
 
 /** Delegate: Gets the visibility of the expander arrow */

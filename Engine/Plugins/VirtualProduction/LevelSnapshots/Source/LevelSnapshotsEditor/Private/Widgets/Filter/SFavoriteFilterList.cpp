@@ -3,7 +3,7 @@
 #include "SFavoriteFilterList.h"
 
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "SFavoriteFilter.h"

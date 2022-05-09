@@ -8,7 +8,7 @@
 
 void FDataLayerDragDropOp::Construct()
 {
-	const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
+	const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("DataLayer.Editor"));
 	if (DataLayerDragDropInfos.Num() == 1)
 	{
 		SetToolTip(FText::FromString(DataLayerDragDropInfos[0].DataLayerShortName), Icon);

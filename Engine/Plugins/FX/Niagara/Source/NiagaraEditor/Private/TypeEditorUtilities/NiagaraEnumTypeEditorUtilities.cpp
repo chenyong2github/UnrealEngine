@@ -8,7 +8,7 @@
 
 #include "Widgets/Input/SSpinBox.h"
 #include "EditorWidgets/Public/SEnumCombo.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class SNiagaraEnumParameterEditor : public SNiagaraParameterEditor
 {

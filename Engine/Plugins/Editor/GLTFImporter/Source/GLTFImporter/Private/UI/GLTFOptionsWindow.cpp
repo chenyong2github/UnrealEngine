@@ -2,7 +2,7 @@
 
 #include "GLTFOptionsWindow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "HAL/PlatformProcess.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"

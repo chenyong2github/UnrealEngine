@@ -13,7 +13,6 @@
 #include "AssetThumbnail.h"
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
-#include "Editor/EditorStyle/Public/EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "Misc/ScopedSlowTask.h"
@@ -239,7 +238,7 @@ TSharedPtr<SWidget> SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu(const TA
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Browse", "Browse to Asset"),
 			LOCTEXT("BrowseTooltip", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser.Small"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser.Small"),
 			FUIAction(
 				FExecuteAction::CreateLambda([SelectedAsset] ()
 				{
@@ -257,7 +256,7 @@ TSharedPtr<SWidget> SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu(const TA
 		MenuBuilder.AddMenuEntry(
 		LOCTEXT("OpenSnapshot", "Open Snapshot in Editor"),
 		LOCTEXT("OpenSnapshotToolTip", "Open this snapshot in the Level Snapshots Editor."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this, SelectedAsset] ()
 				{

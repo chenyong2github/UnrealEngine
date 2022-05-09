@@ -44,8 +44,8 @@
 #include "Styling/SlateIconFinder.h"
 #include "SPositiveActionButton.h"
 
-// EditorStyle includes
-#include "EditorStyleSet.h"
+// Style includes
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 
 // UnrealEd includes
@@ -128,7 +128,7 @@ void SLevelSequenceTakeEditor::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(4)
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SourcesWidget.ToSharedRef()
 			]
@@ -384,7 +384,7 @@ class FRecorderPropertyMapCustomization : public IPropertyTypeCustomization
 	    	[
 	    		SNew(STextBlock)
 	    		.Text(ActorOrComponentName)
-	    		.Font( FEditorStyle::GetFontStyle( "PropertyWindow.BoldFont" ))
+	    		.Font( FAppStyle::GetFontStyle( "PropertyWindow.BoldFont" ))
 	    	]
 
 	    	+SHorizontalBox::Slot()
@@ -394,7 +394,7 @@ class FRecorderPropertyMapCustomization : public IPropertyTypeCustomization
 	    	[
 	    		SNew(STextBlock)
 	    		.Text(LOCTEXT("TakeRecorderRecordedPropertiesTitle", "Recorded Properties"))
-	    		.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ))
+	    		.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ))
 	    	]
 	    ];
 	}
@@ -442,7 +442,7 @@ class FRecorderPropertyMapCustomization : public IPropertyTypeCustomization
 	    	[
 	    		SNew(STextBlock)
 	    		.Text(DisplayName)
-	    		.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ))
+	    		.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ))
 	    	]
 		];
 

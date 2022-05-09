@@ -18,7 +18,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Preferences/PhysicsAssetEditorOptions.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsAssetEditorModule.h"
@@ -3572,7 +3572,7 @@ TSharedRef<SWidget> FPhysicsAssetEditor::MakeConstraintScaleWidget()
 			.WidthOverride(100.0f)
 			[
 				SNew(SNumericEntryBox<float>)
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.AllowSpin(true)
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(4.0f)
@@ -3599,7 +3599,7 @@ TSharedRef<SWidget> FPhysicsAssetEditor::MakeCollisionOpacityWidget()
 			.WidthOverride(100.0f)
 			[
 				SNew(SNumericEntryBox<float>)
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.AllowSpin(true)
 				.MinValue(0.0f)
 				.MaxValue(1.0f)

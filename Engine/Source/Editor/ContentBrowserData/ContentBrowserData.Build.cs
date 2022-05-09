@@ -29,7 +29,6 @@ public class ContentBrowserData : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
-				"EditorStyle",
 			}
 		);
 	}

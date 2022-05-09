@@ -115,11 +115,11 @@ void FMovieSceneSequenceLoopCountCustomization::CustomizeHeader(TSharedRef<IProp
 				.Visibility(this, &FMovieSceneSequenceLoopCountCustomization::GetLoopResetVisibility)
 				.ContentPadding(FMargin(5.f, 0.f))
 				.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.Content()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
+					.Image( FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
 				]
 			]
 		];

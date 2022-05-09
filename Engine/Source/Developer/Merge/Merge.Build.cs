@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 				    "CoreUObject",
 					"EditorFramework",
-				    "EditorStyle",
+				    
 				    "Engine", // needed so that we can clone blueprints...
 				    "GraphEditor",
 				    "InputCore",

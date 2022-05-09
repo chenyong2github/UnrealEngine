@@ -22,7 +22,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSlider.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Level.h"
@@ -415,7 +415,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			.Padding(FMargin(8, 0))
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ErrorReporting.EmptyBox"))
+				.BorderImage(FAppStyle::GetBrush("ErrorReporting.EmptyBox"))
 				.BorderBackgroundColor(this, &SAssetView::GetQuickJumpColor)
 				.Visibility(this, &SAssetView::IsQuickJumpVisible)
 				[
@@ -483,7 +483,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 				SNew(SComboButton)
 				.Visibility(InArgs._ShowViewOptions ? EVisibility::Visible : EVisibility::Collapsed)
 				.ContentPadding(0)
-				.ButtonStyle( FEditorStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
+				.ButtonStyle( FAppStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
 				.OnGetMenuContent( this, &SAssetView::GetViewButtonContent )
 				.ButtonContent()
 				[
@@ -494,7 +494,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image( FEditorStyle::GetBrush("GenericViewButton") )
+						.Image( FAppStyle::GetBrush("GenericViewButton") )
 					]
  
 					+SHorizontalBox::Slot()
@@ -1444,7 +1444,7 @@ FReply SAssetView::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 
 				if (IsValidDrop)
 				{
-					AssetDragDropOp->SetToolTip(NSLOCTEXT("AssetView", "OnDragOverCollection", "Add to Collection"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+					AssetDragDropOp->SetToolTip(NSLOCTEXT("AssetView", "OnDragOverCollection", "Add to Collection"), FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 				}
 			}
 
@@ -3202,7 +3202,7 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 	{
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+			.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 			.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3235,7 +3235,7 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+		.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 		.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 		.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3281,7 +3281,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 	{
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style( FEditorStyle::Get(), "ContentBrowser.AssetListView.TileTableRow" )
+			.Style( FAppStyle::Get(), "ContentBrowser.AssetListView.TileTableRow" )
 			.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3316,7 +3316,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TileTableRow")
+		.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.TileTableRow")
 		.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 		.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3356,7 +3356,7 @@ TSharedRef<ITableRow> SAssetView::MakeColumnViewWidget(TSharedPtr<FAssetViewItem
 	if ( !ensure(AssetItem.IsValid()) )
 	{
 		return SNew( STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow");
+			.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow");
 	}
 
 	// Update the cached custom data
@@ -4142,7 +4142,7 @@ EVisibility SAssetView::IsQuickJumpVisible() const
 
 FSlateColor SAssetView::GetQuickJumpColor() const
 {
-	return FEditorStyle::GetColor((QuickJumpData.bHasValidMatch) ? "InfoReporting.BackgroundColor" : "ErrorReporting.BackgroundColor");
+	return FAppStyle::GetColor((QuickJumpData.bHasValidMatch) ? "InfoReporting.BackgroundColor" : "ErrorReporting.BackgroundColor");
 }
 
 void SAssetView::ResetQuickJump()

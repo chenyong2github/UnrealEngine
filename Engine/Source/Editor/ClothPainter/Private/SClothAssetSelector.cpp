@@ -4,7 +4,7 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
@@ -809,7 +809,7 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 						.Padding(FMargin(0, 1))
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("Plus"))
+							.Image(FAppStyle::GetBrush("Plus"))
 						]
 
 						+ SHorizontalBox::Slot()

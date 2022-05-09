@@ -5,7 +5,7 @@
 #include "Layout/Margin.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailChildrenBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
@@ -58,7 +58,7 @@ void FDialogueContextMappingNodeBuilder::GenerateHeaderRowContent(FDetailWidgetR
 				.FillWidth(1.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("DialogueWaveDetails.HeaderBorder"))
+					.BorderImage(FAppStyle::GetBrush("DialogueWaveDetails.HeaderBorder"))
 					[
 						SNew(SDialogueContextHeaderWidget, ContextPropertyHandle.ToSharedRef(), DetailLayoutBuilder->GetThumbnailPool().ToSharedRef())
 					]
@@ -107,7 +107,7 @@ void FDialogueContextMappingNodeBuilder::GenerateChildContent(IDetailChildrenBui
 			.AutoWidth()
 			[
 				SAssignNew(LocalizationKeyFormatEditableText, SEditableTextBox)
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(this, &FDialogueContextMappingNodeBuilder::LocalizationKeyFormatEditableText_GetText)
 				.ToolTipText(LocalizationKeyFormatPropertyHandle->GetToolTipText())
 				.OnTextCommitted(this, &FDialogueContextMappingNodeBuilder::LocalizationKeyFormatEditableText_OnTextCommitted)
@@ -120,7 +120,7 @@ void FDialogueContextMappingNodeBuilder::GenerateChildContent(IDetailChildrenBui
 			.Padding(FMargin(4.0f, 0.0f, 30.0f, 0.0f))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(this, &FDialogueContextMappingNodeBuilder::LocalizationKey_GetText)
 				.ToolTipText(LOCTEXT("LocalizationKeyToolTipText", "The localization key used by this context."))
 			]

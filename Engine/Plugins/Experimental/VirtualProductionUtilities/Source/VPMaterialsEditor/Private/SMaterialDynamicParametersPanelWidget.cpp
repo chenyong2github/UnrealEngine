@@ -4,7 +4,7 @@
 
 #include "DetailColumnSizeData.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
@@ -372,7 +372,7 @@ void SMaterialDynamicParametersOverviewTreeItem::Construct(const FArguments& InA
 				[
 					SNew(STextBlock)
 					.Text(NameOverride)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			];
 		}
@@ -409,7 +409,7 @@ void SMaterialDynamicParametersOverviewTreeItem::Construct(const FArguments& InA
 					.BorderBackgroundColor(this, &SMaterialDynamicParametersOverviewTreeItem::GetOuterBackgroundColor, StackParameterData)
 					[
 						SNew(SSplitter)
-						.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+						.Style(FAppStyle::Get(), "DetailsView.Splitter")
 						.PhysicalSplitterHandleSize(1.0f)
 						.HitDetectionSplitterHandleSize(5.0f)
 						+ SSplitter::Slot()
@@ -458,7 +458,7 @@ void SMaterialDynamicParametersOverviewTreeItem::Construct(const FArguments& InA
 
 	STableRow< TSharedPtr<FPropertySortedParamData> >::ConstructInternal(
 		STableRow::FArguments()
-		.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+		.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 		.ShowSelection(false),
 		InOwnerTableView
 	);

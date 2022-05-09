@@ -11,8 +11,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
-#include "EditorFontGlyphs.h"
+#include "Styling/AppStyle.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "Stats/Stats.h"
 #include "Widgets/SOverlay.h"
@@ -40,7 +39,7 @@ FDerivedDataStatusBarMenuCommands::FDerivedDataStatusBarMenuCommands()
 		"DerivedDataSettings",
 		NSLOCTEXT("Contexts", "Derived Data", "Derived Data"),
 		"LevelEditor",
-		FEditorStyle::GetStyleSetName()
+		FAppStyle::GetAppStyleSetName()
 		)
 {}
 
@@ -106,7 +105,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			FDerivedDataStatusBarMenuCommands::Get().ChangeSettings,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Settings")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.Cache.Settings")
 		);
 	}
 
@@ -117,21 +116,21 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			FDerivedDataStatusBarMenuCommands::Get().ViewCacheStatistics,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.Cache.Statistics")
 		);
 
 		Section.AddMenuEntry(
 			FDerivedDataStatusBarMenuCommands::Get().ViewResourceUsage,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.ResourceUsage")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.ResourceUsage")
 		);
 
 		Section.AddMenuEntry(
 			FDerivedDataStatusBarMenuCommands::Get().ViewVirtualAssetsStatistics,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.Cache.Statistics")
 		);
 	}
 

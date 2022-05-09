@@ -17,7 +17,6 @@ public class LevelInstanceEditor : ModuleRules
             new string[] {
 				"Core",
 				"CoreUObject",
-				"EditorStyle",
 				"Engine",
 				"InputCore",
 				"Slate",

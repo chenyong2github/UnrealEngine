@@ -5,7 +5,7 @@
 #include "Rendering/DrawElements.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "ScopedTransaction.h"
 #include "GraphEditorSettings.h"
@@ -1284,7 +1284,7 @@ void SNodePanel::PaintBackgroundAsLines(const FSlateBrush* BackgroundImage, cons
 {
 	const bool bAntialias = false;
 
-	const int32 RulePeriod = (int32)FEditorStyle::GetFloat("Graph.Panel.GridRulePeriod");
+	const int32 RulePeriod = (int32)FAppStyle::GetFloat("Graph.Panel.GridRulePeriod");
 	check(RulePeriod > 0);
 
 	const FLinearColor GraphBackGroundImageColor(BackgroundImage->TintColor.GetSpecifiedColor());
@@ -1406,7 +1406,7 @@ void SNodePanel::PaintMarquee(const FGeometry& AllottedGeometry, const FSlateRec
 			OutDrawElements,
 			DrawLayerId,
 			AllottedGeometry.ToPaintGeometry( GraphCoordToPanelCoord(Marquee.Rect.GetUpperLeft()), Marquee.Rect.GetSize()*GetZoomAmount() ),
-			FEditorStyle::GetBrush(TEXT("MarqueeSelection"))
+			FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 		);
 	}
 }
@@ -1419,7 +1419,7 @@ void SNodePanel::PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FS
 	}
 
 	// Get appropriate software cursor, depending on whether we're panning or zooming
-	const FSlateBrush* Brush = FEditorStyle::GetBrush(bIsPanning ? TEXT("SoftwareCursor_Grab") : TEXT("SoftwareCursor_UpDown"));
+	const FSlateBrush* Brush = FAppStyle::GetBrush(bIsPanning ? TEXT("SoftwareCursor_Grab") : TEXT("SoftwareCursor_UpDown"));
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
@@ -1433,11 +1433,11 @@ void SNodePanel::PaintComment(const FString& CommentText, const FGeometry& Allot
 {
 	//@TODO: Ideally we don't need to grab these resources for every comment being drawn
 	// Get resources/settings for drawing comment bubbles
-	const FSlateBrush* CommentCalloutArrow = FEditorStyle::GetBrush(TEXT("Graph.Node.CommentArrow"));
-	const FSlateBrush* CommentCalloutBubble = FEditorStyle::GetBrush(TEXT("Graph.Node.CommentBubble"));
-	const FSlateFontInfo CommentFont = FEditorStyle::GetFontStyle( TEXT("Graph.Node.CommentFont") );
-	const FSlateColor CommentTextColor = FEditorStyle::GetColor( TEXT("Graph.Node.Comment.TextColor") );
-	const FVector2D CommentBubblePadding = FEditorStyle::GetVector( TEXT("Graph.Node.Comment.BubblePadding") );
+	const FSlateBrush* CommentCalloutArrow = FAppStyle::GetBrush(TEXT("Graph.Node.CommentArrow"));
+	const FSlateBrush* CommentCalloutBubble = FAppStyle::GetBrush(TEXT("Graph.Node.CommentBubble"));
+	const FSlateFontInfo CommentFont = FAppStyle::GetFontStyle( TEXT("Graph.Node.CommentFont") );
+	const FSlateColor CommentTextColor = FAppStyle::GetColor( TEXT("Graph.Node.Comment.TextColor") );
+	const FVector2D CommentBubblePadding = FAppStyle::GetVector( TEXT("Graph.Node.Comment.BubblePadding") );
 
 	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	FVector2D CommentTextSize = FontMeasureService->Measure( CommentText, CommentFont ) + (CommentBubblePadding * 2);

@@ -75,8 +75,8 @@ void FAnimTimelineTrack_NotifiesPanel::RefreshOutlinerWidget()
 
 		SlotBox->SetContent(
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint"))
-			.BorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.ItemColor"))
+			.BorderImage(FAppStyle::GetBrush("Sequencer.Section.BackgroundTint"))
+			.BorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.ItemColor"))
 			[
 				SAssignNew(HorizontalBox, SHorizontalBox)
 				+SHorizontalBox::Slot()

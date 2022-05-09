@@ -11,7 +11,7 @@
 #include "CommonMovieSceneTools.h"
 #include "MovieSceneSectionHelpers.h"
 #include "IKeyArea.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Rendering/DrawElements.h"
 
 #define LOCTEXT_NAMESPACE "ParameterSection"
@@ -91,7 +91,7 @@ int32 FParameterSection::OnPaintSection(FSequencerSectionPainter& Painter) const
 					Painter.DrawElements,
 					LayerId,
 					PaintGeometry,
-					FEditorStyle::GetBrush( "Checker" ),
+					FAppStyle::GetBrush( "Checker" ),
 					DrawEffects);
 
 				FLinearColor DefaultColor = FLinearColor::Black;

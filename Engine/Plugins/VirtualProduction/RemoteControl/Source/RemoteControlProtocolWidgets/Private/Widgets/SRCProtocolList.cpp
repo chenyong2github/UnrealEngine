@@ -2,7 +2,7 @@
 
 #include "SRCProtocolList.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IRemoteControlProtocolModule.h"
 #include "RemoteControlProtocolWidgetsSettings.h"
 #include "Algo/Transform.h"
@@ -18,12 +18,12 @@ void SRCProtocolList::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SAssignNew(SelectionButton, SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
         .ForegroundColor(FSlateColor::UseForeground())
         .ButtonContent()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+			.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 			.Text_Lambda([this]()
 			{
 				if (!SelectedProtocolName.IsValid())

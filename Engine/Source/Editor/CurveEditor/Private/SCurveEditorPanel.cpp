@@ -17,7 +17,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/Attribute.h"
 #include "Algo/Sort.h"
 #include "CurveEditorEditObjectContainer.h"
@@ -76,7 +76,7 @@ class SCurveEditorViewOverlay : public SCompoundWidget
 	{
 		static const FLinearColor BackgroundColor = FLinearColor::Black.CopyWithNewOpacity(0.35f);
 		static const FText InstructionText = LOCTEXT("CurveEditorTutorialOverlay", "Select a curve on the left to begin editing.");
-		const FSlateBrush*   WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
+		const FSlateBrush*   WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 		const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("FontAwesome.13");
 
@@ -173,7 +173,7 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 			[
 				// Top Time Slider
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.BorderBackgroundColor(FLinearColor(.50f, .50f, .50f, 1.0f))
 				.Padding(0)
 				.Clipping(EWidgetClipping::ClipToBounds)
@@ -232,7 +232,7 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 		[
 			SNew(SSplitter)
 			.Orientation(Orient_Horizontal)
-			.Style(FEditorStyle::Get(), "SplitterDark")
+			.Style(FAppStyle::Get(), "SplitterDark")
 			.PhysicalSplitterHandleSize(3.0f)
 
 			+ SSplitter::Slot()
@@ -985,7 +985,7 @@ FSlateIcon SCurveEditorPanel::GetCurveExtrapolationPreIcon() const
 	}
 	else
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.PreInfinityMixed");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.PreInfinityMixed");
 	}
 }
 
@@ -1014,7 +1014,7 @@ FSlateIcon SCurveEditorPanel::GetCurveExtrapolationPostIcon() const
 	}
 	else
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.PostInfinityMixed");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.PostInfinityMixed");
 	}
 }
 

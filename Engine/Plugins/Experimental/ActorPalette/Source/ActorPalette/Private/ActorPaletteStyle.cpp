@@ -5,7 +5,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Slate/SlateGameResources.h"
 #include "Interfaces/IPluginManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 TSharedPtr< FSlateStyleSet > FActorPaletteStyle::StyleInstance = NULL;
 
@@ -48,7 +48,7 @@ TSharedRef< FSlateStyleSet > FActorPaletteStyle::Create()
 
 	Style->Set("ActorPalette.OpenPluginWindow", new IMAGE_BRUSH(TEXT("ButtonIcon_40x"), Icon40x40));
 
-	const FTextBlockStyle& NormalText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 
 	Style->Set("ActorPalette.ViewportTitleTextStyle", FTextBlockStyle(NormalText)
 		.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 18))

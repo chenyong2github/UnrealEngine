@@ -41,7 +41,7 @@ void FDirectoryPathStructCustomization::CustomizeHeader( TSharedRef<IPropertyHan
 		if(bContentDir)
 		{
 			PickerWidget = SAssignNew(PickerButton, SButton)
-			.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+			.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 			.ToolTipText( LOCTEXT( "FolderComboToolTipText", "Choose a content directory") )
 			.OnClicked(FOnClicked::CreateSP(this, &FDirectoryPathStructCustomization::OnPickContent, PathProperty.ToSharedRef()))
 			.ContentPadding(2.0f)
@@ -49,7 +49,7 @@ void FDirectoryPathStructCustomization::CustomizeHeader( TSharedRef<IPropertyHan
 			.IsFocusable(false)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+				.Image(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
 
@@ -57,7 +57,7 @@ void FDirectoryPathStructCustomization::CustomizeHeader( TSharedRef<IPropertyHan
 		else
 		{
 			PickerWidget = SAssignNew(BrowseButton, SButton)
-			.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+			.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 			.ToolTipText( LOCTEXT( "FolderButtonToolTipText", "Choose a directory from this computer") )
 			.OnClicked( FOnClicked::CreateSP(this, &FDirectoryPathStructCustomization::OnPickDirectory, PathProperty.ToSharedRef(), bRelativeToGameContentDir, bUseRelativePath) )
 			.ContentPadding( 2.0f )
@@ -65,7 +65,7 @@ void FDirectoryPathStructCustomization::CustomizeHeader( TSharedRef<IPropertyHan
 			.IsFocusable( false )
 			[
 				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis") )
+				.Image( FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis") )
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			];
 		}

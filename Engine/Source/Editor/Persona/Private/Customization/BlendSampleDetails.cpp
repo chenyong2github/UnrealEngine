@@ -5,7 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "IDetailsView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -269,7 +269,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 							.AutoWidth()
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.ArrowRight"))
+								.Image(FAppStyle::GetBrush("Icons.ArrowRight"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 							+SHorizontalBox::Slot()
@@ -340,7 +340,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 							.AutoWidth()
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.Duplicate"))
+								.Image(FAppStyle::GetBrush("Icons.Duplicate"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 							+SHorizontalBox::Slot()
@@ -402,14 +402,14 @@ void FBlendSampleDetails::GenerateBlendSampleWidget(TFunction<FDetailWidgetRow& 
 		ParameterRow.NameContent()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text_Lambda([BlendSpace, ParameterIndex]() { return FText::FromString(BlendSpace->GetBlendParameter(ParameterIndex).DisplayName); })
 		];
 
 		ParameterRow.ValueContent()
 		[
 			SNew(SNumericEntryBox<float>)
-			.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+			.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
 			.Value_Lambda(
 			[BlendSpace, SampleIndex, ParameterIndex]() -> float
 			{
@@ -459,7 +459,7 @@ void FBlendSampleDetails::GenerateAnimationWidget(FDetailWidgetRow& Row, const U
 	Row.NameContent()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text(AnimationProperty->GetPropertyDisplayName())
 		];
 
@@ -479,7 +479,7 @@ void FBlendSampleDetails::GenerateSampleGraphWidget(FDetailWidgetRow& InRow, UAn
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text(LOCTEXT("GraphLabel", "Graph"))
 		]
 		.ValueContent()
@@ -515,7 +515,7 @@ void FBlendSampleDetails::GenerateSampleGraphWidget(FDetailWidgetRow& InRow, UAn
 					.HAlign(HAlign_Center)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						.Text(LOCTEXT("BlendSampleGraphButtonLabel", "Edit Graph"))
 					]
 				]

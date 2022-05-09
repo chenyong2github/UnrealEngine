@@ -17,7 +17,6 @@ public class DataTableEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
                 "PropertyEditor",
 				"EditorFramework",
 				"UnrealEd",

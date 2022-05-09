@@ -11,7 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SSequencerTreeFilterStatusBar"
 
@@ -28,7 +28,7 @@ void SSequencerTreeFilterStatusBar::Construct(const FArguments& InArgs, TSharedP
 		.AutoWidth()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(3.0f, 3.0f))
 			.Visibility(EVisibility::HitTestInvisible)
 			[
@@ -41,7 +41,7 @@ void SSequencerTreeFilterStatusBar::Construct(const FArguments& InArgs, TSharedP
 		.Padding(FMargin(3.f, 0.f, 0.f, 0.f))
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(3.0f, 3.0f))
 			[
 				SNew(SHyperlink)

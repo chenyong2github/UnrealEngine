@@ -19,7 +19,7 @@
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -70,7 +70,7 @@ namespace DataprepWidgetUtils
 			SSplitter::FArguments Args;
 
 			SSplitter::Construct(Args
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.Style(FAppStyle::Get(), "DetailsView.Splitter")
 				.PhysicalSplitterHandleSize(1.0f)
 				.HitDetectionSplitterHandleSize(5.0f)
 				.ResizeMode( ESplitterResizeMode::Fill ));
@@ -189,11 +189,11 @@ const FSlateBrush* SDataprepCategoryWidget::GetBackgroundImage() const
 {
 	if (IsHovered())
 	{
-		return bIsExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+		return bIsExpanded ? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 	} 
 	else
 	{
-		return bIsExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+		return bIsExpanded ? FAppStyle::GetBrush("DetailsView.CategoryTop") : FAppStyle::GetBrush("DetailsView.CollapsedCategory");
 	}
 }
 
@@ -228,7 +228,7 @@ void SDataprepCategoryWidget::Construct( const FArguments& InArgs, TSharedRef< S
 		[
 			SNew(STextBlock)
 			.Text( InArgs._Title )
-			.Font( FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle") )
+			.Font( FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle") )
 			.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 		];
 
@@ -267,7 +267,7 @@ void SDataprepCategoryWidget::Construct( const FArguments& InArgs, TSharedRef< S
 
 	STableRow< TSharedPtr< EDataprepCategory > >::ConstructInternal(
 		STableRow::FArguments()
-		.Style( FEditorStyle::Get(), "DetailsView.TreeView.TableRow" )
+		.Style( FAppStyle::Get(), "DetailsView.TreeView.TableRow" )
 		.ShowSelection( false ),
 		InOwnerTableView
 	);
@@ -287,7 +287,7 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		.VAlign( VAlign_Center )
 		[
 			SNew( SButton )
-			.ButtonStyle( FEditorStyle::Get(), "FlatButton.Primary" )
+			.ButtonStyle( FAppStyle::Get(), "FlatButton.Primary" )
 			.ButtonColorAndOpacity( FLinearColor::Transparent )
 			.ForegroundColor( FLinearColor::White )
 			.ContentPadding( FMargin(6, 2) )
@@ -295,8 +295,8 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 			.Content()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text_Lambda( [this](){ return StringArrayDetailedObject->bExpanded ? FEditorFontGlyphs::Caret_Down: FEditorFontGlyphs::Caret_Right; } )
 			]
 			.OnClicked_Lambda( [this]()

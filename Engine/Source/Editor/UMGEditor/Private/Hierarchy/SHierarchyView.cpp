@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SScrollBorder.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 #include "Hierarchy/SHierarchyViewItem.h"
@@ -54,7 +54,7 @@ void SHierarchyView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluep
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -72,7 +72,7 @@ void SHierarchyView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluep
 			[
 				SAssignNew(TreeViewArea, SBorder)
 				.Padding(0)
-				.BorderImage( FEditorStyle::GetBrush( "NoBrush" ) )
+				.BorderImage( FAppStyle::GetBrush( "NoBrush" ) )
 			]
 		]
 	];

@@ -36,7 +36,7 @@ bool FDetailCategoryGroupNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow
 	OutRow.NameContent()
 	[
 		SNew(STextBlock)
-		.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+		.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 		.Text(FText::FromName(GroupName))
 	];
 

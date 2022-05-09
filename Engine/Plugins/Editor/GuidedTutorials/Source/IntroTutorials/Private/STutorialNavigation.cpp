@@ -8,7 +8,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void STutorialNavigation::Construct(const FArguments& InArgs)
 {

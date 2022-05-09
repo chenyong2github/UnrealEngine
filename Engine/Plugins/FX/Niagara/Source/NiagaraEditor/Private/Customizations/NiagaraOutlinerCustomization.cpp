@@ -83,7 +83,7 @@ public:
 			.Padding(2, 2.0f, 2.0f, 2.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.Padding(FMargin(6.0, 3.0f, 6.0f, 3.0f))
 				.ToolTipText(this, &SNiagaraOutlinerTreeItem::HandleBorderToolTipText)
 				[
@@ -98,7 +98,7 @@ public:
 						[
 							SNew(STextBlock)
 							.Text(this, &SNiagaraOutlinerTreeItem::HandleNameText)
-							.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 							.HighlightText(Owner->GetSearchText())
 						]
 						+ SHorizontalBox::Slot()
@@ -205,7 +205,7 @@ void SNiagaraOutlinerTree::Construct(const FArguments& InArgs, TSharedPtr<FNiaga
 				.Padding(2.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
@@ -234,7 +234,7 @@ void SNiagaraOutlinerTree::Construct(const FArguments& InArgs, TSharedPtr<FNiaga
 				.Padding(2.0f)
 				[				
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						SelectedItemDetails->GetWidget().ToSharedRef()//TODO: Maybe shunt this out intot he main outliner details somehow?
 					]	
@@ -571,7 +571,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget : public SCompoundWidget
 			.ToolTipText(InArgs._ToolTipText)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				.HAlign(HAlign_Center)
 				[
 					HeaderWidget
@@ -628,7 +628,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget<FText> : public SCompoundWidget
 			.ToolTipText(InArgs._ToolTipText)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				.HAlign(HAlign_Center)
 				[
 					HeaderWidget
@@ -680,7 +680,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData> : pub
 
 		TSharedRef<SSplitter> HeaderWidget = SNew(SSplitter)
 			.PhysicalSplitterHandleSize(2)
-			.Style(FEditorStyle::Get(), "SplitterDark");
+			.Style(FAppStyle::Get(), "SplitterDark");
 		
 		if (Label.IsEmpty() == false)
 		{
@@ -725,7 +725,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData> : pub
 		ChildSlot
 		[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				.ToolTipText(InArgs._ToolTipText)
 				.HAlign(HAlign_Center)
 				[

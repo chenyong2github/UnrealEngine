@@ -4,7 +4,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "SSkeletonTreeRow.h"
 #include "IPersonaPreviewScene.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Containers/UnrealString.h"

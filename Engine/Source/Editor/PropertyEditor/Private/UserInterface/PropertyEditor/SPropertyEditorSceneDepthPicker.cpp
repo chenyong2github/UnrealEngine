@@ -2,7 +2,7 @@
 #include "UserInterface/PropertyEditor/SPropertyEditorSceneDepthPicker.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ActorPickerMode.h"
 
 #define LOCTEXT_NAMESPACE "SceneDepthPicker"
@@ -22,14 +22,14 @@ void SPropertyEditorSceneDepthPicker::Construct(const FArguments& InArgs)
 
 	SButton::Construct(
 		SButton::FArguments()
-		.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+		.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 		.OnClicked(this, &SPropertyEditorSceneDepthPicker::OnClicked)
 		.ContentPadding(4.0f)
 		.ForegroundColor( FSlateColor::UseForeground() )
 		.IsFocusable(false)
 		[ 
 			SNew( SImage )
-			.Image( FEditorStyle::GetBrush("Icons.EyeDropper") )
+			.Image( FAppStyle::GetBrush("Icons.EyeDropper") )
 			.ColorAndOpacity( FSlateColor::UseForeground() )
 		]
 	);

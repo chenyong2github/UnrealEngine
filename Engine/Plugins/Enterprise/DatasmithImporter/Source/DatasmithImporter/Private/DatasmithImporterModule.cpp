@@ -35,7 +35,7 @@
 #include "DirectLinkUriResolver.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/StaticMesh.h"
 #include "ExternalSourceModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -518,14 +518,14 @@ void FDatasmithImporterModule::PopulateDatasmithActionsMenu( FMenuBuilder& MenuB
 		/*MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("DatasmithActions", "ObjectContext_DiffDatasmith", "Show Overrides"),
 			NSLOCTEXT("DatasmithActions", "ObjectContext_DiffDatasmithTooltip", "Displays which values are currently overriden"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Diff"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
 			FUIAction( FExecuteAction::CreateStatic( &FDatasmithImporterModule::DiffAssetAgainstTemplate, SelectedAssets ), FCanExecuteAction() ));*/
 
 		// Add the Datasmith reset sub-menu extender
 		MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("DatasmithActions", "ObjectContext_ResetDatasmith", "Reset Overrides"),
 			NSLOCTEXT("DatasmithActions", "ObjectContext_ResetDatasmithTooltip", "Resets overriden values with the values from Datasmith"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Refresh"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 			FUIAction( FExecuteAction::CreateStatic( &FDatasmithImporterModule::ResetAssetFromTemplate, SelectedAssets ), FCanExecuteAction() ));
 	}
 
@@ -535,7 +535,7 @@ void FDatasmithImporterModule::PopulateDatasmithActionsMenu( FMenuBuilder& MenuB
 		MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("AssetTypeActions_Material", "ObjectContext_ReimportDatasmithMaterial", "Reimport Material"),
 			NSLOCTEXT("AssetTypeActions_Material", "ObjectContext_ReimportDatasmithMaterialTooltip", "Reimports a material using Datasmith"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 			FUIAction( FExecuteAction::CreateStatic( &FDatasmithImporterModule::ExecuteReimportDatasmithMaterials, SelectedAssets ), FCanExecuteAction() ));
 	}
 
@@ -548,7 +548,7 @@ void FDatasmithImporterModule::PopulateDatasmithActionsMenu( FMenuBuilder& MenuB
 			MenuBuilder.AddMenuEntry(
 				Action->GetLabel(),
 				Action->GetTooltip(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 				FUIAction( FExecuteAction::CreateLambda( [=](){ FDatasmithImporterModule::ApplyCustomActionOnAssets(SelectedAssets, Action);} ), FCanExecuteAction() )
 			);
 		}
@@ -561,14 +561,14 @@ void FDatasmithImporterModule::PopulateDatasmithActorsMenu( FMenuBuilder& MenuBu
 	/*MenuBuilder.AddMenuEntry(
 		NSLOCTEXT("DatasmithActions", "ObjectContext_DiffDatasmith", "Show Overrides"),
 		NSLOCTEXT("DatasmithActions", "ObjectContext_DiffDatasmithTooltip", "Displays which values are currently overriden"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Diff"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
 		FUIAction( FExecuteAction::CreateStatic( &FDatasmithImporterModule::DiffActorAgainstTemplate, SelectedActors ), FCanExecuteAction() ));*/
 
 	// Add the Datasmith reset sub-menu extender
 	MenuBuilder.AddMenuEntry(
 		NSLOCTEXT("DatasmithActions", "ObjectContext_ResetDatasmith", "Reset Overrides"),
 		NSLOCTEXT("DatasmithActions", "ObjectContext_ResetDatasmithTooltip", "Resets overriden values with the values from Datasmith"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Refresh"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction( FExecuteAction::CreateStatic( &FDatasmithImporterModule::ResetActorFromTemplate, SelectedActors ), FCanExecuteAction() ));
 
 	// Add an entry for each applicable custom action
@@ -580,7 +580,7 @@ void FDatasmithImporterModule::PopulateDatasmithActorsMenu( FMenuBuilder& MenuBu
 			MenuBuilder.AddMenuEntry(
 				Action->GetLabel(),
 				Action->GetTooltip(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 				FUIAction( FExecuteAction::CreateLambda( [=]() { Action->ApplyOnActors(SelectedActors); } ) , FCanExecuteAction() )
 			);
 		}

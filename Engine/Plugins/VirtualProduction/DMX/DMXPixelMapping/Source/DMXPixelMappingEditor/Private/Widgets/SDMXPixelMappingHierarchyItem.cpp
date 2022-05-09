@@ -6,7 +6,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Views/STableRow.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Views/SDMXPixelMappingHierarchyView.h"

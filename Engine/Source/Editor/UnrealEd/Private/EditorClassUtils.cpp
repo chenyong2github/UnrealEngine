@@ -3,7 +3,7 @@
 #include "EditorClassUtils.h"
 #include "HAL/FileManager.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -127,7 +127,7 @@ TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const 
 		}
 
 		Link = SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+			.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
 			.OnNavigate_Static(&Local::OnEditBlueprintClicked, BlueprintPtr, Params.Object)
 			.Text(Text)
 			.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"));
@@ -190,7 +190,7 @@ TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const 
 			.VAlign(VAlign_Center)
 			[
 				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda(OnNavigateToClassCode)
 				.Text(FormattedText)
 				.ToolTipText(FText::Format(NSLOCTEXT("SourceHyperlink", "GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))

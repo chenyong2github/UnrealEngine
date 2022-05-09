@@ -5,7 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/LevelScriptActor.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -281,8 +281,8 @@ void FComponentReferenceCustomization::BuildComboBox()
 
 	ComponentComboButton = SNew(SComboButton)
 		.ToolTipText(TooltipAttribute)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.OnGetMenuContent(this, &FComponentReferenceCustomization::OnGetMenuContent)
 		.OnMenuOpenChanged(this, &FComponentReferenceCustomization::OnMenuOpenChanged)
 		.IsEnabled(IsEnabledAttribute)
@@ -547,7 +547,7 @@ const FSlateBrush* FComponentReferenceCustomization::GetStatusIcon() const
 
 	if (CachedPropertyAccess == FPropertyAccess::Fail)
 	{
-		return FEditorStyle::GetBrush("Icons.Error");
+		return FAppStyle::GetBrush("Icons.Error");
 	}
 	return &EmptyBrush;
 }

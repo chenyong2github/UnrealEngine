@@ -6,7 +6,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IIntroTutorials.h"
 #include "EditorTutorial.h"
 #include "EditorTutorialStyle.h"

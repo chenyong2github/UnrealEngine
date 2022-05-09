@@ -69,7 +69,7 @@ struct FBinkMediaTextureActions : FAssetTypeActions_Base
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("MediaTexture_CreateMaterial", "Create Material"),
 			LOCTEXT("MediaTexture_CreateMaterialTooltip", "Creates a new material using this texture."),
-			FSlateIcon( FEditorStyle::GetStyleSetName(), "ClassIcon.Material" ),
+			FSlateIcon( FAppStyle::GetAppStyleSetName(), "ClassIcon.Material" ),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FBinkMediaTextureActions::ExecuteCreateMaterial, Textures),
 				FCanExecuteAction()
@@ -187,7 +187,7 @@ struct FBinkMediaPlayerActions : FAssetTypeActions_Base
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("MediaPlayer_PlayMovie", "Play Movie"),
 			LOCTEXT("MediaPlayer_PlayMovieToolTip", "Starts playback of the media."),
-			FSlateIcon( FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play" ),
+			FSlateIcon( FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Play" ),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FBinkMediaPlayerActions::HandlePlayMovieActionExecute, MediaPlayers),
 				FCanExecuteAction()
@@ -197,7 +197,7 @@ struct FBinkMediaPlayerActions : FAssetTypeActions_Base
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("MediaPlayer_PauseMovie", "Pause Movie"),
 			LOCTEXT("MediaPlayer_PauseMovieToolTip", "Pauses playback of the media."),
-			FSlateIcon( FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Pause" ),
+			FSlateIcon( FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Pause" ),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FBinkMediaPlayerActions::HandlePauseMovieActionExecute, MediaPlayers),
 				FCanExecuteAction()
@@ -209,7 +209,7 @@ struct FBinkMediaPlayerActions : FAssetTypeActions_Base
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("MediaPlayer_CreateMediaTexture", "Create Media Texture"),
 			LOCTEXT("MediaPlayer_CreateMediaTextureTooltip", "Creates a new MediaTexture using this BinkMediaPlayer asset."),
-			FSlateIcon( FEditorStyle::GetStyleSetName(), "ClassIcon.MediaTexture" ),
+			FSlateIcon( FAppStyle::GetAppStyleSetName(), "ClassIcon.MediaTexture" ),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FBinkMediaPlayerActions::ExecuteCreateMediaTexture, MediaPlayers),
 				FCanExecuteAction()

@@ -2,7 +2,7 @@
 
 #include "Stack/SNiagaraStackItemFooter.h"
 #include "ViewModels/Stack/NiagaraStackItemFooter.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "NiagaraEditorStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
@@ -18,7 +18,7 @@ void SNiagaraStackItemFooter::Construct(const FArguments& InArgs, UNiagaraStackI
 	ChildSlot
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.ButtonStyle(FAppStyle::Get(), "NoBorder")
 		.Visibility(this, &SNiagaraStackItemFooter::GetExpandButtonVisibility)
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
@@ -64,14 +64,14 @@ const FSlateBrush* SNiagaraStackItemFooter::GetButtonBrush() const
 	if (IsHovered())
 	{
 		return ItemFooter->GetShowAdvanced()
-			? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered")
-			: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
+			? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered")
+			: FAppStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
 	}
 	else
 	{
 		return ItemFooter->GetShowAdvanced()
-			? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up")
-			: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down");
+			? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up")
+			: FAppStyle::GetBrush("DetailsView.PulldownArrow.Down");
 	}
 }
 

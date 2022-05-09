@@ -11,7 +11,7 @@
 #include "Framework/Commands/InputBindingManager.h"
 #include "Widgets/SWidget.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Settings/LevelEditorPlaySettings.h"
@@ -100,7 +100,7 @@ public:
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(EditorSettingsTabName, FOnSpawnTab::CreateRaw(this, &FEditorSettingsViewerModule::HandleSpawnSettingsTab))
 			.SetDisplayName(LOCTEXT("EditorSettingsTabTitle", "Editor Preferences"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorPreferences.TabIcon"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon"));
 
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FEditorSettingsViewerModule::RegisterMenus));
 	}

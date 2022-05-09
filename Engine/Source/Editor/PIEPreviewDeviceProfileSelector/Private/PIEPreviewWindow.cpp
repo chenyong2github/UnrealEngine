@@ -8,7 +8,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

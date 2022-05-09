@@ -14,7 +14,7 @@ public class SwitchboardEditor : ModuleRules
 				"CoreUObject",
 				"DesktopPlatform",
 				"Engine",
-				"EditorStyle",
+				
 				"InputCore",
 				"Json",
 				"JsonUtilities",

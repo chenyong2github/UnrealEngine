@@ -7,7 +7,7 @@
 #include "Widgets/SLeafWidget.h"
 #include "Animation/AnimMontage.h"
 #include "SCurveEditor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AnimModel_AnimMontage.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_MontageSections"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "KismetPins/SGraphPinBool.h"
 #include "KismetPins/SGraphPinNum.h"
 #include "KismetPins/SGraphPinInteger.h"
@@ -135,7 +135,7 @@ namespace Metasound
 					[
 						SNew(SButton)
 						.ToolTipText(LOCTEXT("ResetToClassDefaultToolTip", "Reset to class default"))
-						.ButtonStyle(FEditorStyle::Get(), TEXT("NoBorder"))
+						.ButtonStyle(FAppStyle::Get(), TEXT("NoBorder"))
 						.ContentPadding(0.0f)
 						.Visibility(TAttribute<EVisibility>::Create([this]
 						{
@@ -200,7 +200,7 @@ namespace Metasound
 						.Content()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 						]
 					];
 			}

@@ -20,7 +20,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SGraphActionMenu.h"
 #include "SGraphPalette.h"
 #include "BehaviorTree/BehaviorTree.h"
@@ -100,7 +100,7 @@ class SBehaviorTreeBlackboardItem : public SGraphPaletteItem
 
 		ActionPtr = InCreateData->Action;
 		
-		FSlateBrush const* IconBrush   = FEditorStyle::GetBrush(TEXT("NoBrush"));
+		FSlateBrush const* IconBrush   = FAppStyle::GetBrush(TEXT("NoBrush"));
 		GetPaletteItemIcon(GraphAction, IconBrush);
 
 		TSharedRef<SWidget> IconWidget = CreateIconWidget( GraphAction->GetTooltipDescription(), IconBrush, FLinearColor::White );
@@ -473,7 +473,7 @@ void SBehaviorTreeBlackboardView::Construct(const FArguments& InArgs, TSharedRef
 	[
 		SNew(SBorder)
 		.Padding(4.0f)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()

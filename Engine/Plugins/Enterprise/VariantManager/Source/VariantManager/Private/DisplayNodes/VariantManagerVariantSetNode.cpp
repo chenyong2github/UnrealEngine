@@ -22,7 +22,7 @@
 #include "Brushes/SlateImageBrush.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Texture2D.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
@@ -42,15 +42,15 @@ FVariantManagerVariantSetNode::FVariantManagerVariantSetNode( UVariantSet& InVar
 	: FVariantManagerDisplayNode(InParentNode, InParentTree)
 	, VariantSet(InVariantSet)
 {
-	ExpandedBackgroundBrush = FEditorStyle::GetBrush("Sequencer.AnimationOutliner.TopLevelBorder_Expanded");
-	CollapsedBackgroundBrush = FEditorStyle::GetBrush("Sequencer.AnimationOutliner.TopLevelBorder_Collapsed");
+	ExpandedBackgroundBrush = FAppStyle::GetBrush("Sequencer.AnimationOutliner.TopLevelBorder_Expanded");
+	CollapsedBackgroundBrush = FAppStyle::GetBrush("Sequencer.AnimationOutliner.TopLevelBorder_Collapsed");
 
 	bExpanded = InVariantSet.IsExpanded();
 }
 
 TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow)
 {
-	FSlateFontInfo NodeFont = FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
+	FSlateFontInfo NodeFont = FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
 
 	EditableLabel = SNew(SInlineEditableTextBlock)
 		.IsReadOnly(this, &FVariantManagerDisplayNode::IsReadOnly)
@@ -74,7 +74,7 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 
 	return
 	SNew( SBorder )
-	.BorderImage( FEditorStyle::GetBrush( "WhiteBrush" ) )
+	.BorderImage( FAppStyle::GetBrush( "WhiteBrush" ) )
 	.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor("VariantManager.Panels.LightBackgroundColor") )
 	.Padding( FMargin( 0.0f, bIsFirstRowOfTree ? 0.0f : FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.BorderThickness" ), 0.0f, 0.0f ) )
 	[
@@ -124,7 +124,7 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 				.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.ToolTipText(LOCTEXT("AddVariantToolTip", "Add a new variant"))
 					.OnClicked_Lambda([this]
 					{
@@ -145,8 +145,8 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 					.Content()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.TextStyle(FAppStyle::Get(), "NormalText.Important")
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 						.Text(FEditorFontGlyphs::Plus)
 					]
 				]
@@ -324,7 +324,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 				NumActorsWeCanAdd,
 				NumVarsThatCanAccept);
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -335,7 +335,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_NoVariantsInSet", "Variant set '{0}' has no variants!"),
 				GetVariantSet().GetDisplayText());
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -346,7 +346,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to all variants of set '{0}'!"),
 				GetVariantSet().GetDisplayText());
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 			DecoratedDragDropOp->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -431,7 +431,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 					NumActorsWeCanAdd,
 					NumVariants);
 
-				const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 				VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -442,7 +442,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 				FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to all variants of set '{0}'!"),
 					GetVariantSet().GetDisplayText());
 
-				const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 				VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -458,7 +458,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 				NumDraggedVariants,
 				GetVariantSet().GetDisplayText());
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 			VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -472,7 +472,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 				ModifierKeysState.IsControlDown() ? LOCTEXT("Copy", "Copy") : LOCTEXT("Move", "Move"),
 				NumDraggedVariants);
 
-			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			const FSlateBrush* NewHoverIcon = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
 			VarManDragDrop->SetToolTip(NewHoverText, NewHoverIcon);
 
@@ -732,7 +732,7 @@ FSlateColor FVariantManagerVariantSetNode::GetNodeBackgroundTint() const
 {
 	if (IsSelected())
 	{
-		return FEditorStyle::GetSlateColor("SelectionColor_Pressed");
+		return FAppStyle::GetSlateColor("SelectionColor_Pressed");
 	}
 	else if (IsHovered())
 	{

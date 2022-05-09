@@ -10,7 +10,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "ControlRigEditorStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "HAL/ConsoleManager.h"
 #include "MessageLog/Private/UserInterface/SMessageLogListing.h"
@@ -132,7 +132,7 @@ void SControlRigValidationWidget::Construct(const FArguments& InArgs, UControlRi
 			[
 				SNew(SBorder)
 				.Visibility(EVisibility::Visible)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
 					SNew(SListView<TSharedPtr<FControlRigValidationPassItem>>)
 					.ListItemsSource(&ClassItems)

@@ -63,7 +63,7 @@ public:
 		static const FName NAME_NoBorder("NoBorder");
 		TSharedRef<SWidget> PinStatusIndicator =
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), NAME_NoBorder)
+			.ButtonStyle(FAppStyle::Get(), NAME_NoBorder)
 			.Visibility(this, &SCopyNodeGraphPin::GetPinStatusIconVisibility)
 			.ContentPadding(0)
 			.OnClicked(this, &SCopyNodeGraphPin::ClickedOnPinStatusIcon)
@@ -151,22 +151,22 @@ public:
 		{
 			if (IsConnected())
 			{
-				return FEditorStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinLeft_Connected"));
+				return FAppStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinLeft_Connected"));
 			}
 			else
 			{
-				return FEditorStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinLeft_Disconnected"));
+				return FAppStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinLeft_Disconnected"));
 			}
 		}
 		else
 		{
 			if (IsConnected())
 			{
-				return FEditorStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinRight_Connected"));
+				return FAppStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinRight_Connected"));
 			}
 			else
 			{
-				return FEditorStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinRight_Disconnected"));
+				return FAppStyle::GetBrush(TEXT("Graph.Pin.CopyNodePinRight_Disconnected"));
 			}
 		}
 	}
@@ -286,7 +286,7 @@ TSharedPtr<SGraphPin> SGraphNodeK2Copy::CreatePinWidget(UEdGraphPin* Pin) const
 
 const FSlateBrush* SGraphNodeK2Copy::GetShadowBrush(bool bSelected) const
 {
-	return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FEditorStyle::GetNoBrush();
+	return bSelected ? FAppStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FAppStyle::GetNoBrush();
 }
 
 #undef LOCTEXT_NAMESPACE

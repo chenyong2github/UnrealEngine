@@ -11,7 +11,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "GeometryEdMode.h"
@@ -21,7 +21,7 @@
 #include "GeometryModeModule.h"
 #include "GeometryModeStyle.h"
 #include "Engine/Selection.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "GeometryMode"
@@ -224,7 +224,7 @@ TSharedRef<SCheckBox> SGeometryModeControls::CreateSingleModifierRadioButton(UGe
 {
 	TSharedRef<SCheckBox> CheckBox =
 	SNew(SCheckBox)
-	.Style(FEditorStyle::Get(), "RadioButton")
+	.Style(FAppStyle::Get(), "RadioButton")
 	.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 	.IsChecked(GeometryMode, &FGeometryModeToolkit::IsModifierChecked, Modifier)
 	.IsEnabled(GeometryMode, &FGeometryModeToolkit::IsModifierEnabled, Modifier)

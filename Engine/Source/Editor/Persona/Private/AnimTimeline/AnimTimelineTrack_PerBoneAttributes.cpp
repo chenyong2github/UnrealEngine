@@ -19,7 +19,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_PerBoneAttributes::GenerateContainerWidge
 	TSharedPtr<SHorizontalBox> InnerHorizontalBox;
 	OutlinerWidget = GenerateStandardOutlinerWidget(InRow, false, OuterBorder, InnerHorizontalBox);
 
-	OuterBorder->SetBorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
+	OuterBorder->SetBorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
 
 	InnerHorizontalBox->AddSlot()
 		.VAlign(VAlign_Center)
@@ -28,7 +28,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_PerBoneAttributes::GenerateContainerWidge
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
+			.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
 			.Text(this, &FAnimTimelineTrack_PerBoneAttributes::GetLabel)
 			.HighlightText(InRow->GetHighlightText())
 		];

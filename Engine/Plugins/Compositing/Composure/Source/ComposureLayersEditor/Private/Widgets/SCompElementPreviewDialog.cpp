@@ -14,7 +14,7 @@
 #include "Engine/Texture.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/UObjectGlobals.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ComposureEditorStyle.h"
 #include "CompElementEditorCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

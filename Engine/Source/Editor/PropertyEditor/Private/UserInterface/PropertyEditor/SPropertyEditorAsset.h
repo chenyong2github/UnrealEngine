@@ -12,7 +12,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
 #include "PropertyHandle.h"

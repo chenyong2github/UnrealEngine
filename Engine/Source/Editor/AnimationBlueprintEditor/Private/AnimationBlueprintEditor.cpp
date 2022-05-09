@@ -4,7 +4,7 @@
 #include "AnimationBlueprintEditor.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "EdGraph/EdGraph.h"
@@ -195,11 +195,11 @@ public:
 			.Padding(0.f, 8.f, 0.f, 0.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Persona.PreviewPropertiesWarning"))
+				.BorderImage(FAppStyle::GetBrush("Persona.PreviewPropertiesWarning"))
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("AnimBlueprintEditPreviewText", "Changes to preview options are not saved in the asset."))
-					.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 					.ShadowColorAndOpacity(FLinearColor::Black.CopyWithNewOpacity(0.3f))
 					.ShadowOffset(FVector2D::UnitVector)
 				]
@@ -2106,8 +2106,8 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text_Lambda(GetIcon)
 			]
 			+SHorizontalBox::Slot()
@@ -2116,7 +2116,7 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 			[
 				SNew(STextBlock)
 				.Text_Lambda(GetCompilationStateText)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		]
 		+SHorizontalBox::Slot()
@@ -2125,7 +2125,7 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 		[
 			SNew(SButton)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.Visibility_Lambda(GetCompileButtonVisibility)
 			.ToolTipText(LOCTEXT("AnimBPViewportCompileButtonToolTip", "Compile this Animation Blueprint to update the preview to reflect any recent changes."))
 			.OnClicked_Lambda(CompileBlueprint)
@@ -2137,8 +2137,8 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FEditorFontGlyphs::Cog)
 				]
 				+SHorizontalBox::Slot()
@@ -2146,7 +2146,7 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 					.Text(LOCTEXT("AnimBPViewportCompileButtonLabel", "Compile"))
 				]
 			]

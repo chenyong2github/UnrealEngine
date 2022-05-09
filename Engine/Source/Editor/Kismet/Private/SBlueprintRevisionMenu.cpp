@@ -9,7 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlRevision.h"
@@ -60,7 +60,7 @@ void SBlueprintRevisionMenu::Construct(const FArguments& InArgs, UBlueprint cons
 		[
 			SNew(SBorder)
 			.Visibility(this, &SBlueprintRevisionMenu::GetInProgressVisibility)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			.Content()
 			[
 				SNew(SHorizontalBox)

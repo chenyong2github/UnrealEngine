@@ -12,7 +12,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/SNullWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 enum EFBXCompareSection
 {
@@ -146,7 +146,7 @@ public:
 
 		SMultiColumnTableRow<TSharedPtr<FCompareRowData>>::Construct(
 			FSuperRowType::FArguments()
-			.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+			.Style(FAppStyle::Get(), "DataTableEditor.CellListViewRow"),
 			InOwnerTableView
 			);
 	}

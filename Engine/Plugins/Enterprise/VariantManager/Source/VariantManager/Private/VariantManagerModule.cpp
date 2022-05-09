@@ -89,7 +89,7 @@ public:
 			UnregisterTabSpawner( TabManager );
 		}
 
-		const FSlateIcon LayersIcon( FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers" );
+		const FSlateIcon LayersIcon( FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Layers" );
 
 		TabManager->RegisterTabSpawner( FLevelVariantSetsEditorToolkit::GetVariantManagerTabID(), FOnSpawnTab::CreateStatic( &FVariantManagerModule::HandleTabManagerSpawnTab ) )
 			.SetDisplayName( LOCTEXT("VariantManagerMainTab", "Variant Manager") )
@@ -118,8 +118,7 @@ public:
 
 	static void OnLevelVariantSetsEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& EditWithinLevelEditor, class ULevelVariantSets* LevelVariantSets)
 	{
-		TSharedPtr<ISlateStyle> Style = MakeShareable(new FSlateStyleSet(TEXT("EditorStyle")));
-		TSharedRef<FLevelVariantSetsEditorToolkit> Toolkit = MakeShareable(new FLevelVariantSetsEditorToolkit(Style.ToSharedRef()));
+		TSharedRef<FLevelVariantSetsEditorToolkit> Toolkit = MakeShareable(new FLevelVariantSetsEditorToolkit());
 		Toolkit->Initialize(Mode, EditWithinLevelEditor, LevelVariantSets);
 	}
 

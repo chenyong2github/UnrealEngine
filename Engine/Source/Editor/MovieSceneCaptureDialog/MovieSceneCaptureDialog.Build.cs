@@ -16,7 +16,6 @@ public class MovieSceneCaptureDialog : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"EditorStyle",
 				"Engine",
 				"InputCore",
 				"Json",

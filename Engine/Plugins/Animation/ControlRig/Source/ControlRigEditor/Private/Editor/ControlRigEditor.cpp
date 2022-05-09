@@ -96,7 +96,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/WatchedPin.h"
 #include "ToolMenus.h"
-#include "Editor/EditorStyle/Private/SlateEditorStyle.h"
+#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
@@ -316,7 +316,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	PersonaToolkit->SetPreviewMesh(InControlRigBlueprint->GetPreviewMesh(), false);
 
 	Toolbox = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(0.f);
 
 	if (!Toolbar.IsValid())
@@ -856,7 +856,7 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			FOnGetContent::CreateSP(this, &FControlRigEditor::GenerateEventQueueMenuContent),
 			LOCTEXT("EventQueue_Label", "Available Events"),
 			LOCTEXT("EventQueue_ToolTip", "Pick between different events / modes for testing the Control Rig"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Recompile"),
 			true);
 
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().AutoCompileGraph,
@@ -879,26 +879,26 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			FOnGetContent::CreateSP(this, &FControlRigEditor::GenerateExecutionModeMenuContent),
 			LOCTEXT("ExecutionMode_Label", "Execution Modes"),
 			LOCTEXT("ExecutionMode_ToolTip", "Pick between different execution modes for testing the Control Rig"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Recompile"),
 			true);
 
 		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateLeftPlay"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ResumeExecution,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.ResumePlaySession"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.ResumePlaySession"));
 
 		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateLeft"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ShowCurrentStatement,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.ShowCurrentStatement"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.ShowCurrentStatement"));
 
 		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateCenter"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepOver,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.StepOver"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.StepOver"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepInto,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.StepInto"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.StepInto"));
 
 		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateRight"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepOut,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.StepOut"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.StepOut"));
 
 		ToolbarBuilder.EndStyleOverride();
 
@@ -1111,7 +1111,7 @@ FSlateIcon FControlRigEditor::GetExecutionModeIcon(EControlRigExecutionModeType 
 {
 	if (InExecutionMode == EControlRigExecutionModeType_Debug)
 	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Debug");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Debug");
 	}
 	return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ReleaseMode");
 }
@@ -3425,8 +3425,8 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text_Lambda(GetIcon)
 			]
 			+SHorizontalBox::Slot()
@@ -3435,7 +3435,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 			[
 				SNew(STextBlock)
 				.Text_Lambda(GetCompilationStateText)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		]
 		+SHorizontalBox::Slot()
@@ -3444,7 +3444,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		[
 			SNew(SButton)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.Visibility_Lambda(GetCompileButtonVisibility)
 			.ToolTipText(LOCTEXT("ControlRigBPViewportCompileButtonToolTip", "Compile this Animation Blueprint to update the preview to reflect any recent changes."))
 			.OnClicked_Lambda(CompileBlueprint)
@@ -3456,8 +3456,8 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FEditorFontGlyphs::Cog)
 				]
 				+SHorizontalBox::Slot()
@@ -3465,7 +3465,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+					.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 					.Text(LOCTEXT("ControlRigBPViewportCompileButtonLabel", "Compile"))
 				]
 			]
@@ -3494,7 +3494,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 			[
 				SNew(STextBlock)
 				.Text_Lambda(GetChangingShapeTransformText)
-				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
 			]
 		],
 		ChangeShapeTransformNotificationOptions
@@ -3550,7 +3550,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 						.WidthOverride(100.0f)
 						[
 							SNew(SNumericEntryBox<float>)
-							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.AllowSpin(true)
 							.MinSliderValue(0.0f)
 							.MaxSliderValue(100.0f)
@@ -3571,7 +3571,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 						.WidthOverride(100.0f)
 						[
 							SNew(SNumericEntryBox<float>)
-							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.AllowSpin(true)
 							.MinSliderValue(0.0f)
 							.MaxSliderValue(10.0f)
@@ -6343,7 +6343,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 				{
 					FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerUnitErrorMessage", "There has been a compiler error.\nCheck the Execution Stack view."));
 					Info.bUseSuccessFailIcons = true;
-					Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Error"));
+					Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
 					Info.bFireAndForget = true;
 					Info.FadeOutDuration = 5.0f;
 					Info.ExpireDuration = 5.0f;
@@ -6359,7 +6359,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 				{
 					FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerUnitWarningMessage", "There has been a compiler warning.\nCheck the Execution Stack view."));
 					Info.bUseSuccessFailIcons = true;
-					Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
+					Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Warning"));
 					Info.bFireAndForget = true;
 					Info.FadeOutDuration = 5.0f;
 					Info.ExpireDuration = 5.0f;

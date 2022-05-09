@@ -12,7 +12,6 @@ public class SubversionSourceControl : ModuleRules
 				"Core",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"SourceControl",
 				"XmlParser",
 		    }

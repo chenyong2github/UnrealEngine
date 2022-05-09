@@ -5,7 +5,7 @@
 #include "Widgets/Layout/SBox.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 #include "Slate/WidgetTransform.h"
 #include "Components/Widget.h"
@@ -36,7 +36,7 @@ void STransformHandle::Construct(const FArguments& InArgs, IUMGDesigner* InDesig
 	[
 		SNew(SImage)
 		.Visibility(this, &STransformHandle::GetHandleVisibility)
-		.Image(FEditorStyle::Get().GetBrush("UMGEditor.TransformHandle"))
+		.Image(FAppStyle::Get().GetBrush("UMGEditor.TransformHandle"))
 	];
 }
 

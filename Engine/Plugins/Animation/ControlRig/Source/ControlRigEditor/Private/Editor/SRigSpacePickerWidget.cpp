@@ -105,7 +105,7 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			TopLevelListBox,
 			ESpacePickerType_World,
 			URigHierarchy::GetWorldSpaceReferenceKey(),
-			FEditorStyle::GetBrush("EditorViewport.RelativeCoordinateSystem_World"),
+			FAppStyle::GetBrush("EditorViewport.RelativeCoordinateSystem_World"),
 			FSlateColor::UseForeground(),
 			LOCTEXT("World", "World"),
 			FOnClicked::CreateSP(this, &SRigSpacePickerWidget::HandleWorldSpaceClicked)
@@ -150,13 +150,13 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			[
 				SNew(SButton)
 				.ContentPadding(0.0f)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.OnClicked(this, &SRigSpacePickerWidget::HandleAddElementClicked)
 				.Cursor(EMouseCursor::Default)
 				.ToolTipText(LOCTEXT("AddSpace", "Add Space"))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+					.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 				]
 			];
 		}
@@ -177,7 +177,7 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			.Padding(0.f)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
 				.Text(LOCTEXT("BakeButton", "Bake..."))
 				.OnClicked(InArgs._OnBakeButtonClicked)
 				.ToolTipText(LOCTEXT("BakeButtonToolTip", "Allows to bake the animation of one or more controls to a single space."))
@@ -457,7 +457,7 @@ void SRigSpacePickerWidget::AddSpacePickerRow(
 				.ToolTipText(LOCTEXT("MoveSpaceDown", "Move this space down in the list."))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
+					.Image(FAppStyle::GetBrush("Icons.ChevronUp"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
@@ -476,7 +476,7 @@ void SRigSpacePickerWidget::AddSpacePickerRow(
 				.ToolTipText(LOCTEXT("MoveSpaceUp", "Move this space up in the list."))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
+					.Image(FAppStyle::GetBrush("Icons.ChevronDown"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
@@ -1112,7 +1112,7 @@ void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("OK", "OK"))
 					.OnClicked_Lambda([this, InArgs]()
 					{
@@ -1135,7 +1135,7 @@ void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("Cancel", "Cancel"))
 					.OnClicked_Lambda([this]()
 					{

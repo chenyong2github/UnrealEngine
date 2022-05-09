@@ -12,7 +12,7 @@
 #include "Misc/TextFilterExpressionEvaluator.h"
 
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "EditorWidgetsModule.h"
 #include "Framework/Commands/UIAction.h"
@@ -1127,7 +1127,7 @@ void SStructViewer::Construct(const FArguments& InArgs, const FStructViewerIniti
 		.MaxDesiredHeight(800.0f)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(InitOptions.bShowBackgroundBorder ? "ToolPanel.GroupBorder" : "NoBorder"))
+			.BorderImage(FAppStyle::GetBrush(InitOptions.bShowBackgroundBorder ? "ToolPanel.GroupBorder" : "NoBorder"))
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()
@@ -1140,7 +1140,7 @@ void SStructViewer::Construct(const FArguments& InArgs, const FStructViewerIniti
 					[
 						SNew(STextBlock)
 						.Visibility(bHasTitle ? EVisibility::Visible : EVisibility::Collapsed)
-						.ColorAndOpacity(FEditorStyle::GetColor("MultiboxHookColor"))
+						.ColorAndOpacity(FAppStyle::GetColor("MultiboxHookColor"))
 						.Text(InitOptions.ViewerTitleString)
 					]
 				]
@@ -1230,7 +1230,7 @@ void SStructViewer::Construct(const FArguments& InArgs, const FStructViewerIniti
 						SAssignNew(ViewOptionsComboButton, SComboButton)
 						.ContentPadding(0)
 						.ForegroundColor(this, &SStructViewer::GetViewButtonForegroundColor)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
+						.ButtonStyle(FAppStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
 						.OnGetMenuContent(this, &SStructViewer::GetViewButtonContent)
 						.ButtonContent()
 						[
@@ -1239,7 +1239,7 @@ void SStructViewer::Construct(const FArguments& InArgs, const FStructViewerIniti
 							.AutoWidth()
 							.VAlign(VAlign_Center)
 							[
-								SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
+								SNew(SImage).Image(FAppStyle::GetBrush("GenericViewButton"))
 							]
 
 							+SHorizontalBox::Slot()
@@ -1438,7 +1438,7 @@ FSlateColor SStructViewer::GetViewButtonForegroundColor() const
 	static const FName InvertedForegroundName("InvertedForeground");
 	static const FName DefaultForegroundName("DefaultForeground");
 
-	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
+	return ViewOptionsComboButton->IsHovered() ? FAppStyle::GetSlateColor(InvertedForegroundName) : FAppStyle::GetSlateColor(DefaultForegroundName);
 }
 
 TSharedRef<SWidget> SStructViewer::GetViewButtonContent()

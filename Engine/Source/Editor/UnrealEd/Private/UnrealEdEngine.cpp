@@ -71,6 +71,9 @@
 #include "Logging/MessageLog.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "ProfilingDebugging/StallDetector.h"
+#include "Settings/EditorStyleSettings.h"
+#include "ISettingsModule.h"
+#include "Settings/EditorStyleSettingsCustomization.h"
 #include "GameMapsSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -186,7 +189,25 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 		PropertyModule.RegisterCustomClassLayout("ProjectPackagingSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FProjectPackagingSettingsCustomization::MakeInstance));
 
 		PropertyModule.RegisterCustomPropertyTypeLayout("LevelEditorPlayNetworkEmulationSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLevelEditorPlayNetworkEmulationSettingsDetail::MakeInstance));
-		
+
+
+		UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
+		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+		if (SettingsModule != nullptr)
+		{
+			SettingsModule->RegisterSettings("Editor", "General", "Appearance",
+				NSLOCTEXT("UnrealEd", "Appearance_UserSettingsName", "Appearance"),
+				NSLOCTEXT("UnrealEd", "Appearance_UserSettingsDescription", "Customize the look of the editor."),
+				Settings
+			);
+		}
+
+
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyEditorModule.RegisterCustomClassLayout("EditorStyleSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FEditorStyleSettingsCustomization::MakeInstance));
+		PropertyEditorModule.RegisterCustomPropertyTypeLayout("StyleColorList", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStyleColorListCustomization::MakeInstance));
+
 	}
 
 	if (!IsRunningCommandlet())
@@ -424,6 +445,14 @@ void UUnrealEdEngine::MakeSortedSpriteInfo(TArray<FSpriteCategoryInfo>& OutSorte
 void UUnrealEdEngine::PreExit()
 {
 	FAssetSourceFilenameCache::Get().Shutdown();
+
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->UnregisterSettings("Editor", "General", "Appearance");
+	}
+
 
 	Super::PreExit();
 }

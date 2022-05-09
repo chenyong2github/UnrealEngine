@@ -11,7 +11,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerTrackNode.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneSection.h"
@@ -76,7 +76,7 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnGetCo
 		SNew(SComboButton)
 		.HasDownArrow(false)
 		.IsFocusable(true)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ForegroundColor( FSlateColor::UseForeground() )
 		.IsEnabled_Lambda([=]() { return InSequencer.IsValid() ? !InSequencer.Pin()->IsReadOnly() : false; })
 		.OnGetMenuContent(MenuContent)
@@ -94,7 +94,7 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnGetCo
 			[
 				SNew(SImage)
 				.ColorAndOpacity( FSlateColor::UseForeground() )
-				.Image(FEditorStyle::GetBrush("Plus"))
+				.Image(FAppStyle::GetBrush("Plus"))
 			]
 
 			+ SHorizontalBox::Slot()
@@ -271,7 +271,7 @@ void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilde
 		MenuBuilder.AddMenuEntry(
 			NameOverride.IsEmpty() ? DisplayName : NameOverride,
 			TooltipOverride.IsEmpty() ? FText::Format(LOCTEXT("AddSectionFormatToolTip", "Adds a new {0} section at the current time"), DisplayName) : TooltipOverride,
-			FSlateIcon("EditorStyle", EnumValueName),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), EnumValueName),
 			FUIAction(FExecuteAction::CreateLambda(CreateNewSection, BlendType))
 		);
 	}
@@ -375,7 +375,7 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 		MenuBuilder.AddMenuEntry(
 			MovieSceneBlendType->GetDisplayNameTextByIndex(NameIndex),
 			MovieSceneBlendType->GetToolTipTextByIndex(NameIndex),
-			FSlateIcon("EditorStyle", EnumValueName),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), EnumValueName),
 			FUIAction(
 				FExecuteAction::CreateLambda(Execute, BlendType),
 				FCanExecuteAction(),

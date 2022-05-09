@@ -13,7 +13,6 @@ public class PerforceSourceControl : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"SourceControl",
 			}
 		);

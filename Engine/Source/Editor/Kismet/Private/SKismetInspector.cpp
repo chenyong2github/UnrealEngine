@@ -12,7 +12,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
@@ -73,7 +73,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -83,16 +83,16 @@ public:
 				.Padding(2)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
+					.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
 				]
 				+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
 					.Padding(2)
 					[
 						SNew(SRichTextBlock)
-						.DecoratorStyleSet(&FEditorStyle::Get())
+						.DecoratorStyleSet(&FAppStyle::Get())
 						.Justification(ETextJustify::Left)
-						.TextStyle(FEditorStyle::Get(), "DetailsView.BPMessageTextStyle")
+						.TextStyle(FAppStyle::Get(), "DetailsView.BPMessageTextStyle")
 						.Text(InArgs._WarningText)
 						.AutoWrapText(true)
 						+ SRichTextBlock::HyperlinkDecorator(TEXT("HyperlinkDecorator"), InArgs._OnHyperlinkClicked)
@@ -424,7 +424,7 @@ void SKismetInspector::Construct(const FArguments& InArgs)
 		[
 			SAssignNew( ContextualEditingBorderWidget, SBorder )
 			.Padding(0)
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		]
 	];
 

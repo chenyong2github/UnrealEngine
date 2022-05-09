@@ -14,10 +14,8 @@ public class ComposureLayersEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"UnrealEd",
 				"SceneOutliner",
-
                 "WorkspaceMenuStructure",
 				"Composure",
 				"ClassViewer",

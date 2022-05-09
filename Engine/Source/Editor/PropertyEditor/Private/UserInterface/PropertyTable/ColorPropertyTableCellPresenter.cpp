@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPropertyTableUtilities.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditorColor.h"
@@ -27,7 +27,7 @@ TSharedRef< class SWidget > FColorPropertyTableCellPresenter::ConstructDisplayWi
 		.VAlign( VAlign_Center )
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "PropertyTable.CellEditing.Background" ) )
+			.BorderImage( FAppStyle::GetBrush( "PropertyTable.CellEditing.Background" ) )
 			.Padding( 1 )
 			.Content()
 			[

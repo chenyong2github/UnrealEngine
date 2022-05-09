@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -85,7 +85,7 @@ public:
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Background")))
 			.Padding(5)
 			.Content()
 			[
@@ -95,7 +95,7 @@ public:
 				.Padding(0.0f, 1.0f)
 				[
 					SNew(STextBlock)
-					.Font( FEditorStyle::GetFontStyle(TEXT("SocketChooser.TitleFont")) )
+					.Font( FAppStyle::GetFontStyle(TEXT("SocketChooser.TitleFont")) )
 					.Text( NSLOCTEXT("ComponentChooser", "ChooseComponentLabel", "Choose Component") )
 				]
 				+SVerticalBox::Slot()

@@ -4,7 +4,7 @@
 
 #include "AssetToolsModule.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EngineAnalytics.h"
 #include "IAssetTools.h"
 #include "Input/Reply.h"
@@ -51,7 +51,7 @@ public:
 		[
 			SNew(SBorder)
 				.Visibility(EVisibility::Visible)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
 					SNew(SVerticalBox)
 
@@ -60,7 +60,7 @@ public:
 						.VAlign(VAlign_Top)
 						[
 							SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 								.Padding(4.0f)
 								.Content()
 								[
@@ -96,15 +96,15 @@ public:
 						.Padding(8)
 						[
 							SNew(SUniformGridPanel)
-								.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-								.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-								.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+								.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+								.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+								.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				
 							+ SUniformGridPanel::Slot(0, 0)
 								[
 									SNew(SButton)
 										.HAlign(HAlign_Center)
-										.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+										.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 										.OnClicked_Lambda([this]() -> FReply { CloseDialog(true); return FReply::Handled(); })
 										.Text(LOCTEXT("OkButtonLabel", "OK"))
 								]
@@ -113,7 +113,7 @@ public:
 								[
 									SNew(SButton)
 										.HAlign(HAlign_Center)
-										.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+										.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 										.OnClicked_Lambda([this]() -> FReply { CloseDialog(false); return FReply::Handled(); })
 										.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
 								]

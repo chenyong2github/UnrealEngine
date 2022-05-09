@@ -10,7 +10,7 @@
 #include "GameProjectGenerationModule.h"
 #include "MessageLogModule.h"
 #include "MRUFavoritesList.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Sound/SoundBase.h"
 #include "ISourceCodeAccessor.h"
@@ -438,9 +438,9 @@ TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFram
 		}
 	};
 
-	const FSlateFontInfo& SmallFixedFont = FEditorStyle::GetFontStyle(TEXT("MainFrame.DebugTools.SmallFont") );
-	const FSlateFontInfo& NormalFixedFont = FEditorStyle::GetFontStyle(TEXT("MainFrame.DebugTools.NormalFont") );
-	const FSlateFontInfo& LabelFont = FEditorStyle::GetFontStyle(TEXT("MainFrame.DebugTools.LabelFont") );
+	const FSlateFontInfo& SmallFixedFont = FAppStyle::GetFontStyle(TEXT("MainFrame.DebugTools.SmallFont") );
+	const FSlateFontInfo& NormalFixedFont = FAppStyle::GetFontStyle(TEXT("MainFrame.DebugTools.NormalFont") );
+	const FSlateFontInfo& LabelFont = FAppStyle::GetFontStyle(TEXT("MainFrame.DebugTools.LabelFont") );
 
 	TSharedRef<SHorizontalBox> DeveloperToolWidget =
 		SNew( SHorizontalBox )
@@ -495,7 +495,7 @@ TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFram
 		.Visibility( EVisibility::SelfHitTestInvisible )
 		.Padding( FMargin(0.0f, 0.0f, 0.0f, 1.0f) )
 		.VAlign(VAlign_Bottom)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		[
 			SNew( SHorizontalBox )
 			.Visibility( EVisibility::SelfHitTestInvisible )
@@ -644,7 +644,7 @@ void FMainFrameModule::HandleLevelEditorModuleCompileStarted( bool bIsAsyncCompi
 	}
 
 	FNotificationInfo Info( NSLOCTEXT("MainFrame", "RecompileInProgress", "Compiling C++ Code") );
-	Info.Image = FEditorStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));
+	Info.Image = FAppStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));
 	Info.ExpireDuration = 5.0f;
 	Info.bFireAndForget = false;
 	
@@ -746,7 +746,7 @@ void FMainFrameModule::HandleReloadFinished( EReloadCompleteReason Reason )
 	if( Reason == EReloadCompleteReason::HotReloadAutomatic )
 	{
 		FNotificationInfo Info( LOCTEXT("HotReloadFinished", "Hot Reload Complete!") );
-		Info.Image = FEditorStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));
+		Info.Image = FAppStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));
 		Info.FadeInDuration = 0.1f;
 		Info.FadeOutDuration = 0.5f;
 		Info.ExpireDuration = 1.5f;

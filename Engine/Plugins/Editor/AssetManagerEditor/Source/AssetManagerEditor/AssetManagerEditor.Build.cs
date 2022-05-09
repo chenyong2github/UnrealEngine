@@ -35,7 +35,6 @@ public class AssetManagerEditor : ModuleRules
 				"ContentBrowser",
 				"ContentBrowserData",
 				"WorkspaceMenuStructure",
-				"EditorStyle",
 				"AssetTools",
 				"PropertyEditor",
 				"GraphEditor",

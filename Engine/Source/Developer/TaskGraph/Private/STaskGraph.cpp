@@ -13,7 +13,7 @@
 #if WITH_EDITOR
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #endif //#if WITH_EDITOR
 
 /**
@@ -174,7 +174,7 @@ public:
 			.SetDisplayName(NSLOCTEXT("ProfileVisualizerModule", "TabTitle", "Profile Data Visualizer"))
 			.SetTooltipText(NSLOCTEXT("ProfileVisualizerModule", "TooltipText", "Open the Profile Data Visualizer tab."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory())
-			.SetIcon(FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "Profiler.Tab"));
+			.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Profiler.Tab"));
 #endif
 			
 	}

@@ -4,7 +4,7 @@
 #include "SGraphPreviewer.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SGraphPanel.h"
 
 EActiveTimerReturnType SGraphPreviewer::RefreshGraphTimer(const double InCurrentTime, const float InDeltaTime)
@@ -50,7 +50,7 @@ void SGraphPreviewer::Construct( const FArguments& InArgs, UEdGraph* InGraphObj 
 		[
 			SNew(STextBlock)
 			.Visibility( EVisibility::HitTestInvisible )
-			.TextStyle( FEditorStyle::Get(), "GraphPreview.CornerText" )
+			.TextStyle( FAppStyle::Get(), "GraphPreview.CornerText" )
 			.Text( InArgs._CornerOverlayText )
 		]
 	];

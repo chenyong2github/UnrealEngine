@@ -8,7 +8,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
 #include "LevelEditorContextMenu.h"
@@ -141,7 +141,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 							LOCTEXT("RecentLevelsSubMenu_ToolTip", "Select a level to load"),
 							FNewToolMenuDelegate::CreateStatic(&FFavoriteLevelMenu::MakeFavoriteLevelMenu),
 							false,
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.FavoriteLevels")
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.FavoriteLevels")
 						);
 					}
 				}));
@@ -184,7 +184,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 							LOCTEXT("RecentLevelsSubMenu_ToolTip", "Select a level to load"),
 							FNewToolMenuDelegate::CreateStatic(&FRecentLevelMenu::MakeRecentLevelMenu),
 							false,
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentLevels")
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RecentLevels")
 						);
 					}
 				}));
@@ -467,7 +467,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 					.AutoWidth()
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "Menu.CheckBox")
+						.Style(FAppStyle::Get(), "Menu.CheckBox")
 						.ToolTipText(LOCTEXT("StaticMeshesToolTip", "Static Meshes will be adjusted if checked."))
 						.IsChecked_Static(&FLevelEditorActionCallbacks::IsLightingResolutionStaticMeshesChecked)
 						.OnCheckStateChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionStaticMeshes)
@@ -505,7 +505,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 				.AutoWidth()
 				[
 					SNew(SCheckBox)
-					.Style(FEditorStyle::Get(), "Menu.CheckBox")
+					.Style(FAppStyle::Get(), "Menu.CheckBox")
 					.ToolTipText(LOCTEXT("BSPSurfacesToolTip", "BSP Surfaces will be adjusted if checked."))
 					.IsChecked_Static(&FLevelEditorActionCallbacks::IsLightingResolutionBSPSurfacesChecked)
 					.OnCheckStateChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionBSPSurfaces)
@@ -683,7 +683,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 			FLevelEditorCommands::Get().BuildAndSubmitToSourceControl,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.BuildAndSubmit")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.BuildAndSubmit")
 		);
 	}
 

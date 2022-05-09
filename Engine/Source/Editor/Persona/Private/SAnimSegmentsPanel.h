@@ -10,7 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/Commands/Commands.h"
 #include "Animation/AnimTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "STrack.h"
 #include "SAnimTrackPanel.h"
 
@@ -35,7 +35,7 @@ class FAnimSegmentsPanelCommands : public TCommands < FAnimSegmentsPanelCommands
 {
 public:
 	FAnimSegmentsPanelCommands()
-		: TCommands<FAnimSegmentsPanelCommands>("AnimMontagePanel", NSLOCTEXT("Contexts", "AnimMontagePanel", "Anim Montage Panel"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FAnimSegmentsPanelCommands>("AnimMontagePanel", NSLOCTEXT("Contexts", "AnimMontagePanel", "Anim Montage Panel"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 
 	}

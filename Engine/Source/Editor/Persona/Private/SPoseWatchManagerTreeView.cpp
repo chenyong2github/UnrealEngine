@@ -2,7 +2,7 @@
 
 #include "SPoseWatchManagerTreeView.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IPoseWatchManagerColumn.h"
 #include "PoseWatchManagerPublicTypes.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
@@ -16,7 +16,7 @@
 
 static void UpdateOperationDecorator(const FDragDropEvent& Event, const FPoseWatchManagerDragValidationInfo& ValidationInfo)
 {
-	const FSlateBrush* Icon = ValidationInfo.IsValid() ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	const FSlateBrush* Icon = ValidationInfo.IsValid() ? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 	FDragDropOperation* Operation = Event.GetOperation().Get();
 
@@ -271,7 +271,7 @@ void SPoseWatchManagerTreeRow::Construct(const FArguments& InArgs, const TShared
 	LastHighlightInteractionTime = 0.0;
 
 	auto Args = FSuperRowType::FArguments()
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
+		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 
 
 	Args.OnDragDetected_Static(HandleOnDragDetected, TWeakPtr<SPoseWatchManagerTreeView>(PoseWatchManagerTreeView));
@@ -362,7 +362,7 @@ int32 SPoseWatchManagerTreeRow::OnPaint(const FPaintArgs& Args, const FGeometry&
 		const FVector2D DrawPosition = FVector2D(HighlightLeftX, HighlightTopY);
 		const FVector2D DrawSize = FVector2D(HighlightRightX - HighlightLeftX, HighlightBottomY - HighlightTopY);
 
-		const FSlateBrush* StyleInfo = FEditorStyle::GetBrush("SceneOutliner.ChangedItemHighlight");
+		const FSlateBrush* StyleInfo = FAppStyle::GetBrush("SceneOutliner.ChangedItemHighlight");
 
 		// NOTE: We rely on scissor clipping for the highlight rectangle
 		FSlateDrawElement::MakeBox(

@@ -15,7 +15,7 @@
 #include "ISequencer.h"
 #include "TrailHierarchy.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "BaseSequencerAnimTool.h"
 #include "MotionTrailTool.generated.h"
 
@@ -88,7 +88,7 @@ public:
 			"MotionTrailCommands",
 			NSLOCTEXT("MotionTrailTool", "MotionTrailCommands", "Motion Trail Commands"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		)
 	{}
 

@@ -525,7 +525,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 							.HAlign( HAlign_Center )
 							[
 								SNew( SHyperlink )
-									.TextStyle( FEditorStyle::Get(), "MaterialList.HyperlinkStyle" )
+									.TextStyle( FAppStyle::Get(), "MaterialList.HyperlinkStyle" )
 									.Text( FText::Format(LOCTEXT("HideAllMaterialLinkText", "Hide All Materials on Element {ElementSlot}"), Arguments ) )
 									.OnNavigate( this, &FMaterialList::OnHideMaterialsForElement, CurrentSlot )
 							]
@@ -646,7 +646,7 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 				.VAlign(VAlign_Top)
 				[
 					SNew( SHyperlink )
-					.TextStyle( FEditorStyle::Get(), "MaterialList.HyperlinkStyle" )
+					.TextStyle( FAppStyle::Get(), "MaterialList.HyperlinkStyle" )
 					.Text( FText::Format(LOCTEXT("DisplayAllMaterialLinkText", "Display {NumMaterials} materials"), Arguments) )
 					.ToolTipText( LOCTEXT("DisplayAllMaterialLink_ToolTip","Display all materials. Drag and drop a material here to replace all materials.") )
 					.OnNavigate( this, &FMaterialList::OnDisplayMaterialsForElement, CurrentSlot )

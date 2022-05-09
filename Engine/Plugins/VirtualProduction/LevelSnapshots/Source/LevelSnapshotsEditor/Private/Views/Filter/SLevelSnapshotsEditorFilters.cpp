@@ -12,7 +12,7 @@
 #include "Widgets/Filter/SSaveAndLoadFilters.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
@@ -96,8 +96,8 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSna
                     .Padding(FMargin(0.f, 1.f))
                     [
 	                    SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-	                    .TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
+	                    .TextStyle(FAppStyle::Get(), "NormalText.Important")
 	                    .Text(FEditorFontGlyphs::Plus)
                     ]
 
@@ -108,7 +108,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSna
                     [
                         SNew(STextBlock)
                         .Justification(ETextJustify::Center)
-                        .TextStyle(FEditorStyle::Get(), "NormalText.Important")
+                        .TextStyle(FAppStyle::Get(), "NormalText.Important")
                         .Text(Text)
                     ];
 		}
@@ -140,7 +140,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSna
 	ChildSlot
 	[
 		SAssignNew(DetailsSplitter, SCustomSplitter)
-		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+		.Style(FAppStyle::Get(), "DetailsView.Splitter")
 		.PhysicalSplitterHandleSize(1.0f)
 		.HitDetectionSplitterHandleSize(5.0f)
 		.Orientation(Orient_Vertical)
@@ -218,7 +218,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSna
                     .AutoHeight()
                     [
                         SNew(SButton)
-                            .ButtonStyle(FEditorStyle::Get(), "RoundButton")
+                            .ButtonStyle(FAppStyle::Get(), "RoundButton")
                             .ContentPadding(FMargin(4.0, 10.0))
                             .OnClicked(this, &SLevelSnapshotsEditorFilters::AddFilterClick)
                             .HAlign(HAlign_Center)

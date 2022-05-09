@@ -66,7 +66,7 @@ public:
 		[
 			SNew(SBorder)
 			.Padding(4.0f)
-			.BorderImage( FEditorStyle::GetBrush("PropertyEditor.AssetTileItem.DropShadow") )
+			.BorderImage( FAppStyle::GetBrush("PropertyEditor.AssetTileItem.DropShadow") )
 			.OnMouseDoubleClick(this, &STextureMaskThumbnail::OnAssetThumbnailDoubleClick)
 			//.OnClicked_Static(&FLandscapeEditorDetailCustomization_AlphaBrush::OnTextureButtonClicked)
 			[
@@ -77,7 +77,7 @@ public:
 				[
 					SNew(SBorder)
 					.Padding(2)
-					.BorderImage(FEditorStyle::GetBrush("AssetThumbnail", ".Border"))
+					.BorderImage(FAppStyle::GetBrush("AssetThumbnail", ".Border"))
 					//.BorderBackgroundColor(this, &SAssetThumbnail::GetViewportBorderColorAndOpacity)
 					.BorderBackgroundColor(AssetColor)
 					//.ColorAndOpacity(this, &SAssetThumbnail::GetViewportColorAndOpacity)

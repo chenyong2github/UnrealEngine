@@ -56,7 +56,7 @@ FGroomViewportLODCommands::FGroomViewportLODCommands() :
 		TEXT("GroomViewportLODCmd"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "GroomViewportLODCmd", "Groom Viewport LOD Command"), // Localized context name for displaying
 		NAME_None, // Parent context name. 
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 {
 }

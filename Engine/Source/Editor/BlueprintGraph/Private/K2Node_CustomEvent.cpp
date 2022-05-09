@@ -2,7 +2,7 @@
 
 
 #include "K2Node_CustomEvent.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_BaseMCDelegate.h"
@@ -547,7 +547,7 @@ FString UK2Node_CustomEvent::GetDocumentationExcerptName() const
 
 FSlateIcon UK2Node_CustomEvent::GetIconAndTint(FLinearColor& OutColor) const
 {
-	return FSlateIcon("EditorStyle", bCallInEditor ? "GraphEditor.CallInEditorEvent_16x" : "GraphEditor.CustomEvent_16x");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), bCallInEditor ? "GraphEditor.CallInEditorEvent_16x" : "GraphEditor.CustomEvent_16x");
 }
 
 void UK2Node_CustomEvent::AutowireNewNode(UEdGraphPin* FromPin)

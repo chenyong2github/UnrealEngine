@@ -4,7 +4,7 @@
 
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IRemoteControlProtocolModule.h"
 #include "RemoteControlProtocolWidgetsSettings.h"
 #include "SRCProtocolBinding.h"
@@ -115,7 +115,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 				.HAlign(HAlign_Left)
 				[
 					SNew(SButton)
-	                .ButtonStyle(FEditorStyle::Get(), "NoBorder")
+	                .ButtonStyle(FAppStyle::Get(), "NoBorder")
 	                .ToolTipText(LOCTEXT("AddProtocol", "Add Protocol"))
 	                .IsEnabled_Lambda([this](){ return CanAddProtocol(); })
 	                .OnClicked_Lambda([this]()
@@ -135,8 +135,8 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 	                .Content()
 	                [
 	                    SNew(STextBlock)
-	                    .TextStyle(FEditorStyle::Get(), "NormalText.Important")
-	                    .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+	                    .TextStyle(FAppStyle::Get(), "NormalText.Important")
+	                    .Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 	                    .Text(FEditorFontGlyphs::Plus)
 	                ]
 				]
@@ -166,7 +166,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 				SNew(SComboButton)
 				.ContentPadding(0)
 				.ForegroundColor(FSlateColor::UseForeground())
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
 				.MenuContent()
 				[
@@ -175,7 +175,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 				.ButtonContent()
 				[
 				 	SNew(SImage)
-				 	.Image(FEditorStyle::GetBrush("GenericViewButton"))
+				 	.Image(FAppStyle::GetBrush("GenericViewButton"))
 				]
 			]
 		]			 
@@ -188,7 +188,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				.Padding(5.0f)
 				[
 					BindingList.ToSharedRef()				

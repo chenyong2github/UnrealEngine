@@ -4,7 +4,7 @@
 #include "Misc/PackageName.h"
 #include "ToolMenus.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/SoundCueFactoryNew.h"
 #include "Sound/SoundCue.h"
 #include "IContentBrowserSingleton.h"
@@ -20,7 +20,7 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 		"Sound_PlaySound",
 		LOCTEXT("Sound_PlaySound", "Play"),
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecutePlaySound, DialogueWaves),
 			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::CanExecutePlayCommand, DialogueWaves)
@@ -31,7 +31,7 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 		"Sound_StopSound",
 		LOCTEXT("Sound_StopSound", "Stop"),
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteStopSound, DialogueWaves),
 			FCanExecuteAction()
@@ -45,7 +45,7 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 			"DialogueWave_CreateCue",
 			LOCTEXT("DialogueWave_CreateCue", "Create Cue"),
 			LOCTEXT("DialogueWave_CreateCueTooltip", "Creates a sound cue using this dialogue wave."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves, bCreateCueForEachDialogueWave),
 				FCanExecuteAction()
@@ -59,7 +59,7 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 			"DialogueWave_CreateSingleCue",
 			LOCTEXT("DialogueWave_CreateSingleCue", "Create Single Cue"),
 			LOCTEXT("DialogueWave_CreateSingleCueTooltip", "Creates a single sound cue using these dialogue waves."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves, bCreateCueForEachDialogueWave),
 				FCanExecuteAction()
@@ -71,7 +71,7 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 			"DialogueWave_CreateMultipleCue",
 			LOCTEXT("DialogueWave_CreateMultipleCue", "Create Multiple Cues"),
 			LOCTEXT("DialogueWave_CreateMultipleCueTooltip", "Creates multiple sound cues, one from each dialogue wave."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundCue"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves, bCreateCueForEachDialogueWave),
 				FCanExecuteAction()

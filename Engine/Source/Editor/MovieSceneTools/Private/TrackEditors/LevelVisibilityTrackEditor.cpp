@@ -2,7 +2,7 @@
 
 #include "TrackEditors/LevelVisibilityTrackEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Sections/MovieSceneLevelVisibilitySection.h"
 #include "Sections/LevelVisibilitySection.h"
 #include "Tracks/MovieSceneLevelVisibilityTrack.h"
@@ -37,7 +37,7 @@ bool FLevelVisibilityTrackEditor::SupportsType( TSubclassOf<UMovieSceneTrack> Ty
 
 const FSlateBrush* FLevelVisibilityTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.LevelVisibility");
+	return FAppStyle::GetBrush("Sequencer.Tracks.LevelVisibility");
 }
 
 TSharedRef<ISequencerSection> FLevelVisibilityTrackEditor::MakeSectionInterface( UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding )
@@ -53,7 +53,7 @@ void FLevelVisibilityTrackEditor::BuildAddTrackMenu( FMenuBuilder& MenuBuilder )
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddTrack", "Level Visibility Track" ),
 		LOCTEXT("AddAdTrackToolTip", "Adds a new track which can control level visibility." ),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.LevelVisibility"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.LevelVisibility"),
 		FUIAction( FExecuteAction::CreateRaw( this, &FLevelVisibilityTrackEditor::OnAddTrack ) ) );
 }
 

@@ -6,7 +6,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "AssetThumbnail.h"
 #include "IAssetTools.h"
@@ -72,12 +72,12 @@ TSharedRef<SToolTip> FAssetPlacementPaletteItemModel::CreateTooltipWidget() cons
 	return 
 		SNew(SToolTip)
 		.TextMargin(1)
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
+		.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
 		.Visibility(this, &FAssetPlacementPaletteItemModel::GetTooltipVisibility)
 		[
 			SNew(SBorder)
 			.Padding(3.f)
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
+			.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.NonContentBorder"))
 			[
 				SNew(SVerticalBox)
 
@@ -87,11 +87,11 @@ TSharedRef<SToolTip> FAssetPlacementPaletteItemModel::CreateTooltipWidget() cons
 					SNew(SBorder)
 					.Padding(FMargin(6.f))
 					.HAlign(HAlign_Left)
-					.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+					.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(DisplayFName))
-						.Font(FEditorStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
+						.Font(FAppStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
 						.HighlightText(this, &FAssetPlacementPaletteItemModel::GetPaletteSearchText)
 					]
 				]
@@ -111,7 +111,7 @@ TSharedRef<SToolTip> FAssetPlacementPaletteItemModel::CreateTooltipWidget() cons
 						.Padding(6.f)
 						.HAlign(HAlign_Center)
 						.Visibility(this, &FAssetPlacementPaletteItemModel::GetTooltipThumbnailVisibility)
-						.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+						.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 						[
 							SNew(SBox)
 							.HeightOverride(64.f)
@@ -126,7 +126,7 @@ TSharedRef<SToolTip> FAssetPlacementPaletteItemModel::CreateTooltipWidget() cons
 					[
 						SNew(SBorder)
 						.Padding(6.f)
-						.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+						.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 						[
 							SNew(SVerticalBox)
 
@@ -222,7 +222,7 @@ void SAssetPlacementPaletteItemTile::Construct(const FArguments& InArgs, TShared
 
 	STableRow<FAssetPlacementUIInfoPtr>::Construct(
 		STableRow<FAssetPlacementUIInfoPtr>::FArguments()
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+		.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 		.Padding(1.f)
 		.Content()
 		[
@@ -234,7 +234,7 @@ void SAssetPlacementPaletteItemTile::Construct(const FArguments& InArgs, TShared
 			[
 				SNew(SBorder)
 				.Padding(4.f)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
+				.BorderImage(FAppStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 				.ForegroundColor(FLinearColor::White)
 				.ColorAndOpacity(FLinearColor::White)
 				[

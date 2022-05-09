@@ -104,7 +104,7 @@ namespace Metasound
 					//const FString IconName = TEXT("ClassIcon.") + InPresetClassName;
 					const FString IconName = TEXT("ClassIcon.SoundCue");
 
-					const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), *IconName);
+					const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), *IconName);
 					const FToolMenuExecuteAction UIExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreatePreset<TPresetClass, TFactory>);
 
 					const FString PresetEntryName = InPresetClassName + TEXT("_CreatePreset");

@@ -65,7 +65,7 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(this, &STimedDataTimecodeProvider::GetStateText)
 				.ColorAndOpacity(this, &STimedDataTimecodeProvider::GetStateColorAndOpacity)
 			]
@@ -152,14 +152,14 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 						SNew(SCheckBox)
 						.Padding(4.f)
 						.ToolTipText(LOCTEXT("ShowTimecodeProviderSetting_Tip", "Show timecode provider setting"))
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
 						.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
 						.OnCheckStateChanged(this, &STimedDataTimecodeProvider::ShowTimecodeProviderSetting)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							.Text(FEditorFontGlyphs::Cogs)
 						]
 					]
@@ -170,14 +170,14 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 						SNew(SCheckBox)
 						.Padding(4.f)
 						.ToolTipText(LOCTEXT("ReapplyMenuToolTip", "Reinitialize the current Timecode Provider."))
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
 						.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
 						.OnCheckStateChanged(this, &STimedDataTimecodeProvider::ReinitializeTimecodeProvider)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 							.Text(FEditorFontGlyphs::Undo)
 						]
 					]

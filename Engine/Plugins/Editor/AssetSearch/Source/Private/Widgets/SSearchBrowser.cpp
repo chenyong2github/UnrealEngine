@@ -2,7 +2,6 @@
 
 #include "SSearchBrowser.h"
 #include "SSearchTreeRow.h"
-#include "EditorFontGlyphs.h"
 
 #include "ClassViewerModule.h"
 #include "Kismet2/SClassPickerDialog.h"
@@ -26,7 +25,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "SearchModel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IAssetSearchModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Widgets/Views/STreeView.h"
@@ -76,7 +75,7 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 	[
 		SNew(SBorder)
 		.Padding(FMargin(3))
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -84,19 +83,6 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
-
-				//+ SHorizontalBox::Slot()
-				//.AutoWidth()
-				//[
-				//	SNew(SButton)
-				//	.OnClicked(this, &SSearchBrowser::OnRefresh)
-				//	[
-				//		SNew(STextBlock)
-				//		.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-				//		.Text(FEditorFontGlyphs::Refresh)
-				//	]
-				//]
-
 				+ SHorizontalBox::Slot()
 				.FillWidth(1.0f)
 				[
@@ -113,7 +99,7 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 			.FillHeight(1.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(0.0f, 4.0f))
 				[
 					SNew(SOverlay)
@@ -211,12 +197,12 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 					SNew( SComboButton )
 					.ContentPadding(0)
 					.ForegroundColor( FSlateColor::UseForeground() )
-					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+					.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 					.OnGetMenuContent(this, &SSearchBrowser::GetViewMenuWidget)
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image( FEditorStyle::GetBrush("GenericViewButton") )
+						.Image( FAppStyle::GetBrush("GenericViewButton") )
 					]
 				]
 			]

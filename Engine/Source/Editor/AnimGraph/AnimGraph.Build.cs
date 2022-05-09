@@ -34,7 +34,7 @@ public class AnimGraph : ModuleRules
 				"UnrealEd",
                 "GraphEditor",
 				"PropertyEditor",
-				"EditorStyle",
+				
                 "ContentBrowser",
 				"KismetWidgets",
 				"ToolMenus",

@@ -7,7 +7,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SPlistEditor.h"
 
 /** Validation check */
@@ -123,7 +123,7 @@ TSharedRef<SWidget> FPListNodeArray::GenerateWidgetForColumn(const FName& Column
 				+ SHorizontalBox::Slot()
 				[
 					SAssignNew(ExpanderArrow, SButton)
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 					.ClickMethod( EButtonClickMethod::MouseDown )
 					.Visibility( this, &FPListNodeArray::GetExpanderVisibility )
 					.OnClicked( this, &FPListNodeArray::OnArrowClicked )
@@ -131,7 +131,7 @@ TSharedRef<SWidget> FPListNodeArray::GenerateWidgetForColumn(const FName& Column
 					.ForegroundColor( FSlateColor::UseForeground() )
 					[
 						SNew(SImage)
-						.Image( FEditorStyle::GetBrush( TEXT("TreeArrow_Collapsed") ) )
+						.Image( FAppStyle::GetBrush( TEXT("TreeArrow_Collapsed") ) )
 						.Image( this, &FPListNodeArray::GetExpanderImage )
 						.ColorAndOpacity( FSlateColor::UseForeground() )
 					]
@@ -312,11 +312,11 @@ const FSlateBrush* FPListNodeArray::GetOverlayBrush()
 {
 	if(bFiltered)
 	{
-		return FEditorStyle::GetBrush( TEXT("PListEditor.FilteredColor") );
+		return FAppStyle::GetBrush( TEXT("PListEditor.FilteredColor") );
 	}
 	else
 	{
-		return FEditorStyle::GetBrush( TEXT("PListEditor.NoOverlayColor") );
+		return FAppStyle::GetBrush( TEXT("PListEditor.NoOverlayColor") );
 	}
 }
 
@@ -364,7 +364,7 @@ const FSlateBrush* FPListNodeArray::GetExpanderImage() const
 		}
 	}
 
-	return FEditorStyle::GetBrush( ResourceName );
+	return FAppStyle::GetBrush( ResourceName );
 }
 
 /** Delegate: Gets the visibility of the expander arrow */
@@ -398,7 +398,7 @@ FSlateColor FPListNodeArray::GetKeyBackgroundColor() const
 
 	if(!bKeyValid)
 	{
-		return FEditorStyle::GetColor("ErrorReporting.BackgroundColor");
+		return FAppStyle::GetColor("ErrorReporting.BackgroundColor");
 	}
 	else
 	{
@@ -414,16 +414,16 @@ FSlateColor FPListNodeArray::GetKeyForegroundColor() const
 	if(bArrayMember)
 	{
 		
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		return FAppStyle::GetSlateColor(InvertedForegroundName);
 	}
 
 	if(!bKeyValid)
 	{
 		static const FName ForegroundColor("ErrorReporting.ForegroundColor");
-		return FEditorStyle::GetColor(ForegroundColor);
+		return FAppStyle::GetColor(ForegroundColor);
 	}
 	else
 	{
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		return FAppStyle::GetSlateColor(InvertedForegroundName);
 	}
 }

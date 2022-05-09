@@ -18,7 +18,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "EngineUtils.h"
 #include "Engine/StaticMesh.h"
@@ -328,7 +328,7 @@ void FDataprepEditorUtils::PopulateMenuForParameterization(FMenuBuilder& MenuBui
 
 FSlateFontInfo FDataprepEditorUtils::GetGlyphFont()
 {
-	return FEditorStyle::Get().GetFontStyle("FontAwesome.11");
+	return FAppStyle::Get().GetFontStyle("FontAwesome.11");
 }
 
 TSharedPtr<SWidget> FDataprepEditorUtils::MakeContextMenu(const TSharedPtr<FDataprepParametrizationActionData>& ParameterizationActionData)

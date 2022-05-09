@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ProfilerManager.h"
 
 
@@ -127,14 +127,14 @@ void SProfilerSettings::AddOption(const FText& OptionName, const FText& OptionDe
 		[
 			SNew(SButton)
 			.ToolTipText( LOCTEXT("ResetToDefaultToolTip", "Reset to default") )
-			.ButtonStyle( FEditorStyle::Get(), TEXT("NoBorder") )
+			.ButtonStyle( FAppStyle::Get(), TEXT("NoBorder") )
 			.ContentPadding( 0.0f ) 
 			.Visibility( this, &SProfilerSettings::OptionDefault_GetDiffersFromDefaultAsVisibility, (const bool*)&Value, (const bool*)&Default )
 			.OnClicked( this, &SProfilerSettings::OptionDefault_OnClicked, (bool*)&Value, (const bool*)&Default )
 			.Content()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
+				.Image( FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
 			]
 		]
 	];
@@ -167,7 +167,7 @@ void SProfilerSettings::AddFooter( const TSharedRef<SGridPanel>& Grid, int32& Ro
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush("Profiler.Misc.Save16") )
+					.Image( FAppStyle::GetBrush("Profiler.Misc.Save16") )
 				]
 
 				+SHorizontalBox::Slot()
@@ -195,7 +195,7 @@ void SProfilerSettings::AddFooter( const TSharedRef<SGridPanel>& Grid, int32& Ro
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush("Profiler.Misc.Reset16") )
+					.Image( FAppStyle::GetBrush("Profiler.Misc.Reset16") )
 				]
 
 				+SHorizontalBox::Slot()

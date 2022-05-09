@@ -2,7 +2,7 @@
 
 #include "CaptureTab/SMediaFrameworkCaptureOutputWidget.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
@@ -168,7 +168,7 @@ TSharedRef<SWidget> SMediaFrameworkCaptureOutputWidget::BuildBaseWidget(TSharedR
 			.HAlign(EHorizontalAlignment::HAlign_Left)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(this, &SMediaFrameworkCaptureOutputWidget::HandleIconText)
 				.ColorAndOpacity(this, &SMediaFrameworkCaptureOutputWidget::HandleIconColorAndOpacity)
 			]

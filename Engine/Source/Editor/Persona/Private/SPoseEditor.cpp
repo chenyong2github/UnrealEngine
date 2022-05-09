@@ -370,7 +370,7 @@ void SPoseViewer::Construct(const FArguments& InArgs, const TSharedRef<IPersonaT
 		[
 			SNew(SBorder)
 			.Padding(8)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			[
 				SAssignNew(CurveListView, SCurveListType)
 				.ListItemsSource(&CurveList)

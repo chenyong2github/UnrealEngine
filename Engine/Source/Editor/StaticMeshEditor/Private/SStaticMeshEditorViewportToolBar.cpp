@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "UObject/Package.h"
 #include "Components/StaticMeshComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/StaticMesh.h"
 #include "IStaticMeshEditor.h"
 #include "StaticMeshEditorActions.h"

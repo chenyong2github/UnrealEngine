@@ -4,7 +4,6 @@
 #include "PropertyNode.h"
 #include "ObjectPropertyNode.h"
 #include "StructurePropertyNode.h"
-#include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "CategoryPropertyNode.h"
 #include "SPropertyEditorEditInline.h"

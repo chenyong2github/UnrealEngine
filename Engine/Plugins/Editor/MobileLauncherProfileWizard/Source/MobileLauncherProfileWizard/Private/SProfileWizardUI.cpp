@@ -25,7 +25,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Workflow/SWizard.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "InstalledPlatformInfo.h"
 #include "PlatformInfo.h"
 #include "DesktopPlatformModule.h"
@@ -62,7 +62,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(18)
-		.BorderImage(FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush"))
+		.BorderImage(FAppStyle::GetBrush("Docking.Tab.ContentAreaBrush"))
 		[
 			SNew(SVerticalBox)
 
@@ -79,7 +79,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 				[
 					SNew(SBorder)
 					.Visibility(this, &SProfileWizardUI::GetGlobalErrorLabelVisibility)
-					.BorderImage(FEditorStyle::GetBrush("NewClassDialog.ErrorLabelBorder"))
+					.BorderImage(FAppStyle::GetBrush("NewClassDialog.ErrorLabelBorder"))
 					.Padding(FMargin(0, 5))
 					.Content()
 					[
@@ -91,7 +91,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("MessageLog.Warning"))
+							.Image(FAppStyle::GetBrush("MessageLog.Warning"))
 						]
 
 						+SHorizontalBox::Slot()
@@ -99,7 +99,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(this, &SProfileWizardUI::GetGlobalErrorLabelText)
-							.TextStyle(FEditorStyle::Get(), "NewClassDialog.ErrorLabelFont")
+							.TextStyle(FAppStyle::Get(), "NewClassDialog.ErrorLabelFont")
 						]
 					]
 				]
@@ -118,7 +118,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 					.Padding(0)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NewClassDialog.PageTitle")
+						.TextStyle(FAppStyle::Get(), "NewClassDialog.PageTitle")
 						.Text(this, &SProfileWizardUI::GetDestinationPageTitleText)
 					]
 
@@ -152,7 +152,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(8.0)
 						[
 							SNew(SVerticalBox)
@@ -212,7 +212,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 					.Padding(0)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NewClassDialog.PageTitle")
+						.TextStyle(FAppStyle::Get(), "NewClassDialog.PageTitle")
 						.Text(this, &SProfileWizardUI::GetApplicationPageTitleText)
 					]
 
@@ -247,7 +247,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 					.Padding(0, 10)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(8.0)
 						[
 							SNew(SHorizontalBox)
@@ -300,7 +300,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 						.FillWidth(0.5f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(8.0f)
 							[
 								SNew(SVerticalBox)
@@ -341,7 +341,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 					.Padding(0)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NewClassDialog.PageTitle")
+						.TextStyle(FAppStyle::Get(), "NewClassDialog.PageTitle")
 						.Text(this, &SProfileWizardUI::GetDLCPageTitleText)
 					]
 
@@ -380,7 +380,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 						.Padding(4.0f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(8.0f)
 							[
 								SNew(SVerticalBox)
@@ -411,7 +411,7 @@ void SProfileWizardUI::Construct(const FArguments& InArgs)
 						.Padding(4.0f)
 						[
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(8.0f)
 							[
 								SNew(SVerticalBox)
@@ -526,7 +526,7 @@ TSharedRef<ITableRow> SProfileWizardUI::HandleMapListViewGenerateRow(TSharedPtr<
 {
 	return 
 		SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-		.Style(FEditorStyle::Get(), "NewClassDialog.ParentClassListView.TableRow")
+		.Style(FAppStyle::Get(), "NewClassDialog.ParentClassListView.TableRow")
 		[
 			SNew(SCheckBox)
 			.IsChecked(this, &SProfileWizardUI::HandleMapListViewCheckBoxIsChecked, InItem, InProfileTarget)
@@ -570,7 +570,7 @@ TSharedRef<ITableRow> SProfileWizardUI::HandleCookFlavorViewGenerateRow(TSharedP
 {
 	return 
 		SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-		.Style(FEditorStyle::Get(), "NewClassDialog.ParentClassListView.TableRow")
+		.Style(FAppStyle::Get(), "NewClassDialog.ParentClassListView.TableRow")
 		[
 			SNew(SCheckBox)
 			.IsChecked(this, &SProfileWizardUI::HandleCookFlavorViewCheckBoxIsChecked, InItem)

@@ -55,7 +55,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "IdentifierTable/ConcertIdentifierTable.h"
 #include "UObject/ObjectMacros.h"
@@ -339,7 +339,7 @@ void FConcertTakeRecorderManager::CreateExtensionWidget(TArray<TSharedRef<SWidge
  				SNew(SCheckBox)
  				.Padding(4.f)
  				.ToolTipText(LOCTEXT("ToggleTakeRecorderSyncTooltip", "Toggle Multi-User Take Recorder Sync. If the option is enabled, starting/stopping/canceling a take will be synchronized with other Multi-User clients."))
- 				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+ 				.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
  				.ForegroundColor(FSlateColor::UseForeground())
 				.IsChecked_Raw(this, &FConcertTakeRecorderManager::IsTakeSyncChecked)
 				.OnCheckStateChanged_Raw(this, &FConcertTakeRecorderManager::HandleTakeSyncCheckBox)

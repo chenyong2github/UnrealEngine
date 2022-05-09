@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"AssetTools",
-					"EditorStyle",
 					"MainFrame",
 					"MeshDescription",
 					"RawMesh",

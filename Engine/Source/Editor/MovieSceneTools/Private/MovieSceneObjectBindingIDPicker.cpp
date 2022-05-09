@@ -10,7 +10,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorFontGlyphs.h"
@@ -154,7 +154,7 @@ TSharedRef<SWidget> FMovieSceneObjectBindingIDPicker::GetCurrentItemWidget(TShar
 			[
 				SNew(SImage)
 				.Visibility_Raw(this, &FMovieSceneObjectBindingIDPicker::GetSpawnableIconOverlayVisibility)
-				.Image(FEditorStyle::GetBrush("Sequencer.SpawnableIconOverlay"))
+				.Image(FAppStyle::GetBrush("Sequencer.SpawnableIconOverlay"))
 			]
 		]
 
@@ -172,7 +172,7 @@ TSharedRef<SWidget> FMovieSceneObjectBindingIDPicker::GetWarningWidget()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.ContentPadding(FMargin(0))
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ToolTipText(LOCTEXT("FixedBindingWarningText", "This binding is fixed to the current Master Sequence hierarchy, so will break if evaluated in a different hierarchy.\nClick here to fix this problem."))
 		.Visibility_Raw(this, &FMovieSceneObjectBindingIDPicker::GetFixedWarningVisibility)
 		.OnClicked_Raw(this, &FMovieSceneObjectBindingIDPicker::AttemptBindingFixup)

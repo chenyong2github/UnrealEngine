@@ -2,7 +2,7 @@
 
 #include "SequencerContextMenus.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
@@ -485,7 +485,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
 		LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyAuto"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyAuto"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]{ Shared->SetInterpTangentMode(RCIM_Cubic, RCTM_Auto); }),
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanSetInterpTangentMode(); }) )
@@ -494,7 +494,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SetKeyInterpolationUser", "Cubic (User)"),
 		LOCTEXT("SetKeyInterpolationUserTooltip", "Set key interpolation to user"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyUser"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]{ Shared->SetInterpTangentMode(RCIM_Cubic, RCTM_User); }),
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanSetInterpTangentMode(); }) )
@@ -503,7 +503,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SetKeyInterpolationBreak", "Cubic (Break)"),
 		LOCTEXT("SetKeyInterpolationBreakTooltip", "Set key interpolation to break"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyBreak"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyBreak"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]{ Shared->SetInterpTangentMode(RCIM_Cubic, RCTM_Break); }),
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanSetInterpTangentMode(); }) )
@@ -512,7 +512,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SetKeyInterpolationLinear", "Linear"),
 		LOCTEXT("SetKeyInterpolationLinearTooltip", "Set key interpolation to linear"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyLinear"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyLinear"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]{ Shared->SetInterpTangentMode(RCIM_Linear, RCTM_Auto); }),
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanSetInterpTangentMode(); }) )
@@ -521,7 +521,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SetKeyInterpolationConstant", "Constant"),
 		LOCTEXT("SetKeyInterpolationConstantTooltip", "Set key interpolation to constant"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyConstant"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyConstant"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]{ Shared->SetInterpTangentMode(RCIM_Constant, RCTM_Auto); }),
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanSetInterpTangentMode(); }) )
@@ -554,7 +554,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 			.AutoWidth()
 			[
 				SNew(SSpinBox<float>)
-				.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+				.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 				.OnValueCommitted_Lambda([=](float Value, ETextCommit::Type) { OnReduceKeysToleranceChanged(Value); })
 				.OnValueChanged_Lambda(OnReduceKeysToleranceChanged)
 				.MinValue(0)
@@ -1818,8 +1818,8 @@ void FEasingContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 				.HAlign(HAlign_Right)
 				[
 					SNew(SNumericEntryBox<double>)
-					.SpinBoxStyle(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
-					.EditableTextBoxStyle(&FEditorStyle::GetWidgetStyle<FEditableTextBoxStyle>("Sequencer.HyperlinkTextBox"))
+					.SpinBoxStyle(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+					.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("Sequencer.HyperlinkTextBox"))
 					// Don't update the value when undetermined text changes
 					.OnUndeterminedValueChanged_Lambda([](FText){})
 					.AllowSpin(true)
@@ -1841,7 +1841,7 @@ void FEasingContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 					.OnValueCommitted_Lambda(OnValueCommitted)
 					.OnBeginSliderMovement_Lambda(OnBeginSliderMovement)
 					.OnEndSliderMovement_Lambda(OnEndSliderMovement)
-					.BorderForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+					.BorderForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 					.TypeInterface(Sequencer->GetNumericTypeInterface())
 				]
 			]

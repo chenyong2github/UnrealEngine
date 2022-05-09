@@ -38,7 +38,7 @@ void SRCProtocolRangeList::Construct(const FArguments& InArgs, const TSharedRef<
 		.Padding(1, 1, 1, Padding)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+			.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 			.Padding(FMargin(0.0f, 4.0f, 4.0f, 4.0f))
 			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			.HAlign(HAlign_Fill)
@@ -104,7 +104,7 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("Ranges", "Ranges"))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			.ShadowOffset(FVector2D(1.0f, 1.0f))
 		];
 
@@ -123,7 +123,7 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("AddRangeTooltip", "Add a new range"))
 			.OnClicked_Lambda([this]()
 			{
@@ -134,8 +134,8 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 			.Content()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.TextStyle(FAppStyle::Get(), "NormalText.Important")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FEditorFontGlyphs::Plus)
 			]
 		]
@@ -147,7 +147,7 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 		.AutoWidth()
 		[		
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("DeleteRangesTooltip", "Delete all ranges"))
 			.OnClicked_Lambda([this]()
 			{
@@ -158,8 +158,8 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 			.Content()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.TextStyle(FAppStyle::Get(), "NormalText.Important")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf00d"))))
 			]
 		];
@@ -195,7 +195,7 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructChannelMuter()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.Text(LOCTEXT("Channels", "Channels"))
 		];
 

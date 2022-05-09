@@ -12,7 +12,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimTypes.h"
 #include "Widgets/Input/STextEntryPopup.h"
 
@@ -75,12 +75,12 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 {
 	const bool bActiveFeedback = IsHovered() || bDragging;
 	const FSlateBrush* BackgroundImage = bActiveFeedback ?
-		FEditorStyle::GetBrush("SpinBox.Background.Hovered") :
-		FEditorStyle::GetBrush("SpinBox.Background");
+		FAppStyle::GetBrush("SpinBox.Background.Hovered") :
+		FAppStyle::GetBrush("SpinBox.Background");
 
 	const FSlateBrush* FillImage = bActiveFeedback ?
-		FEditorStyle::GetBrush("SpinBox.Fill.Hovered") :
-		FEditorStyle::GetBrush("SpinBox.Fill");
+		FAppStyle::GetBrush("SpinBox.Fill.Hovered") :
+		FAppStyle::GetBrush("SpinBox.Fill");
 
 	const int32 BackgroundLayer = LayerId;
 

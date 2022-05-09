@@ -3,7 +3,7 @@
 #include "SDataProviderListView.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IStageMonitorSession.h"
 #include "Misc/App.h"
 #include "StageMonitorUtils.h"
@@ -92,7 +92,7 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 	if (DataProviderListView::HeaderIdName_State == ColumnName)
 	{
 		return SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 			.Text(this, &SDataProviderTableRow::GetStateGlyphs)
 			.ColorAndOpacity(this, &SDataProviderTableRow::GetStateColorAndOpacity);
 	}

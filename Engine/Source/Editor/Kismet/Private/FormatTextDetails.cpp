@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "UObject/Package.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
 #include "Widgets/Images/SImage.h"
@@ -142,7 +142,7 @@ void FFormatTextArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& Node
 				.IsEnabled( bIsMoveUpEnabled )
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
+					.Image(FAppStyle::GetBrush("Icons.ChevronUp"))
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -155,7 +155,7 @@ void FFormatTextArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& Node
 				.IsEnabled( bIsMoveDownEnabled )
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
+					.Image(FAppStyle::GetBrush("Icons.ChevronDown"))
 				]
 			]
 

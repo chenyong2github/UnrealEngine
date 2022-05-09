@@ -5,7 +5,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Animation/AnimInstance.h"
 #include "Factories/AnimBlueprintFactory.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
@@ -301,7 +301,7 @@ TSharedPtr<SWidget> FAssetTypeActions_AnimBlueprint::GetThumbnailOverlay(const F
 	const FSlateBrush* Icon = FSlateIconFinder::FindIconBrushForClass(UAnimBlueprint::StaticClass());
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetNoBrush())
+		.BorderImage(FAppStyle::GetNoBrush())
 		.Visibility(EVisibility::HitTestInvisible)
 		.Padding(FMargin(0.0f, 0.0f, 0.0f, 3.0f))
 		.HAlign(HAlign_Right)

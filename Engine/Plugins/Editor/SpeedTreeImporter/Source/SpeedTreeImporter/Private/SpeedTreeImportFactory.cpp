@@ -7,7 +7,7 @@
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorReimportHandler.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
@@ -189,7 +189,7 @@ public:
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			. BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+			. BorderImage(FAppStyle::GetBrush(TEXT("Menu.Background")))
 			. Content()
 			[
 				SNew(SVerticalBox)

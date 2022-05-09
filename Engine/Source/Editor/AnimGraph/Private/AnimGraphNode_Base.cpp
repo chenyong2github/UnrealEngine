@@ -1264,7 +1264,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 
 			if (BindingType == EAnimGraphNodePropertyBindingType::Function)
 			{
-				return FEditorStyle::GetBrush(FunctionIcon);
+				return FAppStyle::GetBrush(FunctionIcon);
 			}
 			else
 			{
@@ -1277,7 +1277,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 				}
 				else
 				{
-					return FEditorStyle::GetBrush(PropertyIcon);
+					return FAppStyle::GetBrush(PropertyIcon);
 				}
 			}
 		};
@@ -1418,7 +1418,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 				InMenuBuilder.AddMenuEntry(
 					LOCTEXT("ExposeAsPin", "Expose As Pin"),
 					LOCTEXT("ExposeAsPinTooltip", "Show/hide this property as a pin on the node"),
-					FSlateIcon("EditorStyle", "GraphEditor.PinIcon"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.PinIcon"),
 					FUIAction(
 						FExecuteAction::CreateLambda(ExposeAsPin),
 						FCanExecuteAction(),
@@ -1597,7 +1597,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 
 		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
-		const FTextBlockStyle& TextBlockStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
+		const FTextBlockStyle& TextBlockStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
 		
 		return
 			SNew(SBox)
@@ -1611,7 +1611,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 					SNew(SBorder)
 					.Padding(FMargin(1.0f, 3.0f, 1.0f, 1.0f))
 					.Visibility(InArgs.bOnGraphNode ? EVisibility::Visible : EVisibility::Collapsed)
-					.BorderImage(FEditorStyle::GetBrush("PropertyAccess.CompiledContext.Border"))
+					.BorderImage(FAppStyle::GetBrush("PropertyAccess.CompiledContext.Border"))
 					.RenderTransform_Lambda([InArgs, FirstAnimGraphNode, &TextBlockStyle]()
 					{
 						const FAnimGraphNodePropertyBinding* BindingPtr = FirstAnimGraphNode->PropertyBindings.Find(InArgs.BindingName);

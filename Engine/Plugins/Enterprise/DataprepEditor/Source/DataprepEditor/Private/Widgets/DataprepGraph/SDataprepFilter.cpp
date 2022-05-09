@@ -18,7 +18,7 @@
 #include "Widgets/DataprepGraph/SDataprepObjectSelectionFilter.h"
 #include "Widgets/DataprepWidgets.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"

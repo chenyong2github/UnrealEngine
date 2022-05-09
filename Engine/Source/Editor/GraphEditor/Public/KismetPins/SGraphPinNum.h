@@ -32,7 +32,7 @@ protected:
 			.MaxDesiredWidth(400)
 			[
 				SNew(SNumericEntryBox<NumericType>)
-				.EditableTextBoxStyle(FEditorStyle::Get(), "Graph.EditableTextBox")
+				.EditableTextBoxStyle(FAppStyle::Get(), "Graph.EditableTextBox")
 				.BorderForegroundColor(FSlateColor::UseForeground())
 				.Visibility(this, &SGraphPinNum::GetDefaultValueVisibility)
 				.IsEnabled(this, &SGraphPinNum::GetDefaultValueIsEditable)

@@ -2,7 +2,7 @@
 
 #include "STimecodeSynchronizerWidget.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "Fonts/FontMeasure.h"
 
@@ -34,7 +34,7 @@ STimecodeSynchronizerBarWidget::STimecodeSynchronizerBarWidget()
 	, MaxOldestFrameTime(0)
 	, MinNewestFrameTime(0)
 	, MaxNewestFrameTime(0)
-	, DarkBrush(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+	, DarkBrush(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 	, BrightBrush(&FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox").BackgroundImageNormal)
 	, FontMeasureService(FSlateApplication::Get().GetRenderer()->GetFontMeasureService())
 	, FontInfo(FCoreStyle::GetDefaultFontStyle("Regular", TimecodeSynchronizerBarWidget::TextSize))
@@ -338,7 +338,7 @@ void STimecodeSynchronizerWidget::Construct(const FArguments& InArgs, UTimecodeS
 		[
 			SNew(SBorder)
 			.Padding(FMargin(3))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SSplitter)
 				.Orientation(Orient_Horizontal)

@@ -2,7 +2,7 @@
 
 #include "Customizations/BaseMediaSourceCustomization.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
 #include "PlatformInfo.h"
 
@@ -160,7 +160,7 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayerNamesValueW
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-					.Image(FEditorStyle::GetBrush(Platform->GetIconStyleName(EPlatformIconSize::Normal)))
+					.Image(FAppStyle::GetBrush(Platform->GetIconStyleName(EPlatformIconSize::Normal)))
 			];
 
 		// platform name

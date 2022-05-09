@@ -119,7 +119,7 @@ TSharedRef<SWidget>	SGraphPinInteger::GetDefaultValueWidget()
 				[
 					SNew(STextBlock)
 					.Text_Lambda(GetComboButtonText)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			]
 			.OnGetMenuContent_Lambda([this, BitmaskFlags]()

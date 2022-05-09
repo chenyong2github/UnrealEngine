@@ -2,7 +2,7 @@
 
 #include "SHyperlinkLaunchURL.h"
 #include "HAL/PlatformProcess.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SHyperlink.h"
 
 #define LOCTEXT_NAMESPACE "SHyperlinkLaunchURL"
@@ -27,7 +27,7 @@ void SHyperlinkLaunchURL::Construct(const FArguments& InArgs, const FString& InD
 	ChildSlot
 	[
 		SNew(SHyperlink)
-		.Style(FEditorStyle::Get(), TEXT("NavigationHyperlink"))
+		.Style(FAppStyle::Get(), TEXT("NavigationHyperlink"))
 		.Text(DisplayText)
 		.ToolTipText(InArgs._ToolTipText)
 		.OnNavigate(this, &SHyperlinkLaunchURL::OnNavigate)

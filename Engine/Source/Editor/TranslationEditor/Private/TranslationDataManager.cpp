@@ -10,7 +10,7 @@
 #include "Misc/App.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlState.h"
 #include "ISourceControlProvider.h"
@@ -394,7 +394,7 @@ bool FTranslationDataManager::WriteJSONToTextFile(TSharedRef<FJsonObject>& Outpu
 		Info.HyperlinkText = LOCTEXT("ShowMessageLogHyperlink", "Show Message Log");
 		Info.bFireAndForget = true;
 		Info.bUseSuccessFailIcons = true;
-		Info.Image = FEditorStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
+		Info.Image = FAppStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 

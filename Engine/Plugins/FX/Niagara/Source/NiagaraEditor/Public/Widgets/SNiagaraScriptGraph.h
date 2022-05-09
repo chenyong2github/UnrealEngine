@@ -8,7 +8,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "NiagaraEditorCommon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FNiagaraScriptGraphViewModel;
 
@@ -17,7 +17,7 @@ class SNiagaraScriptGraph : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraScriptGraph)
-		: _ForegroundColor(FEditorStyle::GetColor("Graph.ForegroundColor"))
+		: _ForegroundColor(FAppStyle::GetColor("Graph.ForegroundColor"))
 		, _ZoomToFitOnLoad(false)
 	{}
 		/** The text displayed in the title bar of the graph. */

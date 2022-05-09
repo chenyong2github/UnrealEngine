@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 /*-----------------------------------------------------------------------------
@@ -15,7 +15,7 @@ class FPhysicsAssetEditorCommands : public TCommands<FPhysicsAssetEditorCommands
 public:
 	/** Constructor */
 	FPhysicsAssetEditorCommands() 
-		: TCommands<FPhysicsAssetEditorCommands>("PhysicsAssetEditor", NSLOCTEXT("Contexts", "PhysicsAssetEditor", "PhysicsAssetEditor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FPhysicsAssetEditorCommands>("PhysicsAssetEditor", NSLOCTEXT("Contexts", "PhysicsAssetEditor", "PhysicsAssetEditor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 	

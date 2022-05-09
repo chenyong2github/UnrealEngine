@@ -8,7 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AssetRegistry/AssetData.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
@@ -450,7 +450,7 @@ void SRetargetSourceWindow::OnAddRetargetSource()
 			.Padding( 2 )
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				.Padding( 8 )
 				[
 					ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)

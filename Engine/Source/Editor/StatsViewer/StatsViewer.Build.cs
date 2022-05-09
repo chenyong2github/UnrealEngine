@@ -15,7 +15,6 @@ public class StatsViewer : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"RHI",
 				"EditorFramework",
 				"UnrealEd",

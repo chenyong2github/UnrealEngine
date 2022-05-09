@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 class FDisplayClusterConfiguratorCommands 
@@ -13,7 +13,7 @@ class FDisplayClusterConfiguratorCommands
 public:
 	FDisplayClusterConfiguratorCommands()
 		: TCommands<FDisplayClusterConfiguratorCommands>(TEXT("DisplayClusterConfigurator"), 
-			NSLOCTEXT("Contexts", "DisplayClusterConfigurator", "Display Cluster Configurator"), NAME_None, FEditorStyle::GetStyleSetName())
+			NSLOCTEXT("Contexts", "DisplayClusterConfigurator", "Display Cluster Configurator"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{ }
 
 	virtual void RegisterCommands() override;

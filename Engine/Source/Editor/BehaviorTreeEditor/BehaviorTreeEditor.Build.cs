@@ -33,7 +33,7 @@ public class BehaviorTreeEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+                
 				"EditorFramework",
 				"UnrealEd", 
                 "AudioEditor",

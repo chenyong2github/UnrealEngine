@@ -7,7 +7,7 @@
 #include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ObjectEditorUtils.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "SoundSimple.h"
@@ -43,7 +43,7 @@ void FSoundWaveAssetActionExtender::RegisterMenus()
 		}
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSimpleSound", "Create Simple Sound");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSimpleSoundTooltip", "Creates a simple sound asset using the selected sound waves.");
-		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundSimple");
+		const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SoundSimple");
 		const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound);
 
 		InSection.AddMenuEntry("SoundWave_CreateSimpleSound", Label, ToolTip, Icon, UIAction);

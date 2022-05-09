@@ -16,8 +16,8 @@ void SNiagaraParameterPanelPaletteItem::Construct(const FArguments& InArgs/*, FC
 	FTutorialMetaData TagMeta("PaletteItem");
 
 	const FLinearColor TypeColor = FLinearColor(1, 1, 1, 0);/* UEdGraphSchema_Niagara::GetTypeColor(Action->GetScriptVarType());*/
-	FSlateBrush const* IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
-	FSlateBrush const* SecondaryBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	FSlateBrush const* IconBrush = FAppStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	FSlateBrush const* SecondaryBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        IconColor = FSlateColor(TypeColor);
 	FSlateColor        SecondaryIconColor = IconColor;
 	FText			   IconToolTip = FText::GetEmpty();

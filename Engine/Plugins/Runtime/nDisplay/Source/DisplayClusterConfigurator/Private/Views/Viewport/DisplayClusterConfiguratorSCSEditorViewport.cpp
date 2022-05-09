@@ -157,7 +157,7 @@ public:
 			return GetCameraMenuLabelIconFromViewportType( EditorViewport.Pin()->GetViewportClient()->GetViewportType() );
 		}
 
-		return FAppStyle::Get().GetBrush(NAME_None);
+		return FAppStyle::GetBrush(NAME_None);
 	}
 
 	TSharedRef<SWidget> GenerateCameraMenu() const
@@ -232,7 +232,7 @@ public:
 			}
 		}
 
-		return FAppStyle::Get().GetBrush(Icon);
+		return FAppStyle::GetBrush(Icon);
 	}
 
 	TSharedRef<SWidget> GenerateViewMenu() const

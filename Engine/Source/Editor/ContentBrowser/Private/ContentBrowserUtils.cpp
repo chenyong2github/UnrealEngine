@@ -26,7 +26,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealClient.h"
 #include "Engine/World.h"
 #include "Settings/ContentBrowserSettings.h"
@@ -89,7 +89,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			.Padding(10)
 			.OnMouseButtonDown(this, &SContentBrowserPopup::OnBorderClicked)
 			.BorderBackgroundColor(this, &SContentBrowserPopup::GetBorderBackgroundColor)
@@ -101,7 +101,7 @@ public:
 				.VAlign(VAlign_Center)
 				.Padding(0, 0, 4, 0)
 				[
-					SNew(SImage) .Image( FEditorStyle::GetBrush("ContentBrowser.PopupMessageIcon") )
+					SNew(SImage) .Image( FAppStyle::GetBrush("ContentBrowser.PopupMessageIcon") )
 				]
 
 				+SHorizontalBox::Slot()
@@ -194,7 +194,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			. BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			. BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			. Padding(10)
 			[
 				SNew(SVerticalBox)

@@ -6,7 +6,7 @@
 
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SAssetSearchBox.h"
@@ -26,9 +26,9 @@ namespace AssetPreviewWidget
 
 		FAssetPreviewDefaultColumn()
 		{
-			FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
-			FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
-			AssetIconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+			FolderOpenBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
+			FolderClosedBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
+			AssetIconBrush = FAppStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
 		}
 
 
@@ -89,7 +89,7 @@ namespace AssetPreviewWidget
 				[
 					SNew( STextBlock )
 					.Text( FText::FromString( *( TreeItem->Name ) ) )
-					.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont") )
+					.Font( FAppStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont") )
 					.HighlightText( PreviewWidget, &SAssetsPreviewWidget::OnGetHighlightText )
 				];
 		}

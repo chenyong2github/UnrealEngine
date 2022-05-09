@@ -12,7 +12,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Blueprint.h"
 #include "EdGraph/EdGraph.h"
@@ -177,7 +177,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 			}
 			else
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.EventGraph_16x"));
+				IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.EventGraph_16x"));
 			}
 
 			ToolTipOut = LOCTEXT("EventGraph_ToolTip", "Event Graph");
@@ -187,12 +187,12 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 		{
 			if (Cast<UAnimationStateMachineGraph>(ActionIn->EdGraph))
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.StateMachine_16x") );
+				IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.StateMachine_16x") );
 				ToolTipOut = LOCTEXT("AnimationStateMachineGraph_ToolTip", "Animation State Machine");
 			}
 			else if (Cast<UAnimationStateGraph>(ActionIn->EdGraph))
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.State_16x") );
+				IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.State_16x") );
 				ToolTipOut = LOCTEXT("AnimationState_ToolTip", "Animation State");
 			}
 			else if (Cast<UAnimationTransitionGraph>(ActionIn->EdGraph))
@@ -200,35 +200,35 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 				UAnimStateConduitNode* EdGraphOuter = Cast<UAnimStateConduitNode>(ActionIn->EdGraph->GetOuter());
 				if (EdGraphOuter)
 				{
-					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Conduit_16x"));
+					IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.Conduit_16x"));
 					ToolTipOut = LOCTEXT("ConduitGraph_ToolTip", "Conduit");
 				}
 				else
 				{
-					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Rule_16x"));
+					IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.Rule_16x"));
 					ToolTipOut = LOCTEXT("AnimationTransitionGraph_ToolTip", "Animation Transition Rule");
 				}
 			}
 			else if (Cast<UBlendSpaceGraph>(ActionIn->EdGraph))
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("BlendSpace.Graph") );
+				IconOut = FAppStyle::GetBrush(TEXT("BlendSpace.Graph") );
 				ToolTipOut = LOCTEXT("BlendSpace_ToolTip", "BlendSpace");
 			}
 			else if (Cast<UAnimationBlendSpaceSampleGraph>(ActionIn->EdGraph))
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
+				IconOut = FAppStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
 				ToolTipOut = LOCTEXT("BlendSpaceSample_ToolTip", "BlendSpace Sample");
 			}
 			else
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.SubGraph_16x") );
+				IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.SubGraph_16x") );
 				ToolTipOut = LOCTEXT("EventSubgraph_ToolTip", "Event Subgraph");
 			}
 		}
 		break;
 	case EEdGraphSchemaAction_K2Graph::Macro:
 		{
-			IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Macro_16x"));
+			IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.Macro_16x"));
 			if ( ActionIn->EdGraph == nullptr )
 			{
 				ToolTipOut = LOCTEXT("PotentialOverride_Tooltip", "Potential Override");	
@@ -250,7 +250,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 		break;
 	case EEdGraphSchemaAction_K2Graph::Interface:
 		{
-			IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.InterfaceFunction_16x"));
+			IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.InterfaceFunction_16x"));
 
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("InterfaceName"), FText::FromName(ActionIn->FuncName));
@@ -269,19 +269,19 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 		{
 			if (ActionIn->EdGraph == nullptr)
 			{
-				IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.PotentialOverrideFunction_16x"));
+				IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.PotentialOverrideFunction_16x"));
 				ToolTipOut = LOCTEXT("PotentialOverride_Tooltip", "Potential Override");	
 			}
 			else
 			{
 				if (ActionIn->EdGraph->IsA(UAnimationGraph::StaticClass()))
 				{
-					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Animation_16x"));
+					IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.Animation_16x"));
 				}
 				else if (UFunction* OverrideFunc = FindUField<UFunction>(BlueprintIn->ParentClass, ActionIn->FuncName))
 				{
 					const bool bIsPureFunction = OverrideFunc && OverrideFunc->HasAnyFunctionFlags(FUNC_BlueprintPure);
-					IconOut = FEditorStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.OverridePureFunction_16x") : TEXT("GraphEditor.OverrideFunction_16x"));
+					IconOut = FAppStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.OverridePureFunction_16x") : TEXT("GraphEditor.OverrideFunction_16x"));
 					ToolTipOut = LOCTEXT("Override_Tooltip", "Override");
 				}
 				else
@@ -289,7 +289,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 					UFunction* Function = FindUField<UFunction>(BlueprintIn->SkeletonGeneratedClass, ActionIn->FuncName);
 					const bool bIsPureFunction = Function && Function->HasAnyFunctionFlags(FUNC_BlueprintPure);
 
-					IconOut = FEditorStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.PureFunction_16x") : TEXT("GraphEditor.Function_16x"));
+					IconOut = FAppStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.PureFunction_16x") : TEXT("GraphEditor.Function_16x"));
 					if (ActionIn->EdGraph->IsA(UAnimationGraph::StaticClass()))
 					{
 						ToolTipOut = LOCTEXT("AnimationGraph_Tooltip", "Animation Graph");
@@ -365,7 +365,7 @@ static void GetPaletteItemIcon(TSharedPtr<FEdGraphSchemaAction> ActionIn, UBluep
 	{
 		FEdGraphSchemaAction_K2Delegate* DelegateAction = (FEdGraphSchemaAction_K2Delegate*)ActionIn.Get();
 
-		BrushOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Delegate_16x"));
+		BrushOut = FAppStyle::GetBrush(TEXT("GraphEditor.Delegate_16x"));
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("EventDispatcherName"), FText::FromName(DelegateAction->GetDelegateName()));
 		ToolTipOut = FText::Format(LOCTEXT("Delegate_Tooltip", "Event Dispatcher '{EventDispatcherName}'"), Args);
@@ -405,12 +405,12 @@ static void GetPaletteItemIcon(TSharedPtr<FEdGraphSchemaAction> ActionIn, UBluep
 	}
 	else if (ActionIn->GetTypeId() == FEdGraphSchemaAction_K2Enum::StaticGetTypeId())
 	{
-		BrushOut = FEditorStyle::GetBrush(TEXT("GraphEditor.EnumGlyph"));
+		BrushOut = FAppStyle::GetBrush(TEXT("GraphEditor.EnumGlyph"));
 		ToolTipOut = LOCTEXT("Enum_Tooltip", "Enum Asset");
 	}
 	else if (ActionIn->GetTypeId() == FEdGraphSchemaAction_K2Struct::StaticGetTypeId())
 	{
-		BrushOut = FEditorStyle::GetBrush(TEXT("GraphEditor.StructGlyph"));
+		BrushOut = FAppStyle::GetBrush(TEXT("GraphEditor.StructGlyph"));
 		ToolTipOut = LOCTEXT("Struct_Tooltip", "Struct Asset");
 	}
 }
@@ -451,7 +451,7 @@ static TSharedRef<IToolTip> ConstructToolTipWithActionPath(TSharedPtr<FEdGraphSc
 			.HAlign(EHorizontalAlignment::HAlign_Right)
 			[
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), "Documentation.SDocumentationTooltip")
+				.TextStyle( FAppStyle::Get(), "Documentation.SDocumentationTooltip")
 				.Text(FText::FromString(ActionItem.ToString()))
 				//.TextStyle(&PathStyle)
 			]
@@ -986,8 +986,8 @@ private:
 	const FSlateBrush* GetVisibilityIcon() const
 	{
 		return GetVisibilityToggleState() == ECheckBoxState::Checked ?
-			FEditorStyle::GetBrush( "Kismet.VariableList.ExposeForInstance" ) :
-			FEditorStyle::GetBrush( "Kismet.VariableList.HideForInstance" );
+			FAppStyle::GetBrush( "Kismet.VariableList.ExposeForInstance" ) :
+			FAppStyle::GetBrush( "Kismet.VariableList.HideForInstance" );
 	}
 
 	/**
@@ -1113,8 +1113,8 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	TAttribute<bool> bIsEditingEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(IsEditingEnabledLambda));
 
 	// construct the icon widget
-	FSlateBrush const* IconBrush   = FEditorStyle::GetBrush(TEXT("NoBrush"));
-	FSlateBrush const* SecondaryBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	FSlateBrush const* IconBrush   = FAppStyle::GetBrush(TEXT("NoBrush"));
+	FSlateBrush const* SecondaryBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        IconColor   = FSlateColor::UseForeground();
 	FSlateColor        SecondaryIconColor   = FSlateColor::UseForeground();
 	FText			   IconToolTip = GraphAction->GetTooltipDescription();
@@ -1330,7 +1330,7 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 					.Text(AccessModifierText)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 					// Bold if public
-					.TextStyle(FEditorStyle::Get(), ActionAccessSpecifier == EAccessSpecifier::Public ? "BlueprintEditor.AccessModifier.Public" : "BlueprintEditor.AccessModifier.Default")
+					.TextStyle(FAppStyle::Get(), ActionAccessSpecifier == EAccessSpecifier::Public ? "BlueprintEditor.AccessModifier.Public" : "BlueprintEditor.AccessModifier.Default")
 				];
 		}
 
@@ -1995,7 +1995,7 @@ TSharedPtr<SToolTip> SBlueprintPaletteItem::ConstructToolTipWidget() const
 	if ( (NodeTemplate != nullptr) && (FInternationalization::Get().GetCurrentCulture()->GetTwoLetterISOLanguageName() != TEXT("en")) )
 	{
 		FText NativeNodeName = FText::FromString(NodeTemplate->GetNodeTitle(ENodeTitleType::ListView).BuildSourceString());
-		const FTextBlockStyle& SubduedTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("Documentation.SDocumentationTooltipSubdued");
+		const FTextBlockStyle& SubduedTextStyle = FAppStyle::GetWidgetStyle<FTextBlockStyle>("Documentation.SDocumentationTooltipSubdued");
 
 		TSharedPtr<SToolTip> InternationalTooltip;
 		TSharedPtr<SVerticalBox> TooltipBody;
@@ -2021,7 +2021,7 @@ TSharedPtr<SToolTip> SBlueprintPaletteItem::ConstructToolTipWidget() const
 			TooltipBody->AddSlot()
 			[
 				SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "Documentation.SDocumentationTooltip")
+					.TextStyle(FAppStyle::Get(), "Documentation.SDocumentationTooltip")
 					.Text(NativeNodeName)
 					.Visibility_Lambda([GetNativeNamePromptVisibility]()->EVisibility
 					{

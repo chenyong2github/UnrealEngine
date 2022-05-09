@@ -12,7 +12,7 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -35,7 +35,7 @@ TSharedRef<SWidget> SPlatformSetupMessage::MakeRow(FName IconName, FText Message
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(IconName))
+			.Image(FAppStyle::GetBrush(IconName))
 		]
 
 		// Notice
@@ -97,7 +97,7 @@ void SPlatformSetupMessage::Construct(const FArguments& InArgs, const FString& I
 	[
 		SNew(SBorder)
 		.BorderBackgroundColor(this, &SPlatformSetupMessage::GetBorderColor)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.LightGroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.LightGroupBorder"))
 		.Padding(8.0f)
 		[
 			SNew(SWidgetSwitcher)

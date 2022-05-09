@@ -405,7 +405,7 @@ void SGraphNodeMaterialBase::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> Defa
 			.OnCheckStateChanged( this, &SGraphNodeMaterialBase::OnExpressionPreviewChanged )
 			.IsChecked( IsExpressionPreviewChecked() )
 			.Cursor(EMouseCursor::Default)
-			.Style(FEditorStyle::Get(), "Graph.Node.AdvancedView")
+			.Style(FAppStyle::Get(), "Graph.Node.AdvancedView")
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -424,7 +424,7 @@ TSharedRef<SWidget> SGraphNodeMaterialBase::CreateNodeContentArea()
 {
 	// NODE CONTENT AREA
 	return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		[
@@ -473,7 +473,7 @@ TSharedRef<SWidget> SGraphNodeMaterialBase::CreatePreviewWidget()
 			[
 				SNew(SBorder)
 				.Padding(CentralPadding)
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+				.BorderImage( FAppStyle::GetBrush("NoBorder") )
 				[
 					SNew(SOverlay)
 					+ SOverlay::Slot()
@@ -531,7 +531,7 @@ ECheckBoxState SGraphNodeMaterialBase::IsExpressionPreviewChecked() const
 
 const FSlateBrush* SGraphNodeMaterialBase::GetExpressionPreviewArrow() const
 {
-	return FEditorStyle::GetBrush(MaterialNode->MaterialExpression->bCollapsed ? TEXT("Icons.ChevronDown") : TEXT("Icons.ChevronUp"));
+	return FAppStyle::GetBrush(MaterialNode->MaterialExpression->bCollapsed ? TEXT("Icons.ChevronDown") : TEXT("Icons.ChevronUp"));
 }
 
 void SGraphNodeMaterialBase::PopulateMetaTag(FGraphNodeMetaData* TagMeta) const

@@ -19,8 +19,7 @@
 #include "DetailWidgetRow.h"
 #include "LandscapeEditorDetailCustomization_TargetLayers.h"
 #include "DetailCategoryBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "Classes/EditorStyleSettings.h"
+#include "DetailLayoutBuilder.h" 
 #include "Editor/PropertyEditor/Public/VariablePrecisionNumericInterface.h"
 
 #include "Templates/SharedPointer.h"
@@ -45,7 +44,7 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	CommandList = LandscapeEdMode->GetUICommandList();
 
 	static const FLinearColor BorderColor = FLinearColor(0.2f, 0.2f, 0.2f, 0.2f);
-	static const FSlateBrush* BorderStyle = FEditorStyle::GetBrush("DetailsView.GroupSection");
+	static const FSlateBrush* BorderStyle = FAppStyle::GetBrush("DetailsView.GroupSection");
 
 	IDetailCategoryBuilder& LandscapeEditorCategory = DetailBuilder.EditCategory("LandscapeEditor", NSLOCTEXT("Contexts", "LandscapeEditor", "Landscape Editor"), ECategoryPriority::TypeSpecific);
 
@@ -304,7 +303,7 @@ FSlateIcon FLandscapeEditorDetails::GetCurrentToolIcon() const
 		return FLandscapeEditorCommands::Get().NameToCommandMap.FindChecked(*(FString("Tool_") + CurrentToolName))->GetIcon();
 	}
 
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), "Default");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Default");
 }
 
 TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
@@ -456,7 +455,7 @@ FSlateIcon FLandscapeEditorDetails::GetCurrentBrushIcon() const
 		}
 	}
 
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), "Default");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Default");
 }
 
 TSharedRef<SWidget> FLandscapeEditorDetails::GetBrushSelector()
@@ -556,7 +555,7 @@ FSlateIcon FLandscapeEditorDetails::GetCurrentBrushFalloffIcon() const
 		}
 	}
 
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), "Default");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Default");
 }
 
 void FLandscapeEditorDetails::SetBrushCommand(FName InBrush)

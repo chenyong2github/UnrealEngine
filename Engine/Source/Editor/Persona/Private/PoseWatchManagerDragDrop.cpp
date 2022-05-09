@@ -29,7 +29,7 @@ TSharedPtr<SWidget> FPoseWatchManagerDragDropOp::GetDefaultDecorator() const
 	VerticalBox->AddSlot()
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 		.Visibility(this, &FPoseWatchManagerDragDropOp::GetOverrideVisibility)
 		.Content()
 		[

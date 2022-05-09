@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/SequencerEditTool_Selection.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerCommonHelpers.h"
 #include "SSequencer.h"
 #include "Tools/SequencerEntityVisitor.h"
@@ -284,7 +284,7 @@ public:
 			OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry(SelectionTopLeft, SelectionBottomRight - SelectionTopLeft),
-			FEditorStyle::GetBrush(TEXT("MarqueeSelection"))
+			FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 			);
 
 		return LayerId + 1;
@@ -514,11 +514,11 @@ void FSequencerEditTool_Selection::UpdateCursor(const FGeometry& MyGeometry, con
 	{
 		if (MouseEvent.IsShiftDown())
 		{
-			CursorDecorator = FEditorStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_MarqueeAdd"));
+			CursorDecorator = FAppStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_MarqueeAdd"));
 		}
 		else if (MouseEvent.IsAltDown())
 		{
-			CursorDecorator = FEditorStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_MarqueeSubtract"));
+			CursorDecorator = FAppStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_MarqueeSubtract"));
 		}
 		else
 		{

@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
                     "UnrealEd",
                     "PropertyEditor",
-                    "EditorStyle",
                     "RenderCore",
                     "RHI",
                     "ChaosSolverEngine",
@@ -28,6 +27,13 @@ namespace UnrealBuildTool.Rules
                     "AssetTools",
                     "AssetRegistry",
 					"ToolMenus",
+				}
+				);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorStyle",
 				}
 				);
 

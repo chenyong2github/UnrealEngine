@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditorModelingCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandInfo.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorModelingCommands"
 
 FStaticMeshEditorModelingCommands::FStaticMeshEditorModelingCommands()
-	: TCommands<FStaticMeshEditorModelingCommands>(TEXT("MeshModelingTools"), NSLOCTEXT("Contexts", "MeshModelingTools", "Mesh Modeling"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FStaticMeshEditorModelingCommands>(TEXT("MeshModelingTools"), NSLOCTEXT("Contexts", "MeshModelingTools", "Mesh Modeling"), NAME_None, FAppStyle::GetAppStyleSetName())
 {}
 
 void FStaticMeshEditorModelingCommands::RegisterCommands()

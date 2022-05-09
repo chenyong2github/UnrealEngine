@@ -8,8 +8,8 @@
 #include "Editor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
+#include "Settings/EditorStyleSettings.h"
 #include "EditorReimportHandler.h"
 #include "FileHelpers.h"
 #include "Toolkits/SStandaloneAssetEditorToolkitHost.h"
@@ -672,7 +672,7 @@ const FSlateBrush* FAssetEditorToolkit::GetDefaultTabIcon() const
 
 	if (!IconBrush)
 	{
-		IconBrush = FEditorStyle::GetBrush(TEXT("ClassIcon.Default"));;
+		IconBrush = FAppStyle::GetBrush(TEXT("ClassIcon.Default"));;
 	}
 
 	return IconBrush;
@@ -920,10 +920,10 @@ void FAssetEditorToolkit::FillDefaultFileMenuCommands(FToolMenuSection& InSectio
 {
 	const FToolMenuInsert InsertPosition(NAME_None, EToolMenuInsertType::First);
 
-	InSection.AddMenuEntry(FAssetEditorCommonCommands::Get().SaveAsset, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset")).InsertPosition = InsertPosition;
+	InSection.AddMenuEntry(FAssetEditorCommonCommands::Get().SaveAsset, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAsset")).InsertPosition = InsertPosition;
 	if( IsActuallyAnAsset() )
 	{
-		InSection.AddMenuEntry(FAssetEditorCommonCommands::Get().SaveAssetAs, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAssetAs")).InsertPosition = InsertPosition;
+		InSection.AddMenuEntry(FAssetEditorCommonCommands::Get().SaveAssetAs, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAssetAs")).InsertPosition = InsertPosition;
 	}
 	InSection.AddSeparator("DefaultFileMenuCommandsSeparator").InsertPosition = InsertPosition;;
 
@@ -974,7 +974,7 @@ void FAssetEditorToolkit::FillDefaultAssetMenuCommands(FToolMenuSection& InSecti
 					FUIAction UIAction;
 					UIAction.ExecuteAction.BindRaw( this, &FAssetEditorToolkit::Reimport_Execute, EditingObject );
 					ReimportEntryName.SetNumber(MenuEntryCount++);
-					InSection.AddMenuEntry( ReimportEntryName, LabelText, ToolTipText, FSlateIcon(FEditorStyle::GetStyleSetName(), IconName), UIAction );
+					InSection.AddMenuEntry( ReimportEntryName, LabelText, ToolTipText, FSlateIcon(FAppStyle::GetAppStyleSetName(), IconName), UIAction );
 				}
 			}
 		}		

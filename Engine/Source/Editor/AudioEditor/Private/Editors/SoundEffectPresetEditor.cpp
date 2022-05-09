@@ -3,7 +3,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Containers/Set.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -42,14 +42,14 @@ void FSoundEffectPresetEditor::RegisterTabSpawners(const TSharedRef<FTabManager>
 	InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FSoundEffectPresetEditor::SpawnTab_Properties))
 		.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 
 	for (int32 i = 0; i < UserWidgets.Num(); i++)
 	{
 		TStrongObjectPtr<UUserWidget> UserWidget = UserWidgets[i];
 		const FString ClassName = SoundEffectPreset->GetClass()->GetName();
-		FSlateIcon BPIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint");
+		FSlateIcon BPIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.CreateClassBlueprint");
 
 		const FName UserWidgetTabIdIndexed = FName(UserWidgetTabId.ToString() + FString(TEXT("_")) + FString::FromInt(i));
 		InTabManager->RegisterTabSpawner(UserWidgetTabIdIndexed, FOnSpawnTab::CreateLambda([this, i](const FSpawnTabArgs& Args) { return SpawnTab_UserWidgetEditor(Args, i); }))
@@ -261,7 +261,7 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const F
 		IconBrushName = "GenericEditor.Tabs.Properties";
 	}
 
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush(IconBrushName);
+	const FSlateBrush* IconBrush = FAppStyle::GetBrush(IconBrushName);
 
 	FText Label = FText::FromString(SoundEffectPreset->GetName());
 	if (UserWidgets.Num() < WidgetIndex)
@@ -288,7 +288,7 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const F
 		.TabColorScale(GetTabColorScale())
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.0f)
 			[
 				UserWidgets[WidgetIndex]->TakeWidget()

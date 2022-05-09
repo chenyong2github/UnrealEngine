@@ -21,7 +21,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "LevelSequenceEditorModule.h"
 #include "Framework/Docking/TabManager.h"
 
@@ -115,7 +115,7 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 			[
 				SAssignNew(ErrorText, STextBlock)
 				.Text(this, &SMasterSequenceSettings::GetErrorText)
-				.TextStyle(FEditorStyle::Get(), TEXT("Log.Warning"))
+				.TextStyle(FAppStyle::Get(), TEXT("Log.Warning"))
 			]
 
 			+ SVerticalBox::Slot()

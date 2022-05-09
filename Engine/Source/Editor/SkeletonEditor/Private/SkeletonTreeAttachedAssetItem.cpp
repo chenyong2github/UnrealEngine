@@ -14,7 +14,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "IContentBrowserSingleton.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "FSkeletonTreeAttachedAssetItem"
 
@@ -77,7 +77,7 @@ TSharedRef< SWidget > FSkeletonTreeAttachedAssetItem::GenerateWidgetForDataColum
 				.ToolTipText(LOCTEXT("TranslationCheckBoxToolTip", "Click to toggle visibility of this asset"))
 				.OnCheckStateChanged(this, &FSkeletonTreeAttachedAssetItem::OnToggleAssetDisplayed)
 				.IsChecked(this, &FSkeletonTreeAttachedAssetItem::IsAssetDisplayed)
-				.Style(FEditorStyle::Get(), "CheckboxLookToggleButtonCheckbox")
+				.Style(FAppStyle::Get(), "CheckboxLookToggleButtonCheckbox")
 				[
 					SNew(SImage)
 					.Image(this, &FSkeletonTreeAttachedAssetItem::OnGetAssetDisplayedButtonImage)
@@ -109,8 +109,8 @@ void FSkeletonTreeAttachedAssetItem::OnToggleAssetDisplayed( ECheckBoxState InCh
 const FSlateBrush* FSkeletonTreeAttachedAssetItem::OnGetAssetDisplayedButtonImage() const
 {
 	return IsAssetDisplayed() == ECheckBoxState::Checked ?
-		FEditorStyle::GetBrush( "Kismet.VariableList.ExposeForInstance" ) :
-		FEditorStyle::GetBrush( "Kismet.VariableList.HideForInstance" );
+		FAppStyle::GetBrush( "Kismet.VariableList.ExposeForInstance" ) :
+		FAppStyle::GetBrush( "Kismet.VariableList.HideForInstance" );
 }
 
 void FSkeletonTreeAttachedAssetItem::OnItemDoubleClicked()

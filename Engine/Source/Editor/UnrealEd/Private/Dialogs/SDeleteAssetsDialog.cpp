@@ -10,7 +10,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "EditorDirectories.h"
 #include "FileHelpers.h"
@@ -132,7 +132,7 @@ void SDeleteAssetsDialog::Construct( const FArguments& InArgs, TSharedRef<FAsset
 	ChildSlot
 	[
 		SAssignNew(RootContainer, SBorder)
-		.BorderImage( FEditorStyle::GetBrush( "AssetDeleteDialog.Background" ) )
+		.BorderImage( FAppStyle::GetBrush( "AssetDeleteDialog.Background" ) )
 		.Padding(10)
 	];
 
@@ -205,7 +205,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 	.Padding( 5.0f )
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 		.Padding( FMargin(0, 0, 0, 3) )
 		[
 			SNew( SVerticalBox )
@@ -215,13 +215,13 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 			.AutoHeight()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "DetailsView.CategoryTop" ) )
+				.BorderImage( FAppStyle::GetBrush( "DetailsView.CategoryTop" ) )
 				.BorderBackgroundColor( FLinearColor( .6, .6, .6, 1.0f ) )
 				.Padding(3.0f)
 				[
 					SNew( STextBlock )
 					.Text( LOCTEXT( "AttemptingDelete", "Pending Deleted Assets" ) )
-					.Font( FEditorStyle::GetFontStyle( "BoldFont" ) )
+					.Font( FAppStyle::GetFontStyle( "BoldFont" ) )
 					.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 				]
 			]
@@ -243,7 +243,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 	[
 		SNew( SBorder )
 		.BorderBackgroundColor( FLinearColor::Red )
-		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 		.Visibility( this, &SDeleteAssetsDialog::GetReferencesVisiblity )
 		.Padding(5.0f)
 		[
@@ -258,7 +258,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 	[
 		SNew( SBorder )
 		.BorderBackgroundColor( FLinearColor::Yellow )
-		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 		.Visibility( this, &SDeleteAssetsDialog::GetUndoVisiblity )
 		.Padding( 5.0f )
 		[
@@ -272,7 +272,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 	.Padding( 5.0f )
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 		.Padding( FMargin( 0, 0, 0, 3 ) )
 		.Visibility( this, &SDeleteAssetsDialog::GetAssetReferencesVisiblity)
 		[
@@ -283,13 +283,13 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 			.AutoHeight()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "DetailsView.CategoryTop" ) )
+				.BorderImage( FAppStyle::GetBrush( "DetailsView.CategoryTop" ) )
 				.BorderBackgroundColor( FLinearColor( .6, .6, .6, 1.0f ) )
 				.Padding( 3.0f )
 				[
 					SNew( STextBlock )
 					.Text( LOCTEXT( "AssetsReferencingPendingDeletedAssets", "Assets Referencing the Pending Deleted Assets" ) )
-					.Font( FEditorStyle::GetFontStyle( "BoldFont" ) )
+					.Font( FAppStyle::GetFontStyle( "BoldFont" ) )
 					.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 				]
 			]
@@ -308,7 +308,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 	.Padding( 5.0f )
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 		.Padding( 0 )
 		[
 			SNew( SVerticalBox )
@@ -318,7 +318,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 			.AutoHeight()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "DetailsView.CategoryTop" ) )
+				.BorderImage( FAppStyle::GetBrush( "DetailsView.CategoryTop" ) )
 				.BorderBackgroundColor( FLinearColor( .6, .6, .6, 1.0f ) )
 				.Padding( 3.0f )
 				[
@@ -330,7 +330,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 					[
 						SNew( STextBlock )
 						.Text( this, &SDeleteAssetsDialog::GetHandleText )
-						.Font( FEditorStyle::GetFontStyle( "BoldFont" ) )
+						.Font( FAppStyle::GetFontStyle( "BoldFont" ) )
 						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 					]
 				]
@@ -364,7 +364,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 				.Padding( 6, 0 )
 				[
 					SNew( SBorder )
-					.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "NoBorder" ) )
 					.Visibility( this, &SDeleteAssetsDialog::GetReplaceReferencesVisibility )
 					[
 						( DeleteModel->CanReplaceReferences() ? BuildReplaceReferencesWidget() : BuildCantUseReplaceReferencesWidget() )
@@ -376,7 +376,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 				.Padding( 6, 0 )
 				[
 					SNew( SBorder )
-					.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "NoBorder" ) )
 					.Visibility( this, &SDeleteAssetsDialog::GetForceDeleteVisibility )
 					[
 						BuildForceDeleteWidget()
@@ -388,15 +388,15 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 				.Padding( 6, 0 )
 				[
 					SNew( SBorder )
-					.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "NoBorder" ) )
 					.Visibility( this, &SDeleteAssetsDialog::GetDeleteVisibility )
 					[
 						SNew( SButton )
 						.HAlign( HAlign_Center )
 						.Text( LOCTEXT( "Delete", "Delete" ) )
 						.ToolTipText( LOCTEXT( "DeleteTooltipText", "Perform the delete" ) )
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+						.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						.OnClicked(this, &SDeleteAssetsDialog::Delete)
 					]
 				]
@@ -406,15 +406,15 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 				.Padding( 6, 0 )
 				[
 					SNew( SBorder )
-					.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "NoBorder" ) )
 					.VAlign( EVerticalAlignment::VAlign_Bottom )
 					[
 						SNew( SButton )
 						.HAlign( HAlign_Center )
 						.Text( LOCTEXT( "Cancel", "Cancel" ) )
 						.ToolTipText( LOCTEXT( "CancelDeleteTooltipText", "Cancel the delete" ) )
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
+						.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 						.OnClicked( this, &SDeleteAssetsDialog::Cancel )
 					]
 				]
@@ -502,7 +502,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildReplaceReferencesWidget()
 	[
 		SNew( STextBlock )
 		.AutoWrapText( true )
-		//.Font( FEditorStyle::GetFontStyle( "BoldFont" ) )
+		//.Font( FAppStyle::GetFontStyle( "BoldFont" ) )
 		.Text( LOCTEXT( "ReplaceReferencesText", "Delete the assets and update referencers to point at an asset of your choosing." ) )
 	]
 
@@ -512,7 +512,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildReplaceReferencesWidget()
 		SAssignNew( ConsolidationPickerComboButton, SComboButton )
 		.HAlign( EHorizontalAlignment::HAlign_Fill )
 		.VAlign( EVerticalAlignment::VAlign_Center )
-		.ComboButtonStyle( FEditorStyle::Get(), "ToolbarComboButton" )
+		.ComboButtonStyle( FAppStyle::Get(), "ToolbarComboButton" )
 		.ForegroundColor( FLinearColor::White )
 		.ContentPadding( 3 )
 		.MenuPlacement( EMenuPlacement::MenuPlacement_BelowAnchor )
@@ -545,8 +545,8 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildReplaceReferencesWidget()
 		.HAlign( HAlign_Center )
 		.Text( LOCTEXT( "Replace References", "Replace References" ) )
 		.OnClicked( this, &SDeleteAssetsDialog::ReplaceReferences )
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
-		.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+		.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 	];
 }
 
@@ -560,7 +560,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildForceDeleteWidget()
 	[
 		SNew( STextBlock )
 		.AutoWrapText( true )
-		//.Font( FEditorStyle::GetFontStyle( "BoldFont" ) )
+		//.Font( FAppStyle::GetFontStyle( "BoldFont" ) )
 		.Text( LOCTEXT( "ForceDeleteText", "Delete the asset anyway, but referencers may not work correctly anymore.\n\nUse as a last resort." ) )
 	]
 
@@ -571,8 +571,8 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildForceDeleteWidget()
 		.HAlign( HAlign_Center )
 		.Text( LOCTEXT( "ForceDelete", "Force Delete" ) )
 		.ToolTipText( LOCTEXT( "ForceDeleteTooltipText", "Force Delete will obliterate all references to this asset and is dangerous.\n\nUse as a last resort." ) )
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
-		.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+		.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 		.OnClicked(this, &SDeleteAssetsDialog::ForceDelete)
 	];
 }

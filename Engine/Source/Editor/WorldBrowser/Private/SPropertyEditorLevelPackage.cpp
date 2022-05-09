@@ -27,15 +27,15 @@ void SPropertyEditorLevelPackage::Construct(const FArguments& InArgs, const TSha
 	ChildSlot
 	[
 		SAssignNew(PropertyMainWidget, SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.OnGetMenuContent( this, &SPropertyEditorLevelPackage::GetMenuContent )
 		.ContentPadding(2.0f)
 		.ButtonContent()
 		[
 			// Show the name of the asset or actor
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
+			.TextStyle(FAppStyle::Get(), "PropertyEditor.AssetClass")
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.Text(this, &SPropertyEditorLevelPackage::GetDisplayPackageName)
 		]
@@ -148,7 +148,7 @@ TSharedRef<ITableRow> SPropertyEditorLevelPackage::MakeListRowWidget(TSharedPtr<
 		[
 			SNew(SBorder)
 			.Padding(5)
-			.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+			.BorderImage(FAppStyle::GetBrush("NoBrush"))
 			[
 				SNew(STextBlock)
 				.ToolTipText(FText::FromString(InPackageItem->LongPackageName))

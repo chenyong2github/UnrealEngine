@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /** Anim Graph Commands */
 class ANIMGRAPH_API FAnimGraphCommands : public TCommands<FAnimGraphCommands>
 {
 public:
 	FAnimGraphCommands()
-		: TCommands<FAnimGraphCommands>(TEXT("AnimGraph"), NSLOCTEXT("Contexts", "AnimGraphCommands", "Anim Graph Commands"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FAnimGraphCommands>(TEXT("AnimGraph"), NSLOCTEXT("Contexts", "AnimGraphCommands", "Anim Graph Commands"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

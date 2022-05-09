@@ -53,7 +53,7 @@ TSharedRef<SWidget>	SNiagaraGraphPinAdd::ConstructAddButton()
 {
 	AddButton = SNew(SComboButton)
 		.HasDownArrow(false)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ForegroundColor(FSlateColor::UseForeground())
 		.OnGetMenuContent(this, &SNiagaraGraphPinAdd::OnGetAddButtonMenuContent)
 		.ContentPadding(FMargin(2))
@@ -64,7 +64,7 @@ TSharedRef<SWidget>	SNiagaraGraphPinAdd::ConstructAddButton()
 		[
 			SNew(SImage)
 			.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(FEditorStyle::GetBrush("Plus"))
+			.Image(FAppStyle::GetBrush("Plus"))
 		];
 
 	return AddButton.ToSharedRef();

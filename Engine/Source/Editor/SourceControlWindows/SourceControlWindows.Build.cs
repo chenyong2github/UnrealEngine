@@ -18,7 +18,6 @@ public class SourceControlWindows : ModuleRules
 				"Engine", 
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"SourceControl", 
 				"UncontrolledChangelists",
 				"AssetTools",

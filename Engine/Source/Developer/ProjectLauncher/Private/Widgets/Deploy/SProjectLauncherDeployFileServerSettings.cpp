@@ -2,7 +2,7 @@
 
 #include "SProjectLauncherDeployFileServerSettings.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -33,7 +33,7 @@ void SProjectLauncherDeployFileServerSettings::Construct(const FArguments& InArg
 			[
 				SNew(SBorder)
 					.Padding(8.0f)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						// deploy targets area
 						SNew(SProjectLauncherDeployTargets, InModel)

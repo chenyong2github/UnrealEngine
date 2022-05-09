@@ -12,7 +12,7 @@
 #include "SViewportToolBar.h"
 #include "Framework/SlateDelegates.h"
 #include "Styling/SlateTypes.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 
 class SMenuAnchor;
@@ -36,7 +36,7 @@ class UNREALED_API SEditorViewportToolbarMenu : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SEditorViewportToolbarMenu)
-		: _MenuStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.Button"))
+		: _MenuStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.Button"))
 		, _ForegroundColor(FSlateColor::UseStyle())
 	{}
 		/** We need to know about the toolbar we are in */

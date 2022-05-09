@@ -20,7 +20,7 @@ public class PropertyAccessEditor : ModuleRules
 			{
 				"GraphEditor",
 				"BlueprintGraph",
-				"EditorStyle",
+				
 				"Engine",
 				"UnrealEd",
 				"SlateCore",

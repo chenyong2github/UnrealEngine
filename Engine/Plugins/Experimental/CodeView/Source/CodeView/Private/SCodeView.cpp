@@ -2,7 +2,7 @@
 
 #include "SCodeView.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SourceCodeNavigation.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SThrobber.h"
@@ -474,12 +474,12 @@ namespace CodeView
 		FText IconToolTipText;
 		if( Item->GetType() == ETreeItemType::Class )
 		{
-			IconBrush = FEditorStyle::GetBrush( TEXT( "CodeView.ClassIcon" ) );
+			IconBrush = FAppStyle::GetBrush( TEXT( "CodeView.ClassIcon" ) );
 			IconToolTipText = LOCTEXT("ClassIconToolTip", "Class");
 		}
 		else if( ensure( Item->GetType() == ETreeItemType::Function ) )
 		{
-			IconBrush = FEditorStyle::GetBrush( TEXT( "CodeView.FunctionIcon" ) );
+			IconBrush = FAppStyle::GetBrush( TEXT( "CodeView.FunctionIcon" ) );
 			IconToolTipText = LOCTEXT("FunctionIconToolTip", "Function");
 		}
 
@@ -533,7 +533,7 @@ namespace CodeView
 					.Padding( 20.0f, 0.0f, 0.0f, 0.0f )
 					[
 						SNew( SThrobber )
-							.PieceImage( FEditorStyle::GetBrush("SmallThrobber.Chunk") )
+							.PieceImage( FAppStyle::GetBrush("SmallThrobber.Chunk") )
 							.NumPieces( 3 )
 							.Animate( SThrobber::Opacity )
 					];
@@ -717,11 +717,11 @@ namespace CodeView
 	{
 		if( IsFilterActive() )
 		{
-			return FEditorStyle::GetBrush(TEXT("SceneOutliner.FilterCancel"));
+			return FAppStyle::GetBrush(TEXT("SceneOutliner.FilterCancel"));
 		}
 		else
 		{
-			return FEditorStyle::GetBrush(TEXT("SceneOutliner.FilterSearch"));
+			return FAppStyle::GetBrush(TEXT("SceneOutliner.FilterSearch"));
 		}
 	}
 

@@ -310,7 +310,7 @@ void FIKRetargetEditorController::HandleNewPose()
 	.SupportsMinimize(false) .SupportsMaximize(false)
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
 		[
 			SNew(SVerticalBox)
 

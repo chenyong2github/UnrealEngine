@@ -49,7 +49,7 @@ public:
 		NumberOfSigma = GetDefault<UTimedDataMonitorEditorSettings>()->GetNumberOfStandardDeviationForUI();
 		bShowSigma = bShowSigma && (NumberOfSigma > 0);
 
-		FontInfo = FEditorStyle::Get().GetFontStyle("FontAwesome.11");
+		FontInfo = FAppStyle::Get().GetFontStyle("FontAwesome.11");
 
 		if (InArgs._UseNiceBrush)
 		{

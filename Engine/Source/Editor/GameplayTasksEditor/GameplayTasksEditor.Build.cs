@@ -32,7 +32,6 @@ namespace UnrealBuildTool.Rules
                     "PropertyEditor",
 					"Slate",
 					"SlateCore",
-                    "EditorStyle",
 					"BlueprintGraph",
                     "Kismet",
 					"KismetCompiler",

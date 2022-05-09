@@ -13,7 +13,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AndroidRuntimeSettings.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -133,8 +133,8 @@ void FAndroidTargetSettingsCustomization::BuildAppManifestSection(IDetailLayoutB
 				[
 					SNew(SRichTextBlock)
 					.Text(LOCTEXT("UpgradeInfoMessage", "<RichTextBlock.TextHighlight>Note to users from 4.6 or earlier</>: We now <RichTextBlock.TextHighlight>GENERATE</> an AndroidManifest.xml when building, so if you have customized your .xml file, you will need to put all of your changes into the below settings. Note that we don't touch your AndroidManifest.xml that is in your project directory.\nAdditionally, we no longer use SigningConfig.xml, the settings are now set in the Distribution Signing section.\n\n<RichTextBlock.TextHighlight>NOTE</>: You must accept the SDK license agreement (click on button below) to use Gradle if it isn't grayed out."))
-					.TextStyle(FEditorStyle::Get(), "MessageLog")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.AutoWrapText(true)
 					+ SRichTextBlock::HyperlinkDecorator(TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnBrowserLinkClicked))
 				]
@@ -201,8 +201,8 @@ void FAndroidTargetSettingsCustomization::BuildAppManifestSection(IDetailLayoutB
 				[
 					SNew(SRichTextBlock)
 					.Text(LOCTEXT("SDKConfigMessage", "Leave these fields blank to use global Android SDK project settings. Changing these settings will only affect this project."))
-					.TextStyle(FEditorStyle::Get(), "MessageLog")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.AutoWrapText(true)
 				]
 			]
@@ -481,8 +481,8 @@ void FAndroidTargetSettingsCustomization::BuildLaunchImageSection(IDetailLayoutB
 				[
 					SNew(SRichTextBlock)
 					.Text(LOCTEXT("LaunchImageInfoMessage", "The <RichTextBlock.TextHighlight>Download Background</> image is used as the background for OBB downloading.  The <RichTextBlock.TextHighlight>Launch Portrait</> image is used as a splash screen for applications with Portrait, Reverse Portrait, Sensor Portrait, Sensor, or Full Sensor orientation.  The <RichTextBlock.TextHighlight>Launch Landscape</> image is used as a splash screen for applications with Landscape, Sensor Landscape, Reverse Landscape, Sensor, or Full Sensor orientation.\n\nThe launch images will be scaled to fit the device in the active orientation. Additional optional launch images may be provided as overrides for LDPI, MDPI, HDPI, and XHDPI by placing them in the project's corresponding Build/Android/res/drawable-* directory."))
-					.TextStyle(FEditorStyle::Get(), "MessageLog")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.AutoWrapText(true)
 					+ SRichTextBlock::HyperlinkDecorator(TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnBrowserLinkClicked))
 				]
@@ -692,8 +692,8 @@ void FAndroidTargetSettingsCustomization::BuildGraphicsDebuggerSection(IDetailLa
 				[
 					SNew(SRichTextBlock)
 					.Text(MGDHelpText)
-					.TextStyle(FEditorStyle::Get(), "MessageLog")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.AutoWrapText(true)
 				]
 				+ SVerticalBox::Slot()
@@ -733,8 +733,8 @@ void FAndroidTargetSettingsCustomization::BuildGraphicsDebuggerSection(IDetailLa
 				[
 					SNew(SRichTextBlock)
 					.Text(AdrenoHelpText)
-					.TextStyle(FEditorStyle::Get(), "MessageLog")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.AutoWrapText(true)
 				]
 				+ SVerticalBox::Slot()

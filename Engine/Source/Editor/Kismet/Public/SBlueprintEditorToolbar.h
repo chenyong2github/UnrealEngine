@@ -6,7 +6,7 @@
 #include "Misc/Attribute.h"
 #include "Widgets/SWidget.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
 
@@ -44,7 +44,7 @@ class FFullBlueprintEditorCommands : public TCommands<FFullBlueprintEditorComman
 public:
 	/** Constructor */
 	FFullBlueprintEditorCommands() 
-		: TCommands<FFullBlueprintEditorCommands>("FullBlueprintEditor", NSLOCTEXT("Contexts", "FullBlueprintEditor", "Full Blueprint Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FFullBlueprintEditorCommands>("FullBlueprintEditor", NSLOCTEXT("Contexts", "FullBlueprintEditor", "Full Blueprint Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

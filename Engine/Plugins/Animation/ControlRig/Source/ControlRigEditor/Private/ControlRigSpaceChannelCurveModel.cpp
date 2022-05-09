@@ -10,7 +10,7 @@
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
 #include "CurveEditorSnapMetrics.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SequencerChannelTraits.h"
 #include "SequencerSectionPainter.h"
 #include "ISequencer.h"
@@ -167,7 +167,7 @@ void FControlRigSpaceChannelCurveModel::GetKeys(const FCurveEditor& CurveEditor,
 //we actually still draw the 'key' as a the border which you can move and right click, context menu with.
 void FControlRigSpaceChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FKeyHandle InKeyHandle, FKeyDrawInfo& OutDrawInfo) const
 {
-	OutDrawInfo.Brush = FEditorStyle::Get().GetBrush("FilledBorder");
+	OutDrawInfo.Brush = FAppStyle::Get().GetBrush("FilledBorder");
 	// NOTE Y is set to SCurveEditorKeyBarView::TrackHeight
 	OutDrawInfo.ScreenSize = FVector2D(10, 24);
 }

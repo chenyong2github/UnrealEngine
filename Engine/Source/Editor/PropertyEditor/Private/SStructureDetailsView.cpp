@@ -149,7 +149,7 @@ void SStructureDetailsView::Construct(const FArguments& InArgs)
 				SNew( SComboButton )
 				.ContentPadding(0)
 				.ForegroundColor( FSlateColor::UseForeground() )
-				.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+				.ButtonStyle( FAppStyle::Get(), "ToggleButton" )
 				.MenuContent()
 				[
 					DetailViewOptions.MakeWidget()
@@ -157,7 +157,7 @@ void SStructureDetailsView::Construct(const FArguments& InArgs)
 				.ButtonContent()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("GenericViewButton") )
+					.Image( FAppStyle::GetBrush("GenericViewButton") )
 				]
 			];
 	}

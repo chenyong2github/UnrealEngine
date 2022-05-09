@@ -41,7 +41,6 @@ public class ActorPalette : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
 				"ContentBrowser",
 				"WorkspaceMenuStructure",
 				"DeveloperSettings"

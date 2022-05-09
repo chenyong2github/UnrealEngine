@@ -20,8 +20,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
+#include "Settings/EditorStyleSettings.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -1033,7 +1033,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("LevelEditor"),
 			TEXT("MainFrame"),
 			TEXT("PropertyEditor"),
-			TEXT("EditorStyle"),
 			TEXT("PackagesDialog"),
 			TEXT("AssetRegistry"),
 			TEXT("DetailCustomizations"),

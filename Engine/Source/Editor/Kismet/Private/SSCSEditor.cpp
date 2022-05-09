@@ -17,7 +17,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Components/ChildActorComponent.h"
@@ -66,7 +66,7 @@
 #include "GameProjectGenerationModule.h"
 #include "FeaturedClasses.inl"
 
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "BlueprintEditorSettings.h"
 #include "EditorFontGlyphs.h"
 
@@ -326,7 +326,7 @@ void FSCSRowDragDropOp::HoverTargetChanged()
 	bool bHoverHandled = false;
 
 	FSlateColor IconTint = FLinearColor::White;
-	const FSlateBrush* ErrorSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+	const FSlateBrush* ErrorSymbol = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 	if(SourceNodes.Num() > 1)
 	{
@@ -1778,8 +1778,8 @@ void SSCS_RowWidget::Construct( const FArguments& InArgs, TSharedPtr<SSCSEditor>
 	
 	FSuperRowType::FArguments Args = FSuperRowType::FArguments()
 		.Style(bIsSeparator ?
-			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow") :
-			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow")) //@todo create editor style for the SCS tree
+			&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow") :
+			&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow")) //@todo create editor style for the SCS tree
 		.Padding(FMargin(0.f, 4.f, 0.f, 4.f))
 		.ShowSelection(!bIsSeparator)
 		.OnDragDetected(this, &SSCS_RowWidget::HandleOnDragDetected)
@@ -1909,7 +1909,7 @@ void SSCS_RowWidget::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox
 			.Padding(0, 0, 4, 0)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), bImportant ? "SCSEditor.ComponentTooltip.ImportantLabel" : "SCSEditor.ComponentTooltip.Label")
+				.TextStyle(FAppStyle::Get(), bImportant ? "SCSEditor.ComponentTooltip.ImportantLabel" : "SCSEditor.ComponentTooltip.Label")
 				.Text(FText::Format(LOCTEXT("AssetViewTooltipFormat", "{0}:"), Key))
 			]
 
@@ -1923,7 +1923,7 @@ void SSCS_RowWidget::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), bImportant ? "SCSEditor.ComponentTooltip.ImportantValue" : "SCSEditor.ComponentTooltip.Value")
+				.TextStyle(FAppStyle::Get(), bImportant ? "SCSEditor.ComponentTooltip.ImportantValue" : "SCSEditor.ComponentTooltip.Value")
 				.Text(Value)
 			]
 		];
@@ -1953,7 +1953,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 					.Padding(FMargin(0, 2, 0, 4))
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "SCSEditor.ComponentTooltip.ClassDescription")
+						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.ClassDescription")
 						.Text(ClassTooltip)
 						.WrapTextAt(400.0f)
 					];
@@ -1989,7 +1989,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 	}
 
 	TSharedRef<SBorder> TooltipContent = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(0)
 		[
 			SNew(SVerticalBox)
@@ -2011,7 +2011,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 					.Padding(2)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "SCSEditor.ComponentTooltip.Title")
+						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.Title")
 						.Text(this, &SSCS_RowWidget::GetTooltipText)
 					]
 				]
@@ -2021,7 +2021,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.Padding(2)
 				[
 					InfoBox
@@ -2041,11 +2041,11 @@ FSlateBrush const* SSCS_RowWidget::GetMobilityIconImage() const
 		{
 			if (SceneComponentTemplate->Mobility == EComponentMobility::Movable)
 			{
-				return FEditorStyle::GetBrush(TEXT("ClassIcon.MovableMobilityIcon"));
+				return FAppStyle::GetBrush(TEXT("ClassIcon.MovableMobilityIcon"));
 			}
 			else if (SceneComponentTemplate->Mobility == EComponentMobility::Stationary)
 			{
-				return FEditorStyle::GetBrush(TEXT("ClassIcon.StationaryMobilityIcon"));
+				return FAppStyle::GetBrush(TEXT("ClassIcon.StationaryMobilityIcon"));
 			}
 
 			// static components don't get an icon (because static is the most common
@@ -2304,7 +2304,7 @@ EVisibility SSCS_RowWidget::GetAssetVisibility() const
 
 const FSlateBrush* SSCS_RowWidget::GetIconBrush() const
 {
-	const FSlateBrush* ComponentIcon = FEditorStyle::GetBrush("SCS.NativeComponent");
+	const FSlateBrush* ComponentIcon = FAppStyle::GetBrush("SCS.NativeComponent");
 	FSCSEditorTreeNodePtrType NodePtr = GetNode();
 	if (NodePtr.IsValid())
 	{
@@ -2734,8 +2734,8 @@ void SSCS_RowWidget::HandleOnDragEnter( const FDragDropEvent& DragDropEvent )
 		}
 
 		const FSlateBrush* StatusSymbol = DragRowOp->PendingDropAction != FSCSRowDragDropOp::DropAction_None
-			? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"))
-			: FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			? FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"))
+			: FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 
 		if (Message.IsEmpty())
 		{
@@ -3636,7 +3636,7 @@ TSharedRef<SToolTip> SSCS_RowWidget_ActorRoot::CreateToolTipWidget() const
 	AddToToolTipInfoBox(InfoBox, LOCTEXT("TooltipMobility", "Mobility"), SNullWidget::NullWidget, TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SSCS_RowWidget_ActorRoot::GetActorMobilityText)), false);
 
 	TSharedRef<SBorder> TooltipContent = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Padding(0)
 		[
 			SNew(SVerticalBox)
@@ -3658,7 +3658,7 @@ TSharedRef<SToolTip> SSCS_RowWidget_ActorRoot::CreateToolTipWidget() const
 					.Padding(4)
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "SCSEditor.ComponentTooltip.Title")
+						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.Title")
 						.Text(this, &SSCS_RowWidget_ActorRoot::GetActorDisplayText)
 					]
 				]
@@ -3668,7 +3668,7 @@ TSharedRef<SToolTip> SSCS_RowWidget_ActorRoot::CreateToolTipWidget() const
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.Padding(4)
 				[
 					InfoBox
@@ -3839,8 +3839,8 @@ TSharedRef<SWidget> SSCS_RowWidget_Separator::GenerateWidgetForColumn(const FNam
 		.Padding(1.f)
 		[
 			SNew(SBorder)
-			.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
+			.Padding(FAppStyle::GetMargin(TEXT("Menu.Separator.Padding")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Menu.Separator")))
 		];*/
 }
 
@@ -3894,7 +3894,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		FUIAction( FExecuteAction::CreateSP( this, &SSCSEditor::OnFindReferences ) )
 	);
 
-	FSlateBrush const* MobilityHeaderBrush = FEditorStyle::GetBrush(TEXT("ClassIcon.ComponentMobilityHeaderIcon"));
+	FSlateBrush const* MobilityHeaderBrush = FAppStyle::GetBrush(TEXT("ClassIcon.ComponentMobilityHeaderIcon"));
 	
 	TSharedPtr<SHeaderRow> HeaderRow = SNew(SHeaderRow)
 		+ SHeaderRow::Column(SCS_ColumnName_ComponentClass)
@@ -5529,7 +5529,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 	if (NewComponentClass->ClassWithin && NewComponentClass->ClassWithin != UObject::StaticClass())
 	{
 		FNotificationInfo Info(LOCTEXT("AddComponentFailed", "Cannot add components that have \"Within\" markup"));
-		Info.Image = FEditorStyle::GetBrush(TEXT("Icons.Error"));
+		Info.Image = FAppStyle::GetBrush(TEXT("Icons.Error"));
 		Info.bFireAndForget = true;
 		Info.bUseSuccessFailIcons = false;
 		Info.ExpireDuration = 5.0f;

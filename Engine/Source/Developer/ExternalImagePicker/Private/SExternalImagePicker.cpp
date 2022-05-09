@@ -46,12 +46,12 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
                    .VAlign(VAlign_Center)
                    [
                        SNew(SBorder)
-                       .BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.ThumbnailShadow"))
+                       .BorderImage(FAppStyle::Get().GetBrush("ExternalImagePicker.ThumbnailShadow"))
                        .Padding(4.0f)
                        .Content()
                        [
                            SNew(SBorder)
-                           .BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.BlankImage"))
+                           .BorderImage(FAppStyle::Get().GetBrush("ExternalImagePicker.BlankImage"))
                            .Padding(0.0f)
                            .Content()
                            [
@@ -75,7 +75,7 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
                    .VAlign(VAlign_Center)
                    [
                        SNew(SButton)
-                       .ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+                       .ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
                        .ToolTipText( LOCTEXT( "FileButtonToolTipText", "Choose a file from this computer") )
                        .OnClicked( FOnClicked::CreateSP(this, &SExternalImagePicker::OnPickFile) )
                        .ContentPadding( 2.0f )
@@ -83,7 +83,7 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
                        .IsFocusable( false )
                        [
                            SNew( SImage )
-                           .Image( FEditorStyle::Get().GetBrush("ExternalImagePicker.PickImageButton") )
+                           .Image( FAppStyle::Get().GetBrush("ExternalImagePicker.PickImageButton") )
                            .ColorAndOpacity( FSlateColor::UseForeground() )
                        ]
                    ]
@@ -94,7 +94,7 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
 				   [
 					  SNew( SButton )
 						.Visibility(InArgs._GenerateImageVisibility)
-						.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+						.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 						.ToolTipText(InArgs._GenerateImageToolTipText )
 						.OnClicked(FOnClicked::CreateSP(this, &SExternalImagePicker::OnGenerateImageClickedInternal, InArgs._OnGenerateImageClicked))
 						.ContentPadding( 2.0f )
@@ -102,7 +102,7 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
 						.IsFocusable( false )
 						[
 							SNew( SImage )
-							.Image( FEditorStyle::Get().GetBrush("ExternalImagePicker.GenerateImageButton") )
+							.Image( FAppStyle::Get().GetBrush("ExternalImagePicker.GenerateImageButton") )
 							.ColorAndOpacity( FSlateColor::UseForeground() )
 						]
 					]
@@ -132,7 +132,7 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
 
 const FSlateBrush* SExternalImagePicker::GetImage() const
 {
-	return ImageBrush.IsValid() ? ImageBrush.Get() : FEditorStyle::Get().GetBrush("ExternalImagePicker.BlankImage");
+	return ImageBrush.IsValid() ? ImageBrush.Get() : FAppStyle::Get().GetBrush("ExternalImagePicker.BlankImage");
 }
 
 FText SExternalImagePicker::GetImageTooltip() const

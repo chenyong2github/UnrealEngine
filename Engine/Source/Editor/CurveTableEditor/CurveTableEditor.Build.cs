@@ -18,7 +18,6 @@ public class CurveTableEditor : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"UnrealEd",
 				"EditorWidgets",
 				"ToolWidgets",

@@ -15,7 +15,7 @@ public class SharedSettingsWidgets : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"RHI",
 				"SourceControl",
 				"TargetPlatform",

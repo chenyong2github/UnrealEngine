@@ -2,7 +2,7 @@
 
 #include "SDeviceBrowserFilterBar.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PlatformInfo.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
@@ -81,7 +81,7 @@ void SDeviceBrowserFilterBar::Construct(const FArguments& InArgs, TSharedRef<FDe
 								.HeightOverride(24)
 								[
 									SNew(SImage)
-									.Image((PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
+									.Image((PlatformInfo) ? FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
 								]
 						]
 
@@ -113,12 +113,12 @@ void SDeviceBrowserFilterBar::Construct(const FArguments& InArgs, TSharedRef<FDe
 			[
 				// platform filter
 				SNew(SComboButton)
-					.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+					.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
 					.ForegroundColor(FLinearColor::White)
 					.ButtonContent()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "Launcher.Filters.Text")
+						.TextStyle(FAppStyle::Get(), "Launcher.Filters.Text")
 						.Text(LOCTEXT("PlatformFiltersComboButtonText", "Platform Filters"))
 					]
 					.ContentPadding(0.0f)

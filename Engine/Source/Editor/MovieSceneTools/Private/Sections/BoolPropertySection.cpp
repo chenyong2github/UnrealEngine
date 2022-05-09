@@ -4,7 +4,7 @@
 #include "Rendering/DrawElements.h"
 #include "SequencerSectionPainter.h"
 #include "ISectionLayoutBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CommonMovieSceneTools.h"
 #include "Sections/MovieSceneBoolSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
@@ -50,7 +50,7 @@ int32 FBoolPropertySection::OnPaintSection( FSequencerSectionPainter& Painter ) 
 	static const int32 Height = 5;
 	const float VerticalOffset = Painter.SectionGeometry.GetLocalSize().Y * .5f - Height * .5f;
 
-	const FSlateBrush* BoolOverlayBrush = FEditorStyle::GetBrush("Sequencer.Section.StripeOverlay");
+	const FSlateBrush* BoolOverlayBrush = FAppStyle::GetBrush("Sequencer.Section.StripeOverlay");
 
 	for ( int32 i = 0; i < SectionSwitchTimes.Num() - 1; ++i )
 	{

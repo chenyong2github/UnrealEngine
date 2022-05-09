@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -52,7 +52,7 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 	ParentWindow = InArgs._ParentWindow.Get();
 	ParentWindow->SetWidgetToFocusOnActivate(SharedThis(this));
 
-	FSlateFontInfo MessageFont( FEditorStyle::GetFontStyle("StandardDialog.LargeFont"));
+	FSlateFontInfo MessageFont( FAppStyle::GetFontStyle("StandardDialog.LargeFont"));
 	Header = InArgs._Header.Get();
 	Log = InArgs._Log.Get();
 	Footer = InArgs._Footer.Get();
@@ -65,7 +65,7 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 	this->ChildSlot
 		[	
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -89,8 +89,8 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 						.Padding(12.0f, 0.0f, 12.0f, 12.0f)
 						[
 							SNew(SMultiLineEditableTextBox)
-								.Style(FEditorStyle::Get(), "Log.TextBox")
-								.TextStyle(FEditorStyle::Get(), "Log.Normal")
+								.Style(FAppStyle::Get(), "Log.TextBox")
+								.TextStyle(FAppStyle::Get(), "Log.Normal")
 								.ForegroundColor(FLinearColor::Gray)
 								.Text(FText::TrimTrailing(Log))
 								.IsReadOnly(true)
@@ -134,9 +134,9 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 								.Padding(0.0f)
 								[
 									SAssignNew( ButtonBox, SUniformGridPanel )
-										.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-										.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-										.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+										.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+										.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+										.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 								]
 						]
 				]
@@ -149,7 +149,7 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 				SNew( SButton )
 				.Text( Buttons[Idx] )
 				.OnClicked( this, &SOutputLogDialog::HandleButtonClicked, Idx )
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 				.HAlign(HAlign_Center)
 			];
 	}

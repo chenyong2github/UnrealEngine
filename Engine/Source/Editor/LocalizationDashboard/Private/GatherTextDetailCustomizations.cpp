@@ -144,7 +144,7 @@ namespace
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+					.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 					.ToolTipText( LOCTEXT( "PatchPickerToolTipText", "Choose a directory.") )
 					.OnClicked(this, &SGatherTextPathPicker::PathPickerOnClicked)
 					.ContentPadding( 2.0f )
@@ -152,7 +152,7 @@ namespace
 					.IsFocusable( false )
 					[
 						SNew( SImage )
-						.Image( FEditorStyle::GetBrush("LocalizationTargetEditor.DirectoryPicker") )
+						.Image( FAppStyle::GetBrush("LocalizationTargetEditor.DirectoryPicker") )
 						.ColorAndOpacity( FSlateColor::UseForeground() )
 					]
 				]
@@ -515,7 +515,7 @@ namespace
 
 	const FSlateBrush* SConfigurationValidity::GetImageBrush() const
 	{
-		return ConfigurationError.Get(FText::GetEmpty()).IsEmpty() ? FEditorStyle::GetBrush("LocalizationTargetEditor.GatherSettingsIcon_Valid") : FEditorStyle::GetBrush("LocalizationTargetEditor.GatherSettingsIcon_Warning");
+		return ConfigurationError.Get(FText::GetEmpty()).IsEmpty() ? FAppStyle::GetBrush("LocalizationTargetEditor.GatherSettingsIcon_Valid") : FAppStyle::GetBrush("LocalizationTargetEditor.GatherSettingsIcon_Warning");
 	}
 }
 
@@ -765,11 +765,11 @@ namespace
 				.Padding(2.0f, 0.0f)
 				[
 					SAssignNew(PlaceHolderComboButton, SComboButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("LocalizationTargetEditor.GatherSettings.AddMetaDataTextKeyPatternArgument"))
+						.Image(FAppStyle::GetBrush("LocalizationTargetEditor.GatherSettings.AddMetaDataTextKeyPatternArgument"))
 					]
 					.OnGetMenuContent_Lambda([&]() -> TSharedRef<SWidget>
 					{

@@ -86,7 +86,7 @@
 
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "IDetailCustomization.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -5238,7 +5238,7 @@ private:
 
 		FUIAction OpenMarketplaceAction;
 		OpenMarketplaceAction.ExecuteAction.BindSP(const_cast<FMeshSimplifcationSettingsCustomization*>(this), &FMeshSimplifcationSettingsCustomization::OnFindReductionPluginsClicked);
-		FSlateIcon Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
+		FSlateIcon Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
 		MenuBuilder.AddMenuEntry( LOCTEXT("FindMoreReductionPluginsLink", "Search the Marketplace"), LOCTEXT("FindMoreReductionPluginsLink_Tooltip", "Opens the Marketplace to find more mesh reduction plugins"), Icon, OpenMarketplaceAction);
 		return MenuBuilder.MakeWidget();
 			}
@@ -5358,7 +5358,7 @@ private:
 
 		FUIAction OpenMarketplaceAction;
 		OpenMarketplaceAction.ExecuteAction.BindSP(const_cast<FSkeletalMeshSimplificationSettingsCustomization*>(this), &FSkeletalMeshSimplificationSettingsCustomization::OnFindReductionPluginsClicked);
-		FSlateIcon Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
+		FSlateIcon Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
 		MenuBuilder.AddMenuEntry(LOCTEXT("FindMoreReductionPluginsLink", "Search the Marketplace"), LOCTEXT("FindMoreReductionPluginsLink_Tooltip", "Opens the Marketplace to find more mesh reduction plugins"), Icon, OpenMarketplaceAction);
 		return MenuBuilder.MakeWidget();
 	}
@@ -5478,7 +5478,7 @@ private:
 
 		FUIAction OpenMarketplaceAction;
 		OpenMarketplaceAction.ExecuteAction.BindSP(const_cast<FProxyLODMeshSimplificationSettingsCustomization*>(this), &FProxyLODMeshSimplificationSettingsCustomization::OnFindReductionPluginsClicked);
-		FSlateIcon Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
+		FSlateIcon Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
 		MenuBuilder.AddMenuEntry(LOCTEXT("FindMoreReductionPluginsLink", "Search the Marketplace"), LOCTEXT("FindMoreReductionPluginsLink_Tooltip", "Opens the Marketplace to find more mesh reduction plugins"), Icon, OpenMarketplaceAction);
 		return MenuBuilder.MakeWidget();
 	}
@@ -6104,7 +6104,7 @@ void FMeshUtilities::AddMakeStaticMeshEntryToToolMenu(FName InToolMenuName)
 			),
 			LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
 			LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
-			FSlateIcon("EditorStyle", "Persona.ConvertToStaticMesh")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ConvertToStaticMesh")
 		)
 	);
 }

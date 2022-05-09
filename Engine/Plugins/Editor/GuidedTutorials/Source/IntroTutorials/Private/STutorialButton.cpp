@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IIntroTutorials.h"
 #include "IntroTutorials.h"
 #include "EditorTutorialSettings.h"

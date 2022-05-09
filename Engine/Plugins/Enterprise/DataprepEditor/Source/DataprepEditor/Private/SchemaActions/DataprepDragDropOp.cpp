@@ -17,7 +17,7 @@
 
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "SPinTypeSelector.h"
@@ -153,7 +153,7 @@ void FDataprepDragDropOp::HoverTargetChanged()
 		DrapDropText = FText::FromString( TEXT("Can't drop here") );
 	}
 
-	const FSlateBrush* Symbol = bDropTargetValid ? FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") ) : FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.Error") );
+	const FSlateBrush* Symbol = bDropTargetValid ? FAppStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") ) : FAppStyle::GetBrush( TEXT("Graph.ConnectorFeedback.Error") );
 	SetSimpleFeedbackMessage( Symbol, FLinearColor::White, DrapDropText );
 }
 
@@ -241,7 +241,7 @@ void FDataprepDragDropOp::HoverTargetChangedWithNodes()
 	bDropTargetItself = DraggedNodeWidgets[0]->GetNodeObj() == GetHoveredNode();
 	bDropTargetValid = GetHoveredNode() && !bDropTargetItself;
 
-	const FSlateBrush* Icon = FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") );
+	const FSlateBrush* Icon = FAppStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") );
 
 	TAttribute<FText> MessageText = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FDataprepDragDropOp::GetMessageText));
 
@@ -326,8 +326,8 @@ FText FDataprepDragDropOp::GetMessageText()
 
 const FSlateBrush* FDataprepDragDropOp::GetIcon() const
 {
-	static const FSlateBrush* IconOK = FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") );
-	static const FSlateBrush* IconError = FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.Error") );
+	static const FSlateBrush* IconOK = FAppStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") );
+	static const FSlateBrush* IconError = FAppStyle::GetBrush( TEXT("Graph.ConnectorFeedback.Error") );
 
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	const bool bCopyRequested = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();

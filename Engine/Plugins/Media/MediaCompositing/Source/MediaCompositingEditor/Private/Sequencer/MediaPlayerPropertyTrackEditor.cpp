@@ -3,7 +3,7 @@
 #include "MediaPlayerPropertyTrackEditor.h"
 
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
@@ -35,7 +35,7 @@ struct FMediaPlayerPropertySection : FSequencerSection
 
 	virtual float GetSectionHeight() const override
 	{
-		const float InnerHeight = FEditorStyle::GetFontStyle("NormalFont").Size + 8.f;
+		const float InnerHeight = FAppStyle::GetFontStyle("NormalFont").Size + 8.f;
 		return InnerHeight + 2 * 9.0f; // make space for the film border
 	}
 
@@ -60,7 +60,7 @@ struct FMediaPlayerPropertySection : FSequencerSection
 		
 		InPainter.DrawElements.PushClip(ClippingZone);
 		{
-			static const FSlateBrush* FilmBorder = FEditorStyle::GetBrush("Sequencer.Section.FilmBorder");
+			static const FSlateBrush* FilmBorder = FAppStyle::GetBrush("Sequencer.Section.FilmBorder");
 
 			// draw top film border
 			FSlateDrawElement::MakeBox(
@@ -193,7 +193,7 @@ bool FMediaPlayerPropertyTrackEditor::SupportsSequence(UMovieSceneSequence* InSe
 
 const FSlateBrush* FMediaPlayerPropertyTrackEditor::GetIconBrush() const
 {
-	return FEditorStyle::GetBrush("Sequencer.Tracks.Media");
+	return FAppStyle::GetBrush("Sequencer.Tracks.Media");
 }
 
 void FMediaPlayerPropertyTrackEditor::AddNewSection(const FAssetData& AssetData, UMovieSceneMediaPlayerPropertyTrack* MediaTrack)

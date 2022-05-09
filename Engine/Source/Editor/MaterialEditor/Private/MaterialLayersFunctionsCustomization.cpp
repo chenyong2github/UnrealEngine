@@ -170,7 +170,7 @@ void FMaterialLayersFunctionsCustomization::GenerateChildContent(IDetailChildren
 				SNew(SInlineEditableTextBlock)
 				.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FMaterialLayersFunctionsCustomization::GetLayerName, (int32)LayerChildren - 1)))
 				.OnTextCommitted(FOnTextCommitted::CreateSP(this, &FMaterialLayersFunctionsCustomization::OnNameChanged, (int32)LayerChildren-1))
-				.Font(FEditorStyle::GetFontStyle(TEXT("MaterialEditor.Layers.EditableFont")))
+				.Font(FAppStyle::GetFontStyle(TEXT("MaterialEditor.Layers.EditableFont")))
 			]
 			.ValueContent()
 			.HAlign(HAlign_Fill)
@@ -211,7 +211,7 @@ void FMaterialLayersFunctionsCustomization::GenerateChildContent(IDetailChildren
 						SNew(SInlineEditableTextBlock)
 						.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FMaterialLayersFunctionsCustomization::GetLayerName, Counter)))
 						.OnTextCommitted(FOnTextCommitted::CreateSP(this, &FMaterialLayersFunctionsCustomization::OnNameChanged, Counter))
-						.Font(FEditorStyle::GetFontStyle(TEXT("MaterialEditor.Layers.EditableFont")))
+						.Font(FAppStyle::GetFontStyle(TEXT("MaterialEditor.Layers.EditableFont")))
 					]
 					.ValueContent()
 					.HAlign(HAlign_Fill)

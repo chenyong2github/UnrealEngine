@@ -204,7 +204,7 @@ FName FNiagaraBakerViewModel::GetCameraSettingsIconName(int32 CameraSettingsInde
 
 FSlateIcon FNiagaraBakerViewModel::GetCameraSettingsIcon(int32 CameraSettingsIndex) const
 {
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), GetCameraSettingsIconName(CameraSettingsIndex));
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), GetCameraSettingsIconName(CameraSettingsIndex));
 }
 
 bool FNiagaraBakerViewModel::IsCurrentCameraPerspective() const

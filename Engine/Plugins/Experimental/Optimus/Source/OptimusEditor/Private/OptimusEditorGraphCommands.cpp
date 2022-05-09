@@ -2,7 +2,7 @@
 
 #include "OptimusEditorGraphCommands.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditorGraphCommands"
@@ -13,7 +13,7 @@ FOptimusEditorGraphCommands::FOptimusEditorGraphCommands()
 		"OptimusEditorGraph", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "DeformerGraphEditorGraph", "Deformer Graph Editor Graph"), // Localized context name for displaying
 		NAME_None,
-		FEditorStyle::GetStyleSetName()
+		FAppStyle::GetAppStyleSetName()
 	)
 {
 }

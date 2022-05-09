@@ -2,7 +2,7 @@
 
 #include "Sequencer/MediaThumbnailSection.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IMediaCache.h"
 #include "IMediaTracks.h"
 #include "ISequencer.h"
@@ -252,7 +252,7 @@ void FMediaThumbnailSection::Setup()
 
 void FMediaThumbnailSection::DrawFilmBorder(FSequencerSectionPainter& InPainter, FVector2D SectionSize) const
 {
-	static const FSlateBrush* FilmBorder = FEditorStyle::GetBrush("Sequencer.Section.FilmBorder");
+	static const FSlateBrush* FilmBorder = FAppStyle::GetBrush("Sequencer.Section.FilmBorder");
 
 	// draw top film border
 	FSlateDrawElement::MakeBox(

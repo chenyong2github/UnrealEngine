@@ -70,14 +70,14 @@ void SGraphNodeMaterialComposite::UpdateGraphNode()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.CollapsedNode.Body" ) )
+			.BorderImage( FAppStyle::GetBrush( "Graph.CollapsedNode.Body" ) )
 			.Padding(0)
 			[
 				SNew(SOverlay)
 				+SOverlay::Slot()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("Graph.CollapsedNode.BodyColorSpill") )
+					.Image( FAppStyle::GetBrush("Graph.CollapsedNode.BodyColorSpill") )
 					.ColorAndOpacity( this, &SGraphNode::GetNodeTitleColor )
 				]
 				+SOverlay::Slot()
@@ -94,7 +94,7 @@ void SGraphNodeMaterialComposite::UpdateGraphNode()
 						.VAlign(VAlign_Center)
 						[
 							SNew(SBorder)
-							.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+							.BorderImage( FAppStyle::GetBrush("NoBorder") )
 							.Padding( FMargin(10,5,30,3) )
 							[
 								SNew(SVerticalBox)
@@ -108,7 +108,7 @@ void SGraphNodeMaterialComposite::UpdateGraphNode()
 										.AutoHeight()
 									[
 										SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-										.Style( FEditorStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
+										.Style( FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )
 										.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
 										.OnVerifyTextChanged(this, &SGraphNodeMaterialComposite::OnVerifyNameTextChanged)
 										.OnTextCommitted(this, &SGraphNodeMaterialComposite::OnNameTextCommited)
@@ -260,7 +260,7 @@ TSharedRef<SWidget> SGraphNodeMaterialComposite::CreateNodeBody()
 	{
 		// Create the input and output pin areas if there are pins
 		return SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding( FMargin(0,3) )

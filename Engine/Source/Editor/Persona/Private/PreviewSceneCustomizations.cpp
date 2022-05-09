@@ -443,13 +443,13 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			[
 				SNew(SButton)
 				.Visibility(this, &FPreviewSceneDescriptionCustomization::GetSaveButtonVisibility, AdditionalMeshesProperty.ToSharedRef())
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FPreviewSceneDescriptionCustomization::OnSaveCollectionClicked, AdditionalMeshesProperty.ToSharedRef(), &DetailBuilder)
 				.ContentPadding(4.0f)
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Persona.SavePreviewMeshCollection"))
+					.Image(FAppStyle::GetBrush("Persona.SavePreviewMeshCollection"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

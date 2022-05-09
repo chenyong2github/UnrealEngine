@@ -3,7 +3,7 @@
 #include "SBlueprintBookmarks.h"
 #include "BlueprintEditor.h"
 #include "BlueprintEditorSettings.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EdGraphNode_Comment.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
@@ -99,7 +99,7 @@ void SBlueprintBookmarks::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(2.f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -115,10 +115,10 @@ void SBlueprintBookmarks::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.Visibility(EVisibility::Collapsed) // @TODO: remove once folders are supported
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton")
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::Get().GetBrush("Bookmarks.AddFolderButtonIcon"))
+						.Image(FAppStyle::Get().GetBrush("Bookmarks.AddFolderButtonIcon"))
 					]
 				]
 				+SHorizontalBox::Slot()
@@ -126,7 +126,7 @@ void SBlueprintBookmarks::Construct(const FArguments& InArgs)
 				.Padding(2.f, 0.f)
 				[
 					SNew(SComboButton)
-					.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+					.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.HasDownArrow(true)
 					.ContentPadding(FMargin(1, 0))
@@ -137,7 +137,7 @@ void SBlueprintBookmarks::Construct(const FArguments& InArgs)
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericViewButton"))
+						.Image(FAppStyle::GetBrush("GenericViewButton"))
 					]
 				]
 			]
@@ -148,7 +148,7 @@ void SBlueprintBookmarks::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(2.f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				TreeViewWidget.ToSharedRef()
 			]
@@ -188,7 +188,7 @@ TSharedRef<SWidget> SBlueprintBookmarks::STreeItemRow::GenerateWidgetForColumn(c
 		{
 			TextWidget = SNew(STextBlock)
 				.Text(this, &SBlueprintBookmarks::STreeItemRow::GetItemNameText)
-				.Font(FEditorStyle::GetFontStyle(ItemPtr->IsRootNode() ? "Bookmarks.TreeViewRootItemFont" : "Bookmarks.TreeViewItemFont"));
+				.Font(FAppStyle::GetFontStyle(ItemPtr->IsRootNode() ? "Bookmarks.TreeViewRootItemFont" : "Bookmarks.TreeViewItemFont"));
 		}
 
 		return SNew(SHorizontalBox)
@@ -229,7 +229,7 @@ TSharedRef<SWidget> SBlueprintBookmarks::STreeItemRow::GenerateWidgetForColumn(c
 		{
 			return SNew(STextBlock)
 				.Text_Lambda([GraphContext]() { return FText::FromName(GraphContext->GetFName()); })
-				.Font(FEditorStyle::GetFontStyle("Bookmarks.TreeViewItemFont"));
+				.Font(FAppStyle::GetFontStyle("Bookmarks.TreeViewItemFont"));
 		}
 	}
 

@@ -23,7 +23,6 @@ public class LocalizationCommandletExecution : ModuleRules
 				"InputCore",
 				"EditorFramework",
                 "UnrealEd",
-				"EditorStyle",
 				"Engine",
 				"DesktopPlatform",
                 "SourceControl",

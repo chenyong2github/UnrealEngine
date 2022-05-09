@@ -237,7 +237,7 @@ void FAssetTypeActions_RuntimeVirtualTexture::GetActions(TArray<UObject*> const&
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("RuntimeVirtualTexture_FixMaterialUsage", "Fix Material Usage"),
 			LOCTEXT("RuntimeVirtualTexture_FixMaterialUsageTooltip", "Find materials using this Runtime Virtual Texture and fix any mismatching content types."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_RuntimeVirtualTexture::ExecuteFixMaterialUsage, RuntimeVirtualTextures[0]),
 				FCanExecuteAction()

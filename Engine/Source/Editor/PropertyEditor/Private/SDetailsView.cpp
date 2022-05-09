@@ -4,7 +4,7 @@
 #include "SDetailsView.h"
 
 #include "CategoryPropertyNode.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "DetailCategoryBuilderImpl.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "DetailsViewGenericObjectFilter.h"
@@ -408,7 +408,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		+ SOverlay::Slot()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Searching.SearchActiveBorder"))
+			.Image(FAppStyle::GetBrush("Searching.SearchActiveBorder"))
 			.Visibility_Lambda([this]() { return (this->GetFilterBoxVisibility() == EVisibility::Visible) && this->HasActiveSearch() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		]
 	];
@@ -988,11 +988,11 @@ const FSlateBrush* SDetailsView::OnGetLockButtonImageResource() const
 {
 	if (bIsLocked)
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Locked"));
 	}
 	else
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
+		return FAppStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
 	}
 }
 
@@ -1018,7 +1018,7 @@ void SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked()
 		SaveViewConfig();
 	}
 
-	GConfig->SetBool(TEXT("/Script/EditorStyle.EditorStyleSettings"), TEXT("bShowHiddenPropertiesWhilePlaying"), bNewValue, GEditorPerProjectIni);
+	GConfig->SetBool(TEXT("/Script/UnrealEd.EditorStyleSettings"), TEXT("bShowHiddenPropertiesWhilePlaying"), bNewValue, GEditorPerProjectIni);
 
 	// Force a refresh of the whole details panel, as the entire set of visible properties may be different
 	ForceRefresh();

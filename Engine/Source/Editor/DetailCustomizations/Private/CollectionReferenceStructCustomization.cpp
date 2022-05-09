@@ -44,7 +44,7 @@ void FCollectionReferenceStructCustomization::CustomizeHeader( TSharedRef<IPrope
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(PickerButton, SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText(LOCTEXT("ComboToolTipText", "Choose a collection"))
 				.OnClicked(FOnClicked::CreateSP(this, &FCollectionReferenceStructCustomization::OnPickContent, CollectionNameProperty.ToSharedRef()))
 				.ContentPadding(2.0f)
@@ -52,7 +52,7 @@ void FCollectionReferenceStructCustomization::CustomizeHeader( TSharedRef<IPrope
 				.IsFocusable(false)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+					.Image(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

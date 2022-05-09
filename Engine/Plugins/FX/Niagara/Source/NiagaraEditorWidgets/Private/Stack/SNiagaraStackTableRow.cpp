@@ -2,7 +2,7 @@
 
 #include "Stack/SNiagaraStackTableRow.h"
 #include "NiagaraEditorWidgetsStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
@@ -253,7 +253,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		.HAlign(HAlign_Left)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(AccentColor.GetValue())
 			.Padding(0)
 			[

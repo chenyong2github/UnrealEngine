@@ -214,7 +214,7 @@ TSharedRef<SWidget> SDisplayClusterConfiguratorViewOutputMapping::CreateOverlayU
 		.Padding(0, 3, 15, 3)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+			.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 			.Text(this, &SDisplayClusterConfiguratorViewOutputMapping::GetCursorPositionText)
 			.ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))
 			.Visibility(this, &SDisplayClusterConfiguratorViewOutputMapping::GetCursorPositionTextVisibility)
@@ -226,7 +226,7 @@ TSharedRef<SWidget> SDisplayClusterConfiguratorViewOutputMapping::CreateOverlayU
 		.Padding(0, 3, 0, 3)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+			.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 			.Text(this, &SDisplayClusterConfiguratorViewOutputMapping::GetViewScaleText)
 			.ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))
 		]

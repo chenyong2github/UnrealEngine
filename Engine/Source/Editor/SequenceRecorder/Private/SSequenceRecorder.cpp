@@ -17,7 +17,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AnimationRecorder.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
@@ -28,7 +28,6 @@
 #include "SequenceRecorderUtils.h"
 #include "SequenceRecorder.h"
 #include "SDropTarget.h"
-#include "EditorFontGlyphs.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -88,7 +87,7 @@ public:
 				SNew(SButton)
 				.ContentPadding(0)
 				.OnClicked(this, &SSequenceRecorderActorListRow::ToggleRecordingActive)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ToolTipText(LOCTEXT("ActiveButtonToolTip", "Toggle Recording Active"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -137,7 +136,7 @@ public:
 		{
 			return
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(this, &SSequenceRecorderActorListRow::GetRecordingTakeBorderColor)
 				.VAlign(VAlign_Center)
 				[
@@ -165,11 +164,11 @@ private:
 	{
 		if (RecordingPtr.IsValid() && RecordingPtr.Get()->bActive)
 		{
-			return FEditorStyle::GetBrush("SequenceRecorder.Common.RecordingActive");
+			return FAppStyle::GetBrush("SequenceRecorder.Common.RecordingActive");
 		}
 		else
 		{
-			return FEditorStyle::GetBrush("SequenceRecorder.Common.RecordingInactive");
+			return FAppStyle::GetBrush("SequenceRecorder.Common.RecordingInactive");
 		}
 	}
 
@@ -310,7 +309,7 @@ public:
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0.4f, 0.f, 0.f, 1.f))
-			.BorderImage(FEditorStyle::GetBrush(TEXT("WhiteBrush")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("WhiteBrush")))
 			.Visibility(this, &SSequenceRecorderDeprecationMessage::GetWarningMessageVisibility)
 			[
 				SNew(SHorizontalBox)
@@ -322,7 +321,7 @@ public:
 					SNew(SRichTextBlock)
 					.Text(LOCTEXT("SequenceRecorderLastVersionSupported", "As of 4.26, Sequence Recorder is no longer supported by UE4 and will be removed from the engine in the near future. Once removed, you will <NormalText.Important>no longer be able to run Sequence Recorder</>.\nPlease use <a id=\"TakeRecorderDoc\" href=\"/Engine/Sequencer/Workflow/TakeRecorder\" style=\"DarkHyperlink\">Take Recorder</>"))
 					.AutoWrapText(true)
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.DecoratorStyleSet(&FAppStyle::Get())
 					+ SRichTextBlock::HyperlinkDecorator(TEXT("TakeRecorderDoc"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnDocLinkClicked))
 
 				]
@@ -437,7 +436,7 @@ void SSequenceRecorder::Construct(const FArguments& Args)
 			.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 4.0f))
 				[
 					SNew(SOverlay)

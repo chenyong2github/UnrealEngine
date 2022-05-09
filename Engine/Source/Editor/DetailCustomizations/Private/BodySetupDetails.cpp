@@ -146,7 +146,7 @@ void FSkeletalBodySetupDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 			.VAlign(VAlign_Center)
 			[
 				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				.Text_Lambda([ObjectsCustomizedLocal]()
 				{
 					if (ObjectsCustomizedLocal.Num() > 0)

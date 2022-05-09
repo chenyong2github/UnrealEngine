@@ -17,7 +17,6 @@ public class FoliageEdit : ModuleRules
 				"UnrealEd",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"RenderCore",
 				"LevelEditor",
 				"SceneOutliner",

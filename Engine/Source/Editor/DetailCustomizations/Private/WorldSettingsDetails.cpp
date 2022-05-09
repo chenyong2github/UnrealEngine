@@ -372,7 +372,7 @@ TSharedRef<SWidget> FLightmapCustomNodeBuilder::MakeLightMapList(TSharedPtr<FLig
 					// Drop shadow border
 					SNew(SBorder)
 					.Padding(ThumbnailBoxPadding)
-					.BorderImage( FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow") )
+					.BorderImage( FAppStyle::GetBrush("ContentBrowser.ThumbnailShadow") )
 					[
 						LightMapItem->Thumbnail->MakeThumbnailWidget(ThumbnailConfig)
 					]

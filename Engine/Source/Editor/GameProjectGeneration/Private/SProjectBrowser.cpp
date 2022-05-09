@@ -30,7 +30,7 @@
 #include "Widgets/Views/STileView.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorDirectories.h"
 #include "ProjectDescriptor.h"
 #include "Interfaces/IProjectManager.h"
@@ -420,7 +420,7 @@ void SProjectBrowser::Construct( const FArguments& InArgs )
 				.ButtonContent()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.SortDown"))
+					.Image(FAppStyle::GetBrush("Icons.SortDown"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 
@@ -432,7 +432,7 @@ void SProjectBrowser::Construct( const FArguments& InArgs )
 			[
 				SNew(SSimpleButton)
 				.OnClicked(this, &SProjectBrowser::FindProjects)
-				.Icon(FEditorStyle::GetBrush("Icons.Refresh"))
+				.Icon(FAppStyle::GetBrush("Icons.Refresh"))
 				.ToolTipText(LOCTEXT("RefreshProjectList", "Refresh the project list"))
 			]
 		]
@@ -528,18 +528,18 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 			.HeightOverride(20)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)))
+				.Image(FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)))
 			]
 		];
 	}
 
 	TSharedRef<SToolTip> Tooltip = SNew(SToolTip)
 	.TextMargin(1)
-	.BorderImage( FEditorStyle::GetBrush("ProjectBrowser.TileViewTooltip.ToolTipBorder") )
+	.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.ToolTipBorder") )
 	[
 		SNew(SBorder)
 		.Padding(6)
-		.BorderImage( FEditorStyle::GetBrush("ProjectBrowser.TileViewTooltip.NonContentBorder") )
+		.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.NonContentBorder") )
 		[
 			SNew(SVerticalBox)
 
@@ -549,7 +549,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 			[
 				SNew(SBorder)
 				.Padding(6)
-				.BorderImage( FEditorStyle::GetBrush("ProjectBrowser.TileViewTooltip.ContentBorder") )
+				.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.ContentBorder") )
 				[
 					SNew(SVerticalBox)
 
@@ -559,7 +559,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 					[
 						SNew(STextBlock)
 						.Text( ProjectItem->Name )
-						.Font( FEditorStyle::GetFontStyle("ProjectBrowser.TileViewTooltip.NameFont") )
+						.Font( FAppStyle::GetFontStyle("ProjectBrowser.TileViewTooltip.NameFont") )
 					]
 
 					+SVerticalBox::Slot()
@@ -577,7 +577,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 			[
 				SNew(SBorder)
 				.Padding(6)
-				.BorderImage( FEditorStyle::GetBrush("ProjectBrowser.TileViewTooltip.ContentBorder") )
+				.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.ContentBorder") )
 				[
 					InfoBox
 				]

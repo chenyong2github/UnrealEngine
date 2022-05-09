@@ -154,7 +154,7 @@ void FNiagaraPlatformSetCustomization::GenerateQualityLevelSelectionWidgets()
 					{
 						return QualityLevelWidgetBox->GetChildren()->GetChildAt(QualityLevel)->IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 					})
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.OnClicked(this, &FNiagaraPlatformSetCustomization::ToggleMenuOpenForQualityLevel, QualityLevel)
 					[
@@ -212,7 +212,7 @@ void FNiagaraPlatformSetCustomization::GenerateQualityLevelSelectionWidgets()
 									SNew(SImage)
 									.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetQualityLevelErrorToolTip, QualityLevel)
 									.Visibility(this, &FNiagaraPlatformSetCustomization::GetQualityLevelErrorVisibility, QualityLevel)
-									.Image(FEditorStyle::GetBrush("Icons.Error"))
+									.Image(FAppStyle::GetBrush("Icons.Error"))
 								]
 							]
 							// dropdown button
@@ -466,7 +466,7 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesW
 					SNew(SImage)
 					.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip, Profile, QualityLevel)
 					.Visibility(this, &FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility, Profile, QualityLevel)
-					.Image(FEditorStyle::GetBrush("Icons.Error"))
+					.Image(FAppStyle::GetBrush("Icons.Error"))
 				]
 			];
 
@@ -477,7 +477,7 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesW
 			.Padding(0, 0, 2, 0)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.OnClicked(this, &FNiagaraPlatformSetCustomization::RemoveDeviceProfile, Profile, QualityLevel)
 				.ToolTipText(LOCTEXT("RemoveDevice", "Remove this device override."))
@@ -725,7 +725,7 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateDeviceProfileTreeW
 	}
 
 	return SAssignNew(QualityLevelMenuContents[QualityLevel], SBorder)
-		.BorderImage(FEditorStyle::Get().GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
 		[
 			SAssignNew(DeviceProfileTreeWidget, STreeView<TSharedPtr<FNiagaraDeviceProfileViewModel>>)
 			.TreeItemsSource(TreeToUse)
@@ -756,8 +756,8 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	{
 		if (const PlatformInfo::FTargetPlatformInfo* Info = PlatformInfo::FindPlatformInfo(*InItem->Profile->DeviceType))
 		{
-			const FSlateBrush* DeviceProfileTypeIcon = FEditorStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
-			if (DeviceProfileTypeIcon != FEditorStyle::Get().GetDefaultBrush())
+			const FSlateBrush* DeviceProfileTypeIcon = FAppStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
+			if (DeviceProfileTypeIcon != FAppStyle::Get().GetDefaultBrush())
 			{
 				RowContainer->AddSlot()
 					.AutoWidth()
@@ -806,7 +806,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 		TooltipContentsBox->AddSlot()
  		[
  			SNew(STextBlock)
- 			.TextStyle(FEditorStyle::Get(), TextStyleName)
+ 			.TextStyle(FAppStyle::Get(), TextStyleName)
  			.ColorAndOpacity(ActiveColor)
  			.Text(LOCTEXT("DPActiveTooltip", "Active"))
  		];
@@ -818,7 +818,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 			TooltipContentsBox->AddSlot()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), TextStyleName)
+				.TextStyle(FAppStyle::Get(), TextStyleName)
 				.ColorAndOpacity(InactiveColor)
 				.Text(LOCTEXT("DPInActiveTooltip", "Inactive Due To:"))
 			];
@@ -827,7 +827,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 				TooltipContentsBox->AddSlot()
  				[
  					SNew(STextBlock)
- 					.TextStyle(FEditorStyle::Get(), TextStyleName)
+ 					.TextStyle(FAppStyle::Get(), TextStyleName)
  					.ColorAndOpacity(InactiveColor)
  					.Text(Reason)
  				];
@@ -838,7 +838,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 			TooltipContentsBox->AddSlot()
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), TextStyleName)
+				.TextStyle(FAppStyle::Get(), TextStyleName)
 				.ColorAndOpacity(DisabledColor)
 				.Text(LOCTEXT("DPDisabledTooltip", "Disabled Due To:"))
 			];
@@ -847,7 +847,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 				TooltipContentsBox->AddSlot()
  				[
  					SNew(STextBlock)
- 					.TextStyle(FEditorStyle::Get(), TextStyleName)
+ 					.TextStyle(FAppStyle::Get(), TextStyleName)
  					.ColorAndOpacity(DisabledColor)
  					.Text(Reason)
  				];
@@ -858,7 +858,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	TooltipContentsBox->AddSlot()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), TextStyleName)
+			.TextStyle(FAppStyle::Get(), TextStyleName)
 			.ColorAndOpacity(ActiveColor)
 			.Text(LOCTEXT("QLTooltipAvailableListHeader", "Available:"))
 		];
@@ -873,7 +873,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 				TooltipContentsBox->AddSlot()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), TextStyleName)
+						.TextStyle(FAppStyle::Get(), TextStyleName)
 						.ColorAndOpacity(ActiveColor)
 						.Text(FText::Format(LOCTEXT("QLTooltipAvailableListDefaultFmt", "{0} (Default)"), FNiagaraPlatformSet::GetQualityLevelText(QL)))
 					];
@@ -883,7 +883,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 				TooltipContentsBox->AddSlot()
 					[
 						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), TextStyleName)
+						.TextStyle(FAppStyle::Get(), TextStyleName)
 						.ColorAndOpacity(ActiveColor)
 						.Text(FNiagaraPlatformSet::GetQualityLevelText(QL))
 					];
@@ -897,7 +897,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(this, &FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked, InItem, QualityLevel, false)
 			.IsEnabled(this, &FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled, InItem, QualityLevel)
 			.ForegroundColor(TextColor)
@@ -909,7 +909,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 			)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), TextStyleName)
+				.TextStyle(FAppStyle::Get(), TextStyleName)
 				.Text(FText::FromString(InItem->Profile->GetName()))
 			]
 		];
@@ -921,7 +921,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Fill)
 			.Visibility(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonVisibility, InItem, QualityLevel)
@@ -1036,7 +1036,7 @@ const FSlateBrush* FNiagaraPlatformSetCustomization::GetProfileMenuButtonImage(T
 			return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.PlatformSet.Remove");
 	}
 
-	return FEditorStyle::GetBrush("NoBrush");
+	return FAppStyle::GetBrush("NoBrush");
 }
 
 FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel, bool bReopenMenu)
@@ -1319,7 +1319,7 @@ void SNiagaraConsoleInputBox::Construct(const FArguments& InArgs)
 	.MenuContent
 	(
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		.Padding(FMargin(2))
 		[
 			SNew(SBox)
@@ -1414,7 +1414,7 @@ TSharedRef<ITableRow> SNiagaraConsoleInputBox::MakeSuggestionListItemWidget(TSha
 			SNew(STextBlock)
 			.Text(FText::FromString(SanitizedText))
 			.ToolTipText(CVar ? FText::FromString(CVar->GetHelp()) : FText::GetEmpty())
-			.TextStyle(FEditorStyle::Get(), "Log.Normal")
+			.TextStyle(FAppStyle::Get(), "Log.Normal")
 			.HighlightText(Suggestions.SuggestionsHighlight)
 		];
 }

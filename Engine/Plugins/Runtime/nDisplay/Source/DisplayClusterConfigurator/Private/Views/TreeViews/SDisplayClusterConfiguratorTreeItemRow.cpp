@@ -10,7 +10,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorTreeItemRow"
 
@@ -24,7 +24,7 @@ void SDisplayClusterConfiguratorTreeItemRow::Construct(const FArguments& InArgs,
 	check(Item.IsValid());
 
 	SMultiColumnTableRow< TSharedPtr<IDisplayClusterConfiguratorTreeItem> >::Construct(FSuperRowType::FArguments()
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"))
 		.OnCanAcceptDrop(this, &SDisplayClusterConfiguratorTreeItemRow::HandleCanAcceptDrop)
 		.OnAcceptDrop(this, &SDisplayClusterConfiguratorTreeItemRow::HandleAcceptDrop)
 		.OnDragDetected(this, &SDisplayClusterConfiguratorTreeItemRow::HandleDragDetected)

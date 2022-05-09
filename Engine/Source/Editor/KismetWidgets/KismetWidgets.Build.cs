@@ -16,7 +16,6 @@ public class KismetWidgets : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 				"BlueprintGraph",

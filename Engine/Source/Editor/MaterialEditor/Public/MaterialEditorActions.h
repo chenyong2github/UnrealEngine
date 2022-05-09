@@ -8,7 +8,7 @@
 #include "Framework/Commands/InputChord.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class UEdGraph;
 
@@ -23,7 +23,7 @@ public:
 	(
 		"MaterialEditor", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "MaterialEditor", "Material Editor"), // Localized context name for displaying
-		NAME_None, FEditorStyle::GetStyleSetName()
+		NAME_None, FAppStyle::GetAppStyleSetName()
 	)
 	{
 	}
@@ -245,7 +245,7 @@ class FMaterialEditorSpawnNodeCommands : public TCommands<FMaterialEditorSpawnNo
 public:
 	/** Constructor */
 	FMaterialEditorSpawnNodeCommands()
-		: TCommands<FMaterialEditorSpawnNodeCommands>( TEXT("MaterialEditorSpawnNodes"), NSLOCTEXT("Contexts", "MaterialEditor_SpawnNodes", "Material Editor - Spawn Nodes"), NAME_None, FEditorStyle::GetStyleSetName() )
+		: TCommands<FMaterialEditorSpawnNodeCommands>( TEXT("MaterialEditorSpawnNodes"), NSLOCTEXT("Contexts", "MaterialEditor_SpawnNodes", "Material Editor - Spawn Nodes"), NAME_None, FAppStyle::GetAppStyleSetName() )
 	{
 	}	
 

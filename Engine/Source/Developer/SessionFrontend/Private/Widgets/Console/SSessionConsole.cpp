@@ -10,7 +10,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Models/SessionConsoleCommands.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Console/SSessionConsoleLogTableRow.h"
@@ -95,7 +95,7 @@ void SSessionConsole::Construct(const FArguments& InArgs, TSharedRef<ISessionMan
 							[
 								// log list
 								SNew(SBorder)
-									.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+									.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 									.Padding(0.0f)
 									[
 										SAssignNew(LogListView, SListView<TSharedPtr<FSessionLogMessage>>)
@@ -142,7 +142,7 @@ void SSessionConsole::Construct(const FArguments& InArgs, TSharedRef<ISessionMan
 					[
 						SNew(SBorder)
 							.Padding(FMargin(8.0f, 6.0f))
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
 								// command bar
 								SAssignNew(CommandBar, SSessionConsoleCommandBar)
@@ -157,7 +157,7 @@ void SSessionConsole::Construct(const FArguments& InArgs, TSharedRef<ISessionMan
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+					.BorderImage(FAppStyle::GetBrush("NotificationList.ItemBackground"))
 					.Padding(8.0f)
 					.Visibility(this, &SSessionConsole::HandleSelectSessionOverlayVisibility)
 					[

@@ -2,7 +2,7 @@
 
 #include "SRCProtocolRange.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailTreeNode.h"
 #include "IStructureDetailsView.h"
@@ -62,7 +62,7 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	.AutoWidth()
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.OnClicked(this, &SRCProtocolRange::CopyFromCurrentPropertyValue)
 		.ToolTipText(LOCTEXT("UsePropertyValue", "Use current property value."))
 		.ContentPadding(4.0f)
@@ -70,7 +70,7 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 		.IsFocusable(false)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::Get().GetBrush("Icons.Use"))
+			.Image(FAppStyle::Get().GetBrush("Icons.Use"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	]
@@ -104,21 +104,21 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	.AutoWidth()
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.ForegroundColor(FSlateColor::UseForeground())
 		.IsFocusable(false)
 		.OnClicked(this, &SRCProtocolRange::OnDelete)
 		.Content()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FText::FromString(FString(TEXT("\xf00d"))))
 		]
 	];
 
 	STableRow::Construct(
 		STableRow::FArguments()
-		.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+		.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
 		.ShowSelection(false)
 		.Content()
 		[

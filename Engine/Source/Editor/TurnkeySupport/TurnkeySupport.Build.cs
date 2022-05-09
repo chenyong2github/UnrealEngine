@@ -27,7 +27,6 @@ public class TurnkeySupport : ModuleRules
  				"ToolMenus",
  				"LauncherServices",
 				"SourceControl",
-				"EditorStyle",
 				"TurnkeyIO",
 			}
 		);

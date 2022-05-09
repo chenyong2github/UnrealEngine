@@ -4,7 +4,7 @@
 #include "Misc/PackageName.h"
 #include "ToolMenus.h"
 #include "Misc/FeedbackContext.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFramework/AssetImportData.h"
 #include "PaperFlipbook.h"
 #include "PaperSprite.h"
@@ -65,7 +65,7 @@ void FPaperSpriteSheetAssetTypeActions::GetActions(const TArray<UObject*>& InObj
 		"SpriteSheet_CreateFlipbooks",
 		LOCTEXT("SpriteSheet_CreateFlipbooks", "Create Flipbooks"),
 		LOCTEXT("SpriteSheet_CreateFlipbooksTooltip", "Creates flipbooks from sprites in this sprite sheet."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PaperFlipbook"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PaperFlipbook"),
 		FUIAction(
 		FExecuteAction::CreateSP(this, &FPaperSpriteSheetAssetTypeActions::ExecuteCreateFlipbooks, SpriteSheetImports),
 		FCanExecuteAction()

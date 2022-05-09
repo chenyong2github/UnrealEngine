@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
                     "InternationalizationSettings",
 					"BlueprintGraph",
-                    "EditorStyle",
                     "Analytics",
                     "VREditor",
 					"ToolMenus"

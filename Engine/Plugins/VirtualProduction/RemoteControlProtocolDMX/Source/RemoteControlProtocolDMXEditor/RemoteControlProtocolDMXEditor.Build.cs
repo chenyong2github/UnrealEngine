@@ -18,7 +18,7 @@ public class RemoteControlProtocolDMXEditor : ModuleRules
 				"CoreUObject",
 				"DMXProtocol",
 				"DMXProtocolEditor",
-				"EditorStyle",
+				
 				"InputCore",
 				"PropertyEditor",
 				"RemoteControl",

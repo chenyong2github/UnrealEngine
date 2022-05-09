@@ -5,9 +5,11 @@
 #include "OptimusEditor.h"
 #include "OptimusEditorGraph.h"
 
+#include "Styling/AppStyle.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "GraphEditor.h"
 #include "OptimusNodeGraph.h"
 
-#include "EditorStyleSet.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -34,7 +36,7 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 
 	// Set-up shared breadcrumb defaults (from SGraphTitleBar::Construct)
 	FMargin BreadcrumbTrailPadding = FMargin(4.f, 2.f);
-	const FSlateBrush* BreadcrumbButtonImage = FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter");
+	const FSlateBrush* BreadcrumbButtonImage = FAppStyle::GetBrush("BreadcrumbTrail.Delimiter");
 
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 	if (Editor)
@@ -45,7 +47,7 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+		.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 		.HAlign(HAlign_Fill)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EventGraphTitleBar")))
 		[
@@ -111,7 +113,7 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 							[
 								SNew(STextBlock)
 								.Text(this, &SOptimusGraphTitleBar::GetDeformerTitle)
-								.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+								.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 								.Visibility( this, &SOptimusGraphTitleBar::IsDeformerTitleVisible )
 							]
 							+ SHorizontalBox::Slot()
@@ -129,8 +131,8 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 							.VAlign(VAlign_Center)
 							[
 								SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<UOptimusNodeGraph*>)
-								.ButtonStyle(FEditorStyle::Get(), "GraphBreadcrumbButton")
-								.TextStyle(FEditorStyle::Get(), "GraphBreadcrumbButtonText")
+								.ButtonStyle(FAppStyle::Get(), "GraphBreadcrumbButton")
+								.TextStyle(FAppStyle::Get(), "GraphBreadcrumbButtonText")
 								.ButtonContentPadding(BreadcrumbTrailPadding)
 								.DelimiterImage(BreadcrumbButtonImage)
 								.PersistentBreadcrumbs(true)
@@ -190,7 +192,7 @@ const FSlateBrush* SOptimusGraphTitleBar::GetGraphTypeIcon() const
 {
 	// FIXME: Get this from the editor. See FBlueprintEditor::GetGlyphForGraph for list of 
 	// possible icons.
-	return FEditorStyle::GetBrush(TEXT("GraphEditor.Function_24x"));
+	return FAppStyle::GetBrush(TEXT("GraphEditor.Function_24x"));
 }
 
 FText SOptimusGraphTitleBar::GetGraphTitle(const UOptimusNodeGraph* InGraph)

@@ -7,7 +7,7 @@
 #include "DetailsViewObjectFilter.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
@@ -198,16 +198,16 @@ public:
 				.Padding(2)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
+					.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
 				]
 				+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
 					.Padding(2)
 					[
 						SNew(SRichTextBlock)
-						.DecoratorStyleSet(&FEditorStyle::Get())
+						.DecoratorStyleSet(&FAppStyle::Get())
 						.Justification(ETextJustify::Left)
-						.TextStyle(FEditorStyle::Get(), "DetailsView.BPMessageTextStyle")
+						.TextStyle(FAppStyle::Get(), "DetailsView.BPMessageTextStyle")
 						.Text(InArgs._WarningText)
 						.AutoWrapText(true)
 						+ SRichTextBlock::HyperlinkDecorator(TEXT("HyperlinkDecorator"), InArgs._OnHyperlinkClicked)
@@ -342,7 +342,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 			SAssignNew(DetailsSplitter, SSplitter)
 			.MinimumSlotHeight(80.0f)
 			.Orientation(Orient_Vertical)
-			.Style(FEditorStyle::Get(), "SplitterDark")
+			.Style(FAppStyle::Get(), "SplitterDark")
 			.PhysicalSplitterHandleSize(2.0f)
 			+ SSplitter::Slot()
 			[

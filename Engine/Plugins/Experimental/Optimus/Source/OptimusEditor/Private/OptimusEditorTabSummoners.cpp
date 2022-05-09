@@ -28,7 +28,7 @@ FOptimusEditorNodePaletteTabSummoner::FOptimusEditorNodePaletteTabSummoner(
 	EditorPtr(InEditorApp)
 {
 	TabLabel = LOCTEXT("NodePaletteTab_TabLabel", "Palette");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Palette");
 	
 	bIsSingleton = true;
 
@@ -51,7 +51,7 @@ FOptimusEditorExplorerTabSummoner::FOptimusEditorExplorerTabSummoner(
 	EditorPtr(InEditorApp)
 {
 	TabLabel = LOCTEXT("NodeExplorerTab_TabLabel", "Explorer");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlueprintCore");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.BlueprintCore");
 	
 	bIsSingleton = true;
 
@@ -75,7 +75,7 @@ FOptimusEditorGraphTabSummoner::FOptimusEditorGraphTabSummoner(
 	EditorPtr(InEditorApp)
 {
 	TabLabel = LOCTEXT("NodeGraphTab_TabLabel", "Graph");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x");
 	
 	bIsSingleton = false;
 
@@ -100,7 +100,7 @@ FOptimusEditorCompilerOutputTabSummoner::FOptimusEditorCompilerOutputTabSummoner
 	EditorPtr(InEditorApp)
 {
 	TabLabel = LOCTEXT("NodeCompilerOutputTab_TabLabel", "Compiler Output");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.StatsViewer");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer");
 	
 	bIsSingleton = false;
 

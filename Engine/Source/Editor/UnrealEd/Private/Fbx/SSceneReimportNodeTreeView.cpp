@@ -7,7 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Components/LightComponent.h"
 #include "Factories/FbxSceneImportData.h"
@@ -249,7 +249,7 @@ public:
 				[
 					SNew(SImage)
 					.Image(ClassIcon)
-					.Visibility(ClassIcon != FEditorStyle::GetDefaultBrush() ? EVisibility::Visible : EVisibility::Collapsed)
+					.Visibility(ClassIcon != FAppStyle::GetDefaultBrush() ? EVisibility::Visible : EVisibility::Collapsed)
 				]
 				+ SOverlay::Slot()
 				.HAlign(HAlign_Left)
@@ -306,7 +306,7 @@ private:
 	}
 	const FSlateBrush *GetIconOverlay() const
 	{
-		const FSlateBrush *SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportError");
+		const FSlateBrush *SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportError");
 		if (NodeStatusMap->Contains(FbxNodeInfo->NodeHierarchyPath))
 		{
 			EFbxSceneReimportStatusFlags ReimportFlags = *NodeStatusMap->Find(FbxNodeInfo->NodeHierarchyPath);
@@ -314,15 +314,15 @@ private:
 
 			if ((ReimportFlags & EFbxSceneReimportStatusFlags::Added) != EFbxSceneReimportStatusFlags::None)
 			{
-				SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportAdded");
+				SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportAdded");
 			}
 			else if ((ReimportFlags & EFbxSceneReimportStatusFlags::Same) != EFbxSceneReimportStatusFlags::None)
 			{
-				SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportSameContent");
+				SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportSameContent");
 			}
 			else if ((ReimportFlags & EFbxSceneReimportStatusFlags::Removed) != EFbxSceneReimportStatusFlags::None)
 			{
-				SlateBrush = FEditorStyle::GetBrush("FBXIcon.ReimportRemovedContent");
+				SlateBrush = FAppStyle::GetBrush("FBXIcon.ReimportRemovedContent");
 			}
 		}
 		return SlateBrush;
@@ -582,9 +582,9 @@ TSharedPtr<SWidget> SFbxReimportSceneTreeView::OnOpenContextMenu()
 	// We always create a section here, even if there is no parent so that clients can still extend the menu
 	MenuBuilder.BeginSection("FbxSceneTreeViewContextMenuImportSection");
 	{
-		const FSlateIcon PlusIcon(FEditorStyle::GetStyleSetName(), "Plus");
+		const FSlateIcon PlusIcon(FAppStyle::GetAppStyleSetName(), "Plus");
 		MenuBuilder.AddMenuEntry(LOCTEXT("CheckForImport", "Add Selection To Import"), FText(), PlusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxReimportSceneTreeView::AddSelectionToImport)));
-		const FSlateIcon MinusIcon(FEditorStyle::GetStyleSetName(), "Icons.Minus");
+		const FSlateIcon MinusIcon(FAppStyle::GetAppStyleSetName(), "Icons.Minus");
 		MenuBuilder.AddMenuEntry(LOCTEXT("UncheckForImport", "Remove Selection From Import"), FText(), MinusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxReimportSceneTreeView::RemoveSelectionFromImport)));
 	}
 	MenuBuilder.EndSection();

@@ -32,7 +32,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "SPositiveActionButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "MovieSceneSequenceEditor.h"
 #include "Engine/Selection.h"
@@ -607,7 +607,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 							SNew(SButton)
 							.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 							.VAlign(EVerticalAlignment::VAlign_Center)
-							.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 							.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateBackwardTooltip(); })
 							.ContentPadding(FMargin(1, 0))
 							.OnClicked_Lambda([this] { return SequencerPtr.Pin()->NavigateBackward(); })
@@ -639,7 +639,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 							SNew(SButton)
 							.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 							.VAlign(EVerticalAlignment::VAlign_Center)
-							.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 							.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateForwardTooltip(); })
 							.ContentPadding(FMargin(1, 0))
 							.OnClicked_Lambda([this] { return SequencerPtr.Pin()->NavigateForward(); })
@@ -746,7 +746,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					+ SGridPanel::Slot( Column0, Row1 )
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SSpacer)
 						]
@@ -756,7 +756,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					+ SGridPanel::Slot( Column0, Row1, SGridPanel::Layer(10) )
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						.Padding(FMargin(CommonPadding*2, CommonPadding))
 						.Clipping(EWidgetClipping::ClipToBounds)
 						[
@@ -797,7 +797,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								[
 									// Current Play Time 
 									SAssignNew(PlayTimeDisplay, STemporarilyFocusedSpinBox<double>)
-									.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.PlayTimeSpinBox"))
+									.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.PlayTimeSpinBox"))
 									.Value_Lambda([this]() -> double {
 										return SequencerPtr.Pin()->GetLocalTime().Time.GetFrame().Value;
 									})
@@ -954,7 +954,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					+ SGridPanel::Slot( Column0, Row4, SGridPanel::Layer(10) )
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						//.BorderBackgroundColor(FLinearColor(.50f, .50f, .50f, 1.0f))
 						.HAlign(HAlign_Center)
 						[
@@ -969,7 +969,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					.RowSpan(3)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SSpacer)
 						]
@@ -979,7 +979,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					.Padding(ResizeBarPadding)
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						.BorderBackgroundColor( FLinearColor(.50f, .50f, .50f, 1.0f ) )
 						.Padding(0)
 						.Clipping(EWidgetClipping::ClipToBounds)
@@ -1044,7 +1044,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					.Padding(ResizeBarPadding)
 					[
 						SNew( SBorder )
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						.BorderBackgroundColor( FLinearColor(.50f, .50f, .50f, 1.0f ) )
 						.Clipping(EWidgetClipping::ClipToBounds)
 						.Padding(0)
@@ -1068,7 +1068,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 				[
 					// track area virtual splitter overlay
 					SNew(SSequencerSplitterOverlay)
-					.Style(FEditorStyle::Get(), "Sequencer.AnimationOutliner.Splitter")
+					.Style(FAppStyle::Get(), "Sequencer.AnimationOutliner.Splitter")
 					.Visibility(EVisibility::SelfHitTestInvisible)
 
 					+ SSplitter::Slot()
@@ -1444,7 +1444,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsRenderMovie)
 			{
-				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenCinematic"));
+				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.OpenCinematic"));
 				
 				ToolBarBuilder.AddComboButton(
 					FUIAction(),
@@ -1470,7 +1470,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			FOnGetContent::CreateSP(this, &SSequencer::MakeActionsMenu),
 			LOCTEXT("Actions", "Actions"),
 			LOCTEXT("ActionsToolTip", "Actions"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Actions")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Actions")
 		);
 
 		ToolBarBuilder.AddComboButton(
@@ -1486,7 +1486,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			FOnGetContent::CreateSP(this, &SSequencer::MakePlaybackMenu),
 			LOCTEXT("PlaybackOptions", "Playback Options"),
 			LOCTEXT("PlaybackOptionsToolTip", "Playback Options"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.PlaybackOptions")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.PlaybackOptions")
 		);
 
 		ToolBarBuilder.AddSeparator();
@@ -1630,7 +1630,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 		// Only add the button if supported
 		if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsCurveEditor)
 		{
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleShowCurveEditor, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor"));
+			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleShowCurveEditor, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor"));
 		}
 	}
 	ToolBarBuilder.EndSection();
@@ -2055,7 +2055,7 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SaveAs", "Save As..."),
 				LOCTEXT("SaveAsTooltip", "Saves the current sequence under a different name"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAs"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.SaveAs"),
 				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneAsClicked)));
 
 			MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ImportFBX);
@@ -2273,7 +2273,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 			.AutoWidth()
 			[
 				SNew(SSpinBox<uint8>)
-				.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+				.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 			.OnValueCommitted_Lambda([=](uint8 Value, ETextCommit::Type) { OnZeroPadChanged(Value); })
 			.OnValueChanged_Lambda(OnZeroPadChanged)
 			.MinValue(0)
@@ -2521,7 +2521,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 						.IsEnabled_Lambda([=]() {
 							return !SequencerPtr.Pin()->IsPlaybackRangeLocked();
 						})
-						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnStartChanged(Value); })
 						.OnValueChanged_Lambda([=](double Value) { OnStartChanged(Value); })
 						.OnBeginSliderMovement(OnPlaybackRangeBeginDrag)
@@ -2582,7 +2582,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 						.IsEnabled_Lambda([=]() {
 					 		return !SequencerPtr.Pin()->IsPlaybackRangeLocked();
 						})
-						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnEndChanged(Value); })
 						.OnValueChanged_Lambda([=](double Value) { OnEndChanged(Value); })
 						.OnBeginSliderMovement(OnPlaybackRangeBeginDrag)
@@ -2649,7 +2649,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 			[
 				SNew(SSpinBox<double>)
 					.TypeInterface(NumericTypeInterface)
-					.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+					.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 					.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnJumpFrameIncrementChanged(Value); })
 					.OnValueChanged_Lambda([=](double Value) { OnJumpFrameIncrementChanged(Value); })
 					.MinValue(TOptional<double>())
@@ -2818,7 +2818,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
 			LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyAuto"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyAuto"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Auto); }),
 				FCanExecuteAction(),
@@ -2830,7 +2830,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationUser", "Cubic (User)"),
 			LOCTEXT("SetKeyInterpolationUserTooltip", "Set key interpolation to user"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyUser"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::User); }),
 				FCanExecuteAction(),
@@ -2842,7 +2842,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationBreak", "Cubic (Break)"),
 			LOCTEXT("SetKeyInterpolationBreakTooltip", "Set key interpolation to break"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyBreak"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyBreak"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Break); }),
 				FCanExecuteAction(),
@@ -2854,7 +2854,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationLinear", "Linear"),
 			LOCTEXT("SetKeyInterpolationLinearTooltip", "Set key interpolation to linear"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyLinear"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyLinear"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Linear); }),
 				FCanExecuteAction(),
@@ -2866,7 +2866,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationConstant", "Constant"),
 			LOCTEXT("SetKeyInterpolationConstantTooltip", "Set key interpolation to constant"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyConstant"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyConstant"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Constant); }),
 				FCanExecuteAction(),
@@ -3876,7 +3876,7 @@ void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 		{
 			CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
 
-			const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
+			const FSlateIcon SequencerGraphIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon");
 			CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());
 
 			CurveEditorTab->SetLabel(LOCTEXT("SequencerMainGraphEditorTitle", "Sequencer Curves"));
@@ -3922,12 +3922,12 @@ FPaintPlaybackRangeArgs SSequencer::GetSectionPlaybackRangeArgs() const
 {
 	if (GetBottomTimeSliderVisibility() == EVisibility::Visible)
 	{
-		static FPaintPlaybackRangeArgs Args(FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_L"), FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_R"), 6.f);
+		static FPaintPlaybackRangeArgs Args(FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_L"), FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_R"), 6.f);
 		return Args;
 	}
 	else
 	{
-		static FPaintPlaybackRangeArgs Args(FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L"), FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R"), 6.f);
+		static FPaintPlaybackRangeArgs Args(FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L"), FAppStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R"), 6.f);
 		return Args;
 	}
 }

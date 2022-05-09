@@ -416,7 +416,7 @@ TSharedRef<SWidget> FScalableFloatDetails::CreateCurveTableWidget()
 			SNew(STextBlock)
 			.Text(this, &FScalableFloatDetails::GetCurveTableText)
 			.ToolTipText(this, &FScalableFloatDetails::GetCurveTableTooltip)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 
 	// Need to make the buttons go away and show custom prompt

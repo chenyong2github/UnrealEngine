@@ -35,19 +35,19 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 			SNew(SBorder)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			[
 				SNew(SImage)
 				.Image_Lambda([this]()
 					{
 						if (!CellAttributeItem->ErrorStatus.IsEmpty())
 						{
-							return FEditorStyle::GetBrush("Icons.Error");
+							return FAppStyle::GetBrush("Icons.Error");
 						}
 
 						if (!CellAttributeItem->WarningStatus.IsEmpty())
 						{
-							return FEditorStyle::GetBrush("Icons.Warning");
+							return FAppStyle::GetBrush("Icons.Warning");
 						}
 						static const FSlateBrush EmptyBrush = FSlateNoResource();
 						return &EmptyBrush;
@@ -71,7 +71,7 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 		return
 			SNew(SBorder)
 			.Padding(4.f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			[
 				SNew(STextBlock)
 				.Text(CellAttributeItem->ChannelNumberText)
@@ -104,7 +104,7 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				.Image(FAppStyle::GetBrush("Icons.Delete"))
 				.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
 			];
 	}

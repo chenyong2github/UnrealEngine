@@ -18,7 +18,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ScopedTransaction.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "EditorDirectories.h"
 #include "Sections/MovieSceneDoubleSection.h"
@@ -695,7 +695,7 @@ TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum,
 	return SNew(SEnumComboBox, InEnum)
 		.CurrentValue(InCurrentValue)
 		.ContentPadding(FMargin(2, 0))
-		.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+		.Font(FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 		.OnEnumSelectionChanged(InOnSelectionChanged);
 }
 

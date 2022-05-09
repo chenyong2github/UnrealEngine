@@ -4,7 +4,7 @@
 #include "Navigation/SWidgetDesignerNavigation.h"
 
 #if WITH_EDITOR
-	#include "EditorStyleSet.h"
+	#include "Styling/AppStyle.h"
 #endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -16,7 +16,7 @@ FNavigationTabSummoner::FNavigationTabSummoner(TSharedPtr<class FWidgetBlueprint
 		, BlueprintEditor(InBlueprintEditor)
 {
 	TabLabel = LOCTEXT("NavigationSimulationTabLabel", "Navigation Simulation");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "SoftwareCursor_CardinalCross");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "SoftwareCursor_CardinalCross");
 
 	bIsSingleton = true;
 

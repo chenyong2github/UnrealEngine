@@ -24,7 +24,7 @@ class FNiagaraParameterPanelCommands : public TCommands<FNiagaraParameterPanelCo
 public:
 	/** Constructor */
 	FNiagaraParameterPanelCommands()
-		: TCommands<FNiagaraParameterPanelCommands>(TEXT("NiagaraParameterMapViewCommands"), NSLOCTEXT("Contexts", "NiagaraParameterPanel", "NiagaraParameterPanel"), NAME_None, FEditorStyle::GetStyleSetName())
+		: TCommands<FNiagaraParameterPanelCommands>(TEXT("NiagaraParameterMapViewCommands"), NSLOCTEXT("Contexts", "NiagaraParameterPanel", "NiagaraParameterPanel"), NAME_None, FAppStyle::GetAppStyleSetName())
 	{
 	}
 

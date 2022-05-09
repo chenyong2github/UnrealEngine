@@ -140,7 +140,7 @@ void FMediaBundleEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabM
 	InTabManager->RegisterTabSpawner(MediaBundleEditorToolkit::PropertiesTabId, FOnSpawnTab::CreateSP(this, &FMediaBundleEditorToolkit::SpawnPropertiesTab))
 		.SetDisplayName(LOCTEXT("PropertiesTab", "Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 void FMediaBundleEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

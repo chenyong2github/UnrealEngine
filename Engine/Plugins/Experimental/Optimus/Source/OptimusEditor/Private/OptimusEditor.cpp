@@ -672,7 +672,7 @@ void FOptimusEditor::RegisterToolbar()
 			Commands.Compile,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Blueprint.CompileStatus.Background")));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Blueprint.CompileStatus.Background")));
 	}
 
 }

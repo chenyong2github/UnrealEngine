@@ -51,7 +51,7 @@ void STimedDataGenlock::Construct(const FArguments& InArgs, TSharedPtr<STimedDat
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(this, &STimedDataGenlock::GetStateText)
 				.ColorAndOpacity(this, &STimedDataGenlock::GetStateColorAndOpacity)
 			]
@@ -136,13 +136,13 @@ void STimedDataGenlock::Construct(const FArguments& InArgs, TSharedPtr<STimedDat
 					SNew(SCheckBox)
 					.Padding(4.f)
 					.ToolTipText(LOCTEXT("ShowTimecodeProviderSetting_Tip", "Show timecode provider setting"))
-					.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.IsChecked_Lambda([](){return ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &STimedDataGenlock::ShowCustomTimeStepSetting)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 						.Text(FEditorFontGlyphs::Cogs)
 					]
 				]
@@ -153,14 +153,14 @@ void STimedDataGenlock::Construct(const FArguments& InArgs, TSharedPtr<STimedDat
 					SNew(SCheckBox)
 					.Padding(4.f)
 					.ToolTipText(LOCTEXT("ReapplyMenuToolTip", "Reinitialize the current Custom Time Step."))
-					.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.IsEnabled(this, &STimedDataGenlock::IsCustomTimeStepEnabled)
 					.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &STimedDataGenlock::ReinitializeCustomTimeStep)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 						.Text(FEditorFontGlyphs::Undo)
 					]
 				]

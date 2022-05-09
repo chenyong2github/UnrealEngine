@@ -16,8 +16,10 @@ public class UnrealInsightsTarget : TargetRules
 		LinkType = bMonolithic ? TargetLinkType.Monolithic : TargetLinkType.Modular;
 
 		LaunchModuleName = "UnrealInsights";
-		ExtraModuleNames.Add("EditorStyle");
-
+		if (bBuildEditor)
+		{
+			ExtraModuleNames.Add("EditorStyle");
+		}
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;
 		bForceBuildTargetPlatforms = true;

@@ -162,15 +162,15 @@ void SSizeMap::Construct(const FArguments& InArgs)
 			[
 				SNew(SButton)
 				.OnClicked(this, &SSizeMap::OnZoomOut)
-				.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+				.ButtonStyle(FAppStyle::Get(), "FlatButton")
 				.ContentPadding(FMargin(1, 0))
 				.IsEnabled(this, &SSizeMap::CanZoomOut)
 				.ToolTipText(LOCTEXT("Backward_Tooltip", "Zoom Out, Mouse Wheel also works"))
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(FText::FromString(FString(TEXT("\xf060"))) /*fa-arrow-left*/)
 				]
 			]
@@ -181,7 +181,7 @@ void SSizeMap::Construct(const FArguments& InArgs)
 			.Padding(4.f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+				.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 				.Text(this, &SSizeMap::GetOverviewText)
 			]
 			+SHorizontalBox::Slot()
@@ -1106,17 +1106,17 @@ void SSizeMap::GetMakeCollectionWithDependenciesSubMenu(FMenuBuilder& MenuBuilde
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().MakeLocalCollectionWithDependencies,
 		NAME_None, TAttribute<FText>(),
 		ECollectionShareType::GetDescription(ECollectionShareType::CST_Local),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Local))
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Local))
 	);
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().MakePrivateCollectionWithDependencies,
 		NAME_None, TAttribute<FText>(),
 		ECollectionShareType::GetDescription(ECollectionShareType::CST_Private),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Private))
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Private))
 	);
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().MakeSharedCollectionWithDependencies,
 		NAME_None, TAttribute<FText>(),
 		ECollectionShareType::GetDescription(ECollectionShareType::CST_Shared),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Shared))
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ECollectionShareType::CST_Shared))
 	);
 }
 

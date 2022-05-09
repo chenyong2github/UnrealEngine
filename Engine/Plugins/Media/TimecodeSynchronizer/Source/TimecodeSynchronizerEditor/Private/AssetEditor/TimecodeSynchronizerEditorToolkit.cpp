@@ -170,12 +170,12 @@ void FTimecodeSynchronizerEditorToolkit::RegisterTabSpawners(const TSharedRef<cl
 	InTabManager->RegisterTabSpawner(TimecodeSynchronizerEditorToolkit::PropertiesTabId, FOnSpawnTab::CreateSP(this, &FTimecodeSynchronizerEditorToolkit::SpawnPropertiesTab))
 		.SetDisplayName(LOCTEXT("PropertiesTab", "Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 	
 	InTabManager->RegisterTabSpawner(TimecodeSynchronizerEditorToolkit::SourceViewerTabId, FOnSpawnTab::CreateSP(this, &FTimecodeSynchronizerEditorToolkit::SpawnSourceViewerTab))
 		.SetDisplayName(LOCTEXT("SourceViewerTab", "Sources"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner(TimecodeSynchronizerEditorToolkit::SynchronizerWidgetTabId, FOnSpawnTab::CreateSP(this, &FTimecodeSynchronizerEditorToolkit::SpawnSynchronizerWidgetTab))
 		.SetDisplayName(LOCTEXT("SynchronizationTab", "Synchronization"))

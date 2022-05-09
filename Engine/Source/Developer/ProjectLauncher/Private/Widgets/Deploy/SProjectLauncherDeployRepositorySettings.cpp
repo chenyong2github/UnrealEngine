@@ -2,7 +2,7 @@
 
 #include "SProjectLauncherDeployRepositorySettings.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SBoxPanel.h"
@@ -33,7 +33,7 @@ void SProjectLauncherDeployRepositorySettings::Construct(const FArguments& InArg
 		[
 			SNew(SBorder)
 				.Padding(8.0)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 
@@ -82,7 +82,7 @@ void SProjectLauncherDeployRepositorySettings::Construct(const FArguments& InArg
 			[
 				SNew(SBorder)
 					.Padding(8.0f)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						// deploy targets area
 						SNew(SProjectLauncherDeployTargets, InModel)

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FLevelInstanceEditorModeCommands : public TCommands<FLevelInstanceEditorModeCommands>
 {
@@ -15,7 +15,7 @@ public:
 			"LevelInstanceEditorMode",
 			NSLOCTEXT("Contexts", "LevelInstanceEditor", "Level Instance Editor"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName() // Icon Style Set
+			FAppStyle::GetAppStyleSetName() // Icon Style Set
 		)
 	{}
 

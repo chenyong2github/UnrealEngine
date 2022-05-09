@@ -32,7 +32,7 @@ void FDMXFixtureSignalFormatCustomization::CustomizeHeader(TSharedRef<IPropertyH
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.Text(LOCTEXT("SignalFormatLabel", "Data Type"))
 		]
 		.ValueContent()

@@ -290,7 +290,7 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 					+ SHorizontalBox::Slot().AutoWidth().HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(4)
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
+							.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
 							.Visibility(this, &FOculusHMDSettingsDetailsCustomization::GetOculusHMDAvailableWarningVisibility)
 						]
 					+ SHorizontalBox::Slot().FillWidth(8).VAlign(VAlign_Center)
@@ -299,7 +299,7 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 							.AutoWrapText(true)
 							.Text(LOCTEXT("OculusHMDNotConnected", "WARNING: Build telemetry functionality may be limited, because the Oculus HMD was not found to be connected, available, or configured correctly. Check the Devices tab of the Oculus PC app."))
 							.ColorAndOpacity(FLinearColor(0.7f, 0.23f, 0.23f, 1.f))
-							.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+							.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
 							.Visibility(this, &FOculusHMDSettingsDetailsCustomization::GetOculusHMDAvailableWarningVisibility)
 						]
 				]

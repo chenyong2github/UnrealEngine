@@ -89,13 +89,13 @@ FConnectionDrawingPolicy::FConnectionDrawingPolicy(int32 InBackLayerID, int32 In
 	, DrawElementsList(InDrawElements)
 	, LocalMousePosition(0.0f, 0.0f)
 {
-	ArrowImage = FEditorStyle::GetBrush( TEXT("Graph.Arrow") );
+	ArrowImage = FAppStyle::GetBrush( TEXT("Graph.Arrow") );
 	ArrowRadius = ArrowImage->ImageSize * ZoomFactor * 0.5f;
 	MidpointImage = nullptr;
 	MidpointRadius = FVector2D::ZeroVector;
 	HoverDeemphasisDarkFraction = 0.8f;
 
-	BubbleImage = FEditorStyle::GetBrush( TEXT("Graph.ExecutionBubble") );
+	BubbleImage = FAppStyle::GetBrush( TEXT("Graph.ExecutionBubble") );
 }
 
 void FConnectionDrawingPolicy::DrawSplineWithArrow(const FVector2D& StartPoint, const FVector2D& EndPoint, const FConnectionParams& Params)

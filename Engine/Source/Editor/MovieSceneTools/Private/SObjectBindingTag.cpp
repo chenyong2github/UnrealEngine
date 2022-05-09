@@ -15,7 +15,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBindingTag"
@@ -91,7 +91,7 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SAssignNew(EditableText, SEditableTextBox)
-			.Font(FEditorStyle::GetFontStyle("TinyText"))
+			.Font(FAppStyle::GetFontStyle("TinyText"))
 			.OnTextCommitted(this, &SObjectBindingTag::OnNewTextCommitted)
 			.HintText(LOCTEXT("AddNew_Hint", "Enter New Name"))
 		];
@@ -102,7 +102,7 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("TinyText"))
+			.Font(FAppStyle::GetFontStyle("TinyText"))
 			.Text(InArgs._Text)
 		];
 	}
@@ -117,13 +117,13 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.ContentPadding(FMargin(0.f))
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &SObjectBindingTag::HandleCreateButtonClicked)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Plus)
 			]
 		];
@@ -138,13 +138,13 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.ContentPadding(FMargin(0.f))
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &SObjectBindingTag::HandleDeleteButtonClicked)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Times)
 			]
 		];
@@ -157,7 +157,7 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.ToolTipText(InArgs._ToolTipText)
-			.ButtonStyle(FEditorStyle::Get(), "Sequencer.ExposedNamePill")
+			.ButtonStyle(FAppStyle::Get(), "Sequencer.ExposedNamePill")
 			.ButtonColorAndOpacity(InArgs._ColorTint)
 			.ContentPadding(FMargin(8.f, 2.f))
 			.OnClicked(this, &SObjectBindingTag::HandlePillClicked)
@@ -180,7 +180,7 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.ToolTipText(InArgs._ToolTipText)
-			.BorderImage(FEditorStyle::GetBrush("Sequencer.ExposedNamePill_BG"))
+			.BorderImage(FAppStyle::GetBrush("Sequencer.ExposedNamePill_BG"))
 			.BorderBackgroundColor(InArgs._ColorTint)
 			.Padding(FMargin(8.f, 2.f))
 			[

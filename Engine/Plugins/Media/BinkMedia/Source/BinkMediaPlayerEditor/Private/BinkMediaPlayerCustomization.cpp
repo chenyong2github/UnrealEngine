@@ -32,7 +32,7 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+				.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 				.ToolTipText( LOCTEXT( "FileButtonToolTipText", "Choose a file from this computer") )
 				.OnClicked( FOnClicked::CreateSP(this, &SBinkFilePathPicker::OnPickFile) )
 				.ContentPadding( 2.0f )
@@ -40,7 +40,7 @@ public:
 				.IsFocusable( false )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis") )
+					.Image( FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis") )
 					.ColorAndOpacity( FSlateColor::UseForeground() )
 				]
 			]
@@ -141,14 +141,14 @@ void FBinkMediaPlayerCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 			[
 				SNew(STextBlock)
 					.Text(LOCTEXT("Duration", "Duration"))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			]
 			.ValueContent()
 			.MaxDesiredWidth(0.0f)
 			[
 				SNew(STextBlock)
 					.Text(this, &FBinkMediaPlayerCustomization::HandleDurationTextBlockText)
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 					.ToolTipText(LOCTEXT("DurationToolTip", "The total duration of this media, i.e. how long it plays"))
 			];
 	}

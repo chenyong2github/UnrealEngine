@@ -41,7 +41,7 @@ void FDMXPixelMappingToolbar::AddHelpersSection(FToolBarBuilder& ToolbarBuilder)
 		ToolbarBuilder.AddToolBarButton(FDMXPixelMappingEditorCommands::Get().SaveThumbnailImage, NAME_None,
 			LOCTEXT("GenerateThumbnail", "Thumbnail"),
 			LOCTEXT("GenerateThumbnailTooltip", "Generate a thumbnail image."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Cascade.SaveThumbnailImage"));
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cascade.SaveThumbnailImage"));
 	}
 	ToolbarBuilder.EndSection();
 }

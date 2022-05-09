@@ -2,7 +2,7 @@
 
 #include "SSequencerShotFilterOverlay.h"
 #include "Rendering/DrawElements.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CommonMovieSceneTools.h"
 
 /* SSequencerShotFilterOverlay interface
@@ -42,7 +42,7 @@ int32 SSequencerShotFilterOverlay::OnPaint( const FPaintArgs& Args, const FGeome
 				OutDrawElements,
 				LayerId,
 				AllottedGeometry.ToPaintGeometry(FVector2D(LowerBound, 0), FVector2D(UpperBound - LowerBound, AllottedGeometry.GetLocalSize().Y)),
-				FEditorStyle::GetBrush("Sequencer.ShotFilter"),
+				FAppStyle::GetBrush("Sequencer.ShotFilter"),
 				ESlateDrawEffect::None,
 				FLinearColor(1.f, 1.f, 1.f, Alpha)
 			);

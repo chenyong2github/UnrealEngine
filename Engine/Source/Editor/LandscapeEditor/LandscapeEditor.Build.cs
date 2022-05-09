@@ -13,7 +13,6 @@ public class LandscapeEditor : ModuleRules
 				"ApplicationCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
 				"Engine",
 				"Landscape",
                 "LandscapeEditorUtilities",

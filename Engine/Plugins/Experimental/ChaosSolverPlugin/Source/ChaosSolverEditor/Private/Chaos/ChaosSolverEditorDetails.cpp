@@ -63,7 +63,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 			.FillWidth(28.0f)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(4.0f)
 				.ToolTipText(NSLOCTEXT("ChaosSolverActor", "Pause_ToolTip", "Pause/Resume"))
@@ -72,7 +72,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 				.OnClicked(this, &FChaosDebugSubstepControlCustomization::OnPause, PropertyHandlePause)
 				[
 					SAssignNew(TextBlockPause, STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(bPaused ? FEditorFontGlyphs::Play: FEditorFontGlyphs::Pause)
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
@@ -83,7 +83,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 			[
 				SAssignNew(ButtonSubstep, SButton)
 				.IsEnabled_Lambda([bPaused, bHasBegunPlay]() { return bPaused && bHasBegunPlay; })
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(4.0f)
 				.ToolTipText(NSLOCTEXT("ChaosSolverActor", "Substep_ToolTip", "Substep"))
@@ -92,7 +92,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 				.OnClicked(this, &FChaosDebugSubstepControlCustomization::OnSubstep, PropertyHandleSubstep)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(FEditorFontGlyphs::Step_Forward)
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
@@ -103,7 +103,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 			[
 				SAssignNew(ButtonStep, SButton)
 				.IsEnabled_Lambda([bPaused, bHasBegunPlay]() { return bPaused && bHasBegunPlay; })
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(4.0f)
 				.ToolTipText(NSLOCTEXT("ChaosSolverActor", "Step_ToolTip", "Step"))
@@ -112,7 +112,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 				.OnClicked(this, &FChaosDebugSubstepControlCustomization::OnStep, PropertyHandleStep)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 					.Text(FEditorFontGlyphs::Fast_Forward)
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]

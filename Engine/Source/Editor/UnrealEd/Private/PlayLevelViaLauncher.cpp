@@ -395,7 +395,7 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	FText LaunchingText = LOCTEXT("LauncherTaskInProgressNotificationNoDevice", "Launching...");
 	FNotificationInfo Info(LaunchingText);
 
-	Info.Image = FEditorStyle::GetBrush(TEXT("MainFrame.CookContent"));
+	Info.Image = FAppStyle::GetBrush(TEXT("MainFrame.CookContent"));
 	Info.bFireAndForget = false;
 	Info.ExpireDuration = 10.0f;
 	Info.Hyperlink = FSimpleDelegate::CreateStatic(HandleHyperlinkNavigate);

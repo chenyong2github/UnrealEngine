@@ -2,7 +2,7 @@
 
 #include "GraphEditorSettings.h"
 #include "UObject/UnrealType.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 /* UGraphEditorSettings structors
@@ -131,7 +131,7 @@ FMargin UGraphEditorSettings::GetNonPinNodeBodyPadding() const
 
 FVector2D UGraphEditorSettings::GetShadowDeltaSize() const
 {
-	FVector2D ShadowSize = FEditorStyle::GetVector(TEXT("Graph.Node.ShadowSize"));
+	FVector2D ShadowSize = FAppStyle::GetVector(TEXT("Graph.Node.ShadowSize"));
 	ShadowSize.X += FMath::Min<float>(PaddingTowardsNodeEdge, 0.0f);
 	return ShadowSize;
 }

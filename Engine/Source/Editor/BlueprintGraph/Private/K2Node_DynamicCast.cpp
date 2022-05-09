@@ -85,7 +85,7 @@ FLinearColor UK2Node_DynamicCast::GetNodeTitleColor() const
 
 FSlateIcon UK2Node_DynamicCast::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Cast_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Cast_16x");
 	return Icon;
 }
 

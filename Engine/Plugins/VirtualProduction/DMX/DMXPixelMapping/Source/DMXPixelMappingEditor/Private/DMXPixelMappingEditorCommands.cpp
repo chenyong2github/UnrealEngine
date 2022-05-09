@@ -2,7 +2,7 @@
 
 #include "DMXPixelMappingEditorCommands.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingEditorCommands"
@@ -13,7 +13,7 @@ FDMXPixelMappingEditorCommands::FDMXPixelMappingEditorCommands()
 		TEXT("DMXPixelMappingEditor"),
 		NSLOCTEXT("Contexts", "DMXPixelMappingEditor", "DMX Pixel Mapping"),
 		NAME_None,
-		FEditorStyle::GetStyleSetName()
+		FAppStyle::GetAppStyleSetName()
 	)
 {
 }

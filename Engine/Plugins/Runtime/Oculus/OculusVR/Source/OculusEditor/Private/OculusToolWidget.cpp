@@ -11,7 +11,7 @@
 #include "AndroidRuntimeSettings.h"
 #include "EngineUtils.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "UObject/EnumProperty.h"
 #include "EdGraph/EdGraph.h"
@@ -32,7 +32,7 @@ TSharedRef<SHorizontalBox> SOculusToolWidget::CreateSimpleSetting(SimpleSetting*
 		[
 			SNew(SRichTextBlock)
 			.Visibility(this, &SOculusToolWidget::IsVisible, setting->tag)
-		.DecoratorStyleSet(&FEditorStyle::Get())
+		.DecoratorStyleSet(&FAppStyle::Get())
 		.Text(setting->description).AutoWrapText(true)
 		+ SRichTextBlock::HyperlinkDecorator(TEXT("HyperlinkDecorator"), this, &SOculusToolWidget::OnBrowserLinkClicked)
 		];
@@ -100,14 +100,14 @@ TSharedRef<SVerticalBox> SOculusToolWidget::NewCategory(TSharedRef<SScrollBox> s
 	.Padding(0, 0)
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder") )
+		.BorderImage( FAppStyle::GetBrush("ToolPanel.DarkGroupBorder") )
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot().Padding(5,5).FillWidth(1)
 			[
 				SNew(SRichTextBlock)
-				.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
-				.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+				.TextStyle(FAppStyle::Get(), "ToolBar.Heading")
+				.DecoratorStyleSet(&FAppStyle::Get()).AutoWrapText(true)
 				.Text(heading)
 				+ SRichTextBlock::HyperlinkDecorator(TEXT("HyperlinkDecorator"), this, &SOculusToolWidget::OnBrowserLinkClicked)
 			]
@@ -119,7 +119,7 @@ TSharedRef<SVerticalBox> SOculusToolWidget::NewCategory(TSharedRef<SScrollBox> s
 	.Padding(0, 0, 0, 2)
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SAssignNew(box, SVerticalBox)
 		]
@@ -151,19 +151,19 @@ void SOculusToolWidget::RebuildLayout()
 		+SVerticalBox::Slot().AutoHeight()
 		[
 			SNew(SBorder)
-			//.BorderImage( FEditorStyle::GetBrush("ToolPanel.LightGroupBorder") ).Visibility(this, &SOculusToolWidget::RestartVisible)
-			.BorderImage( FEditorStyle::GetBrush("SceneOutliner.ChangedItemHighlight") ).Visibility(this, &SOculusToolWidget::RestartVisible)
+			//.BorderImage( FAppStyle::GetBrush("ToolPanel.LightGroupBorder") ).Visibility(this, &SOculusToolWidget::RestartVisible)
+			.BorderImage( FAppStyle::GetBrush("SceneOutliner.ChangedItemHighlight") ).Visibility(this, &SOculusToolWidget::RestartVisible)
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder") )
+				.BorderImage( FAppStyle::GetBrush("ToolPanel.DarkGroupBorder") )
 				.Padding(2)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().FillWidth(10).VAlign(VAlign_Center)
 					[
 						SNew(SRichTextBlock)
-						.Text(LOCTEXT("RestartRequired", "<RichTextBlock.TextHighlight>Restart required:You have made changes that require an editor restart to take effect.</>")).DecoratorStyleSet(&FEditorStyle::Get())
+						.Text(LOCTEXT("RestartRequired", "<RichTextBlock.TextHighlight>Restart required:You have made changes that require an editor restart to take effect.</>")).DecoratorStyleSet(&FAppStyle::Get())
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top)
 					[
@@ -552,7 +552,7 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.LightGroupBorder") )
+			.BorderImage( FAppStyle::GetBrush("ToolPanel.LightGroupBorder") )
 			.Padding(2)
 			[
 				scroller

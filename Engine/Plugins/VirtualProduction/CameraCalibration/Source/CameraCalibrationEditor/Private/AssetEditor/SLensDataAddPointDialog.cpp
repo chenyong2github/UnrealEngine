@@ -4,7 +4,7 @@
 
 #include "CameraCalibrationToolkit.h"
 #include "Curves/RichCurve.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -402,7 +402,7 @@ TSharedRef<SWidget> SLensDataAddPointDialog::MakeButtonsWidget()
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SButton)
-			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			.OnClicked(this, &SLensDataAddPointDialog::OnAddDataPointClicked)
 			.HAlign(HAlign_Center)
 			.Text(LOCTEXT("AddDataPoint", "Add"))
@@ -410,7 +410,7 @@ TSharedRef<SWidget> SLensDataAddPointDialog::MakeButtonsWidget()
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SButton)
-			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			.OnClicked(this, &SLensDataAddPointDialog::OnCancelDataPointClicked)
 			.HAlign(HAlign_Center)
 			.Text(LOCTEXT("CancelAddingDataPoint", "Cancel"))
@@ -464,7 +464,7 @@ TSharedRef<SWidget> SLensDataAddPointDialog::MakeEncoderMappingWidget()
 		.AutoHeight()
 		[
 			SNew(SSplitter)
-			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+			.Style(FAppStyle::Get(), "DetailsView.Splitter")
 			.PhysicalSplitterHandleSize(1.0f)
 			.HitDetectionSplitterHandleSize(5.0f)
 			+ SSplitter::Slot()

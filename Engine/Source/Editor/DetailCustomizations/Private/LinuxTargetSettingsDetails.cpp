@@ -17,7 +17,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorDirectories.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -305,7 +305,7 @@ FSlateColor FLinuxTargetSettingsDetails::HandleAudioDeviceBoxForegroundColor(TSh
 			static const FName InvertedForegroundName("InvertedForeground");
 
 			// Return a valid slate color for a valid audio device
-			return FEditorStyle::GetSlateColor(InvertedForegroundName);
+			return FAppStyle::GetSlateColor(InvertedForegroundName);
 		}
 	}
 

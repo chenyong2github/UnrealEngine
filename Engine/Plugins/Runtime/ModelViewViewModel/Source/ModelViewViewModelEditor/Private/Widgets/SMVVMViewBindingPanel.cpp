@@ -13,7 +13,7 @@
 #include "Customizations/MVVMConversionPathCustomization.h"
 #include "Customizations/MVVMPropertyPathCustomization.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "ToolMenuContext.h"
@@ -389,7 +389,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateEditViewWidget()
 			FOnGetContent::CreateSP(this, &SMVVMViewBindingPanel::GenerateSettingsMenu),
 			LOCTEXT("Settings", "Settings"),
 			LOCTEXT("SettingsTooltip", "ModelView Settings"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.GameSettings"),
 			false
 		);
 		ToolbarBuilderGlobal.EndSection();
@@ -408,7 +408,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateEditViewWidget()
 		.FillHeight(1.0f)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(4.0f, 4.0f))
 			[
 				SNew(SSplitter)

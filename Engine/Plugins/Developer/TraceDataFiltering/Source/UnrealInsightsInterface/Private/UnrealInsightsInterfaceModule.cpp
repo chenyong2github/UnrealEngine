@@ -2,7 +2,7 @@
 
 #include "UnrealInsightsInterfaceModule.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Logging/MessageLog.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"

@@ -344,7 +344,7 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 	Args.CurrentBindingImage = MakeAttributeLambda([]() -> const FSlateBrush*
 		{
 			static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
-			return FEditorStyle::GetBrush(PropertyIcon);
+			return FAppStyle::GetBrush(PropertyIcon);
 		});
 
 	Args.CurrentBindingColor = MakeAttributeLambda([InPropertyHandle]() -> FLinearColor

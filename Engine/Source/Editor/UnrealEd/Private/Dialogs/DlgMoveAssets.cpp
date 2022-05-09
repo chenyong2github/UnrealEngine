@@ -18,7 +18,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,7 +78,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+			.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				SNew(SVerticalBox)
 			
@@ -158,14 +158,14 @@ public:
 				.HAlign(HAlign_Right)
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 					+SUniformGridPanel::Slot(0,0)
 					[
 						SNew(SButton) 
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.Text( NSLOCTEXT("ModalDialogs", "SDlgMoveAsset_OK", "OK") )
 						.OnClicked( this, &SDlgMoveAsset::OnButtonClick, FDlgMoveAsset::OK )
 					]
@@ -173,7 +173,7 @@ public:
 					[
 						SNew(SButton) 
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.Text( NSLOCTEXT("ModalDialogs", "SDlgMoveAsset_OKToAll", "OK to All") )
 						.OnClicked( this, &SDlgMoveAsset::OnButtonClick, FDlgMoveAsset::OKToAll )
 					]
@@ -181,7 +181,7 @@ public:
 					[
 						SNew(SButton) 
 						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 						.Text( NSLOCTEXT("ModalDialogs", "SDlgMoveAsset_Cancel", "Cancel") )
 						.OnClicked( this, &SDlgMoveAsset::OnButtonClick, FDlgMoveAsset::Cancel )
 					]

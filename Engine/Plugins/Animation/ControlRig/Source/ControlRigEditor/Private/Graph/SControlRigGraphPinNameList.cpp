@@ -65,7 +65,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 						SNew(STextBlock)
 						.Text(this, &SControlRigGraphPinNameList::GetNameListText)
 						.ColorAndOpacity(this, &SControlRigGraphPinNameList::GetNameColor)
-						.Font( FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
+						.Font( FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
 					]
 			]
 		
@@ -76,7 +76,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ButtonColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetBackground )
 				.OnClicked(this, &SControlRigGraphPinNameList::OnGetSelectedClicked)
 				.ContentPadding(1.f)
@@ -84,7 +84,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetForeground )
-					.Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
+					.Image(FAppStyle::GetBrush("Icons.CircleArrowLeft"))
 				]
 			]
 
@@ -95,7 +95,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 				.ButtonColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetBackground )
 				.OnClicked(this, &SControlRigGraphPinNameList::OnBrowseClicked)
 				.ContentPadding(0)
@@ -103,7 +103,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetForeground )
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 				]
 			]
 				
@@ -167,7 +167,7 @@ FSlateColor SControlRigGraphPinNameList::GetNameColor() const
 
 TSharedRef<SWidget> SControlRigGraphPinNameList::MakeNameListItemWidget(TSharedPtr<FString> InItem)
 {
-	return 	SNew(STextBlock).Text(FText::FromString(*InItem)).Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+	return 	SNew(STextBlock).Text(FText::FromString(*InItem)).Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 void SControlRigGraphPinNameList::OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)

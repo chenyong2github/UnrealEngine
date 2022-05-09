@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
                     "AssetTools",
                     "Core",
                     "CoreUObject",
-                    "EditorStyle",
                     "Engine",
 					"LevelSequence",
                     "MovieScene",

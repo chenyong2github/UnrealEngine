@@ -2,7 +2,7 @@
 
 #include "SRCProtocolShared.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 
 namespace RemoteControlProtocolWidgetUtils
@@ -45,7 +45,7 @@ namespace RemoteControlProtocolWidgetUtils
 	{
 		SSplitter::FArguments Args;
 		SSplitter::Construct(Args
-			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+			.Style(FAppStyle::Get(), "DetailsView.Splitter")
 			.PhysicalSplitterHandleSize(1.0f)
 			.HitDetectionSplitterHandleSize(5.0f)
 			.ResizeMode(ESplitterResizeMode::Fill));

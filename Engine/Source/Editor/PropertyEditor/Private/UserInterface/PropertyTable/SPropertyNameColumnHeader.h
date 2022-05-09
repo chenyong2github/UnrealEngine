@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UserInterface/PropertyTable/SColumnHeader.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "IPropertyTableRow.h"
@@ -62,7 +62,7 @@ class SPropertyNameColumnHeader : public SColumnHeader
 			+SHorizontalBox::Slot()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "PropertyTable.HeaderRow.Background" ) )
+				.BorderImage( FAppStyle::GetBrush( "PropertyTable.HeaderRow.Background" ) )
 				.VAlign( VAlign_Center)
 				.Padding( FMargin( 2, 0, 2, 0 ) )
 				[

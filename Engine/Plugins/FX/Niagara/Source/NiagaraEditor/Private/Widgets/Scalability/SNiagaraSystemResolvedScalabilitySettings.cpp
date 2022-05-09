@@ -108,7 +108,7 @@ void SScalabilityResolvedRow::Construct(const FArguments& InArgs, TSharedRef<FSc
 	ParentWidget = InParentWidget;
 
 	auto Args = FSuperRowType::FArguments()
-		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
+		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 	SMultiColumnTableRow<TSharedPtr<FScalabilityRowData>>::Construct(Args, OwnerTableView);
 }
 
@@ -420,7 +420,7 @@ TSharedRef<SWidget> SNiagaraSystemResolvedScalabilitySettings::GenerateResolvedS
 	.BodyContent()
 	[	
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+		.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
 		[
 			SNew(SListView<TSharedRef<FScalabilityRowData>>)
 			.ListItemsSource(&InstanceInformation[Object].ScalabilityValues)

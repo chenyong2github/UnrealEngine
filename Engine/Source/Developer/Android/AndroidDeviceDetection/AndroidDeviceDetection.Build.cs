@@ -46,7 +46,6 @@ public class AndroidDeviceDetection : ModuleRules
 					"DesktopPlatform",
 					"SlateCore",
 					"Slate",
-					"EditorStyle"
 				}
 			);
 		}

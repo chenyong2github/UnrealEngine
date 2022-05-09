@@ -21,7 +21,6 @@ public class SceneDepthPickerMode : ModuleRules
                 "InputCore",
                 "Slate",
                 "SlateCore",
-                "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
 			}

@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SOverlay.h"
 #include "Preferences/PersonaOptions.h"
 #include "Animation/AnimSequenceBase.h"
@@ -115,7 +115,7 @@ TSharedRef<SWidget> FAnimTimelineTrack::GenerateContainerWidgetForOutliner(const
 
 	if(bIsHeaderTrack)
 	{
-		OuterBorder->SetBorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
+		OuterBorder->SetBorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
 	}
 
 	return Widget;
@@ -126,8 +126,8 @@ TSharedRef<SWidget> FAnimTimelineTrack::GenerateStandardOutlinerWidget(const TSh
 	TSharedRef<SWidget> Widget =
 		SAssignNew(OutOuterBorder, SBorder)
 		.ToolTipText(this, &FAnimTimelineTrack::GetToolTipText)
-		.BorderImage(FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint"))
-		.BorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.ItemColor"))
+		.BorderImage(FAppStyle::GetBrush("Sequencer.Section.BackgroundTint"))
+		.BorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.ItemColor"))
 		[
 			SAssignNew(OutInnerHorizontalBox, SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -148,7 +148,7 @@ TSharedRef<SWidget> FAnimTimelineTrack::GenerateStandardOutlinerWidget(const TSh
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
+				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimTimeline.Outliner.Label"))
 				.Text(this, &FAnimTimelineTrack::GetLabel)
 				.HighlightText(InRow->GetHighlightText())
 			];

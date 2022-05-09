@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TabFactory/BindWidgetTabSummoner.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBindWidgetView.h"
 
 #define LOCTEXT_NAMESPACE "UMG.BindWidget"
@@ -13,7 +13,7 @@ FBindWidgetTabSummoner::FBindWidgetTabSummoner(TSharedPtr<class FWidgetBlueprint
 		, BlueprintEditor(InBlueprintEditor)
 {
 	TabLabel = LOCTEXT("SlateBindWidgetTabLabel", "Bind Widgets");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Palette");
 
 	bIsSingleton = true;
 

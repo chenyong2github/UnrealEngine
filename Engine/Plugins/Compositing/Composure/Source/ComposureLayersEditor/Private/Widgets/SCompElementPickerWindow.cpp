@@ -7,7 +7,7 @@
 #include "EditorSupport/CompFreezeFrameController.h"
 #include "CompositingElement.h" // for ETargetUsageFlags
 #include "Widgets/SCompElementPreviewDialog.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ComposureEditorStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
@@ -310,27 +310,27 @@ TSharedRef<SWidget> SCompElementColorPickerDialog::GeneratePreviewContent()
 			.AutoWidth()
 		[
 			SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
 			+SUniformGridPanel::Slot(0, 0)
 			[
 				SNew(SButton)
 					.Text(LOCTEXT("AcceptColorSample", "Accept"))
 					.HAlign(HAlign_Center)
 					.Visibility(this, &SCompElementColorPickerDialog::GetAcceptButtonVisibility)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SCompElementColorPickerDialog::OnAcceptClicked)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-					.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")			
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
+					.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")			
 			]
 			+SUniformGridPanel::Slot(1, 0)
 			[
 				SNew(SButton)
 					.Text(LOCTEXT("CancelColorSample", "Cancel"))
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SCompElementColorPickerDialog::OnCancelClicked)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-					.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
+					.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 			]
 		]
 	];
@@ -349,7 +349,7 @@ void SCompElementColorPickerDialog::ExtendMenuOverlay(TSharedRef<SHorizontalBox>
 		[
 			SNew(SButton)
 				.ContentPadding(0)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 				.ToolTipText(LOCTEXT("FreezeToggleTooltip", "Toggle Input Freeze"))
 				.OnClicked(this, &SCompElementColorPickerDialog::OnToggleInputFreeze)
 				.Cursor(EMouseCursor::Default)

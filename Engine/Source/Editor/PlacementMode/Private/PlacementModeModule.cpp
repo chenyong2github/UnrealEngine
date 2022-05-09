@@ -10,7 +10,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"
@@ -51,7 +51,6 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ActorFactories/ActorFactoryPlanarReflection.h"
 #include "SPlacementModeTools.h"
-#include "Classes/EditorStyleSettings.h"
 #include "AssetSelection.h"
 
 

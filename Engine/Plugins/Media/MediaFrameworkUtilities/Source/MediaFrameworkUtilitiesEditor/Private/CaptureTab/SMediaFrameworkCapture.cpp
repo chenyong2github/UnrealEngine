@@ -2,7 +2,7 @@
 
 #include "CaptureTab/SMediaFrameworkCapture.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -238,7 +238,7 @@ void SMediaFrameworkCapture::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				.IsEnabled_Lambda([this]() { return !IsCapturing(); })
 				[
 					DetailView.ToSharedRef()
@@ -248,7 +248,7 @@ void SMediaFrameworkCapture::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SScrollBox)
 					+ SScrollBox::Slot()

@@ -14,7 +14,7 @@
 #include "OptimusResourceDescription.h"
 #include "OptimusVariableDescription.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SGraphActionMenu.h"
@@ -35,7 +35,7 @@
 FOptimusEditorGraphExplorerCommands::FOptimusEditorGraphExplorerCommands()
 	: TCommands<FOptimusEditorGraphExplorerCommands>(
           TEXT("OptimusEditorGraphExplorer"), NSLOCTEXT("Contexts", "Explorer", "Explorer"),
-          NAME_None, FEditorStyle::GetStyleSetName())
+          NAME_None, FAppStyle::GetAppStyleSetName())
 {
 }
 
@@ -146,8 +146,8 @@ void SOptimusEditorGraphExplorer::RegisterCommands()
 void SOptimusEditorGraphExplorer::CreateWidgets()
 {
 	TSharedPtr<SWidget> AddNewMenu = SNew(SComboButton)
-		.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+		.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 		.ForegroundColor(FLinearColor::White)
 		.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new item."))
 		.OnGetMenuContent(this, &SOptimusEditorGraphExplorer::CreateAddNewMenuWidget)
@@ -162,7 +162,7 @@ void SOptimusEditorGraphExplorer::CreateWidgets()
 			.Padding(FMargin(0, 1))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Plus"))
+				.Image(FAppStyle::GetBrush("Plus"))
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -218,7 +218,7 @@ void SOptimusEditorGraphExplorer::CreateWidgets()
 	    [
 			SNew(SBorder)
 	        .Padding(4.0f)
-	        .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+	        .BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 	        [
 				SNew(SVerticalBox)
 	            + SVerticalBox::Slot()
@@ -242,7 +242,7 @@ void SOptimusEditorGraphExplorer::CreateWidgets()
 	                .Padding(2, 0, 0, 0)
 	                [
 						SNew(SComboButton)
-	                    .ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+	                    .ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
 	                    .ForegroundColor(FSlateColor::UseForeground())
 	                    .HasDownArrow(true)
 	                    .ContentPadding(FMargin(1, 0))
@@ -254,7 +254,7 @@ void SOptimusEditorGraphExplorer::CreateWidgets()
 	                    .ButtonContent()
 	                    [
 							SNew(SImage)
-	                        .Image(FEditorStyle::GetBrush("GenericViewButton"))
+	                        .Image(FAppStyle::GetBrush("GenericViewButton"))
 						]
 					]
 				]
@@ -685,8 +685,8 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 	else
 	{
 		return SNew(SButton)
-		    .ButtonStyle(FEditorStyle::Get(), "RoundButton")
-		    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		    .ButtonStyle(FAppStyle::Get(), "RoundButton")
+		    .ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 		    .ContentPadding(FMargin(2, 0))
 		    .OnClicked(this, &SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection, InSectionID)
 		    .IsEnabled(this, &SOptimusEditorGraphExplorer::CanAddNewElementToSection, InSectionID)
@@ -694,7 +694,7 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		    .VAlign(VAlign_Center)
 		    [
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Plus"))
+				.Image(FAppStyle::GetBrush("Plus"))
 		        .ToolTipText(AddNewTooltipText)
 			];
 	}

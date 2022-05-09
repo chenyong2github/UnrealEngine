@@ -112,7 +112,7 @@ protected:
 			}
 			
 			CreatedTextBlock = SNew(SInlineEditableTextBlock)
-				.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
+				.Style(&FAppStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
 				.Text(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
 				.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
 				.ColorAndOpacity(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinTextColor)

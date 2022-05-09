@@ -12,7 +12,6 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"EditorFramework",
-					"EditorStyle",
 					"EditorWidgets",
 					"Engine",
 					"ImgMedia",

@@ -231,7 +231,7 @@ FLinearColor UNiagaraNodeSelect::GetNodeTitleColor() const
 
 FSlateIcon UNiagaraNodeSelect::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Switch_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Switch_16x");
 	return Icon;
 }
 
@@ -391,7 +391,7 @@ void UNiagaraNodeSelect::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBo
 		[
 			SNew(SButton)
 			.Visibility(RemoveVisibilityAttribute)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(GetIntegerRemoveButtonTooltipText())
 			.OnPressed(FSimpleDelegate::CreateUObject(this, &UNiagaraNodeSelect::RemoveIntegerInputPin))
 			[
@@ -404,7 +404,7 @@ void UNiagaraNodeSelect::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBo
 		[
 			SNew(SButton)
 			.Visibility(AddVisibilityAttribute)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(GetIntegerAddButtonTooltipText())
 			.OnPressed(FSimpleDelegate::CreateUObject(this, &UNiagaraNodeSelect::AddIntegerInputPin))
 			[

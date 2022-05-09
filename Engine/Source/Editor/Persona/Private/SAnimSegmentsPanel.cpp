@@ -55,7 +55,7 @@ void SAnimSegmentsPanel::Construct(const FArguments& InArgs)
 	// Animation Segment tracks
 	TArray<TSharedPtr<STrackNode>> AnimNodes;
 
-	FLinearColor SelectedColor = FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor();
+	FLinearColor SelectedColor = FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor();
 
 	TSharedPtr<SVerticalBox> AnimSegmentTracks;
 

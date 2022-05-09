@@ -2,7 +2,7 @@
 
 #include "SetupDetailsViewCustomizations.h"
 #include "IDetailChildrenBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "AnimationSharingTypes.h"
@@ -30,7 +30,7 @@ void FPerSkeletonAnimationSharingSetupCustomization::CustomizeHeader(TSharedRef<
 			[
 				// Show the name of the asset or actor
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(this, &FPerSkeletonAnimationSharingSetupCustomization::GetSkeletonName)
 			]
 		];		
@@ -155,7 +155,7 @@ void FAnimationStateEntryCustomization::CustomizeHeader(TSharedRef<IPropertyHand
 			[
 				// Show the name of the asset or actor
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(this, &FAnimationStateEntryCustomization::GetStateName, StatePropertyHandle)
 			]
 		];		
@@ -257,7 +257,7 @@ FDetailWidgetRow& FAnimationStateEntryCustomization::CreateEnumSelectionWidget(T
 			.OptionsSource(&ComboBoxItems)
 			.InitiallySelectedItem(CurrentlySelected)
 			.OnSelectionChanged(this, &FAnimationStateEntryCustomization::SelectedEnumChanged, ChildHandle)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 		]
 	];
 
@@ -358,7 +358,7 @@ void FAnimationSetupCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> P
 		[
 			// Show the name of the asset or actor
 			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.Text_Lambda([this]() -> FText
 			{
 				if (AnimSequencePropertyHandle.IsValid())

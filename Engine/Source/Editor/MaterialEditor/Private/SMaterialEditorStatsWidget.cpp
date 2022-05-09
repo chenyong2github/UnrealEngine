@@ -11,7 +11,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Fonts/FontMeasure.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MaterialStatsGrid.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/StyleColors.h"
@@ -88,7 +88,7 @@ TSharedRef<SWidget> SMaterialStatsViewRow::GenerateWidgetForColumn(const FName& 
 		.VAlign(VALign)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), UsedFontStyle)
+			.TextStyle(FAppStyle::Get(), UsedFontStyle)
 			.Text(this, &SMaterialStatsViewRow::GetTextForCell, ColumnName, false)
 			.ToolTipText(this, &SMaterialStatsViewRow::GetTextForCell, ColumnName, true)
 			.AutoWrapText(true)
@@ -172,7 +172,7 @@ float SMaterialEditorStatsWidget::GetColumnSize(const FName ColumnName) const
 		if (StatsPtr.IsValid())
 		{
 			TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle(BoldFontStyle);
+			FSlateFontInfo FontInfo = FAppStyle::GetFontStyle(BoldFontStyle);
 
 			auto ArrRowIds = *StatsPtr->GetStatsGrid()->GetGridRowIDs();
 
@@ -532,7 +532,7 @@ void SMaterialEditorStatsWidget::AddWarningMessage(const FString& Message)
 		.Padding(2.5, 2.5)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -540,14 +540,14 @@ void SMaterialEditorStatsWidget::AddWarningMessage(const FString& Message)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("MessageLog.Warning"))
+					.Image(FAppStyle::GetBrush("MessageLog.Warning"))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), TEXT("RichTextBlock.Bold"))
+					.TextStyle(FAppStyle::Get(), TEXT("RichTextBlock.Bold"))
 					.ColorAndOpacity(FStyleColors::Warning)
 					.Text(FText::FromString(Message))
 					.ToolTipText(FText::FromString(Message))

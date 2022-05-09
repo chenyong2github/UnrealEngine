@@ -26,7 +26,7 @@ public class CrashReportClientTarget : TargetRules
 
 		LaunchModuleName = "CrashReportClient";
 
-		if (Target.Platform != UnrealTargetPlatform.Linux)
+		if (bBuildEditor == true && Target.Platform != UnrealTargetPlatform.Linux)
 		{
 			ExtraModuleNames.Add("EditorStyle");
 		}

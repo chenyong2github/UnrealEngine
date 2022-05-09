@@ -8,7 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/STableRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 void SCurveEditorTreePin::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& InTableRow)
@@ -20,7 +20,7 @@ void SCurveEditorTreePin::Construct(const FArguments& InArgs, TWeakPtr<FCurveEdi
 	ChildSlot
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 		.Visibility(this, &SCurveEditorTreePin::GetPinVisibility)
 		.OnClicked(this, &SCurveEditorTreePin::TogglePinned)
 		[
@@ -142,9 +142,9 @@ const FSlateBrush* SCurveEditorTreePin::GetPinBrush() const
 	{
 		if (IsPinnedRecursive(TreeItemID, CurveEditor.Get()))
 		{
-			return FEditorStyle::GetBrush("GenericCurveEditor.Pin_Active");
+			return FAppStyle::GetBrush("GenericCurveEditor.Pin_Active");
 		}
 	}
 
-	return FEditorStyle::GetBrush("GenericCurveEditor.Pin_Inactive");
+	return FAppStyle::GetBrush("GenericCurveEditor.Pin_Inactive");
 }

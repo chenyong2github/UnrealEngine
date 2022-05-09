@@ -4,7 +4,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Modules/ModuleManager.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "MassEntityEditorModule.h"
 #include "Framework/Commands/Commands.h"
@@ -38,7 +38,7 @@ void FMassEntityEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>&
 	InTabManager->RegisterTabSpawner(AssetDetailsTabId, FOnSpawnTab::CreateSP(this, &FMassEntityEditor::SpawnTab_AssetDetails))
 		.SetDisplayName(NSLOCTEXT("MassEntityEditor", "AssetDetailsTab", "Asset Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 void FMassEntityEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

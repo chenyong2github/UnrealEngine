@@ -10,7 +10,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailsView.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
@@ -62,7 +62,7 @@ void FStaticMeshEditorModelingToolkit::Init(
 			+ SVerticalBox::Slot().FillHeight(1.f).HAlign(HAlign_Fill)
 			[
 				SAssignNew(ToolDetailsContainer, SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			]
 		];
 

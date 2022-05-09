@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "AnalyticsEventAttribute.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
@@ -289,7 +289,7 @@ TSharedRef<SWidget> SSettingsEditor::MakeCategoryWidget( const ISettingsCategory
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-							.Image(FEditorStyle::Get().GetBrush("TreeArrow_Collapsed_Hovered"))
+							.Image(FAppStyle::Get().GetBrush("TreeArrow_Collapsed_Hovered"))
 							.Visibility(this, &SSettingsEditor::HandleSectionLinkImageVisibility, Section)
 					]
 
@@ -318,7 +318,7 @@ TSharedRef<SWidget> SSettingsEditor::MakeCategoryWidget( const ISettingsCategory
 		[
 			// category title
 			SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("SettingsEditor.CatgoryAndSectionFont"))
+				.Font(FAppStyle::GetFontStyle("SettingsEditor.CatgoryAndSectionFont"))
 				.Text(Category->GetDisplayName())
 		]
 
@@ -363,7 +363,7 @@ void SSettingsEditor::ReloadCategories()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::Get().GetBrush("TreeArrow_Collapsed_Hovered"))
+			.Image(FAppStyle::Get().GetBrush("TreeArrow_Collapsed_Hovered"))
 			.Visibility(this, &SSettingsEditor::HandleAllSectionsLinkImageVisibility)
 		]
 		+ SHorizontalBox::Slot()

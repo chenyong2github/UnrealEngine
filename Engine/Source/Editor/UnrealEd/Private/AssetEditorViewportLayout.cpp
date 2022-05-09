@@ -13,7 +13,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SCanvas.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -201,7 +201,7 @@ TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TSharedPtr<S
 		[
 			SAssignNew(ViewportsBorder, SBorder)
 			.Padding(0.0f)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Visibility(this, &FAssetEditorViewportLayout::OnGetNonMaximizedVisibility)
 		];
 

@@ -3,7 +3,7 @@
 
 #include "MiniCurveEditor.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "SCurveEditor.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
@@ -17,7 +17,7 @@ void SMiniCurveEditor::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+		.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 		.Padding(0.0f)
 		[
 			SAssignNew(TrackWidget, SCurveEditor)

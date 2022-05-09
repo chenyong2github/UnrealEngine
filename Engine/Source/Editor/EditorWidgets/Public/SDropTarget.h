@@ -9,7 +9,7 @@
 #include "Framework/SlateDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 
 class FPaintArgs;
@@ -27,9 +27,9 @@ public:
 	SLATE_BEGIN_ARGS(SDropTarget)
 		: _ValidColor(FStyleColors::AccentBlue)
 		, _InvalidColor(FStyleColors::Error)
-		, _VerticalImage(FEditorStyle::GetBrush("WideDash.Vertical"))
-		, _HorizontalImage(FEditorStyle::GetBrush("WideDash.Horizontal"))
-		, _BackgroundImage(FEditorStyle::GetBrush("DropTarget.Background"))
+		, _VerticalImage(FAppStyle::GetBrush("WideDash.Vertical"))
+		, _HorizontalImage(FAppStyle::GetBrush("WideDash.Horizontal"))
+		, _BackgroundImage(FAppStyle::GetBrush("DropTarget.Background"))
 	{ }
 	
 		UE_DEPRECATED(5.0, "BackgroundColor has been removed. You may alter the background brush to get the same effect.")

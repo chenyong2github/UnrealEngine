@@ -9,7 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Widgets/SCompoundWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "MovieSceneFwd.h"
 #include "CommonFrameRates.h"
 
@@ -22,7 +22,7 @@ class SSequencerPlayRateCombo : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SSequencerPlayRateCombo)
-		: _StyleSet(&FEditorStyle::Get())
+		: _StyleSet(&FAppStyle::Get())
 		, _BlockLocation(EMultiBlockLocation::None)
 		, _StyleName("SlimToolBar")
 	{}

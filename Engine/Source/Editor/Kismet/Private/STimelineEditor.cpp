@@ -15,7 +15,7 @@
 #include "Widgets/Input/STextComboBox.h"
 #include "SPositiveActionButton.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
@@ -180,7 +180,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered"))
+			.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered"))
 			.ForegroundColor(FLinearColor::White)
 			[
 				SNew(SHorizontalBox)
@@ -192,12 +192,12 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 					SNew(SCheckBox)
 					.IsChecked(this, &STimelineEdTrack::GetIsExpandedState)
 					.OnCheckStateChanged(this, &STimelineEdTrack::OnIsExpandedStateChanged)
-					.CheckedImage(FEditorStyle::GetBrush("TreeArrow_Expanded"))
-					.CheckedHoveredImage(FEditorStyle::GetBrush("TreeArrow_Expanded_Hovered"))
-					.CheckedPressedImage(FEditorStyle::GetBrush("TreeArrow_Expanded"))
-					.UncheckedImage(FEditorStyle::GetBrush("TreeArrow_Collapsed"))
-					.UncheckedHoveredImage(FEditorStyle::GetBrush("TreeArrow_Collapsed_Hovered"))
-					.UncheckedPressedImage(FEditorStyle::GetBrush("TreeArrow_Collapsed"))
+					.CheckedImage(FAppStyle::GetBrush("TreeArrow_Expanded"))
+					.CheckedHoveredImage(FAppStyle::GetBrush("TreeArrow_Expanded_Hovered"))
+					.CheckedPressedImage(FAppStyle::GetBrush("TreeArrow_Expanded"))
+					.UncheckedImage(FAppStyle::GetBrush("TreeArrow_Collapsed"))
+					.UncheckedHoveredImage(FAppStyle::GetBrush("TreeArrow_Collapsed_Hovered"))
+					.UncheckedPressedImage(FAppStyle::GetBrush("TreeArrow_Collapsed"))
 				]
 
 				// Track Name
@@ -244,7 +244,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 					.Padding(2, 0, 0, 4)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+						.BorderImage(FAppStyle::GetBrush("NoBrush"))
 						.ForegroundColor(FStyleColors::Foreground)
 						[
 							SNew(SHorizontalBox)
@@ -263,13 +263,13 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 							.VAlign(VAlign_Center)
 							[
 								SNew(SButton)
-								.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+								.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 								.OnClicked(this, &STimelineEdTrack::OnClickClear)
 								.ContentPadding(1.f)
 								.ToolTipText(NSLOCTEXT("TimelineEdTrack", "TimelineEdTrack_Clear", "Convert to Internal Curve"))
 								[
 									SNew(SImage)
-									.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Clear")))
+									.Image( FAppStyle::GetBrush(TEXT("PropertyWindow.Button_Clear")))
 									.ColorAndOpacity(FStyleColors::Foreground)
 								]
 							]
@@ -303,14 +303,14 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 							.VAlign(VAlign_Center)
 							[
 								SNew(SButton)
-								.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+								.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 								.OnClicked(this, &STimelineEdTrack::OnMoveUp)
 								.IsEnabled(this, &STimelineEdTrack::CanMoveUp)
 								.ContentPadding(1.f)
 								.ToolTipText(NSLOCTEXT("TimelineEdTrack", "TimelineEdTrack_MoveUp", "Move track up list"))
 								[
 									SNew(SImage)
-									.Image( FEditorStyle::GetBrush(TEXT("ArrowUp")) )
+									.Image( FAppStyle::GetBrush(TEXT("ArrowUp")) )
 									.ColorAndOpacity(FStyleColors::Foreground)
 								]
 							]
@@ -321,14 +321,14 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 							.VAlign(VAlign_Center)
 							[
 								SNew(SButton)
-								.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+								.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 								.OnClicked(this, &STimelineEdTrack::OnMoveDown)
 								.IsEnabled(this, &STimelineEdTrack::CanMoveDown)
 								.ContentPadding(1.f)
 								.ToolTipText(NSLOCTEXT("TimelineEdTrack", "TimelineEdTrack_MoveDown", "Move track down list"))
 								[
 									SNew(SImage)
-									.Image( FEditorStyle::GetBrush(TEXT("ArrowDown")) )
+									.Image( FAppStyle::GetBrush(TEXT("ArrowDown")) )
 									.ColorAndOpacity(FStyleColors::Foreground)
 								]
 							]
@@ -1015,7 +1015,7 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 		[
 			// Header, shows name of timeline we are editing
 			SNew(SBorder)
-			. BorderImage( FEditorStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
+			. BorderImage( FAppStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
 			. HAlign(HAlign_Center)
 			.AddMetaData<FTagMetaData>(TEXT("TimelineEditor.Title"))
 			[
@@ -1026,7 +1026,7 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush(TEXT("GraphEditor.TimelineGlyph")) )
+					.Image( FAppStyle::GetBrush(TEXT("GraphEditor.TimelineGlyph")) )
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()

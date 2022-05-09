@@ -16,7 +16,7 @@
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -210,14 +210,14 @@ public:
 		if ( TreeItem->RowData->IsVisible() )
 		{
 			return bIsButtonHovered
-				? FEditorStyle::GetBrush( "Level.VisibleHighlightIcon16x" )
-				: FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
+				? FAppStyle::GetBrush( "Level.VisibleHighlightIcon16x" )
+				: FAppStyle::GetBrush( "Level.VisibleIcon16x" );
 		}
 		else
 		{
 			return bIsButtonHovered
-				? FEditorStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" )
-				: FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
+				? FAppStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" )
+				: FAppStyle::GetBrush( "Level.NotVisibleIcon16x" );
 		}
 	}
 
@@ -239,7 +239,7 @@ public:
 		}
 		else if ( bIsButtonHovered && !bIsRowSelected )
 		{
-			return FEditorStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) );
+			return FAppStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) );
 		}
 
 		return FSlateColor::UseForeground();

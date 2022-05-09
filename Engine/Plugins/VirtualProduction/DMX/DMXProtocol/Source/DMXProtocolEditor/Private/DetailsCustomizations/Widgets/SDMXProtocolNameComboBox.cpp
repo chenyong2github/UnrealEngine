@@ -4,7 +4,7 @@
 
 #include "DMXProtocolModule.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Text/STextBlock.h" 
 
@@ -57,7 +57,7 @@ void SDMXProtocolNameComboBox::Construct(const FArguments& InArgs)
 		.Content()
 		[
 			SAssignNew(ProtocolNameTextBlock, STextBlock)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text(FText::FromString(*InitiallySelectedItem))
 		]
 	];
@@ -78,7 +78,7 @@ TSharedRef<SWidget> SDMXProtocolNameComboBox::GenerateProtocolNameComboBoxEntry(
 	return
 		SNew(STextBlock)
 		.Text(FText::FromString(*InProtocolNameString))
-		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
 void SDMXProtocolNameComboBox::HandleProtocolNameSelectionChanged(TSharedPtr<FString> InProtocolNameString, ESelectInfo::Type InSelectInfo)

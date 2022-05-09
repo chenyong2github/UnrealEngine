@@ -6,7 +6,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SAutomationGraphicalResultBox"
 
@@ -166,7 +166,7 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 			.Padding( FMargin(1,3) )
 			[
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), "Automation.ReportHeader" )
+				.TextStyle( FAppStyle::Get(), "Automation.ReportHeader" )
 				.Text(FText::Format(LOCTEXT("AutomationGraphicalClusterHeader", "{Name}  -  {NumTests} Tests / {NumFails} Fails / {TotalTime} Seconds (Total) / {ParallelTime} Seconds (Parallel)"), ClusterArgs))
 			];
 
@@ -222,7 +222,7 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 						+SOverlay::Slot()
 						[
 							SNew(SBorder)
-							.BorderImage( FEditorStyle::GetBrush("ErrorReporting.Box") )
+							.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
 							.BorderBackgroundColor(this,&SAutomationGraphicalResultBox::GetColorForTestState, TestIt->TestState, TestIt->bHasWarnings)
 						]
 
@@ -248,7 +248,7 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 					.FillWidth( RemainingTime )
 					[
 						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("ErrorReporting.Box") )
+						.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
 						.BorderBackgroundColor(FLinearColor(0,0,0,0))
 					];
 			}

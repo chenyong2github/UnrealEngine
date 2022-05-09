@@ -177,7 +177,7 @@ TSharedPtr<SWidget> FCompElementEditorModule::ConstructCompositingPreviewPane(TW
 				[
 					SAssignNew(MaximizeButton, SButton)
 						.ContentPadding(0)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+						.ButtonStyle(FAppStyle::Get(), "ToggleButton")
 						.Cursor(EMouseCursor::Default)
 						.ToolTipText(NSLOCTEXT("FCompElementEditorModule", "MaximizePreviewTooltip", "Maximize"))
 						.OnClicked_Lambda([PreviewTarget, Overlay]()->FReply
@@ -275,7 +275,7 @@ void FCompElementEditorModule::RegisterEditorTab()
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(CompElementEditor_Impl::LevelEditorModuleName);
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-		const FSlateIcon LayersIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.ComposureCompositing");
+		const FSlateIcon LayersIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.ComposureCompositing");
 		LevelEditorTabManager->RegisterTabSpawner(CompElementEditor_Impl::ComposureLayersTabName, FOnSpawnTab::CreateStatic(&FCompElementEditorModule::SpawnComposureLayersTab))
 			.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorComposureLayerBrowser", "Composure Compositing"))
 			.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorComposureLayerBrowserTooltipText", "Open the Composure compositing tab."))

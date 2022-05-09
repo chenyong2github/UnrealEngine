@@ -3,7 +3,7 @@
 #include "DMXPixelMappingEditorStyle.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Slate/SlateGameResources.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/CoreStyle.h"

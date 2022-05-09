@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void SScreenShotImagePopup::Construct( const FArguments& InArgs )
 {
@@ -19,7 +19,7 @@ void SScreenShotImagePopup::Construct( const FArguments& InArgs )
 	ChildSlot
 	[
 		SNew(SBorder)
-		. BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		. BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		. Padding(10)
 		[
 			SNew(SBox)

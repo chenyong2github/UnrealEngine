@@ -11,7 +11,7 @@
 #include "Tools/SequencerEditTool_Selection.h"
 #include "SequencerTrackNode.h"
 #include "Widgets/Layout/SBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneTimeHelpers.h"
@@ -146,7 +146,7 @@ const FSlateBrush* FSectionResizeHotspot::GetCursorDecorator(const FGeometry& My
 {
 	if (CursorEvent.IsControlDown())
 	{
-		return FEditorStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_Retime"));
+		return FAppStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_Retime"));
 	}
 	else
 	{
@@ -189,7 +189,7 @@ TSharedPtr<ISequencerEditToolDragOperation> FSectionEasingHandleHotspot::Initiat
 
 const FSlateBrush* FSectionEasingHandleHotspot::GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
-	return FEditorStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_EasingHandle"));
+	return FAppStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_EasingHandle"));
 }
 
 bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)

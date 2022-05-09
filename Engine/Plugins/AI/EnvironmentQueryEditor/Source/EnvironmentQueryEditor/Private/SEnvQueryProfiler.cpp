@@ -14,7 +14,7 @@
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EnvironmentQuery/EnvQuery.h"
@@ -286,7 +286,7 @@ TSharedRef<SWidget> SEnvQueryProfilerTableRow::GenerateWidgetForColumn(const FNa
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.Text(NSLOCTEXT("PropertyCustomizationHelpers", "BrowseButtonLabel", "Browse"))
 				.ToolTipText(NSLOCTEXT("PropertyCustomizationHelpers", "BrowseButtonToolTipText", "Browse to Asset in Content Browser"))
 				.OnClicked(this, &SEnvQueryProfilerTableRow::OnBrowseClicked)
@@ -295,7 +295,7 @@ TSharedRef<SWidget> SEnvQueryProfilerTableRow::GenerateWidgetForColumn(const FNa
 				.IsFocusable(false)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Search"))
+					.Image(FAppStyle::GetBrush("Icons.Search"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

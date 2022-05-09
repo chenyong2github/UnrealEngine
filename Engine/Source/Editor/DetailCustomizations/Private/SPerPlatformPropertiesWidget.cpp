@@ -9,7 +9,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "PlatformInfo.h"
 #include "Widgets/Layout/SWrapBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBox.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Images/SImage.h"
@@ -67,13 +67,13 @@ TSharedRef<SWidget> SPerPlatformPropertiesRow::MakePerPlatformWidget(FName InNam
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.OnClicked(this, &SPerPlatformPropertiesRow::RemovePlatform, InName)
 				.ToolTipText(FText::Format(NSLOCTEXT("SPerPlatformPropertiesWidget", "RemoveOverrideFor", "Remove Override for {0}"), FText::AsCultureInvariant(InName.ToString())))
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+					.Image(FAppStyle::GetBrush("Icons.Delete"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];

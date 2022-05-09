@@ -40,7 +40,6 @@ namespace UnrealBuildTool.Rules
                     "SlateCore",
                     "MainFrame",
                     "InputCore",
-                    "EditorStyle",
 					"GLTFCore",
                 }
                 );

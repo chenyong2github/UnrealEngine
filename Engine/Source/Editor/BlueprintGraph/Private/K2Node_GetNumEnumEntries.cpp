@@ -54,7 +54,7 @@ FText UK2Node_GetNumEnumEntries::GetNodeTitle(ENodeTitleType::Type TitleType) co
 
 FSlateIcon UK2Node_GetNumEnumEntries::GetIconAndTint(FLinearColor& OutColor) const
 {
-	static FSlateIcon Icon("EditorStyle", "GraphEditor.Enum_16x");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Enum_16x");
 	return Icon;
 }
 

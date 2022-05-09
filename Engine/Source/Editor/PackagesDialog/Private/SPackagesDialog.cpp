@@ -11,7 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -468,7 +468,7 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 	check(Item.IsValid());
 
 	// Choose the icon based on the severity
-	const FSlateBrush* IconBrush = Item->GetIconName().IsEmpty() ? FStyleDefaults::GetNoBrush() : FEditorStyle::GetBrush(*(Item->GetIconName()));
+	const FSlateBrush* IconBrush = Item->GetIconName().IsEmpty() ? FStyleDefaults::GetNoBrush() : FAppStyle::GetBrush(*(Item->GetIconName()));
 
 	const FMargin RowPadding(3, 3, 3, 3);
 

@@ -11,7 +11,7 @@
 
 #if SOURCE_CONTROL_WITH_SLATE
 	#include "SlateBasics.h"
-	#include "EditorStyle.h"
+	#include "Styling/AppStyle.h"
 #endif // SOURCE_CONTROL_WITH_SLATE
 
 #if WITH_EDITOR

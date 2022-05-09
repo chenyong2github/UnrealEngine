@@ -360,7 +360,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 			.ContentPadding(0)
 			.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
 			.HasDownArrow(false)
-			.ButtonStyle(FEditorStyle::Get(),  "BlueprintEditor.CompactPinTypeSelector")
+			.ButtonStyle(FAppStyle::Get(),  "BlueprintEditor.CompactPinTypeSelector")
 			.ButtonContent()
 			[
 				PrimaryTypeImage.ToSharedRef()
@@ -704,7 +704,7 @@ TSharedRef<ITableRow> SPinTypeSelector::GenerateTypeTreeRow(FPinTypeTreeItem InI
 				SNew(STextBlock)
 					.Text(Description)
 					.HighlightText(SearchText)
-					.Font( bHasChildren ? FEditorStyle::GetFontStyle(TEXT("Kismet.TypePicker.CategoryFont")) : FEditorStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")) )
+					.Font( bHasChildren ? FAppStyle::GetFontStyle(TEXT("Kismet.TypePicker.CategoryFont")) : FAppStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")) )
 			]
 		];
 
@@ -720,7 +720,7 @@ TSharedRef<ITableRow> SPinTypeSelector::GenerateTypeTreeRow(FPinTypeTreeItem InI
 				.Padding(FMargin(7,0,0,0))
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::Get().GetBrush( "Menu.SubMenuIndicator" ) )
+					.Image( FAppStyle::Get().GetBrush( "Menu.SubMenuIndicator" ) )
 				]
 			];
 	}
@@ -746,7 +746,7 @@ TSharedRef<SWidget> SPinTypeSelector::CreateObjectReferenceWidget(FPinTypeTreeIt
 		[
 			SNew(STextBlock)
 			.Text(UEdGraphSchema_K2::GetCategoryText(InPinType.PinCategory))
-			.Font(FEditorStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")) )
+			.Font(FAppStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")) )
 		];
 }
 
@@ -880,7 +880,7 @@ TSharedRef< SWidget > SPinTypeSelector::GetAllowedObjectTypes(FPinTypeTreeItem I
 
 	return 
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 		[
 			SNew(SObjectReferenceWidget, PinTypeSelectorMenuOwner)
 			[

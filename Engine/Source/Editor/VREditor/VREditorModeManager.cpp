@@ -21,7 +21,7 @@
 #include "ProjectDescriptor.h"
 #include "Interfaces/IProjectManager.h"
 #include "UnrealEdMisc.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "VREditorInteractor.h"
 
 #define LOCTEXT_NAMESPACE "VREditor"

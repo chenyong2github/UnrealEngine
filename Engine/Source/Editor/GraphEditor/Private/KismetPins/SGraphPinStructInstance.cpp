@@ -7,7 +7,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/OutputDeviceNull.h"
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_K2.h"
@@ -140,7 +140,7 @@ TSharedRef<SWidget> SGraphPinStructInstance::GetEditContent()
 		.MinDesiredWidth(350)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
 			[
 				StructureDetailsView->GetWidget().ToSharedRef()

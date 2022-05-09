@@ -7,7 +7,7 @@
 #include "DesignerExtension.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IHasDesignerExtensibility.h"
 #include "INavigationEventSimulationView.h"
 #include "ISlateReflectorModule.h"
@@ -257,7 +257,7 @@ void SWidgetDesignerNavigation::Construct(const FArguments& InArgs, TSharedPtr<F
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -291,7 +291,7 @@ void SWidgetDesignerNavigation::Construct(const FArguments& InArgs, TSharedPtr<F
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 						.Text(FEditorFontGlyphs::Refresh)
 					]
 

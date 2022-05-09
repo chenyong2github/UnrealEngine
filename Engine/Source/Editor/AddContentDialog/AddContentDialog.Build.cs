@@ -21,7 +21,6 @@ public class AddContentDialog : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"Json",
-				"EditorStyle",
 				"DirectoryWatcher",
 				"DesktopPlatform",
 				"PakFile",

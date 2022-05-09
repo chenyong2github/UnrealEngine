@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "SSearchableComboBox.h"
 
@@ -17,7 +17,7 @@ class SPropertyComboBox : public SSearchableComboBox
 public:
 
 	SLATE_BEGIN_ARGS( SPropertyComboBox )
-		: _Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
+		: _Font( FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
 		, _ShowSearchForItemCount(-1)
 	{}
 		SLATE_ATTRIBUTE( TArray< TSharedPtr< FString > >, ComboItemList )

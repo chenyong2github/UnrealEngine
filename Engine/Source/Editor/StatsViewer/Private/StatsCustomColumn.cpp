@@ -4,7 +4,7 @@
 #include "UObject/UnrealType.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "StatsCellPresenter.h"
 #include "IPropertyTable.h"
 #include "IPropertyTableCell.h"
@@ -60,14 +60,14 @@ TSharedPtr< SWidget > FStatsCustomColumn::CreateColumnLabel( const TSharedRef< I
 			.AutoHeight()
 			[
 				SNew( STextBlock )
-				.Font( FEditorStyle::GetFontStyle( Style ) )
+				.Font( FAppStyle::GetFontStyle( Style ) )
 				.Text( Column->GetDisplayName() )
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
 				SNew( STextBlock )
-				.Font( FEditorStyle::GetFontStyle(TEXT("BoldFont") ) )
+				.Font( FAppStyle::GetFontStyle(TEXT("BoldFont") ) )
 				.Text( this, &FStatsCustomColumn::GetTotalText, Column )
 			];
 	}
@@ -79,7 +79,7 @@ TSharedPtr< SWidget > FStatsCustomColumn::CreateColumnLabel( const TSharedRef< I
 			.AutoWidth()
 			[
 				SNew( STextBlock )
-				.Font( FEditorStyle::GetFontStyle( Style ) )
+				.Font( FAppStyle::GetFontStyle( Style ) )
 				.Text( Column->GetDisplayName() )
 			];
 	}

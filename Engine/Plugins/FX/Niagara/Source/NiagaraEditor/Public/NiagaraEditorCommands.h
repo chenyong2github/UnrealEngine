@@ -2,7 +2,7 @@
 
 #pragma once
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
 * Defines commands for the niagara editor.
@@ -16,7 +16,7 @@ public:
 			TEXT("NiagaraEditor"),
 			NSLOCTEXT("Contexts", "NiagaraEditor", "Niagara Editor"),
 			NAME_None,
-			FEditorStyle::GetStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		)
 	{ }
 

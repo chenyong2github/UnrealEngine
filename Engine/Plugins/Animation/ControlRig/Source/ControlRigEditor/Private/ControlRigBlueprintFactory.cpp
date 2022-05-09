@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
@@ -45,7 +45,7 @@ public:
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::Visible)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 			[
 				SNew(SBox)
 				.Visibility(EVisibility::Visible)
@@ -56,7 +56,7 @@ public:
 					.FillHeight(1)
 					[
 						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						.Content()
 						[
 							SAssignNew(ParentClassContainer, SVerticalBox)
@@ -71,14 +71,14 @@ public:
 					.Padding(8)
 					[
 						SNew(SUniformGridPanel)
-						.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-						.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-						.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+						.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+						.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+						.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 						+SUniformGridPanel::Slot(0,0)
 						[
 							SNew(SButton)
 							.HAlign(HAlign_Center)
-							.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+							.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 							.OnClicked(this, &SControlRigBlueprintCreateDialog::OkClicked)	
 							.Text(LOCTEXT("CreateControlRigBlueprintCreate", "Create"))
 						]
@@ -86,7 +86,7 @@ public:
 						[
 							SNew(SButton)
 							.HAlign(HAlign_Center)
-							.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+							.ContentPadding( FAppStyle::GetMargin("StandardDialog.ContentPadding") )
 							.OnClicked(this, &SControlRigBlueprintCreateDialog::CancelClicked)
 							.Text(LOCTEXT("CreateControlRigBlueprintCancel", "Cancel"))
 						]

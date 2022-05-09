@@ -52,7 +52,7 @@ class SMontageSections : public SLeafWidget
 		bDisplayTiming = InArgs._DisplayTiming;
 
 		LabelFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
-		IconFont = FEditorStyle::Get().GetFontStyle("FontAwesome.10");
+		IconFont = FAppStyle::Get().GetFontStyle("FontAwesome.10");
 
 		InModel->OnHandleObjectsSelected().AddSP(this, &SMontageSections::HandleObjectsSelected);
 		InModel->OnSectionTimeDragged.BindSP(this, &SMontageSections::HandleSectionTimeDragged);
@@ -127,8 +127,8 @@ class SMontageSections : public SLeafWidget
 	{
 		FTrackScaleInfo ScaleInfo(ViewInputMin.Get(), ViewInputMax.Get(), 0, 0, AllottedGeometry.GetLocalSize());
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const FSlateBrush* BorderBrush = FEditorStyle::GetBrush("SpecialEditableTextImageNormal");
-		const FLinearColor SelectedColor = FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor();
+		const FSlateBrush* BorderBrush = FAppStyle::GetBrush("SpecialEditableTextImageNormal");
+		const FLinearColor SelectedColor = FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor();
 	
 		const FLinearColor MontageColor = AnimMontage->HasParentAsset() ? GetDefault<UPersonaOptions>()->SectionTimingNodeColor.Desaturate(0.75f) : GetDefault<UPersonaOptions>()->SectionTimingNodeColor;
 
@@ -359,7 +359,7 @@ class SMontageSections : public SLeafWidget
 						.WidthOverride(100.0f)
 						[
 							SNew(SNumericEntryBox<float>)
-							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0.0f)
 							.MaxValue(AnimMontage->GetPlayLength())
 							.Value(Section.GetTime())
@@ -389,7 +389,7 @@ class SMontageSections : public SLeafWidget
 						.WidthOverride(100.0f)
 						[
 							SNew(SNumericEntryBox<int32>)
-							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0)
 							.MaxValue(AnimMontage->GetNumberOfSampledKeys())
 							.Value(AnimMontage->GetFrameAtTime(Section.GetTime()))
@@ -460,7 +460,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Montage::GenerateContainerWidgetForOutlin
 	TSharedPtr<SHorizontalBox> InnerHorizontalBox;
 	TSharedPtr<SWidget> OutlinerWidget = GenerateStandardOutlinerWidget(InRow, true, OuterBorder, InnerHorizontalBox);
 
-	OuterBorder->SetBorderBackgroundColor(FEditorStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
+	OuterBorder->SetBorderBackgroundColor(FAppStyle::GetColor("AnimTimeline.Outliner.HeaderColor"));
 
 	InnerHorizontalBox->AddSlot()
 		.AutoWidth()
@@ -500,14 +500,14 @@ TSharedRef<SWidget> FAnimTimelineTrack_Montage::BuildMontageSubMenu()
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("FindParent", "Find parent"),
 				LOCTEXT("FindParentInCBToolTip", "Find parent in Content Browser"),
-				FSlateIcon("EditorStyle", "Icons.Search"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Search"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAnimTimelineTrack_Montage::OnFindParentClassInContentBrowserClicked))
 			);
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("EditParent", "Edit parent"),
 				LOCTEXT("EditParentToolTip", "Open parent in editor"),
-				FSlateIcon("EditorStyle", "Icons.Edit"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAnimTimelineTrack_Montage::OnEditParentClassClicked))
 			);
 		}

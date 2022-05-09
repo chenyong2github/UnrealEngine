@@ -30,7 +30,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Exporters/Exporter.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Camera/CameraActor.h"
@@ -4267,7 +4267,7 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportSetPlaybackStart()
 	return SNew(SButton)
 		.OnClicked(this, &FSequencer::SetPlaybackStart)
 		.ToolTipText(SetPlaybackStartToolTip)
-		.ButtonStyle(FEditorStyle::Get(), "Sequencer.Transport.SetPlayStart")
+		.ButtonStyle(FAppStyle::Get(), "Sequencer.Transport.SetPlayStart")
 		.ContentPadding(2.0f);
 }
 
@@ -4278,7 +4278,7 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportJumpToPreviousKey()
 	return SNew(SButton)
 		.OnClicked(this, &FSequencer::JumpToPreviousKey)
 		.ToolTipText(JumpToPreviousKeyToolTip)
-		.ButtonStyle(FEditorStyle::Get(), "Sequencer.Transport.JumpToPreviousKey")
+		.ButtonStyle(FAppStyle::Get(), "Sequencer.Transport.JumpToPreviousKey")
 		.ContentPadding(2.0f);
 }
 
@@ -4289,7 +4289,7 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportJumpToNextKey()
 	return SNew(SButton)
 		.OnClicked(this, &FSequencer::JumpToNextKey)
 		.ToolTipText(JumpToNextKeyToolTip)
-		.ButtonStyle(FEditorStyle::Get(), "Sequencer.Transport.JumpToNextKey")
+		.ButtonStyle(FAppStyle::Get(), "Sequencer.Transport.JumpToNextKey")
 		.ContentPadding(2.0f);
 }
 
@@ -4300,7 +4300,7 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportSetPlaybackEnd()
 	return SNew(SButton)
 		.OnClicked(this, &FSequencer::SetPlaybackEnd)
 		.ToolTipText(SetPlaybackEndToolTip)
-		.ButtonStyle(FEditorStyle::Get(), "Sequencer.Transport.SetPlayEnd")
+		.ButtonStyle(FAppStyle::Get(), "Sequencer.Transport.SetPlayEnd")
 		.ContentPadding(2.0f);
 }
 
@@ -4308,7 +4308,7 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportLoopMode()
 {
 	TSharedRef<SButton> LoopButton = SNew(SButton)
 		.OnClicked(this, &FSequencer::OnCycleLoopMode)
-		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+		.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 		.ToolTipText_Lambda([&]()
 		{ 
 			if (GetLoopMode() == ESequencerLoopMode::SLM_NoLoop)
@@ -4334,20 +4334,20 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportLoopMode()
 			if (GetLoopMode() == ESequencerLoopMode::SLM_NoLoop)
 			{
 				return WeakButton.IsValid() && WeakButton.Pin()->IsPressed() ? 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Pressed : 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Normal;
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Pressed : 
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Normal;
 			}
 			else if (GetLoopMode() == ESequencerLoopMode::SLM_Loop)
 			{
 				return WeakButton.IsValid() && WeakButton.Pin()->IsPressed() ? 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Enabled").Pressed : 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Enabled").Normal;
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Enabled").Pressed : 
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Enabled").Normal;
 			}
 			else
 			{
 				return WeakButton.IsValid() && WeakButton.Pin()->IsPressed() ? 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.SelectionRange").Pressed : 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.SelectionRange").Normal;
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.SelectionRange").Pressed : 
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.SelectionRange").Normal;
 			}
 		})
 	);
@@ -4359,7 +4359,7 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportRecord()
 {
 	TSharedRef<SButton> RecordButton = SNew(SButton)
 		.OnClicked(this, &FSequencer::OnRecord)
-		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+		.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 		.ToolTipText_Lambda([&]()
 		{
 			FText OutTooltipText;
@@ -4389,13 +4389,13 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportRecord()
 			if (OnGetIsRecording().IsBound() && OnGetIsRecording().Execute())
 			{
 				return WeakButton.IsValid() && WeakButton.Pin()->IsPressed() ? 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Recording").Pressed : 
-					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Recording").Normal;
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Recording").Pressed : 
+					&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Recording").Normal;
 			}
 
 			return WeakButton.IsValid() && WeakButton.Pin()->IsPressed() ? 
-				&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Record").Pressed : 
-				&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Record").Normal;
+				&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Record").Pressed : 
+				&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Record").Normal;
 		})
 		.ColorAndOpacity_Lambda([this]()
 		{
@@ -13196,14 +13196,14 @@ void FSequencer::BuildAddTrackMenu(class FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("LoadRecording", "Load Recorded Data"),
 			LOCTEXT("LoadRecordingDataTooltip", "Load in saved data from a previous recording."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FSequencer::OnLoadRecordedData)));
 	}
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT( "AddFolder", "Add Folder" ),
 		LOCTEXT( "AddFolderToolTip", "Adds a new folder." ),
-		FSlateIcon( FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen" ),
+		FSlateIcon( FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetTreeFolderOpen" ),
 		FUIAction( FExecuteAction::CreateRaw( this, &FSequencer::OnAddFolder ) ) );
 
 	for (int32 i = 0; i < TrackEditors.Num(); ++i)
@@ -13249,7 +13249,7 @@ void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("MoveNodesToNewFolder", "New Folder"),
 		LOCTEXT("MoveNodesToNewFolderTooltip", "Create a new folder and adds the selected nodes"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToNewFolder),
 			FCanExecuteAction::CreateLambda( [this]{ return (GetSelectedNodesToMove().Num() > 0); })));

@@ -197,7 +197,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 				SAssignNew(PickerExpander, SExpandableArea)
 				.InitiallyCollapsed(true)
 				.AreaTitle(LOCTEXT("Picker_Header", "Controls"))
-				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 				.BodyContent()
 				[
@@ -265,7 +265,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 				SAssignNew(PickerExpander, SExpandableArea)
 				.InitiallyCollapsed(true)
 				.AreaTitle(LOCTEXT("Picker_SpaceWidget", "Spaces"))
-				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 				.Padding(FMargin(8.f))
 				.HeaderContent()
@@ -297,13 +297,13 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 					[
 						SNew(SButton)
 						.ContentPadding(0.0f)
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
 						.OnClicked(this, &SControlRigEditModeTools::HandleAddSpaceClicked)
 						.Cursor(EMouseCursor::Default)
 						.ToolTipText(LOCTEXT("AddSpace", "Add Space"))
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+							.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 						]
 					]
 				]
@@ -329,7 +329,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 				.InitiallyCollapsed(false)
 				.Visibility(this, &SControlRigEditModeTools::GetRigOptionExpanderVisibility)
 				.AreaTitle(LOCTEXT("RigOption_Header", "Rig Options"))
-				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 				.BodyContent()
 				[

@@ -17,7 +17,7 @@ public class DMXPixelMappingEditorWidgets : ModuleRules
 			"Core",
 			"Slate",
 			"SlateCore",
-			"EditorStyle",
+			
 			"DMXProtocol",
 			"DMXRuntime",
 			"DMXPixelMappingCore",

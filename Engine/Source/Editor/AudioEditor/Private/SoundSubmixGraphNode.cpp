@@ -35,7 +35,7 @@ TSharedRef<SWidget> SSubmixGraphNode::CreateNodeContentArea()
 	{
 		// NODE CONTENT AREA
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding(FMargin(0, 3))

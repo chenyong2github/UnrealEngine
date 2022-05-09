@@ -3,7 +3,7 @@
 
 #include "AudioParameterControllerInterface.h"
 #include "Components/AudioComponent.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "GraphEditorSettings.h"
 #include "IAudioParameterTransmitter.h"
 #include "IDocumentation.h"
@@ -457,7 +457,7 @@ namespace Metasound
 					.HAlign(HAlign_Fill)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
 						[
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
@@ -492,7 +492,7 @@ namespace Metasound
 				[
 					SNew(SBorder)
 					.Visibility(EVisibility::HitTestInvisible)
-					.BorderImage( FEditorStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
+					.BorderImage( FAppStyle::GetBrush( "Graph.Node.TitleHighlight" ) )
 					.BorderBackgroundColor( this, &SGraphNode::GetNodeTitleIconColor )
 					[
 						SNew(SSpacer)
@@ -542,7 +542,7 @@ namespace Metasound
 				}
 			}
 
-			return FEditorStyle::GetBrush("Graph.Node.Body");
+			return FAppStyle::GetBrush("Graph.Node.Body");
 		}
 
 		EVisibility SMetaSoundGraphNode::IsAddPinButtonVisible() const
@@ -882,7 +882,7 @@ namespace Metasound
 				];
 
 			return SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				.Padding(FMargin(0,3))

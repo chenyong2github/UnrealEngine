@@ -15,7 +15,7 @@
 #include "Dialogs/DlgPickPath.h"
 #include "EditorDirectories.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/World.h"

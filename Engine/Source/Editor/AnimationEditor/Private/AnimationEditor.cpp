@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "Animation/SmartName.h"
 #include "Animation/AnimationAsset.h"
@@ -275,7 +275,7 @@ void FAnimationEditor::ExtendToolbar()
 			FNewToolMenuChoice(FOnGetContent::CreateSP(this, &FAnimationEditor::GenerateExportAssetMenu)),
 			LOCTEXT("ExportAsset_Label", "Export Asset"),
 			LOCTEXT("ExportAsset_ToolTip", "Export Assets for this skeleton."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ExportToFBX")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ExportToFBX")
 		));
 	}
 
@@ -341,7 +341,7 @@ void FAnimationEditor::ExtendMenu()
 		LOCTEXT("ExportAsset_ToolTip", "Export Assets for this skeleton."),
 		FNewToolMenuChoice(FNewMenuDelegate::CreateSP(this, &FAnimationEditor::FillExportAssetMenu)),
 		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ExportToFBX")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ExportToFBX")
 	));
 
 	AnimationSection.AddEntry(FToolMenuEntry::InitMenuEntry(FAnimationEditorCommands::Get().AddLoopingInterpolation));

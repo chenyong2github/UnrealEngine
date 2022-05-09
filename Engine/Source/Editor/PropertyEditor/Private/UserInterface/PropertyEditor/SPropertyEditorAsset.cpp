@@ -440,7 +440,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			[
 				// Show the name of the asset or actor
 				SNew(STextBlock)
-				.Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
+				.Font( FAppStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
 				.Text(this,&SPropertyEditorAsset::OnGetAssetName)
 			]
 		];
@@ -679,11 +679,11 @@ const FSlateBrush* SPropertyEditorAsset::GetStatusIcon() const
 
 	if (State == EActorReferenceState::Unknown)
 	{
-		return FEditorStyle::GetBrush("Icons.Warning");
+		return FAppStyle::GetBrush("Icons.Warning");
 	}
 	else if (State == EActorReferenceState::Error)
 	{
-		return FEditorStyle::GetBrush("Icons.Error");
+		return FAppStyle::GetBrush("Icons.Error");
 	}
 
 	return &EmptyBrush;

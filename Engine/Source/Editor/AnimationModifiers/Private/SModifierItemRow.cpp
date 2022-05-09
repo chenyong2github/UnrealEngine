@@ -5,7 +5,7 @@
 #include "Animation/Skeleton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 void SModifierItemRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const ModifierListviewItem& Item)
 {
@@ -21,7 +21,7 @@ void SModifierItemRow::Construct(const FArguments& InArgs, const TSharedRef<STab
 		.Padding(6.0f, 2.0f, 0.0f, 2.0f)
 		[
 			SNew(SImage)
-			.Image(InternalItem->OuterClass == USkeleton::StaticClass() ? FEditorStyle::GetBrush("ClassIcon.Skeleton") : FEditorStyle::GetBrush("ClassIcon.AnimSequence"))
+			.Image(InternalItem->OuterClass == USkeleton::StaticClass() ? FAppStyle::GetBrush("ClassIcon.Skeleton") : FAppStyle::GetBrush("ClassIcon.AnimSequence"))
 		]
 
 		+ SHorizontalBox::Slot()

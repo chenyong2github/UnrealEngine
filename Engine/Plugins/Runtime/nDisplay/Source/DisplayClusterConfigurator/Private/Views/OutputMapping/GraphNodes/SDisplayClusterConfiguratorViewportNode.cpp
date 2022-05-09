@@ -85,7 +85,7 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 							.VAlign(VAlign_Center)
 							[
 								SNew(SBorder)
-								.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
+								.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 								.BorderBackgroundColor(this, &SDisplayClusterConfiguratorViewportNode::GetTextBoxColor)
 								.ForegroundColor(this, &SDisplayClusterConfiguratorViewportNode::GetTextColor)
 								.Padding(8.0f)
@@ -327,7 +327,7 @@ TOptional<FSlateRenderTransform> SDisplayClusterConfiguratorViewportNode::GetBac
 
 const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetNodeShadowBrush() const
 {
-	return FAppStyle::Get().GetBrush(TEXT("Graph.Node.Shadow"));
+	return FAppStyle::GetBrush(TEXT("Graph.Node.Shadow"));
 }
 
 const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBorderBrush() const

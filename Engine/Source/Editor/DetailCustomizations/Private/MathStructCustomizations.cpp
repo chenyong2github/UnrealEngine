@@ -106,7 +106,7 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 			SNew(SCheckBox)
 			.IsChecked(this, &FMathStructCustomization::IsPreserveScaleRatioChecked)
 			.OnCheckStateChanged(this, &FMathStructCustomization::OnPreserveScaleRatioToggled, StructWeakHandlePtr)
-			.Style(FEditorStyle::Get(), "TransparentCheckBox")
+			.Style(FAppStyle::Get(), "TransparentCheckBox")
 			.ToolTipText(LOCTEXT("PreserveScaleToolTip", "When locked, scales uniformly based on the current xyz scale values so the object maintains its shape in each direction when scaled"))
 			[
 				SNew(SImage)
@@ -120,7 +120,7 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 
 const FSlateBrush* FMathStructCustomization::GetPreserveScaleRatioImage() const
 {
-	return bPreserveScaleRatio ? FEditorStyle::GetBrush(TEXT("Icons.Lock")) : FEditorStyle::GetBrush(TEXT("Icons.Unlock"));
+	return bPreserveScaleRatio ? FAppStyle::GetBrush(TEXT("Icons.Lock")) : FAppStyle::GetBrush(TEXT("Icons.Unlock"));
 }
 
 

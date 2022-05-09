@@ -5,7 +5,7 @@
 #include "Textures/SlateIcon.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Editor.h"
 #include "Containers/ArrayBuilder.h"
 
@@ -61,7 +61,7 @@ void SMediaPlayerEditorMedia::Construct(const FArguments& InArgs, UMediaPlayer& 
 	ChildSlot
 	[
 		SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.ToolTipText(LOCTEXT("DoubleClickToAddToolTip", "Double-click a media source or playlist to open it in the player."))
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
@@ -136,7 +136,7 @@ void SMediaPlayerEditorMedia::RegisterMenus()
 			"Edit",
 			LOCTEXT("EditMenuAction", "Edit..."),
 			LOCTEXT("EditMenuActionTooltip", "Opens the selected asset for edit."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Edit"),
 			FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
 			{
 				if (UMediaPlayerEditorMediaContext* Context = InContext.FindContext<UMediaPlayerEditorMediaContext>())
@@ -180,7 +180,7 @@ void SMediaPlayerEditorMedia::RegisterMenus()
 			"FindInCbMenuAction",
 			LOCTEXT("FindInCbMenuAction", "Find in Content Browser"),
 			LOCTEXT("FindInCbMenuActionTooltip", "Summons the Content Browser and navigates to the selected asset"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
 			FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
 			{
 				if (UMediaPlayerEditorMediaContext* Context = InContext.FindContext<UMediaPlayerEditorMediaContext>())
@@ -207,7 +207,7 @@ void SMediaPlayerEditorMedia::RegisterMenus()
 						"OpenInFileManager",
 						FText::Format(LOCTEXT("OpenInFileManager", "Show Media File in {FileManagerName}"), Args),
 						LOCTEXT("OpenInFileManagerTooltip", "Finds the media file that this asset points to on disk"),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
 						FUIAction(
 							FExecuteAction::CreateLambda([=]() {
 								if (FileMediaSourceWeak.IsValid())

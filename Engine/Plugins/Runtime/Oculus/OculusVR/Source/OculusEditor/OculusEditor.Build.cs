@@ -19,7 +19,7 @@ public class OculusEditor : ModuleRules
 				"AndroidRuntimeSettings",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
+				
 				"Core",
 				"OculusHMD",
 				"OVRPlugin",

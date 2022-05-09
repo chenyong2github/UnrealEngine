@@ -99,7 +99,7 @@ public:
 				.AutoWidth()
 				[
 					SNew(SHyperlink)
-					.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+					.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
 					.OnNavigate(FSimpleDelegate::CreateLambda([](){OpenMultiUserExcludeProperty();}))
 					.Text((LOCTEXT("SetExclusionFilter","Set Exclusion Filters")))
 					.ToolTipText(LOCTEXT("SetExclusionFilterToolTip","Click to edit transaction exclusion filter for MultiUser"))

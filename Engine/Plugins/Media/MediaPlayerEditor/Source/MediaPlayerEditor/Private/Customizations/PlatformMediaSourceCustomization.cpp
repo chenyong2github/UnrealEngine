@@ -6,7 +6,7 @@
 #include "Styling/SlateColor.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IDetailPropertyRow.h"
 #include "Widgets/Text/STextBlock.h"
 #include "DetailCategoryBuilder.h"
@@ -104,7 +104,7 @@ TSharedRef<SWidget> FPlatformMediaSourceCustomization::MakePlatformMediaSourcesV
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-					.Image(FEditorStyle::GetBrush(Platform->GetIconStyleName(EPlatformIconSize::Normal)))
+					.Image(FAppStyle::GetBrush(Platform->GetIconStyleName(EPlatformIconSize::Normal)))
 			];
 
 		// platform name

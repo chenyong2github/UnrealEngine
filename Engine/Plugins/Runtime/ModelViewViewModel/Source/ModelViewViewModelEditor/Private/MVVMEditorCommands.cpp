@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVMEditorCommands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Styling/SlateIconFinder.h"
 
@@ -12,7 +12,7 @@ FMVVMEditorCommands::FMVVMEditorCommands()
 		TEXT("MVVMEditorCommands"), 
 		NSLOCTEXT("Contexts", "MVVM Editor", "MVVM Editor"), 
 		NAME_None,
-		FEditorStyle::Get().GetStyleSetName())
+		FAppStyle::Get().GetStyleSetName())
 {}
 
 void FMVVMEditorCommands::RegisterCommands()

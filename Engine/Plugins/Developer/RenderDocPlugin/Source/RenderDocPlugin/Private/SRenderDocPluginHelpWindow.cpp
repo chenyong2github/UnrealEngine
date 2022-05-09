@@ -11,7 +11,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "UnrealClient.h"
 #include "Editor/EditorEngine.h"
 extern UNREALED_API UEditorEngine* GEditor;
@@ -62,7 +62,7 @@ void SRenderDocPluginHelpWindow::Construct(const FArguments& InArgs)
 			[
 				SNew(SRichTextBlock)
 				.Text(LOCTEXT("HelpMessage", "<LargeText>Hello and thank you for trying out the UE RenderDoc plugin!</>\n\nThis plugin will allow you to capture rendering operations in the engine, and inspect them using RenderDoc.\nThere are three ways of capturing a frame:\n* You can press the <NormalText.Important>green capture button</> in the top right of any viewport.\n* You can run the <NormalText.Important>renderdoc.CaptureFrame</> console command. This will work anywhere and is very useful for capturing frames in packaged builds.\n* You can use the capture hotkey (<NormalText.Important>Alt+F12</>). Please note that the hotkey is only active in editor windows and Play-In-Editor sessions.\n\nIf you are having trouble with not getting enough data in your captures, consider checking out the capture settings.\nThey can be found under <NormalText.Important>[Edit]->[Project Settings...]->[Plugins/RenderDoc]</>. All settings have tooltips that detail what they do.\n\nA good place to start learning graphics debugging in UE is the <a id=\"browser\" href=\"https://docs.unrealengine.com/latest/INT/Programming/Rendering/ShaderDevelopment\" style=\"Hyperlink\">Epic Rendering FAQ</>\nIt contains information on what CVar/project settings you should set when debugging shaders to get access to as much data as possible.\n\nIf you have any questions or suggestions regarding the plugin, please contact me via email or my github page:\n<NormalText.Important>temaran (at) gmail (dot) com</>\n\nI would also like to give major shoutouts to BaldurK, the author of RenderDoc:\n<a id=\"browser\" href=\"https://github.com/baldurk\" style=\"Hyperlink\">https://github.com/baldurk</>\nAnd Slomp, who has made many great contributions to the project:\n<a id=\"browser\" href=\"https://github.com/slomp\" style=\"Hyperlink\">https://github.com/slomp</>"))
-				.DecoratorStyleSet(&FEditorStyle::Get())
+				.DecoratorStyleSet(&FAppStyle::Get())
 				+SRichTextBlock::HyperlinkDecorator(TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnBrowserLinkClicked, AsShared()))
 			]
 

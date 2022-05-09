@@ -8,7 +8,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
 
@@ -61,7 +61,7 @@ public:
 			[
 				SNew( STextBlock )
 				.Text( InArgs._Label )
-				.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+				.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -75,8 +75,8 @@ public:
 					// '-' Button
 					SNew(SButton)
 					.Text(NSLOCTEXT("AnimationPlusMinusSlider", "Subtract", "-"))
-					.TextStyle( FEditorStyle::Get(), "ContentBrowser.NoneButtonText")
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.TextStyle( FAppStyle::Get(), "ContentBrowser.NoneButtonText")
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 					.OnClicked( InArgs._OnMinusClicked )
 					.ToolTipText( InArgs._MinusTooltip )
 				]
@@ -99,8 +99,8 @@ public:
 					// '+' Button
 					SNew(SButton)
 					.Text(NSLOCTEXT("AnimationPlusMinusSlider", "Add", "+"))
-					.TextStyle( FEditorStyle::Get(), "ContentBrowser.NoneButtonText" )
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.TextStyle( FAppStyle::Get(), "ContentBrowser.NoneButtonText" )
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 					.OnClicked( InArgs._OnPlusClicked )
 					.ToolTipText( InArgs._PlusTooltip )
 				]

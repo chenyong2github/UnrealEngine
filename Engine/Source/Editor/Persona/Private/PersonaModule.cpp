@@ -998,7 +998,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 			FOnGetContent::CreateLambda(CreatePreviewMeshComboButtonContents),
 			LOCTEXT("SetPreviewMesh", "Preview Mesh"),
 			LOCTEXT("SetPreviewMeshTooltip", "Set a new preview skeletal mesh for the current asset (stored per-animation or per-skeleton)"),
-			FSlateIcon("EditorStyle", "Persona.TogglePreviewAsset", "Persona.TogglePreviewAsset.Small")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.TogglePreviewAsset", "Persona.TogglePreviewAsset.Small")
 			);
 	}
 
@@ -1070,7 +1070,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 			FOnGetContent::CreateLambda(CreatePreviewAnimationComboButtonContents),
 			LOCTEXT("SetPreviewAnimation", "Preview Animation"),
 			LOCTEXT("SetPreviewAnimationTooltip", "Setup the scene to use a preview animation. More advanced settings are available in Preview Scene Settings."),
-			FSlateIcon("EditorStyle", "Persona.TogglePreviewAnimation", "Persona.TogglePreviewAnimation.Small")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.TogglePreviewAnimation", "Persona.TogglePreviewAnimation.Small")
 			);
 	}
 
@@ -1100,7 +1100,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 			NAME_None,
 			LOCTEXT("ShowReferencePose", "Reference Pose"),
 			LOCTEXT("ShowReferencePoseTooltip", "Show the reference pose. Clears all bone modifications. More advanced settings are available in Preview Scene Settings."),
-			FSlateIcon("EditorStyle", "Persona.ToggleReferencePose", "Persona.ToggleReferencePose.Small")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ToggleReferencePose", "Persona.ToggleReferencePose.Small")
 			);
 	}
 
@@ -1111,7 +1111,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 			FOnGetContent::CreateRaw(this, &FPersonaModule::GenerateCreateAssetMenu, WeakPersonaToolkit),
 			LOCTEXT("CreateAsset_Label", "Create Asset"),
 			LOCTEXT("CreateAsset_ToolTip", "Create Assets for this skeleton."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.CreateAsset")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.CreateAsset")
 		);
 	}
 }
@@ -1134,7 +1134,7 @@ TSharedRef< SWidget > FPersonaModule::GenerateCreateAssetMenu(TWeakPtr<IPersonaT
 				LOCTEXT("CreateAnimationSubmenu_ToolTip", "Create Animation for this skeleton"),
 				FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreateAnimationMenu, InWeakPersonaToolkit),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
 				);
 		}
 
@@ -1145,7 +1145,7 @@ TSharedRef< SWidget > FPersonaModule::GenerateCreateAssetMenu(TWeakPtr<IPersonaT
 				LOCTEXT("CreatePoseAsssetSubmenu_ToolTip", "Create PoseAsset for this skeleton"),
 				FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreatePoseAssetMenu, InWeakPersonaToolkit),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset")
 			);
 		}
 	}
@@ -1210,7 +1210,7 @@ void FPersonaModule::FillCreateAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr
 				LOCTEXT("CreateAnimation_CurrenAnimationSubMenu_ToolTip", "Create Animation from current animation"),
 				FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreateAnimationFromCurrentAnimationMenu, InWeakPersonaToolkit),
 				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
 			);
 		}
 	}
@@ -1302,7 +1302,7 @@ void FPersonaModule::FillCreatePoseAssetMenu(FMenuBuilder& MenuBuilder, TWeakPtr
 			LOCTEXT("InsertPoseSubmenu_ToolTip", "Insert current pose to selected PoseAsset"),
 			FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillInsertPoseMenu, InWeakPersonaToolkit),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset")
 		);
 	}
 	MenuBuilder.EndSection();

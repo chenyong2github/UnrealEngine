@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Unreal UMG editor actions
@@ -18,7 +18,7 @@ public:
 		"UMGEditor", // Context name for fast lookup
 		NSLOCTEXT("Contexts", "UMGEditor", "UMG Editor"), // Localized context name for displaying
 		"EditorViewport",  // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	)
 	{
 	}

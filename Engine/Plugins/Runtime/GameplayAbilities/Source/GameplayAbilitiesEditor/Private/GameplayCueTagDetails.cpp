@@ -126,7 +126,7 @@ TSharedRef<ITableRow> FGameplayCueTagDetails::GenerateListRow(TSharedRef<FSoftOb
 		.HAlign(HAlign_Left)
 		[
 			SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+			.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
 			.Text(FText::FromString(ShortName))
 			.OnNavigate(this, &FGameplayCueTagDetails::NavigateToHandler, NotifyName)
 		]

@@ -14,7 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Factories/SkeletonFactory.h"
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
@@ -154,14 +154,14 @@ public:
 			.Padding(8.0f, 4.0f, 8.0f, 4.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SDlgMergeSkeleton::ChangeAllOptions, true)
 					.Text(LOCTEXT("SkeletonMergeSelectAll", "Select All"))
 				]
@@ -169,7 +169,7 @@ public:
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SDlgMergeSkeleton::ChangeAllOptions, false)
 					.Text(LOCTEXT("SkeletonMergeDeselectAll", "Deselect All"))
 				]
@@ -186,14 +186,14 @@ public:
 			.Padding(8.0f, 4.0f, 8.0f, 4.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				+SUniformGridPanel::Slot(0,0)
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked( this, &SDlgMergeSkeleton::OnButtonClick, FDlgMergeSkeleton::Confirm )
 					.Text(LOCTEXT("SkeletonMergeOk", "OK"))
 				]
@@ -201,7 +201,7 @@ public:
 				[
 					SNew(SButton) 
 					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked( this, &SDlgMergeSkeleton::OnButtonClick, FDlgMergeSkeleton::Cancel )
 					.Text(LOCTEXT("SkeletonMergeCancel", "Cancel"))
 				]
@@ -347,7 +347,7 @@ FDlgMergeSkeleton::FDlgMergeSkeleton( USkeletalMesh* InMesh, USkeleton* InSkelet
 
 		TSharedPtr<SBorder> DialogWrapper = 
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4.0f)
 			[
 				SAssignNew(DialogWidget, SDlgMergeSkeleton)
@@ -625,12 +625,12 @@ void FAssetTypeActions_SkeletalMesh::OnAssetRemoved(const FAssetData& AssetData)
 
 TSharedPtr<SWidget> FAssetTypeActions_SkeletalMesh::GetThumbnailOverlay(const FAssetData& AssetData) const
 {
-	const FSlateBrush* Icon = FEditorStyle::GetBrush("ClassThumbnailOverlays.SkeletalMesh_NeedSkinning");
+	const FSlateBrush* Icon = FAppStyle::GetBrush("ClassThumbnailOverlays.SkeletalMesh_NeedSkinning");
 
 	ThumbnailSkinningOverlayAssetNames.AddUnique(AssetData.GetFullName());
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetNoBrush())
+		.BorderImage(FAppStyle::GetNoBrush())
 		.Visibility(this, &FAssetTypeActions_SkeletalMesh::GetThumbnailSkinningOverlayVisibility, AssetData)
 		.Padding(FMargin(0.0f, 0.0f, 3.0f, 3.0f))
 		.HAlign(HAlign_Right)
@@ -917,7 +917,7 @@ void FAssetTypeActions_SkeletalMesh::AssignSkeletonToMesh(USkeletalMesh* SkelMes
 	WidgetWindow->SetContent
 		(
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SAssignNew(SkeletonSelectorWindow, SSkeletonSelectorWindow)
 					.Object(SkelMesh)

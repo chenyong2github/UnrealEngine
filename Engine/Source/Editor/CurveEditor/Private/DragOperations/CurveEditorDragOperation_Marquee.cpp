@@ -4,7 +4,7 @@
 #include "CurveEditor.h"
 #include "SCurveEditorView.h"
 #include "SCurveEditorPanel.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "CurveDrawInfo.h"
 
 FCurveEditorDragOperation_Marquee::FCurveEditorDragOperation_Marquee(FCurveEditor* InCurveEditor)
@@ -135,6 +135,6 @@ void FCurveEditorDragOperation_Marquee::OnPaint(const FGeometry& AllottedGeometr
 		OutDrawElements,
 		PaintOnLayerId,
 		AllottedGeometry.ToPaintGeometry(Marquee.GetTopLeft(), Marquee.GetBottomRight() - Marquee.GetTopLeft()),
-		FEditorStyle::GetBrush(TEXT("MarqueeSelection"))
+		FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 		);
 }

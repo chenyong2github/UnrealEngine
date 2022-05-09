@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Textures/SlateIcon.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "PropertyPath.h"
 #include "Framework/Commands/UIAction.h"
@@ -86,7 +86,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 					[
 						SAssignNew( BreadcrumbTrail, SBreadcrumbTrail< int32 > )
 						.PersistentBreadcrumbs( true )
@@ -99,7 +99,7 @@ public:
 				.FillHeight( 1.0f )
 				[
 					SNew(SBorder)
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 					[
 						TreeContent
 					]

@@ -15,7 +15,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/UICommandList.h"
@@ -23,6 +22,7 @@
 #include "Framework/Commands/InputBindingManager.h"
 #include "Widgets/Input/SButton.h"
 #include "UICommandList_Pinnable.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PinnedCommandList"
 
@@ -36,7 +36,7 @@ public:
 	DECLARE_DELEGATE( FOnRequestRemoveAll );
 
 	SLATE_BEGIN_ARGS( SCommand )
-		: _StyleSet(&FEditorStyle::Get())
+		: _StyleSet(&FAppStyle::Get())
 		, _StyleName(TEXT("SkeletonTree.PinnedCommandList"))
 		, _CustomWidgetPadding(2.0f, 1.0f)
 	{}
@@ -305,7 +305,7 @@ private:
 };
 
 SPinnedCommandList::SPinnedCommandList()
-	: StyleSet(&FEditorStyle::Get())
+	: StyleSet(&FAppStyle::Get())
 	, StyleName(TEXT("PinnedCommandList"))
 {
 }

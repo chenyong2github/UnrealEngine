@@ -5,7 +5,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
@@ -42,7 +42,7 @@ TSharedRef< SWidget > SLayersViewRow::GenerateWidgetForColumn(const FName& Colum
 			.Padding(0.0f, 1.0f, 3.0f, 1.0f)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("Layer.Icon16x")))
+				.Image(FAppStyle::GetBrush(TEXT("Layer.Icon16x")))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 
@@ -50,7 +50,7 @@ TSharedRef< SWidget > SLayersViewRow::GenerateWidgetForColumn(const FName& Colum
 			.FillWidth(1.0f)
 			[
 				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
-				.Font(FEditorStyle::GetFontStyle("LayersView.LayerNameFont"))
+				.Font(FAppStyle::GetFontStyle("LayersView.LayerNameFont"))
 				.Text(ViewModel.Get(), &FLayerViewModel::GetNameAsText)
 				.ColorAndOpacity(this, &SLayersViewRow::GetColorAndOpacity)
 				.HighlightText(HighlightText)
@@ -68,7 +68,7 @@ TSharedRef< SWidget > SLayersViewRow::GenerateWidgetForColumn(const FName& Colum
 		TableRowContent =
 			SAssignNew(VisibilityButton, SButton)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.OnClicked(this, &SLayersViewRow::OnToggleVisibility)
 			.ToolTipText(LOCTEXT("VisibilityButtonToolTip", "Toggle Layer Visibility"))
 			.HAlign(HAlign_Center)
@@ -164,22 +164,22 @@ FReply SLayersViewRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEv
 		{
 			if (ActorDragOp.IsValid())
 			{
-				ActorDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+				ActorDragOp->SetToolTip(Message, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 			}
 			if (FolderDragOp.IsValid())
 			{
-				FolderDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+				FolderDragOp->SetToolTip(Message, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 			}
 		}
 		else
 		{
 			if (ActorDragOp.IsValid())
 			{
-				ActorDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+				ActorDragOp->SetToolTip(Message, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 			}
 			if (FolderDragOp.IsValid())
 			{
-				FolderDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+				FolderDragOp->SetToolTip(Message, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 			}
 		}
 		return FReply::Handled();
@@ -292,13 +292,13 @@ const FSlateBrush* SLayersViewRow::GetVisibilityBrushForLayer() const
 {
 	if (ViewModel->IsVisible())
 	{
-		return IsHovered() ? FEditorStyle::GetBrush("Level.VisibleHighlightIcon16x") :
-			FEditorStyle::GetBrush("Level.VisibleIcon16x");
+		return IsHovered() ? FAppStyle::GetBrush("Level.VisibleHighlightIcon16x") :
+			FAppStyle::GetBrush("Level.VisibleIcon16x");
 	}
 	else
 	{
-		return IsHovered() ? FEditorStyle::GetBrush("Level.NotVisibleHighlightIcon16x") :
-			FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+		return IsHovered() ? FAppStyle::GetBrush("Level.NotVisibleHighlightIcon16x") :
+			FAppStyle::GetBrush("Level.NotVisibleIcon16x");
 	}
 }
 

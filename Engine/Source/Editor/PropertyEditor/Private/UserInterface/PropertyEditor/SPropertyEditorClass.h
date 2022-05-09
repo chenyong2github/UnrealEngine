@@ -10,7 +10,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "PropertyCustomizationHelpers.h"
@@ -27,7 +27,7 @@ class SPropertyEditorClass : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SPropertyEditorClass)
-		: _Font(FEditorStyle::GetFontStyle(PropertyEditorConstants::PropertyFontStyle)) 
+		: _Font(FAppStyle::GetFontStyle(PropertyEditorConstants::PropertyFontStyle)) 
 		, _MetaClass(UObject::StaticClass())
 		, _RequiredInterface(nullptr)
 		, _AllowAbstract(false)

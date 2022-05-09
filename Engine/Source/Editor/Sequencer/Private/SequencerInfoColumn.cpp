@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "ISceneOutliner.h"
 #include "Sequencer.h"
 #include "LevelEditorSequencerIntegration.h"

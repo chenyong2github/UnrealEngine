@@ -46,8 +46,8 @@ public:
 		SButton::Construct(
 			SButton::FArguments()
 			.Text(FText::FromString(TEXT("S")))
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-			.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
+			.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
 			.ContentPadding(4.0f)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.OnPressed(this, &FSoloToggleButton::OnButtonPressed)
@@ -123,7 +123,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 		SNew(SBorder)
 		.Padding(0)
 		.ForegroundColor(FLinearColor::White)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		[
 			SAssignNew(ExpandArea, SExpandableArea)
 			.Padding(0)
@@ -169,7 +169,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						[
 							SNew(SImage)
 							.ColorAndOpacity(this, &SPDD_TargetRow::GetWeightBarColor)
-							.Image(FEditorStyle::GetBrush("WhiteBrush"))
+							.Image(FAppStyle::GetBrush("WhiteBrush"))
 						]
 					]
 				]
@@ -209,7 +209,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 			.BodyContent()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SAssignNew(TargetEntryVertBox, SVerticalBox)
 
@@ -940,7 +940,7 @@ FSlateColor FPoseDriverDetails::GetToolsForegroundColor() const
 	static const FName InvertedForegroundName("InvertedForeground");
 	static const FName DefaultForegroundName("DefaultForeground");
 
-	return ToolsButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
+	return ToolsButton->IsHovered() ? FAppStyle::GetSlateColor(InvertedForegroundName) : FAppStyle::GetSlateColor(DefaultForegroundName);
 }
 
 void FPoseDriverDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -978,8 +978,8 @@ void FPoseDriverDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		.HAlign(HAlign_Right)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-			.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+			.ButtonStyle(FAppStyle::Get(), "RoundButton")
+			.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 			.ContentPadding(FMargin(2, 0))
 			.OnClicked(this, &FPoseDriverDetails::ClickedAddTarget)
 			.HAlign(HAlign_Center)
@@ -992,7 +992,7 @@ void FPoseDriverDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				.Padding(FMargin(0, 1))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
+					.Image(FAppStyle::GetBrush("Plus"))
 				]
 
 				+ SHorizontalBox::Slot()
@@ -1067,7 +1067,7 @@ void FPoseDriverDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				SAssignNew(ToolsButton, SComboButton)
 				.ContentPadding(3)
 				.ForegroundColor(this, &FPoseDriverDetails::GetToolsForegroundColor)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
+				.ButtonStyle(FAppStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
 				.OnGetMenuContent(this, &FPoseDriverDetails::GetToolsMenuContent)
 				.ButtonContent()
 				[

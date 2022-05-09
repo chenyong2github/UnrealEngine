@@ -178,7 +178,7 @@ TSharedRef<SWidget> IAssetManagerEditorModule::MakePrimaryAssetIdSelector(FOnGet
 			SNew(STextBlock)
 			.Text(OnGetObjectText)
 			.ToolTipText(OnGetObjectText)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 }
 

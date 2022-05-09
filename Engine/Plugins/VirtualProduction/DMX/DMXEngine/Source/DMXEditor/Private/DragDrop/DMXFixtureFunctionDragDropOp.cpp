@@ -5,7 +5,7 @@
 #include "Widgets/FixtureType/DMXFixtureTypeFunctionsEditorFunctionItem.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeFunctionsEditorFunctionRow.h"
 
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -19,7 +19,7 @@ FDMXFixtureFunctionDragDropOp::FDMXFixtureFunctionDragDropOp(TSharedPtr<SDMXFixt
 
 	DecoratorWidget = SNew(SBorder)
 		.Padding(8.f)
-		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
 		.Content()
 		[
 			SNew(SHorizontalBox)

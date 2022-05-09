@@ -38,7 +38,6 @@ public class MergeActors : ModuleRules
                 "MaterialUtilities",
                 "Slate",
                 "SlateCore",
-                "EditorStyle",
                 "EditorFramework",
                 "UnrealEd",
 				"ToolWidgets"

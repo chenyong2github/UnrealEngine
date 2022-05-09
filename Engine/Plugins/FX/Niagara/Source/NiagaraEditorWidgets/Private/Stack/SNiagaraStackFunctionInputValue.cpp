@@ -106,7 +106,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetInputIconVisibility)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 						.Text(this, &SNiagaraStackFunctionInputValue::GetInputIconText)
 						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInputIconToolTip)
 						.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetInputIconColor)
@@ -166,14 +166,14 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					SNew(SButton)
 					.IsFocusable(false)
 					.ToolTipText(LOCTEXT("ResetToolTip", "Reset to the default value"))
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.ContentPadding(0)
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetResetButtonVisibility)
 					.OnClicked(this, &SNiagaraStackFunctionInputValue::ResetButtonPressed)
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 					]
 				]
 
@@ -186,14 +186,14 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					SNew(SButton)
 					.IsFocusable(false)
 					.ToolTipText(LOCTEXT("ResetToBaseToolTip", "Reset this input to the value defined by the parent emitter"))
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.ContentPadding(0)
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetResetToBaseButtonVisibility)
 					.OnClicked(this, &SNiagaraStackFunctionInputValue::ResetToBaseButtonPressed)
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 						.ColorAndOpacity(FSlateColor(FLinearColor::Green))
 					]
 				]			
@@ -279,7 +279,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+					.ButtonStyle(FAppStyle::Get(), "RoundButton")
 					.OnClicked(this, &SNiagaraStackFunctionInputValue::ScratchButtonPressed)
 					.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this dynamic input in the scratch pad."))
 					.ContentPadding(FMargin(1.0f, 0.0f))
@@ -304,7 +304,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
                 [
 	                SNew(SComboButton)
 				    .HasDownArrow(false)
-				    .ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				    .ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				    .ForegroundColor(FSlateColor::UseForeground())
 				    .OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::GetVersionSelectorDropdownMenu)
 				    .ContentPadding(FMargin(2))
@@ -314,7 +314,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 				    .ButtonContent()
 				    [
 				        SNew(STextBlock)
-				        .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				        .Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				        .ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetVersionSelectorColor)
 				        .Text(FEditorFontGlyphs::Random)
 				    ]
@@ -684,7 +684,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
     .OnSourceFiltersChanged(this, &SNiagaraStackFunctionInputValue::TriggerRefresh);
 	
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+	.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 	.Padding(5)
 	[
 		SNew(SVerticalBox)
@@ -953,7 +953,7 @@ void SNiagaraStackFunctionInputValue::ShowReassignDynamicInputScriptMenu()
 	.OnSourceFiltersChanged(this, &SNiagaraStackFunctionInputValue::TriggerRefresh);
 	
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+	.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 	.Padding(5)
 	[
 		SNew(SVerticalBox)		
@@ -1324,7 +1324,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGenerateWidgetForCategory
 
 	return SNew(SRichTextBlock)
         .Text(TextContent)
-        .DecoratorStyleSet(&FEditorStyle::Get())
+        .DecoratorStyleSet(&FAppStyle::Get())
         .TextStyle(FNiagaraEditorStyle::Get(), "ActionMenu.HeadingTextBlock");
 }
 
@@ -1377,7 +1377,7 @@ void SNiagaraStackFunctionInputValue::TriggerRefresh(const TMap<EScriptSource, b
 
 const FSlateBrush* SNiagaraStackFunctionInputValue::GetFilteredViewIcon() const
 {
-	return FEditorStyle::GetBrush(TEXT("TextureEditor.GreenChannel.Small"));
+	return FAppStyle::GetBrush(TEXT("TextureEditor.GreenChannel.Small"));
 }
 
 EVisibility SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibility() const

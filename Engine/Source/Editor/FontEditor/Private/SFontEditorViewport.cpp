@@ -12,7 +12,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/SViewport.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Engine/Font.h"
 #include "CanvasItem.h"
 #include "Editor/UnrealEdEngine.h"
@@ -356,7 +356,7 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 			// Draw the key
 			if (bDrawFontMetrics)
 			{
-				const FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("NormalFont");
+				const FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("NormalFont");
 				const float KeyBoxSize = 14.0f * FontScale;
 
 				struct FKeyDataType

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class DMXEDITOR_API FDMXEditorCommands
 	: public TCommands<FDMXEditorCommands>

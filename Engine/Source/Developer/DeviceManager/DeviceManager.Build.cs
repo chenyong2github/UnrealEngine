@@ -15,7 +15,7 @@ public class DeviceManager : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"EditorStyle",
+				
                 "InputCore",
 				"Slate",
 				"SlateCore",

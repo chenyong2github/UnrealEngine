@@ -21,7 +21,7 @@
 #include "Policies/PrettyJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
 #include "Types/SlateEnums.h"
-#include "Classes/EditorStyleSettings.h"
+#include "Settings/EditorStyleSettings.h"
 #include "Engine/Level.h"
 #include "Components/ActorComponent.h"
 #include "AssetRegistry/AssetData.h"
@@ -32,7 +32,7 @@
 #include "FileHelpers.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_FunctionEntry.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
@@ -3527,7 +3527,7 @@ void FFindInBlueprintSearchManager::EnableGlobalFindResults(bool bEnable)
 	if (bEnable)
 	{
 		// Register the spawners for all global Find Results tabs
-		const FSlateIcon GlobalFindResultsIcon(FEditorStyle::GetStyleSetName(), "BlueprintEditor.FindInBlueprints.MenuIcon");
+		const FSlateIcon GlobalFindResultsIcon(FAppStyle::GetAppStyleSetName(), "BlueprintEditor.FindInBlueprints.MenuIcon");
 		GlobalFindResultsMenuItem = WorkspaceMenu::GetMenuStructure().GetToolsCategory()->AddGroup(
 			LOCTEXT("WorkspaceMenu_GlobalFindResultsCategory", "Find in Blueprints"),
 			LOCTEXT("GlobalFindResultsMenuTooltipText", "Find references to functions, events and variables in all Blueprints."),

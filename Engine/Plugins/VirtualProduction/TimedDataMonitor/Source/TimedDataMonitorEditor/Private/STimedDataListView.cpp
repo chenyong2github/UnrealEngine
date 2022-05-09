@@ -12,7 +12,7 @@
 #include "TimedDataMonitorSubsystem.h"
 
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "TimedDataMonitorEditorStyle.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -290,7 +290,7 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(this, &STimedDataInputTableRow::GetStateGlyphs)
 				.ColorAndOpacity(this, &STimedDataInputTableRow::GetStateColorAndOpacity)
 			]

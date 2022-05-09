@@ -4,7 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "PaperTileLayer.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -40,7 +40,7 @@ void STileLayerItem::Construct(const FArguments& InArgs, int32 Index, class UPap
 		[
 			SAssignNew( VisibilityButton, SButton )
 			.ContentPadding(FMargin(4.0f, 4.0f, 4.0f, 4.0f))
-			.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.OnClicked( this, &STileLayerItem::OnToggleVisibility )
 			.ToolTipText( LOCTEXT("LayerVisibilityButtonToolTip", "Toggle Layer Visibility") )
 			.ForegroundColor( FSlateColor::UseForeground() )
@@ -102,7 +102,7 @@ const FSlateBrush* STileLayerItem::GetVisibilityBrushForLayer() const
 FSlateColor STileLayerItem::GetForegroundColorForVisibilityButton() const
 {
 	static const FName InvertedForeground("InvertedForeground");
-	return FEditorStyle::GetSlateColor(InvertedForeground);
+	return FAppStyle::GetSlateColor(InvertedForeground);
 }
 
 //////////////////////////////////////////////////////////////////////////
