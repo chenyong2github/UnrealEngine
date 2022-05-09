@@ -3,16 +3,18 @@
 
 #include "MetasoundFrontendRegistryTransaction.h"
 
-#include "CoreMinimal.h"
-
 namespace Metasound
 {
 	namespace Frontend
 	{
-		FRegistryTransactionID GetOriginRegistryTransactionID()
-		{
-			return 0;
-		}
+		int32 MetaSoundFrontendDiscardStreamedRegistryTransactionsCVar = 1;
+
+		FAutoConsoleVariableRef CVarMetaSoundFrontendDiscardStreamedRegistryTransactions(
+			TEXT("au.MetaSounds.Frontend.DiscardStreamedRegistryTransactions"),
+			MetaSoundFrontendDiscardStreamedRegistryTransactionsCVar,
+			TEXT("If enabled, MetaSound registry transactions are discarded after they have been streamed.\n")
+			TEXT("0: Disabled, !0: Enabled (default)"),
+			ECVF_Default);
 	}
 }
 

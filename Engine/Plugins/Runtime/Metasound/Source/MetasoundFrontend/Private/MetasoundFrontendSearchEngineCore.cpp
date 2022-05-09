@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
+#include "MetasoundFrontendInterfaceRegistryPrivate.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistryTransaction.h"
@@ -33,7 +34,7 @@ namespace Metasound
 			}
 
 			FInterfaceRegistryTransactionSource::FInterfaceRegistryTransactionSource()
-			: CurrentTransactionID(GetOriginRegistryTransactionID())
+			: TransactionStream(FInterfaceRegistry::Get().CreateTransactionStream())
 			{
 			}
 
@@ -43,8 +44,11 @@ namespace Metasound
 				{
 					OutEntries.Emplace(TInPlaceType<FInterfaceRegistryTransaction>(), InTransaction);
 				};
-				
-				IInterfaceRegistry::Get().ForEachRegistryTransactionSince(CurrentTransactionID, &CurrentTransactionID, AddValue);
+
+				if (TransactionStream.IsValid())
+				{
+					TransactionStream->Stream(AddValue);
+				}
 			}
 
 			FFrontendQueryKey FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys::Map(const FFrontendQueryEntry& InEntry) const

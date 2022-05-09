@@ -5,30 +5,48 @@
 #include "Algo/MaxElement.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendNodeRegistryPrivate.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 
 namespace Metasound
 {
+	class FNodeClassRegistrationEventsPimpl : public IFrontendQueryStreamStep
+	{
+	public:
+		FNodeClassRegistrationEventsPimpl()
+		{
+			TransactionStream = Frontend::FRegistryContainerImpl::Get().CreateTransactionStream();
+		}
+
+		virtual void Stream(TArray<FFrontendQueryValue>& OutValues) override
+		{
+			using namespace Frontend;
+
+			auto AddEntry = [&OutValues](const FNodeRegistryTransaction& InTransaction)
+			{
+				OutValues.Emplace(TInPlaceType<FNodeRegistryTransaction>(), InTransaction);
+			};
+
+			if (TransactionStream.IsValid())
+			{
+				TransactionStream->Stream(AddEntry);
+			}
+		}
+
+	private:
+		TUniquePtr<Frontend::FNodeRegistryTransactionStream> TransactionStream;
+	};
+
 	FNodeClassRegistrationEvents::FNodeClassRegistrationEvents()
-	: CurrentTransactionID(Frontend::GetOriginRegistryTransactionID())
+	: Pimpl(MakePimpl<FNodeClassRegistrationEventsPimpl>())
 	{
 	}
 
 	void FNodeClassRegistrationEvents::Stream(TArray<FFrontendQueryValue>& OutValues)
 	{
-		using namespace Frontend;
-
-		auto AddEntry = [&OutValues](const FNodeRegistryTransaction& InTransaction)
-		{
-			OutValues.Emplace(TInPlaceType<FNodeRegistryTransaction>(), InTransaction);
-		};
-		
-		if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
-		{
-			Registry->ForEachNodeRegistryTransactionSince(CurrentTransactionID, &CurrentTransactionID, AddEntry);
-		}
+		Pimpl->Stream(OutValues);
 	}
 
 	FFrontendQueryKey FMapRegistrationEventsToNodeRegistryKeys::Map(const FFrontendQueryEntry& InEntry) const 

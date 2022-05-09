@@ -2,96 +2,118 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MetasoundFrontend.h"
-#include "MetasoundFrontendRegistries.h"
 #include "Algo/ForEach.h"
+#include "Algo/MinElement.h"
+#include "Containers/Array.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/IConsoleManager.h"
+#include "MetasoundLog.h"
+#include "Misc/ScopeLock.h"
+
 
 namespace Metasound
 {
 	namespace Frontend
 	{
-		/** Returns an ID representing the beginning of the transaction history. */
-		FRegistryTransactionID GetOriginRegistryTransactionID();
+		extern int32 MetaSoundFrontendDiscardStreamedRegistryTransactionsCVar;
+		extern FAutoConsoleVariableRef CVarMetaSoundFrontendDiscardStreamedRegistryTransactions;
 
+		using FTransactionReaderHandle = uint32;
 
-		/** Maintains a history of TransactionTypes. Calls are threadsafe (excluding
+		/** Maintains a limited history of TransactionTypes. Calls are threadsafe (excluding
 		 * the constructor and destructor.)
 		 */
 		template<typename TransactionType>
-		class TRegistryTransactionHistory
+		class TTransactionBuffer
 		{
+
 		public:
-			TRegistryTransactionHistory()
-			: Current(GetOriginRegistryTransactionID())
+			TTransactionBuffer()
+			: NumRemovedTransactions(0)
+			, CurrentReaderHandle(0)
 			{
 			}
 
 			/** Add a transaction to the history. Threadsafe. 
 			 *
 			 * @return The transaction ID associated with the action. */
-			FRegistryTransactionID Add(TransactionType&& InRegistryTransaction)
-			{
-				FScopeLock Lock(&RegistryTransactionMutex);
-
-				Current++;
-
-				int32 Index = RegistryTransactions.Num();
-
-				RegistryTransactions.Add(MoveTemp(InRegistryTransaction));
-				RegistryTransactionIndexMap.Add(Current, Index);
-
-				return Current;
-			}
-
-			/** Gets the transaction ID of the most recent transaction. Threadsafe. */
-			FRegistryTransactionID GetCurrent() const
+			int32 AddTransaction(TransactionType&& InRegistryTransaction)
 			{
 				FScopeLock Lock(&RegistryTransactionMutex);
 				{
-					return Current;
+					TransactionHistory.Add(MoveTemp(InRegistryTransaction));
+					return TransactionHistory.Num() + NumRemovedTransactions;
 				}
 			}
 
-			/** Invoke a function on all transactions since transaction ID. 
-			 *
-			 * @param InSince - All transactions occurring after this transaction ID will be returned.
-			 * @param OutCurrent - If not null, will be set to the most recent transaction ID returned. 
-			 * @param InCallable - A callable of the form Callable(const TransactionType&)
-			 */
-			template<typename CallableType>
-			void ForEachTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrent, CallableType InCallable) const
+			/** Create a new transaction reader for this buffer. */
+			FTransactionReaderHandle CreateReader()
 			{
 				FScopeLock Lock(&RegistryTransactionMutex);
 				{
-					if (nullptr != OutCurrent)
+					FTransactionReaderHandle NewReaderHandle = CurrentReaderHandle;
+					CurrentReaderHandle++;
+					ReaderPositions.Add(NewReaderHandle, NumRemovedTransactions);
+					return NewReaderHandle;
+				}
+			}
+
+			/** Create a duplicate reader which has the same read position as
+			 * the provided reader handle.  */
+			FTransactionReaderHandle DuplicateReader(FTransactionReaderHandle InReaderHandle)
+			{
+				FScopeLock Lock(&RegistryTransactionMutex);
+				{
+					int32 Position = NumRemovedTransactions;
+					if (int32* ExistingReaderPosition = ReaderPositions.Find(InReaderHandle))
 					{
-						*OutCurrent = Current;
+						Position = *ExistingReaderPosition;
 					}
 
-					int32 Start = INDEX_NONE;
-					
-					if (GetOriginRegistryTransactionID() == InSince)
-					{
-						Start = 0;
-					}
-					else if (const int32* Pos = RegistryTransactionIndexMap.Find(InSince))
-					{
-						Start = *Pos + 1;
-					}
-					
-					if (INDEX_NONE != Start)
-					{
-						const int32 Num = RegistryTransactions.Num();
+					FTransactionReaderHandle NewReaderHandle = CurrentReaderHandle;
+					CurrentReaderHandle++;
+					ReaderPositions.Add(NewReaderHandle, Position);
+				}
+			}
 
-						if (ensure(Start <= Num))
+			/** Destroy a reader associated with this buffer. */
+			void DestroyReader(FTransactionReaderHandle ReaderHandle)
+			{
+				FScopeLock Lock(&RegistryTransactionMutex);
+				{
+					ReaderPositions.Remove(ReaderHandle);
+					RemoveTransactionsStreamedToAllReaders();
+				}
+			}
+
+
+			/** Invoke a function on all unread transactions.
+			 *
+			 * @param InReaderHandle - Handle of a valid reader for this buffer.
+			 * @param InCallable - A callable of the form Callable(const TransactionType&)
+			 */
+			template<typename CallableType>
+			void StreamTransactions(FTransactionReaderHandle InReaderHandle, CallableType InCallable)
+			{
+				FScopeLock Lock(&RegistryTransactionMutex);
+				{
+					if (ensure(ReaderPositions.Contains(InReaderHandle)))
+					{
+						int32 Start = ReaderPositions[InReaderHandle] - NumRemovedTransactions;
+						if (Start < 0)
 						{
-							const int32 OutNum = Num - Start;
-							if (OutNum > 0)
-							{
-								TArrayView<const TransactionType> TransactionsSince = MakeArrayView(&RegistryTransactions[Start], OutNum);
-								Algo::ForEach(TransactionsSince, InCallable);
-							}
+							UE_LOG(LogMetaSound, Warning, TEXT("Missed transactions in transaction stream. MetaSound registries may be incorrect"));
+							Start = 0;
+						}
+
+						const int32 OutNum = TransactionHistory.Num() - Start;
+						if (OutNum > 0)
+						{
+							TArrayView<const TransactionType> TransactionView = MakeArrayView(&TransactionHistory[Start], OutNum);
+							Algo::ForEach(TransactionView, InCallable);
+							ReaderPositions[InReaderHandle] += OutNum;
+
+							RemoveTransactionsStreamedToAllReaders();
 						}
 					}
 				}
@@ -99,12 +121,97 @@ namespace Metasound
 
 		private:
 
-			mutable FCriticalSection RegistryTransactionMutex;
+			// Remove transactions that have been streamed by all valid readers.
+			void RemoveTransactionsStreamedToAllReaders()
+			{
+				if (0 != MetaSoundFrontendDiscardStreamedRegistryTransactionsCVar)
+				{
+					const auto* MinElement = Algo::MinElementBy(ReaderPositions, [](const auto& Pair){return Pair.Value;});
+					if (nullptr != MinElement)
+					{
+						int32 NumToRemove = (MinElement->Value) - NumRemovedTransactions;
+						if (NumToRemove > 0)
+						{
+							TransactionHistory.RemoveAt(0, NumToRemove);
+							NumRemovedTransactions += NumToRemove;
+						}
+					}
+					else if (ReaderPositions.Num() == 0)
+					{
+						NumRemovedTransactions += TransactionHistory.Num();
+						TransactionHistory.Reset();
+					}
+				}
+			}
 
-			FRegistryTransactionID Current;
+			FCriticalSection RegistryTransactionMutex;
 
-			TMap<FRegistryTransactionID, int32> RegistryTransactionIndexMap;
-			TArray<TransactionType> RegistryTransactions;
+			int32 NumRemovedTransactions = 0;
+			FTransactionReaderHandle CurrentReaderHandle = 0;
+			TSortedMap<FTransactionReaderHandle, int32> ReaderPositions;
+			TArray<TransactionType> TransactionHistory;
+		};
+
+
+		/** A transaction stream which streams data from a transaction buffer. */
+		template<typename TransactionType>
+		class TTransactionStream
+		{
+			using TransactionBufferType = TTransactionBuffer<TransactionType>;
+		public:
+			TTransactionStream(TSharedRef<TransactionBufferType, ESPMode::ThreadSafe> InBuffer)
+			: Buffer(InBuffer)
+			{
+				ReaderHandle = Buffer->CreateReader();
+			}
+
+			TTransactionStream(const TTransactionStream& InOther)
+			: Buffer(InOther.Buffer)
+			{
+				ReaderHandle = Buffer->DuplicateReader(InOther.ReaderHandle);
+			}
+
+			TTransactionStream& operator=(const TTransactionStream& InOther)
+			{
+				Buffer.RemoveReader(ReaderHandle);
+				Buffer = InOther.Buffer;
+				ReaderHandle = Buffer.DuplicateReader(InOther.ReaderHandle);
+				return *this;
+			}
+
+			TTransactionStream(TTransactionStream&& InOther)
+			: Buffer(MoveTemp(InOther.Buffer))
+			, ReaderHandle(InOther.ReaderHandle)
+			{
+				InOther.ReaderHandle = -1;
+			}
+
+			TTransactionStream& operator=(TTransactionStream&& InOther)
+			{
+				Buffer = MoveTemp(InOther.Buffer);
+				ReaderHandle = InOther.ReaderHandle;
+				InOther.ReaderHandle = -1;
+				return *this;
+			}
+
+			~TTransactionStream()
+			{
+				Buffer->DestroyReader(ReaderHandle);
+			}
+
+			/** Invoke a function on all unstreamed transactions.
+			 *
+			 * @param InCallable - A callable of the form Callable(const TransactionType&)
+			 */
+			template <typename CallableType>
+			void Stream(CallableType Callable)
+			{
+				Buffer->StreamTransactions(ReaderHandle, Callable);
+			}
+
+		private:
+			TSharedRef<TransactionBufferType, ESPMode::ThreadSafe> Buffer;
+			FTransactionReaderHandle ReaderHandle = -1;
 		};
 	}
 }

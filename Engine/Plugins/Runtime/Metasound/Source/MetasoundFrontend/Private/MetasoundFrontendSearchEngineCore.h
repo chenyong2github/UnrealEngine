@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "HAL/CriticalSection.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
+#include "MetasoundFrontendInterfaceRegistryPrivate.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistries.h"
@@ -33,7 +34,7 @@ namespace Metasound
 				virtual void Stream(TArray<FFrontendQueryValue>& OutEntries) override;
 
 			private:
-				FRegistryTransactionID CurrentTransactionID;
+				TUniquePtr<FInterfaceTransactionStream> TransactionStream;
 			};
 
 			class FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys : public IFrontendQueryMapStep

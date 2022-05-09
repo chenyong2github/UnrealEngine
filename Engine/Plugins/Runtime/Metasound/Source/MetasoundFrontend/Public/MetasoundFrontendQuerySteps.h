@@ -7,9 +7,13 @@
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendRegistries.h"
 #include "Misc/Guid.h"
+#include "Templates/PimplPtr.h"
 
 namespace Metasound
 {
+	// Forward declare private implementation
+	class FNodeClassRegistrationEventsPimpl;
+
 	class FMapToNull : public IFrontendQueryMapStep
 	{
 	public:
@@ -28,7 +32,7 @@ namespace Metasound
 		virtual void Stream(TArray<FFrontendQueryValue>& OutValues) override;
 
 	private:
-		Frontend::FRegistryTransactionID CurrentTransactionID;
+		TPimplPtr<FNodeClassRegistrationEventsPimpl> Pimpl;
 	};
 
 	/** Partitions node registration events by their node registration keys. */
