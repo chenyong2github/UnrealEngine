@@ -40,6 +40,22 @@ FWidgetTemplateClass::FWidgetTemplateClass(const FAssetData& InWidgetAssetData, 
 	else
 	{
 		Name = FText::FromString(FName::NameToDisplayString(WidgetAssetData.AssetName.ToString(), false));
+
+		// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
+		if (InWidgetAssetData.IsValid())
+		{
+			FString ParentClassName;
+			if (!WidgetAssetData.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
+			{
+				WidgetAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName);
+			}
+			if (!ParentClassName.IsEmpty())
+			{
+				UObject* Outer = nullptr;
+				ResolveName(Outer, ParentClassName, false, false);
+				CachedParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+			}
+		}
 	}
 }
 
@@ -54,6 +70,10 @@ FText FWidgetTemplateClass::GetCategory() const
 	{
 		auto DefaultWidget = WidgetClass->GetDefaultObject<UWidget>();
 		return DefaultWidget->GetPaletteCategory();
+	}
+	else if (CachedParentClass.IsValid() && CachedParentClass->IsChildOf(UWidget::StaticClass()) && !CachedParentClass->IsChildOf(UUserWidget::StaticClass()))
+	{
+		return CachedParentClass->GetDefaultObject<UWidget>()->GetPaletteCategory();
 	}
 	else
 	{
@@ -80,6 +100,10 @@ const FSlateBrush* FWidgetTemplateClass::GetIcon() const
 	if (WidgetClass.IsValid())
 	{
 		return FSlateIconFinder::FindIconBrushForClass(WidgetClass.Get());
+	}
+	else if (CachedParentClass.IsValid() && CachedParentClass->IsChildOf(UWidget::StaticClass()) && !CachedParentClass->IsChildOf(UUserWidget::StaticClass()))
+	{
+		return FSlateIconFinder::FindIconBrushForClass(CachedParentClass.Get());
 	}
 	else
 	{

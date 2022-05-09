@@ -62,4 +62,7 @@ protected:
 
 	/** The asset data for the widget blueprint */
 	FAssetData WidgetAssetData;
+
+	/** Parent Class of this widget template, may not be valid */
+	TWeakObjectPtr<UClass> CachedParentClass;
 };

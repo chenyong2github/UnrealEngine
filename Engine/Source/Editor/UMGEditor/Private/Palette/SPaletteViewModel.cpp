@@ -332,6 +332,7 @@ void FWidgetCatalogViewModel::BuildWidgetList()
 void FWidgetCatalogViewModel::BuildClassWidgetList()
 {
 	static const FName DevelopmentStatusKey(TEXT("DevelopmentStatus"));
+	static const FString InvalidCategoryName("InvalidCategoryName");
 
 	TMap<FName, TSubclassOf<UUserWidget>> LoadedWidgetBlueprintClassesByName;
 
@@ -466,41 +467,46 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 	TArray<FAssetData> AllBPsAssetData;
 	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), AllBPsAssetData, true);
 
-	// Ignore unloaded assets when using palette filtering, as they lack data needed to correctly pass filters
-	if (!bUseEditorConfigPaletteFiltering)
+	for (FAssetData& BPAssetData : AllBPsAssetData)
 	{
-		for (FAssetData& BPAssetData : AllBPsAssetData)
+		// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
+		UClass* ParentClass = nullptr;
+		FString ParentClassName;
+		if (!BPAssetData.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
 		{
-			// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
-			UClass* ParentClass = nullptr;
-			FString ParentClassName;
-			if (!BPAssetData.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
+			BPAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName);
+		}
+		if (!ParentClassName.IsEmpty())
+		{
+			UObject* Outer = nullptr;
+			ResolveName(Outer, ParentClassName, false, false);
+			ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+			// UUserWidgets have their own loading section, and we don't want to process any blueprints that don't have UWidget parents
+			if (ParentClass)
 			{
-				BPAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName);
-			}
-			if (!ParentClassName.IsEmpty())
-			{
-				UObject* Outer = nullptr;
-				ResolveName(Outer, ParentClassName, false, false);
-				ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
-				// UUserWidgets have their own loading section, and we don't want to process any blueprints that don't have UWidget parents
-				if (ParentClass)
+				if (!ParentClass->IsChildOf(UWidget::StaticClass()) || ParentClass->IsChildOf(UUserWidget::StaticClass()))
 				{
-					if (!ParentClass->IsChildOf(UWidget::StaticClass()) || ParentClass->IsChildOf(UUserWidget::StaticClass()))
+					continue;
+				}
+			}
+		}
+
+		if (!FilterAssetData(BPAssetData))
+		{
+			// If this object isn't currently loaded, add it to the palette view
+			if (BPAssetData.ToSoftObjectPath().ResolveObject() == nullptr)
+			{
+				if (bUseEditorConfigPaletteFiltering)
+				{
+					// Still check the soft object path even if we can't check category due to BP asset being unloaded
+					if (!WidgetPassesConfigFiltering(BPAssetData, InvalidCategoryName, nullptr))
 					{
 						continue;
 					}
 				}
-			}
 
-			if (!FilterAssetData(BPAssetData))
-			{
-				// If this object isn't currently loaded, add it to the palette view
-				if (BPAssetData.ToSoftObjectPath().ResolveObject() == nullptr)
-				{
-					auto Template = MakeShareable(new FWidgetTemplateClass(BPAssetData, nullptr));
-					AddWidgetTemplate(Template);
-				}
+				auto Template = MakeShareable(new FWidgetTemplateClass(BPAssetData, nullptr));
+				AddWidgetTemplate(Template);
 			}
 		}
 	}
