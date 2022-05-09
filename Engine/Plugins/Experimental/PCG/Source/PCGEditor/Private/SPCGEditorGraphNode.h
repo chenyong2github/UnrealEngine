@@ -17,6 +17,7 @@ public:
 
 	//~ Begin SGraphNode Interface
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
+	virtual void RequestRenameOnSpawn() override { /* Empty to avoid the default behavior to rename on node spawn */ }
 	//~ End SGraphNode Interface
 
 protected:
