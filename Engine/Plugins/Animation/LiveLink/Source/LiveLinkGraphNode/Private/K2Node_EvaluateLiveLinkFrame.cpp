@@ -14,7 +14,7 @@
 #include "LiveLinkTypes.h"
 #include "LiveLinkBlueprintLibrary.h"
 #include "UObject/PropertyPortFlags.h"
-
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_EvaluateLiveLinkFrame"
 
