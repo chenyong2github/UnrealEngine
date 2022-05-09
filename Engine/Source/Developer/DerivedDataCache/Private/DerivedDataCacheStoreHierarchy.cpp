@@ -800,7 +800,7 @@ auto FCacheStoreHierarchy::FCacheRecordBatchParams::Get() -> GetFunctionType
 template <>
 bool FCacheStoreHierarchy::FCacheRecordBatchParams::HasResponseData(const FCacheGetResponse& Response)
 {
-	return Algo::AnyOf(Response.Record.GetValues(), &FValue::HasData);
+	return Algo::AnyOf(Response.Record.GetValues(), &FValue::HasData) || Response.Record.GetMeta();
 }
 
 template <>
