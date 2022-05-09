@@ -44,6 +44,7 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName I
 			Result.PropertyName = InName;
 			Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
 			Result.FieldPath = InFieldPath;
+			Result.bOptional = false;
 		}
 	}
 	return Result;
@@ -58,6 +59,7 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FNa
 		Result.PropertyName = InName;
 		Result.ExpectedSourceType = InContext.ContextClass;
 		Result.GlobalViewModelInstance = MoveTemp(InContext);
+		Result.bOptional = false;
 	}
 	return Result;
 }

@@ -42,6 +42,7 @@ public:
 
 	void AddExtension(UWidgetBlueprintGeneratedClass* Class, UMVVMViewClass* ViewExtension);
 	void CleanOldData(UWidgetBlueprintGeneratedClass* ClassToClean, UObject* OldCDO);
+	void CleanTemporaries(UWidgetBlueprintGeneratedClass* ClassToClean);
 
 	/** Generate function that are hidden from the user (not on the Skeleton class). */
 	void CreateFunctions(UMVVMBlueprintView* BlueprintView);

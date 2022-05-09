@@ -331,6 +331,18 @@ namespace UE::MVVM::Private
 				FUIAction(
 					FExecuteAction::CreateLambda([Self]() 
 						{ 
+							Self->Entry->CreationType = EMVVMBlueprintViewModelContextCreationType::Manual;
+							Self->CreationTypeTextBlock->SetText(UEnum::GetDisplayValueAsText(Self->Entry->CreationType));
+							Self->UpdateGetterContainer();
+						})
+				),
+				SNew(STextBlock).Text(LOCTEXT("Manual", "Manual"))
+							);
+
+			MenuBuilder.AddMenuEntry(
+				FUIAction(
+					FExecuteAction::CreateLambda([Self]() 
+						{ 
 							Self->Entry->CreationType = EMVVMBlueprintViewModelContextCreationType::CreateInstance;
 							Self->CreationTypeTextBlock->SetText(UEnum::GetDisplayValueAsText(Self->Entry->CreationType));
 							Self->UpdateGetterContainer();
