@@ -434,7 +434,7 @@ void UCommonButtonBase::SetIsEnabled(bool bInIsEnabled)
 	else
 	{
 		// Change the underlying enabled bool but do not call the case because we don't want to propogate it to the underlying SWidget
-		SetIsEnabled(bInIsEnabled);
+		Super::SetIsEnabled(bInIsEnabled);
 		DisableButton();
 	}
 }
