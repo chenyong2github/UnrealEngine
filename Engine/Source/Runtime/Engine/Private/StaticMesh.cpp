@@ -4653,6 +4653,7 @@ bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Target
 			return false;
 		}
 		NaniteResources.EndRebuildBulkDataFromCache();
+		check(NaniteResources.StreamablePages.GetBulkDataSize() > 0);
 	}
 
 	return true;
