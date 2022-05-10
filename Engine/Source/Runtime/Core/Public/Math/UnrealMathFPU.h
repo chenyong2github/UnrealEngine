@@ -2348,10 +2348,10 @@ FORCEINLINE VectorRegister4Float VectorLoadURGBA16N(void* Ptr)
 	float V[4];
 	uint16* E = (uint16*)Ptr;
 
-	V[0] = float(E[0]) / 65535.0f;
-	V[1] = float(E[1]) / 65535.0f;
-	V[2] = float(E[2]) / 65535.0f;
-	V[3] = float(E[3]) / 65535.0f;
+	V[0] = float(E[0]);
+	V[1] = float(E[1]);
+	V[2] = float(E[2]);
+	V[3] = float(E[3]);
 
 	return MakeVectorRegisterFloat(V[0], V[1], V[2], V[3]);
 }
@@ -2368,10 +2368,10 @@ FORCEINLINE VectorRegister4Float VectorLoadSRGBA16N(void* Ptr)
 	float V[4];
 	int16* E = (int16*)Ptr;
 
-	V[0] = float(E[0]) / 32767.0f;
-	V[1] = float(E[1]) / 32767.0f;
-	V[2] = float(E[2]) / 32767.0f;
-	V[3] = float(E[3]) / 32767.0f;
+	V[0] = float(E[0]);
+	V[1] = float(E[1]);
+	V[2] = float(E[2]);
+	V[3] = float(E[3]);
 
 	return MakeVectorRegisterFloat(V[0], V[1], V[2], V[3]);
 }

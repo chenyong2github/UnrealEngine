@@ -2875,9 +2875,7 @@ FORCEINLINE VectorRegister4Float VectorLoadURGBA16N(const uint16* E)
 	V[2] = float(E[2]);
 	V[3] = float(E[3]);
 
-	VectorRegister4Float Vec = VectorLoad(V);
-	VectorRegister4Float Div = vdupq_n_f32(1.0f / 65535.0f);
-	return VectorMultiply(Vec, Div);
+	return VectorLoad(V);
 }
 
 /**
@@ -2897,9 +2895,7 @@ FORCEINLINE VectorRegister4Float VectorLoadSRGBA16N(const void* Ptr)
 	V[2] = float(E[2]);
 	V[3] = float(E[3]);
 
-	VectorRegister4Float Vec = VectorLoad(V);
-	VectorRegister4Float Div = vdupq_n_f32(1.0f / 32767.0f);
-	return VectorMultiply(Vec, Div);
+	return VectorLoad(V);
 }
 
 /**
