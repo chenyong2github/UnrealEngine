@@ -227,6 +227,6 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 #if WITH_EDITOR
 EPCGSettingsType UPCGSpawnActorSettings::GetType() const
 {
-	return GetSubgraph() ? EPCGSettingsType::Subgraph : EPCGSettingsType::Artifact;
+	return GetSubgraph() ? EPCGSettingsType::Subgraph : EPCGSettingsType::Spawner;
 }
 #endif // WITH_EDITOR

@@ -21,6 +21,7 @@ public:
 #if WITH_EDITOR
 	// ~Begin UPCGSettings interface
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DebugNode")); }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Debug; }
 #endif
 
 protected:

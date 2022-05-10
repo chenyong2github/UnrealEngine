@@ -33,8 +33,9 @@ enum class EPCGSettingsType : uint8
 	Metadata,
 	Filter,
 	Sampler,
-	Artifact,
+	Spawner,
 	Subgraph,
+	Debug,
 	Generic
 };
 

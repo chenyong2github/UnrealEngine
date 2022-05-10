@@ -13,8 +13,9 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	MetadataNodeColor = FLinearColor(0.4f, 0.4f, 0.8f);
 	FilterNodeColor = FLinearColor(0.4f, 0.8f, 0.4f);
 	SamplerNodeColor = FLinearColor(0.8f, 1.0f, 0.4f);
-	ArtifactNodeColor = FLinearColor(1.0f, 0.6f, 0.4f);
+	SpawnerNodeColor = FLinearColor(1.0f, 0.6f, 0.4f);
 	SubgraphNodeColor = FLinearColor(1.0f, 0.1f, 0.1f);
+	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
 }
 
 FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
@@ -57,13 +58,17 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 	{
 		return SamplerNodeColor;
 	}
-	else if (Settings->GetType() == EPCGSettingsType::Artifact)
+	else if (Settings->GetType() == EPCGSettingsType::Spawner)
 	{
-		return ArtifactNodeColor;
+		return SpawnerNodeColor;
 	}
 	else if (Settings->GetType() == EPCGSettingsType::Subgraph)
 	{
 		return SubgraphNodeColor;
+	}
+	else if (Settings->GetType() == EPCGSettingsType::Debug)
+	{
+		return DebugNodeColor;
 	}
 	else
 	{

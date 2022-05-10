@@ -51,11 +51,15 @@ public:
 
 	/** Color used for artifact-generating operations */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
-	FLinearColor ArtifactNodeColor;
+	FLinearColor SpawnerNodeColor;
 
 	/** Color used for subgraph-like operations */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor SubgraphNodeColor;
+
+	/** Color used for debug operations */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor DebugNodeColor;
 
 	/** User-driven color overrides */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
