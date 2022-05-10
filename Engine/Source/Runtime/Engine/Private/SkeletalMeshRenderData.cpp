@@ -430,8 +430,6 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			FSkeletalMeshModel* SkelMeshModel = Owner->GetImportedModel();
 			check(SkelMeshModel);
 
-			uint32 VertexBufferBuildFlags = Owner->GetVertexBufferFlags();
-
 			for (int32 LODIndex = 0; LODIndex < SkelMeshModel->LODModels.Num(); LODIndex++)
 			{
 				FSkeletalMeshLODModel* LODModel = &(SkelMeshModel->LODModels[LODIndex]);
@@ -464,6 +462,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				LODRenderData.Add(LODData);
 				
 				//Get the UVs and tangents precision build settings flag specific for this LOD index
+				uint32 VertexBufferBuildFlags = Owner->GetVertexBufferFlags();
 				{
 					bool bUseFullPrecisionUVs = LODInfo->BuildSettings.bUseFullPrecisionUVs;
 					bool bUseHighPrecisionTangentBasis = LODInfo->BuildSettings.bUseHighPrecisionTangentBasis;
