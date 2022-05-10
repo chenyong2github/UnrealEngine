@@ -813,6 +813,14 @@ public:
 	UFUNCTION(Reliable, Client)
 	virtual void ClientEnableNetworkVoice(bool bEnable);
 
+	/** 
+	 * Acknowledge received LevelVisibilityTransactionId
+	 * @param PackageName - Identifying the level that we are acknowledging levelvisibility for
+	 * @param TransactionId - TransactionId being acknowledged
+	 */
+	UFUNCTION(Reliable, Client)
+	void ClientAckUpdateLevelVisibility(FName PackageName, FNetLevelVisibilityTransactionId TransactionId);
+
 	/** Enable voice chat transmission */
 	void StartTalking();
 
@@ -1341,9 +1349,11 @@ public:
 	 * @param bNewShouldBeVisible - Whether the level should be visible if it is loaded	
 	 * @param bNewShouldBlockOnLoad - Whether we want to force a blocking load
 	 * @param LODIndex				- Current LOD index for a streaming level
+	 * @param TransactionId			- Optional parameter used when communicating LevelVisibility changes between server and client
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientUpdateLevelStreamingStatus(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex);
+	void ClientUpdateLevelStreamingStatus(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex, FNetLevelVisibilityTransactionId TransactionId);
+	void ClientUpdateLevelStreamingStatus(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex) { ClientUpdateLevelStreamingStatus(PackageName, bNewShouldBeLoaded, bNewShouldBeVisible, bNewShouldBlockOnLoad, LODIndex, FNetLevelVisibilityTransactionId()); }
 
 	/**
 	 * Replicated Update streaming status.  This version allows for the streaming state of many levels to be sent in a single RPC.
@@ -1438,17 +1448,6 @@ public:
 	 */
 	UFUNCTION(reliable, server, WithValidation, SealedEvent)
 	void ServerUpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility);
-
-	UE_DEPRECATED(4.24, "Use ServerUpdateLevelVisibility that accepts a LevelVisibility struct.")
-	void ServerUpdateLevelVisibility(FName PackageName, bool bIsVisible)
-	{
-		FUpdateLevelVisibilityLevelInfo LevelVisibility;
-		LevelVisibility.PackageName = PackageName;
-		LevelVisibility.FileName = PackageName;
-		LevelVisibility.bIsVisible = bIsVisible;
-
-		ServerUpdateLevelVisibility(LevelVisibility);
-	}
 
 	/** 
 	 * Called when the client adds/removes a streamed level.  This version of the function allows you to pass the state of 

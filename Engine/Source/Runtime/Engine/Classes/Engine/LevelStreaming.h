@@ -20,6 +20,15 @@ class ALevelScriptActor;
 class ALevelStreamingVolume;
 class ULevel;
 class ULevelStreaming;
+struct FNetLevelVisibilityTransactionId;
+
+struct FNetLevelVisibilityState
+{
+	uint32 ServerRequestIndex = 0;
+	uint32 PendingClientRequestIndex = 0;
+	uint32 AckedClientRequestIndex = 0;
+	bool bPendingInvisibleRequest = false;
+};
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLevelStreaming, Log, All);
 
@@ -301,6 +310,20 @@ private:
 
 public:
 
+	/** Begin a client instigated NetVisibility request */
+	void BeginClientNetVisibilityRequest(bool bInShouldBeVisible);
+
+	/** Check if we are waiting for a making invisible streaming transaction */
+	bool IsWaitingForNetVisibilityTransactionAck() const;
+
+	/** Set the current state of the current visibility/streaming transaction */
+	void UpdateNetVisibilityTransactionState(bool bInShouldBeVisible, FNetLevelVisibilityTransactionId TransactionId);
+
+	/** Ack a client instigated visibility/streaming transaction */
+	void AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId);
+
+public:
+
 	/** Returns the value of bShouldBeVisible. Use ShouldBeVisible to query whether a streaming level should be visible based on its own criteria. */
 	bool GetShouldBeVisibleFlag() const { return bShouldBeVisible; }
 
@@ -499,6 +522,12 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FLevelStreamingVisibilityStatus		OnLevelHidden;
 
+	/** If true client will wait for acknowledgment from server before making streaming levels invisible */
+	static bool ShouldClientUseMakingInvisibleTransactionRequest();
+
+	/** If true server will wait for client acknowledgment before making treating streaming levels as visible for the client */
+	static bool ShouldServerUseMakingVisibleTransactionRequest();
+
 	/** 
 	 * Traverses all streaming level objects in the persistent world and in all inner worlds and calls appropriate delegate for streaming objects that refer specified level 
 	 *
@@ -593,6 +622,9 @@ private:
 
 	/** The cached package name of the currently loaded level. */
 	mutable FName CachedLoadedLevelPackageName;
+
+	/** State for server handshake of NetLevelVisibilty requests */
+	FNetLevelVisibilityState NetVisibilityState;
 
 	friend struct FStreamingLevelPrivateAccessor;
 };

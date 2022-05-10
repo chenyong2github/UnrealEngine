@@ -29,6 +29,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "SceneInterface.h"
 #include "Engine/NetDriver.h"
+#include "Engine/NetConnection.h"
 #include "Engine/PackageMapClient.h"
 #include "Serialization/LoadTimeTrace.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -36,6 +37,39 @@
 DEFINE_LOG_CATEGORY(LogLevelStreaming);
 
 #define LOCTEXT_NAMESPACE "World"
+
+// CVars
+namespace LevelStreamingCVars
+{
+	// There are cases where we might have multiple visibility requests (and data) in flight leading to the server 
+	// starting to replicate data based on an older visibility/streamingstatus update which can lead to broken channels
+	// to mitigate this problem we assign a TransactionId to each request/update to make sure that we are acting on the correct data
+	static bool bShouldClientUseMakingInvisibleTransactionRequest = false;
+	FAutoConsoleVariableRef CVarShouldClientUseMakingInvisibleTransactionRequest(
+		TEXT("LevelStreaming.ShouldClientUseMakingInvisibleTransactionRequest"),
+		bShouldClientUseMakingInvisibleTransactionRequest,
+		TEXT("Whether client should wait for server to acknowledge visibility update before making streaming levels invisible.\n")
+		TEXT("0: Disable, 1: Enable"),
+		ECVF_Default);
+
+	static bool bShouldServerUseMakingVisibleTransactionRequest = false;
+	FAutoConsoleVariableRef CVarShouldServerUseMakingVisibleTransactionRequest(
+		TEXT("LevelStreaming.ShouldServerUseMakingVisibleTransactionRequest"),
+		bShouldServerUseMakingVisibleTransactionRequest,
+		TEXT("Whether server should wait for client to acknowledge visibility update before treating streaming levels as visible by the client.\n")
+		TEXT("0: Disable, 1: Enable"),
+		ECVF_Default);
+}
+
+bool ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest()
+{
+	return LevelStreamingCVars::bShouldClientUseMakingInvisibleTransactionRequest;
+}
+
+bool ULevelStreaming::ShouldServerUseMakingVisibleTransactionRequest()
+{
+	return LevelStreamingCVars::bShouldServerUseMakingVisibleTransactionRequest;
+}
 
 int32 ULevelStreamingDynamic::UniqueLevelInstanceId = 0;
 
@@ -527,6 +561,96 @@ bool ULevelStreaming::DetermineTargetState()
 	return bContinueToConsider;
 }
 
+static bool ShouldWaitForServerAckBeforeMakingInvisible(const UWorld* World, const ULevel* LoadedLevel, const bool bShouldBeVisible, FNetLevelVisibilityState& NetVisibilityState)
+{
+	if (ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest())
+	{
+		if (!LoadedLevel->bClientOnlyVisible && World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open))
+		{
+			if (NetVisibilityState.PendingClientRequestIndex != NetVisibilityState.AckedClientRequestIndex)
+			{
+				// Wait for server to acknowledge the visibility change so that we are sure that we have no incoming data in flight when removing the actors from the world
+				return true;
+			}
+			else if (!bShouldBeVisible && NetVisibilityState.bPendingInvisibleRequest && NetVisibilityState.PendingClientRequestIndex == NetVisibilityState.AckedClientRequestIndex)
+			{
+				// We have a pending request, IncrementTransactionIndex and send ServerUpdateLevelVisibility request to server
+				FNetLevelVisibilityTransactionId TransactionId;
+				TransactionId.SetIsClientInstigator(true);
+				TransactionId.SetTransactionIndex(NetVisibilityState.PendingClientRequestIndex);
+				NetVisibilityState.PendingClientRequestIndex = TransactionId.IncrementTransactionIndex();
+				NetVisibilityState.bPendingInvisibleRequest = false;
+
+				for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+				{
+					if (APlayerController* PlayerController = Iterator->Get())
+					{
+						FUpdateLevelVisibilityLevelInfo LevelVisibility(LoadedLevel, false);
+						LevelVisibility.PackageName = PlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
+						LevelVisibility.VisibilityRequestId = TransactionId;
+							
+						PlayerController->ServerUpdateLevelVisibility(LevelVisibility);
+					}
+				}
+				return true;
+			}
+		}
+	}
+
+	// Invalidate request
+	NetVisibilityState.bPendingInvisibleRequest = false;
+	NetVisibilityState.AckedClientRequestIndex = NetVisibilityState.PendingClientRequestIndex;	
+
+	return false;
+}
+
+bool ULevelStreaming::IsWaitingForNetVisibilityTransactionAck() const
+{
+	if (ShouldClientUseMakingInvisibleTransactionRequest())
+	{
+		if (LoadedLevel && !LoadedLevel->bClientOnlyVisible)
+		{
+			const UWorld* World = GetWorld();
+			if (World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open) && ((NetVisibilityState.PendingClientRequestIndex != NetVisibilityState.AckedClientRequestIndex) || NetVisibilityState.bPendingInvisibleRequest))
+			{
+				return true;
+			}	
+		}
+	}
+
+	return false;
+}
+
+void ULevelStreaming::UpdateNetVisibilityTransactionState(bool bInShouldBeVisible, FNetLevelVisibilityTransactionId TransactionId)
+{
+	if (GetCurrentState() != ULevelStreaming::ECurrentState::MakingInvisible)
+	{
+		// If this is a client request to unload, we will conditionally send a notification to the server before we make the level invisible
+		const bool bIsClientTransaction = TransactionId.IsClientTransaction();
+
+		NetVisibilityState.bPendingInvisibleRequest = bIsClientTransaction && (bInShouldBeVisible == false);
+		NetVisibilityState.ServerRequestIndex = bIsClientTransaction ? FNetLevelVisibilityTransactionId::InvalidTransactionIndex : TransactionId.GetTransactionIndex();
+	}
+}
+
+void ULevelStreaming::BeginClientNetVisibilityRequest(bool bInShouldBeVisible)
+{
+	FNetLevelVisibilityTransactionId TransactionId;
+	TransactionId.SetIsClientInstigator(true);
+
+	UpdateNetVisibilityTransactionState(bInShouldBeVisible, TransactionId);
+}
+
+void ULevelStreaming::AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId)
+{
+	if (ensure(NetVisibilityState.PendingClientRequestIndex != NetVisibilityState.AckedClientRequestIndex))
+	{
+		// Invalidate the pending request as there should only ever be a single one in flight
+		NetVisibilityState.AckedClientRequestIndex = AckedClientTransactionId.GetTransactionIndex();
+		NetVisibilityState.bPendingInvisibleRequest = false;
+	}
+}
+
 void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRedetermineTarget)
 {
 	FScopeCycleCounterUObject ContextScope(this);
@@ -576,7 +700,13 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			}
 			else
 			{
-				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad);
+				// Only respond with ServerTransactionId if the is the target visibility state is supposed to be visible
+				FNetLevelVisibilityTransactionId TransactionId;
+				if (bShouldBeVisible)
+				{
+					TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
+				}
+				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad, TransactionId);
 
 				if (LoadedLevel->bIsVisible)
 				{
@@ -611,8 +741,21 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 
 			const bool bWasVisible = LoadedLevel->bIsVisible;
 
+			// We do not want to have any changes in flights when ending play, so before making invisible we wait for server acknowledgment
+			if (ShouldWaitForServerAckBeforeMakingInvisible(World, LoadedLevel, bShouldBeVisible, NetVisibilityState))
+			{
+				break;
+			}
+
+			FNetLevelVisibilityTransactionId TransactionId;
+			// Only respond with ServerTransactionId if the is the target visibility state is supposed to be not visible
+			if (bShouldBeVisible == false)
+			{
+				TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
+			}
+
 			// Hide loaded level, incrementally if necessary
-			World->RemoveFromWorld(LoadedLevel, !bShouldBlockOnUnload && World->IsGameWorld());
+			World->RemoveFromWorld(LoadedLevel, !bShouldBlockOnUnload && World->IsGameWorld(), TransactionId);
 
 			// Hide loaded level immediately if bRequireFullVisibilityToRender is set
 			const bool LevelBecameInvisible = bWasVisible && !LoadedLevel->bIsVisible;

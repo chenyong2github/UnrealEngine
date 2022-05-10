@@ -67,6 +67,7 @@
 #include "GameFramework/GameSession.h"
 #include "GameMapsSettings.h"
 #include "Particles/EmitterCameraLensEffectBase.h"
+#include "LevelUtils.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 
 DEFINE_LOG_CATEGORY(LogPlayerController);
@@ -254,7 +255,7 @@ FName APlayerController::NetworkRemapPath(FName InPackageName, bool bReading)
 
 /// @cond DOXYGEN_WARNINGS
 
-void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex )
+void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex, FNetLevelVisibilityTransactionId TransactionId)
 {
 	PackageName = NetworkRemapPath(PackageName, true);
 	
@@ -297,6 +298,7 @@ void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName Pa
 						LevelStreamingObject->SetShouldBeVisible(bNewShouldBeVisible);
 						LevelStreamingObject->bShouldBlockOnLoad = bNewShouldBlockOnLoad;
 						LevelStreamingObject->SetLevelLODIndex(LODIndex);
+						LevelStreamingObject->UpdateNetVisibilityTransactionState(bNewShouldBeVisible, TransactionId);
 					}
 					else
 					{
@@ -320,7 +322,21 @@ void APlayerController::ClientUpdateMultipleLevelsStreamingStatus_Implementation
 {
 	for( const FUpdateLevelStreamingLevelStatus& LevelStatus : LevelStatuses )
 	{
-		ClientUpdateLevelStreamingStatus_Implementation( LevelStatus.PackageName, LevelStatus.bNewShouldBeLoaded, LevelStatus.bNewShouldBeVisible, LevelStatus.bNewShouldBlockOnLoad, LevelStatus.LODIndex );
+		ClientUpdateLevelStreamingStatus_Implementation(LevelStatus.PackageName, LevelStatus.bNewShouldBeLoaded, LevelStatus.bNewShouldBeVisible, LevelStatus.bNewShouldBlockOnLoad, LevelStatus.LODIndex, FNetLevelVisibilityTransactionId());
+	}
+}
+
+void APlayerController::ClientAckUpdateLevelVisibility_Implementation(FName PackageName, FNetLevelVisibilityTransactionId TransactionId)
+{
+	if (ensureAlwaysMsgf(TransactionId.IsClientTransaction(), TEXT("APlayerController::ClientAckUpdateLevelVisibility Expected TransactionId to be ClientTransaction")))
+	{
+		// find streaming levels and update request id
+		PackageName = NetworkRemapPath(PackageName, true);
+
+		if (ULevelStreaming* LevelStreamingObject = FLevelUtils::FindStreamingLevel(GetWorld(), PackageName))
+		{
+			LevelStreamingObject->AckNetVisibilityTransaction(TransactionId);
+		}
 	}
 }
 
@@ -346,8 +362,16 @@ void APlayerController::ServerUpdateLevelVisibility_Implementation(const FUpdate
 	{
 		FUpdateLevelVisibilityLevelInfo LevelVisibilityCopy = LevelVisibility;
 		LevelVisibilityCopy.PackageName = NetworkRemapPath(LevelVisibilityCopy.PackageName, true);
+		// FileName and packageName might differ so we have to remap the filename as well.
+		LevelVisibilityCopy.FileName = NetworkRemapPath(LevelVisibilityCopy.FileName, true);
 
 		Connection->UpdateLevelVisibility(LevelVisibilityCopy);
+
+		// If this is a client instigated request respond with the request id so that the client knows that we have received the visibility update
+		if (LevelVisibilityCopy.VisibilityRequestId.IsClientTransaction())
+		{
+			ClientAckUpdateLevelVisibility(LevelVisibility.PackageName, LevelVisibilityCopy.VisibilityRequestId);
+		}
 	}
 }
 
@@ -3371,7 +3395,20 @@ void APlayerController::ClientForceGarbageCollection_Implementation()
 
 void APlayerController::LevelStreamingStatusChanged(ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex )
 {
-	ClientUpdateLevelStreamingStatus(NetworkRemapPath(LevelObject->GetWorldAssetPackageFName(), false), bNewShouldBeLoaded, bNewShouldBeVisible, bNewShouldBlockOnLoad, LODIndex);
+	FNetLevelVisibilityTransactionId TransactionId;
+	if (GetNetMode() == NM_Client)
+	{
+		TransactionId.SetIsClientInstigator(true);
+	}
+	else if (NetConnection)
+	{
+		// For server instigated visibility status changes we assign a transaction id that is used to ensure that we do not enable replication until visibility is confirmed by the client
+		const FName PackageName = NetworkRemapPath(LevelObject->GetWorldAssetPackageFName(), true);
+
+		TransactionId = NetConnection->UpdateLevelStreamStatusChangedTransactionId(LevelObject, PackageName, bNewShouldBeVisible);
+	}
+
+	ClientUpdateLevelStreamingStatus(NetworkRemapPath(LevelObject->GetWorldAssetPackageFName(), false), bNewShouldBeLoaded, bNewShouldBeVisible, bNewShouldBlockOnLoad, LODIndex, TransactionId);
 }
 
 /// @cond DOXYGEN_WARNINGS

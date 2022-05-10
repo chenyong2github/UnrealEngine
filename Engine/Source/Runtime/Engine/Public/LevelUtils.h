@@ -26,6 +26,15 @@ public:
 	static ULevelStreaming* FindStreamingLevel(const ULevel* Level);
 
 	/**
+	 * Returns the streaming level by package FName, or NULL if none exists.
+	 *
+	 * @param		InWorld			World to look in for the streaming level
+	 * @param		PackageFName	FName of the package containing the ULevel to query
+	 * @return						The level's streaming level, or NULL if none exists.
+	 */
+	static ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const FName PackageName);
+
+	/**
 	 * Returns the streaming level by package name, or NULL if none exists.
 	 *
 	 * @param		InWorld			World to look in for the streaming level

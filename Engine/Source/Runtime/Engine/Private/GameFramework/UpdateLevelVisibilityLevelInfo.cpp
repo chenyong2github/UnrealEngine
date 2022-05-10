@@ -48,9 +48,37 @@ bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* Pa
 		FileName = PackageName;
 	}
 
+	VisibilityRequestId.NetSerialize(Ar, PackageMap, bOutSuccess);
+
 	bIsVisible = bLocalIsVisible;
 
 	bOutSuccess = !Ar.IsError();
 	return true;
 }
+
+bool FNetLevelVisibilityTransactionId::NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess)
+{
+	if (Ar.IsLoading())
+	{
+		bool bIsClientInstigator = false;
+		uint32 Value = 0U;
+
+		Ar.SerializeBits(&bIsClientInstigator, 1);
+		Ar.SerializeIntPacked(Value);
+		
+		*this = FNetLevelVisibilityTransactionId(Value, bIsClientInstigator);
+	}
+	else
+	{
+		bool bIsClientInstigator = IsClientTransaction();
+		uint32 Value = GetTransactionIndex();
+
+		Ar.SerializeBits(&bIsClientInstigator, 1);
+		Ar.SerializeIntPacked(Value);		
+	}
+
+	bOutSuccess = !Ar.IsError();
+	return true;
+}
+
 

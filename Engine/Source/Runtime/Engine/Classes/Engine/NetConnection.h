@@ -45,6 +45,7 @@ class FObjectReplicator;
 class StatelessConnectHandlerComponent;
 class UActorChannel;
 class UChildConnection;
+class ULevelStreaming;
 struct FEncryptionKeyResponse;
 
 namespace UE::Net
@@ -777,7 +778,7 @@ public:
 	 */
 	TSet<FName> ClientVisibleLevelNames;
 
-	/** Called by PlayerController to tell connection about client level visiblity change */
+	/** Called by PlayerController to tell connection about client level visibility change */
 	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
 	
 #if DO_ENABLE_NET_TEST
@@ -1439,6 +1440,9 @@ public:
 
 	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason);
 
+	/** Update FNetLevelVisibilityTransactionId for server instigated level streaming */
+	FNetLevelVisibilityTransactionId UpdateLevelStreamStatusChangedTransactionId(const ULevelStreaming* LevelObject, const FName PackageName, bool bShouldBeVisible);
+
 protected:
 
 	bool GetPendingCloseDueToSocketSendFailure() const
@@ -1485,6 +1489,9 @@ private:
 
 	/** This is used to capture visibility updates while the server is in transition and deffer the update until the server has completed the transition */
 	TMap<FName, FUpdateLevelVisibilityLevelInfo> PendingUpdateLevelVisibility;
+
+	/** This is used to track any pending streaming status requests the server has sent */
+	TMap<FName, FNetLevelVisibilityTransactionId> ClientPendingStreamingStatusRequest;
 
 private:
 

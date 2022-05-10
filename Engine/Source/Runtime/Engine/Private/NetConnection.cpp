@@ -41,6 +41,7 @@
 #include "UObject/UnrealNames.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Net/NetPing.h"
+#include "LevelUtils.h"
 
 DECLARE_LLM_MEMORY_STAT(TEXT("NetConnection"), STAT_NetConnectionLLM, STATGROUP_LLMFULL);
 LLM_DEFINE_TAG(NetConnection, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetConnectionLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
@@ -124,25 +125,15 @@ namespace UE_NetConnectionPrivate
 		// If we have a file it is fine too
 		// If its in our own streaming level list, its good
 
-		auto IsInLevelList = [&World](FName InPackageName)
-		{
-			for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
-			{
-				if (StreamingLevel && (StreamingLevel->GetWorldAssetPackageFName() == InPackageName))
-				{
-					return true;
-				}
-			}
-			return false;
-		};
-
 		FValidateLevelVisibilityResult Result;
 		FString PackageNameStr = LevelVisibility.PackageName.ToString();
 		Result.Package = FindPackage(nullptr, *PackageNameStr);
 		Result.Linker = FLinkerLoad::FindExistingLinkerForPackage(Result.Package);
+
+		const ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(World, LevelVisibility.PackageName);
 		Result.bLevelExists = Result.Linker ||
 			(!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString())) ||
-			IsInLevelList(LevelVisibility.PackageName);
+			StreamingLevel != nullptr;
 
 		return Result;
 	}
@@ -844,7 +835,7 @@ void UNetConnection::Serialize( FArchive& Ar )
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DormantReplicatorMap", DormantReplicatorMap.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibleLevelNames", ClientVisibleLevelNames.CountBytes(Ar));
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibileActorOuters", ClientVisibleActorOuters.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibleActorOuters", ClientVisibleActorOuters.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActorsStarvedByClassTimeMap",
 			ActorsStarvedByClassTimeMap.CountBytes(Ar);
@@ -1299,7 +1290,7 @@ void UNetConnection::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 		}
 	}
 
-	// ClientVisibileActorOuters acceleration map
+	// ClientVisibleActorOuters acceleration map
 	for (auto& MapIt : This->ClientVisibleActorOuters)
 	{
 		Collector.AddReferencedObject(MapIt.Key, This);
@@ -1341,6 +1332,23 @@ void UNetConnection::AssertValid()
 	// Make sure this connection is in a reasonable state.
 	check(GetConnectionState()==USOCK_Closed || GetConnectionState()==USOCK_Pending || GetConnectionState()==USOCK_Open);
 
+}
+
+FNetLevelVisibilityTransactionId UNetConnection::UpdateLevelStreamStatusChangedTransactionId(const ULevelStreaming* LevelObject, const FName PackageName, bool bShouldBeVisible)
+{
+	// Increment transactionId
+	FNetLevelVisibilityTransactionId& TransactionId = ClientPendingStreamingStatusRequest.FindOrAdd(PackageName, FNetLevelVisibilityTransactionId());
+	TransactionId.IncrementTransactionIndex();
+
+	// Disable replication of actors on the invisible level
+	// We want to do this now to avoid having data in flight that the client will not be able to receive.
+	if (bShouldBeVisible == false)
+	{
+		ClientVisibleLevelNames.Remove(PackageName);
+		UpdateAllCachedLevelVisibility();
+	}
+
+	return TransactionId;
 }
 
 bool UNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const
@@ -1401,7 +1409,7 @@ void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo
 	if (Driver && Driver->GetWorld())
 	{
 		// If we are doing seamless travel we need to defer visibility updates until after the server has completed loading the level
-		// otherwise we might end up in a situation where visibilty is not correctly updated
+		// otherwise we might end up in a situation where visibility is not correctly updated
 		if (Driver->GetWorld()->IsInSeamlessTravel())
 		{
 			PendingUpdateLevelVisibility.FindOrAdd(LevelVisibility.PackageName) = LevelVisibility;
@@ -1418,13 +1426,28 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 
 	GNumClientUpdateLevelVisibility++;
 
+	bool bVerifiedTransaction = true;
+	if (ULevelStreaming::ShouldServerUseMakingVisibleTransactionRequest())
+	{
+		// If we have a valid server instigated VisibilityRequest we verify it against our pending transactions before treating the level as visible
+		// This is to avoid issues with multiple possibly conflicting requests in flight.
+		const FNetLevelVisibilityTransactionId VisibilityRequestId = LevelVisibility.VisibilityRequestId;
+		if (VisibilityRequestId.IsValid() && !VisibilityRequestId.IsClientTransaction())
+		{
+			if (FNetLevelVisibilityTransactionId* PendingTransactionIndex = ClientPendingStreamingStatusRequest.Find(LevelVisibility.PackageName))
+			{
+				bVerifiedTransaction = VisibilityRequestId == *PendingTransactionIndex;
+			}
+		}
+	}
+
 	// add or remove the level package name from the list, as requested
 	if (LevelVisibility.bIsVisible)
 	{
 		// verify that we were passed a valid level name
 		FValidateLevelVisibilityResult VisibilityResult = ValidateLevelVisibility(GetWorld(), LevelVisibility);
 
-		if (VisibilityResult.bLevelExists)
+		if (bVerifiedTransaction && VisibilityResult.bLevelExists)
 		{
 			ClientVisibleLevelNames.Add(LevelVisibility.PackageName);
 			UE_LOG(LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Added '%s'"), *LevelVisibility.PackageName.ToString());
@@ -1469,9 +1492,8 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			{
 				ReplicationConnectionDriver->NotifyClientVisibleLevelNamesAdd(LevelVisibility.PackageName, LevelWorld);
 			}
-
 		}
-		else
+		else if (!VisibilityResult.bLevelExists)
 		{
 			FString PackageNameStr = LevelVisibility.PackageName.ToString();
 			FString FileNameStr = LevelVisibility.FileName.ToString();
@@ -1499,7 +1521,7 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 		{
 			ReplicationConnectionDriver->NotifyClientVisibleLevelNamesRemove(LevelVisibility.PackageName);
 		}
-			
+
 		// Close any channels now that have actors that were apart of the level the client just unloaded
 		for (auto It = ActorChannels.CreateIterator(); It; ++It)
 		{
@@ -3422,6 +3444,12 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 	// Trace end marker of this incoming data packet.
 	UE_NET_TRACE_PACKET_RECV(NetTraceId, GetConnectionId(), InPacketId, Reader.GetNumBits());
+
+	if (bSkipAck && !IsInternalAck())
+	{
+		// Trace packet as lost on receiving end to indicate bSkipAck in traced data
+		UE_NET_TRACE_PACKET_DROPPED(NetTraceId, GetConnectionId(), InPacketId, ENetTracePacketType::Incoming);
+	}
 }
 
 void UNetConnection::RestoreRemappedChannel(const int32 ChIndex)
@@ -3707,7 +3735,6 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 	check(!Bunch.IsError());
 	Driver->OutBunches++;
 	Driver->OutTotalBunches++;
-	TimeSensitive = 1;
 
 	// Build header.
 	SendBunchHeader.Reset();
@@ -3789,6 +3816,10 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 	// If the bunch does not fit in the current packet, 
 	// flush packet now so that we can report collected stats in the correct scope
 	PrepareWriteBitsToSendBuffer(BunchHeaderBits, BunchBits);
+
+	// We want to mark the packet in which we write the data as TimeSensitive
+	// Note: we want to mark the packet as TimeSensitive here, as PrepareWriteBitsToSendBuffer migth flush the packet
+	TimeSensitive = 1;
 
 	// Report bunch
 	UE_NET_TRACE_END_BUNCH(OutTraceCollector, Bunch, Bunch.ChName, 0, BunchHeaderBits, BunchBits, BunchCollector);
@@ -4557,6 +4588,7 @@ void UNetConnection::ResetGameWorldState()
 {
 	//Clear out references and do whatever else so that nothing holds onto references that it doesn't need to.
 	ResetDestructionInfos();
+	ClientPendingStreamingStatusRequest.Empty();
 	ClientVisibleLevelNames.Empty();
 	KeepProcessingActorChannelBunchesMap.Empty();
 	DormantReplicatorMap.Empty();
