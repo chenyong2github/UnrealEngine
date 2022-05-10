@@ -12,7 +12,7 @@ namespace Eg
 	// see EvalGraphConnectionTypeValues.inl for specific types.
 	//
 #define EVAL_GRAPH_CONNECTION_TYPE(a,A) F##A##Type,
-	enum class EGraphConnectionType : uint8
+	enum class EGraphConnectionType : uint32
 	{
 		FNoneType,
 #include "EvalGraphConnectionTypeValues.inl"
@@ -36,6 +36,22 @@ namespace Eg
 #define EVAL_GRAPH_CONNECTION_TYPE(a,A) template<> inline FName GraphConnectionTypeName<a>() { return FName(TEXT(#A)); }
 #include "EvalGraphConnectionTypeValues.inl"
 #undef EVAL_GRAPH_CONNECTION_TYPE
+
+// ---------------------------------------------------------
+//  GraphConnectionTypeName
+//    Templated function to return a EGraphConnectionType as a FName
+//
+	inline FName GraphConnectionTypeName(EGraphConnectionType ValueType)
+	{
+		switch (ValueType)
+		{
+#define EVAL_GRAPH_CONNECTION_TYPE(a,A)	case EGraphConnectionType::F##A##Type:\
+		return FName(TEXT(#A));
+#include "EvalGraphConnectionTypeValues.inl"
+#undef EVAL_GRAPH_CONNECTION_TYPE
+		}
+		return FName("FNoneType");
+	}
 
 	// ---------------------------------------------------------
 	//  void*
