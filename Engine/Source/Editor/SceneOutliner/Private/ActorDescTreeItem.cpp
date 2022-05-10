@@ -117,7 +117,7 @@ private:
 			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
 				FFormatNamedArguments Args;
-				Args.Add(TEXT("ActorLabel"), FText::FromName(ActorDesc->GetActorLabel()));
+				Args.Add(TEXT("ActorLabel"), FText::FromString(TreeItem->GetDisplayString()));
 				Args.Add(TEXT("UnloadedTag"), LOCTEXT("UnloadedActorLabel", "(Unloaded)"));
 				return FText::Format(LOCTEXT("UnloadedActorDisplay", "{ActorLabel} {UnloadedTag}"), Args);
 			}

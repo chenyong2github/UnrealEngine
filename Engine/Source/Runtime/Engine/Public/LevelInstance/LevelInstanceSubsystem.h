@@ -40,6 +40,7 @@ public:
 	//~ End UWorldSubsystem Interface.
 
 	ILevelInstanceInterface* GetLevelInstance(FLevelInstanceID LevelInstanceID) const;
+	ILevelInstanceInterface* GetOwningLevelInstance(const ULevel* Level) const;
 	FLevelInstanceID RegisterLevelInstance(ILevelInstanceInterface* LevelInstance);
 	void UnregisterLevelInstance(ILevelInstanceInterface* LevelInstance);
 	void RequestLoadLevelInstance(ILevelInstanceInterface* LevelInstance, bool bUpdate);
@@ -97,6 +98,11 @@ public:
 
 	TArray<ILevelInstanceInterface*> GetLevelInstances(const FString& WorldAssetPackage);
 	
+	// Returns the upper chain of level instance actors for the specified level starting with the level instance referencing the level
+	void ForEachLevelInstanceActorAncestors(const ULevel* Level, TFunctionRef<bool(AActor*)> Operation) const;
+	TArray<AActor*> GetParentLevelInstanceActors(const ULevel* Level) const;
+	FString PrefixWithParentLevelInstanceActorLabels(const FString& ActorLabel, const ULevel* Level) const;
+
 	static bool CheckForLoop(const ILevelInstanceInterface* LevelInstance, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ILevelInstanceInterface** LoopStart = nullptr);
 	static bool CheckForLoop(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ILevelInstanceInterface** LoopStart = nullptr);
 	static bool CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason);
@@ -109,7 +115,6 @@ private:
 	void UnloadLevelInstance(const FLevelInstanceID& LevelInstanceID);
 	void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor * LevelActor)> Operation) const;
 	void ForEachLevelInstanceAncestors(AActor* Actor, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const;
-	ILevelInstanceInterface* GetOwningLevelInstance(const ULevel* Level) const;
 	
 	void RegisterLoadedLevelStreamingLevelInstance(ULevelStreamingLevelInstance* LevelStreaming);
 

@@ -18,9 +18,10 @@ public:
 	static FName MakeName(const UDataLayerAsset* DeprecatedDataLayer);
 	void OnCreated(const UDataLayerAsset* Asset);
 
+	virtual bool IsLocked() const override;
+	virtual bool IsReadOnly() const override;
 	virtual bool AddActor(AActor* Actor) const override;
 	virtual bool RemoveActor(AActor* Actor) const override;
-	virtual bool ContainsActor(const AActor* Actor) const override;
 
 	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const override;
 #endif

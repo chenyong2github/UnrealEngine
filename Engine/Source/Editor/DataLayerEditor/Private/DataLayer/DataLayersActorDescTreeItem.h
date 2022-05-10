@@ -6,6 +6,7 @@
 #include "SceneOutlinerFwd.h"
 #include "ActorDescTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayerActorTreeItemData
@@ -37,15 +38,44 @@ public:
 	FDataLayerActorDescTreeItem(const FDataLayerActorDescTreeItemData& InData)
 		: FActorDescTreeItem(InData.ActorGuid, InData.Container)
 		, DataLayer(InData.DataLayer)
-		, IDDataLayerActorDesc(FDataLayerActorDescTreeItem::ComputeTreeItemID(InData.ActorGuid, DataLayer.Get()))
+		, IDDataLayerActorDesc(FDataLayerActorDescTreeItem::ComputeTreeItemID(InData.ActorGuid, DataLayer.Get(), FDataLayerActorDescTreeItem::GetParentActors(InData.Container)))
 	{
+		if (ActorDescHandle.IsValid())
+		{
+			UActorDescContainer* Container = ActorDescHandle->GetContainer();
+			UWorld* OwningWorld = Container->GetWorld();
+			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
+			ULevel* Level = Container->GetTypedOuter<UWorld>()->PersistentLevel;
+			if (LevelInstanceSubsystem && (Level != OwningWorld->GetCurrentLevel()))
+			{
+				DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Level);
+			}
+		}
 	}
 
 	UDataLayerInstance* GetDataLayer() const { return DataLayer.Get(); }
 	
-	static uint32 ComputeTreeItemID(const FGuid& InActorGuid, const UDataLayerInstance* InDataLayer)
+	static uint32 ComputeTreeItemID(const FGuid& InActorGuid, const UDataLayerInstance* InDataLayer, const TArray<AActor*>& InParentActors)
 	{
-		return HashCombine(GetTypeHash(InActorGuid), GetTypeHash(FObjectKey(InDataLayer)));
+		uint32 ID = HashCombine(GetTypeHash(InActorGuid), GetTypeHash(FObjectKey(InDataLayer)));
+		for (AActor* ParentActor : InParentActors)
+		{
+			ID = HashCombine(ID, GetTypeHash(ParentActor->GetActorGuid()));
+		}
+		return ID;
+	}
+
+	static TArray<AActor*> GetParentActors(UActorDescContainer* InContainer)
+	{
+		if (InContainer)
+		{
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(InContainer->GetWorld()))
+			{
+				ULevel* Level = InContainer->GetTypedOuter<UWorld>()->PersistentLevel;
+				return LevelInstanceSubsystem->GetParentLevelInstanceActors(Level);
+			}
+		}
+		return TArray<AActor*>();
 	}
 
 	bool Filter(FFilterPredicate Pred) const

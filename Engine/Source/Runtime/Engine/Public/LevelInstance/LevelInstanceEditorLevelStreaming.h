@@ -25,6 +25,7 @@ public:
 	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const override;
 protected:
 	void OnLevelActorAdded(AActor* InActor);
+	void OnLoadedActorAddedToLevel(AActor& InActor);
 
 	friend class ULevelInstanceSubsystem;
 

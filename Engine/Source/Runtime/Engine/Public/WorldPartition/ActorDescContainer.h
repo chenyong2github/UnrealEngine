@@ -84,6 +84,7 @@ protected:
 
 private:
 #if WITH_EDITOR
+	bool ShouldRegisterDelegates();
 	void RegisterEditorDelegates();
 	void UnregisterEditorDelegates();
 #endif

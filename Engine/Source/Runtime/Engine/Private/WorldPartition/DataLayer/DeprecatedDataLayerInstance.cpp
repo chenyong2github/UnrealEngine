@@ -72,11 +72,6 @@ bool UDeprecatedDataLayerInstance::RemoveActor(AActor* Actor) const
 	return Actor->RemoveDataLayer(FActorDataLayer(GetDataLayerFName()));
 }
 
-bool UDeprecatedDataLayerInstance::ContainsActor(const AActor* Actor) const
-{
-	return Actor->ContainsDataLayer(FActorDataLayer(GetDataLayerFName()));
-}
-
 bool UDeprecatedDataLayerInstance::RelabelDataLayer(FName InDataLayerLabel)
 {
 	FName SanitizedLabel = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);

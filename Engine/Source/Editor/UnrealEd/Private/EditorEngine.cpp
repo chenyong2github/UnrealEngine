@@ -7212,7 +7212,8 @@ void UEditorEngine::OnAssetCreated(UObject* Asset)
 void UEditorEngine::InitializeNewlyCreatedInactiveWorld(UWorld* World)
 {
 	check(World);
-	if (!World->bIsWorldInitialized && World->WorldType == EWorldType::Inactive)
+
+	if (!World->bIsWorldInitialized && World->WorldType == EWorldType::Inactive && !World->IsInstanced())
 	{
 		const bool bOldDirtyState = World->GetOutermost()->IsDirty();
 

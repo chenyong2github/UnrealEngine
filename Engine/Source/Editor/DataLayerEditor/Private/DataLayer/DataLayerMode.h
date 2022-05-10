@@ -11,6 +11,7 @@
 class UDataLayerEditorSubsystem;
 class SDataLayerBrowser;
 class UWorld;
+class AWorldDataLayers;
 
 struct FDataLayerModeParams
 {
@@ -31,9 +32,10 @@ class FDataLayerMode : public ISceneOutlinerMode
 public:
 	enum class EItemSortOrder : int32
 	{
-		DataLayer = 0,
-		Actor = 10,
-		Unloaded = 20,
+		WorldDataLayers = 0,
+		DataLayer = 10,
+		Actor = 20,
+		Unloaded = 30,
 	};
 
 	FDataLayerMode(const FDataLayerModeParams& Params);
@@ -90,6 +92,9 @@ protected:
 	bool bShowOnlySelectedActors;
 	/** Should highlight DataLayers containing selected actors */
 	bool bHighlightSelectedDataLayers;
+	/** Should level instance actors content be hidden */
+	bool bHideLevelInstanceContent;
+
 	/** Delegate to call when an item is picked */
 	FOnSceneOutlinerItemPicked OnItemPicked;
 
@@ -110,6 +115,8 @@ private:
 	bool ShouldExpandDataLayer(const UDataLayerInstance* DataLayer) const;
 	bool ContainsSelectedChildDataLayer(const UDataLayerInstance* DataLayer) const;
 	void RefreshSelection();
+	UWorld* GetOwningWorld() const;
+	AWorldDataLayers* GetOwningWorldAWorldDataLayers() const;
 	FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation = false) const;
 
 	UDataLayerAsset* PromptDataLayerAssetSelection();
@@ -120,6 +127,7 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideRuntimeDataLayersFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideDataLayerActorsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
+	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;

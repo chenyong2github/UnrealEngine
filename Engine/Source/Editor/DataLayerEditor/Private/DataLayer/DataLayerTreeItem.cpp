@@ -22,14 +22,20 @@ FDataLayerTreeItem::FDataLayerTreeItem(UDataLayerInstance* InDataLayerInstance)
 
 FString FDataLayerTreeItem::GetDisplayString() const
 {
-	const UDataLayerInstance* DataLayerPtr = DataLayerInstance.Get();
-	return DataLayerPtr ? DataLayerPtr->GetDataLayerShortName() : LOCTEXT("DataLayerForMissingDataLayer", "(Deleted Data Layer)").ToString();
+	const UDataLayerInstance* DataLayerInstancePtr = DataLayerInstance.Get();
+	return DataLayerInstancePtr ? DataLayerInstancePtr->GetDataLayerShortName() : LOCTEXT("DataLayerForMissingDataLayer", "(Deleted Data Layer)").ToString();
 }
 
 bool FDataLayerTreeItem::GetVisibility() const
 {
-	const UDataLayerInstance* DataLayerPtr = DataLayerInstance.Get();
-	return DataLayerPtr && DataLayerPtr->IsVisible();
+	const UDataLayerInstance* DataLayerInstancePtr = DataLayerInstance.Get();
+	return DataLayerInstancePtr && DataLayerInstancePtr->IsVisible();
+}
+
+bool FDataLayerTreeItem::ShouldShowVisibilityState() const
+{
+	const UDataLayerInstance* DataLayerInstancePtr = DataLayerInstance.Get();
+	return DataLayerInstancePtr && !DataLayerInstancePtr->IsReadOnly();
 }
 
 bool FDataLayerTreeItem::CanInteract() const 
@@ -44,9 +50,9 @@ TSharedRef<SWidget> FDataLayerTreeItem::GenerateLabelWidget(ISceneOutliner& Outl
 
 void FDataLayerTreeItem::OnVisibilityChanged(const bool bNewVisibility)
 {
-	if (UDataLayerInstance* DataLayerPtr = DataLayerInstance.Get())
+	if (UDataLayerInstance* DataLayerInstancePtr = DataLayerInstance.Get())
 	{
-		UDataLayerEditorSubsystem::Get()->SetDataLayerVisibility(DataLayerPtr, bNewVisibility);
+		UDataLayerEditorSubsystem::Get()->SetDataLayerVisibility(DataLayerInstancePtr, bNewVisibility);
 	}
 }
 
@@ -54,9 +60,9 @@ bool FDataLayerTreeItem::ShouldBeHighlighted() const
 {
 	if (bIsHighlighedtIfSelected)
 	{
-		if (UDataLayerInstance* DataLayerPtr = DataLayerInstance.Get())
+		if (UDataLayerInstance* DataLayerInstancePtr = DataLayerInstance.Get())
 		{
-			return UDataLayerEditorSubsystem::Get()->DoesDataLayerContainSelectedActors(DataLayerPtr);
+			return UDataLayerEditorSubsystem::Get()->DoesDataLayerContainSelectedActors(DataLayerInstancePtr);
 		}
 	}
 	return false;

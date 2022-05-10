@@ -50,7 +50,6 @@ public:
 	void SetIsLoadedInEditor(bool bIsLoadedInEditor, bool bFromUserChange);
 	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
-	bool IsLocked() const;
 	bool IsInitiallyLoadedInEditor() const { return bIsInitiallyLoadedInEditor; }
 	bool IsLoadedInEditor() const { return bIsLoadedInEditor; }
 	bool IsEffectiveLoadedInEditor() const;
@@ -67,9 +66,11 @@ public:
 
 	static FText GetDataLayerText(const UDataLayerInstance* InDataLayer);
 
+	virtual bool IsLocked() const;
+	virtual bool IsReadOnly() const { return false; }
+	virtual bool CanEditChange(const FProperty* InProperty) const;
 	virtual bool AddActor(AActor* Actor) const { return false; }
 	virtual bool RemoveActor(AActor* Actor) const { return false; }
-	virtual bool ContainsActor(const AActor* Actor) const { return false; }
 
 	bool IsInActorEditorContext() const;
 	bool AddToActorEditorContext();

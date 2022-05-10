@@ -57,6 +57,8 @@
 #if WITH_EDITOR
 #include "FoliageHelper.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #endif
 
 #include "WorldPartition/WorldPartition.h"
@@ -5909,21 +5911,43 @@ FArchive& operator<<(FArchive& Ar, AActor::FActorTransactionAnnotationData& Acto
 
 TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
 {
+	const bool bUseLevelContext = false;
+	return GetDataLayerInstancesInternal(bUseLevelContext);
+}
+
+// Returns all valid DataLayerInstances for this actor including those inherited from their parent level instance actor.
+// If bUseLevelContext is true, the actor level will be passed down to the DataLayerSubsystem which will use it 
+// to narrow down the resolving of valid datalayers for this particular level.
+TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUseLevelContext) const
+{
 	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
 		return GetLevel()->GetWorldPartitionRuntimeCell()->GetDataLayerInstances();
 	}
 
 #if WITH_EDITOR
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	if (SupportsDataLayer() && IsValidForDataLayer())
 	{
 		TArray<const UDataLayerInstance*> DataLayerInstances;
-		DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayerAssets);
+		ULevel* OuterLevel = bUseLevelContext ? GetLevel() : nullptr;
+		if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+		{
+			DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayerAssets, OuterLevel);
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayers, OuterLevel);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
 
+		// Add parent container Data Layer Instances
+		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld());
+		if (AActor* ParentActor = LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetParentLevelInstance(this)) : nullptr)
+		{
+			for (const UDataLayerInstance* DataLayerInstance : ParentActor->GetDataLayerInstancesInternal(bUseLevelContext))
+			{
+				DataLayerInstances.AddUnique(DataLayerInstance);
+			}
+		}
 		return DataLayerInstances;
 	}
 #endif
@@ -5939,7 +5963,7 @@ bool AActor::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) cons
 	}
 
 #if WITH_EDITOR
-	return DataLayerInstance->ContainsActor(this);
+	return GetDataLayerInstances().Contains(DataLayerInstance);
 #else
 	return false;
 #endif
@@ -5947,16 +5971,29 @@ bool AActor::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) cons
 
 bool AActor::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
 {
+	if (!DataLayerAsset)
+	{
+		return false;
+	}
+
 	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
 		return GetLevel()->GetWorldPartitionRuntimeCell()->ContainsDataLayer(DataLayerAsset);
 	}
 
 #if WITH_EDITOR
-	return DataLayerAsset && DataLayerAssets.Contains(DataLayerAsset);
-#else
-	return false;
+	if (DataLayerAssets.Contains(DataLayerAsset))
+	{
+		return true;
+	}
+	// Add parent container Data Layer Instances
+	ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld());
+	if (AActor* ParentActor = LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetParentLevelInstance(this)) : nullptr)
+	{
+		return ParentActor->ContainsDataLayer(DataLayerAsset);
+	}
 #endif
+	return false;
 }
 
 bool AActor::HasDataLayers() const
@@ -5967,7 +6004,7 @@ bool AActor::HasDataLayers() const
 	}
 
 #if WITH_EDITOR
-	return DataLayerAssets.Num() > 0 || DataLayers.Num() > 0;
+	return (GetDataLayerInstances().Num() > 0);
 #else
 	return false;
 #endif

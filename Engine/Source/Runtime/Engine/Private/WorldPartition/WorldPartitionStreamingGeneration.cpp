@@ -132,17 +132,11 @@ class FWorldPartitionStreamingGenerator
 				const FGuid ActorGuid = ActorDescView.GetGuid();
 				const FActorContainerID SubContainerID(InContainerID, ActorGuid);
 
-				// Only propagate data layers from the root container as we don't support sub containers to set their own
-				const TSet<FName>* SubRuntimeDataLayers = &InRuntimeDataLayers;
-				TSet<FName> ParentRuntimeDataLayers;
+				// Combine actor runtime Data Layers with parent container runtime Data Layers
+				TSet<FName> CombinedRuntimeDataLayers = InRuntimeDataLayers;
+				CombinedRuntimeDataLayers.Append(ActorDescView.GetRuntimeDataLayers());
 
-				if (InContainerID.IsMainContainer())
-				{
-					ParentRuntimeDataLayers.Append(ActorDescView.GetRuntimeDataLayers());
-					SubRuntimeDataLayers = &ParentRuntimeDataLayers;
-				}
-
-				CreateActorDescriptorViewsRecursive(SubContainer, SubTransform * InTransform, *SubRuntimeDataLayers, SubContainerID, InContainerID, SubClusterMode, *ActorDescView.GetActorLabelOrName().ToString());
+				CreateActorDescriptorViewsRecursive(SubContainer, SubTransform * InTransform, CombinedRuntimeDataLayers, SubContainerID, InContainerID, SubClusterMode, *ActorDescView.GetActorLabelOrName().ToString());
 
 				// The container actor can be removed now that its contained actors has been registered
 				It.RemoveCurrent();

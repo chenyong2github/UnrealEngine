@@ -24,7 +24,7 @@ public:
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual void OnVisibilityChanged(const bool bNewVisibility) override;
 	virtual bool GetVisibility() const override;
-	virtual bool ShouldShowVisibilityState() const { return true; }
+	virtual bool ShouldShowVisibilityState() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
 
 	bool ShouldBeHighlighted() const;

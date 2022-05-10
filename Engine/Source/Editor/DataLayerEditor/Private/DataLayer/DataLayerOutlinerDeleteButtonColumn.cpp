@@ -44,7 +44,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerDeleteButtonColumn::ConstructRowWidg
 			{
 				AActor* Actor = DataLayerActorItem->GetActor();
 				const UDataLayerInstance* DataLayer = DataLayerActorItem->GetDataLayer();
-				return (Actor && DataLayer && !DataLayer->IsLocked()) ? EVisibility::Visible : EVisibility::Collapsed;
+				return (Actor && DataLayer && !DataLayer->IsLocked() && TreeItem->CanInteract()) ? EVisibility::Visible : EVisibility::Collapsed;
 			})
 			.OnClicked_Lambda([this, TreeItem, DataLayerActorItem]()
 			{

@@ -11,6 +11,7 @@ class FDataLayerMode;
 class UDataLayerInstance;
 class UWorld;
 class FWorldPartitionActorDesc;
+class UWorldPartition;
 
 class FDataLayerHierarchy : public ISceneOutlinerHierarchy
 {
@@ -26,8 +27,10 @@ public:
 	void SetShowUnloadedActors(bool bInShowUnloadedActors) { bShowUnloadedActors = bInShowUnloadedActors; }
 	void SetShowOnlySelectedActors(bool bInbShowOnlySelectedActors) { bShowOnlySelectedActors = bInbShowOnlySelectedActors; }
 	void SetHighlightSelectedDataLayers(bool bInHighlightSelectedDataLayers) { bHighlightSelectedDataLayers = bInHighlightSelectedDataLayers; }
+	void SetShowLevelInstanceContent(bool bInShowLevelInstanceContent) { bShowLevelInstanceContent = bInShowLevelInstanceContent; }
 
 private:
+	UWorld* GetOwningWorld() const;
 	FDataLayerHierarchy(FDataLayerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds);
 	FDataLayerHierarchy(const FDataLayerHierarchy&) = delete;
 	FDataLayerHierarchy& operator=(const FDataLayerHierarchy&) = delete;
@@ -38,6 +41,8 @@ private:
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorDeleted(AActor* InActor);
 	void OnLevelActorListChanged();
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);
 	void OnLevelRemoved(ULevel* InLevel, UWorld* InWorld);
 	void OnLoadedActorAdded(AActor& InActor);
@@ -57,4 +62,5 @@ private:
 	bool bShowUnloadedActors;
 	bool bShowOnlySelectedActors;
 	bool bHighlightSelectedDataLayers;
+	bool bShowLevelInstanceContent;
 };

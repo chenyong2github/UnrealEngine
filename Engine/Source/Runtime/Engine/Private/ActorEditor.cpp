@@ -16,6 +16,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -31,6 +32,7 @@
 #include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "Folder.h"
 #include "ActorFolder.h"
 #include "WorldPersistentFolders.h"
@@ -1324,7 +1326,7 @@ bool AActor::AddDataLayer(const UDataLayerInstance* DataLayerInstance)
 bool AActor::AddDataLayer(const UDataLayerAsset* DataLayerAsset)
 {
 	bool bActorWasModified = false;
-	if (SupportsDataLayer() && DataLayerAsset && !ContainsDataLayer(DataLayerAsset))
+	if (SupportsDataLayer() && DataLayerAsset && !DataLayerAssets.Contains(DataLayerAsset))
 	{
 		Modify();
 		bActorWasModified = true;
@@ -1341,7 +1343,7 @@ bool AActor::RemoveDataLayer(const UDataLayerInstance* DataLayerInstance)
 bool AActor::RemoveDataLayer(const UDataLayerAsset* DataLayerAsset)
 {
 	bool bActorWasModified = false;
-	if (ContainsDataLayer(DataLayerAsset))
+	if (DataLayerAsset && DataLayerAssets.Contains(DataLayerAsset))
 	{
 		if (!bActorWasModified)
 		{
@@ -1356,7 +1358,7 @@ bool AActor::RemoveDataLayer(const UDataLayerAsset* DataLayerAsset)
 
 bool AActor::RemoveAllDataLayers()
 {
-	if (HasDataLayers())
+	if ((DataLayerAssets.Num() > 0) || (DataLayers.Num() > 0))
 	{
 		Modify();
 		DataLayerAssets.Empty();
@@ -1366,42 +1368,22 @@ bool AActor::RemoveAllDataLayers()
 	return false;
 }
 
-bool AActor::HasValidDataLayers() const
-{
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
-	{
-		for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : DataLayerAssets)
-		{
-			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset))
-			{
-				return true;
-			}
-		}
-
-		for (const FActorDataLayer& ActorDataLayer : DataLayers)
-		{
-			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(ActorDataLayer.Name))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 TArray<FName> AActor::GetDataLayerInstanceNames() const
 {
 	TArray<FName> DataLayerInstanceNames;
-	
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	TArray<const UDataLayerInstance*> DataLayerInstances = GetDataLayerInstances();
+	DataLayerInstanceNames.Reserve(DataLayerInstances.Num());
+	for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 	{
-		DataLayerInstanceNames += DataLayerSubsystem->GetDataLayerInstanceNames(DataLayerAssets);
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstanceNames += DataLayerSubsystem->GetDataLayerInstanceNames(DataLayers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		DataLayerInstanceNames.Add(DataLayerInstance->GetDataLayerFName());
 	}
 	return DataLayerInstanceNames;
+}
+
+TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesForLevel() const
+{
+	const bool bUseLevelContext = true;
+	return GetDataLayerInstancesInternal(bUseLevelContext);
 }
 
 void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
@@ -1422,18 +1404,21 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 				return;
 			}
 
+			ULevel* Level = GetLevel();
+
 			if (bRevertChangesOnLockedDataLayer)
 			{
 				// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
 				TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
 				TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
 
-				auto DifferenceContainsLockedDataLayers = [DataLayerSubsystem](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
+				auto DifferenceContainsLockedDataLayers = [DataLayerSubsystem, Level](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
 				{
 					TSet<const UDataLayerAsset*> Diff = A.Difference(B);
 					for (const UDataLayerAsset* DataLayerAsset : Diff)
 					{
-						const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset);
+						// We pass Actor Level when resolving the DataLayerInstance as we do the fixup relative to this level
+						const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset, Level);
 						if (DataLayerInstance && DataLayerInstance->IsLocked())
 						{
 							return true;
@@ -1450,15 +1435,16 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 			}
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			auto CleanupDataLayers = [this, DataLayerSubsystem](auto& DataLayerArray)
+			auto CleanupDataLayers = [this, DataLayerSubsystem, Level](auto& DataLayerArray)
 			{
 				using ArrayType = typename TRemoveReference<decltype(DataLayerArray)>::Type;
 					
 				ArrayType ExistingDataLayer;
 				for (int32 Index = 0; Index < DataLayerArray.Num();)
 				{
+					// We pass Actor Level when resolving the DataLayerInstance as we do the fixup relative to this level
 					auto& DataLayer = DataLayerArray[Index];
-					if (!DataLayerSubsystem->GetDataLayerInstance(DataLayer) || ExistingDataLayer.Contains(DataLayer))
+					if (!DataLayerSubsystem->GetDataLayerInstance(DataLayer, Level) || ExistingDataLayer.Contains(DataLayer))
 					{
 						DataLayerArray.RemoveAtSwap(Index);
 					}

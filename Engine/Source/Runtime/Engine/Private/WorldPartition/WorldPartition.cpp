@@ -501,13 +501,13 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	if (bIsEditor)
 	{
 		// Repair existing maps with no UWorld::WorldDataLayers actor.
-		AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
+		AWorldDataLayers* WorldDataLayers = OuterWorld->GetWorldDataLayers();
 		if (!WorldDataLayers)
 		{
 			// WorldDataLayersActor is invalid here orelse its PostLoad would have set itself as the world's WorldDataLayers
 			check(!WorldDataLayersActor.IsValid());
-			WorldDataLayers = AWorldDataLayers::Create(World);
-			World->SetWorldDataLayers(WorldDataLayers);
+			WorldDataLayers = AWorldDataLayers::Create(OuterWorld);
+			OuterWorld->SetWorldDataLayers(WorldDataLayers);
 		}
 
 		// Apply level transform on actors already part of the level
@@ -704,32 +704,30 @@ void UWorldPartition::RegisterDelegates()
 {
 	check(World); 
 
-	if (IsMainWorldPartition())
-	{
 #if WITH_EDITOR
-		if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	{
+		if (IsMainWorldPartition())
 		{
 			FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
 			FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
 			FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
 			FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
-
 			FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
-
 			GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
-
-			FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddUObject(this, &UWorldPartition::OnActorDataLayersEditorLoadingStateChanged);
 		}
+
+		FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddUObject(this, &UWorldPartition::OnActorDataLayersEditorLoadingStateChanged);
+	}
 #endif
 
-		if (World->IsGameWorld())
-		{
-			World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
+	if (IsMainWorldPartition() && World->IsGameWorld())
+	{
+		World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
 
 #if !UE_BUILD_SHIPPING
-			FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
+		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
 #endif
-		}
 	}
 }
 
@@ -737,10 +735,10 @@ void UWorldPartition::UnregisterDelegates()
 {
 	check(World);
 
-	if (IsMainWorldPartition())
-	{
 #if WITH_EDITOR
-		if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	{
+		if (IsMainWorldPartition())
 		{
 			FEditorDelegates::PreBeginPIE.RemoveAll(this);
 			FEditorDelegates::PrePIEEnded.RemoveAll(this);
@@ -753,19 +751,19 @@ void UWorldPartition::UnregisterDelegates()
 			}
 
 			GEditor->OnPostBugItGoCalled().RemoveAll(this);
-
-			FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
 		}
+
+		FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
+	}
 #endif
 
-		if (World->IsGameWorld())
-		{
-			World->OnWorldMatchStarting.RemoveAll(this);
+	if (IsMainWorldPartition() && World->IsGameWorld())
+	{
+		World->OnWorldMatchStarting.RemoveAll(this);
 
 #if !UE_BUILD_SHIPPING
-			FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
+		FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
 #endif
-		}
 	}
 }
 
@@ -1417,7 +1415,7 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 
 bool UWorldPartition::CanDrawRuntimeHash() const
 {
-	return GetWorld()->IsGameWorld() || UWorldPartition::IsSimulating();
+	return GetWorld()->IsGameWorld() || (UWorldPartition::IsSimulating() && StreamingPolicy);
 }
 
 FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)

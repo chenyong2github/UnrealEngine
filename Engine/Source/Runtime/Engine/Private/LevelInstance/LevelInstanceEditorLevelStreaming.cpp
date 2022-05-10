@@ -96,6 +96,11 @@ ULevelStreamingLevelInstanceEditor* ULevelStreamingLevelInstanceEditor::Load(ILe
 
 		GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 
+		if (ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel())
+		{
+			LoadedLevel->OnLoadedActorAddedToLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstanceEditor::OnLoadedActorAddedToLevel);
+		}
+
 		// Create special actor that will handle changing the pivot of this level
 		ALevelInstancePivot::Create(LevelInstance, LevelStreaming);
 
@@ -109,8 +114,17 @@ void ULevelStreamingLevelInstanceEditor::Unload(ULevelStreamingLevelInstanceEdit
 {
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = LevelStreaming->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 	{
-		LevelInstanceSubsystem->RemoveLevelsFromWorld({ LevelStreaming->GetLoadedLevel() });
+		if (ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel())
+		{
+			LoadedLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(LevelStreaming);
+			LevelInstanceSubsystem->RemoveLevelsFromWorld({ LoadedLevel });
+		}
 	}
+}
+
+void ULevelStreamingLevelInstanceEditor::OnLoadedActorAddedToLevel(AActor& InActor)
+{
+	OnLevelActorAdded(&InActor);
 }
 
 void ULevelStreamingLevelInstanceEditor::OnLevelActorAdded(AActor* InActor)

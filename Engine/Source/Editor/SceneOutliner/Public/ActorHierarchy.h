@@ -8,6 +8,7 @@
 
 class FWorldPartitionActorDesc;
 class UActorFolder;
+class UWorldPartition;
 
 class FActorHierarchy : public ISceneOutlinerHierarchy
 {
@@ -59,6 +60,9 @@ private:
 		
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);
 	void OnLevelRemoved(ULevel* InLevel, UWorld* InWorld);
+
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 
 	/** Called when a folder is to be created */
 	void OnBroadcastFolderCreate(UWorld& InWorld, const FFolder& InNewFolder);

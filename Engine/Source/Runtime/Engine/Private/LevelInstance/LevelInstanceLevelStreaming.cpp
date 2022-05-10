@@ -54,6 +54,59 @@ FBox ULevelStreamingLevelInstance::GetBounds() const
 	check(GetLoadedLevel());
 	return ALevelBounds::CalculateLevelBounds(GetLoadedLevel());
 }
+
+void ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel(AActor& InActor)
+{
+	check(LevelInstanceEditorInstanceActor.IsValid());
+	PrepareLevelInstanceLoadedActor(InActor, GetLevelInstance());
+}
+
+void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance)
+{
+	InActor.ClearFlags(RF_Transactional);
+	InActor.SetFlags(RF_Transient);
+
+	if (InActor.IsPackageExternal())
+	{
+		ResetLoaders(InActor.GetExternalPackage());
+		InActor.GetPackage()->SetFlags(RF_Transient);
+	}
+
+	InActor.PushSelectionToProxies();
+	if (InLevelInstance)
+	{
+		InActor.PushLevelInstanceEditingStateToProxies(CastChecked<AActor>(InLevelInstance)->IsInEditingLevelInstance());
+	}
+
+	if (LevelInstanceEditorInstanceActor.IsValid())
+	{
+		if (InActor.GetAttachParentActor() == nullptr && !InActor.IsChildActor())
+		{
+			// Detect if LevelInstance has moved since it was loaded/created and move the child actor accordingly
+			if (!LevelTransform.Equals(LevelInstanceEditorInstanceActor->GetTransform()))
+			{
+				FTransform TransformToApply = LevelTransform.Inverse() * LevelInstanceEditorInstanceActor->GetTransform();
+				FLevelUtils::FApplyLevelTransformParams TransformParams(InActor.GetLevel(), TransformToApply);
+				TransformParams.Actor = &InActor;
+				TransformParams.bDoPostEditMove = true;
+				FLevelUtils::ApplyLevelTransform(TransformParams);
+			}
+
+			InActor.AttachToActor(LevelInstanceEditorInstanceActor.Get(), FAttachmentTransformRules::KeepWorldTransform);
+		}
+	}
+}
+
+void ULevelStreamingLevelInstance::OnLoadedActorRemovedFromLevel(AActor& InActor)
+{
+	// Detach actor or else it will keep it alive (attachement keeps a reference to the actor)
+	check(LevelInstanceEditorInstanceActor.IsValid());
+	if (InActor.GetAttachParentActor() == LevelInstanceEditorInstanceActor.Get())
+	{
+		InActor.DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
+}
+
 #endif
 
 ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelInstanceInterface* LevelInstance)
@@ -99,10 +152,21 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			check(Level);
 			check(LevelStreaming->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible);
 
+			Level->OnLoadedActorAddedToLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel);
+			Level->OnLoadedActorRemovedFromLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorRemovedFromLevel);
+
 			UWorld* OuterWorld = Level->GetTypedOuter<UWorld>();
 			OuterWorld->ClearFlags(RF_Transactional);
 			OuterWorld->SetFlags(RF_Transient);
-			ResetLoaders(OuterWorld->GetPackage());
+			
+			// @todo_ow: Resetting the load will prevent any OFPA package to properly load since their import level will fail to resolve.
+			//           This is a temporary workaround. The downside of this is that the level can't be saved. 
+			//           Most of the changes will only affect OFPA packages. One problematic use case is when changing the pivot of a Level Instance.
+			FName PackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
+			if (!ULevel::GetIsLevelPartitionedFromPackage(PackageName))
+			{
+				ResetLoaders(OuterWorld->GetPackage());
+			}
 
 			OuterWorld->GetPackage()->ClearFlags(RF_Transactional);
 			OuterWorld->GetPackage()->SetFlags(RF_Transient);
@@ -117,14 +181,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			{
 				if (LevelActor)
 				{
-					if (LevelActor->IsPackageExternal())
-					{
-						ResetLoaders(LevelActor->GetExternalPackage());
-						LevelActor->GetPackage()->SetFlags(RF_Transient);
-					}
-
-					LevelActor->PushSelectionToProxies();
-					LevelActor->PushLevelInstanceEditingStateToProxies(CastChecked<AActor>(LevelInstance)->IsInEditingLevelInstance());
+					LevelStreaming->PrepareLevelInstanceLoadedActor(*LevelActor, LevelInstance);
 				}
 			}
 			Level->ForEachActorFolder([](UActorFolder* ActorFolder)
@@ -138,7 +195,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			});
 
 			// Create special actor that will handle selection and transform
-			ALevelInstanceEditorInstanceActor::Create(LevelInstance, Level);
+			LevelStreaming->LevelInstanceEditorInstanceActor = ALevelInstanceEditorInstanceActor::Create(LevelInstance, Level);
 		}
 #endif
 		return LevelStreaming;
@@ -158,8 +215,12 @@ void ULevelStreamingLevelInstance::UnloadInstance(ULevelStreamingLevelInstance* 
 #if WITH_EDITOR
 	else
 	{
-		// Check if we need to flush the Trans buffer...
 		ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
+		LoadedLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(LevelStreaming);
+		LoadedLevel->OnLoadedActorRemovedFromLevelEvent.RemoveAll(LevelStreaming);
+		LevelStreaming->LevelInstanceEditorInstanceActor.Reset();
+
+		// Check if we need to flush the Trans buffer...
 		UWorld* OuterWorld = LoadedLevel->GetTypedOuter<UWorld>();
 		bool bResetTrans = false;
 		ForEachObjectWithOuterBreakable(OuterWorld, [&bResetTrans](UObject* Obj)

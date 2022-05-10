@@ -499,28 +499,28 @@ const UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstanceFromAssetName
 	return nullptr;
 }
 
-void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func)
+void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func, const ULevel* InLevelContext /* = nullptr */)
 {
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	if (!InLevelContext || InLevelContext == GetWorld()->PersistentLevel)
 	{
-		WorldDataLayers->ForEachDataLayer(Func);
+		if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+		{
+			WorldDataLayers->ForEachDataLayer(Func);
+		}
+		else
+		{
+			UE_LOG(LogWorldPartition, Warning, TEXT("Iterating over Data Layers without a World Partition"));
+		}
 	}
-	else
+	else if (const AWorldDataLayers* CurrentLevelWorldDataLayers = (InLevelContext && !InLevelContext->IsPersistentLevel()) ? InLevelContext->GetWorldDataLayers() : nullptr)
 	{
-		UE_LOG(LogWorldPartition, Warning, TEXT("Iterating over Data Layers without a World Partition"));
+		CurrentLevelWorldDataLayers->ForEachDataLayer(Func);
 	}
 }
 
-void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const
+void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func, const ULevel* InLevelContext /* = nullptr */) const
 {
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		WorldDataLayers->ForEachDataLayer(Func);
-	}
-	else
-	{
-		UE_LOG(LogWorldPartition, Warning, TEXT("Iterating over Data Layers without a World Partition"));
-	}
+	const_cast<UDataLayerSubsystem*>(this)->ForEachDataLayer(Func, InLevelContext);
 }
 
 FAutoConsoleCommand UDataLayerSubsystem::ToggleDataLayerActivation(

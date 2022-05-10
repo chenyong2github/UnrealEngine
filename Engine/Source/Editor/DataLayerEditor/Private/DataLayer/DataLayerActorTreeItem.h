@@ -6,7 +6,9 @@
 #include "GameFramework/Actor.h"
 #include "SceneOutlinerFwd.h"
 #include "ActorTreeItem.h"
+#include "Engine/World.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayerActorTreeItemData
@@ -35,6 +37,7 @@ public:
 		, DataLayerInstance(InData.DataLayerInstance)
 		, IDDataLayerActor(FDataLayerActorTreeItem::ComputeTreeItemID(Actor.Get(), DataLayerInstance.Get()))
 	{
+		UpdateDisplayStringInternal();
 	}
 
 	UDataLayerInstance* GetDataLayer() const { return DataLayerInstance.Get(); }
@@ -66,7 +69,28 @@ public:
 	virtual bool GetVisibility() const override { return false; }
 	/* End ISceneOutlinerTreeItem Implementation */
 
+protected:
+
+	virtual void UpdateDisplayString() override
+	{
+		UpdateDisplayStringInternal();
+	}
+
 private:
+
+	void UpdateDisplayStringInternal()
+	{
+		FActorTreeItem::UpdateDisplayString();
+
+		UWorld* OwningWorld = Actor.IsValid() ? Actor->GetWorld() : nullptr;
+		ULevel* Level = Actor.IsValid() ? Actor->GetLevel() : nullptr;
+		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
+		if (LevelInstanceSubsystem && Level && (Level != OwningWorld->GetCurrentLevel()))
+		{
+			DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Actor->GetLevel());
+		}
+	}
+
 	TWeakObjectPtr<UDataLayerInstance> DataLayerInstance;
 	const uint32 IDDataLayerActor;
 };

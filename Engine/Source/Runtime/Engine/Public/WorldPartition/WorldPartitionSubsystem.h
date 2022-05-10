@@ -47,6 +47,10 @@ public:
 	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 
+#if WITH_EDITOR
+	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
+#endif
+
 private:
 #if WITH_EDITOR
 	bool IsRunningConvertWorldPartitionCommandlet() const;

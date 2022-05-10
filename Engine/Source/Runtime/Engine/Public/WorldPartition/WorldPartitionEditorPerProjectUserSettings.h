@@ -61,6 +61,7 @@ public:
 		, bHideUnloadedActors(false)
 		, bShowOnlySelectedActors(false)
 		, bHighlightSelectedDataLayers(true)
+		, bHideLevelInstanceContent(true)
 		, bDisableLoadingOfLastLoadedCells(false)
 #endif
 	{}
@@ -138,6 +139,10 @@ public:
 	/** True when the Data Layer Outliner highlights Data Layers containing actors that are currently selected */
 	UPROPERTY(config)
 	uint32 bHighlightSelectedDataLayers : 1;
+
+	/** True when the Data Layer Outliner is not displaying Level Instance content */
+	UPROPERTY(config)
+	uint32 bHideLevelInstanceContent : 1;
 
 private:
 	bool ShouldSaveSettings(const UWorld* InWorld) const

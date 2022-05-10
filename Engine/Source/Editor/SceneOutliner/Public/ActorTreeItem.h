@@ -53,9 +53,16 @@ public:
 	virtual void OnLabelChanged() override;
 	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
 	/* End ISceneOutlinerTreeItem Implementation */
-public:
+
 	/** true if this item exists in both the current world and PIE. */
 	bool bExistsInCurrentWorldAndPIE;
-	/** Cached actor label */
-	FString ActorLabel;
+
+protected:
+	virtual void UpdateDisplayString();
+
+	/** Cached display string */
+	FString DisplayString;
+
+private:
+	void UpdateDisplayStringInternal();
 };

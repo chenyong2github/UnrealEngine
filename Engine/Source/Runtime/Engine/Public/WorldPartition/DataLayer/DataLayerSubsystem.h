@@ -92,18 +92,18 @@ public:
 #endif
 
 	template<class T>
-	UDataLayerInstance* GetDataLayerInstance(const T& InDataLayerIdentifier) const;
+	UDataLayerInstance* GetDataLayerInstance(const T& InDataLayerIdentifier, const ULevel* InLevelContext = nullptr) const;
 
 	template<class T>
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers) const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext = nullptr) const;
 
 	template<class T>
-	TArray<FName> GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers) const;
+	TArray<FName> GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext = nullptr) const;
 
 	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
 
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func);
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
+	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func, const ULevel* InLevelContext = nullptr);
+	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func, const ULevel* InLevelContext = nullptr) const;
 
 	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 	EDataLayerRuntimeState GetDataLayerRuntimeState(const UDataLayerInstance* InDataLayer) const;
@@ -213,47 +213,37 @@ private:
 };
 
 template<class T>
-UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstance(const T& InDataLayerIdentifier) const
+UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstance(const T& InDataLayerIdentifier, const ULevel* InLevelContext /* = nullptr */) const
 {
-	const UDataLayerInstance* DataLayerInstance = nullptr;
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DataLayerInstance = WorldDataLayers->GetDataLayerInstance(InDataLayerIdentifier);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const AWorldDataLayers* WorldDataLayers = InLevelContext ? InLevelContext->GetWorldDataLayers() : GetWorld()->GetWorldDataLayers();
+	const UDataLayerInstance * DataLayerInstance = WorldDataLayers ? WorldDataLayers->GetDataLayerInstance(InDataLayerIdentifier) : nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return const_cast<UDataLayerInstance*>(DataLayerInstance);
 }
 
 template<class T>
-TArray<FName> UDataLayerSubsystem::GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers) const
+TArray<FName> UDataLayerSubsystem::GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext /* = nullptr */) const
 {
 	TArray<FName> DataLayerInstanceNames;
 	DataLayerInstanceNames.Reserve(InDataLayerIdentifiers.Num());
 
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DataLayerInstanceNames = WorldDataLayers->GetDataLayerInstanceNames(InDataLayerIdentifiers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const AWorldDataLayers* WorldDataLayers = InLevelContext ? InLevelContext->GetWorldDataLayers() : GetWorld()->GetWorldDataLayers();
+	DataLayerInstanceNames = WorldDataLayers->GetDataLayerInstanceNames(InDataLayerIdentifiers);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return DataLayerInstanceNames;
 }
 
 template<class T>
-TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers) const
+TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext /* = nullptr */) const
 {
 	TArray<const UDataLayerInstance*> DataLayerInstances;
 	DataLayerInstances.Reserve(InDataLayerIdentifiers.Num());
 
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DataLayerInstances = WorldDataLayers->GetDataLayerInstances(InDataLayerIdentifiers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const AWorldDataLayers* WorldDataLayers = InLevelContext ? InLevelContext->GetWorldDataLayers() : GetWorld()->GetWorldDataLayers();
+	DataLayerInstances = WorldDataLayers->GetDataLayerInstances(InDataLayerIdentifiers);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return DataLayerInstances;
 }

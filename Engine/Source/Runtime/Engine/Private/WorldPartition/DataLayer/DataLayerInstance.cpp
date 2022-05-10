@@ -84,6 +84,21 @@ bool UDataLayerInstance::IsEffectiveLoadedInEditor() const
 	return bResult;
 }
 
+bool UDataLayerInstance::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (IsReadOnly())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool UDataLayerInstance::IsLocked() const
 {
 	if (bIsLocked)
@@ -103,7 +118,7 @@ bool UDataLayerInstance::CanParent(const UDataLayerInstance* InParent) const
 {
 	return (this != InParent)
 		&& (Parent != InParent) 
-		&& (InParent == nullptr || IsDataLayerTypeValidToParent(InParent->GetType()));
+		&& (InParent == nullptr || (IsDataLayerTypeValidToParent(InParent->GetType()) && (InParent->GetOuterAWorldDataLayers() == GetOuterAWorldDataLayers())));
 }
 
 bool UDataLayerInstance::IsDataLayerTypeValidToParent(EDataLayerType ParentDataLayerType) const

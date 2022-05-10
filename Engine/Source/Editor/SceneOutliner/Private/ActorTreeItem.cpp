@@ -339,7 +339,8 @@ FActorTreeItem::FActorTreeItem(AActor* InActor)
 	, ID(InActor)
 {
 	check(InActor);
-	ActorLabel = InActor->GetActorLabel();
+
+	UpdateDisplayStringInternal();
 
 	Flags.bIsExpanded = InActor->bDefaultOutlinerExpansionState;
 	
@@ -359,7 +360,7 @@ FFolder::FRootObject FActorTreeItem::GetRootObject() const
 
 FString FActorTreeItem::GetDisplayString() const
 {
-	return ActorLabel;
+	return DisplayString;
 }
 
 bool FActorTreeItem::CanInteract() const
@@ -440,10 +441,7 @@ bool FActorTreeItem::GetPinnedState() const
 
 void FActorTreeItem::OnLabelChanged()
 {
-	if (Actor.IsValid())
-	{
-		ActorLabel = Actor->GetActorLabel();
-	}
+	UpdateDisplayString();
 }
 
 void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner)
@@ -457,6 +455,16 @@ void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 		FToolMenuSection& Section = Menu->AddSection("Section");
 		Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
 	}
+}
+
+void FActorTreeItem::UpdateDisplayString()
+{
+	UpdateDisplayStringInternal();
+}
+
+void FActorTreeItem::UpdateDisplayStringInternal()
+{
+	DisplayString = Actor.IsValid() ? Actor->GetActorLabel() : TEXT("None");
 }
 
 #undef LOCTEXT_NAMESPACE

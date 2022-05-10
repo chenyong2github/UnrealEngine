@@ -16,6 +16,7 @@ class FLevelEditorViewportClient;
 class UEditorEngine;
 class ULevel;
 class UWorld;
+class UWorldPartition;
 template<typename TItemType> class IFilter;
 
 USTRUCT(BlueprintType)
@@ -650,6 +651,11 @@ private:
 
 	/** Delegate handler for FEditorDelegates::PostUndoRedo. It internally calls DataLayerChanged.Broadcast and UpdateAllActorsVisibility to refresh the actors of each DataLayer. */
 	void PostUndoRedo();
+
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
+	void OnLoadedActorAddedToLevel(AActor& InActor);
+	void OnDataLayerEditorLoadingStateChanged(bool bIsFromUserChange);
 
 	bool SetDataLayerIsLoadedInEditorInternal(UDataLayerInstance* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
 

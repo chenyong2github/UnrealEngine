@@ -450,6 +450,12 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World, FName InWorldDataLayer
 	return WorldDataLayers;
 }
 
+bool AWorldDataLayers::IsMainWorldDataLayers() const
+{
+	check(GetWorld());
+	return GetWorld()->GetWorldDataLayers() == this;
+}
+
 TArray<FName> AWorldDataLayers::GetDataLayerInstanceNames(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const
 {
 	TArray<FName> OutDataLayerNames;

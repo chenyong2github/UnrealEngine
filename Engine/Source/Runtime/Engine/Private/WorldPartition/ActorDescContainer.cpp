@@ -275,9 +275,17 @@ void UActorDescContainer::LoadAllActors(TArray<FWorldPartitionReference>& OutRef
 	}
 }
 
+bool UActorDescContainer::ShouldRegisterDelegates()
+{
+	UWorld* OuterWorld = GetTypedOuter<UWorld>();
+	// No need to register delegates for level instances
+	bool bIsInstance = OuterWorld && OuterWorld->IsInstanced() && !OuterWorld->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated);
+	return GEditor && !IsTemplate() && World && !World->IsGameWorld() && !bIsInstance;
+}
+
 void UActorDescContainer::RegisterEditorDelegates()
 {
-	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
+	if (ShouldRegisterDelegates())
 	{
 		FWorldDelegates::OnPostWorldRename.AddUObject(this, &UActorDescContainer::OnWorldRenamed);
 		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
@@ -288,7 +296,7 @@ void UActorDescContainer::RegisterEditorDelegates()
 
 void UActorDescContainer::UnregisterEditorDelegates()
 {
-	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
+	if (ShouldRegisterDelegates())
 	{
 		FWorldDelegates::OnPostWorldRename.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);

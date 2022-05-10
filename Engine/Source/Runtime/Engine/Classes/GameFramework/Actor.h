@@ -1184,7 +1184,7 @@ public:
 	bool RemoveAllDataLayers();
 	virtual bool SupportsDataLayer() const { return true; }
 	
-	bool HasValidDataLayers() const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstancesForLevel() const;
 	TArray<FName> GetDataLayerInstanceNames() const;
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
@@ -1221,6 +1221,9 @@ public:
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstances() with no parameters instead")
 	TArray<const UDataLayerInstance*> GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const { return TArray<const UDataLayerInstance*>(); }
 
+	UE_DEPRECATED(5.1, "Use HasDataLayers() instead")
+	bool HasValidDataLayers() const { return HasDataLayers(); }
+
 	//~ End Deprecated
 #endif
 
@@ -1231,6 +1234,7 @@ public:
 	bool HasDataLayers() const;
 
 private:
+	TArray<const UDataLayerInstance*> GetDataLayerInstancesInternal(bool bUseLevelContext) const;
 	bool UseWorldPartitionRuntimeCellDataLayers() const;
 
 	//~=============================================================================

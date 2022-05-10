@@ -24,6 +24,8 @@
 #include "WorldTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerModule"
@@ -236,41 +238,71 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 	FGetTextForItem DataLayerInfoText = FGetTextForItem::CreateLambda([](const ISceneOutlinerTreeItem& Item) -> FString
 	{
 		TStringBuilder<128> Builder;
+		TSet<FString> DataLayerShortNames;
 
-		TArray<const UDataLayerInstance*> DataLayerInstances;
-
-		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
+		auto BuildDataLayers = [&Builder, &DataLayerShortNames](const auto& DataLayerInstances, bool bPartOfOtherLevel)
 		{
-			AActor* Actor = ActorItem->Actor.Get();
-
-			if (Actor)
+			for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 			{
-				DataLayerInstances = Actor->GetDataLayerInstances();
-			}
-		}
-		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
-		{
-			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get(); ActorDesc && !ActorDesc->GetDataLayerInstanceNames().IsEmpty())
-			{
-				const UActorDescContainer* ActorDescContainer = ActorDescItem->ActorDescHandle.Container.Get();
-				const UWorld* World = ActorDescContainer ? ActorDescContainer->GetWorld() : nullptr;
-				
-				if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World))
+				bool bIsAlreadyInSet = false;
+				DataLayerShortNames.Add(DataLayerInstance->GetDataLayerShortName(), &bIsAlreadyInSet);
+				if (!bIsAlreadyInSet)
 				{
-					DataLayerInstances = DataLayerSubsystem->GetDataLayerInstances(ActorDesc->GetDataLayerInstanceNames());
+					if (Builder.Len())
+					{
+						Builder += TEXT(", ");
+					}
+					// Put a '*' in front of DataLayers that are not part of of the main world
+					if (bPartOfOtherLevel)
+					{
+						Builder += "*";
+					}
+					Builder += DataLayerInstance->GetDataLayerShortName();
 				}
 			}
-		}
+		};
 
-		for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
+		auto BuildDataLayersWithContext = [BuildDataLayers](const ISceneOutlinerTreeItem& Item, bool bUseLevelContext)
 		{
-			if (Builder.Len())
+			if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 			{
-				Builder += TEXT(", ");
+				if (AActor* Actor = ActorItem->Actor.Get())
+				{
+					BuildDataLayers(bUseLevelContext ? Actor->GetDataLayerInstancesForLevel() : Actor->GetDataLayerInstances(), bUseLevelContext);
+				}
 			}
-			Builder += DataLayerInstance->GetDataLayerShortName();
-		}
-		
+			else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
+			{
+				if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get(); ActorDesc && !ActorDesc->GetDataLayerInstanceNames().IsEmpty())
+				{
+					const UActorDescContainer* ActorDescContainer = ActorDescItem->ActorDescHandle.Container.Get();
+					const UWorld* World = ActorDescContainer ? ActorDescContainer->GetWorld() : nullptr;
+
+					if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World))
+					{
+						TSet<const UDataLayerInstance*> DataLayerInstances;
+						DataLayerInstances.Append(DataLayerSubsystem->GetDataLayerInstances(ActorDesc->GetDataLayerInstanceNames()));
+						if (ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(World))
+						{
+							UWorld* OuterWorld = ActorDescContainer->GetTypedOuter<UWorld>();
+							// Add parent container Data Layer Instances
+							AActor* CurrentActor = OuterWorld ? Cast<AActor>(LevelInstanceSubsystem->GetOwningLevelInstance(OuterWorld->PersistentLevel)) : nullptr;
+							while (CurrentActor)
+							{
+								DataLayerInstances.Append(bUseLevelContext ? CurrentActor->GetDataLayerInstancesForLevel() : CurrentActor->GetDataLayerInstances());
+								CurrentActor = Cast<AActor>(LevelInstanceSubsystem->GetParentLevelInstance(CurrentActor));
+							};
+						}
+						BuildDataLayers(DataLayerInstances, bUseLevelContext);
+					}
+				}
+			}
+		};
+
+		// List Actor's DataLayers part of the owning world, then those only part of the actor level
+		BuildDataLayersWithContext(Item, false);
+		BuildDataLayersWithContext(Item, true);
+
 		return Builder.ToString();
 	});
 

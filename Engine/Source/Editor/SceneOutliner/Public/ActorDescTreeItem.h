@@ -56,9 +56,11 @@ public:
 	/* End ISceneOutlinerTreeItem Implementation */
 	
 	const FGuid& GetGuid() const { return ActorGuid; }
+
+protected:
+	FString DisplayString;
+
 private:
 	void FocusActorBounds() const;
-
-	FString DisplayString;
 	FGuid ActorGuid;
 };

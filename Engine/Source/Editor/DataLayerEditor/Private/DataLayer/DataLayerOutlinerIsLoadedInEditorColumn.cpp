@@ -46,7 +46,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsLoadedInEditorColumn::ConstructRow
 			.VAlign(VAlign_Center)
 			[
 				SNew(SCheckBox)
-				.IsEnabled_Lambda([this, TreeItem]()
+				.IsEnabled_Lambda([TreeItem]()
 				{
 					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
 					const UDataLayerInstance* DataLayer = DataLayerTreeItem->GetDataLayer();
@@ -54,7 +54,13 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsLoadedInEditorColumn::ConstructRow
 					const bool bIsParentLoaded = ParentDataLayer ? ParentDataLayer->IsEffectiveLoadedInEditor() : true;
 					return bIsParentLoaded && DataLayer && DataLayer->GetWorld() && !DataLayer->GetWorld()->IsPlayInEditor();
 				})
-				.IsChecked_Lambda([this, TreeItem]()
+				.Visibility_Lambda([TreeItem]()
+				{
+					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
+					const UDataLayerInstance* DataLayerInstance = DataLayerTreeItem->GetDataLayer();
+					return DataLayerInstance && !DataLayerInstance->IsReadOnly() ? EVisibility::Visible : EVisibility::Collapsed;
+				})
+				.IsChecked_Lambda([TreeItem]()
 				{
 					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
 					UDataLayerInstance* DataLayer = DataLayerTreeItem->GetDataLayer();

@@ -159,6 +159,19 @@ void UWorldPartitionSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+#if WITH_EDITOR
+void UWorldPartitionSubsystem::ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func)
+{
+	for (UWorldPartition* WorldPartition : RegisteredWorldPartitions)
+	{
+		if (!Func(WorldPartition))
+		{
+			return;
+		}
+	}
+}
+#endif
+
 void UWorldPartitionSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)
 {
 	if (RegisteredWorldPartitions.IsEmpty())

@@ -9,6 +9,7 @@
 #include "LevelInstanceLevelStreaming.generated.h"
 
 class ILevelInstanceInterface;
+class ALevelInstanceEditorInstanceActor;
 
 UCLASS(Transient)
 class ENGINE_API ULevelStreamingLevelInstance : public ULevelStreamingDynamic
@@ -34,5 +35,12 @@ protected:
 	friend class ULevelInstanceSubsystem;
 
 private:
+#if WITH_EDITOR
+	void PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance);
+	void OnLoadedActorAddedToLevel(AActor& InActor);
+	void OnLoadedActorRemovedFromLevel(AActor& InActor);
+
+	TWeakObjectPtr<ALevelInstanceEditorInstanceActor> LevelInstanceEditorInstanceActor;
+#endif
 	FLevelInstanceID LevelInstanceID;
 };
