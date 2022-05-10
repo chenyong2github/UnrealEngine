@@ -591,10 +591,14 @@ bool FAVPlayerMovieStreamer::CheckForNextFrameAndCopy()
 		CVReturn Result = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, MetalTextureCache, pPixelBuffer, nullptr, MTLPixelFormatBGRA8Unorm, Width, Height, 0, &TextureCacheRef);
 		check(Result == kCVReturnSuccess);
 		check(TextureCacheRef);
-	
-		FRHIResourceCreateInfo CreateInfo(TEXT("FAVPlayerMovieStreamer"), new FAppleMovieStreamerTexture2DResourceWrapper(TextureCacheRef));
-		FTexture2DRHIRef MediaWrappedTexture = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_NoTiling, CreateInfo);
-		
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FAVPlayerMovieStreamer"), Width, Height, PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling)
+			.SetBulkData(new FAppleMovieStreamerTexture2DResourceWrapper(TextureCacheRef));
+
+		FTextureRHIRef MediaWrappedTexture = RHICreateTexture(Desc);
+
 		if(SlateTexture.IsValid())
 		{
 			if(SlateTexture->IsValid())

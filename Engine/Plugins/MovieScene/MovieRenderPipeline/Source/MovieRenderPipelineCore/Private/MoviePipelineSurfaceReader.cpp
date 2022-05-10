@@ -50,17 +50,10 @@ void FMoviePipelineSurfaceReader::Resize(uint32 Width, uint32 Height)
 	ENQUEUE_RENDER_COMMAND(CreateCaptureFrameTexture)(
 		[Width, Height, This](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FMoviePipelineSurfaceReader"));
-
-			This->ReadbackTexture = RHICreateTexture2D(
-				Width,
-				Height,
-				This->PixelFormat,
-				1,
-				1,
-				TexCreate_CPUReadback,
-				CreateInfo
-				);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FMoviePipelineSurfaceReader"), Width, Height, This->PixelFormat)
+				.SetFlags(ETextureCreateFlags::CPUReadback);
+			This->ReadbackTexture = RHICreateTexture(Desc);
 		});
 }
 

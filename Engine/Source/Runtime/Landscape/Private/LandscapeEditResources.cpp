@@ -26,20 +26,21 @@ void FLandscapeTexture2DResource::InitRHI()
 {
 	FTextureResource::InitRHI();
 
-	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeTexture2DResource"));
-	ETextureCreateFlags Flags = TexCreate_None;
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FLandscapeTexture2DResource"), SizeX, SizeY, Format)
+		.SetNumMips(NumMips);
 
 	if (bCreateUAVs)
 	{
-		Flags |= TexCreate_RenderTargetable | TexCreate_UAV;
+		Desc.AddFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::UAV);
 	}
 
 	if (bCreateSRV)
 	{
-		Flags |= TexCreate_ShaderResource;
+		Desc.AddFlags(ETextureCreateFlags::ShaderResource);
 	}
 
-	TextureRHI = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, Flags, CreateInfo);
+	TextureRHI = RHICreateTexture(Desc);
 
 	if (bCreateUAVs)
 	{

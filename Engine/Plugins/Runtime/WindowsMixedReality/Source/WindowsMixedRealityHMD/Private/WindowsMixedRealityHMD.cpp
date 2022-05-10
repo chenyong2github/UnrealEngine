@@ -1825,9 +1825,11 @@ namespace WindowsMixedReality
 		// Create a new texture for the remapped depth.
 		if (remappedDepthTexture == nullptr || recreateTextures)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("RemappedDepthTexture"));
-			remappedDepthTexture = RHICreateTexture2D(depthFRHITexture->GetSizeX(), depthFRHITexture->GetSizeY(),
-				PF_R32_FLOAT, 1, 1, TexCreate_RenderTargetable, CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("RemappedDepthTexture"), depthFRHITexture->GetSizeX(), depthFRHITexture->GetSizeY(), PF_R32_FLOAT)
+				.SetFlags(ETextureCreateFlags::RenderTargetable);
+
+			remappedDepthTexture = RHICreateTexture(Desc);
 		}
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

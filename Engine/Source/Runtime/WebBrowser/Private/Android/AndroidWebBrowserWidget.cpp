@@ -314,15 +314,18 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 					FTextureRHIRef VideoTexture = PinnedJavaWebBrowser->GetVideoTexture();
 					if (VideoTexture == nullptr)
 					{
-						FRHIResourceCreateInfo CreateInfo(TEXT("VideoTexture"));
-						FIntPoint LocalSize = Params.Size;
+						const FIntPoint LocalSize = Params.Size;
 
-						VideoTexture = RHICreateTextureExternal2D(LocalSize.X, LocalSize.Y, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
+						const FRHITextureCreateDesc Desc =
+							FRHITextureCreateDesc::Create2D(TEXT("VideoTexture"), LocalSize, PF_R8G8B8A8)
+							.SetFlags(ETextureCreateFlags::External);
+
+						VideoTexture = RHICreateTexture(Desc);
 						PinnedJavaWebBrowser->SetVideoTexture(VideoTexture);
 
 						if (VideoTexture == nullptr)
 						{
-							UE_LOG(LogAndroid, Warning, TEXT("CreateTextureExternal2D failed!"));
+							UE_LOG(LogAndroid, Warning, TEXT("RHICreateTexture failed!"));
 							return;
 						}
 

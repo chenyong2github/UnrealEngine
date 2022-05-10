@@ -46,23 +46,29 @@ void FTexture2DDynamicResource::InitRHI()
 	);
 	SamplerStateRHI = GetOrCreateSamplerState( SamplerStateInitializer );
 
-	ETextureCreateFlags  Flags = TexCreate_None;
-	if ( Owner->bIsResolveTarget )
+	FString Name = Owner->GetName();
+
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(*Name, GetSizeX(), GetSizeY(), Owner->Format)
+		.SetNumMips(Owner->NumMips);
+
+	if (Owner->bIsResolveTarget)
 	{
-		Flags |= TexCreate_ResolveTargetable;
+		Desc.AddFlags(ETextureCreateFlags::ResolveTargetable);
 		bIgnoreGammaConversions = true;		// Note, we're ignoring Owner->SRGB (it should be false).
 	}
-	else if ( Owner->SRGB )
+	else if (Owner->SRGB)
 	{
-		Flags |= TexCreate_SRGB;
+		Desc.AddFlags(ETextureCreateFlags::SRGB);
 	}
-	if ( Owner->bNoTiling )
+
+	if (Owner->bNoTiling)
 	{
-		Flags |= TexCreate_NoTiling;
+		Desc.AddFlags(ETextureCreateFlags::NoTiling);
 	}
-	FString Name = Owner->GetName();
-	FRHIResourceCreateInfo CreateInfo(*Name);
-	Texture2DRHI = RHICreateTexture2D(GetSizeX(), GetSizeY(), Owner->Format, Owner->NumMips, 1, Flags, CreateInfo);
+
+	Texture2DRHI = RHICreateTexture(Desc);
+
 	TextureRHI = Texture2DRHI;
 	TextureRHI->SetName(Owner->GetFName());
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);

@@ -365,20 +365,17 @@ struct FTextureReadBuffer2D
 		Release();
 	}
 
-	const static ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource;
+	const static ETextureCreateFlags DefaultTextureInitFlag = ETextureCreateFlags::ShaderResource;
 	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag, FResourceBulkDataInterface* InBulkData = nullptr)
 	{
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
-		FRHIResourceCreateInfo CreateInfo(InDebugName);
-		CreateInfo.BulkData = InBulkData;
-		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, UE_PIXELFORMAT_TO_UINT8(Format), //PF_R32_FLOAT,
-			/*NumMips=*/ 1,
-			1,
-			Flags,
-			/*BulkData=*/ CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(InDebugName, SizeX, SizeY, Format)
+			.SetFlags(Flags)
+			.SetBulkData(InBulkData);
 
+		Buffer = RHICreateTexture(Desc);
 		
 		SRV = RHICreateShaderResourceView(Buffer, 0);
 	}

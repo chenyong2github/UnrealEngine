@@ -169,14 +169,21 @@ void FWebMVideoDecoder::DoDecodeVideoFrames(const TArray<TSharedPtr<FWebMFrame>>
 
 void FWebMVideoDecoder::CreateTextures(const vpx_image_t* Image)
 {
-	FRHIResourceCreateInfo CreateInfo(TEXT("FWebMVideoDecoder_DecodedY"));
-	DecodedY = RHICreateTexture2D(Image->stride[0], Image->d_h, PF_G8, 1, 1, TexCreate_Dynamic, CreateInfo);
+	const FRHITextureCreateDesc DecodedYDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("FWebMVideoDecoder_DecodedY"), Image->stride[0], Image->d_h, PF_G8)
+		.SetFlags(ETextureCreateFlags::Dynamic);
 
-	CreateInfo.DebugName = TEXT("FWebMVideoDecoder_DecodedU");
-	DecodedU = RHICreateTexture2D(Image->stride[1], Image->d_h / 2, PF_G8, 1, 1, TexCreate_Dynamic, CreateInfo);
+	const FRHITextureCreateDesc DecodedUDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("FWebMVideoDecoder_DecodedU"), Image->stride[1], Image->d_h / 2, PF_G8)
+		.SetFlags(ETextureCreateFlags::Dynamic);
 
-	CreateInfo.DebugName = TEXT("FWebMVideoDecoder_DecodedV");
-	DecodedV = RHICreateTexture2D(Image->stride[2], Image->d_h / 2, PF_G8, 1, 1, TexCreate_Dynamic, CreateInfo);
+	const FRHITextureCreateDesc DecodedVDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("FWebMVideoDecoder_DecodedV"), Image->stride[2], Image->d_h / 2, PF_G8)
+		.SetFlags(ETextureCreateFlags::Dynamic);
+
+	DecodedY = RHICreateTexture(DecodedYDesc);
+	DecodedU = RHICreateTexture(DecodedUDesc);
+	DecodedV = RHICreateTexture(DecodedVDesc);
 }
 
 void FWebMVideoDecoder::Close()

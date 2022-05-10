@@ -895,17 +895,13 @@ public:
 					SubresourceByteSize*= (4 / GPixelFormats[PreprocessedPixelFormat].BlockBytes);
 					PreprocessedPixelFormat = PF_R32_UINT;
 				}
-						
+
 				{
-					FRHIResourceCreateInfo CreateInfo(TEXT("DumpGPU.PreprocessTexture"));
-					StagingSrcTexture = RHICreateTexture2D(
-						SubresourceDumpDesc.SubResourceExtent.X,
-						SubresourceDumpDesc.SubResourceExtent.Y,
-						(uint8)PreprocessedPixelFormat,
-						/* NumMips = */ 1,
-						/* NumSamples = */ 1,
-						TexCreate_UAV | TexCreate_ShaderResource | TexCreate_HideInVisualizeTexture,
-						CreateInfo);
+					const FRHITextureCreateDesc Desc =
+						FRHITextureCreateDesc::Create2D(TEXT("DumpGPU.PreprocessTexture"), SubresourceDumpDesc.SubResourceExtent, PreprocessedPixelFormat)
+						.SetFlags(ETextureCreateFlags::UAV | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::HideInVisualizeTexture);
+
+					StagingSrcTexture = RHICreateTexture(Desc);
 				}
 
 				FUnorderedAccessViewRHIRef StagingOutput = RHICreateUnorderedAccessView(StagingSrcTexture, /* MipLevel = */ 0);
@@ -934,15 +930,11 @@ public:
 
 			// Copy the texture for CPU readback
 			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("DumpGPU.StagingTexture"));
-				StagingTexture = RHICreateTexture2D(
-					SubresourceDumpDesc.SubResourceExtent.X,
-					SubresourceDumpDesc.SubResourceExtent.Y,
-					(uint8)PreprocessedPixelFormat,
-					/* NumMips = */ 1,
-					/* NumSamples = */ 1,
-					TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture,
-					CreateInfo);
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(TEXT("DumpGPU.StagingTexture"), SubresourceDumpDesc.SubResourceExtent, PreprocessedPixelFormat)
+					.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture);
+
+				StagingTexture = RHICreateTexture(Desc);
 
 				RHICmdList.Transition(FRHITransitionInfo(StagingTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 

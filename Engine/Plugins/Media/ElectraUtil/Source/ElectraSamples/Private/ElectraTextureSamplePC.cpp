@@ -174,7 +174,7 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef & InDstTexture, const FConv
 	FIntPoint Dim = VideoDecoderOutput->GetDim();
 
 	bool bCrossDeviceCopy;
-	uint8 Format;
+	EPixelFormat Format;
 	if (VideoDecoderOutput->GetOutputType() != FVideoDecoderOutputPC::EOutputType::HardwareWin8Plus)
 	{
 		//
@@ -200,16 +200,11 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef & InDstTexture, const FConv
 	// Do we need a new RHI texture?
 	if (!Texture.IsValid() || Texture->GetSizeX() != Dim.X || Texture->GetSizeY() != Dim.Y)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FElectraTextureSample"));
-		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic;
-		Texture = RHICreateTexture2D(
-			Dim.X,
-			Dim.Y,
-			Format,
-			1,
-			1,
-			CreateFlags,
-			CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FElectraTextureSample"), Dim, Format)
+			.SetFlags(ETextureCreateFlags::Dynamic);
+
+		Texture = RHICreateTexture(Desc);
 	}
 	
 	// Copy data into RHI texture

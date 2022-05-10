@@ -15,11 +15,15 @@ bool FRHITextureTests::VerifyTextureContents(const TCHAR* TestName, FRHICommandL
 			uint32 MipHeight = FMath::Max(Size.Y >> MipIndex, 1);
 			uint32 MipDepth = FMath::Max(Size.Z >> MipIndex, 1);
 
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FRHITextureTests_StagingTexture"), MipWidth, MipHeight, Texture->GetFormat())
+				.SetFlags(ETextureCreateFlags::CPUReadback)
+				.SetInitialState(ERHIAccess::CopyDest);
+
 			for (uint32 Z = 0; Z < MipDepth; ++Z)
 			{
 				{
-					FRHIResourceCreateInfo CreateInfo(TEXT("FRHITextureTests_StagingTexture"));
-					FTexture2DRHIRef StagingTexture = RHICreateTexture2D(MipWidth, MipHeight, Texture->GetFormat(), 1, 1, TexCreate_CPUReadback, ERHIAccess::CopyDest, CreateInfo);
+					FTextureRHIRef StagingTexture = RHICreateTexture(Desc);
 
 					FRHICopyTextureInfo CopyInfo = {};
 					CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1); // @todo - required for D3D11RHI to prevent crash in FD3D11DynamicRHI::RHICopyTexture

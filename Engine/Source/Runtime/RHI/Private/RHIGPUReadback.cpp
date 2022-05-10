@@ -140,10 +140,14 @@ void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FR
 		if (!DestinationStagingTexture)
 		{
 			FIntVector TextureSize = SourceTexture->GetSizeXYZ();
-
 			FString FenceName = Fence->GetFName().ToString();
-			FRHIResourceCreateInfo CreateInfo(*FenceName);
-			DestinationStagingTexture = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, ERHIAccess::CPURead, CreateInfo);
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(*FenceName, TextureSize.X, TextureSize.Y, SourceTexture->GetFormat())
+				.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture)
+				.SetInitialState(ERHIAccess::CPURead);
+
+			DestinationStagingTexture = RHICreateTexture(Desc);
 		}
 
 		// Transfer memory GPU -> CPU

@@ -20,11 +20,20 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 	if( Width > 0 && Height > 0 )
 	{
 		const EPixelFormat PixelFormat = GetRHIPixelFormat();
-		const ETextureCreateFlags TextCreateFlags = TexCreate_Dynamic | (bIsGrayscale ? TexCreate_None : TexCreate_SRGB);
 
 		check( !IsValidRef( ShaderResource) );
-		FRHIResourceCreateInfo CreateInfo(TEXT("FSlateFontTextureRHIResource"));
-		ShaderResource = RHICreateTexture2D( Width, Height, PixelFormat, 1, 1, TextCreateFlags, CreateInfo );
+
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FSlateFontTextureRHIResource"), Width, Height, PixelFormat)
+			.SetFlags(ETextureCreateFlags::Dynamic);
+
+		if (!bIsGrayscale)
+		{
+			Desc.AddFlags(ETextureCreateFlags::SRGB);
+		}
+
+		ShaderResource = RHICreateTexture(Desc);
+
 		check( IsValidRef( ShaderResource ) );
 
 		// Also assign the reference to the FTextureResource variable so that the Engine can access it

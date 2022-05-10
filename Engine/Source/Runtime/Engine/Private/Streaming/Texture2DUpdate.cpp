@@ -94,15 +94,14 @@ void FTexture2DUpdate::DoConvertToVirtualWithNewMips(const FContext& Context)
 			ensure(!IntermediateTextureRHI);
 
 			// Create a copy of the texture that is a virtual texture.
-			FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DUpdate"), Context.Resource->ResourceMem);
-			IntermediateTextureRHI = RHICreateTexture2D(
-				MipMap0.SizeX, 
-				MipMap0.SizeY, 
-				Context.Resource->GetPixelFormat(), 
-				ResourceState.MaxNumLODs, 
-				1, 
-				Context.Resource->GetCreationFlags() | TexCreate_Virtual, 
-				CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FTexture2DUpdate"), MipMap0.SizeX, MipMap0.SizeY, Context.Resource->GetPixelFormat())
+				.SetNumMips(ResourceState.MaxNumLODs)
+				.SetFlags(Context.Resource->GetCreationFlags() | ETextureCreateFlags::Virtual)
+				.SetBulkData(Context.Resource->ResourceMem);
+
+			IntermediateTextureRHI = RHICreateTexture(Desc);
+
 			RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, CurrentFirstLODIdx);
 			RHIVirtualTextureSetFirstMipVisible(IntermediateTextureRHI, CurrentFirstLODIdx);
 			RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
@@ -128,15 +127,15 @@ bool FTexture2DUpdate::DoConvertToNonVirtual(const FContext& Context)
 			const FTexture2DMipMap& PendingFirstMipMap = *Context.MipsView[PendingFirstLODIdx];
 
 			ensure(!IntermediateTextureRHI);
-			FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DUpdate"), Context.Resource->ResourceMem);
-			IntermediateTextureRHI = RHICreateTexture2D(
-				PendingFirstMipMap.SizeX, 
-				PendingFirstMipMap.SizeY, 
-				Context.Resource->GetPixelFormat(), 
-				ResourceState.NumRequestedLODs,
-				1, 
-				Context.Resource->GetCreationFlags(), 
-				CreateInfo);
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FTexture2DUpdate"), PendingFirstMipMap.SizeX, PendingFirstMipMap.SizeY, Context.Resource->GetPixelFormat())
+				.SetNumMips(ResourceState.NumRequestedLODs)
+				.SetFlags(Context.Resource->GetCreationFlags())
+				.SetBulkData(Context.Resource->ResourceMem);
+
+			IntermediateTextureRHI = RHICreateTexture(Desc);
+
 			RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
 
 			return true;

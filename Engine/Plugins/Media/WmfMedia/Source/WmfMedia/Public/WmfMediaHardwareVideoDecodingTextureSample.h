@@ -114,29 +114,28 @@ public:
 	 *
 	 * @return Destination texture 
 	 */
-	FTexture2DRHIRef GetOrCreateDestinationTexture()
+	FTextureRHIRef GetOrCreateDestinationTexture()
 	{
 		if (DestinationTexture.IsValid() && DestinationTexture->GetSizeX() == Dim.X && DestinationTexture->GetSizeY() == Dim.Y)
 		{
 			ETextureCreateFlags CurrentFlags = DestinationTexture->GetFlags();
-			bool bIsCurrentSRGB = EnumHasAnyFlags(CurrentFlags, TexCreate_SRGB);
+			bool bIsCurrentSRGB = EnumHasAnyFlags(CurrentFlags, ETextureCreateFlags::SRGB);
 			if (bIsCurrentSRGB == bIsDestinationTextureSRGB)
 			{
 				return DestinationTexture;
 			}
 		}
-		
-		FRHIResourceCreateInfo CreateInfo(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationTexture"));
-		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation |
-			(bIsDestinationTextureSRGB ? TexCreate_SRGB : TexCreate_None);
-		DestinationTexture = RHICreateTexture2D(
-			Dim.X,
-			Dim.Y,
-			Format,
-			1,
-			1,
-			CreateFlags,
-			CreateInfo);
+
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationTexture"), Dim, Format)
+			.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::DisableSRVCreation);
+
+		if (bIsDestinationTextureSRGB)
+		{
+			Desc.AddFlags(ETextureCreateFlags::SRGB);
+		}
+
+		DestinationTexture = RHICreateTexture(Desc);
 
 		return DestinationTexture;
 	}
@@ -146,23 +145,18 @@ public:
 	 *
 	 * @return Destination texture
 	 */
-	FTexture2DRHIRef GetOrCreateDestinationAlphaTexture()
+	FTextureRHIRef GetOrCreateDestinationAlphaTexture()
 	{
 		if (DestinationAlphaTexture.IsValid() && DestinationAlphaTexture->GetSizeX() == Dim.X && DestinationAlphaTexture->GetSizeY() == Dim.Y)
 		{
 			return DestinationAlphaTexture;
 		}
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationAlphaTexture"), Dim, AlphaFormat)
+			.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::DisableSRVCreation);
 		
-		FRHIResourceCreateInfo CreateInfo(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationAlphaTexture"));
-		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
-		DestinationAlphaTexture = RHICreateTexture2D(
-			Dim.X,
-			Dim.Y,
-			AlphaFormat,
-			1,
-			1,
-			CreateFlags,
-			CreateInfo);
+		DestinationAlphaTexture = RHICreateTexture(Desc);
 
 		return DestinationAlphaTexture;
 	}
@@ -184,10 +178,10 @@ private:
 	TRefCountPtr<ID3D11Device> D3D11Device;
 
 	/** Destination Texture resource (from Rendering device) */
-	FTexture2DRHIRef DestinationTexture;
+	FTextureRHIRef DestinationTexture;
 
 	/** Destination Texture resource (from Rendering device) */
-	FTexture2DRHIRef DestinationAlphaTexture;
+	FTextureRHIRef DestinationAlphaTexture;
 
 	/** Texture format */
 	EPixelFormat Format;

@@ -315,13 +315,16 @@ static void DoUpdateExternalCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlaye
 	FTextureRHIRef VideoTexture = PinnedJavaCameraPlayer->GetVideoTexture();
 	if (VideoTexture == nullptr)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("VideoTexture"));
-		VideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, ERHIAccess::Unknown, CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("VideoTexture"), 1, 1, PF_R8G8B8A8)
+			.SetFlags(ETextureCreateFlags::External);
+
+		VideoTexture = RHICreateTexture(Desc);
 		PinnedJavaCameraPlayer->SetVideoTexture(VideoTexture);
 
 		if (VideoTexture == nullptr)
 		{
-			UE_LOG(LogAndroidCamera, Warning, TEXT("CreateTextureExternal2D failed!"));
+			UE_LOG(LogAndroidCamera, Warning, TEXT("RHICreateTexture failed!"));
 			return;
 		}
 

@@ -769,15 +769,12 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			// create a new temp input render target if necessary
 			if (!InputTarget.IsValid() || (InputTarget->GetSizeXY() != SampleDim) || (InputTarget->GetFormat() != InputPixelFormat) || ((InputTarget->GetFlags() & InputCreateFlags) != InputCreateFlags) || (InputTarget->GetNumMips() != SampleNumMips))
 			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("FMediaTextureResource"));
-				InputTarget = RHICreateTexture2D(
-					SampleDim.X,
-					SampleDim.Y,
-					InputPixelFormat,
-					SampleNumMips,
-					1,
-					InputCreateFlags,
-					CreateInfo);
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(TEXT("FMediaTextureResource"), SampleDim, InputPixelFormat)
+					.SetNumMips(SampleNumMips)
+					.SetFlags(InputCreateFlags);
+
+				InputTarget = RHICreateTexture(Desc);
 
 				UpdateResourceSize();
 			}

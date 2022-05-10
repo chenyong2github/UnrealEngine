@@ -35,8 +35,11 @@ void FSinglePrimitiveStructured::InitRHI()
 		}
 
 		{
-			CreateInfo.DebugName = TEXT("PrimitiveSceneDataTexture");
-			PrimitiveSceneDataTextureRHI = RHICreateTexture2D(FPrimitiveSceneShaderData::DataStrideInFloat4s, 1, PF_A32B32G32R32F, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("PrimitiveSceneDataTexture"), FPrimitiveSceneShaderData::DataStrideInFloat4s, 1, PF_A32B32G32R32F)
+				.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+			PrimitiveSceneDataTextureRHI = RHICreateTexture(Desc);
 			PrimitiveSceneDataTextureSRV = RHICreateShaderResourceView(PrimitiveSceneDataTextureRHI, 0);
 		}
 

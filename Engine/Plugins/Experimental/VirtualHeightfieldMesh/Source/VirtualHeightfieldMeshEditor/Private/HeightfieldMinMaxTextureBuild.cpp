@@ -50,12 +50,16 @@ namespace
 				FIntPoint(NumTilesX, NumTilesY), PF_R8G8B8A8, FClearValueBinding::None, TexCreate_None, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_GenerateMipCapable | TexCreate_RenderTargetable, false, NumMips);
 			GRenderTargetPool.FindFreeElement(RHICmdList, FinalRenderTargetDesc, FinalRenderTarget, TEXT("FinalTarget"));
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("FMinMaxTileRenderResources_StagingTextures"));
 			for (int32 MipLevel = 0; MipLevel < NumMips; MipLevel++)
 			{
 				const int32 SizeX = FMath::Max(NumTilesX >> MipLevel, 1);
 				const int32 SizeY = FMath::Max(NumTilesY >> MipLevel, 1);
-				StagingTextures.Add(RHICreateTexture2D(SizeX, SizeY, PF_R8G8B8A8, 1, 1, TexCreate_CPUReadback, CreateInfo));
+
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(TEXT("FMinMaxTileRenderResources_StagingTextures"), SizeX, SizeY, PF_R8G8B8A8)
+					.SetFlags(ETextureCreateFlags::CPUReadback);
+
+				StagingTextures.Add(RHICreateTexture(Desc));
 			}
 			
 			Fence = RHICreateGPUFence(TEXT("Runtime Virtual Texture Build"));
@@ -78,7 +82,7 @@ namespace
 		int32 GetNumFinalTexels() const { return NumFinalTexels; }
 		TRefCountPtr<IPooledRenderTarget> GetTileRenderTarget() const { return TileRenderTarget; }
 		TRefCountPtr<IPooledRenderTarget> GetFinalRenderTarget() const { return FinalRenderTarget; }
-		FTexture2DRHIRef GetStagingTexture(int32 InMipLevel) const { return StagingTextures[InMipLevel]; }
+		FTextureRHIRef GetStagingTexture(int32 InMipLevel) const { return StagingTextures[InMipLevel]; }
 		FRHIGPUFence* GetFence() const { return Fence; }
 
 	private:
@@ -90,7 +94,7 @@ namespace
 
 		TRefCountPtr<IPooledRenderTarget> TileRenderTarget;
 		TRefCountPtr<IPooledRenderTarget> FinalRenderTarget;
-		TArray<FTexture2DRHIRef> StagingTextures;
+		TArray<FTextureRHIRef> StagingTextures;
 		FGPUFenceRHIRef Fence;
 	};
 }

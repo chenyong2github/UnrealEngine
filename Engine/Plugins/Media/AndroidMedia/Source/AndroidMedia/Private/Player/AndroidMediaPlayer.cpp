@@ -474,13 +474,16 @@ static void DoUpdateExternalMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer,
 	FTextureRHIRef VideoTexture = PinnedJavaMediaPlayer->GetVideoTexture();
 	if (VideoTexture == nullptr)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("VideoTexture"));
-		VideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, ERHIAccess::SRVGraphics, CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("VideoTexture"), 1, 1, PF_R8G8B8A8)
+			.SetFlags(ETextureCreateFlags::External);
+
+		VideoTexture = RHICreateTexture(Desc);
 		PinnedJavaMediaPlayer->SetVideoTexture(VideoTexture);
 
 		if (VideoTexture == nullptr)
 		{
-			UE_LOG(LogAndroidMedia, Warning, TEXT("CreateTextureExternal2D failed!"));
+			UE_LOG(LogAndroidMedia, Warning, TEXT("RHICreateTexture failed!"));
 			return;
 		}
 

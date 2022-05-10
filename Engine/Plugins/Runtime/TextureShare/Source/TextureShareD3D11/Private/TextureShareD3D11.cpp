@@ -62,8 +62,12 @@ bool FTextureShareD3D11::CreateRHITexture(ID3D11Texture2D* OpenedSharedResource,
 bool FTextureShareD3D11::CreateSharedTexture(FIntPoint& Size, EPixelFormat Format, FTexture2DRHIRef& OutRHITexture, void*& OutHandle)
 {
 	// Create RHI resource
-	FRHIResourceCreateInfo CreateInfo(TEXT("CreateSharedTexture"));
-	OutRHITexture = RHICreateTexture2D(Size.X, Size.Y, Format, 1, 1, TexCreate_Shared | TexCreate_ResolveTargetable, CreateInfo);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("CreateSharedTexture"), Size, Format)
+		.SetFlags(ETextureCreateFlags::Shared | ETextureCreateFlags::ResolveTargetable);
+
+	OutRHITexture = RHICreateTexture(Desc);
+
 	if (OutRHITexture.IsValid() && OutRHITexture->IsValid())
 	{
 		auto UE4D3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());

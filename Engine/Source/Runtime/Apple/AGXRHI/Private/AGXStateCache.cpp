@@ -2239,8 +2239,11 @@ FTexture2DRHIRef FAGXStateCache::CreateFallbackDepthStencilSurface(uint32 Width,
 	if (!IsValidRef(FallbackDepthStencilSurface) || FallbackDepthStencilSurface->GetSizeX() != Width || FallbackDepthStencilSurface->GetSizeY() != Height)
 #endif
 	{
-		FRHIResourceCreateInfo TexInfo(TEXT("FallbackDepthStencilSurface"));
-		FallbackDepthStencilSurface = RHICreateTexture2D(Width, Height, PF_DepthStencil, 1, 1, TexCreate_DepthStencilTargetable, TexInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FallbackDepthStencilSurface"), Width, Height, PF_DepthStencil)
+			.SetFlags(ETextureCreateFlags::DepthStencilTargetable);
+
+		FallbackDepthStencilSurface = RHICreateTexture(Desc);
 	}
 	check(IsValidRef(FallbackDepthStencilSurface));
 	return FallbackDepthStencilSurface;

@@ -4014,19 +4014,18 @@ static void AddCardsTextureReadbackPass(
 		check(OutTexture->Source.GetSizeX() == Resolution.X);
 		check(OutTexture->Source.GetSizeY() == Resolution.Y);
 
-		FRHIResourceCreateInfo CreateInfo(TEXT("CardsTextureReadbackPass_StagingTexture"));
-		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
-			InputTexture->Desc.Extent.X,
-			InputTexture->Desc.Extent.Y,
-			InputTexture->Desc.Format,
-			InputTexture->Desc.NumMips,
-			1, TexCreate_CPUReadback, CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("CardsTextureReadbackPass_StagingTexture"), InputTexture->Desc.Extent, InputTexture->Desc.Format)
+			.SetNumMips(InputTexture->Desc.NumMips)
+			.SetFlags(ETextureCreateFlags::CPUReadback);
+
+		FTextureRHIRef StagingTexture = RHICreateTexture(Desc);
 
 		FRHICopyTextureInfo CopyInfo;
 		CopyInfo.NumMips = InputTexture->Desc.NumMips;
 		RHICmdList.CopyTexture(
 			InputTexture->GetRHI(),
-			StagingTexture->GetTexture2D(),
+			StagingTexture,
 			CopyInfo);
 
 		// Flush, to ensure that all texture generation is done

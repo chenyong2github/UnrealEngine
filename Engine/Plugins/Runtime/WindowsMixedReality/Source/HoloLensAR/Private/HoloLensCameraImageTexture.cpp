@@ -249,9 +249,13 @@ public:
 		// Default to an empty 1x1 texture if we don't have a camera image or failed to convert
 		if (!bDidConvert)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("DecodedTextureRef"));
 			Size.X = Size.Y = 1;
-			DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("DecodedTextureRef"), Size, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::ShaderResource);
+
+			DecodedTextureRef = RHICreateTexture(Desc);
 		}
 
 		TextureRHI = DecodedTextureRef;

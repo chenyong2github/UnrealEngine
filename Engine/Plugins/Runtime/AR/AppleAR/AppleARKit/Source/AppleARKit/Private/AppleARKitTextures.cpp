@@ -147,11 +147,15 @@ public:
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
-		
+
 		// Default to an empty 1x1 texture if we don't have a camera image
-		FRHIResourceCreateInfo CreateInfo(TEXT("FARKitTextureResource"));
 		Size.X = Size.Y = 1;
-		TextureRHI = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FARKitTextureResource"), Size, PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::ShaderResource);
+		
+		TextureRHI = RHICreateTexture(Desc);
 		
 		OnTextureUpdated();
 	}
@@ -207,8 +211,11 @@ protected:
 			TextureRHI.SafeRelease();
 			
 			// Create the target texture that we'll update into
-			FRHIResourceCreateInfo CreateInfo(TEXT("FARKitTextureResource"));
-			TextureRHI = RHICreateTexture2D(Size.X, Size.Y, PixelFormat, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FARKitTextureResource"), Size, PixelFormat)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+			TextureRHI = RHICreateTexture(Desc);
 		}
 	}
 	
@@ -890,11 +897,14 @@ public:
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 		
 		// Default to an empty 1x1 texture if we don't have a camera image
-		FRHIResourceCreateInfo CreateInfo(TEXT("DecodedTextureRef"));
 		Size.X = Size.Y = 1;
 		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("DecodedTextureRef"), Size, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::ShaderResource);
+
 			FScopeLock ScopeLock(&DecodedTextureLock);
-			DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+			DecodedTextureRef = RHICreateTexture(Desc);
 		}
 		
 		UpdateTextureRHI();
@@ -943,16 +953,19 @@ public:
 		
 		{
 			// Update the RHI texture wrapper for the Y and CbCr images
-			FRHIResourceCreateInfo CreateInfo(TEXT("VideoTexture"));
-			const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
-			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(CapturedYImage);
-			CreateInfo.ResourceArray = nullptr;
+			const FRHITextureCreateDesc YDesc =
+				FRHITextureCreateDesc::Create2D(TEXT("VideoTextureY"), CapturedYImageSize, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FAppleARKitCameraTextureResourceWrapper(CapturedYImage));
+
+			const FRHITextureCreateDesc cBcRDesc =
+				FRHITextureCreateDesc::Create2D(TEXT("VideoTextureCbCr"), CapturedCbCrImageSize, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FAppleARKitCameraTextureResourceWrapper(CapturedCbCrImage));
 
 			// pull the Y and CbCr textures out of the captured image planes (format is fake here, it will get the format from the FAppleARKitCameraTextureResourceWrapper)
-			VideoTextureY = RHICreateTexture2D(CapturedYImageSize.X, CapturedYImageSize.Y, /*Format=*/PF_B8G8R8A8, /*NumMips=*/1, /*NumSamples=*/1, CreateFlags, CreateInfo);
-
-			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(CapturedCbCrImage);
-			VideoTextureCbCr = RHICreateTexture2D(CapturedCbCrImageSize.X, CapturedCbCrImageSize.Y, /*Format=*/PF_B8G8R8A8, /*NumMips=*/1, /*NumSamples=*/1, CreateFlags, CreateInfo);
+			VideoTextureY = RHICreateTexture(YDesc);
+			VideoTextureCbCr = RHICreateTexture(cBcRDesc);
 
 			// todo: Add an update call to the registry instead of this unregister/re-register
 			FExternalTextureRegistry::Get().UnregisterExternalTexture(ARKitPassthroughCameraExternalTextureYGuid);
@@ -984,10 +997,13 @@ public:
 		if (!DecodedTextureRef || Size != OutputSize)
 		{
 			Size = OutputSize;
-			FRHIResourceCreateInfo CreateInfo(TEXT("FARKitCameraVideoResource_DecodedTexture"));
 			{
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(TEXT("FARKitCameraVideoResource_DecodedTexture"), Size, PF_B8G8R8A8)
+					.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
 				FScopeLock ScopeLock(&DecodedTextureLock);
-				DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+				DecodedTextureRef = RHICreateTexture(Desc);
 			}
 			
 			DecodedTextureUAV = nullptr;

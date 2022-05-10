@@ -209,17 +209,19 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			check(UVTextureRef);
 
 			// Metal can upload directly from an IOSurface to a 2D texture, so we can just wrap it.
-			FRHIResourceCreateInfo YCreateInfo(TEXT("YTex"));
-			YCreateInfo.BulkData = new FTexConvTexResourceWrapper(YTextureRef);
-			YCreateInfo.ResourceArray = nullptr;
 
-			FRHIResourceCreateInfo UVCreateInfo(TEXT("UVTex"));
-			UVCreateInfo.BulkData = new FTexConvTexResourceWrapper(UVTextureRef);
-			UVCreateInfo.ResourceArray = nullptr;
+			const FRHITextureCreateDesc YDesc =
+				FRHITextureCreateDesc::Create2D(TEXT("YTex"), YWidth, YHeight, PF_G8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FTexConvTexResourceWrapper(YTextureRef));
 
-			ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
-			TRefCountPtr<FRHITexture2D> YTex = RHICreateTexture2D(YWidth, YHeight, PF_G8, 1, 1, TexCreateFlags, YCreateInfo);
-			TRefCountPtr<FRHITexture2D> UVTex = RHICreateTexture2D(UVWidth, UVHeight, PF_R8G8, 1, 1, TexCreateFlags, UVCreateInfo);
+			const FRHITextureCreateDesc UVDesc =
+				FRHITextureCreateDesc::Create2D(TEXT("UVTex"), UVWidth, UVHeight, PF_R8G8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FTexConvTexResourceWrapper(UVTextureRef));
+
+			TRefCountPtr<FRHITexture> YTex = RHICreateTexture(YDesc);
+			TRefCountPtr<FRHITexture> UVTex = RHICreateTexture(UVDesc);
 
 			// render video frame into sink texture
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -274,12 +276,12 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			check(Result == kCVReturnSuccess);
 			check(TextureRef);
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("DstTexture"));
-			CreateInfo.BulkData = new FTexConvTexResourceWrapper(TextureRef);
-			CreateInfo.ResourceArray = nullptr;
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("DstTexture"), Width, Height, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::SRGB | ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FTexConvTexResourceWrapper(TextureRef));
 
-			ETextureCreateFlags TexCreateFlags = TexCreate_SRGB | TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
-			InDstTexture = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreateFlags, CreateInfo);
+			InDstTexture = RHICreateTexture(Desc);
 
 			CFRelease(TextureRef);
 		}

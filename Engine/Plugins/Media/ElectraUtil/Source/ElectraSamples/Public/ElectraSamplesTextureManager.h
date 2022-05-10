@@ -13,11 +13,11 @@ public:
 	virtual ~FElectraSamplesTextureManager();
 
 	TSharedPtr<IVideoDecoderTexture, ESPMode::ThreadSafe> CreateTexture(const FIntPoint& Dim, EPixelFormat Fmt = PF_Unknown);
-	FTexture2DRHIRef GetRHITextureFromPlatformTexture(void* PlatformTexture);
+	FTextureRHIRef GetRHITextureFromPlatformTexture(void* PlatformTexture);
 
 protected:
 	virtual TSharedPtr<IVideoDecoderTexture, ESPMode::ThreadSafe> PlatformCreateTexture(const FIntPoint& Dim, EPixelFormat Fmt) = 0;
-	virtual FTexture2DRHIRef PlatformGetTextureRHI(IVideoDecoderTexture *Texture) = 0;
+	virtual FTextureRHIRef PlatformGetTextureRHI(IVideoDecoderTexture *Texture) = 0;
 	virtual void* PlatformGetTexturePlatform(IVideoDecoderTexture* Texture) = 0;
 	
 	void PlatformAddSharedTextureRef(TSharedPtr<IVideoDecoderTexture, ESPMode::ThreadSafe> InTextureRef);

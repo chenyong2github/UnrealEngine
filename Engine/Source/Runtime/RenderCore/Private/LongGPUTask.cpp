@@ -13,8 +13,11 @@ int32 NumMeasuredIterationsToAchieve500ms = 0;
 
 void IssueScalableLongGPUTask(FRHICommandListImmediate& RHICmdList, int32 NumIteration /* = -1 by default */)
 {
-	FRHIResourceCreateInfo Info(TEXT("LongTaskRenderTarget"));
-	FTexture2DRHIRef LongTaskRenderTarget = RHICreateTexture2D(1920, 1080, PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable, Info);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("LongTaskRenderTarget"), 1920, 1080, PF_B8G8R8A8)
+		.SetFlags(ETextureCreateFlags::RenderTargetable);
+
+	FTextureRHIRef LongTaskRenderTarget = RHICreateTexture(Desc);
 
 	FRHIRenderPassInfo RPInfo(LongTaskRenderTarget, ERenderTargetActions::DontLoad_Store);
 	RHICmdList.Transition(FRHITransitionInfo(LongTaskRenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));

@@ -1396,15 +1396,26 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			}
 		}
 
-		ETextureCreateFlags TexCreateFlags = (TextureOwner->SRGB ? TexCreate_SRGB : TexCreate_None) | (TextureOwner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
+		FString Name = TextureOwner->GetName();
+
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(*Name, MipWidthInTiles * TileSizeInPixels, MipHeightInTiles * TileSizeInPixels, PixelFormat);
+
+		if (TextureOwner->SRGB)
+		{
+			Desc.AddFlags(ETextureCreateFlags::SRGB);
+		}
+		if (!TextureOwner->bNotOfflineProcessed)
+		{
+			Desc.AddFlags(ETextureCreateFlags::OfflineProcessed);
+		}
 		if (TextureOwner->bNoTiling)
 		{
-			TexCreateFlags |= TexCreate_NoTiling;
+			Desc.AddFlags(ETextureCreateFlags::NoTiling);
 		}
 
-		FString Name = TextureOwner->GetName();
-		FRHIResourceCreateInfo CreateInfo(*Name);
-		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(MipWidthInTiles * TileSizeInPixels, MipHeightInTiles * TileSizeInPixels, PixelFormat, 1, 1, TexCreateFlags, CreateInfo);
+		FTexture2DRHIRef Texture2DRHI = RHICreateTexture(Desc);
+
 		FRHICommandListImmediate& RHICommandList = FRHICommandListExecutor::GetImmediateCommandList();
 
 		TArray<IVirtualTextureFinalizer*> Finalizers;
@@ -1445,7 +1456,13 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			check(MipWidth <= MipWidthInTiles * TileSizeInPixels);
 			check(MipHeight <= MipHeightInTiles * TileSizeInPixels);
 
-			FTexture2DRHIRef ResizedTexture2DRHI = RHICreateTexture2D(MipWidth, MipHeight, PixelFormat, 1, 1, TexCreateFlags, ERHIAccess::CopyDest, CreateInfo);
+			const FRHITextureCreateDesc ResizedDesc =
+				FRHITextureCreateDesc::Create2D(*Name, MipWidth, MipHeight, PixelFormat)
+				.SetFlags(Desc.Flags)
+				.SetInitialState(ERHIAccess::CopyDest);
+
+			FTexture2DRHIRef ResizedTexture2DRHI = RHICreateTexture(ResizedDesc);
+
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1);
 

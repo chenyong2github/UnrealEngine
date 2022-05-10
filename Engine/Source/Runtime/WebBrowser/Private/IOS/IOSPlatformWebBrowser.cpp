@@ -158,15 +158,17 @@ class SIOSWebBrowserWidget : public SLeafWidget
 							FTextureRHIRef VideoTexture = [NativeWebBrowser GetVideoTexture];
 							if (VideoTexture == nullptr)
 							{
-								FRHIResourceCreateInfo CreateInfo(TEXT("SIOSWebBrowserWidget_VideoTexture"));
-								FIntPoint Size = Params.Size;
-								VideoTexture = RHICreateTextureExternal2D(Size.X, Size.Y, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
+								const FRHITextureCreateDesc Desc =
+									FRHITextureCreateDesc::Create2D(TEXT("SIOSWebBrowserWidget_VideoTexture"), Params.Size, PF_R8G8B8A8)
+									.SetFlags(ETextureCreateFlags::External);
+
+								VideoTexture = RHICreateTexture(Desc);
 								[NativeWebBrowser SetVideoTexture : VideoTexture];
 								//UE_LOG(LogIOS, Log, TEXT("NativeWebBrowser SetVideoTexture:VideoTexture!"));
 
 								if (VideoTexture == nullptr)
 								{
-									UE_LOG(LogIOS, Warning, TEXT("CreateTextureExternal2D failed!"));
+									UE_LOG(LogIOS, Warning, TEXT("RHICreateTexture failed!"));
 									return;
 								}
 

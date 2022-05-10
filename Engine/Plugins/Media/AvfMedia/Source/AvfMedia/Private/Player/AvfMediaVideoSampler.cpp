@@ -252,9 +252,7 @@ void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan Sampl
 		{
 			// Expecting BiPlanar kCVPixelFormatType_420YpCbCr8BiPlanar Full/Video
 			check(CVPixelBufferGetPlaneCount(Frame) == 2);
-			
-			ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling;
-			
+
 			int32 YWidth = CVPixelBufferGetWidthOfPlane(Frame, 0);
 			int32 YHeight = CVPixelBufferGetHeightOfPlane(Frame, 0);
 			
@@ -272,19 +270,25 @@ void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan Sampl
 			check(UVTextureRef);
 			
 			// Metal can upload directly from an IOSurface to a 2D texture, so we can just wrap it.
-			FRHIResourceCreateInfo YCreateInfo(TEXT("YTex"));
-			YCreateInfo.BulkData = new FAvfTexture2DResourceWrapper(YTextureRef);
-			YCreateInfo.ResourceArray = nullptr;
+
+			const FRHITextureCreateDesc YDesc =
+				FRHITextureCreateDesc::Create2D(TEXT("YTex"), YWidth, YHeight, PF_G8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FAvfTexture2DResourceWrapper(YTextureRef));
+
+			const FRHITextureCreateDesc UVDesc =
+				FRHITextureCreateDesc::Create2D(TEXT("UVTex"), UVWidth, UVHeight, PF_R8G8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FAvfTexture2DResourceWrapper(UVTextureRef));
 			
-			FRHIResourceCreateInfo UVCreateInfo(TEXT("UVTex"));
-			UVCreateInfo.BulkData = new FAvfTexture2DResourceWrapper(UVTextureRef);
-			UVCreateInfo.ResourceArray = nullptr;
+			TRefCountPtr<FRHITexture> YTex = RHICreateTexture(YDesc);
+			TRefCountPtr<FRHITexture> UVTex = RHICreateTexture(UVDesc);
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("Info"), YWidth, YHeight, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::SRGB);
 			
-			TRefCountPtr<FRHITexture2D> YTex = RHICreateTexture2D(YWidth, YHeight, PF_G8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, YCreateInfo);
-			TRefCountPtr<FRHITexture2D> UVTex = RHICreateTexture2D(UVWidth, UVHeight, PF_R8G8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, UVCreateInfo);
-			
-			FRHIResourceCreateInfo Info(TEXT("Info"));
-			ShaderResource = RHICreateTexture2D(YWidth, YHeight, PF_B8G8R8A8, 1, 1, TexCreateFlags | TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_SRGB, Info);
+			ShaderResource = RHICreateTexture(Desc);
 			
 			// render video frame into sink texture
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -335,15 +339,13 @@ void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan Sampl
 			CVReturn Result = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, MetalTextureCache, Frame, nullptr, MTLPixelFormatBGRA8Unorm_sRGB, Width, Height, 0, &TextureRef);
 			check(Result == kCVReturnSuccess);
 			check(TextureRef);
-			
-			FRHIResourceCreateInfo CreateInfo(TEXT("FAvfMediaVideoSampler"));
-			CreateInfo.BulkData = new FAvfTexture2DResourceWrapper(TextureRef);
-			CreateInfo.ResourceArray = nullptr;
-			
-			ETextureCreateFlags TexCreateFlags = TexCreate_SRGB;
-			TexCreateFlags |= TexCreate_Dynamic | TexCreate_NoTiling;
-			
-			ShaderResource = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, CreateInfo);
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FAvfMediaVideoSampler"), Width, Height, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::SRGB | ETextureCreateFlags::Dynamic | ETextureCreateFlags::NoTiling | ETextureCreateFlags::ShaderResource)
+				.SetBulkData(new FAvfTexture2DResourceWrapper(TextureRef));
+
+			ShaderResource = RHICreateTexture(Desc);
 			
 			CFRelease(TextureRef);
 		}

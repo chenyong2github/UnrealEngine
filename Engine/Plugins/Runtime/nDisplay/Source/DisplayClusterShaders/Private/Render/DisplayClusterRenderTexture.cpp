@@ -85,9 +85,12 @@ void FDisplayClusterRenderTextureResource::InitRHI()
 	FDisplayClusterResourceBulkData BulkDataInterface(TextureData, DataSize);
 
 	// @todo: Changed for CIS but needs to be fixed.
-	FRHIResourceCreateInfo CreateInfo(TEXT("DisplayClusterRenderTexture"), &BulkDataInterface);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("DisplayClusterRenderTexture"), Width, Height, PixelFormat)
+		.SetFlags(ETextureCreateFlags::ShaderResource)
+		.SetBulkData(&BulkDataInterface);
 
-	TextureRHI = RHICreateTexture2D(Width, Height, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
+	TextureRHI = RHICreateTexture(Desc);
 
 	// CPU access not required, release from memory
 	if (bHasCPUAccess == false)

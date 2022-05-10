@@ -1170,7 +1170,6 @@ void UMediaCapture::InitializeOutputResources(int32 InNumberOfBuffers)
 	ENQUEUE_RENDER_COMMAND(MediaOutputCaptureFrameCreateResources)(
 		[This](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("UMediaCapture"));
 			for (int32 Index = 0; Index < This->NumberOfCaptureFrame; ++Index)
 			{
 				if (This->DesiredOutputResourceType == EMediaCaptureResourceType::Texture)

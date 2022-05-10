@@ -567,7 +567,7 @@ public:
 	FBufferRHIRef InstancePayloadDataBufferRHI;
 	FShaderResourceViewRHIRef InstancePayloadDataBufferSRV;
 
-	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
+	FTextureRHIRef PrimitiveSceneDataTextureRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;
 
 	FBufferRHIRef LightmapSceneDataBufferRHI;

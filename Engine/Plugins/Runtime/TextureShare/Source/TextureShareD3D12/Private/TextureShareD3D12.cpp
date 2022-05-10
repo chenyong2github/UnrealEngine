@@ -37,11 +37,15 @@ bool FTextureShareD3D12::CreateRHITexture(ID3D12Resource* OpenedSharedResource, 
 
 bool FTextureShareD3D12::CreateSharedTexture(FIntPoint& Size, EPixelFormat Format, FTexture2DRHIRef& OutRHITexture, void*& OutHandle, FGuid& OutSharedHandleGuid)
 {
-	FString UniqueHandleId = FString::Printf(TEXT("Global\\%s"), *OutSharedHandleGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
+	const FString UniqueHandleId = FString::Printf(TEXT("Global\\%s"), *OutSharedHandleGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 
 	// Create RHI resource
-	FRHIResourceCreateInfo CreateInfo(*UniqueHandleId);
-	OutRHITexture = RHICreateTexture2D(Size.X, Size.Y, Format, 1, 1, TexCreate_Shared | TexCreate_ResolveTargetable, CreateInfo);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(*UniqueHandleId, Size, Format)
+		.SetFlags(ETextureCreateFlags::Shared | ETextureCreateFlags::ResolveTargetable);
+
+	OutRHITexture = RHICreateTexture(Desc);
+
 	if (OutRHITexture.IsValid() && OutRHITexture->IsValid())
 	{
 		ID3D12Device* D3DDevice = GetID3D12DynamicRHI()->RHIGetDevice(0);

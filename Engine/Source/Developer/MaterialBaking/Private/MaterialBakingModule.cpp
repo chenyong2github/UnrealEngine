@@ -190,14 +190,17 @@ namespace FMaterialBakingModuleImpl
 			}
 
 			TRACE_CPUPROFILER_EVENT_SCOPE(RHICreateTexture2D)
-			FRHIResourceCreateInfo CreateInfo(TEXT("FStagingBufferPool_StagingBuffer"));
-			ETextureCreateFlags TextureCreateFlags = TexCreate_CPUReadback;
+
+			FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FStagingBufferPool_StagingBuffer"), Width, Height, Format)
+				.SetFlags(ETextureCreateFlags::CPUReadback);
+
 			if (bIsSRGB)
 			{
-				TextureCreateFlags |= TexCreate_SRGB;
+				Desc.AddFlags(ETextureCreateFlags::SRGB);
 			}
-			
-			return RHICreateTexture2D(Width, Height, Format, 1, 1, TextureCreateFlags, CreateInfo);
+
+			return RHICreateTexture(Desc);
 		}
 
 		void ReleaseStagingBufferForUnmap_AnyThread(FTexture2DRHIRef& Texture2DRHIRef)

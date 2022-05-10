@@ -1756,8 +1756,11 @@ void CopyRectTiled(
 
 void ReadbackVolumetricLightmapDataLayerFromGPU(FRHICommandListImmediate& RHICmdList, FVolumetricLightmapDataLayer& Layer, FIntVector Dimensions)
 {
-	FRHIResourceCreateInfo CreateInfo(TEXT("VolumetricLightmapDataLayerReadback"));
-	FTexture2DRHIRef StagingTexture2DSlice = RHICreateTexture2D(Layer.Texture->GetSizeX(), Layer.Texture->GetSizeY(), Layer.Texture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, CreateInfo);
+	const FRHITextureCreateDesc StagingDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("VolumetricLightmapDataLayerReadback"), Layer.Texture->GetSizeX(), Layer.Texture->GetSizeY(), Layer.Texture->GetFormat())
+		.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture);
+
+	FTextureRHIRef StagingTexture2DSlice = RHICreateTexture(StagingDesc);
 	FGPUFenceRHIRef Fence = RHICreateGPUFence(TEXT("VolumetricLightmapDataLayerReadback"));
 
 	check(Dimensions.Z == Layer.Texture->GetSizeZ());

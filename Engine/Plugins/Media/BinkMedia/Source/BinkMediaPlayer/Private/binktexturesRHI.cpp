@@ -57,11 +57,11 @@ typedef struct BINKTEXTURESRHI
 	S32 draw_flags;
 	F32 u0, v0, u1, v1;
 
-	FTexture2DRHIRef Ytexture[BINKMAXFRAMEBUFFERS];
-	FTexture2DRHIRef cRtexture[BINKMAXFRAMEBUFFERS];
-	FTexture2DRHIRef cBtexture[BINKMAXFRAMEBUFFERS];
-	FTexture2DRHIRef Atexture[BINKMAXFRAMEBUFFERS];
-	FTexture2DRHIRef Htexture[BINKMAXFRAMEBUFFERS];
+	FTextureRHIRef Ytexture[BINKMAXFRAMEBUFFERS];
+	FTextureRHIRef cRtexture[BINKMAXFRAMEBUFFERS];
+	FTextureRHIRef cBtexture[BINKMAXFRAMEBUFFERS];
+	FTextureRHIRef Atexture[BINKMAXFRAMEBUFFERS];
+	FTextureRHIRef Htexture[BINKMAXFRAMEBUFFERS];
 
 	// unused for now
 	S32 tonemap;
@@ -158,7 +158,14 @@ static BINKTEXTURES * Create_textures(BINKSHADERS * pshaders, HBINK bink, void *
 #else
 	ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling;
 #endif
-	FRHIResourceCreateInfo CreateInfo(TEXT("BINK"));
+
+	const FRHITextureCreateDesc YADesc =
+		FRHITextureCreateDesc::Create2D(TEXT("BINK"), bb->YABufferWidth, bb->YABufferHeight, format)
+		.SetFlags(TexCreateFlags);
+
+	const FRHITextureCreateDesc cRcBDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("BINK"), bb->cRcBBufferWidth, bb->cRcBBufferHeight, format)
+		.SetFlags(TexCreateFlags);
 
 	for (int i = 0; i < bb->TotalFrames; ++i)
 	{
@@ -166,7 +173,7 @@ static BINKTEXTURES * Create_textures(BINKSHADERS * pshaders, HBINK bink, void *
 
 		if (bp_src->YPlane.Allocate)
 		{
-			textures->Ytexture[i] = RHICreateTexture2D(bb->YABufferWidth, bb->YABufferHeight, format, 1, 1, TexCreateFlags, CreateInfo);
+			textures->Ytexture[i] = RHICreateTexture(YADesc);
 #if PLATFORM_HAS_DIRECT_TEXTURE_MEMORY_ACCESS 
 			bp_src->YPlane.Buffer = GDynamicRHI->LockTexture2D_RenderThread(RHICmdList, textures->Ytexture[i], 0, PLATFORM_DIRECT_TEXTURE_MEMORY_ACCESS_LOCK_MODE, bp_src->YPlane.BufferPitch, false, false);
 			bp_src->YPlane.BufferPitch = bp_src->YPlane.BufferPitch ? bp_src->YPlane.BufferPitch : ((bb->YABufferWidth+255)&-256);
@@ -175,7 +182,7 @@ static BINKTEXTURES * Create_textures(BINKSHADERS * pshaders, HBINK bink, void *
 
 		if (bp_src->cRPlane.Allocate)
 		{
-			textures->cRtexture[i] = RHICreateTexture2D(bb->cRcBBufferWidth, bb->cRcBBufferHeight, format, 1, 1, TexCreateFlags, CreateInfo);
+			textures->cRtexture[i] = RHICreateTexture(cRcBDesc);
 #if PLATFORM_HAS_DIRECT_TEXTURE_MEMORY_ACCESS 
 			bp_src->cRPlane.Buffer = GDynamicRHI->LockTexture2D_RenderThread(RHICmdList, textures->cRtexture[i], 0, PLATFORM_DIRECT_TEXTURE_MEMORY_ACCESS_LOCK_MODE, bp_src->cRPlane.BufferPitch, false, false);
 			bp_src->cRPlane.BufferPitch = bp_src->cRPlane.BufferPitch ? bp_src->cRPlane.BufferPitch : ((bb->cRcBBufferWidth+255)&-256);
@@ -184,7 +191,7 @@ static BINKTEXTURES * Create_textures(BINKSHADERS * pshaders, HBINK bink, void *
 
 		if (bp_src->cBPlane.Allocate)
 		{
-			textures->cBtexture[i] = RHICreateTexture2D(bb->cRcBBufferWidth, bb->cRcBBufferHeight, format, 1, 1, TexCreateFlags, CreateInfo);
+			textures->cBtexture[i] = RHICreateTexture(cRcBDesc);
 #if PLATFORM_HAS_DIRECT_TEXTURE_MEMORY_ACCESS 
 			bp_src->cBPlane.Buffer = GDynamicRHI->LockTexture2D_RenderThread(RHICmdList, textures->cBtexture[i], 0, PLATFORM_DIRECT_TEXTURE_MEMORY_ACCESS_LOCK_MODE, bp_src->cBPlane.BufferPitch, false, false);
 			bp_src->cBPlane.BufferPitch = bp_src->cBPlane.BufferPitch ? bp_src->cBPlane.BufferPitch : ((bb->cRcBBufferWidth+255)&-256);
@@ -193,7 +200,7 @@ static BINKTEXTURES * Create_textures(BINKSHADERS * pshaders, HBINK bink, void *
 
 		if (bp_src->APlane.Allocate)
 		{
-			textures->Atexture[i] = RHICreateTexture2D(bb->YABufferWidth, bb->YABufferHeight, format, 1, 1, TexCreateFlags, CreateInfo);
+			textures->Atexture[i] = RHICreateTexture(YADesc);
 #if PLATFORM_HAS_DIRECT_TEXTURE_MEMORY_ACCESS 
 			bp_src->APlane.Buffer = GDynamicRHI->LockTexture2D_RenderThread(RHICmdList, textures->Atexture[i], 0, PLATFORM_DIRECT_TEXTURE_MEMORY_ACCESS_LOCK_MODE, bp_src->APlane.BufferPitch, false, false);
 			bp_src->APlane.BufferPitch = bp_src->APlane.BufferPitch ? bp_src->APlane.BufferPitch : ((bb->YABufferWidth+255)&-256);
@@ -202,7 +209,7 @@ static BINKTEXTURES * Create_textures(BINKSHADERS * pshaders, HBINK bink, void *
 
 		if (bp_src->HPlane.Allocate)
 		{
-			textures->Htexture[i] = RHICreateTexture2D(bb->YABufferWidth, bb->YABufferHeight, format, 1, 1, TexCreateFlags, CreateInfo);
+			textures->Htexture[i] = RHICreateTexture(YADesc);
 #if PLATFORM_HAS_DIRECT_TEXTURE_MEMORY_ACCESS 
 			bp_src->HPlane.Buffer = GDynamicRHI->LockTexture2D_RenderThread(RHICmdList, textures->Htexture[i], 0, PLATFORM_DIRECT_TEXTURE_MEMORY_ACCESS_LOCK_MODE, bp_src->HPlane.BufferPitch, false, false);
 			bp_src->HPlane.BufferPitch = bp_src->HPlane.BufferPitch ? bp_src->HPlane.BufferPitch : ((bb->YABufferWidth+255)&-256);

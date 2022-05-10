@@ -66,7 +66,7 @@ public:
 	// Stored redundantly for stats after Data has been discarded
 	int32 DataSize;
 	EPixelFormat Format;
-	FTexture3DRHIRef Texture;
+	FTextureRHIRef Texture;
 	FUnorderedAccessViewRHIRef UAV;
 
 	bool bNeedsCPUAccess;

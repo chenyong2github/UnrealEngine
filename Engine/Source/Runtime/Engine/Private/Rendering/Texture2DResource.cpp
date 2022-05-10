@@ -100,14 +100,18 @@ void FTexture2DResource::InitRHI()
 
 void FTexture2DResource::CreateTexture()
 {
-	FTexture2DRHIRef Texture2DRHI;
 	const int32 RequestedMipIdx = State.RequestedFirstLODIdx();
 	const FTexture2DMipMap* RequestedMip = GetPlatformMip(RequestedMipIdx);
 
 	// create texture with ResourceMem data when available
-	FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DResource"), ResourceMem);
-	CreateInfo.ExtData = PlatformData->GetExtData();
-	Texture2DRHI = RHICreateTexture2D( RequestedMip->SizeX, RequestedMip->SizeY, PixelFormat, State.NumRequestedLODs, 1, CreationFlags, CreateInfo);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FTexture2DResource"), RequestedMip->SizeX, RequestedMip->SizeY, PixelFormat)
+		.SetNumMips(State.NumRequestedLODs)
+		.SetFlags(CreationFlags)
+		.SetExtData(PlatformData->GetExtData())
+		.SetBulkData(ResourceMem);
+
+	TextureRHI = RHICreateTexture(Desc);
 
 	// if( ResourceMem && !State.bReadyForStreaming) // To investigate!
 	if (ResourceMem)
@@ -129,26 +133,31 @@ void FTexture2DResource::CreateTexture()
 			if (MipData[ResourceMipIdx])
 			{
 				uint32 DestPitch = -1;
-				void* TheMipData = RHILockTexture2D( Texture2DRHI, RHIMipIdx, RLM_WriteOnly, DestPitch, false );
+				void* TheMipData = RHILockTexture2D(TextureRHI, RHIMipIdx, RLM_WriteOnly, DestPitch, false );
 				GetData( ResourceMipIdx, TheMipData, DestPitch );
-				RHIUnlockTexture2D( Texture2DRHI, RHIMipIdx, false );
+				RHIUnlockTexture2D(TextureRHI, RHIMipIdx, false );
 			}
 		}
 	}
-	TextureRHI = Texture2DRHI;
 }
 
 void FTexture2DResource::CreatePartiallyResidentTexture()
 {
-	FTexture2DRHIRef Texture2DRHI;
 	const int32 CurrentFirstMip = State.RequestedFirstLODIdx();
 
 	check(bUsePartiallyResidentMips);
-	FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DResource-PRT"), ResourceMem);
-	CreateInfo.ExtData = PlatformData->GetExtData();
-	Texture2DRHI = RHICreateTexture2D( SizeX, SizeY, PixelFormat, State.MaxNumLODs, 1, CreationFlags | TexCreate_Virtual, CreateInfo);
-	RHIVirtualTextureSetFirstMipInMemory(Texture2DRHI, CurrentFirstMip);
-	RHIVirtualTextureSetFirstMipVisible(Texture2DRHI, CurrentFirstMip);
+
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FTexture2DResource-PRT"), SizeX, SizeY, PixelFormat)
+		.SetNumMips(State.MaxNumLODs)
+		.SetFlags(CreationFlags | ETextureCreateFlags::Virtual)
+		.SetExtData(PlatformData->GetExtData())
+		.SetBulkData(ResourceMem);
+
+	TextureRHI = RHICreateTexture(Desc);
+
+	RHIVirtualTextureSetFirstMipInMemory(TextureRHI, CurrentFirstMip);
+	RHIVirtualTextureSetFirstMipVisible(TextureRHI, CurrentFirstMip);
 
 	check( ResourceMem == nullptr );
 
@@ -158,13 +167,11 @@ void FTexture2DResource::CreatePartiallyResidentTexture()
 		if ( MipData[MipIndex] != NULL )
 		{
 			uint32 DestPitch = -1;
-			void* TheMipData = RHILockTexture2D( Texture2DRHI, MipIndex, RLM_WriteOnly, DestPitch, false );
+			void* TheMipData = RHILockTexture2D(TextureRHI, MipIndex, RLM_WriteOnly, DestPitch, false );
 			GetData( MipIndex, TheMipData, DestPitch );
-			RHIUnlockTexture2D( Texture2DRHI, MipIndex, false );
+			RHIUnlockTexture2D(TextureRHI, MipIndex, false );
 		}
 	}
-
-	TextureRHI = Texture2DRHI;
 }
 
 uint64 FTexture2DResource::GetPlatformMipsSize(uint32 NumMips) const
