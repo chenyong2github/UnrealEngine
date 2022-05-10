@@ -150,6 +150,19 @@ void FAndroidMediaPlayer::Close()
 
 	CurrentState = EMediaState::Closed;
 
+	// remove delegates if registered
+	if (ResumeHandle.IsValid())
+	{
+		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ResumeHandle);
+		ResumeHandle.Reset();
+	}
+ 
+	if (PauseHandle.IsValid())
+	{
+		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(PauseHandle);
+		PauseHandle.Reset();
+	}
+
 	bLooping = false;
 
 	if (JavaMediaPlayer.IsValid())
@@ -906,11 +919,11 @@ void FAndroidMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 	// register delegate if not registered
 	if (!ResumeHandle.IsValid())
 	{
-		ResumeHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAndroidMediaPlayer::HandleApplicationWillEnterBackground);
+		ResumeHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAndroidMediaPlayer::HandleApplicationHasEnteredForeground);
 	}
 	if (!PauseHandle.IsValid())
 	{
-		PauseHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAndroidMediaPlayer::HandleApplicationHasEnteredForeground);
+		PauseHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAndroidMediaPlayer::HandleApplicationWillEnterBackground);
 	}
 
 	// generate events
@@ -1507,7 +1520,7 @@ bool FAndroidMediaPlayer::SetNativeVolume(float Volume)
 /* FAndroidMediaPlayer callbacks
  *****************************************************************************/
 
-void FAndroidMediaPlayer::HandleApplicationHasEnteredForeground()
+void FAndroidMediaPlayer::HandleApplicationWillEnterBackground()
 {
 	// check state in case changed before ticked
 	if ((CurrentState == EMediaState::Playing) && JavaMediaPlayer.IsValid())
@@ -1517,7 +1530,7 @@ void FAndroidMediaPlayer::HandleApplicationHasEnteredForeground()
 }
 
 
-void FAndroidMediaPlayer::HandleApplicationWillEnterBackground()
+void FAndroidMediaPlayer::HandleApplicationHasEnteredForeground()
 {
 	// check state in case changed before ticked
 	if ((CurrentState == EMediaState::Playing) && JavaMediaPlayer.IsValid())

@@ -118,6 +118,20 @@ void FAndroidCameraPlayer::Close()
 	}
 
 	CurrentState = EMediaState::Closed;
+
+	// remove delegates if registered
+	if (ResumeHandle.IsValid())
+	{
+		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ResumeHandle);
+		ResumeHandle.Reset();
+	}
+
+	if (PauseHandle.IsValid())
+	{
+		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(PauseHandle);
+		PauseHandle.Reset();
+	}
+
 	CurrentTime = FTimespan::Zero();
 
 	bLooping = false;
@@ -744,11 +758,11 @@ void FAndroidCameraPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 	// register delegate if not registered
 	if (!ResumeHandle.IsValid())
 	{
-		ResumeHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAndroidCameraPlayer::HandleApplicationWillEnterBackground);
+		ResumeHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAndroidCameraPlayer::HandleApplicationHasEnteredForeground);
 	}
 	if (!PauseHandle.IsValid())
 	{
-		PauseHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAndroidCameraPlayer::HandleApplicationHasEnteredForeground);
+		PauseHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAndroidCameraPlayer::HandleApplicationWillEnterBackground);
 	}
 
 	// generate events
@@ -1502,7 +1516,7 @@ bool FAndroidCameraPlayer::SetRate(float Rate)
 /* FAndroidCameraPlayer callbacks
  *****************************************************************************/
 
-void FAndroidCameraPlayer::HandleApplicationHasEnteredForeground()
+void FAndroidCameraPlayer::HandleApplicationWillEnterBackground()
 {
 	/*
 	// check state in case changed before ticked
@@ -1514,7 +1528,7 @@ void FAndroidCameraPlayer::HandleApplicationHasEnteredForeground()
 }
 
 
-void FAndroidCameraPlayer::HandleApplicationWillEnterBackground()
+void FAndroidCameraPlayer::HandleApplicationHasEnteredForeground()
 {
 	/*
 	// check state in case changed before ticked
