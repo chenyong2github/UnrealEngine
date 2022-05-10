@@ -1014,6 +1014,15 @@ private:
 	static void BroadcastWorldPartitionUninitialized(UWorld* InWorld, UWorldPartition* InWorldPartition);
 };
 
+/**
+ * World specific Subsystem collection which delegates object references to its owning UWorld
+ */
+class FWorldSubsystemCollection : public FSubsystemCollection<UWorldSubsystem>
+{
+public:
+	virtual bool IsGCObjectReferencer() const override { return false; }
+};
+
 /** 
  * The World is the top level object representing a map or a sandbox in which Actors and Components will exist and be rendered.  
  *
@@ -4126,7 +4135,7 @@ public:
 	FWorldPSCPool PSCPool;
 
 	//PSC Pooling END
-	FSubsystemCollection<UWorldSubsystem> SubsystemCollection;
+	FWorldSubsystemCollection SubsystemCollection;
 };
 
 /** Global UWorld pointer. Use of this pointer should be avoided whenever possible. */

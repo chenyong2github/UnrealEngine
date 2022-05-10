@@ -571,6 +571,8 @@ void UWorld::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 
 	This->StreamingLevelsToConsider.AddReferencedObjects(InThis, Collector);
 
+	This->SubsystemCollection.AddReferencedObjects(InThis, Collector);
+
 	Super::AddReferencedObjects( InThis, Collector );
 }
 

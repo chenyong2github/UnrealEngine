@@ -217,7 +217,15 @@ USubsystem* FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsyste
 
 void FSubsystemCollectionBase::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObjects(SubsystemMap);
+	if (IsGCObjectReferencer())
+	{
+		AddReferencedObjects(nullptr, Collector);
+	}
+}
+
+void FSubsystemCollectionBase::AddReferencedObjects(UObject* Referencer, FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(SubsystemMap, Referencer);
 }
 
 FString FSubsystemCollectionBase::GetReferencerName() const

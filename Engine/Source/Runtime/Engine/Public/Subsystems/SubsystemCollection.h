@@ -53,6 +53,12 @@ public:
 	 */
 	static void DeactivateExternalSubsystem(UClass* SubsystemClass);
 
+	/** Add referenced objects with referencer */
+	void AddReferencedObjects(UObject* Referencer, FReferenceCollector& Collector);
+
+	/** If True, this collection will add its references through its FGCObject::AddReferencedObjects interface implementation */
+	virtual bool IsGCObjectReferencer() const { return true; }
+
 protected:
 	/** protected constructor - for use by the template only(FSubsystemCollection<TBaseType>) */
 	FSubsystemCollectionBase(UClass* InBaseType);
