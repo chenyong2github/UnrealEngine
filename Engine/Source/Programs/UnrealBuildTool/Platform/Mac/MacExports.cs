@@ -61,6 +61,7 @@ namespace UnrealBuildTool
 					"BenchmarkTool",
 					"BlankProgram",
 					"BuildPatchTool",
+					"ShaderCompileWorker",
 					"UnrealClient",
 					"UnrealGame", 
 					"UnrealServer",
