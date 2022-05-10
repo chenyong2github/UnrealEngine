@@ -2064,3 +2064,10 @@ public:
 	UStaticMesh::FBuildParameters BuildParameters;
 	bool bHasRenderDataChanged = false;
 };
+
+namespace UE::Private::StaticMesh
+{
+#if WITH_EDITOR
+	ENGINE_API FString BuildStaticMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, const FStaticMeshLODGroup& LODGroup);
+#endif
+}

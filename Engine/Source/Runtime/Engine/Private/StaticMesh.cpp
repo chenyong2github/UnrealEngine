@@ -2671,6 +2671,18 @@ static FString BuildStaticMeshDerivedDataKey(const FString& KeySuffix)
 		*KeySuffix);
 }
 
+namespace UE::Private::StaticMesh
+{
+
+#if WITH_EDITOR
+FString BuildStaticMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, const FStaticMeshLODGroup& LODGroup)
+{
+	return BuildStaticMeshDerivedDataKey(BuildStaticMeshDerivedDataKeySuffix(TargetPlatform, Mesh, LODGroup));
+}
+#endif
+
+} // UE::Private::StaticMesh
+
 static FString BuildStaticMeshLODDerivedDataKey(const FString& KeySuffix, int32 LODIdx)
 {
 	return FDerivedDataCacheInterface::BuildCacheKey(
