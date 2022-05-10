@@ -1406,6 +1406,7 @@ void FMemoryImageResult::SaveToArchive(FArchive& Ar) const
 	Ar << const_cast<FMemoryImageResult*>(this)->TargetLayoutParameters;
 
 	Ar << FrozenSize;
+	int64 FrozenObjectOffset = Ar.Tell();
 	Ar.Serialize(FrozenObject, FrozenSize);
 
 	PointerTable->SaveToArchive(Ar, TargetLayoutParameters, FrozenObject);
@@ -1470,6 +1471,48 @@ void FMemoryImageResult::SaveToArchive(FArchive& Ar) const
 	
 	SerializeNames(ScriptNames, ScriptNameCounts, Ar);
 	SerializeNames(MemoryImageNames, MemoryImageNameCounts, Ar);
+
+	int64 EndOffset = Ar.Tell();
+
+	// Replace patchable values with zeroes for determinism. 
+	// We can't do this when we flatten an object because we may still want to read that object on the current platform. 
+	for (const FMemoryImageVTablePointer& Patch : VTables)
+	{
+		Ar.Seek(FrozenObjectOffset + Patch.Offset);
+		if (TargetLayoutParameters.Is32Bit())
+		{
+			int32 Zero = 0;
+			Ar.Serialize(&Zero, sizeof(Zero));
+		}
+		else
+		{
+			int64 Zero = 0;
+			Ar.Serialize(&Zero, sizeof(Zero));
+		}
+	}
+
+	for (const FMemoryImageNamePointer& Patch : ScriptNames)
+	{
+		Ar.Seek(FrozenObjectOffset + Patch.Offset);
+		FScriptName NullName;
+		Ar.Serialize(&NullName, sizeof(FScriptName));
+	}
+
+	for (const FMemoryImageNamePointer& Patch : MemoryImageNames)
+	{
+		Ar.Seek(FrozenObjectOffset + Patch.Offset);
+		int32 Zeroes[3] = {0, 0, 0};
+		if (TargetLayoutParameters.WithCasePreservingFName())
+		{
+			Ar.Serialize(Zeroes, sizeof(int32) * 3);
+		}
+		else
+		{
+			Ar.Serialize(Zeroes, sizeof(int32) * 2);
+		}
+	}
+
+	Ar.Seek(EndOffset);
 }
 
 static inline void ApplyVTablePatch(void* FrozenObject, const FTypeLayoutDesc& DerivedType, uint32 VTableOffset, uint32 Offset)
@@ -1715,9 +1758,9 @@ uint32 FMemoryImageSection::WriteVTable(const FTypeLayoutDesc& TypeDesc, const F
 	return VTablePointer.Offset;
 }
 
-uint32 FMemoryImageSection::WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name)
+uint32 FMemoryImageSection::WriteFMemoryImageName(int32 NumBytes, const FName& Name)
 {
-	const uint32 Offset = WriteBytes(InBytes.GetData(), InBytes.Num());
+	const uint32 Offset = WriteZeroBytes(NumBytes);
 	if (!Name.IsNone())
 	{
 		FMemoryImageNamePointer& NamePointer = MemoryImageNames.AddDefaulted_GetRef();
@@ -1729,7 +1772,7 @@ uint32 FMemoryImageSection::WriteFMemoryImageName(TConstArrayView<uint8> InBytes
 
 uint32 FMemoryImageSection::WriteFScriptName(const FScriptName& Name)
 {
-	const uint32 Offset = WriteBytes(Name);
+	const uint32 Offset = WriteZeroBytes(sizeof(Name));
 	if (!Name.IsNone())
 	{
 		FMemoryImageNamePointer& NamePointer = ScriptNames.AddDefaulted_GetRef();
@@ -1963,9 +2006,9 @@ uint32 FMemoryImageWriter::WriteVTable(const FTypeLayoutDesc& TypeDesc, const FT
 	return Section->WriteVTable(TypeDesc, DerivedTypeDesc);
 }
 
-uint32 FMemoryImageWriter::WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name)
+uint32 FMemoryImageWriter::WriteFMemoryImageName(int32 NumBytes, const FName& Name)
 {
-	return Section->WriteFMemoryImageName(InBytes, Name);
+	return Section->WriteFMemoryImageName(NumBytes, Name);
 }
 
 uint32 FMemoryImageWriter::WriteFScriptName(const FScriptName& Name)

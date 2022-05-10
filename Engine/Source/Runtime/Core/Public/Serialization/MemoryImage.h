@@ -231,13 +231,20 @@ public:
 		return Offset;
 	}
 
+	uint32 WriteZeroBytes(int32 Num)
+	{
+		const uint32 Offset = GetOffset();
+		Bytes.SetNumZeroed(Offset + Num);
+		return Offset;
+	}
+
 	template<typename T>
 	uint32 WriteBytes(const T& Data) { return WriteBytes(&Data, sizeof(T)); }
 
 	FMemoryImageSection* WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase = nullptr);
 	uint32 WriteRawPointerSizedBytes(uint64 PointerValue);
 	uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
-	uint32 WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name);
+	uint32 WriteFMemoryImageName(int32 NumBytes, const FName& Name);
 	uint32 WriteFScriptName(const FScriptName& Name);
 	uint32 Flatten(FMemoryImageResult& OutResult) const;
 

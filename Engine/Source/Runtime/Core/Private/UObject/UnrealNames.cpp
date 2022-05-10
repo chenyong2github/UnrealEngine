@@ -5023,39 +5023,18 @@ void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMemory
 	const FPlatformTypeLayoutParameters& TargetLayoutParameters = Writer.GetTargetLayoutParams();
 	if (TargetLayoutParameters.IsCurrentPlatform())
 	{
-		TConstArrayView<uint8> Bytes{ reinterpret_cast<const uint8*>(&Object), sizeof(Object) };
-		Writer.WriteFMemoryImageName(Bytes, FName(Object));
+		Writer.WriteFMemoryImageName(sizeof(FMemoryImageName), FName(Object));
 	}
 	else
 	{
 		ensureMsgf(WITH_CASE_PRESERVING_NAME, TEXT("Cooking memory images containing names when WITH_CASE_PRESERVING_NAME is false can lead to cook determinism issues with string casing."));
-
 		if (!TargetLayoutParameters.WithCasePreservingFName())
 		{
-			TMemoryImageNameLayout<0> ToWrite;
-			ToWrite.ComparisonIndex = Object.ComparisonIndex;
-#if !UE_FNAME_OUTLINE_NUMBER
-			ToWrite.NumberOrDummy = Object.Number;
-#endif
-
-			TConstArrayView<uint8> Bytes{ reinterpret_cast<const uint8*>(&ToWrite), sizeof(ToWrite) };
-			Writer.WriteFMemoryImageName(Bytes, FName(Object));
+			Writer.WriteFMemoryImageName(sizeof(TMemoryImageNameLayout<0>), FName(Object));
 		}
 		else
 		{
-			TMemoryImageNameLayout<1> ToWrite;
-			ToWrite.ComparisonIndex = Object.ComparisonIndex;
-#if !UE_FNAME_OUTLINE_NUMBER
-			ToWrite.NumberOrDummy = Object.Number;
-#endif
-#if WITH_CASE_PRESERVING_NAME
-			ToWrite.DisplayIndex = Object.DisplayIndex;
-#else
-			ToWrite.DisplayIndex = Object.ComparisonIndex;
-#endif
-
-			TConstArrayView<uint8> Bytes{ reinterpret_cast<const uint8*>(&ToWrite), sizeof(ToWrite) };
-			Writer.WriteFMemoryImageName(Bytes, FName(Object));
+			Writer.WriteFMemoryImageName(sizeof(TMemoryImageNameLayout<1>), FName(Object));
 		}
 	}
 }
