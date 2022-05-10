@@ -16,6 +16,13 @@ public:
 		return false;
 	}
 
+	virtual bool DoesSaveSystemSupportMultipleUsers() override
+	{
+		return false;
+	}
+
+	virtual bool GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex) override;
+
 	virtual bool DoesSaveGameExist(const TCHAR* Name, const int32 UserIndex) override
 	{
 		return ESaveExistsResult::OK == DoesSaveGameExistWithResult(Name, UserIndex);

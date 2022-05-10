@@ -32,11 +32,20 @@ public:
 	/** Returns true if the platform has a native UI (like many consoles) */
 	virtual bool PlatformHasNativeUI() = 0;
 
+	/** Some save systems don't support more than one user, in those cases the game needs to avoid saving settings for anyone but the primary user. */
+	virtual bool DoesSaveSystemSupportMultipleUsers() = 0;
+
 	/** Return true if the named savegame exists (probably not useful with NativeUI */
 	virtual bool DoesSaveGameExist(const TCHAR* Name, const int32 UserIndex) = 0;
 
 	/** Similar to DoesSaveGameExist, except returns a result code with more information. */
 	virtual ESaveExistsResult DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex) = 0;
+
+	/** Gets a list of all known saves.  This isn't possible on all platforms,  */
+	virtual bool GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex)
+	{
+		return false;
+	}
 
 	/** Saves the game, blocking until complete. Platform may use FGameDelegates to get more information from the game */
 	virtual bool SaveGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, const TArray<uint8>& Data) = 0;
@@ -96,6 +105,11 @@ public:
 		return false;
 	}
 
+	virtual bool DoesSaveSystemSupportMultipleUsers() override
+	{
+		return false;
+	}
+
 	virtual ESaveExistsResult DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex) override
 	{
 		if (IFileManager::Get().FileSize(*GetSaveGamePath(Name)) >= 0)
@@ -108,6 +122,20 @@ public:
 	virtual bool DoesSaveGameExist(const TCHAR* Name, const int32 UserIndex) override
 	{
 		return ESaveExistsResult::OK == DoesSaveGameExistWithResult(Name, UserIndex);
+	}
+
+	virtual bool GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex) override
+	{
+		TArray<FString> FoundFiles;
+		const FString SaveGameDirectory = FPaths::ProjectSavedDir() / TEXT("SaveGames/");
+		IFileManager::Get().FindFiles(FoundFiles, *SaveGameDirectory, TEXT("*.sav"));
+
+		for (FString& File : FoundFiles)
+		{
+			FoundSaves.Add(FPaths::GetBaseFilename(File));
+		}
+
+		return true;
 	}
 
 	virtual bool SaveGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, const TArray<uint8>& Data) override

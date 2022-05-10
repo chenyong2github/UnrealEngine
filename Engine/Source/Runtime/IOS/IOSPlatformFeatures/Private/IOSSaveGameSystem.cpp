@@ -27,6 +27,20 @@ void FIOSSaveGameSystem::Shutdown()
 {
 }
 
+bool FIOSSaveGameSystem::GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex)
+{
+	TArray<FString> FoundFiles;
+	const FString SaveGameDirectory = FPaths::ProjectSavedDir() / TEXT("SaveGames/");
+	IFileManager::Get().FindFiles(FoundFiles, *SaveGameDirectory, TEXT("*.sav"));
+
+	for (FString& File : FoundFiles)
+	{
+		FoundSaves.Add(FPaths::GetBaseFilename(File));
+	}
+
+	return true;
+}
+
 ISaveGameSystem::ESaveExistsResult FIOSSaveGameSystem::DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex)
 {
 	if (IFileManager::Get().FileSize(*GetSaveGamePath(Name)) >= 0)
