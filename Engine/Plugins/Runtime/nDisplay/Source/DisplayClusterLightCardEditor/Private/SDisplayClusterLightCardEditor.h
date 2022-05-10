@@ -16,6 +16,7 @@ class SDockTab;
 class SDisplayClusterLightCardList;
 class SDisplayClusterLightCardEditorViewport;
 class ADisplayClusterRootActor;
+class ADisplayClusterLightCardActor;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
 class SDisplayClusterLightCardEditor : public SCompoundWidget
@@ -55,6 +56,9 @@ public:
 
 	/** Selects the light card proxies that correspond to the specified light cards */
 	void SelectLightCardProxies(const TArray<AActor*>& LightCardsToSelect);
+
+	/** Places the given light card in the middle of the viewport */
+	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
 
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */

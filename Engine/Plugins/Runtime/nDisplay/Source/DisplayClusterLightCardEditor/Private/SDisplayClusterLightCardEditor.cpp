@@ -134,6 +134,12 @@ void SDisplayClusterLightCardEditor::SelectLightCardProxies(const TArray<AActor*
 	ViewportView->GetLightCardEditorViewportClient()->SelectLightCards(LightCardsToSelect);
 }
 
+void SDisplayClusterLightCardEditor::CenterLightCardInView(ADisplayClusterLightCardActor& LightCard)
+{
+	check(ViewportView);
+	ViewportView->GetLightCardEditorViewportClient()->CenterLightCardInView(LightCard);
+}
+
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
 	RemoveCompileDelegates();

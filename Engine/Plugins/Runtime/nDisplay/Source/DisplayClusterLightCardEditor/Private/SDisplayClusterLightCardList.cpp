@@ -386,6 +386,12 @@ void SDisplayClusterLightCardList::AddNewLightCard()
 	NewActor->AttachToActor(RootActor.Get(), FAttachmentTransformRules::KeepWorldTransform);
 
 	AddLightCardToActor(NewActor);
+
+	// When adding a new lightcard, usually the desired location is in the middle of the viewport
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->CenterLightCardInView(*NewActor);
+	}
 }
 
 void SDisplayClusterLightCardList::AddExistingLightCard()

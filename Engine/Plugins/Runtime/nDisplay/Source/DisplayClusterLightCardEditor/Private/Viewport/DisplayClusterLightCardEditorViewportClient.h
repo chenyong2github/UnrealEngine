@@ -34,21 +34,36 @@ private:
 			}
 			else
 			{
-				Inclination = 0.f;
+				Inclination = 0;
 			}
 
 			Azimuth = FMath::Atan2(CartesianPosition.Y, CartesianPosition.X);
 		}
 
 		FSphericalCoordinates()
-			: Radius(0.f)
-			, Inclination(0.f)
-			, Azimuth(0.f)
+			: Radius(0)
+			, Inclination(0)
+			, Azimuth(0)
 		{ }
 
-		float Radius = 0.f;
-		float Inclination = 0.f;
-		float Azimuth = 0.f;
+		FVector AsCartesian() const
+		{
+			const double SinAzimuth = FMath::Sin(Azimuth);
+			const double CosAzimuth = FMath::Cos(Azimuth);
+
+			const double SinInclination = FMath::Sin(Inclination);
+			const double CosInclination = FMath::Cos(Inclination);
+
+			return FVector(
+				Radius * CosAzimuth * SinInclination,
+				Radius * SinAzimuth * SinInclination,
+				Radius * CosInclination
+			);
+		}
+
+		double Radius = 0;
+		double Inclination = 0;
+		double Azimuth = 0;
 	};
 
 	/** Custom render target that stores the normal data for the stage */
@@ -75,7 +90,7 @@ private:
 		TArray<FFloat16Color>& GetCachedNormalData() { return CachedNormalData; }
 
 		/** Gets the normal vector and distance at the specified world location. The normal and distance are bilinearly interpolated from the nearest pixels in the normal map */
-		bool GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance);
+		bool GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance) const;
 
 		/** Generates a texture object that can be used to visualize the normal map */
 		UTexture2D* GenerateNormalMapTexture(const FString& TextureName);
@@ -157,6 +172,16 @@ public:
 
 	/** Resets the camera to the initial rotation / position */
 	void ResetCamera(bool bLocationOnly = false);
+
+	/** Moves specified card to desired coordinates 
+	 *
+	 * @param LightCard The light card that we are moving
+	 * @param SphericalCoords specifies desired location of light card in spherical coordinates with respect to view origin
+	*/
+	void MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& SphericalCoords) const;
+
+	/** Places the given light card in the middle of the current viewport */
+	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
 	
 private:
 	/** Initiates a transaction. */
@@ -178,7 +203,7 @@ private:
 	UDisplayClusterConfigurationViewport* FindViewportForPrimitiveComponent(UPrimitiveComponent* PrimitiveComponent);
 
 	/** Finds a suitable primitive component on the stage actor to use as a projection origin */
-	void FindProjectionOriginComponent();
+	USceneComponent* FindProjectionOriginComponent(const ADisplayClusterRootActor* InRootActor) const;
 
 	/** Gets a list of all light card actors on the level linked to the specified root actor */
 	void FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& OutLightCards);
@@ -197,6 +222,9 @@ private:
 
 	/** Moves the currently selected light cards */
 	void MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
+
+	/** Ensures that the light card root component is at the same location as the projection/view origin */
+	void VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor* LightCard) const;
 
 	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the mouse's location */
 	FSphericalCoordinates GetLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);

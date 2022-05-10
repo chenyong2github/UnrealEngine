@@ -87,7 +87,7 @@ void FDisplayClusterLightCardEditorViewportClient::FNormalMap::Release()
 		});
 }
 
-bool FDisplayClusterLightCardEditorViewportClient::FNormalMap::GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance)
+bool FDisplayClusterLightCardEditorViewportClient::FNormalMap::GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance) const
 {
 	auto GetPixel = [this](uint32 InX, uint32 InY)
 	{
@@ -790,7 +790,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				RootActorProxy->SetActorLocation(FVector::ZeroVector);
 				RootActorProxy->SetActorRotation(FRotator::ZeroRotator);
 
-				FindProjectionOriginComponent();
+				ProjectionOriginComponent = FindProjectionOriginComponent(RootActorProxy.Get());
 
 				RootActorProxy->UpdatePreviewComponents();
 				RootActorProxy->EnableEditorRender(false);
@@ -936,7 +936,7 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 		EditorWidget->SetWidgetScale(0.5f);
 	}
 
-	FindProjectionOriginComponent();
+	ProjectionOriginComponent = FindProjectionOriginComponent(RootActorProxy.Get());
 
 	if (Viewport)
 	{
@@ -993,6 +993,47 @@ void FDisplayClusterLightCardEditorViewportClient::ResetCamera(bool bLocationOnl
 	SetProjectionMode(GetProjectionMode());
 
 	ResetFOVs();
+}
+
+void FDisplayClusterLightCardEditorViewportClient::MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& SphericalCoords) const
+{
+	const FVector Origin = GetViewLocation(); // Assumed the same as the LC origin in proxy space. Call VerifyAndFixLightCardOrigin to ensure this.
+	const FVector LightCardPosition = Origin + SphericalCoords.AsCartesian();
+
+	FVector DesiredNormal;
+	float DesiredDistance;
+
+	// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
+	if (LightCardPosition.Z < Origin.Z)
+	{
+		SouthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
+	}
+	else
+	{
+		NorthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
+	}
+
+	const FRotator Rotation = FRotationMatrix::MakeFromX(-DesiredNormal).Rotator();
+
+	LightCard.DistanceFromCenter = FMath::Min(DesiredDistance, RootActorBoundingRadius) + LightCardFlushOffset;
+
+	LightCard.Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(SphericalCoords.Azimuth) - 180);
+	LightCard.Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Inclination);
+
+	LightCard.Pitch = Rotation.Pitch;
+	LightCard.Yaw = Rotation.Yaw;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::CenterLightCardInView(ADisplayClusterLightCardActor& LightCard)
+{
+	VerifyAndFixLightCardOrigin(&LightCard);
+	MoveLightCardTo(LightCard, FSphericalCoordinates(GetViewRotation().RotateVector(FVector::ForwardVector)));
+
+	// If this is a proxy light, propagate to its counterpart in the level.
+	if (LightCard.bIsProxy)
+	{
+		PropagateLightCardTransform(&LightCard);
+	}
 }
 
 void FDisplayClusterLightCardEditorViewportClient::BeginTransaction(const FText& Description)
@@ -1224,26 +1265,22 @@ UDisplayClusterConfigurationViewport* FDisplayClusterLightCardEditorViewportClie
 	return nullptr;
 }
 
-void FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent()
+USceneComponent* FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent(const ADisplayClusterRootActor* InRootActor) const
 {
-	if (RootActorProxy.IsValid())
+	if (!InRootActor)
 	{
-		TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
-		RootActorProxy->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
+		return nullptr;
+	}
 
-		if (ViewOriginComponents.Num())
-		{
-			ProjectionOriginComponent = ViewOriginComponents[0];
-		}
-		else
-		{
-			ProjectionOriginComponent = RootActorProxy->GetRootComponent();
-		}
-	}
-	else
+	TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
+	InRootActor->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
+
+	if (ViewOriginComponents.Num())
 	{
-		ProjectionOriginComponent.Reset();
+		return ViewOriginComponents[0];
 	}
+
+	return InRootActor->GetRootComponent();
 }
 
 void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& OutLightCards)
@@ -1383,6 +1420,41 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardTransform(A
 	}
 }
 
+void FDisplayClusterLightCardEditorViewportClient::VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor* LightCard) const
+{
+	// Center lightcard on the current view origin, let it keep its current world placement 
+	// (but not its spin/yaw/pitch since that will be happen later using the cache).
+
+	if (!LightCard)
+	{
+		return;
+	}
+
+	const ADisplayClusterRootActor* RootActor = LightCard->bIsProxy ? RootActorProxy.Get() : RootActorLevelInstance.Get();
+	const USceneComponent* OriginComponent = LightCard->bIsProxy ? ProjectionOriginComponent.Get() : FindProjectionOriginComponent(RootActor);
+
+	// Set location at the view origin
+	const FVector& NewLightCardActorLocation = OriginComponent ? OriginComponent->GetComponentLocation() : FVector::ZeroVector;
+
+	// Set rotation to match the root actor
+	const FRotator& NewLightCardActorRotation = RootActor ? RootActor->GetActorRotation() : FRotator::ZeroRotator;
+
+	const FVector LightCardEndEffectorLocation = LightCard->GetLightCardTransform().GetLocation();
+
+	LightCard->SetActorLocation(NewLightCardActorLocation);
+	LightCard->SetActorRotation(NewLightCardActorRotation);
+
+	// Update the light card spherical coordinates to match its current world coordinates
+
+	const FVector LightCardRelativeLocation = NewLightCardActorRotation.UnrotateVector(LightCardEndEffectorLocation - NewLightCardActorLocation);
+
+	const FSphericalCoordinates SphericalCoords(LightCardRelativeLocation);
+
+	LightCard->DistanceFromCenter = SphericalCoords.Radius;
+	LightCard->Longitude = FMath::RadiansToDegrees(SphericalCoords.Radius) - 180;
+	LightCard->Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Radius);
+}
+
 void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
@@ -1417,54 +1489,22 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 				continue;
 			}
 
-			// Light cards should be centered on the current view origin, so set the light card position to match the current view origin. Update the light card
-			// spherical coordinates to match its current coordinates
-			if (ProjectionOriginComponent.IsValid() && ProjectionOriginComponent->GetComponentLocation() != LightCard->GetActorLocation())
-			{
-				const FVector DesiredLightCardOffset = LightCard->GetLightCardTransform().GetTranslation() - ProjectionOriginComponent->GetComponentLocation();
-
-				LightCard->SetActorLocation(ProjectionOriginComponent->GetComponentLocation());
-
-				FSphericalCoordinates SphericalCoords(DesiredLightCardOffset);
-
-				LightCard->DistanceFromCenter = SphericalCoords.Radius;
-				LightCard->Longitude = FMath::RadiansToDegrees(SphericalCoords.Radius) - 180;
-				LightCard->Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Radius);
-			}
-
-			const FSphericalCoordinates CurrentCoords = GetLightCardCoordinates(LightCard.Get());
+			VerifyAndFixLightCardOrigin(LightCard.Get());
 
 			FSphericalCoordinates NewCoords;
-			NewCoords.Radius = CurrentCoords.Radius + DeltaCoords.Radius;
-			NewCoords.Azimuth = CurrentCoords.Azimuth + DeltaCoords.Azimuth;
-			NewCoords.Inclination = CurrentCoords.Inclination + DeltaCoords.Inclination;
-
-			LightCard->DistanceFromCenter = NewCoords.Radius;
-			LightCard->Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(NewCoords.Azimuth) - 180);
-			LightCard->Latitude = 90.f - FMath::RadiansToDegrees(NewCoords.Inclination);
-
 			{
-				const FVector LightCardPosition = LightCard->GetLightCardTransform().GetTranslation();
+				const FSphericalCoordinates CurrentCoords = GetLightCardCoordinates(LightCard.Get());
 
-				FVector DesiredNormal;
-				float DesiredDistance;
+				NewCoords.Radius = CurrentCoords.Radius + DeltaCoords.Radius;
+				NewCoords.Azimuth = CurrentCoords.Azimuth + DeltaCoords.Azimuth;
+				NewCoords.Inclination = CurrentCoords.Inclination + DeltaCoords.Inclination;
 
-				// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
-				if (LightCardPosition.Z < Origin.Z)
-				{
-					SouthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
-				}
-				else
-				{
-					NorthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
-				}
-
-				const FRotator Rotation = FRotationMatrix::MakeFromX(-DesiredNormal).Rotator();
-
-				LightCard->Pitch = Rotation.Pitch;
-				LightCard->Yaw = Rotation.Yaw;
-				LightCard->DistanceFromCenter = FMath::Min(DesiredDistance, RootActorBoundingRadius) + LightCardFlushOffset;
+				LightCard->DistanceFromCenter = NewCoords.Radius;
+				LightCard->Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(NewCoords.Azimuth) - 180);
+				LightCard->Latitude = 90.f - FMath::RadiansToDegrees(NewCoords.Inclination);
 			}
+
+			MoveLightCardTo(*LightCard.Get(), NewCoords);
 
 			PropagateLightCardTransform(LightCard.Get());
 		}
@@ -1557,7 +1597,7 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 	// If the light card inclination is 0 or 180, the spherical coordinates will have an
 	// "undefined" azimuth value. For continuity when dragging a light card positioned there, we can manually
 	// set the azimuthal value to match the light card's configured longitude
-	if (LightCardCoords.Inclination == 0.f ||LightCardCoords.Inclination == PI)
+	if (LightCardCoords.Inclination == 0.f || LightCardCoords.Inclination == PI)
 	{
 		LightCardCoords.Azimuth = FMath::DegreesToRadians(LightCard->Longitude + 180);
 	}
