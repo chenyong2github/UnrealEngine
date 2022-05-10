@@ -1537,12 +1537,6 @@ FReply STraceStoreWindow::RefreshTraces_OnClicked()
 
 void STraceStoreWindow::RefreshTraceList()
 {
-	UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
-	if (StoreClient == nullptr)
-	{
-		return;
-	}
-
 	FStopwatch StopwatchTotal;
 	StopwatchTotal.Start();
 
@@ -1840,7 +1834,17 @@ FReply STraceStoreWindow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent
 	//TODO: Make commands for Rename and Delete.
 	//return GetCommandList()->ProcessCommandBindings(InKeyEvent) ? FReply::Handled() : FReply::Unhandled();
 
-	if (InKeyEvent.GetKey() == EKeys::F2)
+	if (InKeyEvent.GetKey() == EKeys::F5) // refresh metadata for all trace sessions
+	{
+		StoreBrowser->Refresh();
+
+		TracesChangeSerial = 0;
+		TraceViewModels.Reset();
+		TraceViewModelMap.Reset();
+		OnTraceListChanged();
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::F2)
 	{
 		RenameTraceFile();
 		return FReply::Handled();
@@ -1964,7 +1968,17 @@ void STraceStoreWindow::OpenTraceSession(uint32 InTraceId)
 {
 	UE_LOG(TraceInsights, Log, TEXT("[TraceStore] Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
 
-	const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
+	UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+	if (!StoreClient)
+	{
+		return;
+	}
+
+	uint32 StorePort = 0;
+	{
+		FScopeLock StoreClientLock(&FInsightsManager::Get()->GetStoreClientCriticalSection());
+		StorePort = StoreClient->GetStorePort();
+	}
 	FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
 
 	FString ExtraCmdParams;
@@ -2007,35 +2021,31 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 
 	MenuBuilder.BeginSection("AvailableTraces", LOCTEXT("TraceListMenu_Section_AvailableTraces", "Top Most Recently Created Traces"));
 	{
-		UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
-		if (StoreClient != nullptr)
+		// Make a copy of the trace list (to allow list view to be sorted by other criteria).
+		TArray<TSharedPtr<FTraceViewModel>> SortedTraces(TraceViewModels);
+		Algo::SortBy(SortedTraces, &FTraceViewModel::Timestamp);
+
+		int32 TraceCountLimit = 10; // top 10
+
+		// Iterate in reverse order as we want most recently created traces first.
+		for (int32 TraceIndex = SortedTraces.Num() - 1; TraceIndex >= 0 && TraceCountLimit > 0; --TraceIndex, --TraceCountLimit)
 		{
-			// Make a copy of the trace list (to allow list view to be sorted by other criteria).
-			TArray<TSharedPtr<FTraceViewModel>> SortedTraces(TraceViewModels);
-			Algo::SortBy(SortedTraces, &FTraceViewModel::Timestamp);
+			const FTraceViewModel& Trace = *SortedTraces[TraceIndex];
 
-			int32 TraceCountLimit = 10; // top 10
-
-			// Iterate in reverse order as we want most recently created traces first.
-			for (int32 TraceIndex = SortedTraces.Num() - 1; TraceIndex >= 0 && TraceCountLimit > 0; --TraceIndex, --TraceCountLimit)
+			FText Label = Trace.Name;
+			if (Trace.bIsLive)
 			{
-				const FTraceViewModel& Trace = *SortedTraces[TraceIndex];
-
-				FText Label = Trace.Name;
-				if (Trace.bIsLive)
-				{
-					Label = FText::Format(LOCTEXT("LiveTraceTextFmt", "{0} (LIVE!)"), Label);
-				}
-
-				MenuBuilder.AddMenuEntry(
-					Label,
-					TAttribute<FText>(), // no tooltip
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::OpenTraceSession, Trace.TraceId)),
-					NAME_None,
-					EUserInterfaceActionType::Button
-				);
+				Label = FText::Format(LOCTEXT("LiveTraceTextFmt", "{0} (LIVE!)"), Label);
 			}
+
+			MenuBuilder.AddMenuEntry(
+				Label,
+				TAttribute<FText>(), // no tooltip
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::OpenTraceSession, Trace.TraceId)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
 		}
 	}
 	MenuBuilder.EndSection();

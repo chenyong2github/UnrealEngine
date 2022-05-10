@@ -87,8 +87,11 @@ public:
 	const TMap<uint32, TSharedPtr<FStoreBrowserTraceInfo>>& GetLockedTraceMap() const { check(bTracesLocked); return TraceMap; }
 	void Unlock() { check(bTracesLocked); bTracesLocked = false; TracesCriticalSection.Unlock(); }
 
+	void Refresh();
+
 private:
 	UE::Trace::FStoreClient* GetStoreClient() const;
+	FCriticalSection& GetStoreClientCriticalSection() const;
 
 	void UpdateTraces();
 	void ResetTraces();

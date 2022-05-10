@@ -121,6 +121,7 @@ public:
 
 	bool ConnectToStore(const TCHAR* Host, uint32 Port=0);
 	UE::Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
+	FCriticalSection& GetStoreClientCriticalSection() const { return StoreClientCriticalSection; }
 
 	/** @return an instance of the trace analysis session. */
 	TSharedPtr<const TraceServices::IAnalysisSession> GetSession() const;
@@ -413,8 +414,11 @@ private:
 	/** The location of the trace files managed by the trace store. */
 	FString StoreDir;
 
-	/** The client used to connect to the trace store. */
+	/** The client used to connect to the trace store. It is not thread safe! */
 	TUniquePtr<UE::Trace::FStoreClient> StoreClient;
+
+	/** CriticalSection for using the store client's API. */
+	mutable FCriticalSection StoreClientCriticalSection;
 
 	/** The trace analysis session. */
 	TSharedPtr<const TraceServices::IAnalysisSession> Session;
