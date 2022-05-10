@@ -286,11 +286,9 @@ float GetHairStrandsFullCoverageThreshold()
 	return FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
 }
 
-bool IsHairVisibilityComputeRasterTemporalLayeringEnabled();
-
 uint32 GetHairStrandsIntCoverageThreshold()
 {
-	return (IsHairVisibilityComputeRasterEnabled() ? ((IsHairVisibilityComputeRasterTemporalLayeringEnabled()) ? 1000u : 1000u) : 1000u);
+	return 1000u;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

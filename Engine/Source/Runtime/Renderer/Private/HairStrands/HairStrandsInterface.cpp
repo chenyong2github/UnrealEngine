@@ -491,7 +491,7 @@ uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, u
 	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
 	{
 		const uint32 LayerCount = GetHairVisibilityComputeRasterTemporalLayerCount();
-		const uint32 OverrideIndex = CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex.GetValueOnAnyThread();
+		const int32 OverrideIndex = CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex.GetValueOnAnyThread();
 
 		const uint32 VertexCount = InVertexCount / LayerCount;
 

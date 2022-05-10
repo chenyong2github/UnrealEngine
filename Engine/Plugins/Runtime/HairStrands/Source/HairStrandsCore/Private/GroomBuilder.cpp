@@ -1956,6 +1956,11 @@ void Decimate(
 
 		Random.Initialize(0xdeedbeed);
 
+		//initialize value
+		for (uint32 CurveIndex = 0; CurveIndex < InCurveCount; CurveIndex++)
+		{
+			CurveRandomizedIndex[CurveIndex] = CurveIndex;
+		}
 		//shuffle
 		for (uint32 CurveIndex = 0; CurveIndex < InCurveCount; CurveIndex++)
 		{
