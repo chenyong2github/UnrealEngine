@@ -947,6 +947,7 @@ bool FNiagaraEditorUtilities::TryGetEventDisplayName(UNiagaraEmitter* Emitter, F
 {
 	if (Emitter != nullptr)
 	{
+		Emitter->CheckVersionDataAvailable();
 		for (const FNiagaraEventScriptProperties& EventScriptProperties : Emitter->GetLatestEmitterData()->GetEventHandlers())
 		{
 			if (EventScriptProperties.Script->GetUsageId() == EventUsageId)
