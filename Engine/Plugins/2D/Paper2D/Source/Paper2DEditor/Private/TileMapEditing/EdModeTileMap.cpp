@@ -1386,8 +1386,7 @@ void FEdModeTileMap::UpdatePreviewCursor(const FViewportCursorLocation& Ray)
 		{
 			UPaperTileMap* TileMap = TileLayer->GetTileMap();
 			int32 LayerIndex;
-			const bool bFoundLayer = TileMap->TileLayers.Find(TileLayer, LayerIndex)
-			ensure(bFoundLayer);
+			ensure(TileMap->TileLayers.Find(TileLayer, LayerIndex));
 
 			LastCursorTileX = LocalTileX0;
 			LastCursorTileY = LocalTileY0;
