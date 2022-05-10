@@ -3269,8 +3269,7 @@ void ALandscape::PrintLayersDebugRT(const FString& InContext, UTextureRenderTarg
 		[RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_RT_DebugResolve);
-		// Copy (resolve) the rendered image from the frame buffer to its render target texture
-		RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, FResolveParams());
+		CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 	});
 
 	{

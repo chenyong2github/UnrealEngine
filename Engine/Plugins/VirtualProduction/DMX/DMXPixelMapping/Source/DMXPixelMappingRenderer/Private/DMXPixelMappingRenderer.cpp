@@ -136,11 +136,11 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 			SCOPED_GPU_STAT(RHICmdList, DMXPixelMappingShadersStat);
 			SCOPED_DRAW_EVENTF(RHICmdList, DMXPixelMappingShadersStat, DMXPixelMappingRenderer::RenderPassName);
 
-			const FTextureRHIRef RenderTargetRef = DstTextureTargetResource->TextureRHI;
-			const FTextureRHIRef DstTextureRef = DstTexture->TextureRHI;
-			const FTexture2DRHIRef ResolveRenderTarget = DstTextureTargetResource->GetRenderTargetTexture();
+			FRHITexture* RenderTargetRef = DstTextureTargetResource->TextureRHI;
+			FRHITexture* DstTextureRef = DstTexture->TextureRHI;
+			FRHITexture* ResolveRenderTarget = DstTextureTargetResource->GetRenderTargetTexture();
 
-			if (!RenderTargetRef.IsValid() || !DstTextureRef.IsValid() || !ResolveRenderTarget.IsValid())
+			if (!RenderTargetRef || !DstTextureRef || !ResolveRenderTarget)
 			{
 				ensure(false);
 				return;
@@ -214,11 +214,7 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 
 			// Copy texture from GPU to CPU
 			{
-				// Copies the contents of the given surface to its resolve target texture.
-				FResolveParams ResolveParams;
-				ResolveParams.SourceAccessFinal = ERHIAccess::SRVMask;
-				ResolveParams.DestAccessFinal = ERHIAccess::SRVMask;
-				RHICmdList.CopyToResolveTarget(ResolveRenderTarget, RenderTargetRef, ResolveParams);
+				CopyTextureWithTransitions(RHICmdList, ResolveRenderTarget, RenderTargetRef, {});
 
 				// Read the contents of a texture to an output CPU buffer
 				TArray<FLinearColor> ColorArray;

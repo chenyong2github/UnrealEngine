@@ -481,37 +481,43 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, ReflectionEnvironment_ResizeCubemapArray);
-		//SCOPED_GPU_STAT(RHICmdList, ReflectionEnvironment)
+
+		RHICmdList.Transition({
+			FRHITransitionInfo(OldReflectionEnvs->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopySrc),
+			FRHITransitionInfo(ReflectionEnvs->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopyDest)
+		});
+
+		FRHICopyTextureInfo CopyInfo;
+		CopyInfo.Size = TexRef->GetSizeXYZ();
 
 		// Copy the cubemaps, remapping the elements as necessary
-		FResolveParams ResolveParams;
-		ResolveParams.Rect = FResolveRect();
 		for (int32 SourceCubemapIndex = 0; SourceCubemapIndex < OldMaxCubemaps; SourceCubemapIndex++)
 		{
 			int32 DestCubemapIndex = IndexRemapping[SourceCubemapIndex];
 			if (DestCubemapIndex != -1)
 			{
-				ResolveParams.SourceArrayIndex = SourceCubemapIndex;
-				ResolveParams.DestArrayIndex = DestCubemapIndex;
-
 				check(SourceCubemapIndex < OldMaxCubemaps);
 				check(DestCubemapIndex < (int32)MaxCubemaps);
 
-				for (int Face = 0; Face < 6; Face++)
+				for (int32 Face = 0; Face < CubeFace_MAX; Face++)
 				{
-					ResolveParams.CubeFace = (ECubeFace)Face;
-					for (int Mip = 0; Mip < NumMips; Mip++)
+					CopyInfo.SourceSliceIndex = SourceCubemapIndex * CubeFace_MAX + Face;
+					CopyInfo.DestSliceIndex   = DestCubemapIndex   * CubeFace_MAX + Face;
+
+					for (int32 Mip = 0; Mip < NumMips; Mip++)
 					{
-						ResolveParams.MipIndex = Mip;
-						//@TODO: We should use an explicit copy method for this rather than CopyToResolveTarget, but that doesn't exist right now. 
-						// For now, we'll just do this on RHIs where we know CopyToResolveTarget does the right thing. In future we should look to 
-						// add a a new RHI method
-						check(GRHISupportsResolveCubemapFaces);
-						RHICmdList.CopyToResolveTarget(OldReflectionEnvs->GetRHI(), ReflectionEnvs->GetRHI(), ResolveParams);
+						CopyInfo.SourceMipIndex = CopyInfo.DestMipIndex = Mip;
+
+						RHICmdList.CopyTexture(OldReflectionEnvs->GetRHI(), ReflectionEnvs->GetRHI(), CopyInfo);
 					}
 				}
 			}
 		}
+		
+		RHICmdList.Transition({
+			FRHITransitionInfo(OldReflectionEnvs->GetRHI(), ERHIAccess::CopySrc, ERHIAccess::SRVMask),
+			FRHITransitionInfo(ReflectionEnvs->GetRHI(), ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+		});
 	}
 	GRenderTargetPool.FreeUnusedResource(OldReflectionEnvs);
 }

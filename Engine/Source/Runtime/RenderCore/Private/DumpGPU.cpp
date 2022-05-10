@@ -946,13 +946,8 @@ public:
 
 				RHICmdList.Transition(FRHITransitionInfo(StagingTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 
-				// Ensure this copy call does not perform any transitions. We're handling them manually.
-				FResolveParams ResolveParams;
-				ResolveParams.SourceAccessFinal = ERHIAccess::Unknown;
-				ResolveParams.DestAccessFinal = ERHIAccess::Unknown;
-
 				// Transfer memory GPU -> CPU
-				RHICmdList.CopyToResolveTarget(StagingSrcTexture, StagingTexture, ResolveParams);
+				RHICmdList.CopyTexture(StagingSrcTexture, StagingTexture, {});
 
 				RHICmdList.Transition(FRHITransitionInfo(StagingTexture, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 			}

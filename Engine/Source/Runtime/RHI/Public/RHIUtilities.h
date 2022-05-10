@@ -802,6 +802,33 @@ inline void ClearRenderTarget(FRHICommandList& RHICmdList, FRHITexture* Texture,
 	RHICmdList.EndRenderPass();
 }
 
+inline void CopyTextureWithTransitions(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FRHICopyTextureInfo& Info)
+{
+	check(SrcTexture && DstTexture);
+	check(SrcTexture->GetNumSamples() == DstTexture->GetNumSamples());
+
+	if (SrcTexture == DstTexture)
+	{
+		RHICmdList.Transition({
+			FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask),
+			FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask)
+		});
+		return;
+	}
+
+	RHICmdList.Transition({
+		FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc),
+		FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest)
+	});
+
+	RHICmdList.CopyTexture(SrcTexture, DstTexture, Info);
+
+	RHICmdList.Transition({
+		FRHITransitionInfo(SrcTexture, ERHIAccess::CopySrc,  ERHIAccess::SRVMask),
+		FRHITransitionInfo(DstTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+	});
+}
+
 /**
  * Computes the vertex count for a given number of primitives of the specified type.
  * @param NumPrimitives The number of primitives.

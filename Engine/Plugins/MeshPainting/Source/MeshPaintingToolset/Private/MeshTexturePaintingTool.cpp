@@ -998,35 +998,21 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 		TextureData->bIsPaintingTexture2DModified = true;
 	}
 
+	ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand1)(
+		[BrushRenderTargetResource](FRHICommandListImmediate& RHICmdList)
 	{
-		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand1)(
-			[BrushRenderTargetResource](FRHICommandListImmediate& RHICmdList)
-		{
-			// Copy (resolve) the rendered image from the frame buffer to its render target texture
-			RHICmdList.CopyToResolveTarget(
-				BrushRenderTargetResource->GetRenderTargetTexture(),	// Source texture
-				BrushRenderTargetResource->TextureRHI,
-				FResolveParams());										// Resolve parameters
-		});
-	}
-
+		CopyTextureWithTransitions(RHICmdList, BrushRenderTargetResource->GetRenderTargetTexture(), BrushRenderTargetResource->TextureRHI, {});
+	});
 
 	if (bEnableSeamPainting)
 	{
 		BrushMaskCanvas->Flush_GameThread(true);
 
+		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand2)(
+			[BrushMaskRenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
-			ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand2)(
-				[BrushMaskRenderTargetResource](FRHICommandListImmediate& RHICmdList)
-			{
-				// Copy (resolve) the rendered image from the frame buffer to its render target texture
-				RHICmdList.CopyToResolveTarget(
-					BrushMaskRenderTargetResource->GetRenderTargetTexture(),		// Source texture
-					BrushMaskRenderTargetResource->TextureRHI,
-					FResolveParams());									// Resolve parameters
-			});
-
-		}
+			CopyTextureWithTransitions(RHICmdList, BrushMaskRenderTargetResource->GetRenderTargetTexture(), BrushMaskRenderTargetResource->TextureRHI, {});
+		});
 	}
 
 	if (!bEnableSeamPainting)
@@ -1116,19 +1102,11 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 
 		}
 
+		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand3)(
+			[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
-			ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand3)(
-				[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
-			{
-				// Copy (resolve) the rendered image from the frame buffer to its render target texture
-				RHICmdList.CopyToResolveTarget(
-					RenderTargetResource->GetRenderTargetTexture(),		// Source texture
-					RenderTargetResource->TextureRHI,
-					FResolveParams());									// Resolve parameters
-			});
-
-		}
-
+			CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
+		});
 	}
 	FlushRenderingCommands();
 }

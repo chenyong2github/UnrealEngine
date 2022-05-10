@@ -183,7 +183,7 @@ bool FD3D12CrossGPUHeap::EndCrossGPUSession(FRHICommandListImmediate& RHICmdList
 static void CopyDirectTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect* SrcTextureRect, const FIntRect* DstTextureRect)
 {
 	// Copy direct, format identical
-	FResolveParams Params;
+	FRHICopyTextureInfo Params;
 	if (SrcTextureRect || DstTextureRect)
 	{
 		FIntVector SrcSizeXYZ = SrcTexture->GetSizeXYZ();
@@ -195,23 +195,17 @@ static void CopyDirectTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdL
 		FIntRect SrcRect = SrcTextureRect ? (*SrcTextureRect) : (FIntRect(FIntPoint(0, 0), SrcSize));
 		FIntRect DstRect = DstTextureRect ? (*DstTextureRect) : (FIntRect(FIntPoint(0, 0), DstSize));
 
-		Params.DestArrayIndex = 0;
-		Params.SourceArrayIndex = 0;
+		Params.SourcePosition.X = SrcRect.Min.X;
+		Params.SourcePosition.Y = SrcRect.Min.Y;
 
-		Params.Rect.X1 = SrcRect.Min.X;
-		Params.Rect.X2 = SrcRect.Max.X;
+		Params.Size.X = SrcRect.Width();
+		Params.Size.Y = SrcRect.Height();
 
-		Params.Rect.Y1 = SrcRect.Min.Y;
-		Params.Rect.Y2 = SrcRect.Max.Y;
-
-		Params.DestRect.X1 = DstRect.Min.X;
-		Params.DestRect.X2 = DstRect.Max.X;
-
-		Params.DestRect.Y1 = DstRect.Min.Y;
-		Params.DestRect.Y2 = DstRect.Max.Y;
+		Params.DestPosition.X = DstRect.Min.X;
+		Params.DestPosition.Y = DstRect.Min.Y;
 	}
 
-	RHICmdList.CopyToResolveTarget(SrcTexture, DstTexture, Params);
+	CopyTextureWithTransitions(RHICmdList, SrcTexture, DstTexture, {});
 }
 
 bool FD3D12CrossGPUHeap::SendCrossGPUResource(FRHICommandListImmediate& RHICmdList, const FString& ResourceID, FRHITexture2D* SrcResource, const FIntRect* SrcTextureRect)

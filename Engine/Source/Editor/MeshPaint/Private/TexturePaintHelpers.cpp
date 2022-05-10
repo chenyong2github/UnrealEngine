@@ -96,11 +96,7 @@ void TexturePaintHelpers::CopyTextureToRenderTargetTexture(UTexture* SourceTextu
 	ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand)(
 		[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
-			// Copy (resolve) the rendered image from the frame buffer to its render target texture
-			RHICmdList.CopyToResolveTarget(
-				RenderTargetResource->GetRenderTargetTexture(),		// Source texture
-				RenderTargetResource->TextureRHI,					// Dest texture
-				FResolveParams());									// Resolve parameters
+			CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 		});		
 }
 
@@ -309,13 +305,8 @@ bool TexturePaintHelpers::GenerateSeamMask(UMeshComponent* MeshComponent, int32 
 		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand5)(
 			[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 			{
-				// Copy (resolve) the rendered image from the frame buffer to its render target texture
-				RHICmdList.CopyToResolveTarget(
-					RenderTargetResource->GetRenderTargetTexture(),		// Source texture
-					RenderTargetResource->TextureRHI,
-					FResolveParams());									// Resolve parameters
+				CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 			});
-
 	}
 
 	return RetVal;

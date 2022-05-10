@@ -60,24 +60,18 @@ namespace
 		IsSizeResampleRequired(SrcTexture, DstTexture, SrcTextureRect, DstTextureRect, SrcRect, DstRect);
 
 		// Copy with resolved params
-		FResolveParams Params;
+		FRHICopyTextureInfo Params;
 
-		Params.DestArrayIndex = 0;
-		Params.SourceArrayIndex = 0;
+		Params.SourcePosition.X = SrcRect.Min.X;
+		Params.SourcePosition.Y = SrcRect.Min.Y;
 
-		Params.Rect.X1 = SrcRect.Min.X;
-		Params.Rect.X2 = SrcRect.Max.X;
+		Params.DestPosition.X = DstRect.Min.X;
+		Params.DestPosition.Y = DstRect.Min.Y;
 
-		Params.Rect.Y1 = SrcRect.Min.Y;
-		Params.Rect.Y2 = SrcRect.Max.Y;
+		Params.Size.X = SrcRect.Width();
+		Params.Size.Y = SrcRect.Height();
 
-		Params.DestRect.X1 = DstRect.Min.X;
-		Params.DestRect.X2 = DstRect.Max.X;
-
-		Params.DestRect.Y1 = DstRect.Min.Y;
-		Params.DestRect.Y2 = DstRect.Max.Y;
-
-		RHICmdList.CopyToResolveTarget(SrcTexture, DstTexture, Params);
+		CopyTextureWithTransitions(RHICmdList, SrcTexture, DstTexture, {});
 	}
 
 	static void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect* SrcTextureRect, const FIntRect* DstTextureRect)

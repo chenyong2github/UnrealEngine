@@ -160,8 +160,10 @@ namespace
 
 			TempFBCopy = GDynamicRHI->RHICreateTexture(Desc);
 		}
-		RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
-		RHICmdList.Transition(FRHITransitionInfo(TempFBCopy, ERHIAccess::Unknown, ERHIAccess::CopyDest));
+		RHICmdList.Transition({
+			FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc),
+			FRHITransitionInfo(TempFBCopy, ERHIAccess::Unknown, ERHIAccess::CopyDest)
+		});
 		RHICmdList.CopyTexture(SourceTexture, TempFBCopy, {});
 		RHICmdList.Transition(FRHITransitionInfo(TempFBCopy, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		
@@ -174,9 +176,9 @@ namespace
 		ShaderParameters.DestPlaneV = I420ReadbackTexture->TextureVUAV;
 		FRGBToYUVShader::Dispatch(RHICmdList, ShaderParameters);
 
-		RHICmdList.CopyToResolveTarget(I420ReadbackTexture->TextureY, I420ReadbackTexture->StagingTextureY, {});
-		RHICmdList.CopyToResolveTarget(I420ReadbackTexture->TextureU, I420ReadbackTexture->StagingTextureU, {});
-		RHICmdList.CopyToResolveTarget(I420ReadbackTexture->TextureV, I420ReadbackTexture->StagingTextureV, {});
+		RHICmdList.CopyTexture(I420ReadbackTexture->TextureY, I420ReadbackTexture->StagingTextureY, {});
+		RHICmdList.CopyTexture(I420ReadbackTexture->TextureU, I420ReadbackTexture->StagingTextureU, {});
+		RHICmdList.CopyTexture(I420ReadbackTexture->TextureV, I420ReadbackTexture->StagingTextureV, {});
 
 		RHICmdList.WriteGPUFence(Fence);
 	}

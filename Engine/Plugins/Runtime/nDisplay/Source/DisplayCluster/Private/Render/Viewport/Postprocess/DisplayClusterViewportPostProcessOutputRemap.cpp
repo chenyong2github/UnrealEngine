@@ -270,8 +270,7 @@ void FDisplayClusterViewportPostProcessOutputRemap::PerformPostProcessFrame_Rend
 
 				if (ShadersAPI.RenderPostprocess_OutputRemap(RHICmdList, InOutTexture, TempTargetableTexture, *MeshProxy))
 				{
-					//Copy remapped result back
-					RHICmdList.CopyToResolveTarget(TempTargetableTexture, InOutTexture, FResolveParams());
+					CopyTextureWithTransitions(RHICmdList, TempTargetableTexture, InOutTexture, {});
 				}
 			}
 		}

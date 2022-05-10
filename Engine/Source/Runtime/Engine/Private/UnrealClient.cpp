@@ -1715,18 +1715,7 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 		ENQUEUE_RENDER_COMMAND(UpdateHitProxyRTCommand)(
 			[HitProxyMapPtr](FRHICommandListImmediate& RHICmdList)
 			{
-				FTexture2DRHIRef RenderTargetTexture = HitProxyMapPtr->GetRenderTargetTexture();
-
-				// Should not be multisampled, so can safely use copy src as state instead of taking care of ResolveSrc here
-				check(!RenderTargetTexture->IsMultisampled());
-				
-				// Don't touch the copy source state after the first call to CopyToResolveTarget
-				FResolveParams ResolveParams;
-				ResolveParams.SourceAccessFinal = ERHIAccess::Unknown;
-
-				// Copy (resolve) the rendered thumbnail from the render target to its texture
-				RHICmdList.Transition(FRHITransitionInfo(RenderTargetTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
-				RHICmdList.CopyToResolveTarget(RenderTargetTexture, HitProxyMapPtr->GetHitProxyCPUTexture(), ResolveParams);
+				CopyTextureWithTransitions(RHICmdList, HitProxyMapPtr->GetRenderTargetTexture(), HitProxyMapPtr->GetHitProxyCPUTexture(), {});
 			});
 
 		ENQUEUE_RENDER_COMMAND(EndDrawingCommand)(

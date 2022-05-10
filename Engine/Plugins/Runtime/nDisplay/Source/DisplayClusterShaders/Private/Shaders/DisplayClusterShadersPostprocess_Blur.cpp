@@ -157,10 +157,25 @@ static void PicpBlurPostProcess_RenderThread(
 		// Blur X
 		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2f(InSettings.KernelScale / TargetSizeXY.X, 0.0f), InSettings.KernelRadius);
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
+	
+		RHICmdList.EndRenderPass();
 
-		RHICmdList.CopyToResolveTarget(OutRenderTargetableTexture, InShaderTexture, FResolveParams());
+		RHICmdList.Transition({
+			FRHITransitionInfo(OutRenderTargetableTexture, ERHIAccess::RTV, ERHIAccess::CopySrc),
+			FRHITransitionInfo(InShaderTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest),
+		});
+
+		RHICmdList.CopyTexture(OutRenderTargetableTexture, InShaderTexture, {});
+
+		RHICmdList.Transition({
+			FRHITransitionInfo(OutRenderTargetableTexture, ERHIAccess::CopySrc, ERHIAccess::RTV),
+			FRHITransitionInfo(InShaderTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask),
+		});
+
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_PicpPostProcessBlur"));
 
 		// Blur Y
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2f(0.0f, InSettings.KernelScale / TargetSizeXY.Y), InSettings.KernelRadius);
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 	}

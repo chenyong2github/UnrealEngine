@@ -547,22 +547,18 @@ bool FDisplayClusterViewportManagerProxy::ResolveFrameTargetToBackBuffer_RenderT
 			DstRect.Max.X = FMath::Min(DstSize.X, DstRect.Max.X);
 			DstRect.Max.Y = FMath::Min(DstSize.Y, DstRect.Max.Y);
 
-			FResolveParams CopyParams;
+			FRHICopyTextureInfo CopyInfo;
 
-			CopyParams.SourceArrayIndex = 0;
-			CopyParams.DestArrayIndex = DestArrayIndex;
+			CopyInfo.SourceSliceIndex = 0;
+			CopyInfo.DestSliceIndex = DestArrayIndex;
 
-			CopyParams.Rect.X1 = 0;
-			CopyParams.Rect.Y1 = 0;
-			CopyParams.Rect.X2 = DstRect.Width();
-			CopyParams.Rect.Y2 = DstRect.Height();
+			CopyInfo.Size.X = DstRect.Width();
+			CopyInfo.Size.Y = DstRect.Height();
 
-			CopyParams.DestRect.X1 = DstRect.Min.X;
-			CopyParams.DestRect.Y1 = DstRect.Min.Y;
-			CopyParams.DestRect.X2 = DstRect.Max.X;
-			CopyParams.DestRect.Y2 = DstRect.Max.Y;
+			CopyInfo.DestPosition.X = DstRect.Min.X;
+			CopyInfo.DestPosition.Y = DstRect.Min.Y;
 
-			RHICmdList.CopyToResolveTarget(FrameTexture, DestTexture, CopyParams);
+			CopyTextureWithTransitions(RHICmdList, FrameTexture, DestTexture, CopyInfo);
 
 			return true;
 		}

@@ -119,14 +119,11 @@ FRHIGPUTextureReadback::FRHIGPUTextureReadback(FName RequestName) : FRHIGPUMemor
 
 void FRHIGPUTextureReadback::EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
-	// SourceTexture is already in CopySrc state (handled by RDG)
 	EnqueueCopyInternal(RHICmdList, SourceTexture, FResolveParams(Rect));
 }
 
 void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
-	// In the non-RDG version, we don't know what state the source texture will already be in, so transition it to CopySrc.
-	RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
 	EnqueueCopyInternal(RHICmdList, SourceTexture, FResolveParams(Rect));
 }
 
@@ -136,8 +133,8 @@ void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FR
 
 	if (SourceTexture)
 	{
-		// We only support 2d textures for now.
-		ensure(SourceTexture->GetTexture2D());
+		check(SourceTexture->GetTexture2D());
+		check(!SourceTexture->IsMultisampled());
 
 		// Assume for now that every enqueue happens on a texture of the same format and size (when reused).
 		if (!DestinationStagingTexture)
@@ -149,18 +146,9 @@ void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FR
 			DestinationStagingTexture = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, ERHIAccess::CPURead, CreateInfo);
 		}
 
-		// We need the destination texture to be writable from a copy operation
-		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTexture, ERHIAccess::CPURead, ERHIAccess::CopyDest));
-
-		// Ensure this copy call does not perform any transitions. We're handling them manually.
-		ResolveParams.SourceAccessFinal = ERHIAccess::Unknown;
-		ResolveParams.DestAccessFinal = ERHIAccess::Unknown;
-
 		// Transfer memory GPU -> CPU
-		RHICmdList.CopyToResolveTarget(SourceTexture, DestinationStagingTexture, ResolveParams);
+		RHICmdList.CopyTexture(SourceTexture, DestinationStagingTexture, {});
 
-		// Transition the dest to CPURead *before* signaling the fence, otherwise ordering is not guaranteed.
-		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTexture, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 		RHICmdList.WriteGPUFence(Fence);
 
 		LastCopyGPUMask = RHICmdList.GetGPUMask();

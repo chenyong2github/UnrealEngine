@@ -683,7 +683,7 @@ void FGameplayMediaEncoder::CopyTexture(const FTexture2DRHIRef& SourceTexture, F
 
 	if(SourceTexture->GetFormat() == DestinationTexture->GetFormat() && SourceTexture->GetSizeXY() == DestinationTexture->GetSizeXY())
 	{
-		RHICmdList.CopyToResolveTarget(SourceTexture, DestinationTexture, FResolveParams{});
+		CopyTextureWithTransitions(RHICmdList, SourceTexture, DestinationTexture, {});
 	}
 	else // Texture format mismatch, use a shader to do the copy.
 	{
@@ -692,6 +692,7 @@ void FGameplayMediaEncoder::CopyTexture(const FTexture2DRHIRef& SourceTexture, F
 		// #todo-renderpasses there's no explicit resolve here? Do we need one?
 		FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
 
+		RHICmdList.Transition(FRHITransitionInfo(DestinationTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyBackbuffer"));
 
 		{
@@ -736,5 +737,6 @@ void FGameplayMediaEncoder::CopyTexture(const FTexture2DRHIRef& SourceTexture, F
 		}
 
 		RHICmdList.EndRenderPass();
+		RHICmdList.Transition(FRHITransitionInfo(DestinationTexture, ERHIAccess::RTV, ERHIAccess::SRVMask));
 	}
 }

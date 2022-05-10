@@ -510,27 +510,6 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 	}
 }
 
-static void DirectCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect& SrcRect, const FIntRect& DstRect)
-{
-	// Copy with resolved params
-	FResolveParams Params;
-
-	Params.DestArrayIndex = 0;
-	Params.SourceArrayIndex = 0;
-
-	Params.Rect.X1 = SrcRect.Min.X;
-	Params.Rect.Y1 = SrcRect.Min.Y;
-	Params.Rect.X2 = SrcRect.Max.X;
-	Params.Rect.Y2 = SrcRect.Max.Y;
-
-	Params.DestRect.X1 = DstRect.Min.X;
-	Params.DestRect.Y1 = DstRect.Min.Y;
-	Params.DestRect.X2 = DstRect.Max.X;
-	Params.DestRect.Y2 = DstRect.Max.Y;
-
-	RHICmdList.CopyToResolveTarget(SrcTexture, DstTexture, Params);
-}
-
 template<class TScreenPixelShader>
 void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect& SrcRect, const FIntRect& DstRect)
 {
@@ -599,11 +578,13 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 	check(InputResource);
 	check(OutputResource);
 
-	if (bOutputIsMipsResource)
+	if (bOutputIsPreviewResource)
 	{
-		// Special copy for output texture with NumMips (copy to dest mips = 0)
-		// Copy first Mip from SrcTexture to CameraRTT(other mips is black)
-
+		// Preview require a normal alpha (re-invert)
+		ResampleCopyTextureImpl_RenderThread<FScreenPSInvertAlpha>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
+	}
+	else if (InputRect.Size() == OutputRect.Size() && InputResource->GetFormat() == OutputResource->GetFormat())
+	{
 		FRHICopyTextureInfo CopyInfo;
 		CopyInfo.Size = FIntVector(InputRect.Width(), InputRect.Height(), 0);
 		CopyInfo.SourcePosition.X = InputRect.Min.X;
@@ -611,43 +592,11 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 		CopyInfo.DestPosition.X = OutputRect.Min.X;
 		CopyInfo.DestPosition.Y = OutputRect.Min.Y;
 
-		// Copy texture
-		FRHITransitionInfo TransitionsBefore[] =
-		{
-			FRHITransitionInfo(InputResource, ERHIAccess::Unknown, ERHIAccess::CopySrc),
-			FRHITransitionInfo(OutputResource, ERHIAccess::Unknown, ERHIAccess::CopyDest)
-		};
-		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
-
-		RHICmdList.CopyTexture(InputResource, OutputResource, CopyInfo);
-
-		FRHITransitionInfo TransitionsAfter[] =
-		{
-			FRHITransitionInfo(InputResource, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
-			FRHITransitionInfo(OutputResource, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
-		};
-		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
+		CopyTextureWithTransitions(RHICmdList, InputResource, OutputResource, CopyInfo);
 	}
 	else
 	{
-		if (InputRect.Size() != OutputRect.Size() || InputResource->GetFormat() != OutputResource->GetFormat() || bOutputIsPreviewResource)
-		{
-			// Resample size with shader
-			if(bOutputIsPreviewResource)
-			{
-				// Preview require a normal alpha (re-invert)
-				ResampleCopyTextureImpl_RenderThread<FScreenPSInvertAlpha>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
-			}
-			else
-			{
-				ResampleCopyTextureImpl_RenderThread<FScreenPS>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
-			}
-		}
-		else
-		{
-			// Use RHICmdList.CopyToResolveTarget inside
-			DirectCopyTextureImpl_RenderThread(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
-		}
+		ResampleCopyTextureImpl_RenderThread<FScreenPS>(RHICmdList, InputResource, OutputResource, InputRect, OutputRect);
 	}
 }
 
