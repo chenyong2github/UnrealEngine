@@ -21,6 +21,11 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
 		},
+		{
+			"Name": "EvalGraphEngine",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
 	],
 	"Plugins": [
 	]
