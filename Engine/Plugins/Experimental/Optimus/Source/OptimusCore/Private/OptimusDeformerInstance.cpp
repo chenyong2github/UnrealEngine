@@ -38,7 +38,7 @@ void FOptimusPersistentBufferPool::GetResourceBuffers(
 
 		for (int32 Index = 0; Index < InElementCounts.Num(); Index++)
 		{
-			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(InElementStride, InElementCounts[Index]);
+			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(InElementStride, InElementCounts[Index]);
 			FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("FOptimusPersistentBuffer"), ERDGBufferFlags::None);
 			OutBuffers.Add(Buffer);
 

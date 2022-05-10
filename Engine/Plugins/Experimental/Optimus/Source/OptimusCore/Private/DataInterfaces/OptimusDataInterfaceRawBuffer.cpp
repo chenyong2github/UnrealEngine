@@ -308,7 +308,7 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	BufferUAVs.Reserve(Buffers.Num());
 	for (FRDGBufferRef BufferRef : Buffers)
 	{
-		BufferUAVs.Add(GraphBuilder.CreateUAV(BufferRef, PF_R32_FLOAT));
+		BufferUAVs.Add(GraphBuilder.CreateUAV(BufferRef));
 	}
 }
 
