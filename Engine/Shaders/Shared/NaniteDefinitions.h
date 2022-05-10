@@ -2,6 +2,11 @@
 
 #pragma once
 
+#define NANITE_SUBPIXEL_BITS								8
+#define NANITE_SUBPIXEL_SAMPLES								(1 << NANITE_SUBPIXEL_BITS)
+#define NANITE_SUBPIXEL_MASK								(NANITE_SUBPIXEL_SAMPLES - 1)
+#define NANITE_SUBPIXEL_DILATE								0	// To correct for mismatch with HW rasterizer
+
 // Enable to constrain clusters to no more than 256 vertices and no index references outside of trailing window of NANITE_CONSTRAINED_CLUSTER_CACHE_SIZE vertices.
 #define NANITE_USE_CONSTRAINED_CLUSTERS						1
 

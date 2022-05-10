@@ -196,14 +196,14 @@ void ExportDebugViewPS(
 				const float3 PointWorld1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
 				const float3 PointWorld2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
 
-				const float4 PointClip0 = mul(float4(PointWorld0, 1), NaniteView.TranslatedWorldToClip);
-				const float4 PointClip1 = mul(float4(PointWorld1, 1), NaniteView.TranslatedWorldToClip);
-				const float4 PointClip2 = mul(float4(PointWorld2, 1), NaniteView.TranslatedWorldToClip);
+				const float4 PointSubpixelClip0 = mul(float4(PointWorld0, 1), NaniteView.TranslatedWorldToSubpixelClip);
+				const float4 PointSubpixelClip1 = mul(float4(PointWorld1, 1), NaniteView.TranslatedWorldToSubpixelClip);
+				const float4 PointSubpixelClip2 = mul(float4(PointWorld2, 1), NaniteView.TranslatedWorldToSubpixelClip);
 
-				const float2 PixelClip = (PixelPos + 0.5 - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+				const float2 Subpixel = (PixelPos + 0.5) * NANITE_SUBPIXEL_SAMPLES;
 
 				// Calculate perspective correct barycentric coordinates with screen derivatives
-				const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
+				const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(Subpixel, PointSubpixelClip0, PointSubpixelClip1, PointSubpixelClip2);
 				
 				float3 Deltas = abs(Barycentrics.UVW_dx) + abs(Barycentrics.UVW_dy);
 

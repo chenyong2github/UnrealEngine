@@ -199,7 +199,7 @@ struct FNaniteVertTransforms
 {
 	float4x4 LocalToTranslatedWorld;
 	float4x4 PrevLocalToTranslatedWorld;
-	float4x4 TranslatedWorldToClip;
+	float4x4 TranslatedWorldToSubpixelClip;
 	float3x3 LocalToWorldNoScale;
 	float3x3 PrevLocalToWorldNoScale;
 	float3x3 WorldToLocalVector;
@@ -213,7 +213,7 @@ struct FNaniteTransformedTri
 	float3 PointLocal[3];
 	float3 PrevPointLocal[3];
 	float3 PointWorld[3];
-	float4 PointClip[3];
+	float4 PointSubpixelClip[3];
 	FNaniteRawAttributeData RawAttributeData[3];
 #if NUM_TEX_COORD_INTERPOLATORS
 	float2 CustomizedUVs[3][NUM_TEX_COORD_INTERPOLATORS];
@@ -224,7 +224,6 @@ FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData Instanc
 {
 	const float4x4 LocalToTranslatedWorld = InstanceDynamicData.LocalToTranslatedWorld;
 	const float4x4 PrevLocalToTranslatedWorld = InstanceDynamicData.PrevLocalToTranslatedWorld;
-	const float4x4 TranslatedWorldToClip = NaniteView.TranslatedWorldToClip;
 	const float3 InvNonUniformScale = InstanceData.InvNonUniformScale;
 
 	// Should be Pow2(InvScale) but that requires renormalization
@@ -251,7 +250,7 @@ FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData Instanc
 	FNaniteVertTransforms Transforms;
 	Transforms.LocalToTranslatedWorld		= LocalToTranslatedWorld;
 	Transforms.PrevLocalToTranslatedWorld	= PrevLocalToTranslatedWorld;
-	Transforms.TranslatedWorldToClip		= TranslatedWorldToClip;
+	Transforms.TranslatedWorldToSubpixelClip= NaniteView.TranslatedWorldToSubpixelClip;
 	Transforms.LocalToWorldNoScale			= LocalToWorldNoScale;
 	Transforms.PrevLocalToWorldNoScale		= PrevLocalToWorldNoScale;
 	Transforms.WorldToLocalVector			= WorldToLocalVector;
@@ -294,7 +293,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.PointLocal[i]		= PointLocalNoWPO[i] + LocalOffset;
 			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i] + PrevLocalOffset;
 			Tri.PointWorld[i]		= VertexParameters.WorldPosition + WorldPositionOffset;
-			Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
+			Tri.PointSubpixelClip[i]= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToSubpixelClip);
 
 		#if NUM_TEX_COORD_INTERPOLATORS
 			GetMaterialCustomizedUVs(VertexParameters, Tri.CustomizedUVs[i]);
@@ -311,7 +310,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.PointLocal[i]		= PointLocalNoWPO[i];
 			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i];
 			Tri.PointWorld[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToTranslatedWorld).xyz;
-			Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
+			Tri.PointSubpixelClip[i]= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToSubpixelClip);
 
 		#if NUM_TEX_COORD_INTERPOLATORS
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
@@ -331,8 +330,8 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
-	const float SignTest = dot(cross(Tri.PointClip[1].xyw - Tri.PointClip[0].xyw, Tri.PointClip[2].xyw - Tri.PointClip[0].xyw), Tri.PointClip[0].xyw);
-	Result.TwoSidedSign = CondMask(SignTest >= 0.0f, -1.0f, 1.0f);
+	const float SignTest = dot(cross(Tri.PointSubpixelClip[1].xyw - Tri.PointSubpixelClip[0].xyw, Tri.PointSubpixelClip[2].xyw - Tri.PointSubpixelClip[0].xyw), Tri.PointSubpixelClip[0].xyw);
+	Result.TwoSidedSign = CondMask(SignTest < 0.0f, -1.0f, 1.0f);
 
 	// Only need the first UV from cluster data (used to solve the tangent frame in GetAttributeData).
 	// But we don't use any for the pixel parameters because we interpolate the UVs manually below, in case they were customized.
@@ -388,13 +387,13 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 
 	// Update screen W and all screen derivatives. This is rarely used and will be dead code eliminated most of the time.
 	{
-		const float2 PointClipZW = Barycentrics.UVW.x * Tri.PointClip[0].zw + Barycentrics.UVW.y * Tri.PointClip[1].zw + Barycentrics.UVW.z * Tri.PointClip[2].zw;
+		const float2 PointClipZW = Barycentrics.UVW.x * Tri.PointSubpixelClip[0].zw + Barycentrics.UVW.y * Tri.PointSubpixelClip[1].zw + Barycentrics.UVW.z * Tri.PointSubpixelClip[2].zw;
 		SvPosition.w = PointClipZW.y;
 
-		float2 Z_DDX_DDY = float2(	Barycentrics.UVW_dx.x * Tri.PointClip[0].zw.x + Barycentrics.UVW_dx.y * Tri.PointClip[1].zw.x + Barycentrics.UVW_dx.z * Tri.PointClip[2].zw.x,
-									Barycentrics.UVW_dy.x * Tri.PointClip[0].zw.x + Barycentrics.UVW_dy.y * Tri.PointClip[1].zw.x + Barycentrics.UVW_dy.z * Tri.PointClip[2].zw.x);
-		float2 W_DDX_DDY = float2(	Barycentrics.UVW_dx.x * Tri.PointClip[0].zw.y + Barycentrics.UVW_dx.y * Tri.PointClip[1].zw.y + Barycentrics.UVW_dx.z * Tri.PointClip[2].zw.y,
-									Barycentrics.UVW_dy.x * Tri.PointClip[0].zw.y + Barycentrics.UVW_dy.y * Tri.PointClip[1].zw.y + Barycentrics.UVW_dy.z * Tri.PointClip[2].zw.y);
+		float2 Z_DDX_DDY = float2(	Barycentrics.UVW_dx.x * Tri.PointSubpixelClip[0].z + Barycentrics.UVW_dx.y * Tri.PointSubpixelClip[1].z + Barycentrics.UVW_dx.z * Tri.PointSubpixelClip[2].z,
+									Barycentrics.UVW_dy.x * Tri.PointSubpixelClip[0].z + Barycentrics.UVW_dy.y * Tri.PointSubpixelClip[1].z + Barycentrics.UVW_dy.z * Tri.PointSubpixelClip[2].z);
+		float2 W_DDX_DDY = float2(	Barycentrics.UVW_dx.x * Tri.PointSubpixelClip[0].w + Barycentrics.UVW_dx.y * Tri.PointSubpixelClip[1].w + Barycentrics.UVW_dx.z * Tri.PointSubpixelClip[2].w,
+									Barycentrics.UVW_dy.x * Tri.PointSubpixelClip[0].w + Barycentrics.UVW_dy.y * Tri.PointSubpixelClip[1].w + Barycentrics.UVW_dy.z * Tri.PointSubpixelClip[2].w);
 
 		// PPZ = Z / W
 		// PPZ' = (Z'W - ZW')/W^2
@@ -528,8 +527,8 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		if (bCalcBarycentrics)
 		{
 			// Calculate perspective correct barycentric coordinates with screen derivatives
-			const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
-			Barycentrics = CalculateTriangleBarycentrics(PixelClip, Tri.PointClip[0], Tri.PointClip[1], Tri.PointClip[2], NaniteView.ViewSizeAndInvSize.zw);
+			const float2 Subpixel = SvPosition.xy * NANITE_SUBPIXEL_SAMPLES;
+			Barycentrics = CalculateTriangleBarycentrics(Subpixel, Tri.PointSubpixelClip[0], Tri.PointSubpixelClip[1], Tri.PointSubpixelClip[2]);
 		}
 
 		// Update to real depth from VisBuffer

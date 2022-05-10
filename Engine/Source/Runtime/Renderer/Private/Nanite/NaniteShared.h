@@ -51,6 +51,7 @@ struct FPackedView
 
 	FMatrix44f	TranslatedWorldToView;
 	FMatrix44f	TranslatedWorldToClip;
+	FMatrix44f	TranslatedWorldToSubpixelClip;
 	FMatrix44f	ViewToClip;
 	FMatrix44f	ClipToRelativeWorld;
 

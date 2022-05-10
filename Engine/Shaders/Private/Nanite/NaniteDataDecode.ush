@@ -135,6 +135,7 @@ struct FNaniteView
 
 	float4x4	TranslatedWorldToView;
 	float4x4	TranslatedWorldToClip;
+	float4x4	TranslatedWorldToSubpixelClip;	// Divide by w to get to absolute subpixel coordinates
 	float4x4	ViewToClip;
 	FLWCMatrix	ClipToWorld;
 	
@@ -600,6 +601,7 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 
 	NaniteView.TranslatedWorldToView		= PackedView.TranslatedWorldToView;
 	NaniteView.TranslatedWorldToClip		= PackedView.TranslatedWorldToClip;
+	NaniteView.TranslatedWorldToSubpixelClip= PackedView.TranslatedWorldToSubpixelClip;
 	NaniteView.ViewToClip					= PackedView.ViewToClip;
 	NaniteView.ClipToWorld					= MakeLWCMatrix(PackedView.MatrixTilePosition, PackedView.ClipToRelativeWorld);
 	
@@ -646,6 +648,7 @@ FNaniteView GetNaniteView( uint ViewIndex )
 
 	NaniteView.TranslatedWorldToView		= LocalView.TranslatedWorldToView;
 	NaniteView.TranslatedWorldToClip		= LocalView.TranslatedWorldToClip;
+	NaniteView.TranslatedWorldToSubpixelClip= LocalView.TranslatedWorldToSubpixelClip;
 	NaniteView.ViewToClip					= LocalView.ViewToClip;
 	NaniteView.ClipToWorld					= LocalView.ClipToWorld;
 	

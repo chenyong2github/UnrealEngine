@@ -11,11 +11,6 @@
 #include "/Engine/Generated/Material.ush"
 #include "NaniteVertexFactory.ush"
 
-#define SUBPIXEL_BITS				8
-#define SUBPIXEL_SAMPLES			(1 << SUBPIXEL_BITS)
-#define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
-#define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
-
 #define REQUIRES_PER_PIXEL_EVAL		(MATERIALBLENDING_MASKED)	//TODO: Also test depth offset when it is supported
 
 #ifndef NANITE_MESH_SHADER
@@ -27,7 +22,7 @@
 #endif
 
 // Use a larger thread group when programmable, as it seems to provide the best occupancy
-#if IS_NANITE_PROGRAMMABLE
+#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
 	#define SWRASTER_NUM_THREADS 128
 #else
 	#define SWRASTER_NUM_THREADS 64
@@ -203,20 +198,14 @@ FBarycentrics CalculateBarycentrics(FRasterTri Tri, float3 C)
 	return Barycentrics;
 }
 
-float3 CalculateSubpixelCoordinates(FRaster Raster, float4 PointClip)
+float3 CalculateSubpixelCoordinates(FRaster Raster, float4 PointSubpixelClip)
 {
-	const float2 ViewPos = Raster.NaniteView.ViewRect.xy;
-	const float2 ViewSize = Raster.NaniteView.ViewSizeAndInvSize.xy;
-	const float2 SubpixelScale = float2(0.5, -0.5) * ViewSize * SUBPIXEL_SAMPLES;
-	float2 SubpixelBias = (0.5 * ViewSize + ViewPos) * SUBPIXEL_SAMPLES + 0.5f;
+	float3 Subpixel = PointSubpixelClip.xyz / PointSubpixelClip.w;
 #if VIRTUAL_TEXTURE_TARGET
-	SubpixelBias += ( (float2)Raster.pPageAddress - (float2)Raster.vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
+	Subpixel.xy += ( (float2)Raster.pPageAddress - (float2)Raster.vPage ) * VSM_PAGE_SIZE * NANITE_SUBPIXEL_SAMPLES;
 #endif
-
-	float3 SubpixelPos = PointClip.xyz / PointClip.w;
-	SubpixelPos.xy = floor(SubpixelPos.xy * SubpixelScale.xy + SubpixelBias.xy);
-
-	return SubpixelPos;
+	Subpixel.xy = floor(Subpixel.xy);
+	return Subpixel;
 }
 
 void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, bool bDepthClamp, FRaster Raster, FRasterTri Tri )
@@ -297,15 +286,15 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData Int
 	const float2 MaxSubpixel = max3( Vert0, Vert1, Vert2 );
 
 #if 0
-	bool2 bMissCenter =	( MinSubpixel & SUBPIXEL_MASK > (SUBPIXEL_SAMPLES / 2) ) &&
-						( MaxSubpixel - ( MinSubpixel & ~SUBPIXEL_MASK ) + (SUBPIXEL_SAMPLES / 2) ) < SUBPIXEL_MASK;
+	bool2 bMissCenter =	( MinSubpixel & NANITE_SUBPIXEL_MASK > (NANITE_SUBPIXEL_SAMPLES / 2) ) &&
+						( MaxSubpixel - ( MinSubpixel & ~NANITE_SUBPIXEL_MASK ) + (NANITE_SUBPIXEL_SAMPLES / 2) ) < NANITE_SUBPIXEL_MASK;
 	if( any( bMissCenter ) )
 		Tri.bIsValid = false;
 #endif
 
 	// Round to nearest pixel
-	Tri.MinPixel = (int2)floor( ( MinSubpixel + (SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / SUBPIXEL_SAMPLES) );
-	Tri.MaxPixel = (int2)floor( ( MaxSubpixel - (SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / SUBPIXEL_SAMPLES) );	// inclusive!
+	Tri.MinPixel = (int2)floor( ( MinSubpixel + (NANITE_SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / NANITE_SUBPIXEL_SAMPLES) );
+	Tri.MaxPixel = (int2)floor( ( MaxSubpixel - (NANITE_SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / NANITE_SUBPIXEL_SAMPLES) );	// inclusive!
 
 	// Clip to viewport
 	Tri.MinPixel = max( Tri.MinPixel, Raster.ViewRect.xy );
@@ -337,7 +326,7 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData Int
 	// Rebase off MinPixel with half pixel offset
 	// 4.8 fixed point
 	// Max triangle size = 127x127 pixels
-	const float2 BaseSubpixel = (float2)Tri.MinPixel * SUBPIXEL_SAMPLES + (SUBPIXEL_SAMPLES / 2);
+	const float2 BaseSubpixel = (float2)Tri.MinPixel * NANITE_SUBPIXEL_SAMPLES + (NANITE_SUBPIXEL_SAMPLES / 2);
 	Vert0 -= BaseSubpixel;
 	Vert1 -= BaseSubpixel;
 	Vert2 -= BaseSubpixel;
@@ -361,21 +350,21 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData Int
 #endif
 
 	float Z0 = Verts[0].z - ( GradZ.x * Vert0.x + GradZ.y * Vert0.y );
-	GradZ *= SUBPIXEL_SAMPLES;
+	GradZ *= NANITE_SUBPIXEL_SAMPLES;
 	
 	Tri.DepthPlane = float3( GradZ, Z0 );
 
 #if 0
 	// Step in pixel increments
 	// 8.16 fixed point
-	Tri.Edge01 *= SUBPIXEL_SAMPLES;
-	Tri.Edge12 *= SUBPIXEL_SAMPLES;
-	Tri.Edge20 *= SUBPIXEL_SAMPLES;
+	Tri.Edge01 *= NANITE_SUBPIXEL_SAMPLES;
+	Tri.Edge12 *= NANITE_SUBPIXEL_SAMPLES;
+	Tri.Edge20 *= NANITE_SUBPIXEL_SAMPLES;
 #else
 	// Scale C0/C1/C2 down by SubpixelSamples instead of scaling Edge01/Edge12/Edge20 up. Lossless because SubpixelSamples is a power of two.
-	Tri.C0 *= (1.0f / SUBPIXEL_SAMPLES);
-	Tri.C1 *= (1.0f / SUBPIXEL_SAMPLES);
-	Tri.C2 *= (1.0f / SUBPIXEL_SAMPLES);
+	Tri.C0 *= (1.0f / NANITE_SUBPIXEL_SAMPLES);
+	Tri.C1 *= (1.0f / NANITE_SUBPIXEL_SAMPLES);
+	Tri.C2 *= (1.0f / NANITE_SUBPIXEL_SAMPLES);
 #endif
 
 	return Tri;
@@ -907,8 +896,8 @@ void MicropolyRasterize(
 			WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
 		#endif
 			float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
-			float4 PointClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToClip);
-			GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointClip);
+			float4 PointSubpixelClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToSubpixelClip);
+			GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip);
 		#endif
 		}
 	}
@@ -952,17 +941,17 @@ void MicropolyRasterize(
 		
 		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData, VertIndexes);
 
-		const float4 PointClip[3] =
+		const float4 PointSubpixelClip[3] =
 		{
-			InterpData.TransformedTri.PointClip[0],
-			InterpData.TransformedTri.PointClip[1],
-			InterpData.TransformedTri.PointClip[2]
+			InterpData.TransformedTri.PointSubpixelClip[0],
+			InterpData.TransformedTri.PointSubpixelClip[1],
+			InterpData.TransformedTri.PointSubpixelClip[2]
 		};
-		InterpData.InvW = rcp(float3(PointClip[0].w, PointClip[1].w, PointClip[2].w));
+		InterpData.InvW = rcp(float3(PointSubpixelClip[0].w, PointSubpixelClip[1].w, PointSubpixelClip[2].w));
 
-		Verts[0] = CalculateSubpixelCoordinates(Raster, PointClip[0]);
-		Verts[1] = CalculateSubpixelCoordinates(Raster, PointClip[1]);
-		Verts[2] = CalculateSubpixelCoordinates(Raster, PointClip[2]);
+		Verts[0] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip[0]);
+		Verts[1] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip[1]);
+		Verts[2] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip[2]);
 	#else
 		InterpData.InvW = (float3)1.0f; // no need to interpolate anything for non-programmable
 

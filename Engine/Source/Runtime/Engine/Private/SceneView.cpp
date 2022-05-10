@@ -30,6 +30,7 @@
 #include "Slate/SceneViewport.h"
 #include "RenderUtils.h"
 #include "SceneRelativeViewMatrices.h"
+#include "NaniteDefinitions.h"
 
 DEFINE_LOG_CATEGORY(LogBufferVisualization);
 DEFINE_LOG_CATEGORY(LogNaniteVisualization);
@@ -2426,6 +2427,14 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 	ViewUniformShaderParameters.ScreenToViewSpace.W = (ViewUniformShaderParameters.ViewRectMin.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W * 2 * InvFovFixY) + InvFovFixY;
 
 	ViewUniformShaderParameters.ViewResolutionFraction = EffectiveViewRect.Width() / (float)UnscaledViewRect.Width();
+
+	const FVector2f SubpixelScale = FVector2f(	 0.5f * EffectiveViewRect.Width() * NANITE_SUBPIXEL_SAMPLES,
+												-0.5f * EffectiveViewRect.Height() * NANITE_SUBPIXEL_SAMPLES);
+
+	const FVector2f SubpixelOffset = FVector2f(	(0.5f * EffectiveViewRect.Width() + EffectiveViewRect.Min.X) * NANITE_SUBPIXEL_SAMPLES,
+												(0.5f * EffectiveViewRect.Height() + EffectiveViewRect.Min.Y) * NANITE_SUBPIXEL_SAMPLES);
+
+	ViewUniformShaderParameters.TranslatedWorldToSubpixelClip	= FMatrix44f(InViewMatrices.GetTranslatedViewProjectionMatrix()) * FScaleMatrix44f(FVector3f(SubpixelScale, 1.0f)) * FTranslationMatrix44f(FVector3f(SubpixelOffset, 0.0f));
 }
 
 void FSceneView::SetupCommonViewUniformBufferParameters(
