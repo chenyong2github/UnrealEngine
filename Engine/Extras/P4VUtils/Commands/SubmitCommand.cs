@@ -139,6 +139,7 @@ namespace P4VUtils.Commands
 					{
 						logger.LogError("Failed to remove the virtualization tags!");
 					}
+					logger.LogInformation("Virtualization tags have been removed.");
 
 					return 1;
 				}
@@ -319,12 +320,12 @@ namespace P4VUtils.Commands
 			else
 			{
 				// Log every response that was a failure and has an error message associated with it
-				logger.LogError("Submit failed due to:");
+				logger.LogError("ERROR - Submit failed due to:");
 				foreach (PerforceResponse<SubmitRecord> response in submitResponses)
 				{
 					if (response.Failed && response.Error != null)
 					{
-						logger.LogError("{Message}", response.Error.ToString());
+						logger.LogError("\t{Message}", response.Error.Data.ToString());
 					}
 				}
 
