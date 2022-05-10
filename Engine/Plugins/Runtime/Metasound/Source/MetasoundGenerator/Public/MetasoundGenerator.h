@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Analysis/MetasoundFrontendGraphAnalyzer.h"
 #include "Async/Async.h"
-#include "CoreMinimal.h"
 #include "DSP/Dsp.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundGraphOperator.h"
+#include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundRouter.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 #include "Sound/SoundGenerator.h"
@@ -21,6 +24,7 @@ namespace Metasound
 	struct METASOUNDGENERATOR_API FMetasoundGeneratorInitParams
 	{
 		FOperatorSettings OperatorSettings;
+		FOperatorBuilderSettings BuilderSettings;
 		TSharedPtr<const IGraph, ESPMode::ThreadSafe> Graph;
 		FMetasoundEnvironment Environment;
 		FString MetaSoundName;
@@ -32,7 +36,8 @@ namespace Metasound
 	struct FMetasoundGeneratorData
 	{
 		FOperatorSettings OperatorSettings;
-		TUniquePtr<Metasound::IOperator> GraphOperator;
+		TUniquePtr<IOperator> GraphOperator;
+		TUniquePtr<Frontend::FGraphAnalyzer> GraphAnalyzer;
 		TArray<TDataReadReference<FAudioBuffer>> OutputBuffers;
 		FTriggerWriteRef TriggerOnPlayRef;
 		FTriggerReadRef TriggerOnFinishRef;
@@ -190,6 +195,7 @@ namespace Metasound
 		bool bPendingGraphTrigger;
 		bool bIsNewGraphPending;
 		bool bIsWaitingForFirstGraph;
+
+		TUniquePtr<Frontend::FGraphAnalyzer> GraphAnalyzer;
 	};
 }
-

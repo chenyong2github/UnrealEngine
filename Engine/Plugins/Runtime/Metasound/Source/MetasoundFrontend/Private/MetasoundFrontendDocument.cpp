@@ -20,6 +20,11 @@ namespace Metasound
 	{
 		namespace DisplayStyle
 		{
+			namespace EdgeAnimation
+			{
+				const FLinearColor DefaultColor = FLinearColor::Transparent;
+			}
+
 			namespace NodeLayout
 			{
 				const FVector2D DefaultOffsetX { 300.0f, 0.0f };

@@ -19,6 +19,7 @@
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundLog.h"
+#include "MetasoundOperatorBuilderSettings.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundOutputFormatInterfaces.h"
 #include "MetasoundParameterTransmitter.h"
@@ -72,12 +73,6 @@ namespace Metasound
 	} // namespace SourcePrivate
 } // namespace Metasound
 
-FAutoConsoleVariableRef CVarMetaSoundBlockRate(
-	TEXT("au.MetaSound.BlockRate"),
-	Metasound::ConsoleVariables::BlockRate,
-	TEXT("Sets block rate (blocks per second) of MetaSounds.\n")
-	TEXT("Default: 100.0f"),
-	ECVF_Default);
 
 UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -531,9 +526,15 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		return ISoundGeneratorPtr(nullptr);
 	}
 
+	FOperatorBuilderSettings BuilderSettings = FOperatorBuilderSettings::GetDefaultSettings();
+
+	// Graph analyzer currently only enabled for preview sounds (but can theoretically be supported for all sounds)
+	BuilderSettings.bPopulateInternalDataReferences = InParams.bIsPreviewSound;
+
 	FMetasoundGeneratorInitParams InitParams =
 	{
 		InSettings,
+		MoveTemp(BuilderSettings),
 		MetasoundGraph,
 		Environment,
 		GetName(),
@@ -817,7 +818,7 @@ TUniquePtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransm
 
 Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const
 {
-	const float BlockRate = FMath::Clamp(Metasound::ConsoleVariables::BlockRate, 1.0f, 1000.0f);
+	const float BlockRate = Metasound::Frontend::GetDefaultBlockRate();
 	return Metasound::FOperatorSettings(InSampleRate, BlockRate);
 }
 

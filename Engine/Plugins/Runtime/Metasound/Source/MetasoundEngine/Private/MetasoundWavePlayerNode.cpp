@@ -7,6 +7,7 @@
 #include "DSP/MultichannelLinearResampler.h"
 #include "IAudioCodec.h"
 #include "MetasoundBuildError.h"
+#include "MetasoundBuilderInterface.h"
 #include "MetasoundEngineNodesNames.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundLog.h"
@@ -51,7 +52,7 @@ namespace Metasound
 	{
 		class FOperatorFactory : public IOperatorFactory
 		{
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
+			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
 		};
 
 	public:
@@ -982,9 +983,7 @@ namespace Metasound
 		
 	};
 
-	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(
-		const FCreateOperatorParams& InParams, 
-		FBuildErrorArray& OutErrors) 
+	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
 	{
 		using namespace Audio;
 		using namespace WavePlayerVertexNames;

@@ -303,7 +303,16 @@ namespace Metasound
 					return (Edge.FromNodeID == FromNodeID) && (Edge.FromVertexID == FromVertexID) && (Edge.ToNodeID == ToNodeID) && (Edge.ToVertexID == ToVertexID);
 				};
 
-				int32 NumRemoved = Graph->Edges.RemoveAllSwap(IsMatchingEdge);
+				const int32 NumRemoved = Graph->Edges.RemoveAllSwap(IsMatchingEdge);
+
+#if WITH_EDITOR
+				auto IsMatchingStyle = [&](const FMetasoundFrontendEdgeStyle& EdgeStyle)
+				{
+					return EdgeStyle.NodeID == FromNodeID && InController.GetName() == EdgeStyle.OutputName;
+				};
+				Graph->Style.EdgeStyles.RemoveAllSwap(IsMatchingStyle);
+#endif // WITH_EDITOR
+
 				return NumRemoved > 0;
 			}
 

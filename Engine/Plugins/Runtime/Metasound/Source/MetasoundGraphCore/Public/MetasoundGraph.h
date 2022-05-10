@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundNode.h"
-
-// Forward Declarations
+#include "MetasoundNodeInterface.h"
+#include "MetasoundVertex.h"
 
 
 namespace Metasound
@@ -133,7 +133,7 @@ namespace Metasound
 			public:
 				virtual ~FFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
+				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
 			};
 
 			FVertexName InstanceName;

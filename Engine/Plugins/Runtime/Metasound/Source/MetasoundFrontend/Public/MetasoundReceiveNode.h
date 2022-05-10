@@ -212,7 +212,7 @@ namespace Metasound
 			public:
 				FReceiverOperatorFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
 				{
 					using namespace ReceiveNodeInfo; 
 

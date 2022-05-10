@@ -45,7 +45,7 @@ namespace Metasound
 {
 	namespace ConsoleVariables
 	{
-		static float BlockRate = 100.f;
+		static float GetBlockRate();
 	} // namespace ConsoleVariables
 
 #if WITH_EDITOR

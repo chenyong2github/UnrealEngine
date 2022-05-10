@@ -1508,7 +1508,7 @@ namespace Metasound
 			return INodeController::GetInvalidHandle();
 		}
 
-		TUniquePtr<IOperator> FGraphController::BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const
+		TUniquePtr<IOperator> FGraphController::BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, FBuildGraphResults& OutResults) const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -1527,9 +1527,8 @@ namespace Metasound
 					return TUniquePtr<IOperator>(nullptr);
 				}
 
-				FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
-				FBuildGraphParams BuildParams{*Graph, InSettings, FDataReferenceCollection{}, InEnvironment};
-				return OperatorBuilder.BuildGraphOperator(BuildParams, OutBuildErrors);
+				FBuildGraphParams BuildParams { *Graph, InSettings, FDataReferenceCollection { }, InEnvironment, FOperatorBuilderSettings::GetDefaultSettings() };
+				return FOperatorBuilder().BuildGraphOperator(BuildParams, OutResults);
 			}
 			else
 			{

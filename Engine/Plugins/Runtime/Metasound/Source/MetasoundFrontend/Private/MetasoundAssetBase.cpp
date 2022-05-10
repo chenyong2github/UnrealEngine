@@ -33,27 +33,44 @@
 
 namespace Metasound
 {
-	namespace AssetBasePrivate
+	namespace Frontend
 	{
-		void DepthFirstTraversal(const FMetasoundAssetBase& InInitAsset, TFunctionRef<TSet<const FMetasoundAssetBase*>(const FMetasoundAssetBase&)> InVisitFunction)
+		namespace AssetBasePrivate
 		{
-			// Non recursive depth first traversal.
-			TArray<const FMetasoundAssetBase*> Stack({ &InInitAsset });
-			TSet<const FMetasoundAssetBase*> Visited;
+			static float BlockRate = 100.f;
 
-			while (!Stack.IsEmpty())
+			void DepthFirstTraversal(const FMetasoundAssetBase& InInitAsset, TFunctionRef<TSet<const FMetasoundAssetBase*>(const FMetasoundAssetBase&)> InVisitFunction)
 			{
-				const FMetasoundAssetBase* CurrentNode = Stack.Pop();
-				if (!Visited.Contains(CurrentNode))
-				{
-					TArray<const FMetasoundAssetBase*> Children = InVisitFunction(*CurrentNode).Array();
-					Stack.Append(Children);
+				// Non recursive depth first traversal.
+				TArray<const FMetasoundAssetBase*> Stack({ &InInitAsset });
+				TSet<const FMetasoundAssetBase*> Visited;
 
-					Visited.Add(CurrentNode);
+				while (!Stack.IsEmpty())
+				{
+					const FMetasoundAssetBase* CurrentNode = Stack.Pop();
+					if (!Visited.Contains(CurrentNode))
+					{
+						TArray<const FMetasoundAssetBase*> Children = InVisitFunction(*CurrentNode).Array();
+						Stack.Append(Children);
+
+						Visited.Add(CurrentNode);
+					}
 				}
 			}
+		} // namespace AssetBasePrivate
+
+		FAutoConsoleVariableRef CVarMetaSoundBlockRate(
+			TEXT("au.MetaSound.BlockRate"),
+			AssetBasePrivate::BlockRate,
+			TEXT("Sets block rate (blocks per second) of MetaSounds.\n")
+			TEXT("Default: 100.0f, Min: 1.0f, Max: 1000.0f"),
+			ECVF_Default);
+
+		float GetDefaultBlockRate()
+		{
+			return FMath::Clamp(AssetBasePrivate::BlockRate, 1.0f, 1000.0f);
 		}
-	} // namespace AssetBasePrivate
+	} // namespace Frontend
 } // namespace Metasound
 
 const FString FMetasoundAssetBase::FileExtension(TEXT(".metasound"));
@@ -585,7 +602,7 @@ bool FMetasoundAssetBase::IsReferencedAsset(const FMetasoundAssetBase& InAsset) 
 	using namespace Metasound::Frontend;
 
 	bool bIsReferenced = false;
-	Metasound::AssetBasePrivate::DepthFirstTraversal(*this, [&](const FMetasoundAssetBase& ChildAsset)
+	AssetBasePrivate::DepthFirstTraversal(*this, [&](const FMetasoundAssetBase& ChildAsset)
 	{
 		TSet<const FMetasoundAssetBase*> Children;
 		if (&ChildAsset == &InAsset)
@@ -616,7 +633,7 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 
 	bool bCausesLoop = false;
 	const FMetasoundAssetBase* Parent = this;
-	Metasound::AssetBasePrivate::DepthFirstTraversal(*ReferenceAsset, [&](const FMetasoundAssetBase& ChildAsset)
+	AssetBasePrivate::DepthFirstTraversal(*ReferenceAsset, [&](const FMetasoundAssetBase& ChildAsset)
 	{
 		TSet<const FMetasoundAssetBase*> Children;
 		if (Parent == &ChildAsset)

@@ -958,11 +958,11 @@ namespace Metasound
 			 *
 			 * @param InSettings - Settings to use when creating operators.
 			 * @param InEnvironment - Environment variables available during creation.
-			 * @param OutBuildErrors - An array to populate with errors encountered during the build process.
+			 * @param OutResults - Results pertaining to operator build process & resulting IOperator instance.
 			 *
-			 * @return On success, a valid pointer to a Metasound operator. An invalid pointer on failure. 
+			 * @return On success, a valid pointer to a Metasound operator. An invalid pointer on failure.
 			 */
-			virtual TUniquePtr<IOperator> BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const = 0;
+			virtual TUniquePtr<IOperator> BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, FBuildGraphResults& OutResults) const = 0;
 
 			/** Returns a handle to the document owning this graph. */
 			virtual FDocumentHandle GetOwningDocument() = 0;

@@ -99,7 +99,7 @@ namespace Metasound
 				public:
 					FFactory(FCreateOperatorFunction InCreateFunc);
 
-					virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
+					virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
 
 				private:
 					FCreateOperatorFunction CreateFunc;

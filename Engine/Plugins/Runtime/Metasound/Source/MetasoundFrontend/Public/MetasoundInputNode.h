@@ -246,7 +246,7 @@ namespace Metasound
 			{
 			}
 
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
+			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
 
 		private:
 			ReferenceCreatorType ReferenceCreator;
@@ -361,7 +361,7 @@ namespace Metasound
 
 
 	template<typename DataType, typename ReferenceCreatorType>
-	TUniquePtr<IOperator> TInputOperatorFactory<DataType, ReferenceCreatorType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
+	TUniquePtr<IOperator> TInputOperatorFactory<DataType, ReferenceCreatorType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
 	{
 		using FInputNodeType = TInputNode<DataType>;
 

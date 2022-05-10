@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEngineModule.h"
 
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
 #include "Metasound.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
@@ -37,6 +38,9 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 
 		// Flush node registration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
+
+		// Register Analyzers
+		Metasound::Frontend::IVertexAnalyzerRegistry::Get().RegisterAnalyzerFactories();
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("MetaSound Engine Initialized"));
 	}

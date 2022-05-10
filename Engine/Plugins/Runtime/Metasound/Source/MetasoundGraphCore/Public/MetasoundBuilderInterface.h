@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorBuilderSettings.h"
 #include "MetasoundOperatorInterface.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
 
 namespace Metasound
 {
@@ -40,12 +44,28 @@ namespace Metasound
 			virtual const TArray<FDataEdge>& GetDataEdges() const = 0;
 	};
 
+	/** Map of NodeID (Guid) to DataReferenceCollection. */
+	// TODO: Move to FAnyDataReference
+	using FNodeVertexDataMap = TMap<FGuid, FDataReferenceCollection>;
+
+	/** Array of build errors. */
+	using FBuildErrorArray = TArray<TUniquePtr<IOperatorBuildError>>;
+
+	/** Structure of all resulting data generated during graph operator build. */
+	struct FBuildGraphResults
+	{
+		/** An array of errors. Errors can be added if issues occur while creating an IOperator. */
+		FBuildErrorArray Errors;
+
+		/** References used by graph analyzer, if enabled (not collected if analysis is disabled). */
+		FNodeVertexDataMap InternalDataReferences;
+	};
+
 	/** FCreateOperatorParams holds the parameters provided to operator factories
 	 * during the creation of an IOperator
 	 */
 	struct FCreateOperatorParams
 	{
-
 		/** The node associated with this factory and the desired IOperator. */
 		const INode& Node;
 
@@ -58,12 +78,12 @@ namespace Metasound
 		/** Environment settings available. */
 		const FMetasoundEnvironment& Environment;
 
+		/** Settings for the builder requesting creation of the IOperator. */
+		const FOperatorBuilderSettings& BuilderSettings;
+
 		/** Pointer to builder actively building graph. */
 		const IOperatorBuilder* Builder = nullptr;
 	};
-
-	/** Array of build errors. */
-	typedef TArray<TUniquePtr<IOperatorBuildError>> FBuildErrorArray;
 
 	/** Convenience template for adding build errors.
 	 *
@@ -92,14 +112,16 @@ namespace Metasound
 		public:
 			virtual ~IOperatorFactory() = default;
 
-			/** Create a new IOperator.
-			 *
-			 * @param InParams - The parameters available for building an IOperator.
-			 * @param OutErrors - An array of errors. Errors can be added if issues occur while creating the IOperator.
-			 *
-			 * @return A unique pointer to an IOperator. 
-			 */
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) = 0;
+			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) = 0;
+
+			UE_DEPRECATED(5.1, "Use CreateOperator overload providing the FBuildGraphResults struct.")
+			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
+			{
+				FBuildGraphResults Results { MoveTemp(OutErrors) };
+				TUniquePtr<IOperator> Operator = CreateOperator(InParams, Results);
+				OutErrors = MoveTemp(Results.Errors);
+				return Operator;
+			}
 	};
 
 	struct FBuildGraphParams
@@ -110,11 +132,14 @@ namespace Metasound
 		/** General operator settings for the graph. */
 		const FOperatorSettings& OperatorSettings;
 
-		/** Collection of input parameters available for to an IOperator. */
+		/** Collection of input parameters available for an IOperator. */
 		const FDataReferenceCollection& InputDataReferences;
 
 		/** Environment settings available. */
 		const FMetasoundEnvironment& Environment;
+
+		/** Settings for graph's operator builder. */
+		const FOperatorBuilderSettings& BuilderSettings;
 	};
 
 	/** IOperatorBuilder
@@ -129,14 +154,16 @@ namespace Metasound
 
 			virtual ~IOperatorBuilder() = default;
 
-			/** Build a graph operator from a graph. 
+			UE_DEPRECATED(5.1, "Use BuildGraphOperator overload providing the FBuildGraphResults struct.")
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildErrorArray& OutErrors) const { return { }; }
+
+			/** Build a graph operator from a graph.
 			 *
 			 * @params InParams - Input parameters for building a graph.
-			 * @param OutErrors - An array of errors. Errors can be added if issues occur while creating the IOperator.
+			 * @param OutResults - Results data pertaining to the given build operator result.
 			 *
-			 * @return A unique pointer to an IOperator. 
+			 * @return A unique pointer to the built IOperator. Null if build failed.
 			 */
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildErrorArray& OutErrors) const = 0;
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildGraphResults& OutResults) const = 0;
 	};
 }
-

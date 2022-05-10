@@ -212,7 +212,7 @@ namespace Metasound
 			public:
 				FCoverterOperatorFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
 				{
 					TDataWriteReference<ToDataType> WriteReference = TDataWriteReferenceFactory<ToDataType>::CreateAny(InParams.OperatorSettings);
 
@@ -234,7 +234,7 @@ namespace Metasound
 					if (ensure(InParams.Node.GetVertexInterface().ContainsInputVertex(InputName)))
 					{
 						FInputDataDestination Dest(InParams.Node, InParams.Node.GetVertexInterface().GetInputVertex(GetInputName()));
-						AddBuildError<FMissingInputDataReferenceError>(OutErrors, Dest);
+						AddBuildError<FMissingInputDataReferenceError>(OutResults.Errors, Dest);
 					}
 
 					return TUniquePtr<IOperator>(nullptr);

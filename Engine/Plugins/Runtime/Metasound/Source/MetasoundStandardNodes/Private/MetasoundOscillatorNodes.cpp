@@ -805,7 +805,7 @@ namespace Metasound
 			return Interface;
 		}
 		
-		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
+		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
 		{
 			const FSineOscilatorNode& SineNode = static_cast<const FSineOscilatorNode&>(InParams.Node);
 			const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
@@ -856,7 +856,6 @@ namespace Metasound
 			} // HasFM
 			return nullptr;
 		}
-	private:
 	};
 
 	FSineOscilatorNode::FSineOscilatorNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideFactor, bool bInDefaultEnablement)
@@ -896,10 +895,10 @@ namespace Metasound
 
 	class FSawOscilatorNode::FFactory : public FOscilatorFactoryBase
 	{
-	public:		
+	public:
 		FFactory() = default;
 
-		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
+		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
 
 		static const FNodeClassMetadata& GetNodeInfo()
 		{
@@ -920,6 +919,7 @@ namespace Metasound
 			static const FNodeClassMetadata Info = InitNodeInfo();
 			return Info;
 		}
+
 		static const FVertexInterface& GetVertexInterface()
 		{
 			using namespace SawOscilatorVertexNames;
@@ -935,18 +935,16 @@ namespace Metasound
 			static const FVertexInterface Interface = MakeInterface();
 			return Interface;
 		}
-
-	private:
 	};
 
-	TUniquePtr<Metasound::IOperator> FSawOscilatorNode::FFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
+	TUniquePtr<Metasound::IOperator> FSawOscilatorNode::FFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
 	{
 		const FSawOscilatorNode& Node = static_cast<const FSawOscilatorNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
-		using namespace Generators;		
-		using namespace OscillatorCommonVertexNames; 
-		using namespace SawOscilatorVertexNames; 
+		using namespace Generators;
+		using namespace OscillatorCommonVertexNames;
+		using namespace SawOscilatorVertexNames;
 
 		FSawGenerationTypeReadRef Type = InputCol.GetDataReadReferenceOrConstruct<FEnumSawGenerationType>(METASOUND_GET_PARAM_NAME(SawType));
 
@@ -1094,9 +1092,9 @@ namespace Metasound
 	public:
 		FFactory() = default;
 
-		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
+		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
 		{
-			using namespace SquareOscillatorVertexNames; 
+			using namespace SquareOscillatorVertexNames;
 
 			const FSquareOscilatorNode& Node = static_cast<const FSquareOscilatorNode&>(InParams.Node);
 			const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
@@ -1217,7 +1215,7 @@ namespace Metasound
 	public:
 		FFactory() = default;
 
-		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
+		TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
 		{
 			const FTriangleOscilatorNode& Node = static_cast<const FTriangleOscilatorNode&>(InParams.Node);
 			const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
@@ -1282,6 +1280,7 @@ namespace Metasound
 			static const FNodeClassMetadata Info = InitNodeInfo();
 			return Info;
 		}
+
 		static const FVertexInterface& GetVertexInterface()
 		{
 			using namespace TriangleOscilatorVertexNames; 
@@ -1297,7 +1296,6 @@ namespace Metasound
 			static const FVertexInterface Interface = MakeInterface();
 			return Interface;
 		}
-	private:
 	};
 	
 	FTriangleOscilatorNode::FTriangleOscilatorNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefaultGlideFactor, bool bInDefaultEnablement)

@@ -19,8 +19,12 @@ class UEdGraph;
 
 namespace Metasound
 {
-	namespace Frontend {
+	namespace Frontend
+	{
+		// Forward Declarations
 		class IInterfaceRegistryEntry;
+
+		METASOUNDFRONTEND_API float GetDefaultBlockRate();
 	} // namespace Frontend
 } // namespace Metasound
 

@@ -15,6 +15,7 @@
 #include "Templates/Function.h"
 #include "Templates/Invoke.h"
 #include "Templates/TypeHash.h"
+#include "UObject/NoExportTypes.h"
 
 #include "MetasoundFrontendDocument.generated.h"
 
@@ -32,6 +33,11 @@ namespace Metasound
 	{
 		namespace DisplayStyle
 		{
+			namespace EdgeAnimation
+			{
+				extern const FLinearColor METASOUNDFRONTEND_API DefaultColor;
+			} // namespace EdgeStyle
+
 			namespace NodeLayout
 			{
 				extern const FVector2D METASOUNDFRONTEND_API DefaultOffsetX;
@@ -475,65 +481,55 @@ struct FMetasoundFrontendEdge
 	FGuid ToVertexID = Metasound::FrontendInvalidID;
 };
 
-
-// Display style for an edge.
-UENUM()
-enum class EMetasoundFrontendStyleEdgeDisplay : uint8
-{
-	Default,
-	Inherited,
-	Hidden
-};
-
-// Styling for edges
 USTRUCT()
-struct FMetasoundFrontendStyleEdge
+struct METASOUNDFRONTEND_API FMetasoundFrontendEdgeStyleLiteralColorPair
 {
 	GENERATED_BODY()
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	EMetasoundFrontendStyleEdgeDisplay Display = EMetasoundFrontendStyleEdgeDisplay::Default;
-#endif // WITH_EDITORONLY_DATA
+	FMetasoundFrontendLiteral Value;
+
+	UPROPERTY()
+	FLinearColor Color = Metasound::Frontend::DisplayStyle::EdgeAnimation::DefaultColor;
 };
 
-// Styling for a class of edges dependent upon edge data type.
+// Styling for all edges associated with a given output (characterized by NodeID & Name)
 USTRUCT()
-struct FMetasoundFrontendStyleEdgeClass
+struct METASOUNDFRONTEND_API FMetasoundFrontendEdgeStyle
 {
 	GENERATED_BODY()
 
-#if WITH_EDITORONLY_DATA
-	// Datatype of edge to apply style to
+	// Node ID for associated edge(s) that should use the given style data.
 	UPROPERTY()
-	FName TypeName;
+	FGuid NodeID;
 
-	// Style information for edge.
+	// Name of node's output to associate style information for its associated edge(s).
 	UPROPERTY()
-	FMetasoundFrontendStyleEdge Style;
-#endif // WITH_EDITORONLY_DATA
+	FName OutputName;
+
+	// Array of colors used to animate given output's associated edge(s). Interpolation
+	// between values dependent on value used.
+	UPROPERTY()
+	TArray<FMetasoundFrontendEdgeStyleLiteralColorPair> LiteralColorPairs;
 };
 
 // Styling for a class
 USTRUCT()
-struct FMetasoundFrontendGraphStyle 
+struct METASOUNDFRONTEND_API FMetasoundFrontendGraphStyle
 {
 	GENERATED_BODY()
 
-#if WITH_EDITORONLY_DATA
 	// Whether or not the graph is editable by a user
 	UPROPERTY()
 	bool bIsGraphEditable = true;
 
-	// Edge styles for graph.
+	// Styles for graph edges.
 	UPROPERTY()
-	TArray<FMetasoundFrontendStyleEdgeClass> EdgeStyles;
-#endif // WITH_EDITORONLY_DATA
+	TArray<FMetasoundFrontendEdgeStyle> EdgeStyles;
 };
 
-
 USTRUCT()
-struct FMetasoundFrontendGraph
+struct METASOUNDFRONTEND_API FMetasoundFrontendGraph
 {
 	GENERATED_BODY()
 
@@ -560,7 +556,7 @@ struct FMetasoundFrontendGraph
 
 // Metadata associated with a vertex.
 USTRUCT()
-struct FMetasoundFrontendVertexMetadata
+struct METASOUNDFRONTEND_API FMetasoundFrontendVertexMetadata
 {
 	GENERATED_BODY()
 
@@ -1347,14 +1343,13 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendGraphClass : public FMetasoundFro
 };
 
 USTRUCT()
-struct FMetasoundFrontendDocumentMetadata
+struct METASOUNDFRONTEND_API FMetasoundFrontendDocumentMetadata
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
 	FMetasoundFrontendVersion Version;
 };
-
 
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendDocument

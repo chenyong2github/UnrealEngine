@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundGenerator.h"
 
+#include "Analysis/MetasoundFrontendVertexAnalyzer.h"
 #include "AudioParameter.h"
 #include "DSP/Dsp.h"
 #include "MetasoundGraph.h"
@@ -8,6 +9,7 @@
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
+#include "MetasoundRouter.h"
 #include "MetasoundSourceInterface.h"
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
@@ -54,15 +56,21 @@ namespace Metasound
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("AsyncMetaSoundBuilder::DoWork %s"), *InitParams.MetaSoundName));
 
 		// Create an instance of the new graph
-		FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
-		FDataReferenceCollection DataReferenceCollection{};
-		FBuildGraphParams BuildParams{*InitParams.Graph, InitParams.OperatorSettings, DataReferenceCollection, InitParams.Environment};
-		TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
+		FDataReferenceCollection DataReferenceCollection;
+		FBuildGraphParams BuildParams { *InitParams.Graph, InitParams.OperatorSettings, DataReferenceCollection, InitParams.Environment, InitParams.BuilderSettings };
+		FBuildGraphResults BuildResults;
 
-		TUniquePtr<IOperator> GraphOperator = OperatorBuilder.BuildGraphOperator(BuildParams, BuildErrors);
+		TUniquePtr<IOperator> GraphOperator = FOperatorBuilder().BuildGraphOperator(BuildParams, BuildResults);
+
+		TUniquePtr<FGraphAnalyzer> GraphAnalyzer;
+		if (InitParams.BuilderSettings.bPopulateInternalDataReferences)
+		{
+			const uint64 InstanceID = BuildParams.Environment.GetValue<uint64>(SourceInterface::Environment::TransmitterID);
+			GraphAnalyzer = MakeUnique<FGraphAnalyzer>(InitParams.OperatorSettings, InstanceID, MoveTemp(BuildResults.InternalDataReferences));
+		}
 
 		// Log build errors
-		for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildErrors)
+		for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildResults.Errors)
 		{
 			if (Error.IsValid())
 			{
@@ -94,9 +102,10 @@ namespace Metasound
 			{
 				InitParams.OperatorSettings,
 				MoveTemp(GraphOperator),
+				MoveTemp(GraphAnalyzer),
 				MoveTemp(OutputBuffers),
 				MoveTemp(PlayTrigger),
-				MoveTemp(FinishTrigger)
+				MoveTemp(FinishTrigger),
 			};
 
 			Generator->SetPendingGraph(MoveTemp(GeneratorData), bTriggerGenerator);
@@ -169,7 +178,7 @@ namespace Metasound
 	{
 		FScopeLock SetPendingGraphLock(&PendingGraphMutex);
 		{
-			PendingGraphData = TUniquePtr<FMetasoundGeneratorData>(nullptr);
+			PendingGraphData.Reset();
 			bPendingGraphTrigger = false;
 			bIsNewGraphPending = true;
 		}
@@ -242,6 +251,8 @@ namespace Metasound
 			InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
 		}
 
+		GraphAnalyzer = MoveTemp(InData->GraphAnalyzer);
+
 		if (bTriggerGraph)
 		{
 			OnPlayTriggerRef->TriggerFrame(0);
@@ -302,6 +313,11 @@ namespace Metasound
 			// Call metasound graph operator.
 			RootExecuter.Execute();
 
+			if (GraphAnalyzer.IsValid())
+			{
+				GraphAnalyzer->Execute();
+			}
+
 			// Interleave audio because ISoundGenerator interface expects interleaved audio.
 			InterleaveGeneratedAudio();
 
@@ -322,11 +338,11 @@ namespace Metasound
 
 				FMemory::Memcpy(OverflowBuffer.GetData(), &InterleavedAudioBuffer.GetData()[ThisLoopNumSamplesWritten], OverflowCount * sizeof(float));
 			}
-		}
 
-		if (*OnFinishedTriggerRef)
-		{
-			bIsFinishTriggered = true;
+			if (*OnFinishedTriggerRef)
+			{
+				bIsFinishTriggered = true;
+			}
 		}
 
 		return NumSamplesWritten;
