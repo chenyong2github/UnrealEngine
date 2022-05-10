@@ -878,7 +878,7 @@ namespace ChaosTest
 		FVec3 WorldPosition = TrimeshTransform.TransformPositionNoScale(Position);
 
 		EXPECT_EQ(bResult, true);
-		EXPECT_EQ(FaceIndex, 158);
+		EXPECT_EQ(FaceIndex, 415);
 		EXPECT_NEAR(WorldPosition.X, 763.85413, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(WorldPosition.Y, 728.80212, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(WorldPosition.Z, 303.77856, KINDA_SMALL_NUMBER);

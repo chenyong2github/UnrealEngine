@@ -197,7 +197,7 @@ namespace Chaos
 			{
 				if (BoundsFilter(FaceBounds[FaceIndex]) == EFilterResult::Keep)
 				{
-					if (FaceVisitor(Faces[FaceIndex]) == EVisitorResult::Stop)
+					if (FaceVisitor(FaceIndex) == EVisitorResult::Stop)
 					{
 						return EVisitorResult::Stop;
 					}
@@ -250,14 +250,18 @@ namespace Chaos
 
 		void Serialize(FChaosArchive& Ar)
 		{
+			Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 			Ar << Nodes;
 			Ar << FaceBounds;
-			Ar << Faces;
+			if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RemoveTriangleMeshBVHFaces)
+			{
+				TArray<int32> TmpFaces;
+				Ar << TmpFaces;
+			}
 		}
 		
 		TArray<FNode> Nodes;
 		TArray<FAABBVectorized> FaceBounds;
-		TArray<int32> Faces;
 	};
 
 	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FTrimeshBVH::FChildData& ChildData)
@@ -331,6 +335,23 @@ namespace Chaos
 
 		FTrimeshIndexBuffer(const FTrimeshIndexBuffer& Other) = delete;
 		FTrimeshIndexBuffer& operator=(const FTrimeshIndexBuffer& Other) = delete;
+
+
+		void Reinitialize(TArray<TVec3<LargeIdxType>>&& Elements)
+		{
+			LargeIdxBuffer.Empty();
+			SmallIdxBuffer.Empty();
+			bRequiresLargeIndices = true;
+			LargeIdxBuffer = MoveTemp(Elements);
+		}
+
+		void Reinitialize(TArray<TVec3<SmallIdxType>>&& Elements)
+		{
+			LargeIdxBuffer.Empty();
+			SmallIdxBuffer.Empty();
+			bRequiresLargeIndices = false;
+			SmallIdxBuffer = MoveTemp(Elements);
+		}
 
 		void Serialize(FArchive& Ar)
 		{
@@ -595,6 +616,12 @@ namespace Chaos
 			else
 			{
 				Ar << FastBVH;
+			}
+
+			if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RemoveTriangleMeshBVHFaces)
+			{
+				// Force to rebuild the BVH
+				RebuildFastBVH();
 			}
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddTrimeshMaterialIndices)

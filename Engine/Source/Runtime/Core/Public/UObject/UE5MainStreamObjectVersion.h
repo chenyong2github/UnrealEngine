@@ -224,6 +224,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Allow each LiveLink controller to specify its own component to control
 		LiveLinkComponentPickerPerController,
 
+		// Remove Faces in Triangle Mesh BVH
+		RemoveTriangleMeshBVHFaces,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -1538,7 +1538,30 @@ void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPosit
 
 	RebuildFastBVH();
 }
-	
+
+namespace
+{
+	void AddTriangles(TArray<TVec3<FTrimeshIndexBuffer::LargeIdxType>>& LargeIndices, TArray<TVec3<FTrimeshIndexBuffer::SmallIdxType>>& SmallIndices, const FTrimeshIndexBuffer& Elements, int32 OldIndex)
+	{
+		if (Elements.RequiresLargeIndices())
+		{
+			FTrimeshIndexBuffer::LargeIdxType A = Elements.GetLargeIndexBuffer()[OldIndex][0];
+			FTrimeshIndexBuffer::LargeIdxType B = Elements.GetLargeIndexBuffer()[OldIndex][1];
+			FTrimeshIndexBuffer::LargeIdxType C = Elements.GetLargeIndexBuffer()[OldIndex][2];
+
+			LargeIndices.Add(TVec3<FTrimeshIndexBuffer::LargeIdxType>(A, B, C));
+		}
+		else
+		{
+			FTrimeshIndexBuffer::SmallIdxType A = Elements.GetSmallIndexBuffer()[OldIndex][0];
+			FTrimeshIndexBuffer::SmallIdxType B = Elements.GetSmallIndexBuffer()[OldIndex][1];
+			FTrimeshIndexBuffer::SmallIdxType C = Elements.GetSmallIndexBuffer()[OldIndex][2];
+
+			SmallIndices.Add(TVec3<FTrimeshIndexBuffer::SmallIdxType>(A, B, C));
+		}
+	}
+}
+
 void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 {
 	using NodeType = TAABBTreeNode<FRealSingle>;
@@ -1547,8 +1570,12 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 	const TArray<LeafType>& Leaves = TreeBVH.GetLeaves();
 
 	FastBVH.Nodes.Reset();
-	FastBVH.Faces.Reset();
 	FastBVH.FaceBounds.Reset();
+
+	int32 FaceNum = 0;
+	TArray<TVec3<FTrimeshIndexBuffer::LargeIdxType>> LargeIndices;
+	TArray<TVec3<FTrimeshIndexBuffer::SmallIdxType>> SmallIndices;
+		
 
 	// since we do skip leaf nodes, we need to handle the case where we have only one node that will be a leaf by default
 	if (Nodes.Num() == 1)
@@ -1568,7 +1595,17 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 		for (const TPayloadBoundsElement<int32, FRealSingle>& LeafPayload: Leaf.Elems)
 		{
 			FastBVH.FaceBounds.Add(FAABBVectorized(LeafPayload.Bounds));
-			FastBVH.Faces.Add(LeafPayload.Payload);
+			// Reorder triangle indices, triangles will be in the same order as the bounding volume in the BVH structure.
+			// And all triangles in a leaf will be contiguous in memory.
+			AddTriangles(LargeIndices, SmallIndices, MElements, LeafPayload.Payload);
+		}
+		if (MElements.RequiresLargeIndices())
+		{
+			MElements.Reinitialize(MoveTemp(LargeIndices));
+		}
+		else
+		{
+			MElements.Reinitialize(MoveTemp(SmallIndices));
 		}
 		return;
 	}
@@ -1626,7 +1663,7 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 						const LeafType& Leaf = Leaves[*LeafIndex];
 
 						// store face range in the node 
-						ChildData.SetChildOrFaceIndex(FastBVH.Faces.Num());
+						ChildData.SetChildOrFaceIndex(FaceNum);
 						ChildData.SetFaceCount(Leaf.Elems.Num());
 						check(ChildData.GetFaceCount() > 0);
 
@@ -1635,7 +1672,10 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 						for (const auto& LeafPayload: Leaf.Elems)
 						{
 							FastBVH.FaceBounds.Add(FAABBVectorized(LeafPayload.Bounds));
-							FastBVH.Faces.Add(LeafPayload.Payload);
+							// Reorder triangle indices, triangles will be in the same order as the bounding volume in the BVH structure.
+							// And all triangles in a leaf will be contiguous in memory.
+							AddTriangles(LargeIndices, SmallIndices, MElements, LeafPayload.Payload);
+							FaceNum++;
 						}
 					}
 					// push for further processing
@@ -1664,7 +1704,14 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 			}
 		}
 	}
-	
+	if (MElements.RequiresLargeIndices())
+	{
+		MElements.Reinitialize(MoveTemp(LargeIndices));
+	}
+	else
+	{
+		MElements.Reinitialize(MoveTemp(SmallIndices));
+	}
 }
 	
 }
