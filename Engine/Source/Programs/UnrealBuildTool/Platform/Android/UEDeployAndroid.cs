@@ -4232,9 +4232,15 @@ namespace UnrealBuildTool
 					File.SetLastWriteTimeUtc(FinalSOName, File.GetLastWriteTimeUtc(SourceSOName));
 				}
 
-				// after ndk-build is called, we can now copy in the stl .so (ndk-build deletes old files)
-				// copy libc++_shared.so to library
-				CopySTL(ToolChain, UnrealBuildPath, Arch, NDKArch, bForDistribution);
+				ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
+				bool bSkipLibCpp = false;
+				Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSkipLibCpp", out bSkipLibCpp);
+				if (!bSkipLibCpp)
+				{
+					// after ndk-build is called, we can now copy in the stl .so (ndk-build deletes old files)
+					// copy libc++_shared.so to library
+					CopySTL(ToolChain, UnrealBuildPath, Arch, NDKArch, bForDistribution);
+				}
 				CopyGfxDebugger(UnrealBuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UnrealBuildPath, Arch, NDKArch, Configuration.ToString());
 				
@@ -4404,7 +4410,6 @@ namespace UnrealBuildTool
 				bool bBuildWithHiddenSymbolVisibility = false;
 				bool bSaveSymbols = false;
 
-				ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 				Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildWithHiddenSymbolVisibility", out bBuildWithHiddenSymbolVisibility);
 				Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSaveSymbols", out bSaveSymbols);
 				bSaveSymbols = true;

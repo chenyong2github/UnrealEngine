@@ -6569,7 +6569,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		System.loadLibrary("Unreal");
 //$${soLoadLibrary}$$
-		System.loadLibrary("c++_shared");
 	}
 
 	public native void nativeHandleSensorEvents(float[] tilt, float[] rotation_rate, float[] gravity, float[] acceleration);
