@@ -1165,19 +1165,19 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
 	{
-		if (!RenderPassInfo.ColorRenderTargets[Index].RenderTarget)
+		const auto& RTV = RenderPassInfo.ColorRenderTargets[Index];
+
+		if (RTV.RenderTarget && RTV.ResolveTarget && RTV.RenderTarget != RTV.ResolveTarget)
 		{
-			break;
-		}
-		if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
-		{
-			RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
+			RHICopyToResolveTarget(RTV.RenderTarget, RTV.ResolveTarget, RenderPassInfo.ResolveParameters);
 		}
 	}
 
-	if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
+	const auto& DSV = RenderPassInfo.DepthStencilRenderTarget;
+
+	if (DSV.DepthStencilTarget && DSV.ResolveTarget && DSV.DepthStencilTarget != DSV.ResolveTarget)
 	{
-		RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
+		RHICopyToResolveTarget(DSV.DepthStencilTarget, DSV.ResolveTarget, RenderPassInfo.ResolveParameters);
 	}
 
 	// Drop depth and stencil to avoid export

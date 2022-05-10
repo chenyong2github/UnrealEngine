@@ -2907,7 +2907,17 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 
 	const bool bReadback = EnumHasAnyFlags(DestTextureRHI->GetFlags(), TexCreate_CPUReadback);
 
-	if (CopyInfo.Size != FIntVector::ZeroValue || bReadback)
+	const FRHITextureDesc& SourceDesc = SourceTextureRHI->GetDesc();
+	const FRHITextureDesc& DestDesc = DestTextureRHI->GetDesc();
+
+	const bool bAllPixels =
+		SourceDesc.GetSize() == DestDesc.GetSize() && (CopyInfo.Size == FIntVector::ZeroValue || CopyInfo.Size == SourceDesc.GetSize());
+
+	const bool bAllSubresources =
+		SourceDesc.NumMips   == DestDesc.NumMips   && SourceDesc.NumMips   == CopyInfo.NumMips    &&
+		SourceDesc.ArraySize == DestDesc.ArraySize && SourceDesc.ArraySize == CopyInfo.NumSlices;
+
+	if (!bAllPixels || !bAllSubresources || bReadback)
 	{
 		// Interpret zero size as source size
 		const FIntVector CopySize = CopyInfo.Size == FIntVector::ZeroValue ? SourceTextureRHI->GetSizeXYZ() : CopyInfo.Size;

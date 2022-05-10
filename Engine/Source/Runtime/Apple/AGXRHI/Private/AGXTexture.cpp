@@ -1998,12 +1998,6 @@ inline bool AGXRHICopyTexutre_IsTextureFormatCompatible(EPixelFormat SrcFmt, EPi
 
 void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {
-	if (!SourceTextureRHI || !DestTextureRHI || SourceTextureRHI == DestTextureRHI)
-	{
-		// no need to do anything (silently ignored)
-		return;
-	}
-
 	@autoreleasepool {
 		check(SourceTextureRHI);
 		check(DestTextureRHI);

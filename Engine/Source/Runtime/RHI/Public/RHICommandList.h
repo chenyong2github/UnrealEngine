@@ -3552,6 +3552,8 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void CopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 	{
+		check(SourceTextureRHI && DestTextureRHI);
+		check(SourceTextureRHI != DestTextureRHI);
 		check(IsOutsideRenderPass());
 		if (GRHISupportsCopyToTextureMultipleMips)
 		{

@@ -2071,12 +2071,6 @@ FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SrcText
 
 void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {
-	if (!SourceTextureRHI || !DestTextureRHI || SourceTextureRHI == DestTextureRHI)
-	{
-		// no need to do anything (silently ignored)
-		return;
-	}
-
 	FRHICommandList_RecursiveHazardous RHICmdList(this);	
 
 	FD3D11Texture* SourceTexture = GetD3D11TextureFromRHITexture(SourceTextureRHI);
@@ -2086,7 +2080,17 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 
 	GPUProfilingData.RegisterGPUWork();
 
-	if (CopyInfo.Size != FIntVector::ZeroValue)
+	const FRHITextureDesc& SourceDesc = SourceTextureRHI->GetDesc();
+	const FRHITextureDesc& DestDesc = DestTextureRHI->GetDesc();
+
+	const bool bAllPixels =
+		SourceDesc.GetSize() == DestDesc.GetSize() && (CopyInfo.Size == FIntVector::ZeroValue || CopyInfo.Size == SourceDesc.GetSize());
+
+	const bool bAllSubresources =
+		SourceDesc.NumMips == DestDesc.NumMips && SourceDesc.NumMips == CopyInfo.NumMips &&
+		SourceDesc.ArraySize == DestDesc.ArraySize && SourceDesc.ArraySize == CopyInfo.NumSlices;
+
+	if (!bAllPixels || !bAllSubresources)
 	{
 		const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[SourceTextureRHI->GetFormat()];
 

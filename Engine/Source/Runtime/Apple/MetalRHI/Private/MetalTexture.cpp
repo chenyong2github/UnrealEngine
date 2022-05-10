@@ -2056,12 +2056,6 @@ inline bool MetalRHICopyTexutre_IsTextureFormatCompatible(EPixelFormat SrcFmt, E
 
 void FMetalRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {
-	if (!SourceTextureRHI || !DestTextureRHI || SourceTextureRHI == DestTextureRHI)
-	{
-		// no need to do anything (silently ignored)
-		return;
-	}
-
 	@autoreleasepool {
 		check(SourceTextureRHI);
 		check(DestTextureRHI);
