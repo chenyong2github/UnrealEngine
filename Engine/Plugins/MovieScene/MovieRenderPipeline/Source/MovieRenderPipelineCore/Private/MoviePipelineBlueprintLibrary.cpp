@@ -74,25 +74,11 @@ FText UMoviePipelineBlueprintLibrary::GetJobName(UMoviePipeline* InMoviePipeline
 	return FText();
 }
 
-namespace MoviePipeline
-{
-	FString GetJobAuthor(const UMoviePipelineExecutorJob* InJob)
-	{
-		if (InJob && InJob->Author.Len() > 0)
-		{
-			return InJob->Author;
-		}
-
-		// If they didn't specify an author in the job, default to the local username.
-		return FPlatformProcess::UserName(false);
-	}
-}
-
 FText UMoviePipelineBlueprintLibrary::GetJobAuthor(UMoviePipeline* InMoviePipeline)
 {
 	if (InMoviePipeline)
 	{
-		return FText::FromString(MoviePipeline::GetJobAuthor(InMoviePipeline->GetCurrentJob()));
+		return FText::FromString(UE::MoviePipeline::GetJobAuthor(InMoviePipeline->GetCurrentJob()));
 	}
 
 	return FText();
@@ -882,20 +868,9 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 
 	// And from ourself
 	{
-		OutMergedFormatArgs.FilenameArguments.Add(TEXT("date"), InParams.InitializationTime.ToString(TEXT("%Y.%m.%d")));
-		OutMergedFormatArgs.FilenameArguments.Add(TEXT("time"), InParams.InitializationTime.ToString(TEXT("%H.%M.%S")));
-		OutMergedFormatArgs.FilenameArguments.Add(TEXT("job_author"), MoviePipeline::GetJobAuthor(InParams.Job));
-
-		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, InParams.InitializationVersion);
-
-		OutMergedFormatArgs.FilenameArguments.Add(TEXT("version"), VersionText);
-
-		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InParams.InitializationTime.ToString(TEXT("%Y.%m.%d")));
-		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InParams.InitializationTime.ToString(TEXT("%H.%M.%S")));
-		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), FString::FromInt(InParams.InitializationVersion));
-		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), InParams.Job->JobName);
-		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), MoviePipeline::GetJobAuthor(InParams.Job));
-
+		// Use the shared function as UMoviePipelineMasterConfig::GetFormatArguments to ensure all the time variables get overwritten.
+		UE::MoviePipeline::GetSharedFormatArguments(OutMergedFormatArgs.FilenameArguments, OutMergedFormatArgs.FileMetadata, InParams.InitializationTime, InParams.InitializationVersion, InParams.Job);
+		
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
 		// they need to come before the frame number (so that tools recognize them as a sequence).
 		OutMergedFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString());

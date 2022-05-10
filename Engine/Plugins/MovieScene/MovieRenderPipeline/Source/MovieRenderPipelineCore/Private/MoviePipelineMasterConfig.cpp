@@ -115,6 +115,7 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 			FrameRate = GetEffectiveFrameRate(Cast<ULevelSequence>(InOutFormatArgs.InJob->Sequence.TryLoad())).AsDecimal();
 		}
 
+
 		InOutFormatArgs.FilenameArguments.Add(TEXT("level_name"), LevelName);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("sequence_name"), SequenceName);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("job_name"), JobName);
@@ -128,13 +129,9 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 		// Normally these are filled when resolving the file name by the job (so that the time is shared), but stub them in here so
 		// they show up in the UI with a value.
 		FDateTime CurrentTime = FDateTime::Now();
-		InOutFormatArgs.FilenameArguments.Add(TEXT("date"), CurrentTime.ToString(TEXT("%Y.%m.%d")));
-		InOutFormatArgs.FilenameArguments.Add(TEXT("year"), CurrentTime.ToString(TEXT("%Y")));
-		InOutFormatArgs.FilenameArguments.Add(TEXT("month"), CurrentTime.ToString(TEXT("%m")));
-		InOutFormatArgs.FilenameArguments.Add(TEXT("day"), CurrentTime.ToString(TEXT("%d")));
-		InOutFormatArgs.FilenameArguments.Add(TEXT("time"), CurrentTime.ToString(TEXT("%H.%M.%S")));
-		InOutFormatArgs.FilenameArguments.Add(TEXT("job_author"), FPlatformProcess::UserName(false));
-		
+		int32 DummyVersionNumber = 1;
+		UE::MoviePipeline::GetSharedFormatArguments(InOutFormatArgs.FilenameArguments, InOutFormatArgs.FileMetadata, CurrentTime, DummyVersionNumber, InOutFormatArgs.InJob);
+
 		// Let the output state fill out some too, since its the keeper of the information.
 		UMoviePipelineOutputSetting* OutputSettings = FindSetting<UMoviePipelineOutputSetting>();
 		check(OutputSettings);

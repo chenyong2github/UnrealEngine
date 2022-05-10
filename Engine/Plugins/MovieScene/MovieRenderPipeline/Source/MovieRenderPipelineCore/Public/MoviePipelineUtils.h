@@ -11,6 +11,7 @@
 #include "Misc/FrameRate.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "MovieSceneSequenceID.h"
+#include "MoviePipelineQueue.h"
 
 // Forward Declare
 class UClass;
@@ -128,6 +129,9 @@ namespace UE
 	{
 		MOVIERENDERPIPELINECORE_API void ValidateOutputFormatString(FString& InOutFilenameFormatString, const bool bTestRenderPass, const bool bTestFrameNumber);
 		MOVIERENDERPIPELINECORE_API void RemoveFrameNumberFormatStrings(FString& InOutFilenameFormatString, const bool bIncludeShots);
+
+		MOVIERENDERPIPELINECORE_API FString GetJobAuthor(const UMoviePipelineExecutorJob* InJob);
+		MOVIERENDERPIPELINECORE_API void GetSharedFormatArguments(TMap<FString, FString>& InFilenameArguments, TMap<FString, FString>& InFileMetadata, const FDateTime& InDateTime, const int32 InVersionNumber, const UMoviePipelineExecutorJob* InJob);
 	}
 }
 

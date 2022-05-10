@@ -736,5 +736,46 @@ namespace UE
 				InOutFilenameFormatString.ReplaceInline(TEXT("{frame_number_shot_rel}"), TEXT(""));
 			}
 		}
+
+		FString GetJobAuthor(const UMoviePipelineExecutorJob* InJob)
+		{
+			if (InJob && InJob->Author.Len() > 0)
+			{
+				return InJob->Author;
+			}
+
+			// If they didn't specify an author in the job, default to the local username.
+			return FPlatformProcess::UserName(false);
+		}
+
+		void GetSharedFormatArguments(TMap<FString, FString>& InFilenameArguments, TMap<FString, FString>& InFileMetadata, const FDateTime& InDateTime, const int32 InVersionNumber, const UMoviePipelineExecutorJob* InJob)
+		{
+			InFilenameArguments.Add(TEXT("date"), InDateTime.ToString(TEXT("%Y.%m.%d")));
+			InFilenameArguments.Add(TEXT("time"), InDateTime.ToString(TEXT("%H.%M.%S")));
+			InFilenameArguments.Add(TEXT("year"), InDateTime.ToString(TEXT("%Y")));
+			InFilenameArguments.Add(TEXT("month"), InDateTime.ToString(TEXT("%m")));
+			InFilenameArguments.Add(TEXT("day"), InDateTime.ToString(TEXT("%d")));
+
+
+			FString VersionText = FString::Printf(TEXT("v%0*d"), 3, InVersionNumber);
+
+			InFilenameArguments.Add(TEXT("version"), VersionText);
+
+			InFileMetadata.Add(TEXT("unreal/jobDate"), InDateTime.ToString(TEXT("%Y.%m.%d")));
+			InFileMetadata.Add(TEXT("unreal/jobTime"), InDateTime.ToString(TEXT("%H.%M.%S")));
+			InFileMetadata.Add(TEXT("unreal/jobYear"), InDateTime.ToString(TEXT("%Y")));
+			InFileMetadata.Add(TEXT("unreal/jobMonth"), InDateTime.ToString(TEXT("%m")));
+			InFileMetadata.Add(TEXT("unreal/jobDay"), InDateTime.ToString(TEXT("%d")));
+
+			InFileMetadata.Add(TEXT("unreal/jobVersion"), FString::FromInt(InVersionNumber));
+
+			if (InJob)
+			{
+				InFilenameArguments.Add(TEXT("job_author"), GetJobAuthor(InJob));
+				InFilenameArguments.Add(TEXT("job_name"), InJob->JobName);
+				InFileMetadata.Add(TEXT("unreal/jobName"), InJob->JobName);
+				InFileMetadata.Add(TEXT("unreal/jobAuthor"), GetJobAuthor(InJob));
+			}
+		}
 	}
 }
