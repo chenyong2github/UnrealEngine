@@ -279,8 +279,6 @@ public:
 	{
 		if (GIsEditor)
 		{
-			FSequencerCommands::Register();
-
 			FEditorModeRegistry::Get().RegisterMode<FSequencerEdMode>(
 				FSequencerEdMode::EM_SequencerMode,
 				NSLOCTEXT("Sequencer", "SequencerEditMode", "Sequencer Mode"),
@@ -289,10 +287,12 @@ public:
 
 			if (UToolMenus::TryGet())
 			{
+				FSequencerCommands::Register();
 				RegisterMenus();
 			}
 			else
 			{
+				FCoreDelegates::OnPostEngineInit.AddStatic(&FSequencerCommands::Register);
 				FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSequencerModule::RegisterMenus);
 			}
 
