@@ -559,6 +559,7 @@ void FCacheStoreHierarchy::TPutBatch<Params>::CompletePutRequest(FPutResponse&& 
 	}
 	if (RemainingRequestCount.Signal())
 	{
+		++NodePutIndex;
 		DispatchRequests();
 	}
 }
