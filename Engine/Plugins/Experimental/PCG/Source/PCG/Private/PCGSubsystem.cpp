@@ -27,9 +27,12 @@ namespace PCGSubsystemConsole
 		TEXT("Clears the PCG results cache."),
 		FConsoleCommandDelegate::CreateLambda([]()
 			{
-				if (UWorld* World = GEditor->GetEditorWorldContext().World())
+				if (GEditor)
 				{
-					World->GetSubsystem<UPCGSubsystem>()->FlushCache();
+					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					{
+						World->GetSubsystem<UPCGSubsystem>()->FlushCache();
+					}
 				}
 			}));
 }
@@ -478,7 +481,10 @@ void UPCGSubsystem::DeletePartitionActors()
 	};
 
 	// First, clear selection otherwise it might crash
-	GEditor->SelectNone(true, true, false);
+	if (GEditor)
+	{
+		GEditor->SelectNone(true, true, false);
+	}
 
 	FWorldPartitionHelpers::ForEachActorDesc<APCGPartitionActor>(World->GetWorldPartition(), GatherAndDestroyActors);
 

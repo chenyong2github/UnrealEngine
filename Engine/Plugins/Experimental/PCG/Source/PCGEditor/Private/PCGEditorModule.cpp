@@ -154,9 +154,12 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([]() {
-				if (UWorld* World = GEditor->GetEditorWorldContext().World())
+				if (GEditor)
 				{
-					World->GetSubsystem<UPCGSubsystem>()->DeletePartitionActors();
+					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					{
+						World->GetSubsystem<UPCGSubsystem>()->DeletePartitionActors();
+					}
 				}
 			})),
 		NAME_None);

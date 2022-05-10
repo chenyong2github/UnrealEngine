@@ -107,12 +107,16 @@ void UPCGGraph::BeginDestroy()
 	InputNode->OnNodeChangedDelegate.RemoveAll(this);
 
 	// Notify the compiler to remove this graph from its cache
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
-	if (PCGSubsystem)
+	if (GEditor)
 	{
-		PCGSubsystem->NotifyGraphChanged(this);
+		UWorld* World = GEditor->GetEditorWorldContext().World();
+		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+		if (PCGSubsystem)
+		{
+			PCGSubsystem->NotifyGraphChanged(this);
+		}
 	}
+
 #endif
 
 	Super::BeginDestroy();
@@ -511,7 +515,7 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	}
 
 	// Notify the subsystem/compiler cache before so it gets recompiled properly
-	if (bIsStructural)
+	if (bIsStructural && GEditor)
 	{
 		UWorld* World = GEditor->GetEditorWorldContext().World();
 		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;

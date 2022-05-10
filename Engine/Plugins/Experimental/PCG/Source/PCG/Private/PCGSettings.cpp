@@ -84,11 +84,14 @@ void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 
 void UPCGSettings::DirtyCache()
 {
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
-	if (PCGSubsystem)
+	if (GEditor)
 	{
-		PCGSubsystem->CleanFromCache(GetElement().Get());
+		UWorld* World = GEditor->GetEditorWorldContext().World();
+		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+		if (PCGSubsystem)
+		{
+			PCGSubsystem->CleanFromCache(GetElement().Get());
+		}
 	}
 }
 #endif // WITH_EDITOR
