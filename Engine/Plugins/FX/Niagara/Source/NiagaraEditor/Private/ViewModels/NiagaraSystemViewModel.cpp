@@ -296,7 +296,9 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::GetEmitterHa
 {
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 	{
-		if (EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter() == InEmitter)
+		FVersionedNiagaraEmitterData* InEmitterData = InEmitter.GetEmitterData();
+		FVersionedNiagaraEmitterData* ViewModelEmitterData = EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData();
+		if (InEmitterData == ViewModelEmitterData)
 		{
 			return EmitterHandleViewModel;
 		}

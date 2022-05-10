@@ -3532,13 +3532,13 @@ int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleIn
 
 	// Get the stack module data for the emitter stack to find dependencies.
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System);
-	if (SystemViewModel->IsValid() == false)
+	if (SystemViewModel.IsValid() == false)
 	{
 		ensureMsgf(false, TEXT("Failed to get systemviewmodel for valid system when getting best index in stack for module!"));
 		return INDEX_NONE;
 	}
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = SystemViewModel->GetEmitterHandleViewModelForEmitter(OuterEmitter);
-	if (EmitterHandleViewModel->IsValid() == false)
+	if (EmitterHandleViewModel.IsValid() == false)
 	{
 		ensureMsgf(false, TEXT("Failed to get emitterhandleviewmodel for valid emitter when getting best index in stack for module!"));
 		return INDEX_NONE;
