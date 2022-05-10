@@ -62,10 +62,8 @@ public:
 	// ~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override { return 0; }
 	virtual FBox GetBounds() const override;
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
 	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const { return this; }
-	virtual bool GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
-	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	// ~End UPCGSpatialData interface
 
 	void InitializeFromActor(AActor* InActor);
@@ -81,8 +79,6 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void CopyPointsFrom(const UPCGPointData* InData, const TArray<int>& InDataIndices);
-
-	const FPCGPoint* GetPointAtPosition(const FVector& InPosition) const;
 
 	TArray<FPCGPoint>& GetMutablePoints();
 

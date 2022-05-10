@@ -29,12 +29,30 @@ const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Con
 	return CachedPointData;
 }
 
-FPCGPoint UPCGSpatialData::TransformPoint(const FPCGPoint& InPoint) const
+float UPCGSpatialData::GetDensityAtPosition(const FVector& InPosition) const
 {
-	FPCGPoint TransformedPoint = InPoint;
-	TransformedPoint.Transform.SetTranslation(TransformPosition(InPoint.Transform.GetLocation()));
-	TransformedPoint.Density *= GetDensityAtPosition(InPoint.Transform.GetLocation());
-	return TransformedPoint;
+	FPCGPoint TemporaryPoint;
+	if (SamplePoint(FTransform(InPosition), FBox::BuildAABB(FVector::ZeroVector, FVector::ZeroVector), TemporaryPoint, nullptr))
+	{
+		return TemporaryPoint.Density;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+FVector UPCGSpatialData::TransformPosition(const FVector& InPosition) const
+{
+	FPCGPoint TemporaryPoint;
+	if (SamplePoint(FTransform(InPosition), FBox::BuildAABB(FVector::ZeroVector, FVector::ZeroVector), TemporaryPoint, nullptr))
+	{
+		return TemporaryPoint.Transform.GetLocation();
+	}
+	else
+	{
+		return InPosition;
+	}
 }
 
 UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOther) const

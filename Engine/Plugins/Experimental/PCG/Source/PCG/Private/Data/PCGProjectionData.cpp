@@ -71,34 +71,16 @@ FBox UPCGProjectionData::ProjectBounds(const FBox& InBounds) const
 	return Bounds;
 }
 
-float UPCGProjectionData::GetDensityAtPosition(const FVector& InPosition) const
-{
-	// TODO: improve projection/unprojection mechanism
-	return Source->GetDensityAtPosition(InPosition);
-}
-
-FVector UPCGProjectionData::TransformPosition(const FVector& InPosition) const
-{
-	// TODO: improve projection/unprojection mechanism
-	return Target->TransformPosition(Source->TransformPosition(InPosition));
-}
-
-FPCGPoint UPCGProjectionData::TransformPoint(const FPCGPoint& InPoint) const
-{
-	// TODO: improve projection/unprojection mechanism
-	return Target->TransformPoint(Source->TransformPoint(InPoint));
-}
-
-bool UPCGProjectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+bool UPCGProjectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	FPCGPoint PointFromSource;
-	if (!Source->GetPointAtPosition(InPosition, PointFromSource, OutMetadata))
+	if (!Source->SamplePoint(InTransform, InBounds, PointFromSource, OutMetadata))
 	{
 		return false;
 	}
 
 	FPCGPoint PointFromTarget;
-	if (!Target->GetPointAtPosition(PointFromSource.Transform.GetLocation(), PointFromTarget, OutMetadata))
+	if (!Target->SamplePoint(PointFromSource.Transform, PointFromSource.GetLocalBounds(), PointFromTarget, OutMetadata))
 	{
 		return false;
 	}
@@ -142,9 +124,9 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 
 		FPCGPoint PointFromTarget;
 #if WITH_EDITORONLY_DATA
-		if (!Target->GetPointAtPosition(SourcePoint.Transform.GetLocation(), PointFromTarget, PointData->Metadata) && !bKeepZeroDensityPoints)
+		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, PointData->Metadata) && !bKeepZeroDensityPoints)
 #else
-		if (!Target->GetPointAtPosition(SourcePoint.Transform.GetLocation(), PointFromTarget, PointData->Metadata))
+		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, PointData->Metadata))
 #endif
 		{
 			return false;

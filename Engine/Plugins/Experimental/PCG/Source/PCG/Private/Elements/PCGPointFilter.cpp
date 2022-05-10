@@ -818,7 +818,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			}
 			else if(ThresholdSpatialData)
 			{
-				bSkipTest = !ThresholdSpatialData->GetPointAtPosition(SourcePoint.Transform.GetLocation(), ThresholdPoint, TemporaryMetadata);
+				bSkipTest = !ThresholdSpatialData->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ThresholdPoint, TemporaryMetadata);
 			}
 			else // Only metadata entry (param)
 			{

@@ -9,9 +9,15 @@ FPCGPoint::FPCGPoint(const FTransform& InTransform, float InDensity, int32 InSee
 {
 }
 
-FBoxSphereBounds FPCGPoint::GetBounds() const
+FBox FPCGPoint::GetLocalBounds() const
 {
-	return FBoxSphereBounds(FBox(BoundsMin, BoundsMax).TransformBy(Transform));
+	return FBox(BoundsMin, BoundsMax);
+}
+
+void FPCGPoint::SetLocalBounds(const FBox& InBounds)
+{
+	BoundsMin = InBounds.Min;
+	BoundsMax = InBounds.Max;
 }
 
 FBoxSphereBounds FPCGPoint::GetDensityBounds() const

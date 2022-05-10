@@ -78,92 +78,14 @@ FBox UPCGUnionData::GetStrictBounds() const
 	return CachedStrictBounds;
 }
 
-float UPCGUnionData::GetDensityAtPosition(const FVector& InPosition) const
+bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	// Early exits
-	if(!PCGHelpers::IsInsideBounds(CachedBounds, InPosition))
-	{
-		return 0;
-	}
-	else if(PCGHelpers::IsInsideBounds(CachedStrictBounds, InPosition))
-	{
-		return 1.0f;
-	}
-
-	// Check for presence in any strict bounds of the data.
-	// Note that it can be superfluous in some instances as we will might end up testing
-	// the strict bounds twice per data, but it will perform better in the worst case.
-	for (int32 DataIndex = 0; DataIndex < Data.Num(); ++DataIndex)
-	{
-		if(PCGHelpers::IsInsideBounds(Data[DataIndex]->GetStrictBounds(), InPosition))
-		{
-			return 1.0f;
-		}
-	}
-
-	float Density = 0.0f;
-
-	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
-	{
-		if (PCGUnionDataMaths::UpdateDensity(Density, Datum->GetDensityAtPosition(InPosition), DensityFunction) == 1.0f)
-		{
-			break;
-		}
-	}
-
-	return Density;
-}
-
-FVector UPCGUnionData::TransformPosition(const FVector& InPosition) const
-{
-	if (FirstNonTrivialTransformData)
-	{
-		return FirstNonTrivialTransformData->TransformPosition(InPosition);
-	}
-	else
-	{
-		return Super::TransformPosition(InPosition);
-	}
-}
-
-FPCGPoint UPCGUnionData::TransformPoint(const FPCGPoint& InPoint) const
-{
-	if (FirstNonTrivialTransformData)
-	{
-		FPCGPoint TransformedPoint = FirstNonTrivialTransformData->TransformPoint(InPoint);
-
-		if (DensityFunction == EPCGUnionDensityFunction::Binary && TransformedPoint.Density > 0)
-		{
-			TransformedPoint.Density = 1.0f;
-		}
-
-		const int32 DataCount = Data.Num();
-		for(int32 DataIndex = 0; DataIndex < DataCount && TransformedPoint.Density < 1.0f; ++DataIndex)
-		{
-			if (Data[DataIndex] != FirstNonTrivialTransformData)
-			{
-				PCGUnionDataMaths::UpdateDensity(TransformedPoint.Density, Data[DataIndex]->GetDensityAtPosition(TransformedPoint.Transform.GetLocation()), DensityFunction);
-			}
-		}
-
-		return TransformedPoint;
-	}
-	else
-	{
-		return Super::TransformPoint(InPoint);
-	}
-}
-
-bool UPCGUnionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
-{
-	FVector PointPosition = InPosition;
 	bool bHasSetPoint = false;
 
 	if (FirstNonTrivialTransformData)
 	{
-		if (FirstNonTrivialTransformData->GetPointAtPosition(InPosition, OutPoint, OutMetadata))
+		if (FirstNonTrivialTransformData->SamplePoint(InTransform, InBounds, OutPoint, OutMetadata))
 		{
-			PointPosition = OutPoint.Transform.GetLocation();
 			bHasSetPoint = true;
 
 			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
@@ -183,7 +105,7 @@ bool UPCGUnionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 		}
 
 		FPCGPoint PointInData;
-		if (Data[DataIndex]->GetPointAtPosition(PointPosition, PointInData, OutMetadata))
+		if(Data[DataIndex]->SamplePoint(InTransform, InBounds, PointInData, OutMetadata))
 		{
 			if (!bHasSetPoint)
 			{
@@ -356,7 +278,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex && !bSkipLoop; FollowingDataIndex += DataIndexIncrement)
 			{
 				FPCGPoint PointInData;
-				if (Data[FollowingDataIndex]->GetPointAtPosition(OutPoint.Transform.GetLocation(), PointInData, PointData->Metadata))
+				if(Data[FollowingDataIndex]->SamplePoint(OutPoint.Transform, OutPoint.GetLocalBounds(), PointInData, PointData->Metadata))
 				{
 					// Update density
 					PCGUnionDataMaths::UpdateDensity(OutPoint.Density, PointInData.Density, DensityFunction);

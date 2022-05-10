@@ -15,8 +15,6 @@ class PCG_API UPCGSurfaceData : public UPCGSpatialDataWithPointCache
 public:
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override { return 2; }
-	virtual FVector TransformPosition(const FVector& InPosition) const override;
-	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const override;
 	virtual bool HasNonTrivialTransform() const override { return true; }
 	//~End UPCGSpatialData interface
 

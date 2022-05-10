@@ -30,7 +30,7 @@ public:
 
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override;
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther) const override;
 	//~End 
 
@@ -50,7 +50,7 @@ public:
 	void Initialize(const UPCGSplineData* InSourceSpline, const UPCGSpatialData* InTargetSurface);
 
 	//~Begin UPCGSpatialData interface
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	//~End UPCGSpatialData interface
 
 	const UPCGSplineData* GetSpline() const;

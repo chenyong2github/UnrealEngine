@@ -29,7 +29,8 @@ public:
 	FPCGPoint() = default;
 	FPCGPoint(const FTransform& InTransform, float InDensity, int32 InSeed);
 
-	FBoxSphereBounds GetBounds() const;
+	FBox GetLocalBounds() const;
+	void SetLocalBounds(const FBox& InBounds);
 	FBoxSphereBounds GetDensityBounds() const;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)

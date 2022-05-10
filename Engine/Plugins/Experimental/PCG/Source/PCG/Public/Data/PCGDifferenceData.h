@@ -39,10 +39,7 @@ public:
 	virtual int GetDimension() const override;
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
-	virtual FVector TransformPosition(const FVector& InPosition) const override;
-	virtual bool GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
-	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const override;
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override;
 	//~End UPCGSpatialData interface
 
@@ -61,6 +58,4 @@ protected:
 
 	UPROPERTY(BlueprintSetter = SetDensityFunction, EditAnywhere, Category = Settings)
 	EPCGDifferenceDensityFunction DensityFunction = EPCGDifferenceDensityFunction::Minimum;
-
-	float GetDensityAtPositionFromDifference(const FVector& InPosition) const;
 };

@@ -191,8 +191,9 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 				const float RandY = RandomSource.FRand();
 				 
 				const FVector TentativeLocation = FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, 0.0f);
+				const FBox LocalBound(-LoopData.PointExtents, LoopData.PointExtents);
 
-				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata) || LoopData.bKeepZeroDensityPoints)
+				if (SpatialInput->SamplePoint(FTransform(TentativeLocation), LocalBound, OutPoint, SampledData->Metadata) || LoopData.bKeepZeroDensityPoints)
 				{
 					// Apply final parameters on the point
 					OutPoint.SetExtents(LoopData.PointExtents);

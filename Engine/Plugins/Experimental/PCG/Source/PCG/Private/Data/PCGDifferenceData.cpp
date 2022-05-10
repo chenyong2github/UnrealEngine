@@ -26,13 +26,6 @@ namespace PCGDifferenceDataUtils
 	}
 }
 
-float UPCGDifferenceData::GetDensityAtPositionFromDifference(const FVector& InPosition) const
-{
-	const float DensityInDifference = (Difference ? Difference->GetDensityAtPosition(InPosition) : 0.0f);
-	const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
-	return ((bBinaryDensity && DensityInDifference > 0) ? 1.0f : DensityInDifference);
-}
-
 void UPCGDifferenceData::Initialize(const UPCGSpatialData* InData)
 {
 	check(InData);
@@ -107,55 +100,12 @@ FBox UPCGDifferenceData::GetStrictBounds() const
 	return Difference ? FBox(EForceInit::ForceInit) : Source->GetStrictBounds();
 }
 
-float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
-{
-	if(!PCGHelpers::IsInsideBounds(Source->GetBounds(), InPosition) ||
-		(Difference && PCGHelpers::IsInsideBounds(Difference->GetStrictBounds(), InPosition)))
-	{
-		return 0;
-	}
-	else if(Difference)
-	{
-		const float DensityInSource = Source->GetDensityAtPosition(InPosition);
-		if (DensityInSource == 0)
-		{
-			return 0;
-		}
-
-		const float DensityInDifference = GetDensityAtPositionFromDifference(InPosition);
-		return FMath::Max(0, DensityInSource - DensityInDifference);
-	}
-	else
-	{
-		return Source->GetDensityAtPosition(InPosition);
-	}
-}
-
-FVector UPCGDifferenceData::TransformPosition(const FVector& InPosition) const
-{
-	check(Source);
-	return Source->TransformPosition(InPosition);
-}
-
-FPCGPoint UPCGDifferenceData::TransformPoint(const FPCGPoint& InPoint) const
-{
-	check(Source);
-	FPCGPoint TransformedPoint = Source->TransformPoint(InPoint);
-
-	if (Difference && TransformedPoint.Density > 0)
-	{
-		TransformedPoint.Density = FMath::Max(0, TransformedPoint.Density - GetDensityAtPositionFromDifference(TransformedPoint.Transform.GetLocation()));
-	}
-
-	return TransformedPoint;
-}
-
-bool UPCGDifferenceData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+bool UPCGDifferenceData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	check(Source);
 
 	FPCGPoint PointFromSource;
-	if (!Source->GetPointAtPosition(InPosition, PointFromSource, OutMetadata))
+	if(!Source->SamplePoint(InTransform, InBounds, PointFromSource, OutMetadata))
 	{
 		return false;
 	}
@@ -163,7 +113,8 @@ bool UPCGDifferenceData::GetPointAtPosition(const FVector& InPosition, FPCGPoint
 	OutPoint = PointFromSource;
 
 	FPCGPoint PointFromDiff;
-	if (Difference && Difference->GetPointAtPosition(PointFromSource.Transform.GetLocation(), PointFromDiff, OutMetadata))
+	// Important note: here we will not use the point we got from the source, otherwise we are introducing severe bias
+	if (Difference && Difference->SamplePoint(InTransform, InBounds, PointFromDiff, OutMetadata))
 	{
 		const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
 		
@@ -219,7 +170,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 		const FPCGPoint& Point = SourcePoints[Index];
 
 		FPCGPoint PointFromDiff;
-		if (Difference && Difference->GetPointAtPosition(Point.Transform.GetLocation(), PointFromDiff, Data->Metadata))
+		if (Difference && Difference->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromDiff, Data->Metadata))
 		{
 			const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
 

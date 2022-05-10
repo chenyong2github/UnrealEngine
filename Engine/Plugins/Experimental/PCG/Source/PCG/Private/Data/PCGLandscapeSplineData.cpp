@@ -205,11 +205,16 @@ FBox UPCGLandscapeSplineData::GetBounds() const
 	return Bounds;
 }
 
-float UPCGLandscapeSplineData::GetDensityAtPosition(const FVector& InPosition) const
+bool UPCGLandscapeSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// TODO : add metadata support on poly lines
+	// TODO : add support for bounds
 	check(Spline);
 
-	const FVector Position = Spline->GetComponentTransform().InverseTransformPosition(InPosition);
+	OutPoint.Transform = Spline->GetComponentTransform().Inverse() * InTransform;
+	OutPoint.SetLocalBounds(InBounds); // TODO: should maybe do Min.Z = Max.Z = 0 ?
+
+	const FVector Position = OutPoint.Transform.GetLocation();
 
 	float PointDensity = 0.0f;
 
@@ -254,5 +259,6 @@ float UPCGLandscapeSplineData::GetDensityAtPosition(const FVector& InPosition) c
 		}
 	}
 
-	return PointDensity;
+	OutPoint.Density = PointDensity;
+	return OutPoint.Density > 0;
 }

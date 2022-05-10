@@ -53,10 +53,10 @@ public:
 
 	/** Computes the density at a given location */
 	UFUNCTION(BlueprintCallable, Category = Distribution)
-	virtual float GetDensityAtPosition(const FVector& InPosition) const PURE_VIRTUAL(UPCGSpatialData::GetDensityAtPosition, return 0;);
+	virtual float GetDensityAtPosition(const FVector& InPosition) const;
 
 	/** Discretizes the data into points */
-	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	UFUNCTION(BlueprintCallable, Category = SpatialData, meta = (DeprecatedFunction))
 	const UPCGPointData* ToPointData() const { return ToPointData(nullptr); }
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
@@ -65,20 +65,10 @@ public:
 	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
 
 	/** Transform a world-space position to a world-space position in relation to the current data. (ex: projection on surface) */
-	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual FVector TransformPosition(const FVector& InPosition) const { return InPosition; }
-
-	/** Transform a full point similar to TransformPosition */
-	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
+	FVector TransformPosition(const FVector& InPosition) const;
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual bool GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
-	{
-		OutPoint.Transform = FTransform(InPosition);
-		OutPoint = TransformPoint(OutPoint);
-		return OutPoint.Density > 0;
-	}
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const PURE_VIRTUAL(UPCGSpatialData::SamplePoint, return false;);
 
 	/** Returns true if the data has a non-trivial transform */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)

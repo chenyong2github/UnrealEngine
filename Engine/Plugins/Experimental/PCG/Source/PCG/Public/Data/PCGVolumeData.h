@@ -22,7 +22,7 @@ public:
 	virtual int GetDimension() const override { return 3; }
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	// ~End UPGCSpatialData interface
 
 	// ~Begin UPCGSpatialDataWithPointCache interface

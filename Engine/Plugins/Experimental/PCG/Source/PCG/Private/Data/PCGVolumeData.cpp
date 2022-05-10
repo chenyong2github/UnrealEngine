@@ -42,23 +42,32 @@ const UPCGPointData* UPCGVolumeData::CreatePointData(FPCGContext* Context) const
 	return nullptr;
 }
 
-float UPCGVolumeData::GetDensityAtPosition(const FVector& InPosition) const
+bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	// TODO: support fall-off between 0-1 density as needed
-	// could use FBox::GetClosestPointTo
-	if(PCGHelpers::IsInsideBounds(GetBounds(), InPosition))
+	// TODO: add metadata
+	// TODO: consider bounds
+	const FVector InPosition = InTransform.GetLocation();
+	if (PCGHelpers::IsInsideBounds(GetBounds(), InPosition))
 	{
-		if(!Volume || PCGHelpers::IsInsideBounds(GetStrictBounds(), InPosition))
+		float PointDensity = 0.0f;
+
+		if (!Volume || PCGHelpers::IsInsideBounds(GetStrictBounds(), InPosition))
 		{
-			return 1.0f;
+			PointDensity = 1.0f;
 		}
 		else
 		{
-			return Volume->EncompassesPoint(InPosition) ? 1.0f : 0.0f;
+			PointDensity = Volume->EncompassesPoint(InPosition) ? 1.0f : 0.0f;
 		}
+
+		OutPoint.Transform = InTransform;
+		OutPoint.SetLocalBounds(InBounds);
+		OutPoint.Density = PointDensity;
+
+		return OutPoint.Density > 0;
 	}
 	else
 	{
-		return 0.0f;
+		return false;
 	}
 }

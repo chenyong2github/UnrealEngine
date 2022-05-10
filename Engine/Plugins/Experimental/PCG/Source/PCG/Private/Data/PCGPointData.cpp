@@ -66,6 +66,20 @@ namespace PCGPointHelpers
 		}
 	}
 
+	float VolumeOverlap(const FPCGPoint& InPoint, const FBox& InTransformedBounds)
+	{
+		const FBox PointTransformedBounds = InPoint.GetLocalBounds().TransformBy(InPoint.Transform);
+		const FBox Overlap = PointTransformedBounds.Overlap(InTransformedBounds);
+		if (Overlap.IsValid)
+		{
+			return Overlap.GetVolume();
+		}
+		else
+		{
+			return 0;
+		}
+	}
+
 	/** Helper function for additive blending of quaternions (copied from ControlRig) */
 	FQuat AddQuatWithWeight(const FQuat& Q, const FQuat& V, float Weight)
 	{
@@ -185,90 +199,7 @@ FPCGPoint UPCGPointData::GetPoint(int32 Index) const
 	}
 }
 
-const FPCGPoint* UPCGPointData::GetPointAtPosition(const FVector& InPosition) const
-{
-	if (bOctreeIsDirty)
-	{
-		RebuildOctree();
-	}
-
-	const FPCGPoint* BestPoint = nullptr;
-
-	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(InPosition, FVector::Zero()), [&BestPoint](const FPCGPointRef& InPointRef) {
-		if (!BestPoint || BestPoint->Density < InPointRef.Point->Density)
-		{
-			BestPoint = InPointRef.Point;
-		}
-	});
-
-	return BestPoint;
-}
-
-FPCGPoint UPCGPointData::TransformPoint(const FPCGPoint& InPoint) const
-{
-	if (bOctreeIsDirty)
-	{
-		RebuildOctree();
-	}
-
-	FPCGPoint Point = InPoint;
-
-	TArray<TPair<const FPCGPoint*, float>> Contributions;
-	const FVector PointPosition = InPoint.Transform.GetLocation();
-
-	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(PointPosition, FVector::Zero()), [&PointPosition, &Contributions](const FPCGPointRef& InPointRef) {
-		Contributions.Emplace(InPointRef.Point, PCGPointHelpers::InverseEuclidianDistance(*InPointRef.Point, PointPosition));
-	});
-
-	float SumContrib = 0;
-	for (const auto& Contribution : Contributions)
-	{
-		SumContrib += Contribution.Value;
-	}
-
-	if (SumContrib <= 0)
-	{
-		return InPoint;
-	}
-
-	FRotator WeightedRotator(0);
-	FVector WeightedScale = FVector::Zero();
-	float WeightedDensity = 0;
-	FVector WeightedBoundsMin = FVector::Zero();
-	FVector WeightedBoundsMax = FVector::Zero();
-	FVector WeightedColor = FVector::Zero();
-	float WeightedSteepness = 0;
-
-	for (const auto& Contribution : Contributions)
-	{
-		const FPCGPoint& SourcePoint = *Contribution.Key;
-		float Weight = Contribution.Value / SumContrib;
-
-		WeightedRotator += (SourcePoint.Transform.Rotator() * Weight); // TODO: This is wonky
-		WeightedScale += (SourcePoint.Transform.GetScale3D() * Weight);
-		WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, PointPosition);
-		WeightedBoundsMin += SourcePoint.BoundsMin * Weight;
-		WeightedBoundsMax += SourcePoint.BoundsMax * Weight;
-		WeightedColor += SourcePoint.Color * Weight;
-		WeightedSteepness += SourcePoint.Steepness * Weight;
-	}
-
-	// Finally, apply changes to point
-	FQuat PointRotation = (Point.Transform.Rotator() + WeightedRotator).Quaternion();
-
-	Point.Transform.SetRotation(PointRotation);
-	Point.Transform.NormalizeRotation();
-	Point.Transform.SetScale3D(Point.Transform.GetScale3D() * WeightedScale);	
-	Point.Density *= WeightedDensity;
-	Point.BoundsMin = WeightedBoundsMin;
-	Point.BoundsMax = WeightedBoundsMax;
-	Point.Color *= WeightedColor;
-	Point.Steepness *= WeightedSteepness;
-
-	return Point;
-}
-
-bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	if (bOctreeIsDirty)
 	{
@@ -276,9 +207,22 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 	}
 
 	TArray<TPair<const FPCGPoint*, float>> Contributions;
-	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(InPosition, FVector::Zero()), [&InPosition, &Contributions](const FPCGPointRef& InPointRef) {
-		Contributions.Emplace(InPointRef.Point, PCGPointHelpers::InverseEuclidianDistance(*InPointRef.Point, InPosition));
-	});
+	const bool bSampleInVolume = (InBounds.GetExtent() != FVector::ZeroVector);
+
+	if (!bSampleInVolume)
+	{
+		const FVector InPosition = InTransform.GetLocation();
+		Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(InPosition, FVector::Zero()), [&InPosition, &Contributions](const FPCGPointRef& InPointRef) {
+			Contributions.Emplace(InPointRef.Point, PCGPointHelpers::InverseEuclidianDistance(*InPointRef.Point, InPosition));
+			});
+	}
+	else
+	{
+		FBox TransformedBounds = InBounds.TransformBy(InTransform);
+		Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(TransformedBounds.GetCenter(), TransformedBounds.GetExtent()), [&TransformedBounds, &Contributions](const FPCGPointRef& InPointRef) {
+			Contributions.Emplace(InPointRef.Point, PCGPointHelpers::VolumeOverlap(*InPointRef.Point, TransformedBounds));
+			});
+	}
 
 	float SumContributions = 0;
 	float MaxContribution = 0;
@@ -300,7 +244,14 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 		return false;
 	}
 
+	const FVector::FReal TransformedBoundsVolume = InBounds.TransformBy(InTransform).GetVolume();
+	auto ComputeDensityContribution = [TransformedBoundsVolume](float VolumeIntersection)
+	{
+		return (TransformedBoundsVolume > 0) ? VolumeIntersection / TransformedBoundsVolume : 1.0f;
+	};
+
 	// Computed weighted average of spatial properties
+	FVector WeightedPosition = FVector::ZeroVector;
 	FQuat WeightedQuat = FQuat::Identity;
 	FVector WeightedScale = FVector::ZeroVector;
 	float WeightedDensity = 0;
@@ -314,9 +265,19 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 		const FPCGPoint& SourcePoint = *Contribution.Key;
 		const float Weight = Contribution.Value / SumContributions;
 
+		WeightedPosition += SourcePoint.Transform.GetLocation();
 		WeightedQuat = PCGPointHelpers::AddQuatWithWeight(WeightedQuat, SourcePoint.Transform.GetRotation(), Weight);
 		WeightedScale += SourcePoint.Transform.GetScale3D() * Weight;
-		WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, InPosition);
+
+		if (!bSampleInVolume)
+		{
+			WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, InTransform.GetLocation());
+		}
+		else
+		{
+			WeightedDensity += SourcePoint.Density * Weight * ComputeDensityContribution(Contribution.Value);
+		}
+
 		WeightedBoundsMin += SourcePoint.BoundsMin * Weight;
 		WeightedBoundsMax += SourcePoint.BoundsMax * Weight;
 		WeightedColor += SourcePoint.Color * Weight;
@@ -328,7 +289,7 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 
 	OutPoint.Transform.SetRotation(WeightedQuat);
 	OutPoint.Transform.SetScale3D(WeightedScale);
-	OutPoint.Transform.SetLocation(InPosition);
+	OutPoint.Transform.SetLocation(bSampleInVolume ? WeightedPosition : InTransform.GetLocation());
 	OutPoint.Density = WeightedDensity;
 	OutPoint.BoundsMin = WeightedBoundsMin;
 	OutPoint.BoundsMax = WeightedBoundsMax;
@@ -351,22 +312,6 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 	}
 
 	return true;
-}
-
-float UPCGPointData::GetDensityAtPosition(const FVector& InPosition) const
-{
-	if (bOctreeIsDirty)
-	{
-		RebuildOctree();
-	}
-
-	float Density = 0;
-
-	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(InPosition, FVector::Zero()), [&InPosition, &Density](const FPCGPointRef& InPointRef) {
-		Density += PCGPointHelpers::ManhattanDensity(*InPointRef.Point, InPosition);
-	});
-
-	return FMath::Min(Density, 1.0f);
 }
 
 void UPCGPointData::RebuildOctree() const

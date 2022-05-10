@@ -6,21 +6,6 @@
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
 
-namespace PCGTextureDataMaths
-{
-	float ComputeDensity(float InDensityA, float InDensityB, EPCGTextureDensityFunction InDensityFunction)
-	{
-		if (InDensityFunction == EPCGTextureDensityFunction::Multiply)
-		{
-			return InDensityA * InDensityB;
-		}
-		else // default: Ignore
-		{
-			return InDensityA;
-		}
-	}
-}
-
 namespace PCGTextureSampling
 {
 	template<typename ValueType>
@@ -97,43 +82,33 @@ FBox UPCGBaseTextureData::GetStrictBounds() const
 	return Bounds;
 }
 
-float UPCGBaseTextureData::GetDensityAtPosition(const FVector& InPosition) const
+bool UPCGBaseTextureData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// TODO: add metadata support
+	// TODO: add sampling along the bounds
 	if (!IsValid())
 	{
-		return 0.0f;
+		return false;
 	}
 
-	FVector LocalPosition = Transform.InverseTransformPosition(InPosition);
-	FVector2D Position2D(LocalPosition.X, LocalPosition.Y);
-
-	FBox2D Surface(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
-
-	return PCGTextureSampling::Sample<float>(Position2D, Surface, Width, Height, [this](int32 Index) { return PCGTextureSampling::SampleFloatChannel(ColorData[Index], ColorChannel); });
-}
-
-FPCGPoint UPCGBaseTextureData::TransformPoint(const FPCGPoint& InPoint) const
-{
-	FPCGPoint Point = InPoint;
-
-	// Update point location: put it on the surface plane
-	FVector PointPositionInLocalSpace = TransformPosition(InPoint.Transform.GetLocation());
+	// Compute transform
+	// TODO: embed local bounds center offset at this time?
+	OutPoint.Transform = Transform.Inverse() * InTransform;
+	FVector PointPositionInLocalSpace = OutPoint.Transform.GetLocation();
 	PointPositionInLocalSpace.Z = 0;
-	Point.Transform.SetLocation(Transform.TransformPosition(PointPositionInLocalSpace));
+	OutPoint.Transform.SetLocation(PointPositionInLocalSpace);
+	OutPoint.SetLocalBounds(InBounds); // TODO: should set Min.Z = Max.Z = 0;
 
-	// Set/Update density & color
+	// Compute density & color (& metadata)
+	// TODO: sample in the bounds given, not only on a single pixel
 	FVector2D Position2D(PointPositionInLocalSpace.X, PointPositionInLocalSpace.Y);
 	FBox2D Surface(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
 
-	if (IsValid())
-	{
-		FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, Width, Height, [this](int32 Index) { return ColorData[Index]; });
+	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, Width, Height, [this](int32 Index) { return ColorData[Index]; });
+	OutPoint.Color = Color;
+	OutPoint.Density = ((DensityFunction == EPCGTextureDensityFunction::Ignore) ? 1.0f : PCGTextureSampling::SampleFloatChannel(Color, ColorChannel));
 
-		Point.Color *= Color;
-		Point.Density = PCGTextureDataMaths::ComputeDensity(Point.Density, PCGTextureSampling::SampleFloatChannel(Color, ColorChannel), DensityFunction);
-	}
-
-	return Point;
+	return OutPoint.Density > 0;
 }
 
 const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) const

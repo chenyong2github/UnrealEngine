@@ -50,76 +50,30 @@ FBox UPCGIntersectionData::GetStrictBounds() const
 	return CachedStrictBounds;
 }
 
-float UPCGIntersectionData::GetDensityAtPosition(const FVector& InPosition) const
+bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	check(A && B);
-	if(!PCGHelpers::IsInsideBounds(CachedBounds, InPosition))
-	{
-		return 0;
-	}
-	else if(PCGHelpers::IsInsideBounds(CachedStrictBounds, InPosition))
-	{
-		return 1.0f;
-	}
-	else
-	{
-		float Density = A->GetDensityAtPosition(InPosition);
-		if (Density > 0)
-		{
-			Density = PCGIntersectionDataMaths::ComputeDensity(Density, B->GetDensityAtPosition(InPosition), DensityFunction);
-		}
 
-		return Density;
-	}
-}
-
-FVector UPCGIntersectionData::TransformPosition(const FVector& InPosition) const
-{
-	check(A && B);
-	return A->HasNonTrivialTransform() ? A->TransformPosition(InPosition) : B->TransformPosition(InPosition);
-}
-
-FPCGPoint UPCGIntersectionData::TransformPoint(const FPCGPoint& InPoint) const
-{ 
-	check(A && B);
-	const UPCGSpatialData* X = A->HasNonTrivialTransform() ? A : B;
-	const UPCGSpatialData* Y = (X == A) ? B : A;
-
-	FPCGPoint TransformedPoint = X->TransformPoint(InPoint);
-	if (TransformedPoint.Density > 0)
-	{
-		TransformedPoint.Density = PCGIntersectionDataMaths::ComputeDensity(TransformedPoint.Density, Y->GetDensityAtPosition(TransformedPoint.Transform.GetLocation()), DensityFunction);
-	}	
-
-	return TransformedPoint;
-}
-
-bool UPCGIntersectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
-{
-	check(A && B);
-	const UPCGSpatialData* X = A->HasNonTrivialTransform() ? A : B;
-	const UPCGSpatialData* Y = (X == A) ? B : A;
-
-	FPCGPoint PointFromX;
-	if (!X->GetPointAtPosition(InPosition, PointFromX, OutMetadata))
+	FPCGPoint PointFromA;
+	if(!A->SamplePoint(InTransform, InBounds, PointFromA, OutMetadata))
 	{
 		return false;
 	}
 
-	FPCGPoint PointFromY;
-	if (!Y->GetPointAtPosition(PointFromX.Transform.GetLocation(), PointFromY, OutMetadata))
+	FPCGPoint PointFromB;
+	if(!B->SamplePoint(InTransform, InBounds, PointFromB, OutMetadata))
 	{
 		return false;
 	}
 
 	// Merge points into a single point
-	OutPoint = PointFromX;
-	OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(PointFromX.Density, PointFromY.Density, DensityFunction);
-	OutPoint.Color = PointFromX.Color * PointFromY.Color;
+	OutPoint = (A->HasNonTrivialTransform() ? PointFromA : PointFromB);
+	OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(PointFromA.Density, PointFromB.Density, DensityFunction);
+	OutPoint.Color = PointFromA.Color * PointFromB.Color;
 
 	if (OutMetadata)
 	{
-		OutMetadata->MergePointAttributes(PointFromX, PointFromY, OutPoint, EPCGMetadataOp::Min);
+		OutMetadata->MergePointAttributes(PointFromA, PointFromB, OutPoint, EPCGMetadataOp::Min);
 	}
 
 	return true;
@@ -175,9 +129,9 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 
 		FPCGPoint PointFromY;
 #if WITH_EDITORONLY_DATA
-		if (!Y->GetPointAtPosition(Point.Transform.GetLocation(), PointFromY, Data->Metadata) && !bKeepZeroDensityPoints)
+		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, Data->Metadata) && !bKeepZeroDensityPoints)
 #else
-		if (!Y->GetPointAtPosition(Point.Transform.GetLocation(), PointFromY, Data->Metadata))
+		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, Data->Metadata))
 #endif
 		{
 			return false;

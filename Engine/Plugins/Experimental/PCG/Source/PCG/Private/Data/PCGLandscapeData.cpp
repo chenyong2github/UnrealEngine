@@ -38,43 +38,25 @@ FBox UPCGLandscapeData::GetStrictBounds() const
 	return Bounds;
 }
 
-FVector UPCGLandscapeData::TransformPosition(const FVector& InPosition) const
+bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(InPosition);
+	// TODO support metadata / additional parameters
+	// TODO support bounds tests
+	// TODO: maybe we should consider the bounds on this data? wasn't done previously
+	TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(InTransform.GetLocation());
 	if (HeightAtVertex.IsSet())
 	{
-		return FVector(InPosition.X, InPosition.Y, HeightAtVertex.GetValue());
+		OutPoint.Transform = InTransform;
+		const FVector LocationOnLandscape = FVector(InTransform.GetLocation().X, InTransform.GetLocation().Y, HeightAtVertex.GetValue());
+		OutPoint.Transform.SetLocation(LocationOnLandscape);
+		OutPoint.SetLocalBounds(InBounds); // TODO: unless we do bounds testing should set Z to 0.
+		OutPoint.Density = 1.0f;
+		return true;
 	}
 	else
 	{
-		return InPosition; // not on landscape
+		return false;
 	}
-}
-
-FPCGPoint UPCGLandscapeData::TransformPoint(const FPCGPoint& InPoint) const
-{
-	// TODO: change orientation, ... based on landscape data
-	FPCGPoint Point = InPoint;
-	FVector PointLocation = InPoint.Transform.GetLocation();
-
-	TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(PointLocation);
-	if (HeightAtVertex.IsSet())
-	{
-		PointLocation.Z = HeightAtVertex.GetValue();
-		Point.Transform.SetLocation(PointLocation);
-	}
-	else
-	{
-		Point.Density = 0;
-	}
-	
-	return Point;
-}
-
-float UPCGLandscapeData::GetDensityAtPosition(const FVector& InPosition) const
-{
-	TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(InPosition);
-	return HeightAtVertex.IsSet() ? 1.0f : 0;
 }
 
 const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) const
