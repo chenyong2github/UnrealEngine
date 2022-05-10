@@ -272,7 +272,10 @@ UNiagaraSystem* UNiagaraBaselineController::GetSystem()
 void UNiagaraBaselineController_Basic::OnBeginTest_Implementation()
 {
 	Super::OnBeginTest_Implementation();
-	SpawnedComponents.SetNumZeroed(NumInstances);
+	if(NumInstances > 0)
+	{
+		SpawnedComponents.SetNumZeroed(NumInstances);
+	}
 }
 
 bool UNiagaraBaselineController_Basic::OnTickTest_Implementation()
