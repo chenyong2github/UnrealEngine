@@ -50,6 +50,14 @@ public:
 	/** @return true if we should abort calculation */
 	TFunction<bool(void)> CancelF = []() { return false; };
 
+	/** Function to call after evaluator data is written to the final image, but before any gutter processing occurs */
+	TFunction<void(TArray<TUniquePtr<TImageBuilder<FVector4f>>>&)> PostWriteToImageCallback
+		= [](TArray<TUniquePtr<TImageBuilder<FVector4f>>>& PostWriteToImageBakeResults) {};
+
+	/* Function to call for each interior sample */
+	TFunction<void(bool, const FMeshMapEvaluator::FCorrespondenceSample&, const FVector2d&, const FVector2i&)> InteriorSampleCallback
+		= [](bool bSampleValid, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FVector2d& UVPosition, const FVector2i& ImageCoords) {};
+
 	/**
 	 * @param ImageCoords the output image coordinates to be evaluated
 	 * @param UV the target mesh UV coordinates to be evaluated

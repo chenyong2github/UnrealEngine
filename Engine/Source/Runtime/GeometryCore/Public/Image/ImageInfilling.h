@@ -91,7 +91,7 @@ public:
 				FVector2i NbrCoords = CenterCoords + IndexUtil::GridOffsets8[j];
 				if (Image.ContainsPixel(NbrCoords))
 				{
-					FVector4f PixelColor = Image.GetPixel(NbrCoords);
+					PixelType PixelColor = Image.GetPixel(NbrCoords);
 					if (PixelColor != MissingValue)
 					{
 						ValidNbrAvg += PixelColor;
@@ -158,7 +158,7 @@ public:
 					NbrSum += Image.GetPixel(NbrCoords);
 					NbrCount++;
 				}
-				PixelType InfillValue = NormalizeFunc(NbrSum, NbrCount);
+				OtherPixelType InfillValue = NormalizeFunc(NbrSum, NbrCount);
 				Image.SetPixel(CenterCoords, InfillValue);
 			}
 		}

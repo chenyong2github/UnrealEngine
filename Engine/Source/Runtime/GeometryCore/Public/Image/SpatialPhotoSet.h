@@ -160,7 +160,9 @@ PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
 }
 
 
-// TODO Consider refactoring this to deduplicate code from ComputeSample, or not, since this is called in a tight inner loop
+// TODO Consider refactoring this to deduplicate code from ComputeSample, or not, since this is called in a tight inner
+// loop. Note: Unlike ComputeSample, which searches for the best valid photo, this function immediately returns from the
+// innermost if since we just want to know if at least one photo has passed the visibility check
 template<typename PixelType, typename RealType>
 bool TSpatialPhotoSet<PixelType, RealType>::IsValidSample(
 	const FVector3d& Position, 

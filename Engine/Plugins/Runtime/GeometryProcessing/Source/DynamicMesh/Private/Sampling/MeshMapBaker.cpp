@@ -376,22 +376,20 @@ void FMeshMapBaker::Bake()
 							const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
 							const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
 
-							// Compute the per-sample correspondence data
-							bool bValidSample = false;
+							// Compute the per-sample correspondence data 
+							// Note: Since we check LinearIdx is an interior sample above we know we'll get a valid
+							// SampleInfo because interior samples all have valid UVTriangleIDs. We don't check the
+							// return value of QuerySampleInfo though because this is a tight inner loop
 							FMeshUVSampleInfo SampleInfo;
-							if (MeshUVSampler.QuerySampleInfo(UVTriangleID, UVPosition, SampleInfo))
+							MeshUVSampler.QuerySampleInfo(UVTriangleID, UVPosition, SampleInfo);
 							{
 								FMeshMapEvaluator::FCorrespondenceSample Sample;
-								if (ComputeCorrespondenceSample(SampleInfo, Sample))
+								bool bSampleValid = ComputeCorrespondenceSample(SampleInfo, Sample);
+								if (bSampleValid)
 								{
 									BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords, OccupancyMap);
-									bValidSample = true;
 								}
-							}
-
-							if (bValidSample == false)
-							{
-								// RecordInvalidSample(Sample, UVPosition, ImageCoords); // TODO
+								InteriorSampleCallback(bSampleValid, Sample, UVPosition, ImageCoords);
 							}
 						}
 					}
@@ -506,6 +504,13 @@ void FMeshMapBaker::Bake()
 			}
 		}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 	}
+
+	if (CancelF())
+	{
+		return;
+	}
+
+	PostWriteToImageCallback(BakeResults);
 
 	if (CancelF())
 	{
