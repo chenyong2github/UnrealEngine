@@ -469,6 +469,11 @@ namespace UnrealBuildTool
 			return NDKVersionInt;
 		}
 
+		public UInt64 GetNdkVersionInt()
+		{
+			return NDKVersionInt;
+		}
+
 		static string CachedPlatformsFilename = "";
 		static bool CachedPlatformsValid = false;
 		static int CachedMinPlatform = -1;

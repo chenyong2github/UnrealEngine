@@ -210,8 +210,9 @@ AppUpdateErrorCode AppUpdateManager_requestCompleteUpdate();
 /// @see AppUpdateInfo_destroy
 AppUpdateErrorCode AppUpdateManager_getInfo(AppUpdateInfo** out_info);
 
-/// Releases the specified AppUpdateInfo and any references it holds. This
-/// function generally doesn't make JNI calls and can be called every frame.
+/// Releases the specified AppUpdateInfo and any references it holds. Except for
+/// rare cases, this function doesn't make JNI calls and can be called every
+/// frame.
 /// @param info The AppUpdateInfo to free.
 void AppUpdateInfo_destroy(AppUpdateInfo* info);
 

@@ -25,6 +25,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <returns>The NDK Level</returns>
 		int GetNdkApiLevelInt(int MinNDK);
+
+		/// <summary>
+		/// Returns the Current NDK Version
+		/// </summary>
+		/// <returns>The NDK Version</returns>
+		UInt64 GetNdkVersionInt();
 	}
 
 	/// <summary>
@@ -84,6 +90,15 @@ namespace UnrealBuildTool
 		public static IAndroidToolChain CreateToolChain(FileReference ProjectFile)
 		{
 			return new AndroidToolChain(ProjectFile, false, null, null);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public static IAndroidToolChain CreateTempToolChain()
+		{
+			return new AndroidToolChain(null, false, null, null);
 		}
 
 		/// <summary>

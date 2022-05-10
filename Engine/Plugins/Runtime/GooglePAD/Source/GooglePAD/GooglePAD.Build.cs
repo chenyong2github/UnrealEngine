@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System;
 using System.IO;
 
 public class GooglePAD : ModuleRules
 {
 	public GooglePAD(ReadOnlyTargetRules Target) : base(Target)
 	{
-		string NDKVersion = "ndk21.4.7075529";
-		
 		PublicIncludePaths.AddRange(
 			new string[] {
 				"Runtime/Launch/Public"
@@ -56,6 +55,14 @@ public class GooglePAD : ModuleRules
 			string PlayCoreSDKPath = Path.Combine(ModuleDirectory, "..", "ThirdParty", "play-core-native-sdk");
 			string PlayCoreIncludePath = Path.Combine(PlayCoreSDKPath, "include");
 			string PlayCoreLibPath = Path.Combine(PlayCoreSDKPath, "libs");
+
+			string NDKVersion = "ndk21.4.7075529";
+			IAndroidToolChain TempToolchain = AndroidExports.CreateTempToolChain();
+			UInt64 NdkVersionInt = TempToolchain.GetNdkVersionInt();
+			if (NdkVersionInt >= 230000)
+			{
+				NDKVersion = "ndk23.0.7599858";
+			}
 
 			PublicAdditionalLibraries.Add(Path.Combine(PlayCoreLibPath, "arm64-v8a", NDKVersion, "c++_static", "libplaycore.so"));
 			PublicAdditionalLibraries.Add(Path.Combine(PlayCoreLibPath, "x86_64", NDKVersion, "c++_static", "libplaycore.so"));
