@@ -413,7 +413,7 @@ bool FSlateD3DRenderer::GenerateDynamicImageResource(FName ResourceName, uint32 
 	return Result != nullptr;
 }
 
-FSlateResourceHandle FSlateD3DRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateResourceHandle FSlateD3DRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	if (!TextureManager.IsValid())
 	{

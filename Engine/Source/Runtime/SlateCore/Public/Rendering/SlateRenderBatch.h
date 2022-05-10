@@ -132,7 +132,7 @@ public:
 	FShaderParams ShaderParams;
 
 	/** Dynamically modified offset that occurs when we have relative position stored render batches. */
-	FVector2D DynamicOffset;
+	FVector2f DynamicOffset;
 
 	/** The Stored clipping state for the corresponding clipping state index.  The indices are not directly comparable later, so we need to expand it to the full state to be compared. */
 	const FSlateClippingState* ClippingState;

@@ -38,7 +38,7 @@ public:
 	/**
 	 * Returns a texture with the passed in name or NULL if it cannot be found.
 	 */
-	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) override;
+	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale) override;
 
 	virtual ISlateAtlasProvider* GetTextureAtlasProvider() override;
 
@@ -76,7 +76,7 @@ private:
 	 * @param LocalSize	The unscaled local size of the final image
 	 * @param DrawScale	Any scaling applied to the final image
 	 */
-	FSlateShaderResourceProxy* GetVectorResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale);
+	FSlateShaderResourceProxy* GetVectorResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale);
 
 	/** 
 	 * Creates textures from files on disk and atlases them if possible

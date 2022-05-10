@@ -4,7 +4,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("GetResourceHandle Time"), STAT_SlateGetResourceHandle, STATGROUP_Slate);
 
-FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SlateGetResourceHandle);
 
@@ -38,5 +38,5 @@ FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlate
 
 FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlateBrush& Brush)
 {
-	return GetResourceHandle(Brush, FVector2D::ZeroVector, 1.0f);
+	return GetResourceHandle(Brush, FVector2f::ZeroVector, 1.0f);
 }

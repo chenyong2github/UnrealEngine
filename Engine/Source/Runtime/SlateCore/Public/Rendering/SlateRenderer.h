@@ -8,6 +8,7 @@
 #include "Rendering/DrawElements.h"
 #include "Templates/RefCounting.h"
 #include "Fonts/FontTypes.h"
+#include "Types/SlateVector2.h"
 #include "PixelFormat.h"
 
 class FRHITexture;
@@ -335,7 +336,12 @@ public:
 	 * @param	DrawScale	The draw scale of the element using the brush (Vector graphics only)
 	 * @return	The created resource handle.
 	 */
-	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) = 0;
+	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use GetResourceHandle(FName,FVector2f, float)")
+	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2d LocalSize, float DrawScale)
+	{
+		return GetResourceHandle(Brush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+	}
+	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale) = 0;
 
 	/**
 	 * Creates a handle to a Slate resource
@@ -348,7 +354,7 @@ public:
 	 */
 	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush)
 	{
-		return GetResourceHandle(Brush, FVector2D::ZeroVector, 1.0f);
+		return GetResourceHandle(Brush, FVector2f::ZeroVector, 1.0f);
 	}
 
 

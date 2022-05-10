@@ -7,6 +7,7 @@
 #include "Textures/SlateShaderResource.h"
 #include "Textures/SlateTextureData.h"
 #include "Textures/TextureAtlas.h"
+#include "Types/SlateVector2.h"
 
 /**
  * Represents a new texture that has been loaded but no resource created for it
@@ -52,7 +53,12 @@ public:
 	/** 
 	 * Returns a texture associated with the passed in name.  Should return nullptr if not found 
 	 */
-	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) = 0;
+	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use GetShaderResource(FName,FVector2f, float)")
+	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2d LocalSize, float DrawScale)
+	{
+		return GetShaderResource(Brush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+	}
+	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale) = 0;
 
 	/**
 	 * Creates a handle to a Slate resource
@@ -65,7 +71,12 @@ public:
 	 * @param	DrawScale	The scale of the draw element using this brush.  This scale is used to rescale vector graphics only
 	 * @return	The created resource handle.  
 	 */
-	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale);
+	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use GetResourceHandle(FName,FVector2f, float)")
+	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2d LocalSize, float DrawScale)
+	{
+		return GetResourceHandle(Brush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+	}
+	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale);
 	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush);
 
 	virtual FSlateShaderResource* GetFontShaderResource( int32 InTextureAtlasIndex, FSlateShaderResource* FontTextureAtlas, const class UObject* FontMaterial ) { return FontTextureAtlas; }

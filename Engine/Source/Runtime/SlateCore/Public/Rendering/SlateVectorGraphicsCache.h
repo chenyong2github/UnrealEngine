@@ -4,6 +4,7 @@
 
 #include "Styling/SlateBrush.h"
 #include "Textures/TextureAtlas.h"
+#include "Types/SlateVector2.h"
 
 class ISlateTextureAtlasFactory;
 class FSlateTextureAtlas;
@@ -15,7 +16,13 @@ class FSlateVectorGraphicsCache : public FSlateFlushableAtlasCache
 public:
 	SLATECORE_API FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtlasFactory> InAtlasFactory);
 
-	SLATECORE_API FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale);
+	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use GetShaderResource(FName,FVector2f, float)")
+	FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2d LocalSize, float DrawScale)
+	{
+		return GetShaderResource(Brush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+	}
+
+	SLATECORE_API FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale);
 
 	SLATECORE_API void UpdateCache();
 	SLATECORE_API void ConditionalFlushCache();
@@ -40,7 +47,13 @@ private:
 		FName BrushName;
 		FIntPoint PixelSize;
 
-		FVectorCacheKey(FName InBrushName, FVector2D LocalSize, float DrawScale)
+		UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use FVectorCacheKey(FName,FVector2f, float)")
+		FVectorCacheKey(FName InBrushName, FVector2d LocalSize, float DrawScale)
+			: FVectorCacheKey(InBrushName, UE::Slate::CastToVector2f(LocalSize), DrawScale)
+		{
+		}
+
+		FVectorCacheKey(FName InBrushName, FVector2f LocalSize, float DrawScale)
 			: BrushName(InBrushName)
 			, PixelSize((LocalSize*DrawScale).IntPoint())
 		{
@@ -67,7 +80,12 @@ private:
 		FVectorCacheKey Key;
 		TArray<uint8> PixelData;
 
-		FRasterRequest(FName InBrushName, FVector2D InLocalSize, float InDrawScale)
+		UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use FRasterRequest(FName,FVector2f, float)")
+		FRasterRequest(FName InBrushName, FVector2d InLocalSize, float InDrawScale)
+			: FRasterRequest(InBrushName, UE::Slate::CastToVector2f(InLocalSize), InDrawScale)
+		{}
+
+		FRasterRequest(FName InBrushName, FVector2f InLocalSize, float InDrawScale)
 			: Key(InBrushName, InLocalSize, InDrawScale)
 		{}
 	};

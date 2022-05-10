@@ -416,7 +416,7 @@ void FSlateOpenGLTextureManager::ConditionalFlushCache()
 /**
  * Returns a texture with the passed in name or NULL if it cannot be found.
  */
-FSlateShaderResourceProxy* FSlateOpenGLTextureManager::GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateShaderResourceProxy* FSlateOpenGLTextureManager::GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	FSlateShaderResourceProxy* Texture = NULL;
 	if (Brush.GetImageType() == ESlateBrushImageType::Vector)
@@ -435,7 +435,7 @@ FSlateShaderResourceProxy* FSlateOpenGLTextureManager::GetShaderResource(const F
 	return Texture;
 }
 
-FSlateShaderResourceProxy* FSlateOpenGLTextureManager::GetVectorResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateShaderResourceProxy* FSlateOpenGLTextureManager::GetVectorResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	return VectorGraphicsCache->GetShaderResource(Brush, LocalSize, DrawScale);
 }
@@ -484,7 +484,7 @@ FAtlasSlotInfo FSlateOpenGLTextureManager::GetAtlasSlotInfoAtPosition(FIntPoint 
 		const FAtlasedTextureSlot* Slot = Atlas->GetSlotAtPosition(InPosition);
 		if (Slot)
 		{
-			NewInfo.AtlasSlotRect = FSlateRect(FVector2D(Slot->X, Slot->Y), FVector2D(Slot->X + Slot->Width, Slot->Y + Slot->Height));
+			NewInfo.AtlasSlotRect = FSlateRect(FVector2f(Slot->X, Slot->Y), FVector2f(Slot->X + Slot->Width, Slot->Y + Slot->Height));
 
 			NewInfo.TextureName = AtlasDebugData.FindRef(Slot);
 

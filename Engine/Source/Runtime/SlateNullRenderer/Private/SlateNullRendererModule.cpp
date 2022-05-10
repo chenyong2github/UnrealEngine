@@ -28,7 +28,7 @@ public:
 #endif
 
 	// FSlateShaderResourceManager interface
-	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) override { return nullptr; }
+	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale) override { return nullptr; }
 	virtual ISlateAtlasProvider* GetTextureAtlasProvider() { return this; }
 	virtual FSlateResourceHandle GetResourceHandle( const FSlateBrush& InBrush ) override 
 	{

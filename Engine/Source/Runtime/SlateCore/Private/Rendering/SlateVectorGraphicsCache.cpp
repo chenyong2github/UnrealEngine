@@ -3,6 +3,7 @@
 #include "Rendering/SlateVectorGraphicsCache.h"
 #include "Rendering/SlateSVGRasterizer.h"
 #include "Textures/TextureAtlas.h"
+#include "Types/SlateVector2.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Async/ParallelFor.h"
 
@@ -34,7 +35,12 @@ FSlateVectorGraphicsCache::FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtl
 {
 }
 
-FSlateShaderResourceProxy* FSlateVectorGraphicsCache::GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+//FSlateShaderResourceProxy* FSlateVectorGraphicsCache::GetShaderResource(const FSlateBrush& Brush, FVector2d LocalSize, float DrawScale)
+//{
+//	return GetShaderResource(Brush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+//}
+
+FSlateShaderResourceProxy* FSlateVectorGraphicsCache::GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	FSlateShaderResourceProxy* Proxy = nullptr;
 

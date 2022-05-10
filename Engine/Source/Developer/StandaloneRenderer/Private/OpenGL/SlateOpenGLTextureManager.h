@@ -29,7 +29,7 @@ public:
 	/**
 	 * Returns a texture with the passed in name or NULL if it cannot be found.
 	 */
-	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) override;
+	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale) override;
 
 
 	virtual ISlateAtlasProvider* GetTextureAtlasProvider() override;
@@ -70,7 +70,7 @@ private:
 
 	FSlateShaderResourceProxy* GetDynamicTextureResource(const FSlateBrush& InBrush);
 
-	FSlateShaderResourceProxy* GetVectorResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale);
+	FSlateShaderResourceProxy* GetVectorResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale);
 private:
 	/** Represents a dynamic resource for rendering */
 	struct FDynamicTextureResource

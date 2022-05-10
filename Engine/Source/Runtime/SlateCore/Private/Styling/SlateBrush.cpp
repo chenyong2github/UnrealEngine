@@ -3,6 +3,7 @@
 #include "Styling/SlateBrush.h"
 #include "SlateGlobals.h"
 #include "Application/SlateApplicationBase.h"
+#include "Types/SlateVector2.h"
 
 FSlateBrush::FSlateBrush()
 	: bIsDynamicallyLoaded(false)
@@ -144,7 +145,7 @@ void FSlateBrush::UpdateRenderingResource(FVector2D LocalSize, float DrawScale) 
 		// For vector graphics we will rebuild the handle only if the shape needs to be rasterized again and the new size and scale
 		if (!ResourceHandle.IsValid() || ImageType == ESlateBrushImageType::Vector)
 		{
-			ResourceHandle = FSlateApplicationBase::Get().GetRenderer()->GetResourceHandle(*this, LocalSize, DrawScale);
+			ResourceHandle = FSlateApplicationBase::Get().GetRenderer()->GetResourceHandle(*this, UE::Slate::CastToVector2f(LocalSize), DrawScale);
 		}
 	}
 

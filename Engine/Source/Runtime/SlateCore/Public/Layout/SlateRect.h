@@ -44,6 +44,13 @@ public:
 		, Bottom(UE_REAL_TO_FLOAT(InEndPos.Y))
 	{ }
 
+	FSlateRect(FVector2f InStartPos, FVector2f InEndPos)
+		: Left(InStartPos.X)
+		, Top(InStartPos.Y)
+		, Right(InEndPos.X)
+		, Bottom(InEndPos.Y)
+	{ }
+
 	/**
 	 * Creates a rect from a top left point and extent. Provided as a factory function to not conflict
 	 * with the TopLeft + BottomRight ctor.

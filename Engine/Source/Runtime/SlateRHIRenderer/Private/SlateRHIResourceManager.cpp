@@ -648,7 +648,7 @@ static void LoadUObjectForBrush( const FSlateBrush& InBrush )
 	}
 }
 
-FSlateShaderResourceProxy* FSlateRHIResourceManager::GetShaderResource(const FSlateBrush& InBrush, FVector2D LocalSize, float DrawScale)
+FSlateShaderResourceProxy* FSlateRHIResourceManager::GetShaderResource(const FSlateBrush& InBrush, FVector2f LocalSize, float DrawScale)
 {
 	SCOPE_CYCLE_COUNTER( STAT_SlateGetResourceTime );
 
@@ -937,7 +937,7 @@ FSlateMaterialResource* FSlateRHIResourceManager::GetMaterialResource(const UObj
 	return MaterialResource.Get();
 }
 
-FSlateShaderResourceProxy* FSlateRHIResourceManager::GetVectorResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateShaderResourceProxy* FSlateRHIResourceManager::GetVectorResource(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	return VectorGraphicsCache->GetShaderResource(Brush, LocalSize, DrawScale);
 }

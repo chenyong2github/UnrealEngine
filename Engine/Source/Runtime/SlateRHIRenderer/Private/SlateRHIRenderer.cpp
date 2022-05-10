@@ -339,7 +339,7 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 
 	if (!WindowToViewportInfo.Contains(&Window.Get()))
 	{
-		const FVector2D WindowSize = Window->GetViewportSize();
+		const FVector2f WindowSize = UE::Slate::CastToVector2f(Window->GetViewportSize());
 
 		// Clamp the window size to a reasonable default anything below 8 is a d3d warning and 8 is used anyway.
 		// @todo Slate: This is a hack to work around menus being summoned with 0,0 for window size until they are ticked.
@@ -1310,7 +1310,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 
 		if (Window)
 		{
-			const FVector2D WindowSize = Window->GetViewportSize();
+			const FVector2f WindowSize = UE::Slate::CastToVector2f(Window->GetViewportSize());
 			if (WindowSize.X > 0 && WindowSize.Y > 0)
 			{
 				// The viewport need to be created at this point  
@@ -1494,7 +1494,7 @@ bool FSlateRHIRenderer::GenerateDynamicImageResource(FName ResourceName, FSlateT
 	return TextureResource.IsValid();
 }
 
-FSlateResourceHandle FSlateRHIRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateResourceHandle FSlateRHIRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	return ResourceManager->GetResourceHandle(Brush, LocalSize, DrawScale);
 }

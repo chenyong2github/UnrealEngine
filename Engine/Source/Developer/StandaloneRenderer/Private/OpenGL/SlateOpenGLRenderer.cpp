@@ -3,6 +3,7 @@
 #include "OpenGL/SlateOpenGLRenderer.h"
 #include "Fonts/FontTypes.h"
 #include "Fonts/FontCache.h"
+#include "Types/SlateVector2.h"
 #include "Widgets/SWindow.h"
 #include "OpenGL/SlateOpenGLTextures.h"
 
@@ -152,7 +153,7 @@ void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 				{
 					//@todo implement fullscreen
 					const bool bFullscreen = false;
-					Private_ResizeViewport( WindowSize, *Viewport, bFullscreen );
+					Private_ResizeViewport( UE::Slate::CastToVector2f(WindowSize), *Viewport, bFullscreen );
 				}
 
 				Viewport->MakeCurrent();
@@ -235,7 +236,7 @@ void FSlateOpenGLRenderer::RequestResize( const TSharedPtr<SWindow>& InWindow, u
 	// @todo implement.  Viewports are currently resized in DrawWindows
 }
 
-void FSlateOpenGLRenderer::Private_ResizeViewport( const FVector2D& WindowSize, FSlateOpenGLViewport& InViewport, bool bFullscreen )
+void FSlateOpenGLRenderer::Private_ResizeViewport( FVector2f WindowSize, FSlateOpenGLViewport& InViewport, bool bFullscreen )
 {
 	uint32 Width = FMath::TruncToInt(WindowSize.X);
 	uint32 Height = FMath::TruncToInt(WindowSize.Y);
@@ -255,7 +256,7 @@ void FSlateOpenGLRenderer::UpdateFullscreenState( const TSharedRef<SWindow> InWi
 //		uint32 ResX = OverrideResX ? OverrideResX : GSystemResolution.ResX;
 //		uint32 ResY = OverrideResY ? OverrideResY : GSystemResolution.ResY;
 
-		Private_ResizeViewport( FVector2D( Viewport->ViewportRect.Right, Viewport->ViewportRect.Bottom ), *Viewport, bFullscreen );
+		Private_ResizeViewport( FVector2f( Viewport->ViewportRect.Right, Viewport->ViewportRect.Bottom ), *Viewport, bFullscreen );
 	}
 }
 
@@ -271,7 +272,7 @@ bool FSlateOpenGLRenderer::GenerateDynamicImageResource(FName ResourceName, uint
 	return TextureManager->CreateDynamicTextureResource(ResourceName, Width, Height, Bytes) != NULL;
 }
 
-FSlateResourceHandle FSlateOpenGLRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
+FSlateResourceHandle FSlateOpenGLRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	return TextureManager->GetResourceHandle(Brush, LocalSize, DrawScale);
 }
