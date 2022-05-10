@@ -106,6 +106,7 @@ protected:
 	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox) override;
 	virtual void SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget) override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
+	virtual void OnAdvancedViewChanged(const ECheckBoxState NewCheckedState) override;
 	// End of SGraphNode interface
 
 	/** Creates a preview viewport if necessary */

@@ -21,7 +21,7 @@ class UMaterialExpressionDesaturation : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Fraction;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionDesaturation)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionDesaturation, Meta = (ShowAsInputPin = "Advanced"))
 	FLinearColor LuminanceFactors;    // Color component factors for converting a color to greyscale.
 
 

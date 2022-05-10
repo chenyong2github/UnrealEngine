@@ -17,10 +17,10 @@ class UMaterialExpressionConstantBiasScale : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Input;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionConstantBiasScale)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionConstantBiasScale, Meta = (ShowAsInputPin = "Advanced"))
 	float Bias;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionConstantBiasScale)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionConstantBiasScale, Meta = (ShowAsInputPin = "Advanced"))
 	float Scale;
 
 

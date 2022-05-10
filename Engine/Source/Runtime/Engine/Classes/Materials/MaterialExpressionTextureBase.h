@@ -23,7 +23,7 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)
 	TObjectPtr<class UTexture> Texture;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase, meta = (ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialSamplerType> SamplerType;
 	
 	/** Is default selected texture when using mesh paint mode texture painting */

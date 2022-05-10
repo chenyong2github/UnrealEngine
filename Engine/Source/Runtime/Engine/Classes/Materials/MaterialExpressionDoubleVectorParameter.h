@@ -14,7 +14,7 @@ class UMaterialExpressionDoubleVectorParameter : public UMaterialExpressionParam
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter, Meta = (ShowAsInputPin = "Primary"))
 	FVector4d DefaultValue;
 
 	//~ Begin UMaterialExpression Interface

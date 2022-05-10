@@ -31,7 +31,7 @@ class UMaterialExpressionBumpOffset : public UMaterialExpression
 	float ReferencePlane;    // Height at which no offset is applied.
 
 	/** only used if Coordinate is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionBumpOffset)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionBumpOffset, meta = (OverridingInputProperty = "Coordinate"))
 	uint32 ConstCoordinate;
 
 	//~ Begin UMaterialExpression Interface

@@ -21,7 +21,8 @@
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 
-
+static const FName NAME_Pin_NotConnectable("Graph.Pin.Dummy");
+static const FSlateBrush* CacheImg_Pin_NotConnectable = nullptr;
 
 /**
 * Simple representation of the backbuffer that the preview canvas renders to
@@ -291,6 +292,16 @@ void SGraphNodeMaterialBase::CreatePinWidgets()
 			TSharedPtr<SGraphPin> NewPin = CreatePinWidget(CurPin);
 			check(NewPin.IsValid());
 
+			// Assign an custom icon to not connectible pins
+			if (CurPin->bNotConnectable)
+			{
+				if (!CacheImg_Pin_NotConnectable)
+				{
+					CacheImg_Pin_NotConnectable = FAppStyle::Get().GetBrush(NAME_Pin_NotConnectable);
+				}
+				NewPin->SetCustomPinIcon(CacheImg_Pin_NotConnectable, CacheImg_Pin_NotConnectable);
+			}
+
 			this->AddPin(NewPin.ToSharedRef());
 		}
 	}
@@ -309,6 +320,14 @@ void SGraphNodeMaterialBase::MoveTo(const FVector2D& NewPosition, FNodeSet& Node
 void SGraphNodeMaterialBase::AddPin( const TSharedRef<SGraphPin>& PinToAdd )
 {
 	PinToAdd->SetOwner( SharedThis(this) );
+
+	// Set visibility on advanced view pins
+	const UEdGraphPin* PinObj = PinToAdd->GetPinObj();
+	const bool bAdvancedParameter = (PinObj != nullptr) && PinObj->bAdvancedView;
+	if (bAdvancedParameter)
+	{
+		PinToAdd->SetVisibility(TAttribute<EVisibility>(PinToAdd, &SGraphPin::IsPinVisibleAsAdvanced));
+	}
 
 	if (PinToAdd->GetDirection() == EEdGraphPinDirection::EGPD_Input)
 	{
@@ -348,7 +367,25 @@ void SGraphNodeMaterialBase::CreateBelowPinControls(TSharedPtr<SVerticalBox> Mai
 {
 	if (GraphNode && MainBox.IsValid())
 	{
-		int32 LeftPinCount = InputPins.Num();
+		// Count the number of visible input pins on the left
+		int32 LeftPinCount = 0;
+		if (GraphNode->AdvancedPinDisplay == ENodeAdvancedPins::Hidden)
+		{
+			// Advanced view pins are hidden so exclude them from the pin count
+			for (int32 i = 0; i < InputPins.Num(); ++i)
+			{
+				const UEdGraphPin* PinObj = InputPins[i]->GetPinObj();
+				if (!PinObj->bAdvancedView)
+				{
+					LeftPinCount++;
+				}
+			}
+		}
+		else
+		{
+			LeftPinCount = InputPins.Num();
+		}
+
 		int32 RightPinCount = OutputPins.Num();
 
 		const float NegativeHPad = FMath::Max<float>(-Settings->PaddingTowardsNodeEdge, 0.0f);
@@ -444,6 +481,14 @@ TSharedRef<SWidget> SGraphNodeMaterialBase::CreateNodeContentArea()
 				SAssignNew(RightNodeBox, SVerticalBox)
 			]
 		];
+}
+
+void SGraphNodeMaterialBase::OnAdvancedViewChanged(const ECheckBoxState NewCheckedState)
+{
+	SGraphNode::OnAdvancedViewChanged(NewCheckedState);
+
+	// Update the graph node so that the preview is recreated to update its position
+	UpdateGraphNode();
 }
 
 TSharedRef<SWidget> SGraphNodeMaterialBase::CreatePreviewWidget()

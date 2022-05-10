@@ -42,7 +42,7 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 	FExpressionInput AutomaticViewMipBiasValue;
 
 	/** Defines how the MipValue property is applied to the texture lookup */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample, meta=(DisplayName = "MipValueMode"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample, meta=(DisplayName = "MipValueMode", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum ETextureMipValueMode> MipValueMode;
 
 	/** 
@@ -51,7 +51,7 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 	 * Otherwise use one of the global samplers, which will not consume a sampler slot.
 	 * This allows materials to use more than 16 unique textures on SM5 platforms.
 	 */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample, Meta = (ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum ESamplerSourceMode> SamplerSource;
 
 	/** Whether the texture should be sampled with per view mip biasing for sharper output with Temporal AA. */
@@ -69,7 +69,7 @@ protected:
 public:
 
 	/** only used if Coordinates is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample, meta = (OverridingInputProperty = "Coordinates"))
 	uint8 ConstCoordinate;
 
 	/** only used if MipValue is not hooked up */

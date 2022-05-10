@@ -31,7 +31,7 @@ class UMaterialExpressionClamp : public UMaterialExpression
 	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to 'MaxDefault' if not specified"))
 	FExpressionInput Max;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionClamp)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionClamp, Meta = (ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EClampMode> ClampMode;
 
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionClamp, meta=(OverridingInputProperty = "Min"))

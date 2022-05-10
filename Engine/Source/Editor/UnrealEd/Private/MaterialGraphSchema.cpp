@@ -238,6 +238,13 @@ const FName UMaterialGraphSchema::PSC_Green(TEXT("green"));
 const FName UMaterialGraphSchema::PSC_Blue(TEXT("blue"));
 const FName UMaterialGraphSchema::PSC_Alpha(TEXT("alpha"));
 const FName UMaterialGraphSchema::PSC_RGBA(TEXT("rgba"));
+const FName UMaterialGraphSchema::PSC_RGB(TEXT("rgb"));
+const FName UMaterialGraphSchema::PSC_RG(TEXT("rg"));
+const FName UMaterialGraphSchema::PSC_Int(TEXT("int"));
+const FName UMaterialGraphSchema::PSC_Byte(TEXT("byte"));
+const FName UMaterialGraphSchema::PSC_Bool(TEXT("bool"));
+const FName UMaterialGraphSchema::PSC_Float(TEXT("float"));
+const FName UMaterialGraphSchema::PSC_Vector4(TEXT("vector4"));
 
 const FName UMaterialGraphSchema::PN_Execute("execute");
 
@@ -376,6 +383,14 @@ bool UMaterialGraphSchema::ArePinsCompatible_Internal(const UEdGraphPin* InputPi
 {
 	uint32 InputType = GetMaterialValueType(InputPin);
 	uint32 OutputType = GetMaterialValueType(OutputPin);
+
+	if (InputPin->bNotConnectable)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("PinName"), FText::FromName(InputPin->PinName));
+		ResponseMessage = FText::Format(LOCTEXT("PinNotConnectable", "Pin '{PinName}' is not connectable"), Args);	
+		return false;
+	}
 
 	bool bPinsCompatible = CanConnectMaterialValueTypes(InputType, OutputType);
 	if (!bPinsCompatible)
@@ -871,6 +886,16 @@ void UMaterialGraphSchema::DroppedAssetsOnGraph(const TArray<struct FAssetData>&
 			ExpressionPosition.Y += LocOffsetBetweenNodes;
 		}
 	}
+}
+
+void UMaterialGraphSchema::UpdateMaterialOnDefaultValueChanged(const UEdGraph* Graph) const
+{
+	FMaterialEditorUtilities::UpdateMaterialAfterGraphChange(Graph);
+}
+
+void UMaterialGraphSchema::UpdateDetailView(const UEdGraph* Graph) const
+{
+	FMaterialEditorUtilities::UpdateDetailView(Graph);
 }
 
 int32 UMaterialGraphSchema::GetNodeSelectionCount(const UEdGraph* Graph) const

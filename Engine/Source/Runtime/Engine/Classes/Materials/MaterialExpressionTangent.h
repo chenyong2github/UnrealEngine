@@ -16,7 +16,7 @@ class UMaterialExpressionTangent : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Input;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTangent)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTangent, Meta = (ShowAsInputPin = "Advanced"))
 	float Period;
 
 	//~ Begin UMaterialExpression Interface

@@ -501,7 +501,8 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 		{
 			if (Pin->Direction == EGPD_Input && Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 			{
-				if (ExpressionInputs[Pin->SourceIndex]->Expression)
+				// Implicitly generated property inputs are not returned by GetInputs(), so check index is within valid range.
+				if (ExpressionInputs.IsValidIndex(Pin->SourceIndex) && ExpressionInputs[Pin->SourceIndex]->Expression)
 				{
 					// Unclear why this is null sometimes outside of composite reroute, but this is safer than crashing
 					if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExpressionInputs[Pin->SourceIndex]->Expression->GraphNode))
@@ -631,7 +632,8 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 						if (Pin->Direction == EGPD_Input && Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 						{
 							// Wire up non-execution input pins
-							FExpressionInput* ExpressionInput = ExpressionInputs[Pin->SourceIndex];
+							// Implicitly generated property inputs are not returned by GetInputs(), so check index is within valid range.
+							FExpressionInput* ExpressionInput = ExpressionInputs.IsValidIndex(Pin->SourceIndex) ? ExpressionInputs[Pin->SourceIndex] : nullptr;
 							if (Pin->LinkedTo.Num() > 0)
 							{
 								UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];

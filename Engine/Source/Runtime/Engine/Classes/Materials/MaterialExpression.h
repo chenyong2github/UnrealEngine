@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/UnrealType.h"
 #include "Misc/Guid.h"
 #include "MaterialShared.h"
 #include "MaterialExpressionIO.h"
@@ -339,6 +340,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	 *	@param	Outputs		The TArray of outputs to fill in.
 	 */
 	virtual TArray<FExpressionOutput>& GetOutputs();
+	/** Get the expression inputs supported by this expression (Note: property inputs NOT included). */
 	virtual const TArray<FExpressionInput*> GetInputs();
 	virtual FExpressionInput* GetInput(int32 InputIndex);
 	virtual FName GetInputName(int32 InputIndex) const;
@@ -347,6 +349,14 @@ class ENGINE_API UMaterialExpression : public UObject
 	{
 		return true;
 	};
+
+	/** Find the property that is associated with the input pin. */
+	virtual FProperty* GetInputPinProperty(int32 PinIndex);
+	virtual FName GetInputPinSubCategory(int32 PinIndex);
+	virtual UObject* GetInputPinSubCategoryObject(int32 PinIndex);
+	virtual void PinDefaultValueChanged(int32 PinIndex, const FString& DefaultValue);
+	virtual FString GetInputPinDefaultValue(int32 PinIndex);
+	virtual TArray<FProperty*> GetPropertyInputs() const;
 
 	virtual uint32 GetInputType(int32 InputIndex);
 	virtual uint32 GetOutputType(int32 OutputIndex);

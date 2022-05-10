@@ -29,11 +29,11 @@ class UMaterialExpressionDynamicParameter : public UMaterialExpression
 	UPROPERTY(EditAnywhere, editfixedsize, Category=MaterialExpressionDynamicParameter)
 	TArray<FString> ParamNames;
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionDynamicParameter)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionDynamicParameter, Meta = (ShowAsInputPin = "Primary"))
 	FLinearColor DefaultValue;
 
 	/** The index of the dynamic parameter for use in tools that allow > 1 */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionDynamicParameter, meta = (UIMin = 0, ClampMin = 0, UIMax = 3, ClampMax = 3))
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionDynamicParameter, meta = (UIMin = 0, ClampMin = 0, UIMax = 3, ClampMax = 3, ShowAsInputPin = "Primary"))
 	uint32 ParameterIndex;
 
 	//~ Begin UObject Interface

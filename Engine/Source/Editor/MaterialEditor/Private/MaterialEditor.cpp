@@ -6990,6 +6990,11 @@ void FMaterialEditor::AddSelectedExpressionToFavorites()
 	}
 }
 
+void FMaterialEditor::UpdateDetailView()
+{
+	GetDetailView()->InvalidateCachedState();
+}
+
 void FMaterialEditor::OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection)
 {
 	TArray<UObject*> SelectedObjects;
@@ -7067,6 +7072,8 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 			ChannelEditStruct.Red = &Constant3Expression->Constant.R;
 			ChannelEditStruct.Green = &Constant3Expression->Constant.G;
 			ChannelEditStruct.Blue = &Constant3Expression->Constant.B;
+			static FName ConstantName = FName(TEXT("Constant"));
+			ColorPickerProperty = Constant3Expression->GetClass()->FindPropertyByName(ConstantName);
 		}
 		else if( Constant4Expression )
 		{
@@ -7074,6 +7081,8 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 			ChannelEditStruct.Green = &Constant4Expression->Constant.G;
 			ChannelEditStruct.Blue = &Constant4Expression->Constant.B;
 			ChannelEditStruct.Alpha = &Constant4Expression->Constant.A;
+			static FName ConstantName = FName(TEXT("Constant"));
+			ColorPickerProperty = Constant4Expression->GetClass()->FindPropertyByName(ConstantName);
 		}
 		else if (InputExpression)
 		{

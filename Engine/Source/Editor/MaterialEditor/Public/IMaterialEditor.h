@@ -90,6 +90,8 @@ public:
 	 */
 	virtual void UpdateMaterialAfterGraphChange() {};
 
+	virtual void UpdateDetailView() {}
+
 	/**
 	 * Jumps to a specific node or graph
 	 *

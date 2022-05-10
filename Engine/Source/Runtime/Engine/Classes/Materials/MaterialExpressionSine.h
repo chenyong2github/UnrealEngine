@@ -17,7 +17,7 @@ class UMaterialExpressionSine : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Input;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionSine)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionSine, Meta = (ShowAsInputPin = "Advanced"))
 	float Period;
 
 

@@ -67,4 +67,7 @@ protected:
 	virtual uint32 GetPinMaterialType(const UEdGraphPin* Pin) const;
 
 	void EmptyPins();
+
+	/** Return the first input pin matching the name */
+	class UEdGraphPin* GetInputPin(const FName& PinName) const;
 };

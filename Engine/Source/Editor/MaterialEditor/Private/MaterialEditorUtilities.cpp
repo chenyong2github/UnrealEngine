@@ -130,6 +130,15 @@ void FMaterialEditorUtilities::UpdateMaterialAfterGraphChange(const class UEdGra
 	}
 }
 
+void FMaterialEditorUtilities::UpdateDetailView(const class UEdGraph* Graph)
+{
+	TSharedPtr<class IMaterialEditor> MaterialEditor = GetIMaterialEditorForObject(Graph);
+	if (MaterialEditor.IsValid())
+	{
+		MaterialEditor->UpdateDetailView();
+	}
+}
+
 bool FMaterialEditorUtilities::CanPasteNodes(const class UEdGraph* Graph)
 {
 	bool bCanPaste = false;

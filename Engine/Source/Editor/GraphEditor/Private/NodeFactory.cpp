@@ -253,22 +253,6 @@ TSharedPtr<SGraphPin> FNodeFactory::CreatePinWidget(UEdGraphPin* InPin)
 			return K2PinWidget;
 		}
 	}
-
-	if (const UMaterialGraphSchema* MaterialGraphSchema = Cast<const UMaterialGraphSchema>(InPin->GetSchema()))
-	{
-		if (InPin->PinType.PinCategory == MaterialGraphSchema->PC_Exec)
-		{
-			return SNew(SGraphPinExec, InPin);
-		}
-		else if (InPin->PinType.PinCategory == MaterialGraphSchema->PC_MaterialInput)
-		{
-			return SNew(SGraphPinMaterialInput, InPin);
-		}
-		else
-		{
-			return SNew(SGraphPin, InPin);
-		}
-	}
 	
 	// If we didn't pick a custom pin widget, use an uncustomized basic pin
 	return SNew(SGraphPin, InPin);

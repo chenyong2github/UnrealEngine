@@ -43,7 +43,7 @@ class UMaterialExpressionSceneColor : public UMaterialExpression
 	FExpressionInput OffsetFraction_DEPRECATED;
 
 	/** only used if Input is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionSceneColor)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionSceneColor, meta = (OverridingInputProperty = "Input"))
 	FVector2D ConstInput;
 
 	//~ Begin UObject Interface.

@@ -13,7 +13,7 @@ class UMaterialExpressionConstant : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionConstant, DisplayName="Value")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionConstant, DisplayName="Value", Meta=(ShowAsInputPin = "Primary"))
 	float R;
 
 

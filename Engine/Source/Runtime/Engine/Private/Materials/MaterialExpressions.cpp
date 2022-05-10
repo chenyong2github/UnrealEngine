@@ -934,6 +934,406 @@ void UMaterialExpression::PostDuplicate(bool bDuplicateForPIE)
 
 #if WITH_EDITOR
 
+FProperty* UMaterialExpression::GetInputPinProperty(int32 PinIndex)
+{
+	// Explicit input pins are before property input pins
+	TArray<FProperty*> PropertyInputs = GetPropertyInputs();
+	const int32 NumInputs = GetInputs().Num();
+	if (PinIndex < NumInputs)
+	{
+		FExpressionInput* Input = GetInput(PinIndex);
+
+		// Find the UPROPERTY that has OverridingInputProperty meta data pointing to the expression input.
+		static FName OverridingInputPropertyMetaData(TEXT("OverridingInputProperty"));
+		for (TFieldIterator<FProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
+		{
+			FProperty* Property = *InputIt;
+			if (Property->HasMetaData(OverridingInputPropertyMetaData))
+			{
+				const FString& OverridingPropertyName = Property->GetMetaData(OverridingInputPropertyMetaData);
+				FStructProperty* StructProp = FindFProperty<FStructProperty>(GetClass(), *OverridingPropertyName);
+				if (ensure(StructProp != nullptr))
+				{
+					if (Input == StructProp->ContainerPtrToValuePtr<FExpressionInput>(this))
+					{
+						return Property;
+					}
+				}
+			}
+		}
+	}
+	else if (PinIndex < NumInputs + PropertyInputs.Num())
+	{
+		FName PropertyName = PropertyInputs[PinIndex - NumInputs]->GetFName();
+		for (TFieldIterator<FProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
+		{
+			FProperty* Property = *InputIt;
+			if (PropertyName == Property->GetFName())
+			{
+				return Property;
+			}
+		}
+	}
+	return nullptr;
+}
+
+FName UMaterialExpression::GetInputPinSubCategory(int32 PinIndex)
+{
+	FName PinSubCategory;
+
+	// Find the UPROPERTY associated with the pin
+	FProperty* Property = GetInputPinProperty(PinIndex);
+	if (Property)
+	{
+		// This is the UPROPERTY matching with the target input
+		FFieldClass* PropertyClass = Property->GetClass();
+		if (PropertyClass == FFloatProperty::StaticClass())
+		{
+			PinSubCategory = UMaterialGraphSchema::PSC_Red;
+		}
+		else if (PropertyClass == FIntProperty::StaticClass())
+		{
+			PinSubCategory = UMaterialGraphSchema::PSC_Int;
+		}
+		else if (PropertyClass == FUInt32Property::StaticClass())
+		{
+			PinSubCategory = UMaterialGraphSchema::PSC_Int;
+		}
+		else if (PropertyClass == FByteProperty::StaticClass())
+		{
+			PinSubCategory = UMaterialGraphSchema::PSC_Byte;
+		}
+		else if (PropertyClass == FBoolProperty::StaticClass())
+		{
+			PinSubCategory = UMaterialGraphSchema::PSC_Bool;
+		}
+		else if (PropertyClass == FStructProperty::StaticClass())
+		{
+			UScriptStruct* Struct = CastField<FStructProperty>(Property)->Struct;
+			if (Struct == TBaseStructure<FLinearColor>::Get())
+			{
+				PinSubCategory = Property->HasMetaData(TEXT("HideAlphaChannel")) ? UMaterialGraphSchema::PSC_RGB : UMaterialGraphSchema::PSC_RGBA;
+			}
+			else if (Struct == TBaseStructure<FVector4>::Get() || Struct == TVariantStructure<FVector4d>::Get())
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_Vector4;
+			}
+			else if (Struct == TBaseStructure<FVector>::Get() || Struct == TVariantStructure<FVector3f>::Get())
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_RGB;
+			}
+			else if (Struct == TBaseStructure<FVector2D>::Get())
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_RG;
+			}	
+		}
+	}
+
+	return PinSubCategory;
+}
+
+UObject* UMaterialExpression::GetInputPinSubCategoryObject(int32 PinIndex)
+{
+	UObject* PinSubCategoryObject = nullptr;
+	FProperty* Property = GetInputPinProperty(PinIndex);
+	if (Property)
+	{
+		if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+		{
+			PinSubCategoryObject = ByteProperty->GetIntPropertyEnum();
+		}
+	}
+	return PinSubCategoryObject;
+}
+
+void UMaterialExpression::PinDefaultValueChanged(int32 PinIndex, const FString& DefaultValue)
+{
+	// Update the default value of the expression input when pin value changes
+	// Find the UPROPERTY that has OverridingInputProperty meta data pointing to the input, override its value.
+	FProperty* Property = GetInputPinProperty(PinIndex);
+	if (Property)
+	{
+		const FString& ClampMin = Property->GetMetaData(TEXT("ClampMin"));
+		const FString& ClampMax = Property->GetMetaData(TEXT("ClampMax"));
+
+		FFieldClass* PropertyClass = Property->GetClass();
+		if (PropertyClass == FFloatProperty::StaticClass())
+		{
+			float Value = FCString::Atof(*DefaultValue);
+			Value = ClampMin.Len() ? (FMath::Max<float>(FCString::Atof(*ClampMin), Value)) : Value;
+			Value = ClampMax.Len() ? (FMath::Min<float>(FCString::Atof(*ClampMax), Value)) : Value;
+			FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property);
+			FloatProperty->SetPropertyValue_InContainer(this, Value);
+		}
+		else if (PropertyClass == FIntProperty::StaticClass())
+		{
+			int32 Value = FCString::Atoi(*DefaultValue);
+			Value = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), Value)) : Value;
+			Value = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), Value)) : Value;
+			FIntProperty* IntProperty = CastField<FIntProperty>(Property);
+			IntProperty->SetPropertyValue_InContainer(this, Value);
+		}
+		else if (PropertyClass == FUInt32Property::StaticClass())
+		{	
+			int32 IntValue = FCString::Atoi(*DefaultValue);
+			IntValue = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), IntValue)) : IntValue;
+			IntValue = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), IntValue)) : IntValue;
+			// Make sure the value is not negative
+			uint32 Value = (uint32)FMath::Max(IntValue, 0);
+			FUInt32Property* UInt32Property = CastField<FUInt32Property>(Property);
+			UInt32Property->SetPropertyValue_InContainer(this, Value);
+		}
+		else if (PropertyClass == FByteProperty::StaticClass())
+		{
+			FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
+			uint8 Value;
+			UEnum* Enum = ByteProperty->GetIntPropertyEnum();
+			if (Enum)
+			{
+				Value = (uint8)Enum->GetValueByName(FName(DefaultValue));
+			}
+			else
+			{
+				int32 IntValue = FCString::Atoi(*DefaultValue);
+				IntValue = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), IntValue)) : IntValue;
+				IntValue = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), IntValue)) : IntValue;
+				// Make sure the value doesn't exceed byte limit
+				Value = (uint8)FMath::Max(FMath::Min(IntValue, 255), 0);
+			}	
+			ByteProperty->SetPropertyValue_InContainer(this, Value);
+		}
+		else if (PropertyClass == FBoolProperty::StaticClass())
+		{
+			bool Value = FCString::ToBool(*DefaultValue);
+			FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
+			BoolProperty->SetPropertyValue_InContainer(this, Value);
+		}
+		else if (PropertyClass == FStructProperty::StaticClass())
+		{
+			UScriptStruct* Struct = ((FStructProperty*)Property)->Struct;
+			if (Struct == TBaseStructure<FLinearColor>::Get())
+			{
+				FLinearColor* ColorProperty = Property->ContainerPtrToValuePtr<FLinearColor>(this);
+				if (Property->HasMetaData(TEXT("HideAlphaChannel")))
+				{
+					// This is a 3 element vector
+					TArray<FString> Elements;
+					DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
+					check(Elements.Num() == 3);
+					ColorProperty->R = FCString::Atof(*Elements[0]);
+					ColorProperty->G = FCString::Atof(*Elements[1]);
+					ColorProperty->B = FCString::Atof(*Elements[2]);
+				}
+				else
+				{
+					// This is a 4 element vector
+					ColorProperty->InitFromString(DefaultValue);
+				}
+			}
+			else if (Struct == TBaseStructure<FVector4>::Get())
+			{
+				TArray<FString> Elements;
+				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
+				check(Elements.Num() == 4);
+				FVector4* Value = Property->ContainerPtrToValuePtr<FVector4>(this);
+				Value->X = FCString::Atod(*Elements[0]);
+				Value->Y = FCString::Atod(*Elements[1]);
+				Value->Z = FCString::Atod(*Elements[2]);
+				Value->W = FCString::Atod(*Elements[3]);
+			}
+			else if (Struct == TVariantStructure<FVector4d>::Get())
+			{
+				TArray<FString> Elements;
+				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
+				check(Elements.Num() == 4);
+				FVector4d* Value = Property->ContainerPtrToValuePtr<FVector4d>(this);
+				Value->X = FCString::Atod(*Elements[0]);
+				Value->Y = FCString::Atod(*Elements[1]);
+				Value->Z = FCString::Atod(*Elements[2]);
+				Value->W = FCString::Atod(*Elements[3]);
+			}
+			else if (Struct == TBaseStructure<FVector>::Get())
+			{
+				TArray<FString> Elements;
+				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
+				check(Elements.Num() == 3);
+				FVector* Value = Property->ContainerPtrToValuePtr<FVector>(this);
+				Value->X = FCString::Atod(*Elements[0]);
+				Value->Y = FCString::Atod(*Elements[1]);
+				Value->Z = FCString::Atod(*Elements[2]);
+			}
+			else if (Struct == TVariantStructure<FVector3f>::Get())
+			{
+				TArray<FString> Elements;
+				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
+				check(Elements.Num() == 3);
+				FVector3f* Value = Property->ContainerPtrToValuePtr<FVector3f>(this);
+				Value->X = FCString::Atof(*Elements[0]);
+				Value->Y = FCString::Atof(*Elements[1]);
+				Value->Z = FCString::Atof(*Elements[2]);
+			}
+			else if (Struct == TBaseStructure<FVector2D>::Get())
+			{
+				FVector2D* Value = Property->ContainerPtrToValuePtr<FVector2D>(this);
+				Value->InitFromString(DefaultValue);
+			}
+		}
+
+		FPropertyChangedEvent Event(Property);
+		PostEditChangeProperty(Event);
+
+		// Update the expression preview and the material to reflect the change
+		Modify();
+		GetDefault<UMaterialGraphSchema>()->ForceVisualizationCacheClear();
+		const UMaterialGraphSchema* Schema = CastChecked<const UMaterialGraphSchema>(GraphNode->GetSchema());
+		Schema->UpdateMaterialOnDefaultValueChanged(GraphNode->GetGraph());
+		// There might be other properties affected by this property change (e.g. propertyA determines if propertyB is read-only) so refresh the detail view
+		Schema->UpdateDetailView(GraphNode->GetGraph());
+	}
+}
+
+FString UMaterialExpression::GetInputPinDefaultValue(int32 PinIndex)
+{
+	// Find the UPROPERTY for the input pin, retrieve its value.
+	FProperty* Property = GetInputPinProperty(PinIndex);
+	if (Property)
+	{
+		// This is the UPROPERTY matching with the target input
+		FFieldClass* PropertyClass = Property->GetClass();
+		if (PropertyClass == FFloatProperty::StaticClass())
+		{
+			FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property);
+			float Value = FloatProperty->GetPropertyValue_InContainer(this);
+			return FString::SanitizeFloat(Value);
+		}
+		else if (PropertyClass == FIntProperty::StaticClass())
+		{
+			FIntProperty* IntProperty = CastField<FIntProperty>(Property);
+			int32 Value = IntProperty->GetPropertyValue_InContainer(this);
+			return FString::FromInt(Value);
+		}
+		else if (PropertyClass == FUInt32Property::StaticClass())
+		{
+			FUInt32Property* UInt32Property = CastField<FUInt32Property>(Property);
+			uint32 Value = UInt32Property->GetPropertyValue_InContainer(this);
+			return FString::FromInt((int32)Value);
+		}
+		else if (PropertyClass == FByteProperty::StaticClass())
+		{
+			FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
+			uint8 Value = ByteProperty->GetPropertyValue_InContainer(this);
+			return ByteProperty->Enum ? ByteProperty->Enum->GetDisplayNameTextByValue(Value).ToString() : FString::FromInt(Value);
+		}
+		else if (PropertyClass == FBoolProperty::StaticClass())
+		{
+			FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
+			bool Value = BoolProperty->GetPropertyValue_InContainer(this);
+			return Value ? TEXT("true") : TEXT("false");
+		}
+		else if (PropertyClass == FStructProperty::StaticClass())
+		{
+			UScriptStruct* Struct = ((FStructProperty*)Property)->Struct;
+			if (Struct == TBaseStructure<FLinearColor>::Get())
+			{
+				FLinearColor Value = *Property->ContainerPtrToValuePtr<FLinearColor>(this);
+				if (Property->HasMetaData(TEXT("HideAlphaChannel")))
+				{
+					// This is a 3 element vector
+					return FString::SanitizeFloat(Value.R) + FString(TEXT(",")) + FString::SanitizeFloat(Value.G) + FString(TEXT(",")) + FString::SanitizeFloat(Value.B);
+				}
+				else
+				{
+					// This is a 4 element vector
+					return Value.ToString();
+				}
+			}
+			else if (Struct == TBaseStructure<FVector4>::Get())
+			{
+				FVector4 Value = *Property->ContainerPtrToValuePtr<FVector4>(this);		
+				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z) + FString(TEXT(",")) + FString::SanitizeFloat(Value.W);
+			}
+			else if (Struct == TVariantStructure<FVector4d>::Get())
+			{
+				FVector4d Value = *Property->ContainerPtrToValuePtr<FVector4d>(this);		
+				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z) + FString(TEXT(",")) + FString::SanitizeFloat(Value.W);
+			}
+			else if (Struct == TBaseStructure<FVector>::Get())
+			{
+				FVector Value = *Property->ContainerPtrToValuePtr<FVector>(this);
+				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z);
+			}
+			else if (Struct == TVariantStructure<FVector3f>::Get())
+			{
+				FVector3f Value = *Property->ContainerPtrToValuePtr<FVector3f>(this);
+				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z);
+			}
+			else if (Struct == TBaseStructure<FVector2D>::Get())
+			{
+				FVector2D* Value = Property->ContainerPtrToValuePtr<FVector2D>(this);
+				return Value->ToString();
+			}
+		}
+	}
+
+	return TEXT("");
+}
+
+TArray<FProperty*> UMaterialExpression::GetPropertyInputs() const
+{
+	TArray<FProperty*> PropertyInputs;
+
+	static FName OverridingInputPropertyMetaData(TEXT("OverridingInputProperty"));
+	static FName ShowAsInputPinMetaData(TEXT("ShowAsInputPin"));
+	for (TFieldIterator<FProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
+	{
+		bool bCreateInput = false;
+		FProperty* Property = *InputIt;
+		// Don't create an expression input if the property is already associated with one explicitly declared
+		bool bOverridingInputProperty = Property->HasMetaData(OverridingInputPropertyMetaData);
+		// It needs to have the 'EditAnywhere' specifier
+		const bool bEditAnywhere = Property->HasAnyPropertyFlags(CPF_Edit);
+		// It needs to be marked with a valid pin category meta data
+		const FString ShowAsInputPin = Property->GetMetaData(ShowAsInputPinMetaData);
+		const bool bShowAsInputPin = ShowAsInputPin == TEXT("Primary") || ShowAsInputPin == TEXT("Advanced");
+
+		if (!bOverridingInputProperty && bEditAnywhere && bShowAsInputPin)
+		{
+			// Check if the property type fits within the allowed widget types
+			FFieldClass* PropertyClass = Property->GetClass();
+			if (PropertyClass == FFloatProperty::StaticClass()
+				|| PropertyClass == FIntProperty::StaticClass()
+				|| PropertyClass == FUInt32Property::StaticClass()
+				|| PropertyClass == FByteProperty::StaticClass()
+				|| PropertyClass == FBoolProperty::StaticClass()
+				)
+			{
+				bCreateInput = true;
+			}
+			else if (PropertyClass == FStructProperty::StaticClass())
+			{
+				FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+				UScriptStruct* Struct = StructProperty->Struct;
+				if (Struct == TBaseStructure<FLinearColor>::Get()
+					|| Struct == TBaseStructure<FVector4>::Get()
+					|| Struct == TVariantStructure<FVector4d>::Get()
+					|| Struct == TBaseStructure<FVector>::Get()
+					|| Struct == TVariantStructure<FVector3f>::Get()
+					|| Struct == TBaseStructure<FVector2D>::Get()
+					)
+				{
+					bCreateInput = true;
+				}
+			}
+		}
+		if (bCreateInput)
+		{
+			PropertyInputs.Add(Property);
+		}
+	}
+
+	return PropertyInputs;
+}
+
 void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -953,6 +1353,64 @@ void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& Property
 		{
 			Function->PreEditChange(nullptr);
 			Function->PostEditChangeProperty(SubPropertyChangedEvent);
+		}
+	}
+
+	// PropertyChangedEvent.MemberProperty is the owner of PropertyChangedEvent.Property so check for MemberProperty
+	FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	if (MemberPropertyThatChanged != nullptr)
+	{
+		int32 PinIndex = -1;
+		const TArray<FExpressionInput*> AllInputs = GetInputs();
+
+		// Find the expression input this UPROPERTY points to with OverridingInputProperty meta data
+		static FName OverridingInputPropertyMetaData(TEXT("OverridingInputProperty"));
+		if (MemberPropertyThatChanged->HasMetaData(OverridingInputPropertyMetaData))
+		{
+			const FString& OverridingPropertyName = MemberPropertyThatChanged->GetMetaData(OverridingInputPropertyMetaData);
+			FStructProperty* StructProp = FindFProperty<FStructProperty>(GetClass(), *OverridingPropertyName);
+			if (StructProp)
+			{
+				const FExpressionInput* TargetInput = StructProp->ContainerPtrToValuePtr<FExpressionInput>(this);
+				for (int32 i = 0; i < AllInputs.Num(); ++i)
+				{
+					if (TargetInput == AllInputs[i])
+					{
+						PinIndex = i;
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			// Not found in explicit expression inputs, so search in property inputs.
+			TArray<FProperty*> PropertyInputs = GetPropertyInputs();
+			for (int32 i = 0; i < PropertyInputs.Num(); ++i)
+			{
+				if (MemberPropertyThatChanged->GetFName() == PropertyInputs[i]->GetFName())
+				{
+					PinIndex = AllInputs.Num() + i;
+				}
+			}
+		}
+
+		if (PinIndex > -1)
+		{
+			// Update the pin value of the expression input
+			UEdGraphPin* Pin = GraphNode->GetPinAt(PinIndex);
+			Pin->DefaultValue = GetInputPinDefaultValue(PinIndex);
+
+			// If the property is linked as inline toggle to another property, both pins need updating to reflect the change.
+			bool bInlineEditConditionToggle = MemberPropertyThatChanged->HasMetaData(TEXT("InlineEditConditionToggle"));
+			bool bEditCondition = MemberPropertyThatChanged->HasMetaData(TEXT("EditCondition"));
+			if (bInlineEditConditionToggle || bEditCondition)
+			{
+				if (GraphNode)
+				{
+					CastChecked<UMaterialGraphNode>(GraphNode)->RecreateAndLinkNode();
+				}
+			}
 		}
 	}
 
@@ -1032,6 +1490,19 @@ bool UMaterialExpression::CanEditChange(const FProperty* InProperty) const
 					{
 						bIsEditable = false;
 					}
+				}
+			}
+		}
+
+		if (bIsEditable)
+		{
+			// If the property has EditCondition metadata, then whether it's editable depends on the other EditCondition property
+			const FString EditConditionPropertyName = InProperty->GetMetaData(TEXT("EditCondition"));
+			if (!EditConditionPropertyName.IsEmpty())
+			{
+				FBoolProperty* EditConditionProperty = FindFProperty<FBoolProperty>(GetClass(), *EditConditionPropertyName);
+				{
+					bIsEditable = *EditConditionProperty->ContainerPtrToValuePtr<bool>(this);
 				}
 			}
 		}

@@ -336,7 +336,7 @@ protected:
 	EVisibility AdvancedViewArrowVisibility() const;
 
 	/** Show/hide advanced view */
-	void OnAdvancedViewChanged( const ECheckBoxState NewCheckedState );
+	virtual void OnAdvancedViewChanged( const ECheckBoxState NewCheckedState );
 
 	/** hidden == unchecked, shown == checked */
 	ECheckBoxState IsAdvancedViewChecked() const;

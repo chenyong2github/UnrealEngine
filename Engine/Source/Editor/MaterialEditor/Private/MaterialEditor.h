@@ -331,6 +331,8 @@ public:
 	// Widget Accessors
 	TSharedRef<class IDetailsView> GetDetailView() const {return MaterialDetailsView.ToSharedRef();}
 	
+	virtual void UpdateDetailView() override;
+
 	// FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
 

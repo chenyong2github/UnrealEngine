@@ -192,6 +192,13 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	UNREALED_API static const FName PSC_Blue;
 	UNREALED_API static const FName PSC_Alpha;
 	UNREALED_API static const FName PSC_RGBA;
+	UNREALED_API static const FName PSC_RGB;
+	UNREALED_API static const FName PSC_RG;
+	UNREALED_API static const FName PSC_Int;
+	UNREALED_API static const FName PSC_Byte;
+	UNREALED_API static const FName PSC_Bool;
+	UNREALED_API static const FName PSC_Float;
+	UNREALED_API static const FName PSC_Vector4;
 
 	UNREALED_API static const FName PN_Execute; // Category=PC_Exec, singleton, input
 
@@ -242,6 +249,12 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	/** Check whether the types of pins are compatible */
 	bool ArePinsCompatible_Internal(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin, FText& ResponseMessage) const;
 
+	/** update material when the default value of a material node's pin has changed */
+	UNREALED_API void UpdateMaterialOnDefaultValueChanged(const UEdGraph* Graph) const;
+
+	/** Update the detail view */
+	UNREALED_API void UpdateDetailView(const UEdGraph* Graph) const;
+
 	/** Gets the type of this pin (must be part of a UMaterialGraphNode_Base) */
 	UNREALED_API static uint32 GetMaterialValueType(const UEdGraphPin* MaterialPin);
 
@@ -250,7 +263,6 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
-	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override { return true; }
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;

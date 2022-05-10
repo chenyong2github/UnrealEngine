@@ -37,6 +37,21 @@ UEdGraphPin* UMaterialGraphNode_Base::GetInputPin(int32 InputIndex) const
 	return nullptr;
 }
 
+UEdGraphPin* UMaterialGraphNode_Base::GetInputPin(const FName& PinName) const
+{
+	// Return the first input pin matching the name
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec &&
+			Pin->Direction == EGPD_Input &&
+			Pin->PinName == PinName)
+		{
+			return Pin;
+		}
+	}
+	return nullptr;
+}
+
 UEdGraphPin* UMaterialGraphNode_Base::GetOutputPin(int32 OutputIndex) const
 {
 	for (UEdGraphPin* Pin : Pins)
@@ -273,7 +288,7 @@ void UMaterialGraphNode_Base::ReconstructNode()
 		}
 		else
 		{
-			if (OldPin->Direction == EGPD_Input) NewPin = GetInputPin(OldPin->SourceIndex);
+			if (OldPin->Direction == EGPD_Input) NewPin = GetInputPin(OldPin->PinName);
 			else NewPin = GetOutputPin(OldPin->SourceIndex);
 		}
 		if (NewPin)

@@ -31,7 +31,7 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerWeight : public UMaterialEx
 	float PreviewWeight;
 
 	/** only used if Base is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionLandscapeLayerWeight)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionLandscapeLayerWeight, meta = (OverridingInputProperty = "Base"))
 	FVector ConstBase;
 
 public:
