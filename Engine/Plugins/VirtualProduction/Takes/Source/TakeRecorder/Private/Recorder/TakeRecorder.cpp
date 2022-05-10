@@ -724,28 +724,6 @@ void UTakeRecorder::InitializeFromParameters()
 			OnStopCleanup.Add(RestoreImmersiveMode);
 		}
 	}
-
-	// Apply engine Time Dilation
-	UWorld* RecordingWorld = GetWorld();
-	check(RecordingWorld);
-	if (AWorldSettings* WorldSettings = RecordingWorld->GetWorldSettings())
-	{
-		const float ExistingTimeDilation = WorldSettings->TimeDilation;
-		if (Parameters.User.EngineTimeDilation != ExistingTimeDilation)
-		{
-			WorldSettings->SetTimeDilation(Parameters.User.EngineTimeDilation);
-
-			// Restore it when we're done
-			auto RestoreTimeDilation = [ExistingTimeDilation, WeakWorldSettings = MakeWeakObjectPtr(WorldSettings)]
-			{
-				if (AWorldSettings* CleaupWorldSettings = WeakWorldSettings.Get())
-				{
-					CleaupWorldSettings->SetTimeDilation(ExistingTimeDilation);
-				}
-			};
-			OnStopCleanup.Add(RestoreTimeDilation);
-		}
-	}
 }
 
 bool UTakeRecorder::ShouldShowNotifications()
@@ -937,6 +915,29 @@ void UTakeRecorder::PreRecord()
 	if (Sequencer.IsValid())
 	{
 		Sequencer->RefreshTree();
+	}
+
+	// Apply engine Time Dilation after the countdown, otherwise the countdown will be dilated as well!
+	UWorld* RecordingWorld = GetWorld();
+	check(RecordingWorld);
+	if (AWorldSettings* WorldSettings = RecordingWorld->GetWorldSettings())
+	{
+		const float ExistingMatineeTimeDilation = WorldSettings->MatineeTimeDilation;
+
+		if (Parameters.User.EngineTimeDilation != ExistingMatineeTimeDilation)
+		{
+			WorldSettings->MatineeTimeDilation = Parameters.User.EngineTimeDilation;
+
+			// Restore it when we're done
+			auto RestoreTimeDilation = [ExistingMatineeTimeDilation, WeakWorldSettings = MakeWeakObjectPtr(WorldSettings)]
+			{
+				if (AWorldSettings* CleaupWorldSettings = WeakWorldSettings.Get())
+				{
+					CleaupWorldSettings->MatineeTimeDilation = ExistingMatineeTimeDilation;
+				}
+			};
+			OnStopCleanup.Add(RestoreTimeDilation);
+		}
 	}
 }
 
