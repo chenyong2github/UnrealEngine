@@ -250,7 +250,6 @@ public:
 		const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
 		FManagedArrayBase* ManagedArray = Map[Key].Value;
 		ManagedArray->MarkDirty();
-		UE_LOG(LogChaos, Warning, TEXT("Modifying attribute : [%s, %s]"), *Name.ToString(), *Group.ToString());
 		return *(static_cast<TManagedArray<T>*>(ManagedArray));
 	}
 	
