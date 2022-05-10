@@ -47,10 +47,11 @@ UOptimusComputeDataInterface* UOptimusNode_ResourceAccessorBase::GetDataInterfac
 	if (!Description->DataInterface)
 	{
 		Description->DataInterface = NewObject<UOptimusPersistentBufferDataInterface>(InOuter);
-		Description->DataInterface->ResourceName = Description->ResourceName;
-		Description->DataInterface->ValueType = Description->DataType->ShaderValueType;
-		Description->DataInterface->DataDomain = Description->DataDomain;
 	}
+
+	Description->DataInterface->ResourceName = Description->ResourceName;
+	Description->DataInterface->ValueType = Description->DataType->ShaderValueType;
+	Description->DataInterface->DataDomain = Description->DataDomain;
 	
 	return Description->DataInterface;
 }
