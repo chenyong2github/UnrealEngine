@@ -56,6 +56,8 @@ void			Writer_UpdateControl();
 void			Writer_InitializeControl();
 void			Writer_ShutdownControl();
 bool			Writer_IsTracing();
+bool			Writer_IsTailing();
+static bool		Writer_SessionPrologue();
 
 
 
@@ -340,11 +342,10 @@ void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_DescribeEvents()
+static void Writer_DescribeEvents(FEventNode::FIter Iter)
 {
 	TWriteBufferRedirect<4096> TraceData;
 
-	FEventNode::FIter Iter = FEventNode::ReadNew();
 	while (const FEventNode* Event = Iter.GetNext())
 	{
 		Event->Describe();
@@ -382,7 +383,7 @@ static void Writer_DescribeAnnounce()
 	}
 
 	Writer_AnnounceChannels();
-	Writer_DescribeEvents();
+	Writer_DescribeEvents(FEventNode::ReadNew());
 }
 
 
@@ -403,7 +404,7 @@ static void Writer_SendSync()
 	// update that are newer than events sent it the following update where IO
 	// is established. This will result in holes in serial numbering. A few sync
 	// points are sent to aid analysis in determining what are holes and what is
-	// just a requirement for more data. Holws will only occurr at the start.
+	// just a requirement for more data. Holes will only occur at the start.
 
 	// Note that Sync is alias as Important/Internal as changing Bias would
 	// break backwards compatibility.
@@ -412,6 +413,18 @@ static void Writer_SendSync()
 	Writer_SendDataImpl(&SyncPacket, sizeof(SyncPacket));
 
 	--GSyncPacketCountdown;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_Close()
+{
+	if (GDataHandle)
+	{
+		Writer_FlushSendBuffer();
+		IoClose(GDataHandle);
+	}
+
+	GDataHandle = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -431,13 +444,7 @@ static bool Writer_UpdateConnection()
 
 		if (GPendingDataHandle == (~0ull -CloseInertia))
 		{
-			if (GDataHandle)
-			{
-				Writer_FlushSendBuffer();
-				IoClose(GDataHandle);
-			}
-
-			GDataHandle = 0;
+			Writer_Close();
 			GPendingDataHandle = 0;
 		}
 
@@ -454,6 +461,36 @@ static bool Writer_UpdateConnection()
 
 	GDataHandle = GPendingDataHandle;
 	GPendingDataHandle = 0;
+	if (!Writer_SessionPrologue())
+	{
+		return false;
+	}
+
+	// Reset statistics.
+	GTraceStatistics.BytesSent = 0;
+	GTraceStatistics.BytesTraced = 0;
+
+	// The first events we will send are ones that describe the trace's events
+	FEventNode::OnConnect();
+	Writer_DescribeEvents(FEventNode::ReadNew());
+
+	// Send cached events (i.e. importants) and the tail of recent events
+	Writer_CacheOnConnect();
+	Writer_TailOnConnect();
+
+	// See Writer_SendSync() for details.
+	GSyncPacketCountdown = GNumSyncPackets;
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static bool Writer_SessionPrologue()
+{
+	if (!GDataHandle)
+	{
+		return false;
+	}
 
 #if TRACE_PRIVATE_BUFFER_SEND
 	if (!GSendBuffer)
@@ -493,21 +530,6 @@ static bool Writer_UpdateConnection()
 		return false;
 	}
 
-	// Reset statistics.
-	GTraceStatistics.BytesSent = 0;
-	GTraceStatistics.BytesTraced = 0;
-
-	// The first events we will send are ones that describe the trace's events
-	FEventNode::OnConnect();
-	Writer_DescribeEvents();
-
-	// Send cached events (i.e. importants) and the tail of recent events
-	Writer_CacheOnConnect();
-	Writer_TailOnConnect();
-
-	// See Writer_SendSync() for details.
-	GSyncPacketCountdown = GNumSyncPackets;
-
 	return true;
 }
 
@@ -519,13 +541,8 @@ static volatile bool	GWorkerThreadQuit;	// = false;
 static volatile unsigned int	GUpdateInProgress = 1;	// Don't allow updates until initalized
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_WorkerUpdate()
+static void Writer_WorkerUpdateInternal()
 {
-	if (!AtomicCompareExchangeAcquire(&GUpdateInProgress, 1u, 0u))
-	{
-		return;
-	}
-	
 	Writer_UpdateControl();
 	Writer_UpdateConnection();
 	Writer_DescribeAnnounce();
@@ -540,6 +557,17 @@ static void Writer_WorkerUpdate()
 		Writer_FlushSendBuffer();
 	}
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_WorkerUpdate()
+{
+	if (!AtomicCompareExchangeAcquire(&GUpdateInProgress, 1u, 0u))
+	{
+		return;
+	}
+	
+	Writer_WorkerUpdateInternal();
 
 	AtomicExchangeRelease(&GUpdateInProgress, 0u);
 }
@@ -746,6 +774,133 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 	}
 
 	GPendingDataHandle = DataHandle;
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+struct WorkerUpdateLock
+{
+	WorkerUpdateLock()
+	{
+		CyclesPerSecond = TimeGetFrequency();
+		StartSeconds = GetTime();
+
+		while (!AtomicCompareExchangeAcquire(&GUpdateInProgress, 1u, 0u))
+		{
+			ThreadSleep(0);
+
+			if (TimedOut())
+			{
+				break;
+			}
+		}
+	}
+
+	~WorkerUpdateLock()
+	{
+		AtomicExchangeRelease(&GUpdateInProgress, 0u);
+	}
+
+	double GetTime()
+	{
+		return static_cast<double>(TimeGetTimestamp()) / static_cast<double>(CyclesPerSecond);
+	}
+
+	bool TimedOut()
+	{
+		uint64 WaitTime = GetTime() - StartSeconds;
+		return WaitTime > MaxWaitSeconds;
+	}
+
+	uint64 CyclesPerSecond;
+	double StartSeconds;
+	inline const static double MaxWaitSeconds = 1.0;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename Type>
+struct TStashGlobal
+{
+	TStashGlobal(Type& Global)
+		: Variable(Global)
+		, Stashed(Global)
+	{
+		Variable = {};
+	}
+
+	TStashGlobal(Type& Global, const Type& Value)
+		: Variable(Global)
+		, Stashed(Global)
+	{
+		Variable = Value;
+	}
+
+	~TStashGlobal()
+	{
+		Variable = Stashed;
+	}
+
+private:
+	Type& Variable;
+	Type Stashed;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
+{
+	if (!Writer_IsTailing())
+	{
+		return false;
+	}
+
+	WorkerUpdateLock UpdateLock;
+
+	// We have a timeout just in case the worker thread goes off the rails
+	//  We are called by diagnostic handlers like crash reporter, do not deadlock
+	if (UpdateLock.TimedOut())
+	{
+		return false;
+	}
+	
+	// Bring everything up to date with the active tracing connection.
+	//  Any connection writes after we call the worker update
+	//  will need to treat source data structures as read-only.
+	//  Those structures can be stateful about what has or has not been
+	//  written (cursor state, "new" event, etc) to the tracing connection.
+	//  We are pre-empting the connection to write the snapshot.
+	//
+	// Doing a full pump of the data here is more robust than opening
+	//  pathways through each data structure for immutable writes because
+	//  the data structures are order-dependent and inter-referential.
+	//  Not writing all state can very easily lead to bugs in either the
+	//  snapshot or, even worse, the tracing connection. Parsers only
+	//  have a limited tolerance to gaps/out-of-order event packets.
+	Writer_WorkerUpdateInternal();
+
+	{
+		TStashGlobal DataHandle(GDataHandle);
+		TStashGlobal SyncPacketCountdown(GSyncPacketCountdown, GNumSyncPackets);
+		TStashGlobal TraceStatistics(GTraceStatistics);
+
+		// Open the snapshot file and write the file header
+		GDataHandle = FileOpen(Path);
+		if (!GDataHandle || !Writer_SessionPrologue())
+		{
+			return false;
+		}
+
+		// The first events we will send are ones that describe the trace's events
+		Writer_DescribeEvents(FEventNode::Read());
+
+		// Send cached events (i.e. importants) and the tail of recent events
+		Writer_CacheOnConnect();
+		Writer_TailOnConnect();
+
+		// Send sync packets to help parsers digest any out-of-order events
+		Writer_SendSync();
+		Writer_Close();
+	}
+
 	return true;
 }
 

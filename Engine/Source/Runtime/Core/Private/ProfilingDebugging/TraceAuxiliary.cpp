@@ -91,6 +91,7 @@ public:
 	void					UpdateCsvStats() const;
 	void					StartWorkerThread();
 	void					StartEndFramePump();
+	bool					WriteSnapshot(const TCHAR* FilePath);
 
 private:
 	enum class EState : uint8
@@ -113,6 +114,7 @@ private:
 	void					DisableChannel(const TCHAR* Channel);
 	bool					SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 	bool					WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool					FinalizeFilePath(const TCHAR* InPath, FString& OutPath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	typedef TMap<uint32, FChannelEntry, TInlineSetAllocator<128>> ChannelSet;
 	ChannelSet				CommandlineChannels;
@@ -407,7 +409,7 @@ bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host, const FTraceAuxiliary::F
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* InPath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
+bool FTraceAuxiliaryImpl::FinalizeFilePath(const TCHAR* InPath, FString& OutPath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
 {
 	const FStringView Path(InPath);
 
@@ -417,7 +419,7 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* InPath, const FTraceAuxiliary
 	if (Path.IsEmpty())
 	{
 		const FString Name = GetDefaultName();
-		return WriteToFile(*Name, LogCategory);
+		return FinalizeFilePath(*Name, OutPath, LogCategory);
 	}
 
 	FString WritePath;
@@ -471,22 +473,46 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* InPath, const FTraceAuxiliary
 		return false;
 	}
 
-	// Finally, tell trace to write the trace to a file.
+	OutPath = MoveTemp(NativePath);
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
+{
+	FString NativePath;
+	if (!FinalizeFilePath(Path, NativePath, LogCategory))
+	{
+		return false;
+	}
+
 	if (!UE::Trace::WriteTo(*NativePath))
 	{
-		if (FPathViews::Equals(NativePath, WritePath))
+		if (FPathViews::Equals(NativePath, FStringView(Path)))
 		{
 			UE_LOG_REF(LogCategory, Warning, TEXT("Unable to trace to file '%s'"), *NativePath);
 		}
 		else
 		{
-			UE_LOG_REF(LogCategory, Warning, TEXT("Unable to trace to file '%s' (transformed from '%s')"), *NativePath, *WritePath);
+			UE_LOG_REF(LogCategory, Warning, TEXT("Unable to trace to file '%s' (transformed from '%s')"), *NativePath, Path ? Path : TEXT("null"));
 		}
 		return false;
 	}
 
 	TraceDest = MoveTemp(NativePath);
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliaryImpl::WriteSnapshot(const TCHAR* FilePath)
+{
+	FString NativePath;
+	if (!FinalizeFilePath(FilePath, NativePath, LogConsoleResponse))
+	{
+		return false;
+	}
+
+	return UE::Trace::WriteSnapshotTo(*NativePath);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -789,6 +815,32 @@ static void TraceAuxiliaryDisableChannels(const TArray<FString>& Args)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void TraceAuxiliarySnapshotFile(const TArray<FString>& Args)
+{
+	const TCHAR* FilePath = nullptr;
+
+	if (Args.Num() == 1)
+	{
+		FilePath = *Args[0];
+	}
+	else if (Args.Num() > 1)
+	{
+		UE_LOG(LogConsoleResponse, Warning, TEXT("Invalid arguments. Usage: Trace.SnapshotFile [Path]"));
+		return;
+	}
+
+	double StartTime = FPlatformTime::Seconds();
+	if (GTraceAuxiliary.WriteSnapshot(FilePath))
+	{
+		UE_LOG(LogConsoleResponse, Display, TEXT("Trace snapshot generated in %f seconds."), FPlatformTime::Seconds() - StartTime);
+	}
+	else
+	{
+		UE_LOG(LogConsoleResponse, Error, TEXT("Trace snapshot failed."));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static FAutoConsoleCommand TraceAuxiliarySendCmd(
 	TEXT("Trace.Send"),
 	TEXT("<Host> [ChannelSet] - Starts tracing to a trace store."
@@ -862,6 +914,14 @@ static FAutoConsoleCommand TraceAuxiliaryChannelDisableCmd(
 		" If no channel is specified, it disables all channels."
 	),
 	FConsoleCommandWithArgsDelegate::CreateStatic(TraceAuxiliaryDisableChannels)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+static FAutoConsoleCommand TraceAuxiliarySnapshotFileCmd(
+	TEXT("Trace.SnapshotFile"),
+	TEXT("[Path] - Writes a snapshot of the current in-memory trace buffer to a file."
+	),
+	FConsoleCommandWithArgsDelegate::CreateStatic(TraceAuxiliarySnapshotFile)
 );
 
 #endif // UE_TRACE_ENABLED
@@ -1153,6 +1213,15 @@ bool FTraceAuxiliary::Resume()
 {
 #if UE_TRACE_ENABLED
 	GTraceAuxiliary.ResumeChannels();
+#endif
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliary::WriteSnapshot(const TCHAR* FilePath)
+{
+#if UE_TRACE_ENABLED
+	return GTraceAuxiliary.WriteSnapshot(FilePath);
 #endif
 	return true;
 }

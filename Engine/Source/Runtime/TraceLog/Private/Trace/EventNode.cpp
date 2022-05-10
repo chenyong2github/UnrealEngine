@@ -35,7 +35,16 @@ const FEventNode* FEventNode::FIter::GetNext()
 	return Ret;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+FEventNode::FIter FEventNode::Read()
+{
+	if (GEventListHead)
+	{
+		return { GEventListHead };
+	}
 
+	return {};
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 FEventNode::FIter FEventNode::ReadNew()

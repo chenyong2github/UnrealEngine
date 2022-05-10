@@ -46,6 +46,7 @@ public:
 		void*				Inner;
 	};
 
+	static FIter			Read();
 	static FIter			ReadNew();
 	static void				OnConnect();
 	TRACELOG_API uint32		Initialize(const FEventInfo* InInfo);

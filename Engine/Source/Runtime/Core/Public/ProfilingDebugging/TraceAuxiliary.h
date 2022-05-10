@@ -72,6 +72,12 @@ public:
 	static bool Resume();
 
 	/**
+	 * Write tailing memory state to a utrace file.
+	 * @param FilePath Path to the file to write the snapshot to. If it is null or empty a file path will be generated.
+	 */
+	static bool WriteSnapshot(const TCHAR* FilePath);
+
+	/**
 	 * Initialize Trace systems.
 	 * @param CommandLine to use for initializing
 	 */
