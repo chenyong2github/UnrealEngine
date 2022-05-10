@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceSpline.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
@@ -24,7 +25,23 @@ struct FNiagaraSplineDIFunctionVersion
 
 namespace NDISplineLocal
 {
-	static const TCHAR*		TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSplineTemplate.ush");
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FMatrix44f,	SplineTransform)
+		SHADER_PARAMETER(FMatrix44f,	SplineTransformRotationMat)
+		SHADER_PARAMETER(FMatrix44f,	SplineTransformInverseTranspose)
+		SHADER_PARAMETER(FQuat4f,		SplineTransformRotation)
+		SHADER_PARAMETER(FVector3f,		DefaultUpVector)
+		SHADER_PARAMETER(float,			SplineLength)
+		SHADER_PARAMETER(float,			SplineDistanceStep)
+		SHADER_PARAMETER(float,			InvSplineDistanceStep)
+		SHADER_PARAMETER(int,			MaxIndex)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, SplinePositionsLUT)
+		SHADER_PARAMETER_SRV(Buffer<float4>, SplineScalesLUT)
+		SHADER_PARAMETER_SRV(Buffer<float4>, SplineRotationsLUT)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSplineTemplate.ush");
 
 	static const FName SampleSplinePositionByUnitDistanceName("SampleSplinePositionByUnitDistance");
 	static const FName SampleSplinePositionByUnitDistanceWSName("SampleSplinePositionByUnitDistanceWS");
@@ -427,23 +444,7 @@ void UNiagaraDataInterfaceSpline::GetCommonHLSL(FString& OutHLSL)
 void UNiagaraDataInterfaceSpline::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	const TMap<FString, FStringFormatArg> TemplateArgs = {
-		{TEXT("ParameterHLSLSymbol"), ParamInfo.DataInterfaceHLSLSymbol},
-				
-		{TEXT("SplineTransform"), TEXT("SplineTransform_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("SplineTransformRotationMat"), TEXT("SplineTransformRotationMat_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("SplineTransformInverseTranspose"), TEXT("SplineTransformInverseTranspose_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("SplineTransformRotation"), TEXT("SplineTransformRotation_") + ParamInfo.DataInterfaceHLSLSymbol},
-				
-		{TEXT("DefaultUpVector"), TEXT("DefaultUpVector_") + ParamInfo.DataInterfaceHLSLSymbol},		
-				
-		{TEXT("SplineLength"), TEXT("SplineLength_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("SplineDistanceStep"), TEXT("SplineDistanceStep_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("InvSplineDistanceStep"), TEXT("InvSplineDistanceStep_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("MaxIndex"), TEXT("MaxIndex_") + ParamInfo.DataInterfaceHLSLSymbol},
-						
-		{TEXT("SplinePositionsLUT"), TEXT("SplinePositionsLUT_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("SplineScalesLUT"), TEXT("SplineScalesLUT_") + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("SplineRotationsLUT"), TEXT("SplineRotationsLUT_") + ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("ParameterName"), ParamInfo.DataInterfaceHLSLSymbol},
 	};
 	
 	FString TemplateFile;
@@ -477,9 +478,51 @@ bool UNiagaraDataInterfaceSpline::AppendCompileHash(FNiagaraCompileHashVisitor* 
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
 	FSHAHash Hash = GetShaderFileHash(NDISplineLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceExportTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<NDISplineLocal::FShaderParameters>();
 	return bSuccess;
 }
 #endif
+
+void UNiagaraDataInterfaceSpline::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NDISplineLocal::FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceSpline::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNiagaraDataInterfaceProxySpline& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxySpline>();
+	NDISplineLocal::FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<NDISplineLocal::FShaderParameters>();
+	if (FNDISpline_InstanceData_RenderThread* InstanceData_RT = DIProxy.SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID()))
+	{
+		ShaderParameters->SplineTransform					= InstanceData_RT->SplineTransform;
+		ShaderParameters->SplineTransformRotationMat		= InstanceData_RT->SplineTransformRotationMat;
+		ShaderParameters->SplineTransformInverseTranspose	= InstanceData_RT->SplineTransformInverseTranspose;
+		ShaderParameters->SplineTransformRotation			= InstanceData_RT->SplineTransformRotation;
+		ShaderParameters->DefaultUpVector					= InstanceData_RT->DefaultUpVector;
+		ShaderParameters->SplineLength						= InstanceData_RT->SplineLength;
+		ShaderParameters->SplineDistanceStep				= InstanceData_RT->SplineDistanceStep;
+		ShaderParameters->InvSplineDistanceStep				= InstanceData_RT->InvSplineDistanceStep;
+		ShaderParameters->MaxIndex							= InstanceData_RT->MaxIndex;
+		ShaderParameters->SplinePositionsLUT				= InstanceData_RT->SplinePositionsLUT.SRV;
+		ShaderParameters->SplineScalesLUT					= InstanceData_RT->SplineScalesLUT.SRV;
+		ShaderParameters->SplineRotationsLUT				= InstanceData_RT->SplineRotationsLUT.SRV;
+	}
+	else
+	{
+		ShaderParameters->SplineTransform					= FMatrix44f::Identity;
+		ShaderParameters->SplineTransformRotationMat		= FMatrix44f::Identity;
+		ShaderParameters->SplineTransformInverseTranspose	= FMatrix44f::Identity;
+		ShaderParameters->SplineTransformRotation			= FQuat4f::Identity;
+		ShaderParameters->DefaultUpVector					= FVector3f::UnitZ();
+		ShaderParameters->SplineLength						= 0.0f;
+		ShaderParameters->SplineDistanceStep				= 0.0f;
+		ShaderParameters->InvSplineDistanceStep				= 0.0f;
+		ShaderParameters->MaxIndex							= 0;
+		ShaderParameters->SplinePositionsLUT				= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->SplineScalesLUT					= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->SplineRotationsLUT				= FNiagaraRenderer::GetDummyFloat4Buffer();
+	}
+}
 
 bool UNiagaraDataInterfaceSpline::Equals(const UNiagaraDataInterface* Other) const
 {
@@ -713,77 +756,6 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 	//Any situations requiring a rebind?
 	return false;
 }
-
-struct FNiagaraDataInterfaceParametersCS_Spline : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Spline, NonVirtual);
-
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		SplineTransform.Bind(ParameterMap, *(TEXT("SplineTransform_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		SplineTransformRotationMat.Bind(ParameterMap, *(TEXT("SplineTransformRotationMat_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		SplineTransformInverseTranspose.Bind(ParameterMap, *(TEXT("SplineTransformInverseTranspose_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		SplineTransformRotation.Bind(ParameterMap, *(TEXT("SplineTransformRotation_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	
-		DefaultUpVector.Bind(ParameterMap, *(TEXT("DefaultUpVector_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	
-		SplineLength.Bind(ParameterMap, *(TEXT("SplineLength_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		SplineDistanceStep.Bind(ParameterMap, *(TEXT("SplineDistanceStep_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		InvSplineDistanceStep.Bind(ParameterMap, *(TEXT("InvSplineDistanceStep_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		MaxIndex.Bind(ParameterMap, *(TEXT("MaxIndex_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	
-		SplinePositionsLUT.Bind(ParameterMap, *(TEXT("SplinePositionsLUT_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		SplineScalesLUT.Bind(ParameterMap, *(TEXT("SplineScalesLUT_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		SplineRotationsLUT.Bind(ParameterMap, *(TEXT("SplineRotationsLUT_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-	
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		FNiagaraDataInterfaceProxySpline* RT_Proxy = (FNiagaraDataInterfaceProxySpline*)Context.DataInterface;
-
-	
-		if (FNDISpline_InstanceData_RenderThread* Instance_RT_Proxy = RT_Proxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
-		{
-			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineTransform, Instance_RT_Proxy->SplineTransform);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineTransformRotationMat, Instance_RT_Proxy->SplineTransformRotationMat);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineTransformInverseTranspose, Instance_RT_Proxy->SplineTransformInverseTranspose);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineTransformRotation, Instance_RT_Proxy->SplineTransformRotation);
-	
-			SetShaderValue(RHICmdList, ComputeShaderRHI, DefaultUpVector, Instance_RT_Proxy->DefaultUpVector);
-	
-			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineLength, Instance_RT_Proxy->SplineLength);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineDistanceStep, Instance_RT_Proxy->SplineDistanceStep);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InvSplineDistanceStep, Instance_RT_Proxy->InvSplineDistanceStep);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxIndex, Instance_RT_Proxy->MaxIndex);
-	
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, SplinePositionsLUT, Instance_RT_Proxy->SplinePositionsLUT.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, SplineScalesLUT, Instance_RT_Proxy->SplineScalesLUT.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, SplineRotationsLUT, Instance_RT_Proxy->SplineRotationsLUT.SRV);
-		}
-	}
-
-	LAYOUT_FIELD(FShaderParameter, SplineTransform);
-	LAYOUT_FIELD(FShaderParameter, SplineTransformRotationMat);
-	LAYOUT_FIELD(FShaderParameter, SplineTransformInverseTranspose);
-	LAYOUT_FIELD(FShaderParameter, SplineTransformRotation);
-	
-	LAYOUT_FIELD(FShaderParameter, DefaultUpVector);
-	
-	LAYOUT_FIELD(FShaderParameter, SplineLength);
-	LAYOUT_FIELD(FShaderParameter, SplineDistanceStep);
-	LAYOUT_FIELD(FShaderParameter, InvSplineDistanceStep);
-	LAYOUT_FIELD(FShaderParameter, MaxIndex);
-	
-	LAYOUT_FIELD(FShaderResourceParameter, SplinePositionsLUT);
-	LAYOUT_FIELD(FShaderResourceParameter, SplineScalesLUT);
-	LAYOUT_FIELD(FShaderResourceParameter, SplineRotationsLUT);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Spline);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceSpline, FNiagaraDataInterfaceParametersCS_Spline);
 
 void FNiagaraDataInterfaceSplineLUT::BuildLUT(const FSplineCurves& SplineCurves, int32 NumSteps)
 {

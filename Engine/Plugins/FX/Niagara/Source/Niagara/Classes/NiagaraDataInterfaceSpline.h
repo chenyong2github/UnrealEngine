@@ -188,9 +188,7 @@ class NIAGARA_API UNiagaraDataInterfaceSpline : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
-	DECLARE_NIAGARA_DI_PARAMETER();
 public:
-	
 	/** The source actor from which to sample.  Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Spline")
 	TObjectPtr<AActor> Source;
@@ -256,6 +254,9 @@ protected:
 
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 private:
 	

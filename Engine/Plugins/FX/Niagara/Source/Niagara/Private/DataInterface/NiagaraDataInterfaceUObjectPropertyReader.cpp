@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceUObjectPropertyReader.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraFunctionLibrary.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
@@ -193,7 +194,7 @@ namespace NDIUObjectPropertyReaderLocal
 			return nullptr;
 		}
 		static constexpr TCHAR const* HlslBufferType = TEXT("float");
-		static constexpr TCHAR const* HlslBufferRead = TEXT("BUFFER[OFFSET] : 0.0f");
+		static constexpr TCHAR const* HlslBufferRead = TEXT("asfloat(BUFFER[OFFSET]) : 0.0f");
 	};
 
 	template<>
@@ -214,7 +215,7 @@ namespace NDIUObjectPropertyReaderLocal
 			return nullptr;
 		}
 		static constexpr TCHAR const* HlslBufferType = TEXT("float2");
-		static constexpr TCHAR const* HlslBufferRead = TEXT("float2(BUFFER[OFFSET + 0], BUFFER[OFFSET + 1]) : float2(0.0f, 0.0f)");
+		static constexpr TCHAR const* HlslBufferRead = TEXT("float2(asfloat(BUFFER[OFFSET + 0]), asfloat(BUFFER[OFFSET + 1])) : float2(0.0f, 0.0f)");
 	};
 
 	template<>
@@ -235,7 +236,7 @@ namespace NDIUObjectPropertyReaderLocal
 			return nullptr;
 		}
 		static constexpr TCHAR const* HlslBufferType = TEXT("float3");
-		static constexpr TCHAR const* HlslBufferRead = TEXT("float3(BUFFER[OFFSET + 0], BUFFER[OFFSET + 1], BUFFER[OFFSET + 2]) : float3(0.0f, 0.0f, 0.0f)");
+		static constexpr TCHAR const* HlslBufferRead = TEXT("float3(asfloat(BUFFER[OFFSET + 0]), asfloat(BUFFER[OFFSET + 1]), asfloat(BUFFER[OFFSET + 2])) : float3(0.0f, 0.0f, 0.0f)");
 	};
 
 	template<>
@@ -256,7 +257,7 @@ namespace NDIUObjectPropertyReaderLocal
 			return nullptr;
 		}
 		static constexpr TCHAR const* HlslBufferType = TEXT("float4");
-		static constexpr TCHAR const* HlslBufferRead = TEXT("float4(BUFFER[OFFSET + 0], BUFFER[OFFSET + 1], BUFFER[OFFSET + 2], BUFFER[OFFSET + 3]) : float4(0.0f, 0.0f, 0.0f, 0.0f)");
+		static constexpr TCHAR const* HlslBufferRead = TEXT("float4(asfloat(BUFFER[OFFSET + 0]), asfloat(BUFFER[OFFSET + 1]), asfloat(BUFFER[OFFSET + 2]), asfloat(BUFFER[OFFSET + 3])) : float4(0.0f, 0.0f, 0.0f, 0.0f)");
 	};
 
 	template<>
@@ -281,7 +282,7 @@ namespace NDIUObjectPropertyReaderLocal
 			return nullptr;
 		}
 		static constexpr TCHAR const* HlslBufferType = TEXT("float4");
-		static constexpr TCHAR const* HlslBufferRead = TEXT("float4(BUFFER[OFFSET + 0], BUFFER[OFFSET + 1], BUFFER[OFFSET + 2], BUFFER[OFFSET + 3]) : float4(0.0f, 0.0f, 0.0f, 0.0f)");
+		static constexpr TCHAR const* HlslBufferRead = TEXT("float4(asfloat(BUFFER[OFFSET + 0]), asfloat(BUFFER[OFFSET + 1]), asfloat(BUFFER[OFFSET + 2]), asfloat(BUFFER[OFFSET + 3])) : float4(0.0f, 0.0f, 0.0f, 0.0f)");
 	};
 
 	template<>
@@ -302,7 +303,7 @@ namespace NDIUObjectPropertyReaderLocal
 			return nullptr;
 		}
 		static constexpr TCHAR const* HlslBufferType = TEXT("float3");
-		static constexpr TCHAR const* HlslBufferRead = TEXT("float3(BUFFER[OFFSET + 0], BUFFER[OFFSET + 1], BUFFER[OFFSET + 2]) : float3(0.0f, 0.0f, 0.0f)");
+		static constexpr TCHAR const* HlslBufferRead = TEXT("float3(asfloat(BUFFER[OFFSET + 0)], asfloat(BUFFER[OFFSET + 1]), asfloat(BUFFER[OFFSET + 2])) : float3(0.0f, 0.0f, 0.0f)");
 	};
 
 	template<>
@@ -442,93 +443,6 @@ namespace NDIUObjectPropertyReaderLocal
 		}
 	}
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-struct FNDIUObjectPropertyReaderCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIUObjectPropertyReaderCS, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		using namespace NDIUObjectPropertyReaderLocal;
-
-		PropertiesToRead.Reserve(ParameterInfo.GeneratedFunctions.Num());
-		for ( const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo : ParameterInfo.GeneratedFunctions )
-		{
-			#define NDI_PROPERTY_TYPE(TYPE) \
-				else if (FunctionInfo.DefinitionName == FTypeHelper<TYPE>::GetFunctionName()) { PropertiesToRead.Emplace(FTypeHelper<TYPE>::GetTypeDef(), FunctionInfo.Specifiers[0].Value); }
-
-				if (false) { } NDI_PROPERTY_TYPES
-			#undef NDI_PROPERTY_TYPE
-		}
-
-		TransformInfoParam.Bind(ParameterMap, *(TEXT("TransformInfo_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		InvTransformInfoParam.Bind(ParameterMap, *(TEXT("InvTransformInfo_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		PropertyDataParam.Bind(ParameterMap, *(TEXT("PropertyData_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		PropertyOffsetsParam.Bind(ParameterMap, *(TEXT("PropertyOffsets_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		using namespace NDIUObjectPropertyReaderLocal;
-
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		const FNDIProxy* DIProxy = static_cast<FNDIProxy*>(Context.DataInterface);
-		const FInstanceData_RenderThread* InstanceData_RT = &DIProxy->PerInstanceData_RenderThread.FindChecked(Context.SystemInstanceID);
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, PropertyDataParam, InstanceData_RT->PropertyData.SRV);
-		SetShaderValueArray(RHICmdList, ComputeShaderRHI, PropertyOffsetsParam, InstanceData_RT->PropertyOffsets.GetData(), InstanceData_RT->PropertyOffsets.Num());
-
-		{
-			FVector4f TransformData[3];
-			if (InstanceData_RT->CachedTransform.IsSet())
-			{
-				const FQuat4f TransformRotation = FQuat4f(InstanceData_RT->CachedTransform->GetRotation());
-				TransformData[0] = FVector4f(FVector3f(InstanceData_RT->CachedTransform->GetLocation()), 1.0f);
-				TransformData[1] = FVector4f(TransformRotation.X, TransformRotation.Y, TransformRotation.Z, TransformRotation.W);
-				TransformData[2] = FVector4f(FVector3f(InstanceData_RT->CachedTransform->GetScale3D()));
-			}
-			else
-			{
-				TransformData[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
-				TransformData[1] = FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
-				TransformData[2] = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
-			}
-			SetShaderValueArray(RHICmdList, ComputeShaderRHI, TransformInfoParam, TransformData, UE_ARRAY_COUNT(TransformData));
-		}
-
-		{
-			FVector4f InvTransformData[3];
-			if (InstanceData_RT->CachedInvTransform.IsSet())
-			{
-				const FQuat4f InvTransformRotation = FQuat4f(InstanceData_RT->CachedInvTransform->GetRotation());
-				InvTransformData[0] = FVector4f(FVector3f(InstanceData_RT->CachedInvTransform->GetLocation()), 1.0f);
-				InvTransformData[1] = FVector4f(InvTransformRotation.X, InvTransformRotation.Y, InvTransformRotation.Z, InvTransformRotation.W);
-				InvTransformData[2] = FVector4f(FVector3f(InstanceData_RT->CachedInvTransform->GetScale3D()));
-			}
-			else
-			{
-				InvTransformData[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
-				InvTransformData[1] = FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
-				InvTransformData[2] = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
-			}
-			SetShaderValueArray(RHICmdList, ComputeShaderRHI, InvTransformInfoParam, InvTransformData, UE_ARRAY_COUNT(InvTransformData));
-		}
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter,							TransformInfoParam);
-	LAYOUT_FIELD(FShaderParameter,							InvTransformInfoParam);
-	LAYOUT_FIELD(TMemoryImageArray<FNiagaraVariableBase>,	PropertiesToRead);
-	LAYOUT_FIELD(FShaderResourceParameter,					PropertyDataParam);
-	LAYOUT_FIELD(FShaderParameter,							PropertyOffsetsParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDIUObjectPropertyReaderCS);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceUObjectPropertyReader, FNDIUObjectPropertyReaderCS);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -854,12 +768,27 @@ void UNiagaraDataInterfaceUObjectPropertyReader::GetVMExternalFunction(const FVM
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceUObjectPropertyReader::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
+	return bSuccess;
+}
+
 void UNiagaraDataInterfaceUObjectPropertyReader::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, FString& OutHLSL)
 {
-	OutHLSL.Appendf(TEXT("float4 TransformInfo_%s[3];\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
-	OutHLSL.Appendf(TEXT("float4 InvTransformInfo_%s[3];\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
-	OutHLSL.Appendf(TEXT("Buffer<float> PropertyData_%s;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
-	OutHLSL.Appendf(TEXT("uint4 PropertyOffsets_%s[%d];\n"), *ParameterInfo.DataInterfaceHLSLSymbol, FMath::DivideAndRoundUp(ParameterInfo.GeneratedFunctions.Num(), 4));
+	OutHLSL.Appendf(TEXT("float3	%s_TransformLocation;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("uint		%s_TransformValid;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("float4	%s_TransformRotation;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("float3	%s_TransformScale;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+
+	OutHLSL.Appendf(TEXT("float3	%s_InvTransformLocation;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("uint		%s_InvTransformValid;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("float4	%s_InvTransformRotation;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("float3	%s_InvTransformScale;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+
+	OutHLSL.Appendf(TEXT("Buffer<uint>	%s_PropertyData;\n"), *ParameterInfo.DataInterfaceHLSLSymbol);
+	OutHLSL.Appendf(TEXT("uint4			%s_PropertyOffsets[%d];\n"), *ParameterInfo.DataInterfaceHLSLSymbol, FMath::DivideAndRoundUp(ParameterInfo.GeneratedFunctions.Num(), 4));
 }
 
 bool UNiagaraDataInterfaceUObjectPropertyReader::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -873,10 +802,10 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::GetFunctionHLSL(const FNiagaraD
 	{
 		OutHLSL.Appendf(TEXT("void %s(out bool bSuccess, out float3 Position, out float4 Rotation, out float3 Scale)\n"), *FunctionInfo.InstanceName);
 		OutHLSL.Append(TEXT("{\n"));
-		OutHLSL.Appendf(TEXT("	bSuccess = TransformInfo_%s[0].w > 0.0f;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
-		OutHLSL.Appendf(TEXT("	Position = TransformInfo_%s[0].xyz;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
-		OutHLSL.Appendf(TEXT("	Rotation = TransformInfo_%s[1];\n"), *ParamInfo.DataInterfaceHLSLSymbol);
-		OutHLSL.Appendf(TEXT("	Scale = TransformInfo_%s[2].xyz;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	bSuccess = %s_TransformValid != 0;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	Position = %s_TransformLocation;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	Rotation = %s_TransformRotation;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	Scale = %s_TransformScale;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
 		OutHLSL.Append(TEXT("}\n"));
 		return true;
 	}
@@ -884,10 +813,10 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::GetFunctionHLSL(const FNiagaraD
 	{
 		OutHLSL.Appendf(TEXT("void %s(out bool bSuccess, out float3 Position, out float4 Rotation, out float3 Scale)\n"), *FunctionInfo.InstanceName);
 		OutHLSL.Append(TEXT("{\n"));
-		OutHLSL.Appendf(TEXT("	bSuccess = InvTransformInfo_%s[0].w > 0.0f;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
-		OutHLSL.Appendf(TEXT("	Position = InvTransformInfo_%s[0].xyz;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
-		OutHLSL.Appendf(TEXT("	Rotation = InvTransformInfo_%s[1];\n"), *ParamInfo.DataInterfaceHLSLSymbol);
-		OutHLSL.Appendf(TEXT("	Scale = InvTransformInfo_%s[2].xyz;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	bSuccess = %s_InvTransformValid != 0;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	Position = %s_InvTransformLocation;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	Rotation = %s_InvTransformRotation;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
+		OutHLSL.Appendf(TEXT("	Scale = %s_InvTransformScale;\n"), *ParamInfo.DataInterfaceHLSLSymbol);
 		OutHLSL.Append(TEXT("}\n"));
 		return true;
 	}
@@ -904,12 +833,12 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::GetFunctionHLSL(const FNiagaraD
 	if ( HlslBufferType && HlslBufferRead )
 	{
 		FString HlslBufferReadString(HlslBufferRead);
-		HlslBufferReadString.ReplaceInline(TEXT("BUFFER"), *(TEXT("PropertyData_") + ParamInfo.DataInterfaceHLSLSymbol));
+		HlslBufferReadString.ReplaceInline(TEXT("BUFFER"), *(ParamInfo.DataInterfaceHLSLSymbol + TEXT("_PropertyData")));
 		HlslBufferReadString.ReplaceInline(TEXT("OFFSET"), TEXT("BufferOffset"));
 
 		OutHLSL.Appendf(TEXT("void %s(out bool bSuccess, out %s Value)\n"), *FunctionInfo.InstanceName, HlslBufferType);
 		OutHLSL.Append(TEXT("{\n"));
-		OutHLSL.Appendf(TEXT("	uint BufferOffset = PropertyOffsets_%s[%d][%d];\n"), *ParamInfo.DataInterfaceHLSLSymbol, FunctionInstanceIndex / 4, FunctionInstanceIndex % 4);
+		OutHLSL.Appendf(TEXT("	uint BufferOffset = %s_PropertyOffsets[%d][%d];\n"), *ParamInfo.DataInterfaceHLSLSymbol, FunctionInstanceIndex / 4, FunctionInstanceIndex % 4);
 		OutHLSL.Append(TEXT("	bSuccess = BufferOffset != 0xffffffff;\n"));
 		OutHLSL.Appendf(TEXT("	Value = bSuccess ? %s;\n"), *HlslBufferReadString);
 		OutHLSL.Append(TEXT("}\n"));
@@ -919,6 +848,38 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::GetFunctionHLSL(const FNiagaraD
 	return false;
 }
 #endif
+
+void UNiagaraDataInterfaceUObjectPropertyReader::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+
+	const int32 ProperyOffsetsSize = FMath::Max(FMath::DivideAndRoundUp(ShaderParametersBuilder.GetGeneratedFunctions().Num(), 4), 1);
+	ShaderParametersBuilder.AddLooseParamArray<FUintVector4>(TEXT("PropertyOffsets"), ProperyOffsetsSize);
+}
+
+void UNiagaraDataInterfaceUObjectPropertyReader::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	using namespace NDIUObjectPropertyReaderLocal;
+
+	const FNDIProxy& DIProxy = Context.GetProxy<FNDIProxy>();
+	const FInstanceData_RenderThread& InstanceData_RT = DIProxy.PerInstanceData_RenderThread.FindChecked(Context.GetSystemInstanceID());
+
+	FShaderParameters* ShaderParameters		= Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->TransformLocation		= InstanceData_RT.CachedTransform.IsSet() ? FVector3f(InstanceData_RT.CachedTransform->GetLocation()) : FVector3f::ZeroVector;
+	ShaderParameters->TransformValid		= InstanceData_RT.CachedTransform.IsSet() ? 1 : 0;
+	ShaderParameters->TransformRotation		= InstanceData_RT.CachedTransform.IsSet() ? FQuat4f(InstanceData_RT.CachedTransform->GetRotation()) : FQuat4f::Identity;
+	ShaderParameters->TransformScale		= InstanceData_RT.CachedTransform.IsSet() ? FVector3f(InstanceData_RT.CachedTransform->GetScale3D()) : FVector3f::OneVector;
+	ShaderParameters->InvTransformLocation	= InstanceData_RT.CachedInvTransform.IsSet() ? FVector3f(InstanceData_RT.CachedInvTransform->GetLocation()) : FVector3f::ZeroVector;
+	ShaderParameters->InvTransformValid		= InstanceData_RT.CachedInvTransform.IsSet() ? 1 : 0;
+	ShaderParameters->InvTransformRotation	= InstanceData_RT.CachedInvTransform.IsSet() ? FQuat4f(InstanceData_RT.CachedInvTransform->GetRotation()) : FQuat4f::Identity;
+	ShaderParameters->InvTransformScale		= InstanceData_RT.CachedInvTransform.IsSet() ? FVector3f(InstanceData_RT.CachedInvTransform->GetScale3D()) : FVector3f::OneVector;
+	ShaderParameters->PropertyData			= InstanceData_RT.PropertyData.SRV;
+
+	check((InstanceData_RT.PropertyOffsets.Num() % 4) == 0 && InstanceData_RT.PropertyOffsets.Num() > 0);
+	const int32 ProperyOffsetsSize = InstanceData_RT.PropertyOffsets.Num() / 4;
+	TArrayView<FUintVector4> PropertyOffsets = Context.GetParameterLooseArray<FUintVector4>(ProperyOffsetsSize);
+	FMemory::Memcpy(PropertyOffsets.GetData(), InstanceData_RT.PropertyOffsets.GetData(), InstanceData_RT.PropertyOffsets.Num() * InstanceData_RT.PropertyOffsets.GetTypeSize());
+}
 
 void UNiagaraDataInterfaceUObjectPropertyReader::SetUObjectReaderPropertyRemap(UNiagaraComponent* NiagaraComponent, FName UserParameterName, FName GraphName, FName RemapName)
 {
