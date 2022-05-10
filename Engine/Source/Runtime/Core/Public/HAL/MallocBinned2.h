@@ -48,8 +48,11 @@
 	#define DEFAULT_GMallocBinned2BundleSize BINNED2_LARGE_ALLOC
 #endif
 
+// When book keeping is at the end of FFreeBlock, MallocBinned2 cannot tell if the allocation comes from a large allocation (higher than 64KB, also named as "OSAllocation") 
+// or from VeryLargePageAllocator that fell back to FCachedOSPageAllocator. In both cases the allocation (large or small) might be aligned to 64KB.
+// bookKeeping at the end needs to be disabled if we want VeryLargePageAllocator to properly fallback to regular TCachedOSPageAllocator if needed
 #ifndef BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
-#define BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK 1
+#define BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK 0
 #endif
 
 // If we are emulating forking on a windows server or are a linux server, enable support for avoiding dirtying pages owned by the parent. 
@@ -296,7 +299,7 @@ class CORE_API FMallocBinned2 : public FMalloc
 	FORCEINLINE bool IsOSAllocation(const void* Ptr)
 	{
 #if UE_USE_VERYLARGEPAGEALLOCATOR && !PLATFORM_UNIX && !PLATFORM_ANDROID
-		return !CachedOSPageAllocator.IsPartOf(Ptr);
+		return !CachedOSPageAllocator.IsPartOf(Ptr) && IsAligned(Ptr, BINNED2_LARGE_ALLOC);
 #else
 		return IsAligned(Ptr, BINNED2_LARGE_ALLOC);
 #endif

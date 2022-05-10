@@ -9,6 +9,10 @@
 #include "HAL/PlatformMemory.h"
 
 
+#ifndef UE_USE_VERYLARGEPAGEALLOCATOR_FALLBACKPATH
+#define UE_USE_VERYLARGEPAGEALLOCATOR_FALLBACKPATH UE_USE_VERYLARGEPAGEALLOCATOR
+#endif // UE_USE_VERYLARGEPAGEALLOCATOR_FALLBACKPATH
+
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 
 #if PLATFORM_64BITS
@@ -66,6 +70,8 @@ public:
 
 	void FreeAll(FCriticalSection* Mutex = nullptr);
 
+	void UpdateStats();
+
 	uint64 GetCachedFreeTotal()
 	{
 		return CachedFree + CachedOSPageAllocator.GetCachedFreeTotal();
@@ -89,6 +95,7 @@ private:
 	uintptr_t	AddressSpaceReservedEndSmallPool;
 	uintptr_t	AddressSpaceReservedEnd;
 	uint64		CachedFree;
+	int32		EmptyBackStoreCount[FMemory::AllocationHints::Max];
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
 
@@ -133,6 +140,8 @@ private:
 	FLargePage* UsedLargePagesHead[FMemory::AllocationHints::Max];				// has backing store and is full
 
 	FLargePage* UsedLargePagesWithSpaceHead[FMemory::AllocationHints::Max];	// has backing store and still has room
+
+	FLargePage*	EmptyButAvailableLargePagesHead[FMemory::AllocationHints::Max];	// has backing store and is empty
 
 	FLargePage	LargePagesArray[NumberOfLargePages];
 
