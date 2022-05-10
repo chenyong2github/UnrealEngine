@@ -276,8 +276,8 @@ void UCommonTextStyle::ApplyToTextBlock(const TSharedRef<STextBlock>& TextBlock)
 UCommonTextBlock::UCommonTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Visibility = ESlateVisibility::SelfHitTestInvisible;
-	Clipping = EWidgetClipping::Inherit;
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	SetClipping(EWidgetClipping::Inherit);
 }
 
 void UCommonTextBlock::PostInitProperties()
@@ -639,9 +639,9 @@ bool UCommonTextBlock::CanEditChange(const FProperty* InProperty) const
 {
 	if (Super::CanEditChange(InProperty))
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (const UCommonTextStyle* TextStyle = GetStyleCDO())
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			static TArray<FName> InvalidPropertiesWithStyle =
 			{
 				GET_MEMBER_NAME_CHECKED(UCommonTextBlock, Font),
@@ -652,15 +652,14 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				GET_MEMBER_NAME_CHECKED(UCommonTextBlock, ShadowOffset),
 				GET_MEMBER_NAME_CHECKED(UCommonTextBlock, ShadowColorAndOpacity)
 			};
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 			return !InvalidPropertiesWithStyle.Contains(InProperty->GetFName());
 		}
-
 		if (bAutoCollapseWithEmptyText && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UCommonTextBlock, Visibility))
 		{
 			return false;
 		}
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
@@ -679,9 +678,9 @@ TSharedRef<SWidget> UCommonTextBlock::RebuildWidget()
 
 	// If the clipping mode is the default, but we're using a scrolling style,
 	// we need to switch over to a clip to bounds style.
-	if (Clipping == EWidgetClipping::Inherit)
+	if (GetClipping() == EWidgetClipping::Inherit)
 	{
-		Clipping = EWidgetClipping::OnDemand;
+		SetClipping(EWidgetClipping::OnDemand);
 	}
 
 	// clang-format off

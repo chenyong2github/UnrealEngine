@@ -163,11 +163,11 @@ public:
 	UMaterialInstanceDynamic* GetDynamicMaterial();
 
 public:
-	/** Gets the DesireSizeScale of this border. */
+	/** Gets the DesiredSizeScale of this border. */
 	FVector2D GetDesiredSizeScale() const;
 
 	/**
-	 * Sets the DesireSizeScale of this border.
+	 * Sets the DesiredSizeScale of this border.
 	 *
 	 * @param InScale    The X and Y multipliers for the desired size
 	 */

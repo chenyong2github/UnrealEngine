@@ -77,7 +77,7 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 	, TickFrequency(EWidgetTickFrequency::Auto)
 {
 	ViewportAnchors = FAnchors(0, 0, 1, 1);
-	Visibility = ESlateVisibility::SelfHitTestInvisible;
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 	bIsFocusable = false;
 	ColorAndOpacity = FLinearColor::White;
@@ -1882,7 +1882,7 @@ FReply UUserWidget::NativeOnTouchForceChanged(const FGeometry& InGeometry, const
 FCursorReply UUserWidget::NativeOnCursorQuery( const FGeometry& InGeometry, const FPointerEvent& InCursorEvent )
 {
 	return (bOverride_Cursor)
-		? FCursorReply::Cursor(Cursor)
+		? FCursorReply::Cursor(GetCursor())
 		: FCursorReply::Unhandled();
 }
 

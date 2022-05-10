@@ -15,7 +15,7 @@ UDynamicEntryBoxBase::UDynamicEntryBoxBase(const FObjectInitializer& Initializer
 	: Super(Initializer)
 	, EntryWidgetPool(*this)
 {
-	Visibility = ESlateVisibility::SelfHitTestInvisible;
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	EntrySizeRule.SizeRule = ESlateSizeRule::Automatic;
 }
 

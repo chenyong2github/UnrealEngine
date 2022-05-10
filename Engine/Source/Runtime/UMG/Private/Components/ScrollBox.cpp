@@ -37,8 +37,8 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 {
 	bIsVariable = false;
 
-	Visibility = ESlateVisibility::Visible;
-	Clipping = EWidgetClipping::ClipToBounds;
+	SetVisibility(ESlateVisibility::Visible);
+	SetClipping(EWidgetClipping::ClipToBounds);
 
 	if (DefaultScrollBoxStyle == nullptr)
 	{

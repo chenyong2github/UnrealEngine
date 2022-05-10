@@ -138,7 +138,7 @@ FReply STransformHandle::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 		ETransformMode::Type TransformMode = Designer->GetTransformMode();
 		if ( TransformMode == ETransformMode::Render )
 		{
-			FWidgetTransform PreviewRenderTransform = Preview->RenderTransform;
+			FWidgetTransform PreviewRenderTransform = Preview->GetRenderTransform();
 
 			static const FName RenderTransformName(TEXT("RenderTransform"));
 

@@ -565,9 +565,9 @@ TSharedRef<SWidget> UCommonRichTextBlock::RebuildWidget()
 
 	// If the clipping mode is the default, but we're using a scrolling style,
 	// we need to switch over to a clip to bounds style.
-	if (Clipping == EWidgetClipping::Inherit)
+	if (GetClipping() == EWidgetClipping::Inherit)
 	{
-		Clipping = EWidgetClipping::OnDemand;
+		SetClipping(EWidgetClipping::OnDemand);
 	}
 
 	MyTextScroller =

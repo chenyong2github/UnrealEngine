@@ -12,7 +12,7 @@ UWrapBox::UWrapBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsVariable = false;
-	Visibility = ESlateVisibility::SelfHitTestInvisible;
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	WrapSize = 500;
 	bExplicitWrapSize = false;
 	HorizontalAlignment = HAlign_Left;

@@ -176,6 +176,7 @@ UE_FIELD_NOTIFICATION_IMPLEMENT_CLASS_DESCRIPTOR_ThreeFields(UWidget, ToolTipTex
 UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsEnabled = true;
 	bIsVariable = true;
 #if WITH_EDITOR
@@ -194,11 +195,19 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 #endif
 	AccessibleWidgetData = nullptr;
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UWidget::StaticClass(), &GatherWidgetForLocalization); }
 #endif
 
 	INC_DWORD_STAT(STAT_SlateUTotalWidgets);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FWidgetTransform UWidget::GetRenderTransform() const
+{
+	return RenderTransform;
 }
 
 void UWidget::SetRenderTransform(FWidgetTransform Transform)
@@ -252,6 +261,11 @@ void UWidget::UpdateRenderTransform()
 	}
 }
 
+FVector2D UWidget::GetRenderTransformPivot() const
+{
+	return RenderTransformPivot;
+}
+
 void UWidget::SetRenderTransformPivot(FVector2D Pivot)
 {
 	RenderTransformPivot = Pivot;
@@ -260,6 +274,21 @@ void UWidget::SetRenderTransformPivot(FVector2D Pivot)
 	if (SafeWidget.IsValid())
 	{
 		SafeWidget->SetRenderTransformPivot(Pivot);
+	}
+}
+
+EFlowDirectionPreference UWidget::GetFlowDirectionPreference() const
+{
+	return FlowDirectionPreference;
+}
+
+void UWidget::SetFlowDirectionPreference(EFlowDirectionPreference FlowDirection)
+{
+	FlowDirectionPreference = FlowDirection;
+	
+	if (TSharedPtr<SWidget> SafeWidget = GetCachedWidget())
+	{
+		SafeWidget->SetFlowDirectionPreference(FlowDirectionPreference);
 	}
 }
 
@@ -282,6 +311,11 @@ void UWidget::SetIsEnabled(bool bInIsEnabled)
 	{
 		SafeWidget->SetEnabled(bInIsEnabled);
 	}
+}
+
+EMouseCursor::Type UWidget::GetCursor() const
+{
+	return Cursor;
 }
 
 void UWidget::SetCursor(EMouseCursor::Type InCursor)
@@ -399,6 +433,7 @@ void UWidget::SetClipping(EWidgetClipping InClipping)
 		SafeWidget->SetClipping(InClipping);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UWidget::ForceVolatile(bool bForce)
 {
@@ -408,6 +443,12 @@ void UWidget::ForceVolatile(bool bForce)
 	{
 		SafeWidget->ForceVolatile(bForce);
 	}
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FText UWidget::GetToolTipText() const
+{
+	return ToolTipText;
 }
 
 void UWidget::SetToolTipText(const FText& InToolTipText)
@@ -420,6 +461,11 @@ void UWidget::SetToolTipText(const FText& InToolTipText)
 	{
 		SafeWidget->SetToolTipText(InToolTipText);
 	}
+}
+
+UWidget* UWidget::GetToolTip() const
+{
+	return ToolTipWidget;
 }
 
 void UWidget::SetToolTip(UWidget* InToolTipWidget)
@@ -446,6 +492,7 @@ void UWidget::SetToolTip(UWidget* InToolTipWidget)
 		}
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UWidget::IsHovered() const
 {
@@ -1272,6 +1319,7 @@ void UWidget::SynchronizeProperties()
 	TSharedPtr<SWidget> SafeContentWidget = MyGCWidget.IsValid() ? MyGCWidget.Pin() : MyWidget.Pin();
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITOR
 	// Always use an enabled and visible state in the designer.
 	if ( IsDesignTime() )
@@ -1344,6 +1392,7 @@ void UWidget::SynchronizeProperties()
 		}
 	}
 #endif
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

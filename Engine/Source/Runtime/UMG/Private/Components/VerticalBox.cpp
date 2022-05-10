@@ -12,7 +12,7 @@ UVerticalBox::UVerticalBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsVariable = false;
-	Visibility = ESlateVisibility::SelfHitTestInvisible;
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
 void UVerticalBox::ReleaseSlateResources(bool bReleaseChildren)

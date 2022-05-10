@@ -744,7 +744,7 @@ bool FHierarchyRoot::DoesWidgetOverrideFlowDirection() const
 	TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
 	if (UWidget* Default = BPEd->GetWidgetBlueprintObj()->GeneratedClass->GetDefaultObject<UWidget>())
 	{
-		return Default->FlowDirectionPreference != EFlowDirectionPreference::Inherit;
+		return Default->GetFlowDirectionPreference() != EFlowDirectionPreference::Inherit;
 	}
 
 	return false;

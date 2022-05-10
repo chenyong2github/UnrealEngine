@@ -282,7 +282,7 @@ public:
 		UWidget* TemplateWidget = Item.GetTemplate();
 		if (TemplateWidget)
 		{
-			return TemplateWidget->FlowDirectionPreference != EFlowDirectionPreference::Inherit;
+			return TemplateWidget->GetFlowDirectionPreference() != EFlowDirectionPreference::Inherit;
 		}
 
 		return false;

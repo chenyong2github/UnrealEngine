@@ -16,7 +16,7 @@ static FName DefaultTextureParameterName("Texture");
 URetainerBox::URetainerBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Visibility = ESlateVisibility::Visible;
+	SetVisibility(ESlateVisibility::Visible);
 	Phase = 0;
 	PhaseCount = 1;
 	RenderOnPhase = true;

@@ -12,7 +12,7 @@
 UCommonListView::UCommonListView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Visibility = ESlateVisibility::Visible;
+	SetVisibility(ESlateVisibility::Visible);
 	bEnableScrollAnimation = true;
 }
 

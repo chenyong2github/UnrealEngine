@@ -9,7 +9,7 @@ UCommonWidgetCarousel::UCommonWidgetCarousel(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 	bIsVariable = true;
-	Clipping = EWidgetClipping::ClipToBounds;
+	SetClipping(EWidgetClipping::ClipToBounds);
 }
 
 void UCommonWidgetCarousel::ReleaseSlateResources(bool bReleaseChildren)

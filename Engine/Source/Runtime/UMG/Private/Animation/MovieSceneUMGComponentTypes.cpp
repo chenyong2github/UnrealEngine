@@ -54,7 +54,7 @@ static void SetRenderOpacity(UObject* Object, bool bIsDouble, float InRenderOpac
 
 static FIntermediateWidgetTransform GetRenderTransform(const UObject* Object)
 {
-	FWidgetTransform Transform = CastChecked<const UWidget>(Object)->RenderTransform;
+	FWidgetTransform Transform = CastChecked<const UWidget>(Object)->GetRenderTransform();
 
 	FIntermediateWidgetTransform IntermediateTransform{};
 	ConvertOperationalProperty(Transform, IntermediateTransform);

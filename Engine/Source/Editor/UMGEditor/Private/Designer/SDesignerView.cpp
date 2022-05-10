@@ -1778,7 +1778,7 @@ FReply SDesignerView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEve
 						{
 							const FSlateRenderTransform& AbsoluteToLocalTransform = Inverse(ParentGeometry.GetAccumulatedRenderTransform());
 
-							FWidgetTransform WidgetRenderTransform = WidgetPreview->RenderTransform;
+							FWidgetTransform WidgetRenderTransform = WidgetPreview->GetRenderTransform();
 							WidgetRenderTransform.Translation += AbsoluteToLocalTransform.TransformVector(MouseEvent.GetCursorDelta());
 
 							static const FName RenderTransformName(TEXT("RenderTransform"));

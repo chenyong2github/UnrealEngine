@@ -207,7 +207,7 @@ public:
 /**
  * This is the base class for all wrapped Slate controls that are exposed to UObjects.
  */
-UCLASS(Abstract, BlueprintType, Blueprintable)
+UCLASS(Abstract, BlueprintType, Blueprintable, CustomFieldNotify)
 class UMG_API UWidget : public UVisual, public INotifyFieldValueChanged
 {
 	GENERATED_UCLASS_BODY()
@@ -259,7 +259,8 @@ public:
 	FGetBool bIsEnabledDelegate;
 
 	/** Tooltip text to show when the user hovers over the widget with the mouse */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter="SetToolTipText", Category="Behavior", meta=(MultiLine=true))
+	UE_DEPRECATED(5.1, "Direct access to ToolTipText is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetToolTipText", Category="Behavior", meta=(MultiLine=true))
 	FText ToolTipText;
 
 	/** A bindable delegate for ToolTipText */
@@ -267,7 +268,8 @@ public:
 	FGetText ToolTipTextDelegate;
 
 	/** Tooltip widget to show when the user hovers over the widget with the mouse */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Behavior", AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to ToolTipWidget is deprecated. Please use the getter or setter.")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Getter="GetToolTip", Setter="SetToolTip", BlueprintSetter="SetToolTip", Category="Behavior", AdvancedDisplay)
 	TObjectPtr<UWidget> ToolTipWidget;
 
 	/** A bindable delegate for ToolTipWidget */
@@ -277,27 +279,26 @@ public:
 
 	/** A bindable delegate for Visibility */
 	UPROPERTY()
-	FGetSlateVisibility VisibilityDelegate;
-
-	/** A bindable delegate for Cursor */
-	//UPROPERTY()
-	//FGetMouseCursor CursorDelegate;
+	FGetSlateVisibility VisibilityDelegate;;
 
 public:
 
 	/** The render transform of the widget allows for arbitrary 2D transforms to be applied to the widget. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Transform", meta=( DisplayName="Transform" ))
+	UE_DEPRECATED(5.1, "Direct access to RenderTransform is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRenderTransform", Category="Render Transform", meta = (DisplayName = "Transform"))
 	FWidgetTransform RenderTransform;
 
 	/**
 	 * The render transform pivot controls the location about which transforms are applied.  
 	 * This value is a normalized coordinate about which things like rotations will occur.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Transform", meta=( DisplayName="Pivot" ))
+	UE_DEPRECATED(5.1, "Direct access to RenderTransformPivot is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRenderTransformPivot", Category="Render Transform", meta=( DisplayName="Pivot" ))
 	FVector2D RenderTransformPivot;
 
 	/** Allows you to set a new flow direction */
-	UPROPERTY(EditAnywhere, Category = "Localization")
+	UE_DEPRECATED(5.1, "Direct access to FlowDirectionPreference is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, Getter, Setter, Category="Localization")
 	EFlowDirectionPreference FlowDirectionPreference;
 
 	/**
@@ -312,7 +313,8 @@ public:
 	uint8 bCreatedByConstructionScript:1;
 
 	/** Sets whether this widget can be modified interactively by the user */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Behavior")
+	UE_DEPRECATED(5.1, "Direct access to bIsEnabled is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter="GetIsEnabled", Setter="SetIsEnabled", BlueprintGetter="GetIsEnabled", BlueprintSetter="SetIsEnabled", Category="Behavior")
 	uint8 bIsEnabled:1;
 
 	/**  */
@@ -392,7 +394,8 @@ public:
 #endif
 
 	/** The cursor to show when the mouse is over the widget */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Behavior", AdvancedDisplay, meta=( editcondition="bOverride_Cursor" ))
+	UE_DEPRECATED(5.1, "Direct access to Cursor is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetCursor", Category="Behavior", AdvancedDisplay, meta = (editcondition = "bOverride_Cursor"))
 	TEnumAsByte<EMouseCursor::Type> Cursor;
 
 	/**
@@ -404,15 +407,18 @@ public:
 	 * performance cost to clipping.  Do not enable clipping unless a panel actually needs to prevent
 	 * content from showing up outside its bounds.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Clipping")
+	UE_DEPRECATED(5.1, "Direct access to Clipping is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Clipping")
 	EWidgetClipping Clipping;
 
 	/** The visibility of the widget */
-	UPROPERTY(EditAnywhere, Category="Behavior")
+	UE_DEPRECATED(5.1, "Direct access to Visibility is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter, Setter, BlueprintGetter="GetVisibility", BlueprintSetter="SetVisibility", Category="Behavior")
 	ESlateVisibility Visibility;
 
 	/** The opacity of the widget */
-	UPROPERTY(EditAnywhere, Category="Behavior")
+	UE_DEPRECATED(5.1, "Direct access to RenderOpacity is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetRenderOpacity", BlueprintSetter="SetRenderOpacity", Category="Behavior")
 	float RenderOpacity;
 
 private:
@@ -460,6 +466,8 @@ public:
 #endif
 
 public:
+	/** */
+	FWidgetTransform GetRenderTransform() const;
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
@@ -486,8 +494,17 @@ public:
 	void SetRenderTranslation(FVector2D Translation);
 
 	/** */
+	FVector2D GetRenderTransformPivot() const;
+
+	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
 	void SetRenderTransformPivot(FVector2D Pivot);
+
+	/** */
+	EFlowDirectionPreference GetFlowDirectionPreference() const;
+
+	/** */
+	void SetFlowDirectionPreference(EFlowDirectionPreference FlowDirection);
 
 	/** Gets the current enabled status of the widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
@@ -497,13 +514,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	virtual void SetIsEnabled(bool bInIsEnabled);
 
+	/** @return the tooltip text for the widget. */
+	FText GetToolTipText() const;
+
 	/** Sets the tooltip text for the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void SetToolTipText(const FText& InToolTipText);
 
+	/** @return the custom widget as the tooltip of the widget. */
+	UWidget* GetToolTip() const;
+
 	/** Sets a custom widget as the tooltip of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void SetToolTip(UWidget* Widget);
+
+	/** Sets the cursor to show over the widget. */
+	EMouseCursor::Type GetCursor() const;
 
 	/** Sets the cursor to show over the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
