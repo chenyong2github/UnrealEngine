@@ -239,7 +239,7 @@ void FSparsePowerMethod::CreateSparseMatrixOperator(const FSparseMatrixD& InMatr
         OutVector = InMatrix * InVector; 
     };
 
-    OutMatrixOp.Factorize = [&InMatrix, &MatrixSolverType, bIsSymmetric]() 
+    OutMatrixOp.Factorize = [&InMatrix, MatrixSolverType, bIsSymmetric]() 
     {	
         TUniquePtr<IMatrixSolverBase> Solver = ContructMatrixSolver(MatrixSolverType);
         Solver->SetUp(InMatrix, bIsSymmetric);
