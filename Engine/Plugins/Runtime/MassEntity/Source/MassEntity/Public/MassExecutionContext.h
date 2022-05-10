@@ -56,9 +56,8 @@ private:
 	FString DebugExecutionDescription;
 #endif
 	
-	/** If true the EntitySystem will flush the deferred commands stored in DeferredCommandBuffer just after executing 
-	 *  the given system. If False then the party calling UEntitySubsystem::ExecuteSystem is responsible for manually
-	 *  calling MassEntitySubsystem.FlushCommands() */
+	/** Used to control when the context is allowed to flush commands collected in DeferredCommandBuffer. This mechanism 
+	 * is mainly utilized to avoid numerous small flushes in favor of fewer larger ones. */
 	bool bFlushDeferredCommands = true;
 
 	/** A temporary variable letting us access subsystems via a FMassExecutionContext outside of MassEntityQuery's 
@@ -250,7 +249,7 @@ public:
 		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
 		if (bSubsystemRequirementsSet == false || ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
-			return GetSystemInternal<T>(World, SystemIndex);
+			return GetSubsystemInternal<T>(World, SystemIndex);
 		}
 
 		return nullptr;
@@ -270,7 +269,7 @@ public:
 		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
 		if (bSubsystemRequirementsSet == false || ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
-			return GetSystemInternal<T>(World, SystemIndex);
+			return GetSubsystemInternal<T>(World, SystemIndex);
 		}
 		return nullptr;
 	}
@@ -334,7 +333,7 @@ protected:
 	}
 
 	template<typename T>
-	T* GetSystemInternal(const UWorld* World, const uint32 SystemIndex)
+	T* GetSubsystemInternal(const UWorld* World, const uint32 SystemIndex)
 	{
 		if (UNLIKELY(Subsystems.IsValidIndex(SystemIndex) == false))
 		{
