@@ -1284,7 +1284,10 @@ static TArray<float> GetLODScreenSizeArray(const ALandscapeProxy* InLandscapePro
 
 TArray<float> ALandscapeProxy::GetLODScreenSizeArray() const
 {
-	const int32 NumLODLevels = FMath::Clamp<int32>(MaxLODLevel, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
+	const int32 MaxPossibleLOD = FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1;
+	const int32 MaxLOD = MaxLODLevel != INDEX_NONE ? FMath::Min<int32>(MaxLODLevel, MaxPossibleLOD) : MaxPossibleLOD;
+
+	const int32 NumLODLevels = MaxLOD + 1;
 	return ::GetLODScreenSizeArray(this, NumLODLevels);
 }
 
