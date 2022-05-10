@@ -62,11 +62,11 @@ def seed_small_blobs(args):
 
 
 def test_small_blob_uploads(args):
-    helpers.run_test(args, 'small_blob_uploads', duration_seconds=60, rate_per_second=2500)
+    helpers.run_test(args, 'small_blob_uploads', duration_seconds=60, rate_per_second=100)
 
 
 def test_small_blob_downloads(args):
-    helpers.run_test(args, 'small_blob_downloads', duration_seconds=60, rate_per_second=2500)
+    helpers.run_test(args, 'small_blob_downloads', duration_seconds=60, rate_per_second=100)
 
 def seed_large_blobs(args):
     ns = args['namespace']
