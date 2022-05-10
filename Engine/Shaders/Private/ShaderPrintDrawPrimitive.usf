@@ -95,12 +95,15 @@ void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 StructuredBuffer<uint> ElementBuffer;
 RWBuffer<uint> RWIndirectArgs;
+uint MaxInstanceCount;
 
 [numthreads(1, 1, 1)]
 void ShaderDrawDebugCopyCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
+	uint IndirectArgInstanceCount = min(MaxInstanceCount, ElementBuffer[0]);
+
 	RWIndirectArgs[0] = 2; // Line primitive
-	RWIndirectArgs[1] = ElementBuffer[0];
+	RWIndirectArgs[1] = IndirectArgInstanceCount;
 	RWIndirectArgs[2] = 0;
 	RWIndirectArgs[3] = 0;
 }

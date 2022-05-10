@@ -121,6 +121,13 @@ namespace ShaderPrint
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
+	// Returns the element count for a whole line
+	static uint32 GetLineElementCount()
+	{
+		// x,y,z (3) and a packed color (1) for both the start and end points (2x)
+		return 8;
+	}
+
 	// Get symbol buffer size
 	// This is some multiple of the value buffer size to allow for maximum value->symbol expansion
 	static uint32 GetMaxSymbolCountFromValueCount(uint32 MaxValueCount)
@@ -431,6 +438,7 @@ namespace ShaderPrint
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ElementBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, RWIndirectArgs)
+			SHADER_PARAMETER(uint32, MaxInstanceCount)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -612,7 +620,7 @@ namespace ShaderPrint
 			const bool bLockBufferThisFrame = IsDrawLocked() && InViewState != nullptr && !InViewState->ShaderPrintStateData.bIsLocked;
 			ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
 
-			ShaderPrintData.ShaderPrintLineBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, 8 * InSetup.MaxLineCount), TEXT("ShaderPrint.LineBuffer"), Flags);
+			ShaderPrintData.ShaderPrintLineBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, GetLineElementCount() * InSetup.MaxLineCount), TEXT("ShaderPrint.LineBuffer"), Flags);
 
 			// Clear buffer counter
 			{
@@ -836,9 +844,12 @@ namespace ShaderPrint
 
 		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDraw.IndirectBuffer"), ERDGBufferFlags::None);
 		{
+			const uint32 MaxLineCount = ShaderPrintLineBuffer->Desc.NumElements / GetLineElementCount();
+
 			FShaderDrawDebugCopyCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugCopyCS::FParameters>();
 			Parameters->ElementBuffer = GraphBuilder.CreateSRV(ShaderPrintLineBuffer);
 			Parameters->RWIndirectArgs = GraphBuilder.CreateUAV(IndirectBuffer, PF_R32_UINT);
+			Parameters->MaxInstanceCount = MaxLineCount;
 
 			TShaderMapRef<FShaderDrawDebugCopyCS> ComputeShader(GlobalShaderMap);
 			ClearUnusedGraphResources(ComputeShader, Parameters);
