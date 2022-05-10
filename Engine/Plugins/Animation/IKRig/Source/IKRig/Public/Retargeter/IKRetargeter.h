@@ -43,7 +43,7 @@ enum class ERetargetRotationMode : uint8
 };
 
 UCLASS()
-class IKRIG_API URetargetChainSettings: public UObject
+class IKRIG_API URetargetChainSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -55,11 +55,11 @@ class IKRIG_API URetargetChainSettings: public UObject
 	
 	/** The chain on the Source IK Rig asset to copy animation FROM. */
 	UPROPERTY(VisibleAnywhere, Category = "Chain Mapping")
-	FName SourceChain = NAME_None;
+	FName SourceChain;
 
 	/** The chain on the Target IK Rig asset to copy animation TO. */
 	UPROPERTY(VisibleAnywhere, Category = "Chain Mapping")
-	FName TargetChain = NAME_None;
+	FName TargetChain;
 
 	/** Whether to copy the shape of the chain from the source skeleton using the Rotation and Translation modes. Default is true.
 	* NOTE: All FK operations run before the IK pass to copy the shape of the FK chain from the source skeleton. */
@@ -129,19 +129,26 @@ class IKRIG_API URetargetChainSettings: public UObject
 	UPROPERTY(EditAnywhere, Category = "IK Adjustments", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.1", UIMax = "2.0"))
 	float Extension = 1.0f;
 
-	/** Range 0 to 1. Default 0. Blends IK goal from retargeted velocity (0) to source bone velocity (1).
-	*  At 0 the goal is placed at the retargeted location.
-	*  At 1 the goal is placed at the retargeted location but clamped by the velocity of the source chain's end bone.
-	*  Values between 0 and 1 will blend the applied velocity between the retargeted amount and the source bone amount.*/
-	UPROPERTY(EditAnywhere, Category = "Experimental (May Change)", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float MatchSourceVelocity = 0.0f;
+	/** The name of the curve on the source animation that contains the speed of the end effector bone.*/
+	UPROPERTY(EditAnywhere, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
+	bool UseSpeedCurveToPlantIK = false;
+	
+	/** The name of the curve on the source animation that contains the speed of the end effector bone.*/
+	UPROPERTY(EditAnywhere, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
+	FName SpeedCurveName;
 
-	/** Range 0 to 1000. Default 5. The maximum speed a source goal can be moving before being considered statically planted.
-	*  At 0 the goal is placed at the retargeted location.
-	*  At 1 the goal is placed at the retargeted location but clamped by the velocity of the source chain's end bone.
-	*  Values between 0 and 1 will blend the applied velocity between the retargeted amount and the source bone amount.*/
-	UPROPERTY(EditAnywhere, Category = "Experimental (May Change)", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
-	float VelocityThreshold = 5.0f;
+	/** Range 0 to 1000. Default 15. The maximum speed a source bone can be moving while being considered 'planted'.
+	*  The target IK goal will not be allowed to move whenever the source bone speed drops below this threshold speed. */
+	UPROPERTY(EditAnywhere, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
+	float VelocityThreshold = 15.0f;
+
+	// How stiff the spring model is that smoothly pulls the IK position after unplanting (more stiffness means more oscillation around the target value)
+	UPROPERTY(EditAnywhere, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float UnplantStiffness = 250.0f;
+
+	// How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
+	UPROPERTY(EditAnywhere, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "1.0"))
+	float UnplantCriticalDamping = 1.0f;
 };
 
 UCLASS()
@@ -256,6 +263,8 @@ public:
 	static const FName GetSourcePreviewMeshPropertyName();
 	/* Get name of Target Preview Mesh property */
 	static const FName GetTargetPreviewMeshPropertyName();
+	/** Get the names of the all the speed curves the retargeter will be looking for */
+	void GetSpeedCurveNames(TArray<FName>& OutSpeedCurveNames) const;
 #endif
 
 #if WITH_EDITOR

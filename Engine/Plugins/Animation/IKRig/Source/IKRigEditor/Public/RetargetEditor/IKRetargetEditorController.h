@@ -86,7 +86,10 @@ public:
 		TArray<FVector>& OutChildren) const;
 
 	/** get the retargeter that is running in the viewport (which is a duplicate of the source asset) */
-	const UIKRetargetProcessor* GetRetargetProcessor() const;
+	UIKRetargetProcessor* GetRetargetProcessor() const;
+
+	/** Reset the planting state of the IK (when scrubbing or animation loops over) */
+	void ResetIKPlantingState() const;
 
 	/** Sequence Browser**/
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);

@@ -20,7 +20,7 @@ public:
 		UIKRetargeter* InIKRetargetAsset,
 		TWeakObjectPtr<USkeletalMeshComponent> InSourceMeshComponent);
 
-	const UIKRetargetProcessor* GetRetargetProcessor() const;
+	UIKRetargetProcessor* GetRetargetProcessor() const;
 
 	void SetProcessorNeedsInitialized();
 

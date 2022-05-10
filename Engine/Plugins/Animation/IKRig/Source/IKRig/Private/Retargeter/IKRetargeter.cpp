@@ -6,7 +6,18 @@
 const FName UIKRetargeter::GetSourceIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset); };
 const FName UIKRetargeter::GetTargetIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetIKRigAsset); };
 const FName UIKRetargeter::GetSourcePreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourcePreviewMesh); };
-const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); };
+const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); }
+
+void UIKRetargeter::GetSpeedCurveNames(TArray<FName>& OutSpeedCurveNames) const
+{
+	for (const URetargetChainSettings* ChainSetting : ChainSettings)
+	{
+		if (ChainSetting->SpeedCurveName != NAME_None)
+		{
+			OutSpeedCurveNames.Add(ChainSetting->SpeedCurveName);
+		}
+	}
+};
 #endif
 
 UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)

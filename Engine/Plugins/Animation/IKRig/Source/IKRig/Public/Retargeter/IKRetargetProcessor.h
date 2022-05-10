@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IKRetargeter.h"
 #include "IKRigLogger.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "IKRetargetProcessor.generated.h"
 
 class URetargetChainSettings;
@@ -185,8 +186,12 @@ struct FRetargetChainSettings
 	float Extension = 1.0f;
 	float BlendToSource = 0.0f;
 	FVector BlendToSourceWeights = FVector::OneVector;
-	float MatchSourceVelocity = 0.0f;
-	float TeleportVelocityThreshold = 0.0f;
+
+	bool UseSpeedCurveToPlantIK = false;
+	float SpeedThreshold = 0.0f;
+	FName SpeedCurveName;
+	float UnplantStiffness = 250.0f;
+	float UnplantCriticalDamping = 1.0f;
 
 public:
 	
@@ -207,8 +212,12 @@ public:
 		StaticRotationOffset = AssetChainSettings->StaticRotationOffset;
 		BlendToSource = AssetChainSettings->BlendToSource;
 		BlendToSourceWeights = AssetChainSettings->BlendToSourceWeights;
-		MatchSourceVelocity = AssetChainSettings->MatchSourceVelocity;
-		TeleportVelocityThreshold = AssetChainSettings->VelocityThreshold;
+
+		UseSpeedCurveToPlantIK = AssetChainSettings->UseSpeedCurveToPlantIK;
+		UnplantStiffness = AssetChainSettings->UnplantStiffness;
+		UnplantCriticalDamping = AssetChainSettings->UnplantCriticalDamping;
+		SpeedThreshold = AssetChainSettings->VelocityThreshold;
+		SpeedCurveName = AssetChainSettings->SpeedCurveName;
 	};
 };
 
@@ -350,6 +359,9 @@ struct FChainRetargeterIK
 	
 	FTargetChainIK Target;
 
+	bool ResetThisTick;
+	FVectorSpringState PlantingSpringState;
+
 	bool InitializeSource(
 		const TArray<int32>& BoneIndices,
 		const TArray<FTransform> &SourceInitialGlobalPose,
@@ -364,6 +376,8 @@ struct FChainRetargeterIK
 	
 	void DecodePose(
 		const FRetargetChainSettings& Settings,
+		const TMap<FName, float>& SpeedValuesFromCurves,
+		const float DeltaTime,
 		const TArray<FTransform>& OutGlobalPose,
 		FDecodedIKChain& OutResults);
 };
@@ -463,7 +477,7 @@ public:
 	* @param InSourceGlobalPose -  is the source mesh input pose in Component/Global space
 	* @return The retargeted Component/Global space pose for the target skeleton
 	*/
-	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose);
+	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose, const TMap<FName, float>& SpeedValuesFromCurves, const float DeltaTime);
 
 	/**
 	* Get the Global transform, in the currently used retarget pose, for a bone in the target skeletal mesh
@@ -495,6 +509,9 @@ public:
 
 	/** Get the currently running IK Rig processor for the target */
 	UIKRigProcessor* GetTargetIKRigProcessor() const { return IKRigProcessor; };
+	
+	/** Reset the IK planting state. */
+	void ResetPlanting();
 
 #if WITH_EDITOR
 	/** Set that this processor needs to be reinitialized. */
@@ -555,5 +572,9 @@ private:
 	void RunFKRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
 
 	/** Internal retarget phase for the IK chains. */
-	void RunIKRetarget(const TArray<FTransform>& InSourceGlobalPose, TArray<FTransform>& OutTargeGlobalPose);
+	void RunIKRetarget(
+		const TArray<FTransform>& InSourceGlobalPose,
+		TArray<FTransform>& OutTargeGlobalPose,
+		const TMap<FName, float>& SpeedValuesFromCurves,
+		const float DeltaTime);
 };

@@ -191,7 +191,7 @@ bool FIKRetargetEditorController::GetTargetBoneLineSegments(
 	return true;
 }
 
-const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() const
+UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() const
 {	
 	if(UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get())
 	{
@@ -199,6 +199,14 @@ const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() 
 	}
 
 	return nullptr;	
+}
+
+void FIKRetargetEditorController::ResetIKPlantingState() const
+{
+	if (TargetAnimInstance.IsValid())
+	{
+		TargetAnimInstance->GetRetargetProcessor()->ResetPlanting();
+	}
 }
 
 void FIKRetargetEditorController::ClearOutputLog() const

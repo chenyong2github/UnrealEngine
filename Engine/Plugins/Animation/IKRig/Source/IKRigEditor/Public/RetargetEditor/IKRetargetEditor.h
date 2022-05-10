@@ -96,6 +96,9 @@ private:
 	
 	/** centralized management across all views */
 	TSharedRef<FIKRetargetEditorController> EditorController;
+
+	/** record previous playback time of source anim instance to trigger reset when scrubbing / looping */
+	float PreviousTime;
 	
 	friend FIKRetargetApplicationMode;
 };

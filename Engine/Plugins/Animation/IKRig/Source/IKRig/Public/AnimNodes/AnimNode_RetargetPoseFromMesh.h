@@ -56,14 +56,16 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	void SetProcessorNeedsInitialized();
 #endif
 
-	/** Read-only access to the runtime processor */
-	const UIKRetargetProcessor* GetRetargetProcessor() const;
+	/** Access to the runtime processor */
+	UIKRetargetProcessor* GetRetargetProcessor() const;
 
 private:
 
 	/** returns true if processor is setup and ready to go, false otherwise */
 	bool EnsureProcessorIsInitialized(const TObjectPtr<USkeletalMeshComponent> TargetMeshComponent);
+	/** copies the source mesh pose (on main thread) */
 	void CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent);
+	/** indirection to account for Master Pose Component setup */
 	TObjectPtr<USkeletalMeshComponent> GetComponentToCopyPoseFrom() const;
 
 	/** the runtime processor used to run the retarget and generate new poses */
@@ -78,5 +80,12 @@ private:
 	// mapping of Skeleton curve names to the UID (for copying curves from the source mesh component)
 	TMap<FName, SmartName::UID_Type> CurveNameToUIDMap;
 	// cached curves, copied on the game thread
-	TMap<FName, float> SourceCurveList;
+	TMap<FName, float> SourceCurveValues;
+
+	/** update map of curve values containing speeds used for IK planting */
+	void UpdateSpeedValuesFromCurves();
+	// map of curve names to values, passed to retargeter for IK planting (copied from source mesh)
+	TMap<FName, float> SpeedValuesFromCurves;
+	// the accumulated delta time this tick
+	float DeltaTime;
 };

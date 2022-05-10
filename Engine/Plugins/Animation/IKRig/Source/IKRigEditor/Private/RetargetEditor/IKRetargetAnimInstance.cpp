@@ -17,7 +17,7 @@ void UIKRetargetAnimInstance::SetRetargetAssetAndSourceComponent(
 	Proxy.SetRetargetAssetAndSourceComponent(InAsset, InSourceMeshComponent);
 }
 
-const UIKRetargetProcessor* UIKRetargetAnimInstance::GetRetargetProcessor() const
+UIKRetargetProcessor* UIKRetargetAnimInstance::GetRetargetProcessor() const
 {
 	return IKRetargeterNode.GetRetargetProcessor();
 }

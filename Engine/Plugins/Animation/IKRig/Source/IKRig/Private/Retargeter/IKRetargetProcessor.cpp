@@ -6,6 +6,7 @@
 #include "IKRigLogger.h"
 #include "IKRigProcessor.h"
 #include "Engine/SkeletalMesh.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Retargeter/IKRetargeter.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargetProcessor"
@@ -810,6 +811,7 @@ bool FChainRetargeterIK::InitializeTarget(
 	Target.InitialEndPosition = Last.GetTranslation();
 	Target.InitialEndRotation = Last.GetRotation();
 	Target.InitialLength = (TargetInitialGlobalPose[Target.BoneIndexA].GetTranslation() - Last.GetTranslation()).Size();
+	ResetThisTick = true;
 
 	if (Target.InitialLength <= KINDA_SMALL_NUMBER)
 	{
@@ -822,6 +824,8 @@ bool FChainRetargeterIK::InitializeTarget(
 	
 void FChainRetargeterIK::DecodePose(
 	const FRetargetChainSettings& Settings,
+	const TMap<FName, float>& SpeedValuesFromCurves,
+	const float DeltaTime,
     const TArray<FTransform>& OutGlobalPose,
     FDecodedIKChain& OutResults)
 {
@@ -870,26 +874,23 @@ void FChainRetargeterIK::DecodePose(
 	{
 		GoalPosition = Start + (GoalPosition - Start) * Settings.Extension;	
 	}
-
+	
 	// match velocity
-	if (Settings.MatchSourceVelocity > KINDA_SMALL_NUMBER)
+	if (!ResetThisTick && Settings.UseSpeedCurveToPlantIK && SpeedValuesFromCurves.Contains(Settings.SpeedCurveName))
 	{
-		const FVector SourceVelocity = Source.CurrentEndPosition - Source.PreviousEndPosition;
-		const float SourceSpeed = SourceVelocity.Size();
-
-		const FVector TargetVelocity = GoalPosition - Target.PrevEndPosition;
-		const float TargetSpeed = TargetVelocity.Size();
-
-		// if target is moving slowly enough, start matching velocity
-		if (TargetSpeed < Settings.TeleportVelocityThreshold)
+		const float SourceSpeed = SpeedValuesFromCurves[Settings.SpeedCurveName];
+		if (SourceSpeed < 0.0f || SourceSpeed > Settings.SpeedThreshold)
 		{
-			// match target speed to source
-			const float BlendedSpeed = FMath::Lerp(TargetSpeed, SourceSpeed, Settings.MatchSourceVelocity);
-			GoalPosition = Target.PrevEndPosition + TargetVelocity * BlendedSpeed;
-
-			// what would happen if we blended into and out of this state?
-			// TimeSinceTargetStartedMatchingVelocity
-			// WasMatchingVelocity
+			GoalPosition = UKismetMathLibrary::VectorSpringInterp(
+				Target.PrevEndPosition, GoalPosition, PlantingSpringState,
+				Settings.UnplantStiffness,
+				Settings.UnplantCriticalDamping,
+				DeltaTime, 1.0f, 0.0f);
+		}
+		else
+		{
+			PlantingSpringState.Reset();
+			GoalPosition = Target.PrevEndPosition;
 		}
 	}
 	
@@ -898,6 +899,7 @@ void FChainRetargeterIK::DecodePose(
 	OutResults.EndEffectorRotation = GoalRotation;
 	OutResults.PoleVectorPosition = FVector::OneVector; // TODO calc pole vector position
 	Target.PrevEndPosition = GoalPosition;
+	ResetThisTick = false;
 }
 
 bool FRetargetChainPair::Initialize(
@@ -1406,7 +1408,10 @@ bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const USkeletalMesh* 
 	return true;
 }
 
-TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform>& InSourceGlobalPose)
+TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(
+	const TArray<FTransform>& InSourceGlobalPose,
+	const TMap<FName, float>& SpeedValuesFromCurves,
+	const float DeltaTime)
 {
 	check(bIsInitialized);
 
@@ -1446,7 +1451,7 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform
 	// IK CHAIN retargeting
 	if (RetargeterAsset->bRetargetIK && bAtLeastOneValidBoneChainPair && bIKRigInitialized)
 	{
-		RunIKRetarget(InSourceGlobalPose, TargetSkeleton.OutputGlobalPose);
+		RunIKRetarget(InSourceGlobalPose, TargetSkeleton.OutputGlobalPose, SpeedValuesFromCurves, DeltaTime);
 	}
 
 	return TargetSkeleton.OutputGlobalPose;
@@ -1484,7 +1489,9 @@ void UIKRetargetProcessor::RunFKRetarget(
 
 void UIKRetargetProcessor::RunIKRetarget(
 	const TArray<FTransform>& InSourceGlobalPose,
-    TArray<FTransform>& OutTargeGlobalPose)
+    TArray<FTransform>& OutTargeGlobalPose,
+    const TMap<FName, float>& SpeedValuesFromCurves,
+    const float DeltaTime)
 {
 	if (!IKRigProcessor->IsInitialized())
 	{
@@ -1503,7 +1510,12 @@ void UIKRetargetProcessor::RunIKRetarget(
 		ChainPair.IKChainRetargeter.EncodePose(InSourceGlobalPose);
 		// decode the IK goal and apply to IKRig
 		FDecodedIKChain OutIKGoal;
-		ChainPair.IKChainRetargeter.DecodePose(ChainPair.Settings, OutTargeGlobalPose, OutIKGoal);
+		ChainPair.IKChainRetargeter.DecodePose(
+			ChainPair.Settings,
+			SpeedValuesFromCurves,
+			DeltaTime,
+			OutTargeGlobalPose,
+			OutIKGoal);
 		// set the goal transform on the IK Rig
 		FIKRigGoal Goal = FIKRigGoal(
 			ChainPair.IKGoalName,
@@ -1522,6 +1534,14 @@ void UIKRetargetProcessor::RunIKRetarget(
 	IKRigProcessor->Solve();
 	// copy results of solve
 	IKRigProcessor->CopyOutputGlobalPoseToArray(OutTargeGlobalPose);
+}
+
+void UIKRetargetProcessor::ResetPlanting()
+{
+	for (FRetargetChainPairIK& ChainPair : ChainPairsIK)
+	{
+		ChainPair.IKChainRetargeter.ResetThisTick = true;
+	}
 }
 
 FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseGlobalTransform(const int32& TargetBoneIndex) const

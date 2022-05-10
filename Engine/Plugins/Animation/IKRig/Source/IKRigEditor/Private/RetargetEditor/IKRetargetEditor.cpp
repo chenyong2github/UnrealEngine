@@ -32,6 +32,7 @@ const FName IKRetargetEditorAppName = FName(TEXT("IKRetargetEditorApp"));
 
 FIKRetargetEditor::FIKRetargetEditor()
 	: EditorController(MakeShared<FIKRetargetEditorController>())
+	, PreviousTime(-1.0f)
 {
 }
 
@@ -216,6 +217,15 @@ void FIKRetargetEditor::Tick(float DeltaTime)
 	// update with latest offsets
 	EditorController->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, EditorController->SourceSkelMeshComponent);
 	EditorController->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, EditorController->TargetSkelMeshComponent);
+
+	// retargeter IK planting must be reset when time is reversed or playback jumps ahead 
+	const float CurrentTime = EditorController->SourceAnimInstance->GetCurrentTime();
+	constexpr float MaxSkipTimeBeforeReset = 0.25f;
+	if (CurrentTime < PreviousTime || CurrentTime > PreviousTime + MaxSkipTimeBeforeReset)
+	{
+		EditorController->ResetIKPlantingState();
+	}
+	PreviousTime = CurrentTime;
 }
 
 TStatId FIKRetargetEditor::GetStatId() const

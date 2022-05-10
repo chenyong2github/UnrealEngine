@@ -57,7 +57,9 @@ void FAnimNode_RetargetPoseFromMesh::Update_AnyThread(const FAnimationUpdateCont
     // this introduces a frame of latency in setting the pin-driven source component,
     // but we cannot do the work to extract transforms on a worker thread as it is not thread safe.
     GetEvaluateGraphExposedInputs().Execute(Context);
+	DeltaTime += Context.GetDeltaTime();
 }
+
 void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
@@ -97,7 +99,8 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 #endif
 
 	// run the retargeter
-	const TArray<FTransform>& RetargetedPose = Processor->RunRetargeter(SourceMeshComponentSpaceBoneTransforms);
+	const TArray<FTransform>& RetargetedPose = Processor->RunRetargeter(SourceMeshComponentSpaceBoneTransforms, SpeedValuesFromCurves, DeltaTime);
+	DeltaTime = 0.0f;
 
 	// copy pose back
 	FCSPose<FCompactPose> ComponentPose;
@@ -119,7 +122,7 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 	// copy curves over
 	if (bCopyCurves)
 	{
-		for (const TPair<FName, float>& SourceCurve : SourceCurveList)
+		for (const TPair<FName, float>& SourceCurve : SourceCurveValues)
 		{
 			if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(SourceCurve.Key))
 			{
@@ -151,13 +154,43 @@ void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstan
 
 		if(bCopyCurves)
 		{
-			SourceCurveList.Reset();
+			SourceCurveValues.Reset();
 			if (const UAnimInstance* SourceAnimInstance = SourceMeshComponent->GetAnimInstance())
 			{
 				// attribute curve contains all list	
-				SourceCurveList.Append(SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve));
+				SourceCurveValues.Append(SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve));
 			}
+
+			UpdateSpeedValuesFromCurves();
 		}
+	}
+}
+
+void FAnimNode_RetargetPoseFromMesh::UpdateSpeedValuesFromCurves()
+{
+	SpeedValuesFromCurves.Reset();
+	
+	if (!IKRetargeterAsset)
+	{
+		return;
+	}
+
+	const TArray<TObjectPtr<URetargetChainSettings>> ChainSettings = IKRetargeterAsset->GetAllChainSettings();
+	for (const TObjectPtr<URetargetChainSettings>& ChainSetting : ChainSettings)
+	{
+		FName CurveName = ChainSetting->SpeedCurveName;
+		if (CurveName == NAME_None)
+		{
+			continue;
+		}
+
+		// value will be negative if the curve was not found (retargeter ignores negative speeds)
+		float CurveValue = -1.0f;
+		if (SourceCurveValues.Contains(CurveName))
+		{
+			CurveValue = SourceCurveValues[CurveName];
+		}
+		SpeedValuesFromCurves.Add(CurveName, CurveValue);
 	}
 }
 
@@ -171,7 +204,7 @@ void FAnimNode_RetargetPoseFromMesh::SetProcessorNeedsInitialized()
 }
 #endif
 
-const UIKRetargetProcessor* FAnimNode_RetargetPoseFromMesh::GetRetargetProcessor() const
+UIKRetargetProcessor* FAnimNode_RetargetPoseFromMesh::GetRetargetProcessor() const
 {
 	return Processor;
 }
