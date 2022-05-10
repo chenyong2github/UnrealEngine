@@ -21,7 +21,7 @@
 #include <type_traits>
 
 #if !defined(TASKGRAPH_NEW_FRONTEND)
-#define TASKGRAPH_NEW_FRONTEND 1
+#define TASKGRAPH_NEW_FRONTEND 0
 #endif
 
 namespace UE::Tasks
