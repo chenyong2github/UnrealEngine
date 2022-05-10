@@ -285,7 +285,7 @@ namespace Lightmass
 			}
 			else
 			{
-				Files[CompIndex] = IFileManager::Get().CreateFileWriter(*FString::Printf(TEXT("%s_Dir%d.bmp"), BitmapBaseName));
+				Files[CompIndex] = IFileManager::Get().CreateFileWriter(*FString::Printf(TEXT("%s_Dir%d.bmp"), BitmapBaseName, CompIndex));
 			}
 		}
 
