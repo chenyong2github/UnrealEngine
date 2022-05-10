@@ -41,8 +41,13 @@ FBodyInstanceCustomization::FBodyInstanceCustomization()
 
 UStaticMeshComponent* FBodyInstanceCustomization::GetDefaultCollisionProvider(const FBodyInstance* BI) const
 {
+	if (!BI)
+	{
+		return nullptr;
+	}
+
 	UPrimitiveComponent* OwnerComp = BI->OwnerComponent.Get();
-	if(!OwnerComp)
+	if (!OwnerComp)
 	{
 		TWeakObjectPtr<UPrimitiveComponent> FoundComp = BodyInstanceToPrimComponent.FindRef(BI);
 		OwnerComp = FoundComp.Get();
@@ -55,7 +60,7 @@ UStaticMeshComponent* FBodyInstanceCustomization::GetDefaultCollisionProvider(co
 bool FBodyInstanceCustomization::CanUseDefaultCollision() const
 {
 	bool bResult = BodyInstances.Num() > 0;
-	for(const FBodyInstance* BI : BodyInstances)
+	for (const FBodyInstance* BI : BodyInstances)
 	{
 		bResult &= GetDefaultCollisionProvider(BI) != nullptr;
 	}
@@ -166,7 +171,7 @@ void FBodyInstanceCustomization::AddCollisionCategory(TSharedRef<class IProperty
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void FBodyInstanceCustomization::CustomizeChildren( TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
+void FBodyInstanceCustomization::CustomizeChildren( TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
 {
 	BodyInstanceHandle = StructPropertyHandle;
 
@@ -175,7 +180,7 @@ void FBodyInstanceCustomization::CustomizeChildren( TSharedRef<class IPropertyHa
 	StructPropertyHandle->AccessRawData(StructPtrs);
 	check(StructPtrs.Num() != 0);
 
-	BodyInstances.AddUninitialized(StructPtrs.Num());
+	BodyInstances.AddZeroed(StructPtrs.Num());
 	for (auto Iter = StructPtrs.CreateIterator(); Iter; ++Iter)
 	{
 		check(*Iter);
@@ -186,7 +191,7 @@ void FBodyInstanceCustomization::CustomizeChildren( TSharedRef<class IPropertyHa
 	StructPropertyHandle->GetOuterObjects(OwningObjects);
 
 	PrimComponents.Empty(OwningObjects.Num());
-	for(UObject* Obj : OwningObjects)
+	for (UObject* Obj : OwningObjects)
 	{
 		if(UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Obj))
 		{
@@ -207,7 +212,6 @@ void FBodyInstanceCustomization::CustomizeChildren( TSharedRef<class IPropertyHa
 
 	if(CollisionCategoryHandle.IsValid())
 	{
-		
 		UseDefaultCollisionHandle = CollisionCategoryHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, bUseDefaultCollision));
 	}
 
