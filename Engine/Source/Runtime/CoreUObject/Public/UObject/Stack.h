@@ -111,6 +111,9 @@ public:
 	/** Currently executed native function */
 	UFunction* CurrentNativeFunction;
 
+	/** Previous tracking frame */
+	FFrame* PreviousTrackingFrame;
+
 	bool bArrayContextFailed;
 
 	/** If this flag gets set (usually from throwing a EBlueprintExceptionType::AbortExecution exception), execution shall immediately stop and return */
@@ -133,7 +136,18 @@ public:
 		{
 			BlueprintExceptionTracker.ScriptStack.Pop(false);
 		}
+
+		// ensure that GTopTrackingStackFrame is accurate
+		if (BlueprintExceptionTracker.ScriptStack.Num() == 0)
+		{
+			ensure(PreviousTrackingFrame == nullptr);
+		}
+		else
+		{
+			ensure(BlueprintExceptionTracker.ScriptStack.Last() == PreviousTrackingFrame);
+		}
 #endif
+		PopThreadLocalTopStackFrame(PreviousTrackingFrame);
 	}
 
 	// Functions.
@@ -216,6 +230,10 @@ public:
 #if DO_BLUEPRINT_GUARD
 	static void InitPrintScriptCallstack();
 #endif
+
+	COREUOBJECT_API static FFrame* PushThreadLocalTopStackFrame(FFrame* NewTopStackFrame);
+	COREUOBJECT_API static void PopThreadLocalTopStackFrame(FFrame* NewTopStackFrame);
+	COREUOBJECT_API static FFrame* GetThreadLocalTopStackFrame();
 };
 
 
@@ -244,6 +262,8 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 #if DO_BLUEPRINT_GUARD
 	FBlueprintContextTracker::Get().ScriptStack.Push(this);
 #endif
+	PreviousTrackingFrame = PushThreadLocalTopStackFrame(this);
+
 #if PER_FUNCTION_SCRIPT_STATS
 	if (InPreviousFrame)
 	{

@@ -90,6 +90,8 @@ COREUOBJECT_API int32 GNativeDuplicate=0;
 
 COREUOBJECT_API int32 GMaximumScriptLoopIterations = 1000000;
 
+thread_local static FFrame* GTopTrackingStackFrame = nullptr;
+
 #if DO_BLUEPRINT_GUARD
 
 #define CHECK_RUNAWAY { FBlueprintContextTracker::Get().AddRunaway(); }
@@ -523,6 +525,22 @@ void FFrame::InitPrintScriptCallstack()
 }
 #endif
 
+COREUOBJECT_API FFrame* FFrame::PushThreadLocalTopStackFrame(FFrame* NewTopStackFrame)
+{
+	FFrame* Result = GTopTrackingStackFrame;
+	GTopTrackingStackFrame = NewTopStackFrame;
+	return Result;
+}
+
+COREUOBJECT_API void FFrame::PopThreadLocalTopStackFrame(FFrame* NewTopStackFrame)
+{
+	GTopTrackingStackFrame = NewTopStackFrame;
+}
+
+COREUOBJECT_API FFrame* FFrame::GetThreadLocalTopStackFrame()
+{
+	return GTopTrackingStackFrame;
+}
 //
 // Error or warning handler.
 //
