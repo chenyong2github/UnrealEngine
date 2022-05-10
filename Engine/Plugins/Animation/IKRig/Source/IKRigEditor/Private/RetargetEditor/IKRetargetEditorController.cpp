@@ -203,9 +203,9 @@ UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() const
 
 void FIKRetargetEditorController::ResetIKPlantingState() const
 {
-	if (TargetAnimInstance.IsValid())
+	if (UIKRetargetProcessor* Processor = GetRetargetProcessor())
 	{
-		TargetAnimInstance->GetRetargetProcessor()->ResetPlanting();
+		Processor->ResetPlanting();
 	}
 }
 
