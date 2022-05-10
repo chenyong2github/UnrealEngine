@@ -33,6 +33,7 @@ AGameplayDebuggerPlayerManager::AGameplayDebuggerPlayerManager(const FObjectInit
 
 	bIsLocal = false;
 	bInitialized = false;
+	bEditorTimeTick = false;
 }
 
 void AGameplayDebuggerPlayerManager::PostInitProperties()
@@ -52,6 +53,10 @@ void AGameplayDebuggerPlayerManager::PostInitProperties()
 		{
 			UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent);
 		}
+#if WITH_EDITORONLY_DATA 
+		const UWorld* World = GetWorld();
+		bEditorTimeTick = (World != nullptr) && (World->IsEditorWorld() == true) && (World->IsGameWorld() == false);
+#endif // WITH_EDITORONLY_DATA 
 	}
 }
 
@@ -306,16 +311,6 @@ ETickableTickType AGameplayDebuggerPlayerManager::GetTickableTickType() const
 TStatId AGameplayDebuggerPlayerManager::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(AGameplayDebuggerPlayerManager, STATGROUP_Tickables);
-}
-
-bool AGameplayDebuggerPlayerManager::IsTickable() const
-{
-#if WITH_EDITOR
-	UWorld* World = GetWorld();
-	return (World != nullptr) && (World->IsEditorWorld() == true) && (World->IsGameWorld() == false);
-#else
-	return false;
-#endif // WITH_EDITOR
 }
 // FTickableGameObject end
 

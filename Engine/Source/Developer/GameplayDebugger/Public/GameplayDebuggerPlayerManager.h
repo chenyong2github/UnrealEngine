@@ -42,7 +42,8 @@ class GAMEPLAYDEBUGGER_API AGameplayDebuggerPlayerManager : public AActor, publi
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	virtual bool IsTickableInEditor() const override { return true; }
-	virtual bool IsTickable() const override;
+	/** results in this instance not being ticked in any of the game worlds */
+	virtual bool IsTickable() const override { return bEditorTimeTick; }
 	// FTickableGameObject end
 
 	virtual void PostInitProperties() override;
@@ -85,6 +86,7 @@ protected:
 	FGameplayDebuggerPlayerData EditorWorldData;
 #endif // WITH_EDITORONLY_DATA
 
+	uint8 bEditorTimeTick : 1;
 	uint32 bHasAuthority : 1;
 	uint32 bIsLocal : 1;
 	uint32 bInitialized : 1;
