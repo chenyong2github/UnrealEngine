@@ -691,6 +691,12 @@ void FNiagaraShaderScript::BuildScriptParametersMetadata(const TArray<FNiagaraDa
 	for (FNiagaraDataInterfaceGPUParamInfo& DataInterfaceParamInfo : ScriptParametersMetadata->DataInterfaceParamInfo)
 	{
 		UNiagaraDataInterfaceBase* CDODataInterface = ShaderModule->RequestDefaultDataInterface(*DataInterfaceParamInfo.DIClassName);
+		if (CDODataInterface == nullptr)
+		{
+			Invalidate();
+			return;
+		}
+
 		if (CDODataInterface->UseLegacyShaderBindings() == false)
 		{
 			const uint32 NextMemberOffset = ShaderMetadataBuilder.GetNextMemberOffset();
