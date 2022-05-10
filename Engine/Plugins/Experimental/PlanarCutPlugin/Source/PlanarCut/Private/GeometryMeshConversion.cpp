@@ -2586,7 +2586,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 	// create proximity sets on geometry collection and populate using ToCut's Proximity multimap and the array ToCutIdxToGeometryIdx
 	if (bHasProximity)
 	{
-		TManagedArray<TSet<int32>>& GCProximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+		TManagedArray<TSet<int32>>& GCProximity = Collection->ModifyAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 		for (TPair<int32, int32> Link : Proximity)
 		{
 			GCProximity[ToCutIdxToGeometryIdx[Link.Key]].Add(ToCutIdxToGeometryIdx[Link.Value]);
@@ -2740,7 +2740,7 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 			}
 			if (bHasProximity)
 			{
-				TManagedArray<TSet<int32>>& Proximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+				TManagedArray<TSet<int32>>& Proximity = Collection->ModifyAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 				TArray<TUniquePtr<TPointHashGrid3d<int>>> VertexHashes;
 				TArray<FAxisAlignedBox3d> MeshBounds;
 				auto MakeHash = [this, &VertexHashes, &MeshBounds, &BooleanResults](int GID)

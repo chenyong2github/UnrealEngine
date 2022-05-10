@@ -457,7 +457,7 @@ void SGeometryCollectionOutliner::SetInitialDynamicState(int32 InDynamicState)
 				TSharedPtr<FGeometryCollection,ESPMode::ThreadSafe> GeometryCollection = GeometryCollectionObject->GetGeometryCollection();
 				if (GeometryCollection)
 				{
-					TManagedArray<int32>& InitialDynamicState = GeometryCollection->GetAttribute<int32>("InitialDynamicState", FGeometryCollection::TransformGroup);
+					TManagedArray<int32>& InitialDynamicState = GeometryCollection->ModifyAttribute<int32>("InitialDynamicState", FGeometryCollection::TransformGroup);
 					TArray<int32> SelectedBones = Component->GetSelectedBones();
 					int32 BoneIndex = SelectedItem->GetBoneIndex();
 					if (ensure(0 <= BoneIndex && BoneIndex < InitialDynamicState.Num()))
@@ -714,7 +714,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 			const bool bHasLevelAttribute = GeometryCollectionPtr->HasAttribute("Level", FGeometryCollection::TransformGroup);
 			if (bHasLevelAttribute && OutlinerSettings->ColorByLevel)
 			{
-				TManagedArray<int32>& Level = GeometryCollectionPtr->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
+				const TManagedArray<int32>& Level = GeometryCollectionPtr->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
 				ItemColor = FSlateColor(FGeometryCollectionTreeItem::GetColorPerDepth((uint32)Level[ItemBoneIndex]));
 			}
 			else

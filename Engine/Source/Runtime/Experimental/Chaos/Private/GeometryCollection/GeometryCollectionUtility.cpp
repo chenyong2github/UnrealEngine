@@ -488,7 +488,7 @@ namespace GeometryCollection
 
 		if (bNeedsInit || bForceInit)
 		{
-			TManagedArray<FGuid>& Guids = Collection->GetAttribute<FGuid>("GUID", FTransformCollection::TransformGroup);
+			TManagedArray<FGuid>& Guids = Collection->ModifyAttribute<FGuid>("GUID", FTransformCollection::TransformGroup);
 			for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
 			{
 				Guids[Idx] = FGuid::NewGuid();

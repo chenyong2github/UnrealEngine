@@ -262,7 +262,7 @@ FORCEINLINE TManagedArray<Type>& Get##Name##ArrayCopyOnWrite()					\
 		DynamicCollection->CopyAttribute(										\
 			*RestCollection->GetGeometryCollection(), StaticName, Group);		\
 		Indirect##Name##Array =													\
-			&DynamicCollection->GetAttribute<Type>(StaticName, Group);			\
+			&DynamicCollection->ModifyAttribute<Type>(StaticName, Group);		\
 		CopyOnWriteAttributeList.Add(											\
 			reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));		\
 	}																			\

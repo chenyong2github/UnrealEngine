@@ -211,7 +211,7 @@ struct FGeometryCollectionProximitySpatial
 			Collection->AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
 		}
 
-		TManagedArray<TSet<int32>>& Proximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+		TManagedArray<TSet<int32>>& Proximity = Collection->ModifyAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 
 		for (int32 GeoIdx = 0; GeoIdx < KnownProximity.Num(); ++GeoIdx)
 		{

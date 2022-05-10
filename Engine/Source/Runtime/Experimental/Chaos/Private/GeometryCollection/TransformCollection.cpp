@@ -39,10 +39,10 @@ void FTransformCollection::Serialize(Chaos::FChaosArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		// for backwards compatibility convert old BoneHierarchy struct into split out arrays
-		TManagedArray<FGeometryCollectionBoneNode>* BoneHierarchyPtr = FindAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FTransformCollection::TransformGroup);
+		const TManagedArray<FGeometryCollectionBoneNode>* BoneHierarchyPtr = FindAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FTransformCollection::TransformGroup);
 		if (BoneHierarchyPtr)
 		{
-			TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchy = *BoneHierarchyPtr;
+			const TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchy = *BoneHierarchyPtr;
 
 			for (int Idx = 0; Idx < BoneHierarchy.Num(); Idx++)
 			{

@@ -254,7 +254,7 @@ void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>&
 
 
 									const FRegexPattern RegexPattern(InPattern);
-									TManagedArray<bool>& AttributeArray = RestCollection->GetAttribute<bool>(InAttributeName, InGroupName);
+									TManagedArray<bool>& AttributeArray = RestCollection->ModifyAttribute<bool>(InAttributeName, InGroupName);
 
 									if (InPatternName.GetStringLength())
 									{
@@ -262,7 +262,7 @@ void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>&
 										{
 											if (RestCollection->FindAttribute<FString>(InPatternName, InGroupName))
 											{
-												TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
+												const TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
 
 												for (int i = 0; i < NameArray.Num(); i++)
 												{
@@ -292,7 +292,7 @@ void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>&
 
 
 									const FRegexPattern RegexPattern(InPattern);
-									TManagedArray<int32>& AttributeArray = RestCollection->GetAttribute<int32>(InAttributeName, InGroupName);
+									TManagedArray<int32>& AttributeArray = RestCollection->ModifyAttribute<int32>(InAttributeName, InGroupName);
 
 									if (InPatternName.GetStringLength())
 									{
@@ -300,7 +300,7 @@ void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>&
 										{
 											if (RestCollection->FindAttribute<FString>(InPatternName, InGroupName))
 											{
-												TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
+												const TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
 
 												for (int i = 0; i < NameArray.Num(); i++)
 												{
@@ -330,7 +330,7 @@ void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>&
 
 
 									const FRegexPattern RegexPattern(InPattern);
-									TManagedArray<float>& AttributeArray = RestCollection->GetAttribute<float>(InAttributeName, InGroupName);
+									TManagedArray<float>& AttributeArray = RestCollection->ModifyAttribute<float>(InAttributeName, InGroupName);
 
 									if (InPatternName.GetStringLength())
 									{
@@ -338,7 +338,7 @@ void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>&
 										{
 											if (RestCollection->FindAttribute<FString>(InPatternName, InGroupName))
 											{
-												TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
+												const TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
 
 												for (int i = 0; i < NameArray.Num(); i++)
 												{

@@ -913,7 +913,7 @@ int32 MergeBones(
 
 	FGeometryCollectionProximityUtility ProximityUtility(&Collection);
 	ProximityUtility.UpdateProximity();
-	TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+	const TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 
 	// local array so we can populate it with all transforms if input was empty
 	TArray<int32> TransformIndices(TransformIndicesView);

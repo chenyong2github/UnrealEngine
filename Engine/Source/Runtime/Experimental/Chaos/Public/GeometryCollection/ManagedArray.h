@@ -104,9 +104,27 @@ protected:
 	virtual void Init(const FManagedArrayBase& ) {};
 
 public:
-
+	FManagedArrayBase()
+	{
+		ClearDirtyFlag();
+	}
+	
 	virtual ~FManagedArrayBase() {}
 
+	FORCEINLINE void ClearDirtyFlag()
+	{
+		bIsDirty = false;
+	}
+	
+	FORCEINLINE_DEBUGGABLE void MarkDirty()
+	{
+		bIsDirty = true;
+	}
+	
+	FORCEINLINE bool IsDirty() const
+	{
+		return bIsDirty;
+	}
 	
 	//todo(ocohen): these should all be private with friend access to managed collection
 	
@@ -167,7 +185,8 @@ public:
 	{
 		check(false);
 	}
-
+private:
+	bool bIsDirty;
 };
 
 template <typename T>

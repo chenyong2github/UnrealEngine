@@ -443,7 +443,7 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 			TArray<FMatrix> TmpGlobalMatrices;
 			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
 
-			TManagedArray<FBox>& TransformBounds = HackGeometryCollectionPtr->GetAttribute<FBox>("BoundingBox", "Transform");
+			TManagedArray<FBox>& TransformBounds = HackGeometryCollectionPtr->ModifyAttribute<FBox>("BoundingBox", "Transform");
 			for (int32 TransformIndex = 0; TransformIndex < HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup); TransformIndex++)
 			{
 				BoundingBox += TransformBounds[TransformIndex].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
@@ -2952,7 +2952,7 @@ void FScopedColorEdit::UpdateBoneColors()
 
 		const TManagedArray<int>& Parents = Collection->Parent;
 		bool HasLevelAttribute = Collection->HasAttribute("Level", FTransformCollection::TransformGroup);
-		TManagedArray<int>* Levels = nullptr;
+		const TManagedArray<int>* Levels = nullptr;
 		if (HasLevelAttribute)
 		{
 			Levels = &Collection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
@@ -3185,7 +3185,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 				const TManagedArray<float>& SleepTimer = DynamicCollection->GetAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
 				const TManagedArray<float>& MaxSleepTime = DynamicCollection->GetAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
 				const TManagedArray<float>& RemovalDuration = DynamicCollection->GetAttribute<float>("RemovalDuration", FGeometryCollection::TransformGroup);
-				TManagedArray<FTransform>& UniformScale = DynamicCollection->GetAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
+				TManagedArray<FTransform>& UniformScale = DynamicCollection->ModifyAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
 
 				for (int32 Idx = 0; Idx < GetTransformArray().Num(); ++Idx)
 				{
@@ -3436,7 +3436,7 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 		&& DynamicCollection->HasAttribute("MaxSleepTime", FGeometryCollection::TransformGroup)
 		&& DynamicCollection->HasAttribute("RemovalDuration", FGeometryCollection::TransformGroup))
 	{
-		TManagedArray<float>& SleepTimer = DynamicCollection->GetAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
+		TManagedArray<float>& SleepTimer = DynamicCollection->ModifyAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
 		const TManagedArray<float>& RemovalDuration = DynamicCollection->GetAttribute<float>("RemovalDuration", FGeometryCollection::TransformGroup);
 		const TManagedArray<float>& MaxSleepTime = DynamicCollection->GetAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
 		TArray<int32> ToDisable;

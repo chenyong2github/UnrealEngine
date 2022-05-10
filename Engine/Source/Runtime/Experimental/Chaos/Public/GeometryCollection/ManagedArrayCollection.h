@@ -106,7 +106,7 @@ public:
 			}
 			Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), MoveTemp(Value));
 		}
-		return GetAttribute<T>(Name, Group);
+		return ModifyAttribute<T>(Name, Group);
 	}
 
 	/**
@@ -237,24 +237,44 @@ public:
 	};
 
 	/**
-	* Returns attribute access of Type(T) from the group
+	* Returns attribute access of Type(T) from the group for modification
+	* this will mark the collection dirty
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	* @return ManagedArray<T> &
 	*/
 	template<typename T>
-	TManagedArray<T>& GetAttribute(FName Name, FName Group)
+	TManagedArray<T>& ModifyAttribute(FName Name, FName Group)
 	{
 		check(HasAttribute(Name, Group))
-		FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
-		return *(static_cast<TManagedArray<T>*>(Map[Key].Value));
-	};
+		const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+		FManagedArrayBase* ManagedArray = Map[Key].Value;
+		ManagedArray->MarkDirty();
+		UE_LOG(LogChaos, Warning, TEXT("Modifying attribute : [%s, %s]"), *Name.ToString(), *Group.ToString());
+		return *(static_cast<TManagedArray<T>*>(ManagedArray));
+	}
+	
+	/**
+	* Returns attribute access of Type(T) from the group
+	* @param Name - The name of the attribute
+	* @param Group - The group that manages the attribute
+	* @return ManagedArray<T> &
+	*/
+	
+	// template<typename T>
+	// UE_DEPRECATED(5.0, "non const GetAttribute() version is now deprecated, use ModifyAttribute instead")
+	// TManagedArray<T>& GetAttribute(FName Name, FName Group)
+	// {
+	// 	check(HasAttribute(Name, Group))
+	// 	const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+	// 	return *(static_cast<TManagedArray<T>*>(Map[Key].Value));
+	// };
 
 	template<typename T>
 	const TManagedArray<T>& GetAttribute(FName Name, FName Group) const
 	{
 		check(HasAttribute(Name, Group))
-		FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+		const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
 		return *(static_cast<TManagedArray<T>*>(Map[Key].Value));
 	};
 
@@ -305,6 +325,13 @@ public:
 	*/
 	FORCEINLINE bool HasGroup(FName Group) const { return GroupInfo.Contains(Group); }
 
+	/**
+	* Check if an attribute is dirty
+	* @param Name - The name of the attribute
+	* @param Group - The group that manages the attribute
+	*/
+	bool IsAttributeDirty(FName Name, FName Group) const;
+	
 	/**
 	*
 	*/

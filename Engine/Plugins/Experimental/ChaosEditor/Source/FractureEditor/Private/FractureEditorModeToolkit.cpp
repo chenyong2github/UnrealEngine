@@ -929,7 +929,7 @@ void FFractureEditorModeToolkit::SetHideForUnselected(UGeometryCollectionCompone
 		// If a cluster is selected, set false for all children.
 		if (GeometryCollection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
 		{
-			TManagedArray<bool>& Hide = GeometryCollection->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
+			TManagedArray<bool>& Hide = GeometryCollection->ModifyAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
 			const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
 			
 			const TArray<int32>& SelectedBones = GCComp->GetSelectedBones();
@@ -1080,7 +1080,7 @@ int32 FFractureEditorModeToolkit::GetLevelCount()
 				bool HasLevelAttribute = GeometryCollection->HasAttribute("Level", FTransformCollection::TransformGroup);
 				if (HasLevelAttribute)
 				{
-					TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
+					const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
 
 					if(Levels.Num() > 0)
 					{
@@ -1675,7 +1675,7 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 
 		check(OutGeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup));
 
-		TManagedArray<FVector3f>& ExplodedVectors = OutGeometryCollection->GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
+		TManagedArray<FVector3f>& ExplodedVectors = OutGeometryCollection->ModifyAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 		const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
 		const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 		const TManagedArray<FBox>& BoundingBox = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);

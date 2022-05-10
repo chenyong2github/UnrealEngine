@@ -943,10 +943,10 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			FS_Clustered = 0x00000002,
 		};
 
-		TManagedArray<FGeometryCollectionBoneNode>* BoneHierarchyPtr = FindAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FTransformCollection::TransformGroup);
+		const TManagedArray<FGeometryCollectionBoneNode>* BoneHierarchyPtr = FindAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FTransformCollection::TransformGroup);
 		if (BoneHierarchyPtr)
 		{
-			TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchy = *BoneHierarchyPtr;
+			const TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchy = *BoneHierarchyPtr;
 
 			for (int Idx = 0; Idx < BoneHierarchy.Num(); Idx++)
 			{
@@ -954,7 +954,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 				{
 					AddAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 				}
-				TManagedArray<int32>& Level = GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+				TManagedArray<int32>& Level = ModifyAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 				Level[Idx] = BoneHierarchy[Idx].Level;
 
 				SimulationType[Idx] = ESimulationTypes::FST_Rigid;
@@ -978,7 +978,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		if (Version < 5)
 		{
 			UE_LOG(FGeometryCollectionLogging, Log, TEXT("GeometryCollection has inaccurate simulation type tags. Updating tags based on transform topology."));
-			TManagedArray<bool>* SimulatableParticles = FindAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
+			const TManagedArray<bool>* SimulatableParticles = FindAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
 			TArray<bool> RigidChildren; RigidChildren.Init(false,NumElements(FTransformCollection::TransformGroup));
 			const TArray<int32> RecursiveOrder = GeometryCollectionAlgo::ComputeRecursiveOrder(*this);
 			for (const int32 TransformGroupIndex : RecursiveOrder)
@@ -1033,7 +1033,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		{
 			if (HasAttribute("TransformToConvexIndex", FTransformCollection::TransformGroup))
 			{
-				TManagedArray<int32> TransformToConvexIndex = MoveTemp(GetAttribute<int32>("TransformToConvexIndex", FTransformCollection::TransformGroup));
+				TManagedArray<int32> TransformToConvexIndex = MoveTemp(ModifyAttribute<int32>("TransformToConvexIndex", FTransformCollection::TransformGroup));
 				RemoveAttribute("TransformToConvexIndex", FTransformCollection::TransformGroup);
 				// if we don't already have the one-to-many version, convert the previous one-to-one mapping to the new format
 				if (!HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup))
@@ -1062,22 +1062,22 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 				AddAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);				
 			}
 
-			TManagedArray<TArray<FVector2f>>* MultipleUVs = FindAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
+			TManagedArray<TArray<FVector2f>>& MultipleUVs = ModifyAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
 			if (NumUVLayers() < 1)
 			{
-				for (int32 VertIdx = 0; VertIdx < MultipleUVs->Num(); ++VertIdx)
+				for (int32 VertIdx = 0; VertIdx < MultipleUVs.Num(); ++VertIdx)
 				{
-					(*MultipleUVs)[VertIdx].SetNum(1);
+					MultipleUVs[VertIdx].SetNum(1);
 				}
 			}
 
-			if (TManagedArray<FVector2f>* SingleUV = FindAttribute<FVector2f>("UV", FGeometryCollection::VerticesGroup))
+			if (const TManagedArray<FVector2f>* SingleUV = FindAttribute<FVector2f>("UV", FGeometryCollection::VerticesGroup))
 			{
-				for (int32 VertIdx = 0; VertIdx < MultipleUVs->Num(); ++VertIdx)
+				for (int32 VertIdx = 0; VertIdx < MultipleUVs.Num(); ++VertIdx)
 				{
 					if (SingleUV)
 					{
-						(*MultipleUVs)[VertIdx][0] = (*SingleUV)[VertIdx];
+						MultipleUVs[VertIdx][0] = (*SingleUV)[VertIdx];
 					}
 				}
 
@@ -1638,7 +1638,7 @@ void FGeometryCollection::WriteDataToOBJFile(const FString &Name, const FString 
 		DataFile.open(string(TCHAR_TO_UTF8(*FullPath)));
 		DataFile << "# Vertex Visibility - vertices whose visibility flag are true" << endl;
 
-		TManagedArray<bool>& VertexVisibility = GetAttribute<bool>("VertexVisibility", FGeometryCollection::VerticesGroup);
+		const TManagedArray<bool>& VertexVisibility = ModifyAttribute<bool>("VertexVisibility", FGeometryCollection::VerticesGroup);
 		int num = 0;
 		for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
 		{

@@ -282,8 +282,8 @@ namespace GeometryCollectionAlgo
 
 					if (0 < ChildIndex && ChildIndex < NumTransforms)
 					{
-						TManagedArray<int32>& Parent = Collection->GetAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
-						TManagedArray< TArray<int32> >& Children = Collection->GetAttribute< TArray<int32> >(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup);
+						TManagedArray<int32>& Parent = Collection->ModifyAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
+						TManagedArray< TArray<int32> >& Children = Collection->ModifyAttribute< TArray<int32> >(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup);
 
 						int32 ParentIndex = Parent[ChildIndex];
 						if (0 <= ParentIndex && ParentIndex < NumTransforms)

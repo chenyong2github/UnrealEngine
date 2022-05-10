@@ -86,6 +86,16 @@ bool FManagedArrayCollection::HasAttribute(FName Name, FName Group) const
 	return Map.Contains(Key);
 }
 
+bool FManagedArrayCollection::IsAttributeDirty(FName Name, FName Group) const
+{
+	const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+	if (const FValueType* Attribute = Map.Find(Key))
+	{
+		return (Attribute->Value)? Attribute->Value->IsDirty(): false;
+	}
+	return false;
+}
+
 TArray<FName> FManagedArrayCollection::AttributeNames(FName Group) const
 {
 	TArray<FName> AttributeNames;

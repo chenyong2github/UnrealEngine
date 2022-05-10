@@ -232,7 +232,7 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 				// Which bone points to the closest convex?
 				const TManagedArray<FTransform>& Transform = ClosestGeometryCollection->Transform;
 				const TManagedArray<int32>& Parent = ClosestGeometryCollection->Parent;
-				TManagedArray<TSet<int32>>& TransformToConvexIndices =
+				const TManagedArray<TSet<int32>>& TransformToConvexIndices =
 					ClosestGeometryCollection->GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 
 				int32 BoneIndex = INDEX_NONE;
@@ -270,7 +270,7 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 					}
 
 					// Get a guid generated for the new instance
-					TManagedArray<FGuid>& Guids = ClosestGeometryCollection->GetAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup);
+					TManagedArray<FGuid>& Guids = ClosestGeometryCollection->ModifyAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup);
 					Guids[Guids.Num()-1] = FGuid::NewGuid();
 
 					// #todo there might be a lot of these -- collect and put outside the loop.
