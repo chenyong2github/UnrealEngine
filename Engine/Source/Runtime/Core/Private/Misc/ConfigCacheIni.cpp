@@ -621,7 +621,7 @@ FConfigLayer GPluginLayers[] =
 	// Project/Default.ini
 	{ TEXT("ProjectDefault"),			TEXT("{PROJECT}/Config/Default{TYPE}.ini") },
 	// Project/Platform/.ini
-	{ TEXT("ProjectDefault"),			TEXT("{PROJECT}/Config/{PLATFORM}/{PLATFORM}{TYPE}.ini"), EConfigLayerFlags::NoExpand },
+	{ TEXT("ProjectDefault"),			TEXT("{PROJECT}/Config/{PLATFORM}/{PLATFORM}{TYPE}.ini")  },
 };
 
 
