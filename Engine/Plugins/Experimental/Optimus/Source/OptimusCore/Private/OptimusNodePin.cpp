@@ -284,8 +284,9 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 		// We notify that the value change occurred, whether that's true or not. This way
 		// the graph pin value sync will ensure that if an invalid value was entered, it will
 		// get reverted back to the true value. 
-		FPropertyChangedEvent ChangedEvent(GetRootPin()->GetPropertyFromPin());
-		Node->PostEditChangeProperty(ChangedEvent);
+		FPropertyChangedEvent ChangedEvent(GetRootPin()->GetPropertyFromPin(), EPropertyChangeType::ValueSet);
+		FPropertyChangedChainEvent ChangedChainEvent(PropertyChain, ChangedEvent);
+		Node->PostEditChangeChainProperty(ChangedChainEvent);
 #endif
 		
 		Notify(EOptimusGraphNotifyType::PinValueChanged);
