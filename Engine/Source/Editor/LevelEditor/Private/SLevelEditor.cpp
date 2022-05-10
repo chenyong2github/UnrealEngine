@@ -228,6 +228,12 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	FEditorDelegates::MapChange.AddRaw(this, &SLevelEditor::HandleEditorMapChange);
 	FEditorDelegates::OnAssetsDeleted.AddRaw(this, &SLevelEditor::HandleAssetsDeleted);
 	HandleEditorMapChange(MapChangeEventFlags::NewMap);
+
+	// Register the display names of the outliners
+	SceneOutlinerDisplayNames.Add(LevelEditorTabIds::LevelEditorSceneOutliner, NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner", "Outliner 1"));
+	SceneOutlinerDisplayNames.Add(LevelEditorTabIds::LevelEditorSceneOutliner2, NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner2", "Outliner 2"));
+	SceneOutlinerDisplayNames.Add(LevelEditorTabIds::LevelEditorSceneOutliner3, NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner3", "Outliner 3"));
+	SceneOutlinerDisplayNames.Add(LevelEditorTabIds::LevelEditorSceneOutliner4, NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner4", "Outliner 4"));
 }
 
 void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TSharedRef<SWindow>& OwnerWindow )
@@ -653,6 +659,64 @@ TArray<TWeakPtr<ISceneOutliner>> SLevelEditor::GetAllSceneOutliners() const
 	return OutValueArray;
 }
 
+void SLevelEditor::SetMostRecentlyUsedSceneOutliner(FName OutlinerIdentifier)
+{
+	TWeakPtr<ISceneOutliner> *Outliner = SceneOutliners.Find(OutlinerIdentifier);
+
+	if(Outliner)
+	{
+		if (TSharedPtr<ISceneOutliner> OutlinerPtr = Outliner->Pin())
+		{
+			SceneOutlinerPtr = OutlinerPtr;
+		}
+	}
+}
+
+void SLevelEditor::ResetMostRecentOutliner()
+{
+	// Pick the first available outliner as the most recent outliner
+	for(const TPair<FName, TWeakPtr<ISceneOutliner>>& Outliner : SceneOutliners)
+	{
+		if(TSharedPtr<ISceneOutliner> OutlinerPin = Outliner.Value.Pin())
+		{
+			SceneOutlinerPtr = OutlinerPin;
+			return;
+		}
+	}
+
+	// No outliners are open currently
+	SceneOutlinerPtr.Reset();
+}
+
+TSharedPtr<ISceneOutliner> SLevelEditor::GetMostRecentlyUsedSceneOutliner()
+{
+	// If the outliner marked as "most recent" is still open, simply return it
+	if(TSharedPtr<ISceneOutliner> SceneOutlinerPin = SceneOutlinerPtr.Pin())
+	{
+		return SceneOutlinerPin;
+	}
+
+	// Otherwise, pick the first available outliner to be the most recent one
+	ResetMostRecentOutliner();
+
+	return SceneOutlinerPtr.Pin();
+}
+
+TSharedPtr<ISceneOutliner> SLevelEditor::GetSceneOutliner() const
+{
+	// Simply pick the first available outliner
+	for(const TPair<FName, TWeakPtr<ISceneOutliner>>& Outliner : SceneOutliners)
+	{
+		if(TSharedPtr<ISceneOutliner> OutlinerPin = Outliner.Value.Pin())
+		{
+			return OutlinerPin;
+		}
+	}
+
+	// No outliners are open currently
+	return nullptr;
+}
+
 TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 {
 	TSharedRef<SActorDetails> ActorDetails = StaticCastSharedRef<SActorDetails>( CreateActorDetails( TabIdentifier ) );
@@ -728,13 +792,75 @@ TSharedRef<ISceneOutliner> SLevelEditor::CreateSceneOutliner(FName TabIdentifier
 	TSharedRef<ISceneOutliner> SceneOutlinerRef = SceneOutlinerModule.CreateActorBrowser(
 		InitOptions);
 
-	// Update the most recently created outliner
-	SceneOutlinerPtr = SceneOutlinerRef;
-
 	// Add this to the map of all outliners
 	SceneOutliners.Add(TabIdentifier, SceneOutlinerRef);
 
+	// Update the most recently used outliner
+	SetMostRecentlyUsedSceneOutliner(TabIdentifier);
+
 	return SceneOutlinerRef;
+}
+
+void SLevelEditor::OnExtendSceneOutlinerTabContextMenu(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.BeginSection("LevelEditorOutlinerContextMenu", LOCTEXT("LevelEditorOutlinerContextMenuOptions", "Outliner Tabs"));
+
+	for (const TPair<FName, FText>& OutlinerTabName : SceneOutlinerDisplayNames)
+	{
+		InMenuBuilder.AddMenuEntry(OutlinerTabName.Value,
+			FText(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([OutlinerTabName]()
+					{
+						FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
+						TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+
+						// Close the tab if it is already open, otherwise open it
+						if (TSharedPtr<SDockTab> LevelEditorOutlinerTab = LevelEditorTabManager->FindExistingLiveTab(OutlinerTabName.Key))
+						{
+							LevelEditorOutlinerTab->RequestCloseTab();
+						}
+						else
+						{
+							LevelEditorTabManager->TryInvokeTab(OutlinerTabName.Key);
+						}
+					}
+				),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([OutlinerTabName]()
+					{
+						FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
+						TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+
+						return LevelEditorTabManager->FindExistingLiveTab(OutlinerTabName.Key) != nullptr;
+					}
+				)),
+			NAME_None,
+			EUserInterfaceActionType::Check);
+	}
+
+	InMenuBuilder.EndSection();
+}
+
+FText SLevelEditor::GetSceneOutlinerLabel(FName SceneOutlinerTabIdentifier)
+{
+	int32 NumActiveOutliners = 0;
+	for (const TPair<FName, TWeakPtr<SDockTab>>& OutlinerTab : SceneOutlinerTabs)
+	{
+		if (OutlinerTab.Value.IsValid())
+		{
+			++NumActiveOutliners;
+		}
+	}
+
+	// If there is only one outliner open, we don't need to call it "Outliner 1"
+	if (NumActiveOutliners == 1)
+	{
+		return NSLOCTEXT("LevelEditor", "SceneOutlinerTabTitle", "Outliner");
+	}
+
+	return SceneOutlinerDisplayNames[SceneOutlinerTabIdentifier];
 }
 
 /** Method to call when a tab needs to be spawned by the FLayoutService */
@@ -790,11 +916,12 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		TSharedRef<ISceneOutliner> SceneOutlinerRef = CreateSceneOutliner(TabIdentifier);
 
-		FText Label = NSLOCTEXT("LevelEditor", "SceneOutlinerTabTitle", "Outliner");
-
+		TAttribute<FText> Label = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &SLevelEditor::GetSceneOutlinerLabel, TabIdentifier));
+		
 		TSharedRef<SDockTab> SceneOutlinerTab = SNew( SDockTab )
 			.Label( Label )
 			.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "SceneOutlinerTab" ) )
+			.OnExtendContextMenu(this, &SLevelEditor::OnExtendSceneOutlinerTabContextMenu)
 			[
 				SNew(SBorder)
 				.Padding( 0 )
@@ -1225,25 +1352,25 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 			const FSlateIcon OutlinerIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner");
 
 			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner, FString()))
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner", "Outliner 1"))
+				.SetDisplayName(SceneOutlinerDisplayNames[LevelEditorTabIds::LevelEditorSceneOutliner])
 				.SetTooltipText(OutlinerTooltip)
 				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
 				.SetIcon(OutlinerIcon);
 
 			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner2, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner2, FString()))
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner2", "Outliner 2"))
+				.SetDisplayName(SceneOutlinerDisplayNames[LevelEditorTabIds::LevelEditorSceneOutliner2])
 				.SetTooltipText(OutlinerTooltip)
 				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
 				.SetIcon(OutlinerIcon);
 
 			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner3, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner3, FString()))
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner3", "Outliner 3"))
+				.SetDisplayName(SceneOutlinerDisplayNames[LevelEditorTabIds::LevelEditorSceneOutliner3])
 				.SetTooltipText(OutlinerTooltip)
 				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
 				.SetIcon(OutlinerIcon);
 
 			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner4, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner4, FString()))
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner4", "Outliner 4"))
+				.SetDisplayName(SceneOutlinerDisplayNames[LevelEditorTabIds::LevelEditorSceneOutliner4])
 				.SetTooltipText(OutlinerTooltip)
 				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
 				.SetIcon(OutlinerIcon);
@@ -1742,15 +1869,15 @@ void SLevelEditor::HandleEditorMapChange( uint32 MapChangeFlags )
 	// We want to recreate all the Scene Outliners on loading a new map
 	if (MapChangeFlags == MapChangeEventFlags::NewMap)
 	{
-		for (TPair<FName, TWeakPtr<SDockTab>> OutlinerTabIdentifier : SceneOutlinerTabs)
+		for (TPair<FName, TWeakPtr<SDockTab>> OutlinerTab : SceneOutlinerTabs)
 		{
-			if (TSharedPtr<SDockTab> SceneOutlinerTabPin = OutlinerTabIdentifier.Value.Pin())
+			if (TSharedPtr<SDockTab> SceneOutlinerTabPin = OutlinerTab.Value.Pin())
 			{
 				// Create the new outliner
-				TSharedRef<ISceneOutliner> SceneOutlinerRef = CreateSceneOutliner(OutlinerTabIdentifier.Key);
+				TSharedRef<ISceneOutliner> SceneOutlinerRef = CreateSceneOutliner(OutlinerTab.Key);
 
 				// Add it to the list of outliners
-				SceneOutliners.Add(OutlinerTabIdentifier.Key, SceneOutlinerRef);
+				SceneOutliners.Add(OutlinerTab.Key, SceneOutlinerRef);
 
 				// Set the tabs content to the newly created outliner
 				SceneOutlinerTabPin->SetContent(SceneOutlinerRef);

@@ -5,39 +5,60 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "EditorConfigBase.h"
+
 #include "ActorBrowsingModeSettings.generated.h"
 
-
-/**
- * Implements the settings for the Actor Browsing Outliner (also known as the World Outliner).
- */
-UCLASS(config = EditorPerProjectUserSettings)
-class UActorBrowsingModeSettings
-	: public UObject
+USTRUCT()
+struct FActorBrowsingModeConfig
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+public:
 
 	/** True when the Scene Outliner is hiding temporary/run-time Actors */
-	UPROPERTY(config)
-	uint32 bHideTemporaryActors : 1;
+	UPROPERTY()
+	bool bHideTemporaryActors = true;
 
 	/** True when the Scene Outliner is showing only Actors that exist in the current level */
-	UPROPERTY(config)
-	uint32 bShowOnlyActorsInCurrentLevel : 1;
+	UPROPERTY()
+	bool bShowOnlyActorsInCurrentLevel = false;
 
 	/** True when the Scene Outliner is only displaying selected Actors */
-	UPROPERTY(config)
-	uint32 bShowOnlySelectedActors : 1;
+	UPROPERTY()
+	bool bShowOnlySelectedActors = false;
 
 	/** True when the Scene Outliner is not displaying Actor Components*/
-	UPROPERTY(config)
-	uint32 bHideActorComponents : 1;
+	UPROPERTY()
+	bool bHideActorComponents = true;
 
 	/** True when the Scene Outliner is not displaying LevelInstances */
-	UPROPERTY(config)
-	uint32 bHideLevelInstanceHierarchy : 1;
+	UPROPERTY()
+	bool bHideLevelInstanceHierarchy = false;
 
 	/** True when the Scene Outliner is not displaying unloaded actors */
-	UPROPERTY(config)
-	uint32 bHideUnloadedActors : 1;
+	UPROPERTY()
+	bool bHideUnloadedActors = false;
+
+	/** True when the Scene Outliner updates when an actor is selected in the viewport */
+	UPROPERTY()
+	bool bAlwaysFrameSelection = true;
+};
+
+UCLASS(EditorConfig="ActorBrowsingMode")
+class UActorBrowserConfig : public UEditorConfigBase
+{
+	GENERATED_BODY()
+	
+public:
+
+	static void Initialize();
+	static UActorBrowserConfig* Get() { return Instance; }
+
+	UPROPERTY(meta=(EditorConfig))
+	TMap<FName, FActorBrowsingModeConfig> ActorBrowsers;
+
+private:
+
+	static TObjectPtr<UActorBrowserConfig> Instance;
 };

@@ -4,6 +4,8 @@
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "ActorTreeItem.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
 
 FActorModeInteractive::FActorModeInteractive(const FActorModeParams& Params)
 	: FActorMode(Params)
@@ -61,16 +63,22 @@ void FActorModeInteractive::OnLevelSelectionChanged(UObject* Obj)
 		SceneOutliner->ClearSelection();
 		SceneOutliner->RefreshSelection();
 
-		// Scroll last item into view - this means if we are multi-selecting, we show newest selection. @TODO Not perfect though
+		// Scroll last item into view if Selection Framing is enabled - this means if we are multi-selecting, we show newest selection. @TODO Not perfect though
 		if (const AActor* LastSelectedActor = GEditor->GetSelectedActors()->GetBottom<AActor>())
 		{
 			if (FSceneOutlinerTreeItemPtr TreeItem = SceneOutliner->GetTreeItem(LastSelectedActor, false))
 			{
-				SceneOutliner->ScrollItemIntoView(TreeItem);
+				if(bAlwaysFrameSelection)
+				{
+					SceneOutliner->ScrollItemIntoView(TreeItem);
+				}
 			}
 			else
 			{
-				SceneOutliner->OnItemAdded(LastSelectedActor, SceneOutliner::ENewItemAction::ScrollIntoView);
+				SceneOutliner::ENewItemAction::Type Action = bAlwaysFrameSelection ? SceneOutliner::ENewItemAction::ScrollIntoView : SceneOutliner::ENewItemAction::Select;
+				
+				SceneOutliner->OnItemAdded(LastSelectedActor, Action);
+				
 			}
 		}
 	}
@@ -78,15 +86,26 @@ void FActorModeInteractive::OnLevelSelectionChanged(UObject* Obj)
 
 void FActorModeInteractive::OnLevelActorRequestsRename(const AActor* Actor)
 {
-	const auto& SelectedItems = SceneOutliner->GetSelectedItems();
-	if (SelectedItems.Num() > 0)
+	TWeakPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+
+	if(TSharedPtr<ILevelEditor> LevelEditorPin = LevelEditor.Pin())
 	{
-		// Ensure that the item we want to rename is visible in the tree
-		FSceneOutlinerTreeItemPtr ItemToRename = SelectedItems[SelectedItems.Num() - 1];
-		if (SceneOutliner->CanExecuteRenameRequest(*ItemToRename) && ItemToRename->CanInteract())
+		/* We want to execute the rename on the most recently used outliner
+		 * TODO: Add a way to pop-out the outliner the rename is done on
+		 */
+		if(SceneOutliner == LevelEditorPin->GetMostRecentlyUsedSceneOutliner().Get())
 		{
-			SceneOutliner->SetPendingRenameItem(ItemToRename);
-			SceneOutliner->ScrollItemIntoView(ItemToRename);
+			const TArray<FSceneOutlinerTreeItemPtr>& SelectedItems = SceneOutliner->GetSelectedItems();
+			if (SelectedItems.Num() > 0)
+			{
+				// Ensure that the item we want to rename is visible in the tree
+				FSceneOutlinerTreeItemPtr ItemToRename = SelectedItems[SelectedItems.Num() - 1];
+				if (SceneOutliner->CanExecuteRenameRequest(*ItemToRename) && ItemToRename->CanInteract())
+				{
+					SceneOutliner->SetPendingRenameItem(ItemToRename);
+					SceneOutliner->ScrollItemIntoView(ItemToRename);
+				}
+			}
 		}
 	}
 }

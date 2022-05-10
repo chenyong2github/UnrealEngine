@@ -1587,7 +1587,7 @@ bool FLevelEditorActionCallbacks::Duplicate_CanExecute()
 
 		if (!bCanDuplicate)
 		{
-			if (TSharedPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditor->GetSceneOutliner())
+			if (TSharedPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditor->GetMostRecentlyUsedSceneOutliner())
 			{
 				bCanDuplicate = SceneOutlinerPtr->Copy_CanExecute(); // If we can copy, we can duplicate
 			}
@@ -1625,7 +1625,7 @@ bool FLevelEditorActionCallbacks::Delete_CanExecute()
 
 		if (!bCanDelete)
 		{
-			if (TSharedPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditor->GetSceneOutliner())
+			if (TSharedPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditor->GetMostRecentlyUsedSceneOutliner())
 			{
 				bCanDelete = SceneOutlinerPtr->Delete_CanExecute();
 			}
@@ -1653,7 +1653,7 @@ void FLevelEditorActionCallbacks::Rename_Execute()
 		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
+			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
 				SceneOutlinerPtr->Rename_Execute();
@@ -1683,7 +1683,7 @@ bool FLevelEditorActionCallbacks::Rename_CanExecute()
 		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
+			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
 				bCanRename = SceneOutlinerPtr->Rename_CanExecute();
@@ -1733,7 +1733,7 @@ bool FLevelEditorActionCallbacks::Cut_CanExecute()
 		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
+			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
 				bCanCut = SceneOutlinerPtr->Cut_CanExecute();
@@ -1781,7 +1781,7 @@ bool FLevelEditorActionCallbacks::Copy_CanExecute()
 		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
+			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
 				bCanCopy = SceneOutlinerPtr->Copy_CanExecute();
@@ -1827,7 +1827,7 @@ bool FLevelEditorActionCallbacks::Paste_CanExecute()
 		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
+			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
 				bCanPaste = SceneOutlinerPtr->Paste_CanExecute();

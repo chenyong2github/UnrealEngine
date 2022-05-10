@@ -67,6 +67,8 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	// The interactive filter collection
 	InteractiveFilters = MakeShareable(new FSceneOutlinerFilters);
 
+	OutlinerIdentifier = InInitOptions.OutlinerIdentifier;
+	
 	check(InInitOptions.ModeFactory.IsBound());
 	Mode = InInitOptions.ModeFactory.Execute(this);
 	check(Mode);
@@ -80,7 +82,6 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	bSelectionDirty = true;
 	SortOutlinerTimer = 0.0f;
 	bPendingFocusNextFrame = InInitOptions.bFocusSearchBoxWhenOpened;
-	OutlinerIdentifier = InInitOptions.OutlinerIdentifier;
 	
 	SortByColumn = FSceneOutlinerBuiltInColumnTypes::Label();
 	SortMode = EColumnSortMode::Ascending;

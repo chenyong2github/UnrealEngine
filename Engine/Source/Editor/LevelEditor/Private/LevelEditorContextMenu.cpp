@@ -588,7 +588,7 @@ void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 	{
 		if (ULevelEditorContextMenuContext* LevelEditorContext = InMenu->FindContext<ULevelEditorContextMenuContext>())
 		{
-			TWeakPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditorContext->LevelEditor.Pin()->GetSceneOutliner();
+			TWeakPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditorContext->LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
 				FToolMenuSection& Section = InMenu->AddSection("SelectVisibilityLevels");

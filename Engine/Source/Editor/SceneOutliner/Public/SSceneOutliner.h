@@ -468,6 +468,9 @@ public:
 	/** Used to test if Outliner related selection changes have already been handled */
 	bool GetIsReentrant() const { return bIsReentrant; }
 
+	/** Get the unique identifier associated with this outliner */
+	FName GetOutlinerIdentifier() const { return OutlinerIdentifier; }
+
 private:
 	/** Methods that implement structural modification logic for the tree */
 
@@ -886,14 +889,14 @@ private:
 	/**
 	 * Get a mutable version of the outliner config for setting values.
 	 * @returns		The outliner config for this outliner.
-	 * @note		If FSceneOutlinerInitializationOptions.ViewIdentifier is not set, it is not possible to store settings for this outliner.
+	 * @note		If FSceneOutlinerInitializationOptions.OutlinerIdentifier is not set, it is not possible to store settings for this outliner.
 	 */
 	struct FSceneOutlinerConfig* GetMutableConfig();
 
 	/**
 	 * Get a const version of the outliner config for getting values.
 	 * @returns		The outliner config for this outliner.
-	 * @note		If FSceneOutlinerInitializationOptions.ViewIdentifier is not set, it is not possible to retrieve settings for this outliner.
+	 * @note		If FSceneOutlinerInitializationOptions.OutlinerIdentifier is not set, it is not possible to retrieve settings for this outliner.
 	 */
 	const FSceneOutlinerConfig* GetConstConfig() const;
 

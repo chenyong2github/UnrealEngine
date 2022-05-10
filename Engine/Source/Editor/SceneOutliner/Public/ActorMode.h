@@ -73,6 +73,9 @@ protected:
 	void SynchronizeActorSelection();
 	bool IsActorDisplayable(const AActor* InActor) const;
 
+	/** Set the Scene Outliner attached to this mode as the most recently used outliner in the Level Editor */
+	void SetAsMostRecentOutliner() const;
+
 	virtual TUniquePtr<ISceneOutlinerHierarchy> CreateHierarchy() override;
 protected:
 	/** The world which we are currently representing */
@@ -91,4 +94,6 @@ protected:
 	bool bHideLevelInstanceHierarchy;
 	/** Should unloaded actors be hidden */
 	bool bHideUnloadedActors;
+	/** Should the outliner scroll to the item on selection */
+	bool bAlwaysFrameSelection;
 };

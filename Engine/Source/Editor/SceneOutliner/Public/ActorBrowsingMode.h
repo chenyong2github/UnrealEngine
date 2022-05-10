@@ -114,6 +114,27 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideComponentsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
+
+	/** Functions to expose selection framing to the UI */
+	void OnToggleAlwaysFrameSelection();
+	bool ShouldAlwaysFrameSelection();
+
+	/**
+	 * Get a mutable version of the ActorBrowser config for setting values.
+	 * @returns		The config for this ActorBrowser.
+	 * @note		If OutlinerIdentifier is not set for this outliner, it is not possible to store settings.
+	 */
+	struct FActorBrowsingModeConfig* GetMutableConfig();
+
+	/**
+	 * Get a const version of the ActorBrowser config for getting values.
+	 * @returns		The config for this ActorBrowser.
+	 * @note		If OutlinerIdentifier is not set for this outliner, it is not possible to store settings.
+	 */
+	const FActorBrowsingModeConfig* GetConstConfig() const;
+
+	/** Save the config for this ActorBrowser */
+	void SaveConfig();
 	
 private:
 	/** Number of actors (including unloaded) which have passed through the filters */

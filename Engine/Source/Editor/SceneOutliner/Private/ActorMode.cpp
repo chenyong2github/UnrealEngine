@@ -19,6 +19,8 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorMode"
 
@@ -359,6 +361,18 @@ void FActorMode::OnFilterTextChanged(const FText& InFilterText)
 
 		// In any other case (i.e., if the object passes the current filter), re-add it
 		SceneOutliner->ScrollItemIntoView(TreeItem);
+
+		SetAsMostRecentOutliner();
+	}
+}
+
+void FActorMode::SetAsMostRecentOutliner() const
+{
+	TWeakPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+
+	if(TSharedPtr<ILevelEditor> LevelEditorPin = LevelEditor.Pin())
+	{
+		LevelEditorPin->SetMostRecentlyUsedSceneOutliner(SceneOutliner->GetOutlinerIdentifier());
 	}
 }
 

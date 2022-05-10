@@ -150,14 +150,19 @@ public:
 	/** Attaches a sequencer asset editor used to animate objects in the level to this level editor */
 	void AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor );
 
-	/** Returns the most recently created scene outliner. Use GetAllSceneOutliners() to get all potentially active outliners
-	 *  TODO: Add a way to identify the most recently interacted with outliner, and change/deprecate this function to return it
-	 */
-	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const override { return SceneOutlinerPtr.Pin();  }
-
 	/** Get an array containing weak pointers to all 4 Scene Outliners which could be potentially active */
 	virtual TArray<TWeakPtr<ISceneOutliner>> GetAllSceneOutliners() const override;
 
+	/** Set the outliner with the given name as the most recently interacted with */
+	virtual void SetMostRecentlyUsedSceneOutliner(FName OutlinerIdentifier) override;
+	
+	/** Return the most recently interacted with Outliner */
+	virtual TSharedPtr<ISceneOutliner> GetMostRecentlyUsedSceneOutliner() override;
+	
+	/** Return the most recently interacted with Outliner */
+	UE_DEPRECATED(5.1, "The Level Editor has multiple outliners, use GetAllSceneOutliners() or GetMostRecentlyUsedSceneOutliner() instead to avoid ambiguity")
+	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const override;
+	
 	TSharedRef<SWidget> GetTitleBarMessageWidget() const { return TtileBarMessageBox.ToSharedRef(); }
 private:
 	
@@ -266,6 +271,15 @@ private:
 	/** Create a Scene Outliner for the Level Editor */
 	TSharedRef<ISceneOutliner> CreateSceneOutliner(FName TabIdentifier);
 
+	/** Function to extend the context menu for the outliner tab */
+	void OnExtendSceneOutlinerTabContextMenu(FMenuBuilder& InMenuBuilder);
+
+	/** Helper function to get the display name for an outliner */
+	FText GetSceneOutlinerLabel(FName SceneOutlinerTabIdentifier);
+
+	/** Sets the first available outliner as the most recent outliner */
+	void ResetMostRecentOutliner();
+
 private:
 
 	// Tracking the active viewports in this level editor.
@@ -324,6 +338,9 @@ private:
 
 	/** Map containing Weak pointers to all the Scene Outliner Tabs in the level editor */
 	TMap<FName, TWeakPtr<SDockTab>> SceneOutlinerTabs;
+
+	/** Map containing the display names of all the outliners */
+	TMap<FName, FText> SceneOutlinerDisplayNames;
 
 	/** Handle to the registered OnPreviewFeatureLevelChanged delegate. */
 	FDelegateHandle PreviewFeatureLevelChangedHandle;

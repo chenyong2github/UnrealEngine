@@ -6,6 +6,9 @@ TObjectPtr<UOutlinerConfig> UOutlinerConfig::Instance = nullptr;
 
 void UOutlinerConfig::Initialize()
 {
-	Instance = NewObject<UOutlinerConfig>(); 
-	Instance->AddToRoot();
+	if(!Instance)
+	{
+		Instance = NewObject<UOutlinerConfig>(); 
+		Instance->AddToRoot();
+	}
 }

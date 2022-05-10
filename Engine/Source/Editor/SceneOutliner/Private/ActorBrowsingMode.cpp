@@ -40,10 +40,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorBrowsingMode"
 
-UActorBrowsingModeSettings::UActorBrowsingModeSettings(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-{ }
-
 using FActorFilter = TSceneOutlinerPredicateFilter<FActorTreeItem>;
 using FActorDescFilter = TSceneOutlinerPredicateFilter<FActorDescTreeItem>;
 static const FFolder GWorldRoot(FFolder::GetEmptyPath(), nullptr);
@@ -70,43 +66,68 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 	FEditorDelegates::OnDeleteActorsBegin.AddRaw(this, &FActorBrowsingMode::OnDeleteActorsBegin);
 	FEditorDelegates::OnDeleteActorsEnd.AddRaw(this, &FActorBrowsingMode::OnDeleteActorsEnd);
 
-	UActorBrowsingModeSettings* SharedSettings = GetMutableDefault<UActorBrowsingModeSettings>();
+	UActorBrowserConfig::Initialize();
+	UActorBrowserConfig::Get()->LoadEditorConfig();
+
+	// Get a MutableConfig here to force create a config for the current outliner if it doesn't exist
+	const FActorBrowsingModeConfig* SavedSettings = GetMutableConfig();
+
+	// Create a local struct to use the default values if this outliner doesn't want to save configs
+	FActorBrowsingModeConfig LocalSettings;
+
+	// If this outliner doesn't want to save config (OutlinerIdentifier is empty, use the defaults)
+	if (SavedSettings)
+	{
+		LocalSettings = *SavedSettings;
+	}
+
 	// Get the OutlinerModule to register FilterInfos with the FilterInfoMap
-	FSceneOutlinerFilterInfo ShowOnlySelectedActorsInfo(LOCTEXT("ToggleShowOnlySelected", "Only Selected"), LOCTEXT("ToggleShowOnlySelectedToolTip", "When enabled, only displays actors that are currently selected."), SharedSettings->bShowOnlySelectedActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateShowOnlySelectedActorsFilter));
+	FSceneOutlinerFilterInfo ShowOnlySelectedActorsInfo(LOCTEXT("ToggleShowOnlySelected", "Only Selected"), LOCTEXT("ToggleShowOnlySelectedToolTip", "When enabled, only displays actors that are currently selected."), LocalSettings.bShowOnlySelectedActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateShowOnlySelectedActorsFilter));
 	ShowOnlySelectedActorsInfo.OnToggle().AddLambda([this](bool bIsActive)
 		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bShowOnlySelectedActors = bIsActive;
-			Settings->PostEditChange();
+			FActorBrowsingModeConfig* Settings = GetMutableConfig();
+			if(Settings)
+			{
+				Settings->bShowOnlySelectedActors = bIsActive;
+				SaveConfig();
+			}
 		});
 	FilterInfoMap.Add(TEXT("ShowOnlySelectedActors"), ShowOnlySelectedActorsInfo);
 
-	FSceneOutlinerFilterInfo HideTemporaryActorsInfo(LOCTEXT("ToggleHideTemporaryActors", "Hide Temporary Actors"), LOCTEXT("ToggleHideTemporaryActorsToolTip", "When enabled, hides temporary/run-time Actors."), SharedSettings->bHideTemporaryActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideTemporaryActorsFilter));
+	FSceneOutlinerFilterInfo HideTemporaryActorsInfo(LOCTEXT("ToggleHideTemporaryActors", "Hide Temporary Actors"), LOCTEXT("ToggleHideTemporaryActorsToolTip", "When enabled, hides temporary/run-time Actors."), LocalSettings.bHideTemporaryActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideTemporaryActorsFilter));
 	HideTemporaryActorsInfo.OnToggle().AddLambda([this](bool bIsActive)
 		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bHideTemporaryActors = bIsActive;
-			Settings->PostEditChange();
+			FActorBrowsingModeConfig* Settings = GetMutableConfig();
+			if(Settings)
+			{
+				Settings->bHideTemporaryActors = bIsActive;
+				SaveConfig();
+			}
 		});
 	FilterInfoMap.Add(TEXT("HideTemporaryActors"), HideTemporaryActorsInfo);
 
-	FSceneOutlinerFilterInfo OnlyCurrentLevelInfo(LOCTEXT("ToggleShowOnlyCurrentLevel", "Only in Current Level"), LOCTEXT("ToggleShowOnlyCurrentLevelToolTip", "When enabled, only shows Actors that are in the Current Level."), SharedSettings->bShowOnlyActorsInCurrentLevel, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateIsInCurrentLevelFilter));
+	FSceneOutlinerFilterInfo OnlyCurrentLevelInfo(LOCTEXT("ToggleShowOnlyCurrentLevel", "Only in Current Level"), LOCTEXT("ToggleShowOnlyCurrentLevelToolTip", "When enabled, only shows Actors that are in the Current Level."), LocalSettings.bShowOnlyActorsInCurrentLevel, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateIsInCurrentLevelFilter));
 	OnlyCurrentLevelInfo.OnToggle().AddLambda([this](bool bIsActive)
 		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bShowOnlyActorsInCurrentLevel = bIsActive;
-			Settings->PostEditChange();
+			FActorBrowsingModeConfig* Settings = GetMutableConfig();
+			if(Settings)
+			{
+				Settings->bShowOnlyActorsInCurrentLevel = bIsActive;
+				SaveConfig();
+			}
 		});
 	FilterInfoMap.Add(TEXT("ShowOnlyCurrentLevel"), OnlyCurrentLevelInfo);
 
-	bHideComponents = SharedSettings->bHideActorComponents;
-	FSceneOutlinerFilterInfo HideComponentsInfo(LOCTEXT("ToggleHideActorComponents", "Hide Actor Components"), LOCTEXT("ToggleHideActorComponentsToolTip", "When enabled, hides components belonging to actors."), SharedSettings->bHideActorComponents, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideComponentsFilter));
+	bHideComponents = LocalSettings.bHideActorComponents;
+	FSceneOutlinerFilterInfo HideComponentsInfo(LOCTEXT("ToggleHideActorComponents", "Hide Actor Components"), LOCTEXT("ToggleHideActorComponentsToolTip", "When enabled, hides components belonging to actors."), LocalSettings.bHideActorComponents, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideComponentsFilter));
 	HideComponentsInfo.OnToggle().AddLambda([this](bool bIsActive)
 		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bHideActorComponents = bHideComponents = bIsActive;
-			Settings->PostEditChange();
-
+			FActorBrowsingModeConfig* Settings = GetMutableConfig();
+			if(Settings)
+			{
+				Settings->bHideActorComponents = bHideComponents = bIsActive;
+				SaveConfig();
+			}
 			if (auto ActorHierarchy = StaticCast<FActorHierarchy*>(Hierarchy.Get()))
 			{
 				ActorHierarchy->SetShowingComponents(!bIsActive);
@@ -115,12 +136,15 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 
 	FilterInfoMap.Add(TEXT("HideComponentsFilter"), HideComponentsInfo);
 
-	FSceneOutlinerFilterInfo HideLevelInstancesInfo(LOCTEXT("ToggleHideLevelInstanceContent", "Hide Level Instance Content"), LOCTEXT("ToggleHideLevelInstancesToolTip", "When enabled, hides all level instance content."), SharedSettings->bHideLevelInstanceHierarchy, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideLevelInstancesFilter));
+	FSceneOutlinerFilterInfo HideLevelInstancesInfo(LOCTEXT("ToggleHideLevelInstanceContent", "Hide Level Instance Content"), LOCTEXT("ToggleHideLevelInstancesToolTip", "When enabled, hides all level instance content."), LocalSettings.bHideLevelInstanceHierarchy, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideLevelInstancesFilter));
 	HideLevelInstancesInfo.OnToggle().AddLambda([this](bool bIsActive)
 		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bHideLevelInstanceHierarchy = bHideLevelInstanceHierarchy = bIsActive;
-			Settings->PostEditChange();
+			FActorBrowsingModeConfig* Settings = GetMutableConfig();
+			if(Settings)
+			{
+				Settings->bHideLevelInstanceHierarchy = bHideLevelInstanceHierarchy = bIsActive;
+				SaveConfig();
+			}
 
 			if (auto ActorHierarchy = StaticCast<FActorHierarchy*>(Hierarchy.Get()))
 			{
@@ -129,13 +153,16 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 		});
 	FilterInfoMap.Add(TEXT("HideLevelInstancesFilter"), HideLevelInstancesInfo);
 	
-	FSceneOutlinerFilterInfo HideUnloadedActorsInfo(LOCTEXT("ToggleHideUnloadedActors", "Hide Unloaded Actors"), LOCTEXT("ToggleHideUnloadedActorsToolTip", "When enabled, hides all unloaded world partition actors."), SharedSettings->bHideUnloadedActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideUnloadedActorsFilter));
+	FSceneOutlinerFilterInfo HideUnloadedActorsInfo(LOCTEXT("ToggleHideUnloadedActors", "Hide Unloaded Actors"), LOCTEXT("ToggleHideUnloadedActorsToolTip", "When enabled, hides all unloaded world partition actors."), LocalSettings.bHideUnloadedActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideUnloadedActorsFilter));
 	HideUnloadedActorsInfo.OnToggle().AddLambda([this] (bool bIsActive)
 		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bHideUnloadedActors = bHideUnloadedActors = bIsActive;
-			Settings->PostEditChange();
-		
+			FActorBrowsingModeConfig* Settings = GetMutableConfig();
+			if(Settings)
+			{
+				Settings->bHideUnloadedActors = bHideUnloadedActors = bIsActive;
+				SaveConfig();
+			}
+
 			if (auto ActorHierarchy = StaticCast<FActorHierarchy*>(Hierarchy.Get()))
 			{
 				ActorHierarchy->SetShowingUnloadedActors(!bIsActive);
@@ -163,6 +190,8 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 			}
 			return true;
 		})));
+
+	bAlwaysFrameSelection = LocalSettings.bAlwaysFrameSelection;
 
 	Rebuild();
 }
@@ -280,8 +309,43 @@ FSlateColor FActorBrowsingMode::GetStatusTextColor() const
 	}
 }
 
+void FActorBrowsingMode::OnToggleAlwaysFrameSelection()
+{
+	bAlwaysFrameSelection = !bAlwaysFrameSelection;
+
+	FActorBrowsingModeConfig* Settings = GetMutableConfig();
+	if(Settings)
+	{
+		Settings->bAlwaysFrameSelection = bAlwaysFrameSelection;
+		SaveConfig();
+	}
+}
+
+bool FActorBrowsingMode::ShouldAlwaysFrameSelection()
+{
+	return bAlwaysFrameSelection;
+}
+
 void FActorBrowsingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.BeginSection("OutlinerSelectionOptions", LOCTEXT("OptionsHeading", "Options"));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AlwaysFrameSelection", "Always Frame Selection"),
+		LOCTEXT("AlwaysFrameSelectionTooltip", "Select an item in the outliner when it is selected through the level editor viewport."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FActorBrowsingMode::OnToggleAlwaysFrameSelection),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateRaw(this, &FActorBrowsingMode::ShouldAlwaysFrameSelection)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.EndSection();
+
+
 	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowWorldHeading", "World"));
 	{
 		MenuBuilder.AddSubMenu(
@@ -753,6 +817,9 @@ void FActorBrowsingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeIt
 
 		// Fire selection changed event
 		GEditor->NoteSelectionChange();
+
+		// Set this outliner as the most recently interacted with
+		SetAsMostRecentOutliner();
 	}
 
 	SceneOutliner->RefreshSelection();
@@ -820,6 +887,8 @@ void FActorBrowsingMode::OnFilterTextCommited(FSceneOutlinerItemSelection& Selec
 	// Set keyboard focus to the SceneOutliner, so the user can perform keyboard commands that interact
 	// with selected actors (such as Delete, to delete selected actors.)
 	SceneOutliner->SetKeyboardFocus();
+
+	SetAsMostRecentOutliner();
 }
 
 void FActorBrowsingMode::OnItemPassesFilters(const ISceneOutlinerTreeItem& Item)
@@ -1933,4 +2002,35 @@ void FActorBrowsingMode::OnDeleteActorsEnd()
 {
 	SceneOutliner->DeleteFoldersEnd();
 }
+
+struct FActorBrowsingModeConfig* FActorBrowsingMode::GetMutableConfig()
+{
+	FName OutlinerIdentifier = SceneOutliner->GetOutlinerIdentifier();
+
+	if (OutlinerIdentifier.IsNone())
+	{
+		return nullptr;
+	}
+
+	return &UActorBrowserConfig::Get()->ActorBrowsers.FindOrAdd(OutlinerIdentifier);
+}
+
+
+const FActorBrowsingModeConfig* FActorBrowsingMode::GetConstConfig() const
+{
+	FName OutlinerIdentifier = SceneOutliner->GetOutlinerIdentifier();
+
+	if (OutlinerIdentifier.IsNone())
+	{
+		return nullptr;
+	}
+
+	return UActorBrowserConfig::Get()->ActorBrowsers.Find(OutlinerIdentifier);
+}
+
+void FActorBrowsingMode::SaveConfig()
+{
+	UActorBrowserConfig::Get()->SaveEditorConfig();
+}
+
 #undef LOCTEXT_NAMESPACE

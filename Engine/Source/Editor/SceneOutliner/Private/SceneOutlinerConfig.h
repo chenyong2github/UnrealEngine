@@ -21,7 +21,7 @@ public:
 
 	/** Whether the hierarchy is pinned at the top of the outliner*/
 	UPROPERTY()
-	bool bShouldStackHierarchyHeaders = false;
+	bool bShouldStackHierarchyHeaders = true;
 };
 
 

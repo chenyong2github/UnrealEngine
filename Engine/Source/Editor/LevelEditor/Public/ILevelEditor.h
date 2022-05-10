@@ -88,9 +88,18 @@ public:
 	/** Sets the UI customization of the SCSEditor inside the level editor details panel. */
 	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization) = 0;
 
+	/** Return the most recently interacted with Outliner */
+	UE_DEPRECATED(5.1, "The Level Editor has multiple outliners, use GetAllSceneOutliners() or GetMostRecentlyUsedSceneOutliner() instead to avoid ambiguity")
 	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const = 0;
 
+	/** Get an array containing weak pointers to all 4 Scene Outliners which could be potentially active */
 	virtual TArray<TWeakPtr<ISceneOutliner>> GetAllSceneOutliners() const = 0;
+
+	/** Set the outliner with the given name as the most recently interacted with */
+	virtual void SetMostRecentlyUsedSceneOutliner(FName OutlinerIdentifier) = 0;
+
+	/** Return the most recently interacted with Outliner */
+	virtual TSharedPtr<ISceneOutliner> GetMostRecentlyUsedSceneOutliner() = 0;
 };
 
 
