@@ -81,6 +81,18 @@ void UOptimusNode_DataInterface::SetDataInterfaceClass(
 }
 
 
+void UOptimusNode_DataInterface::PostLoad()
+{
+	Super::PostLoad();
+
+	// Previously DataInterfaceData wasn't always created.
+	if (!DataInterfaceClass.IsNull() && DataInterfaceData.IsNull())
+	{
+		DataInterfaceData = NewObject<UOptimusComputeDataInterface>(this, DataInterfaceClass);
+	}
+}
+
+
 void UOptimusNode_DataInterface::ConstructNode()
 {
 	if (ensure(!DataInterfaceClass.IsNull()))

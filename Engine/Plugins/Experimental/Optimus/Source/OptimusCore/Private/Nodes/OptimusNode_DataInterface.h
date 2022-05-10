@@ -36,6 +36,7 @@ public:
 	virtual void SetDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass);
 	
 protected:
+	void PostLoad() override;
 	void ConstructNode() override;
 
 private:
