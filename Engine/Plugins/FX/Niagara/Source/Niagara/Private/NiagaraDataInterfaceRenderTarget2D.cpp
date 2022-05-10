@@ -837,6 +837,8 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 	{
 		if (ProxyData->bNeedsTransition)
 		{
+			ProxyData->bNeedsTransition = false;
+
 			if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI)
 			{
 				// FIXME: move to FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage, same as for the transition in Set() above.
