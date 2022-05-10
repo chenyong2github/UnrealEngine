@@ -140,7 +140,10 @@ namespace FNavigationSystem
 
 	ENGINE_API void OnComponentRegistered(UActorComponent& Comp);
 	ENGINE_API void OnComponentUnregistered(UActorComponent& Comp);
-
+	
+	ENGINE_API void RegisterComponent(UActorComponent& Comp);
+	ENGINE_API void UnregisterComponent(UActorComponent& Comp);
+	
 	ENGINE_API void RemoveActorData(AActor& Actor);
 
 	ENGINE_API bool HasComponentData(UActorComponent& Comp);
@@ -284,6 +287,8 @@ protected:
 	static FNavigationSystem::FActorBasedSignature& OnActorUnregisteredDelegate();
 	static FNavigationSystem::FActorComponentBasedSignature& OnComponentRegisteredDelegate();
 	static FNavigationSystem::FActorComponentBasedSignature& OnComponentUnregisteredDelegate();
+	static FNavigationSystem::FActorComponentBasedSignature& RegisterComponentDelegate();
+	static FNavigationSystem::FActorComponentBasedSignature& UnregisterComponentDelegate();
 	static FNavigationSystem::FActorBasedSignature& RemoveActorDataDelegate();
 	static FNavigationSystem::FBoolActorComponentBasedSignature& HasComponentDataDelegate();
 	static FNavigationSystem::FNavDataConfigBasedSignature& GetDefaultSupportedAgentDelegate();

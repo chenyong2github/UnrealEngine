@@ -132,6 +132,8 @@ namespace FNavigationSystem
 		FActorBasedSignature OnActorUnregistered;
 		FActorComponentBasedSignature OnComponentRegistered;
 		FActorComponentBasedSignature OnComponentUnregistered;
+		FActorComponentBasedSignature RegisterComponent;
+		FActorComponentBasedSignature UnregisterComponent;
 		FActorBasedSignature RemoveActorData;
 		FControllerBasedSignature StopMovement;
 		FBoolControllerBasedSignature IsFollowingAPath;
@@ -167,6 +169,8 @@ namespace FNavigationSystem
 			OnActorUnregistered.BindLambda([](AActor&) {});
 			OnComponentRegistered.BindLambda([](UActorComponent&) {});
 			OnComponentUnregistered.BindLambda([](UActorComponent&) {});
+			RegisterComponent.BindLambda([](UActorComponent&) {});
+			UnregisterComponent.BindLambda([](UActorComponent&) {});
 			RemoveActorData.BindLambda([](AActor&) {});
 			StopMovement.BindLambda([](const AController&) {});
 			IsFollowingAPath.BindLambda([](const AController&) { return false; });
@@ -206,6 +210,8 @@ namespace FNavigationSystem
 	void OnActorUnregistered(AActor& Actor) { Delegates.OnActorUnregistered.Execute(Actor); }
 	void OnComponentRegistered(UActorComponent& Comp) { Delegates.OnComponentRegistered.Execute(Comp); }
 	void OnComponentUnregistered(UActorComponent& Comp) { Delegates.OnComponentUnregistered.Execute(Comp); }
+	void RegisterComponent(UActorComponent& Comp) { Delegates.RegisterComponent.Execute(Comp); }
+	void UnregisterComponent(UActorComponent& Comp) { Delegates.UnregisterComponent.Execute(Comp); }
 	void RemoveActorData(AActor& Actor) { Delegates.RemoveActorData.Execute(Actor); }
 	bool HasComponentData(UActorComponent& Comp) { return Delegates.HasComponentData.Execute(Comp);	}
 	const FNavDataConfig& GetDefaultSupportedAgent() { return Delegates.GetDefaultSupportedAgent.Execute(); }
@@ -400,6 +406,8 @@ FNavigationSystem::FActorBasedSignature& UNavigationSystemBase::OnActorRegistere
 FNavigationSystem::FActorBasedSignature& UNavigationSystemBase::OnActorUnregisteredDelegate() { return FNavigationSystem::Delegates.OnActorUnregistered; }
 FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::OnComponentRegisteredDelegate() { return FNavigationSystem::Delegates.OnComponentRegistered; }
 FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::OnComponentUnregisteredDelegate() { return FNavigationSystem::Delegates.OnComponentUnregistered; }
+FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::RegisterComponentDelegate() { return FNavigationSystem::Delegates.RegisterComponent; }
+FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::UnregisterComponentDelegate() { return FNavigationSystem::Delegates.UnregisterComponent; }
 FNavigationSystem::FActorBasedSignature& UNavigationSystemBase::RemoveActorDataDelegate() { return FNavigationSystem::Delegates.RemoveActorData; }
 FNavigationSystem::FBoolActorComponentBasedSignature& UNavigationSystemBase::HasComponentDataDelegate() { return FNavigationSystem::Delegates.HasComponentData; }
 FNavigationSystem::FNavDataConfigBasedSignature& UNavigationSystemBase::GetDefaultSupportedAgentDelegate() { return FNavigationSystem::Delegates.GetDefaultSupportedAgent; }

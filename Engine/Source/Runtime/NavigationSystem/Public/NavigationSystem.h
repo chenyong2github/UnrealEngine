@@ -721,6 +721,9 @@ protected:
 	/** @return pointer to ANavigationData instance of given ID, or NULL if it was not found. Note it looks only through registered navigation data */
 	ANavigationData* GetNavDataWithID(const uint16 NavDataID) const;
 
+	static void RegisterComponentToNavOctree(UActorComponent* Comp);
+	static void UnregisterComponentToNavOctree(UActorComponent* Comp);
+
 public:
 	virtual void ReleaseInitialBuildingLock();
 
@@ -729,6 +732,8 @@ public:
 	//----------------------------------------------------------------------//
 	static void OnComponentRegistered(UActorComponent* Comp);
 	static void OnComponentUnregistered(UActorComponent* Comp);
+	static void RegisterComponent(UActorComponent* Comp);
+	static void UnregisterComponent(UActorComponent* Comp);
 	static void OnActorRegistered(AActor* Actor);
 	static void OnActorUnregistered(AActor* Actor);
 

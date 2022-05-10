@@ -3079,6 +3079,13 @@ int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FI
 	}
 #endif
 
+	// If it's the first instance, register the component. 
+	// If there was no instance on component register, component registration was skipped because of UInstancedStaticMeshComponent::IsNavigationRelevant().
+	if (GetInstanceCount() == 1 && IsNavigationRelevant())
+	{
+		FNavigationSystem::RegisterComponent(*this);
+	}
+	
 	PartialNavigationUpdate(InstanceIndex);
 
 	if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
@@ -3131,6 +3138,13 @@ TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(const TArray<F
 
 		if (SupportsPartialNavigationUpdate())
 		{
+			// If it's the first instance, register the component. 
+			// If there was no instance on component register, component registration was skipped because of UInstancedStaticMeshComponent::IsNavigationRelevant().
+			if (GetInstanceCount() == 1 && IsNavigationRelevant())
+			{
+				FNavigationSystem::RegisterComponent(*this);
+			}
+			
 			PartialNavigationUpdate(InstanceIndex);
 		}
 
@@ -3215,11 +3229,20 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 	// remove instance
 	if (!InstanceAlreadyRemoved && PerInstanceSMData.IsValidIndex(InstanceIndex))
 	{
+		const bool bWasNavRelevant = IsNavigationRelevant();
+		
 		// Request navigation update
 		PartialNavigationUpdate(InstanceIndex);
 
 		PerInstanceSMData.RemoveAt(InstanceIndex);
 		PerInstanceSMCustomData.RemoveAt(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats);
+
+		// If it's the last instance, unregister the component since component with no instances are not registered. 
+		// (because of GetInstanceCount() > 0 in UInstancedStaticMeshComponent::IsNavigationRelevant())
+		if (bWasNavRelevant && GetInstanceCount() == 0)
+		{
+			FNavigationSystem::UnregisterComponent(*this);
+		}
 	}
 
 #if WITH_EDITOR

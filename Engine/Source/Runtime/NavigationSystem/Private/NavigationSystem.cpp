@@ -442,6 +442,8 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 			UNavigationSystemBase::OnActorUnregisteredDelegate().BindLambda([](AActor& Actor) { UNavigationSystemV1::OnActorUnregistered(&Actor); });
 			UNavigationSystemBase::OnComponentRegisteredDelegate().BindLambda([](UActorComponent& Comp) { UNavigationSystemV1::OnComponentRegistered(&Comp); });
 			UNavigationSystemBase::OnComponentUnregisteredDelegate().BindLambda([](UActorComponent& Comp) { UNavigationSystemV1::OnComponentUnregistered(&Comp); });
+			UNavigationSystemBase::RegisterComponentDelegate().BindLambda([](UActorComponent& Comp) { UNavigationSystemV1::RegisterComponent(&Comp); });
+			UNavigationSystemBase::UnregisterComponentDelegate().BindLambda([](UActorComponent& Comp) { UNavigationSystemV1::UnregisterComponent(&Comp); });
 			UNavigationSystemBase::RemoveActorDataDelegate().BindLambda([](AActor& Actor) { UNavigationSystemV1::ClearNavOctreeAll(&Actor); });
 			UNavigationSystemBase::HasComponentDataDelegate().BindLambda([](UActorComponent& Comp) {
 				UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Comp.GetWorld());
@@ -2773,6 +2775,54 @@ ANavigationData* UNavigationSystemV1::GetNavDataWithID(const uint16 NavDataID) c
 	return NULL;
 }
 
+void UNavigationSystemV1::RegisterComponentToNavOctree(UActorComponent* Comp)
+{
+	if ((Comp == nullptr) || IsNavigationSystemStatic())
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_DebugNavOctree);
+	INavRelevantInterface* NavInterface = Cast<INavRelevantInterface>(Comp);
+	if (NavInterface)
+	{
+		AActor* OwnerActor = Comp->GetOwner();
+		if (OwnerActor && OwnerActor->IsComponentRelevantForNavigation(Comp))
+		{
+			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerActor->GetWorld());
+			if (NavSys)
+			{
+				NavSys->RegisterNavOctreeElement(Comp, NavInterface, FNavigationOctreeController::OctreeUpdate_Default);
+			}
+		}
+	}
+}
+
+void UNavigationSystemV1::UnregisterComponentToNavOctree(UActorComponent* Comp)
+{
+	if ((Comp == nullptr) || IsNavigationSystemStatic())
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_DebugNavOctree);
+	INavRelevantInterface* NavInterface = Cast<INavRelevantInterface>(Comp);
+	if (NavInterface)
+	{
+		AActor* OwnerActor = Comp->GetOwner();
+		if (OwnerActor)
+		{
+			// skip IsComponentRelevantForNavigation check, it's only for adding new stuff
+
+			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerActor->GetWorld());
+			if (NavSys)
+			{
+				NavSys->UnregisterNavOctreeElement(Comp, NavInterface, FNavigationOctreeController::OctreeUpdate_Default);
+			}
+		}
+	}
+}
+
 void UNavigationSystemV1::AddDirtyArea(const FBox& NewArea, int32 Flags)
 {
 	DefaultDirtyAreasController.AddArea(NewArea, Flags);
@@ -3059,50 +3109,22 @@ bool UNavigationSystemV1::ReplaceAreaInOctreeData(const UObject& Object, TSubcla
 
 void UNavigationSystemV1::OnComponentRegistered(UActorComponent* Comp)
 {
-	if ((Comp == nullptr) || IsNavigationSystemStatic())
-	{
-		return;
-	}
-
-	SCOPE_CYCLE_COUNTER(STAT_DebugNavOctree);
-	INavRelevantInterface* NavInterface = Cast<INavRelevantInterface>(Comp);
-	if (NavInterface)
-	{
-		AActor* OwnerActor = Comp->GetOwner();
-		if (OwnerActor && OwnerActor->IsComponentRelevantForNavigation(Comp))
-		{
-			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerActor->GetWorld());
-			if (NavSys)
-			{
-				NavSys->RegisterNavOctreeElement(Comp, NavInterface, FNavigationOctreeController::OctreeUpdate_Default);
-			}
-		}
-	}
+	RegisterComponentToNavOctree(Comp);
 }
 
 void UNavigationSystemV1::OnComponentUnregistered(UActorComponent* Comp)
 {
-	if ((Comp == nullptr) || IsNavigationSystemStatic())
-	{
-		return;
-	}
+	UnregisterComponentToNavOctree(Comp);
+}
 
-	SCOPE_CYCLE_COUNTER(STAT_DebugNavOctree);
-	INavRelevantInterface* NavInterface = Cast<INavRelevantInterface>(Comp);
-	if (NavInterface)
-	{
-		AActor* OwnerActor = Comp->GetOwner();
-		if (OwnerActor)
-		{
-			// skip IsComponentRelevantForNavigation check, it's only for adding new stuff
+void UNavigationSystemV1::RegisterComponent(UActorComponent* Comp)
+{
+	RegisterComponentToNavOctree(Comp);
+}
 
-			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerActor->GetWorld());
-			if (NavSys)
-			{
-				NavSys->UnregisterNavOctreeElement(Comp, NavInterface, FNavigationOctreeController::OctreeUpdate_Default);
-			}
-		}
-	}
+void UNavigationSystemV1::UnregisterComponent(UActorComponent* Comp)
+{
+	UnregisterComponentToNavOctree(Comp);
 }
 
 void UNavigationSystemV1::OnActorRegistered(AActor* Actor)

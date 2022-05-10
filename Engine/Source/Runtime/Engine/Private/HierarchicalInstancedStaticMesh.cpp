@@ -3422,9 +3422,9 @@ void UHierarchicalInstancedStaticMeshComponent::PartialNavigationUpdate(int32 In
 		// Accumulate dirty areas and send them to navigation system once cluster tree is rebuilt
 		if (FNavigationSystem::HasComponentData(*this))
 		{
-			FTransform InstanceTransform(PerInstanceSMData[InstanceIdx].Transform);
-			FBox InstanceBox = GetStaticMesh()->GetBounds().TransformBy(InstanceTransform*GetComponentTransform()).GetBox(); // in world space
-			AccumulatedNavigationDirtyArea+= InstanceBox;
+			const FTransform InstanceTransform(PerInstanceSMData[InstanceIdx].Transform);
+			const FBox InstanceBox = GetStaticMesh()->GetBounds().TransformBy(InstanceTransform*GetComponentTransform()).GetBox(); // in world space
+			AccumulatedNavigationDirtyArea += InstanceBox;
 		}
 	}
 }
