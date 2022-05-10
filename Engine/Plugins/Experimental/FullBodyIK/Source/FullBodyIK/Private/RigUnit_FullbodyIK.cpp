@@ -3,6 +3,7 @@
 #include "RigUnit_FullbodyIK.h"
 #include "Units/RigUnitContext.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Engine.h"
 #include "FBIKUtil.h"
 #include "FBIKConstraintLib.h"
 
