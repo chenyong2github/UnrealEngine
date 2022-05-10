@@ -33,10 +33,8 @@ void UStateTree::ResetCompiled()
 
 void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	static const FName SchemaTag(TEXT("Schema"));
-
 	const FString SchemaClassName = Schema ? Schema->GetClass()->GetName() : TEXT("");
-	OutTags.Add(FAssetRegistryTag(SchemaTag, SchemaClassName, FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag(UE::StateTree::SchemaTag, SchemaClassName, FAssetRegistryTag::TT_Alphabetical));
 
 	Super::GetAssetRegistryTags(OutTags);
 }

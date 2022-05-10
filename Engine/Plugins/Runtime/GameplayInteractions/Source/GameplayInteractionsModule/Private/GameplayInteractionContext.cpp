@@ -12,7 +12,7 @@
 
 bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& Definition)
 {
-	const FStateTreeReference& StateTreeReference = Definition.StateTreeReferenceWrapper->StateTreeReference;
+	const FStateTreeReference& StateTreeReference = Definition.StateTreeReference;
 	const UStateTree* StateTree = StateTreeReference.StateTree;
 
 	if (!IsValid())

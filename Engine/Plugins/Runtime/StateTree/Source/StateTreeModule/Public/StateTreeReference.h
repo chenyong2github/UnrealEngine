@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
 #include "StateTreeTypes.h"
 #include "StateTreeReference.generated.h"
 
@@ -12,10 +11,13 @@ class UStateTree;
  * Struct to hold reference to a StateTree asset along with values to parameterized it.
  */
 USTRUCT()
-struct FStateTreeReference
+struct STATETREEMODULE_API FStateTreeReference
 {
 	GENERATED_BODY()
 
+	FStateTreeReference();
+	~FStateTreeReference();
+	
 	UPROPERTY(EditDefaultsOnly, Category="")
 	TObjectPtr<UStateTree> StateTree = nullptr;
 
@@ -23,36 +25,36 @@ struct FStateTreeReference
 	FInstancedPropertyBag Parameters;
 
 #if WITH_EDITOR
+	void PostSerialize(const FArchive& Ar);
+
 	/**
-	 * Make sure that parameters are still compatible with those available in the selected StateTree asset.
-	 * @return true when parameters were 'fixed' to be in sync, false if they were already synced (i.e. unchanged).
+	 * Enforce self parameters to be compatible with those exposed by the selected StateTree asset.
 	 */
-	bool SyncParameters();
-#endif
-};
+	void SyncParameters() { SyncParameters(Parameters); }
 
+	/**
+	 * Sync provided parameters to be compatible with those exposed by the selected StateTree asset.
+	 */
+	void SyncParameters(FInstancedPropertyBag& ParametersToSync) const;
 
-/**
- * Utility class wrapping a StateTreeReference to handle Editor actions to keep parameters synced.
- */
-UCLASS(EditInlineNew)
-class STATETREEMODULE_API UStateTreeReferenceWrapper : public UObject
-{
-	GENERATED_BODY()
+	/**
+	 * Indicates if current parameters are compatible with those available in the selected StateTree asset.
+	 * @return true when parameters requires to be synced to be compatible with those available in the selected StateTree asset, false otherwise.
+	 */
+	bool RequiresParametersSync() const;
 
-public:
-	UPROPERTY(EditDefaultsOnly, Category="")
-	FStateTreeReference StateTreeReference;
-
-protected:
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
-	
-	FDelegateHandle PostCompileHandle;
+private:
 	FDelegateHandle PIEHandle;
 #endif
 };
+
+#if WITH_EDITORONLY_DATA
+template<>
+struct TStructOpsTypeTraits<FStateTreeReference> : public TStructOpsTypeTraitsBase2<FStateTreeReference>
+{
+	enum
+	{
+		WithPostSerialize = true,
+	};
+};
+#endif

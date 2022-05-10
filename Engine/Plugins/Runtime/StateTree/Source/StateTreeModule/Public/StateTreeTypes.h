@@ -70,7 +70,9 @@ enum class EStateTreeStateType : uint8
 
 namespace UE::StateTree
 {
-	constexpr int32 MaxConditionIndent = 4; 
+	constexpr int32 MaxConditionIndent = 4;
+
+	const FName SchemaTag(TEXT("Schema"));
 }; // UE::StateTree
 
 
