@@ -56,7 +56,7 @@ protected:
 
 private:
 	bool bRunInParallelMode = false;
-	bool bIsDuringMassProcessing = false;
+	std::atomic<bool> bIsDuringMassProcessing = false;
 };
 
 // It is unsafe to copy FTickFunctions and any subclasses of FTickFunction should specify the type trait WithCopy = false

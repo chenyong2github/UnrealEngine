@@ -63,32 +63,39 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 
 	check(PhaseProcessor);
 	
-	FMassProcessingContext Context(Manager->GetEntitySubsystemRef(), DeltaTime);
+	UMassEntitySubsystem& EntitySubsystem = Manager->GetEntitySubsystemRef();
+	FMassProcessingContext Context(EntitySubsystem, DeltaTime);
+
+	bIsDuringMassProcessing = true;
 
 	if (bRunInParallelMode)
 	{
-		bIsDuringMassProcessing = true;
-		const FGraphEventRef PipelineCompletionEvent = UE::Mass::Executor::TriggerParallelTasks(*PhaseProcessor, Context, [this, DeltaTime]()
-			{
-				OnParallelExecutionDone(DeltaTime);
-			});
-
-		if (PipelineCompletionEvent.IsValid())
+		bool bWorkRequested = false;
+		if (PhaseProcessor->IsEmpty() == false)
 		{
-			MyCompletionGraphEvent->DontCompleteUntil(PipelineCompletionEvent);
+			const FGraphEventRef PipelineCompletionEvent = UE::Mass::Executor::TriggerParallelTasks(*PhaseProcessor, Context, [this, DeltaTime]()
+				{
+					OnParallelExecutionDone(DeltaTime);
+				});
+
+			if (PipelineCompletionEvent.IsValid())
+			{
+				MyCompletionGraphEvent->DontCompleteUntil(PipelineCompletionEvent);
+				bWorkRequested = true;
+			}
 		}
-		else
+		if (bWorkRequested == false)
 		{
 			OnParallelExecutionDone(DeltaTime);
 		}
 	}
 	else
 	{
-		TGuardValue<bool> MassRunningGuard(bIsDuringMassProcessing, true);
 		UE::Mass::Executor::Run(*PhaseProcessor, Context);
 
 		OnPhaseEnd.Broadcast(DeltaTime);
 		Manager->OnPhaseEnd(*this);
+		bIsDuringMassProcessing = false;
 	}
 }
 
