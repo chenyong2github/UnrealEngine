@@ -1,11 +1,11 @@
-INTSourceChangelist:6341512
+INTSourceChangelist:19906333
 Availability:NoPublish
 Title:FBodyInstance RTTs
 Crumbs:
 
 [EXCERPT:bStartAwake]
 
-이 피직스 바디를 깨어있는(awake) 상태로 시작시킬지 결정합니다. 깨어있는 (잠들지 않은) 피직스 바디에는 시뮬레이션이 활발히 적용됩니다. 깨어있는 피직스 바디가 일정 시간동안 정지해 있게 되면, 다시 잠든(Sleep) 상태로 돌아갑니다.
+이 Physics Body(피직스 바디)를 Start Awake(깨우기 시작)할지 결정합니다. 깨어있는(잠들지 않은) 피직스 바디에는 시뮬레이션이 활성화되어 있습니다. 깨어있는 피직스 바디가 일정 시간 동안 정지해 있게 되면, 다시 Sleep(슬립) 상태로 돌아갑니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#physics
 [/VAR]
@@ -15,7 +15,7 @@ Engine/Physics/PhysicsBodies#physics
 
 [EXCERPT:bEnableGravity]
 
-특정 피직스 바디에 중력을 끌 수 있습니다. 피직스 애셋에 사용하여 스켈레탈 메시의 일정 부분에 중력의 영향을 받지 않도록 할 수 있습니다. 이를테면 수중 식물이나 우주선의 견인 케이블같은 것입니다.
+특정 피직스 바디에 Gravity(중력)을 끌 수 있습니다. 피직스 에셋에 사용하여 스켈레탈 메시의 일정 부분에 중력의 영향을 받지 않도록 할 수 있습니다. 이를테면 수중 식물이나 우주선에서 끊어진 견인 케이블 같은 것입니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#physics
 [/VAR]
@@ -26,7 +26,7 @@ Engine/Physics/PhysicsBodies#physics
 
 [EXCERPT:PhysMaterialOverride]
 
-이 특정 피직스 바디가 심플 콜리전(, 즉 컨벡스 헐이나 구체, 박스, 스필같은 기본 피직스 모양에 관련된 콜리전)에 사용할 피지컬 머티리얼을 덮어씁니다. 이를 통해 특정 피직스 바디에 다른 속성을 주는 것이, 예를 들어 신발에 좀 더 고무같은 속성을 준다던가 하는 것이 가능합니다.
+Simple Collision(단순 콜리전), 즉 컨벡스 헐이나 구체, 박스, 스필 등 기본 피직스 셰이프에 관련된 콜리전에 사용되는 이 특정 피직스 바디에 대한 PhysMaterial(피지컬 머티리얼)을 덮어씁니다. 이를 통해 신발에 좀 더 고무같은 속성을 주는 것처럼 특정 피직스 바디에 다른 속성을 적용할 수 있습니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#physics
 [/VAR]
@@ -37,13 +37,13 @@ Engine/Physics/PhysicsBodies#physics
 
 [EXCERPT:COMNudge]
 
-피직스 바디의 질량 중심(Center of Mass)을 조절합니다.
+피직스 바디의 Center of Mass(질량중심)을 조절합니다.
 
-주된 사용처는 비히클이나 불규칙한 모양을 둘러싼 커다란 피직스 바디입니다. 보통은 커다란 피직스 바디 하나를 사용하여 비히클의 질량 대부분을 정의하게 됩니다. 해당 바디에 대한 질량 중심은 사용되는 피직스 바디를 기준으로 하기에, 거의 항상 피직스 바디의 정중앙이 되게 마련입니다. 이때문에 비히클의 핸들링이 이상해진 경우, 비히클 질량의 실제 위치를 고려해서 질량 중심을 조절해 주면 됩니다.
+주로 비히클이나 불규칙한 모양을 둘러싼 대형 피직스 바디에 사용됩니다. 한 대형 피직스 바디가 비히클의 질량 대부분을 정의하는 데 종종 사용될 것입니다. 해당 바디에 대한 질량중심은 사용되는 피직스 바디를 기준으로 결정되기 때문에 거의 항상 피직스 바디의 정중앙에 위치하게 됩니다. 이로 인해 비히클의 핸들이 어긋날 수 있으므로 비히클 질량의 실제 위치를 고려해서 질량중심을 조정할 수 있습니다.
 
 ![](PhAT_COM.png)
 
-Mass Properties (질량 프로퍼티) 표시 플래그는 이동가능 또는 시뮬레이션 바디에 대한 Center of Mass (질량 중심) 및 Inertia Frame (관성 좌표계)를 시각화합니다. 질량 중심은 보통 지오메트리에 삽입되어 있으므로 와이어프레임 렌더링 모드를 켜줘야 합니다.
+Mass Properties(질량 프로퍼티) 표시 플래그는 Movable(무버블) 및 Simulated(시뮬레이티드) 바디에 대한 질량중심 및 Inertia Frame(관성 좌표계)를 시각화합니다. 질량중심은 보통 지오메트리 내에 있으므로 와이어프레임 렌더링 모드를 켜줘야 합니다.
 
 ![](COM_Geom.png)
 
@@ -72,11 +72,11 @@ Engine/Physics/PhysicsBodies#physics
 
 [EXCERPT:MassScale]
 
-선택된 피직스 바디의 질량(Mass)에 스케일을 적용합니다.
+선택된 피직스 바디의 Mass(질량) 스케일을 조정합니다.
 
-스켈레탈 메시가 다른 물질로 만들어졌거나 밀도가 다른 것처럼 보이도록 만드는데 사용됩니다. 피직스 바디의 질량을 정의하는 계산은 피직스 바디 전체에 대해 균일하기에 이 옵션이 필요합니다.
+스켈레탈 메시가 다른 물질로 만들어졌거나 밀도가 다른 것처럼 보이도록 만드는데 사용됩니다. 피직스 바디의 질량을 정의하는 계산법이 모든 피직스 바디에 동일하게 적용되기 때문에 이 옵션이 필요합니다.
 
-이를 통해 사물이 레벨의 포스에 영향을 더 또는 덜 받도록 할 수 있습니다. 질량을 낮추면 좀 더 하늘거리는 느낌을 낼 수 있는 반면, 높이면 피직스 애셋에 좀 더 뿌리박힌 느낌을 줄 수 있습니다.
+이를 통해 사물이 레벨 내 활성화된 물리 법칙의 영향을 더 또는 덜 받도록 할 수 있습니다. 질량을 낮추면 좀 더 하늘거리는 느낌을 낼 수 있는 반면, 질량을 높이면 Physics Asset(피직스 에셋)이 좀 더 단단하게 고정된 듯한 느낌을 구현할 수 있습니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#physics
 [/VAR]
@@ -96,7 +96,7 @@ Engine/Physics/PhysicsBodies
 
 [EXCERPT:LinearDamping]
 
-피직스 바디에 항력같은 효과를 추가해 줍니다만, 좀 더 정확하게는 피직스 바디가 이동에 저항하는 정도를 나타냅니다. 낙하하는 피직스 바디의 경우 적당히 느리게 만들어 주어, 물이나 진흙속에서 낙하하는 듯한 느낌을 줄 수 있습니다.
+피직스 바디에 항력 같은 효과를 추가합니다. 좀 더 정확하게는 피직스 바디가 이동에 저항하는 정도를 나타냅니다. 낙하하는 피직스 바디의 경우 추락 속도를 늦춰주며, 마치 물이나 진흙에 잠기는 듯한 효과를 구현할 수 있습니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies
 [/VAR]
@@ -107,9 +107,9 @@ Engine/Physics/PhysicsBodies
 
 [EXCERPT:PositionSolverIterationCount]
 
-CPU 추가 비용으로 포지션 솔버의 정확도를 향상시켜 줍니다. 피직스 바디의 꿈틀거림(jitter)을 제거하고 정지(resting) 상태에 더욱 빠르게 도달하도록 하여 안정성을 높여준다는 장점이 있습니다.
+CPU 추가 비용으로 Position Solver(위치 솔버)의 정확도를 향상시켜 줍니다. 피직스 바디의 떨림을 제거하여 더욱 빠르게 정지 상태에 도달하도록 하여 보다 효과적으로 안정화한다는 이점이 있습니다.
 
-래그돌 꿈틀이 수정을 위한 최후의 보루로 사용해야 할 옵션입니다. 제동 값이나 충돌 허용 피직스 바디 처리 작업등을 먼저 해 줘야 할 것입니다.
+이 옵션은 래그돌 떨림을 수정할 때 차선책으로 사용해야 합니다. 먼저 댐핑 값을 조정해 보거나 어느 피직스 바디의 충돌을 허용할지 결정해야 합니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#physics
 [/VAR]
@@ -120,7 +120,7 @@ Engine/Physics/PhysicsBodies#physics
 
 [EXCERPT:VelocitySolverIterationCount]
 
-Position Solver Iteration Count (포지션 솔버 반복처리 횟수)와 마찬가지로, 이 피직스 바디가 속도를 구하기 위한 반복처리 횟수를 늘려주지만, CPU 처리 비용도 늘어납니다.
+Position Solver Iteration Count(위치 솔버 반복작업 수)와 마찬가지로, 이 피직스 바디가 속도를 구하기 위한 반복처리 횟수를 늘려주지만, CPU 처리 비용도 늘어납니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#physics
 [/VAR]
@@ -131,7 +131,7 @@ Engine/Physics/PhysicsBodies#physics
 
 [EXCERPT:bNotifyRigidBodyCollision]
 
-선택된 피직스 바디가 블루프린트나 코드 엘리먼트에 충돌했는지 보고할 수 있도록 합니다. 이 옵션이 꺼져 있으면, 피직스 바디는 사물과 충돌은 하지만 실제로 그 내용을 보고하지는 않습니다.
+선택된 피직스 바디가 블루프린트나 코드 엘리먼트에 충돌했는지 보고할 수 있도록 합니다. 이 옵션이 꺼져 있으면, 피직스 바디가 사물과 충돌은 하지만 실제로 그 내용을 보고하지는 않습니다.
 Engine/Physics/PhysicsBodies/#collision
 [/EXCERPT:bNotifyRigidBodyCollision]
 
@@ -140,9 +140,9 @@ Engine/Physics/PhysicsBodies/#collision
 
 [EXCERPT:bUseCCD]
 
-CCD(Continuous Collision Detection, 연속 콜리전 감지)는 피직스 바디의 CPU 처리 비용이 증가되지만 충돌 감지 정확도가 훨씬 정확해 집니다.
+CCD(Continuous Collision Detection, 지속 콜리전 감지)는 피직스 바디의 CPU 처리 비용이 증가되지만 충돌 감지 정확도가 훨씬 정확해 집니다.
 
-고속으로 움직이는 오브젝트의 상호관통 방출 오류의 방지나 좀 더 정확한 충돌 감지가 필요한 경우에 사용할 수 있는 옵션입니다. 또한 오버랩 및 (폰과 같은) 단일 오브젝트 유형에서의 콜리전을 보고하도록 설정된 피직스 바디의 경우, CCD 를 사용하면 다음 프레임에서 방출되기 전 피직스 바디가 오버랩되는 한 프레임에서의 중복 이벤트를 방지할 수 있습니다.
+고속으로 움직이는 오브젝트의 상호관통 방출 오류의 방지나 좀 더 정확한 충돌 감지가 필요한 경우에 사용할 수 있는 옵션입니다. 또한 오버랩 및 폰과 같은 단일 오브젝트 유형에서의 콜리전을 보고하도록 설정된 피직스 바디의 경우, CCD를 사용하면 다음 프레임에서 방출되기 전 피직스 바디가 오버랩되는 한 프레임에서의 중복 이벤트를 방지할 수 있습니다.
 [VAR:ToolTipFullLink]
 Engine/Physics/PhysicsBodies#collision
 [/VAR]
