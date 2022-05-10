@@ -315,7 +315,7 @@ namespace IncludeTool
 							{
 								Environment.Definitions.Add(Tokens[Idx].Substring(2));
 							}
-							else if (Tokens[Idx] == "/I" || Tokens[Idx] == "-I")
+							else if (Tokens[Idx] == "/I" || Tokens[Idx] == "-I" || Tokens[Idx] == "/imsvc" || Tokens[Idx] == "-isystem")
 							{
 								string IncludePath = Tokens[++Idx].Replace("//", "/");
 								if (!Path.IsPathRooted(IncludePath))
@@ -327,6 +327,15 @@ namespace IncludeTool
 							else if (Tokens[Idx].StartsWith("-I"))
 							{
 								string IncludePath = Tokens[Idx].Substring(2).Replace("//", "/");
+								if (!Path.IsPathRooted(IncludePath))
+								{
+									IncludePath = Path.Combine(BaseDir.FullName, IncludePath);
+								}
+								Environment.IncludePaths.Add(new DirectoryReference(IncludePath.ToLowerInvariant()));
+							}
+							else if (Tokens[Idx].StartsWith("-isystem"))
+							{
+								string IncludePath = Tokens[Idx].Substring(8).Replace("//", "/");
 								if (!Path.IsPathRooted(IncludePath))
 								{
 									IncludePath = Path.Combine(BaseDir.FullName, IncludePath);
