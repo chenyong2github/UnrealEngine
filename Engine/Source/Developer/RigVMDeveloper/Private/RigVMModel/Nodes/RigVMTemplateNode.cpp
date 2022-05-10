@@ -551,7 +551,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 
 	if (bIsStructElement)
 	{
-		if (InPin->GetCPPType() == LinkedPin->GetCPPType())
+		if (RigVMTypeUtils::AreCompatible(InPin->GetCPPType(), InPin->GetCPPTypeObject(), LinkedPin->GetCPPType(), LinkedPin->GetCPPTypeObject()))
 		{
 			return FilteredPermutations;
 		}
@@ -561,7 +561,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 	bool bLinkedIsTemplate = false;
 	if (URigVMTemplateNode* LinkedTemplate = Cast<URigVMTemplateNode>(LinkedPin->GetNode()))
 	{
-		if (!LinkedTemplate->IsSingleton())
+		if (!LinkedTemplate->IsSingleton() && !LinkedPin->IsStructMember())
 		{
 			bLinkedIsTemplate = true;
 			if (const FRigVMTemplateArgument* Argument = GetTemplate()->FindArgument(RootPin->GetFName()))

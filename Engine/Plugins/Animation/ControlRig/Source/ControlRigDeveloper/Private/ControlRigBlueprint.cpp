@@ -913,7 +913,14 @@ void UControlRigBlueprint::RefreshAllModels()
 			Controller->RemoveUnusedOrphanedPins(ModelNode, false);
 		}
 
-		Controller->InitializeFilteredPermutationsFromTemplateTypes();
+		for(URigVMNode* ModelNode : GraphToClean->GetNodes())
+		{
+			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
+			{
+				TemplateNode->InvalidateCache();
+			}
+		}
+		Controller->RecomputeAllTemplateFilteredTypes(false);
 	}
 }
 

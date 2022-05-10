@@ -15063,7 +15063,7 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 				bBrokenLinks = false;
 				
 				// Initialize all template nodes in the graph
-				InitializeAllTemplateFiltersInGraph(true);
+				InitializeAllTemplateFiltersInGraph(true, false);
 
 				// Update our node with the requested type
 				UpdateFilteredPermutations(InPin, InTypes, true);
@@ -15450,6 +15450,7 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 						}
 						else
 						{
+							ensure(bIsTransacting);
 							URigVMLink* Link = Pin->FindLinkForPin(OtherPin);
 							BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
 							return false;
@@ -15501,13 +15502,86 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
-	
-	InitializeAllTemplateFiltersInGraph(bSetupUndoRedo);
-	
-	for (URigVMLink* Link : Graph->GetLinks())
+
+	// Save all template pin types, in case we need them after initializing
+	TMap<URigVMPin*, FRigVMTemplateArgument::FType> TypesBeforeRecomputing;
+	for (URigVMNode* Node : Graph->GetNodes())
 	{
+		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+		{
+			if (TemplateNode->IsSingleton())
+			{
+				continue;
+			}
+
+			if (!TemplateNode->PreferredPermutationTypes.IsEmpty())
+			{
+				continue;
+			}
+
+			if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+			{
+				for (int32 i=0; i<Template->NumArguments(); ++i)
+				{
+					const FRigVMTemplateArgument* Argument = Template->GetArgument(i);
+					URigVMPin* Pin = TemplateNode->FindPin(Argument->GetName().ToString());
+					if (Pin->IsWildCard())
+					{
+						continue;
+					}
+
+					TypesBeforeRecomputing.Add(Pin, FRigVMTemplateArgument::FType(Pin->GetCPPType(), Pin->GetCPPTypeObject()));
+				}
+			}
+		}
+	}
+
+	// Initialize all filtered permutations to unresolved (except for preferred permutation)
+	InitializeAllTemplateFiltersInGraph(bSetupUndoRedo, false);
+
+	// Apply all links to update filtered permutations
+	for (int32 i=0; i<Graph->GetLinks().Num(); ++i)
+	{
+		URigVMLink* Link = Graph->GetLinks()[i];
+		
 		URigVMPin* OutputPin = Link->GetSourcePin();
 		URigVMPin* InputPin = Link->GetTargetPin();
+
+		// If pin is a struct member, we should resolve to that type
+		if (URigVMTemplateNode* OutputNode = Cast<URigVMTemplateNode>(OutputPin->GetNode()))
+		{
+			if (!OutputNode->IsSingleton())
+			{
+				if (OutputPin->IsStructMember())
+				{
+					URigVMPin* RootPin = OutputPin->GetRootPin();
+					const FRigVMTemplateArgument::FType Type = TypesBeforeRecomputing.FindChecked(RootPin);
+					if (UpdateFilteredPermutations(RootPin, {Type}, bSetupUndoRedo))
+					{
+						PropagateTemplateFilteredTypes(OutputNode, bSetupUndoRedo);
+					}
+				}
+			}
+		}
+
+		// If pin is a struct member, we should resolve to that type
+		if (URigVMTemplateNode* InputNode = Cast<URigVMTemplateNode>(InputPin->GetNode()))
+		{
+			if (!InputNode->IsSingleton())
+			{
+				if (InputPin->IsStructMember())
+				{
+					URigVMPin* RootPin = InputPin->GetRootPin();
+					const FRigVMTemplateArgument::FType Type = TypesBeforeRecomputing.FindChecked(RootPin);
+					if (UpdateFilteredPermutations(RootPin, {Type}, bSetupUndoRedo))
+					{
+						PropagateTemplateFilteredTypes(InputNode, bSetupUndoRedo);
+					}
+				}
+			}
+		}
+
+		// Propagate filtered types due to this link
 		if (URigVMTemplateNode* OutputNode = Cast<URigVMTemplateNode>(OutputPin->GetNode()))
 		{
 			if (!OutputNode->IsSingleton())
@@ -15516,7 +15590,6 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 				{
 					if (UpdateFilteredPermutations(OutputPin, InputPin, bSetupUndoRedo))
 					{
-						UpdateTemplateNodePinTypes(OutputNode, bSetupUndoRedo);
 						PropagateTemplateFilteredTypes(OutputNode, bSetupUndoRedo);
 					}
 				}
@@ -15530,40 +15603,29 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 				{
 					if (UpdateFilteredPermutations(InputPin, OutputPin, bSetupUndoRedo))
 					{
-						UpdateTemplateNodePinTypes(InputNode, bSetupUndoRedo);
 						PropagateTemplateFilteredTypes(InputNode, bSetupUndoRedo);
 					}
 				}
 			}
 		}				
 	}
-}
 
-void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()
-{
-	if (!IsValidGraph())
-	{
-		return;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
+	// Now update all template nodes pin types
 	for (URigVMNode* Node : Graph->GetNodes())
 	{
 		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
 		{
-			TemplateNode->InitializeFilteredPermutationsFromTypes();
+			if (TemplateNode->IsSingleton())
+			{
+				continue;
+			}
+
+			UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
 		}
 	}
 }
 
-void URigVMController::InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo)
+void URigVMController::InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo, bool bChangePinTypes)
 {
 	if (!IsValidGraph())
 	{
@@ -15592,7 +15654,10 @@ void URigVMController::InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo)
 				
 				TArray<int32> OldPermutations = TemplateNode->FilteredPermutations;
 				TemplateNode->InitializeFilteredPermutations();
-				UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
+				if (bChangePinTypes)
+				{
+					UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
+				}
 				if (bSetupUndoRedo)
 				{
 					FRigVMSetTemplateFilteredPermutationsAction FilteringAction(TemplateNode, nullptr, OldPermutations);

@@ -119,6 +119,7 @@ protected:
 	mutable TArray<int32> ResolvedPermutations;
 
 	friend class URigVMController;
+	friend class UControlRigBlueprint;
 	friend struct FRigVMSetTemplateFilteredPermutationsAction;
 	friend struct FRigVMSetPreferredTemplatePermutationsAction;
 };

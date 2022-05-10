@@ -895,11 +895,8 @@ public:
 	// Initializes and recomputes the filtered permutations of all template nodes in the graph 
 	void RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo);
 
-	// Try to initialize the filterd permutations from the pin types
-	void InitializeFilteredPermutationsFromTemplateTypes();
-
 	// Initializes filtered permuations to be unresolved in all template nodes in graph
-	void InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo);
+	void InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo, bool bChangePinTypes);
 	
 #endif
 
