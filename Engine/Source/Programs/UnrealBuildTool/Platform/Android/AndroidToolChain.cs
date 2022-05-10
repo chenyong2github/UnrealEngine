@@ -49,7 +49,7 @@ namespace UnrealBuildTool
 		EnableMinimalUndefinedBehaviorSanitizer = 0x10,
 	}
 
-	class AndroidToolChain : ISPCToolChain, IAndroidToolChain
+	class AndroidToolChain : ClangToolChain, IAndroidToolChain
 	{
 		public static readonly string[] AllCpuSuffixes =
 		{
@@ -93,11 +93,6 @@ namespace UnrealBuildTool
 		private List<string> AdditionalArches;
 		private List<string> AdditionalGPUArches;
 		protected bool bExecuteCompilerThroughShell;
-
-		// the Clang version being used to compile
-		static int ClangVersionMajor = -1;
-		static int ClangVersionMinor = -1;
-		static int ClangVersionPatch = -1;
 
 		// Version string from the Android specific build of clang. E.g in Android (6317467 based on r365631c1) clang version 9.0.8
 		// this would be 6317467)
@@ -156,26 +151,6 @@ namespace UnrealBuildTool
 		{
 			// Google changed NDK structure in r22+
 			return NDKVersionInt >= 220000;
-		}
-
-		/// <summary>
-		/// Checks if compiler version matches the requirements
-		/// </summary>
-		private static bool CompilerVersionGreaterOrEqual(int Major, int Minor, int Patch)
-		{
-			return ClangVersionMajor > Major ||
-				(ClangVersionMajor == Major && ClangVersionMinor > Minor) ||
-				(ClangVersionMajor == Major && ClangVersionMinor == Minor && ClangVersionPatch >= Patch);
-		}
-
-		/// <summary>
-		/// Checks if compiler version matches the requirements
-		/// </summary>
-		private static bool CompilerVersionLessThan(int Major, int Minor, int Patch)
-		{
-			return ClangVersionMajor < Major ||
-				(ClangVersionMajor == Major && ClangVersionMinor < Minor) ||
-				(ClangVersionMajor == Major && ClangVersionMinor == Minor && ClangVersionPatch < Patch);
 		}
 
 		[CommandLine("-Architectures=", ListSeparator = '+')]
@@ -742,17 +717,7 @@ namespace UnrealBuildTool
 				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=1";
 			}
 
-			// Conditionally enable (default disabled) generation of information about every class with virtual functions for use by the C++ runtime type identification features
-			// (`dynamic_cast' and `typeid'). If you don't use those parts of the language, you can save some space by using -fno-rtti.
-			// Note that exception handling uses the same information, but it will generate it as needed.
-			if (CompileEnvironment.bUseRTTI)
-			{
-				Result += " -frtti";
-			}
-			else
-			{
-				Result += " -fno-rtti";
-			}
+			Result += GetRTTIFlag(CompileEnvironment);
 
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
 			if (CompileEnvironment.bPGOOptimize)
@@ -843,68 +808,6 @@ namespace UnrealBuildTool
 
 			Result += " -fforce-emit-vtables";      // Helps with devirtualization
 			//Result += " -fstrict-vtable-pointers";	// Assumes that vtable pointer will never change, i.e. object of a different type would not be constracted in place of another object. Helps with devirtualization
-
-			return Result;
-		}
-
-		static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result;
-			switch (CompileEnvironment.CppStandard)
-			{
-				case CppStandardVersion.Cpp14:
-					Result = " -std=c++14";
-					break;
-				case CppStandardVersion.Latest:
-				case CppStandardVersion.Cpp17:
-					Result = " -std=c++17";
-					break;
-				case CppStandardVersion.Cpp20:
-					Result = " -std=c++20";
-					break;
-				default:
-					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
-			}
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-				if (!CompileEnvironment.bEnableExceptions)
-				{
-					Result += " -Wno-coroutine-missing-unhandled-exception";
-				}
-			}
-
-			return Result;
-		}
-
-		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-
-			Result += " -x c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-
-			return Result;
-		}
-
-		static string GetCompileArguments_C()
-		{
-			string Result = " -x c";
-			return Result;
-		}
-
-		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-
-			Result += " -x c++-header";
-			if (CompilerVersionGreaterOrEqual(11, 0, 0))
-			{
-				Result += " -fpch-validate-input-files-content";
-				Result += " -fpch-instantiate-templates";
-			}
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
 
 			return Result;
 		}

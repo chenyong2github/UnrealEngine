@@ -145,7 +145,7 @@ namespace UnrealBuildTool
 		}
 	}
 
-	abstract class AppleToolChain : ISPCToolChain
+	abstract class AppleToolChain : ClangToolChain
 	{
 		protected FileReference? ProjectFile;
 
@@ -200,32 +200,48 @@ namespace UnrealBuildTool
 			return FullClangVersion;
 		}
 
-		protected static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
+		protected override string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result;
-			switch (CompileEnvironment.CppStandard)
-			{
-				case CppStandardVersion.Cpp14:
-					Result = " -std=c++14";
-					break;
-				case CppStandardVersion.Latest:
-				case CppStandardVersion.Cpp17:
-					Result = " -std=c++17";
-					break;
-				case CppStandardVersion.Cpp20:
-					Result = " -std=c++20";
-					break;
-				default:
-					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
-			}
+			string Result = "";
+			Result += " -x objective-c++";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
 
-			if (CompileEnvironment.bEnableCoroutines)
+			return Result;
+		}
+
+		protected override string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c++";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
+			return Result;
+		}
+
+		protected override string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
+			return Result;
+		}
+
+		protected override string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			Result += " -x objective-c++-header";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += " -stdlib=libc++";
+
+			if (GetClangVersion().Major >= 11)
 			{
-				Result += " -fcoroutines-ts";
-				if (!CompileEnvironment.bEnableExceptions)
-				{
-					Result += " -Wno-coroutine-missing-unhandled-exception";
-				}
+				Result += " -fpch-validate-input-files-content";
+			}
+			if (GetClangVersion().Major >= 13) // Note this is supported for >=11 on other clang platforms
+			{
+				Result += " -fpch-instantiate-templates";
 			}
 
 			return Result;

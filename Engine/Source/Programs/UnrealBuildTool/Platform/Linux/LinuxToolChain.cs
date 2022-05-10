@@ -70,7 +70,7 @@ namespace UnrealBuildTool
 		PreservePSYM = 0x100,
 	}
 
-	class LinuxToolChain : ISPCToolChain
+	class LinuxToolChain : ClangToolChain
 	{
 		/** Flavor of the current build (target triplet)*/
 		string Architecture;
@@ -181,11 +181,11 @@ namespace UnrealBuildTool
 			// refuse to use compilers that we know won't work
 
 			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 130 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 100)
+			if ((ClangVersionMajor * 10 + ClangVersionMinor) > 130 || (ClangVersionMajor * 10 + ClangVersionMinor) < 100)
 			{
 				throw new BuildException(
 					string.Format("This version of the Unreal Engine can only be compiled with clang 13.0, 12.0, 11.0, and 10.0. clang {0} may not build it - please use a different version.",
-						CompilerVersionString)
+						ClangVersionString)
 					);
 			}
 		}
@@ -226,18 +226,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void DetermineCompilerMajMinPatchFromVersionString()
 		{
-			string[] Parts = CompilerVersionString!.Split('.');
+			string[] Parts = ClangVersionString!.Split('.');
 			if (Parts.Length >= 1)
 			{
-				CompilerVersionMajor = Convert.ToInt32(Parts[0]);
+				ClangVersionMajor = Convert.ToInt32(Parts[0]);
 			}
 			if (Parts.Length >= 2)
 			{
-				CompilerVersionMinor = Convert.ToInt32(Parts[1]);
+				ClangVersionMinor = Convert.ToInt32(Parts[1]);
 			}
 			if (Parts.Length >= 3)
 			{
-				CompilerVersionPatch = Convert.ToInt32(Parts[2]);
+				ClangVersionPatch = Convert.ToInt32(Parts[2]);
 			}
 		}
 
@@ -351,10 +351,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool DetermineCompilerVersion()
 		{
-			CompilerVersionString = null;
-			CompilerVersionMajor = -1;
-			CompilerVersionMinor = -1;
-			CompilerVersionPatch = -1;
+			ClangVersionString = null;
+			ClangVersionMajor = -1;
+			ClangVersionMinor = -1;
+			ClangVersionPatch = -1;
 
 			using (Process Proc = new Process())
 			{
@@ -384,7 +384,7 @@ namespace UnrealBuildTool
 							// version match will be like "version 3.3", so remove the "version"
 							if (VersionMatch.Value.StartsWith("version "))
 							{
-								CompilerVersionString = VersionMatch.Value.Replace("version ", "");
+								ClangVersionString = VersionMatch.Value.Replace("version ", "");
 
 								DetermineCompilerMajMinPatchFromVersionString();
 							}
@@ -397,7 +397,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			return !String.IsNullOrEmpty(CompilerVersionString);
+			return !String.IsNullOrEmpty(ClangVersionString);
 		}
 
 		/// <summary>
@@ -441,16 +441,6 @@ namespace UnrealBuildTool
 					// other compilers aren't implemented atm
 				}
 			}
-		}
-
-		/// <summary>
-		/// Checks if compiler version matches the requirements
-		/// </summary>
-		private static bool CompilerVersionGreaterOrEqual(int Major, int Minor, int Patch)
-		{
-			return CompilerVersionMajor > Major ||
-				(CompilerVersionMajor == Major && CompilerVersionMinor > Minor) ||
-				(CompilerVersionMajor == Major && CompilerVersionMinor == Minor && CompilerVersionPatch >= Patch);
 		}
 
 		/// <summary>
@@ -853,109 +843,11 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", myKey, myValue);
 		}
 
-		static string GetCompilerStandardVersion_CPP(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result;
-			switch (CompileEnvironment.CppStandard)
-			{
-				case CppStandardVersion.Cpp14:
-					Result = " -std=c++14";
-					break;
-				case CppStandardVersion.Latest:
-				case CppStandardVersion.Cpp17:
-					Result = " -std=c++17";
-					break;
-				case CppStandardVersion.Cpp20:
-					Result = " -std=c++20";
-					break;
-				default:
-					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
-			}
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-				if (!CompileEnvironment.bEnableExceptions)
-				{
-					Result += " -Wno-coroutine-missing-unhandled-exception";
-				}
-			}
-
-			return Result;
-		}
-
-		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x c++";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
-			return Result;
-		}
-
-		static string GetCompileArguments_C()
-		{
-			string Result = "";
-			Result += " -x c";
-			return Result;
-		}
-
-		static string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x objective-c++";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
-			return Result;
-		}
-
-		// Conditionally enable (default disabled) generation of information about every class with virtual functions for use by the C++ runtime type identification features
-		// (`dynamic_cast' and `typeid'). If you don't use those parts of the language, you can save some space by using -fno-rtti.
-		// Note that exception handling uses the same information, but it will generate it as needed.
-		static string GetRTTIFlag(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-
-			if (CompileEnvironment.bUseRTTI)
-			{
-				Result = " -frtti";
-			}
-			else
-			{
-				Result = " -fno-rtti";
-			}
-
-			return Result;
-		}
-
-		static string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x objective-c";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
-			return Result;
-		}
-
-		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
-		{
-			string Result = "";
-			Result += " -x c++-header";
-			if (CompilerVersionGreaterOrEqual(11, 0, 0))
-			{
-				Result += " -fpch-validate-input-files-content";
-				Result += " -fpch-instantiate-templates";
-			}
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
-			return Result;
-		}
-
 		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment)
 		{
 			string Result = "";
 
-			if (UsingLld(LinkEnvironment.Architecture) && (!LinkEnvironment.bIsBuildingDLL || (CompilerVersionMajor >= 9)))
+			if (UsingLld(LinkEnvironment.Architecture) && (!LinkEnvironment.bIsBuildingDLL || (ClangVersionMajor >= 9)))
 			{
 				Result += (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? " -fuse-ld=lld.exe" : " -fuse-ld=lld";
 			}
@@ -1008,7 +900,7 @@ namespace UnrealBuildTool
 				if (CrossCompiling())
 				{
 					Result += string.Format(" -Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
-							BaseLinuxPath, CompilerVersionMajor, CompilerVersionMinor, CompilerVersionPatch);
+							BaseLinuxPath, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
 				}
 			}
 
@@ -1133,23 +1025,6 @@ namespace UnrealBuildTool
 		protected string? MultiArchRoot;
 
 		/// <summary>
-		/// Version string of the current compiler, whether clang or gcc or whatever
-		/// </summary>
-		static string? CompilerVersionString;
-		/// <summary>
-		/// Major version of the current compiler, whether clang or gcc or whatever
-		/// </summary>
-		static int CompilerVersionMajor = -1;
-		/// <summary>
-		/// Minor version of the current compiler, whether clang or gcc or whatever
-		/// </summary>
-		static int CompilerVersionMinor = -1;
-		/// <summary>
-		/// Patch version of the current compiler, whether clang or gcc or whatever
-		/// </summary>
-		static int CompilerVersionPatch = -1;
-
-		/// <summary>
 		/// Whether to use old, slower way to relink circularly dependent libraries.
 		/// It makes sense to use it when cross-compiling on Windows due to race conditions between actions reading and modifying the libs.
 		/// </summary>
@@ -1206,7 +1081,7 @@ namespace UnrealBuildTool
 			Log.TraceInformation("------- Build details --------");
 			Log.TraceInformation("Using {0}.", ToolchainInfo);
 			Log.TraceInformation("Using clang ({0}) version '{1}' (string), {2} (major), {3} (minor), {4} (patch)",
-				ClangPath, CompilerVersionString, CompilerVersionMajor, CompilerVersionMinor, CompilerVersionPatch);
+				ClangPath, ClangVersionString, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
 
 			// inform the user which C++ library the engine is going to be compiled against - important for compatibility with third party code that uses STL
 			Log.TraceInformation("Using {0} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
@@ -1416,7 +1291,7 @@ namespace UnrealBuildTool
 				CompileAction.CommandArguments = string.Format(" @\"{0}\"", NormalizeCommandLinePath(CompilerResponseFileName));
 				CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
 				CompileAction.CommandDescription = "Compile";
-				CompileAction.CommandVersion = CompilerVersionString!;
+				CompileAction.CommandVersion = ClangVersionString!;
 				CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 				CompileAction.bIsGCCCompiler = true;
 
@@ -1663,7 +1538,7 @@ namespace UnrealBuildTool
 			}
 			// because the logic choosing between lld and ld is somewhat messy atm (lld fails to link .DSO due to bugs), make the name of the linker clear
 			LinkAction.CommandDescription += (LinkCommandString.Contains("-fuse-ld=lld")) ? " (lld)" : " (ld)";
-			LinkAction.CommandVersion = CompilerVersionString!;
+			LinkAction.CommandVersion = ClangVersionString!;
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
 
 			// Add the output file to the command-line.
