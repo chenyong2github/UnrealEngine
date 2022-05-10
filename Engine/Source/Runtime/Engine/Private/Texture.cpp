@@ -39,6 +39,7 @@
 #include "ColorSpace.h"
 #include "ImageCoreUtils.h"
 #include "ImageUtils.h"
+#include "Algo/Unique.h"
 
 #if WITH_EDITOR
 #include "DerivedDataBuildVersion.h"
@@ -381,7 +382,6 @@ void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials
 		UE_LOG(LogTexture, Display, TEXT("Power of 2 padding cannot be used with LeaveExistingMips, disabled. (%s)"), *GetName());
 
 		PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
-		// @@!! this is broken in the Texture Editor Details GUI ; the PowerOfTwoMode button does not update
 	}
 
 	// IsPowerOfTwo only checks XY :
@@ -474,7 +474,8 @@ void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials
 #endif // #if WITH_EDITORONLY_DATA
 
 	// check TC_ CompressionSettings that should have SRGB off
-	const bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed || CompressionSettings == TC_HalfFloat);
+	const bool bPreventSRGB = CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || 
+		UE::TextureDefines::IsHDR(CompressionSettings);
 	if (bPreventSRGB && SRGB == true)
 	{
 		SRGB = false;
@@ -2855,13 +2856,13 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 	return TextureFormatName;
 }
 
-FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize )
+FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
 {
 	FName TextureFormatName = NAME_None;
 	bool bOodleTextureSdkVersionIsNone = true;
 
 	/**
-	 * IF you add a format to this function don't forget to update GetAllDefaultTextureFormatNames 
+	 * IF you add a format to this function don't forget to update GetAllDefaultTextureFormats 
 	 */
 
 #if WITH_EDITOR
@@ -2879,6 +2880,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	static FName NameG16(TEXT("G16"));
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
+	static FName NameRGBA32F(TEXT("RGBA32F"));
 	static FName NameR16F(TEXT("R16F"));
 	static FName NameR32F(TEXT("R32F"));
 	static FName NameBC6H(TEXT("BC6H"));
@@ -2900,13 +2902,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	// Determine the pixel format of the (un/)compressed texture
 	
 	// Identify TC groups that will map to uncompressed :		
-	bool bIsTCThatMapsToUncompressed =
-		FormatSettings.CompressionSettings == TC_HDR || 
-		FormatSettings.CompressionSettings == TC_Displacementmap ||
-		FormatSettings.CompressionSettings == TC_VectorDisplacementmap ||
-		FormatSettings.CompressionSettings == TC_Grayscale ||
-		FormatSettings.CompressionSettings == TC_DistanceFieldFont ||
-		FormatSettings.CompressionSettings == TC_HalfFloat;
+	bool bIsTCThatMapsToUncompressed = UE::TextureDefines::IsUncompressed(FormatSettings.CompressionSettings);
 
 	// see if compression needs to be forced off even if requested :
 	bool bNoCompression = FormatSettings.CompressionNone				// Code wants the texture uncompressed.
@@ -2915,7 +2911,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		|| (Texture->LODGroup == TEXTUREGROUP_ColorLookupTable)	// Textures in certain LOD groups should remain uncompressed.
 		|| (Texture->LODGroup == TEXTUREGROUP_Bokeh)
 		|| (Texture->LODGroup == TEXTUREGROUP_IESLightProfile)
-		|| (Texture->GetMaterialType() == MCT_VolumeTexture && !bSupportCompressedVolumeTexture)
+		|| ((Texture->GetMaterialType() == MCT_VolumeTexture) && !bSupportCompressedVolumeTexture)
 		|| FormatSettings.CompressionSettings == TC_EncodedReflectionCapture;
 
 	// note that bNoCompression is not the same as bIsTCThatMapsToUncompressed
@@ -2970,6 +2966,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			}
 
 			// note if bIsTCThatMapsToUncompressed , this might change the mapping :
+			// @todo Oodle : should not do this if bIsTCThatMapsToUncompressed already
 			bNoCompression = true;
 		}
 
@@ -3000,6 +2997,15 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		// eg. if you were in bIsTCThatMapsToUncompressed , and for some reason you get bNoCompression set
 		//	 then your output format can change from one uncompressed format to another
 
+		// @todo Oodle : if this was redone, I would make two changes
+		// 1. first of all detect if you already have a TC that maps to uncompressed with a specific format,
+		//		and if so, stick to that
+		//		eg. currently if you choose TC_HDR and your source image is G8 you will get RGBA16F output
+		//		but if the source image is not a multiple of 4, bNoCompression turns on, and you get G8 output
+		//		this can be fixed by putting the bNoCompression check after the standard TC maps
+		// 2. second if you do the bNoCompression, fix TSF formats not mapping to the closest possible
+		//		uncompressed renderable format
+
 		if (Texture->HasHDRSource(LayerIndex))
 		{
 			// @todo Oodle : this is a very poor selection from SourceFormat
@@ -3017,11 +3023,14 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		}
 		else if (FormatSettings.CompressionSettings == TC_Normalmap && bUseDXT5NormalMap)
 		{
+			// move R to A like we do for DXT5 normal maps :
 			TextureFormatName = NameXGXR8;
 		}
 		else
 		{
 			// note CompressionNoAlpha no longer kills alpha on AutoDXT
+			//  CompressionNoAlpha really just means "pick BC1 instead of BC3"
+			//	but if your image is not a multiple of 4 you still get alpha RGBA
 			TextureFormatName = NameBGRA8;
 		}
 	}
@@ -3040,6 +3049,10 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	else if (FormatSettings.CompressionSettings == TC_HDR)
 	{
 		TextureFormatName = NameRGBA16F;
+	}
+	else if (FormatSettings.CompressionSettings == TC_HDR_F32)
+	{
+		TextureFormatName = NameRGBA32F;
 	}
 	else if (FormatSettings.CompressionSettings == TC_Normalmap)
 	{
@@ -3083,6 +3096,10 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		TextureFormatName = NameR16F;
 	}
+	else if (FormatSettings.CompressionSettings == TC_SingleFloat)
+	{
+		TextureFormatName = NameR32F;
+	}
 	else
 	{
 		check( FormatSettings.CompressionSettings == TC_Default ||
@@ -3101,6 +3118,8 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	// Some PC GPUs don't support sRGB read from G8 textures (e.g. AMD DX10 cards on ShaderModel3.0)
 	// This solution requires 4x more memory but a lot of PC HW emulate the format anyway
 	// note: GrayscaleSRGB is off on all targetplatforms currently
+	// @todo Oodle : I think this could use G16 instead and be half the size
+	//	 (that's doing the gamma->linear in the G8->G16 conversion)
 	if ((TextureFormatName == NameG8) && FormatSettings.SRGB && !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::GrayscaleSRGB))
 	{
 		TextureFormatName = NameBGRA8;
@@ -3123,25 +3142,55 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		}
 	}
 	
+	// remap 32F to 16F if not supported :
+	if ( !bSupportFilteredFloat32Textures &&
+		( TextureFormatName == NameR32F || TextureFormatName == NameRGBA32F ) )
+	{
+		// Texture::Filter can be manually set to TF_Nearest , if it's Default it comes from LOD Group
+		//   eg. Nearest for TEXTUREGROUP_ColorLookupTable and TEXTUREGROUP_Pixels2D
+		const UTextureLODSettings& LODSettings = TargetPlatform->GetTextureLODSettings();
+		ETextureSamplerFilter Filter = LODSettings.GetSamplerFilter(Texture);
+
+		if ( Filter != ETextureSamplerFilter::Point )
+		{
+			// non-Point filters require remap
+
+			UE_LOG(LogTexture, Display, TEXT("32 bit float texture changed to 16F because Filter is not Nearest and !bSupportFilteredFloat32Textures : %s"), *Texture->GetPathName());
+
+			if (TextureFormatName == NameR32F)
+			{
+				TextureFormatName = NameR16F;
+			}
+			else 
+			{
+				check(TextureFormatName == NameRGBA32F);
+
+				TextureFormatName = NameRGBA16F;
+			}			
+		}
+	}
+
 	bOodleTextureSdkVersionIsNone = Texture->OodleTextureSdkVersion.IsNone();
 #endif //WITH_EDITOR
 
 	return ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform, bOodleTextureSdkVersionIsNone);
 }
 
-void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize)
+void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
 {
 #if WITH_EDITOR
 	OutFormatNames.Reserve(Texture->Source.GetNumLayers());
 	for (int32 LayerIndex = 0; LayerIndex < Texture->Source.GetNumLayers(); ++LayerIndex)
 	{
-		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, BlockSize));
+		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures));
 	}
 #endif // WITH_EDITOR
 }
 
 void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TArray<FName>& OutFormats, bool bSupportDX11TextureFormats)
 {
+	// this is only used by CookOnTheFlyServer, it could be removed entirely
+
 #if WITH_EDITOR
 	static FName NameDXT1(TEXT("DXT1"));
 	static FName NameDXT3(TEXT("DXT3"));
@@ -3156,6 +3205,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	static FName NameG16(TEXT("G16"));
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
+	static FName NameRGBA32F(TEXT("RGBA32F"));
 	static FName NameR16F(TEXT("R16F"));
 	static FName NameR32F(TEXT("R32F"));
 	static FName NameBC6H(TEXT("BC6H"));
@@ -3174,6 +3224,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	OutFormats.Add(NameG16);
 	OutFormats.Add(NameVU8);
 	OutFormats.Add(NameRGBA16F);
+	OutFormats.Add(NameRGBA32F);
 	OutFormats.Add(NameR16F);
 	OutFormats.Add(NameR32F);
 	if (bSupportDX11TextureFormats)
@@ -3181,14 +3232,21 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 		OutFormats.Add(NameBC6H);
 		OutFormats.Add(NameBC7);
 	}
+	// is there any drawback to just adding the 32F textures here even if we don't want them? -> no.
+	//	what is this list even used for?
+	//  AFAICT it's only used by CookOnTheFlyServer for GetVersionFormatNumbersForIniVersionStrings
 
 	// go over the original base formats only, and possibly add on to the end of the array if there is a prefix needed
 	int NumBaseFormats = OutFormats.Num();
 	for (int Index = 0; Index < NumBaseFormats; Index++)
 	{
-		OutFormats.AddUnique(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform, true));
-		OutFormats.AddUnique(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform, false));
+		OutFormats.Add(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform, true));
+		OutFormats.Add(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform, false));
 	}
+	
+	// make unique:		
+	OutFormats.Sort( FNameFastLess() );
+	OutFormats.SetNum( Algo::Unique( OutFormats ) );
 #endif
 }
 

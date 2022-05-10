@@ -40,6 +40,7 @@ class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
 	op(G16) \
 	op(VU8) \
 	op(RGBA16F) \
+	op(RGBA32F) \
 	op(XGXR8) \
 	op(RGBA8) \
 	op(POTERROR) \
@@ -90,6 +91,10 @@ class FTextureFormatUncompressed : public ITextureFormat
 		if (InBuildSettings.TextureFormatName == GTextureFormatNameRGBA16F)
 		{
 			return TEXT("RGBA16F");
+		}
+		else if (InBuildSettings.TextureFormatName == GTextureFormatNameRGBA32F)
+		{
+			return TEXT("RGBA32F");
 		}
 		else if (InBuildSettings.TextureFormatName == GTextureFormatNameR16F)
 		{
@@ -143,6 +148,10 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameRGBA16F)
 		{
 			return PF_FloatRGBA;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameRGBA32F)
+		{
+			return PF_A32B32G32R32F;
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameR16F)
 		{
@@ -301,6 +310,18 @@ class FTextureFormatUncompressed : public ITextureFormat
 		{
 			FImage Image;
 			InImage.CopyTo(Image, ERawImageFormat::RGBA16F, EGammaSpace::Linear);
+
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
+			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
+
+			return true;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameRGBA32F)
+		{
+			FImage Image;
+			InImage.CopyTo(Image, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;

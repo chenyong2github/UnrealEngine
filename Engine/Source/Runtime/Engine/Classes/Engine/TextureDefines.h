@@ -336,11 +336,13 @@ enum TextureCompressionSettings
 	TC_EditorIcon				UMETA(DisplayName = "UserInterface2D (RGBA)"),
 	TC_Alpha					UMETA(DisplayName = "Alpha (no sRGB, BC4 on DX11)"),
 	TC_DistanceFieldFont		UMETA(DisplayName = "DistanceFieldFont (G8)"),
-	TC_HDR_Compressed			UMETA(DisplayName = "HDRCompressed (RGB, BC6H, DX11)"),
+	TC_HDR_Compressed			UMETA(DisplayName = "HDR Compressed (RGB, BC6H, DX11)"),
 	TC_BC7						UMETA(DisplayName = "BC7 (DX11, optional A)"),
 	TC_HalfFloat				UMETA(DisplayName = "Half Float (R16F)"),
 	TC_LQ				        UMETA(Hidden, DisplayName = "Low Quality (BGR565/BGR555A1)", ToolTip = "BGR565/BGR555A1, fallback to DXT1/DXT5 on Mac platform"),
-	TC_EncodedReflectionCapture		UMETA(Hidden),
+	TC_EncodedReflectionCapture	UMETA(Hidden),
+	TC_SingleFloat				UMETA(DisplayName = "Single Float (R32F)"),
+	TC_HDR_F32					UMETA(DisplayName = "HDR High Precision (RGBA32F)"),
 	TC_MAX,
 };
 
@@ -399,4 +401,47 @@ enum class ETextureChromaticAdaptationMethod : uint8
 	TCAM_Bradford	= 1 UMETA(DisplayName = "Bradford", ToolTip = "Chromatic adaptation is applied using the Bradford method."),
 	TCAM_CAT02		= 2 UMETA(DisplayName = "CAT02", ToolTip = "Chromatic adaptation is applied using the CAT02 method."),
 };
+
+
+namespace UE
+{
+namespace TextureDefines
+{
+
+static FORCEINLINE bool IsHDR(ETextureSourceFormat Format)
+{
+	return (Format == TSF_BGRE8 || Format == TSF_RGBA16F || Format == TSF_RGBA32F || Format == TSF_R16F || Format == TSF_R32F);
+}
+
+static FORCEINLINE bool IsHDR(TextureCompressionSettings CompressionSettings)
+{
+	switch(CompressionSettings)
+	{
+	case TC_HDR:
+	case TC_HDR_F32:
+	case TC_HDR_Compressed:
+	case TC_HalfFloat:
+	case TC_SingleFloat:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static FORCEINLINE bool IsUncompressed(TextureCompressionSettings CompressionSettings)
+{
+	return (CompressionSettings == TC_Grayscale ||
+			CompressionSettings == TC_Displacementmap ||
+			CompressionSettings == TC_VectorDisplacementmap ||
+			CompressionSettings == TC_HDR ||
+			CompressionSettings == TC_HDR_F32 ||
+			CompressionSettings == TC_EditorIcon ||
+			CompressionSettings == TC_DistanceFieldFont ||
+			CompressionSettings == TC_HalfFloat ||
+			CompressionSettings == TC_SingleFloat
+		);
+}
+
+} // TextureDefines
+} // UE
 

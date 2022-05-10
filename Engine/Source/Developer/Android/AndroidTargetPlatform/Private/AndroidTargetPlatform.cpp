@@ -74,14 +74,15 @@ namespace AndroidTexFormat
 	const static FName NameAutoASTC(TEXT("ASTC_RGBAuto"));
 	
 	// Uncompressed Texture Formats
-	const static FName NameBGRA8(TEXT("BGRA8"));
-	const static FName NameG8(TEXT("G8"));
-	const static FName NameVU8(TEXT("VU8"));
-	const static FName NameRGBA16F(TEXT("RGBA16F"));
-	const static FName NameR16F(TEXT("R16F"));
-	const static FName NameR5G6B5(TEXT("R5G6B5"));
-	const static FName NameA1RGB555(TEXT("A1RGB555"));
+	//const static FName NameBGRA8(TEXT("BGRA8"));
+	//const static FName NameG8(TEXT("G8"));
+	//const static FName NameVU8(TEXT("VU8"));
+	//const static FName NameRGBA16F(TEXT("RGBA16F"));
+	//const static FName NameR16F(TEXT("R16F"));
+	//const static FName NameR5G6B5(TEXT("R5G6B5"));
+
 	//A1RGB555 is mapped to RGB555A1, because OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
+	const static FName NameA1RGB555(TEXT("A1RGB555"));
 	const static FName NameRGB555A1(TEXT("RGB555A1"));
 
 	const static FName ASTCRemap[][2] =
@@ -487,9 +488,11 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 	const bool bSupportCompressedVolumeTexture = SupportsTextureFormatCategory(EAndroidTextureFormatCategory::ASTC);
 	// TODO: compressed HDR formats
 	const bool bSupportDX11TextureFormats = false;
+	// OpenGL ES has F32 textures but doesn't allow linear filtering unless OES_texture_float_linear
+	const bool bSupportFilteredFloat32Textures = false;
 
 	TArray<FName>& LayerFormats = OutFormats.AddDefaulted_GetRef();
-	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, 1);
+	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, 1, bSupportFilteredFloat32Textures);
 
 	for (FName& TextureFormatName : LayerFormats)
 	{

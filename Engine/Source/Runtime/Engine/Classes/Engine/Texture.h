@@ -132,7 +132,7 @@ struct FTextureSource
 	// should match ERawImageFormat::GetBytesPerPixel
 	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
 	// should match ERawImageFormat::IsHDR
-	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F || Format == TSF_R16F || Format == TSF_R32F || Format == TSF_RGBA32F); }
+	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return UE::TextureDefines::IsHDR(Format); }
 	
 	enum class ELockState : uint8
 	{
@@ -1704,14 +1704,7 @@ public:
 	/** @return true if the texture has an uncompressed texture setting */
 	bool IsUncompressed() const
 	{
-		return (CompressionSettings == TC_Grayscale ||
-				CompressionSettings == TC_Displacementmap ||
-				CompressionSettings == TC_VectorDisplacementmap ||
-				CompressionSettings == TC_HDR ||
-				CompressionSettings == TC_EditorIcon ||
-				CompressionSettings == TC_DistanceFieldFont ||
-				CompressionSettings == TC_HalfFloat
-			);
+		return UE::TextureDefines::IsUncompressed(CompressionSettings);
 	}
 
 	/**
