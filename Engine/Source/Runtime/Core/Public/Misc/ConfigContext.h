@@ -50,7 +50,7 @@ public:
 	 */
 	static FConfigContext ReadIntoGConfig()
 	{
-		return FConfigContext(GConfig, true, FPlatformProperties::IniPlatformName());
+		return FConfigContext(GConfig, true, FString());
 	}
 
 	/**
@@ -58,7 +58,7 @@ public:
 	 */
 	static FConfigContext ReadSingleIntoGConfig()
 	{
-		return FConfigContext(GConfig, false, FPlatformProperties::IniPlatformName());
+		return FConfigContext(GConfig, false, FString());
 	}
 
 	/**
@@ -82,7 +82,7 @@ public:
 	 */
 	static FConfigContext ReadIntoPluginFile(FConfigFile& DestConfigFile, const FString& PluginRootDir)
 	{
-		FConfigContext Context(nullptr, true, FPlatformProperties::IniPlatformName(), &DestConfigFile);
+		FConfigContext Context(nullptr, true, FString(), &DestConfigFile);
 		Context.bIsForPlugin = true;
 		Context.PluginRootDir = PluginRootDir;
 

@@ -27,6 +27,11 @@ FConfigContext::FConfigContext(FConfigCacheIni* InConfigSystem, bool InIsHierarc
 		// but save Generated ini files to, say, WindowsEditor
 		SavePlatform = FPlatformProperties::PlatformName();
 	}
+	else if (Platform == FPlatformProperties::IniPlatformName())
+	{
+		// but save Generated ini files to, say, WindowsEditor
+		SavePlatform = FPlatformProperties::PlatformName();
+	}
 	else
 	{
 		SavePlatform = Platform;
