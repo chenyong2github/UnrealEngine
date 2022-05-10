@@ -27,7 +27,7 @@ enum class EInterchangeMaterialImportOption : uint8
 	ImportAsMaterialInstances,
 };
 
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType, Experimental, hidedropdown)
 class INTERCHANGEPIPELINES_API UInterchangeGenericMaterialPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()

@@ -23,8 +23,8 @@ class UInterchangeStaticMeshFactoryNode;
 class UInterchangeStaticMeshLodDataNode;
 class UPhysicsAsset;
 
-
-UCLASS(BlueprintType, Experimental)
+/* Hide drop down will make sure the class is not showing in the class picker */
+UCLASS(BlueprintType, Experimental, hidedropdown)
 class INTERCHANGEPIPELINES_API UInterchangeGenericMeshPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()

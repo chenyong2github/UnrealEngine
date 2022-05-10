@@ -28,7 +28,7 @@ enum class EInterchangeAnimationRange : uint8
 };
 
 
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType, Experimental, hidedropdown)
 class INTERCHANGEPIPELINES_API UInterchangeGenericAnimationPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
