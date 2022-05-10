@@ -31,13 +31,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNDIGrid2DShaderParameters, )
 	SHADER_PARAMETER(FVector2f,						WorldBBoxSize)
 
 	SHADER_PARAMETER_SRV(Texture2DArray<float>,		Grid)
-	SHADER_PARAMETER_SAMPLER(SamplerState,			SamplerState)
+	SHADER_PARAMETER_SAMPLER(SamplerState,			GridSampler)
 	SHADER_PARAMETER_UAV(RWTexture2DArray<float>,	OutputGrid)
 END_SHADER_PARAMETER_STRUCT()
 
 const FString UNiagaraDataInterfaceGrid2DCollection::GridName(TEXT("_Grid"));
 const FString UNiagaraDataInterfaceGrid2DCollection::OutputGridName(TEXT("_OutputGrid"));
-const FString UNiagaraDataInterfaceGrid2DCollection::SamplerName(TEXT("_Sampler"));
+const FString UNiagaraDataInterfaceGrid2DCollection::SamplerName(TEXT("_GridSampler"));
 
 const FName UNiagaraDataInterfaceGrid2DCollection::SetNumCellsFunctionName("SetNumCells");
 
@@ -1478,8 +1478,9 @@ void UNiagaraDataInterfaceGrid2DCollection::SetShaderParameters(const FNiagaraDa
 	Parameters->NumCells = ProxyData->NumCells;
 	Parameters->CellSize = FVector2f(ProxyData->CellSize);
 	Parameters->WorldBBoxSize = FVector2f(ProxyData->WorldBBoxSize);	// LWC_TODO: Precision loss?
-	Parameters->SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->Grid = ProxyData->CurrentData ? ProxyData->CurrentData->GridSRV.GetReference() : FNiagaraRenderer::GetDummyTextureReadBuffer2DArray();
+	Parameters->GridSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	if (Context.IsResourceBound(&Parameters->OutputGrid))
 	{
 		if (Context.IsOutputStage() && ProxyData->DestinationData)
