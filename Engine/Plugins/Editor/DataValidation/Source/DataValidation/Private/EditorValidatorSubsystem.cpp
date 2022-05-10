@@ -19,6 +19,7 @@
 #include "ISourceControlModule.h"
 #include "DataValidationChangelist.h"
 #include "DataValidationModule.h"
+#include "Engine/Level.h"
 
 #define LOCTEXT_NAMESPACE "EditorValidationSubsystem"
 
@@ -186,7 +187,7 @@ EDataValidationResult UEditorValidatorSubsystem::IsAssetValid(const FAssetData& 
 {
 	if (AssetData.IsValid())
 	{
-		UObject* Obj = AssetData.GetAsset();
+		UObject* Obj = AssetData.GetAsset({ ULevel::LoadAllExternalObjectsTag });
 		if (Obj)
 		{
 			return IsObjectValid(Obj, ValidationErrors, ValidationWarnings, InValidationUsecase);
@@ -267,6 +268,13 @@ int32 UEditorValidatorSubsystem::ValidateAssetsWithSettings(const TArray<FAssetD
 
 		// Check exclusion path
 		if (InSettings.bSkipExcludedDirectories && IsPathExcludedFromValidation(Data.PackageName.ToString()))
+		{
+			++NumFilesSkipped;
+			continue;
+		}
+
+		const bool bLoadAsset = false;
+		if (!InSettings.bLoadAssetsForValidation && !Data.FastGetAsset(bLoadAsset))
 		{
 			++NumFilesSkipped;
 			continue;
@@ -374,6 +382,7 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList,
 	Settings.bSkipExcludedDirectories = true;
 	Settings.bShowIfNoFailures = false;
 	Settings.ValidationUsecase = EDataValidationUsecase::Save;
+	Settings.bLoadAssetsForValidation = false;
 
 	if (ValidateAssetsWithSettings(AssetDataList, Settings, Results) > 0)
 	{

@@ -73,6 +73,9 @@ struct DATAVALIDATION_API FValidateAssetsSettings
 	/** The usecase requiring datavalidation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Validation")
 	EDataValidationUsecase ValidationUsecase = EDataValidationUsecase::None;
+
+	/** If false, unloaded assets will get skipped from validation. */
+	bool bLoadAssetsForValidation = true;
 };
 
 /**
