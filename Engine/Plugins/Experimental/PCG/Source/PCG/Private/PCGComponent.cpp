@@ -9,6 +9,7 @@
 #include "Data/PCGLandscapeData.h"
 #include "Data/PCGLandscapeSplineData.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGPrimitiveData.h"
 #include "Data/PCGSplineData.h"
 #include "Data/PCGUnionData.h"
 #include "Data/PCGVolumeData.h"
@@ -19,6 +20,7 @@
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SplineComponent.h"
+#include "Components/ShapeComponent.h"
 #include "GameFramework/Volume.h"
 #include "Kismet/GameplayStatics.h"
 #include "Landscape.h"
@@ -47,19 +49,6 @@ bool UPCGComponent::CanPartition() const
 bool UPCGComponent::IsPartitioned() const
 {
 	return bIsPartitioned && CanPartition();
-}
-
-bool UPCGComponent::HasSplineComponent() const
-{
-	if (!GetOwner())
-	{
-		return false;
-	}
-
-	TArray<USplineComponent*> Splines;
-	GetOwner()->GetComponents<USplineComponent>(Splines);
-
-	return !Splines.IsEmpty();
 }
 
 void UPCGComponent::SetGraph(UPCGGraph* InGraph)
@@ -747,9 +736,8 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 {
 	if (InActor == GetOwner())
 	{
-		// Generalize the cases where we want the position to dirty the inputs
-		if (InputType == EPCGComponentInput::Landscape ||
-			(InputType == EPCGComponentInput::Actor && HasSplineComponent()))
+		// TODO: find better metrics to dirty the inputs. 
+		// TODO: this should dirty only the actor pcg data.
 		{
 			DirtyGenerated(true);
 			Refresh();
@@ -828,11 +816,8 @@ void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActor
 	{
 		// Something has changed on the owner (including properties of this component)
 		// In the case of splines, this is where we'd get notified if some component properties (incl. spline vertices) have changed
-		if(HasSplineComponent() || Cast<AVolume>(Actor) != nullptr)
-		{
-			DirtyGenerated(true);
-		}
-
+		// TODO: this should dirty only the actor pcg data.
+		DirtyGenerated(true);
 		Refresh();
 	}
 	else if(Actor)
@@ -1092,59 +1077,97 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 
 		return Data;
 	}
-	else if (ALandscapeSplineActor* LandscapeSpline = Cast<ALandscapeSplineActor>(Actor))
+	else // Prepare data on a component basis
 	{
-		TArray<ULandscapeSplinesComponent*> LandscapeSplines;
+		TInlineComponentArray<ULandscapeSplinesComponent*, 1> LandscapeSplines;
 		Actor->GetComponents<ULandscapeSplinesComponent>(LandscapeSplines);
 
-		if (LandscapeSplines.Num() > 1)
-		{
-			UPCGUnionData* Data = NewObject<UPCGUnionData>(this);
-			for (ULandscapeSplinesComponent* SplineComponent : LandscapeSplines)
-			{
-				UPCGLandscapeSplineData* SplineData = NewObject<UPCGLandscapeSplineData>(this);
-				SplineData->Initialize(SplineComponent);
-				Data->AddData(SplineData);
-			}
-
-			return Data;
-		}
-		else if (LandscapeSplines.Num() == 1)
-		{
-			UPCGLandscapeSplineData* Data = NewObject<UPCGLandscapeSplineData>(this);
-			Data->Initialize(LandscapeSplines[0]);
-			return Data;
-		}
-		else
-		{
-			return nullptr;
-		}
-	}
-	else // TODO how about surfaces, splines?
-	{
-		TArray<USplineComponent*> Splines;
+		TInlineComponentArray<USplineComponent*, 1> Splines;
 		Actor->GetComponents<USplineComponent>(Splines);
 
-		if (Splines.Num() > 1)
-		{
-			UPCGUnionData* Data = NewObject<UPCGUnionData>(this);
-			for (USplineComponent* SplineComponent : Splines)
-			{
-				UPCGSplineData* SplineData = NewObject<UPCGSplineData>(this);
-				SplineData->Initialize(SplineComponent);
-				Data->AddData(SplineData);
-			}
+		TInlineComponentArray<UShapeComponent*, 1> Shapes;
+		Actor->GetComponents<UShapeComponent>(Shapes);
 
-			return Data;
-		}
-		else if (Splines.Num() == 1)
+		// Don't get generic primitives unless it's the only thing we can find.
+		TInlineComponentArray<UPrimitiveComponent*, 1> OtherPrimitives;
+		if (LandscapeSplines.Num() == 0 && Splines.Num() == 0 && Shapes.Num() == 0)
 		{
-			UPCGSplineData* Data = NewObject<UPCGSplineData>(this);
-			Data->Initialize(Splines[0]);
-			return Data;
+			Actor->GetComponents<UPrimitiveComponent>(OtherPrimitives);
 		}
-		else // Default behavior on unknown actors
+
+		UPCGUnionData* Union = nullptr;
+		if (LandscapeSplines.Num() + Splines.Num() + Shapes.Num() + OtherPrimitives.Num() > 1)
 		{
+			Union = NewObject<UPCGUnionData>(this);
+		}
+
+		for (ULandscapeSplinesComponent* SplineComponent : LandscapeSplines)
+		{
+			UPCGLandscapeSplineData* SplineData = NewObject<UPCGLandscapeSplineData>(this);
+			SplineData->Initialize(SplineComponent);
+
+			if (Union)
+			{
+				Union->AddData(SplineData);
+			}
+			else
+			{
+				return SplineData;
+			}
+		}
+
+		for (USplineComponent* SplineComponent : Splines)
+		{
+			UPCGSplineData* SplineData = NewObject<UPCGSplineData>(this);
+			SplineData->Initialize(SplineComponent);
+
+			if (Union)
+			{
+				Union->AddData(SplineData);
+			}
+			else
+			{
+				return SplineData;
+			}
+		}
+
+		for (UShapeComponent* ShapeComponent : Shapes)
+		{
+			UPCGPrimitiveData* ShapeData = NewObject<UPCGPrimitiveData>(this);
+			ShapeData->Initialize(ShapeComponent);
+			
+			if (Union)
+			{
+				Union->AddData(ShapeData);
+			}
+			else
+			{
+				return ShapeData;
+			}
+		}
+
+		for (UPrimitiveComponent* PrimitiveComponent : OtherPrimitives)
+		{
+			UPCGPrimitiveData* PrimitiveData = NewObject<UPCGPrimitiveData>(this);
+			PrimitiveData->Initialize(PrimitiveComponent);
+
+			if (Union)
+			{
+				Union->AddData(PrimitiveData);
+			}
+			else
+			{
+				return PrimitiveData;
+			}
+		}
+
+		if (Union)
+		{
+			return Union;
+		}
+		else // No parsed components: default
+		{
+			//Default behavior on unknown actors is to write a single point at the actor location
 			UPCGPointData* Data = NewObject<UPCGPointData>(this);
 			Data->InitializeFromActor(Actor);
 			return Data;

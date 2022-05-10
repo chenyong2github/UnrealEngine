@@ -55,7 +55,6 @@ public:
 	TArray<UPCGData*> GetPCGExclusionData();
 
 	bool CanPartition() const;
-	bool HasSplineComponent() const;
 
 	UPCGGraph* GetGraph() const { return Graph; }
 	void SetGraph(UPCGGraph* InGraph);
