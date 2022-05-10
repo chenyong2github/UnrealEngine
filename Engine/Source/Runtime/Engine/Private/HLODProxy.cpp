@@ -457,6 +457,11 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 	InComponent->GetLightMapResolution(Width, Height);
 	Ar << Width;
 	Ar << Height;
+
+	if (!InComponent->GetCustomPrimitiveData().Data.IsEmpty())
+	{
+		Ar << InComponent->GetCustomPrimitiveData();
+	}
 	
 	// incorporate vertex colors
 	for(FStaticMeshComponentLODInfo& LODInfo : InComponent->LODData)

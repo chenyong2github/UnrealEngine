@@ -48,6 +48,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "Engine/HLODProxy.h"
 #include "Engine/LevelStreaming.h"
+#include "AssetCompilingManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODGenerator, Log, All);
 
@@ -756,6 +757,12 @@ void FHierarchicalLODBuilder::ClearPreviewBuild()
 
 void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 {	
+	// Finalize asset compilation before we potentially uses them during the HLOD generation.
+	FAssetCompilingManager::Get().FinishAllCompilation();
+
+	// This may execute pending construction scripts.
+	FAssetCompilingManager::Get().ProcessAsyncTasks();
+
 	bool bVisibleLevelsWarning = false;
 
 	const TArray<ULevel*>& Levels = World->GetLevels();
