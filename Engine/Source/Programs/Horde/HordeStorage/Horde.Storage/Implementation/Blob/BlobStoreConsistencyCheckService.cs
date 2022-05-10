@@ -104,7 +104,7 @@ namespace Horde.Storage.Implementation
 
                         Interlocked.Increment(ref countOfBlobsChecked);
                         
-                        BlobContents contents = await blobStore.GetObject(ns, blob);
+                        BlobContents contents = await blobStore.GetObject(ns, blob, LastAccessTrackingFlags.SkipTracking);
                         await using Stream s = contents.Stream;
 
                         bool inconsistencyFound = false;

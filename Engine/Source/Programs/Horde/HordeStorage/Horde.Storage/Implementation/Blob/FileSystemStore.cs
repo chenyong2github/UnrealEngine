@@ -104,7 +104,7 @@ namespace Horde.Storage.Implementation
 			return await PutObject(ns, stream, blobIdentifier);
         }
 
-        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
+        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags)
         {
             FileInfo filePath = GetFilesystemPath(ns, blob);
 
@@ -113,7 +113,10 @@ namespace Horde.Storage.Implementation
                 throw new BlobNotFoundException(ns, blob);
             }
 
-            UpdateLastWriteTime(filePath.FullName, DateTime.UtcNow);
+            if (flags == LastAccessTrackingFlags.DoTracking)
+            {
+                UpdateLastWriteTime(filePath.FullName, DateTime.UtcNow);
+            }
             FileStream fs = new FileStream(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
             return Task.FromResult(new BlobContents(fs, fs.Length));

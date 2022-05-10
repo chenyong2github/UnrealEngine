@@ -108,7 +108,8 @@ namespace Horde.Storage.Implementation
             await blob.SetMetadataAsync(metadata);
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blobIdentifier)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blobIdentifier,
+            LastAccessTrackingFlags flags)
         {
             string fixedNamespace = SanitizeNamespace(ns);
             BlobContainerClient container = new BlobContainerClient(_connectionString, fixedNamespace);

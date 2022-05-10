@@ -76,7 +76,7 @@ namespace Horde.Storage.Implementation
             return await PutObject(ns, blob: await blob.ToByteArray(), identifier);
         }
 
-        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier identifier)
+        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier identifier, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
         {
             bool exists = _memoryCache.TryGetValue(BuildKey(ns, identifier), out object? dataObj);
             if (!exists)

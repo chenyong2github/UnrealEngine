@@ -72,7 +72,7 @@ namespace Horde.Storage.Implementation
             return await PutObject(ns, blob: await blob.ToByteArray(), identifier);
         }
 
-        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
+        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
         {
             if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {

@@ -9,13 +9,19 @@ using Jupiter.Implementation;
 
 namespace Horde.Storage.Implementation
 {
+    public enum LastAccessTrackingFlags
+    {
+        DoTracking = 0,
+        SkipTracking = 1,
+    }
+
     public interface IBlobStore
     {
         Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] blob, BlobIdentifier identifier);
         Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> blob, BlobIdentifier identifier);
         Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier identifier);
 
-        Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob);
+        Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking);
         Task<bool> Exists(NamespaceId ns, BlobIdentifier blob);
 
         // Delete a object

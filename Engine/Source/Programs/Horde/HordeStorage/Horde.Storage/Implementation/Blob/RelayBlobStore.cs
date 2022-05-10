@@ -53,7 +53,7 @@ namespace Horde.Storage.Implementation
             return identifier;
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags)
         {
             using HttpRequestMessage getObjectRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}", UriKind.Relative));
             getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Octet);

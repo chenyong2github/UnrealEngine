@@ -142,7 +142,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
         {
             string bucketName = GetBucketName(ns);
             GetObjectResponse response;
