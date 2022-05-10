@@ -243,28 +243,6 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 	FLumenMinimalRayResult MinimalRayResult;
 	MinimalRayResult.bHit = false;
 	MinimalRayResult.bCompleted = true;
-	
-	// UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER is required to trace TraceLumenMinimalRay for performance reasons
-	// Ignored when we are using inline ray tracing
-	#if UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER == 0 && !LUMEN_HARDWARE_INLINE_RAYTRACING
-	{
-		// Return a X hit pattern if define wasn't set
-		const bool TileX = Context.TraceCoord.x % 4 < 2;
-		const bool TileY = Context.TraceCoord.y % 4 < 2;
-		if (TileX ^ TileY)
-		{
-			Payload.HitT = Ray.TMin;
-		}
-		else
-		{
-			Payload.SetMiss();	
-		}		
-
-		MinimalRayResult.bHit = Payload.IsHit();
-		MinimalRayResult.bCompleted = true;
-		return MinimalRayResult;
-	}
-	#endif
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 	RayFlags |= Context.CullingMode;

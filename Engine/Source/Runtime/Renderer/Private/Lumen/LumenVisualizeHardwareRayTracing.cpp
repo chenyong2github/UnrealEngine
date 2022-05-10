@@ -441,11 +441,6 @@ class FLumenVisualizeHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 		{
 			OutEnvironment.SetDefine(TEXT("ENABLE_FAR_FIELD_TRACING"), 1);
 		}
-
-		if (PermutationVector.Get<FTraceModeDim>() == ETraceMode::DefaultTrace)
-		{
-			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER"), 1);
-		}
 	}
 };
 
