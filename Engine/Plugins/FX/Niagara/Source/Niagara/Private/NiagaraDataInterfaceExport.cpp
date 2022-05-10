@@ -13,6 +13,7 @@
 #include "Internationalization/Internationalization.h"
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"
+#include "Misc/LargeWorldRenderPosition.h"
 
 namespace NDIExportLocal
 {

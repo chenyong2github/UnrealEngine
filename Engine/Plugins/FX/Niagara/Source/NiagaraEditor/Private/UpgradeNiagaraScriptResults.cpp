@@ -10,54 +10,57 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
-template<typename T>
-TArray<T*> GetStackEntries(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
+namespace NiagaraScriptResults
 {
-	TArray<T*> Results;
-	TArray<UNiagaraStackEntry*> EntriesToCheck;
-	if (UNiagaraStackEntry* RootEntry = StackViewModel->GetRootEntry())
+	template<typename T>
+	TArray<T*> GetStackEntries(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
 	{
-		if (bRefresh)
+		TArray<T*> Results;
+		TArray<UNiagaraStackEntry*> EntriesToCheck;
+		if (UNiagaraStackEntry* RootEntry = StackViewModel->GetRootEntry())
 		{
-			RootEntry->RefreshChildren();
+			if (bRefresh)
+			{
+				RootEntry->RefreshChildren();
+			}
+			RootEntry->GetUnfilteredChildren(EntriesToCheck);
 		}
-		RootEntry->GetUnfilteredChildren(EntriesToCheck);
-	}
-	while (EntriesToCheck.Num() > 0)
-	{
-		UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
-		if (T* ItemToCheck = Cast<T>(Entry))
+		while (EntriesToCheck.Num() > 0)
 		{
-			Results.Add(ItemToCheck);
+			UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
+			if (T* ItemToCheck = Cast<T>(Entry))
+			{
+				Results.Add(ItemToCheck);
+			}
+			Entry->GetUnfilteredChildren(EntriesToCheck);
 		}
-		Entry->GetUnfilteredChildren(EntriesToCheck);
+		return Results;
 	}
-	return Results;
-}
 
-template<typename T>
-T GetValue(const UNiagaraClipboardFunctionInput* Input)
-{
-	T Value;
-	if (Input == nullptr || Input->InputType.GetSize() != sizeof(T) || Input->Local.Num() != sizeof(T))
+	template<typename T>
+	T GetValue(const UNiagaraClipboardFunctionInput* Input)
 	{
-		FMemory::Memzero(Value);
+		T Value;
+		if (Input == nullptr || Input->InputType.GetSize() != sizeof(T) || Input->Local.Num() != sizeof(T))
+		{
+			FMemory::Memzero(Value);
+		}
+		else
+		{
+			FMemory::Memcpy(&Value, Input->Local.GetData(), sizeof(T));
+		}
+		return Value;
 	}
-	else
-	{
-		FMemory::Memcpy(&Value, Input->Local.GetData(), sizeof(T));
-	}
-	return Value;
-}
 
-template<typename T>
-void SetValue(UNiagaraPythonScriptModuleInput* ModuleInput, T Data)
-{
-	TArray<uint8> LocalData;
-	LocalData.SetNumZeroed(sizeof(T));
-	FMemory::Memcpy(LocalData.GetData(), &Data, sizeof(T));
-	const UNiagaraClipboardFunctionInput* Input = ModuleInput->Input;
-	ModuleInput->Input = UNiagaraClipboardFunctionInput::CreateLocalValue(ModuleInput, Input->InputName, Input->InputType, Input->bEditConditionValue, LocalData);
+	template<typename T>
+	void SetValue(UNiagaraPythonScriptModuleInput* ModuleInput, T Data)
+	{
+		TArray<uint8> LocalData;
+		LocalData.SetNumZeroed(sizeof(T));
+		FMemory::Memcpy(LocalData.GetData(), &Data, sizeof(T));
+		const UNiagaraClipboardFunctionInput* Input = ModuleInput->Input;
+		ModuleInput->Input = UNiagaraClipboardFunctionInput::CreateLocalValue(ModuleInput, Input->InputName, Input->InputType, Input->bEditConditionValue, LocalData);
+	}
 }
 
 bool UNiagaraPythonScriptModuleInput::IsSet() const
@@ -75,7 +78,7 @@ float UNiagaraPythonScriptModuleInput::AsFloat() const
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetFloatDef())
 	{
 		FNiagaraVariable LocalInput;
-		return GetValue<float>(Input);
+		return NiagaraScriptResults::GetValue<float>(Input);
 	}
 	return 0;
 }
@@ -84,7 +87,7 @@ int32 UNiagaraPythonScriptModuleInput::AsInt() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetIntDef())
 	{
-		return GetValue<int32>(Input);
+		return NiagaraScriptResults::GetValue<int32>(Input);
 	}
 	return 0;
 }
@@ -107,7 +110,7 @@ FVector2D UNiagaraPythonScriptModuleInput::AsVec2() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetVec2Def())
 	{
-		return GetValue<FVector2D>(Input);
+		return NiagaraScriptResults::GetValue<FVector2D>(Input);
 	}
 	return FVector2D();
 }
@@ -116,7 +119,7 @@ FVector UNiagaraPythonScriptModuleInput::AsVec3() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetVec3Def())
 	{
-		return (FVector)GetValue<FVector3f>(Input);
+		return (FVector)NiagaraScriptResults::GetValue<FVector3f>(Input);
 	}
 	return FVector();
 }
@@ -125,7 +128,7 @@ FVector4 UNiagaraPythonScriptModuleInput::AsVec4() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetVec4Def())
 	{
-		return FVector4(GetValue<FVector4f>(Input));
+		return FVector4(NiagaraScriptResults::GetValue<FVector4f>(Input));
 	}
 	return FVector4();
 }
@@ -134,7 +137,7 @@ FLinearColor UNiagaraPythonScriptModuleInput::AsColor() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetColorDef())
 	{
-		return GetValue<FLinearColor>(Input);
+		return NiagaraScriptResults::GetValue<FLinearColor>(Input);
 	}
 	return FLinearColor();
 }
@@ -143,7 +146,7 @@ FQuat UNiagaraPythonScriptModuleInput::AsQuat() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetQuatDef())
 	{
-		return GetValue<FQuat>(Input);
+		return NiagaraScriptResults::GetValue<FQuat>(Input);
 	}
 	return FQuat();
 }
@@ -152,7 +155,7 @@ FString UNiagaraPythonScriptModuleInput::AsEnum() const
 {
 	if (IsSet() && Input->InputType.IsEnum())
 	{
-		int32 Value = GetValue<int32>(Input);
+		int32 Value = NiagaraScriptResults::GetValue<int32>(Input);
 		return Input->InputType.GetEnum()->GetNameStringByValue(Value);
 	}
 	return FString();
@@ -195,7 +198,7 @@ void UUpgradeNiagaraScriptResults::SetFloatInput(const FString& InputName, float
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetFloatDef())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -204,7 +207,7 @@ void UUpgradeNiagaraScriptResults::SetIntInput(const FString& InputName, int32 V
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetIntDef())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -213,7 +216,7 @@ void UUpgradeNiagaraScriptResults::SetBoolInput(const FString& InputName, bool V
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetBoolDef())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -222,7 +225,7 @@ void UUpgradeNiagaraScriptResults::SetVec2Input(const FString& InputName, FVecto
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetVec2Def())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -231,7 +234,7 @@ void UUpgradeNiagaraScriptResults::SetVec3Input(const FString& InputName, FVecto
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetVec3Def())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -240,7 +243,7 @@ void UUpgradeNiagaraScriptResults::SetVec4Input(const FString& InputName, FVecto
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetVec4Def())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -249,7 +252,7 @@ void UUpgradeNiagaraScriptResults::SetColorInput(const FString& InputName, FLine
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetColorDef())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -258,7 +261,7 @@ void UUpgradeNiagaraScriptResults::SetQuatInput(const FString& InputName, FQuat 
 	UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName));
 	if (ModuleInput && ModuleInput->Input->InputType == FNiagaraTypeDefinition::GetQuatDef())
 	{
-		SetValue(ModuleInput, Value);
+		NiagaraScriptResults::SetValue(ModuleInput, Value);
 	}
 }
 
@@ -268,7 +271,7 @@ void UUpgradeNiagaraScriptResults::SetEnumInput(const FString& InputName, FStrin
 	if (ModuleInput && ModuleInput->Input->InputType.IsEnum())
 	{
 		int32 EnumValue = ModuleInput->Input->InputType.GetEnum()->GetValueByNameString(Value, EGetByNameFlags::ErrorIfNotFound | EGetByNameFlags::CheckAuthoredName);
-		SetValue(ModuleInput, EnumValue);
+		NiagaraScriptResults::SetValue(ModuleInput, EnumValue);
 	}
 }
 
@@ -336,7 +339,7 @@ TArray<UNiagaraPythonModule*> UNiagaraPythonEmitter::GetModules() const
 
 	if (UNiagaraStackViewModel* StackViewModel = EmitterViewModel->GetEmitterStackViewModel())
 	{
-		TArray<UNiagaraStackModuleItem*> StackModuleItems =	GetStackEntries<UNiagaraStackModuleItem>(StackViewModel);
+		TArray<UNiagaraStackModuleItem*> StackModuleItems =	NiagaraScriptResults::GetStackEntries<UNiagaraStackModuleItem>(StackViewModel);
 		for (UNiagaraStackModuleItem* ModuleItem : StackModuleItems)
 		{
 			UNiagaraPythonModule* Module = NewObject<UNiagaraPythonModule>();
@@ -358,7 +361,7 @@ UNiagaraPythonModule* UNiagaraPythonEmitter::GetModule(const FString& ModuleName
 	UNiagaraPythonModule* Module = NewObject<UNiagaraPythonModule>();
 	if (UNiagaraStackViewModel* StackViewModel = EmitterViewModel->GetEmitterStackViewModel())
 	{
-		TArray<UNiagaraStackModuleItem*> StackModuleItems =	GetStackEntries<UNiagaraStackModuleItem>(StackViewModel);
+		TArray<UNiagaraStackModuleItem*> StackModuleItems =	NiagaraScriptResults::GetStackEntries<UNiagaraStackModuleItem>(StackViewModel);
 		for (UNiagaraStackModuleItem* ModuleItem : StackModuleItems)
 		{
 			if (ModuleItem->GetModuleNode().GetFunctionName() == ModuleName)

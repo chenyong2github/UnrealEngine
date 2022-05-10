@@ -23,85 +23,88 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraValidationRules"
 
-template<typename T>
-TArray<T*> GetStackEntries(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
+namespace NiagaraValidation
 {
-	TArray<T*> Results;
-	TArray<UNiagaraStackEntry*> EntriesToCheck;
-	if (UNiagaraStackEntry* RootEntry = StackViewModel->GetRootEntry())
+	template<typename T>
+	TArray<T*> GetStackEntries(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
 	{
-		if (bRefresh)
+		TArray<T*> Results;
+		TArray<UNiagaraStackEntry*> EntriesToCheck;
+		if (UNiagaraStackEntry* RootEntry = StackViewModel->GetRootEntry())
 		{
-			RootEntry->RefreshChildren();
-		}
-		RootEntry->GetUnfilteredChildren(EntriesToCheck);
-	}
-	while (EntriesToCheck.Num() > 0)
-	{
-		UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
-		if (T* ItemToCheck = Cast<T>(Entry))
-		{
-			Results.Add(ItemToCheck);
-		}
-		Entry->GetUnfilteredChildren(EntriesToCheck);
-	}
-	return Results;
-}
-
-template<typename T>
-TArray<T*> GetAllStackEntriesInSystem(TSharedPtr<FNiagaraSystemViewModel> ViewModel, bool bRefresh = false)
-{
-	TArray<T*> Results;
-	Results.Append(GetStackEntries<T>(ViewModel->GetSystemStackViewModel(), bRefresh));
-	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
-	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
-	{
-		Results.Append(GetStackEntries<T>(EmitterHandleModel.Get().GetEmitterStackViewModel(), bRefresh));
-	}
-	return Results;
-}
-
-// helper function to retrieve a single stack entry from the system or emitter view model
-template<typename T>
-T* GetStackEntry(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
-{
-	TArray<T*> StackEntries = GetStackEntries<T>(StackViewModel, bRefresh);
-	if (StackEntries.Num() > 0)
-	{
-		return StackEntries[0];
-	}
-	return nullptr;
-}
-
-// --------------------------------------------------------------------------------------------------------------------------------------------
-// Common fixes and links
-
-void AddGoToFXTypeLink(FNiagaraValidationResult& Result, UNiagaraEffectType* FXType)
-{
-	if (FXType == nullptr)
-	{
-		return;
-	}
-
-	FNiagaraValidationFix& GoToValidationRulesLink = Result.Links.AddDefaulted_GetRef();
-	GoToValidationRulesLink.Description = LOCTEXT("GoToValidationRulesFix", "Go To Validation Rules");
-	TWeakObjectPtr<UNiagaraEffectType> WeakFXType = FXType;
-	GoToValidationRulesLink.FixDelegate = FNiagaraValidationFixDelegate::CreateLambda([WeakFXType]
-		{
-			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-			TWeakPtr<IAssetTypeActions> WeakAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(UNiagaraEffectType::StaticClass());
-
-			if (UNiagaraEffectType* FXType = WeakFXType.Get())
+			if (bRefresh)
 			{
-				if (TSharedPtr<IAssetTypeActions> AssetTypeActions = WeakAssetTypeActions.Pin())
-				{
-					TArray<UObject*> AssetsToEdit;
-					AssetsToEdit.Add(FXType);
-					AssetTypeActions->OpenAssetEditor(AssetsToEdit);
-					//TODO: Is there a way for us to auto navigate to and open up the validation rules inside FXType?
-				}
+				RootEntry->RefreshChildren();
 			}
-		});
+			RootEntry->GetUnfilteredChildren(EntriesToCheck);
+		}
+		while (EntriesToCheck.Num() > 0)
+		{
+			UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
+			if (T* ItemToCheck = Cast<T>(Entry))
+			{
+				Results.Add(ItemToCheck);
+			}
+			Entry->GetUnfilteredChildren(EntriesToCheck);
+		}
+		return Results;
+	}
+
+	template<typename T>
+	TArray<T*> GetAllStackEntriesInSystem(TSharedPtr<FNiagaraSystemViewModel> ViewModel, bool bRefresh = false)
+	{
+		TArray<T*> Results;
+		Results.Append(GetStackEntries<T>(ViewModel->GetSystemStackViewModel(), bRefresh));
+		TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
+		{
+			Results.Append(GetStackEntries<T>(EmitterHandleModel.Get().GetEmitterStackViewModel(), bRefresh));
+		}
+		return Results;
+	}
+
+	// helper function to retrieve a single stack entry from the system or emitter view model
+	template<typename T>
+	T* GetStackEntry(UNiagaraStackViewModel* StackViewModel, bool bRefresh = false)
+	{
+		TArray<T*> StackEntries = GetStackEntries<T>(StackViewModel, bRefresh);
+		if (StackEntries.Num() > 0)
+		{
+			return StackEntries[0];
+		}
+		return nullptr;
+	}
+
+	// --------------------------------------------------------------------------------------------------------------------------------------------
+	// Common fixes and links
+
+	void AddGoToFXTypeLink(FNiagaraValidationResult& Result, UNiagaraEffectType* FXType)
+	{
+		if (FXType == nullptr)
+		{
+			return;
+		}
+
+		FNiagaraValidationFix& GoToValidationRulesLink = Result.Links.AddDefaulted_GetRef();
+		GoToValidationRulesLink.Description = LOCTEXT("GoToValidationRulesFix", "Go To Validation Rules");
+		TWeakObjectPtr<UNiagaraEffectType> WeakFXType = FXType;
+		GoToValidationRulesLink.FixDelegate = FNiagaraValidationFixDelegate::CreateLambda([WeakFXType]
+			{
+				FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+				TWeakPtr<IAssetTypeActions> WeakAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(UNiagaraEffectType::StaticClass());
+
+				if (UNiagaraEffectType* FXType = WeakFXType.Get())
+				{
+					if (TSharedPtr<IAssetTypeActions> AssetTypeActions = WeakAssetTypeActions.Pin())
+					{
+						TArray<UObject*> AssetsToEdit;
+						AssetsToEdit.Add(FXType);
+						AssetTypeActions->OpenAssetEditor(AssetsToEdit);
+						//TODO: Is there a way for us to auto navigate to and open up the validation rules inside FXType?
+					}
+				}
+			});
+	}
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -111,7 +114,7 @@ void UNiagaraValidationRule_NoWarmupTime::CheckValidity(TSharedPtr<FNiagaraSyste
 	UNiagaraSystem& System = ViewModel->GetSystem();
 	if (System.NeedsWarmup())
 	{
-		UNiagaraStackSystemPropertiesItem* SystemProperties = GetStackEntry<UNiagaraStackSystemPropertiesItem>(ViewModel->GetSystemStackViewModel());
+		UNiagaraStackSystemPropertiesItem* SystemProperties = NiagaraValidation::GetStackEntry<UNiagaraStackSystemPropertiesItem>(ViewModel->GetSystemStackViewModel());
 		FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("WarumupSummary", "Warmuptime > 0 is not allowed"), LOCTEXT("WarmupDescription", "Systems with the chosen effect type do not allow warmup time, as it costs too much performance.\nPlease set the warmup time to 0 in the system properties."), SystemProperties);
 		Results.Add(Result);
 	}
@@ -132,7 +135,7 @@ void UNiagaraValidationRule_FixedGPUBoundsSet::CheckValidity(TSharedPtr<FNiagara
 		FVersionedNiagaraEmitterData* EmitterData = EmitterHandleModel.Get().GetEmitterHandle()->GetEmitterData();
 		if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && EmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
 		{
-			UNiagaraStackEmitterPropertiesItem* EmitterProperties = GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
+			UNiagaraStackEmitterPropertiesItem* EmitterProperties = NiagaraValidation::GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
 			FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("GpuDynamicBoundsErrorSummary", "GPU emitters do not support dynamic bounds"), LOCTEXT("GpuDynamicBoundsErrorDescription", "Gpu emitter should either not be in dynamic mode or the system must have fixed bounds."), EmitterProperties);
 			Results.Add(Result);
 		}
@@ -170,7 +173,7 @@ void UNiagaraValidationRule_BannedRenderers::CheckValidity(TSharedPtr<FNiagaraSy
 				FNiagaraPlatformSet::GatherConflicts(CheckSets, Conflicts);
 				if (Conflicts.Num() > 0)
 				{
-					TArray<UNiagaraStackRendererItem*> RendererItems = GetStackEntries<UNiagaraStackRendererItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
+					TArray<UNiagaraStackRendererItem*> RendererItems = NiagaraValidation::GetStackEntries<UNiagaraStackRendererItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
 					for (UNiagaraStackRendererItem* Item : RendererItems)
 					{
 						if (Item->GetRendererProperties() != RendererProperties)
@@ -184,7 +187,7 @@ void UNiagaraValidationRule_BannedRenderers::CheckValidity(TSharedPtr<FNiagaraSy
 						Result.Description = LOCTEXT("BannedRenderDescription", "Please ensure only allowed renderers are used for each platform according to the validation rules in the System's Effect Type.");
 						Result.SourceObject = Item;
 						
-						AddGoToFXTypeLink(Result, System.GetEffectType());
+						NiagaraValidation::AddGoToFXTypeLink(Result, System.GetEffectType());
 
 						//Add autofix to disable the module
 						FNiagaraValidationFix& DisableRendererFix = Result.Fixes.AddDefaulted_GetRef();
@@ -211,7 +214,7 @@ void UNiagaraValidationRule_BannedModules::CheckValidity(TSharedPtr<FNiagaraSyst
 {
 	UNiagaraSystem& System = ViewModel->GetSystem();
 
-	TArray<UNiagaraStackModuleItem*> StackModuleItems =	GetAllStackEntriesInSystem<UNiagaraStackModuleItem>(ViewModel);
+	TArray<UNiagaraStackModuleItem*> StackModuleItems =	NiagaraValidation::GetAllStackEntriesInSystem<UNiagaraStackModuleItem>(ViewModel);
 
 	for (UNiagaraStackModuleItem* Item : StackModuleItems)
 	{
@@ -251,7 +254,7 @@ void UNiagaraValidationRule_BannedModules::CheckValidity(TSharedPtr<FNiagaraSyst
 					Result.Description = LOCTEXT("BanndeModulesDescription", "Check this module against the Effect Type's Banned Modules validators");
 					Result.SourceObject = Item;
 
-					AddGoToFXTypeLink(Result, System.GetEffectType());
+					NiagaraValidation::AddGoToFXTypeLink(Result, System.GetEffectType());
 
 					//Add autofix to disable the module
 					FNiagaraValidationFix& DisableModuleFix = Result.Fixes.AddDefaulted_GetRef();
@@ -272,7 +275,7 @@ void UNiagaraValidationRule_BannedModules::CheckValidity(TSharedPtr<FNiagaraSyst
 
 void UNiagaraValidationRule_InvalidEffectType::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
 {
-	UNiagaraStackSystemPropertiesItem* SystemProperties = GetStackEntry<UNiagaraStackSystemPropertiesItem>(ViewModel->GetSystemStackViewModel());
+	UNiagaraStackSystemPropertiesItem* SystemProperties = NiagaraValidation::GetStackEntry<UNiagaraStackSystemPropertiesItem>(ViewModel->GetSystemStackViewModel());
 	FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("InvalidEffectSummary", "Invalid Effect Type"), LOCTEXT("InvalidEffectDescription", "The effect type on this system was marked as invalid for production content and should only be used as placeholder."), SystemProperties);
 	Results.Add(Result);
 }
@@ -289,13 +292,13 @@ void UNiagaraValidationRule_LWC::CheckValidity(TSharedPtr<FNiagaraSystemViewMode
 
 	// gather all the modules in the system, excluding localspace emitters
 	TArray<UNiagaraStackModuleItem*> AllModules;
-	AllModules.Append(GetStackEntries<UNiagaraStackModuleItem>(ViewModel->GetSystemStackViewModel()));
+	AllModules.Append(NiagaraValidation::GetStackEntries<UNiagaraStackModuleItem>(ViewModel->GetSystemStackViewModel()));
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandleViewModels = ViewModel->GetEmitterHandleViewModels();
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
 	{
 		if (EmitterHandleModel->GetEmitterHandle()->GetEmitterData()->bLocalSpace == false)
 		{
-			AllModules.Append(GetStackEntries<UNiagaraStackModuleItem>(EmitterHandleModel.Get().GetEmitterStackViewModel()));
+			AllModules.Append(NiagaraValidation::GetStackEntries<UNiagaraStackModuleItem>(EmitterHandleModel.Get().GetEmitterStackViewModel()));
 		}
 	}
 
