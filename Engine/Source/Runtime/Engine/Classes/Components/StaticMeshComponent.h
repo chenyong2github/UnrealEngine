@@ -770,14 +770,21 @@ public:
 
 	const FMeshMapBuildData* GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo, bool bCheckForResourceCluster = true) const;
 
+	/** Called during scene proxy creation to get the Nanite resource data */
+	DECLARE_DELEGATE_RetVal(const Nanite::FResources*, FOnGetNaniteResources);
+	virtual FOnGetNaniteResources& OnGetNaniteResources() { return OnGetNaniteResourcesEvent; }
 
 #if WITH_EDITOR
 	/** Called when the static mesh changes  */
 	DECLARE_EVENT_OneParam(UStaticMeshComponent, FOnStaticMeshChanged, UStaticMeshComponent*);
 	virtual FOnStaticMeshChanged& OnStaticMeshChanged() { return OnStaticMeshChangedEvent; }
+#endif
+
 private:
+#if WITH_EDITOR
 	FOnStaticMeshChanged OnStaticMeshChangedEvent;
 #endif
+	FOnGetNaniteResources OnGetNaniteResourcesEvent;
 
 	friend class FStaticMeshComponentRecreateRenderStateContext;
 };

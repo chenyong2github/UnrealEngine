@@ -500,7 +500,6 @@ bool FSceneProxyBase::SetEvaluateWorldPositionOffset(bool NewValue)
 FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
-, Resources(Component->GetNaniteResources())
 , RenderData(Component->GetStaticMesh()->GetRenderData())
 , StaticMesh(Component->GetStaticMesh())
 #if WITH_EDITOR
@@ -522,6 +521,15 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Nanite requires GPUScene
 	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
+	
+	if (Component->OnGetNaniteResources().IsBound())
+	{
+		Resources = Component->OnGetNaniteResources().Execute();
+	}
+	else
+	{
+		Resources = Component->GetNaniteResources();
+	}
 	
 	// This should always be valid.
 	check(Resources);
