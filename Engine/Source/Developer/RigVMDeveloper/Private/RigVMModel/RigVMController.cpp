@@ -15450,7 +15450,7 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 						}
 						else
 						{
-							ensure(bIsTransacting);
+							ensureMsgf(bIsTransacting, TEXT("Unexpected link broken in package %s"), *GetPackage()->GetPathName());
 							URigVMLink* Link = Pin->FindLinkForPin(OtherPin);
 							BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
 							return false;
@@ -15621,6 +15621,30 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 			}
 
 			UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
+		}
+	}
+}
+
+void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	for (URigVMNode* Node : Graph->GetNodes())
+	{
+		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+		{
+			TemplateNode->InitializeFilteredPermutationsFromTypes();
 		}
 	}
 }
