@@ -57,6 +57,10 @@
 #include "LevelEditor.h"
 #include "ISettingsModule.h"
 #include "Dialog/SMessageDialog.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+
+#include "ISequencer.h"
+#include "ILevelSequenceEditorToolkit.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -1045,8 +1049,22 @@ void STakeRecorderCockpit::StartRecording()
 		Parameters.User    = GetDefault<UTakeRecorderUserSettings>()->Settings;
 		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 		Parameters.TakeRecorderMode = TakeRecorderModeAttribute.Get();
+		Parameters.StartFrame = LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
 
 		FText ErrorText = LOCTEXT("UnknownError", "An unknown error occurred when trying to start recording");
+
+		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
+		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
+
+		if (LevelSequenceEditor && LevelSequenceEditor->GetSequencer())
+		{
+			// If not resetting the playhead, store the current time as the start frame for recording. 
+			// This will ultimately be the start of the playback range and the recording will begin from that time.
+			if (!Parameters.User.bResetPlayhead)
+			{
+				Parameters.StartFrame = LevelSequenceEditor->GetSequencer()->GetLocalTime().Time.FrameNumber;
+			}
+		}
 
 		UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
 

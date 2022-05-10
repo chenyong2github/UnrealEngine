@@ -27,8 +27,12 @@ struct FTakeRecorderUserParameters
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="User Settings", meta=(Units=Multiplier, ClampMin="0.00001", UIMin="0.00001"))
 	float EngineTimeDilation;
 
+	/** Reset playhead to beginning of the playback range when starting recording */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "User Settings")
+	bool bResetPlayhead;
+
 	/** Automatically stop recording when reaching the end of the playback range */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="User Settings")
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "User Settings")
 	bool bStopAtPlaybackEnd;
 
 	/** Recommended for use with recorded spawnables. Beware that changes to actor instances in the map after recording may alter the recording when played back */
@@ -156,6 +160,9 @@ struct FTakeRecorderParameters
 
 	UPROPERTY(BlueprintReadWrite, Category="Take Recorder")
 	ETakeRecorderMode TakeRecorderMode;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Take Recorder")
+	FFrameNumber StartFrame;
 
 	/**
 	 * Option to disable recording and saving of data. This can be used in a scenario where multiple clients are running

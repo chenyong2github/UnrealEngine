@@ -513,6 +513,13 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid())
 	{
+		// If a start frame was specified, adjust the playback range before rewinding to the beginning of the playback range
+		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
+		MovieScene->SetPlaybackRange(TRange<FFrameNumber>(Parameters.StartFrame, MovieScene->GetPlaybackRange().GetUpperBoundValue()));
+
+		// Always start the recording at the beginning of the playback range
+		Sequencer->SetLocalTime(MovieScene->GetPlaybackRange().GetLowerBoundValue());
+
 		if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence)
 		{
 			USequencerSettings* SequencerSettings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(TEXT("TakeRecorderSequenceEditor"));
@@ -530,7 +537,6 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 		// Center the view range around the current time about to be captured
 		FAnimatedRange Range = Sequencer->GetViewRange();
 		FTimecode CurrentTime = FApp::GetTimecode();
-		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
 		FFrameRate FrameRate = MovieScene->GetDisplayRate();
 		FFrameNumber ViewRangeStart = CurrentTime.ToFrameNumber(FrameRate);
 		double ViewRangeStartSeconds = Parameters.Project.bStartAtCurrentTimecode ? FrameRate.AsSeconds(ViewRangeStart) : MovieScene->GetPlaybackRange().GetLowerBoundValue() / MovieScene->GetTickResolution();
