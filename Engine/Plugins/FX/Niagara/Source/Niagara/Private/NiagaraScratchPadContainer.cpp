@@ -30,3 +30,23 @@ void UNiagaraScratchPadContainer::SetScripts(const TArray<TObjectPtr<UNiagaraScr
 	CheckConsistency();
 #endif
 }
+
+void UNiagaraScratchPadContainer::AppendScripts(const TArray<TObjectPtr<UNiagaraScript>>& InScripts)
+{
+#if WITH_EDITORONLY_DATA
+	Scripts.Append(InScripts);
+	CheckConsistency();
+#endif
+}
+
+void UNiagaraScratchPadContainer::AppendScripts(TObjectPtr<UNiagaraScratchPadContainer> InScripts)
+{
+#if WITH_EDITORONLY_DATA
+	if (InScripts)
+	{
+		Scripts.Append(InScripts->Scripts);
+		InScripts->Scripts.Empty();
+		CheckConsistency();
+	}
+#endif
+}

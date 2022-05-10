@@ -215,7 +215,7 @@ void FVersionedNiagaraEmitterData::CopyFrom(const FVersionedNiagaraEmitterData& 
 
 FName GetVersionedName(const FString& BaseName, const FNiagaraAssetVersion& VersionPostfix)
 {
-	return FName(FString::Printf(TEXT("%s_%i.%i"), *BaseName, VersionPostfix.MajorVersion, VersionPostfix.MinorVersion));
+	return FName(FString::Printf(TEXT("%s_%i_%i"), *BaseName, VersionPostfix.MajorVersion, VersionPostfix.MinorVersion));
 }
 
 void FVersionedNiagaraEmitterData::PostInitProperties(UNiagaraEmitter* Outer)
@@ -993,8 +993,7 @@ UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(FVersionedNiagaraEmit
 	EmitterData->VersionedParentAtLastMerge.Emitter->ClearFlags(RF_Standalone | RF_Public);
 	EmitterData->VersionedParentAtLastMerge.Emitter->DisableVersioning(InParentEmitter.Version);
 	EmitterData->VersionedParentAtLastMerge.Version = InParentEmitter.Version;
-	EmitterData->ParentScratchPads->SetScripts(EmitterData->ScratchPads->Scripts);
-	EmitterData->ScratchPads->Scripts.Empty();
+	EmitterData->ParentScratchPads->AppendScripts(EmitterData->ScratchPads);
 	EmitterData->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
 	NewEmitter->RebindNotifications();
 	return NewEmitter;
@@ -3140,8 +3139,7 @@ void UNiagaraEmitter::SetParent(const FVersionedNiagaraEmitter& InParent)
 
 		// Since this API is only valid for the "Create duplicate parent" operation we move the emitters scratch pad script to the parent array since that's where they're defined now.
 		// Normally we would duplicate the parent scratch pad scripts here, but since the whole parent is already a duplicate, we can skip this here.
-		EmitterData.ParentScratchPads->SetScripts(EmitterData.ScratchPads->Scripts);
-		EmitterData.ScratchPads->Scripts.Empty();
+		EmitterData.ParentScratchPads->AppendScripts(EmitterData.ScratchPads);
 		EmitterData.GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 		UpdateChangeId(TEXT("Parent Set"));
 	}

@@ -1474,8 +1474,7 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 		MergeResults.MergedInstance = Parent.Emitter->DuplicateWithoutMerging(GetTransientPackage());
 		MergeResults.MergedInstance->DisableVersioning(Parent.Version);
 		FVersionedNiagaraEmitterData* MergedEmitterData = MergeResults.MergedInstance->GetLatestEmitterData();
-		MergedEmitterData->ParentScratchPads->SetScripts(MergedEmitterData->ScratchPads->Scripts);
-		MergedEmitterData->ScratchPads->Scripts.Empty();
+		MergedEmitterData->ParentScratchPads->AppendScripts(MergedEmitterData->ScratchPads);
 	}
 	else if (State == EmitterMergeState::Failed)
 	{
@@ -1556,8 +1555,7 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 		GetForcedChangeIds(ParentFunctionIdToNodeMap, LastMergedParentFunctionIdToNodeMap, InstanceFunctionIdToNodeMap, FunctionIdToForcedChangeId);
 
 		FVersionedNiagaraEmitterData* MergedEmitterData = VersionedMergedInstance.GetEmitterData();
-		MergedEmitterData->ParentScratchPads->SetScripts(MergedEmitterData->ScratchPads->Scripts);
-		MergedEmitterData->ScratchPads->Scripts.Empty();
+		MergedEmitterData->ParentScratchPads->AppendScripts(MergedEmitterData->ScratchPads);
 		CopyInstanceScratchPadScripts(VersionedMergedInstance, Instance.GetEmitterData());
 		TSharedRef<FNiagaraScratchPadMergeAdapter> ScratchPadAdapter = MakeShared<FNiagaraScratchPadMergeAdapter>(VersionedMergedInstance, Instance, Parent);
 

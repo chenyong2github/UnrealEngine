@@ -19,6 +19,8 @@ public:
 	virtual void PostLoad() override;
 	void CheckConsistency();
 	void SetScripts(const TArray<TObjectPtr<UNiagaraScript>>& InScripts);
+	void AppendScripts(const TArray<TObjectPtr<UNiagaraScript>>& InScripts);
+	void AppendScripts(TObjectPtr<UNiagaraScratchPadContainer> InScripts);
 
 #if WITH_EDITORONLY_DATA
 

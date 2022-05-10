@@ -1018,8 +1018,9 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 void FNiagaraEmitterInstance::PostTick()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterPostTick);
-
-	checkSlow(CachedEmitter.Emitter);
+	
+	FVersionedNiagaraEmitterData* EmitterData = CachedEmitter.GetEmitterData();
+	checkSlow(EmitterData);
 
 	if (EventInstanceData.IsValid())
 	{
@@ -1032,7 +1033,7 @@ void FNiagaraEmitterInstance::PostTick()
 
 	bCachedBoundsDynamic = false;
 	CachedBounds.Init();
-	FVersionedNiagaraEmitterData* EmitterData = CachedEmitter.GetEmitterData();
+	
 	if (EmitterData)
 	{
 		// Read lock can be smaller in scope, but probably not necessary
