@@ -68,12 +68,6 @@ MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS_WITH_PROXY(
 	TEXT("#include \"/Plugin/MLDeformerFramework/Private/MLDeformerGraphHeatMapDataInterface.ush\"\n"),
 	TEXT("ML Deformer Debug"))
 
-void UMLDeformerGraphDebugDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-	OutSourceTypes.Add(UMLDeformerComponent::StaticClass());
-}
-
 bool UMLDeformerGraphDebugDataProvider::IsValid() const
 {
 #if WITH_EDITORONLY_DATA

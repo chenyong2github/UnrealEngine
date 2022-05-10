@@ -66,15 +66,23 @@ class COMPUTEFRAMEWORK_API UComputeGraph : public UObject
 protected:
 	/** Kernels in the graph. */
 	UPROPERTY()
-	TArray< TObjectPtr<UComputeKernel> > KernelInvocations;
+	TArray<TObjectPtr<UComputeKernel>> KernelInvocations;
 
 	/** Data interfaces in the graph. */
 	UPROPERTY()
-	TArray< TObjectPtr<UComputeDataInterface> > DataInterfaces;
+	TArray<TObjectPtr<UComputeDataInterface>> DataInterfaces;
 
 	/** Edges in the graph between kernels and data interfaces. */
 	UPROPERTY()
 	TArray<FComputeGraphEdge> GraphEdges;
+
+	/** Registered binding object class types. */
+	UPROPERTY()
+	TArray<TObjectPtr<UClass>> Bindings;
+
+	/** Mapping of DataInterfaces array index to Bindings index. */
+	UPROPERTY()
+	TArray<int32> DataInterfaceToBinding;
 
 public:
 	UComputeGraph();
@@ -99,7 +107,8 @@ public:
 	 * We attempt to setup bindings from the InBindingObjects.
 	 * The caller is responsible for any data provider binding not handled by the default behavior.
 	 */
-	void CreateDataProviders(TArrayView<UObject*> InBindingObjects, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
+	void CreateDataProviders(int32 InBindingIndex, TObjectPtr<UObject>& InBindingObject, TArray< TObjectPtr<UComputeDataProvider> >& InOutDataProviders) const;
+
 
 	/** Returns true if there is a valid DataProvider entry for each of our DataInterfaces. */
 	bool ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const;

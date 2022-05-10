@@ -105,20 +105,21 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 
 	for (const FOptimusComputeGraphInfo& ComputeGraphInfo : InDeformer->ComputeGraphs)
 	{
-		TArray<UObject*, TInlineAllocator<1>> BindingObjects;
-		BindingObjects.Add(MeshComponent.Get());
-
 		FOptimusDeformerInstanceExecInfo Info;
 		Info.GraphName = ComputeGraphInfo.GraphName;
 		Info.GraphType = ComputeGraphInfo.GraphType;
+		Info.ComputeGraph = ComputeGraphInfo.ComputeGraph;
+
+		// Assume a single binding object that is our MeshComponent.
+		Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, 0, MeshComponent.Get());
+
 		// Schedule the setup and update graphs to run. The flag for the update graph is never
 		// cleared.
 		if (Info.GraphType == EOptimusNodeGraphType::Setup)
 		{
 			GraphsToRunOnNextTick.Add(Info.GraphName);
 		}
-		Info.ComputeGraph = ComputeGraphInfo.ComputeGraph;
-		Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, BindingObjects);
+		
 		ComputeGraphExecInfos.Add(Info);
 	}
 	

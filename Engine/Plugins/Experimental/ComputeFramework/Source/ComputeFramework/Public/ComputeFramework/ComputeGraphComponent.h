@@ -25,12 +25,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Compute")
 	TObjectPtr<UComputeGraph> ComputeGraph = nullptr;
 
-	/**
-	 * Create the Data Provider objects for the current ComputeGraph.
-	 * @param bSetDefaultBindings Attempt to automate setup of the Data Provider objects based on the current Actor.
-	 */
+	/** Create all the Data Provider objects for a given binding object of the ComputeGraph. */
 	UFUNCTION(BlueprintCallable, Category = "Compute")
-	void CreateDataProviders(bool bSetDefaultBindings);
+	void CreateDataProviders(int32 InBindingIndex, UObject* InBindingObject);
 
 	/** Destroy all associated DataProvider objects. */
 	UFUNCTION(BlueprintCallable, Category = "Compute")

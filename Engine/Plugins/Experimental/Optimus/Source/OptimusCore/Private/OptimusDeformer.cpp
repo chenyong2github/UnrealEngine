@@ -1212,10 +1212,14 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		}
 	}
 
+	// Create default graph bindings.
+	// Initially we bind everything through a single UMeshComponent object but we will extend that per data interface later.
+	ComputeGraph->Bindings.Add(UMeshComponent::StaticClass());
+	ComputeGraph->DataInterfaceToBinding.AddZeroed(ComputeGraph->DataInterfaces.Num());
+
 #if PRINT_COMPILED_OUTPUT
 	
 #endif
-	
 
 	Result.Set<UOptimusComputeGraph*>(ComputeGraph);
 	return Result;

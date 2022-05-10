@@ -89,20 +89,10 @@ void UOptimusClothDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceCloth.ush\"\n");
 }
 
-void UOptimusClothDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusClothDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusClothDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusClothDataProvider* Provider = NewObject<UOptimusClothDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
-	}
-
+	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
 	return Provider;
 }
 

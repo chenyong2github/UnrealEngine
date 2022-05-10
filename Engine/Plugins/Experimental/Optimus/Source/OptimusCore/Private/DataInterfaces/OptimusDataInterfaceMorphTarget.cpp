@@ -68,20 +68,10 @@ void UOptimusMorphTargetDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceMorphTarget.ush\"\n");
 }
 
-void UOptimusMorphTargetDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusMorphTargetDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusMorphTargetDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusMorphTargetDataProvider* Provider = NewObject<UOptimusMorphTargetDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
-	}
-
+	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
 	return Provider;
 }
 

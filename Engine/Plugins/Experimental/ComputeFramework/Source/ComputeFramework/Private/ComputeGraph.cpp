@@ -160,75 +160,45 @@ bool UComputeGraph::ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> >
 	return true;
 }
 
-void UComputeGraph::CreateDataProviders(TArrayView<UObject*> InBindingObjects, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
+void UComputeGraph::CreateDataProviders(int32 InBindingIndex, TObjectPtr<UObject>& InBindingObject, TArray< TObjectPtr<UComputeDataProvider> >& InOutDataProviders) const
 {
-	// If we want default bindings then get any associated Actor and look for objects of the requested type.
-	AActor* Actor = nullptr;
-	for (UObject* BindingObject : InBindingObjects)
+	InOutDataProviders.SetNumZeroed(DataInterfaces.Num());
+
+	if (ensure(Bindings.IsValidIndex(InBindingIndex)) && InBindingObject.IsA(Bindings[InBindingIndex]))
 	{
-		UActorComponent* Component = Cast<UActorComponent>(BindingObject);
-		Actor = (Component != nullptr) ? Component->GetOwner() : nullptr;
-		if (Actor != nullptr)
+		for (int32 DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num(); ++DataInterfaceIndex)
 		{
-			break;
-		}
-	}
-
-	// Iterate DataInterfaces and add a provider for each one.
-	OutProviders.Reserve(DataInterfaces.Num());
-	for (int DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num(); ++ DataInterfaceIndex)
-	{
-		UComputeDataProvider* DataProvider = nullptr;
-		
-		UComputeDataInterface const* DataInterface = DataInterfaces[DataInterfaceIndex];
-		if (DataInterface != nullptr)
-		{
-			// Gather which input/output bindings are connected in the graph.
-			uint64 InputMask = 0;
-			uint64 OutputMask = 0;
-			for (FComputeGraphEdge const& GraphEdge : GraphEdges)
+			if (ensure(DataInterfaceToBinding.IsValidIndex(DataInterfaceIndex)) && DataInterfaceToBinding[DataInterfaceIndex] == InBindingIndex)
 			{
-				if (GraphEdge.DataInterfaceIndex == DataInterfaceIndex)
-				{
-					if (GraphEdge.bKernelInput)
-					{
-						InputMask |= 1llu << GraphEdge.DataInterfaceBindingIndex;
-					}
-					else
-					{
-						OutputMask |= 1llu << GraphEdge.DataInterfaceBindingIndex;
-					}
-				}
-			}
+				UComputeDataProvider* DataProvider = nullptr;
 
-			// Gather automatic bindings for the data interface.
-			TArray<UClass*> SourceTypes;
-			DataInterface->GetSourceTypes(SourceTypes);
-			
-			TArray< TObjectPtr<UObject> > Bindings;
-			Bindings.AddDefaulted(SourceTypes.Num());
-			
-			for (int32 BindingIndex = 0; BindingIndex < SourceTypes.Num(); ++BindingIndex)
-			{
-				UClass* SourceType = SourceTypes[BindingIndex];
-				for (UObject* BindingObject : InBindingObjects)
+				UComputeDataInterface const* DataInterface = DataInterfaces[DataInterfaceIndex];
+				if (DataInterface != nullptr)
 				{
-					if (BindingObject != nullptr && BindingObject->IsA(SourceType))
+					// Gather which input/output bindings are connected in the graph.
+					uint64 InputMask = 0;
+					uint64 OutputMask = 0;
+					for (FComputeGraphEdge const& GraphEdge : GraphEdges)
 					{
-						Bindings[BindingIndex] = BindingObject;
-						break;
+						if (GraphEdge.DataInterfaceIndex == DataInterfaceIndex)
+						{
+							if (GraphEdge.bKernelInput)
+							{
+								InputMask |= 1llu << GraphEdge.DataInterfaceBindingIndex;
+							}
+							else
+							{
+								OutputMask |= 1llu << GraphEdge.DataInterfaceBindingIndex;
+							}
+						}
 					}
-				}
-				if (Bindings[BindingIndex] == nullptr && Actor != nullptr)
-				{
-					Bindings[BindingIndex] = Actor->GetComponentByClass(SourceType);
-				}
-			}
 
-			DataProvider = DataInterface->CreateDataProvider(Bindings, InputMask, OutputMask);
+					DataProvider = DataInterface->CreateDataProvider(InBindingObject, InputMask, OutputMask);
+				}
+
+				InOutDataProviders[DataInterfaceIndex] = DataProvider;
+			}
 		}
-		
-		OutProviders.Add(DataProvider);
 	}
 }
 

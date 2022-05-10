@@ -7,13 +7,31 @@
 #include "OptimusDeformer.h"
 #include "OptimusCoreModule.h"
 #include "OptimusNode.h"
+#include "OptimusObjectVersion.h"
 
+#include "Components/MeshComponent.h"
 #include "Internationalization/Regex.h"
 #include "Misc/UObjectToken.h"
 
-
 #define LOCTEXT_NAMESPACE "OptimusComputeGraph"
 
+void UOptimusComputeGraph::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
+}
+
+void UOptimusComputeGraph::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::AddBindingsToGraph)
+	{
+		// Add default bindings for legacy data.
+		Bindings.Add(UMeshComponent::StaticClass());
+		DataInterfaceToBinding.AddZeroed(DataInterfaces.Num());
+	}
+}
 
 void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors)
 {
@@ -45,7 +63,6 @@ void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, cons
 		}
 	}
 }
-
 
 FOptimusCompilerDiagnostic UOptimusComputeGraph::ProcessCompilationMessage(
 	UOptimusDeformer* InOwner,
@@ -97,6 +114,5 @@ FOptimusCompilerDiagnostic UOptimusComputeGraph::ProcessCompilationMessage(
 
 	return FOptimusCompilerDiagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
 }
-
 
 #undef LOCTEXT_NAMESPACE

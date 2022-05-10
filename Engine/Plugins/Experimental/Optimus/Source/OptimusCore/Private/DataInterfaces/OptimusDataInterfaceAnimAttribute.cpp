@@ -219,20 +219,10 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
 	}
 }
 
-void UOptimusAnimAttributeDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusAnimAttributeDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusAnimAttributeDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusAnimAttributeDataProvider* Provider = NewObject<UOptimusAnimAttributeDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->Init(Cast<USkeletalMeshComponent>(InSourceObjects[0]), AttributeArray.InnerArray);
-	}
-
+	Provider->Init(Cast<USkeletalMeshComponent>(InBinding), AttributeArray.InnerArray);
 	return Provider;
 }
 

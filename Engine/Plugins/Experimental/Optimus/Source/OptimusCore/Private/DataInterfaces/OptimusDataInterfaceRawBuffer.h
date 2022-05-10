@@ -35,7 +35,6 @@ public:
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderHash(FString& InOutKey) const override;
 	void GetHLSL(FString& OutHLSL) const override;
-	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	//~ End UComputeDataInterface Interface
 
 	/** The value type we should be allocating elements for */
@@ -47,7 +46,6 @@ public:
 	FOptimusDataDomain DataDomain;
 
 protected:
-	static USkinnedMeshComponent* GetComponentFromSourceObjects(TArrayView<TObjectPtr<UObject>> InSourceObjects);
 	void FillProviderFromComponent(const USkinnedMeshComponent* InComponent, UOptimusRawBufferDataProvider* InProvider) const;
 	
 	virtual bool UseSplitBuffers() const { return true; } 
@@ -70,7 +68,7 @@ public:
 	//~ Begin UComputeDataInterface Interface
 	TCHAR const* GetClassName() const override { return TEXT("TransientBuffer"); }
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
-	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
+	UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
 	/** Set to true if the buffer should be cleared prior to each render */ 
@@ -94,7 +92,7 @@ public:
 	//~ Begin UComputeDataInterface Interface
 	TCHAR const* GetClassName() const override { return TEXT("PersistentBuffer"); }
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
-	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
+	UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
 	UPROPERTY()

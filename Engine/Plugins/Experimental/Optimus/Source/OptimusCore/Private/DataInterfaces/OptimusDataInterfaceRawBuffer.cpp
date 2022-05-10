@@ -16,18 +16,6 @@ const int32 UOptimusRawBufferDataInterface::ReadValueInputIndex = 1;
 const int32 UOptimusRawBufferDataInterface::WriteValueOutputIndex = 0;
 
 
-USkinnedMeshComponent* UOptimusRawBufferDataInterface::GetComponentFromSourceObjects(
-	TArrayView<TObjectPtr<UObject>> InSourceObjects)
-{
-	if (InSourceObjects.Num() != 1)
-	{
-		return nullptr;
-	}
-	
-	return Cast<USkinnedMeshComponent>(InSourceObjects[0]);
-}
-
-
 void UOptimusRawBufferDataInterface::FillProviderFromComponent(
 	const USkinnedMeshComponent* InComponent,
 	UOptimusRawBufferDataProvider* InProvider
@@ -153,28 +141,17 @@ void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 	if (UseSplitBuffers()) { OutHLSL += TEXT("#undef BUFFER_SPLIT_READ_WRITE\n"); }
 }
 
-
-void UOptimusRawBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	// Default setup with an assumption that we want to size to match a USkinnedMeshComponent.
-	// That's a massive generalization of course...
-	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
-}
-
-
 FString UOptimusTransientBufferDataInterface::GetDisplayName() const
 {
 	return TEXT("Transient");
 }
 
 UComputeDataProvider* UOptimusTransientBufferDataInterface::CreateDataProvider(
-	TArrayView< TObjectPtr<UObject> > InSourceObjects,
-	uint64 InInputMask,
-	uint64 InOutputMask
+	TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask
 	) const
 {
 	UOptimusTransientBufferDataProvider *Provider = NewObject<UOptimusTransientBufferDataProvider>();
-	FillProviderFromComponent(GetComponentFromSourceObjects(InSourceObjects), Provider);
+	FillProviderFromComponent(Cast<USkinnedMeshComponent>(InBinding), Provider);
 	Provider->bClearBeforeUse = bClearBeforeUse;
 	return Provider;
 }
@@ -187,14 +164,12 @@ FString UOptimusPersistentBufferDataInterface::GetDisplayName() const
 
 
 UComputeDataProvider* UOptimusPersistentBufferDataInterface::CreateDataProvider(
-	TArrayView<TObjectPtr<UObject>> InSourceObjects,
-	uint64 InInputMask,
-	uint64 InOutputMask
+	TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask
 	) const
 {
 	UOptimusPersistentBufferDataProvider *Provider = NewObject<UOptimusPersistentBufferDataProvider>();
 
-	if (USkinnedMeshComponent* Component = GetComponentFromSourceObjects(InSourceObjects))
+	if (USkinnedMeshComponent* Component = Cast<USkinnedMeshComponent>(InBinding))
 	{
 		FillProviderFromComponent(Component, Provider);
 

@@ -18,14 +18,9 @@ UComputeGraphComponent::~UComputeGraphComponent()
 {
 }
 
-void UComputeGraphComponent::CreateDataProviders(bool bSetDefaultBindings)
+void UComputeGraphComponent::CreateDataProviders(int32 InBindingIndex, UObject* InBindingObject)
 {
-	TArray<UObject*, TInlineAllocator<1>> BindingObjects;
-	if (bSetDefaultBindings)
-	{
-		BindingObjects.Add(this);
-	}
-	ComputeGraphInstance.CreateDataProviders(ComputeGraph, BindingObjects);
+ 	ComputeGraphInstance.CreateDataProviders(ComputeGraph, InBindingIndex, InBindingObject);
 
 	// We only want to queue work after validating the new providers.
 	bValidProviders = false;

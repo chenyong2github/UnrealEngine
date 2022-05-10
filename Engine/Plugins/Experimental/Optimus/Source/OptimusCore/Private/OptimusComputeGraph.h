@@ -20,6 +20,10 @@ class UOptimusComputeGraph :
 	GENERATED_BODY()
 
 public:
+	// UObject overrides
+	void Serialize(FArchive& Ar) override;
+	void PostLoad() override;
+
 	// UComputeGraph overrides
 	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) override;
 

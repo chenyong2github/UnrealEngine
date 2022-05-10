@@ -19,8 +19,11 @@ struct COMPUTEFRAMEWORK_API FComputeGraphInstance
 	GENERATED_USTRUCT_BODY();
 
 public:
-	/** Create the Data Provider objects for the ComputeGraph. */
-	void CreateDataProviders(UComputeGraph* InComputeGraph, TArrayView<UObject*> InBindingObjects);
+	/** 
+	 * Create the Data Provider objects for a single binding of a ComputeGraph. 
+	 * The type of binding object is expected to match the associated Binding on the UComputeGraph.
+	 */
+	void CreateDataProviders(UComputeGraph* InComputeGraph, int32 InBindingIndex, TObjectPtr<UObject> InBindingObject);
 
 	/** Create the Data Provider objects. */
 	void DestroyDataProviders();

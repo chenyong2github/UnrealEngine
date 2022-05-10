@@ -121,20 +121,10 @@ void UOptimusSkinnedMeshDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush\"\n");
 }
 
-void UOptimusSkinnedMeshDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusSkinnedMeshDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkinnedMeshDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusSkinnedMeshDataProvider* Provider = NewObject<UOptimusSkinnedMeshDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InSourceObjects[0]);
-	}
-
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
 	return Provider;
 }
 

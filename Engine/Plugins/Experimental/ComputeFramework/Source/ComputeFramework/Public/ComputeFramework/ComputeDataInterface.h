@@ -42,8 +42,8 @@ public:
 	virtual void GetShaderHash(FString& InOutKey) const {}
 	/** Gather the shader code for this data provider. */
 	virtual void GetHLSL(FString& OutHLSL) const {}
-	/** Get types of UObject required to instantiate a UComputeDataProvider from this interface. */
-	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const {}
-	/** Instantiate an associated UComputeDataProvider. InSourceObjects provides an optional array of objects to set on the provider. */
-	virtual UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const { return nullptr; }
+	/** Get class of UObject required to instantiate a UComputeDataProvider from this interface. */
+	virtual UClass* GetBindingType() const { return nullptr; }
+	/** Instantiate an associated UComputeDataProvider. */
+	virtual UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const { return nullptr; }
 };

@@ -178,32 +178,24 @@ void UOptimusConnectivityDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceConnectivity.ush\"\n");
 }
 
-void UOptimusConnectivityDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusConnectivityDataProvider* Provider = NewObject<UOptimusConnectivityDataProvider>();
 
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
+	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
 
-		if (Provider->SkeletalMesh != nullptr)
+	if (Provider->SkeletalMesh != nullptr)
+	{
+		// Build adjacency and store with the provider.
+		// todo[CF]: We need to move this to the skeletal mesh and make part of cooked mesh data instead.
+		FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkeletalMesh->GetSkeletalMeshRenderData();
+		if (SkeletalMeshRenderData != nullptr)
 		{
-			// Build adjacency and store with the provider.
-			// todo[CF]: We need to move this to the skeletal mesh and make part of cooked mesh data instead.
-			FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkeletalMesh->GetSkeletalMeshRenderData();
-			if (SkeletalMeshRenderData != nullptr)
+			Provider->AdjacencyBufferPerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
+			for (int32 LodIndex = 0; LodIndex < SkeletalMeshRenderData->NumInlinedLODs; ++LodIndex)
 			{
-				Provider->AdjacencyBufferPerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
-				for (int32 LodIndex = 0; LodIndex < SkeletalMeshRenderData->NumInlinedLODs; ++LodIndex)
-				{
-					FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData->LODRenderData[LodIndex];
-					BuildAdjacencyBuffer(*LodRenderData, UOptimusConnectivityDataInterface::MaxConnectedVertexCount, Provider->AdjacencyBufferPerLod[LodIndex]);
-				}
+				FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData->LODRenderData[LodIndex];
+				BuildAdjacencyBuffer(*LodRenderData, UOptimusConnectivityDataInterface::MaxConnectedVertexCount, Provider->AdjacencyBufferPerLod[LodIndex]);
 			}
 		}
 	}

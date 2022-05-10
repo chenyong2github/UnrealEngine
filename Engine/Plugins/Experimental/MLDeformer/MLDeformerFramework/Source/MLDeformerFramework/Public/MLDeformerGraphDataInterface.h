@@ -60,13 +60,10 @@ class UMLDeformerModel;
 	{ \
 		OutHLSL += HLSLText; \
 	} \
-	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const \
+	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const \
 	{ \
 		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
-		if (InSourceObjects.Num() == 1) \
-		{ \
-			Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InSourceObjects[0]); \
-		} \
+		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InBinding); \
 		return Provider; \
 	} \
 	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \
@@ -99,8 +96,7 @@ public:
 	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	virtual void GetHLSL(FString& OutHLSL) const override;
-	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
-	virtual UComputeDataProvider* CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
+	virtual UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	// ~END UComputeDataInterface overrides.
 };
 

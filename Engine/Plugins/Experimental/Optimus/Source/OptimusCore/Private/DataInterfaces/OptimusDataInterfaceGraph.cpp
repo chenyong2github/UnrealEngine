@@ -75,22 +75,12 @@ void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL) const
 	}
 }
 
-void UOptimusGraphDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusGraphDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusGraphDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusGraphDataProvider* Provider = NewObject<UOptimusGraphDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SkinnedMeshComponent = Cast<USkinnedMeshComponent>(InSourceObjects[0]);
-		Provider->Variables = Variables;
-		Provider->ParameterBufferSize = ParameterBufferSize;
-	}
-
+	Provider->SkinnedMeshComponent = Cast<USkinnedMeshComponent>(InBinding);
+	Provider->Variables = Variables;
+	Provider->ParameterBufferSize = ParameterBufferSize;
 	return Provider;
 }
 

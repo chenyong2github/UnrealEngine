@@ -61,20 +61,10 @@ void UOptimusSceneDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceScene.ush\"\n");
 }
 
-void UOptimusSceneDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USceneComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusSceneDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSceneDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusSceneDataProvider* Provider = NewObject<UOptimusSceneDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SceneComponent = Cast<USceneComponent>(InSourceObjects[0]);
-	}
-
+	Provider->SceneComponent = Cast<USceneComponent>(InBinding);
 	return Provider;
 }
 

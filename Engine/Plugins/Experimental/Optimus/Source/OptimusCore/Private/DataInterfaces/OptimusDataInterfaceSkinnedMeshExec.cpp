@@ -53,21 +53,11 @@ void UOptimusSkinnedMeshExecDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinnedMeshExec.ush\"\n");
 }
 
-void UOptimusSkinnedMeshExecDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
-}
-
-UComputeDataProvider* UOptimusSkinnedMeshExecDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkinnedMeshExecDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusSkinnedMeshExecDataProvider* Provider = NewObject<UOptimusSkinnedMeshExecDataProvider>();
-
-	if (InSourceObjects.Num() == 1)
-	{
-		Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InSourceObjects[0]);
-		Provider->Domain = Domain;
-	}
-
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
+	Provider->Domain = Domain;
 	return Provider;
 }
 

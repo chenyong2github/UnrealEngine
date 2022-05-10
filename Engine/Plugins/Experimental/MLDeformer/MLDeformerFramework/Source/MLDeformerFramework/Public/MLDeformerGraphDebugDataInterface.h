@@ -49,13 +49,14 @@ class USkeletalMeshComponent;
 	{ \
 		OutHLSL += HLSLText; \
 	} \
-	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const \
+	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const \
 	{ \
 		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
-		if (InSourceObjects.Num() == 2) \
+		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InBinding); \
+		if (Provider->SkeletalMeshComponent) \
 		{ \
-			Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InSourceObjects[0]); \
-			UMLDeformerComponent* DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[1]); \
+			AActor* Actor = Provider->SkeletalMeshComponent->GetOwner(); \
+			UMLDeformerComponent* DeformerComponent = (Actor != nullptr) ? Cast<UMLDeformerComponent>(Actor->GetComponentByClass(UMLDeformerComponent::StaticClass())) : nullptr; \
 			Provider->DeformerAsset = (DeformerComponent != nullptr) ? DeformerComponent->GetDeformerAsset() : nullptr; \
 		} \
 		MLDEFORMER_EDITORDATA_ONLY( \
@@ -104,8 +105,7 @@ public:
 	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	virtual void GetHLSL(FString& OutHLSL) const override;
-	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
-	virtual UComputeDataProvider* CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
+	virtual UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	// ~END UComputeDataInterface overrides.
 };
 

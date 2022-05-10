@@ -47,11 +47,6 @@ MLDEFORMER_GRAPH_IMPLEMENT_BASICS(
 	TEXT("#include \"/Plugin/MLDeformerFramework/Private/MLDeformerGraphDataInterface.ush\"\n"),
 	TEXT("ML Deformer"))
 
-void UMLDeformerGraphDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
-{
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-}
-
 bool UMLDeformerGraphDataProvider::IsValid() const
 {
 	if (SkeletalMeshComponent == nullptr || SkeletalMeshComponent->MeshObject == nullptr)
