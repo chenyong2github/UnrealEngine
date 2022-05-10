@@ -13,6 +13,7 @@
 #include "Memory/MemoryFwd.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/EnumClassFlags.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Serialization/CustomVersion.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
@@ -111,5 +112,12 @@ FClassDigestMap& GetClassDigests();
 
 /** Initializes some global config-driven values used by the EditorDomain and TargetDomain. */
 void UtilsInitialize();
+
+#if ENABLE_COOK_STATS
+namespace CookStats
+{
+	extern FCookStats::FDDCResourceUsageStats Usage;
+}
+#endif
 
 }

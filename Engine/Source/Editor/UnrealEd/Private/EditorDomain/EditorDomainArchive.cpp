@@ -49,6 +49,8 @@ void FEditorDomainPackageSegments::WaitForReady() const
 	{
 		return;
 	}
+	COOK_STAT(auto Timer = UE::EditorDomain::CookStats::Usage.TimeAsyncWait());
+	COOK_STAT(Timer.TrackCyclesOnly());
 	const_cast<UE::DerivedData::FRequestOwner&>(RequestOwner).Wait();
 	Source = AsyncSource;
 }
@@ -286,6 +288,7 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 		const FCbObject& MetaData = Response.Record.GetMeta();
 		bExistsInEditorDomain = true;
 		bStorageValid = MetaData["Valid"].AsBool(false);
+		COOK_STAT(UE::EditorDomain::CookStats::Usage.TimeSyncWork().AddHit(Response.Record.GetMeta().GetSize()));
 	}
 
 	if (bStorageValid)
@@ -435,6 +438,9 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 					UE_LOG(LogEditorDomain, Error, TEXT("Package %s has corrupted cache data in segment %d."), *PackagePath.GetDebugName(), (int32)(&Segment - &Segments[0]));
 					Segment.Data.Reset();
 				}
+				COOK_STAT(auto Timer = UE::EditorDomain::CookStats::Usage.TimeSyncWork());
+				COOK_STAT(Timer.AddHit(SegmentSize));
+				COOK_STAT(Timer.TrackCyclesOnly()); // We're using TrackCyclesOnly to track the size without counting another hit. We actually don't care about the cycles
 			}
 			Segment.bAsyncComplete = true;
 		});

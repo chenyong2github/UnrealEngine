@@ -87,6 +87,22 @@ static ValueType MapFindRef(const TMap<KeyType, ValueType, SetAllocator, KeyFunc
 	return FoundValue ? *FoundValue : DefaultValue;
 }
 
+#if ENABLE_COOK_STATS
+namespace UE::EditorDomain::CookStats
+{
+
+FCookStats::FDDCResourceUsageStats Usage;
+void Register()
+{
+	FCookStatsManager::CookStatsCallbacks.AddLambda([](FCookStatsManager::AddStatFuncRef AddStat)
+		{
+			Usage.LogStats(AddStat, TEXT("EditorDomain.Usage"), TEXT("Package"));
+		});
+}
+
+}
+#endif
+
 namespace UE::EditorDomain
 {
 
@@ -1077,6 +1093,9 @@ void UtilsInitialize()
 	// where UtilsInitialize is called is too early; trying to call UStruct->GetSchemaHash at that
 	// time will break the UClass. Defer the construction of allowlist-based data until OnPostEngineInit
 	GUtilsPostInitDelegate = FCoreDelegates::OnPostEngineInit.AddLambda([]() { UtilsPostEngineInit(); });
+
+
+	COOK_STAT(UE::EditorDomain::CookStats::Register());
 }
 
 void UtilsPostEngineInit()
@@ -1619,6 +1638,8 @@ bool TrySavePackage(UPackage* Package)
 			*WriteToString<256>(PackageName));
 		return false;
 	}
+	COOK_STAT(auto Timer = UE::EditorDomain::CookStats::Usage.TimeSyncWork());
+
 	UE_LOG(LogEditorDomain, Verbose, TEXT("Saving to EditorDomain: %s."), *WriteToString<256>(PackageName));
 
 	SCOPED_CUSTOM_EDITORDOMAINTIMER(EditorDomain_TrySavePackage)
@@ -1846,6 +1867,11 @@ bool TrySavePackage(UPackage* Package)
 		{
 			RecordBuilder.AddValue(Attachment.ValueId, Attachment.Buffer);
 		}
+		COOK_STAT(Timer.AddMiss(FileSize + MetaData.GetSaveSize()));
+	}
+	else
+	{
+		COOK_STAT(Timer.AddMiss(MetaData.GetSaveSize()));
 	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);

@@ -376,6 +376,8 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		RequestEditorDomainPackage(PackagePath, PackageSource->Digest.Hash, SkipFlags,
 			*Owner, MoveTemp(MetaDataGetComplete));
 	}
+	COOK_STAT(auto Timer = UE::EditorDomain::CookStats::Usage.TimeAsyncWait());
+	COOK_STAT(Timer.TrackCyclesOnly());
 	Owner->Wait();
 	return FileSize;
 }
