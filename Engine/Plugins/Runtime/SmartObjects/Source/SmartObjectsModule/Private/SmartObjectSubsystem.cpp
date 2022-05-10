@@ -91,9 +91,12 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 
 #if UE_ENABLE_DEBUG_DRAWING
 	// Spawn the rendering actor
-	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	RenderingActor = World.SpawnActor<ASmartObjectSubsystemRenderingActor>(SpawnInfo);
+	if (RenderingActor == nullptr)
+	{
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		RenderingActor = World.SpawnActor<ASmartObjectSubsystemRenderingActor>(SpawnInfo);
+	}
 #endif // UE_ENABLE_DEBUG_DRAWING
 
 	// Register collections that were unable to register since they got loaded before the subsystem got created/initialized.
