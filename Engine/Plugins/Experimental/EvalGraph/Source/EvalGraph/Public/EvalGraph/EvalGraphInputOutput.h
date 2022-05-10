@@ -18,6 +18,7 @@ namespace Eg
 
 	protected:
 		EGraphConnectionType Type;
+		FName Name;
 		FGuid  Guid;
 		FNode* OwningNode = nullptr;
 
@@ -25,18 +26,26 @@ namespace Eg
 		static void AddBaseInput(FNode* InNode, FConnectionTypeBase*);
 		static void AddBaseOutput(FNode* InNode, FConnectionTypeBase*);
 
+
 	public:
-		FConnectionTypeBase(EGraphConnectionType InType, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
+		FConnectionTypeBase(EGraphConnectionType InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
 		virtual ~FConnectionTypeBase() {};
 
 		EGraphConnectionType GetType() const { return Type; }
+
 		FGuid GetGuid() const { return Guid; }
+		void SetGuid(FGuid InGuid) { Guid = InGuid; }
+
+		FName GetName() const { return Name; }
+		void SetName(FName InName) { Name = InName; }
+
 
 		virtual bool AddConnection(FConnectionTypeBase* In) { return false; };
 		virtual bool RemoveConnection(FConnectionTypeBase* In) { return false; }
 
 		virtual TArray< FConnectionTypeBase* > GetBaseInputs() { return TArray<FConnectionTypeBase* >(); }
 		virtual TArray< FConnectionTypeBase* > GetBaseOutputs() { return TArray<FConnectionTypeBase* >(); }
+		virtual void Invalidate() {};
 
 	};
 
@@ -48,11 +57,11 @@ namespace Eg
 
 	template<class T>
 	struct EVALGRAPH_API FInputParameters {
-		FInputParameters(FString InName, FNode* InOwner, T InDefault = T())
+		FInputParameters(FName InName, FNode* InOwner, T InDefault = T())
 			: Name(InName)
 			, Owner(InOwner)
 			, Default(InDefault) {}
-		FString Name;
+		FName Name;
 		FNode* Owner = nullptr;
 		T Default;
 	};
@@ -60,14 +69,14 @@ namespace Eg
 	template<class T>
 	class EVALGRAPH_API FInput : public FConnectionTypeBase
 	{
+		friend class FConnectionTypeBase;
+
 		typedef FConnectionTypeBase Super;
-		FString Name;
 		T Default;
 		FOutput<T>* Connection;
 	public:
 		FInput(const FInputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid());
 	
-		FString GetName() const { return Name; }
 		const T& GetDefault() const { return Default; }
 		
 		const FOutput<T>* GetConnection() const { return Connection; }
@@ -103,6 +112,8 @@ namespace Eg
 			return Default;
 		}
 
+		void SetValue(const T& Value, const FContext& Context);
+
 		virtual TArray< FConnectionTypeBase* > GetBaseOutputs() override
 		{ 
 			TArray<FConnectionTypeBase* > RetList;
@@ -113,6 +124,8 @@ namespace Eg
 			return RetList;
 		}
 
+		virtual void Invalidate() override;
+
 	};
 
 
@@ -121,10 +134,10 @@ namespace Eg
 	//
 
 	struct EVALGRAPH_API FOutputParameters {
-		FOutputParameters(FString InName, FNode * InOwner) 
+		FOutputParameters(FName InName, FNode * InOwner) 
 			: Name(InName)
 			, Owner(InOwner) {}
-		FString Name;
+		FName Name;
 		FNode* Owner = nullptr;
 	};
 
@@ -132,16 +145,14 @@ namespace Eg
 	class EVALGRAPH_API FOutput : public FConnectionTypeBase
 	{
 		typedef FConnectionTypeBase Super;
+		friend class FConnectionTypeBase;
 
-		FString Name;
 		uint32 CacheKey = UINT_MAX;
 		TCacheValue<T> Cache;
 		TArray< FInput<T>* > Connections;
 	
 	public:
 		FOutput(const FOutputParameters& Param, FGuid InGuid = FGuid::NewGuid());
-
-		FString GetName() const { return Name; }
 
 		const TArray<FInput<T>*>& GetConnections() const { return Connections; }
 		TArray<FInput<T>* >& GetConnections() { return Connections; }
@@ -170,6 +181,8 @@ namespace Eg
 		void SetValue(T InVal, const FContext& Context);
 
 		T Evaluate(const FContext& Context);
+
+		virtual void Invalidate() override;
 
 	};
 }

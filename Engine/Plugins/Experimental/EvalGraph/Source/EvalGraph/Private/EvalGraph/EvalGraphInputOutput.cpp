@@ -9,8 +9,9 @@
 namespace Eg
 {
 
-	FConnectionTypeBase::FConnectionTypeBase(EGraphConnectionType InType, FNode* InOwningNode, FGuid InGuid)
+	FConnectionTypeBase::FConnectionTypeBase(EGraphConnectionType InType, FName InName, FNode* InOwningNode, FGuid InGuid)
 		: Type(InType)
+		, Name(InName)
 		, Guid(InGuid)
 		, OwningNode(InOwningNode)
 	{}
@@ -23,19 +24,32 @@ namespace Eg
 
 	template<class T>
 	FInput<T>::FInput(const FInputParameters<T>& Param, FGuid InGuid )
-		: FConnectionTypeBase(GraphConnectionType<T>(), Param.Owner, InGuid)
-		, Name(Param.Name)
+		: FConnectionTypeBase(GraphConnectionType<T>(), Param.Name, Param.Owner, InGuid)
 		, Default(Param.Default)
 		, Connection(nullptr)
 	{
 		Super::AddBaseInput(Param.Owner, this);
 	}
 
+	template<class T>
+	void FInput<T>::SetValue(const T& Value, const FContext& Context)
+	{
+		Default = Value;
+		if (!Connection)
+		{
+			OwningNode->InvalidateOutputs();
+		}
+	}
+
+	template<class T>
+	void FInput<T>::Invalidate()
+	{
+		OwningNode->InvalidateOutputs();
+	}
 
 	template<class T>
 	FOutput<T>::FOutput(const FOutputParameters& Param, FGuid InGuid )
-		: FConnectionTypeBase(GraphConnectionType<T>(), Param.Owner, InGuid)
-		, Name(Param.Name)
+		: FConnectionTypeBase(GraphConnectionType<T>(), Param.Name, Param.Owner, InGuid)
 	{
 		Super::AddBaseOutput(Param.Owner, this);
 	}
@@ -57,6 +71,21 @@ namespace Eg
 		}
 		ensure(CacheKey==Context.GetTypeHash());
 		return Cache.Data;
+	}
+
+	template<class T>
+	void FOutput<T>::Invalidate( )
+	{
+		if (CacheKey != UINT_MAX)
+		{
+			CacheKey = UINT_MAX;
+			Cache = T();
+
+			for (FConnectionTypeBase* Con : GetConnections())
+			{
+				Con->Invalidate();
+			}
+		}
 	}
 
 

@@ -6,6 +6,13 @@
 
 namespace Eg
 {
+	void FNode::InvalidateOutputs()
+	{
+		for(FConnectionTypeBase * Output :  Outputs)
+		{
+			Output->Invalidate();
+		}
+	}
 
 }
 
