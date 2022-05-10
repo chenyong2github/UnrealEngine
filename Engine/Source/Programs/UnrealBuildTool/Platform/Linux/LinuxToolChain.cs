@@ -805,6 +805,22 @@ namespace UnrealBuildTool
 				Result += String.Format(" --sysroot=\"{0}\"", BaseLinuxPath);
 			}
 
+			// Add include paths to the argument list.
+			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+			{
+				Result += string.Format(" -I\"{0}\"", NormalizeCommandLinePath(IncludePath));
+			}
+			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
+			{
+				Result += string.Format(" -I\"{0}\"", NormalizeCommandLinePath(IncludePath));
+			}
+
+			// Add preprocessor definitions to the argument list.
+			foreach (string Definition in CompileEnvironment.Definitions)
+			{
+				Result += string.Format(" -D \"{0}\"", EscapeArgument(Definition));
+			}
+
 			return Result;
 		}
 
@@ -1290,22 +1306,6 @@ namespace UnrealBuildTool
 					PCHArguments += " -fpch-validate-input-files-content";
 				}
 				PCHArguments += string.Format(" -include \"{0}\"", NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-			}
-
-			// Add include paths to the argument list.
-			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-			{
-				Arguments += string.Format(" -I\"{0}\"", NormalizeCommandLinePath(IncludePath));
-			}
-			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
-			{
-				Arguments += string.Format(" -I\"{0}\"", NormalizeCommandLinePath(IncludePath));
-			}
-
-			// Add preprocessor definitions to the argument list.
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				Arguments += string.Format(" -D \"{0}\"", EscapeArgument(Definition));
 			}
 
 			// Create a compile action for each source file.
