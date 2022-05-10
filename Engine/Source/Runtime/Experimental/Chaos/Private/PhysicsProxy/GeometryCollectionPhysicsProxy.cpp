@@ -738,6 +738,18 @@ void FGeometryCollectionPhysicsProxy::CreateNonClusteredParticles(Chaos::FPBDRig
 	}
 }
 
+void FGeometryCollectionPhysicsProxy::SetGravityEnabled(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled)
+{
+	Chaos::FPerParticleGravity& GravityForces = RigidsSolver.GetEvolution()->GetGravityForces();
+	for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
+	{
+		if (Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* Handle = SolverParticleHandles[HandleIdx])
+		{
+			Handle->SetGravityEnabled(bEnabled);
+		}
+	}
+}
+
 void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver* RigidsSolver, typename Chaos::FPBDRigidsSolver::FParticlesType& Particles)
 {
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
@@ -1051,25 +1063,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		}
 #endif // TODO_REIMPLEMENT_RIGID_CACHING
 
-
-
-		if (DisableGeometryCollectionGravity) // cvar
-		{
-			// Our assumption is that you'd only ever want to wholesale opt geometry 
-			// collections out of gravity for debugging, so we keep this conditional
-			// out of the loop above and on it's own.  This means we can't turn gravity
-			// back on once it's off, but even if we didn't enclose this in an if(),
-			// this function won't be called again unless something dirties the proxy.
-
-			Chaos::FPerParticleGravity& GravityForces = RigidsSolver->GetEvolution()->GetGravityForces();
-			for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
-			{
-				if (Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* Handle = SolverParticleHandles[HandleIdx])
-				{
-					Handle->SetGravityEnabled(false);
-				}
-			}
-		}
+		const bool bEnableGravity = Parameters.EnableGravity && !DisableGeometryCollectionGravity;
+		SetGravityEnabled(*RigidsSolver, bEnableGravity);
 
 		// call DirtyParticle to make sure the acceleration structure is up to date with all the changes happening here
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)

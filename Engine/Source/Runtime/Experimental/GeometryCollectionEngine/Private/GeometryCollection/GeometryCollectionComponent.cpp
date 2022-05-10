@@ -2247,6 +2247,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.bGenerateTrailingData = bNotifyTrailing;
 		SimulationParameters.bGenerateRemovalsData = bNotifyRemovals;
 		SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
+		SimulationParameters.EnableGravity = BodyInstance.bEnableGravity;
 		SimulationParameters.WorldTransform = GetComponentToWorld();
 		SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
 

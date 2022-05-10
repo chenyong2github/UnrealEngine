@@ -273,6 +273,8 @@ protected:
 		const Chaos::FClusterCreationParameters & Parameters,
 		const Chaos::FUniqueIdx* ExistingIndex);
 
+	void SetGravityEnabled(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled);
+	
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
 	 * the number of levels until the next parent is \c INDEX_NONE.
