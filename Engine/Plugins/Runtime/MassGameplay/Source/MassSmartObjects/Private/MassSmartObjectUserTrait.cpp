@@ -7,5 +7,8 @@
 
 void UMassSmartObjectUserTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
-	BuildContext.AddFragment<FMassSmartObjectUserFragment>();
+	FMassSmartObjectUserFragment SmartObjectUser;
+	SmartObjectUser.UserTags = UserTags;
+	
+	BuildContext.AddFragment(FConstStructView::Make(SmartObjectUser));
 }

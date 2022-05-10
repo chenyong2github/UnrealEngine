@@ -61,23 +61,23 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 	// Build list of request owner entities to send a completion signal
 	TArray<FMassEntityHandle> EntitiesToSignal;
 
-	auto BeginRequestProcessing = [](const FMassEntityHandle Entity, FMassExecutionContext& Context, FMassSmartObjectRequestResult& Result)
+	auto BeginRequestProcessing = [](const FMassEntityHandle Entity, FMassExecutionContext& Context, FMassSmartObjectRequestResultFragment& Result)
 	{
 		Context.Defer().AddTag<FMassSmartObjectCompletedRequestTag>(Entity);
-		Result.NumCandidates = 0;
+		Result.Candidates.NumSlots = 0;
 	};
 
-	auto EndRequestProcessing = [](const UObject* LogOwner, const FMassEntityHandle Entity, FMassSmartObjectRequestResult& Result)
+	auto EndRequestProcessing = [](const UObject* LogOwner, const FMassEntityHandle Entity, FMassSmartObjectRequestResultFragment& Result)
 	{
-		if (Result.NumCandidates > 0)
+		if (Result.Candidates.NumSlots > 0)
 		{
-			TArrayView<FSmartObjectCandidate> View = MakeArrayView(Result.Candidates.GetData(), Result.NumCandidates);
-			Algo::Sort(View, [](const FSmartObjectCandidate& LHS, const FSmartObjectCandidate& RHS) { return LHS.Cost < RHS.Cost; });
+			TArrayView<FSmartObjectCandidateSlot> View = MakeArrayView(Result.Candidates.Slots.GetData(), Result.Candidates.NumSlots);
+			Algo::Sort(View, [](const FSmartObjectCandidateSlot& LHS, const FSmartObjectCandidateSlot& RHS) { return LHS.Cost < RHS.Cost; });
 		}
 		Result.bProcessed = true;
 
 #if WITH_MASSGAMEPLAY_DEBUG
-		UE_VLOG(LogOwner, LogSmartObject, Verbose, TEXT("[%s] search completed: found %d"), *Entity.DebugGetDescription(), Result.NumCandidates);
+		UE_VLOG(LogOwner, LogSmartObject, Verbose, TEXT("[%s] search completed: found %d"), *Entity.DebugGetDescription(), Result.Candidates.NumSlots);
 #endif // WITH_MASSGAMEPLAY_DEBUG
 	};
 
@@ -93,12 +93,13 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 		const TArrayView<FMassSmartObjectRequestResultFragment> ResultList = Context.GetMutableFragmentView<FMassSmartObjectRequestResultFragment>();
 
 		TArray<FSmartObjectRequestResult> QueryResults;
-		TArray<FSmartObjectCandidate> SortedResults;
+		TArray<FSmartObjectCandidateSlot> SortedCandidateSlots;
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
 			const FMassSmartObjectWorldLocationRequestFragment& RequestFragment = RequestList[i];
-			FMassSmartObjectRequestResult& Result = ResultList[i].Result;
+			FMassSmartObjectRequestResultFragment& Result = ResultList[i];
+			
 			EntitiesToSignal.Add(RequestFragment.RequestingEntity);
 
 			const FVector& SearchOrigin = RequestFragment.SearchOrigin;
@@ -115,14 +116,17 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 			BeginRequestProcessing(Entity, Context, Result);
 			ON_SCOPE_EXIT{ EndRequestProcessing(&SmartObjectSubsystem, Entity, Result);	};
 
+			Filter.UserTags = RequestFragment.UserTags;
+			Filter.ActivityRequirements = RequestFragment.ActivityRequirements;
+			
 			QueryResults.Reset();
 			SmartObjectSubsystem.FindSmartObjects(FSmartObjectRequest(SearchBounds, Filter), QueryResults);
 
-			SortedResults.Reset(QueryResults.Num());
+			SortedCandidateSlots.Reset(QueryResults.Num());
 			for (const FSmartObjectRequestResult& QueryResult : QueryResults)
 			{
 				const FVector SlotLocation = SmartObjectSubsystem.GetSlotLocation(QueryResult.SlotHandle).GetValue();
-				SortedResults.Emplace(QueryResult, FVector::DistSquared(SearchOrigin, SlotLocation));
+				SortedCandidateSlots.Emplace(QueryResult, FVector::DistSquared(SearchOrigin, SlotLocation));
 
 #if WITH_MASSGAMEPLAY_DEBUG
 				if (bDisplayDebug)
@@ -133,12 +137,12 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 				}
 #endif // WITH_MASSGAMEPLAY_DEBUG
 			}
-			SortedResults.Sort([](const FSmartObjectCandidate& First, const FSmartObjectCandidate& Second){ return First.Cost < Second.Cost; });
+			SortedCandidateSlots.Sort([](const FSmartObjectCandidateSlot& First, const FSmartObjectCandidateSlot& Second){ return First.Cost < Second.Cost; });
 
-			Result.NumCandidates = FMath::Min<uint8>(FMassSmartObjectRequestResult::MaxNumCandidates, SortedResults.Num());
-			for (int ResultIndex = 0; ResultIndex < Result.NumCandidates; ResultIndex++)
+			Result.Candidates.NumSlots = FMath::Min<uint8>(FMassSmartObjectCandidateSlots::MaxNumCandidates, SortedCandidateSlots.Num());
+			for (int ResultIndex = 0; ResultIndex < Result.Candidates.NumSlots; ResultIndex++)
 			{
-				Result.Candidates[ResultIndex] = SortedResults[ResultIndex];
+				Result.Candidates.Slots[ResultIndex] = SortedCandidateSlots[ResultIndex];
 			}
 		}
 	});
@@ -168,7 +172,8 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
 				const FMassSmartObjectLaneLocationRequestFragment& RequestFragment = RequestList[i];
-				FMassSmartObjectRequestResult& Result = ResultList[i].Result;
+				FMassSmartObjectRequestResultFragment& Result = ResultList[i];
+				
 				EntitiesToSignal.Add(RequestFragment.RequestingEntity);
 
 				const FZoneGraphCompactLaneLocation RequestLocation = RequestFragment.CompactLaneLocation;
@@ -220,6 +225,9 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 					continue;
 				}
 
+				Filter.UserTags = RequestFragment.UserTags;
+				Filter.ActivityRequirements = RequestFragment.ActivityRequirements;
+
 				for (const int32 Index : SmartObjectList->SmartObjectLaneLocationIndices)
 				{
 					// Find entry point using FindChecked since all smart objects added to LaneToSmartObjects lookup table
@@ -251,7 +259,7 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 
 					for (FSmartObjectSlotHandle SlotHandle : SlotHandles)
 					{
-						Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(FSmartObjectRequestResult(Handle, SlotHandle), Cost);
+						Result.Candidates.Slots[Result.Candidates.NumSlots++] = FSmartObjectCandidateSlot(FSmartObjectRequestResult(Handle, SlotHandle), Cost);
 
 #if WITH_MASSGAMEPLAY_DEBUG
 						if (bDisplayDebug)
@@ -267,13 +275,13 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 							UE_VLOG_SEGMENT(&SmartObjectSubsystem, LogSmartObject, Display, RequestLaneLocation.Position, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
 						}
 #endif // WITH_MASSGAMEPLAY_DEBUG
-						if (Result.NumCandidates == FMassSmartObjectRequestResult::MaxNumCandidates)
+						if (Result.Candidates.NumSlots == FMassSmartObjectCandidateSlots::MaxNumCandidates)
 						{
 							break;
 						}
 					}
 
-					if (Result.NumCandidates == FMassSmartObjectRequestResult::MaxNumCandidates)
+					if (Result.Candidates.NumSlots == FMassSmartObjectCandidateSlots::MaxNumCandidates)
 					{
 						break;
 					}
@@ -341,10 +349,10 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 			const bool bIsDebuggingEntity = UE::Mass::Debug::IsDebuggingEntity(Entity, &DebugColor);
 			if (bIsDebuggingEntity)
 			{
-				UE_CVLOG(bMustRelease, &SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle));
-				UE_CVLOG(!bMustRelease, &SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s]. Time left: %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle), UseTime);
+				UE_CVLOG(bMustRelease, &SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *LexToString(SOUser.InteractionHandle));
+				UE_CVLOG(!bMustRelease, &SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s]. Time left: %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.InteractionHandle), UseTime);
 
-				const TOptional<FTransform> Transform = SmartObjectSubsystem.GetSlotTransform(SOUser.ClaimHandle);
+				const TOptional<FTransform> Transform = SmartObjectSubsystem.GetSlotTransform(SOUser.InteractionHandle);
 				if (Transform.IsSet())
 				{
 					constexpr float Radius = 40.f;
@@ -397,7 +405,7 @@ void UMassSmartObjectUserFragmentDeinitializer::Execute(UMassEntitySubsystem& En
 
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
-				SmartObjectSubsystem.UnregisterSlotInvalidationCallback(SmartObjectUserFragments[i].ClaimHandle);
+				SmartObjectSubsystem.UnregisterSlotInvalidationCallback(SmartObjectUserFragments[i].InteractionHandle);
 			}
 		});
 }

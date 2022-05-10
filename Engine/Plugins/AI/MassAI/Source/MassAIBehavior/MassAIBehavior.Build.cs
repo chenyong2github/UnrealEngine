@@ -18,7 +18,7 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-				}
+				} 
 			);
 
 			PublicDependencyModuleNames.AddRange(
@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"GameplayTags",
 					"MassActors",
 					"MassCommon",
 					"MassLOD",

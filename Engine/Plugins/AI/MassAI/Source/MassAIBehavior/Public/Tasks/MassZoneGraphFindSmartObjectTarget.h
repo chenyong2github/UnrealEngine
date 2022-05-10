@@ -2,12 +2,14 @@
 
 #pragma once
 #include "MassStateTreeTypes.h"
+#include "SmartObjectRuntime.h"
 #include "MassZoneGraphPathFollowTask.h"
 #include "MassZoneGraphFindSmartObjectTarget.generated.h"
 
 struct FMassSmartObjectUserFragment;
 struct FMassZoneGraphLaneLocationFragment;
 class UZoneGraphAnnotationSubsystem;
+class USmartObjectSubsystem;
 
 /**
 * Computes move target to a smart object based on current location on ZoneGraph.
@@ -16,6 +18,9 @@ USTRUCT()
 struct MASSAIBEHAVIOR_API FMassZoneGraphFindSmartObjectTargetInstanceData
 {
 	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = Input)
+	FSmartObjectClaimHandle ClaimedSlot;
 
 	UPROPERTY(EditAnywhere, Category = Output)
 	FMassZoneGraphTargetLocation SmartObjectLocation;
@@ -26,14 +31,17 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphFindSmartObjectTarget : public FMassStat
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassZoneGraphFindSmartObjectTargetInstanceData;
+
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindSmartObjectTargetInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> AnnotationSubsystemHandle;
+	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 
+	TStateTreeInstanceDataPropertyHandle<FSmartObjectClaimHandle> ClaimedSlotHandle;
 	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> SmartObjectLocationHandle;
 };

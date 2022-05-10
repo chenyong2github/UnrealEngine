@@ -13,22 +13,23 @@
 
 namespace UE::Mass::SmartObject
 {
-	void Release(FMassCommandBuffer& CommandBuffer, const FMassBehaviorEntityContext& Context, const EMassSmartObjectInteractionStatus NewStatus)
+	void StopInteraction(FMassCommandBuffer& CommandBuffer, const FMassBehaviorEntityContext& Context, const FSmartObjectClaimHandle& ClaimHandle, const EMassSmartObjectInteractionStatus NewStatus)
 	{
 		FMassSmartObjectUserFragment& User = Context.EntityView.GetFragmentData<FMassSmartObjectUserFragment>();
-
-		if (User.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress ||
-			User.InteractionStatus == EMassSmartObjectInteractionStatus::BehaviorCompleted)
+		if ( User.InteractionHandle == ClaimHandle)
 		{
-			if (const USmartObjectMassBehaviorDefinition* BehaviorDefinition = Context.SmartObjectSubsystem.GetBehaviorDefinition<USmartObjectMassBehaviorDefinition>(User.ClaimHandle))
+			if (User.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress ||
+				User.InteractionStatus == EMassSmartObjectInteractionStatus::BehaviorCompleted)
 			{
-				BehaviorDefinition->Deactivate(CommandBuffer, Context);
+				if (const USmartObjectMassBehaviorDefinition* BehaviorDefinition = Context.SmartObjectSubsystem.GetBehaviorDefinition<USmartObjectMassBehaviorDefinition>(User.InteractionHandle))
+				{
+					BehaviorDefinition->Deactivate(CommandBuffer, Context);
+				}
 			}
-		}
-		Context.SmartObjectSubsystem.Release(User.ClaimHandle);
 
-		User.InteractionStatus = NewStatus;
-		User.ClaimHandle.Invalidate();
+			User.InteractionStatus = NewStatus;
+			User.InteractionHandle.Invalidate();
+		}
 	}
 
 	struct FPayload
@@ -49,13 +50,13 @@ namespace UE::Mass::SmartObject
 			const FMassEntityView EntityView(*EntitySubsystem, Payload.Entity);
 			const FMassBehaviorEntityContext Context(EntityView, *SmartObjectSubsystem);
 
-			Release(EntitySubsystem->Defer(), Context, EMassSmartObjectInteractionStatus::Aborted);
+			StopInteraction(EntitySubsystem->Defer(), Context, ClaimHandle, EMassSmartObjectInteractionStatus::Aborted);
 			if (EntitySubsystem->IsProcessing() == false)
 			{
 				EntitySubsystem->FlushCommands();
 			}
 
-			SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, Payload.Entity);
+			SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionAborted, Payload.Entity);
 		}
 	}
 } // UE::Mass::SmartObject;
@@ -63,66 +64,57 @@ namespace UE::Mass::SmartObject
 //----------------------------------------------------------------------//
 // FMassSmartObjectHandler
 //----------------------------------------------------------------------//
-FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FVector& Location) const
+FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FGameplayTagContainer& UserTags, const FGameplayTagQuery& ActivityRequirements, const FVector& Location) const
 {
 	const FMassEntityHandle ReservedEntity = EntitySubsystem.ReserveEntity();
 
 	FMassSmartObjectWorldLocationRequestFragment RequestFragment;
 	RequestFragment.SearchOrigin = Location;
 	RequestFragment.RequestingEntity = RequestingEntity;
+	RequestFragment.UserTags = UserTags;
+	RequestFragment.ActivityRequirements = ActivityRequirements;
 
 	FMassSmartObjectRequestResultFragment ResultFragment;
-
-	/*ExecutionContext.Defer().PushCommand(
-		FBuildEntityFromFragmentInstances(ReservedEntity,
-			{
-				FStructView::Make(RequestFragment),
-				FStructView::Make(ResultFragment)
-			}));*/
 
 	ExecutionContext.Defer().PushCommand<FMassCommandAddFragmentInstances>(ReservedEntity, RequestFragment, ResultFragment);
 
 	return FMassSmartObjectRequestID(ReservedEntity);
 }
 
-FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FZoneGraphCompactLaneLocation& LaneLocation) const
+FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FGameplayTagContainer& UserTags, const FGameplayTagQuery& ActivityRequirements, const FZoneGraphCompactLaneLocation& LaneLocation) const
 {
 	const FMassEntityHandle ReservedEntity = EntitySubsystem.ReserveEntity();
 
 	FMassSmartObjectLaneLocationRequestFragment RequestFragment;
 	RequestFragment.CompactLaneLocation = LaneLocation;
 	RequestFragment.RequestingEntity = RequestingEntity;
+	RequestFragment.UserTags = UserTags;
+	RequestFragment.ActivityRequirements = ActivityRequirements;
 
 	FMassSmartObjectRequestResultFragment ResultFragment;
-
-	/*ExecutionContext.Defer().PushCommand(
-		FBuildEntityFromFragmentInstances(ReservedEntity,
-			{
-				FStructView::Make(RequestFragment),
-				FStructView::Make(ResultFragment)
-			}));*/
 
 	ExecutionContext.Defer().PushCommand<FMassCommandAddFragmentInstances>(ReservedEntity, RequestFragment, ResultFragment);
 
 	return FMassSmartObjectRequestID(ReservedEntity);
 }
 
-FMassSmartObjectRequestResult FMassSmartObjectHandler::GetRequestResult(const FMassSmartObjectRequestID& RequestID) const
+const FMassSmartObjectCandidateSlots* FMassSmartObjectHandler::GetRequestCandidates(const FMassSmartObjectRequestID& RequestID) const
 {
 	const FMassEntityHandle RequestEntity = static_cast<FMassEntityHandle>(RequestID);
 	if (!ensureMsgf(EntitySubsystem.IsEntityValid(RequestEntity), TEXT("Invalid request.")))
 	{
-		return {};
+		return nullptr;
 	}
 
 	// Check if entity is built by now.
 	if (!EntitySubsystem.IsEntityBuilt(RequestEntity))
 	{
-		return {};
+		return nullptr;
 	}
 
 	const FMassSmartObjectRequestResultFragment& RequestFragment = EntitySubsystem.GetFragmentDataChecked<FMassSmartObjectRequestResultFragment>(RequestEntity);
-	return RequestFragment.Result;
+
+	return RequestFragment.bProcessed ? &RequestFragment.Candidates : nullptr;
 }
 
 void FMassSmartObjectHandler::RemoveRequest(const FMassSmartObjectRequestID& RequestID) const
@@ -131,36 +123,18 @@ void FMassSmartObjectHandler::RemoveRequest(const FMassSmartObjectRequestID& Req
 	ExecutionContext.Defer().DestroyEntity(RequestEntity);
 }
 
-EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestID& RequestID) const
+FSmartObjectClaimHandle FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectCandidateSlots& Candidates) const
 {
-	if (!ensureMsgf(RequestID.IsSet(), TEXT("Trying to claim using an invalid request.")))
+	checkf(!User.InteractionHandle.IsValid(), TEXT("User should not already have an interaction."));
+	
+	const TConstArrayView<FSmartObjectCandidateSlot> View = MakeArrayView(Candidates.Slots.GetData(), Candidates.NumSlots);
+
+	FSmartObjectClaimHandle ClaimedSlot;
+	
+	for (const FSmartObjectCandidateSlot& CandidateSlot : View)
 	{
-		return EMassSmartObjectClaimResult::Failed_InvalidRequest;
-	}
-
-	const FMassEntityHandle RequestEntity = static_cast<FMassEntityHandle>(RequestID);
-	const FMassSmartObjectRequestResultFragment& RequestFragment = EntitySubsystem.GetFragmentDataChecked<FMassSmartObjectRequestResultFragment>(RequestEntity);
-	if (!ensureMsgf(RequestFragment.Result.bProcessed, TEXT("Trying to claim using a request that is not processed.")))
-	{
-		return EMassSmartObjectClaimResult::Failed_UnprocessedRequest;
-	}
-
-	return ClaimCandidate(Entity, User, RequestFragment.Result);
-}
-
-EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestResult& SearchRequestResult) const
-{
-	if (!ensureMsgf(SearchRequestResult.bProcessed, TEXT("Trying to claim using a search request that is not processed.")))
-	{
-		return EMassSmartObjectClaimResult::Failed_UnprocessedRequest;
-	}
-
-	checkf(!User.ClaimHandle.IsValid(), TEXT("User should not already have a valid handle."));
-	const TConstArrayView<FSmartObjectCandidate> View = MakeArrayView(SearchRequestResult.Candidates.GetData(), SearchRequestResult.NumCandidates);
-
-	for (const FSmartObjectCandidate& Candidate : View)
-	{
-		if (ClaimSmartObject(Entity, User, Candidate.Result))
+		ClaimedSlot = ClaimSmartObject(Entity, User, CandidateSlot.Result);  
+		if (ClaimedSlot.IsValid())
 		{
 #if WITH_MASSGAMEPLAY_DEBUG
 			UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -169,36 +143,18 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 				Log,
 				TEXT("[%s] claimed [%s]"),
 				*Entity.DebugGetDescription(),
-				*LexToString(Candidate.Result));
+				*LexToString(CandidateSlot.Result));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 			break;
 		}
 	}
 
-	return User.ClaimHandle.IsValid() ? EMassSmartObjectClaimResult::Succeeded : EMassSmartObjectClaimResult::Failed_NoAvailableCandidate;
+	return ClaimedSlot;
 }
 
-bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const
+FSmartObjectClaimHandle FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const
 {
 	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(RequestResult);
-	const bool bSuccess = ClaimHandle.IsValid();
-	if (bSuccess)
-	{
-		User.ClaimHandle = ClaimHandle;
-		User.InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
-		const FTransform Transform =SmartObjectSubsystem.GetSlotTransform(User.ClaimHandle).Get(FTransform::Identity);
-		User.TargetLocation = Transform.GetLocation();
-		User.TargetDirection = Transform.GetRotation().Vector();
-
-		// Register callback to abort interaction if slot gets invalidated.
-		// Callback will be unregistered by UMassSmartObjectUserFragmentDeinitializer
-		UE::Mass::SmartObject::FPayload Payload;
-		Payload.Entity = Entity;
-		Payload.EntitySubsystem = &EntitySubsystem;
-		Payload.SmartObjectSubsystem = &SmartObjectSubsystem;
-		Payload.SignalSubsystem = &SignalSubsystem;
-		SmartObjectSubsystem.RegisterSlotInvalidationCallback(ClaimHandle, FOnSlotInvalidated::CreateStatic(&UE::Mass::SmartObject::OnSlotInvalidated, Payload));
-	}
 
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -208,16 +164,25 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 		TEXT("[%s] claim for [%s] %s"),
 		*Entity.DebugGetDescription(),
 		*LexToString(RequestResult),
-		bSuccess ? TEXT("Succeeded") : TEXT("Failed"));
+		ClaimHandle.IsValid() ? TEXT("Succeeded") : TEXT("Failed"));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-	return bSuccess;
+	// Register callback to abort interaction if slot gets invalidated.
+	// Callback will be unregistered by UMassSmartObjectUserFragmentDeinitializer
+	UE::Mass::SmartObject::FPayload Payload;
+	Payload.Entity = Entity;
+	Payload.EntitySubsystem = &EntitySubsystem;
+	Payload.SmartObjectSubsystem = &SmartObjectSubsystem;
+	Payload.SignalSubsystem = &SignalSubsystem;
+	SmartObjectSubsystem.RegisterSlotInvalidationCallback(ClaimHandle, FOnSlotInvalidated::CreateStatic(&UE::Mass::SmartObject::OnSlotInvalidated, Payload));
+	
+	return ClaimHandle;
 }
 
-bool FMassSmartObjectHandler::UseSmartObject(
+bool FMassSmartObjectHandler::StartUsingSmartObject(
 	const FMassEntityHandle Entity,
 	FMassSmartObjectUserFragment& User,
-	const FTransformFragment& Transform) const
+	const FSmartObjectClaimHandle ClaimHandle) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -226,25 +191,28 @@ bool FMassSmartObjectHandler::UseSmartObject(
 		Log,
 		TEXT("[%s] starts using [%s]"),
 		*Entity.DebugGetDescription(),
-		*LexToString(User.ClaimHandle));
+		*LexToString(User.InteractionHandle));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-	const USmartObjectMassBehaviorDefinition* BehaviorDefinition = SmartObjectSubsystem.Use<USmartObjectMassBehaviorDefinition>(User.ClaimHandle);
+	const USmartObjectMassBehaviorDefinition* BehaviorDefinition = SmartObjectSubsystem.Use<USmartObjectMassBehaviorDefinition>(ClaimHandle);
 	if (BehaviorDefinition == nullptr)
 	{
 		return false;
 	}
 
+	// Activate behavior
 	const FMassEntityView EntityView(EntitySubsystem, Entity);
 	const FMassBehaviorEntityContext Context(EntityView, SmartObjectSubsystem);
 	BehaviorDefinition->Activate(ExecutionContext.Defer(), Context);
 
 	User.InteractionStatus = EMassSmartObjectInteractionStatus::InProgress;
+	User.InteractionHandle = ClaimHandle;
 
 	return true;
 }
 
-void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const EMassSmartObjectInteractionStatus NewStatus) const
+
+void FMassSmartObjectHandler::StopUsingSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const EMassSmartObjectInteractionStatus NewStatus) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -253,7 +221,7 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 		Log,
 		TEXT("[%s] releases handle [%s]"),
 		*Entity.DebugGetDescription(),
-		*LexToString(User.ClaimHandle));
+		*LexToString(User.InteractionHandle));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 #if DO_ENSURE
@@ -295,5 +263,33 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 
 	const FMassEntityView EntityView(EntitySubsystem, Entity);
 	const FMassBehaviorEntityContext Context(EntityView, SmartObjectSubsystem);
-	UE::Mass::SmartObject::Release(ExecutionContext.Defer(), Context, NewStatus);
+	UE::Mass::SmartObject::StopInteraction(ExecutionContext.Defer(), Context, User.InteractionHandle, NewStatus);
+}
+
+
+void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectClaimHandle ClaimHandle) const
+{
+#if WITH_MASSGAMEPLAY_DEBUG
+	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
+		&SmartObjectSubsystem,
+		LogSmartObject,
+		Log,
+		TEXT("[%s] releases handle [%s]"),
+		*Entity.DebugGetDescription(),
+		*LexToString(User.InteractionHandle));
+#endif // WITH_MASSGAMEPLAY_DEBUG
+
+#if DO_ENSURE
+	if (User.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress)
+	{
+		ensureMsgf(false, TEXT("Expecting interaction to be compled before releasing the SmartObject. Current state %s"), *UEnum::GetValueAsString(User.InteractionStatus));
+	}
+#endif
+
+	const FMassEntityView EntityView(EntitySubsystem, Entity);
+	const FMassBehaviorEntityContext Context(EntityView, SmartObjectSubsystem);
+
+	SmartObjectSubsystem.UnregisterSlotInvalidationCallback(ClaimHandle);
+
+	Context.SmartObjectSubsystem.Release(ClaimHandle);
 }

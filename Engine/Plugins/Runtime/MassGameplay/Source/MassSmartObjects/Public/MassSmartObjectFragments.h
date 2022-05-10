@@ -4,6 +4,7 @@
 
 #include "MassEntityTypes.h"
 #include "MassSmartObjectTypes.h"
+#include "MassSmartObjectRequest.h"
 #include "SmartObjectRuntime.h"
 #include "MassSmartObjectFragments.generated.h"
 
@@ -13,15 +14,15 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectUserFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
+	/** Tags describing the smart object user. */
 	UPROPERTY(Transient)
-	FSmartObjectClaimHandle ClaimHandle;
+	FGameplayTagContainer UserTags;
 
+	/** Claim handle for the currently active smart object interaction. */
 	UPROPERTY(Transient)
-	FVector TargetLocation = FVector::ZeroVector;
+	FSmartObjectClaimHandle InteractionHandle;
 
-	UPROPERTY(Transient)
-	FVector TargetDirection = FVector::ForwardVector;
-
+	/** Status of the current active smart object interaction. */
 	UPROPERTY(Transient)
 	EMassSmartObjectInteractionStatus InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
 
@@ -30,7 +31,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectUserFragment : public FMassFragment
 	 * won't look for new interactions (value of 0 indicates no cooldown).
 	 */
 	UPROPERTY(Transient)
-	float CooldownEndTime = 0.f;
+	float InteractionCooldownEndTime = 0.f;
 };
 
 /** Fragment used to process time based smartobject interactions */

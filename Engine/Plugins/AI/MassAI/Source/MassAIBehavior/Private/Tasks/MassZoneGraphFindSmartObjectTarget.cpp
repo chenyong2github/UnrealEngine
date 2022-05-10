@@ -3,6 +3,7 @@
 #include "Tasks/MassZoneGraphFindSmartObjectTarget.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "MassAIBehaviorTypes.h"
+#include "SmartObjectSubsystem.h"
 #include "MassSmartObjectFragments.h"
 #include "MassSmartObjectSettings.h"
 #include "MassStateTreeExecutionContext.h"
@@ -12,11 +13,12 @@
 
 bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalData(SmartObjectUserHandle);
 	Linker.LinkExternalData(LocationHandle);
 	Linker.LinkExternalData(AnnotationSubsystemHandle);
+	Linker.LinkExternalData(SmartObjectSubsystemHandle);
 
-	Linker.LinkInstanceDataProperty(SmartObjectLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphFindSmartObjectTargetInstanceData, SmartObjectLocation));
+	Linker.LinkInstanceDataProperty(ClaimedSlotHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, ClaimedSlot));
+	Linker.LinkInstanceDataProperty(SmartObjectLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, SmartObjectLocation));
 	
 	return true;
 }
@@ -24,14 +26,15 @@ bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)
 EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	const UZoneGraphAnnotationSubsystem& AnnotationSubsystem = Context.GetExternalData(AnnotationSubsystemHandle);
-	const FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+	const USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
 	const FZoneGraphLaneHandle LaneHandle(LaneLocation.LaneHandle);
 
+	const FSmartObjectClaimHandle& ClaimedSlot = Context.GetInstanceData(ClaimedSlotHandle);
 	FMassZoneGraphTargetLocation& SmartObjectLocation = Context.GetInstanceData(SmartObjectLocationHandle);
 	SmartObjectLocation.Reset();
 
-	if (!SOUser.ClaimHandle.SmartObjectHandle.IsValid())
+	if (!ClaimedSlot.SmartObjectHandle.IsValid())
 	{
 		MASSBEHAVIOR_LOG(Error, TEXT("Invalid claimed smart object ID."));
 		return EStateTreeRunStatus::Failed;
@@ -45,13 +48,14 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 
 	const FZoneGraphTag SmartObjectTag = GetDefault<UMassSmartObjectSettings>()->SmartObjectTag;
 	const USmartObjectZoneAnnotations* SOAnnotations = Cast<USmartObjectZoneAnnotations>(AnnotationSubsystem.GetFirstAnnotationForTag(SmartObjectTag));
+	const FTransform Transform = SmartObjectSubsystem.GetSlotTransform(ClaimedSlot).Get(FTransform::Identity);
 
 	SmartObjectLocation.LaneHandle = LaneHandle;
 	SmartObjectLocation.NextExitLinkType = EZoneLaneLinkType::None;
 	SmartObjectLocation.NextLaneHandle.Reset();
 	SmartObjectLocation.bMoveReverse = false;
 	SmartObjectLocation.EndOfPathIntent = EMassMovementAction::Stand;
-	SmartObjectLocation.EndOfPathPosition = SOUser.TargetLocation;
+	SmartObjectLocation.EndOfPathPosition = Transform.GetLocation();
 	// Can't set direction at the moment since it seems problematic if it's opposite to the steering direction
 	//SmartObjectLocation.EndOfPathDirection = SOUser.TargetDirection;
 
@@ -62,7 +66,7 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	TOptional<FSmartObjectLaneLocation> SmartObjectLaneLocation;
 	if (SOAnnotations != nullptr)
 	{
-		SmartObjectLaneLocation = SOAnnotations->GetSmartObjectLaneLocation(LaneHandle.DataHandle, SOUser.ClaimHandle.SmartObjectHandle);
+		SmartObjectLaneLocation = SOAnnotations->GetSmartObjectLaneLocation(LaneHandle.DataHandle, ClaimedSlot.SmartObjectHandle);
 	}
 
 	if (SmartObjectLaneLocation.IsSet())

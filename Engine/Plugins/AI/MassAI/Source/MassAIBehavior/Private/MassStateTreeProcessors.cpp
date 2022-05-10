@@ -358,6 +358,7 @@ void UMassStateTreeProcessor::Initialize(UObject& Owner)
 	SubscribeToSignal(UE::Mass::Signals::SmartObjectRequestCandidates);
 	SubscribeToSignal(UE::Mass::Signals::SmartObjectCandidatesReady);
 	SubscribeToSignal(UE::Mass::Signals::SmartObjectInteractionDone);
+	SubscribeToSignal(UE::Mass::Signals::SmartObjectInteractionAborted);
 
 	SubscribeToSignal(UE::Mass::Signals::FollowPointPathStart);
 	SubscribeToSignal(UE::Mass::Signals::FollowPointPathDone);
@@ -393,7 +394,7 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 	TArray<FMassEntityHandle> EntitiesToSignal;
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context,
-		[this, &StateTreeContext, TimeInSeconds, &EntitiesToSignal, World = EntitySubsystem.GetWorld()](FMassExecutionContext& Context)
+		[this, &StateTreeContext, TimeInSeconds, &EntitiesToSignal, World = EntitySubsystem.GetWorld(), &EntitySignals](FMassExecutionContext& Context)
 		{
 			// Keep stats regarding the amount of tree instances ticked per frame
 			CSV_CUSTOM_STAT(StateTreeProcessor, NumTickedStateTree, Context.GetNumEntities(), ECsvCustomStatOp::Accumulate);
@@ -401,11 +402,29 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
 
 			UE::MassBehavior::ForEachEntityInChunk(Context, StateTreeContext, MassStateTreeSubsystem,
-				[TimeInSeconds, &EntitiesToSignal](FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeInstance, FStateTreeInstanceData& InstanceData)
+				[TimeInSeconds, &EntitiesToSignal, &EntitySignals, &MassStateTreeSubsystem]
+				(FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeInstance, FStateTreeInstanceData& InstanceData)
 				{
 					// Compute adjusted delta time
 					const float AdjustedDeltaTime = TimeInSeconds - StateTreeInstance.LastUpdateTimeInSeconds;
 					StateTreeInstance.LastUpdateTimeInSeconds = TimeInSeconds;
+
+					const FMassEntityHandle Entity = StateTreeExecutionContext.GetEntity();
+					if (UE::Mass::Debug::IsDebuggingEntity(Entity))
+					{
+						TArray<FName> Signals;
+						EntitySignals.GetSignalsForEntity(Entity, Signals);
+						FString SignalsString;
+						for (const FName& SignalName : Signals)
+						{
+							if (!SignalsString.IsEmpty())
+							{
+								SignalsString += TEXT(", ");
+							}
+							SignalsString += SignalName.ToString();
+						}
+						UE_VLOG_UELOG(&MassStateTreeSubsystem, LogStateTree, Log, TEXT("%s: Ticking StateTree because of signals: %s"), *Entity.DebugGetDescription(), *SignalsString);
+					}
 
 					// Tick the tree instance
 					StateTreeExecutionContext.Tick(AdjustedDeltaTime, &InstanceData);

@@ -46,7 +46,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param Location The center of the query
 	 * @return Request identifier that can be used to try claiming a result once available
 	 */
-	UE_NODISCARD FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FVector& Location) const;
+	UE_NODISCARD FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FGameplayTagContainer& UserTags, const FGameplayTagQuery& ActivityRequirements, const FVector& Location) const;
 
 	/**
 	 * Creates an async request to build a list of compatible smart objects
@@ -56,15 +56,15 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param LaneLocation The lane location as reference for the query
 	 * @return Request identifier that can be used to try claiming a result once available
 	 */
-	UE_NODISCARD FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FZoneGraphCompactLaneLocation& LaneLocation) const;
+	UE_NODISCARD FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FGameplayTagContainer& UserTags, const FGameplayTagQuery& ActivityRequirements, const FZoneGraphCompactLaneLocation& LaneLocation) const;
 
 	/**
 	 * Provides the result of a previously created request from FindCandidatesAsync to indicate if it has been processed
 	 * and the results can be used by ClaimCandidate.
 	 * @param RequestID A valid request identifier (method will ensure otherwise)
-	 * @return The current request's result
+	 * @return The current request's result, nullptr if request not ready yet.
 	 */
-	UE_NODISCARD FMassSmartObjectRequestResult GetRequestResult(const FMassSmartObjectRequestID& RequestID) const;
+	UE_NODISCARD const FMassSmartObjectCandidateSlots* GetRequestCandidates(const FMassSmartObjectRequestID& RequestID) const;
 
 	/**
 	 * Deletes the request associated to the specified identifier
@@ -73,25 +73,13 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	void RemoveRequest(const FMassSmartObjectRequestID& RequestID) const;
 
 	/**
-	 * Claims the first available smart object from the results of the find request. This method
-	 * can be called without calling IsRequestProcessed first but it will fail and return
-	 * Failed_UnprocessedRequest. It can then be called again on next frame until it succeeds or
-	 * returns a different error.
+	 * Claims the first available smart object from the provided candidates.
 	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
-	 * @param RequestID A valid request identifier (method will ensure otherwise)
+	 * @param Candidates Candidate slots to choose from.
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestID& RequestID) const;
-
-	/**
-	 * Claims the first available smart object from the provided results.
-	 * @param Entity MassEntity associated to the user fragment
-	 * @param User Fragment of the user claiming
-	 * @param SearchRequestResult Results of completed search request
-	 * @return Whether the slot has been successfully claimed or not
-	 */
-	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestResult& SearchRequestResult) const;
+	UE_NODISCARD FSmartObjectClaimHandle ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectCandidateSlots& Candidates) const;
 
 	/**
 	 * Claims the first available slot holding any type of USmartObjectMassBehaviorDefinition in the smart object
@@ -101,24 +89,33 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param RequestResult A valid smart object request result (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const;
+	UE_NODISCARD FSmartObjectClaimHandle ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const;
 
 	/**
 	 * Activates the mass gameplay behavior associated to the previously claimed smart object.
 	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
+	 * @param ClaimHandle claimed smart object slot to use.
 	 * @param Transform Fragment holding the transform of the user claiming
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool UseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FTransformFragment& Transform) const;
+	bool StartUsingSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectClaimHandle ClaimHandle) const;
+
+	/**
+	 * Deactivates the mass gameplay behavior started using StartUsingSmartObject.
+	 * @param Entity MassEntity associated to the user fragment
+	 * @param User Fragment of the user claiming
+	 * @param NewStatus Reason of the deactivation.
+	 */
+	void StopUsingSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const EMassSmartObjectInteractionStatus NewStatus) const;
 
 	/**
 	 * Releases a claimed/in-use smart object and update user fragment.
 	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
-	 * @param Status The new status for in-progress interaction
+	 * @param ClaimHandle claimed smart object slot to release.
 	 */
-	void ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const EMassSmartObjectInteractionStatus Status = EMassSmartObjectInteractionStatus::Unset) const;
+	void ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectClaimHandle ClaimHandle) const;
 
 private:
 	UMassEntitySubsystem& EntitySubsystem;
