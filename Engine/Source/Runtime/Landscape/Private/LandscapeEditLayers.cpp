@@ -2092,6 +2092,12 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 		return;
 	}
 
+	if (InProxy->LandscapeComponents.IsEmpty())
+	{
+		// No data to migrate, we can early-out to avoid modifying the proxy:
+		return;
+	}
+
 	InProxy->Modify();
 
 	FLandscapeLayer* DefaultLayer = GetLayer(0);
@@ -7291,6 +7297,16 @@ void ALandscape::ResolveLayersWeightmapTexture(
 bool ALandscape::HasLayersContent() const
 {
 	return LandscapeLayers.Num() > 0;
+}
+
+void ALandscape::UpdateCachedHasLayersContent(bool bInCheckComponentDataIntegrity)
+{
+	Super::UpdateCachedHasLayersContent(bInCheckComponentDataIntegrity);
+
+	// For consistency with the ALandscape::HasLayersContent() override above, make sure the cached bHasLayersContent boolean is also valid when we have at least one edit layer : 
+	//  Otherwise, as ALandscapeProxy::UpdateCachedHasLayersContent relies on the presence of landscape components and in distributed landscape setups (one ALandscape + multiple ALandscapeStreamingProxy),  
+	//  the master ALandscape actor doesn't have any landscape, hence it would have bHasLayersContent erroneously set to false (while ALandscape::HasLayersContent() would actually return true!)
+	bHasLayersContent |= ALandscape::HasLayersContent();
 }
 
 void ALandscape::RequestLayersInitialization(bool bInRequestContentUpdate)

@@ -2118,7 +2118,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 				}
 			}
 			else
-#endif
+#endif // WITH_EDITOR
 			{
 				LandscapeInfo = CreateLandscapeInfo(true);
 			}

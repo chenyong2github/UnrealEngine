@@ -1121,7 +1121,7 @@ public:
 	/** Will tell if the landscape proxy can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;
 
-	LANDSCAPE_API void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
+	LANDSCAPE_API virtual void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
 
 protected:
 	friend class ALandscape;
