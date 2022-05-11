@@ -71,6 +71,14 @@ namespace UE::PoseSearch
 		void RespawnPreviewActors();
 		void BuildSearchIndex();
 
+		void PreviewBackwardEnd();
+		void PreviewBackwardStep();
+		void PreviewBackward();
+		void PreviewPause();
+		void PreviewForward();
+		void PreviewForwardStep();
+		void PreviewForwardEnd();
+
 		UPoseSearchDatabase* GetPoseSearchDatabase() const { return PoseSearchDatabase; }
 		void OnPreviewActorClassChanged();
 
@@ -96,9 +104,17 @@ namespace UE::PoseSearch
 		void DeleteGroup(int32 GroupIdx);
 
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
+		void ProcessSelectedActor(AActor* Actor);
+		
+		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const { return SelectedActorIndexAsset; }
+
+		float GetMaxPreviewPlayLength() const;
+		float GetPlayTime() const;
+		void SetPlayTime(float NewPlayTime, bool bInTickPlayTime);
 
 	private:
 		float PlayTime = 0.0f;
+		float DeltaTimeMultiplier = 1.0f;
 
 		/** Scene asset being viewed and edited by this view model. */
 		TObjectPtr<UPoseSearchDatabase> PoseSearchDatabase;
@@ -109,6 +125,9 @@ namespace UE::PoseSearch
 		/** Actors to be displayed in the preview viewport */
 		TArray<FDatabasePreviewActor> PreviewActors;
 
+		/** From zero to the play length of the longest preview */
+		float MaxPreviewPlayLength = 0.0f;
+
 		/** What features to show in the viewport */
 		EFeaturesDrawMode PoseFeaturesDrawMode = EFeaturesDrawMode::None;
 
@@ -116,6 +135,8 @@ namespace UE::PoseSearch
 		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalOnly;
 
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes;
+
+		const FPoseSearchIndexAsset* SelectedActorIndexAsset = nullptr;
 
 		UWorld* GetWorld() const;
 

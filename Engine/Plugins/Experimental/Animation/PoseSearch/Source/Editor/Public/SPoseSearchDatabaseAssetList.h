@@ -59,6 +59,8 @@ namespace UE::PoseSearch
 		void OnAddSequence();
 		void OnAddBlendSpace();
 
+		EVisibility GetSelectedActorIconVisbility() const;
+
 		TWeakPtr<FDatabaseAssetTreeNode> WeakAssetTreeNode;
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;
 		TWeakPtr<SDatabaseAssetTree> SkeletonView;

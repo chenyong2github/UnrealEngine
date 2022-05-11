@@ -47,7 +47,18 @@ namespace UE::PoseSearch
 		HHitProxy* HitProxy,
 		const FViewportClick& Click)
 	{
-		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
+		if (HActor* ActorHitProxy = HitProxyCast<HActor>(HitProxy))
+		{
+			if (ViewModel && IsValid(ActorHitProxy->Actor))
+			{
+				ViewModel->ProcessSelectedActor(ActorHitProxy->Actor);
+				return true;
+			}
+		}
+
+		ViewModel->ProcessSelectedActor(nullptr);
+
+		return false; // unhandled
 	}
 
 

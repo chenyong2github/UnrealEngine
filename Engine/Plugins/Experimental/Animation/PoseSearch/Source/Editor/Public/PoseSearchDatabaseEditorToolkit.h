@@ -13,7 +13,7 @@ class UPoseSearchDatabaseSelectionReflection;
 
 namespace UE::PoseSearch
 {
-	class SDatabaseViewport;
+	class SDatabasePreview;
 	class FDatabasePreviewScene;
 	class FDatabaseViewModel;
 
@@ -42,9 +42,15 @@ namespace UE::PoseSearch
 		FDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
 		TSharedPtr<FDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
 
-		void StopPreviewScene();
-		void ResetPreviewScene();
 		void BuildSearchIndex();
+
+		void PreviewBackwardEnd();
+		void PreviewBackwardStep();
+		void PreviewBackward();
+		void PreviewPause();
+		void PreviewForward();
+		void PreviewForwardStep();
+		void PreviewForwardEnd();
 
 	private:
 
@@ -63,7 +69,7 @@ namespace UE::PoseSearch
 			const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
 			ESelectInfo::Type SelectionType);
 
-		TSharedPtr<SDatabaseViewport> ViewportWidget;
+		TSharedPtr<SDatabasePreview> PreviewWidget;
 
 		TSharedPtr<SDatabaseAssetTree> AssetTreeWidget;
 

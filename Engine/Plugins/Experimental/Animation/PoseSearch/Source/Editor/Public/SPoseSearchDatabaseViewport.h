@@ -14,9 +14,9 @@ namespace UE::PoseSearch
 	class FDatabaseEditorToolkit;
 	class SPoseSearchDatabaseViewportToolBar;
 
-	struct FDatabaseViewportRequiredArgs
+	struct FDatabasePreviewRequiredArgs
 	{
-		FDatabaseViewportRequiredArgs(
+		FDatabasePreviewRequiredArgs(
 			const TSharedRef<FDatabaseEditorToolkit>& InAssetEditorToolkit,
 			const TSharedRef<FDatabasePreviewScene>& InPreviewScene)
 			: AssetEditorToolkit(InAssetEditorToolkit)
@@ -32,11 +32,10 @@ namespace UE::PoseSearch
 	class SDatabaseViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
 	{
 	public:
-
 		SLATE_BEGIN_ARGS(SDatabaseViewport) {}
 		SLATE_END_ARGS();
 
-		void Construct(const FArguments& InArgs, const FDatabaseViewportRequiredArgs& InRequiredArgs);
+		void Construct(const FArguments& InArgs, const FDatabasePreviewRequiredArgs& InRequiredArgs);
 		virtual ~SDatabaseViewport() {}
 
 		// ~ICommonEditorViewportToolbarInfoProvider interface
@@ -64,5 +63,39 @@ namespace UE::PoseSearch
 
 		/** Asset editor toolkit we are embedded in */
 		TWeakPtr<FDatabaseEditorToolkit> AssetEditorToolkitPtr;
+	};
+
+	class SDatabasePreview : public SCompoundWidget
+	{
+	public:
+		DECLARE_DELEGATE_TwoParams(FOnScrubPositionChanged, double, bool)
+		DECLARE_DELEGATE(FOnButtonClickedEvent)
+
+		SLATE_BEGIN_ARGS(SDatabasePreview) {}
+			SLATE_ATTRIBUTE(double, SliderScrubTime);
+			SLATE_ATTRIBUTE(TRange<double>, SliderViewRange);
+			SLATE_EVENT(FOnScrubPositionChanged, OnSliderScrubPositionChanged);
+			SLATE_EVENT(FOnButtonClickedEvent, OnBackwardEnd);
+			SLATE_EVENT(FOnButtonClickedEvent, OnBackwardStep);
+			SLATE_EVENT(FOnButtonClickedEvent, OnBackward);
+			SLATE_EVENT(FOnButtonClickedEvent, OnPause);
+			SLATE_EVENT(FOnButtonClickedEvent, OnForward);
+			SLATE_EVENT(FOnButtonClickedEvent, OnForwardStep);
+			SLATE_EVENT(FOnButtonClickedEvent, OnForwardEnd);
+		SLATE_END_ARGS();
+
+		void Construct(const FArguments& InArgs, const FDatabasePreviewRequiredArgs& InRequiredArgs);
+
+	protected:
+		TAttribute<double> SliderScrubTimeAttribute;
+		TAttribute<TRange<double>> SliderViewRange = TRange<double>(0.0, 1.0);
+		FOnScrubPositionChanged OnSliderScrubPositionChanged;
+		FOnButtonClickedEvent OnBackwardEnd;
+		FOnButtonClickedEvent OnBackwardStep;
+		FOnButtonClickedEvent OnBackward;
+		FOnButtonClickedEvent OnPause;
+		FOnButtonClickedEvent OnForward;
+		FOnButtonClickedEvent OnForwardStep;
+		FOnButtonClickedEvent OnForwardEnd;
 	};
 }

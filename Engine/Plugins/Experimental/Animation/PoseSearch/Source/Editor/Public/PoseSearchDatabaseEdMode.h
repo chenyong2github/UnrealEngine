@@ -47,5 +47,7 @@ namespace UE::PoseSearch
 	private:
 
 		FDatabaseViewModel* ViewModel = nullptr;
+
+		TWeakObjectPtr<AActor> SelectedActor = nullptr;
 	};
 }

@@ -25,6 +25,7 @@ namespace UE::PoseSearch
 {
 	const FName PoseSearchDatabaseEditorAppName = FName(TEXT("PoseSearchDatabaseEditorApp"));
 	constexpr int32 SelectionDetailsCount = 3; // sequence, blendspace, group
+	constexpr double ViewRangeSlack = 0.25;
 
 	// Tab identifiers
 	struct FDatabaseEditorTabs
@@ -66,19 +67,44 @@ namespace UE::PoseSearch
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
 
-	void FDatabaseEditorToolkit::StopPreviewScene()
-	{
-		ViewModel->RemovePreviewActors();
-	}
-
-	void FDatabaseEditorToolkit::ResetPreviewScene()
-	{
-		ViewModel->ResetPreviewActors();
-	}
-
 	void FDatabaseEditorToolkit::BuildSearchIndex()
 	{
 		ViewModel->BuildSearchIndex();
+	}
+
+	void FDatabaseEditorToolkit::PreviewBackwardEnd()
+	{
+		ViewModel->PreviewBackwardEnd();
+	}
+
+	void FDatabaseEditorToolkit::PreviewBackwardStep()
+	{
+		ViewModel->PreviewBackwardStep();
+	}
+
+	void FDatabaseEditorToolkit::PreviewBackward()
+	{
+		ViewModel->PreviewBackward();
+	}
+
+	void FDatabaseEditorToolkit::PreviewPause()
+	{
+		ViewModel->PreviewPause();
+	}
+
+	void FDatabaseEditorToolkit::PreviewForward()
+	{
+		ViewModel->PreviewForward();
+	}
+
+	void FDatabaseEditorToolkit::PreviewForwardStep()
+	{
+		ViewModel->PreviewForwardStep();
+	}
+
+	void FDatabaseEditorToolkit::PreviewForwardEnd()
+	{
+		ViewModel->PreviewForwardEnd();
 	}
 
 	void FDatabaseEditorToolkit::InitAssetEditor(
@@ -109,10 +135,26 @@ namespace UE::PoseSearch
 		ViewModel->Initialize(DatabaseAsset, PreviewScene.ToSharedRef());
 
 		// Create viewport widget
-		FDatabaseViewportRequiredArgs ViewportArgs(
+		FDatabasePreviewRequiredArgs PreviewArgs(
 			StaticCastSharedRef<FDatabaseEditorToolkit>(AsShared()),
 			PreviewScene.ToSharedRef());
-		ViewportWidget = SNew(SDatabaseViewport, ViewportArgs);
+		PreviewWidget = SNew(SDatabasePreview, PreviewArgs)
+			.SliderScrubTime_Lambda([this]() { return ViewModel->GetPlayTime(); })
+			.SliderViewRange_Lambda([this]() 
+			{ 
+				return TRange<double>(-ViewRangeSlack, ViewModel->GetMaxPreviewPlayLength() + ViewRangeSlack);
+			})
+			.OnSliderScrubPositionChanged_Lambda([this](float NewScrubPosition, bool bScrubbing)
+			{
+				ViewModel->SetPlayTime(NewScrubPosition, !bScrubbing);
+			})
+			.OnBackwardEnd_Raw(this, &FDatabaseEditorToolkit::PreviewBackwardEnd)
+			.OnBackwardStep_Raw(this, &FDatabaseEditorToolkit::PreviewBackwardStep)
+			.OnBackward_Raw(this, &FDatabaseEditorToolkit::PreviewBackward)
+			.OnPause_Raw(this, &FDatabaseEditorToolkit::PreviewPause)
+			.OnForward_Raw(this, &FDatabaseEditorToolkit::PreviewForward)
+			.OnForwardStep_Raw(this, &FDatabaseEditorToolkit::PreviewForwardStep)
+			.OnForwardEnd_Raw(this, &FDatabaseEditorToolkit::PreviewForwardEnd);
 
 		AssetTreeWidget = SNew(SDatabaseAssetTree, ViewModel.ToSharedRef());
 		AssetTreeWidget->RegisterOnSelectionChanged(
@@ -237,11 +279,6 @@ namespace UE::PoseSearch
 		const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
 
 		ToolkitCommands->MapAction(
-			Commands.ResetPreviewScene,
-			FExecuteAction::CreateSP(this, &FDatabaseEditorToolkit::ResetPreviewScene),
-			EUIActionRepeatMode::RepeatDisabled);
-
-		ToolkitCommands->MapAction(
 			Commands.BuildSearchIndex,
 			FExecuteAction::CreateSP(this, &FDatabaseEditorToolkit::BuildSearchIndex),
 			EUIActionRepeatMode::RepeatDisabled);
@@ -262,13 +299,6 @@ namespace UE::PoseSearch
 
 	void FDatabaseEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	{
-		ToolbarBuilder.AddToolBarButton(
-			FDatabaseEditorCommands::Get().ResetPreviewScene,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Refresh"));
-
 		ToolbarBuilder.AddToolBarButton(
 			FDatabaseEditorCommands::Get().BuildSearchIndex,
 			NAME_None,
@@ -365,9 +395,9 @@ namespace UE::PoseSearch
 
 		TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab).Label(LOCTEXT("ViewportTab_Title", "Viewport"));
 
-		if (ViewportWidget.IsValid())
+		if (PreviewWidget.IsValid())
 		{
-			SpawnedTab->SetContent(ViewportWidget.ToSharedRef());
+			SpawnedTab->SetContent(PreviewWidget.ToSharedRef());
 		}
 
 		return SpawnedTab;

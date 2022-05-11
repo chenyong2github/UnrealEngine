@@ -20,6 +20,8 @@
 
 namespace UE::PoseSearch
 {
+	constexpr float StepDeltaTime = 1.0f / 30.0f;
+
 	FDatabaseViewModel::FDatabaseViewModel()
 		: PoseSearchDatabase(nullptr)
 	{
@@ -53,6 +55,7 @@ namespace UE::PoseSearch
 	void FDatabaseViewModel::ResetPreviewActors()
 	{
 		PlayTime = 0.0f;
+		DeltaTimeMultiplier = 1.0f;
 		RespawnPreviewActors();
 	}
 
@@ -75,6 +78,8 @@ namespace UE::PoseSearch
 					AssociatedAssetIndices.Add(SelectedNode->SourceAssetIdx);
 				}
 			}
+			
+			MaxPreviewPlayLength = 0.0f;
 
 			const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndex();
 			for (const FPoseSearchIndexAsset& IndexAsset : SearchIndex->Assets)
@@ -93,10 +98,18 @@ namespace UE::PoseSearch
 					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAsset);
 					if (PreviewActor.IsValid())
 					{
+						const UAnimSequence* Sequence =
+							Cast<UAnimSequence>(PreviewActor.AnimInstance->GetAnimationAsset());
+						if (Sequence)
+						{
+							MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, Sequence->GetPlayLength());
+						}
+
 						PreviewActors.Add(PreviewActor);
 					}
 				}
 			}
+
 			UpdatePreviewActors();
 		}
 
@@ -106,6 +119,43 @@ namespace UE::PoseSearch
 	void FDatabaseViewModel::BuildSearchIndex()
 	{
 		PoseSearchDatabase->BeginCacheDerivedData();
+	}
+
+	void FDatabaseViewModel::PreviewBackwardEnd()
+	{
+		PlayTime = 0.0f;
+	}
+
+	void FDatabaseViewModel::PreviewBackwardStep()
+	{
+		PlayTime = FMath::Clamp(PlayTime - StepDeltaTime, 0.0f, MaxPreviewPlayLength);
+		DeltaTimeMultiplier = 0.0f;
+	}
+
+	void FDatabaseViewModel::PreviewBackward()
+	{
+		DeltaTimeMultiplier = -1.0f;
+	}
+
+	void FDatabaseViewModel::PreviewPause()
+	{
+		DeltaTimeMultiplier = 0.0f;
+	}
+
+	void FDatabaseViewModel::PreviewForward()
+	{
+		DeltaTimeMultiplier = 1.0f;
+	}
+
+	void FDatabaseViewModel::PreviewForwardStep()
+	{
+		PlayTime = FMath::Clamp(PlayTime + StepDeltaTime, 0.0f, MaxPreviewPlayLength);
+		DeltaTimeMultiplier = 0.0f;
+	}
+
+	void FDatabaseViewModel::PreviewForwardEnd()
+	{
+		PlayTime = MaxPreviewPlayLength;
 	}
 
 	FDatabasePreviewActor FDatabaseViewModel::SpawnPreviewActor(const FPoseSearchIndexAsset& IndexAsset)
@@ -142,13 +192,13 @@ namespace UE::PoseSearch
 
 		PreviewActor.Mesh->SetSkeletalMesh(Skeleton->GetPreviewMesh(true));
 		PreviewActor.Mesh->EnablePreview(true, DatabaseSequence.Sequence);
-		PreviewActor.AnimInstance->SetAnimationAsset(DatabaseSequence.Sequence);
+		PreviewActor.AnimInstance->SetAnimationAsset(DatabaseSequence.Sequence, false, 0.0f);
 		if (IndexAsset.bMirrored && PoseSearchDatabase->Schema)
 		{
 			PreviewActor.AnimInstance->SetMirrorDataTable(PoseSearchDatabase->Schema->MirrorDataTable);
 		}
 
-		PreviewActor.AnimInstance->PlayAnim(false);
+		PreviewActor.AnimInstance->PlayAnim(false, 0.0f);
 
 		if (!PreviewActor.Actor->GetRootComponent())
 		{
@@ -183,7 +233,8 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::Tick(float DeltaSeconds)
 	{
-		PlayTime += DeltaSeconds;
+		PlayTime += DeltaSeconds * DeltaTimeMultiplier;
+		PlayTime = FMath::Clamp(PlayTime, 0.0f, MaxPreviewPlayLength);
 		UpdatePreviewActors();
 	}
 
@@ -218,6 +269,8 @@ namespace UE::PoseSearch
 			PreviewActor.Actor->Destroy();
 		}
 		PreviewActors.Reset();
+
+		MaxPreviewPlayLength = 0.0f;
 	}
 
 	FTransform FDatabaseViewModel::MirrorRootMotion(
@@ -346,5 +399,39 @@ namespace UE::PoseSearch
 	{
 		SelectedNodes = InSelectedNodes;
 		ResetPreviewActors();
+		ProcessSelectedActor(nullptr);
+	}
+
+	void FDatabaseViewModel::ProcessSelectedActor(AActor* Actor)
+	{
+		SelectedActorIndexAsset = nullptr;
+		
+		const FDatabasePreviewActor* SelectedPreviewActor = PreviewActors.FindByPredicate(
+			[Actor](const FDatabasePreviewActor& PreviewActor)
+		{
+			return PreviewActor.Actor == Actor;
+		});
+
+		if (SelectedPreviewActor)
+		{
+			SelectedActorIndexAsset = SelectedPreviewActor->IndexAsset;
+		}
+	}
+
+	float FDatabaseViewModel::GetMaxPreviewPlayLength() const
+	{
+		return MaxPreviewPlayLength;
+	}
+
+	float FDatabaseViewModel::GetPlayTime() const
+	{
+		const float ClampedPlayTime = FMath::Clamp(PlayTime, 0.0f, MaxPreviewPlayLength);
+		return ClampedPlayTime;
+	}
+
+	void FDatabaseViewModel::SetPlayTime(float NewPlayTime, bool bInTickPlayTime)
+	{
+		PlayTime = NewPlayTime;
+		DeltaTimeMultiplier = bInTickPlayTime ? DeltaTimeMultiplier : 0.0f;
 	}
 }

@@ -244,6 +244,16 @@ namespace UE::PoseSearch
 			[
 				SNew(STextBlock)
 				.Text(this, &SDatabaseAssetListItem::GetName)
+			]
+			+ SHorizontalBox::Slot()
+			.MaxWidth(18)
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.EyeDropper"))
+				.Visibility_Raw(this, &SDatabaseAssetListItem::GetSelectedActorIconVisbility)
 			];
 		}
 
@@ -300,6 +310,22 @@ namespace UE::PoseSearch
 		{
 			return FAppStyle::Get().GetBrush("Brushes.Header");
 		}
+	}
+
+	EVisibility SDatabaseAssetListItem::GetSelectedActorIconVisbility() const
+	{
+		TSharedPtr<FDatabaseViewModel> ViewModelPtr = EditorViewModel.Pin();
+		TSharedPtr<FDatabaseAssetTreeNode> TreeNodePtr = WeakAssetTreeNode.Pin();
+		if (const FPoseSearchIndexAsset* SelectedIndexAsset = ViewModelPtr->GetSelectedActorIndexAsset())
+		{
+			if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::Sequence &&
+				TreeNodePtr->SourceAssetIdx == SelectedIndexAsset->SourceAssetIdx)
+			{
+				return EVisibility::Visible;
+			}
+		}
+
+		return EVisibility::Hidden;
 	}
 
 	SDatabaseAssetTree::~SDatabaseAssetTree()
