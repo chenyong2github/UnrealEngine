@@ -53,7 +53,7 @@ void FControlsToTween::Setup(const TArray<UControlRig*>& SelectedControlRigs, TW
 					TArray<FKeyHandle> Handles;
 					for (FRigControlElement* ControlElement : CurrentControls)
 					{
-						if (ControlElement->Settings.bAnimatable &&  ControlRig->IsControlSelected(ControlElement->GetName()))
+						if (ControlRig->GetHierarchy()->IsAnimatable(ControlElement) &&  ControlRig->IsControlSelected(ControlElement->GetName()))
 						{
 							FControlRigChannels ControlRigChannels;
 							ControlRigChannels.NumChannels = 0;

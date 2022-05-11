@@ -60,6 +60,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Added rig curve element value state flag
 		CurveElementValueStateFlag,
 
+		// Added the notion of a per control animation type
+		ControlAnimationType,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

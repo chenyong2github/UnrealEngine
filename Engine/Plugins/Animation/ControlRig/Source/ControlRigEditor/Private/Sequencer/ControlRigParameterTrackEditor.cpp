@@ -198,6 +198,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer)
 	, bCurveDisplayTickIsPending(false)
 	, bIsDoingSelection(false)
+	, bSkipNextSelectionFromTimer(false)
 	, bFilterAssetBySkeleton(true)
 	, bFilterAssetByAnimatableControls(true)
 {
@@ -1536,7 +1537,8 @@ static void EvaluateThisControl(UMovieSceneControlRigParameterSection* Section, 
 	}
 	if(FRigControlElement* ControlElement = ControlRig->FindControl(ControlName))
 	{ 
-		FControlRigInteractionScope InteractionScope(ControlRig);
+		FControlRigInteractionScope InteractionScope(ControlRig, ControlElement->GetKey());
+		
 		//eval any space for this channel, if not additive section
 		if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
 		{
@@ -1950,6 +1952,12 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
+	if(bSkipNextSelectionFromTimer)
+	{
+		bSkipNextSelectionFromTimer = false;
+		return;
+	}
+
 	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	UControlRig* ControlRig = nullptr;
 
@@ -2058,20 +2066,15 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 					{
 						if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 						{
-							if (ControlElement->Settings.ControlType == ERigControlType::Bool ||
-								ControlElement->Settings.ControlType == ERigControlType::Float ||
-								ControlElement->Settings.ControlType == ERigControlType::Integer)
+							if(ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
 							{
-								if(ControlElement->Settings.bShapeEnabled)
+								if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement)))
 								{
-									if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement)))
+									if(const TSet<FName>* Controls = RigsAndControls.Find(ControlRig))
 									{
-										if(const TSet<FName>* Controls = RigsAndControls.Find(ControlRig))
+										if(Controls->Contains(ParentControlElement->GetName()))
 										{
-											if(Controls->Contains(ParentControlElement->GetName()))
-											{
-												continue;
-											}
+											continue;
 										}
 									}
 								}
@@ -2384,20 +2387,37 @@ void FControlRigParameterTrackEditor::SetUpEditModeIfNeeded(UControlRig* Control
 
 void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
+	URigHierarchy* Hierarchy = Subject->GetHierarchy();
+	static bool bIsSelectingIndirectControl = false;
+
+	if(ControlElement && ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+	{
+		const TArray<FRigElementKey>& DrivenControls = ControlElement->Settings.DrivenControls;
+		for(const FRigElementKey& DrivenKey : DrivenControls)
+		{
+			if(FRigControlElement* DrivenControl = Hierarchy->Find<FRigControlElement>(DrivenKey))
+			{
+				TGuardValue<bool> SubControlGuard(bIsSelectingIndirectControl, true);
+				HandleControlSelected(Subject, DrivenControl, bSelected);
+			}
+		}
+		return;
+	}
+	
 	//if parent selected we select child here if it's a bool,integer or single float
 	TArray<FRigControl> Controls;
 
-	URigHierarchy* Hierarchy = Subject->GetHierarchy();
-
+	if(!bIsSelectingIndirectControl)
+	{
 		if (URigHierarchyController* Controller = Hierarchy->GetController())
 		{
-			Hierarchy->ForEach<FRigControlElement>([ControlElement, Controller, bSelected](FRigControlElement* OtherControlElement) -> bool
+			Hierarchy->ForEach<FRigControlElement>([Hierarchy, ControlElement, Controller, bSelected](FRigControlElement* OtherControlElement) -> bool
 				{
 					if (OtherControlElement->Settings.ControlType == ERigControlType::Bool ||
 						OtherControlElement->Settings.ControlType == ERigControlType::Float ||
 						OtherControlElement->Settings.ControlType == ERigControlType::Integer)
 					{
-						if(OtherControlElement->Settings.bShapeEnabled || !OtherControlElement->Settings.bAnimatable)
+						if(OtherControlElement->Settings.SupportsShape() || !Hierarchy->IsAnimatable(OtherControlElement))
 						{
 							return true;
 						}
@@ -2415,7 +2435,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 					return true;
 				});
 		}
-
+	}
 	
 	if (bIsDoingSelection)
 	{
@@ -2458,7 +2478,8 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			SetUpEditModeIfNeeded(Subject);
 
 			//Force refresh later, not now
-			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);				
+			bSkipNextSelectionFromTimer = true;
+			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);
 		}
 	}
 }
@@ -2529,7 +2550,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 	{
 		FRigControlElement* ControlElement = Controls[ControlIndex];
 
-		if (!ControlElement->Settings.bAnimatable)
+		if (!InControlRig->GetHierarchy()->IsAnimatable(ControlElement))
 		{
 			continue;
 		}
@@ -2927,7 +2948,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 	FChannelMapInfo* pChannelIndex = nullptr;
 	for (FRigControlElement* ControlElement : Controls)
 	{
-		if (!ControlElement->Settings.bAnimatable)
+		if (!InControlRig->GetHierarchy()->IsAnimatable(ControlElement))
 		{
 			continue;
 		}
@@ -3536,7 +3557,7 @@ bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>& 
 
 		for (FRigControlElement* ControlElement : Controls)
 		{
-			if (!ControlElement->Settings.bAnimatable)
+			if (!ControlRig->GetHierarchy()->IsAnimatable(ControlElement))
 			{
 				continue;
 			}

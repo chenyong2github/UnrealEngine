@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetControlColor.h"
+#include "RigUnit_SetControlDrivenList.h"
+
+#include "Rigs/RigHierarchyController.h"
 #include "Units/RigUnitContext.h"
 
-FRigUnit_GetControlColor_Execute()
+FRigUnit_GetControlDrivenList_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-    Color = FLinearColor::Black;
+    Driven.Reset();
 
 	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
@@ -24,7 +26,7 @@ FRigUnit_GetControlColor_Execute()
 				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					const FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					Color = ControlElement->Settings.ShapeColor;
+					Driven = ControlElement->Settings.DrivenControls;
 				}
 				break;
 			}
@@ -36,7 +38,7 @@ FRigUnit_GetControlColor_Execute()
 	}
 }
 
-FRigUnit_SetControlColor_Execute()
+FRigUnit_SetControlDrivenList_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
@@ -54,8 +56,12 @@ FRigUnit_SetControlColor_Execute()
 				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					ControlElement->Settings.ShapeColor = Color;
-					Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+					if(ControlElement->Settings.DrivenControls != Driven)
+					{
+						Swap(ControlElement->Settings.DrivenControls, ControlElement->Settings.PreviouslyDrivenControls);
+						ControlElement->Settings.DrivenControls = Driven;
+						Hierarchy->Notify(ERigHierarchyNotification::ControlDrivenListChanged, ControlElement);
+					}
 				}
 				break;
 			}

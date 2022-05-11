@@ -57,6 +57,7 @@ enum class ERigHierarchyNotification : uint8
 	HierarchyReset,
 	ControlSettingChanged,
 	ControlVisibilityChanged,
+	ControlDrivenListChanged,
 	ControlShapeTransformChanged,
 	ParentWeightsChanged,
 	InteractionBracketOpened,
@@ -104,12 +105,36 @@ enum class ERigControlType : uint8
 };
 
 UENUM(BlueprintType)
+enum class ERigControlAnimationType : uint8
+{
+	// A visible, animatable control.
+	AnimationControl,
+	// An animation channel without a 3d shape
+	AnimationChannel,
+	// A control to drive other controls,
+	// not animatable in sequencer.
+	ProxyControl,
+	// Visual feedback only - the control is
+	// neither animatable nor selectable.
+	VisualCue
+};
+
+UENUM(BlueprintType)
 enum class ERigControlValueType : uint8
 {
 	Initial,
     Current,
     Minimum,
     Maximum
+};
+
+UENUM(BlueprintType)
+enum class ERigControlVisibility : uint8
+{
+	// Visibility controlled by the graph
+	UserDefined, 
+	// Visibility Controlled by the selection of driven controls
+	BasedOnSelection 
 };
 
 UENUM(BlueprintType)

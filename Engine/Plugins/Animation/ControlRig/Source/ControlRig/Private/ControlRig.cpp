@@ -13,6 +13,7 @@
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
+#include "Units/Execution/RigUnit_InteractionExecution.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimationPoseData.h"
@@ -225,6 +226,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	GetHierarchy()->OnModified().AddUObject(this, &UControlRig::HandleHierarchyModified);
 	GetHierarchy()->OnEventReceived().RemoveAll(this);
 	GetHierarchy()->OnEventReceived().AddUObject(this, &UControlRig::HandleHierarchyEvent);
+	GetHierarchy()->UpdateVisibilityOnProxyControls();
 }
 
 void UControlRig::InitializeFromCDO()
@@ -271,6 +273,21 @@ void UControlRig::Evaluate_AnyThread()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Evaluate);
+
+	TGuardValue<TArray<FName>> EventQueueGuard(EventQueue, EventQueue);
+	if(InteractionType != (uint8)EControlRigInteractionType::None)
+	{
+		if(EventQueue.IsEmpty())
+		{
+			EventQueue.Add(FRigUnit_InteractionExecution::EventName);
+		}
+		else
+		{
+			// insert just before the last event so the interaction runs prior to
+			// forward solve or backwards solve.
+			EventQueue.Insert(FRigUnit_InteractionExecution::EventName, EventQueue.Num() - 1);
+		}
+	}
 
 	for (const FName& EventName : EventQueue)
 	{
@@ -1005,8 +1022,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		{
 			const FRigControlSettings& Settings = ControlElement->Settings;
 
-			if (Settings.bShapeEnabled &&
-				Settings.bShapeVisible &&
+			if (Settings.IsVisible() &&
 				!Settings.bIsTransientControl &&
 				Settings.bDrawLimits &&
 				Settings.LimitEnabled.Contains(FRigControlLimitEnabled(true, true)))
@@ -1627,13 +1643,10 @@ void UControlRig::CreateRigControlsForCurveContainer()
 			if (Name.Contains(CtrlPrefix) && !DynamicHierarchy->Contains(FRigElementKey(*Name, ERigElementType::Curve))) //-V1051
 			{
 				FRigControlSettings Settings;
+				Settings.AnimationType = ERigControlAnimationType::AnimationChannel;
 				Settings.ControlType = ERigControlType::Float;
 				Settings.bIsCurve = true;
-				Settings.bAnimatable = true;
 				Settings.bDrawLimits = false;
-				Settings.bShapeEnabled = false;
-				Settings.bShapeVisible = false;
-				Settings.ShapeColor = FLinearColor::Red;
 
 				FRigControlValue Value;
 				Value.Set<float>(CurveElement->Value);

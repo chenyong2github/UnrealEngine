@@ -2714,7 +2714,7 @@ void SRigHierarchy::HandleSetShapeTransformFromCurrent()
 					{
 						const FRigElementKey Key = ControlElement->GetKey();
 						
-						if (ControlElement->Settings.bShapeEnabled)
+						if (ControlElement->Settings.SupportsShape())
 						{
 							const FTransform OffsetGlobalTransform = DebuggedHierarchy->GetGlobalControlOffsetTransform(Key); 
 							const FTransform ShapeGlobalTransform = DebuggedHierarchy->GetGlobalControlShapeTransform(Key);

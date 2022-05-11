@@ -86,6 +86,8 @@ public:
 	UPROPERTY()
 	FName ColorParameterName;
 
+	FLinearColor OverrideColor;
+
 	UFUNCTION(BlueprintSetter)
 	/** Set the control to be enabled/disabled */
 	virtual void SetEnabled(bool bInEnabled);

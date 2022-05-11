@@ -104,6 +104,8 @@ bool URigHierarchyController::SelectElement(FRigElementKey InKey, bool bSelect, 
 		Notify(ERigHierarchyNotification::ElementDeselected, Element);
 	}
 
+	Hierarchy->UpdateVisibilityOnProxyControls();
+
 	return true;
 }
 
@@ -151,7 +153,7 @@ bool URigHierarchyController::SetSelection(const TArray<FRigElementKey>& InKeys,
 			}
 		}
 	}
-	
+
 #if WITH_EDITOR
 	if (bPrintPythonCommand && !bSuspendPythonPrinting)
 	{
@@ -169,7 +171,7 @@ bool URigHierarchyController::SetSelection(const TArray<FRigElementKey>& InKeys,
 		}
 	}
 #endif
-	
+
 	return bResult;
 }
 
@@ -1264,12 +1266,12 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		Settings.DisplayName = Control.DisplayName;
 		Settings.PrimaryAxis = Control.PrimaryAxis;
 		Settings.bIsCurve = Control.bIsCurve;
-		Settings.bAnimatable = Control.bAnimatable;
+		Settings.SetAnimationTypeFromDeprecatedData(Control.bAnimatable, Control.bGizmoEnabled);
+		Settings.AnimationType = Control.bAnimatable ? ERigControlAnimationType::AnimationControl : ERigControlAnimationType::ProxyControl;
 		Settings.SetupLimitArrayForType(Control.bLimitTranslation, Control.bLimitRotation, Control.bLimitScale);
 		Settings.bDrawLimits = Control.bDrawLimits;
 		Settings.MinimumValue = Control.MinimumValue;
 		Settings.MaximumValue = Control.MaximumValue;
-		Settings.bShapeEnabled = Control.bGizmoEnabled;
 		Settings.bShapeVisible = Control.bGizmoVisible;
 		Settings.ShapeName = Control.GizmoName;
 		Settings.ShapeColor = Control.GizmoColor;
@@ -1767,6 +1769,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 		{
 			ControlElement->Settings.Customization.AvailableSpaces.Remove(InElement->GetKey());
 			ControlElement->Settings.Customization.RemovedSpaces.Remove(InElement->GetKey());
+			ControlElement->Settings.DrivenControls.Remove(InElement->GetKey());
 		}
 	}
 	
@@ -1898,6 +1901,14 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 					Favorite.Name = NewKey.Name;
 				}
 			}
+
+			for(FRigElementKey& DrivenControl : ControlElement->Settings.DrivenControls)
+			{
+				if(DrivenControl == OldKey)
+				{
+					DrivenControl.Name = NewKey.Name;
+				}
+			}
 		}
 	}
 	
@@ -1981,6 +1992,15 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 			{
 				return false;
 			}
+		}
+	}
+
+	// we can only parent things to controls which are not animation channels (animation channels are not 3D things)
+	if(FRigControlElement* ParentControlElement = Cast<FRigControlElement>(InParent))
+	{
+		if(ParentControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+		{
+			return false;
 		}
 	}
 

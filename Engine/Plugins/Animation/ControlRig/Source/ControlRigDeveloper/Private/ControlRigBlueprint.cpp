@@ -359,7 +359,7 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	bExposesAnimatableControls = false;
 	Hierarchy->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool
     {
-		if (ControlElement->Settings.bAnimatable)
+		if (Hierarchy->IsAnimatable(ControlElement))
 		{
 			bExposesAnimatableControls = true;
 			return false;

@@ -60,8 +60,6 @@
 #include "InteractiveToolManager.h"
 #include "EdModeInteractiveToolsContext.h"
 
-
-
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
 	if (EditMode)
@@ -2584,8 +2582,11 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 				ControlsToReset.SetNum(0);
 				for (const FRigControlElement* Control : Controls)
 				{
-					ControlsToReset.Add(Control->GetKey());
-
+					if(Control->Settings.AnimationType == ERigControlAnimationType::AnimationControl ||
+						Control->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+					{
+						ControlsToReset.Add(Control->GetKey());
+					}
 				}
 			}
 			bool bHasNonDefaultParent = false;
@@ -2601,6 +2602,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 			}
 
 			FScopedTransaction Transaction(LOCTEXT("HierarchyResetTransforms", "Reset Transforms"));
+			FControlRigInteractionScope InteractionScope(ControlRig, ControlsToReset);
 
 			for (const FRigElementKey& ControlToReset : ControlsToReset)
 			{
@@ -2683,6 +2685,12 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 						ControlRig->ControlModified().Broadcast(ControlRig, ControlElement, EControlRigSetKey::DoNotCare);
 					}
 				}
+			}
+			else
+			{
+				// we at least have to run the interaction event
+				TGuardValue<TArray<FName>> EventGuard(ControlRig->EventQueue, {});
+				ControlRig->Evaluate_AnyThread();
 			}
 		}
 	}
@@ -2935,7 +2943,7 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 	int32 ControlRigIndex = RuntimeControlRigs.Find(ControlRig);
 	for (FRigControlElement* ControlElement : Controls)
 	{
-		if (!ControlElement->Settings.bShapeEnabled)
+		if (!ControlElement->Settings.SupportsShape())
 		{
 			continue;
 		}
@@ -2949,7 +2957,7 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 			Param.ShapeName = ControlElement->Settings.ShapeName;
 			Param.SpawnTransform = ControlRig->GetControlGlobalTransform(ControlElement->GetName());
 			Param.ShapeTransform = ControlRig->GetHierarchy()->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
-			Param.bSelectable = ControlElement->Settings.bAnimatable;
+			Param.bSelectable = ControlElement->Settings.IsSelectable(false);
 
 			if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ShapeLibraries))
 			{
@@ -3130,6 +3138,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 			break;
 		}
 		case ERigHierarchyNotification::ControlSettingChanged:
+		case ERigHierarchyNotification::ControlVisibilityChanged:
 		case ERigHierarchyNotification::ControlShapeTransformChanged:
 		{
 			const FRigElementKey Key = InElement->GetKey();
@@ -3152,7 +3161,42 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 
 			// if we can't deal with this lazily, let's fall back to recreating all control shape actors
 			RequestToRecreateControlShapeActors(ControlRig);
+			break;
+		}
+		case ERigHierarchyNotification::ControlDrivenListChanged:
+		{
+			if (IsInLevelEditor())
+			{
+				// to synchronize the selection between the viewport / editmode and the details panel / sequencer
+				// we re-select the control. during deselection we recover the previously set driven list
+				// and then select the control again with the up2date list. this makes sure that the tracks
+				// are correctly selected in sequencer to match what the proxy control is driving.
+				if (FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InElement->GetKey()))
+				{
+					UControlRig* ControlRig = InHierarchy->GetTypedOuter<UControlRig>();
+					if(ControlProxy->IsSelected(ControlRig, ControlElement->GetName()))
+					{
+						// reselect the control - to affect the details panel / sequencer
+						if(URigHierarchyController* Controller = InHierarchy->GetController())
+						{
+							const FRigElementKey Key = ControlElement->GetKey();
+							{
+								// Restore the previously selected driven elements
+								// so that we can deselect them accordingly.
+								TGuardValue<TArray<FRigElementKey>> DrivenGuard(
+									ControlElement->Settings.DrivenControls,
+									ControlElement->Settings.PreviouslyDrivenControls);
+								
+								Controller->DeselectElement(Key);
+							}
 
+							// now select the proxy control again given the new driven list
+							Controller->SelectElement(Key);
+						}
+					}
+				}
+			}
+			break;
 		}
 		case ERigHierarchyNotification::ElementSelected:
 		case ERigHierarchyNotification::ElementDeselected:
@@ -3200,16 +3244,54 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 						}
 						if (IsInLevelEditor())
 						{
-							if (bSelected)
+							if (const FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(Key))
 							{
-								if (ControlRig->GetHierarchy()->Find<FRigControlElement>(Key))
+								ControlProxy->SelectProxy(ControlRig,Key.Name, bSelected);
+
+								if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
 								{
-									ControlProxy->SelectProxy(ControlRig,Key.Name, true);
+									const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
+
+									const TArray<FRigElementKey>& DrivenKeys = ControlElement->Settings.DrivenControls;
+									for(const FRigElementKey& DrivenKey : DrivenKeys)
+									{
+										if (const FRigControlElement* DrivenControl = ControlRig->GetHierarchy()->Find<FRigControlElement>(DrivenKey))
+										{
+											ControlProxy->SelectProxy(ControlRig, DrivenControl->GetName(), bSelected);
+
+											if (AControlRigShapeActor* DrivenShapeActor = GetControlShapeFromControlName(ControlRig,DrivenControl->GetName()))
+											{
+												if(bSelected)
+												{
+													DrivenShapeActor->OverrideColor = Settings->DrivenControlColor;
+												}
+												else
+												{
+													DrivenShapeActor->OverrideColor = FLinearColor(0, 0, 0, 0);
+												}
+											}
+										}
+									}
+
+									ControlRig->GetHierarchy()->ForEach<FRigControlElement>(
+										[this, ControlRig, ControlElement, DrivenKeys, bSelected](FRigControlElement* AnimationChannelControl) -> bool
+										{
+											if(AnimationChannelControl->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+											{
+												if(const FRigControlElement* ParentControlElement =
+													Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(AnimationChannelControl)))
+												{
+													if(DrivenKeys.Contains(ParentControlElement->GetKey()) ||
+														ParentControlElement->GetKey() == ControlElement->GetKey())
+													{
+														ControlProxy->SelectProxy(ControlRig, AnimationChannelControl->GetName(), bSelected);
+													}
+												}
+											}
+											return true;
+										}
+									);
 								}
-							}
-							else
-							{
-								ControlProxy->SelectProxy(ControlRig,Key.Name, false);
 							}
 						}
 
@@ -3241,8 +3323,18 @@ void FControlRigEditMode::OnHierarchyModified_AnyThread(ERigHierarchyNotificatio
 		return;
 	}
 
-	if (InNotif != ERigHierarchyNotification::ControlSettingChanged
-		&& InNotif != ERigHierarchyNotification::ControlShapeTransformChanged)
+	if(IsInGameThread())
+	{
+		OnHierarchyModified(InNotif, InHierarchy, InElement);
+		return;
+	}
+
+	if (InNotif != ERigHierarchyNotification::ControlSettingChanged &&
+		InNotif != ERigHierarchyNotification::ControlVisibilityChanged &&
+		InNotif != ERigHierarchyNotification::ControlDrivenListChanged &&
+		InNotif != ERigHierarchyNotification::ControlShapeTransformChanged &&
+		InNotif != ERigHierarchyNotification::ElementSelected &&
+		InNotif != ERigHierarchyNotification::ElementDeselected)
 	{
 		OnHierarchyModified(InNotif, InHierarchy, InElement);
 		return;
@@ -3335,7 +3427,7 @@ bool FControlRigEditMode::CanChangeControlShapeTransform()
 						// only enable for a Control with Gizmo enabled and visible
 						if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(SelectedRigElements[0]))
 						{
-							if (ControlElement->Settings.bShapeEnabled && ControlElement->Settings.bShapeVisible)
+							if (ControlElement->Settings.IsVisible())
 							{
 								if (AControlRigShapeActor* ShapeActor = GetControlShapeFromControlName(ControlRig,SelectedRigElements[0].Name))
 								{
@@ -3680,12 +3772,33 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 
 			if (FRigControlElement* ControlElement = ControlRig->FindControl(ShapeActor->ControlName))
 			{
-				ShapeActor->SetShapeColor(ControlElement->Settings.ShapeColor);
-				ShapeActor->SetIsTemporarilyHiddenInEditor(!ControlElement->Settings.bShapeVisible || Settings->bHideControlShapes || !ControlRig->GetControlsVisible());
-				if (!IsInLevelEditor()) //don't change this in level editor otherwise we can never select it and render has to be based on viewport.
+				const bool bControlsHiddenInViewport = Settings->bHideControlShapes || !ControlRig->GetControlsVisible();
+				
+				bool bIsVisible = ControlElement->Settings.IsVisible();
+				bool bRespectVisibilityForSelection = true;
+
+				if(!bControlsHiddenInViewport)
 				{
-					ShapeActor->SetSelectable(ControlElement->Settings.bShapeVisible && !Settings->bHideControlShapes && ControlElement->Settings.bAnimatable && ControlRig->GetControlsVisible());
+					if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+					{
+						bRespectVisibilityForSelection = false;
+						
+						if(Settings->bShowAllProxyControls)
+						{
+							bIsVisible = true;
+						}
+					}
 				}
+				
+				ShapeActor->SetShapeColor(ShapeActor->OverrideColor.A < SMALL_NUMBER ?
+					ControlElement->Settings.ShapeColor : ShapeActor->OverrideColor);
+				ShapeActor->SetIsTemporarilyHiddenInEditor(
+					(!ControlElement->Settings.IsVisible() && !Settings->bShowAllProxyControls) ||
+					bControlsHiddenInViewport);
+				
+				ShapeActor->SetSelectable(
+					ControlElement->Settings.IsSelectable(bRespectVisibilityForSelection) &&
+					!bControlsHiddenInViewport);
 			}
 		}
 	}

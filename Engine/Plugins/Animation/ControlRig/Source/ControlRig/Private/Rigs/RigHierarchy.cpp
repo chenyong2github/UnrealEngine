@@ -2290,6 +2290,7 @@ void URigHierarchy::SendQueuedNotifications()
 			}
 			case ERigHierarchyNotification::ControlSettingChanged:
 			case ERigHierarchyNotification::ControlVisibilityChanged:
+			case ERigHierarchyNotification::ControlDrivenListChanged:
 			case ERigHierarchyNotification::ControlShapeTransformChanged:
 			case ERigHierarchyNotification::ParentChanged:
 			case ERigHierarchyNotification::ParentWeightsChanged:
@@ -3195,8 +3196,10 @@ void URigHierarchy::SetControlVisibility(FRigControlElement* InControlElement, b
 		return;
 	}
 
-	InControlElement->Settings.bShapeVisible = bVisibility;
-	Notify(ERigHierarchyNotification::ControlVisibilityChanged, InControlElement);
+	if(InControlElement->Settings.SetVisible(bVisibility))
+	{
+		Notify(ERigHierarchyNotification::ControlVisibilityChanged, InControlElement);
+	}
 
 #if WITH_EDITOR
 	if (ensure(!bPropagatingChange))
@@ -4441,6 +4444,64 @@ URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(const U
 
 #endif
 
+void URigHierarchy::UpdateVisibilityOnProxyControls()
+{
+	URigHierarchy* HierarchyForSelection = HierarchyForSelectionPtr.Get();
+	if(HierarchyForSelection == nullptr)
+	{
+		HierarchyForSelection = this;
+	}
+
+	const UWorld* World = GetWorld();
+	if(World == nullptr)
+	{
+		return;
+	}
+	if(World->IsPreviewWorld())
+	{
+		return;
+	}
+
+	for(FRigBaseElement* Element : Elements)
+	{
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+		{
+			if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+			{
+				if(ControlElement->Settings.ShapeVisibility == ERigControlVisibility::BasedOnSelection)
+				{
+					if(HierarchyForSelection->OrderedSelection.IsEmpty())
+					{
+						if(ControlElement->Settings.SetVisible(false, true))
+						{
+							Notify(ERigHierarchyNotification::ControlVisibilityChanged, ControlElement);
+						}
+					}
+					else
+					{
+						bool bVisible = HierarchyForSelection->IsSelected(ControlElement);
+						if(!bVisible)
+						{
+							if(ControlElement->Settings.DrivenControls.FindByPredicate([HierarchyForSelection](const FRigElementKey& AffectedControl) -> bool
+							{
+								return HierarchyForSelection->IsSelected(AffectedControl);
+							}) != nullptr)
+							{
+								bVisible = true;
+							}
+						}
+
+						if(ControlElement->Settings.SetVisible(bVisible, true))
+						{
+							Notify(ERigHierarchyNotification::ControlVisibilityChanged, ControlElement);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 const TArray<FString>& URigHierarchy::GetTransformTypeStrings()
 {
 	static TArray<FString> TransformTypeStrings;
@@ -4671,6 +4732,38 @@ void URigHierarchy::ComputeAllTransforms()
 			}
 		}
 	}
+}
+
+bool URigHierarchy::IsAnimatable(const FRigElementKey& InKey) const
+{
+	if(const FRigControlElement* ControlElement = Find<FRigControlElement>(InKey))
+	{
+		return IsAnimatable(ControlElement);
+	}
+	return false;
+}
+
+bool URigHierarchy::IsAnimatable(const FRigControlElement* InControlElement) const
+{
+	if(InControlElement)
+	{
+		if(!InControlElement->Settings.IsAnimatable())
+		{
+			return false;
+		}
+
+		// animation channels are dependent on the control they are under.
+		if(InControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+		{
+			if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(GetFirstParent(InControlElement)))
+			{
+				return IsAnimatable(ParentControlElement);
+			}
+		}
+		
+		return true;
+	}
+	return false;
 }
 
 FTransform URigHierarchy::GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial)
@@ -5330,21 +5423,9 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	TArray<FString> Commands;
 	Commands.Add(FString::Printf(TEXT("%s = unreal.RigControlSettings()"),
 			*NameSettings));
-	FString TypeStr;
-	switch (Settings.ControlType)
-	{
-		case ERigControlType::Bool: TypeStr = TEXT("BOOL"); break;							
-		case ERigControlType::Float: TypeStr = TEXT("FLOAT"); break;
-		case ERigControlType::Integer: TypeStr = TEXT("INTEGER"); break;
-		case ERigControlType::Position: TypeStr = TEXT("POSITION"); break;
-		case ERigControlType::Rotator: TypeStr = TEXT("ROTATOR"); break;
-		case ERigControlType::Scale: TypeStr = TEXT("SCALE"); break;
-		case ERigControlType::Transform: TypeStr = TEXT("EULER_TRANSFORM"); break;
-		case ERigControlType::EulerTransform: TypeStr = TEXT("EULER_TRANSFORM"); break;
-		case ERigControlType::Vector2D: TypeStr = TEXT("VECTOR2D"); break;
-		case ERigControlType::TransformNoScale: TypeStr = TEXT("EULER_TRANSFORM"); break;
-		default: ensure(false);
-	}
+	
+	const FString AnimationTypeStr = StaticEnum<ERigControlAnimationType>()->GetNameStringByValue((int64)Settings.AnimationType).ToUpper();
+	const FString ControlTypeStr = StaticEnum<ERigControlType>()->GetNameStringByValue((int64)Settings.ControlType).ToUpper();
 
 	static const TCHAR* TrueText = TEXT("True");
 	static const TCHAR* FalseText = TEXT("False");
@@ -5359,12 +5440,12 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	
 	const FString LimitEnabledStr = FString::Join(LimitEnabledParts, TEXT(", "));
 	
+	Commands.Add(FString::Printf(TEXT("%s.animation_type = unreal.RigControlAnimationType.%s"),
+									*NameSettings,
+									*AnimationTypeStr));
 	Commands.Add(FString::Printf(TEXT("%s.control_type = unreal.RigControlType.%s"),
 									*NameSettings,
-									*TypeStr));
-	Commands.Add(FString::Printf(TEXT("%s.animatable = %s"),
-		*NameSettings,
-		Settings.bAnimatable ? TrueText : FalseText));
+									*ControlTypeStr));
 	Commands.Add(FString::Printf(TEXT("%s.display_name = '%s'"),
 		*NameSettings,
 		*Settings.DisplayName.ToString()));
@@ -5374,9 +5455,6 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	Commands.Add(FString::Printf(TEXT("%s.shape_color = %s"),
 		*NameSettings,
 		*RigVMPythonUtils::LinearColorToPythonString(Settings.ShapeColor)));
-	Commands.Add(FString::Printf(TEXT("%s.shape_enabled = %s"),
-		*NameSettings,
-		Settings.bShapeEnabled ? TrueText : FalseText));
 	Commands.Add(FString::Printf(TEXT("%s.shape_name = '%s'"),
 		*NameSettings,
 		*Settings.ShapeName.ToString()));

@@ -16,7 +16,7 @@ void FControlRigControlPose::SavePose(UControlRig* ControlRig, bool bUseAll)
 	
 	for (FRigControlElement* ControlElement : CurrentControls)
 	{
-		if (ControlElement->Settings.bAnimatable && (bUseAll || ControlRig->IsControlSelected(ControlElement->GetName())))
+		if (ControlRig->GetHierarchy()->IsAnimatable(ControlElement) && (bUseAll || ControlRig->IsControlSelected(ControlElement->GetName())))
 		{
 			//we store poses in default parent space so if not in that space we need to compensate it
 			bool bHasNonDefaultParent = false;

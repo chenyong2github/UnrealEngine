@@ -8,6 +8,7 @@
 
 struct FRigUnitContext;
 struct FRigBaseElement;
+struct FRigControlElement;
 class URigHierarchy;
 
 DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigReferenceGetWorldTransformDelegate, const FRigUnitContext*, const FRigElementKey& /* Key */, bool /* bInitial */);
@@ -876,6 +877,9 @@ struct CONTROLRIG_API FRigControlSettings
 	void Load(FArchive& Ar);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
+	ERigControlAnimationType AnimationType;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control, meta=(DisplayName="Value Type"))
 	ERigControlType ControlType;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
@@ -888,10 +892,6 @@ struct CONTROLRIG_API FRigControlSettings
 	/** If Created from a Curve  Container*/
 	UPROPERTY(transient)
 	bool bIsCurve;
-
-	/** If the control is animatable in sequencer */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
-	bool bAnimatable;
 
 	/** True if the control has limits. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
@@ -912,19 +912,19 @@ struct CONTROLRIG_API FRigControlSettings
 	UPROPERTY(BlueprintReadWrite, Category = Limits)
 	FRigControlValue MaximumValue;
 
-	/** Set to true if the shape is enabled in 3d */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo)
-	bool bShapeEnabled;
-
 	/** Set to true if the shape is currently visible in 3d */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape, meta = (EditCondition = "bShapeEnabled"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape)
 	bool bShapeVisible;
 
+	/** Defines how the shape visibility should be changed */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape)
+	ERigControlVisibility ShapeVisibility;
+
 	/* This is optional UI setting - this doesn't mean this is always used, but it is optional for manipulation layer to use this*/
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape, meta = (EditCondition = "bShapeEnabled"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape)
 	FName ShapeName;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape, meta = (EditCondition = "bShapeEnabled"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape)
 	FLinearColor ShapeColor;
 
 	/** If the control is transient and only visible in the control rig editor */
@@ -941,6 +941,23 @@ struct CONTROLRIG_API FRigControlSettings
 	 */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation, meta = (DisplayName = "Customization"))
 	FRigControlElementCustomization Customization;
+
+	/**
+	 * The list of driven controls for this proxy control.
+	 */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
+	TArray<FRigElementKey> DrivenControls;
+
+	/**
+	 * The list of previously driven controls - prior to a procedural change
+	 */
+	TArray<FRigElementKey> PreviouslyDrivenControls;
+
+	/**
+	 * If set to true the control will be grouped with the parent control in sequencer
+	 */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
+	bool bGroupWithParentControl;
 
 	/** Applies the limits expressed by these settings to a value */
 	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const
@@ -972,6 +989,73 @@ struct CONTROLRIG_API FRigControlSettings
 	}
 
 	void SetupLimitArrayForType(bool bLimitTranslation = false, bool bLimitRotation = false, bool bLimitScale = false);
+
+	FORCEINLINE bool IsAnimatable() const
+	{
+		return (AnimationType == ERigControlAnimationType::AnimationControl) ||
+			(AnimationType == ERigControlAnimationType::AnimationChannel);
+	}
+
+	FORCEINLINE bool SupportsShape() const
+	{
+		return (AnimationType != ERigControlAnimationType::AnimationChannel) &&
+			(ControlType != ERigControlType::Bool);
+	}
+
+	FORCEINLINE bool IsVisible() const
+	{
+		return SupportsShape() && bShapeVisible;
+	}
+	
+	FORCEINLINE bool SetVisible(bool bVisible, bool bForce = false)
+	{
+		if(!bForce)
+		{
+			if(AnimationType == ERigControlAnimationType::ProxyControl)
+			{
+				if(ShapeVisibility == ERigControlVisibility::BasedOnSelection)
+				{
+					return false;
+				}
+			}
+		}
+		
+		if(SupportsShape())
+		{
+			if(bShapeVisible == bVisible)
+			{
+				return false;
+			}
+			bShapeVisible = bVisible;
+		}
+		return SupportsShape();
+	}
+
+	FORCEINLINE bool IsSelectable(bool bRespectVisibility = true) const
+	{
+		return (AnimationType == ERigControlAnimationType::AnimationControl ||
+			AnimationType == ERigControlAnimationType::ProxyControl) &&
+			(IsVisible() || !bRespectVisibility);
+	}
+
+	FORCEINLINE void SetAnimationTypeFromDeprecatedData(bool bAnimatable, bool bShapeEnabled)
+	{
+		if(bAnimatable)
+		{
+			if(bShapeEnabled && (ControlType != ERigControlType::Bool))
+			{
+				AnimationType = ERigControlAnimationType::AnimationControl;
+			}
+			else
+			{
+				AnimationType = ERigControlAnimationType::AnimationChannel;
+			}
+		}
+		else
+		{
+			AnimationType = ERigControlAnimationType::ProxyControl;
+		}
+	}
 };
 
 USTRUCT(BlueprintType)

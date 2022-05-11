@@ -154,8 +154,10 @@ public:
 
 	bool IsAnyElementOfType(ERigElementType InType) const;
 	bool IsAnyElementNotOfType(ERigElementType InType) const;
-	bool IsAnyControlOfType(ERigControlType InType) const;
-	bool IsAnyControlNotOfType(ERigControlType InType) const;
+	bool IsAnyControlOfAnimationType(ERigControlAnimationType InType) const;
+	bool IsAnyControlNotOfAnimationType(ERigControlAnimationType InType) const;
+	bool IsAnyControlOfValueType(ERigControlType InType) const;
+	bool IsAnyControlNotOfValueType(ERigControlType InType) const;
 
 	static void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule);
 	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass);
@@ -256,7 +258,6 @@ public:
 	bool IsShapeEnabled() const;
 
 	const TArray<TSharedPtr<FString>>& GetShapeNameList() const;
-	const TArray<TSharedPtr<FString>>& GetControlTypeList() const;
 
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType);
@@ -550,7 +551,6 @@ private:
 	}
 
 	TArray<TSharedPtr<FString>> ShapeNameList;
-	static TArray<TSharedPtr<FString>> ControlTypeList;
 	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;
 	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
 

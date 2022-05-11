@@ -413,22 +413,23 @@ void FRigBoneElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOt
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigControlSettings::FRigControlSettings()
-: ControlType(ERigControlType::EulerTransform)
+: AnimationType(ERigControlAnimationType::AnimationControl)
+, ControlType(ERigControlType::EulerTransform)
 , DisplayName(NAME_None)
 , PrimaryAxis(ERigControlAxis::X)
 , bIsCurve(false)
-, bAnimatable(true)
 , LimitEnabled()
 , bDrawLimits(true)
 , MinimumValue()
 , MaximumValue()
-, bShapeEnabled(true)
 , bShapeVisible(true)
+, ShapeVisibility(ERigControlVisibility::UserDefined)
 , ShapeName(NAME_None)
 , ShapeColor(FLinearColor::Red)
 , bIsTransientControl(false)
 , ControlEnum(nullptr)
 , Customization()
+, bGroupWithParentControl(false)
 {
 	// rely on the default provided by the shape definition
 	ShapeName = FControlRigShapeDefinition().ShapeName; 
@@ -438,10 +439,14 @@ void FRigControlSettings::Save(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 
+	static const UEnum* AnimationTypeEnum = StaticEnum<ERigControlAnimationType>();
 	static const UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
+	static const UEnum* ShapeVisibilityEnum = StaticEnum<ERigControlVisibility>();
 	static const UEnum* ControlAxisEnum = StaticEnum<ERigControlAxis>();
 
+	FName AnimationTypeName = AnimationTypeEnum->GetNameByValue((int64)AnimationType);
 	FName ControlTypeName = ControlTypeEnum->GetNameByValue((int64)ControlType);
+	FName ShapeVisibilityName = ShapeVisibilityEnum->GetNameByValue((int64)ShapeVisibility);
 	FName PrimaryAxisName = ControlAxisEnum->GetNameByValue((int64)PrimaryAxis);
 
 	FString ControlEnumPathName;
@@ -450,43 +455,56 @@ void FRigControlSettings::Save(FArchive& Ar)
 		ControlEnumPathName = ControlEnum->GetPathName();
 	}
 
+	Ar << AnimationTypeName;
 	Ar << ControlTypeName;
 	Ar << DisplayName;
 	Ar << PrimaryAxisName;
 	Ar << bIsCurve;
-	Ar << bAnimatable;
 	Ar << LimitEnabled;
 	Ar << bDrawLimits;
 	Ar << MinimumValue;
 	Ar << MaximumValue;
-	Ar << bShapeEnabled;
 	Ar << bShapeVisible;
+	Ar << ShapeVisibilityName;
 	Ar << ShapeName;
 	Ar << ShapeColor;
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;
 	Ar << Customization.AvailableSpaces;
+	Ar << DrivenControls;
+	Ar << bGroupWithParentControl;
 }
 
 void FRigControlSettings::Load(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 
+	static const UEnum* AnimationTypeEnum = StaticEnum<ERigControlAnimationType>();
 	static const UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
+	static const UEnum* ShapeVisibilityEnum = StaticEnum<ERigControlVisibility>();
 	static const UEnum* ControlAxisEnum = StaticEnum<ERigControlAxis>();
 
-	FName ControlTypeName, PrimaryAxisName;
+	FName AnimationTypeName, ControlTypeName, ShapeVisibilityName, PrimaryAxisName;
 	FString ControlEnumPathName;
 
 	bool bLimitTranslation_DEPRECATED = false;
 	bool bLimitRotation_DEPRECATED = false;
 	bool bLimitScale_DEPRECATED = false;
+	bool bAnimatable_DEPRECATED = false;
+	bool bShapeEnabled_DEPRECATED = false;
 
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::ControlAnimationType)
+	{
+		Ar << AnimationTypeName;
+	}
 	Ar << ControlTypeName;
 	Ar << DisplayName;
 	Ar << PrimaryAxisName;
 	Ar << bIsCurve;
-	Ar << bAnimatable;
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlAnimationType)
+	{
+		Ar << bAnimatable_DEPRECATED;
+	}
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::PerChannelLimits)
 	{
 		Ar << bLimitTranslation_DEPRECATED;
@@ -511,8 +529,25 @@ void FRigControlSettings::Load(FArchive& Ar)
 		Ar << MaximumTransform;
 	}
 
-	Ar << bShapeEnabled;
+	ControlType = (ERigControlType)ControlTypeEnum->GetValueByName(ControlTypeName);
+	
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlAnimationType)
+	{
+		Ar << bShapeEnabled_DEPRECATED;
+		SetAnimationTypeFromDeprecatedData(bAnimatable_DEPRECATED, bShapeEnabled_DEPRECATED);
+		AnimationTypeName = AnimationTypeEnum->GetNameByValue((int64)AnimationType);
+	}
+	
 	Ar << bShapeVisible;
+	
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlAnimationType)
+	{
+		ShapeVisibilityName = ShapeVisibilityEnum->GetNameByValue((int64)ERigControlVisibility::UserDefined);
+	}
+	else
+	{
+		Ar << ShapeVisibilityName;
+	}
 	Ar << ShapeName;
 
 	if(Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RenameGizmoToShape)
@@ -527,8 +562,9 @@ void FRigControlSettings::Load(FArchive& Ar)
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;
 
-	ControlType = (ERigControlType)ControlTypeEnum->GetValueByName(ControlTypeName);
+	AnimationType = (ERigControlAnimationType)AnimationTypeEnum->GetValueByName(AnimationTypeName);
 	PrimaryAxis = (ERigControlAxis)ControlAxisEnum->GetValueByName(PrimaryAxisName);
+	ShapeVisibility = (ERigControlVisibility)ShapeVisibilityEnum->GetValueByName(ShapeVisibilityName);
 
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StorageMinMaxValuesAsFloatStorage)
 	{
@@ -558,9 +594,34 @@ void FRigControlSettings::Load(FArchive& Ar)
 		Customization.AvailableSpaces.Reset();
 	}
 
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::ControlAnimationType)
+	{
+		Ar << DrivenControls;
+	}
+	else
+	{
+		DrivenControls.Reset();
+	}
+
+	PreviouslyDrivenControls.Reset();
+
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::PerChannelLimits)
 	{
 		SetupLimitArrayForType(bLimitTranslation_DEPRECATED, bLimitRotation_DEPRECATED, bLimitScale_DEPRECATED);
+	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::ControlAnimationType)
+	{
+		Ar << bGroupWithParentControl;
+	}
+	else
+	{
+		bGroupWithParentControl = IsAnimatable() && (
+			ControlType == ERigControlType::Bool ||
+			ControlType == ERigControlType::Float ||
+			ControlType == ERigControlType::Integer ||
+			ControlType == ERigControlType::Vector2D
+		);
 	}
 }
 
@@ -570,6 +631,10 @@ void FRigControlSettings::Load(FArchive& Ar)
 
 bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 {
+	if(AnimationType != InOther.AnimationType)
+	{
+		return false;
+	}
 	if(ControlType != InOther.ControlType)
 	{
 		return false;
@@ -586,10 +651,6 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-	if(bAnimatable != InOther.bAnimatable)
-	{
-		return false;
-	}
 	if(LimitEnabled != InOther.LimitEnabled)
 	{
 		return false;
@@ -598,11 +659,11 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-	if(bShapeEnabled != InOther.bShapeEnabled)
+	if(bShapeVisible != InOther.bShapeVisible)
 	{
 		return false;
 	}
-	if(bShapeVisible != InOther.bShapeVisible)
+	if(ShapeVisibility != InOther.ShapeVisibility)
 	{
 		return false;
 	}
@@ -626,7 +687,15 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-
+	if(DrivenControls != InOther.DrivenControls)
+	{
+		return false;
+	}
+	if(bGroupWithParentControl != InOther.bGroupWithParentControl)
+	{
+		return false;
+	}
+	
 	const FTransform MinimumTransform = MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
 	const FTransform OtherMinimumTransform = InOther.MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
 	if(!MinimumTransform.Equals(OtherMinimumTransform, 0.001))

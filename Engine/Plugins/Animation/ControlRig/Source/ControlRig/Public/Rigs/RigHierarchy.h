@@ -2586,6 +2586,16 @@ public:
 	 */
 	bool IsTracingChanges() const;
 
+	/**
+	 * Returns true if the control is animatable
+	 */
+	bool IsAnimatable(const FRigElementKey& InKey) const;
+
+	/**
+	 * Returns true if the control is animatable
+	 */
+	bool IsAnimatable(const FRigControlElement* InControlElement) const;
+
 #if WITH_EDITOR
 
 	/**
@@ -3098,6 +3108,8 @@ public:
 private:
 	
 #endif
+
+	void UpdateVisibilityOnProxyControls();
 
 	static const TArray<FString>& GetTransformTypeStrings();
 

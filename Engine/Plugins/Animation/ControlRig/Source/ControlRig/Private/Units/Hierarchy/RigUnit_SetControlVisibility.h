@@ -6,7 +6,40 @@
 #include "RigUnit_SetControlVisibility.generated.h"
 
 /**
- * SetControlVisibility is used to change the gizmo visibility on a control at runtime
+ * GetControlVisibility is used to retrieve the visibility of a control
+ */
+USTRUCT(meta=(DisplayName="Get Control Visibility", Category="Controls", DocumentationPolicy="Strict", Keywords = "GetControlVisibility,Visibility,Hide,Show,Hidden,Visible,SetGizmoVisibility", TemplateName="GetControlVisibility", NodeColor="0, 0.364706, 1.0"))
+struct CONTROLRIG_API FRigUnit_GetControlVisibility : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_GetControlVisibility()
+		: Item(NAME_None, ERigElementType::Control)
+		, bVisible(true)
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The name of the Control to set the visibility for.
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The visibility of the control
+	 */
+	UPROPERTY(meta = (Output))
+	bool bVisible;
+
+	// Used to cache the internally used control index
+	UPROPERTY()
+	FCachedRigElement CachedControlIndex;
+};
+
+/**
+ * SetControlVisibility is used to change the visibility on a control at runtime
  */
 USTRUCT(meta=(DisplayName="Set Control Visibility", Category="Controls", DocumentationPolicy="Strict", Keywords = "SetControlVisibility,Visibility,Hide,Show,Hidden,Visible,SetGizmoVisibility", TemplateName="SetControlVisibility", NodeColor="0, 0.364706, 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlVisibility : public FRigUnitMutable
@@ -35,7 +68,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVisibility : public FRigUnitMutable
 	FString Pattern;
 
 	/**
-	 * The color to set for the control
+	 * The visibility to set for the control
 	 */
 	UPROPERTY(meta = (Input))
 	bool bVisible;

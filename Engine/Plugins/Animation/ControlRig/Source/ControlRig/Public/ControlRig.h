@@ -941,6 +941,34 @@ public:
 		InControlRig->GetHierarchy()->StartInteraction();
 	}
 
+	FORCEINLINE_DEBUGGABLE FControlRigInteractionScope(
+		UControlRig* InControlRig,
+		const FRigElementKey& InKey,
+		EControlRigInteractionType InInteractionType = EControlRigInteractionType::All
+	)
+		: ControlRig(InControlRig)
+		, InteractionBracketScope(InControlRig->InteractionBracket)
+		, SyncBracketScope(InControlRig->InterRigSyncBracket)
+	{
+		InControlRig->ElementsBeingInteracted = { InKey };
+		InControlRig->InteractionType = (uint8)InInteractionType;
+		InControlRig->GetHierarchy()->StartInteraction();
+	}
+
+	FORCEINLINE_DEBUGGABLE FControlRigInteractionScope(
+		UControlRig* InControlRig,
+		const TArray<FRigElementKey>& InKeys,
+		EControlRigInteractionType InInteractionType = EControlRigInteractionType::All
+	)
+		: ControlRig(InControlRig)
+		, InteractionBracketScope(InControlRig->InteractionBracket)
+	, SyncBracketScope(InControlRig->InterRigSyncBracket)
+	{
+		InControlRig->ElementsBeingInteracted = InKeys;
+		InControlRig->InteractionType = (uint8)InInteractionType;
+		InControlRig->GetHierarchy()->StartInteraction();
+	}
+
 	FORCEINLINE_DEBUGGABLE ~FControlRigInteractionScope()
 	{
 		if(ensure(ControlRig.IsValid()))

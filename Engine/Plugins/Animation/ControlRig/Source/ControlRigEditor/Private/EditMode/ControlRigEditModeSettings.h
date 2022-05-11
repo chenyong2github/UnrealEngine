@@ -17,6 +17,7 @@ class UControlRigEditModeSettings : public UObject
 		: bDisplayHierarchy(false)
 		, bDisplayNulls(false)
 		, bHideControlShapes(false)
+		, bShowAllProxyControls(false)
 		, bDisplayAxesOnSelection(false)
 		, AxisScale(10.f)
 		, bCoordSystemPerWidgetMode(true)
@@ -25,6 +26,7 @@ class UControlRigEditModeSettings : public UObject
 		, GizmoScale(1.0f)
 	{
 		LastInViewportTweenWidgetLocation = FVector2D(EForceInit::ForceInitToZero);
+		DrivenControlColor = FLinearColor::White * FLinearColor(FVector::OneVector * 0.8f);
 	}
 
 	// UObject interface
@@ -46,6 +48,14 @@ public:
 	/** Should we always hide control shapes in viewport */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings")
 	bool bHideControlShapes;
+
+	/** Should we always hide control shapes in viewport */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings", meta = (EditCondition = "!bHideControlShapes"))
+	bool bShowAllProxyControls;
+
+	/** Indicates a control being driven by a proxy control */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings", meta = (EditCondition = "!bHideControlShapes"))
+	FLinearColor DrivenControlColor;
 
 	/** Should we show axes for the selected elements */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings")

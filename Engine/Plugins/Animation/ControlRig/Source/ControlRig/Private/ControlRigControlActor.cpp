@@ -171,7 +171,7 @@ void AControlRigControlActor::Refresh()
 		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 		Hierarchy->ForEach<FRigControlElement>([this, ShapeLibraries, Hierarchy](FRigControlElement* ControlElement) -> bool
         {
-			if (!ControlElement->Settings.bShapeEnabled)
+			if (!ControlElement->Settings.SupportsShape())
 			{
 				return true;
 			}

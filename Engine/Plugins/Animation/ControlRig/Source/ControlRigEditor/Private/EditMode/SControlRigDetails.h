@@ -64,11 +64,11 @@ private:
 
 	/** Set the objects to be displayed in the details panel */
 	void SetSettingsDetailsObject(const TWeakObjectPtr<>& InObject);
-	void SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
 	void SetFloatDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
 	void SetBoolDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
 	void SetIntegerDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
@@ -88,10 +88,15 @@ private:
 	TSharedPtr<IDetailsView> ControlVector2DDetailsView;
 	TSharedPtr<IDetailsView> ControlVectorDetailsView;
 	//these will show more than one of the same type, will happen for controls with parents.
+	TSharedPtr<IDetailsView> IndividualControlEulerTransformDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlTransformDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlTransformNoScaleDetailsView;
 	TSharedPtr<IDetailsView> IndividualControlFloatDetailsView;
 	TSharedPtr<IDetailsView> IndividualControlBoolDetailsView;
 	TSharedPtr<IDetailsView> IndividualControlIntegerDetailsView;
 	TSharedPtr<IDetailsView> IndividualControlEnumDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlVector2DDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlVectorDetailsView;
 
 };
 

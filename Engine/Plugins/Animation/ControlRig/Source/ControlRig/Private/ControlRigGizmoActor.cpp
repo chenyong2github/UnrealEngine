@@ -14,6 +14,7 @@ AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectIni
 	, ControlRig(nullptr)
 	, ControlName(NAME_None)
 	, ShapeName(NAME_None)
+	, OverrideColor(0, 0, 0, 0)
 	, bEnabled(true)
 	, bSelected(false)
 	, bSelectable(true)
@@ -55,6 +56,10 @@ bool AControlRigShapeActor::IsEnabled() const
 
 void AControlRigShapeActor::SetSelected(bool bInSelected)
 {
+	if(!bSelectable && bInSelected)
+	{
+		return;
+	}
 	if(bSelected != bInSelected)
 	{
 		bSelected = bInSelected;
@@ -123,7 +128,7 @@ bool AControlRigShapeActor::UpdateControlSettings(
 	const FRigControlSettings& ControlSettings = InControlElement->Settings;
 	
 	// if this actor is not supposed to exist
-	if(!ControlSettings.bShapeEnabled)
+	if(!ControlSettings.SupportsShape())
 	{
 		return false;
 	}
@@ -179,13 +184,13 @@ bool AControlRigShapeActor::UpdateControlSettings(
 
 #if WITH_EDITOR
 	// update visibility
-	SetIsTemporarilyHiddenInEditor(!ControlSettings.bShapeVisible || bHideManipulators);
+	SetIsTemporarilyHiddenInEditor(!ControlSettings.IsVisible() || bHideManipulators);
 #endif
 	
 	// update selectability state
 	if (!bIsInLevelEditor) //don't change this in level editor otherwise we can never select it
 	{
-		SetSelectable(ControlSettings.bShapeVisible && !bHideManipulators && ControlSettings.bAnimatable);
+		SetSelectable(ControlSettings.IsSelectable() && !bHideManipulators);
 	}
 
 	return true;

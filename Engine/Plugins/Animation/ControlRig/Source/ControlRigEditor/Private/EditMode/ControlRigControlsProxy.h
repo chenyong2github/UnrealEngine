@@ -330,5 +330,6 @@ public:
 	void RecreateAllProxies(UControlRig* InControlRig);
 	void SelectProxy(UControlRig* InControlRig, const FName& Name, bool bSelected);
 	const TArray<UControlRigControlsProxy*>& GetSelectedProxies() const { return SelectedProxies;}
+	bool IsSelected(UControlRig* InControlRig, const FName& Name) const;
 
 };

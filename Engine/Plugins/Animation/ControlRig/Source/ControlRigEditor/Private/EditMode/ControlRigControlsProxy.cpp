@@ -108,7 +108,7 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SelectControl(ControlName, bSelected);
 			ControlRig->Evaluate_AnyThread();
 		}
@@ -145,7 +145,7 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			FTransform RealTransform = Transform; //Transform is FEulerTransform
 			ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
@@ -215,7 +215,7 @@ void UControlRigTransformNoScaleControlProxy::PostEditChangeProperty(struct FPro
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, Transform, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -278,7 +278,7 @@ void UControlRigEulerTransformControlProxy::PostEditChangeProperty(struct FPrope
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -345,7 +345,7 @@ void UControlRigFloatControlProxy::PostEditChangeProperty(struct FPropertyChange
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<float>(ControlName, Float, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -397,7 +397,7 @@ void UControlRigIntegerControlProxy::PostEditChangeProperty(struct FPropertyChan
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<int32>(ControlName, Integer, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 		}
@@ -447,7 +447,7 @@ void UControlRigEnumControlProxy::PostEditChangeProperty(struct FPropertyChanged
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<int32>(ControlName, Enum.EnumIndex, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -503,7 +503,7 @@ void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChang
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<FVector3f>(ControlName, Vector, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -603,7 +603,7 @@ void UControlRigVector2DControlProxy::PostEditChangeProperty(struct FPropertyCha
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<FVector3f>(ControlName, FVector3f(Vector2D.X, Vector2D.Y, 0.f), true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -667,7 +667,7 @@ void UControlRigBoolControlProxy::PostEditChangeProperty(struct FPropertyChanged
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
-			FControlRigInteractionScope InteractionScope(ControlRig.Get());
+			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
 			ControlRig->SetControlValue<bool>(ControlName, Bool, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 		}
@@ -753,11 +753,6 @@ void UControlRigDetailPanelControlProxies::AddProxy(UControlRig* ControlRig, con
 			case ERigControlType::Float:
 			{
 				Proxy = NewObject<UControlRigFloatControlProxy>(GetTransientPackage(), NAME_None);
-				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
-				if (ParentControlElement)
-				{
-					Proxy->bIsIndividual = true;
-				}
 				break;
 
 			}
@@ -772,11 +767,6 @@ void UControlRigDetailPanelControlProxies::AddProxy(UControlRig* ControlRig, con
 					UControlRigEnumControlProxy* EnumProxy = NewObject<UControlRigEnumControlProxy>(GetTransientPackage(), NAME_None);
 					EnumProxy->Enum.EnumType = ControlElement->Settings.ControlEnum;
 					Proxy = EnumProxy;
-				}
-				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
-				if (ParentControlElement)
-				{
-					Proxy->bIsIndividual = true;
 				}
 				break;
 
@@ -798,11 +788,6 @@ void UControlRigDetailPanelControlProxies::AddProxy(UControlRig* ControlRig, con
 			case ERigControlType::Bool:
 			{
 				Proxy = NewObject<UControlRigBoolControlProxy>(GetTransientPackage(), NAME_None);
-				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
-				if (ParentControlElement)
-				{
-					Proxy->bIsIndividual = true;
-				}
 				break;
 
 			}
@@ -811,6 +796,9 @@ void UControlRigDetailPanelControlProxies::AddProxy(UControlRig* ControlRig, con
 		}
 		if (Proxy)
 		{
+			Proxy->bIsIndividual =
+				(ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel) ||
+				(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl) ;
 			Proxy->SetFlags(RF_Transactional);
 			Proxy->SetName(Name);
 			Proxy->ControlRig = ControlRig;
@@ -893,7 +881,7 @@ void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* Contr
 	TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
 	for (FRigControlElement* ControlElement : Controls)
 	{
-		if(ControlElement->Settings.bShapeEnabled && ControlElement->Settings.bAnimatable)
+		if(ControlElement->Settings.AnimationType != ERigControlAnimationType::VisualCue)
 		{
 			AddProxy(ControlRig,ControlElement->GetName(), ControlElement);
 		}
@@ -932,5 +920,14 @@ void UControlRigDetailPanelControlProxies::SelectProxy(UControlRig* ControlRig,c
 		}
 		Proxy->SelectionChanged(bSelected);
 	}
+}
+
+bool UControlRigDetailPanelControlProxies::IsSelected(UControlRig* InControlRig, const FName& Name) const
+{
+	if (UControlRigControlsProxy* Proxy = FindProxy(InControlRig, Name))
+	{
+		return SelectedProxies.Contains(Proxy);
+	}
+	return false;
 }
 

@@ -286,71 +286,7 @@ TPair<const FSlateBrush*, FSlateColor> SMultiRigHierarchyItem::GetBrushForElemen
 	if (InData.Key.IsSet())
 	{
 		const FRigElementKey Key = InData.Key.GetValue();
-
-		switch (Key.Type)
-		{
-		case ERigElementType::Control:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
-			if (const FRigControlElement* Control = InHierarchy->Find<FRigControlElement>(InData.Key.GetValue()))
-			{
-				FLinearColor ShapeColor = Control->Settings.ShapeColor;
-				// ensure the alpha is always visible
-				ShapeColor.A = 1.f;
-				Color = FSlateColor(ShapeColor);
-			}
-			break;
-		}
-		case ERigElementType::Null:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Null");
-			break;
-		}
-		case ERigElementType::Bone:
-		{
-			ERigBoneType BoneType = ERigBoneType::User;
-
-			if (InHierarchy)
-			{
-				const FRigBoneElement* BoneElement = InHierarchy->Find<FRigBoneElement>(InData.Key.GetValue());
-				if (BoneElement)
-				{
-					BoneType = BoneElement->BoneType;
-				}
-			}
-
-			switch (BoneType)
-			{
-			case ERigBoneType::Imported:
-			{
-				Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneImported");
-				break;
-			}
-			case ERigBoneType::User:
-			default:
-			{
-				Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneUser");
-				break;
-			}
-			}
-
-			break;
-		}
-		case ERigElementType::RigidBody:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.RigidBody");
-			break;
-		}
-		case ERigElementType::Reference:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Socket");
-			break;
-		}
-		default:
-		{
-			break;
-		}
-		}
+		return SRigHierarchyItem::GetBrushForElementType(InHierarchy, Key);
 	}
 	else
 	{
@@ -547,7 +483,8 @@ bool SMultiRigHierarchyTreeView::AddElement(UControlRig* InControlRig, const FRi
 	}
 	case ERigElementType::Control:
 	{
-		if (!Settings.bShowControls)
+		const FRigControlElement* ControlElement = CastChecked<FRigControlElement>(InElement);
+		if (!Settings.bShowControls || ControlElement->Settings.AnimationType == ERigControlAnimationType::VisualCue)
 		{
 			return false;
 		}

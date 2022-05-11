@@ -196,7 +196,7 @@ void UAnimGraphNode_ControlRig::CreateCustomPins(TArray<UEdGraphPin*>* OldPins)
 			{
 				Hierarchy->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
 				{
-					if(ControlElement->Settings.bAnimatable)
+					if (Hierarchy->IsAnimatable(ControlElement))
 					{
 						const FName ControlName = ControlElement->GetName();
 						BeginExposableNames.Remove(ControlName);
@@ -366,7 +366,7 @@ void UAnimGraphNode_ControlRig::RebuildExposedProperties()
 			{
 				Hierarchy->ForEach<FRigControlElement>([&](const FRigControlElement* ControlElement) -> bool
 				{
-					if(ControlElement->Settings.bAnimatable)
+					if (Hierarchy->IsAnimatable(ControlElement))
 					{
 						const FName ControlName = ControlElement->GetName();
 						CustomPinProperties.Add(MakeOptionalPin(ControlName));
@@ -627,7 +627,7 @@ void UAnimGraphNode_ControlRig::GetAvailableMapping(const FName& PathName, TArra
 				{
 					Hierarchy->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
 					{
-						if(ControlElement->Settings.bAnimatable)
+						if (Hierarchy->IsAnimatable(ControlElement))
 						{
 							OutArray.Add(ControlElement->GetName());
 						}
@@ -701,7 +701,7 @@ void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredTex
 				{
 					Hierarchy->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
 					{
-						if(ControlElement->Settings.bAnimatable)
+						if (Hierarchy->IsAnimatable(ControlElement))
 						{
 							const FName ControlName = ControlElement->GetName();
 							const FString& DisplayName = ControlName.ToString();

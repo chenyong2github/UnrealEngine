@@ -223,6 +223,9 @@ private:
 	/** Guard to stop infinite loops when handling control selections*/
 	bool bIsDoingSelection;
 
+	/** A flag to determine if the next update coming from the timer should be skipped */
+	bool bSkipNextSelectionFromTimer;
+
 	/** Whether or not we should check Skeleton when filtering*/
 	bool bFilterAssetBySkeleton;
 

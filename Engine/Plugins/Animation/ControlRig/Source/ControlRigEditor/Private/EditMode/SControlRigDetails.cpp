@@ -237,85 +237,34 @@ void SControlRigDetails::Construct(const FArguments& InArgs, FControlRigEditMode
 	FDetailsViewArgs IndividualDetailsViewArgs = DetailsViewArgs;
 	IndividualDetailsViewArgs.bAllowMultipleTopLevelObjects = true; //this is the secret sauce to show multiple objects in a details view
 
-	ControlEulerTransformDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlEulerTransformDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlEulerTransformDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlEulerTransformDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlEulerTransformDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
+	auto CreateDetailsView = [this](FDetailsViewArgs InDetailsViewArgs) -> TSharedPtr<IDetailsView>
+	{
+		TSharedPtr<IDetailsView> DetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(InDetailsViewArgs);
+		DetailsView->SetKeyframeHandler(SharedThis(this));
+		DetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
+		DetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
+		DetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
+		return DetailsView;
+	};
 
-	ControlTransformDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlTransformDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlTransformDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlTransformDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlTransformDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	ControlTransformNoScaleDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlTransformNoScaleDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlTransformNoScaleDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlTransformNoScaleDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlTransformNoScaleDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	ControlFloatDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlFloatDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlFloatDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlFloatDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlFloatDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	IndividualControlFloatDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(IndividualDetailsViewArgs);
-	IndividualControlFloatDetailsView->SetKeyframeHandler(SharedThis(this));
-	IndividualControlFloatDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	IndividualControlFloatDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	IndividualControlFloatDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	ControlEnumDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlEnumDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlEnumDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlEnumDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlEnumDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	IndividualControlEnumDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(IndividualDetailsViewArgs);
-	IndividualControlEnumDetailsView->SetKeyframeHandler(SharedThis(this));
-	IndividualControlEnumDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	IndividualControlEnumDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	IndividualControlEnumDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	ControlIntegerDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlIntegerDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlIntegerDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlIntegerDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlIntegerDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	IndividualControlIntegerDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(IndividualDetailsViewArgs);
-	IndividualControlIntegerDetailsView->SetKeyframeHandler(SharedThis(this));
-	IndividualControlIntegerDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	IndividualControlIntegerDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	IndividualControlIntegerDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-
-	ControlBoolDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlBoolDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlBoolDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlBoolDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlBoolDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	IndividualControlBoolDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(IndividualDetailsViewArgs);
-	IndividualControlBoolDetailsView->SetKeyframeHandler(SharedThis(this));
-	IndividualControlBoolDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	IndividualControlBoolDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	IndividualControlBoolDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-
-	ControlVectorDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlVectorDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlVectorDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlVectorDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlVectorDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
-	ControlVector2DDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	ControlVector2DDetailsView->SetKeyframeHandler(SharedThis(this));
-	ControlVector2DDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigDetails::ShouldShowPropertyOnDetailCustomization));
-	ControlVector2DDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigDetails::IsReadOnlyPropertyOnDetailCustomization));
-	ControlVector2DDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
+	ControlEulerTransformDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlEulerTransformDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlTransformDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlTransformDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlTransformNoScaleDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlTransformNoScaleDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlFloatDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlFloatDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlEnumDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlEnumDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlIntegerDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlIntegerDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlBoolDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlBoolDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlVectorDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlVectorDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
+	ControlVector2DDetailsView = CreateDetailsView(DetailsViewArgs);
+	IndividualControlVector2DDetailsView = CreateDetailsView(IndividualDetailsViewArgs);
 
 	ChildSlot
 		[
@@ -370,6 +319,22 @@ void SControlRigDetails::Construct(const FArguments& InArgs, FControlRigEditMode
 				[
 					ControlFloatDetailsView.ToSharedRef()
 				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					IndividualControlEulerTransformDetailsView.ToSharedRef()
+				]
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					IndividualControlTransformDetailsView.ToSharedRef()
+				]
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					IndividualControlTransformNoScaleDetailsView.ToSharedRef()
+				]
 			+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
@@ -388,9 +353,18 @@ void SControlRigDetails::Construct(const FArguments& InArgs, FControlRigEditMode
 			+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
+					IndividualControlVectorDetailsView.ToSharedRef()
+				]
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					IndividualControlVector2DDetailsView.ToSharedRef()
+				]
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
 					IndividualControlFloatDetailsView.ToSharedRef()
 				]
-
 			]
 		];
 
@@ -422,7 +396,12 @@ void SControlRigDetails::UpdateProxies()
 		TArray<TWeakObjectPtr<>> Bools;
 		TArray<TWeakObjectPtr<>> Integers;
 		TArray<TWeakObjectPtr<>> Enums;
+		TArray<TWeakObjectPtr<>> IndividualEulers;
+		TArray<TWeakObjectPtr<>> IndividualTransforms;
+		TArray<TWeakObjectPtr<>> IndividualTransformNoScales;
 		TArray<TWeakObjectPtr<>> IndividualFloats;
+		TArray<TWeakObjectPtr<>> IndividualVectors;
+		TArray<TWeakObjectPtr<>> IndividualVector2Ds;
 		TArray<TWeakObjectPtr<>> IndividualBools;
 		TArray<TWeakObjectPtr<>> IndividualIntegers;
 		TArray<TWeakObjectPtr<>> IndividualEnums;
@@ -437,15 +416,36 @@ void SControlRigDetails::UpdateProxies()
 				{
 					if (Proxy->GetClass() == UControlRigTransformControlProxy::StaticClass())
 					{
-						Transforms.Add(Proxy);
+						if (Proxy->bIsIndividual)
+						{
+							IndividualTransforms.Add(Proxy);
+						}
+						else
+						{
+							Transforms.Add(Proxy);
+						}
 					}
 					else if (Proxy->GetClass() == UControlRigTransformNoScaleControlProxy::StaticClass())
 					{
-						TransformNoScales.Add(Proxy);
+						if (Proxy->bIsIndividual)
+						{
+							IndividualTransformNoScales.Add(Proxy);
+						}
+						else
+						{
+							TransformNoScales.Add(Proxy);
+						}
 					}
 					else if (Proxy->GetClass() == UControlRigEulerTransformControlProxy::StaticClass())
 					{
-						Eulers.Add(Proxy);
+						if (Proxy->bIsIndividual)
+						{
+							IndividualEulers.Add(Proxy);
+						}
+						else
+						{
+							Eulers.Add(Proxy);
+						}
 					}
 					else if (Proxy->GetClass() == UControlRigFloatControlProxy::StaticClass())
 					{
@@ -460,11 +460,25 @@ void SControlRigDetails::UpdateProxies()
 					}
 					else if (Proxy->GetClass() == UControlRigVectorControlProxy::StaticClass())
 					{
-						Vectors.Add(Proxy);
+						if (Proxy->bIsIndividual)
+						{
+							IndividualVectors.Add(Proxy);
+						}
+						else
+						{
+							Vectors.Add(Proxy);
+						}
 					}
 					else if (Proxy->GetClass() == UControlRigVector2DControlProxy::StaticClass())
 					{
-						Vector2Ds.Add(Proxy);
+						if (Proxy->bIsIndividual)
+						{
+							IndividualVector2Ds.Add(Proxy);
+						}
+						else
+						{
+							Vector2Ds.Add(Proxy);
+						}
 					}
 					else if (Proxy->GetClass() == UControlRigBoolControlProxy::StaticClass())
 					{
@@ -519,128 +533,136 @@ void SControlRigDetails::UpdateProxies()
 			}
 		}
 
-		SetTransformDetailsObjects(Transforms);
-		SetTransformNoScaleDetailsObjects(TransformNoScales);
-		SetEulerTransformDetailsObjects(Eulers);
-		SetVectorDetailsObjects(Vectors);
-		SetVector2DDetailsObjects(Vector2Ds);
+		SetTransformDetailsObjects(Transforms, false);
+		SetTransformNoScaleDetailsObjects(TransformNoScales, false);
+		SetEulerTransformDetailsObjects(Eulers, false);
+		SetVectorDetailsObjects(Vectors, false);
+		SetVector2DDetailsObjects(Vector2Ds, false);
 		SetFloatDetailsObjects(Floats, false);
 		SetBoolDetailsObjects(Bools,false);
 		SetIntegerDetailsObjects(Integers,false);
 		SetEnumDetailsObjects(Enums,false);
+		SetTransformDetailsObjects(IndividualTransforms, true);
+		SetTransformNoScaleDetailsObjects(IndividualTransformNoScales, true);
+		SetEulerTransformDetailsObjects(IndividualEulers, true);
+		SetVectorDetailsObjects(IndividualVectors, true);
+		SetVector2DDetailsObjects(IndividualVector2Ds, true);
 		SetFloatDetailsObjects(IndividualFloats, true);
-		SetBoolDetailsObjects(IndividualBools, true);
-		SetIntegerDetailsObjects(IndividualIntegers, true);
-		SetEnumDetailsObjects(IndividualEnums, true);
+		SetBoolDetailsObjects(IndividualBools,true);
+		SetIntegerDetailsObjects(IndividualIntegers,true);
+		SetEnumDetailsObjects(IndividualEnums,true);
 	});
 }
 
-void SControlRigDetails::SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
+void SControlRigDetails::SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (ControlEulerTransformDetailsView)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlEulerTransformDetailsView : ControlEulerTransformDetailsView; 
+	if (DetailsView)
 	{
-		ControlEulerTransformDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 };
 
-void SControlRigDetails::SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
+void SControlRigDetails::SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (ControlTransformDetailsView)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlTransformDetailsView : ControlTransformDetailsView; 
+	if (DetailsView)
 	{
-		ControlTransformDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
 
-void SControlRigDetails::SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
+void SControlRigDetails::SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (ControlTransformNoScaleDetailsView)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlTransformNoScaleDetailsView : ControlTransformNoScaleDetailsView; 
+	if (DetailsView)
 	{
-		ControlTransformNoScaleDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
 
 void SControlRigDetails::SetFloatDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (bIsIndividual)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlFloatDetailsView : ControlFloatDetailsView; 
+	if (DetailsView)
 	{
-		if (IndividualControlFloatDetailsView)
-		{
-			IndividualControlFloatDetailsView->SetObjects(InObjects);
-		}
-	}
-	else if (ControlFloatDetailsView)
-	{
-		ControlFloatDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
 
 void SControlRigDetails::SetBoolDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (bIsIndividual)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlBoolDetailsView : ControlBoolDetailsView; 
+	if (DetailsView)
 	{
-		if (IndividualControlBoolDetailsView)
-		{
-			IndividualControlBoolDetailsView->SetObjects(InObjects);
-		}
-	}
-	else if (ControlBoolDetailsView)
-	{
-		ControlBoolDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
 
 void SControlRigDetails::SetIntegerDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-
-	if (bIsIndividual)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlIntegerDetailsView : ControlIntegerDetailsView; 
+	if (DetailsView)
 	{
-		if (IndividualControlIntegerDetailsView)
-		{
-			IndividualControlIntegerDetailsView->SetObjects(InObjects);
-		}
-	}
-	else if (ControlIntegerDetailsView)
-	{
-		ControlIntegerDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
+
 void SControlRigDetails::SetEnumDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (bIsIndividual)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlEnumDetailsView : ControlEnumDetailsView; 
+	if (DetailsView)
 	{
-		if (IndividualControlEnumDetailsView)
-		{
-			IndividualControlEnumDetailsView->SetObjects(InObjects);
-		}
-	}
-	else if (ControlEnumDetailsView)
-	{
-		ControlEnumDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
 
-void SControlRigDetails::SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
+void SControlRigDetails::SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (ControlVectorDetailsView)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlVectorDetailsView : ControlVectorDetailsView; 
+	if (DetailsView)
 	{
-		ControlVectorDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
 
-void SControlRigDetails::SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
+void SControlRigDetails::SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual)
 {
-	if (ControlVector2DDetailsView)
+	TSharedPtr<IDetailsView>& DetailsView = bIsIndividual ? IndividualControlVector2DDetailsView : ControlVector2DDetailsView; 
+	if (DetailsView)
 	{
-		ControlVector2DDetailsView->SetObjects(InObjects);
+		DetailsView->SetObjects(InObjects);
 	}
 }
+
 bool SControlRigDetails::IsPropertyKeyable(const UClass* InObjectClass, const IPropertyHandle& InPropertyHandle) const
 {
+	TArray<UObject*> OuterObjects;
+	InPropertyHandle.GetOuterObjects(OuterObjects);
+	if(OuterObjects.Num() == 1)
+	{
+		if (UControlRigControlsProxy* Proxy = Cast< UControlRigControlsProxy>(OuterObjects[0]))
+		{
+			if(UControlRig* ControlRig = Proxy->ControlRig.Get())
+			{
+				const FRigElementKey Key = FRigElementKey(Proxy->ControlName, ERigElementType::Control);
+				if(const FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(Key))
+				{
+					if(!ControlRig->GetHierarchy()->IsAnimatable(ControlElement))
+					{
+						return false;
+					}
+				}
+			}
+		}
+	}
+	
 	if (InObjectClass && InObjectClass->IsChildOf(UControlRigTransformNoScaleControlProxy::StaticClass()) && InObjectClass->IsChildOf(UControlRigEulerTransformControlProxy::StaticClass()) && InPropertyHandle.GetProperty()
 		&& InPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformControlProxy, Transform))
 	{
 		return true;
 	}
+
 	FCanKeyPropertyParams CanKeyPropertyParams(InObjectClass, InPropertyHandle);
 	ISequencer* Sequencer = GetSequencer();
 	if (Sequencer && Sequencer->CanKeyProperty(CanKeyPropertyParams))

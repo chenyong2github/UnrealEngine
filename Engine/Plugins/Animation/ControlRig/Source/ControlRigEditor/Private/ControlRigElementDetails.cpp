@@ -737,7 +737,45 @@ bool FRigBaseElementDetails::IsAnyElementNotOfType(ERigElementType InType) const
 	return false;
 }
 
-bool FRigBaseElementDetails::IsAnyControlOfType(ERigControlType InType) const
+bool FRigBaseElementDetails::IsAnyControlOfAnimationType(ERigControlAnimationType InType) const
+{
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	{
+		if(ObjectBeingCustomized.IsValid())
+		{
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
+			{
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(ControlElement.Settings.AnimationType == InType)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool FRigBaseElementDetails::IsAnyControlNotOfAnimationType(ERigControlAnimationType InType) const
+{
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	{
+		if(ObjectBeingCustomized.IsValid())
+		{
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
+			{
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(ControlElement.Settings.AnimationType != InType)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool FRigBaseElementDetails::IsAnyControlOfValueType(ERigControlType InType) const
 {
 	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
@@ -756,7 +794,7 @@ bool FRigBaseElementDetails::IsAnyControlOfType(ERigControlType InType) const
 	return false;
 }
 
-bool FRigBaseElementDetails::IsAnyControlNotOfType(ERigControlType InType) const
+bool FRigBaseElementDetails::IsAnyControlNotOfValueType(ERigControlType InType) const
 {
 	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
@@ -816,7 +854,7 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 
 	TArray<FRigElementKey> Keys = GetElementKeys();
 	Keys = HierarchyBeingDebugged->SortKeys(Keys);
-	const bool bAllControls = !IsAnyElementNotOfType(ERigElementType::Control) && !IsAnyControlOfType(ERigControlType::Bool);
+	const bool bAllControls = !IsAnyElementNotOfType(ERigElementType::Control) && !IsAnyControlOfValueType(ERigControlType::Bool);
 	bool bShowLimits = false;
 	TArray<ERigTransformElementDetailsTransform::Type> TransformTypes;
 	TArray<FText> ButtonLabels;
@@ -840,7 +878,7 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 			LOCTEXT("OffsetTooltip", "Offset transform under the control")
 		};
 
-		bShowLimits = !IsAnyControlNotOfType(ERigControlType::EulerTransform);
+		bShowLimits = !IsAnyControlNotOfValueType(ERigControlType::EulerTransform);
 
 		if(bShowLimits)
 		{
@@ -884,8 +922,8 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 		bool bIsTransformEnabled = true;
 		if (IsAnyElementOfType(ERigElementType::Control))
 		{
-			bIsTransformEnabled = IsAnyControlOfType(ERigControlType::EulerTransform) ||
-				IsAnyControlOfType(ERigControlType::Transform) ||
+			bIsTransformEnabled = IsAnyControlOfValueType(ERigControlType::EulerTransform) ||
+				IsAnyControlOfValueType(ERigControlType::Transform) ||
 				CurrentTransformType == ERigTransformElementDetailsTransform::Offset;
 
 			if(!bIsTransformEnabled)
@@ -2015,8 +2053,6 @@ void FRigBoneElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	CustomizeTransform(DetailBuilder);
 }
 
-TArray<TSharedPtr<FString>> FRigControlElementDetails::ControlTypeList;
-
 void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
@@ -2272,16 +2308,83 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 		.IsEnabled(ObjectsBeingCustomized.Num() == 1)
 	];
 
-	if (ControlTypeList.Num() == 0)
-	{
-		UEnum* Enum = StaticEnum<ERigControlType>();
-		for (int64 Index = 0; Index < Enum->GetMaxEnumValue(); Index++)
-		{
-			ControlTypeList.Add(MakeShared<FString>(Enum->GetDisplayNameTextByValue(Index).ToString()));
-		}
-	}
-
 	const TSharedRef<IPropertyUtilities> PropertyUtilities = DetailBuilder.GetPropertyUtilities();
+
+	// when control type changes, we have to refresh detail panel
+	const TSharedPtr<IPropertyHandle> AnimationTypeHandle = SettingsHandle->GetChildHandle(TEXT("AnimationType"));
+	AnimationTypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
+		[this, PropertyUtilities]()
+		{
+			TArray<FRigControlElement> ControlElementsInView = GetElementsInDetailsView<FRigControlElement>();
+			TArray<FRigControlElement*> ControlElementsInHierarchy = GetElementsInHierarchy<FRigControlElement>();
+			check(ControlElementsInView.Num() == ControlElementsInHierarchy.Num());
+
+			if (this->HierarchyBeingCustomized && ControlElementsInHierarchy.Num() > 0)
+			{
+				this->HierarchyBeingCustomized->Modify();
+				
+				for(int32 ControlIndex = 0; ControlIndex< ControlElementsInView.Num(); ControlIndex++)
+				{
+					const FRigControlElement& ViewElement = ControlElementsInView[ControlIndex];
+					FRigControlElement* ControlElement = ControlElementsInHierarchy[ControlIndex];
+					
+					ControlElement->Settings.AnimationType = ViewElement.Settings.AnimationType;
+
+					ControlElement->Settings.bGroupWithParentControl =
+						ControlElement->Settings.ControlType == ERigControlType::Bool ||
+						ControlElement->Settings.ControlType == ERigControlType::Float ||
+						ControlElement->Settings.ControlType == ERigControlType::Integer ||
+						ControlElement->Settings.ControlType == ERigControlType::Vector2D;
+
+					switch(ControlElement->Settings.AnimationType)
+					{
+						case ERigControlAnimationType::AnimationControl:
+						{
+							ControlElement->Settings.ShapeVisibility = ERigControlVisibility::UserDefined;
+							ControlElement->Settings.bShapeVisible = true;
+							break;
+						}
+						case ERigControlAnimationType::AnimationChannel:
+						{
+							ControlElement->Settings.ShapeVisibility = ERigControlVisibility::UserDefined;
+							ControlElement->Settings.bShapeVisible = false;
+							break;
+						}
+						case ERigControlAnimationType::ProxyControl:
+						{
+							ControlElement->Settings.ShapeVisibility = ERigControlVisibility::BasedOnSelection;
+							ControlElement->Settings.bShapeVisible = true;
+							ControlElement->Settings.bGroupWithParentControl = false;
+							break;
+						}
+						default:
+						{
+							ControlElement->Settings.ShapeVisibility = ERigControlVisibility::UserDefined;
+							ControlElement->Settings.bShapeVisible = true;
+							ControlElement->Settings.bGroupWithParentControl = false;
+							break;
+						}
+					}
+
+					this->HierarchyBeingCustomized->SetControlSettings(ControlElement, ControlElement->Settings, true, true, true);
+					ObjectsBeingCustomized[ControlIndex]->SetContent<FRigControlElement>(*ControlElement);
+
+					if (this->HierarchyBeingCustomized != this->BlueprintBeingCustomized->Hierarchy)
+					{
+						if(FRigControlElement* OtherControlElement = this->BlueprintBeingCustomized->Hierarchy->Find<FRigControlElement>(ControlElement->GetKey()))
+						{
+							OtherControlElement->Settings = ControlElement->Settings;
+							this->BlueprintBeingCustomized->Hierarchy->SetControlSettings(OtherControlElement, OtherControlElement->Settings, true, true, true);
+						}
+					}
+				}
+				
+				PropertyUtilities->ForceRefresh();
+			}
+		}
+	));
+
+	ControlCategory.AddProperty(AnimationTypeHandle.ToSharedRef());
 
 	// when control type changes, we have to refresh detail panel
 	const TSharedPtr<IPropertyHandle> ControlTypeHandle = SettingsHandle->GetChildHandle(TEXT("ControlType"));
@@ -2305,12 +2408,15 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 
 					ControlElement->Settings.ControlType = ViewElement.Settings.ControlType;
 					ControlElement->Settings.LimitEnabled.Reset();
+					ControlElement->Settings.bGroupWithParentControl = false;
 
 					switch (ControlElement->Settings.ControlType)
 					{
 						case ERigControlType::Bool:
 						{
+							ControlElement->Settings.AnimationType = ERigControlAnimationType::AnimationChannel;
 							ValueToSet = FRigControlValue::Make<bool>(false);
+							ControlElement->Settings.bGroupWithParentControl = ControlElement->Settings.IsAnimatable();
 							break;
 						}
 						case ERigControlType::Float:
@@ -2319,6 +2425,7 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 							ControlElement->Settings.SetupLimitArrayForType(true);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<float>(0.f);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<float>(100.f);
+							ControlElement->Settings.bGroupWithParentControl = ControlElement->Settings.IsAnimatable();
 							break;
 						}
 						case ERigControlType::Integer:
@@ -2327,6 +2434,7 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 							ControlElement->Settings.SetupLimitArrayForType(true);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<int32>(0);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<int32>(100);
+							ControlElement->Settings.bGroupWithParentControl = ControlElement->Settings.IsAnimatable();
 							break;
 						}
 						case ERigControlType::Vector2D:
@@ -2335,6 +2443,7 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 							ControlElement->Settings.SetupLimitArrayForType(true);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<FVector2D>(FVector2D::ZeroVector);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<FVector2D>(FVector2D(100.f, 100.f));
+							ControlElement->Settings.bGroupWithParentControl = ControlElement->Settings.IsAnimatable();
 							break;
 						}
 						case ERigControlType::Position:
@@ -2419,15 +2528,26 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 
 	ControlCategory.AddProperty(ControlTypeHandle.ToSharedRef());
 
-	if(!(IsAnyControlNotOfType(ERigControlType::Integer) &&
-		IsAnyControlNotOfType(ERigControlType::Float) &&
-		IsAnyControlNotOfType(ERigControlType::Vector2D)))
+	const bool bSupportsShape = !IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationChannel) &&
+		!IsAnyControlOfAnimationType(ERigControlAnimationType::VisualCue);
+
+	if(IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationControl) ||
+	IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationChannel))
+	{
+		const TSharedPtr<IPropertyHandle> GroupWithParentControlHandle = SettingsHandle->GetChildHandle(TEXT("bGroupWithParentControl"));
+		ControlCategory.AddProperty(GroupWithParentControlHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Group Channels")));
+	}
+	
+	if(bSupportsShape &&
+		!(IsAnyControlNotOfValueType(ERigControlType::Integer) &&
+		IsAnyControlNotOfValueType(ERigControlType::Float) &&
+		IsAnyControlNotOfValueType(ERigControlType::Vector2D)))
 	{
 		const TSharedPtr<IPropertyHandle> PrimaryAxisHandle = SettingsHandle->GetChildHandle(TEXT("PrimaryAxis"));
 		ControlCategory.AddProperty(PrimaryAxisHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Primary Axis")));
 	}
 
-	if(IsAnyControlOfType(ERigControlType::Integer))
+	if(IsAnyControlOfValueType(ERigControlType::Integer))
 	{
 		const TSharedPtr<IPropertyHandle> ControlEnumHandle = SettingsHandle->GetChildHandle(TEXT("ControlEnum"));
 		ControlCategory.AddProperty(ControlEnumHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Control Enum")));
@@ -2485,41 +2605,60 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 		
 	}
 
-	ControlCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bAnimatable")).ToSharedRef());
-
 	const TSharedPtr<IPropertyHandle> CustomizationHandle = SettingsHandle->GetChildHandle(TEXT("Customization"));
-	const TSharedPtr<IPropertyHandle> AvailableSpacesHandle = CustomizationHandle->GetChildHandle(TEXT("AvailableSpaces"));
-	ControlCategory.AddProperty(AvailableSpacesHandle.ToSharedRef());
+
+	if(bSupportsShape)
+	{
+		const TSharedPtr<IPropertyHandle> AvailableSpacesHandle = CustomizationHandle->GetChildHandle(TEXT("AvailableSpaces"));
+		ControlCategory.AddProperty(AvailableSpacesHandle.ToSharedRef());
+	}
 
 	TArray<FRigElementKey> Keys = GetElementKeys();
 	URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
 
-	const TSharedPtr<IPropertyHandle> DrawLimitsHandle = SettingsHandle->GetChildHandle(TEXT("bDrawLimits"));
-	
-	ControlCategory
-	.AddProperty(DrawLimitsHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Draw Limits")))
-	.IsEnabled(TAttribute<bool>::CreateLambda([Keys, HierarchyBeingDebugged]() -> bool
+	if(bSupportsShape)
 	{
-		for(const FRigElementKey& Key : Keys)
+		const TSharedPtr<IPropertyHandle> DrawLimitsHandle = SettingsHandle->GetChildHandle(TEXT("bDrawLimits"));
+		
+		ControlCategory
+		.AddProperty(DrawLimitsHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Draw Limits")))
+		.IsEnabled(TAttribute<bool>::CreateLambda([Keys, HierarchyBeingDebugged]() -> bool
 		{
-			if(const FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+			for(const FRigElementKey& Key : Keys)
 			{
-				if(ControlElement->Settings.LimitEnabled.Contains(FRigControlLimitEnabled(true, true)))
+				if(const FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
 				{
-					return true;
+					if(ControlElement->Settings.LimitEnabled.Contains(FRigControlLimitEnabled(true, true)))
+					{
+						return true;
+					}
 				}
 			}
-		}
-		return false;
-	}));
+			return false;
+		}));
+	}
+	
+	if(!IsAnyControlNotOfAnimationType(ERigControlAnimationType::ProxyControl))
+	{
+		ControlCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("DrivenControls")).ToSharedRef());
+	}
 }
 
 void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuilder)
 {
-	// bools don't have shapes
-	if(IsAnyControlOfType(ERigControlType::Bool))
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		return;
+		if(ObjectBeingCustomized.IsValid())
+		{
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
+			{
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(!ControlElement.Settings.SupportsShape())
+				{
+					return;
+				}
+			}
+		}
 	}
 
 	TSharedPtr<IPropertyHandle> ShapeHandle = DetailBuilder.GetProperty(TEXT("Shape"));
@@ -2553,8 +2692,12 @@ void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuild
 
 	const TSharedPtr<IPropertyHandle> SettingsHandle = DetailBuilder.GetProperty(TEXT("Settings"));
 
-	ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeEnabled")).ToSharedRef())
-	.DisplayName(FText::FromString(TEXT("Enabled")));
+	if(!IsAnyControlNotOfAnimationType(ERigControlAnimationType::ProxyControl))
+	{
+		ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("ShapeVisibility")).ToSharedRef())
+		.DisplayName(FText::FromString(TEXT("Visibility Mode")));
+	}
+
 	ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeVisible")).ToSharedRef())
 	.DisplayName(FText::FromString(TEXT("Visible")));
 
@@ -2981,10 +3124,7 @@ bool FRigControlElementDetails::IsShapeEnabled() const
 			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
 				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
-				if(ControlElement.Settings.bShapeEnabled)
-				{
-					return true;
-				}
+				return ControlElement.Settings.SupportsShape();
 			}
 		}
 	}
@@ -2994,11 +3134,6 @@ bool FRigControlElementDetails::IsShapeEnabled() const
 const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetShapeNameList() const
 {
 	return ShapeNameList;
-}
-
-const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetControlTypeList() const
-{
-	return ControlTypeList;
 }
 
 FText FRigControlElementDetails::GetDisplayName() const
