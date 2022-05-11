@@ -642,7 +642,7 @@ private:
 		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateBegin{});
 		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateEnd{});
 		int8 bInitialized = 0;
-		bool bDispatchAfterExecute = false;
+		ERHIPipeline DispatchAfterExecutePipelines = ERHIPipeline::None;
 	};
 
 	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;
@@ -670,7 +670,6 @@ private:
 
 	IF_RDG_ENABLE_TRACE(FRDGTrace Trace);
 
-	bool bDispatchHint = false;
 	bool bFlushResourcesRHI = false;
 	bool bParallelExecuteEnabled = false;
 

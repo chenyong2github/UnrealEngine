@@ -356,7 +356,10 @@ inline void FRDGBuilder::SetCommandListStat(TStatId StatId)
 
 inline void FRDGBuilder::AddDispatchHint()
 {
-	bDispatchHint = true;
+	if (Passes.Num() > 0)
+	{
+		Passes[Passes.Last()]->bDispatchAfterExecute = 1;
+	}
 }
 
 inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const

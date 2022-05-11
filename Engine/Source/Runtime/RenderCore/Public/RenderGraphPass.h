@@ -381,7 +381,7 @@ protected:
 			/** Whether this pass does not contain parameters. */
 			uint32 bEmptyParameters : 1;
 
-			/** If set, dispatches to the RHI thread before executing this pass. */
+			/** If set, dispatches to the RHI thread after executing this pass. */
 			uint32 bDispatchAfterExecute : 1;
 
 			/** If set, the pass should set its command list stat. */
