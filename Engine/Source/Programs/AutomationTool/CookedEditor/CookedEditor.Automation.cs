@@ -499,6 +499,13 @@ public class MakeCookedEditor : BuildCommand
 			}
 		}
 
+		// if a subclass or -makerelease didn't set ReleaseOptionalFileStageDirectory, then look in the Params for the commandline option
+		if (ReleaseOptionalFileStageDirectory == null && !string.IsNullOrEmpty(Params.OptionalStageDirectory) &&
+			File.Exists(Params.OptionalStageDirectory))
+		{
+			ReleaseOptionalFileStageDirectory = new DirectoryReference(Params.OptionalStageDirectory);
+		}
+
 		if (ReleaseOptionalFileStageDirectory != null)
 		{
 			// these files were already staged by the client/release build, so we stage them as NonUFS
