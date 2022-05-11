@@ -35,6 +35,10 @@ struct SYNTHESIS_API FSourceEffectSimpleDelaySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset")
 	uint32 bDelayBasedOnDistance : 1;
 
+	// Whether or not to allow the attenuation distance override value vs the distance to listener to be used for distance-based delay.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset")
+	uint32 bUseDistanceOverride : 1;
+	
 	FSourceEffectSimpleDelaySettings()
 		: SpeedOfSound(343.0f)
 		, DelayAmount(0.0f)
@@ -42,6 +46,7 @@ struct SYNTHESIS_API FSourceEffectSimpleDelaySettings
 		, WetAmount(1.0f)
 		, Feedback(0.0f)
 		, bDelayBasedOnDistance(true)
+		, bUseDistanceOverride(true)
 	{}
 };
 

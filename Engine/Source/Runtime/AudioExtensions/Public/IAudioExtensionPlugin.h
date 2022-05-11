@@ -91,6 +91,9 @@ struct FSpatializationParams
 	/** The distance between listener and emitter. */
 	float Distance;
 
+	/** The distance used to compute attenuation. Maybe different from the distance between listener and emitter if it's overridden. */
+	float AttenuationDistance;
+
 	/** The normalized omni radius, or the radius that will blend a sound to non-3d */
 	float NormalizedOmniRadius;
 
@@ -107,6 +110,7 @@ struct FSpatializationParams
 		, LeftChannelPosition(FVector::ZeroVector)
 		, RightChannelPosition(FVector::ZeroVector)
 		, Distance(0.0f)
+		, AttenuationDistance(0.0f)
 		, NormalizedOmniRadius(0.0f)
 		, AudioClock(0.0)
 	{}

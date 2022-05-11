@@ -37,7 +37,10 @@ void FSourceEffectSimpleDelay::ProcessAudio(const FSoundEffectSourceInputData& I
 {
 	if (SettingsCopy.bDelayBasedOnDistance)
 	{
-		const float DistanceMeters = InData.SpatParams.Distance * 0.01f;
+		const float DistanceMeters = SettingsCopy.bUseDistanceOverride ?
+			InData.SpatParams.AttenuationDistance * 0.1f
+			: InData.SpatParams.Distance * 0.01f;
+
 		const float DelayAmountMsec = 1000.0f * DistanceMeters / SettingsCopy.SpeedOfSound;
 
 		for (Audio::FDelay& Delay : Delays)

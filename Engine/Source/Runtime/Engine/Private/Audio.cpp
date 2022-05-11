@@ -538,6 +538,9 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 	{
 		FVector EmitterPosition = AudioDevice->GetListenerTransformedDirection(WaveInstance->Location, &Params.Distance);
 
+		// Independently retrieve the attenuation used for distance in case it was overridden
+		Params.AttenuationDistance = AudioDevice->GetDistanceToNearestListener(WaveInstance->Location);
+		
 		// If we are using the OmniRadius feature
 		if (WaveInstance->OmniRadius > 0.0f)
 		{
