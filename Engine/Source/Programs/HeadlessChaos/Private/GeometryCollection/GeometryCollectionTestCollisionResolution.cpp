@@ -141,14 +141,14 @@ namespace GeometryCollectionTest
 		// Hard code masstolocal on rest collection to identity
 		{
 			TManagedArray<FTransform>& MassToLocal =
-				SimplicialSphereCollection->RestCollection->template GetAttribute<FTransform>(
+				SimplicialSphereCollection->RestCollection->template ModifyAttribute<FTransform>(
 					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}
 		{
 			TManagedArray<FTransform>& MassToLocal =
-				ImplicitSphereCollection->RestCollection->template GetAttribute<FTransform>(
+				ImplicitSphereCollection->RestCollection->template ModifyAttribute<FTransform>(
 					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
@@ -367,12 +367,12 @@ namespace GeometryCollectionTest
 
 		// Hard code masstolocal on rest collection to identity
 		{
-			TManagedArray<FTransform>& MassToLocal = SimplicialSphereCollection->RestCollection->template GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
+			TManagedArray<FTransform>& MassToLocal = SimplicialSphereCollection->RestCollection->template ModifyAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}
 		{
-			TManagedArray<FTransform>& MassToLocal =ImplicitSphereCollection->RestCollection->template GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
+			TManagedArray<FTransform>& MassToLocal =ImplicitSphereCollection->RestCollection->template ModifyAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}

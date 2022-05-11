@@ -119,8 +119,8 @@ GTEST_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	//
 	TArray<FTransform> RestTransforms;
 	int32 NumVertices = Collection->DynamicCollection->NumElements(FGeometryCollection::VerticesGroup);
-	TManagedArray<FVector3f>& Vertices = Collection->RestCollection->template GetAttribute<FVector3f>("Vertex",FGeometryCollection::VerticesGroup);
-	TManagedArray<int32>& BoneMap = Collection->RestCollection->template GetAttribute<int32>("BoneMap",FGeometryCollection::VerticesGroup);
+	const TManagedArray<FVector3f>& Vertices = Collection->RestCollection->template GetAttribute<FVector3f>("Vertex",FGeometryCollection::VerticesGroup);
+	const TManagedArray<int32>& BoneMap = Collection->RestCollection->template GetAttribute<int32>("BoneMap",FGeometryCollection::VerticesGroup);
 	GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform,Collection->RestCollection->Parent,RestTransforms);
 	FVector CenterOfMass(0);  
 	for (int VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
@@ -138,7 +138,7 @@ GTEST_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	UnitTest.Advance();
 
 	{ // test results
-		TManagedArray<FTransform>& MassToLocal = Collection->RestCollection->template GetAttribute<FTransform>("MassToLocal",FGeometryCollection::TransformGroup);
+		const TManagedArray<FTransform>& MassToLocal = Collection->RestCollection->template GetAttribute<FTransform>("MassToLocal",FGeometryCollection::TransformGroup);
 
 
 		EXPECT_EQ(UnitTest.Solver->GetParticles().GetGeometryCollectionParticles().Size(), 1);

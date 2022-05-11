@@ -186,7 +186,7 @@ void GeometryCollection::AttributeTransfer(const FGeometryCollection * FromColle
 {
 	// #todo(dmp): later on we will support different attribute groups for transfer		
 	const TManagedArray<T> &FromAttribute = FromCollection->GetAttribute<T>(FromAttributeName, FGeometryCollection::VerticesGroup);
-	TManagedArray<T> &ToAttribute = ToCollection->GetAttribute<T>(ToAttributeName, FGeometryCollection::VerticesGroup);
+	TManagedArray<T> &ToAttribute = ToCollection->ModifyAttribute<T>(ToAttributeName, FGeometryCollection::VerticesGroup);
 
 	const TManagedArray<FVector3f> &FromVertex = FromCollection->Vertex;
 	TManagedArray<FVector3f> &ToVertex = ToCollection->Vertex;
