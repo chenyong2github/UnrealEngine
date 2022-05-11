@@ -86,6 +86,8 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	void OnPropertyChanged(const FName PropName);
 #endif // WITH_EDITOR
 
 	// IEQSQueryResultSourceInterface start
