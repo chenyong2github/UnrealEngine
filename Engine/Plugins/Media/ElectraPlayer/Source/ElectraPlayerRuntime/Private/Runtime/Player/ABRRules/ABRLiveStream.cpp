@@ -1567,7 +1567,7 @@ IAdaptiveStreamSelector::EHandlingAction FABRLiveStream::PeriodicHandle()
 	Lock.Unlock();
 
 	// Perform catch up / slow down of playback when playing (not paused and not buffering).
-	if (!bIsPaused && !bIsBuffering)
+	if (!bIsPaused && !bIsBuffering && Info->ABRGetPlaySpeed() != FTimeValue::GetZero())
 	{
 		const EStreamType StreamType = GetPrimaryStreamType();
 		const FStreamWorkVars* WorkVars = GetWorkVars(StreamType);
