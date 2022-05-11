@@ -4822,7 +4822,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		// it should not be recreated unless the archetype also has it
 		if (Export.bIsInheritedInstance)
 		{
-			if (FindObjectWithOuter(Template, LoadClass, NewName) == nullptr)
+			if (FindObjectWithOuter(ThisParent->GetArchetype(), LoadClass, NewName) == nullptr)
 			{
 				Export.bExportLoadFailed = true;
 				return nullptr;
