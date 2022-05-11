@@ -4,6 +4,7 @@
 
 #include "OnlineSubsystemTypes.h"
 
+#include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
@@ -24,6 +25,11 @@ class FOnlineSubsystemEOS;
 
 typedef TSharedPtr<const class FUniqueNetIdEOS> FUniqueNetIdEOSPtr;
 typedef TSharedRef<const class FUniqueNetIdEOS> FUniqueNetIdEOSRef;
+
+static inline FString MakeNetIdStringFromIds(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId)
+{
+	return LexToString(AccountId) + EOS_ID_SEPARATOR + LexToString(UserId);
+}
 
 /**
  * Unique net id wrapper for a EOS account ids. The underlying string is a combination
@@ -96,32 +102,39 @@ public:
 
 	void ParseAccountIds()
 	{
-		TArray<FString> AccountIds;
-		UniqueNetIdStr.ParseIntoArray(AccountIds, EOS_ID_SEPARATOR, false);
-
-		FString EpicAccountIdStr = EMPTY_EASID;
-		if (AccountIds.Num() > 0 && AccountIds[0].Len() > 0)
+		if (ensure(UniqueNetIdStr.Contains(EOS_ID_SEPARATOR)))
 		{
-			EpicAccountIdStr = AccountIds[0];
-			EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EpicAccountIdStr));
+			TArray<FString> AccountIds;
+			UniqueNetIdStr.ParseIntoArray(AccountIds, EOS_ID_SEPARATOR, false);
+
+			FString EpicAccountIdStr = EMPTY_EASID;
+			if (AccountIds.Num() > 0 && AccountIds[0].Len() > 0)
+			{
+				EpicAccountIdStr = AccountIds[0];
+				EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EpicAccountIdStr));
+			}
+			else
+			{
+				EpicAccountId = nullptr;
+			}
+			AddToBuffer(RawBytes, EpicAccountIdStr);
+
+			FString ProductUserIdStr = EMPTY_PUID;
+			if (AccountIds.Num() > 1 && AccountIds[1].Len() > 0)
+			{
+				ProductUserIdStr = AccountIds[1];
+				ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*ProductUserIdStr));
+			}
+			else
+			{
+				ProductUserId = nullptr;
+			}
+			AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
 		}
 		else
 		{
-			EpicAccountId = nullptr;
+			UE_LOG_ONLINE(Warning, TEXT("Invalid format for String in FUniqueNetIdEOS constructor. Please use FUniqueNetIdEOS::Create(EOS_EpicAccountId, EOS_ProductUserId) or FUserManagerEOS::MakeNetIdStringFromIds"));
 		}
-		AddToBuffer(RawBytes, EpicAccountIdStr);
-
-		FString ProductUserIdStr = EMPTY_PUID;
-		if (AccountIds.Num() > 1 && AccountIds[1].Len() > 0)
-		{
-			ProductUserIdStr = AccountIds[1];
-			ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*ProductUserIdStr));
-		}
-		else
-		{
-			ProductUserId = nullptr;
-		}
-		AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
 	}
 
 	void AddToBuffer(uint8* Buffer, const FString& Source)
@@ -166,6 +179,14 @@ private:
 		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
 
 		Type = FName("EOS");
+	}
+
+	explicit FUniqueNetIdEOS(EOS_EpicAccountId InEpicAccountId, EOS_ProductUserId InProductUserId)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		: FUniqueNetIdString(MakeNetIdStringFromIds(InEpicAccountId, InProductUserId), FName("EOS"))
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		ParseAccountIds();
 	}
 
 	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
@@ -441,22 +462,6 @@ public:
 protected:
 	FDateTime LastSeenTime;
 };
-
-static inline FString MakeNetIdStringFromIds(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId)
-{
-	FString NetId = LexToString(AccountId);
-
-	// Only add this when the product user id is valid for more consistent net id string generation
-	// across different code paths
-	const FString ProductIdStr = LexToString(UserId);
-	if (!ProductIdStr.IsEmpty())
-	{
-		NetId += EOS_ID_SEPARATOR;
-		NetId += ProductIdStr;
-	}
-
-	return NetId;
-}
 
 /** Class to handle all callbacks generically using a lambda to process callback results */
 template<typename CallbackFuncType, typename CallbackType, typename OwningType>
@@ -741,9 +746,7 @@ PACKAGE_SCOPE:
 	{
 	}
 
-	FOnlineSessionInfoEOS(const FString& InHostIp, const FString& InSessionId, EOS_HSessionDetails InSessionHandle);
-
-	FOnlineSessionInfoEOS(const FString& InHostIp, FUniqueNetIdEOSRef UniqueNetId, EOS_HSessionDetails InSessionHandle);
+	FOnlineSessionInfoEOS(const FString& InHostIp, FUniqueNetIdStringRef UniqueNetId, EOS_HSessionDetails InSessionHandle);
 
 	/**
 	 * Initialize LAN session

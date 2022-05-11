@@ -1708,7 +1708,7 @@ void FUserManagerEOS::FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo*
 
 void FUserManagerEOS::AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId)
 {
-	const FString NetId = LexToString(EpicAccountId);
+	const FString NetId = MakeNetIdStringFromIds(EpicAccountId, nullptr);
 	FUniqueNetIdEOSRef FriendNetId = FUniqueNetIdEOS::Create(NetId);
 	FOnlineFriendEOSRef FriendRef = MakeShareable(new FOnlineFriendEOS(FriendNetId));
 	LocalUserNumToFriendsListMap[LocalUserNum]->Add(NetId, FriendRef);
@@ -1765,7 +1765,6 @@ void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountI
 		return;
 	}
 
-	const FString AccountIdStr = LexToString(AccountId);
 	const FString UserIdStr = LexToString(UserId);
 
 	// Get the unique net id and rebuild the string for it
@@ -1790,17 +1789,8 @@ void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountI
 	AccountIdToStringMap.Emplace(AccountId, NewNetIdStr);
 	ProductUserIdToStringMap.Remove(UserId);
 	ProductUserIdToStringMap.Emplace(UserId, *NewNetIdStr);
-	// If it's the first time we're updating this remote player, it will be indexed by its epic account id
-	FOnlineUserPtr OnlineUser = NetIdStringToOnlineUserMap[AccountIdStr];
-	if (OnlineUser.IsValid())
-	{
-		NetIdStringToOnlineUserMap.Remove(AccountIdStr);
-	}
-	else
-	{
-		OnlineUser = NetIdStringToOnlineUserMap[PrevNetIdStr];
-		NetIdStringToOnlineUserMap.Remove(PrevNetIdStr);
-	}
+	FOnlineUserPtr OnlineUser = NetIdStringToOnlineUserMap[PrevNetIdStr];
+	NetIdStringToOnlineUserMap.Remove(PrevNetIdStr);
 	NetIdStringToOnlineUserMap.Emplace(NewNetIdStr, OnlineUser);
 	NetIdStringToAttributeAccessMap.Remove(PrevNetIdStr);
 	NetIdStringToAttributeAccessMap.Emplace(NewNetIdStr, AttrAccess);
