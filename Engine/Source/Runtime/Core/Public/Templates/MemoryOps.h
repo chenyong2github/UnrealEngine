@@ -248,7 +248,7 @@ FORCEINLINE bool CompareItems(const ElementType* A, const ElementType* B, SizeTy
 {
 	if constexpr (TTypeTraits<ElementType>::IsBytewiseComparable)
 	{
-		return !FMemory::Memcmp(A, B, sizeof(ElementType) * Count);
+		return !Count || !FMemory::Memcmp(A, B, sizeof(ElementType) * Count);
 	}
 	else
 	{

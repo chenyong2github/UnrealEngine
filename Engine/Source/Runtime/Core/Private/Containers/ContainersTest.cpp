@@ -2,6 +2,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Concepts/EqualityComparable.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
@@ -237,6 +238,15 @@ namespace
 	}
 
 	template <typename Container>
+	void CheckContainerSelfEquality(Container& Cont)
+	{
+		if constexpr (TModels<CEqualityComparable, Container>::Value)
+		{
+			check(Cont == Cont);
+		}
+	}
+
+	template <typename Container>
 	void CheckContainerNum(Container& Cont)
 	{
 		int32 Count = 0;
@@ -312,6 +322,7 @@ namespace
 				CheckContainerNum(Cont);
 				CheckContainerEnds(Cont);
 				CheckContainerElements(Cont);
+				CheckContainerSelfEquality(Cont);
 			}
 
 			for (int32 N = 0; N != Count; ++N)
@@ -320,6 +331,7 @@ namespace
 				CheckContainerNum(Cont);
 				CheckContainerEnds(Cont);
 				CheckContainerElements(Cont);
+				CheckContainerSelfEquality(Cont);
 			}
 
 			for (int32 N = 0; N != Count; ++N)
@@ -328,6 +340,7 @@ namespace
 				CheckContainerNum(Cont);
 				CheckContainerEnds(Cont);
 				CheckContainerElements(Cont);
+				CheckContainerSelfEquality(Cont);
 			}
 
 			for (int32 N = 0; N != Count; ++N)
@@ -336,8 +349,16 @@ namespace
 				CheckContainerNum(Cont);
 				CheckContainerEnds(Cont);
 				CheckContainerElements(Cont);
+				CheckContainerSelfEquality(Cont);
 			}
 		}
+	}
+
+	template <typename Container>
+	void RunEmptyContainerSelfEqualityTest()
+	{
+		Container Cont;
+		CheckContainerSelfEquality(Cont);
 	}
 
 	template <typename ContainerType, typename KeyType>
@@ -507,6 +528,8 @@ bool FContainersFullTest::RunTest(const FString& Parameters)
 	RunContainerTests<TSortedMap<FName, FContainerTestValueType, FDefaultAllocator, FNameLexicalLess>, FName>();
 	RunContainerTests<TSortedMap<FString, FContainerTestValueType>, FString>();
 	RunContainerTests<TSortedMap<FString, FContainerTestValueType, TInlineAllocator<64>>, FString>();
+
+	RunEmptyContainerSelfEqualityTest<TArray<int32>>();
 
 	// Verify use of FName index sorter with SortedMap
 
