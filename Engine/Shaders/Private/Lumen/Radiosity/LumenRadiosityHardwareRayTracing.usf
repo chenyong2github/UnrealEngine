@@ -80,16 +80,15 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 				float PDF;
 				GetRadiosityRay(RadiosityTexel, RadiosityTexel.CardCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
-				RayDesc Ray;
+				float ReceiverBias = 0.0f;
 				if (RadiosityTexel.bHeightfield)
 				{
 					float3 TranslatedWorldCameraOrigin = PrimaryView.TranslatedWorldCameraOrigin;
-					CalculateDistanceBasedHeightfieldBias(HeightfieldSurfaceBias, TranslatedWorldPosition, TranslatedWorldCameraOrigin);
+					ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldSurfaceBias, TranslatedWorldPosition, TranslatedWorldCameraOrigin);
 				}
-				else
-				{
-					Ray.Origin = TranslatedWorldPosition + WorldNormal * SurfaceBias;
-				}
+
+				RayDesc Ray;
+				Ray.Origin = TranslatedWorldPosition + WorldNormal * (SurfaceBias + ReceiverBias);
 				Ray.Direction = WorldRayDirection;
 				Ray.TMin = MinTraceDistance;
 
