@@ -21,6 +21,7 @@ class FInBunch;
 class FNetFieldExportGroup;
 class FOutBunch;
 class UNetConnection;
+struct FObjectKey;
 
 namespace UE::Net { struct FSubObjectRegistry;  }
 
