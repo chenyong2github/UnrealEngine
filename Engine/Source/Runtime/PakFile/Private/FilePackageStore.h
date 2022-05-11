@@ -44,12 +44,13 @@ private:
 		FName PackageName;
 		EPackageExtension HeaderExtension;
 	};
-#endif
+#endif //if WITH_EDITOR
 
 	void Update();
 #if WITH_EDITOR
 	uint64 AddUncookedPackagesFromRoot(const FString& RootPath);
-#endif
+	uint64 RemoveUncookedPackagesFromRoot(const TSet<FString>& RootPath);
+#endif //if WITH_EDITOR
 
 	FRWLock EntriesLock;
 	FCriticalSection UpdateLock;
@@ -62,13 +63,13 @@ private:
 
 #if WITH_EDITOR
 	FDelegateHandle OnContentPathMountedDelegateHandle;
+	FDelegateHandle OnContentPathDismountedDelegateHandle;
 	FCriticalSection UncookedPackageRootsLock;
-	TSet<FString> PendingUncookedPackageRoots;
+	TSet<FString> PendingAddUncookedPackageRoots;
+	TSet<FString> PendingRemoveUncookedPackageRoots;
 	TMap<FPackageId, FUncookedPackage> UncookedPackagesMap;
-#endif
-#if WITH_EDITOR
 	TMap<FPackageId, const FFilePackageStoreEntry*> OptionalSegmentStoreEntriesMap;
-#endif
+#endif //if WITH_EDITOR
 
 	static thread_local int32 LockedOnThreadCount;
 };
