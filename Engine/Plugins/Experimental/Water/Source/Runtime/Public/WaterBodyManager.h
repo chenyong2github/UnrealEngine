@@ -32,6 +32,8 @@ public:
 	/** Execute a predicate function on each valid water body. Predicate should return false for early exit. */
 	void ForEachWaterBodyComponent (TFunctionRef<bool(UWaterBodyComponent*)> Pred) const;
 
+	bool HasAnyWaterBodies() const { return WaterBodyComponents.Num() > 0; }
+
 private:
 	/** List of components registered to this manager. May contain nullptr indices (indicated by the UnusedWaterBodyIndices array). */
 	TArray<UWaterBodyComponent*> WaterBodyComponents;

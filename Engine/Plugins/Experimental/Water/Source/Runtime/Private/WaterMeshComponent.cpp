@@ -118,14 +118,17 @@ bool UWaterMeshComponent::ShouldRenderSelected() const
 		bool bShouldRender = Super::ShouldRenderSelected();
 		if (!bShouldRender)
 		{
-			UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [&bShouldRender](UWaterBodyComponent* WaterBodyComponent)
+			if (AWaterZone* Owner = GetOwner<AWaterZone>())
 			{
-				check(WaterBodyComponent);
-				bShouldRender |= WaterBodyComponent->ShouldRenderSelected();
+				Owner->ForEachWaterBodyComponent([&bShouldRender](UWaterBodyComponent* WaterBodyComponent)
+				{
+					check(WaterBodyComponent);
+					bShouldRender |= WaterBodyComponent->ShouldRenderSelected();
 
-				// Stop iterating over water body components by returning false as soon as one component says it should be "render selected" :
-				return !bShouldRender;
-			});
+					// Stop iterating over water body components by returning false as soon as one component says it should be "render selected" :
+					return !bShouldRender;
+				});
+			}
 		}
 
 		return bShouldRender;
@@ -209,7 +212,9 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 	const bool bIsFlooded = OceanFlood > 0.0f;
 
 	// Go through all water body actors to figure out bounds and water tiles
-	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [this, WaterWorldBox, bIsFlooded, GlobalOceanHeight, OceanFlood, &FarMeshHeight](UWaterBodyComponent* WaterBodyComponent)
+	AWaterZone* OwningZone = GetOwner<AWaterZone>();
+	check(OwningZone);
+	OwningZone->ForEachWaterBodyComponent([this, WaterWorldBox, bIsFlooded, GlobalOceanHeight, OceanFlood, &FarMeshHeight](UWaterBodyComponent* WaterBodyComponent)
 	{
 		check(WaterBodyComponent);
 		AActor* Actor = WaterBodyComponent->GetOwner();

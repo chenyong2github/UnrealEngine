@@ -236,18 +236,9 @@ void UWaterBodyOceanComponent::PostLoad()
 
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterZonesRefactor)
 	{
-		if (UWorld* World = GetWorld())
+		if (AWaterZone* WaterZone = GetWaterZone())
 		{
-			// #todo_water: this assumes only one water zone actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
-			for (TObjectIterator<AWaterZone> It; It; ++It)
-			{
-				AWaterZone* WaterZone = *It;
-				if (WaterZone && (WaterZone->GetWorld() == World))
-				{
-					SetVisualExtents(WaterZone->GetZoneExtent());
-					return;
-				}
-			}
+			SetVisualExtents(WaterZone->GetZoneExtent());
 		}
 	}
 }

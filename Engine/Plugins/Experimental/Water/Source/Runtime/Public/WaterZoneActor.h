@@ -11,6 +11,7 @@
 class UWaterMeshComponent;
 class UBoxComponent;
 class AWaterBody;
+class UWaterBodyComponent;
 
 enum class EWaterZoneRebuildFlags
 {
@@ -31,6 +32,9 @@ public:
 
 	void MarkForRebuild(EWaterZoneRebuildFlags Flags);
 	void Update();
+		
+	/** Execute a predicate function on each valid water body within the water zone. Predicate should return false for early exit. */
+	void ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate);
 
 	FVector2D GetZoneExtent() const { return ZoneExtent; }
 	void SetZoneExtent(FVector2D NewExtents);

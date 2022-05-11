@@ -825,12 +825,9 @@ void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 		// If the component is being or can be rendered by the water mesh, rebuild it in case its visibility has changed : 
 		if (bAllowWaterMeshRebuild && (GetWaterBodyType() != EWaterBodyType::Transition))
 		{
-			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld())) 
+			if (AWaterZone* WaterZone = GetWaterZone())
 			{
-				if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor())
-				{
-					WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::All);
-				}
+				WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::All);
 			}
 		}
 	}
@@ -902,24 +899,21 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyComponent::CheckWaterBodyStatus(
 	TArray<TSharedRef<FTokenizedMessage>> Result;
 	if (!IsTemplate())
 	{
-		if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+		if (AffectsWaterMesh() && (GetWaterZone() == nullptr))
 		{
-			if (AffectsWaterMesh() && (WaterSubsystem->GetWaterZoneActor() == nullptr))
-			{
-				Result.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
-					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(FText::Format(
-						LOCTEXT("MapCheck_Message_MissingWaterZone", "Water body {0} requires a WaterZone actor to be rendered. Please add one to the map. "),
-						FText::FromString(GetWaterBodyActor()->GetActorLabel())))));
-				}
-			}
-
-		if (AffectsLandscape() && (FindLandscape() == nullptr))
-			{
 			Result.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
 				->AddToken(FUObjectToken::Create(this))
 				->AddToken(FTextToken::Create(FText::Format(
-						LOCTEXT("MapCheck_Message_MissingLandscape", "Water body {0} requires a Landscape to be rendered. Please add one to the map. "),
+					LOCTEXT("MapCheck_Message_MissingWaterZone", "Water body {0} requires a WaterZone actor to be rendered. Please add one to the map. "),
+					FText::FromString(GetWaterBodyActor()->GetActorLabel())))));
+		}
+
+		if (AffectsLandscape() && (FindLandscape() == nullptr))
+		{
+			Result.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(
+					LOCTEXT("MapCheck_Message_MissingLandscape", "Water body {0} requires a Landscape to be rendered. Please add one to the map. "),
 					FText::FromString(GetWaterBodyActor()->GetActorLabel())))));
 		}
 	}
@@ -1272,7 +1266,7 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 	InMID->SetVectorParameterValue(FixedVelocityName, GetConstantVelocity());
 
 	// Use WaterZone actor of the same level
-	if (const AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor(GetTypedOuter<ULevel>()))
+	if (const AWaterZone* WaterZone = GetWaterZone())
 	{
 		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterZone->WaterInfoTexture);
 
@@ -1423,13 +1417,36 @@ UWaterWavesBase* UWaterBodyComponent::GetWaterWaves() const
 
 AWaterZone* UWaterBodyComponent::GetWaterZone() const
 {
-	// #todo_water [roey]: Currently returns the global water zone. Eventually this function will return the specific water zone which encapsulates this water body. 
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWaterBodyComponent::GetWaterZone);
 
-	if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+	TArray<AWaterZone*, TInlineAllocator<4>> ViableZones;
+	
+	if (const UWorld* World = GetWorld())
 	{
-		return WaterSubsystem->GetWaterZoneActor();
+		const ULevel* PreferredLevel = GetTypedOuter<ULevel>();
+		if (PreferredLevel)
+		{
+			for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World, AWaterZone::StaticClass(), EActorIteratorFlags::SkipPendingKill))
+			{
+				// WaterZone->GetZoneExtents returns the full extent of the zone but BoxSphereBounds expects a half-extent.
+				const FBoxSphereBounds WaterZoneBounds(WaterZone->GetActorLocation(), FVector(WaterZone->GetZoneExtent() / 2.f, 8192.f), 0.f);
+				const FBoxSphereBounds ComponentBounds = CalcBounds(GetComponentTransform());
+
+				// Only consider WaterZones which this component overlaps but prefer choosing water zones
+				// which are part of the same outered level.
+				if (FBoxSphereBounds::BoxesIntersect(ComponentBounds, WaterZoneBounds))
+				{
+					if (WaterZone->GetTypedOuter<ULevel>() == PreferredLevel)
+					{
+						return WaterZone;
+					}
+
+					ViableZones.Add(WaterZone);
+				}
+			}
+		}
 	}
-	return nullptr;
+	return ViableZones.Num() > 0 ? ViableZones[0] : nullptr;
 }
 
 void UWaterBodyComponent::UpdateWaterBodyRenderData()

@@ -97,14 +97,16 @@ public:
 	static UWaterSubsystem* GetWaterSubsystem(const UWorld* InWorld);
 
 	/** Static helper function to get a waterbody manager from a world, returns nullptr if world or manager don't exist */
-	static FWaterBodyManager* GetWaterBodyManager(UWorld* InWorld);
+	static FWaterBodyManager* GetWaterBodyManager(const UWorld* InWorld);
 
 	/** Execute a predicate function on each valid water body. Predicate should return false for early exit. */
 	static void ForEachWaterBodyComponent(const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Predicate);
 
+	UE_DEPRECATED(5.1, "This will become a private member. Prefer calling GetWaterBodyManager instead")
 	FWaterBodyManager WaterBodyManager;
 
-	AWaterZone* GetWaterZoneActor(ULevel* InPreferredOuterLevel = nullptr) const;
+	UE_DEPRECATED(5.1, "There may be multiple water zones per level. Prefer calling the GetWaterZone on a per-water body basis or iterating over all zones.")
+	AWaterZone* GetWaterZoneActor(ULevel* InPreferredOuterLevel = nullptr) const { return nullptr; }
 
 	ABuoyancyManager* GetBuoyancyManager() const { return BuoyancyManager; }
 
@@ -200,6 +202,8 @@ private:
 	void OnLoadProfileConfig(class UCollisionProfile* CollisionProfile);
 	void AddWaterCollisionProfile();
 	void ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings, EPropertyChangeType::Type ChangeType);
+
+	FWaterBodyManager& GetWaterBodyManagerInternal();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void ShowOnScreenDebugInfo(const FVector& InViewLocation, const FUnderwaterPostProcessDebugInfo& InDebugInfo);

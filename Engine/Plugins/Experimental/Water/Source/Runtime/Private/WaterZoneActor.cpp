@@ -92,13 +92,9 @@ void AWaterZone::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterZonesRefactor)
-	{
-		// Divide by two since the ZoneExtent represents the radius of the box while the result of the Extent * Size gives the total size
-		const FVector2D ExtentInTiles = WaterMesh->GetExtentInTiles();
-		ZoneExtent = FVector2D(ExtentInTiles * WaterMesh->GetTileSize());
-		OnExtentChanged();
-	}
+	const FVector2D ExtentInTiles = WaterMesh->GetExtentInTiles();
+	ZoneExtent = FVector2D(ExtentInTiles * WaterMesh->GetTileSize());
+	OnExtentChanged();
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -112,6 +108,18 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 	{
 		bNeedsWaterInfoRebuild = true;
 	}
+}
+
+void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate)
+{
+	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [this, Predicate](UWaterBodyComponent* Component)
+		{
+			if (Component->GetWaterZone() == this)
+			{
+				return Predicate(Component);
+			}
+			return true;
+		});
 }
 
 void AWaterZone::Update()
@@ -230,10 +238,10 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		float WaterZMax(TNumericLimits<float>::Lowest());
 	
 		bool bHasIncompleteShaderMaps = false;
-		// #todo_water [roey]: we need to store which actors this zone is responsible for rendering once we implement support for multi zones.
-		// For now whenever we update the water info texture we will just collect all water bodies and pass those to the renderer.
+		// #todo_water [roey]: we should try caching this list to avoid potentially iterating over a lot of water bodies which may not belong to this zone specifically.
+		// For now whenever we update the water info texture we will collect all water bodies within the zone and pass those to the renderer each time this function is called.
 		TArray<UWaterBodyComponent*> WaterBodies;
-		UWaterSubsystem::ForEachWaterBodyComponent(World, [World, &WaterBodies, &WaterZMax, &WaterZMin, &bHasIncompleteShaderMaps](UWaterBodyComponent* Component)
+		ForEachWaterBodyComponent([World, &WaterBodies, &WaterZMax, &WaterZMin, &bHasIncompleteShaderMaps](UWaterBodyComponent* Component)
 		{
 			if (UMaterialInterface* WaterInfoMaterial = Component->GetWaterInfoMaterialInstance())
 			{
