@@ -2380,7 +2380,6 @@ FGuid UNiagaraEmitter::AddNewVersion(int32 MajorVersion, int32 MinorVersion)
 #endif
 			NewVersionData.RuntimeEstimation.Init();
 			
-			RebindNotifications();
 			break;
 		}
 	}
@@ -2394,6 +2393,7 @@ FGuid UNiagaraEmitter::AddNewVersion(int32 MajorVersion, int32 MinorVersion)
 	
 	VersionData.Add(NewVersionData);
 	VersionData.Sort([](const FVersionedNiagaraEmitterData& A, const FVersionedNiagaraEmitterData& B) { return A.Version < B.Version; });
+	RebindNotifications();
 
 	return NewVersionData.Version.VersionGuid;
 }
