@@ -75,6 +75,8 @@ private:
 
 	mutable bool bHasCachedFilename = false;
 	mutable FString CachedFilename;
+
+	void FlushCaches() const;
 };
 
 class CONTENTBROWSERASSETDATASOURCE_API FContentBrowserAssetFileItemDataPayload_Creation : public FContentBrowserAssetFileItemDataPayload, public FGCObject
