@@ -791,6 +791,19 @@ void RenderSlateBatch(FTexture2DRHIRef SlateRenderTarget, bool bClear, bool bIsH
 	}
 }
 
+inline bool CompositeUIWithHdrRenderTarget()
+{
+	// Optional off-screen UI composition during HDR rendering
+	static const auto CVarCompositeMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.UI.CompositeMode"));
+
+	const bool bSupportsUIComposition = GRHISupportsHDROutput && GSupportsVolumeTextureRendering && SupportsUICompositionRendering(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel));
+	const bool bCompositeUI = bSupportsUIComposition
+		&& CVarCompositeMode && CVarCompositeMode->GetValueOnAnyThread() != 0
+		&& IsHDREnabled();
+
+	return bCompositeUI;
+}
+
 /** Draws windows from a FSlateDrawBuffer on the render thread */
 void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, FSlateWindowElementList& WindowElementList, const struct FSlateDrawWindowCommandParams& DrawCommandParams)
 {
@@ -821,13 +834,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 		GetRendererModule().InitializeSystemTextures(RHICmdList);
 
-		// Optional off-screen UI composition during HDR rendering
-		static const auto CVarCompositeMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.UI.CompositeMode"));
-
-		const bool bSupportsUIComposition = GRHISupportsHDROutput && GSupportsVolumeTextureRendering && SupportsUICompositionRendering(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel));
-		const bool bCompositeUI = bSupportsUIComposition
-			&& CVarCompositeMode && CVarCompositeMode->GetValueOnRenderThread() != 0
-			&& IsHDREnabled();
+		const bool bCompositeUI = CompositeUIWithHdrRenderTarget();
 
 		const int32 CompositionLUTSize = 32;
 
@@ -1321,9 +1328,11 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					}
 				}
 
-
+				bool bCompositeHDRViewports = ElementBatcher->CompositeHDRViewports();
+				ElementBatcher->SetCompositeHDRViewports(CompositeUIWithHdrRenderTarget());
 				// Add all elements for this window to the element batcher
 				ElementBatcher->AddElements(ElementList);
+				ElementBatcher->SetCompositeHDRViewports(bCompositeHDRViewports);
 
 				// Update the font cache with new text after elements are batched
 				FontCache->UpdateCache();

@@ -262,6 +262,10 @@ public:
 	/** Whether or not any post process passes were batched */
 	bool HasFXPassses() const { return NumPostProcessPasses > 0;}
 
+	bool CompositeHDRViewports() const { return bCompositeHDRViewports; }
+
+	void SetCompositeHDRViewports(bool bInCompositeHDRViewports) { bCompositeHDRViewports = bInCompositeHDRViewports; }
+
 	/** 
 	 * Resets all stored data accumulated during the batching process
 	 */
@@ -437,4 +441,7 @@ private:
 
 	// true if any element in the batch requires vsync.
 	bool bRequiresVsync;
+
+	// true if viewports get composited as a separate pass, instead of being rendered directly to the render target. Useful for HDR displays
+	bool bCompositeHDRViewports;
 };
