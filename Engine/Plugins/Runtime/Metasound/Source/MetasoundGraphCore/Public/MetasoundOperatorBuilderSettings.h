@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
+
+
 namespace Metasound
 {
 	/** EOperatorBuildNodePruning expresses the desired pruning behavior during
