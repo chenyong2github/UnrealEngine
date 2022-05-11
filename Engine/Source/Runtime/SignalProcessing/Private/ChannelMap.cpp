@@ -435,8 +435,7 @@ namespace Audio
 	{
 		using namespace ChannelMapPrivate;
 
-		const bool bIsValidNumOutputChannels = (InNumOutputChannels > 0) && (InNumOutputChannels <= ChannelMapMaxNumChannels);
-		if (!ensureMsgf(bIsValidNumOutputChannels, TEXT("Invalid number of output channels: %d"), InNumOutputChannels))
+		if (!ensureMsgf((InNumOutputChannels > 0) && (InNumOutputChannels <= ChannelMapMaxNumChannels), TEXT("Invalid number of output channels: %d"), InNumOutputChannels))
 		{
 			return false;
 		}
