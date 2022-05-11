@@ -563,7 +563,7 @@
 		int Platform::WaitEvent(void* p_os_event_mem, int timeout)
 		{
 			FEvent* p_event = GetOSEvent(p_os_event_mem);
-			return (timeout==-1) ? p_event->Wait() : p_event->Wait(timeout);
+			return (timeout==-1) ? p_event->Wait(MAX_uint32, !FramePro::IsConnected()) : p_event->Wait(timeout, !FramePro::IsConnected());
 		}
 
 		//------------------------------------------------------------------------
