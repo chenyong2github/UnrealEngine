@@ -2189,13 +2189,8 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 	}
 	else if (SceneTextureId == PPI_CustomStencil)
 	{
-#if MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
-		MaterialFloat Stencil = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)).x;
-#else
-		MaterialFloat Stencil = Texture2DSample(MobileSceneTextures.MobileCustomStencilTexture, MobileSceneTextures.MobileCustomStencilTextureSampler, UV).r*255.0;
-		Stencil = floor(Stencil + 0.5);
-#endif
-	return MaterialFloat4(Stencil.rrr, 0.f);
+		MaterialFloat Stencil = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
+		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
 	}
 #endif// SCENE_TEXTURES_DISABLED
 

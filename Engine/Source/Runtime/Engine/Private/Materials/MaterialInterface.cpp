@@ -366,7 +366,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		FMaterialRelevance MaterialRelevance;
 
 		MaterialRelevance.ShadingModelMask = GetShadingModels().GetShadingModelField();
-		MaterialRelevance.bUsesCustomDepthStencil = MaterialResource->UsesCustomDepthStencil_GameThread();
+		MaterialRelevance.CustomDepthStencilUsageMask = MaterialResource->GetCustomDepthStencilUsageMask_GameThread();
 
 		if(bDecal)
 		{

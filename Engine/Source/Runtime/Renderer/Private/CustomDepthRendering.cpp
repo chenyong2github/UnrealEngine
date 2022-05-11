@@ -26,14 +26,6 @@ static TAutoConsoleVariable<int32> CVarCustomDepthOrder(
 	TEXT("  2: Default (Before Base Pass if DBuffer enabled.)\n"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarMobileCustomDepthDownSample(
-	TEXT("r.Mobile.CustomDepthDownSample"),
-	0,
-	TEXT("Perform Mobile CustomDepth at HalfRes \n ")
-	TEXT("0: Off (default)\n ")
-	TEXT("1: On \n "),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarCustomDepthTemporalAAJitter(
 	TEXT("r.CustomDepthTemporalAAJitter"),
 	1,
@@ -60,38 +52,12 @@ ECustomDepthMode GetCustomDepthMode()
 	return ECustomDepthMode::Disabled;
 }
 
-bool IsMobileSeparateDepthStencilRenderTargets(EShaderPlatform Platform)
+bool IsCustomDepthPassWritingStencil()
 {
-	return IsMobilePlatform(Platform) && !FDataDrivenShaderPlatformInfo::GetMobileSupportFetchBindedCustomStencilBuffer(Platform);
+	return GetCustomDepthMode() == ECustomDepthMode::EnabledWithStencil;
 }
 
-bool IsMobileSupportFetchBindedCustomStencilBuffer(EShaderPlatform Platform)
-{
-	return IsMobilePlatform(Platform) && FDataDrivenShaderPlatformInfo::GetMobileSupportFetchBindedCustomStencilBuffer(Platform);
-}
-
-bool IsCustomDepthPassWritingStencil(EShaderPlatform Platform)
-{
-	switch (GetCustomDepthMode())
-	{
-		case ECustomDepthMode::Disabled:
-		{
-			return false;
-		}
-		case ECustomDepthMode::Enabled:
-		{
-			return IsMobileSeparateDepthStencilRenderTargets(Platform);
-		}
-	}
-	return true;
-}
-
-uint32 GetCustomDepthDownsampleFactor(EShaderPlatform Platform)
-{
-	return IsMobileSeparateDepthStencilRenderTargets(Platform) && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
-}
-
-FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIntPoint Extent, ERHIFeatureLevel::Type FeatureLevel, uint32 DownsampleFactor)
+FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIntPoint CustomDepthExtent)
 {
 	const ECustomDepthMode CustomDepthMode = GetCustomDepthMode();
 
@@ -100,40 +66,16 @@ FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIn
 		return {};
 	}
 
-	EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
-	const bool bWritesCustomStencil = IsCustomDepthPassWritingStencil(Platform);
-	const FIntPoint CustomDepthExtent = FIntPoint::DivideAndRoundUp(Extent, DownsampleFactor);
+	const bool bWritesCustomStencil = IsCustomDepthPassWritingStencil();
 
 	FCustomDepthTextures CustomDepthTextures;
-	
-	if (IsMobileSeparateDepthStencilRenderTargets(Platform))
-	{
-		const float DepthFar = (float)ERHIZBuffer::FarPlane;
-		const FClearValueBinding DepthFarColor = FClearValueBinding(FLinearColor(DepthFar, DepthFar, DepthFar, DepthFar));
-
-		ETextureCreateFlags MobileCustomDepthFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-		ETextureCreateFlags MobileCustomStencilFlags = MobileCustomDepthFlags;
-
-		if (!bWritesCustomStencil)
-		{
-			MobileCustomStencilFlags |= TexCreate_Memoryless;
-		}
-
-		const FRDGTextureDesc MobileCustomDepthDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_R16F, DepthFarColor, MobileCustomDepthFlags);
-		const FRDGTextureDesc MobileCustomStencilDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_G8, FClearValueBinding::Transparent, MobileCustomStencilFlags);
-
-		CustomDepthTextures.MobileDepth = GraphBuilder.CreateTexture(MobileCustomDepthDesc, TEXT("MobileCustomDepth"));
-		CustomDepthTextures.MobileStencil = GraphBuilder.CreateTexture(MobileCustomStencilDesc, TEXT("MobileCustomStencil"));
-	}
 
 	const FRDGTextureDesc CustomDepthDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_DepthStencil, FClearValueBinding::DepthFar, GFastVRamConfig.CustomDepth | TexCreate_NoFastClear | TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
 
 	CustomDepthTextures.Depth = GraphBuilder.CreateTexture(CustomDepthDesc, TEXT("CustomDepth"));
 
-	CustomDepthTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepthTextures.Depth, PF_X24_G8));
 	CustomDepthTextures.DepthAction = ERenderTargetLoadAction::EClear;
 	CustomDepthTextures.StencilAction = bWritesCustomStencil ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
-	CustomDepthTextures.DownsampleFactor = DownsampleFactor;
 
 	return CustomDepthTextures;
 }
@@ -175,7 +117,7 @@ static FViewShaderParameters CreateViewShaderParametersWithoutJitter(const FView
 	return Parameters;
 }
 
-bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCustomDepthTextures& CustomDepthTextures, const FSceneTextureShaderParameters& SceneTextures)
+bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDepthTextures& CustomDepthTextures, const FSceneTextureShaderParameters& SceneTextures)
 {
 	if (!CustomDepthTextures.IsValid())
 	{
@@ -212,25 +154,11 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 			const ERenderTargetLoadAction DepthLoadAction = GetLoadActionIfProduced(CustomDepthTextures.Depth, CustomDepthTextures.DepthAction);
 			const ERenderTargetLoadAction StencilLoadAction = GetLoadActionIfProduced(CustomDepthTextures.Depth, CustomDepthTextures.StencilAction);
 
-			if (IsMobileSeparateDepthStencilRenderTargets(View.GetShaderPlatform()))
-			{
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(CustomDepthTextures.MobileDepth, DepthLoadAction);
-				PassParameters->RenderTargets[1] = FRenderTargetBinding(CustomDepthTextures.MobileStencil, StencilLoadAction);
-
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-					CustomDepthTextures.Depth,
-					DepthLoadAction,
-					DepthLoadAction,
-					FExclusiveDepthStencil::DepthWrite_StencilWrite);
-			}
-			else
-			{
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-					CustomDepthTextures.Depth,
-					DepthLoadAction,
-					StencilLoadAction,
-					FExclusiveDepthStencil::DepthWrite_StencilWrite);
-			}
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+				CustomDepthTextures.Depth,
+				DepthLoadAction,
+				StencilLoadAction,
+				FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 			View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
@@ -238,14 +166,30 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 				RDG_EVENT_NAME("CustomDepth"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, &View, PassParameters, DownsampleFactor = CustomDepthTextures.DownsampleFactor](FRHICommandList& RHICmdList)
+				[this, &View, PassParameters](FRHICommandList& RHICmdList)
 			{
-				SetStereoViewport(RHICmdList, View, 1.0f / static_cast<float>(DownsampleFactor));
+				SetStereoViewport(RHICmdList, View, 1.0f);
 				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			});
 
 			bCustomDepthRendered = true;
 		}
+	}
+
+	if (bCustomDepthRendered)
+	{
+		const FSceneTexturesConfig& Config = FSceneTexturesConfig::Get();
+		FRDGTextureRef CustomDepth = CustomDepthTextures.Depth;
+
+		// TextureView is not supported in GLES, so we can't lookup CustomDepth and CustomStencil from a single texture
+		// Do a copy of the CustomDepthStencil texture if both CustomDepth and CustomStencil are sampled in a shader.
+		if (IsOpenGLPlatform(ShaderPlatform) && Config.bSamplesCustomDepthAndStencil)
+		{
+			CustomDepth = GraphBuilder.CreateTexture(CustomDepthTextures.Depth->Desc, TEXT("CustomDepthCopy"));
+			AddCopyTexturePass(GraphBuilder, CustomDepthTextures.Depth, CustomDepth);
+		}
+
+		CustomDepthTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepth, PF_X24_G8));
 	}
 
 	return bCustomDepthRendered;
@@ -267,7 +211,7 @@ private:
 		const FMaterialRenderProxy& MaterialRenderProxy,
 		const FMaterial& Material);
 
-	template<bool bPositionOnly, bool bUsesMobileColorValue>
+	template<bool bPositionOnly>
 	bool Process(
 		const FMeshBatch& MeshBatch,
 		uint64 BatchElementMask,
@@ -276,8 +220,7 @@ private:
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
 		ERasterizerFillMode MeshFillMode,
-		ERasterizerCullMode MeshCullMode,
-		float MobileColorValue);
+		ERasterizerCullMode MeshCullMode);
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
@@ -320,13 +263,11 @@ bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
 {
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
-	EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil(Platform);
-	float MobileColorValue = 0.0f;
+	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil();
 
 	if (bWriteCustomStencilValues)
 	{
@@ -348,27 +289,21 @@ bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
 
 		PassDrawRenderState.SetDepthStencilState(StencilStates[(int32)PrimitiveSceneProxy->GetStencilWriteMask()]);
 		PassDrawRenderState.SetStencilRef(CustomDepthStencilValue);
-
-		// On mobile platforms write custom stencil value to color target
-		MobileColorValue = CustomDepthStencilValue / 255.0f;
 	}
 	else
 	{
 		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 	}
 
-	const bool bUsesMobileColorValue = IsMobileSeparateDepthStencilRenderTargets(Platform);
-
 	bool bResult = true;
 	if (BlendMode == BLEND_Opaque
 		&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
 		&& !Material.MaterialModifiesMeshPosition_RenderThread()
-		&& Material.WritesEveryPixel()
-		&& !bUsesMobileColorValue)
+		&& Material.WritesEveryPixel())
 	{
 		const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 		const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
-		bResult = Process<true, false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode, MobileColorValue);
+		bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode);
 	}
 	else if (!IsTranslucentBlendMode(BlendMode) || Material.IsTranslucencyWritingCustomDepth())
 	{
@@ -385,20 +320,13 @@ bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
 			check(EffectiveMaterial);
 		}
 
-		if (bUsesMobileColorValue)
-		{
-			bResult = Process<false, true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, MobileColorValue);
-		}
-		else
-		{
-			bResult = Process<false, false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, MobileColorValue);
-		}
+		bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 	}
 
 	return bResult;
 }
 
-template<bool bPositionOnly, bool bUsesMobileColorValue>
+template<bool bPositionOnly>
 bool FCustomDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
@@ -407,17 +335,16 @@ bool FCustomDepthPassMeshProcessor::Process(
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
 	ERasterizerFillMode MeshFillMode,
-	ERasterizerCullMode MeshCullMode,
-	float MobileColorValue)
+	ERasterizerCullMode MeshCullMode)
 {
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
 	TMeshProcessorShaders<
 		TDepthOnlyVS<bPositionOnly>,
-		FDepthOnlyPS<bUsesMobileColorValue>> DepthPassShaders;
+		FDepthOnlyPS> DepthPassShaders;
 
 	FShaderPipelineRef ShaderPipeline;
-	if (!GetDepthPassShaders<bPositionOnly, bUsesMobileColorValue>(
+	if (!GetDepthPassShaders<bPositionOnly>(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
@@ -429,7 +356,7 @@ bool FCustomDepthPassMeshProcessor::Process(
 		return false;
 	}
 
-	FDepthOnlyShaderElementData ShaderElementData(MobileColorValue);
+	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(DepthPassShaders.VertexShader, DepthPassShaders.PixelShader);

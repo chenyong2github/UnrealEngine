@@ -971,9 +971,15 @@ bool FMaterial::MaterialUsesSceneDepthLookup_GameThread() const
 	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesSceneDepthLookup() : false;
 }
 
-bool FMaterial::UsesCustomDepthStencil_GameThread() const
+uint8 FMaterial::GetCustomDepthStencilUsageMask_GameThread() const
 {
-	return GameThreadShaderMap.GetReference() ? (GameThreadShaderMap->UsesSceneTexture(PPI_CustomDepth) || GameThreadShaderMap->UsesSceneTexture(PPI_CustomStencil)) : false;
+	uint8 CustomDepthStencilUsageMask = 0;
+	if (GameThreadShaderMap.GetReference())
+	{
+		CustomDepthStencilUsageMask |= GameThreadShaderMap->UsesSceneTexture(PPI_CustomDepth) ? 1 : 0;
+		CustomDepthStencilUsageMask |= GameThreadShaderMap->UsesSceneTexture(PPI_CustomStencil) ? 1 << 1 : 0;
+	}
+	return CustomDepthStencilUsageMask;
 }
 
 uint8 FMaterial::GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const

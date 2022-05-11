@@ -222,11 +222,7 @@ void DecodeCustomStencil_{ParameterName}(in float2 ScreenUV, in bool bApplyViewp
 	OutValue = GBufferData.CustomStencil;
 #elif NDIGBUFFER_IS_MOBILE
 	IsValid = true;
-	#if MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
-		OutValue = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)).x;
-	#else
-		OutValue = Texture2DSampleLevel(MobileSceneTextures.MobileCustomStencilTexture, MobileSceneTextures.MobileCustomStencilTextureSampler, ScreenUV, 0).r * 255.0f;
-	#endif
+	OutValue = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
 #else
 	IsValid = false;
 	OutValue = 0;

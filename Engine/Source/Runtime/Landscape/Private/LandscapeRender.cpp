@@ -3504,8 +3504,7 @@ public:
 			FName(TEXT("FAnisotropyPS")),
 			FName(TEXT("TDepthOnlyVS<false>")),
 			FName(TEXT("TDepthOnlyVS<true>")),
-			FName(TEXT("FDepthOnlyPS<true>")),
-			FName(TEXT("FDepthOnlyPS<false>")),
+			FName(TEXT("FDepthOnlyPS")),
 			// UE-44519, masked material with landscape layers requires FHitProxy shaders.
 			FName(TEXT("FHitProxyVS")),
 			FName(TEXT("FHitProxyPS")),

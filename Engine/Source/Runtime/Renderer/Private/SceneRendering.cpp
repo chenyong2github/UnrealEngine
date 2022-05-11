@@ -964,7 +964,8 @@ void FViewInfo::Init()
 	bHasDistortionPrimitives = false;
 	bAllowStencilDither = false;
 	bCustomDepthStencilValid = false;
-	bUsesCustomDepthStencilInTranslucentMaterials = false;
+	bUsesCustomDepth = false;
+	bUsesCustomStencil = false;
 
 	NumBoxReflectionCaptures = 0;
 	NumSphereReflectionCaptures = 0;

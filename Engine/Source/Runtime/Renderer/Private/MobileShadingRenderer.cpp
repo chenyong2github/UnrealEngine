@@ -106,49 +106,59 @@ TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffe
 
 extern bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
-static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
+struct FMobileCustomDepthStencilUsage
 {
 	bool bUsesCustomDepthStencil = false;
+	// whether both CustomDepth and CustomStencil are sampled as a textures
+	bool bSamplesCustomDepthAndStencil = false;
+};
 
-	// Find out whether CustomDepth/Stencil used in translucent materials
-	if (View.bUsesCustomDepthStencilInTranslucentMaterials && CVarMobileCustomDepthForTranslucency.GetValueOnAnyThread() != 0)
-	{
-		bUsesCustomDepthStencil = true;
-	}
-	else
-	{
-		// Find out whether post-process materials use CustomDepth/Stencil lookups
-		const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
-		FBlendableEntry* BlendableIt = nullptr;
+static FMobileCustomDepthStencilUsage GetCustomDepthStencilUsage(const FViewInfo& View)
+{
+	FMobileCustomDepthStencilUsage CustomDepthStencilUsage;
 
-		while (FPostProcessMaterialNode* DataPtr = BlendableManager.IterateBlendables<FPostProcessMaterialNode>(BlendableIt))
+	// Find out whether there are primitives will render in custom depth pass or just always render custom depth
+	if ((View.bHasCustomDepthPrimitives || GetCustomDepthMode() == ECustomDepthMode::EnabledWithStencil))
+	{
+		// Find out whether CustomDepth/Stencil used in translucent materials
+		if (CVarMobileCustomDepthForTranslucency.GetValueOnAnyThread() != 0)
 		{
-			if (DataPtr->IsValid())
+			CustomDepthStencilUsage.bUsesCustomDepthStencil = View.bUsesCustomDepth || View.bUsesCustomStencil;
+			CustomDepthStencilUsage.bSamplesCustomDepthAndStencil = View.bUsesCustomDepth && View.bUsesCustomStencil;
+		}
+
+		if (!CustomDepthStencilUsage.bSamplesCustomDepthAndStencil)
+		{
+			// Find out whether post-process materials use CustomDepth/Stencil lookups
+			const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
+			FBlendableEntry* BlendableIt = nullptr;
+			while (FPostProcessMaterialNode* DataPtr = BlendableManager.IterateBlendables<FPostProcessMaterialNode>(BlendableIt))
 			{
-				FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
-				check(Proxy);
-
-				const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
-				if (Material.IsStencilTestEnabled())
+				if (DataPtr->IsValid())
 				{
-					bUsesCustomDepthStencil = true;
-					break;
-				}
+					FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
+					check(Proxy);
 
-				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
-				if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
-				{
-					bUsesCustomDepthStencil = true;
-					break;
+					const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
+					const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+					bool bUsesCustomDepth = MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth);
+					bool bUsesCustomStencil = MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
+					if (Material.IsStencilTestEnabled() || bUsesCustomDepth || bUsesCustomStencil)
+					{
+						CustomDepthStencilUsage.bUsesCustomDepthStencil |= true;
+					}
+
+					if (bUsesCustomDepth && bUsesCustomStencil)
+					{
+						CustomDepthStencilUsage.bSamplesCustomDepthAndStencil |= true;
+						break;
+					}
 				}
 			}
 		}
 	}
-
-	// Find out whether there are primitives will render in custom depth pass or just always render custom depth
-	bUsesCustomDepthStencil &= (View.bHasCustomDepthPrimitives || GetCustomDepthMode() == ECustomDepthMode::EnabledWithStencil);
-
-	return bUsesCustomDepthStencil;
+	
+	return CustomDepthStencilUsage;
 }
 
 static void RenderOpaqueFX(
@@ -514,6 +524,19 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		SceneTexturesConfig.bPreciseDepthAux = true;
 	}
 	
+	// Find out whether custom depth pass should be rendered.
+	{
+		bool bCouldUseCustomDepthStencil = !bGammaSpace && (!Scene->World || (Scene->World->WorldType != EWorldType::EditorPreview && Scene->World->WorldType != EWorldType::Inactive));
+		FMobileCustomDepthStencilUsage CustomDepthStencilUsage;
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			CustomDepthStencilUsage = GetCustomDepthStencilUsage(Views[ViewIndex]);
+			Views[ViewIndex].bCustomDepthStencilValid = bCouldUseCustomDepthStencil && CustomDepthStencilUsage.bUsesCustomDepthStencil;
+			bShouldRenderCustomDepth |= Views[ViewIndex].bCustomDepthStencilValid;
+			SceneTexturesConfig.bSamplesCustomDepthAndStencil |= bShouldRenderCustomDepth && CustomDepthStencilUsage.bSamplesCustomDepthAndStencil;
+		}
+	}
+	
 	// Finalize and set the scene textures config.
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
@@ -530,16 +553,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	else
 	{
 		ReleaseMobileShadowProjectionOutputs();
-	}
-
-	// Find out whether custom depth pass should be rendered.
-	{
-		bool bCouldUseCustomDepthStencil = !bGammaSpace && (!Scene->World || (Scene->World->WorldType != EWorldType::EditorPreview && Scene->World->WorldType != EWorldType::Inactive));
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			Views[ViewIndex].bCustomDepthStencilValid = bCouldUseCustomDepthStencil && UsesCustomDepthStencilLookup(Views[ViewIndex]);
-			bShouldRenderCustomDepth |= Views[ViewIndex].bCustomDepthStencilValid;
-		}
 	}
 	
 	const bool bDynamicShadows = ActiveViewFamily->EngineShowFlags.DynamicShadows;

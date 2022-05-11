@@ -11,17 +11,9 @@
 #define POST_PROCESS_MATERIAL 0
 #endif
 
-#ifndef POST_PROCESS_MATERIAL_MOBILE
-#define POST_PROCESS_MATERIAL_MOBILE 0
-#endif
-
 #if (POST_PROCESS_MATERIAL == 0)
 #error POST_PROCESS_MATERIAL must be defined to non-zero in the shader compilation environment.
 #endif
-
-#ifndef MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
-#define MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER 0
-#endif 
 
 // Must match ESceneTextureId
 #define PPI_PostProcessInput0 14
@@ -116,7 +108,7 @@ FMaterialVertexParameters GetPostProcessMaterialVSParameters(float2 UV)
 	return Result;
 }
 
-#if (FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 || MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER)
+#if (FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)
 
 #if VERTEXSHADER
 
@@ -214,8 +206,6 @@ void MainPS(
 	const float UnlitBSDFTransmittance = UNLIT_TRANSMITTANCE(UnlitBSDF).x;
 	const float UnlitBSDFOpacity = 1.0f - UnlitBSDFTransmittance;
 	Alpha = UnlitBSDFOpacity;
-  #elif (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
-	Alpha = Parameters.BackupSceneColorAlpha;
   #endif
 
 	const float3 Emissive = BSDF_GETEMISSIVE(UnlitBSDF);
@@ -275,12 +265,7 @@ void MainPS_VideoOverlay(
 
 #endif
 
-#else // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 || MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
-
-Texture2D MobileCustomStencilTexture;
-SamplerState MobileCustomStencilTextureSampler;
-
-int MobileStencilValueRef; // Use integer cause it has to be negative to make the less function to pass the test as always
+#else // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
 
 uint bFlipYAxis;
 
@@ -321,19 +306,6 @@ void MainVS(
 #endif
 }
 
-#define MOBILE_STENCIL_COMPARE_LESS				0
-#define MOBILE_STENCIL_COMPARE_LESSEQUAL		1
-#define MOBILE_STENCIL_COMPARE_GREATE			2
-#define MOBILE_STENCIL_COMPARE_GREATEEQUAL		3
-#define MOBILE_STENCIL_COMPARE_EQUAL			4
-#define MOBILE_STENCIL_COMPARE_NOTEQUAL			5
-#define MOBILE_STENCIL_COMPARE_NEVER			6
-#define MOBILE_STENCIL_COMPARE_ALWAYS			7
-
-#ifndef MOBILE_STENCIL_COMPARE_FUNCTION
-#define MOBILE_STENCIL_COMPARE_FUNCTION MOBILE_STENCIL_COMPARE_NEVER
-#endif
-
 void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	out half4 OutColor : SV_Target0
@@ -372,31 +344,6 @@ void MainPS(
 		
 	float ClipValue = 1.0f;
 
-#if MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_NEVER && MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_ALWAYS
-	int MobileStencilValue = floor(Texture2DSample(MobileCustomStencilTexture, MobileCustomStencilTextureSampler, BufferUV).r*255.0f + 0.5f);
-#endif
-
-#if MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_LESS
-	ClipValue = MobileStencilValueRef < MobileStencilValue ? 1.0f : -1.0f;
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_LESSEQUAL
-	ClipValue = MobileStencilValueRef <= MobileStencilValue ? 1.0f : -1.0f;
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_GREATE
-	ClipValue = MobileStencilValueRef > MobileStencilValue ? 1.0f : -1.0f;
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_GREATEEQUAL
-	ClipValue = MobileStencilValueRef >= MobileStencilValue ? 1.0f : -1.0f;
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_EQUAL
-	ClipValue = MobileStencilValueRef == MobileStencilValue ? 1.0f : -1.0f;
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_NOTEQUAL
-	ClipValue = MobileStencilValueRef != MobileStencilValue ? 1.0f : -1.0f;
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_NEVER
-#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_ALWAYS
-	ClipValue = MobileStencilValueRef == 256 ? 1.0f : -1.0f;
-#endif
-
-#if MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_NEVER
-	clip(ClipValue);
-#endif
-
 	float DeviceZ = LookupDeviceZ(BufferUV);
 	SvPosition.z = DeviceZ;
 	SvPosition.z = max(SvPosition.z, 1e-18);
@@ -424,4 +371,4 @@ void MainPS(
 #endif
 	OutColor = FullSceneColor;
 }
-#endif // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 || MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
+#endif // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1

@@ -52,6 +52,7 @@ struct RENDERER_API FSceneTexturesConfig
 		, bIsUsingGBuffers{}
 		, bKeepDepthContent{1}
 		, bPreciseDepthAux{}
+		, bSamplesCustomDepthAndStencil{}
 	{}
 
 	// Extractions to queue for after execution of the render graph.
@@ -70,7 +71,6 @@ struct RENDERER_API FSceneTexturesConfig
 
 	// Downsample factors to divide against the full resolution texture extent.
 	uint32 SmallDepthDownsampleFactor = 2;
-	uint32 CustomDepthDownsampleFactor = 1;
 
 	// Number of MSAA samples used by color and depth targets.
 	uint32 NumSamples = 1;
@@ -105,6 +105,9 @@ struct RENDERER_API FSceneTexturesConfig
 	
 	// (Mobile) True if SceneDepthAux should use a precise pixel format
 	uint32 bPreciseDepthAux : 1;
+
+	// (Mobile) True if both CustomDepth and CustomStencil are sampled in a shader
+	uint32 bSamplesCustomDepthAndStencil : 1;
 
 private:
 	static FSceneTexturesConfig GlobalInstance;

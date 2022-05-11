@@ -8,13 +8,8 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
-#if OUTPUT_MOBILE_COLOR_VALUE
-// used to write custom stencil values to color target
-float MobileColorValue;
-#endif
-
 void Main(
-#if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET || OUTPUT_MOBILE_COLOR_VALUE
+#if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET
 	in INPUT_POSITION_QUALIFIERS float4 SvPosition : SV_Position,
 #endif
 
@@ -27,12 +22,7 @@ void Main(
 	OPTIONAL_IsFrontFace
 	OPTIONAL_OutDepthConservative,
 #endif
-#if OUTPUT_MOBILE_COLOR_VALUE
-	out HALF_TYPE OutCustomDepth : SV_Target0,
-	out HALF_TYPE OutCustomStencil : SV_Target1
-#else
 	out float4 OutColor : SV_Target0
-#endif
 #if MATERIALBLENDING_MASKED_USING_COVERAGE
 	, out uint OutCoverage : SV_Coverage
 #endif
@@ -75,10 +65,5 @@ void Main(
 	#endif
 #endif
 
-#if OUTPUT_MOBILE_COLOR_VALUE
-	OutCustomDepth = SvPosition.z;
-	OutCustomStencil = MobileColorValue;
-#else
 	OutColor = 0;
-#endif
 }

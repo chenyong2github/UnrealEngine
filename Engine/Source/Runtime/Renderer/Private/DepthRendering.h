@@ -57,17 +57,6 @@ extern FDepthPassInfo GetDepthPassInfo(const FScene* Scene);
 
 void AddDitheredStencilFillPass(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, FRDGTextureRef DepthTexture, const FDepthPassInfo& DepthPass);
 
-class FDepthOnlyShaderElementData : public FMeshMaterialShaderElementData
-{
-public:
-	FDepthOnlyShaderElementData(float InMobileColorValue)
-		: MobileColorValue(InMobileColorValue)
-	{
-	}
-
-	float MobileColorValue;
-};
-
 /**
  * A vertex shader for rendering the depth of a mesh.
  */
@@ -112,7 +101,7 @@ public:
 		const FMaterialRenderProxy& MaterialRenderProxy,
 		const FMaterial& Material,
 		const FMeshPassProcessorRenderState& DrawRenderState,
-		const FDepthOnlyShaderElementData& ShaderElementData,
+		const FMeshMaterialShaderElementData& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
@@ -122,7 +111,6 @@ public:
 /**
 * A pixel shader for rendering the depth of a mesh.
 */
-template <bool bUsesMobileColorValue>
 class FDepthOnlyPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FDepthOnlyPS,MeshMaterial);
@@ -135,16 +123,13 @@ public:
 		}
 		
 		return
-			// Compile for materials that are masked, avoid generating permutation for other platforms if bUsesMobileColorValue is true
-			((!Parameters.MaterialParameters.bWritesEveryPixel || Parameters.MaterialParameters.bHasPixelDepthOffsetConnected) && (!bUsesMobileColorValue || IsMobilePlatform(Parameters.Platform)))
-			// Mobile uses material pixel shader to write custom stencil to color target
-			|| (IsMobilePlatform(Parameters.Platform) && (Parameters.MaterialParameters.bIsDefaultMaterial || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition));
+			// Compile for materials that are masked
+			(!Parameters.MaterialParameters.bWritesEveryPixel || Parameters.MaterialParameters.bHasPixelDepthOffsetConnected);
 	}
 
 	FDepthOnlyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FMeshMaterialShader(Initializer)
 	{
-		MobileColorValue.Bind(Initializer.ParameterMap, TEXT("MobileColorValue"));
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -152,14 +137,6 @@ public:
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		
 		OutEnvironment.SetDefine(TEXT("ALLOW_DEBUG_VIEW_MODES"), AllowDebugViewmodes(Parameters.Platform));
-		if (IsMobilePlatform(Parameters.Platform))
-		{
-			OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_COLOR_VALUE"), bUsesMobileColorValue ? 1u : 0u);
-		}
-		else
-		{
-			OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_COLOR_VALUE"), 0u);
-		}
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
 	}
 
@@ -172,24 +149,20 @@ public:
 		const FMaterialRenderProxy& MaterialRenderProxy,
 		const FMaterial& Material,
 		const FMeshPassProcessorRenderState& DrawRenderState,
-		const FDepthOnlyShaderElementData& ShaderElementData,
+		const FMeshMaterialShaderElementData& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
-
-		ShaderBindings.Add(MobileColorValue, ShaderElementData.MobileColorValue);
 	}
-
-	LAYOUT_FIELD(FShaderParameter, MobileColorValue);
 };
 
-template <bool bPositionOnly, bool bUsesMobileColorValue>
+template <bool bPositionOnly>
 bool GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
-	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
+	TShaderRef<FDepthOnlyPS>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline);
 
 class FDepthPassMeshProcessor : public FMeshPassProcessor

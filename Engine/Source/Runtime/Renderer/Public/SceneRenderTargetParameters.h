@@ -81,8 +81,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CustomDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CustomDepthTextureSampler)
 	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, CustomStencilTexture)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MobileCustomStencilTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, MobileCustomStencilTextureSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityTextureSampler)
 	// GBuffer
@@ -192,8 +190,6 @@ private:
 
 	// Contains the custom depth targets.
 	TRefCountPtr<IPooledRenderTarget> CustomDepth;
-	TRefCountPtr<IPooledRenderTarget> MobileCustomDepth;
-	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
 
 	// Contains RHI scene texture uniform buffers referencing the extracted textures.
 	TUniformBufferRef<FSceneTextureUniformParameters> UniformBuffer;

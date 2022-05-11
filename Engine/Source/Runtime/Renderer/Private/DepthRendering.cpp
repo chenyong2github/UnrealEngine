@@ -135,13 +135,11 @@ DECLARE_GPU_DRAWCALL_STAT(Prepass);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TDepthOnlyVS<true>,TEXT("/Engine/Private/PositionOnlyDepthVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TDepthOnlyVS<false>,TEXT("/Engine/Private/DepthOnlyVertexShader.usf"),TEXT("Main"),SF_Vertex);
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FDepthOnlyPS<true>,TEXT("/Engine/Private/DepthOnlyPixelShader.usf"),TEXT("Main"),SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FDepthOnlyPS<false>,TEXT("/Engine/Private/DepthOnlyPixelShader.usf"),TEXT("Main"),SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(,FDepthOnlyPS,TEXT("/Engine/Private/DepthOnlyPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
 IMPLEMENT_SHADERPIPELINE_TYPE_VS(DepthNoPixelPipeline, TDepthOnlyVS<false>, true);
 IMPLEMENT_SHADERPIPELINE_TYPE_VS(DepthPosOnlyNoPixelPipeline, TDepthOnlyVS<true>, true);
-IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(DepthNoColorOutputPipeline, TDepthOnlyVS<false>, FDepthOnlyPS<false>, true);
-IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(DepthWithColorOutputPipeline, TDepthOnlyVS<false>, FDepthOnlyPS<true>, true);
+IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(DepthPipeline, TDepthOnlyVS<false>, FDepthOnlyPS, true);
 
 static bool IsDepthPassWaitForTasksEnabled()
 {
@@ -154,19 +152,19 @@ static FORCEINLINE bool UseShaderPipelines(ERHIFeatureLevel::Type InFeatureLevel
 	return RHISupportsShaderPipelines(GShaderPlatformForFeatureLevel[InFeatureLevel]) && CVar && CVar->GetValueOnAnyThread() != 0;
 }
 
-template <bool bPositionOnly, bool bUsesMobileColorValue>
+template <bool bPositionOnly>
 bool GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
-	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
+	TShaderRef<FDepthOnlyPS>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline)
 {
 	FMaterialShaderTypes ShaderTypes;
 	ShaderTypes.AddShaderType<TDepthOnlyVS<bPositionOnly>>();
 
-	if (bPositionOnly && !bUsesMobileColorValue)
+	if (bPositionOnly)
 	{
 		ShaderTypes.PipelineType = &DepthPosOnlyNoPixelPipeline;
 		/*ShaderPipeline = UseShaderPipelines(FeatureLevel) ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : FShaderPipelineRef();
@@ -177,22 +175,11 @@ bool GetDepthPassShaders(
 	}
 	else
 	{
-		const bool bNeedsPixelShader = bUsesMobileColorValue || !Material.WritesEveryPixel() || Material.MaterialUsesPixelDepthOffset_RenderThread() || Material.IsTranslucencyWritingCustomDepth();
+		const bool bNeedsPixelShader = !Material.WritesEveryPixel() || Material.MaterialUsesPixelDepthOffset_RenderThread() || Material.IsTranslucencyWritingCustomDepth();
 		if (bNeedsPixelShader)
 		{
-			ShaderTypes.AddShaderType<FDepthOnlyPS<bUsesMobileColorValue>>();
-		}
-
-		if (bNeedsPixelShader)
-		{
-			if (bUsesMobileColorValue)
-			{
-				ShaderTypes.PipelineType = &DepthWithColorOutputPipeline;
-			}
-			else
-			{
-				ShaderTypes.PipelineType = &DepthNoColorOutputPipeline;
-			}
+			ShaderTypes.AddShaderType<FDepthOnlyPS>();
+			ShaderTypes.PipelineType = &DepthPipeline;
 		}
 		else
 		{
@@ -212,19 +199,18 @@ bool GetDepthPassShaders(
 	return true;
 }
 
-#define IMPLEMENT_GetDepthPassShaders( bPositionOnly, bUsesMobileColorValue ) \
-	template bool GetDepthPassShaders< bPositionOnly, bUsesMobileColorValue >( \
+#define IMPLEMENT_GetDepthPassShaders( bPositionOnly ) \
+	template bool GetDepthPassShaders< bPositionOnly >( \
 		const FMaterial& Material, \
 		FVertexFactoryType* VertexFactoryType, \
 		ERHIFeatureLevel::Type FeatureLevel, \
 		TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader, \
-		TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader, \
+		TShaderRef<FDepthOnlyPS>& PixelShader, \
 		FShaderPipelineRef& ShaderPipeline \
 	);
 
-IMPLEMENT_GetDepthPassShaders( true, false );
-IMPLEMENT_GetDepthPassShaders( false, false );
-IMPLEMENT_GetDepthPassShaders( false, true );
+IMPLEMENT_GetDepthPassShaders( true );
+IMPLEMENT_GetDepthPassShaders( false );
 
 void SetDepthPassDitheredLODTransitionState(const FSceneView* SceneView, const FMeshBatch& RESTRICT Mesh, int32 StaticMeshId, FMeshPassProcessorRenderState& DrawRenderState)
 {
@@ -747,11 +733,11 @@ bool FDepthPassMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		TDepthOnlyVS<bPositionOnly>,
-		FDepthOnlyPS<false>> DepthPassShaders;
+		FDepthOnlyPS> DepthPassShaders;
 
 	FShaderPipelineRef ShaderPipeline;
 
-	if (!GetDepthPassShaders<bPositionOnly, false>(
+	if (!GetDepthPassShaders<bPositionOnly>(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
@@ -775,7 +761,7 @@ bool FDepthPassMeshProcessor::Process(
 		SetMobileDepthPassRenderState(PrimitiveSceneProxy, DrawRenderState, MeshBatch, IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)));
 	}
 
-	FDepthOnlyShaderElementData ShaderElementData(0.0f);
+	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
 
 	const FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(BlendMode, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());

@@ -1666,21 +1666,29 @@ FOpenGLShaderResourceView::FOpenGLShaderResourceView(FOpenGLTexture* InTexture, 
 		? Texture->GetFormat()
 		: CreateInfo.Format;
 	
-	const bool bFormatsMatch = Format == Texture->GetFormat();
+	const bool bFormatsMatch = Format == Texture->GetFormat() || Format == PF_X24_G8;
 
-	if (Format == PF_X24_G8)
+	RunOnGLRenderContextThread([this, bFormatsMatch, Format]()
 	{
-		UE_LOG(LogRHI, Fatal, TEXT("Cannot create a stencil SRV (PF_X24_G8) when texture views are unsupported."));
-	}
-	else
-	{
-		RunOnGLRenderContextThread([this, bFormatsMatch]()
+		VERIFY_GL_SCOPE();
+		checkf(bFormatsMatch, TEXT("SRVs cannot modify the pixel format of a texture when texture views are unsupported."));
+		Resource = Texture->GetResource();
+
+		// Handle the custom stencil SRV
+		if (Format == PF_X24_G8)
 		{
-			VERIFY_GL_SCOPE();
-			checkf(bFormatsMatch, TEXT("SRVs cannot modify the pixel format of a texture when texture views are unsupported."));
-			Resource = Texture->GetResource();
-		});
-	}
+			// Use a texture stage that's not likely to be used for draws, to avoid waiting
+			FOpenGLContextState& ContextState = FOpenGLDynamicRHI::Get().GetContextStateForCurrentContext();
+			FOpenGLDynamicRHI::Get().CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, Resource, LimitMip, Texture->GetNumMips());
+
+			//set the texture to return the stencil index, and then force the components to match D3D
+			glTexParameteri(Target, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
+			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_ZERO);
+			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_G, GL_RED);
+			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_ZERO);
+			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_A, GL_ZERO);
+		}
+	});
 }
 
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)

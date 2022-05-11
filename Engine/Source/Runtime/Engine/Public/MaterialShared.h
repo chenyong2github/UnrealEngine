@@ -2000,8 +2000,8 @@ public:
 	ENGINE_API bool MaterialUsesSceneDepthLookup_RenderThread() const;
 	ENGINE_API bool MaterialUsesSceneDepthLookup_GameThread() const;
 
-	/** Does the material use CustomDepth or CustomStencil lookup */
-	ENGINE_API bool UsesCustomDepthStencil_GameThread() const;
+	/** The material usage mask of CustomDepth and CustomStencil*/
+	ENGINE_API uint8 GetCustomDepthStencilUsageMask_GameThread() const;
 
 	/** Note: This function is only intended for use in deciding whether or not shader permutations are required before material translation occurs. */
 	ENGINE_API bool MaterialMayModifyMeshPosition() const;

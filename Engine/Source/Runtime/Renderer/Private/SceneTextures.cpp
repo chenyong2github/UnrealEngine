@@ -553,7 +553,6 @@ void FSceneTexturesConfig::InitializeViewFamily(FViewFamilyInfo& ViewFamily)
 	Config.ColorFormat = PF_Unknown;
 	Config.ColorClearValue = FClearValueBinding::Black;
 	Config.DepthClearValue = FClearValueBinding::DepthFar;
-	Config.CustomDepthDownsampleFactor = GetCustomDepthDownsampleFactor(Config.ShaderPlatform);
 	Config.bRequireMultiView = ViewFamily.bRequireMultiView;
 	Config.bIsUsingGBuffers = IsUsingGBuffers(Config.ShaderPlatform);
 
@@ -718,7 +717,7 @@ void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FVie
 	}
 
 	// Custom Depth
-	SceneTextures.CustomDepth = FCustomDepthTextures::Create(GraphBuilder, Config.Extent, Config.FeatureLevel, Config.CustomDepthDownsampleFactor);
+	SceneTextures.CustomDepth = FCustomDepthTextures::Create(GraphBuilder, Config.Extent);
 
 	ViewFamily.bIsSceneTexturesInitialized = true;
 }
@@ -940,8 +939,6 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 	{
 		SetupMode |= ESceneTextureSetupMode::CustomDepth;
 		ExtractIfProduced(SceneTextures.CustomDepth.Depth, CustomDepth);
-		ExtractIfProduced(SceneTextures.CustomDepth.MobileDepth, MobileCustomDepth);
-		ExtractIfProduced(SceneTextures.CustomDepth.MobileStencil, MobileCustomStencil);
 	}
 
 	// Create and extract a scene texture uniform buffer for RHI code outside of the main render graph instance. This
@@ -971,8 +968,6 @@ void FSceneTextureExtracts::Release()
 {
 	Depth = {};
 	CustomDepth = {};
-	MobileCustomDepth = {};
-	MobileCustomStencil = {};
 	UniformBuffer = {};
 	MobileUniformBuffer = {};
 }
@@ -1114,7 +1109,6 @@ void SetupMobileSceneTextureUniformParameters(
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-	bool bMobileSupportFetchBindedCustomStencilBuffer = FDataDrivenShaderPlatformInfo::GetMobileSupportFetchBindedCustomStencilBuffer(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 
 	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<>::GetRHI();
@@ -1124,8 +1118,6 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.CustomDepthTexture = SystemTextures.Black;
 	SceneTextureParameters.CustomDepthTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.CustomStencilTexture = SystemTextures.StencilDummySRV;
-	SceneTextureParameters.MobileCustomStencilTexture = SystemTextures.Black;
-	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneVelocityTexture = SystemTextures.Black;
 	SceneTextureParameters.SceneVelocityTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferATexture = SystemTextures.Black;
@@ -1189,24 +1181,9 @@ void SetupMobileSceneTextureUniformParameters(
 		{
 			const FCustomDepthTextures& CustomDepthTextures = SceneTextures->CustomDepth;
 
-			if (bMobileSupportFetchBindedCustomStencilBuffer)
-			{
-				bool bCustomDepthProduced = HasBeenProduced(CustomDepthTextures.Depth);
-				SceneTextureParameters.CustomDepthTexture = bCustomDepthProduced ? CustomDepthTextures.Depth : SystemTextures.DepthDummy;
-				SceneTextureParameters.CustomStencilTexture = bCustomDepthProduced ? CustomDepthTextures.Stencil : SystemTextures.StencilDummySRV;
-			}				
-			else
-			{
-				if (HasBeenProduced(CustomDepthTextures.MobileDepth))
-				{
-					SceneTextureParameters.CustomDepthTexture = CustomDepthTextures.MobileDepth;
-				}
-
-				if (HasBeenProduced(CustomDepthTextures.MobileStencil) && !EnumHasAnyFlags(CustomDepthTextures.MobileStencil->Desc.Flags, TexCreate_Memoryless))
-				{
-					SceneTextureParameters.MobileCustomStencilTexture = CustomDepthTextures.MobileStencil;
-				}
-			}
+			bool bCustomDepthProduced = HasBeenProduced(CustomDepthTextures.Depth);
+			SceneTextureParameters.CustomDepthTexture = bCustomDepthProduced ? CustomDepthTextures.Depth : SystemTextures.DepthDummy;
+			SceneTextureParameters.CustomStencilTexture = bCustomDepthProduced ? CustomDepthTextures.Stencil : SystemTextures.StencilDummySRV;
 		}
 
 		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneVelocity))
