@@ -87,7 +87,7 @@ export void ApplyXPBDBendingConstraints(uniform FVector4f PandInvM[],
 		
 		const varying float RestAngle = RestAngles[i];
 		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
-		const varying float StiffnessValue = Stiffness;//VectorSelect(AngleIsBuckled, BucklingStiffness, Stiffness);
+		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
 		
 		const varying float Lambda = Lambdas[i];
 		const varying float Alpha  = 1.f / (StiffnessValue * Dt * Dt);
