@@ -783,9 +783,12 @@ ECompilationResult::Type FHotReloadModule::DoHotReloadInternal(const TMap<FName,
 	// Rebind the hot reload DLL 
 	FScopedHotReload Guard(Reload, Packages);
 	Reload->SetSendReloadCompleteNotification(false);
-	TGuardValue<bool> GuardIsInitialLoad(GIsInitialLoad, true);
 
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS); // we create a new CDO in the transient package...this needs to go away before we try again.
+	// we create a new CDO in the transient package...this needs to go away before we try again.
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS); 
+
+	// Pretend we are loading.  This must happen after GC
+	TGuardValue<bool> GuardIsInitialLoad(GIsInitialLoad, true);
 
 	// Load the new modules up
 	bool bReloadSucceeded = false;

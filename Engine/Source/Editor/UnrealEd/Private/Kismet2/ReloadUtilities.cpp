@@ -1060,6 +1060,8 @@ void FReload::Finalize(bool bRunGC)
 	// Force GC to collect reinstanced objects
 	if (bRunGC)
 	{
+		// Make sure the GIsInitialLoad flag is false.  Otherwise GC does nothing
+		TGuardValue<bool> GuardIsInitialLoad(GIsInitialLoad, false);
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 	}
 }
