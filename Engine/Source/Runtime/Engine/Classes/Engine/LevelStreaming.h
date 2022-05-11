@@ -514,11 +514,11 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FLevelStreamingLoadedStatus			OnLevelUnloaded;
 	
-	/** Called when level is added to the world  */
+	/** Called when level is added to the world and is visible  */
 	UPROPERTY(BlueprintAssignable)
 	FLevelStreamingVisibilityStatus		OnLevelShown;
 	
-	/** Called when level is removed from the world  */
+	/** Called when level is no longer visible, may not be removed from world yet  */
 	UPROPERTY(BlueprintAssignable)
 	FLevelStreamingVisibilityStatus		OnLevelHidden;
 

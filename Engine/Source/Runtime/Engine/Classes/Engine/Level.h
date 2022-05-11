@@ -622,7 +622,10 @@ public:
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional)
 	uint8										bStaticComponentsRegisteredInStreamingManager: 1;
 
-	/** Whether the level is currently visible/ associated with the world */
+	/** 
+	 * Whether the level is currently visible/ associated with the world. 
+	 * If false, may not yet be fully removed from the world.
+	 */
 	UPROPERTY(transient)
 	uint8										bIsVisible:1;
 
