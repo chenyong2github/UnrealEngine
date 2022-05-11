@@ -6,6 +6,7 @@
 #include "CurveEditor.h"
 #include "CurveEditorViewRegistry.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "ToolMenus.h"
 
 class FCurveEditorModule : public ICurveEditorModule
 {
@@ -14,7 +15,14 @@ public:
 	{
 		if (GIsEditor)
 		{
-			FCurveEditorCommands::Register();
+			if (UToolMenus::TryGet())
+			{
+				FCurveEditorCommands::Register();
+			}
+			else
+			{
+				FCoreDelegates::OnPostEngineInit.AddStatic(&FCurveEditorCommands::Register);
+			}
 		}
 	}
 
