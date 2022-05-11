@@ -511,7 +511,9 @@ RENDERCORE_API bool MobileEnableClusteredReflections(const FStaticShaderPlatform
 
 RENDERCORE_API bool MobileUsesShadowMaskTexture(const FStaticShaderPlatform Platform);
 
-RENDERCORE_API bool MobileEnableExtenedGBuffer(const FStaticShaderPlatform Platform);
+RENDERCORE_API bool MobileUsesExtenedGBuffer(const FStaticShaderPlatform Platform);
+
+RENDERCORE_API bool MobileUsesGBufferCustomData(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Platform);
 

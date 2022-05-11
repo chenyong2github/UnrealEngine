@@ -460,6 +460,31 @@ float4 ComputeIndirectLightingSampleE(uint2 TracingPixelCoord, uint TracingRayIn
 }
 
 #if SHADING_PATH_MOBILE
+#ifndef ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED
+#define ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED 0
+#endif
+#define MOBILE_SHADINGMODEL_SUPPORT (!MOBILE_DEFERRED_SHADING || ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED)
+
+float MobileEncodeShadingModelIdAndColorChannel(uint ShadingModelId, float Color)
+{
+	uint ColorValue = (uint)round(clamp(Color, 0.0, 1.0) * 31.0) << 3; // 5bit color
+	return (float)(ColorValue | ShadingModelId) / 255.0;
+}
+
+uint MobileDecodeShadingModelId(float InPackedChannel)
+{
+	uint ShadingModelId = (uint)round(InPackedChannel * 255.0);
+#if !MOBILE_EXTENDED_GBUFFER
+	ShadingModelId = ShadingModelId & 0x7;
+#endif
+	return ShadingModelId;
+}
+
+float MobileDecodeColorChannel(float InPackedChannel)
+{
+	return (((uint)(InPackedChannel * 255.0) & ~0x7) >> 3) / 31.0;
+}
+
 /** Mobile specific encoding of GBuffer data */
 void MobileEncodeGBuffer(
 	FGBufferData GBuffer,
@@ -478,6 +503,10 @@ void MobileEncodeGBuffer(
 	}
 	else
 	{
+#if !MOBILE_EXTENDED_GBUFFER
+		// We allocate only 3bits for shading model ID
+		GBuffer.ShadingModelID = (GBuffer.ShadingModelID > 7 ? SHADINGMODELID_DEFAULT_LIT : GBuffer.ShadingModelID);
+#endif
 		OutGBufferA.rg = UnitVectorToOctahedron( normalize(GBuffer.WorldNormal) ) * 0.5f + 0.5f;
 #if ALLOW_STATIC_LIGHTING
 		OutGBufferA.b = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO);
@@ -489,16 +518,44 @@ void MobileEncodeGBuffer(
 		OutGBufferB.r = GBuffer.Metallic;
 		OutGBufferB.g = GBuffer.Specular;
 		OutGBufferB.b = GBuffer.Roughness;
-		OutGBufferB.a = EncodeShadingModelIdAndSelectiveOutputMask(GBuffer.ShadingModelID, 0);
+		OutGBufferB.a = GBuffer.ShadingModelID / 255.0;
 
 		OutGBufferC.rgb = EncodeBaseColor( GBuffer.BaseColor );
-
 #if ALLOW_STATIC_LIGHTING
 		OutGBufferC.a = GBuffer.PrecomputedShadowFactors.x;
 #else
 		OutGBufferC.a = GBuffer.GBufferAO;
 #endif
 		OutGBufferD = GBuffer.CustomData;
+
+#if MOBILE_SHADINGMODEL_SUPPORT && !MOBILE_EXTENDED_GBUFFER
+		if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || 
+			GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+		{
+			OutGBufferA.b = GBuffer.CustomData.a; // Opacity
+			OutGBufferB.r = GBuffer.CustomData.r; // SubsurfaceColor.R
+			OutGBufferC.a = GBuffer.CustomData.g; // SubsurfaceColor.G
+			// encode SubsurfaceColor.B into 5 bits and 3 bits for shading model 
+			OutGBufferB.a = MobileEncodeShadingModelIdAndColorChannel(GBuffer.ShadingModelID, GBuffer.CustomData.b);
+		}
+		else if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+		{
+			OutGBufferA.b = GBuffer.CustomData.x; // ClearCoat
+			OutGBufferC.a = GBuffer.CustomData.y; // ClearCoatRoughness
+		}
+		else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+		{
+			OutGBufferA.b = GBuffer.CustomData.a; // Opacity
+			OutGBufferB.r = GBuffer.CustomData.r; // SubsurfaceProfile
+			OutGBufferC.a = GBuffer.CustomData.g; // Curvature
+		}
+		else if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+		{
+			OutGBufferA.b = GBuffer.CustomData.z; // Backlit
+			OutGBufferB.r = GBuffer.CustomData.x; // 
+			OutGBufferC.a = GBuffer.CustomData.y; // 
+		}
+#endif
 	}
 }
 
@@ -519,7 +576,7 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 	// Note: must match GetShadingModelId standalone function logic
 	// Also Note: SimpleElementPixelShader directly sets SV_Target2 ( GBufferB ) to indicate unlit.
 	// An update there will be required if this layout changes.
-	GBuffer.ShadingModelID = DecodeShadingModelId(InGBufferB.a);
+	GBuffer.ShadingModelID = MobileDecodeShadingModelId(InGBufferB.a);
 	GBuffer.SelectiveOutputMask = 0;
 	GBuffer.BaseColor = DecodeBaseColor(InGBufferC.rgb);
 #if ALLOW_STATIC_LIGHTING
@@ -530,8 +587,43 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 	GBuffer.PrecomputedShadowFactors = 1.0;
 #endif
 
-#if	MOBILE_EXTENDED_GBUFFER
-	GBuffer.CustomData = HasCustomGBufferData(GBuffer.ShadingModelID) ? InGBufferD : 0;
+#if MOBILE_SHADINGMODEL_SUPPORT
+	#if	MOBILE_EXTENDED_GBUFFER
+		GBuffer.CustomData = HasCustomGBufferData(GBuffer.ShadingModelID) ? InGBufferD : 0;
+	#else
+		if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+			GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+		{
+			GBuffer.CustomData.a = InGBufferA.b; // Opacity
+			GBuffer.CustomData.r = InGBufferB.r; // SubsurfaceColor.R
+			GBuffer.CustomData.g = InGBufferC.a; // SubsurfaceColor.G
+			GBuffer.CustomData.b = MobileDecodeColorChannel(InGBufferB.a); // SubsurfaceColor.B
+			GBuffer.GBufferAO = 1;	// no space for AO
+			GBuffer.Metallic = 0;	// no space for Metallic
+		}
+		else if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+		{
+			GBuffer.CustomData.x = InGBufferA.b; // ClearCoat
+			GBuffer.CustomData.y = InGBufferC.a; // ClearCoatRoughness
+			GBuffer.GBufferAO = 1;	// no space for AO
+		}
+		else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+		{
+			GBuffer.CustomData.a = InGBufferA.b; // Opacity
+			GBuffer.CustomData.r = InGBufferB.r; // SubsurfaceProfile
+			GBuffer.CustomData.g = InGBufferC.a; // Curvature
+			GBuffer.GBufferAO = 1;	// no space for AO
+			GBuffer.Metallic = 0;	// no space for Metallic
+		}
+		else if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+		{
+			GBuffer.CustomData.z = InGBufferA.b; // Backlit
+			GBuffer.CustomData.x = InGBufferB.r; // 
+			GBuffer.CustomData.y = InGBufferC.a; //
+			GBuffer.GBufferAO = 1;	// no space for AO
+			GBuffer.Metallic = 0;	// no space for Metallic
+		}
+	#endif
 #endif
 	return GBuffer;
 }

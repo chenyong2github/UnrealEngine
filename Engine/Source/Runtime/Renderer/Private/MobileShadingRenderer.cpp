@@ -1329,7 +1329,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 		ColorTargets.Add(SceneTextures.GBufferB);
 		ColorTargets.Add(SceneTextures.GBufferC);
 		
-		if (MobileEnableExtenedGBuffer(ShaderPlatform))
+		if (MobileUsesExtenedGBuffer(ShaderPlatform))
 		{
 			ColorTargets.Add(SceneTextures.GBufferD);
 		}

@@ -5480,7 +5480,7 @@ void GlobalBeginCompileShader(
 
 			bool bGLESDeferredShading = Target.Platform == SP_OPENGL_ES3_1_ANDROID;
 			Input.Environment.SetDefine(TEXT("USE_GLES_FBF_DEFERRED"), bGLESDeferredShading ? 1 : 0);
-			Input.Environment.SetDefine(TEXT("MOBILE_EXTENDED_GBUFFER"), MobileEnableExtenedGBuffer((EShaderPlatform)Target.Platform) ? 1 : 0);
+			Input.Environment.SetDefine(TEXT("MOBILE_EXTENDED_GBUFFER"), MobileUsesExtenedGBuffer((EShaderPlatform)Target.Platform) ? 1 : 0);
 		}
 	}
 

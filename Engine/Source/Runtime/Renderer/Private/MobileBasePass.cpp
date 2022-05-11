@@ -25,8 +25,8 @@ uint8 GetMobileShadingModelStencilValue(FMaterialShadingModelField ShadingModel)
 		return 0u;
 	}
 	
-	// mark everyhing as MSM_DefaultLit if extended GBuffer is not supported
-	return MobileEnableExtenedGBuffer(GMaxRHIShaderPlatform) ? 2u : 1u;
+	// mark everyhing as MSM_DefaultLit if GBuffer CustomData is not supported
+	return MobileUsesGBufferCustomData(GMaxRHIShaderPlatform) ? 2u : 1u;
 }
 
 bool MobileUsesNoLightMapPermutation(const FMeshMaterialShaderPermutationParameters& Parameters)

@@ -51,11 +51,6 @@
 #define DEFERRED_SHADING_PATH 0
 #endif
 
-#ifndef ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED
-#define ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED 0
-#endif
-
-#define MOBILE_SHADINGMODEL_SUPPORT (!MOBILE_DEFERRED_SHADING || ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED)
 
 /*------------------------------------------------------------------------------
 	Mobile Shading Models
@@ -205,12 +200,14 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
 	{
 		ShadingModelContext.SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
+		ShadingModelContext.Opacity = GBuffer.CustomData.a;
 	}
 	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 	{
 		ShadingModelContext.SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
 				
 		ShadingModelContext.Curvature = GBuffer.CustomData.g;
+		ShadingModelContext.Opacity = GBuffer.CustomData.a;
 
 		half2 LobeRoughness;
 		GetProfileDualSpecular(ShadingModelContext.SubsurfaceProfileInt, GBuffer.Roughness, 

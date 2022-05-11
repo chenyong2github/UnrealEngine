@@ -82,7 +82,7 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 			PermutationVector.Set<FShadowQuality>(0);
 		}
 
-		if (!MobileEnableExtenedGBuffer(Platform))
+		if (!MobileUsesGBufferCustomData(Platform))
 		{
 			PermutationVector.Set<FEnableShadingModelSupport>(false);
 		}
@@ -189,7 +189,7 @@ public:
 			PermutationVector.Set<FSpotLightShadowDim>(false);
 		}
 
-		if (!MobileEnableExtenedGBuffer(Platform))
+		if (!MobileUsesGBufferCustomData(Platform))
 		{
 			PermutationVector.Set<FEnableShadingModelSupport>(false);
 		}
@@ -248,7 +248,7 @@ public:
 		}
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (!MobileEnableExtenedGBuffer(Parameters.Platform) && PermutationVector.Get<FEnableShadingModelSupport>())
+		if (!MobileUsesGBufferCustomData(Parameters.Platform) && PermutationVector.Get<FEnableShadingModelSupport>())
 		{
 			return false;
 		}
@@ -342,7 +342,7 @@ void RenderReflectionEnvironmentSkyLighting(FRHICommandListImmediate& RHICmdList
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 
 	// Do two passes, first masking DefautLit, second masking all other shading models
-	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	int32 NumPasses = MobileUsesGBufferCustomData(Scene.GetShaderPlatform()) ? 2 : 1;
 	uint8 PassShadingModelStencilValue[2] =
 	{
 		GetMobileShadingModelStencilValue(MSM_DefaultLit),
@@ -459,7 +459,7 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 	const bool bDynamicShadows = DirectionalLight.Proxy->CastsDynamicShadow() && (LightingChannel == 0u) && View.Family->EngineShowFlags.DynamicShadows;
 
 	// Do two passes, first masking DefautLit, second masking all other shading models
-	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	int32 NumPasses = MobileUsesGBufferCustomData(Scene.GetShaderPlatform()) ? 2 : 1;
 	uint8 PassShadingModelStencilValue[2] =
 	{
 		GetMobileShadingModelStencilValue(MSM_DefaultLit),
@@ -720,7 +720,7 @@ static void RenderLocalLight(
 	PassParameters.TranslatedWorldToLight = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToLight);
 
 	// Do two passes, first masking DefautLit, second masking all other shading models
-	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	int32 NumPasses = MobileUsesGBufferCustomData(Scene.GetShaderPlatform()) ? 2 : 1;
 	uint8 PassShadingModelStencilValue[2] =
 	{
 		GetMobileShadingModelStencilValue(MSM_DefaultLit),
@@ -807,7 +807,7 @@ static void RenderSimpleLights(
 
 	// Setup PSOs we going to use for light rendering 
 	// Do two passes, first masking DefautLit, second masking all other shading models
-	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	int32 NumPasses = MobileUsesGBufferCustomData(Scene.GetShaderPlatform()) ? 2 : 1;
 	uint8 PassShadingModelStencilValue[2] =
 	{
 		GetMobileShadingModelStencilValue(MSM_DefaultLit),

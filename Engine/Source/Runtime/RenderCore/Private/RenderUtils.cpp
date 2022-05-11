@@ -1233,8 +1233,8 @@ RENDERCORE_API bool MobileUsesShadowMaskTexture(const FStaticShaderPlatform Plat
 	return IsMobileDistanceFieldEnabled(Platform) || (!IsMobileDeferredShadingEnabled(Platform) && IsMobileMovableSpotlightShadowsEnabled(Platform) && MobileForwardEnableLocalLights(Platform));
 }
 
-// Whether to support more than 4 color attachments for GBuffer. Required for shading models with a custom data
-RENDERCORE_API bool MobileEnableExtenedGBuffer(FStaticShaderPlatform ShaderPlatform)
+// Whether to support more than 4 color attachments for GBuffer 
+RENDERCORE_API bool MobileUsesExtenedGBuffer(FStaticShaderPlatform ShaderPlatform)
 {
 	// Android GLES: uses PLS for deferred shading and limited to 128 bits
 	// Vulkan requires:
@@ -1242,6 +1242,15 @@ RENDERCORE_API bool MobileEnableExtenedGBuffer(FStaticShaderPlatform ShaderPlatf
 		// maxColorAttachments > 4
 	// iOS: A8+
 	return (ShaderPlatform != SP_OPENGL_ES3_1_ANDROID) && false;
+}
+
+// Required for shading models with a custom data
+RENDERCORE_API bool MobileUsesGBufferCustomData(FStaticShaderPlatform ShaderPlatform)
+{
+	static const auto CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	static const bool bAllowStaticLighting = CVarAllowStaticLighting->GetValueOnAnyThread() != 0;
+	// we can pack CustomData into static lighting related space
+	return MobileUsesExtenedGBuffer(ShaderPlatform) || !bAllowStaticLighting;
 }
 
 RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Platform)
