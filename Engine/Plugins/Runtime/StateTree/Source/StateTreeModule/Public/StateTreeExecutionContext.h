@@ -319,7 +319,7 @@ protected:
 	 * Checks all conditions at given range
 	 * @return True if all conditions pass.
 	 */
-	bool TestAllConditions(FStateTreeInstanceData& InstanceData, const uint32 ConditionsOffset, const uint32 ConditionsNum);
+	bool TestAllConditions(const uint32 ConditionsOffset, const uint32 ConditionsNum);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.
@@ -362,7 +362,7 @@ protected:
 	}
 
 	/** @return View to an Evaluator, a Task, or a Condition instance data. */
-	FStateTreeDataView GetInstanceData(FStateTreeInstanceData& InstanceData, const bool bIsObject, const int32 Index) const
+	FStateTreeDataView GetInstanceData(const FStateTreeInstanceData& InstanceData, const bool bIsObject, const int32 Index) const
 	{
 		if (UNLIKELY(bIsObject == true))
 		{

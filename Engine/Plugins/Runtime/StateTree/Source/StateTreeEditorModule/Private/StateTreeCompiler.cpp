@@ -475,8 +475,8 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 	if (CondNode.Instance.IsValid())
 	{
 		// Struct instance
-		FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
-		const int32 InstanceIndex = StateTree->Instances.Num() - 1;
+		FInstancedStruct& Instance = StateTree->SharedInstances.AddDefaulted_GetRef();
+		const int32 InstanceIndex = StateTree->SharedInstances.Num() - 1;
 		
 		Instance = CondNode.Instance;
 	
@@ -496,7 +496,7 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 		UObject* Instance = DuplicateObject(CondNode.InstanceObject, StateTree);
 		
 		StateTree->InstanceObjects.Add(Instance);
-		const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
+		const int32 InstanceIndex = StateTree->SharedInstanceObjects.Num() - 1;
 		
 		// Create binding source struct descriptor.
 		StructDesc.Struct = Instance->GetClass();

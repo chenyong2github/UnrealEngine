@@ -22,9 +22,9 @@ class STATETREEMODULE_API UStateTreeConditionBlueprintBase : public UStateTreeIt
 public:
 
 	UFUNCTION(BlueprintImplementableEvent)
-	bool ReceiveTestCondition(AActor* OwnerActor);
+	bool ReceiveTestCondition(AActor* OwnerActor) const;
 
-	virtual bool TestCondition(FStateTreeExecutionContext& Context);
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const;
 };
 
 /**

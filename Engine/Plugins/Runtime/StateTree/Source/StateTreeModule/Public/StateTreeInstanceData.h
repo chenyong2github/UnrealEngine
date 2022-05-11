@@ -156,6 +156,9 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return const pointer to an instance object   */
 	const UObject* GetObject(const int32 Index) const { return InstanceObjects[Index]; }
 
+	int32 GetEstimatedMemoryUsage() const;
+	int32 GetNumItems() const;
+	
 	/** Type traits */
 	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
 	bool Identical(const FStateTreeInstanceData* Other, uint32 PortFlags) const;

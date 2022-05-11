@@ -9,7 +9,7 @@
 //  UStateTreeConditionBlueprintBase
 //----------------------------------------------------------------------//
 
-bool UStateTreeConditionBlueprintBase::TestCondition(FStateTreeExecutionContext& Context)
+bool UStateTreeConditionBlueprintBase::TestCondition(FStateTreeExecutionContext& Context) const
 {
 	AActor* OwnerActor = GetOwnerActor(Context);
 	return ReceiveTestCondition(OwnerActor);

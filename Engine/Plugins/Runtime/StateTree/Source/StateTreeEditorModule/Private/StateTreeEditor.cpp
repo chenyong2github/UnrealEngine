@@ -348,12 +348,14 @@ FText FStateTreeEditor::GetStatisticsText() const
 	}
 
 	const FStateTreeInstanceData& InstanceDataDefaultValue = StateTree->GetInstanceDataDefaultValue();
-	const uint64 LayoutSize = InstanceDataDefaultValue.IsValid() ? InstanceDataDefaultValue.GetLayout()->GetLayoutInstanceSize() : 0;
-	
-	const FText SizeText = FText::AsMemory(LayoutSize);
-	const FText NumNodesText = FText::AsNumber(StateTree->GetNumInstances());
+	const FText RuntimeSizeText = FText::AsMemory(InstanceDataDefaultValue.GetEstimatedMemoryUsage());
+	const FText RuntimeNumNodesText = FText::AsNumber(InstanceDataDefaultValue.GetNumItems());
 
-	return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes"), SizeText, NumNodesText);
+	const FStateTreeInstanceData& SharedInstanceData = StateTree->GetSharedInstanceData();
+	const FText SharedSizeText = FText::AsMemory(SharedInstanceData.GetEstimatedMemoryUsage());
+	const FText SharedNumNodesText = FText::AsNumber(SharedInstanceData.GetNumItems());
+
+	return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes\nShared size: {2}, {3} nodes"), RuntimeSizeText, RuntimeNumNodesText, SharedSizeText, SharedNumNodesText);
 }
 
 void FStateTreeEditor::HandleModelAssetChanged()

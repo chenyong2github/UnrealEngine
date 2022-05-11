@@ -29,6 +29,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareIntInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	int32 Right = 0;
 };
+STATETREE_POD_INSTANCEDATA(FStateTreeCondition_CompareIntInstanceData);
 
 USTRUCT(DisplayName="Integer Compare")
 struct STATETREEMODULE_API FStateTreeCondition_CompareInt : public FStateTreeConditionCommonBase
@@ -71,6 +72,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareFloatInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	float Right = 0.0f;
 };
+STATETREE_POD_INSTANCEDATA(FStateTreeCondition_CompareFloatInstanceData);
 
 USTRUCT(DisplayName = "Float Compare")
 struct STATETREEMODULE_API FStateTreeCondition_CompareFloat : public FStateTreeConditionCommonBase
@@ -113,6 +115,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareBoolInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	bool bRight = false;
 };
+STATETREE_POD_INSTANCEDATA(FStateTreeCondition_CompareBoolInstanceData);
 
 USTRUCT(DisplayName = "Bool Compare")
 struct STATETREEMODULE_API FStateTreeCondition_CompareBool : public FStateTreeConditionCommonBase
@@ -155,6 +158,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareEnumInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FStateTreeAnyEnum Right;
 };
+STATETREE_POD_INSTANCEDATA(FStateTreeCondition_CompareEnumInstanceData);
 
 USTRUCT(DisplayName = "Enum Compare")
 struct STATETREEMODULE_API FStateTreeCondition_CompareEnum : public FStateTreeConditionCommonBase
@@ -204,6 +208,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareDistanceInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	float Distance = 0.0f;
 };
+STATETREE_POD_INSTANCEDATA(FStateTreeCondition_CompareDistanceInstanceData);
 
 USTRUCT(DisplayName = "Distance Compare")
 struct STATETREEMODULE_API FStateTreeCondition_CompareDistance : public FStateTreeConditionCommonBase

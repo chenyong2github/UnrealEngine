@@ -4,6 +4,9 @@
 #include "StateTreeLinker.h"
 #include "StateTreeNodeBase.h"
 
+const FGuid FStateTreeCustomVersion::GUID(0x28E21331, 0x501F4723, 0x8110FA64, 0xEA10DA1E);
+FCustomVersionRegistration GRegisterStateTreeCustomVersion(FStateTreeCustomVersion::GUID, FStateTreeCustomVersion::LatestVersion, TEXT("StateTreeAsset"));
+
 bool UStateTree::IsReadyToRun() const
 {
 	// Valid tree must have at least one state and valid instance data.
@@ -44,6 +47,15 @@ void UStateTree::PostLoad()
 {
 	Super::PostLoad();
 
+	const int32 CurrentVersion = GetLinkerCustomVersion(FStateTreeCustomVersion::GUID);
+
+	if (CurrentVersion < FStateTreeCustomVersion::SharedInstanceData)
+	{
+		ResetLinked();
+		UE_LOG(LogStateTree, Error, TEXT("%s: StateTree compiled data in older format. Please recompile the StateTree asset."), *GetName());
+		return;
+	}
+	
 	if (!Link())
 	{
 		UE_LOG(LogStateTree, Error, TEXT("%s failed to link. Asset will not be usable at runtime."), *GetName());	
@@ -54,6 +66,8 @@ void UStateTree::Serialize(FStructuredArchiveRecord Record)
 {
 	Super::Serialize(Record);
 
+	Record.GetUnderlyingArchive().UsingCustomVersion(FStateTreeCustomVersion::GUID);
+	
 	// We need to link and rebind property bindings each time a BP is compiled,
 	// because property bindings may get invalid, and instance data potentially needs refreshed.
 	if (Record.GetUnderlyingArchive().IsModifyingWeakAndStrongReferences())
@@ -65,15 +79,21 @@ void UStateTree::Serialize(FStructuredArchiveRecord Record)
 	}
 }
 
-bool UStateTree::Link()
+void UStateTree::ResetLinked()
 {
-	// Initialize the instance data default value.
-	// This data will be used to allocate runtime instance on all StateTree users.
 	InstanceDataDefaultValue.Reset();
+	SharedInstanceData.Reset();
 	
 	ExternalDataDescs.Reset();
 	NumDataViews = 0;
 	ExternalDataBaseIndex = 0;
+}
+
+bool UStateTree::Link()
+{
+	// Initialize the instance data default value.
+	// This data will be used to allocate runtime instance on all StateTree users.
+	ResetLinked();
 	
 	// Update property bag structs before resolving binding.
 	TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
@@ -156,10 +176,16 @@ bool UStateTree::Link()
 	ExternalDataDescs = Linker.GetExternalDataDescs();
 	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
 
-	if (Instances.Num() > 0)
+	if (Instances.Num() > 0 || InstanceObjects.Num() > 0)
 	{
 		InstanceDataDefaultValue.Initialize(*this, Instances, InstanceObjects);
 	}
 
+	if (SharedInstances.Num())
+	{
+		SharedInstanceData.Initialize(*this, SharedInstances, SharedInstanceObjects);
+	}
+
+	
 	return true;
 }

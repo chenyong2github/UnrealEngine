@@ -74,6 +74,38 @@ int32 FStateTreeInstanceDataLayout::GetLayoutInstanceMinAlignment() const
 //  FStateTreeInstanceData
 //----------------------------------------------------------------//
 
+int32 FStateTreeInstanceData::GetEstimatedMemoryUsage() const
+{
+	int32 Size = sizeof(FStateTreeInstanceData);
+
+	if (Layout.IsValid())
+	{
+		Size = Layout->GetLayoutInstanceSize();
+	}
+
+	for (const UObject* InstanceObject : InstanceObjects)
+	{
+		if (InstanceObject)
+		{
+			Size += InstanceObject->GetClass()->GetStructureSize();
+		}
+	}
+
+	return Size;
+}
+
+int32 FStateTreeInstanceData::GetNumItems() const
+{
+	int32 Num = InstanceObjects.Num();
+
+	if (Layout.IsValid())
+	{
+		Num += Layout->Num();
+	}
+	
+	return Num;
+}
+
 void FStateTreeInstanceData::AddStructReferencedObjects(class FReferenceCollector& Collector) const
 {
 	if (!Layout.IsValid())

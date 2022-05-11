@@ -55,3 +55,15 @@ struct STATETREEMODULE_API FStateTreeConditionCommonBase : public FStateTreeCond
 	GENERATED_BODY()
 };
 
+/** Helper macro to define instance data as simple constructible. */
+#define STATETREE_POD_INSTANCEDATA(Type) \
+template <> struct TIsPODType<Type> { enum { Value = true }; }; \
+template<> \
+struct TStructOpsTypeTraits<Type> : public TStructOpsTypeTraitsBase2<Type> \
+{ \
+	enum \
+	{ \
+		WithZeroConstructor = true, \
+		WithNoDestructor = true, \
+	}; \
+};
