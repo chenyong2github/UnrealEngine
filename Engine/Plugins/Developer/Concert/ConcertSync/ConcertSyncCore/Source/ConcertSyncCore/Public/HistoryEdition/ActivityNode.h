@@ -12,15 +12,25 @@ namespace UE::ConcertSyncCore
 {
 	class FActivityDependencyGraph;
 
+	enum class EActivityNodeFlags
+	{
+		None			= 0x00,
+
+		/** This activity renames a package */
+		RenameActivity	= 0x01
+	};
+	ENUM_CLASS_FLAGS(EActivityNodeFlags)
+
 	/** A node corresponds to an activity and can depend on preceding activity*/
 	class CONCERTSYNCCORE_API FActivityNode
 	{
 		friend FActivityDependencyGraph;
 	public:
 		
-		FActivityNode(int64 ActivityId, FActivityNodeID NodeIndex)
+		FActivityNode(int64 ActivityId, FActivityNodeID NodeIndex, EActivityNodeFlags NodeFlags)
 			: ActivityId(ActivityId)
 			, NodeIndex(NodeIndex)
+			, NodeFlags(NodeFlags)
 		{}
 
 		bool HasAnyDependency() const { return Dependencies.Num() > 0; }
@@ -33,6 +43,7 @@ namespace UE::ConcertSyncCore
 		
 		int64 GetActivityId() const { return ActivityId; }
 		FActivityNodeID GetNodeIndex() const { return NodeIndex; }
+		EActivityNodeFlags GetNodeFlags() const { return NodeFlags; }
 		const TArray<FActivityDependencyEdge>& GetDependencies() const { return Dependencies; }
 		const TArray<FActivityNodeID>& GetAffectedChildren() const { return AffectedChildren; }
 	
@@ -41,8 +52,11 @@ namespace UE::ConcertSyncCore
 		/** The activity this node corresponds to */
 		const int64 ActivityId;
 
-		/** Index in parent tree's node array (to avoid bad memory footprint) */
+		/** Index in parent tree's node array (graph uses TArray to avoid bad memory footprint) */
 		const FActivityNodeID NodeIndex;
+
+		/** Additional info about this activity node */
+		const EActivityNodeFlags NodeFlags;
 
 		/** This node's parents. Unset implies this is the root node. */
 		TArray<FActivityDependencyEdge> Dependencies;

@@ -60,14 +60,17 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 		// 1 Create map Foo
 		{
 			Test.TestFalse(TEXT("1 Creating new package 'Foo' has no dependencies."), Graph.GetNodeById(ActivityNodes[_1_NewPackageFoo]).HasAnyDependency());
+			Test.TestTrue(TEXT("1 Creating new package 'Foo' has correct node flags"), Graph.GetNodeById(ActivityNodes[_1_NewPackageFoo]).GetNodeFlags() == EActivityNodeFlags::None);
 			
 			Test.TestTrue(TEXT("1 Saving 'Foo' has dependency to creating package 'Foo'."), Graph.GetNodeById(ActivityNodes[_1_SavePackageFoo]).DependsOnActivity(ActivityMappings[_1_NewPackageFoo], Graph, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("1 Saving 'Foo' has correct node flags"), Graph.GetNodeById(ActivityNodes[_1_SavePackageFoo]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("1 Saving 'Foo' has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_1_SavePackageFoo]).GetDependencies().Num(), 1);
 		}
 
 		// 2 Add actor A
 		{
 			Test.TestTrue(TEXT("2 Adding actor to 'Foo' depends on creating package 'Foo'."), Graph.GetNodeById(ActivityNodes[_2_AddActor]).DependsOnActivity(ActivityMappings[_1_NewPackageFoo], Graph, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("2 Adding actor to 'Foo' has correct node flags"), Graph.GetNodeById(ActivityNodes[_2_AddActor]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("2 Saving 'Foo' has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_2_AddActor]).GetDependencies().Num(), 1);
 		}
 
@@ -75,6 +78,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 		{
 			// It must be a EDependencyStrength::HardDependency because you cannot edit the actor without having created it 
 			Test.TestTrue(TEXT("3 Renaming actor depends on having created the actor."), Graph.GetNodeById(ActivityNodes[_3_RenameActor]).DependsOnActivity(ActivityMappings[_2_AddActor], Graph, EActivityDependencyReason::SubobjectCreation, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("3 Renaming actor to 'Foo' has correct node flags"), Graph.GetNodeById(ActivityNodes[_3_RenameActor]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("3 Renaming actor has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_3_RenameActor]).GetDependencies().Num(), 1);
 		}
 
@@ -85,36 +89,43 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			Test.TestTrue(TEXT("4 Editing actor may depend on having edited the actor previously."), Graph.GetNodeById(ActivityNodes[_4_EditActor]).DependsOnActivity(ActivityMappings[_3_RenameActor], Graph, EActivityDependencyReason::EditAfterPreviousPackageEdit, EDependencyStrength::PossibleDependency));
 			// This activity must have a EDependencyStrength::HardDependency to _2_AddActor because the edit cannot happen without having created the actor
 			Test.TestTrue(TEXT("4 Editing actor depends on having created the actor."), Graph.GetNodeById(ActivityNodes[_4_EditActor]).DependsOnActivity(ActivityMappings[_2_AddActor], Graph, EActivityDependencyReason::SubobjectCreation, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("4 Editing actor has correct node flags"), Graph.GetNodeById(ActivityNodes[_4_EditActor]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("4 Editing actor has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_4_EditActor]).GetDependencies().Num(), 2);
 		}
 
 		// 5 Rename map to Bar
 		{
 			Test.TestFalse(TEXT("5 Saving new package 'Bar' has no dependencies."), Graph.GetNodeById(ActivityNodes[_5_SavePackageBar]).HasAnyDependency());
+			Test.TestTrue(TEXT("5 Saving new package 'Bar' has correct node flags"), Graph.GetNodeById(ActivityNodes[_5_SavePackageBar]).GetNodeFlags() == EActivityNodeFlags::None);
 			
 			Test.TestTrue(TEXT("5 Renaming 'Foo' to 'Bar' has dependency to creating package 'Foo'."), Graph.GetNodeById(ActivityNodes[_5_RenameFooToBar]).DependsOnActivity(ActivityMappings[_1_NewPackageFoo], Graph, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency));
 			Test.TestTrue(TEXT("5 Renaming 'Foo' to 'Bar' has dependency to creating package 'Bar'."), Graph.GetNodeById(ActivityNodes[_5_RenameFooToBar]).DependsOnActivity(ActivityMappings[_5_SavePackageBar], Graph, EActivityDependencyReason::PackageCreation, EDependencyStrength::PossibleDependency));
+			Test.TestTrue(TEXT("5 Renaming 'Foo' to 'Bar' has correct node flags"), Graph.GetNodeById(ActivityNodes[_5_RenameFooToBar]).GetNodeFlags() == EActivityNodeFlags::RenameActivity);
 			Test.TestEqual(TEXT("5 Saving 'Foo' has exactly 2 dependencies"), Graph.GetNodeById(ActivityNodes[_5_RenameFooToBar]).GetDependencies().Num(), 2);
 		}
 
 		// 6 Edit actor A
 		{
 			Test.TestTrue(TEXT("6 Editing actor in 'Bar' depends on having renamed 'Foo' to 'Bar'."), Graph.GetNodeById(ActivityNodes[_6_EditActor]).DependsOnActivity(ActivityMappings[_5_RenameFooToBar], Graph, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("6 Editing actor has correct node flags"), Graph.GetNodeById(ActivityNodes[_6_EditActor]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("6 Editing actor has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_6_EditActor]).GetDependencies().Num(), 1);
 		}
 
 		// 7 Delete map Bar
 		{
 			Test.TestTrue(TEXT("7 Deleting 'Bar' depends on having renamed 'Foo' to 'Bar' previously."), Graph.GetNodeById(ActivityNodes[_7_DeleteBar]).DependsOnActivity(ActivityMappings[_5_RenameFooToBar], Graph, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("7 Deleting 'Bar' has correct node flags"), Graph.GetNodeById(ActivityNodes[_7_DeleteBar]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("7 Deleting 'Bar' after rename has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_7_DeleteBar]).GetDependencies().Num(), 1);
 		}
 
 		// 8 Create map Bar
 		{
 			Test.TestTrue(TEXT("8 Re-creating 'Bar' depends on having deleted 'Bar' previously."), Graph.GetNodeById(ActivityNodes[_8_NewPackageFoo]).DependsOnActivity(ActivityMappings[_7_DeleteBar], Graph, EActivityDependencyReason::PackageRemoval, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("8 Re-creating actor has correct node flags"), Graph.GetNodeById(ActivityNodes[_8_NewPackageFoo]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("8 Re-creating 'Bar' 1 dependency"), Graph.GetNodeById(ActivityNodes[_8_NewPackageFoo]).GetDependencies().Num(), 1);
 			
 			Test.TestTrue(TEXT("8 Saving 'Bar' depends on re-created 'Bar'."), Graph.GetNodeById(ActivityNodes[_8_SavePackageFoo]).DependsOnActivity(ActivityMappings[_8_NewPackageFoo], Graph, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency));
+			Test.TestTrue(TEXT("8 Saving 'Bar' has correct node flags"), Graph.GetNodeById(ActivityNodes[_8_SavePackageFoo]).GetNodeFlags() == EActivityNodeFlags::None);
 			Test.TestEqual(TEXT("8 Saving 'Bar' after re-creation has exactly 1 dependency"), Graph.GetNodeById(ActivityNodes[_8_SavePackageFoo]).GetDependencies().Num(), 1);
 		}
 		

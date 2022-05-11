@@ -2,6 +2,9 @@
 
 #include "HistoryEdition/HistoryAnalysis.h"
 
+#include "Algo/AnyOf.h"
+#include "Algo/Find.h"
+
 #include "HistoryEdition/ActivityGraphIDs.h"
 #include "HistoryEdition/DependencyGraphBuilder.h"
 
@@ -14,11 +17,21 @@ namespace UE::ConcertSyncCore
 		const FActivityDependencyGraph Graph = BuildDependencyGraphFrom(Database);
 		return AnalyseActivityDeletion(ActivitiesToDelete, Graph, bAddActivitiesToDelete);
 	}
+
+	/**
+	 * If PossibleRenameActivityNode is a rename activity, then this function adds the activity that created the renamed-to package.
+	 * This implies that PossibleRenameActivityNode is EConcertSyncActivityEventType::Package and has EConcertPackageUpdateType::Renamed.
+	 */
+	static void AddSavePackageActivityAssociatedWithRenamePackageActivity(const FActivityDependencyGraph& DependencyGraph, const FActivityNode& PossibleRenameActivityNode, TSet<FActivityNodeID>& DoubleEnqueuingProtection, TQueue<FActivityNodeID>& ActivitiesToAnalyse);
 	
 	FHistoryDeletionRequirements AnalyseActivityDeletion(const TSet<FActivityID>& ActivitiesToDelete, const FActivityDependencyGraph& DependencyGraph, bool bAddActivitiesToDelete)
 	{
 		FHistoryDeletionRequirements Result;
 
+		TSet<FActivityNodeID> PossibleDoubleEnqueuingProtection;
+		TQueue<FActivityNodeID> PossibleDependencyActivitiesToAnalyse;
+		FActivityNodeID CurrentActivityID;
+		
 		TSet<FActivityNodeID> HardDoubleEnqueuingProtection;
 		TQueue<FActivityNodeID> HardDependencyActivitiesToAnalyse;
 		for (const FActivityID ActivityToDelete : ActivitiesToDelete)
@@ -28,13 +41,10 @@ namespace UE::ConcertSyncCore
 			{
 				HardDoubleEnqueuingProtection.Add(*NodeID);
 				HardDependencyActivitiesToAnalyse.Enqueue(*NodeID);
+				AddSavePackageActivityAssociatedWithRenamePackageActivity(DependencyGraph, DependencyGraph.GetNodeById(*NodeID), PossibleDoubleEnqueuingProtection, PossibleDependencyActivitiesToAnalyse);
 			}
 		}
-
-		TSet<FActivityNodeID> PossibleDoubleEnqueuingProtection;
-		TQueue<FActivityNodeID> PossibleDependencyActivitiesToAnalyse;
-		FActivityNodeID CurrentActivityID;
-
+		
 		/* We check the hard dependencies first.
 		 * Why? Example:
 		 *
@@ -71,6 +81,7 @@ namespace UE::ConcertSyncCore
 					{
 						HardDoubleEnqueuingProtection.Add(ChildID);
 						HardDependencyActivitiesToAnalyse.Enqueue(ChildID);
+						AddSavePackageActivityAssociatedWithRenamePackageActivity(DependencyGraph, ChildNode, PossibleDoubleEnqueuingProtection, PossibleDependencyActivitiesToAnalyse);
 					}
 				}
 				else if (ChildNode.DependsOnActivity(ActivityID, DependencyGraph, {}, EDependencyStrength::PossibleDependency))
@@ -79,6 +90,7 @@ namespace UE::ConcertSyncCore
 					{
 						PossibleDoubleEnqueuingProtection.Add(ChildID);
 						PossibleDependencyActivitiesToAnalyse.Enqueue(ChildID);
+						AddSavePackageActivityAssociatedWithRenamePackageActivity(DependencyGraph, ChildNode, PossibleDoubleEnqueuingProtection, PossibleDependencyActivitiesToAnalyse);
 					}
 				}
 			}
@@ -105,11 +117,36 @@ namespace UE::ConcertSyncCore
 				{
 					PossibleDoubleEnqueuingProtection.Add(ChildID);
 					PossibleDependencyActivitiesToAnalyse.Enqueue(ChildID);
+					AddSavePackageActivityAssociatedWithRenamePackageActivity(DependencyGraph, ChildNode, PossibleDoubleEnqueuingProtection, PossibleDependencyActivitiesToAnalyse);
 				}
 			}
 		}
 
 		return Result;
+	}
+
+	static void AddSavePackageActivityAssociatedWithRenamePackageActivity(const FActivityDependencyGraph& DependencyGraph, const FActivityNode& PossibleRenameActivityNode, TSet<FActivityNodeID>& DoubleEnqueuingProtection, TQueue<FActivityNodeID>& ActivitiesToAnalyse)
+	{
+		if ((PossibleRenameActivityNode.GetNodeFlags() & EActivityNodeFlags::RenameActivity) == EActivityNodeFlags::None)
+		{
+			return;
+		}
+
+		// Generally rename activities depends on at least one activity and at most on two:
+			// 1. There is always a PossibleDependency with reason PackageCreation: this is the activity that created the renamed-to package; that's the one we want to add here)
+			// 2. There is sometimes a HardDependency with reason PackageCreation in case the renamed package was created within the same session
+		const FActivityDependencyEdge* PackageCreationDependency = Algo::FindByPredicate(PossibleRenameActivityNode.GetDependencies(),
+			[](const FActivityDependencyEdge& Dependency)
+			{
+				const bool bIsAssociatedCreationActivity = Dependency.GetDependencyReason() == EActivityDependencyReason::PackageCreation && Dependency.GetDependencyStrength() == EDependencyStrength::PossibleDependency;
+				return bIsAssociatedCreationActivity;
+			});
+		if (ensureMsgf(PackageCreationDependency, TEXT("Rename activities should have a possible dependency to the activity that creatd the renamed-to package"))
+			&& !DoubleEnqueuingProtection.Contains(PackageCreationDependency->GetDependedOnNodeID()))
+		{
+			DoubleEnqueuingProtection.Add(PackageCreationDependency->GetDependedOnNodeID());
+			ActivitiesToAnalyse.Enqueue(PackageCreationDependency->GetDependedOnNodeID());
+		}
 	}
 }
 

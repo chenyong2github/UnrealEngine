@@ -4,6 +4,7 @@
 
 #include "ArchivedSessionHistoryController.h"
 #include "ConcertLogGlobal.h"
+#include "MultiUserServerConsoleVariables.h"
 #include "MultiUserServerModule.h"
 #include "Window/ModalWindowManager.h"
 
@@ -13,6 +14,7 @@
 #include "Dialog/SMessageDialog.h"
 
 #include "HistoryEdition/ActivityNode.h"
+#include "HistoryEdition/DebugDependencyGraph.h"
 #include "HistoryEdition/DependencyGraphBuilder.h"
 #include "HistoryEdition/HistoryAnalysis.h"
 #include "HistoryEdition/HistoryDeletion.h"
@@ -62,12 +64,17 @@ void FArchivedConcertSessionTab::OnRequestDeleteActivity(const TSet<TSharedRef<F
 	
 	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> SessionDatabase = SyncServer->GetArchivedSessionDatabase(InspectedSessionID))
 	{
+		const FActivityDependencyGraph DependencyGraph = BuildDependencyGraphFrom(*SessionDatabase);
+		if (UE::MultiUserServer::ConsoleVariables::CVarLogActivityDependencyGraphOnDelete.GetValueOnGameThread())
+		{
+			UE_LOG(LogConcert, Log, TEXT("%s"), *UE::ConcertSyncCore::Graphviz::ExportToGraphviz(DependencyGraph, *SessionDatabase));
+		}
+		
 		TSet<FActivityID> RequestedForDelete;
 		Algo::Transform(ActivitiesToDelete, RequestedForDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
 		{
 			return Activity->Activity.ActivityId;
 		});
-		const FActivityDependencyGraph DependencyGraph = BuildDependencyGraphFrom(*SessionDatabase);
 		FHistoryDeletionRequirements DeletionRequirements = AnalyseActivityDeletion(RequestedForDelete, DependencyGraph, true);
 
 		TWeakPtr<const FArchivedConcertSessionTab> WeakTabThis = SharedThis(this);

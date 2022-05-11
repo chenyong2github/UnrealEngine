@@ -80,13 +80,15 @@ namespace UE::ConcertSyncTests::AnalysisTests
 			 * 
 			 * Note: The transaction activities (_3_EditActor, _4_EditActor) have possible dependencies BUT they do have hard dependencies to _2_AddActor. This is why they must be in HardDependencies, too.
 			 */
-			const TSet<ETestActivity> ExcludedActivities{ _1_NewPackageFoo, _5_SavePackageBar };
-			const TSet<ETestActivity> HardDependencies = AllActivities().Difference(ExcludedActivities);
-			const bool bDeleteAllCorrect = ValidateRequirements(TEXT("Delete /Game/Foo"), *this, Activities, DeleteFooRequirements, HardDependencies);
+			const TSet<ETestActivity> ExcludedHardActivities { _1_NewPackageFoo, _5_SavePackageBar };
+			const TSet<ETestActivity> HardDependencies = AllActivities().Difference(ExcludedHardActivities);
+			const TSet<ETestActivity> PossibleDependencies { _5_SavePackageBar };
+			const bool bDeleteAllCorrect = ValidateRequirements(TEXT("Delete /Game/Foo"), *this, Activities, DeleteFooRequirements, HardDependencies, PossibleDependencies);
 			TestTrue(TEXT("Delete /Game/Foo is correct"), bDeleteAllCorrect);
 		}
 
 		// Delete rename transaction > No dependencies
+			// because the rename basically just changes AActor::ActorLabel
 		{
 			const FHistoryDeletionRequirements DeleteRenameRequirements = AnalyseActivityDeletion({ Activities[_3_RenameActor] }, DependencyGraph);
 			TestEqual(TEXT("Delete renaming actor: HardDependencies.Num() == 0"), DeleteRenameRequirements.HardDependencies.Num(), 0);
@@ -101,6 +103,23 @@ namespace UE::ConcertSyncTests::AnalysisTests
 			TestEqual(TEXT("Delete actor creation: PossibleDependencies.Num() == 0"), DeleteCreateActorRequirements.PossibleDependencies.Num(), 0);
 			TestTrue(TEXT("Delete actor creation: Rename depends on created actor"), DeleteCreateActorRequirements.HardDependencies.Contains(Activities[_3_RenameActor]));
 			TestTrue(TEXT("Delete actor creation: Edit depends on created actor"), DeleteCreateActorRequirements.HardDependencies.Contains(Activities[_4_EditActor]));
+		}
+
+		// Deleting a rename activity > Rename activity should have a possible dependency to activities that saved the renamed-to package
+			// because MU internally creates a Save Package activity before a rename activity (so secretly rename activities is two related activities)
+		{
+			const FHistoryDeletionRequirements DeleteRenameRequirements = AnalyseActivityDeletion({ Activities[_5_RenameFooToBar] }, DependencyGraph);
+
+			// Not really what we want to test - but we're doing it for completness
+			TestEqual(TEXT("Delete rename package: HardDependencies.Num() == 4"), DeleteRenameRequirements.HardDependencies.Num(), 4);
+			TestTrue(TEXT("Delete rename package: Rename has hard dependency creating renamed package"), DeleteRenameRequirements.HardDependencies.Contains(Activities[_6_EditActor]));
+			TestTrue(TEXT("Delete rename package: Rename has hard dependency to editing renamed package (1)"), DeleteRenameRequirements.HardDependencies.Contains(Activities[_7_DeleteBar]));
+			TestTrue(TEXT("Delete rename package: Rename has hard dependency to editing renamed package (2)"), DeleteRenameRequirements.HardDependencies.Contains(Activities[_8_NewPackageFoo]));
+			TestTrue(TEXT("Delete rename package: Rename has hard dependency to editing renamed package (3)"), DeleteRenameRequirements.HardDependencies.Contains(Activities[_8_SavePackageFoo]));
+
+			// Now what we really wanted to test
+			TestEqual(TEXT("Delete rename package: PossibleDependencies.Num() == 1"), DeleteRenameRequirements.PossibleDependencies.Num(), 1);
+			TestTrue(TEXT("Delete rename package: Rename has soft dependency to saving renamed-to package"), DeleteRenameRequirements.PossibleDependencies.Contains(Activities[_5_SavePackageBar]));
 		}
 
 		return true;

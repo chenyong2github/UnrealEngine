@@ -185,7 +185,12 @@ namespace UE::ConcertSyncCore
 
 	void FActivityDependencyGraphBuildAlgorithm::DiscoverPackageDependencies(const FConcertSyncActivity& Activity, const FConcertSyncPackageEventMetaData& EventData)
 	{
-		const FActivityNodeID NodeID = Graph.AddActivity(Activity.ActivityId);
+		const FActivityNodeID NodeID = Graph.AddActivity(
+			Activity.ActivityId,
+			EventData.PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Renamed
+				? EActivityNodeFlags::RenameActivity
+				: EActivityNodeFlags::None
+			);
 		switch (EventData.PackageInfo.PackageUpdateType)
 		{
 		case EConcertPackageUpdateType::Added:

@@ -11,17 +11,18 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 {
 	enum ETestActivity
 	{
-		_1_NewPackageFoo,
-		_1_SavePackageFoo,
-		_2_AddActor,
-		_3_RenameActor,
-		_4_EditActor,
-		_5_SavePackageBar,
-		_5_RenameFooToBar,
-		_6_EditActor,
-		_7_DeleteBar,
-		_8_NewPackageFoo,
-		_8_SavePackageFoo,
+		// Redundant = are visual finding aid during debugging
+		_1_NewPackageFoo	= 0,
+		_1_SavePackageFoo	= 1,
+		_2_AddActor			= 2,
+		_3_RenameActor		= 3,
+		_4_EditActor		= 4,
+		_5_SavePackageBar	= 5,
+		_5_RenameFooToBar	= 6,
+		_6_EditActor		= 7,
+		_7_DeleteBar		= 8,
+		_8_NewPackageFoo	= 9,
+		_8_SavePackageFoo	= 10,
 		
 		ActivityCount
 	};

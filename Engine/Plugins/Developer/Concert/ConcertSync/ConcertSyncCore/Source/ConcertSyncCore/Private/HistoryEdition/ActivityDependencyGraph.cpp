@@ -8,13 +8,13 @@
 
 #include "Algo/ForEach.h"
 
-UE::ConcertSyncCore::FActivityNodeID UE::ConcertSyncCore::FActivityDependencyGraph::AddActivity(int64 ActivityIndex)
+UE::ConcertSyncCore::FActivityNodeID UE::ConcertSyncCore::FActivityDependencyGraph::AddActivity(int64 ActivityIndex, EActivityNodeFlags NodeFlags)
 {
 	const TOptional<FActivityNodeID> PreexistingID = FindNodeByActivity(ActivityIndex);
 	if (ensureMsgf(!PreexistingID.IsSet(), TEXT("Activity is already registered!")))
 	{
 		FActivityNodeID NodeID(Nodes.Num());
-		Nodes.Emplace(ActivityIndex, NodeID);
+		Nodes.Emplace(ActivityIndex, NodeID, NodeFlags);
 		return NodeID;
 	}
 

@@ -47,10 +47,12 @@ namespace UE::ConcertSyncCore
 	 *  3. Create actor in level
 	 *  4. Edit actor to reference data assets A
 	 *  5. Edit actor whose construction script reads data from A
-	 * Resulting Graph:     
-	 *     1   3
-	 *    / \ / 
-	 *   2   4
+	 * Resulting Graph:
+	 *     1
+	 *	   I
+	 *     2   3
+	 *      \ / 
+	 *       4
 	 *       I
 	 *       5
 	 */
@@ -59,7 +61,7 @@ namespace UE::ConcertSyncCore
 	public:
 		
 		/** Adds a node. Invalidates the results of GetNodeById. */
-		FActivityNodeID AddActivity(int64 ActivityIndex);
+		FActivityNodeID AddActivity(int64 ActivityIndex, EActivityNodeFlags NodeFlags = EActivityNodeFlags::None);
 		
 		/** Adds a dependency from an existing node to another existing node */
 		bool AddDependency(FActivityNodeID From, FActivityDependencyEdge To);
