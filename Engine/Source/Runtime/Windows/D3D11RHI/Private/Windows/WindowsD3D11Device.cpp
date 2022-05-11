@@ -561,6 +561,49 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 	// Default to primary display
 	D3DRHI->SetHDRDetectedDisplayIndices(0, 0);
 	
+#if WITH_EDITOR
+	// Determines if any displays support HDR
+	bool bSupportsHDROutput = false;
+	{
+		const FD3D11Adapter& Adapter = D3DRHI->GetAdapter();
+		IDXGIAdapter* DXGIAdapter = Adapter.DXGIAdapter;
+		if (!DXGIAdapter)
+		{
+			return false;
+		}
+
+		for (uint32 DisplayIndex = 0; true; ++DisplayIndex)
+		{
+			TRefCountPtr<IDXGIOutput> DXGIOutput;
+			if (S_OK != DXGIAdapter->EnumOutputs(DisplayIndex, DXGIOutput.GetInitReference()))
+			{
+				break;
+			}
+
+			TRefCountPtr<IDXGIOutput6> Output6;
+			if (SUCCEEDED(DXGIOutput->QueryInterface(IID_PPV_ARGS(Output6.GetInitReference()))))
+			{
+				DXGI_OUTPUT_DESC1 OutputDesc;
+				VERIFYD3D11RESULT(Output6->GetDesc1(&OutputDesc));
+
+				// Check for HDR support on the display.
+				const bool bDisplaySupportsHDROutput = (OutputDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
+				if (bDisplaySupportsHDROutput)
+				{
+					UE_LOG(LogD3D11RHI, Log, TEXT("HDR output is supported on adapter %i, display %u:"), 0, DisplayIndex);
+					UE_LOG(LogD3D11RHI, Log, TEXT("\t\tMinLuminance = %f"), OutputDesc.MinLuminance);
+					UE_LOG(LogD3D11RHI, Log, TEXT("\t\tMaxLuminance = %f"), OutputDesc.MaxLuminance);
+					UE_LOG(LogD3D11RHI, Log, TEXT("\t\tMaxFullFrameLuminance = %f"), OutputDesc.MaxFullFrameLuminance);
+
+					bSupportsHDROutput = true;
+				}
+			}
+		}
+	}
+
+	return bSupportsHDROutput;
+#else
+
 	// Grab the adapter
 	TRefCountPtr<IDXGIDevice> DXGIDevice;
 	VERIFYD3D11RESULT(Direct3DDevice->QueryInterface(IID_IDXGIDevice, (void**)DXGIDevice.GetInitReference()));
@@ -653,6 +696,7 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 	}
 
 	return false;
+#endif
 }
 
 static bool IsDeviceOverclocked()
