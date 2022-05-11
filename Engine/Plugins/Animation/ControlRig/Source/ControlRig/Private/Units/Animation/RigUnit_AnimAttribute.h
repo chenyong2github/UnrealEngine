@@ -119,6 +119,72 @@ struct CONTROLRIG_API FRigUnit_SetAnimAttribute_Transform: public FRigUnit_SetAn
 	int32 CachedBoneIndex;
 };
 
+USTRUCT(meta=(DisplayName="Set Attribute - Vector"))
+struct CONTROLRIG_API FRigUnit_SetAnimAttribute_Vector: public FRigUnit_SetAnimAttributeBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_SetAnimAttribute_Vector()
+	{
+		Name = TEXT("NewAttributeName");
+		BoneName = NAME_None;
+		Value = FVector::ZeroVector;
+		CachedBoneName = NAME_None;
+		CachedBoneIndex = 0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FName Name;
+	
+	UPROPERTY(meta=(Input, CustomWidget="BoneName"))
+	FName BoneName;
+
+	UPROPERTY(meta=(Input))
+	FVector Value;
+
+	UPROPERTY()
+	FName CachedBoneName;
+	
+	UPROPERTY()
+	int32 CachedBoneIndex;
+};
+
+USTRUCT(meta=(DisplayName="Set Attribute - Quaternion"))
+struct CONTROLRIG_API FRigUnit_SetAnimAttribute_Quaternion: public FRigUnit_SetAnimAttributeBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_SetAnimAttribute_Quaternion()
+	{
+		Name = TEXT("NewAttributeName");
+		BoneName = NAME_None;
+		Value = FQuat::Identity;
+		CachedBoneName = NAME_None;
+		CachedBoneIndex = 0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FName Name;
+	
+	UPROPERTY(meta=(Input, CustomWidget="BoneName"))
+	FName BoneName;
+
+	UPROPERTY(meta=(Input))
+	FQuat Value;
+
+	UPROPERTY()
+	FName CachedBoneName;
+	
+	UPROPERTY()
+	int32 CachedBoneIndex;
+};
+
 /**
  * Gets the value of an animation attribute with the matching names.
  * If the attribute was not found, the fallback value is outputted.

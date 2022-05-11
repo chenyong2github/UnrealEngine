@@ -436,6 +436,24 @@ FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderPro
 				*((FMatrix44f*)(&AttributeBuffer[Offset])) = Optimus::ConvertFTransformToFMatrix44f(Attribute->Value);
 			}
 		}
+		else if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Float, 3))
+		{
+			bIsSupportedType = true;
+			if (const FVectorAnimationAttribute* Attribute = AttributeContainer.Find<FVectorAnimationAttribute>(Id))
+			{
+				bIsValueSet = true;
+				*((FVector3f*)(&AttributeBuffer[Offset])) = FVector3f(Attribute->Value);
+			}
+		}
+		else if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Float, 4))
+		{
+			bIsSupportedType = true;
+			if (const FQuaternionAnimationAttribute* Attribute = AttributeContainer.Find<FQuaternionAnimationAttribute>(Id))
+			{
+				bIsValueSet = true;
+				*((FQuat4f*)(&AttributeBuffer[Offset])) = FQuat4f(Attribute->Value);
+			}
+		}
 
 		// Use the default value if the attribute was not found
 		if (bIsSupportedType && !bIsValueSet)

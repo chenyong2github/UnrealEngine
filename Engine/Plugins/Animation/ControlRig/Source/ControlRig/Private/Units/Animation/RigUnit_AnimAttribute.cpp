@@ -22,12 +22,28 @@ class TAnimAttributeType<float>
 public:
 	using Type = FFloatAnimationAttribute;
 };
+
 template<>
 class TAnimAttributeType<FTransform>
 {
 public:
 	using Type = FTransformAnimationAttribute;
 };
+
+template<>
+class TAnimAttributeType<FVector>
+{
+public:
+	using Type = FVectorAnimationAttribute;
+};
+
+template<>
+class TAnimAttributeType<FQuat>
+{
+public:
+	using Type = FQuaternionAnimationAttribute;
+};
+
 
 template<typename T>
 FORCEINLINE_DEBUGGABLE static T* GetAnimAttributeValue(
@@ -115,6 +131,28 @@ FRigUnit_SetAnimAttribute_Transform_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	FTransform* ValuePtr = GetAnimAttributeValue<FTransform>(true, Context, Name, BoneName, CachedBoneName, CachedBoneIndex);
+	if (ValuePtr)
+	{
+		*ValuePtr = Value;
+	}
+}
+
+FRigUnit_SetAnimAttribute_Vector_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	FVector* ValuePtr = GetAnimAttributeValue<FVector>(true, Context, Name, BoneName, CachedBoneName, CachedBoneIndex);
+	if (ValuePtr)
+	{
+		*ValuePtr = Value;
+	}
+}
+
+FRigUnit_SetAnimAttribute_Quaternion_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	FQuat* ValuePtr = GetAnimAttributeValue<FQuat>(true, Context, Name, BoneName, CachedBoneName, CachedBoneIndex);
 	if (ValuePtr)
 	{
 		*ValuePtr = Value;
