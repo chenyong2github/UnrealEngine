@@ -372,6 +372,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Add include paths to the argument list.
+			Result += GetIncludePathArguments(CompileEnvironment);
+
+			// Add preprocessor definitions to the argument list.
+			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
+
 			return Result;
 		}
 
@@ -566,31 +572,14 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
-				PCHArguments += string.Format(" -include \"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename!.FullName);
+				PCHArguments += GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!);
 				if (GetClangVersion().Major >= 11)
 				{
 					PCHArguments += " -fpch-validate-input-files-content";
 				}
 			}
 
-			foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-			{
-				Arguments += String.Format(" -include \"{0}\"", ForceIncludeFile.Location.FullName);
-			}
-
-			// Add include paths to the argument list.
-			HashSet<DirectoryReference> AllIncludes = new HashSet<DirectoryReference>(CompileEnvironment.UserIncludePaths);
-			AllIncludes.UnionWith(CompileEnvironment.SystemIncludePaths);
-			foreach (DirectoryReference IncludePath in AllIncludes)
-			{
-				Arguments += string.Format(" -I\"{0}\"", IncludePath.FullName);
-			}
-
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				string DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
-				Arguments += string.Format(" -D \"{0}\"", DefinitionArgument);
-			}
+			Arguments += GetForceIncludeFileArguments(CompileEnvironment);
 
 			CPPOutput Result = new CPPOutput();
 			// Create a compile action for each source file.

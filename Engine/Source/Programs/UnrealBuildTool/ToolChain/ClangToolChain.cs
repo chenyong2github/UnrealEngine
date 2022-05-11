@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Diagnostics;
-using System.Text;
 using EpicGames.Core;
-using System.Text.RegularExpressions;
+using System;
+using System.Linq;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -22,6 +17,43 @@ namespace UnrealBuildTool
 
 		public ClangToolChain() : base()
 		{
+		}
+
+		/// <summary>
+		/// Normalize a path for use in a command line, making it relative to Engine/Source if under the root directory
+		/// </summary>
+		/// <param name="Reference">The FileSystemReference to normalize</param>
+		/// <returns>Normalized path as a string</returns>
+		protected static string NormalizeCommandLinePath(FileSystemReference Reference)
+		{
+			// Try to use a relative path to shorten command line length.
+			if (Reference.IsUnderDirectory(Unreal.RootDirectory))
+			{
+				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory).Replace("\\", "/");
+			}
+
+			return Reference.FullName.Replace("\\", "/");
+		}
+
+		/// <summary>
+		/// Normalize a path for use in a command line, making it relative if under the Root Directory
+		/// </summary>
+		/// <param name="Item">The FileItem to normalize</param>
+		/// <returns>Normalized path as a string</returns>
+		protected static string NormalizeCommandLinePath(FileItem Item)
+		{
+			return NormalizeCommandLinePath(Item.Location);
+		}
+
+		/// <summary>
+		/// Sanitizes a preprocessor definition argument if needed.
+		/// </summary>
+		/// <param name="Definition">A string in the format "foo=bar" or "foo".</param>
+		/// <returns>An escaped string</returns>
+		protected virtual string EscapePreprocessorDefinition(string Definition)
+		{
+			// By default don't modify preprocessor definition, handle in platform overrides.
+			return Definition;
 		}
 
 		/// <summary>
@@ -140,14 +172,65 @@ namespace UnrealBuildTool
 		// Note that exception handling uses the same information, but it will generate it as needed.
 		protected virtual string GetRTTIFlag(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result;
-			if (CompileEnvironment.bUseRTTI)
+			return CompileEnvironment.bUseRTTI ? " -frtti" : " -fno-rtti";
+		}
+
+		protected virtual string GetUserIncludePathArgument(DirectoryReference IncludePath)
+		{
+			return $" -I\"{NormalizeCommandLinePath(IncludePath)}\"";
+		}
+
+		protected virtual string GetSystemIncludePathArgument(DirectoryReference IncludePath)
+		{
+			// TODO: System include paths can be included with -isystem
+			return $" -I\"{NormalizeCommandLinePath(IncludePath)}\"";
+		}
+
+		protected virtual string GetIncludePathArguments(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 			{
-				Result = " -frtti";
+				Result += GetUserIncludePathArgument(IncludePath);
 			}
-			else
+			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
 			{
-				Result = " -fno-rtti";
+				Result += GetSystemIncludePathArgument(IncludePath);
+			}
+			return Result;
+		}
+
+		protected virtual string GetPreprocessorDefinitionArgument(string Definition)
+		{
+			return $" -D\"{EscapePreprocessorDefinition(Definition)}\"";
+		}
+
+		protected virtual string GetPreprocessorDefinitionArguments(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			foreach (string Definition in CompileEnvironment.Definitions)
+			{
+				Result += GetPreprocessorDefinitionArgument(Definition);
+			}
+			return Result;
+		}
+
+		protected virtual string GetForceIncludeFileArgument(FileReference ForceIncludeFile)
+		{
+			return $" -include \"{NormalizeCommandLinePath(ForceIncludeFile)}\"";
+		}
+
+		protected virtual string GetForceIncludeFileArgument(FileItem ForceIncludeFile)
+		{
+			return GetForceIncludeFileArgument(ForceIncludeFile.Location);
+		}
+
+		protected virtual string GetForceIncludeFileArguments(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+			foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
+			{
+				Result += String.Format(" -include \"{0}\"", NormalizeCommandLinePath(ForceIncludeFile));
 			}
 			return Result;
 		}

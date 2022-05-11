@@ -300,6 +300,12 @@ namespace UnrealBuildTool
 				Result += " -gdwarf-2";
 			}
 
+			// Add include paths to the argument list.
+			Result += GetIncludePathArguments(CompileEnvironment);
+
+			// Add preprocessor definitions to the argument list.
+			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
+
 			return Result;
 		}
 		
@@ -369,22 +375,6 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		public static string NormalizeCommandLinePath(FileSystemReference Reference)
-		{
-			// Try to use a relative path to shorten command line length.
-			if (Reference.IsUnderDirectory(Unreal.RootDirectory))
-			{
-				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
-			}
-
-			return Reference.FullName;
-		}
-
-		public static string NormalizeCommandLinePath(FileItem Item)
-		{
-			return NormalizeCommandLinePath(Item.Location);
-		}
-
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			StringBuilder Arguments = new StringBuilder();
@@ -396,31 +386,11 @@ namespace UnrealBuildTool
 			{
 				// Add the precompiled header file's path to the include path so GCC can find it.
 				// This needs to be before the other include paths to ensure GCC uses it instead of the source header file.
-				PCHArguments.Append(" -include \"");
-				PCHArguments.Append(NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-				PCHArguments.Append("\"");
+				PCHArguments.Append(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 				if (GetClangVersion().Major >= 11)
 				{
 					PCHArguments.Append(" -fpch-validate-input-files-content");
 				}
-			}
-
-			// Add include paths to the argument list.
-			HashSet<DirectoryReference> AllIncludes = new HashSet<DirectoryReference>(CompileEnvironment.UserIncludePaths);
-			AllIncludes.UnionWith(CompileEnvironment.SystemIncludePaths);
-			foreach (DirectoryReference IncludePath in AllIncludes)
-			{
-				Arguments.Append(" -I\"");
-				Arguments.Append(NormalizeCommandLinePath(IncludePath));
-				Arguments.Append("\"");
-			}
-
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				string DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
-				Arguments.Append(" -D\"");
-				Arguments.Append(DefinitionArgument);
-				Arguments.Append("\"");
 			}
 
 			List<string> FrameworksSearchPaths = new List<string>();
@@ -479,10 +449,7 @@ namespace UnrealBuildTool
 					FileArguments += PCHArguments.ToString();
 				}
 
-				foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-				{
-					FileArguments += String.Format(" -include \"{0}\"", NormalizeCommandLinePath(ForceIncludeFile));
-				}
+				FileArguments += GetForceIncludeFileArguments(CompileEnvironment);
 
 				// Add the C++ source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(SourceFile);
@@ -900,13 +867,7 @@ namespace UnrealBuildTool
 			List<string> InputFileNames = new List<string>();
 			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
-				string InputFilePath = InputFile.AbsolutePath;
-				if (InputFile.Location.IsUnderDirectory(Unreal.RootDirectory))
-				{
-					InputFilePath = InputFile.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
-				}
-
-				InputFileNames.Add(string.Format("\"{0}\"", InputFilePath));
+				InputFileNames.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(InputFile)));
 				LinkAction.PrerequisiteItems.Add(InputFile);
 			}
 

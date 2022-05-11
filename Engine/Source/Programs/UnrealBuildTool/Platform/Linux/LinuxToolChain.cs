@@ -796,51 +796,37 @@ namespace UnrealBuildTool
 			}
 
 			// Add include paths to the argument list.
-			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-			{
-				Result += string.Format(" -I\"{0}\"", NormalizeCommandLinePath(IncludePath));
-			}
-			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
-			{
-				Result += string.Format(" -I\"{0}\"", NormalizeCommandLinePath(IncludePath));
-			}
+			Result += GetIncludePathArguments(CompileEnvironment);
 
 			// Add preprocessor definitions to the argument list.
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				Result += string.Format(" -D \"{0}\"", EscapeArgument(Definition));
-			}
+			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
 
 			return Result;
 		}
 
-		/// <summary>
-		/// Sanitizes a definition argument if needed.
-		/// </summary>
-		/// <param name="definition">A string in the format "foo=bar".</param>
-		/// <returns></returns>
-		internal static string EscapeArgument(string definition)
+		/// <inheritdoc/>
+		protected override string EscapePreprocessorDefinition(string Definition)
 		{
-			string[] splitData = definition.Split('=');
-			string? myKey = splitData.ElementAtOrDefault(0);
-			string? myValue = splitData.ElementAtOrDefault(1);
+			string[] SplitData = Definition.Split('=');
+			string? Key = SplitData.ElementAtOrDefault(0);
+			string? Value = SplitData.ElementAtOrDefault(1);
 
-			if (string.IsNullOrEmpty(myKey)) { return ""; }
-			if (!string.IsNullOrEmpty(myValue))
+			if (string.IsNullOrEmpty(Key)) { return ""; }
+			if (!string.IsNullOrEmpty(Value))
 			{
-				if (!myValue.StartsWith("\"") && (myValue.Contains(" ") || myValue.Contains("$")))
+				if (!Value.StartsWith("\"") && (Value.Contains(" ") || Value.Contains("$")))
 				{
-					myValue = myValue.Trim('\"');		// trim any leading or trailing quotes
-					myValue = "\"" + myValue + "\"";	// ensure wrap string with double quotes
+					Value = Value.Trim('\"');		// trim any leading or trailing quotes
+					Value = "\"" + Value + "\"";	// ensure wrap string with double quotes
 				}
 
 				// replace double quotes to escaped double quotes if exists
-				myValue = myValue.Replace("\"", "\\\"");
+				Value = Value.Replace("\"", "\\\"");
 			}
 
-			return myValue == null
-				? string.Format("{0}", myKey)
-				: string.Format("{0}={1}", myKey, myValue);
+			return Value == null
+				? string.Format("{0}", Key)
+				: string.Format("{0}={1}", Key, Value);
 		}
 
 		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment)
@@ -1138,22 +1124,6 @@ namespace UnrealBuildTool
 			Log.TraceInformation("------------------------------");
 		}
 
-		public static string NormalizeCommandLinePath(FileSystemReference Reference)
-		{
-			// Try to use a relative path to shorten command line length.
-			if (Reference.IsUnderDirectory(Unreal.RootDirectory))
-			{
-				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory).Replace("\\", "/");
-			}
-
-			return Reference.FullName.Replace("\\", "/");
-		}
-
-		public static string NormalizeCommandLinePath(FileItem Item)
-		{
-			return NormalizeCommandLinePath(Item.Location);
-		}
-
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			string Arguments = GetCLArguments_Global(CompileEnvironment);
@@ -1180,7 +1150,7 @@ namespace UnrealBuildTool
 				{
 					PCHArguments += " -fpch-validate-input-files-content";
 				}
-				PCHArguments += string.Format(" -include \"{0}\"", NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+				PCHArguments += GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!);
 			}
 
 			// Create a compile action for each source file.
@@ -1223,10 +1193,7 @@ namespace UnrealBuildTool
 					FileArguments += PCHArguments;
 				}
 
-				foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-				{
-					FileArguments += String.Format(" -include \"{0}\"", NormalizeCommandLinePath(ForceIncludeFile));
-				}
+				FileArguments += GetForceIncludeFileArguments(CompileEnvironment);
 
 				// Add the C++ source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(SourceFile);

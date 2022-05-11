@@ -1727,21 +1727,21 @@ namespace UnrealBuildTool
 					{
 						if (IsDirectoryForArch(IncludePath.FullName, Arch))
 						{
-							Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
+							Arguments.Add(GetUserIncludePathArgument(IncludePath));
 						}
 					}
 					foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 					{
 						if (IsDirectoryForArch(IncludePath.FullName, Arch))
 						{
-							Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
+							Arguments.Add(GetSystemIncludePathArgument(IncludePath));
 						}
 					}
 
 					// Preprocessor definitions.
 					foreach (string Definition in CompileEnvironment.Definitions)
 					{
-						Arguments.Add(String.Format("-D\"{0}\"", Definition));
+						Arguments.Add(GetPreprocessorDefinitionArgument(Definition));
 					}
 
 					// Consume the included header dependency list

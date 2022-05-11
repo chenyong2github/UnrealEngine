@@ -200,6 +200,12 @@ namespace UnrealBuildTool
 			return FullClangVersion;
 		}
 
+		/// <inheritdoc/>
+		protected override string EscapePreprocessorDefinition(string Definition)
+		{
+			return Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
+		}
+
 		protected override string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
