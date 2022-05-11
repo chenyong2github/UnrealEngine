@@ -782,7 +782,7 @@ namespace ObjParser
  */
 static FString MakeMeshNodeUid(const FString& Name)
 {
-	return FString(TEXT("\\Mesh\\")) + (Name.IsEmpty() ? FString(TEXT("Null")) : Name);
+	return TEXT("\\Mesh\\") + (Name.IsEmpty() ? FString(TEXT("Null")) : Name);
 }
 
 
@@ -790,9 +790,9 @@ static FString MakeMeshNodeUid(const FString& Name)
  * Build and return a UID name for a shader graph node.
  * @todo: move this to be a static method on the ShaderGraphNode class itself?
  */
-static FString MakeShaderGraphNodeUid(const FString& Name)
+static FString MakeShaderGraphNodeName(const FString& Name)
 {
-	return FString(TEXT("\\Material\\MAT_")) + (Name.IsEmpty() ? FString(TEXT("Null")) : Name);
+	return TEXT("MAT_") + (Name.IsEmpty() ? FString(TEXT("Null")) : Name);
 }
 
 
@@ -800,9 +800,9 @@ static FString MakeShaderGraphNodeUid(const FString& Name)
  * Build and return a UID name for a texture node.
  * @todo: move this to be a static method on the TextureNode class itself?
  */
-static FString MakeTextureNodeUid(const FString& Name)
+static FString MakeTextureNodeName(const FString& Name)
 {
-	return FString(TEXT("\\Texture\\")) + (Name.IsEmpty() ? FString(TEXT("Null")) : Name);
+	return TEXT("TEX_") + (Name.IsEmpty() ? FString(TEXT("Null")) : Name);
 }
 
 
@@ -903,7 +903,7 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 			if (!Group.Value.MaterialName.IsEmpty())
 			{
-				MeshNode->SetMaterialDependencyUid(MakeShaderGraphNodeUid(Group.Value.MaterialName));
+				MeshNode->SetMaterialDependencyUid(UInterchangeShaderGraphNode::MakeNodeUid(MakeShaderGraphNodeName(Group.Value.MaterialName)));
 			}
 		}
 
@@ -913,9 +913,9 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 		{
 			const FString& MaterialName = Material.Key;
 			const FObjData::FMaterialData& MaterialData = Material.Value;
-			FString NodeUid = MakeShaderGraphNodeUid(MaterialName);
+			FString NodeUid = UInterchangeShaderGraphNode::MakeNodeUid(MaterialName);
 
-			UInterchangeShaderGraphNode* ShaderGraphNode = NewObject<UInterchangeShaderGraphNode>(&BaseNodeContainer);
+			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&BaseNodeContainer, MaterialName);
 			ShaderGraphNode->InitializeNode(NodeUid, MaterialName, EInterchangeNodeContainerType::TranslatedAsset);
 			BaseNodeContainer.AddNode(ShaderGraphNode);
 
@@ -990,24 +990,16 @@ void UInterchangeOBJTranslator::AddMaterialNodes(UInterchangeBaseNodeContainer& 
 
 		using namespace UE::Interchange::Materials::Standard::Nodes;
 
-		FString TextureName = FString(TEXT("TEX_")) + FPaths::GetBaseFilename(TexturePath);
+		const FString TextureName = MakeTextureNodeName(FPaths::GetBaseFilename(TexturePath));
 
-		UInterchangeShaderNode* TextureSampleShader = NewObject<UInterchangeShaderNode>(&BaseNodeContainer);
+		UInterchangeShaderNode* TextureSampleShader = UInterchangeShaderNode::Create(&BaseNodeContainer, TextureName, ShaderGraphNode->GetUniqueID());
 		TextureSampleShader->SetCustomShaderType(TextureSample::Name.ToString());
 
-		FString TextureSampleShaderUid = ShaderGraphNode->GetUniqueID() + TEXT("\\Textures\\") + TextureName;
-		TextureSampleShader->InitializeNode(TextureSampleShaderUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
-
-		BaseNodeContainer.AddNode(TextureSampleShader);
-		BaseNodeContainer.SetNodeParentUid(TextureSampleShaderUid, ShaderGraphNode->GetUniqueID());
-
-		FString TextureNodeUid = MakeTextureNodeUid(TextureName);
+		FString TextureNodeUid = UInterchangeTextureNode::MakeNodeUid(TextureName);
 		const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(BaseNodeContainer.GetNode(TextureNodeUid));
 		if (!TextureNode)
 		{
-			UInterchangeTexture2DNode* NewTextureNode = NewObject<UInterchangeTexture2DNode>(&BaseNodeContainer);
-			NewTextureNode->InitializeNode(TextureNodeUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
-			BaseNodeContainer.AddNode(NewTextureNode);
+			UInterchangeTexture2DNode* NewTextureNode = UInterchangeTexture2DNode::Create(&BaseNodeContainer, TextureName);
 
 			FString NormalizedTexturePath(TexturePath);
 			FPaths::NormalizeFilename(NormalizedTexturePath);
@@ -1016,7 +1008,7 @@ void UInterchangeOBJTranslator::AddMaterialNodes(UInterchangeBaseNodeContainer& 
 
 		TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNodeUid);
 
-		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputType, TextureSampleShaderUid);
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputType, TextureSampleShader->GetUniqueID());
 	}
 	else
 	{

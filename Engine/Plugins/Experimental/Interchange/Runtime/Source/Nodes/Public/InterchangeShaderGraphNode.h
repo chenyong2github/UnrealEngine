@@ -6,7 +6,9 @@
 #include "UObject/Object.h"
  
 #include "InterchangeShaderGraphNode.generated.h"
- 
+
+class UInterchangeBaseNodeContainer;
+
 /**
  * The Shader Ports API manages a set of inputs and outputs attributes.
  * This API can be used over any InterchangeBaseNode that wants to support shader ports as attributes.
@@ -89,7 +91,7 @@ private:
 	static const TCHAR* InputPrefix;
 	static const TCHAR* InputSeparator;
 };
- 
+
 /**
  * A shader node is a named set of inputs and outputs. It can be connected to other shader nodes and finally to a shader graph input.
  */
@@ -99,6 +101,16 @@ class INTERCHANGENODES_API UInterchangeShaderNode : public UInterchangeBaseNode
 	GENERATED_BODY()
  
 public:
+	/**
+	 * Build and return a UID name for a shader node.
+	 */
+	static FString MakeNodeUid(const FStringView NodeName, const FStringView ParentNodeUid);
+
+	/**
+	 * Creates a new UInterchangeShaderNode and adds it to NodeContainer as a translated node.
+	 */
+	static UInterchangeShaderNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView NodeName, const FStringView ParentNodeUid);
+
 	virtual FString GetTypeName() const override;
  
 public:
@@ -125,6 +137,16 @@ class INTERCHANGENODES_API UInterchangeShaderGraphNode : public UInterchangeShad
 	GENERATED_BODY()
  
 public:
+	/**
+	 * Build and return a UID name for a shader graph node.
+	 */
+	static FString MakeNodeUid(const FStringView NodeName);
+
+	/**
+	 * Creates a new UInterchangeShaderGraphNode and adds it to NodeContainer as a translated node.
+	 */
+	static UInterchangeShaderGraphNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView NodeName);
+
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */

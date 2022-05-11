@@ -38,6 +38,14 @@ class INTERCHANGENODES_API UInterchangeTextureNode : public UInterchangeBaseNode
 
 public:
 	/**
+	 * Build and return a UID name for a texture node.
+	 */
+	static FString MakeNodeUid(const FStringView NodeName)
+	{
+		return FString(UInterchangeBaseNode::HierarchySeparator) +  TEXT("Textures") + FString(UInterchangeBaseNode::HierarchySeparator) + NodeName;
+	}
+
+	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
 	virtual FString GetTypeName() const override

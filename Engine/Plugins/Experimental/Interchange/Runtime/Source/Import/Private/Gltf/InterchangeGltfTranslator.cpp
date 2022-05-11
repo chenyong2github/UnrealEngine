@@ -21,7 +21,7 @@
 
 namespace UE::Interchange::Gltf::Private
 {
-	FString GenerateUniqueIdForGltfNode( const FString& NodeName, int32 NodeIndex )
+	FString GenerateNameForGltfNode( const FString& NodeName, int32 NodeIndex )
 	{
 		if ( NodeIndex == 0 )
 		{
@@ -37,11 +37,11 @@ namespace UE::Interchange::Gltf::Private
 	{
 		if ( !Texture.Name.IsEmpty() )
 		{
-			return GenerateUniqueIdForGltfNode( Texture.Name, NodeIndex );
+			return GenerateNameForGltfNode( Texture.Name, NodeIndex );
 		}
 		else
 		{
-			return GenerateUniqueIdForGltfNode( FPaths::GetBaseFilename( Texture.Source.URI ), NodeIndex );
+			return GenerateNameForGltfNode( FPaths::GetBaseFilename( Texture.Source.URI ), NodeIndex );
 		}
 	}
 
@@ -66,7 +66,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 {
 	using namespace UE::Interchange::Gltf::Private;
 
-	const FString NodeUid = ParentNodeUid + TEXT("\\") + GenerateUniqueIdForGltfNode( GltfNode.Name, NodeIndex );
+	const FString NodeUid = ParentNodeUid + TEXT("\\") + GenerateNameForGltfNode( GltfNode.Name, NodeIndex );
 
 	const UInterchangeSceneNode* ParentSceneNode = Cast< UInterchangeSceneNode >( NodeContainer.GetNode( ParentNodeUid ) );
 
@@ -85,7 +85,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 		{
 			if ( GltfAsset.Meshes.IsValidIndex( GltfNode.MeshIndex ) )
 			{
-				const FString MeshNodeUid = TEXT("\\Mesh\\") + GenerateUniqueIdForGltfNode( GltfAsset.Meshes[ GltfNode.MeshIndex ].Name, GltfNode.MeshIndex );
+				const FString MeshNodeUid = TEXT("\\Mesh\\") + GenerateNameForGltfNode( GltfAsset.Meshes[ GltfNode.MeshIndex ].Name, GltfNode.MeshIndex );
 				InterchangeSceneNode->SetCustomAssetInstanceUid( MeshNodeUid );
 			}
 			break;
@@ -97,7 +97,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 
 			if ( GltfAsset.Cameras.IsValidIndex( GltfNode.CameraIndex ) )
 			{
-				const FString CameraNodeUid = TEXT("\\Camera\\") + GenerateUniqueIdForGltfNode( GltfAsset.Cameras[ GltfNode.CameraIndex ].Name, GltfNode.CameraIndex );
+				const FString CameraNodeUid = TEXT("\\Camera\\") + GenerateNameForGltfNode( GltfAsset.Cameras[ GltfNode.CameraIndex ].Name, GltfNode.CameraIndex );
 				InterchangeSceneNode->SetCustomAssetInstanceUid( CameraNodeUid );
 			}
 			break;
@@ -109,7 +109,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 
 			if ( GltfAsset.Lights.IsValidIndex( GltfNode.LightIndex ) )
 			{
-				const FString LightNodeUid = TEXT("\\Light\\") + GenerateUniqueIdForGltfNode( GltfAsset.Lights[ GltfNode.LightIndex ].Name, GltfNode.LightIndex );
+				const FString LightNodeUid = TEXT("\\Light\\") + GenerateNameForGltfNode( GltfAsset.Lights[ GltfNode.LightIndex ].Name, GltfNode.LightIndex );
 				InterchangeSceneNode->SetCustomAssetInstanceUid( LightNodeUid );
 			}
 		}
@@ -151,11 +151,7 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 	if (bInverse)
 	{
 		const FString OneMinusNodeName = MapName + TEXT("OneMinus");
-		const FString OneMinusNodeUid = ShaderNode.GetUniqueID() + TEXT("_") + OneMinusNodeName;
-		UInterchangeShaderNode* OneMinusNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-		OneMinusNode->InitializeNode( OneMinusNodeUid, OneMinusNodeName, EInterchangeNodeContainerType::TranslatedAsset );
-		NodeContainer.AddNode( OneMinusNode );
-		NodeContainer.SetNodeParentUid( OneMinusNodeUid, ShaderNode.GetUniqueID() );
+		UInterchangeShaderNode* OneMinusNode = UInterchangeShaderNode::Create( &NodeContainer, OneMinusNodeName, ShaderNode.GetUniqueID() );
 
 		OneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
 
@@ -178,18 +174,12 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 
 	if ( bTextureHasImportance && GltfAsset.Textures.IsValidIndex( TextureMap.TextureIndex ) )
 	{
-		const FString NodeName = MapName;
-		const FString NodeUid = ShaderNode.GetUniqueID() + TEXT("_") + NodeName;
-
-		UInterchangeShaderNode* ColorNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-		ColorNode->InitializeNode( NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset );
-		NodeContainer.AddNode( ColorNode );
-		NodeContainer.SetNodeParentUid( NodeUid, ShaderNode.GetUniqueID() );
-
+		const FString ColorNodeName = MapName;
+		UInterchangeShaderNode* ColorNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName, ShaderNode.GetUniqueID() );
 		ColorNode->SetCustomShaderType( Standard::Nodes::TextureSample::Name.ToString() );
 
 		const FString TextureName = GenerateTextureName( GltfAsset.Textures[ TextureMap.TextureIndex ], TextureMap.TextureIndex );
-		const FString TextureUid = TEXT("\\Texture\\") + TextureName;
+		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid( TextureName );
 
 		ColorNode->AddStringAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureSample::Inputs::Texture.ToString() ), TextureUid );
 
@@ -211,30 +201,22 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 
 		if ( bNeedsFactorNode )
 		{
-			const FString FactorNodeUid = NodeUid + TEXT("_Factor");
-			UInterchangeShaderNode* FactorNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-			FactorNode->InitializeNode( FactorNodeUid, NodeName + TEXT("_Factor"), EInterchangeNodeContainerType::TranslatedAsset );
-			NodeContainer.AddNode( FactorNode );
-			NodeContainer.SetNodeParentUid( FactorNodeUid, ShaderNode.GetUniqueID() );
+			UInterchangeShaderNode* FactorNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName + TEXT("_Factor"), ShaderNode.GetUniqueID() );
 
 			if ( bIsNormal )
 			{
 				FactorNode->SetCustomShaderType( Standard::Nodes::FlattenNormal::Name.ToString() );
 
-				const FString FactorOneMinusNodeUid = FactorNodeUid + TEXT("_OneMinus");
-				UInterchangeShaderNode* FactorOneMinusNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-				FactorOneMinusNode->InitializeNode( FactorOneMinusNodeUid, NodeName + TEXT("_Factor_OneMinus"), EInterchangeNodeContainerType::TranslatedAsset );
+				UInterchangeShaderNode* FactorOneMinusNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName + TEXT("_Factor_OneMinus"), ShaderNode.GetUniqueID() );
 				FactorOneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
-				NodeContainer.AddNode( FactorOneMinusNode );
-				NodeContainer.SetNodeParentUid( FactorOneMinusNodeUid, ShaderNode.GetUniqueID() );
 
 				if ( MapFactor.IsType< float >() )
 				{
 					FactorOneMinusNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::OneMinus::Inputs::Input.ToString() ), MapFactor.Get< float >() );
 				}
 
-				UInterchangeShaderPortsAPI::ConnectOuputToInput( FactorNode, Standard::Nodes::FlattenNormal::Inputs::Normal.ToString(), NodeUid, OutputChannel );
-				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( FactorNode, Standard::Nodes::FlattenNormal::Inputs::Flatness.ToString(), FactorOneMinusNodeUid );
+				UInterchangeShaderPortsAPI::ConnectOuputToInput( FactorNode, Standard::Nodes::FlattenNormal::Inputs::Normal.ToString(), ColorNode->GetUniqueID(), OutputChannel );
+				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( FactorNode, Standard::Nodes::FlattenNormal::Inputs::Flatness.ToString(), FactorOneMinusNode->GetUniqueID() );
 			}
 			else
 			{
@@ -249,14 +231,14 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 					FactorNode->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Multiply::Inputs::B.ToString() ), MapFactor.Get< FLinearColor >() );
 				}
 
-				UInterchangeShaderPortsAPI::ConnectOuputToInput( FactorNode, Standard::Nodes::Multiply::Inputs::A.ToString(), NodeUid, OutputChannel );
+				UInterchangeShaderPortsAPI::ConnectOuputToInput( FactorNode, Standard::Nodes::Multiply::Inputs::A.ToString(), ColorNode->GetUniqueID(), OutputChannel );
 			}
 
-			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( NodeToConnectTo, InputToConnectTo, FactorNodeUid );
+			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( NodeToConnectTo, InputToConnectTo, FactorNode->GetUniqueID() );
 		}
 		else
 		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInput( NodeToConnectTo, InputToConnectTo, NodeUid, OutputChannel );
+			UInterchangeShaderPortsAPI::ConnectOuputToInput( NodeToConnectTo, InputToConnectTo, ColorNode->GetUniqueID(), OutputChannel );
 		}
 	}
 	else
@@ -518,11 +500,7 @@ void UInterchangeGltfTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 		 * So we're setting the inverse of the red channel as the opacity.
 		 */
 		const FString OneMinusNodeName =  TEXT("OpacityOneMinus");
-		const FString OneMinusNodeUid = ShaderGraphNode.GetUniqueID() + TEXT("_") + OneMinusNodeName;
-		UInterchangeShaderNode* OneMinusNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-		OneMinusNode->InitializeNode( OneMinusNodeUid, OneMinusNodeName, EInterchangeNodeContainerType::TranslatedAsset );
-		NodeContainer.AddNode( OneMinusNode );
-		NodeContainer.SetNodeParentUid( OneMinusNodeUid, ShaderGraphNode.GetUniqueID() );
+		UInterchangeShaderNode* OneMinusNode = UInterchangeShaderNode::Create( &NodeContainer, OneMinusNodeName, ShaderGraphNode.GetUniqueID() );
 
 		OneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
 
@@ -543,14 +521,9 @@ void UInterchangeGltfTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBR::Parameters::Metallic.ToString(), MetallicNodeUid, MetallicNodeOutput ) )
 			{
 				const FString MetallicLerpNodeName =  TEXT("OpacityMetallicLerp");
-				const FString MetallicLerpNodeUid = ShaderGraphNode.GetUniqueID() + TEXT("_") + MetallicLerpNodeName;
-
-				UInterchangeShaderNode* LerpMetallicNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-				LerpMetallicNode->InitializeNode( MetallicLerpNodeUid, MetallicLerpNodeName, EInterchangeNodeContainerType::TranslatedAsset );
+				UInterchangeShaderNode* LerpMetallicNode = UInterchangeShaderNode::Create( &NodeContainer, MetallicLerpNodeName, ShaderGraphNode.GetUniqueID() );
 				LerpMetallicNode->SetCustomShaderType( Standard::Nodes::Lerp::Name.ToString() );
 
-				NodeContainer.AddNode( LerpMetallicNode );
-				NodeContainer.SetNodeParentUid( MetallicLerpNodeUid, ShaderGraphNode.GetUniqueID() );
 
 				LerpMetallicNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::B.ToString() ), 1.f );
 				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( LerpMetallicNode, Standard::Nodes::Lerp::Inputs::A.ToString(), CurrentNode->GetUniqueID() );
@@ -566,14 +539,8 @@ void UInterchangeGltfTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBR::Parameters::Opacity.ToString(), OpacityNodeUid, OpacityNodeOutput ) )
 			{
 				const FString OpacityLerpNodeName =  TEXT("OpacityLerp");
-				const FString OpaciotyLerpNodeUid = ShaderGraphNode.GetUniqueID() + TEXT("_") + OpacityLerpNodeName;
-
-				UInterchangeShaderNode* OpacityLerpNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-				OpacityLerpNode->InitializeNode( OpaciotyLerpNodeUid, OpacityLerpNodeName, EInterchangeNodeContainerType::TranslatedAsset );
+				UInterchangeShaderNode* OpacityLerpNode = UInterchangeShaderNode::Create( &NodeContainer, OpacityLerpNodeName, ShaderGraphNode.GetUniqueID() );
 				OpacityLerpNode->SetCustomShaderType( Standard::Nodes::Lerp::Name.ToString() );
-
-				NodeContainer.AddNode( OpacityLerpNode );
-				NodeContainer.SetNodeParentUid( OpaciotyLerpNodeUid, ShaderGraphNode.GetUniqueID() );
 
 				OpacityLerpNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::A.ToString() ), 0.f );
 				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( OpacityLerpNode, Standard::Nodes::Lerp::Inputs::B.ToString(), CurrentNode->GetUniqueID() );
@@ -618,14 +585,8 @@ void UInterchangeGltfTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 			if ( !OpacityNodeUid.IsEmpty() )
 			{
 				const FString OpacityLerpNodeName =  TEXT("OpacityTransmissionLerp");
-				const FString OpaciotyLerpNodeUid = ShaderGraphNode.GetUniqueID() + TEXT("_") + OpacityLerpNodeName;
-
-				UInterchangeShaderNode* OpacityLerpNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-				OpacityLerpNode->InitializeNode( OpaciotyLerpNodeUid, OpacityLerpNodeName, EInterchangeNodeContainerType::TranslatedAsset );
+				UInterchangeShaderNode* OpacityLerpNode = UInterchangeShaderNode::Create( &NodeContainer, OpacityLerpNodeName, ShaderGraphNode.GetUniqueID() );
 				OpacityLerpNode->SetCustomShaderType( Standard::Nodes::Lerp::Name.ToString() );
-
-				NodeContainer.AddNode( OpacityLerpNode );
-				NodeContainer.SetNodeParentUid( OpaciotyLerpNodeUid, ShaderGraphNode.GetUniqueID() );
 
 				OpacityLerpNode->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::A.ToString() ), FLinearColor::White );
 				UInterchangeShaderPortsAPI::ConnectOuputToInput( OpacityLerpNode, Standard::Nodes::Lerp::Inputs::Factor.ToString(), OpacityNodeUid, OpacityNodeOutput );
@@ -663,12 +624,7 @@ void UInterchangeGltfTranslator::HandleGltfTextureTransform( UInterchangeBaseNod
 
 	// Texture Coordinates
 	{
-		const FString TexCoordNodeUid = ShaderNode.GetUniqueID() + TEXT("_TexCoord");
-		UInterchangeShaderNode* TexCoordNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
-		TexCoordNode->InitializeNode( TexCoordNodeUid, ShaderNode.GetDisplayLabel() + TEXT("_TexCoord"), EInterchangeNodeContainerType::TranslatedAsset );
-		NodeContainer.AddNode( TexCoordNode );
-		NodeContainer.SetNodeParentUid( TexCoordNodeUid, ShaderNode.GetUniqueID() );
-
+		UInterchangeShaderNode* TexCoordNode = UInterchangeShaderNode::Create( &NodeContainer, TEXT("TexCoord"), ShaderNode.GetUniqueID() );
 		TexCoordNode->SetCustomShaderType( Standard::Nodes::TextureCoordinate::Name.ToString() );
 
 		TexCoordNode->AddInt32Attribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureCoordinate::Inputs::Index.ToString() ), TexCoordIndex );
@@ -771,16 +727,11 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		{
 			const FString TextureName = GenerateTextureName( GltfTexture, TextureIndex );
 
-			UInterchangeTexture2DNode* TextureNode = NewObject< UInterchangeTexture2DNode >( &NodeContainer );
-			FString TextureNodeUid = TEXT("\\Texture\\") + TextureName;
-
-			TextureNode->InitializeNode( TextureNodeUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset );
+			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create( &NodeContainer, TextureName );
 			TextureNode->SetPayLoadKey( LexToString( TextureIndex++ ) );
 
 			TextureNode->SetCustomWrapU( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapS ) );
 			TextureNode->SetCustomWrapV( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapT ) );
-
-			NodeContainer.AddNode( TextureNode );
 		}
 	}
 
@@ -789,10 +740,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 MaterialIndex = 0;
 		for ( const GLTF::FMaterial& GltfMaterial : GltfAsset.Materials )
 		{
-			UInterchangeShaderGraphNode* ShaderGraphNode = NewObject< UInterchangeShaderGraphNode >( &NodeContainer );
-			FString ShaderGraphNodeUid = TEXT("\\Material\\") + GenerateUniqueIdForGltfNode( GltfMaterial.Name, MaterialIndex );
-			ShaderGraphNode->InitializeNode( ShaderGraphNodeUid, TEXT("Material_") + GenerateUniqueIdForGltfNode( GltfMaterial.Name, MaterialIndex ), EInterchangeNodeContainerType::TranslatedAsset );
-			NodeContainer.AddNode( ShaderGraphNode );
+			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create( &NodeContainer, TEXT("Material_") + GenerateNameForGltfNode( GltfMaterial.Name, MaterialIndex ) );
 
 			HandleGltfMaterial( NodeContainer, GltfMaterial, *ShaderGraphNode );
 			++MaterialIndex;
@@ -805,9 +753,9 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		for ( const GLTF::FMesh& GltfMesh : GltfAsset.Meshes )
 		{
 			UInterchangeMeshNode* MeshNode = NewObject< UInterchangeMeshNode >( &NodeContainer );
-			FString MeshNodeUid = TEXT("\\Mesh\\") + GenerateUniqueIdForGltfNode( GltfMesh.Name, MeshIndex );
+			FString MeshNodeUid = TEXT("\\Mesh\\") + GenerateNameForGltfNode( GltfMesh.Name, MeshIndex );
 
-			MeshNode->InitializeNode( MeshNodeUid, GltfMesh.Name, EInterchangeNodeContainerType::TranslatedAsset );
+			MeshNode->InitializeNode( MeshNodeUid, GenerateNameForGltfNode( GltfMesh.Name, MeshIndex ), EInterchangeNodeContainerType::TranslatedAsset );
 			MeshNode->SetPayLoadKey( LexToString( MeshIndex++ ) );
 			NodeContainer.AddNode( MeshNode );
 
@@ -816,7 +764,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			{
 				if ( GltfAsset.Materials.IsValidIndex( Primitive.MaterialIndex ) )
 				{
-					const FString ShaderGraphNodeUid = TEXT("\\Material\\") + GenerateUniqueIdForGltfNode( GltfAsset.Materials[ Primitive.MaterialIndex ].Name, Primitive.MaterialIndex );
+					const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid( TEXT("Material_") + GenerateNameForGltfNode( GltfAsset.Materials[ Primitive.MaterialIndex ].Name, Primitive.MaterialIndex ) );
 					MeshNode->SetMaterialDependencyUid( ShaderGraphNodeUid );
 				}
 			}
@@ -829,7 +777,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		for ( const GLTF::FCamera& GltfCamera : GltfAsset.Cameras )
 		{
 			UInterchangeCameraNode* CameraNode = NewObject< UInterchangeCameraNode >( &NodeContainer );
-			FString CameraNodeUid = TEXT("\\Camera\\") + GenerateUniqueIdForGltfNode( GltfCamera.Name, CameraIndex );
+			FString CameraNodeUid = TEXT("\\Camera\\") + GenerateNameForGltfNode( GltfCamera.Name, CameraIndex );
 			CameraNode->InitializeNode( CameraNodeUid, GltfCamera.Name, EInterchangeNodeContainerType::TranslatedAsset );
 			NodeContainer.AddNode( CameraNode );
 			++CameraIndex;
@@ -842,7 +790,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		for ( const GLTF::FLight& GltfLight : GltfAsset.Lights )
 		{
 			UInterchangeLightNode* LightNode = NewObject< UInterchangeLightNode >( &NodeContainer );
-			FString LightNodeUid = TEXT("\\Light\\") + GenerateUniqueIdForGltfNode( GltfLight.Name, LightIndex );
+			FString LightNodeUid = TEXT("\\Light\\") + GenerateNameForGltfNode( GltfLight.Name, LightIndex );
 			LightNode->InitializeNode( LightNodeUid, GltfLight.Name, EInterchangeNodeContainerType::TranslatedAsset );
 			NodeContainer.AddNode( LightNode );
 			++LightIndex;
@@ -862,7 +810,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 				SceneName = TEXT("Scene");
 			}
 
-			SceneName = GenerateUniqueIdForGltfNode( SceneName, SceneIndex );
+			SceneName = GenerateNameForGltfNode( SceneName, SceneIndex );
 
 			FString SceneNodeUid = TEXT("\\Scene\\") + SceneName;
 			SceneNode->InitializeNode( SceneNodeUid, SceneName, EInterchangeNodeContainerType::TranslatedScene );
@@ -916,7 +864,7 @@ TFuture< TOptional< UE::Interchange::FStaticMeshPayloadData > > UInterchangeGltf
 
 			if ( GltfAsset.Materials.IsValidIndex( MaterialIndex ) )
 			{
-				StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ MaterialSlotIndex ] = *(TEXT("Material_") + GenerateUniqueIdForGltfNode( GltfAsset.Materials[ MaterialIndex ].Name, MaterialIndex ));
+				StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ MaterialSlotIndex ] = *(TEXT("Material_") + GenerateNameForGltfNode( GltfAsset.Materials[ MaterialIndex ].Name, MaterialIndex ));
 			}
 		}
 	}

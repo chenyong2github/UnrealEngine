@@ -35,29 +35,15 @@ namespace UE
 				return ShaderGraphNode;
 			}
 
-			UInterchangeShaderNode* FFbxMaterial::CreateShaderNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& ParentUid, const FString& NodeName)
+			UInterchangeTexture2DNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& TextureFilePath)
 			{
-				UInterchangeShaderNode* ShaderNode = NewObject<UInterchangeShaderNode>(&NodeContainer);
+				const FString TextureName = FPaths::GetBaseFilename(TextureFilePath);
+				UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create(&NodeContainer, TextureName);
 
-				const FString NodeUid = ParentUid + TEXT("\\") + NodeName;
-				ShaderNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
-				NodeContainer.AddNode(ShaderNode);
-				NodeContainer.SetNodeParentUid(NodeUid, ParentUid);
-
-				return ShaderNode;
-			}
-
-			UInterchangeTexture2DNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& TextureFilePath)
-			{
-				FString DisplayLabel = FPaths::GetBaseFilename(TextureFilePath);
-				UInterchangeTexture2DNode* TextureNode = NewObject<UInterchangeTexture2DNode>(&NodeContainer, NAME_None);
-				TextureNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
-
-				//All texture translator expect a file has the payload key
+				//All texture translator expect a file as the payload key
 				FString NormalizeFilePath = TextureFilePath;
 				FPaths::NormalizeFilename(NormalizeFilePath);
 				TextureNode->SetPayLoadKey(NormalizeFilePath);
-				NodeContainer.AddNode(TextureNode);
 
 				return TextureNode;
 			}
@@ -76,7 +62,7 @@ namespace UE
 				if (bInverse)
 				{
 					const FString OneMinusNodeName = InputName.ToString() + TEXT("OneMinus");
-					UInterchangeShaderNode* OneMinusNode = CreateShaderNode(NodeContainer, ShaderGraphNode->GetUniqueID(), OneMinusNodeName);
+					UInterchangeShaderNode* OneMinusNode = UInterchangeShaderNode::Create(&NodeContainer, OneMinusNodeName, ShaderGraphNode->GetUniqueID());
 					OneMinusNode->SetCustomShaderType(OneMinus::Name.ToString());
 
 					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputName.ToString(), OneMinusNode->GetUniqueID());
@@ -88,7 +74,7 @@ namespace UE
 				if (!FMath::IsNearlyEqual(Factor, 1.f))
 				{
 					FString LerpNodeName = InputName.ToString() + TEXT("Lerp");
-					UInterchangeShaderNode* LerpNode = CreateShaderNode(NodeContainer, ShaderGraphNode->GetUniqueID(), LerpNodeName);
+					UInterchangeShaderNode* LerpNode = UInterchangeShaderNode::Create(&NodeContainer, LerpNodeName, ShaderGraphNode->GetUniqueID());
 					LerpNode->SetCustomShaderType(Lerp::Name.ToString());
 
 					if (DefaultValue.IsType<float>())
@@ -118,43 +104,30 @@ namespace UE
 					if(!TextureFilename.IsEmpty() && FPaths::FileExists(TextureFilename))
 					{
 						FString TextureName = FPaths::GetBaseFilename(TextureFilename);
-						UInterchangeShaderNode* TextureSampleShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
+						UInterchangeShaderNode* TextureSampleShader = UInterchangeShaderNode::Create(&NodeContainer, TextureName, ShaderGraphNode->GetUniqueID());
 						TextureSampleShader->SetCustomShaderType(TextureSample::Name.ToString());
 
-						FString TextureSampleShaderUid = ShaderGraphNode->GetUniqueID() + TEXT("\\Textures\\") + TextureName;
-						TextureSampleShader->InitializeNode(TextureSampleShaderUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
-
-						NodeContainer.AddNode(TextureSampleShader);
-						NodeContainer.SetNodeParentUid(TextureSampleShaderUid, ShaderGraphNode->GetUniqueID());
-
-						FString TextureNodeUid = TEXT("\\Texture\\") + TextureFilename;
-						const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(NodeContainer.GetNode(TextureNodeUid));
+						const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(NodeContainer.GetNode(UInterchangeTextureNode::MakeNodeUid(TextureName)));
 
 						if (!TextureNode)
 						{
-							TextureNode = CreateTexture2DNode(NodeContainer, TextureNodeUid, TextureFilename);
+							TextureNode = CreateTexture2DNode(NodeContainer, TextureFilename);
 						}
 
 						TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
 
 						if (!FMath::IsNearlyEqual(FbxTexture->GetScaleU(), 1.0) || !FMath::IsNearlyEqual(FbxTexture->GetScaleV(), 1.0))
 						{
-							UInterchangeShaderNode* TextureCoordinateShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
+							UInterchangeShaderNode* TextureCoordinateShader = UInterchangeShaderNode::Create(&NodeContainer, TextureName + TEXT("_Coordinate"), ShaderGraphNode->GetUniqueID());
 							TextureCoordinateShader->SetCustomShaderType(TextureCoordinate::Name.ToString());
-
-							FString TextureCoordinateShaderUid = TextureSampleShader->GetUniqueID() + TEXT("_Coordinate");
-							TextureCoordinateShader->InitializeNode(TextureCoordinateShaderUid, TextureName + TEXT("_Coordinate"), EInterchangeNodeContainerType::TranslatedAsset);
-
-							NodeContainer.AddNode(TextureCoordinateShader);
-							NodeContainer.SetNodeParentUid(TextureCoordinateShaderUid, ShaderGraphNode->GetUniqueID());
 
 							TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::UTiling.ToString()), (float)FbxTexture->GetScaleU());
 							TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::VTiling.ToString()), (float)FbxTexture->GetScaleV());
 
-							UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShaderUid);
+							UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShader->GetUniqueID());
 						}
 
-						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShaderUid);
+						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShader->GetUniqueID());
 					}
 					else
 					{
@@ -299,12 +272,11 @@ namespace UE
 						continue;
 					}
 					//Create a texture node and make it child of the material node
-					TArray<FString> JsonErrorMessage;
-					FString NodeUid = TEXT("\\Texture\\") + TextureFilename;
-					const UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(NodeUid));
+					const FString TextureName = FPaths::GetBaseFilename(TextureFilename);
+					const UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(UInterchangeTextureNode::MakeNodeUid(TextureName)));
 					if (!TextureNode)
 					{
-						TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename);
+						CreateTexture2DNode(NodeContainer, TextureFilename);
 					}
 				}
 			}

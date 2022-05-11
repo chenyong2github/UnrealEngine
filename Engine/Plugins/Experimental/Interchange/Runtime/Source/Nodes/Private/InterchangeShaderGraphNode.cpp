@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeShaderGraphNode.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 
 const TCHAR* UInterchangeShaderPortsAPI::InputPrefix = TEXT("Inputs");
 const TCHAR* UInterchangeShaderPortsAPI::InputSeparator = TEXT(":");
@@ -112,6 +113,37 @@ bool UInterchangeShaderPortsAPI::GetInputConnection(const UInterchangeBaseNode* 
 	return false;
 }
 
+FString UInterchangeShaderNode::MakeNodeUid(const FStringView NodeName, const FStringView ParentNodeUid)
+{
+	FString ShaderNodeUid = FString(UInterchangeBaseNode::HierarchySeparator) + TEXT("Shaders") + FString(UInterchangeBaseNode::HierarchySeparator);
+
+	if (ParentNodeUid.IsEmpty())
+	{
+		ShaderNodeUid += NodeName;
+	}
+	else
+	{
+		ShaderNodeUid += ParentNodeUid + FString(UInterchangeBaseNode::HierarchySeparator) + NodeName;
+	}
+
+	return ShaderNodeUid;
+}
+
+UInterchangeShaderNode* UInterchangeShaderNode::Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView NodeName, const FStringView ParentNodeUid)
+{
+	check(NodeContainer);
+
+	const FString ShaderNodeUid = MakeNodeUid(NodeName, ParentNodeUid);
+
+	UInterchangeShaderNode* ShaderNode = NewObject< UInterchangeShaderNode >(NodeContainer);
+	ShaderNode->InitializeNode(ShaderNodeUid, FString(NodeName), EInterchangeNodeContainerType::TranslatedAsset);
+
+	NodeContainer->AddNode(ShaderNode);
+	NodeContainer->SetNodeParentUid(ShaderNodeUid, FString(ParentNodeUid));
+
+	return ShaderNode;
+}
+
 FString UInterchangeShaderNode::GetTypeName() const
 {
 	const FString TypeName = TEXT("ShaderNode");
@@ -126,6 +158,25 @@ bool UInterchangeShaderNode::GetCustomShaderType(FString& AttributeValue) const
 bool UInterchangeShaderNode::SetCustomShaderType(const FString& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ShaderType, FString);
+}
+
+FString UInterchangeShaderGraphNode::MakeNodeUid(const FStringView NodeName)
+{
+	return FString(UInterchangeBaseNode::HierarchySeparator) + TEXT("Shaders") + FString(UInterchangeBaseNode::HierarchySeparator) + NodeName;
+}
+
+UInterchangeShaderGraphNode* UInterchangeShaderGraphNode::Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView NodeName)
+{
+	check(NodeContainer);
+
+	const FString ShaderGraphNodeUid = MakeNodeUid(NodeName);
+
+	UInterchangeShaderGraphNode* ShaderGraphNode = NewObject< UInterchangeShaderGraphNode >(NodeContainer);
+	ShaderGraphNode->InitializeNode(ShaderGraphNodeUid, FString(NodeName), EInterchangeNodeContainerType::TranslatedAsset);
+
+	NodeContainer->AddNode(ShaderGraphNode);
+
+	return ShaderGraphNode;
 }
 
 FString UInterchangeShaderGraphNode::GetTypeName() const

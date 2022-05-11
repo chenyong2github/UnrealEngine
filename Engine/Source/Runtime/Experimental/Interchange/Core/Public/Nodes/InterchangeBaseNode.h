@@ -235,6 +235,8 @@ class INTERCHANGECORE_API UInterchangeBaseNode : public UObject
 	GENERATED_BODY()
 
 public:
+	static constexpr const TCHAR* HierarchySeparator = TEXT("\\");
+
 	UInterchangeBaseNode();
 
 	/**

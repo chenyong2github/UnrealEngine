@@ -7,6 +7,8 @@
 
 #include "InterchangeTexture2DNode.generated.h"
 
+class UInterchangeBaseNodeContainer;
+
 //Interchange namespace
 namespace UE::Interchange
 {
@@ -26,6 +28,16 @@ class INTERCHANGENODES_API UInterchangeTexture2DNode : public UInterchangeTextur
 	GENERATED_BODY()
 
 public:
+
+	/**
+	 * Build and return a UID name for a texture 2D node.
+	 */
+	static FString MakeNodeUid(const FStringView NodeName);
+
+	/**
+	 * Creates a new UInterchangeTexture2DNode and adds it to NodeContainer as a translated node.
+	 */
+	static UInterchangeTexture2DNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView TextureNodeName);
 
 	virtual void PostInitProperties()
 	{
