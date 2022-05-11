@@ -694,7 +694,7 @@ public:
     TVector<T> BoundToCube(T Radius) const;
 
     /** Get a copy of this vector, clamped inside of a cube. */
-    TVector<T> BoundToBox(const TVector<T>& Min, const TVector<T> Max) const;
+    TVector<T> BoundToBox(const TVector<T>& Min, const TVector<T>& Max) const;
 
     /** Create a copy of this vector, with its magnitude clamped between Min and Max. */
     TVector<T> GetClampedToSize(T Min, T Max) const;
@@ -1763,7 +1763,7 @@ FORCEINLINE TVector<T> TVector<T>::BoundToCube(T Radius) const
 }
 
 template<typename T>
-FORCEINLINE TVector<T> TVector<T>::BoundToBox(const TVector<T>& Min, const TVector<T> Max) const
+FORCEINLINE TVector<T> TVector<T>::BoundToBox(const TVector<T>& Min, const TVector<T>& Max) const
 {
     return TVector<T>
     (

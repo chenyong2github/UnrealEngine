@@ -146,9 +146,9 @@ void UAIGraph::UpdateClassData()
 
 			for (int32 SubIdx = 0; SubIdx < Node->SubNodes.Num(); SubIdx++)
 			{
-				if (Node->SubNodes[SubIdx])
+				if (UAIGraphNode* SubNode = Node->SubNodes[SubIdx])
 				{
-					Node->UpdateNodeClassData();
+					SubNode->UpdateNodeClassData();
 				}
 			}
 		}
