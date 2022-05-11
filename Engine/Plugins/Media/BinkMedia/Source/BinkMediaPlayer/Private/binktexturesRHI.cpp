@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #define BINKRHIFUNCTIONS
+#define BINKTEXTURESCLEANUP
 #include "../../BinkMediaPlayerSDK/include/egttypes.h"
 #include "../../BinkMediaPlayerSDK/include/binktiny.h"
 #include "../../BinkMediaPlayerSDK/include/binktextures.h"
