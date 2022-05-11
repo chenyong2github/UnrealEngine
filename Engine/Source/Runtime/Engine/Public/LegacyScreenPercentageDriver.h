@@ -94,7 +94,7 @@ struct ENGINE_API FStaticResolutionFractionHeuristic
 		void PullRunTimeRenderingSettings();
 
 		/** Pulls the user settings from the editor cvars. */
-		void PullEditorRenderingSettings(bool bIsRealTime);
+		void PullEditorRenderingSettings(bool bIsRealTime, bool bIsPathTraced);
 	};
 
 	FUserSettings Settings;

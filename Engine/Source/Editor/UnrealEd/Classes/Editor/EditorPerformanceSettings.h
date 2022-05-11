@@ -74,6 +74,10 @@ class UEditorPerformanceSettings : public UDeveloperSettings
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
 		DisplayName="Override project's default screen percentage mode for realtime editor viewports."))
 	EEditorUserScreenPercentageModeOverride RealtimeScreenPercentageMode;
+	
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Override project's default screen percentage mode for path-traced editor viewports."))
+	EEditorUserScreenPercentageModeOverride PathTracerScreenPercentageMode;
 
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
 		DisplayName="Override project's default screen percentage mode for non-realtime editor viewports."))

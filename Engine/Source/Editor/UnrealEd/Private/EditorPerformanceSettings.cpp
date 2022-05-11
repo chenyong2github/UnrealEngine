@@ -24,6 +24,7 @@ UEditorPerformanceSettings::UEditorPerformanceSettings(const FObjectInitializer&
 	, bDisplayHighDPIViewports(true)
 	, bOverridePIEScreenPercentage(true)
 	, RealtimeScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
+	, PathTracerScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
 	, NonRealtimeScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
 	, bOverrideManualScreenPercentage(false)
 	, ManualScreenPercentage(100.0f)

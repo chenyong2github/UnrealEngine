@@ -14,6 +14,11 @@ TAutoConsoleVariable<int32> CVarEditorViewportDefaultScreenPercentageMode(
 	TEXT("Controls the default screen percentage mode for realtime editor viewports."),
 	ECVF_Default);
 
+TAutoConsoleVariable<int32> CVarEditorViewportDefaultPathTracerScreenPercentageMode(
+	TEXT("r.Editor.Viewport.ScreenPercentageMode.PathTracer"), 0,
+	TEXT("Controls the default screen percentage mode for path-traced viewports."),
+	ECVF_Default);
+
 TAutoConsoleVariable<int32> CVarEditorViewportNonRealtimeDefaultScreenPercentageMode(
 	TEXT("r.Editor.Viewport.ScreenPercentageMode.NonRealTime"), 2,
 	TEXT("Controls the default screen percentage mode for non-realtime editor viewports."),
@@ -178,6 +183,7 @@ void ULevelEditor2DSettings::PostEditChangeProperty(struct FPropertyChangedEvent
 UEditorPerformanceProjectSettings::UEditorPerformanceProjectSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, RealtimeScreenPercentageMode(EScreenPercentageMode::BasedOnDisplayResolution)
+	, PathTracerScreenPercentageMode(EScreenPercentageMode::Manual)
 	, NonRealtimeScreenPercentageMode(EScreenPercentageMode::BasedOnDPIScale)
 	, ManualScreenPercentage(100.0f)
 	, MinViewportRenderingResolution(720)
@@ -221,6 +227,7 @@ void UEditorPerformanceProjectSettings::ExportResolutionValuesToConsoleVariables
 		const UEditorPerformanceProjectSettings* EditorProjectSettings = GetDefault<UEditorPerformanceProjectSettings>();
 
 		CVarEditorViewportDefaultScreenPercentageMode->Set(int32(EditorProjectSettings->RealtimeScreenPercentageMode), ECVF_SetByProjectSetting);
+		CVarEditorViewportDefaultPathTracerScreenPercentageMode->Set(int32(EditorProjectSettings->PathTracerScreenPercentageMode), ECVF_SetByProjectSetting);
 		CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->Set(int32(EditorProjectSettings->NonRealtimeScreenPercentageMode), ECVF_SetByProjectSetting);
 		CVarEditorViewportDefaultScreenPercentage->Set(EditorProjectSettings->ManualScreenPercentage, ECVF_SetByProjectSetting);
 		CVarEditorViewportDefaultMinRenderingResolution->Set(EditorProjectSettings->MinViewportRenderingResolution, ECVF_SetByProjectSetting);
@@ -232,6 +239,7 @@ void UEditorPerformanceProjectSettings::ExportResolutionValuesToConsoleVariables
 	{
 		const UEditorPerformanceSettings* EditorUserSettings = GetDefault<UEditorPerformanceSettings>();
 
+		// Real-time viewports
 		{
 			if (EditorUserSettings->RealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::Manual)
 			{
@@ -247,6 +255,23 @@ void UEditorPerformanceProjectSettings::ExportResolutionValuesToConsoleVariables
 			}
 		}
 
+		// Path traced viewports
+		{
+			if (EditorUserSettings->PathTracerScreenPercentageMode == EEditorUserScreenPercentageModeOverride::Manual)
+			{
+				CVarEditorViewportDefaultPathTracerScreenPercentageMode->Set(int32(EScreenPercentageMode::Manual), ECVF_SetByProjectSetting);
+			}
+			else if (EditorUserSettings->PathTracerScreenPercentageMode == EEditorUserScreenPercentageModeOverride::BasedOnDisplayResolution)
+			{
+				CVarEditorViewportDefaultPathTracerScreenPercentageMode->Set(int32(EScreenPercentageMode::BasedOnDisplayResolution), ECVF_SetByProjectSetting);
+			}
+			else if (EditorUserSettings->PathTracerScreenPercentageMode == EEditorUserScreenPercentageModeOverride::BasedOnDPIScale)
+			{
+				CVarEditorViewportDefaultPathTracerScreenPercentageMode->Set(int32(EScreenPercentageMode::BasedOnDPIScale), ECVF_SetByProjectSetting);
+			}
+		}
+
+		// Non-realtime viewports
 		{
 			if (EditorUserSettings->NonRealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::Manual)
 			{
@@ -295,25 +320,4 @@ void UEditorPerformanceProjectSettings::ExportResolutionValuesToConsoleVariables
 			GEngine->GameViewport->RequestUpdateDPIScale();
 		}
 	}
-}
-
-void SetupEditorResolutionFractionHeuristicSettings(FStaticResolutionFractionHeuristic::FUserSettings* OutputSettings, bool bIsRealTime)
-{
-	FStaticResolutionFractionHeuristic::FUserSettings Settings;
-
-	// Setup up with the per project settings
-	{
-		if (bIsRealTime)
-		{
-			OutputSettings->Mode = EScreenPercentageMode(FMath::Clamp(CVarEditorViewportDefaultScreenPercentageMode->GetInt(), 0, 2));
-		}
-		else
-		{
-			OutputSettings->Mode = EScreenPercentageMode(FMath::Clamp(CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->GetInt(), 0, 2));
-		}
-		OutputSettings->GlobalResolutionFraction = CVarEditorViewportDefaultScreenPercentage->GetFloat() / 100.0f;
-		OutputSettings->MinRenderingResolution = CVarEditorViewportDefaultMinRenderingResolution->GetInt();
-		OutputSettings->MaxRenderingResolution = CVarEditorViewportDefaultMaxRenderingResolution->GetInt();
-	}
-
 }

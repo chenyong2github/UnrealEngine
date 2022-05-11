@@ -1656,7 +1656,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 #if WITH_EDITOR
 				if (FStaticResolutionFractionHeuristic::FUserSettings::EditorOverridePIESettings())
 				{
-					StaticHeuristic.Settings.PullEditorRenderingSettings(/* bIsRealTime = */ true);
+					StaticHeuristic.Settings.PullEditorRenderingSettings(/* bIsRealTime = */ true, /* bIsPathTraced = */ ViewFamily.EngineShowFlags.PathTracing);
 				}
 				else
 #endif
