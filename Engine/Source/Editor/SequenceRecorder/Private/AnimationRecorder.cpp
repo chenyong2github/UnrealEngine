@@ -641,7 +641,7 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	TArray<float> SlateTimes(&Times[0], 1);
 
 	IAnimationDataController& Controller = AnimSequence->GetController();
-	IAnimationDataController::FScopedBracket(Controller, LOCTEXT("AddTimeCodeAttributesBracket", "Adding Time Code attributes"));
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddTimeCodeAttributesBracket", "Adding Time Code attributes"));
 
 	// If the user defined bone doesn't exist, fallback to writing timecodes to the root
 	bool bHasUserDefinedBone = false;

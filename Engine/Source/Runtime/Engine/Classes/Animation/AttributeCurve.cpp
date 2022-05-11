@@ -296,7 +296,7 @@ FKeyHandle FAttributeCurve::FindKeyBeforeOrAt(float KeyTime) const
 
 void FAttributeCurve::RemoveRedundantKeys()
 {
-	TArray<FKeyHandle> KeyHandlesToRemove;
+	TSet<int32> KeyIndicesToRemove;
 	for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
 	{
 		if (KeyIndex + 2 < Keys.Num())
@@ -308,14 +308,26 @@ void FAttributeCurve::RemoveRedundantKeys()
 			if (ScriptStruct->CompareScriptStruct(CurrentKey.Value.GetPtr<void>(), NextKeyOne.Value.GetPtr<void>(), 0)
 				&& ScriptStruct->CompareScriptStruct(NextKeyOne.Value.GetPtr<void>(), NextKeyTwo.Value.GetPtr<void>(), 0))
 			{
-				KeyHandlesToRemove.Add(GetKeyHandle(KeyIndex + 1));
+				KeyIndicesToRemove.Add(KeyIndex + 1);
 			}
 		}
 	}
 
-	for (const FKeyHandle& Handle : KeyHandlesToRemove)
+	if (KeyIndicesToRemove.Num())
 	{
-		DeleteKey(Handle);
+	    TArray<FAttributeKey> NewKeys;
+		NewKeys.Reserve(Keys.Num() - KeyIndicesToRemove.Num());
+	    for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+	    {
+		    if (!KeyIndicesToRemove.Contains(KeyIndex))
+		    {
+			    NewKeys.Add(Keys[KeyIndex]);
+		    }
+	    }
+    
+	    Swap(Keys, NewKeys);
+	    KeyHandlesToIndices.Empty(Keys.Num());
+	    KeyHandlesToIndices.SetKeyHandles(Keys.Num());
 	}
 
 	// If only two keys left and they are identical as well, remove the 2nd one.
