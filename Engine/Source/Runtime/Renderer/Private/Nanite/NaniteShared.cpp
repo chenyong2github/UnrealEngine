@@ -150,7 +150,8 @@ FPackedView CreatePackedViewFromViewInfo
 	uint32 Flags,
 	uint32 StreamingPriorityCategory,
 	float MinBoundsRadius,
-	float LODScaleFactor
+	float LODScaleFactor,
+	const FIntRect* InHZBTestViewRect
 )
 {
 	FPackedViewParams Params;
@@ -162,7 +163,8 @@ FPackedView CreatePackedViewFromViewInfo
 	Params.StreamingPriorityCategory = StreamingPriorityCategory;
 	Params.MinBoundsRadius = MinBoundsRadius;
 	Params.LODScaleFactor = LODScaleFactor;
-	Params.HZBTestViewRect = View.PrevViewInfo.ViewRect;
+	// Note - it is incorrect to use ViewRect as it is in a different space, but keeping this for backward compatibility reasons with other callers
+	Params.HZBTestViewRect = InHZBTestViewRect ? *InHZBTestViewRect : View.PrevViewInfo.ViewRect;
 	return CreatePackedView(Params);
 }
 

@@ -2406,6 +2406,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
+				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
 				const FViewInfo& View = Views[ViewIndex];
 				CullingConfig.SetViewFlags(View);
 
@@ -2431,13 +2433,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					LODScaleFactor = FMath::Min(LODScaleFactor, FMath::Exp2(-CVarNaniteViewMeshLODBiasMin.GetValueOnRenderThread()));
 				}
 
+				FIntRect HZBTestRect(0, 0, View.PrevViewInfo.ViewRect.Width(), View.PrevViewInfo.ViewRect.Height());
 				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 					View,
 					RasterTextureSize,
 					NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP,
 					/* StreamingPriorityCategory = */ 3,
 					/* MinBoundsRadius = */ 0.0f,
-					LODScaleFactor);
+					LODScaleFactor,
+					/* viewport rect in HZB space. HZB is built per view and is always 0,0-based */
+					&HZBTestRect
+					);
 
 				Nanite::CullRasterize(
 					GraphBuilder,
