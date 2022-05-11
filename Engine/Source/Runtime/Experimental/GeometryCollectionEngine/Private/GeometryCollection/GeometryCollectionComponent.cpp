@@ -1068,14 +1068,12 @@ void UGeometryCollectionComponent::SetRestState(TArray<FTransform>&& InRestTrans
 
 	if (SceneProxy)
 	{
-		if (SceneProxy->IsNaniteMesh())
-		{
-
 #if WITH_EDITOR
 			// We need to do this in case we're controlled by Sequencer in editor, which doesn't invoke PostEditChangeProperty
 			SendRenderTransform_Concurrent();
 #endif
-
+		if (SceneProxy->IsNaniteMesh())
+		{
 			FNaniteGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
 			ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
 				[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
