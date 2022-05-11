@@ -752,17 +752,30 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 			bool bEODSet = FromMultistreamBuffer->IsEODFlagSet();
 			if (!bEODSet && FromMultistreamBuffer->Num() == 0)
 			{
-				// Buffer underrun.
-				bRebufferPending = true;
-				FTimeValue LastKnownPTS = FromMultistreamBuffer->GetLastPoppedPTS();
-				// Only set the 'rebuffer at' time if we have a valid last known PTS. If we don't
-				// then maybe this is a cascade failure from a previous rebuffer attempt for which
-				// we then try that time once more.
-				if (LastKnownPTS.IsValid())
+				FTimeValue EnqueuedDuration(FTimeValue::GetZero());
+				int32 NumEnqueuedSamples = 0;
+				if (Type == EStreamType::Video && VideoRender.Renderer.IsValid())
 				{
-					RebufferDetectedAtPlayPos = LastKnownPTS;
+					NumEnqueuedSamples = VideoRender.Renderer->GetNumEnqueuedSamples(&EnqueuedDuration);
 				}
-				WorkerThread.Enqueue(FWorkerThreadMessages::FMessage::EType::BufferUnderrun);
+				else if (Type == EStreamType::Audio && AudioRender.Renderer.IsValid())
+				{
+					NumEnqueuedSamples = AudioRender.Renderer->GetNumEnqueuedSamples(&EnqueuedDuration);
+				}
+				if (NumEnqueuedSamples <= 1)
+				{
+					// Buffer underrun.
+					bRebufferPending = true;
+					FTimeValue LastKnownPTS = FromMultistreamBuffer->GetLastPoppedPTS();
+					// Only set the 'rebuffer at' time if we have a valid last known PTS. If we don't
+					// then maybe this is a cascade failure from a previous rebuffer attempt for which
+					// we then try that time once more.
+					if (LastKnownPTS.IsValid())
+					{
+						RebufferDetectedAtPlayPos = LastKnownPTS;
+					}
+					WorkerThread.Enqueue(FWorkerThreadMessages::FMessage::EType::BufferUnderrun);
+				}
 			}
 		}
 
@@ -860,6 +873,15 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 				{
 					UpdateDataAvailabilityState(*pAvailability, Metrics::FDataAvailabilityChange::EAvailability::DataAvailable);
 				}
+
+				// Check for presence of encoder latency and store it.
+				// This may be updated by different streams/decoders which can't be helped. There should only be one actively
+				// observed element but we have seen manifests that have the same <ProducerReferenceTime@id> in multiple AdaptationSets.
+				if (AccessUnit->ProducerReferenceTime.IsValid())
+				{
+					PlaybackState.SetEncoderLatency(AccessUnit->DTS - AccessUnit->ProducerReferenceTime);
+				}
+
 				FAccessUnit::Release(AccessUnit);
 			}
 		}

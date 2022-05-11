@@ -93,6 +93,7 @@ void FPlayerEntityCache::CacheEntity(const FCacheItem& EntityToAdd)
 {
 	FString CachedURL = EntityToAdd.Range + EntityToAdd.URL;
 	FScopeLock ScopeLock(&Lock);
+	Cache.Remove(CachedURL);
 	Cache.Add(CachedURL, EntityToAdd);
 }
 

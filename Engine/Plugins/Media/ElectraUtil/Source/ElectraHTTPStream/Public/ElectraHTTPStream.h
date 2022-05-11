@@ -93,6 +93,16 @@ public:
 		Finished
 	};
 
+	struct FTimingTrace
+	{
+		// Seconds since the request started.
+		double TimeSinceStart;
+		// Bytes added with the most recent chunk.
+		int64 NumBytesAdded;
+		// Total bytes added to the buffer including the most recent chunk.
+		int64 TotalBytesAdded;
+	};
+
 	virtual EStatus GetStatus() = 0;
 	virtual EState GetState() = 0;
 
@@ -125,6 +135,13 @@ public:
 	virtual double GetTimeUntilHeadersAvailable() = 0;
 	virtual double GetTimeUntilFirstByte() = 0;
 	virtual double GetTimeUntilFinished() = 0;
+
+	// Appends a copy of the timing traces to the provided array and optionally removes the first n elements.
+	// Pass a nullptr to only remove elements without copying them. This is useful to first get the traces
+	// and in a second call remove those that are no longer needed.
+	// Returns number appended or removed.
+	virtual int32 GetTimingTraces(TArray<FTimingTrace>* OutTraces, int32 InNumToRemove) = 0;
+	virtual void SetEnableTimingTraces() = 0;
 };
 
 
@@ -139,6 +156,9 @@ public:
 
 	// Set verb, GET, HEAD or POST. If not set GET is used by default.
 	virtual void SetVerb(const FString& Verb) = 0;
+
+	// Enables collection of timing traces. (disabled by default)
+	virtual void EnableTimingTraces() = 0;
 
 	/*
 		Returns the buffer holding the data to be POSTed to the server.

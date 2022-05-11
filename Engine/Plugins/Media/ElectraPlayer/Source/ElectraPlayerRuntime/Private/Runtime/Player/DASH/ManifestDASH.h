@@ -18,22 +18,26 @@ public:
 	void UpdateInternalManifest(TSharedPtrTS<FManifestDASHInternal> UpdatedManifest);
 
 	virtual ~FManifestDASH();
-	virtual EType GetPresentationType() const override;
-	virtual FTimeValue GetAnchorTime() const override;
-	virtual FTimeRange GetTotalTimeRange() const override;
-	virtual FTimeRange GetSeekableTimeRange() const override;
-	virtual FTimeRange GetPlaybackRange() const override;
-	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
-	virtual FTimeValue GetDuration() const override;
-	virtual FTimeValue GetDefaultStartTime() const override;
-	virtual void ClearDefaultStartTime() override;
-	virtual FTimeValue GetMinBufferTime() const override;
-	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
-	virtual void UpdateDynamicRefetchCounter() override;
-	virtual IStreamReader* CreateStreamReaderHandler() override;
+	EType GetPresentationType() const override;
+	TSharedPtrTS<const FLowLatencyDescriptor> GetLowLatencyDescriptor() const override;
+	FTimeValue GetAnchorTime() const override;
+	FTimeRange GetTotalTimeRange() const override;
+	FTimeRange GetSeekableTimeRange() const override;
+	FTimeRange GetPlaybackRange() const override;
+	void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
+	FTimeValue GetDuration() const override;
+	FTimeValue GetDefaultStartTime() const override;
+	void ClearDefaultStartTime() override;
+	FTimeValue GetMinBufferTime() const override;
+	FTimeValue GetDesiredLiveLatency() const override;
+	TSharedPtrTS<IProducerReferenceTimeInfo> GetProducerReferenceTimeInfo(int64 ID) const override;
+	void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
+	void UpdateDynamicRefetchCounter() override;
+	void TriggerClockSync(IManifest::EClockSyncType InClockSyncType) override;
+	IStreamReader* CreateStreamReaderHandler() override;
 
-	virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
-	virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
+	FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+	FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);

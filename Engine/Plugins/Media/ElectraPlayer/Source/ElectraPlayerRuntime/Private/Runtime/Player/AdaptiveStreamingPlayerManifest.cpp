@@ -289,6 +289,9 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 				InternalCloseManifestReader();
 			}
 
+			// Let the ABR know the format as well.
+			StreamSelector->SetFormatType(ManifestType);
+
 			return true;
 		}
 		else

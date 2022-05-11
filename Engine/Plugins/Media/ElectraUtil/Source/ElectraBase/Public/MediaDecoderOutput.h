@@ -8,6 +8,9 @@
 #include "Containers/Queue.h"
 #include "Misc/ScopeLock.h"
 
+#include "ParameterDictionary.h"
+
+
 struct FDecoderTimeStamp
 {
 	FDecoderTimeStamp() {}
@@ -276,16 +279,24 @@ private:
 };
 
 
+class IDecoderOutput;
+
 class IDecoderOutputOwner
 {
 public:
-	virtual void SampleReleasedToPool(FTimespan durationToRelease) = 0;
+	virtual void SampleReleasedToPool(IDecoderOutput* InDecoderOutput) = 0;
 };
+
 
 class IDecoderOutput : public IDecoderOutputPoolable
 {
 public:
 	virtual void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& Renderer) = 0;
+	virtual FDecoderTimeStamp GetTime() const = 0;
+	virtual FTimespan GetDuration() const = 0;
+
+	virtual Electra::FParamDict& GetMutablePropertyDictionary()
+	{ return PropertyDictionary; }
+private:
+	Electra::FParamDict PropertyDictionary;
 };
-
-

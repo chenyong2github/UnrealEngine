@@ -46,7 +46,7 @@ public:
 		eOpen_Error,
 	};
 
-	virtual OpenError Open(const InstanceConfiguration& Config);
+	OpenError Open(const InstanceConfiguration& Config);
 	void Close(void);
 
 	void PrepareForDecoderShutdown();
@@ -63,47 +63,51 @@ public:
 	//
 
 	// Returns the properties of the buffer pool. Those properties should not change
-	virtual const Electra::FParamDict& GetBufferPoolProperties() const override;
+	const Electra::FParamDict& GetBufferPoolProperties() const override;
 
 	// Create a buffer pool from where a decoder can get the block of memory to decode into.
-	virtual UEMediaError CreateBufferPool(const Electra::FParamDict& Parameters) override;
+	UEMediaError CreateBufferPool(const Electra::FParamDict& Parameters) override;
 
 	// Asks for a sample buffer from the buffer pool created previously through CreateBufferPool()
-	virtual UEMediaError AcquireBuffer(IBuffer*& OutBuffer, int32 TimeoutInMicroseconds, const Electra::FParamDict& InParameters) override;
+	UEMediaError AcquireBuffer(IBuffer*& OutBuffer, int32 TimeoutInMicroseconds, const Electra::FParamDict& InParameters) override;
 
 	// Releases the buffer for rendering and subsequent return to the buffer pool
-	virtual UEMediaError ReturnBuffer(IBuffer* Buffer, bool bRender, const Electra::FParamDict& InSampleProperties) override;
+	UEMediaError ReturnBuffer(IBuffer* Buffer, bool bRender, const Electra::FParamDict& InSampleProperties) override;
 
 	// Informs that the decoder is done with this pool. NO FREE!!!
-	virtual UEMediaError ReleaseBufferPool() override;
+	UEMediaError ReleaseBufferPool() override;
 
-	virtual bool CanReceiveOutputFrames(uint64 NumFrames) const override;
+	bool CanReceiveOutputFrames(uint64 NumFrames) const override;
 
 	// Receives the render clock we need to update with the most recently rendered sample's timestamp.
-	virtual void SetRenderClock(TSharedPtr<Electra::IMediaRenderClock, ESPMode::ThreadSafe> RenderClock) override;
+	void SetRenderClock(TSharedPtr<Electra::IMediaRenderClock, ESPMode::ThreadSafe> RenderClock) override;
+
+	// Called if this renderer is being wrapped by another renderer.
+	void SetParentRenderer(TWeakPtr<IMediaRenderer, ESPMode::ThreadSafe> ParentRenderer) override;
 
 	// Sets the next expected sample's approximate presentation time stamp
-	virtual void SetNextApproximatePresentationTime(const Electra::FTimeValue& NextApproxPTS) override;
+	void SetNextApproximatePresentationTime(const Electra::FTimeValue& NextApproxPTS) override;
 
 	// Flushes all pending buffers not yet rendered
-	virtual UEMediaError Flush(const Electra::FParamDict& InOptions) override;
+	UEMediaError Flush(const Electra::FParamDict& InOptions) override;
 
 	// Begins rendering of the first sample buffer
-	virtual void StartRendering(const Electra::FParamDict& InOptions) override;
+	void StartRendering(const Electra::FParamDict& InOptions) override;
 
 	// Stops rendering of sample buffers
-	virtual void StopRendering(const Electra::FParamDict& InOptions) override;
+	void StopRendering(const Electra::FParamDict& InOptions) override;
 
 	//! Tick any output buffer logic that might need regular updates
-	virtual void TickOutputBufferPool() override;
+	void TickOutputBufferPool() override;
 
-	//! Called from FElectraPlayerVideoDecoderOutputXYZ when texture is returned to pool
-	virtual void SampleReleasedToPool(FTimespan DurationToRelease) override;
+	//! Called from FElectraPlayerVideoDecoderOutput[Platform] when texture is returned to pool
+	void SampleReleasedToPool(IDecoderOutput* InDecoderOutput) override;
 
 private:
 
 
 	TWeakPtr<FElectraPlayer, ESPMode::ThreadSafe> Player;
+	TWeakPtr<IMediaRenderer, ESPMode::ThreadSafe> ParentRenderer;
 
 	TDecoderOutputObjectPool<FVideoDecoderOutput, FElectraPlayerPlatformVideoDecoderOutputFactory> DecoderOutputPool;
 	int32 NumOutputTexturesInUse;
@@ -114,17 +118,19 @@ private:
 	public:
 		explicit FMediaBufferSharedPtrWrapper(const FVideoDecoderOutputPtr& InDecoderOutput)
 			: DecoderOutput(InDecoderOutput)
-		{
-		}
+		{ }
 
-		~FMediaBufferSharedPtrWrapper()
-		{
-		}
+		~FMediaBufferSharedPtrWrapper() = default;
 
-		virtual const Electra::FParamDict& GetBufferProperties() const override
+		const Electra::FParamDict& GetBufferProperties() const override
 		{
 			return BufferProperties;
 		}
+		Electra::FParamDict& GetMutableBufferProperties() override
+		{
+			return BufferProperties;
+		}
+
 		Electra::FParamDict		BufferProperties;
 		FVideoDecoderOutputPtr	DecoderOutput;
 	};
@@ -136,18 +142,11 @@ private:
 
 
 	// These queues are all single-producer, single-consumer which is the default mode...
+	TQueue<FVideoDecoderOutputPtr> QueueTickedAndWaitingForDecoder;
 
-	TQueue<FVideoDecoderOutputPtr>					QueueTickedAndWaitingForDecoder;
-
-	// ------------------------------------------------------------------------------------------------------
-
-	Electra::FParamDict								BufferPoolProperties;
-
-	int32											NumBuffers;
-	int32											NumBuffersAcquiredForDecoder;
-
-	FTimespan										DurationOfPendingRenderBuffers;
-
+	Electra::FParamDict BufferPoolProperties;
+	int32 NumBuffers;
+	int32 NumBuffersAcquiredForDecoder;
 	TSharedPtr<Electra::IMediaRenderClock, ESPMode::ThreadSafe>	RenderClock;
 };
 

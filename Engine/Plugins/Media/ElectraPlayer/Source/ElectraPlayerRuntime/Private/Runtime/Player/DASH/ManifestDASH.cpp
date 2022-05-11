@@ -90,7 +90,7 @@ namespace DashUtils
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-class FDASHPlayPeriod : public IManifest::IPlayPeriod
+class FDASHPlayPeriod : public IManifest::IPlayPeriod, public TSharedFromThis<FDASHPlayPeriod, ESPMode::ThreadSafe>
 {
 public:
 	FDASHPlayPeriod(IPlayerSessionServices* InPlayerSessionServices, const FString& SelectedPeriodID)
@@ -110,23 +110,24 @@ public:
 	//----------------------------------------------
 	// Methods from IManifest::IPlayPeriod
 	//
-	virtual void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
-	virtual EReadyState GetReadyState() override;
-	virtual void Load() override;
-	virtual void PrepareForPlay() override;
-	virtual int64 GetDefaultStartingBitrate() const override;
-	virtual TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
-	virtual FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
-	virtual ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
-	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
-	virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
-	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
-	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
-	virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
-	virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
+	void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
+	EReadyState GetReadyState() override;
+	void Load() override;
+	void PrepareForPlay() override;
+	int64 GetDefaultStartingBitrate() const override;
+	TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
+	FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
+	ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
+	TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
+	void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
+	void TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload) override;
+	IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
+	IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
+	void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
+	void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
 
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
@@ -139,10 +140,34 @@ private:
 		int32 Bitrate = 0;
 	};
 
+	struct FInitSegmentInfo
+	{
+		FString AdaptationSetID;
+		FString RepresentationSetID;
+		FManifestDASHInternal::FSegmentInformation InitSegmentInfo;
+		bool bRequested = false;
+		TSharedPtrTS<FMPDLoadRequestDASH> LoadRequest;
+		
+		class FAcceptBoxes : public IParserISO14496_12::IBoxCallback
+		{
+		public:
+			virtual ~FAcceptBoxes() = default;
+			IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override
+			{ return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue; }
+			IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override
+			{ return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue; }
+		};
+	};
+
 	TSharedPtrTS<FManifestDASHInternal> GetCurrentManifest() const;
 
 	TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationFromAdaptationByMaxBandwidth(TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet, int32 NotExceedingBandwidth);
 	TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet, int32 NotExceedingBandwidth, EStreamType StreamType);
+
+	void GetRepresentationInitSegmentsFromAdaptation(TArray<FInitSegmentInfo>& OutInitSegInfos, TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet);
+	void MergeRepresentationInitSegments(TArray<FInitSegmentInfo>& InOutInitSegInfos, const TArray<FInitSegmentInfo>& NewInitSegInfos);
+	void HandleRepresentationInitSegmentLoading(const TArray<FInitSegmentPreload>& InitSegmentsToPreload);
+	void InitSegmentDownloadComplete(TSharedPtrTS<FMPDLoadRequestDASH> LoadRequest, bool bSuccess);
 
 	enum class ENextSegType
 	{
@@ -167,8 +192,6 @@ private:
 	FStreamSelectionAttributes AudioStreamPreferences;
 	FStreamSelectionAttributes SubtitleStreamPreferences;
 
-	FTimeValue SegmentFetchDelay = FTimeValue::GetZero();
-
 	FString PeriodID;
 
 	FString ActiveVideoAdaptationSetID;
@@ -184,6 +207,9 @@ private:
 	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfoSubtitles;
 
 	TSharedPtr<ElectraCDM::IMediaCDMClient, ESPMode::ThreadSafe> DrmClient;
+
+
+	TArray<FInitSegmentInfo> VideoInitSegmentInfos;
 };
 
 /***************************************************************************************************************************************************/
@@ -220,6 +246,12 @@ IManifest::EType FManifestDASH::GetPresentationType() const
 		return Manifest->GetPresentationType() == FManifestDASHInternal::EPresentationType::Static ? IManifest::EType::OnDemand : IManifest::EType::Live;
 	}
 	return IManifest::EType::OnDemand;
+}
+
+TSharedPtrTS<const FLowLatencyDescriptor> FManifestDASH::GetLowLatencyDescriptor() const
+{ 
+	TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
+	return Manifest.IsValid() ? Manifest->GetLowLatencyDescriptor() : nullptr;
 }
 
 FTimeValue FManifestDASH::GetAnchorTime() const
@@ -287,6 +319,20 @@ FTimeValue FManifestDASH::GetMinBufferTime() const
 	return FTimeValue();
 }
 
+FTimeValue FManifestDASH::GetDesiredLiveLatency() const
+{
+	TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
+	return Manifest.IsValid() ? Manifest->GetDesiredLiveLatency() : FTimeValue();
+}
+
+
+TSharedPtrTS<IProducerReferenceTimeInfo> FManifestDASH::GetProducerReferenceTimeInfo(int64 ID) const
+{
+	TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
+	return Manifest.IsValid() ? Manifest->GetProducerReferenceTimeElement(ID) : nullptr;
+}
+
+
 void FManifestDASH::GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const
 {
 	TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
@@ -314,6 +360,13 @@ void FManifestDASH::UpdateDynamicRefetchCounter()
 		Reader->SetStreamInbandEventUsage(EStreamType::Subtitle, false);
 	}
 }
+
+void FManifestDASH::TriggerClockSync(IManifest::EClockSyncType InClockSyncType)
+{
+	IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(PlayerSessionServices->GetManifestReader().Get());
+	Reader->RequestClockResync();
+}
+
 
 IStreamReader* FManifestDASH::CreateStreamReaderHandler()
 {
@@ -814,6 +867,11 @@ void FDASHPlayPeriod::PrepareForPlay()
 
 			TSharedPtrTS<IPlaybackAssetRepresentation> VideoRepr = GetRepresentationFromAdaptationByMaxBandwidth(VideoAS, (int32) StartingBitrate);
 			ActiveVideoRepresentationID = VideoRepr->GetUniqueIdentifier();
+
+			// Set up the list of initialization segments.
+			TArray<FInitSegmentInfo> InitSegInfos;
+			GetRepresentationInitSegmentsFromAdaptation(InitSegInfos, VideoAS);
+			MergeRepresentationInitSegments(VideoInitSegmentInfos, InitSegInfos);
 		}
 
 		TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> AudioAS = Period->GetAdaptationSetByUniqueID(ActiveAudioAdaptationSetID);
@@ -828,6 +886,22 @@ void FDASHPlayPeriod::PrepareForPlay()
 		{
 			TSharedPtrTS<IPlaybackAssetRepresentation> SubtitleRepr = GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(SubtitleAS, 256 * 1000, EStreamType::Subtitle);
 			ActiveSubtitleRepresentationID = SubtitleRepr->GetUniqueIdentifier();
+		}
+
+
+		// If there is a low latency service description with a reference ID to a producer reference time, set it in the options.
+		// This will be retrieved from there in setting up the segment requests.
+		TSharedPtrTS<const FLowLatencyDescriptor> llDesc = Manifest->GetLowLatencyDescriptor();
+		if (llDesc.IsValid())
+		{
+			if (llDesc->Latency.ReferenceID >= 0)
+			{
+				PlayerSessionServices->GetOptions().SetOrUpdate(DASH::OptionKey_LatencyReferenceId, FVariantValue(llDesc->Latency.ReferenceID));
+			}
+			else
+			{
+				PlayerSessionServices->GetOptions().Remove(DASH::OptionKey_LatencyReferenceId);
+			}
 		}
 
 		// Emit all <EventStream> events of the period to the AEMS event handler.
@@ -950,6 +1024,12 @@ void FDASHPlayPeriod::SelectStream(const FString& AdaptationSetID, const FString
 	}
 }
 
+void FDASHPlayPeriod::TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload)
+{
+	HandleRepresentationInitSegmentLoading(InitSegmentsToPreload);
+}
+
+
 void FDASHPlayPeriod::SetupCommonSegmentRequestInfos(TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InOutSegmentRequest)
 {
 	FManifestDASHInternal::FRepresentation* Repr = static_cast<FManifestDASHInternal::FRepresentation*>(InOutSegmentRequest->Representation.Get());
@@ -990,6 +1070,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 	FTimeValue PlayRangeEnd = StartPosition.Options.PlaybackRange.End;
 	check(PlayRangeEnd.IsValid());
 
+	FTimeValue SegmentFetchDelay = Manifest->GetSegmentFetchDelay();
 	FTimeValue AST = Manifest->GetAnchorTime();
 	FTimeValue StartTime = StartPosition.Time;
 	// All time values we communicate to the outside - and therefor get from the outside - are offset by the availabilityStartTime.
@@ -1265,6 +1346,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage("No active stream found to get next segment for"));
 	}
 
+	FTimeValue SegmentFetchDelay = Manifest->GetSegmentFetchDelay();
 	FTimeValue AST = Manifest->GetAnchorTime();
 	bool bUsesAST = Manifest->UsesAST();
 	bool bIsStaticType = Manifest->IsStaticType() || Manifest->IsDynamicEpicEvent();
@@ -1285,6 +1367,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		// This is to make sure the time is sufficiently large that it won't be affected by rounding errors in timescale conversions.
 		SearchOpt.PeriodLocalTime.SetFromND(Current->Segment.Time - Current->Segment.PTO + Current->Segment.Duration*3/4, Current->Segment.Timescale);
 		SearchOpt.SearchType = IManifest::ESearchType::After;
+		bFrameAccurateSearch = false;
 		// If this representation is side loaded there is nothing to fetch next.
 		// Set the period search time such that the search will have to return EOS.
 		if (Repr.IsValid() && Repr->IsSideloadedSubtitle())
@@ -1501,8 +1584,19 @@ IManifest::FResult FDASHPlayPeriod::GetLoopingSegment(TSharedPtrTS<IStreamSegmen
 
 void FDASHPlayPeriod::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount)
 {
-// TODO: when this starts to get too large we should trigger a resync of our clock with the server time.
-	SegmentFetchDelay += IncreaseAmount;
+	TSharedPtrTS<FManifestDASHInternal> Manifest = GetCurrentManifest();
+	if (Manifest.IsValid())
+	{
+		FTimeValue NewFetchDelay = Manifest->GetSegmentFetchDelay() + IncreaseAmount;
+		Manifest->SetSegmentFetchDelay(NewFetchDelay);
+		// If the fetch delay becomes too large then there is possibly a clock drift.
+		// Trigger a resynchronization which will reset the delay when complete.
+		if (NewFetchDelay.GetAsSeconds() > 0.5)
+		{
+			IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(PlayerSessionServices->GetManifestReader().Get());
+			Reader->RequestClockResync();
+		}
+	}
 }
 
 
@@ -1617,6 +1711,130 @@ TSharedPtrTS<IPlaybackAssetRepresentation> FDASHPlayPeriod::GetRepresentationFro
 	return BestRepr;
 }
 
+void FDASHPlayPeriod::GetRepresentationInitSegmentsFromAdaptation(TArray<FInitSegmentInfo>& OutInitSegInfos, TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet)
+{
+	TSharedPtrTS<IPlaybackAssetAdaptationSet> AS = InAdaptationSet.Pin();
+	if (AS.IsValid())
+	{
+		TArray<TWeakPtrTS<FMPDLoadRequestDASH>> DummyRequests;
+		FManifestDASHInternal::FSegmentSearchOption SearchOpt;
+		SearchOpt.bInitSegmentSetupOnly = true;
+		int32 NumRepr = AS->GetNumberOfRepresentations();
+		for(int32 i=0; i<NumRepr; ++i)
+		{
+			TSharedPtrTS<FManifestDASHInternal::FRepresentation> Repr = StaticCastSharedPtr<FManifestDASHInternal::FRepresentation>(AS->GetRepresentationByIndex(i));
+			if (Repr->CanBePlayed())
+			{
+				FInitSegmentInfo SegInfo;
+				if (Repr->FindSegment(PlayerSessionServices, SegInfo.InitSegmentInfo, DummyRequests, SearchOpt) == FManifestDASHInternal::FRepresentation::ESearchResult::Found)
+				{
+					SegInfo.AdaptationSetID = AS->GetUniqueIdentifier();
+					SegInfo.RepresentationSetID = Repr->GetUniqueIdentifier();
+					OutInitSegInfos.Emplace(MoveTemp(SegInfo));
+				}
+			}
+		}
+	}
+}
+
+void FDASHPlayPeriod::MergeRepresentationInitSegments(TArray<FInitSegmentInfo>& InOutInitSegInfos, const TArray<FInitSegmentInfo>& NewInitSegInfos)
+{
+	for(auto &ni : NewInitSegInfos)
+	{
+		if (!InOutInitSegInfos.ContainsByPredicate([ni](const FInitSegmentInfo& Other) { return ni.AdaptationSetID.Equals(Other.AdaptationSetID) && ni.RepresentationSetID.Equals(Other.RepresentationSetID); }))
+		{
+			InOutInitSegInfos.Add(ni);
+		}
+	}
+}
+
+void FDASHPlayPeriod::HandleRepresentationInitSegmentLoading(const TArray<FInitSegmentPreload>& InitSegmentsToPreload)
+{
+	TArray<TWeakPtrTS<FMPDLoadRequestDASH>> RemoteElementLoadRequests;
+
+	auto GetInitSegInfo = [](TArray<FInitSegmentInfo>& InitSegList, const FString& InRepID) -> FInitSegmentInfo*
+	{
+		for(int32 i=0; i<InitSegList.Num(); ++i)
+		{
+			if (InitSegList[i].RepresentationSetID == InRepID)
+			{
+				return &InitSegList[i];
+			}
+		}
+		return nullptr;
+	};
+
+	for(auto& pl : InitSegmentsToPreload)
+	{
+		FInitSegmentInfo* InitSeg = nullptr;
+
+		if (pl.AdaptationSetID == ActiveVideoAdaptationSetID)
+		{
+			InitSeg = GetInitSegInfo(VideoInitSegmentInfos, pl.RepresentationID);
+		}
+		if (!InitSeg)
+		{
+			continue;
+		}
+		FInitSegmentInfo& is = *InitSeg;
+		if (!is.bRequested)
+		{
+			is.bRequested = true;
+
+			IPlayerEntityCache::FCacheItem CachedItem;
+			if (!PlayerSessionServices->GetEntityCache()->GetCachedEntity(CachedItem, is.InitSegmentInfo.InitializationURL.URL, is.InitSegmentInfo.InitializationURL.Range))
+			{
+				is.LoadRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+				is.LoadRequest->LoadType = FMPDLoadRequestDASH::ELoadType::Segment;
+				is.LoadRequest->URL = is.InitSegmentInfo.InitializationURL.URL;
+				is.LoadRequest->Range = is.InitSegmentInfo.InitializationURL.Range;
+				if (is.InitSegmentInfo.InitializationURL.CustomHeader.Len())
+				{
+					is.LoadRequest->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, is.InitSegmentInfo.InitializationURL.CustomHeader}));
+				}
+				is.LoadRequest->PlayerSessionServices = PlayerSessionServices;
+				is.LoadRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FDASHPlayPeriod::InitSegmentDownloadComplete);
+				
+				RemoteElementLoadRequests.Emplace(is.LoadRequest);
+			}
+		}
+	}
+
+	TSharedPtrTS<IPlaylistReader> ManifestReader = PlayerSessionServices->GetManifestReader();
+	if (ManifestReader.IsValid())
+	{
+		IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(ManifestReader.Get());
+		Reader->AddElementLoadRequests(RemoteElementLoadRequests);
+	}
+}
+
+void FDASHPlayPeriod::InitSegmentDownloadComplete(TSharedPtrTS<FMPDLoadRequestDASH> LoadRequest, bool bSuccess)
+{
+	if (bSuccess)
+	{
+		FInitSegmentInfo::FAcceptBoxes AllBoxes;
+		FMP4StaticDataReader StaticDataReader;
+		StaticDataReader.SetParseData(LoadRequest->Request->GetResponseBuffer());
+		TSharedPtrTS<IParserISO14496_12> Init = IParserISO14496_12::CreateParser();
+		UEMediaError parseError = Init->ParseHeader(&StaticDataReader, &AllBoxes, PlayerSessionServices, nullptr);
+		if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
+		{
+			// Parse the tracks of the init segment. We do this mainly to get to the CSD we might need should we have to insert filler data later.
+			parseError = Init->PrepareTracks(PlayerSessionServices, TSharedPtrTS<const IParserISO14496_12>());
+			if (parseError == UEMEDIA_ERROR_OK)
+			{
+				// Add this to the entity cache in case it needs to be retrieved again.
+				IPlayerEntityCache::FCacheItem CacheItem;
+				CacheItem.URL = LoadRequest->URL;
+				CacheItem.Range = LoadRequest->Range;
+				CacheItem.Parsed14496_12Data = Init;
+				PlayerSessionServices->GetEntityCache()->CacheEntity(CacheItem);
+			}
+		}
+	}
+}
+
+
 
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
@@ -1683,6 +1901,48 @@ FTimeValue CalculateSegmentAvailabilityTimeOffset(const TArray<TSharedPtrTS<FDas
 	return Sum;
 }
 
+
+
+TMediaOptionalValue<bool> GetSegmentAvailabilityTimeComplete(const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& Arr)
+{
+	TMediaOptionalValue<bool> TimeComplete;
+	for(int32 i=0; i<Arr.Num(); ++i)
+	{
+		if (!TimeComplete.IsSet())
+		{
+			TimeComplete = Arr[i]->GetAvailabilityTimeComplete();
+		}
+		else
+		{
+			if (Arr[i]->GetAvailabilityTimeComplete().IsSet() && Arr[i]->GetAvailabilityTimeComplete().Value() != TimeComplete.Value())
+			{
+				// Inconsistent @availabilityTimeComplete
+			}
+		}
+	}
+	return TimeComplete;
+}
+
+TMediaOptionalValue<bool> GetSegmentAvailabilityTimeComplete(const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& Arr)
+{
+	TMediaOptionalValue<bool> TimeComplete;
+	for(int32 i=0; i<Arr.Num(); ++i)
+	{
+		if (!TimeComplete.IsSet())
+		{
+			TimeComplete = Arr[i]->GetAvailabilityTimeComplete();
+		}
+		else
+		{
+			if (Arr[i]->GetAvailabilityTimeComplete().IsSet() && Arr[i]->GetAvailabilityTimeComplete().Value() != TimeComplete.Value())
+			{
+				// Inconsistent @availabilityTimeComplete
+			}
+		}
+	}
+	return TimeComplete;
+}
+
 }
 
 
@@ -1745,7 +2005,8 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 			FString DocumentURL = MPDRepresentation->GetDocumentURL();
 			FString URL, RequestHeader;
 			FTimeValue UrlATO;
-			if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, DocumentURL, OutBaseURLs, FString()))
+			TMediaOptionalValue<bool> bATOComplete;
+			if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, bATOComplete, DocumentURL, OutBaseURLs, FString()))
 			{
 				PostError(InPlayerSessionServices, FString::Printf(TEXT("Representation \"%s\" failed to resolve URL to an absolute URL!"), *MPDRepresentation->GetID()), ERRCODE_DASH_MPD_BAD_REPRESENTATION);
 				bIsUsable = false;
@@ -1824,7 +2085,8 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 	FString DocumentURL = MPDRepresentation->GetDocumentURL();
 	FString URL, RequestHeader;
 	FTimeValue UrlATO;
-	if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, DocumentURL, OutBaseURLs, FString()))
+	TMediaOptionalValue<bool> bATOComplete;
+	if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, bATOComplete, DocumentURL, OutBaseURLs, FString()))
 	{
 		PostError(InPlayerSessionServices, FString::Printf(TEXT("Representation \"%s\" failed to resolve URL to an absolute URL!"), *MPDRepresentation->GetID()), ERRCODE_DASH_MPD_BAD_REPRESENTATION);
 		return false;
@@ -1860,7 +2122,11 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 
 	// Add any availabilityTimeOffset from the <BaseURL>.
 	InOutSegmentInfo.ATO += UrlATO;
-
+	if (!InOutSegmentInfo.bAvailabilityTimeComplete.IsSet())
+	{
+		InOutSegmentInfo.bAvailabilityTimeComplete = bATOComplete;
+	}
+	InOutSegmentInfo.bLowLatencyChunkedEncodingExpected = bAvailableAsLowLatency.GetWithDefault(false);
 	return true;
 }
 
@@ -1912,7 +2178,8 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 	FString DocumentURL = MPDRepresentation->GetDocumentURL();
 	FString MediaURL, MediaRequestHeader;
 	FTimeValue MediaUrlATO;
-	if (!DASHUrlHelpers::BuildAbsoluteElementURL(MediaURL, MediaUrlATO, DocumentURL, OutBaseURLs, MediaTemplateURL))
+	TMediaOptionalValue<bool> bMediaATOComplete;
+	if (!DASHUrlHelpers::BuildAbsoluteElementURL(MediaURL, MediaUrlATO, bMediaATOComplete, DocumentURL, OutBaseURLs, MediaTemplateURL))
 	{
 		PostError(InPlayerSessionServices, FString::Printf(TEXT("Representation \"%s\" failed to resolve media segment URL to an absolute URL!"), *MPDRepresentation->GetID()), ERRCODE_DASH_MPD_BAD_REPRESENTATION);
 		return false;
@@ -1927,7 +2194,8 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 	// And also generate the absolute init segment URL
 	FString InitURL, InitRequestHeader;
 	FTimeValue InitUrlATO;
-	if (!DASHUrlHelpers::BuildAbsoluteElementURL(InitURL, InitUrlATO, DocumentURL, OutBaseURLs, InitTemplateURL))
+	TMediaOptionalValue<bool> bInitATOComplete;
+	if (!DASHUrlHelpers::BuildAbsoluteElementURL(InitURL, InitUrlATO, bInitATOComplete, DocumentURL, OutBaseURLs, InitTemplateURL))
 	{
 		PostError(InPlayerSessionServices, FString::Printf(TEXT("Representation \"%s\" failed to resolve init segment URL to an absolute URL!"), *MPDRepresentation->GetID()), ERRCODE_DASH_MPD_BAD_REPRESENTATION);
 		return false;
@@ -1957,7 +2225,12 @@ bool FManifestDASHInternal::FRepresentation::PrepareDownloadURLs(IPlayerSessionS
 	// Add any availabilityTimeOffset from the <BaseURL>. We use the media ATO since we request the init segment at the same time
 	// as the media segment and the init segment needs to be available at the same time anyway.
 	InOutSegmentInfo.ATO += MediaUrlATO;
+	if (!InOutSegmentInfo.bAvailabilityTimeComplete.IsSet())
+	{
+		InOutSegmentInfo.bAvailabilityTimeComplete = bMediaATOComplete;
+	}
 
+	InOutSegmentInfo.bLowLatencyChunkedEncodingExpected = bAvailableAsLowLatency.GetWithDefault(false);
 	return true;
 }
 
@@ -2077,6 +2350,12 @@ void FManifestDASHInternal::FRepresentation::CollectInbandEventStreams(IPlayerSe
 	}
 }
 
+void FManifestDASHInternal::FRepresentation::SetupProducerReferenceTimeInfo(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& InOutSegmentInfo)
+{
+	InOutSegmentInfo.ProducerReferenceTimeInfos = ProducerReferenceTimeInfos;
+	DashUtils::GetPlayerOption(InPlayerSessionServices, InOutSegmentInfo.MeasureLatencyViaReferenceTimeInfoID, DASH::OptionKey_LatencyReferenceId, (int64)-1);
+}
+
 
 
 FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::FindSegment(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions)
@@ -2171,21 +2450,35 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 			return FManifestDASHInternal::FRepresentation::ESearchResult::BadType;
 		}
 
-		if (SegmentBase.Num())
+		if (!InSearchOptions.bInitSegmentSetupOnly)
 		{
-			return FindSegment_Base(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentBase);
-		}
-		else
-		{
-			// Get the segment timeline, if one is used.
-			TSharedPtrTS<FDashMPD_SegmentTimelineType> SegmentTimeline = GET_ATTR(SegmentTemplate, GetSegmentTimeline(), IsValid(), TSharedPtrTS<FDashMPD_SegmentTimelineType>());
-			if (SegmentTimeline.IsValid())
+			if (SegmentBase.Num())
 			{
-				return FindSegment_Timeline(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate, SegmentTimeline);
+				return FindSegment_Base(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentBase);
 			}
 			else
 			{
-				return FindSegment_Template(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate);
+				// Get the segment timeline, if one is used.
+				TSharedPtrTS<FDashMPD_SegmentTimelineType> SegmentTimeline = GET_ATTR(SegmentTemplate, GetSegmentTimeline(), IsValid(), TSharedPtrTS<FDashMPD_SegmentTimelineType>());
+				if (SegmentTimeline.IsValid())
+				{
+					return FindSegment_Timeline(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate, SegmentTimeline);
+				}
+				else
+				{
+					return FindSegment_Template(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate);
+				}
+			}
+		}
+		else
+		{
+			if (SegmentBase.Num())
+			{
+				return PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentBase) ? FManifestDASHInternal::FRepresentation::ESearchResult::Found : FManifestDASHInternal::FRepresentation::ESearchResult::BadType;
+			}
+			else
+			{
+				return PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentTemplate) ? FManifestDASHInternal::FRepresentation::ESearchResult::Found : FManifestDASHInternal::FRepresentation::ESearchResult::BadType;
 			}
 		}
 	}
@@ -2226,6 +2519,8 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		LogMessage(InPlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Representation timescale (%u) in MPD is not equal to timescale used in the segment index (%u) for Representation \"%s\"."), MPDTimescale, SidxTimescale, *MPDRepresentation->GetID()));
 	}
 	FTimeValue ATO = CalculateSegmentAvailabilityTimeOffset(SegmentBase);
+	TMediaOptionalValue<bool> bATOComplete = GetSegmentAvailabilityTimeComplete(SegmentBase);
+
 
 	// Convert the local media search time to the timescale of the segment index.
 	// The PTO (presentation time offset) which maps the internal media time to the zero point of the period must be included as well.
@@ -2389,13 +2684,15 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		OutSegmentInfo.Number = CurrentN;
 		OutSegmentInfo.NumberOfBytes = Sidx->GetEntry(CurrentN).Size;
 		OutSegmentInfo.FirstByteOffset = Sidx->GetFirstOffset() + SegmentIndexRangeStart + SegmentIndexRangeSize + CurrentOffset;
-		OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime;
+		OutSegmentInfo.MediaLocalFirstAUTime = OutSegmentInfo.MediaLocalFirstPTS = MediaLocalSearchTime;
 		OutSegmentInfo.MediaLocalLastAUTime = MediaLocalEndTime;
 		OutSegmentInfo.Timescale = SidxTimescale;
 		OutSegmentInfo.ATO = ATO;
+		OutSegmentInfo.bAvailabilityTimeComplete = bATOComplete;
 		OutSegmentInfo.bIsLastInPeriod = CurrentT + CurrentD >= MediaLocalEndTime;
 		OutSegmentInfo.bFrameAccuracyRequired = InSearchOptions.bFrameAccurateSearch;
 		CollectInbandEventStreams(InPlayerSessionServices, OutSegmentInfo);
+		SetupProducerReferenceTimeInfo(InPlayerSessionServices, OutSegmentInfo);
 		if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentBase))
 		{
 			bIsUsable = false;
@@ -2421,7 +2718,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	TMediaOptionalValue<uint32> Duration = GET_ATTR(SegmentTemplate, GetDuration(), IsSet(), TMediaOptionalValue<uint32>());
 	TMediaOptionalValue<int32> EptDelta = GET_ATTR(SegmentTemplate, GetEptDelta(), IsSet(), TMediaOptionalValue<int32>());
 	FTimeValue ATO = CalculateSegmentAvailabilityTimeOffset(SegmentTemplate);
-
+	TMediaOptionalValue<bool> bATOComplete = GetSegmentAvailabilityTimeComplete(SegmentTemplate);
 
 	// The timescale should in all likelihood not be 1. While certainly allowed an accuracy of only one second is more likely to be
 	// an oversight when building the MPD.
@@ -2536,14 +2833,16 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	OutSegmentInfo.EPTdelta = EPTdelta;
 	OutSegmentInfo.Duration = SegmentDuration;
 	OutSegmentInfo.Number = StartNumber + SegmentNum;
-	OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime;
+	OutSegmentInfo.MediaLocalFirstAUTime = OutSegmentInfo.MediaLocalFirstPTS = MediaLocalSearchTime;
 	OutSegmentInfo.MediaLocalLastAUTime = MediaLocalEndTime;
 	OutSegmentInfo.Timescale = MPDTimescale;
 	OutSegmentInfo.bMayBeMissing = SegmentNum + 1 >= MaxSegmentsInPeriod;
 	OutSegmentInfo.bIsLastInPeriod = OutSegmentInfo.bMayBeMissing && InSearchOptions.bHasFollowingPeriod;
 	OutSegmentInfo.bFrameAccuracyRequired = InSearchOptions.bFrameAccurateSearch;
 	OutSegmentInfo.ATO = ATO;
+	OutSegmentInfo.bAvailabilityTimeComplete = bATOComplete;
 	CollectInbandEventStreams(InPlayerSessionServices, OutSegmentInfo);
+	SetupProducerReferenceTimeInfo(InPlayerSessionServices, OutSegmentInfo);
 	if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentTemplate))
 	{
 		bIsUsable = false;
@@ -2578,6 +2877,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	uint32 EndNumber = GET_ATTR(SegmentTemplate, GetEndNumber(), IsSet(), TMediaOptionalValue<uint32>(~0U)).Value();
 	//TMediaOptionalValue<uint32> Duration = GET_ATTR(SegmentTemplate, GetDuration(), IsSet(), TMediaOptionalValue<uint32>());
 	FTimeValue ATO = CalculateSegmentAvailabilityTimeOffset(SegmentTemplate);
+	TMediaOptionalValue<bool> bATOComplete = GetSegmentAvailabilityTimeComplete(SegmentTemplate);
 
 	// The timescale should in all likelihood not be 1. While certainly allowed an accuracy of only one second is more likely to be
 	// an oversight when building the MPD.
@@ -2861,7 +3161,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		OutSegmentInfo.PTO = PTO;
 		OutSegmentInfo.Duration = CurrentD;
 		OutSegmentInfo.Number = CurrentN;
-		OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime;
+		OutSegmentInfo.MediaLocalFirstAUTime = OutSegmentInfo.MediaLocalFirstPTS = MediaLocalSearchTime;
 		OutSegmentInfo.MediaLocalLastAUTime = MediaLocalEndTime;
 		OutSegmentInfo.Timescale = MPDTimescale;
 		OutSegmentInfo.bMayBeMissing = CurrentT + CurrentD >= MediaLocalEndTime;
@@ -2874,7 +3174,9 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 			LogMessage(InPlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Representation \"%s\" <SegmentTimeline> gap encountered for needed 't' value of %lld. Replacing with an empty filler segment."), *MPDRepresentation->GetID(), (long long int)CurrentT));
 		}
 		OutSegmentInfo.ATO = ATO;
+		OutSegmentInfo.bAvailabilityTimeComplete = bATOComplete;
 		CollectInbandEventStreams(InPlayerSessionServices, OutSegmentInfo);
+		SetupProducerReferenceTimeInfo(InPlayerSessionServices, OutSegmentInfo);
 		if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentTemplate))
 		{
 			bIsUsable = false;
@@ -2934,10 +3236,11 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	OutSegmentInfo.Number = 0;
 	OutSegmentInfo.NumberOfBytes = 0;
 	OutSegmentInfo.FirstByteOffset = 0;
-	OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime;
+	OutSegmentInfo.MediaLocalFirstAUTime = OutSegmentInfo.MediaLocalFirstPTS = MediaLocalSearchTime;
 	OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodEnd;
 	OutSegmentInfo.Timescale = Timescale;
 	OutSegmentInfo.ATO.SetToZero();
+	OutSegmentInfo.bAvailabilityTimeComplete.Set(true);
 	OutSegmentInfo.bIsSideload = true;
 	OutSegmentInfo.bIsLastInPeriod = true;
 	TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>> SegmentBase;

@@ -11,6 +11,7 @@
 #include "Player/DASH/OptionKeynamesDASH.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
 #include "Player/DASH/PlayerEventDASH.h"
+#include "Player/DASH/PlayerEventDASH_Internal.h"
 
 #include "ManifestBuilderDASH.h"
 #include "ManifestParserDASH.h"
@@ -78,6 +79,8 @@ namespace
 		// DVB-DASH profiles
 		TEXT("urn:dvb:dash:profile:dvb-dash:2014"),
 		TEXT("urn:dvb:dash:profile:dvb-dash:isoff-ext-live:2014"),
+		// Low latency Live
+		TEXT("http://www.dashif.org/guidelines/low-latency-live-v5"),
 	};
 
 	const TCHAR* const ScanTypeInterlace = TEXT("interlace");
@@ -100,6 +103,10 @@ namespace
     const TCHAR* const SubtitleMimeType_SideloadedTTML = TEXT("application/ttml+xml");
     const TCHAR* const SubtitleMimeType_SideloadedVTT = TEXT("text/vtt");
     const TCHAR* const SubtitleMimeType_Streamed = TEXT("application/mp4");
+
+	// Thumbnail mime types
+    const TCHAR* const ThumbnailMimeType_Jpeg = TEXT("image/jpeg");
+    const TCHAR* const ThumbnailMimeType_Png= TEXT("image/png");
 }
 
 
@@ -560,10 +567,11 @@ namespace DASHUrlHelpers
 	 * Returns true if an absolute URL could be generated, false if not.
 	 * Since the MPD URL had to be an absolute URL this cannot actually fail.
 	 */
-	bool BuildAbsoluteElementURL(FString& OutURL, FTimeValue& ATO, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& InElementURL)
+	bool BuildAbsoluteElementURL(FString& OutURL, FTimeValue& ATO, TMediaOptionalValue<bool>& bATOComplete, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& InElementURL)
 	{
 		FTimeValue SumOfUrlATOs(FTimeValue::GetZero());
 		ATO.SetToZero();
+		bATOComplete.Reset();
 		FURL_RFC3986 UrlParser;
 		FString ElementURL(InElementURL);
 		// If the element URL is empty it is specified as the first entry in the BaseURL array.
@@ -595,6 +603,17 @@ namespace DASHUrlHelpers
 					{
 						UrlParser.ResolveAgainst(BaseURLs[nBase]->GetURL());
 						SumOfUrlATOs += BaseURLs[nBase]->GetAvailabilityTimeOffset();
+						if (!bATOComplete.IsSet())
+						{
+							bATOComplete = BaseURLs[nBase]->GetAvailabilityTimeComplete();
+						}
+						else
+						{
+							if (BaseURLs[nBase]->GetAvailabilityTimeComplete().IsSet() && BaseURLs[nBase]->GetAvailabilityTimeComplete().Value() != bATOComplete.Value())
+							{
+								// Inconsistent availabilityTimeComplete across the hierarchy.
+							}
+						}
 						++nBase;
 					}
 					else
@@ -871,6 +890,7 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(TArray<TWeak
 		FString URL;
 		FString RequestHeader;
 		FTimeValue UrlATO;
+		TMediaOptionalValue<bool> bATOComplete;
 		// Get the xlink:href
 		FString XlinkHRef = xl.GetHref();
 		if (!XlinkHRef.Equals(XLinkResolveToZero))
@@ -883,7 +903,7 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(TArray<TWeak
 			{
 				TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
 				DASHUrlHelpers::GetAllHierarchyBaseURLs(PlayerSessionServices, OutBaseURLs, XElem->GetParentElement(), PreferredServiceLocation);
-				if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, MPDRoot->GetDocumentURL(), OutBaseURLs, XlinkHRef))
+				if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, bATOComplete, MPDRoot->GetDocumentURL(), OutBaseURLs, XlinkHRef))
 				{
 					// Not resolving to an absolute URL is very unlikely as we had to load the MPD itself from somewhere.
 					return CreateErrorAndLog(PlayerSessionServices, FString::Printf(TEXT("xlink:href did not resolve to an absolute URL")), ERRCODE_DASH_MPD_BUILDER_URL_FAILED_TO_RESOLVE);
@@ -989,7 +1009,8 @@ void FManifestDASHInternal::TransformIntoEpicEvent()
 						FTimeValue spd = FTimeValue().SetFromTimeFraction(FTimeFraction().SetFromFloatString(Params[1]));
 						MPDRoot->SetSuggestedPresentationDelay(spd);
 					}
-					else
+					// In case there is a @suggestedPresentationDelay present (even if should not) we use it, otherwise we use the @minBufferTime
+					else if (!MPDRoot->GetSuggestedPresentationDelay().IsValid())
 					{
 						MPDRoot->SetSuggestedPresentationDelay(MPDRoot->GetMinBufferTime());
 					}
@@ -1074,6 +1095,7 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 	FErrorDetail Error;
 
 	FTimeValue AST = GetAnchorTime();
+	SegmentFetchDelay.SetToZero();
 
 	bool bWarnedPresentationDuration = false;
 	// Go over the periods one at a time as XLINK attributes could bring in additional periods.
@@ -1249,6 +1271,49 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 		Periods.Emplace(MoveTemp(p));
 	}
 
+
+	// Check for supported <ServiceDescription> elements on MPD level. Those on Period level we ignore for now.
+	TArray<TSharedPtrTS<FDashMPD_ServiceDescriptionType>> ServiceDescs = MPDRoot->GetServiceDescriptions().FilterByPredicate([](const TSharedPtrTS<FDashMPD_ServiceDescriptionType>& InDesc)
+	{
+		// No <Scope> means this <ServiceDescription> applies to all clients, not specific ones.
+		// If we need to look for specific scopes we can do this here.
+		return InDesc->GetScopes().Num() == 0;
+	});
+	// Are there any indicating low-latency playback?
+	TArray<TSharedPtrTS<FDashMPD_ServiceDescriptionType>> LowLatencyDescs = ServiceDescs.FilterByPredicate([](const TSharedPtrTS<FDashMPD_ServiceDescriptionType>& InDesc)
+	{
+		return InDesc->GetLatencies().Num() != 0;
+	});
+	if (LowLatencyDescs.Num())
+	{
+		// If there is more than one we just use the first.
+		if (LowLatencyDescs.Num() > 1)
+		{
+			LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("MPD has more than one applicable low-latency <ServiceDescription> element. Using the first one.")));
+		}
+		TSharedPtrTS<FDashMPD_ServiceDescriptionType> llDesc = LowLatencyDescs[0];
+		if (llDesc->GetLatencies().Num() > 1)
+		{
+			LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Selected MPD <ServiceDescription> element has more than one <Latency> element. Using the first one.")));
+		}
+		if (llDesc->GetPlaybackRates().Num() > 1)
+		{
+			LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Selected MPD <ServiceDescription> element has more than one <PlaybackRate> element. Using the first one.")));
+		}
+
+		TSharedPtrTS<FDashMPD_LatencyType> llType = llDesc->GetLatencies()[0];
+		TSharedPtrTS<FDashMPD_PlaybackRateType> llRate = llDesc->GetPlaybackRates().Num() ? llDesc->GetPlaybackRates()[0] : nullptr;
+
+		LowLatencyDescriptor = MakeSharedTS<FLowLatencyDescriptor>();
+		LowLatencyDescriptor->Latency.ReferenceID = llType->GetReferenceID().IsSet() ? (int64)llType->GetReferenceID().Value() : -1;
+		LowLatencyDescriptor->Latency.Target = llType->GetTarget().IsSet() ? FTimeValue((int64) llType->GetTarget().Value(), (uint32)1000) : FTimeValue();
+		LowLatencyDescriptor->Latency.Min = llType->GetMin().IsSet() ? FTimeValue((int64) llType->GetMin().Value(), (uint32)1000) : FTimeValue();
+		LowLatencyDescriptor->Latency.Max = llType->GetMax().IsSet() ? FTimeValue((int64) llType->GetMax().Value(), (uint32)1000) : FTimeValue();
+		LowLatencyDescriptor->PlayRate.Min = llRate.IsValid() ? llRate->GetMin() : FTimeValue();
+		LowLatencyDescriptor->PlayRate.Max = llRate.IsValid() ? llRate->GetMax() : FTimeValue();
+	}
+
+
 	// As per ISO/IEC 23009-1:2019/DAM 1 "Change 2: Event Stream and Timed Metadata Processing" Section A.11.11 Detailed processing
 	// all events from MPD EventStreams are to be collected right now.
 	for(int32 i=0; i<Periods.Num(); ++i)
@@ -1271,6 +1336,9 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 		{
 			return;
 		}
+
+		check(MPDRoot.IsValid());
+		const TArray<TSharedPtrTS<FDashMPD_DescriptorType>>& UTCTimings = MPDRoot->GetUTCTimings();
 
 		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestDASHInternal_Build);
 		CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestDASHInternal_Build);
@@ -1486,6 +1554,13 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					Representation->bIsSideloadedSubtitle = true;
 				}
 
+				// Check for thumbnails
+				if (MimeType.Equals(ThumbnailMimeType_Jpeg) || MimeType.Equals(ThumbnailMimeType_Png))
+				{
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Thumbnail representations are not supported, ignoring this Representation.")));
+					continue;
+				}
+
 				if (MPDCodecs.Num() == 0)
 				{
 					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Neither @codecs found on Representation or AdaptationSet level, ignoring this Representation.")));
@@ -1659,6 +1734,135 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					continue;
 				}
 
+
+				/*
+					Check if anywhere in the hierarchy (Representation->AdaptationSet->Period) there is a <SegmentTemplate> and if there is whether
+					it has @availabilityTimeComplete set to false, indicating this segment is available via chunked transfer encoding (CTE) and thus
+					potentially usable for low-latency streaming.
+				*/
+				TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>> SegmentTemplate({MPDRepresentation->GetSegmentTemplate(), MPDAdaptationSet->GetSegmentTemplate(), MPDPeriod->GetSegmentTemplate()});
+				SegmentTemplate.Remove(nullptr);
+				if (SegmentTemplate.Num())
+				{
+					TMediaOptionalValue<bool> bTimeComplete;
+					TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> BaseURLElements;
+					DASHUrlHelpers::GetAllHierarchyBaseURLs(PlayerSessionServices, BaseURLElements, MPDRepresentation, nullptr);
+					for(auto &segTemp : SegmentTemplate)
+					{
+						if (!bTimeComplete.IsSet())
+						{
+							bTimeComplete = segTemp->GetAvailabilityTimeComplete();
+						}
+						else if (segTemp->GetAvailabilityTimeComplete().IsSet() && segTemp->GetAvailabilityTimeComplete().Value() != bTimeComplete.Value())
+						{
+							// Inconsistent. Emit warning and assume 'true' so segment is not available for low-latency.
+							if (!Representation->bWarnedAboutInconsistentAvailabilityTimeComplete)
+							{
+								Representation->bWarnedAboutInconsistentAvailabilityTimeComplete = true;
+								LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Inconsistent @availabilityTimeComplete value across <SegmentTemplate> hierarchy for representation \"%s\" in Period \"%s\", ignoring."), *MPDRepresentation->GetID(), *Period->GetID()));
+							}
+							bTimeComplete.Reset();
+							break;
+						}
+					}
+					for(auto &baseUrl : BaseURLElements)
+					{
+						if (!bTimeComplete.IsSet())
+						{
+							bTimeComplete = baseUrl->GetAvailabilityTimeComplete();
+						}
+						else if (baseUrl->GetAvailabilityTimeComplete().IsSet() && baseUrl->GetAvailabilityTimeComplete().Value() != bTimeComplete.Value())
+						{
+							// Inconsistent. Emit warning and assume 'true' so segment is not available for low-latency.
+							if (!Representation->bWarnedAboutInconsistentAvailabilityTimeComplete)
+							{
+								Representation->bWarnedAboutInconsistentAvailabilityTimeComplete = true;
+								LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Inconsistent @availabilityTimeComplete value across <SegmentTemplate> / <BaseURL> hierarchy for representation \"%s\" in Period \"%s\", ignoring."), *MPDRepresentation->GetID(), *Period->GetID()));
+							}
+							bTimeComplete.Reset();
+							break;
+						}
+					}
+					// Set as potentially low-latency usable?
+					if (bTimeComplete.IsSet() && bTimeComplete.Value() == false)
+					{
+						Representation->bAvailableAsLowLatency.Set(true);
+					}
+				}
+
+
+				// Any producer reference times?
+				TArray<TSharedPtrTS<FDashMPD_ProducerReferenceTimeType>> ProducerReferenceTimes = MPDRepresentation->GetProducerReferenceTimes();
+				if (ProducerReferenceTimes.Num() == 0)
+				{
+					ProducerReferenceTimes = MPDAdaptationSet->GetProducerReferenceTimes();
+				}
+				for(auto &ProdRef : ProducerReferenceTimes)
+				{
+					if (ProdRef->GetType().Equals(TEXT("encoder")) || ProdRef->GetType().Equals(TEXT("captured")))
+					{
+						FProducerReferenceTimeInfo prti;
+						prti.ID = ProdRef->GetID();
+						prti.bInband = ProdRef->GetInband();
+						prti.Type = ProdRef->GetType().Equals(TEXT("encoder")) ? FProducerReferenceTimeInfo::EType::Encoder : FProducerReferenceTimeInfo::EType::Captured;
+						prti.PresentationTime = ProdRef->GetPresentationTime();
+
+						// As per 5.12.2, if a timing element is specified then it must also be specified in the MPD.
+						FTimeValue WallclockTime;
+						if (ProdRef->GetUTCTiming().IsValid())
+						{
+							bool bFound = false;
+							for(auto &MPDUTCTiming : UTCTimings)
+							{
+								// Compare only the scheme, not the value. The scheme is needed to interpret the format the wallClockTime is
+								// specified in correctly and nothing else.
+								if (MPDUTCTiming->GetSchemeIdUri().Equals(ProdRef->GetUTCTiming()->GetSchemeIdUri()))
+								{
+									bFound = true;
+									if ((ProdRef->GetUTCTiming()->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpiso2014)) ||
+										(ProdRef->GetUTCTiming()->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_direct2014)))
+									{
+										ISO8601::ParseDateTime(WallclockTime, ProdRef->GetWallclockTime());
+									}
+									else if (ProdRef->GetUTCTiming()->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014))
+									{
+										if (!ISO8601::ParseDateTime(WallclockTime, ProdRef->GetWallclockTime()))
+										{
+											UnixEpoch::ParseFloatString(WallclockTime, ProdRef->GetWallclockTime());
+										}
+									}
+									else if (ProdRef->GetUTCTiming()->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httphead2014))
+									{
+										RFC7231::ParseDateTime(WallclockTime, ProdRef->GetWallclockTime());
+									}
+									else
+									{
+										// Unsupported type. No need to emit a warning since the MPD's root <UTCTiming> element will have warned already.
+										// Just ignore it.
+									}
+									break;
+								}
+							}
+							if (!bFound)
+							{
+								LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Representation <ProducerReferenceTime> references a <UTCTiming> element not present in the MPD! Ignoring this element!")));
+							}
+						}
+						prti.WallclockTime = WallclockTime;
+						if (WallclockTime.IsValid())
+						{
+							// Add the parsed element to the map for fast access when handling <Latency> in the <ServiceDescription> element.
+							ProducerReferenceTimeElements.Add(prti.ID, MakeSharedTS<FProducerReferenceTimeInfo>(prti));
+							// Assign it to the representation.
+							Representation->ProducerReferenceTimeInfos.Emplace(MoveTemp(prti));
+						}
+					}
+					else
+					{
+						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Representation uses <ProducerReferenceTime> of unsupported type, ignoring.")));
+					}
+				}
+
 				// For all intents and purposes we consider this Representation as usable now.
 				Representation->bIsUsable = true;
 				AdaptationSet->Representations.Emplace(Representation);
@@ -1693,6 +1897,33 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					E.Value->QualityIndex = CurrentQualityIndex;
 				}
 				AdaptationSet->bIsUsable = true;
+
+				TMediaOptionalValue<bool> lowLatencyUsable;
+				bool bFirst = true;
+				for(auto &Repr : AdaptationSet->Representations)
+				{
+					if (bFirst)
+					{
+						bFirst = false;
+						lowLatencyUsable = Repr->bAvailableAsLowLatency;
+					}
+					if ((lowLatencyUsable.IsSet() && Repr->bAvailableAsLowLatency.IsSet() && lowLatencyUsable.Value() != Repr->bAvailableAsLowLatency.Value()) ||
+						(lowLatencyUsable.IsSet() != Repr->bAvailableAsLowLatency.IsSet()))
+					{
+						// Inconsistent.
+						if (!AdaptationSet->bWarnedAboutInconsistentAvailabilityTimeComplete)
+						{
+							AdaptationSet->bWarnedAboutInconsistentAvailabilityTimeComplete = true;
+							LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Inconsistent @availabilityTimeComplete value across the Representations in AdaptationSet \"%s\" in Period \"%s\", ignoring."), *MPDAdaptationSet->GetID_AsStr(), *Period->GetID()));
+						}
+					}
+				}
+				// If all representations are flagged as usable for low-latency then tag the adaptation set as well.
+				if (!AdaptationSet->bWarnedAboutInconsistentAvailabilityTimeComplete && lowLatencyUsable.GetWithDefault(false))
+				{
+					AdaptationSet->bAvailableAsLowLatency.Set(true);
+				}
+
 				Period->AdaptationSets.Emplace(AdaptationSet);
 			}
 		}
@@ -2113,40 +2344,43 @@ FTimeRange FManifestDASHInternal::GetTotalTimeRange() const
 	return TotalTimeRange;
 }
 
+FTimeValue FManifestDASHInternal::GetDesiredLiveLatency() const
+{
+	return CalculateDistanceToLiveEdge();
+}
+
 
 FTimeValue FManifestDASHInternal::CalculateDistanceToLiveEdge() const
 {
+	if (CalculatedLiveDistance.IsValid())
+	{
+		return CalculatedLiveDistance;
+	}
+
 	// Check if there is a user provided value. If there is it takes precedence over everything else.
 	FTimeValue Distance = PlayerSessionServices->GetOptions().GetValue(OptionKeyLiveSeekableEndOffset).SafeGetTimeValue(FTimeValue());
+
+	// If there is a low latency descriptor we use the target latency from it.
+	if (LowLatencyDescriptor.IsValid())
+	{
+		Distance = LowLatencyDescriptor->Latency.Target;
+	}
+
 	// If not set use the MPD@suggestedPresentationDelay
 	if (!Distance.IsValid())
 	{
 		Distance = MPDRoot->GetSuggestedPresentationDelay();
 
 		/*
-			FIXME:
-				This fudge is here to prevent the use of the live segment.
-				At the moment the HTTP module only allows us access to the data once the segment has been fetched in its entirety,
-				which tends to be too late, especially if the current segment is only used partially (we may have a 2s segment
-				fetched but start playback 1s into is, giving us only 1s worth of usable data).
-				For real low-latency playback chunked transfer is needed with access to the partially downloaded data.
-
-				If the @suggestedPresentationDelay is set equal to or shorter than the @minBufferTime, which we assume to indicate the duration
-				of a single segment we would need low-latency.
-				Since we cannot force the MPD@suggestedPresentationDelay to be set such that none of this will be a problem
-				we adjust that value to twice the MPD@minBufferTime until we can get chunked transfer and partial data access.
+			If the @suggestedPresentationDelay is set equal to or shorter than the @minBufferTime there is a
+			conflict. Since we have to buffer @minBufferTime worth of content, which could be arriving in real-time only
+			then how could we maintain the @suggestedPresentationDelay?
 		*/
-			FTimeValue mbt_times2 = MPDRoot->GetMinBufferTime() * 2;
-			if (Distance < mbt_times2)
-			{
-				if (!bWarnedAboutTooSmallSuggestedPresentationDelay)
-				{
-					bWarnedAboutTooSmallSuggestedPresentationDelay = true;
-					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Adjusting the MPD@suggestedPresentationDelay from %.3f seconds to %.3f to avoid Live edge buffering issues"), Distance.GetAsSeconds(), mbt_times2.GetAsSeconds()));
-				}
-				Distance = mbt_times2;
-			}
-
+		if (Distance < MPDRoot->GetMinBufferTime() && !bWarnedAboutTooSmallSuggestedPresentationDelay)
+		{
+			bWarnedAboutTooSmallSuggestedPresentationDelay = true;
+			LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("MPD@suggestedPresentationDelay of %.3fs is less than MPD@minBufferTime of %.3fs"), Distance.GetAsSeconds(), MPDRoot->GetMinBufferTime().GetAsSeconds()));
+		}
 	}
 	// If not set see if there is an MPD@maxSegmentDuration and use that.
 	if (!Distance.IsValid())
@@ -2173,6 +2407,7 @@ FTimeValue FManifestDASHInternal::CalculateDistanceToLiveEdge() const
 		Distance = MPDRoot->GetTimeShiftBufferDepth();
 	}
 	check(Distance.IsValid());
+	CalculatedLiveDistance = Distance;
 	return Distance;
 }
 
@@ -2478,7 +2713,7 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 					// 'now' is dynamic. The time will continue to flow between here where we set the value and
 					// the moment playback will begin with buffered data.
 					// We do not lock 'now' with the current time but leave it unset. This results in the start
-					// time to be the 
+					// time to be taken from the seekable range's end value which is updating dynamically.
 					FromTo.Start.SetToInvalid();
 				}
 			}

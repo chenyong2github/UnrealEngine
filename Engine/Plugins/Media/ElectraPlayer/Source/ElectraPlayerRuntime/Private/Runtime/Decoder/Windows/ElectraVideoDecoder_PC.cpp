@@ -322,7 +322,7 @@ void FElectraPlayerVideoDecoderOutputPC::ShutdownPoolable()
 	TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
 	if (lockedVideoRenderer.IsValid())
 	{
-		lockedVideoRenderer->SampleReleasedToPool(GetDuration());
+		lockedVideoRenderer->SampleReleasedToPool(this);
 	}
 
 	if (OutputType != EOutputType::HardwareWin8Plus)

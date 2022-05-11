@@ -55,6 +55,11 @@ public:
 	virtual void RequestMPDUpdate(EMPDRequestType InRequestType) = 0;
 
 	/**
+	 * Requests a resync of the player clock with the server clock.
+	 */
+	virtual void RequestClockResync() = 0;
+
+	/**
 	 * Access the current internal MPD
 	 */
 	virtual TSharedPtrTS<FManifestDASHInternal> GetCurrentMPD() = 0;

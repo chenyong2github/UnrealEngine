@@ -326,6 +326,8 @@ bool FAudioDecoderAAC::CreateDecodedSamplePool()
 	uint32 frameSize = sizeof(int16) * 8 * 2048;
 	poolOpts.Set("max_buffer_size", FVariantValue((int64) frameSize));
 	poolOpts.Set("num_buffers", FVariantValue((int64) 8));
+	poolOpts.Set("samples_per_block", FVariantValue((int64) 2048));
+	poolOpts.Set("max_channels", FVariantValue((int64) 8));
 
 	UEMediaError Error = Renderer->CreateBufferPool(poolOpts);
 	check(Error == UEMEDIA_ERROR_OK);

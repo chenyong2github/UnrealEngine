@@ -950,9 +950,24 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 		}
 	}
 
+
+	// Index the stream quality level map. Lower quality = lower index
+	int32 QualityIndex = 0;
+	Manifest->BandwidthToQualityIndex.KeySort([](int32 A, int32 B){return A<B;});
+	for(TMap<int32, int32>::TIterator It = Manifest->BandwidthToQualityIndex.CreateIterator(); It; ++It)
+	{
+		It.Value() = QualityIndex++;
+	}
+
 	// Set up the highest bandwidth and corresponding codec information in the adaptation sets.
 	if (Asset->VideoAdaptationSet.IsValid())
 	{
+		for(int32 i=0; i<Asset->VideoAdaptationSet->GetNumberOfRepresentations(); ++i)
+		{
+			FPlaybackAssetRepresentationHLS* Repr = static_cast<FPlaybackAssetRepresentationHLS*>(Asset->VideoAdaptationSet->GetRepresentationByIndex(i).Get());
+			Repr->QualityIndex = Manifest->BandwidthToQualityIndex[Repr->Bitrate];
+		}
+
 		FTrackMetadata& Meta = Asset->VideoAdaptationSet->Metadata;
 		for(int32 i=0; i<Meta.StreamDetails.Num(); ++i)
 		{
@@ -976,14 +991,6 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 			}
 		}
 		Manifest->TrackMetadataAudio.Push(Meta);
-	}
-
-	// Index the stream quality level map. Lower quality = lower index
-	int32 QualityIndex = 0;
-	Manifest->BandwidthToQualityIndex.KeySort([](int32 A, int32 B){return A<B;});
-	for(TMap<int32, int32>::TIterator It = Manifest->BandwidthToQualityIndex.CreateIterator(); It; ++It)
-	{
-		It.Value() = QualityIndex++;
 	}
 
 	return FErrorDetail();

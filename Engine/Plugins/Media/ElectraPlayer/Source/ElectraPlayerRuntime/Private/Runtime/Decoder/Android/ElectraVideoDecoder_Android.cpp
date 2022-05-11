@@ -32,7 +32,7 @@ void FElectraPlayerVideoDecoderOutputAndroid::ShutdownPoolable()
 	TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
 	if (lockedVideoRenderer.IsValid())
 	{
-		lockedVideoRenderer->SampleReleasedToPool(GetDuration());
+		lockedVideoRenderer->SampleReleasedToPool(this);
 	}
 }
 
@@ -52,4 +52,3 @@ FVideoDecoderOutput* FElectraPlayerPlatformVideoDecoderOutputFactory::Create()
 }
 
 #endif
-

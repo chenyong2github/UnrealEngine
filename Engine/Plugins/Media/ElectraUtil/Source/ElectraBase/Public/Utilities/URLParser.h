@@ -34,6 +34,8 @@ namespace Electra
 		bool IsAbsolute() const;
 		// Returns the path as individual components. Like GetPath() the components will have escape sequences already decoded.
 		void GetPathComponents(TArray<FString>& OutPathComponents) const;
+		// Returns the last path component (the "filename").
+		FString GetLastPathComponent() const;
 		// Resolves a relative URL against this one.
 		FURL_RFC3986& ResolveWith(const FString& InChildURL);
 		// Resolves this URL (which should be relative) against the specified URL.

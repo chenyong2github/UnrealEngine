@@ -55,7 +55,7 @@ public:
 	using MyType = TMediaQueue<T, L, M>;
 	using ElementType = T;
 
-	TMediaQueue(SIZE_T InitialCapacity = 0)
+	TMediaQueue(int32 InitialCapacity = 0)
 	{
 		Resize(InitialCapacity);
 	}
@@ -72,7 +72,7 @@ public:
 	void Clear()
 	{
 		L::Lock();
-		for(uint32 i = 0; i < NumIn; ++i)
+		for(int32 i=0; i<NumIn; ++i)
 		{
 			Elements[IdxOut].~T();
 			if (++IdxOut == MaxNum)
@@ -84,7 +84,7 @@ public:
 		L::Unlock();
 	}
 
-	void Resize(SIZE_T newCapacity)
+	void Resize(int32 newCapacity)
 	{
 		L::Lock();
 		Clear();
@@ -109,10 +109,10 @@ public:
 		L::Lock();
 		// Remember our values.
 		T* pElements = Elements;
-		SIZE_T  nCapacity = MaxNum;
-		SIZE_T  nNumIn = NumIn;
-		SIZE_T  nIdxIn = IdxIn;
-		SIZE_T  nIdxOut = IdxOut;
+		int32  nCapacity = MaxNum;
+		int32  nNumIn = NumIn;
+		int32  nIdxIn = IdxIn;
+		int32  nIdxOut = IdxOut;
 		// Get the values from the other queue.
 		Elements = rhs.Elements;
 		MaxNum = rhs.MaxNum;
@@ -128,12 +128,12 @@ public:
 		L::Unlock();
 	}
 
-	SIZE_T Capacity() const
+	int32 Capacity() const
 	{
 		return MaxNum;
 	}
 
-	SIZE_T Num() const
+	int32 Num() const
 	{
 		return NumIn;
 	}
@@ -152,7 +152,7 @@ public:
 	{
 		L::Lock();
 		check(!IsFull());
-		SIZE_T pos = IdxIn;
+		int32 pos = IdxIn;
 		if (++IdxIn == MaxNum)
 		{
 			IdxIn = 0;
@@ -175,7 +175,7 @@ public:
 		{
 			--IdxOut;
 		}
-		SIZE_T pos = IdxOut;
+		int32 pos = IdxOut;
 		++NumIn;
 		// Copying the element can NOT take place outside the lock in case multiple threads push at the same time and a Resize() will happen.
 		new ((void*)(Elements + pos)) T(Element);
@@ -208,10 +208,10 @@ public:
 
 protected:
 	T* 		Elements = nullptr;
-	SIZE_T	MaxNum = 0;
-	SIZE_T	NumIn = 0;
-	SIZE_T	IdxIn = 0;
-	SIZE_T	IdxOut = 0;
+	int32	MaxNum = 0;
+	int32	NumIn = 0;
+	int32	IdxIn = 0;
+	int32	IdxOut = 0;
 };
 
 
@@ -237,7 +237,7 @@ public:
 	T& PushRef()
 	{
 		check(!B::IsFull());
-		SIZE_T pos = B::IdxIn;
+		int32 pos = B::IdxIn;
 		if (++B::IdxIn == B::Capacity())
 		{
 			B::IdxIn = 0;
@@ -271,13 +271,13 @@ public:
 		return B::Elements[(B::IdxIn + B::Capacity() - 1) % B::Capacity()];
 	}
 
-	void Erase(SIZE_T i)
+	void Erase(int32 i)
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
 		--B::NumIn;
-		SIZE_T i0 = (i + B::IdxOut) % B::Capacity();
-		SIZE_T i1 = (i + B::IdxOut + 1) % B::Capacity();
+		int32 i0 = (i + B::IdxOut) % B::Capacity();
+		int32 i1 = (i + B::IdxOut + 1) % B::Capacity();
 		for(; i < B::NumIn; ++i)
 		{
 			B::Elements[i0] = B::Elements[i1];
@@ -298,7 +298,7 @@ public:
 		}
 	}
 
-	const T& operator[](SIZE_T i) const
+	const T& operator[](int32 i) const
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
@@ -310,7 +310,7 @@ public:
 		return B::Elements[i];
 	}
 
-	T& operator[](SIZE_T i)
+	T& operator[](int32 i)
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
@@ -322,12 +322,12 @@ public:
 		return B::Elements[i];
 	}
 
-	void AppendFirstElements(const MyType& FromOther, SIZE_T MaxElements = ~SIZE_T(0))
+	void AppendFirstElements(const MyType& FromOther, int32 MaxElements = ~int32(0))
 	{
 		// NOTE: Your code needs to make sure the source queue is protected by some external lock so does not get
 		//       modified while we are appending its elements.
-		SIZE_T NumAvail = B::Capacity() - B::Num();
-		SIZE_T NumToAppend = FromOther.Num();
+		int32 NumAvail = B::Capacity() - B::Num();
+		int32 NumToAppend = FromOther.Num();
 		if (NumToAppend > NumAvail)
 		{
 			NumToAppend = NumAvail;
@@ -336,18 +336,18 @@ public:
 		{
 			NumToAppend = MaxElements;
 		}
-		for(SIZE_T i = 0; i < NumToAppend; ++i)
+		for(int32 i = 0; i < NumToAppend; ++i)
 		{
 			B::Push(FromOther[i]);
 		}
 	}
 
-	void AppendLastElements(const MyType& FromOther, SIZE_T MaxElements = ~SIZE_T(0))
+	void AppendLastElements(const MyType& FromOther, int32 MaxElements = ~int32(0))
 	{
 		// NOTE: Your code needs to make sure the source queue is protected by some external lock so does not get
 		//       modified while we're appending its elements.
-		SIZE_T NumAvail = B::Capacity() - B::Num();
-		SIZE_T NumToAppend = FromOther.Num();
+		int32 NumAvail = B::Capacity() - B::Num();
+		int32 NumToAppend = FromOther.Num();
 		if (NumToAppend > NumAvail)
 		{
 			NumToAppend = NumAvail;
@@ -356,7 +356,7 @@ public:
 		{
 			NumToAppend = MaxElements;
 		}
-		for(SIZE_T i = 0, j = FromOther.Num() - NumToAppend; i < NumToAppend; ++i, ++j)
+		for(int32 i = 0, j = FromOther.Num() - NumToAppend; i < NumToAppend; ++i, ++j)
 		{
 			B::Push(FromOther[j]);
 		}
@@ -417,7 +417,7 @@ public:
 	void Clear()
 	{
 		L::Lock();
-		for(uint32 i = 0; i < NumIn; ++i)
+		for(int32 i=0; i<NumIn; ++i)
 		{
 			Elements[IdxOut].~T();
 			if (++IdxOut == CAPACITY)
@@ -429,12 +429,12 @@ public:
 		L::Unlock();
 	}
 
-	SIZE_T Capacity() const
+	int32 Capacity() const
 	{
 		return CAPACITY;
 	}
 
-	SIZE_T Num() const
+	int32 Num() const
 	{
 		return NumIn;
 	}
@@ -453,7 +453,7 @@ public:
 	{
 		L::Lock();
 		check(!IsFull());
-		SIZE_T pos = IdxIn;
+		int32 pos = IdxIn;
 		if (++IdxIn == CAPACITY)
 		{
 			IdxIn = 0;
@@ -476,7 +476,7 @@ public:
 		{
 			--IdxOut;
 		}
-		SIZE_T pos = IdxOut;
+		int32 pos = IdxOut;
 		++NumIn;
 		// Copying the element can NOT take place outside the lock in case multiple threads push at the same time and a Resize() will happen.
 		new ((void*)(Elements + pos)) T(element);
@@ -513,9 +513,9 @@ protected:
 	uint8	FixedElements[CAPACITY * sizeof(T)]
 	GCC_ALIGN(16);
 	T*		Elements = (T*)FixedElements;
-	SIZE_T	NumIn = 0;
-	SIZE_T	IdxIn = 0;
-	SIZE_T	IdxOut = 0;
+	int32	NumIn = 0;
+	int32	IdxIn = 0;
+	int32	IdxOut = 0;
 };
 
 
@@ -534,7 +534,7 @@ public:
 	T& PushRef()
 	{
 		check(!B::IsFull());
-		SIZE_T pos = B::IdxIn;
+		int32 pos = B::IdxIn;
 		if (++B::IdxIn == CAPACITY)
 		{
 			B::IdxIn = 0;
@@ -568,13 +568,13 @@ public:
 		return B::Elements[(B::IdxIn + B::Capacity() - 1) % B::Capacity()];
 	}
 
-	void Erase(SIZE_T i)
+	void Erase(int32 i)
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
 		--B::NumIn;
-		SIZE_T i0 = (i + B::IdxOut) % CAPACITY;
-		SIZE_T i1 = (i + B::IdxOut + 1) % CAPACITY;
+		int32 i0 = (i + B::IdxOut) % CAPACITY;
+		int32 i1 = (i + B::IdxOut + 1) % CAPACITY;
 		for(; i < B::NumIn; ++i)
 		{
 			B::Elements[i0] = B::Elements[i1];
@@ -595,7 +595,7 @@ public:
 		}
 	}
 
-	const T& operator[](SIZE_T i) const
+	const T& operator[](int32 i) const
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
@@ -607,7 +607,7 @@ public:
 		return B::Elements[i];
 	}
 
-	T& operator[](SIZE_T i)
+	T& operator[](int32 i)
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
@@ -648,7 +648,7 @@ public:
 	using MyType = TMediaQueueDynamic<T, L, M>;
 	using ElementType = T;
 
-	TMediaQueueDynamic(SIZE_T initialCapacity = 0, SIZE_T increment = 32)
+	TMediaQueueDynamic(int32 initialCapacity = 0, int32 increment = 32)
 		: IncrementBy(increment)
 	{
 		Resize(initialCapacity);
@@ -661,7 +661,7 @@ public:
 		L::Unlock();
 	}
 
-	void SetIncrement(SIZE_T newIncrement)
+	void SetIncrement(int32 newIncrement)
 	{
 		L::Lock();
 		IncrementBy = newIncrement;
@@ -671,7 +671,7 @@ public:
 	void Clear()
 	{
 		L::Lock();
-		for(uint32 i = 0; i < NumIn; ++i)
+		for(int32 i=0; i<NumIn; ++i)
 		{
 			Elements[IdxOut].~T();
 			if (++IdxOut == MaxNum)
@@ -683,7 +683,7 @@ public:
 		L::Unlock();
 	}
 
-	void Resize(SIZE_T newCapacity)
+	void Resize(int32 newCapacity)
 	{
 		L::Lock();
 		if (newCapacity == 0)
@@ -698,7 +698,7 @@ public:
 			// Create a new array and copy all active elements over.
 			checkf(newCapacity >= Num(), TEXT("Cannot shrink the dynamic queue to %u with %u elements currently managed!"), (uint32)newCapacity, (uint32)Num());
 			T* pNewElements = M::Allocate(newCapacity);
-			for(SIZE_T i = 0, j = IdxOut; i < NumIn; ++i)
+			for(int32 i = 0, j = IdxOut; i < NumIn; ++i)
 			{
 				new ((void*)(pNewElements + i)) T(Elements[j]);
 				Elements[j].~T();
@@ -716,17 +716,17 @@ public:
 		L::Unlock();
 	}
 
-	SIZE_T Increment() const
+	int32 Increment() const
 	{
 		return IncrementBy;
 	}
 
-	SIZE_T Capacity() const
+	int32 Capacity() const
 	{
 		return MaxNum;
 	}
 
-	SIZE_T Num() const
+	int32 Num() const
 	{
 		return NumIn;
 	}
@@ -748,7 +748,7 @@ public:
 		{
 			Resize(Capacity() + Increment());
 		}
-		SIZE_T pos = IdxIn;
+		int32 pos = IdxIn;
 		if (++IdxIn == MaxNum)
 		{
 			IdxIn = 0;
@@ -774,7 +774,7 @@ public:
 		{
 			--IdxOut;
 		}
-		SIZE_T pos = IdxOut;
+		int32 pos = IdxOut;
 		++NumIn;
 		// Copying the element can NOT take place outside the lock in case multiple threads push at the same time and a Resize() will happen.
 		new ((void*)(Elements + pos)) T(element);
@@ -807,11 +807,11 @@ public:
 
 protected:
 	T* Elements = nullptr;
-	SIZE_T	MaxNum = 0;
-	SIZE_T	NumIn = 0;
-	SIZE_T	IdxIn = 0;
-	SIZE_T	IdxOut = 0;
-	SIZE_T	IncrementBy = 32;
+	int32	MaxNum = 0;
+	int32	NumIn = 0;
+	int32	IdxIn = 0;
+	int32	IdxOut = 0;
+	int32	IncrementBy = 32;
 };
 
 
@@ -857,7 +857,7 @@ public:
 		return B::Elements[(B::IdxIn + B::Capacity() - 1) % B::Capacity()];
 	}
 
-	const T& operator[](SIZE_T i) const
+	const T& operator[](int32 i) const
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);
@@ -869,7 +869,7 @@ public:
 		return B::Elements[i];
 	}
 
-	T& operator[](SIZE_T i)
+	T& operator[](int32 i)
 	{
 		check(!B::IsEmpty());
 		check(i < B::NumIn);

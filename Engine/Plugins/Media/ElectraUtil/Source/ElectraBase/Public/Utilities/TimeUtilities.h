@@ -15,7 +15,6 @@ namespace Electra
 		bool ELECTRABASE_API ParseDuration(FTimeValue& OutTimeValue, const TCHAR* InDuration);
 	}
 
-
 	namespace RFC7231
 	{
 		bool ELECTRABASE_API ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime);
@@ -29,6 +28,11 @@ namespace Electra
 	namespace UnixEpoch
 	{
 		bool ELECTRABASE_API ParseFloatString(FTimeValue& OutTimeValue, const FString& Seconds);
+	}
+
+	namespace RFC5905
+	{
+		bool ELECTRABASE_API ParseNTPTime(FTimeValue& OutTimeValue, uint64 NtpTimestampFormat);
 	}
 
 } // namespace Electra

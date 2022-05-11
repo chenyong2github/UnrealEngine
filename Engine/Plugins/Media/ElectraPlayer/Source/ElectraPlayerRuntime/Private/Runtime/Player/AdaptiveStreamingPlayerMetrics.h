@@ -7,6 +7,7 @@
 #include "InfoLog.h"
 #include "Player/AdaptiveStreamingPlayerABR_State.h"
 #include "Player/Playlist.h"
+#include "ElectraHTTPStream.h"
 
 namespace Electra
 {
@@ -90,21 +91,6 @@ namespace Metrics
 		int64			BytesInUse;
 	};
 
-	struct FABRState
-	{
-		FABRState()
-		{
-			Reset();
-		}
-
-		void Reset()
-		{
-			ProgressDecision.Reset();
-		}
-		FABRDownloadProgressDecision		ProgressDecision;
-	};
-
-
 	struct FPlaylistDownloadStats
 	{
 		FPlaylistDownloadStats()
@@ -153,7 +139,6 @@ namespace Metrics
 		double			TimeToDownload = 0.0;				//!< Total time in seconds for entire download
 		int64			ByteSize = 0;						//!< Content-Length, may be -1 if unknown (either on error or chunked transfer)
 		int64			NumBytesDownloaded = 0;				//!< Number of bytes successfully downloaded.
-		int64			ThroughputBps = 0;					//!< Estimated throughput in bits per second
 		int32			HTTPStatusCode = 0 ;				//!< HTTP status code (0 if not connected to server yet)
 		bool			bWasSuccessful = false;				//!< true if download was successful, false if not
 		bool			bWasAborted = false;				//!< true if download was aborted by ABR (not by playback!)
@@ -162,8 +147,18 @@ namespace Metrics
 		bool			bInsertedFillerData = false;
 		bool			bIsCachedResponse = false;
 
-		// ABR state
-		FABRState		ABRState;
+		// Chunk timing
+		struct FMovieChunkInfo
+		{
+			int64 HeaderOffset = 0;
+			int64 PayloadStartOffset = 0;
+			int64 PayloadEndOffset = 0;
+			int64 NumKeyframeBytes = 0;
+			FTimeValue ContentDuration;
+			FMovieChunkInfo() { ContentDuration = FTimeValue::GetZero(); }
+		};
+		TArray<IElectraHTTPStreamResponse::FTimingTrace> TimingTraces;
+		TArray<FMovieChunkInfo> MovieChunkInfos;
 	};
 
 	struct FLicenseKeyStats

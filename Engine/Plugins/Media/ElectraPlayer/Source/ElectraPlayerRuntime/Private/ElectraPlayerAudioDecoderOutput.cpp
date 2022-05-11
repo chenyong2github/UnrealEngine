@@ -6,12 +6,7 @@
 class FElectraPlayerAudioDecoderOutput : public IAudioDecoderOutput
 {
 public:
-	FElectraPlayerAudioDecoderOutput()
-	: BufferMaxSizeBytes(0)
-	, BufferUsedSizeBytes(0)
-	, Buffer(nullptr)
-	{
-	}
+	FElectraPlayerAudioDecoderOutput() = default;
 
 	~FElectraPlayerAudioDecoderOutput() override
 	{
@@ -120,18 +115,18 @@ public:
 		TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedAudioRenderer = OwningRenderer.Pin();
 		if (lockedAudioRenderer.IsValid())
 		{
-			lockedAudioRenderer->SampleReleasedToPool(Duration);
+			lockedAudioRenderer->SampleReleasedToPool(this);
 		}
 	}
 
 private:
-	uint32 BufferMaxSizeBytes;
-	uint32 BufferUsedSizeBytes;
-	void *Buffer;
+	uint32 BufferMaxSizeBytes = 0;
+	uint32 BufferUsedSizeBytes = 0;
+	void* Buffer = nullptr;
 
-	ESampleFormat Format;
-	uint32 NumChannels;
-	uint32 SampleRate;
+	ESampleFormat Format = ESampleFormat::Undefined;
+	uint32 NumChannels = 0;
+	uint32 SampleRate = 0;
 
 	FDecoderTimeStamp Time;
 	FTimespan Duration;
@@ -144,8 +139,7 @@ private:
 /*
 	Create one and the same audio sample for all platforms - we so far do not need any specialization here (otherwise this should be with the respective decoder - much like the class definition / impl above)
 */
-IAudioDecoderOutput *FElectraPlayerPlatformAudioDecoderOutputFactory::Create()
+IAudioDecoderOutput* FElectraPlayerPlatformAudioDecoderOutputFactory::Create()
 {
 	return new FElectraPlayerAudioDecoderOutput();
 }
-

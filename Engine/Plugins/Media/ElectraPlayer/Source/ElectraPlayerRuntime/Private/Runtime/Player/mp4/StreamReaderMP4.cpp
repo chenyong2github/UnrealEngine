@@ -61,7 +61,7 @@ EStreamType FStreamSegmentRequestMP4::GetType() const
 	return  PrimaryStreamType;
 }
 
-void FStreamSegmentRequestMP4::SetExecutionDelay(const FTimeValue& ExecutionDelay)
+void FStreamSegmentRequestMP4::SetExecutionDelay(const FTimeValue& UTCNow, const FTimeValue& ExecutionDelay)
 {
 	// No op for mp4.
 }
@@ -379,13 +379,11 @@ void FStreamReaderMP4::HandleRequest()
 	ds.TimeToDownload      = 0.0;
 	ds.ByteSize 		   = -1;
 	ds.NumBytesDownloaded  = 0;
-	ds.ThroughputBps	   = 0;
 	ds.bInsertedFillerData = false;
 	ds.URL  			   = TimelineAsset->GetMediaURL();
 	ds.bIsMissingSegment   = false;
 	ds.bParseFailure	   = false;
 	ds.RetryNumber  	   = Request->NumOverallRetries;
-	ds.ABRState.Reset();
 
 	Parameters.EventListener->OnFragmentOpen(Request);
 
@@ -714,11 +712,6 @@ void FStreamReaderMP4::HandleRequest()
 	ds.TimeToDownload     = (Request->ConnectionInfo.RequestEndTime - Request->ConnectionInfo.RequestStartTime).GetAsSeconds();
 	ds.ByteSize 		  = Request->ConnectionInfo.ContentLength;
 	ds.NumBytesDownloaded = Request->ConnectionInfo.BytesReadSoFar;
-	ds.ThroughputBps	  = Request->ConnectionInfo.Throughput.GetThroughput();
-	if (ds.ThroughputBps == 0)
-	{
-		ds.ThroughputBps = ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0;
-	}
 	ds.bIsCachedResponse = Request->ConnectionInfo.bIsCachedResponse;
 
 	ActiveTrackMap.Reset();

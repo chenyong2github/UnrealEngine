@@ -134,6 +134,9 @@ public:
 	 * Playback is initially paused on first player use and must be resumed to begin.
 	 * Query the seekable range (GetSeekableRange()) to get the valid time range.
 	 * 
+	 * If the seek-to time is not set the seek will start at the beginning for
+	 * on-demand presentations and on the Live edge for Live presentations.
+	 * 
 	 * Seeks can be issued while a seek is already executing. The seek parameters
 	 * control behaviour. If seeking is performed for scrubbing any new seek will
 	 * be performed only when the previous seek has completed, otherwise the current

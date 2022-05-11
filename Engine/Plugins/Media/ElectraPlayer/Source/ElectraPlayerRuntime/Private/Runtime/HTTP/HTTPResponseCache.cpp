@@ -170,6 +170,11 @@ private:
 		double GetTimeUntilFinished() override
 		{ return WrappedResponse->GetTimeUntilFinished(); }
 
+		int32 GetTimingTraces(TArray<FTimingTrace>* OutTraces, int32 InNumToRemove) override
+		{ return /*WrappedResponse->GetTimeElapsed(OutTraces, 0);*/ 0; }
+		void SetEnableTimingTraces() override
+		{ WrappedResponse->SetEnableTimingTraces(); }
+
 		void GetAllHeaders(TArray<FElectraHTTPStreamHeader>& OutHeaders) override
 		{ OutHeaders = Headers; }
 
@@ -260,6 +265,10 @@ private:
 		{ return TimeUntilFirstByte; }
 		double GetTimeUntilFinished() override
 		{ return TimeUntilFinished; }
+		int32 GetTimingTraces(TArray<FTimingTrace>* OutTraces, int32 InNumToRemove) override
+		{ return 0; }
+		void SetEnableTimingTraces() override
+		{ }
 
 		void SetTimeUntilNameResolved(double InTimeUntilNameResolved)
 		{ TimeUntilNameResolved = InTimeUntilNameResolved; }

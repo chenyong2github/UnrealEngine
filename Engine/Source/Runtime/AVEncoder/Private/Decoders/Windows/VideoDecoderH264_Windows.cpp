@@ -62,11 +62,13 @@ struct FParamDict
 
 }
 
+class IDecoderOutput;
+
 class IDecoderOutputOwner
 {
 public:
 	virtual ~IDecoderOutputOwner() = default;
-	virtual void SampleReleasedToPool(FTimespan durationToRelease) = 0;
+	virtual void SampleReleasedToPool(IDecoderOutput* InDecoderOutput) = 0;
 };
 
 class FNativeVideoDecoderOutput

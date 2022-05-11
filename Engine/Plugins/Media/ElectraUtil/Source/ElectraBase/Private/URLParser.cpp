@@ -336,6 +336,13 @@ namespace Electra
 		GetPathComponents(OutPathComponents, GetPath());
 	}
 
+	FString FURL_RFC3986::GetLastPathComponent() const
+	{
+		TArray<FString> Components;
+		GetPathComponents(Components, GetPath());
+		return Components.Num() ? Components.Last() : FString();
+	}
+
 	FString FURL_RFC3986::GetAuthority() const
 	{
 		FString Authority;

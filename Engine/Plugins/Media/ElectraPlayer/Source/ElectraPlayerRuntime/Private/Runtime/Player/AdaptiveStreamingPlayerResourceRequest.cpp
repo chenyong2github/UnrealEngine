@@ -26,7 +26,11 @@ FHTTPResourceRequest::~FHTTPResourceRequest()
 	Cancel();
 	if (bWasAdded && Request.IsValid())
 	{
-		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request, true);
+		TSharedPtrTS<IElectraHttpManager> HTTPManager = PlayerSessionServices->GetHTTPManager();
+		if (HTTPManager.IsValid())
+		{
+			HTTPManager->RemoveRequest(Request, true);
+		}
 	}
 	Request.Reset();
 }
@@ -45,7 +49,11 @@ void FHTTPResourceRequest::StartGet(IPlayerSessionServices* InPlayerSessionServi
 	else
 	{
 		bWasAdded = true;
-		PlayerSessionServices->GetHTTPManager()->AddRequest(Request, false);
+		TSharedPtrTS<IElectraHttpManager> HTTPManager = PlayerSessionServices->GetHTTPManager();
+		if (HTTPManager.IsValid())
+		{
+			HTTPManager->AddRequest(Request, false);
+		}
 	}
 }
 
@@ -56,7 +64,11 @@ void FHTTPResourceRequest::Cancel()
 	ReceiveBuffer.Reset();
 	if (bWasAdded && Request.IsValid())
 	{
-		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request, true);
+		TSharedPtrTS<IElectraHttpManager> HTTPManager = PlayerSessionServices->GetHTTPManager();
+		if (HTTPManager.IsValid())
+		{
+			HTTPManager->RemoveRequest(Request, true);
+		}
 		bWasAdded = false;
 	}
 }
@@ -71,7 +83,11 @@ void FHTTPResourceRequest::StaticDataReady()
 		{
 			// Do the actual HTTP request now.
 			bWasAdded = true;
-			PlayerSessionServices->GetHTTPManager()->AddRequest(Request, false);
+			TSharedPtrTS<IElectraHttpManager> HTTPManager = PlayerSessionServices->GetHTTPManager();
+			if (HTTPManager.IsValid())
+			{
+				HTTPManager->AddRequest(Request, false);
+			}
 		}
 		else
 		{

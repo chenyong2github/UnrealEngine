@@ -613,6 +613,10 @@ namespace Electra
 				}
 			}
 
+			if (Request->Parameters.bCollectTimingTraces)
+			{
+				Handle->HttpRequest->EnableTimingTraces();
+			}
 			Handle->HttpRequest->SetURL(Request->Parameters.URL);
 			Handle->HttpRequest->SetUserAgent(ELECTRA_HTTPMANAGER_USER_AGENT);
 			Handle->HttpRequest->AllowCompression(!Request->Parameters.AcceptEncoding.GetWithDefault(TEXT("")).Equals(TEXT("identity")));
@@ -777,28 +781,6 @@ namespace Electra
 		for(TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator(); It; ++It)
 		{
 			FHandle* Handle = It.Key();
-
-			// Update throughput stats when something was read.
-			HTTP::FConnectionInfo& ci = It.Value()->ConnectionInfo;
-			if (ci.Throughput.LastReadCount != ci.BytesReadSoFar)
-			{
-				FTimeValue DiffTime = Now - ci.Throughput.LastCheckTime;
-				if (DiffTime > FTimeValue::GetZero())
-				{
-					ci.Throughput.ActiveReadTime += DiffTime;
-					int64 BytesPerSecond = 1000 * ci.Throughput.LastReadCount / ci.Throughput.ActiveReadTime.GetAsMilliseconds();
-					ci.Throughput.AccumulatedBytesPerSec += BytesPerSecond;
-					if (!ci.Throughput.bIsFirst)
-					{
-						ci.Throughput.AccumulatedBytesPerSecWithoutFirst += BytesPerSecond;
-					}
-					ci.Throughput.bIsFirst = false;
-					++ci.Throughput.NumAccumulatedBytesPerSec;
-				}
-				ci.Throughput.LastReadCount = ci.BytesReadSoFar;
-			}
-			ci.Throughput.LastCheckTime = Now;
-
 			// Fire periodic progress callback?
 			if (Now >= Handle->TimeAtNextProgressCallback)
 			{
@@ -1245,6 +1227,9 @@ namespace Electra
 				{
 					HTTP::FConnectionInfo& ci = Request->ConnectionInfo;
 					ci.bIsCachedResponse = Handle->ActiveResponse.bHitCache;
+
+					// Copy all new timing traces across.
+					Response->GetTimingTraces(&ci.TimingTraces, TNumericLimits<int32>::Max());
 
 					bool bCompletedWithInsufficientData = !Request->Parameters.Verb.Equals(TEXT("HEAD")) &&
 														  Response->GetStatus() == IElectraHTTPStreamResponse::EStatus::Completed && 

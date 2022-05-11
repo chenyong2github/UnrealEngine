@@ -68,6 +68,9 @@ namespace Electra
 			 * @return Const reference to the dictionary containing buffer properties.
 			 */
 			virtual const FParamDict& GetBufferProperties() const = 0;
+			
+			// Same, but returns the writable dictionary. Use with caution.
+			virtual FParamDict& GetMutableBufferProperties() = 0;
 		};
 
 
@@ -160,6 +163,12 @@ namespace Electra
 		 *               Render clock to update with the most recent output sample time.
 		 */
 		virtual void SetRenderClock(TSharedPtr<IMediaRenderClock, ESPMode::ThreadSafe> RenderClock) = 0;
+
+
+		/**
+		 * Called if this renderer is being wrapped by another renderer.
+		 */
+		virtual void SetParentRenderer(TWeakPtr<IMediaRenderer, ESPMode::ThreadSafe> ParentRenderer) = 0;
 
 		/**
 		 * Sets the next expected sample's approximate presentation time stamp.

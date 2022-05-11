@@ -83,47 +83,6 @@ namespace Electra
 
 		struct FConnectionInfo
 		{
-			struct FThroughput
-			{
-				FThroughput()
-				{
-					Clear();
-				}
-				void Clear()
-				{
-					ActiveReadTime.SetToZero();
-					LastCheckTime.SetToInvalid();
-					LastReadCount = 0;
-					AccumulatedBytesPerSec = 0;
-					AccumulatedBytesPerSecWithoutFirst = 0;
-					NumAccumulatedBytesPerSec = 0;
-					bIsFirst = true;
-				}
-				int64 GetThroughput() const
-				{
-					if (NumAccumulatedBytesPerSec > 1)
-					{
-						return AccumulatedBytesPerSecWithoutFirst / (NumAccumulatedBytesPerSec - 1);
-					}
-					else if (NumAccumulatedBytesPerSec)
-					{
-						return AccumulatedBytesPerSec / NumAccumulatedBytesPerSec;
-					}
-					else
-					{
-						// Did not get to collect a throughput sample.
-						return 0;
-					}
-				}
-				FTimeValue				ActiveReadTime;
-				FTimeValue				LastCheckTime;
-				int64					LastReadCount;
-				int64					AccumulatedBytesPerSec;
-				int64					AccumulatedBytesPerSecWithoutFirst;
-				int32					NumAccumulatedBytesPerSec;
-				bool					bIsFirst;
-			};
-
 			TArray<FHTTPHeader>					ResponseHeaders;					//!< Response headers
 			FString								EffectiveURL;						//!< Effective URL after all redirections
 			FString								ContentType;						//!< Content-Type header
@@ -131,74 +90,82 @@ namespace Electra
 			FString  							ContentLengthHeader;
 			FTimeValue							RequestStartTime;					//!< Time at which the request was started
 			FTimeValue							RequestEndTime;						//!< Time at which the request ended
-			double								TimeForDNSResolve;					//!< Time it took to resolve DNS
-			double								TimeUntilConnected;					//!< Time it took until connected to the server
-			double								TimeUntilFirstByte;					//!< Time it took until received the first response data byte
-			int64								ContentLength;						//!< Content length, if known. Chunked transfers may have no length (set to -1). Compressed file will store compressed size here!
-			int64								BytesReadSoFar;						//!< Number of bytes read so far.
-			int32								NumberOfRedirections;				//!< Number of redirections performed
-			int32								HTTPVersionReceived;				//!< Version of HTTP header received (10 = 1.0, 11=1.1, 20=2.0)
-			bool								bIsConnected;						//!< true once connected to the server
-			bool								bHaveResponseHeaders;				//!< true when response headers have been received
-			bool								bIsChunked;							//!< true if response is received in chunks
-			bool								bWasAborted;						//!< true if transfer was aborted.
-			bool								bHasFinished;						//!< true once the connection is closed regardless of state.
-			bool								bResponseNotRanged;					//!< true if the response is not a range as was requested.
-			bool								bIsCachedResponse;					//!< true if the response came from the cache.
+			double								TimeForDNSResolve = 0.0;			//!< Time it took to resolve DNS
+			double								TimeUntilConnected = 0.0;			//!< Time it took until connected to the server
+			double								TimeUntilFirstByte = 0.0;			//!< Time it took until received the first response data byte
+			int64								ContentLength = -1;					//!< Content length, if known. Chunked transfers may have no length (set to -1). Compressed file will store compressed size here!
+			int64								BytesReadSoFar = 0;					//!< Number of bytes read so far.
+			int32								NumberOfRedirections = 0;			//!< Number of redirections performed
+			int32								HTTPVersionReceived = 0;			//!< Version of HTTP header received (10 = 1.0, 11=1.1, 20=2.0)
+			bool								bIsConnected = false;				//!< true once connected to the server
+			bool								bHaveResponseHeaders = false;		//!< true when response headers have been received
+			bool								bIsChunked = false;					//!< true if response is received in chunks
+			bool								bWasAborted = false;				//!< true if transfer was aborted.
+			bool								bHasFinished = false;				//!< true once the connection is closed regardless of state.
+			bool								bResponseNotRanged = false;			//!< true if the response is not a range as was requested.
+			bool								bIsCachedResponse = false;			//!< true if the response came from the cache.
 			FStatusInfo							StatusInfo;
 			TSharedPtrTS<FRetryInfo>			RetryInfo;
 
-			FThroughput							Throughput;
+			mutable FCriticalSection			Lock;
+			TArray<IElectraHTTPStreamResponse::FTimingTrace> TimingTraces;
 
-			FConnectionInfo()
+			void GetTimingTraces(TArray<IElectraHTTPStreamResponse::FTimingTrace>& OutTimingTraces) const
 			{
-				TimeForDNSResolve = 0.0;
-				TimeUntilConnected = 0.0;
-				TimeUntilFirstByte = 0.0;
-				NumberOfRedirections = 0;
-				HTTPVersionReceived = 0;
-				ContentLength = -1;
-				BytesReadSoFar = 0;
-				bIsConnected = false;
-				bHaveResponseHeaders = false;
-				bIsChunked = false;
-				bWasAborted = false;
-				bHasFinished = false;
-				bResponseNotRanged = false;
-				bIsCachedResponse = false;
+				FScopeLock lock(&Lock);
+				OutTimingTraces = TimingTraces;
 			}
 
-			FConnectionInfo& CopyFrom(const FConnectionInfo& rhs)
+			FConnectionInfo() = default;
+
+			FConnectionInfo(const FConnectionInfo& rhs)
 			{
-				ResponseHeaders = rhs.ResponseHeaders;
-				EffectiveURL = rhs.EffectiveURL;
-				ContentType = rhs.ContentType;
-				ContentRangeHeader = rhs.ContentRangeHeader;
-				ContentLengthHeader = rhs.ContentLengthHeader;
-				RequestStartTime = rhs.RequestStartTime;
-				RequestEndTime = rhs.RequestEndTime;
-				TimeForDNSResolve = rhs.TimeForDNSResolve;
-				TimeUntilConnected = rhs.TimeUntilConnected;
-				TimeUntilFirstByte = rhs.TimeUntilFirstByte;
-				ContentLength = rhs.ContentLength;
-				BytesReadSoFar = rhs.BytesReadSoFar;
-				NumberOfRedirections = rhs.NumberOfRedirections;
-				HTTPVersionReceived = rhs.HTTPVersionReceived;
-				bIsConnected = rhs.bIsConnected;
-				bHaveResponseHeaders = rhs.bHaveResponseHeaders;
-				bIsChunked = rhs.bIsChunked;
-				bWasAborted = rhs.bWasAborted;
-				bHasFinished = rhs.bHasFinished;
-				bResponseNotRanged = rhs.bResponseNotRanged;
-				bIsCachedResponse = rhs.bIsCachedResponse;
-				StatusInfo = rhs.StatusInfo;
-				Throughput = rhs.Throughput;
-				if (rhs.RetryInfo.IsValid())
+				CopyFrom(rhs);
+			}
+
+			FConnectionInfo& operator = (const FConnectionInfo& rhs)
+			{
+				if (this != &rhs)
 				{
-					RetryInfo = MakeSharedTS<FRetryInfo>(*rhs.RetryInfo);
+					CopyFrom(rhs);
 				}
 				return *this;
 			}
+
+			private:
+				FConnectionInfo& CopyFrom(const FConnectionInfo& rhs)
+				{
+					FScopeLock l1(&Lock);
+					FScopeLock l2(&rhs.Lock);
+					ResponseHeaders = rhs.ResponseHeaders;
+					EffectiveURL = rhs.EffectiveURL;
+					ContentType = rhs.ContentType;
+					ContentRangeHeader = rhs.ContentRangeHeader;
+					ContentLengthHeader = rhs.ContentLengthHeader;
+					RequestStartTime = rhs.RequestStartTime;
+					RequestEndTime = rhs.RequestEndTime;
+					TimeForDNSResolve = rhs.TimeForDNSResolve;
+					TimeUntilConnected = rhs.TimeUntilConnected;
+					TimeUntilFirstByte = rhs.TimeUntilFirstByte;
+					ContentLength = rhs.ContentLength;
+					BytesReadSoFar = rhs.BytesReadSoFar;
+					NumberOfRedirections = rhs.NumberOfRedirections;
+					HTTPVersionReceived = rhs.HTTPVersionReceived;
+					bIsConnected = rhs.bIsConnected;
+					bHaveResponseHeaders = rhs.bHaveResponseHeaders;
+					bIsChunked = rhs.bIsChunked;
+					bWasAborted = rhs.bWasAborted;
+					bHasFinished = rhs.bHasFinished;
+					bResponseNotRanged = rhs.bResponseNotRanged;
+					bIsCachedResponse = rhs.bIsCachedResponse;
+					StatusInfo = rhs.StatusInfo;
+					if (rhs.RetryInfo.IsValid())
+					{
+						RetryInfo = MakeSharedTS<FRetryInfo>(*rhs.RetryInfo);
+					}
+					TimingTraces = rhs.TimingTraces;
+					return *this;
+				}
 		};
 
 	} // namespace HTTP
@@ -275,6 +242,7 @@ namespace Electra
 			FTimeValue							ConnectTimeout;					//!< Optional timeout for connecting to the server
 			FTimeValue							NoDataTimeout;					//!< Optional timeout when no data is being received
 			TArray<uint8>						PostData;						//!< Data for POST
+			bool								bCollectTimingTraces = false;	//!< Whether or not to collect download timing traces.
 		};
 
 

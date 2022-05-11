@@ -54,6 +54,8 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 
+#define ELECTRA_SHARE_CONNECTION_HANDLE 1
+
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
@@ -88,17 +90,20 @@ public:
 	static uint64 GetNewRequestIndex()
 	{ return ++NextRequestIndex; }
 
-	virtual FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() override
+	FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() override
 	{ return ThreadHandlerCallback; }
 
-	virtual void Close() override;
+	void Close() override;
 
-	virtual IElectraHTTPStreamRequestPtr CreateRequest() override;
+	IElectraHTTPStreamRequestPtr CreateRequest() override;
 
-	virtual void AddRequest(IElectraHTTPStreamRequestPtr Request) override;
+	void AddRequest(IElectraHTTPStreamRequestPtr Request) override;
 
 	HINTERNET GetSessionHandle()
 	{ return SessionHandle; }
+
+	HINTERNET GetConnectionHandle(const Electra::FURL_RFC3986& InForURL, INTERNET_PORT InPort, bool bForceNew);
+	void ReturnConnectionHandle(HINTERNET InConnectionHandle);
 
 	void TriggerWorkSignal()
 	{ HaveWorkSignal.Signal(); }
@@ -110,6 +115,15 @@ private:
 	{
 		TWeakPtr<FElectraHTTPStreamWinHttp, ESPMode::ThreadSafe> Owner;
 		TWeakPtr<FElectraHTTPStreamRequestWinHttp, ESPMode::ThreadSafe>	Request;
+	};
+
+	struct FSharedConnectionHandle
+	{
+		HINTERNET Handle = NULL;
+		FString Host;
+		INTERNET_PORT Port = 0;
+		int32 RefCount = 0;
+		double TimeWhenLastRefDropped = -1.0;
 	};
 
 	// Methods from FRunnable
@@ -149,9 +163,21 @@ private:
 	void SetupNewRequests();
 	void UpdateActiveRequests();
 	void HandleCompletedRequests();
+	void HandleIdleConnections();
+	void CloseAllConnectionHandles();
+
+	// Configuration
+#if ELECTRA_SHARE_CONNECTION_HANDLE
+	const bool bCloseOnLast = false;
+#else
+	const bool bCloseOnLast = true;
+#endif
+	const double CloseHandleAfterSecondsIdle = 10.0;
 
 
 	HINTERNET SessionHandle = NULL;
+
+	TArray<FSharedConnectionHandle> SharedConnectionHandles;
 
 	FThreadSafeCounter ExitRequest;
 	FRunnableThread* Thread = nullptr;
@@ -216,30 +242,33 @@ public:
 	FElectraHTTPStreamRequestWinHttp(uint64 InRequestIndex);
 	virtual ~FElectraHTTPStreamRequestWinHttp();
 
-	virtual void SetVerb(const FString& InVerb) override
+	void SetVerb(const FString& InVerb) override
 	{ Verb = InVerb; }
+	
+	void EnableTimingTraces() override
+	{ Response->SetEnableTimingTraces(); }
 
-	virtual IElectraHTTPStreamBuffer& POSTDataBuffer() override
+	IElectraHTTPStreamBuffer& POSTDataBuffer() override
 	{ return PostData; }
 
-	virtual void SetUserAgent(const FString& InUserAgent) override
+	void SetUserAgent(const FString& InUserAgent) override
 	{ UserAgent = InUserAgent; }
 
-	virtual void SetURL(const FString& InURL) override
+	void SetURL(const FString& InURL) override
 	{ URL = InURL; }
-	virtual void SetRange(const FString& InRange) override
+	void SetRange(const FString& InRange) override
 	{ Range = InRange; }
-	virtual void AllowCompression(bool bInAllowCompression) override
+	void AllowCompression(bool bInAllowCompression) override
 	{ bAllowCompression = bInAllowCompression; }
 
-	virtual void AllowUnsafeRequestsForDebugging() override
+	void AllowUnsafeRequestsForDebugging() override
 	{
 	#ifdef ELECTRA_HTTPSTREAM_WINHTTP_ALLOW_UNSAFE_CONNECTIONS_FOR_DEBUGGING
 		bAllowUnsafeConnectionsForDebugging = true;
 	#endif
 	}
 
-	virtual void AddHeader(const FString& Header, const FString& Value, bool bAppendIfExists) override
+	void AddHeader(const FString& Header, const FString& Value, bool bAppendIfExists) override
 	{
 		// Ignore a few headers that will be set automatically.
 		if (Header.Equals(TEXT("User-Agent"), ESearchCase::IgnoreCase) ||
@@ -273,23 +302,23 @@ public:
 		}
 	}
 
-	virtual FElectraHTTPStreamNotificationDelegate& NotificationDelegate() override
+	FElectraHTTPStreamNotificationDelegate& NotificationDelegate() override
 	{ return NotificationCallback; }
 
-	virtual void Cancel() override
+	void Cancel() override
 	{
 		FScopeLock lock(&NotificationLock);
 		NotificationCallback.Unbind();
 		bCancel = true;
 	}
 
-	virtual IElectraHTTPStreamResponsePtr GetResponse() override
+	IElectraHTTPStreamResponsePtr GetResponse() override
 	{ return Response; }
 
-	virtual bool HasFailed() override
+	bool HasFailed() override
 	{ return Response->GetErrorMessage().Len() > 0; }
 
-	virtual FString GetErrorMessage() override
+	FString GetErrorMessage() override
 	{ return Response->GetErrorMessage(); }
 
 	uint64 GetRequestIndex()
@@ -301,7 +330,7 @@ public:
 	bool WasCanceled()
 	{ return bCancel; }
 
-	bool Setup(FElectraHTTPStreamWinHttp* OwningManager);
+	bool Setup(TSharedPtr<FElectraHTTPStreamWinHttp, ESPMode::ThreadSafe> OwningManager);
 	bool Execute();
 	bool RequestResponse();
 	bool ParseHeaders(bool bNotify);
@@ -353,6 +382,8 @@ private:
 	FCriticalSection NotificationLock;
 	FElectraHTTPStreamNotificationDelegate NotificationCallback;
 
+	TWeakPtr<FElectraHTTPStreamWinHttp, ESPMode::ThreadSafe> OwningManager;
+
 	// Handles as required by WinHttp
 	HINTERNET ConnectionHandle = NULL;
 	HINTERNET RequestHandle = NULL;
@@ -387,7 +418,7 @@ FElectraHTTPStreamRequestWinHttp::~FElectraHTTPStreamRequestWinHttp()
 	Close();
 }
 
-bool FElectraHTTPStreamRequestWinHttp::Setup(FElectraHTTPStreamWinHttp* OwningManager)
+bool FElectraHTTPStreamRequestWinHttp::Setup(TSharedPtr<FElectraHTTPStreamWinHttp, ESPMode::ThreadSafe> InOwningManager)
 {
 	bool bIsRedirect = bMustRedirect;
 	if (bIsRedirect)
@@ -430,7 +461,7 @@ bool FElectraHTTPStreamRequestWinHttp::Setup(FElectraHTTPStreamWinHttp* OwningMa
 		LexFromString(p, *UrlPort);
 		Port = static_cast<INTERNET_PORT>(p);
 	}
-	HINTERNET ch = WinHttpConnect(OwningManager->GetSessionHandle(), TCHAR_TO_WCHAR(*UrlParser.GetHost()), Port, 0);
+	HINTERNET ch = InOwningManager->GetConnectionHandle(UrlParser, Port, false);
 	if (ch == NULL)
 	{
 		Response->SetErrorMessage(ElectraHTTPStreamWinHttp::GetErrorLogMessage(TEXT("WinHttpConnect()"), GetLastError()));
@@ -438,6 +469,7 @@ bool FElectraHTTPStreamRequestWinHttp::Setup(FElectraHTTPStreamWinHttp* OwningMa
 		return false;
 	}
 	ConnectionHandle = ch;
+	OwningManager = InOwningManager;
 
 	bool bIsSecure = UrlParser.GetScheme().Equals(TEXT("https"), ESearchCase::IgnoreCase);
 #if ELECTRA_HTTPSTREAM_REQUIRES_SECURE_CONNECTIONS
@@ -842,7 +874,15 @@ void FElectraHTTPStreamRequestWinHttp::Close(bool bHandlesOnly)
 	}
 	if (ConnectionHandle)
 	{
-		WinHttpCloseHandle(ConnectionHandle);
+		TSharedPtr<FElectraHTTPStreamWinHttp, ESPMode::ThreadSafe> Owner = OwningManager.Pin();
+		if (Owner.IsValid())
+		{
+			Owner->ReturnConnectionHandle(ConnectionHandle);
+		}
+		else
+		{
+			WinHttpCloseHandle(ConnectionHandle);
+		}
 		ConnectionHandle = NULL;
 	}
 	if (!bHandlesOnly)
@@ -1139,6 +1179,7 @@ void FElectraHTTPStreamWinHttp::Close()
 		Thread = nullptr;
 	}
 
+	CloseAllConnectionHandles();
 	if (SessionHandle)
 	{
 		WinHttpCloseHandle(SessionHandle);
@@ -1147,6 +1188,99 @@ void FElectraHTTPStreamWinHttp::Close()
 
 	RemoveOutdatedRequests();
 }
+
+
+HINTERNET FElectraHTTPStreamWinHttp::GetConnectionHandle(const Electra::FURL_RFC3986& InForURL, INTERNET_PORT InPort, bool bForceNew)
+{
+	FString Host = InForURL.GetHost();
+
+#if ELECTRA_SHARE_CONNECTION_HANDLE
+	if (!bForceNew)
+	{
+		for(int32 i=0; i<SharedConnectionHandles.Num(); ++i)
+		{
+			if (SharedConnectionHandles[i].Port == InPort && SharedConnectionHandles[i].Host.Equals(Host, ESearchCase::CaseSensitive))
+			{
+				++SharedConnectionHandles[i].RefCount;
+				SharedConnectionHandles[i].TimeWhenLastRefDropped = -1.0;
+				check(SharedConnectionHandles[i].Handle);
+				return SharedConnectionHandles[i].Handle;
+			}
+		}
+	}
+#endif
+
+	FSharedConnectionHandle sh;
+	HINTERNET Handle = WinHttpConnect(GetSessionHandle(), TCHAR_TO_WCHAR(*Host), InPort, 0);
+	if (Handle)
+	{
+		sh.Handle = Handle;
+		sh.Host = Host;
+		sh.Port = InPort;
+		sh.RefCount = 1;
+		SharedConnectionHandles.Emplace(MoveTemp(sh));
+	}
+	return Handle;
+}
+
+void FElectraHTTPStreamWinHttp::ReturnConnectionHandle(HINTERNET InConnectionHandle)
+{
+	if (InConnectionHandle)
+	{
+		for(int32 i=0; i<SharedConnectionHandles.Num(); ++i)
+		{
+			if (SharedConnectionHandles[i].Handle == InConnectionHandle)
+			{
+				check(SharedConnectionHandles[i].RefCount);
+
+				if (--SharedConnectionHandles[i].RefCount == 0)
+				{
+					if (bCloseOnLast)
+					{
+						WinHttpCloseHandle(SharedConnectionHandles[i].Handle);
+						SharedConnectionHandles[i].Handle = NULL;
+						SharedConnectionHandles.RemoveAtSwap(i);
+					}
+					else
+					{
+						SharedConnectionHandles[i].TimeWhenLastRefDropped = FPlatformTime::Seconds();
+					}
+				}
+				return;
+			}
+		}
+	}
+}
+
+void FElectraHTTPStreamWinHttp::CloseAllConnectionHandles()
+{
+	for(int32 i=0; i<SharedConnectionHandles.Num(); ++i)
+	{
+		WinHttpCloseHandle(SharedConnectionHandles[i].Handle);
+		SharedConnectionHandles[i].Handle = NULL;
+	}
+	SharedConnectionHandles.Reset();
+}
+
+
+void FElectraHTTPStreamWinHttp::HandleIdleConnections()
+{
+	double Now = FPlatformTime::Seconds() - CloseHandleAfterSecondsIdle;
+
+	for(int32 i=0; i<SharedConnectionHandles.Num(); ++i)
+	{
+		if (SharedConnectionHandles[i].RefCount == 0 && 
+			SharedConnectionHandles[i].TimeWhenLastRefDropped > 0.0 &&
+			Now > SharedConnectionHandles[i].TimeWhenLastRefDropped)
+		{
+			WinHttpCloseHandle(SharedConnectionHandles[i].Handle);
+			SharedConnectionHandles[i].Handle = NULL;
+			SharedConnectionHandles.RemoveAtSwap(i);
+			--i;
+		}
+	}
+}
+
 
 IElectraHTTPStreamRequestPtr FElectraHTTPStreamWinHttp::CreateRequest()
 {
@@ -1192,6 +1326,7 @@ uint32 FElectraHTTPStreamWinHttp::Run()
 		SetupNewRequests();
 		UpdateActiveRequests();
 		HandleCompletedRequests();
+		HandleIdleConnections();
 		}
 
 		// User callback
@@ -1242,7 +1377,7 @@ void FElectraHTTPStreamWinHttp::SetupNewRequests()
 	RequestLock.Unlock();
 	for(auto &Request : NewReqs)
 	{
-		if (Request->Setup(this))
+		if (Request->Setup(AsShared()))
 		{
 			FRequestPointers Pointers;
 			Pointers.Owner = AsShared();

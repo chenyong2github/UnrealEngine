@@ -90,6 +90,7 @@ namespace Electra
 		static const FBoxType BoxType_styp = MAKE_BOX_ATOM('s', 't', 'y', 'p');
 		static const FBoxType BoxType_moov = MAKE_BOX_ATOM('m', 'o', 'o', 'v');
 		static const FBoxType BoxType_sidx = MAKE_BOX_ATOM('s', 'i', 'd', 'x');
+		static const FBoxType BoxType_prft = MAKE_BOX_ATOM('p', 'r', 'f', 't');
 		static const FBoxType BoxType_moof = MAKE_BOX_ATOM('m', 'o', 'o', 'f');
 		static const FBoxType BoxType_mdat = MAKE_BOX_ATOM('m', 'd', 'a', 't');
 
@@ -204,12 +205,24 @@ namespace Electra
 			// Bitrate box from either 'btrt' or the 'esds' DecoderConfigDescriptor
 			struct FBitrateInfo
 			{
-				FBitrateInfo() : BufferSizeDB(0), MaxBitrate(0), AvgBitrate(0)
+				uint32	BufferSizeDB = 0;
+				uint32	MaxBitrate = 0;
+				uint32	AvgBitrate = 0;
+			};
+
+			// Producer reference time box ('prft') applicable to this track.
+			struct FProducerReferenceTime
+			{
+				enum class EReferenceType
 				{
-				}
-				uint32	BufferSizeDB;
-				uint32	MaxBitrate;
-				uint32	AvgBitrate;
+					Undefined,
+					Captured,
+					Encoder,
+					Application
+				};
+				uint64 NtpTimestamp = 0;
+				uint64 MediaTime = 0;
+				EReferenceType Reference = EReferenceType::Undefined;
 			};
 
 			virtual ~ITrack() = default;
@@ -226,6 +239,7 @@ namespace Electra
 			virtual const FBitrateInfo& GetBitrateInfo() const = 0;
 			virtual const FString GetLanguage() const = 0;
 			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const = 0;
+			virtual void GetPRFTBoxes(TArray<FProducerReferenceTime>& OutBoxes) const = 0;
 		};
 
 

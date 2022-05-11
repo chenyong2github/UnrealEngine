@@ -54,7 +54,7 @@ void FElectraPlayerVideoDecoderOutputApple::ShutdownPoolable()
 	TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
 	if (lockedVideoRenderer.IsValid())
 	{
-		lockedVideoRenderer->SampleReleasedToPool(GetDuration());
+		lockedVideoRenderer->SampleReleasedToPool(this);
 	}
 }
 

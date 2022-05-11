@@ -110,7 +110,7 @@ namespace DASHUrlHelpers
 	};
 	void GetAllHierarchyUrlQueries(TArray<TSharedPtrTS<FDashMPD_UrlQueryInfoType>>& OutUrlQueries, TSharedPtrTS<const IDashMPDElement> StartingAt, EUrlQueryRequestType ForRequestType, bool bInclude2014);
 	FErrorDetail ApplyUrlQueries(IPlayerSessionServices* PlayerSessionServices, const FString& InMPDUrl, FString& InOutURL, FString& OutRequestHeader, const TArray<TSharedPtrTS<FDashMPD_UrlQueryInfoType>>& UrlQueries);
-	bool BuildAbsoluteElementURL(FString& OutURL, FTimeValue& ATO, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& ElementURL);
+	bool BuildAbsoluteElementURL(FString& OutURL, FTimeValue& ATO, TMediaOptionalValue<bool>& bATOComplete, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& ElementURL);
 	FString ApplyAnnexEByteRange(FString InURL, FString InRange, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& OutBaseURLs);
 }
 
@@ -124,6 +124,25 @@ public:
 	{
 		Static,
 		Dynamic
+	};
+
+	struct FProducerReferenceTimeInfo : public IProducerReferenceTimeInfo
+	{
+		FTimeValue WallclockTime;
+		uint64 PresentationTime = 0;
+		uint32 ID = 0;
+		EType Type = EType::Encoder;
+		bool bInband = false;
+		FTimeValue GetWallclockTime() const override
+		{ return WallclockTime; }
+		uint64 GetPresentationTime() const override
+		{ return PresentationTime; }
+		uint32 GetID() const override
+		{ return ID; }
+		EType GetType() const override
+		{ return Type; }
+		bool GetIsInband() const override
+		{ return bInband; }
 	};
 
 	struct FSegmentInformation
@@ -156,7 +175,10 @@ public:
 		int64 FirstByteOffset = 0;
 		int64 MediaLocalFirstAUTime = 0;			//!< Time of the first AU to use in this segment in media local time
 		int64 MediaLocalLastAUTime = 0;				//!< Time at which the last AU to use in thie segment ends in media local time
+		int64 MediaLocalFirstPTS = 0;
 		uint32 Timescale = 0;						//!< Local media timescale
+		TMediaOptionalValue<bool> bAvailabilityTimeComplete;
+		bool bLowLatencyChunkedEncodingExpected = false;
 		bool bFrameAccuracyRequired = false;		//!< true if the segment was located for frame accurate seeking.
 		bool bIsSideload = false;					//!< true if this is a side-loaded resource to be fetched and cached.
 		bool bIsLastInPeriod = false;				//!< true if known to be the last segment in the period.
@@ -164,6 +186,8 @@ public:
 		bool bIsMissing = false;					//!< Set to true if known to be missing.
 		bool bSawLMSG = false;						//!< Will be set to true by the stream reader if the 'lmsg' brand was found.
 		TArray<FInbandEventStream> InbandEventStreams;
+		TArray<FProducerReferenceTimeInfo> ProducerReferenceTimeInfos;
+		int64 MeasureLatencyViaReferenceTimeInfoID = -1;
 
 		FTimeValue CalculateASAST(const FTimeValue& AST, const FTimeValue& PeriodStart, bool bIsStatic)
 		{
@@ -213,6 +237,7 @@ public:
 		int64 RequestID = 0;						//!< Sequential request ID across all segments during playback, needed to re-resolve potential UrlQueryInfo xlinks.
 		bool bHasFollowingPeriod = false;			//!< true if we know for sure there is another period following.
 		bool bFrameAccurateSearch = false;			//!< true to prepare segments for frame-accurate decoding and rendering
+		bool bInitSegmentSetupOnly = false;			//!< true to get the initialization segment information only.
 	};
 
 	class FRepresentation : public IPlaybackAssetRepresentation, public TSharedFromThis<FRepresentation, ESPMode::ThreadSafe>
@@ -241,23 +266,23 @@ public:
 		//----------------------------------------------
 		// Methods from IPlaybackAssetRepresentation
 		//
-		virtual FString GetUniqueIdentifier() const override
+		FString GetUniqueIdentifier() const override
 		{
 			return ID;
 		}
-		virtual const FStreamCodecInformation& GetCodecInformation() const override
+		const FStreamCodecInformation& GetCodecInformation() const override
 		{
 			return CodecInfo;
 		}
-		virtual int32 GetBitrate() const override
+		int32 GetBitrate() const override
 		{
 			return Bitrate;
 		}
-		virtual int32 GetQualityIndex() const override
+		int32 GetQualityIndex() const override
 		{
 			return QualityIndex;
 		}
-		virtual bool CanBePlayed() const override
+		bool CanBePlayed() const override
 		{
 			return bIsEnabled && bIsUsable;
 		}
@@ -274,6 +299,7 @@ public:
 		bool PrepareDownloadURLs(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo, const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& SegmentTemplate);
 		FString ApplyTemplateStrings(FString TemplateURL, const FSegmentInformation& InSegmentInfo);
 		void CollectInbandEventStreams(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo);
+		void SetupProducerReferenceTimeInfo(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo);
 
 		void SegmentIndexDownloadComplete(TSharedPtrTS<FMPDLoadRequestDASH> Request, bool bSuccess);
 		friend class FManifestDASHInternal;
@@ -285,12 +311,14 @@ public:
 		int32 SelectionPriority = 1;
 		bool bIsUsable = false;
 		bool bIsEnabled = true;
+		TMediaOptionalValue<bool> bAvailableAsLowLatency;
 		bool bWarnedAboutTimelineStartGap = false;
 		bool bWarnedAboutTimelineNoTAfterNegativeR = false;
 		bool bWarnedAboutTimelineNumberOverflow = false;
 		bool bWarnedAboutInconsistentNumbering = false;
 		bool bWarnedAboutTimelineOverlap = false;
 		bool bWarnedAboutTimescale = false;
+		bool bWarnedAboutInconsistentAvailabilityTimeComplete = false;
 		//
 		bool bNeedsSegmentIndex = true;
 		TSharedPtrTS<const IParserISO14496_12> SegmentIndex;
@@ -299,6 +327,8 @@ public:
 		TSharedPtrTS<FMPDLoadRequestDASH> PendingSegmentIndexLoadRequest;
 		//
 		bool bIsSideloadedSubtitle = false;
+
+		TArray<FProducerReferenceTimeInfo> ProducerReferenceTimeInfos;
 	};
 
 	class FAdaptationSet : public IPlaybackAssetAdaptationSet
@@ -493,23 +523,27 @@ public:
 		//----------------------------------------------
 		// Methods from IPlaybackAssetAdaptationSet
 		//
-		virtual FString GetUniqueIdentifier() const override
+		FString GetUniqueIdentifier() const override
 		{
 			return FString::Printf(TEXT("%d"), UniqueSequentialSetIndex);
 		}
-		virtual FString GetListOfCodecs() const override
+		FString GetListOfCodecs() const override
 		{
 			return Codec.GetCodecSpecifierRFC6381();
 		}
-		virtual FString GetLanguage() const override
+		FString GetLanguage() const override
 		{
 			return Language;
 		}
-		virtual int32 GetNumberOfRepresentations() const override
+		int32 GetNumberOfRepresentations() const override
 		{
 			return Representations.Num();
 		}
-		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByIndex(int32 RepresentationIndex) const override
+		bool IsLowLatencyEnabled() const override
+		{
+			return bAvailableAsLowLatency.GetWithDefault(false);
+		}
+		TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByIndex(int32 RepresentationIndex) const override
 		{
 			if (RepresentationIndex < Representations.Num())
 			{
@@ -517,7 +551,7 @@ public:
 			}
 			return nullptr;
 		}
-		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& UniqueIdentifier) const override
+		TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& UniqueIdentifier) const override
 		{
 			return GetRepresentationByUniqueID(UniqueIdentifier);
 		}
@@ -535,6 +569,8 @@ public:
 		int32 UniqueSequentialSetIndex = 0;
 		bool bIsUsable = false;
 		bool bIsEnabled = true;
+		TMediaOptionalValue<bool> bAvailableAsLowLatency;
+
 		// Encryption related
 		TArray<FContentProtection> PossibleContentProtections;
 		FString CommonEncryptionScheme;
@@ -544,6 +580,8 @@ public:
 		TArray<FString> SwitchedFromSetIDs;
 		bool bIsInSwitchGroup = false;
 		bool bIsSwitchGroup = false;
+		// Warnings
+		bool bWarnedAboutInconsistentAvailabilityTimeComplete = false;
 	};
 
 	class FPeriod : public ITimelineMediaAsset
@@ -633,25 +671,25 @@ public:
 		//----------------------------------------------
 		// Methods from ITimelineMediaAsset
 		//
-		virtual FTimeRange GetTimeRange() const override
+		FTimeRange GetTimeRange() const override
 		{
 			// Per convention the time range includes the AST
 			return FTimeRange({StartAST, EndAST});
 		}
-		virtual FTimeValue GetDuration() const override
+		FTimeValue GetDuration() const override
 		{
 			return Duration;
 		}
-		virtual FString GetAssetIdentifier() const override
+		FString GetAssetIdentifier() const override
 		{
 			TSharedPtrTS<FDashMPD_PeriodType> MPDPeriod = Period.Pin();
 			return MPDPeriod.IsValid() && MPDPeriod->GetAssetIdentifier().IsValid() ? MPDPeriod->GetAssetIdentifier()->GetValue() : FString();
 		}
-		virtual FString GetUniqueIdentifier() const override
+		FString GetUniqueIdentifier() const override
 		{
 			return ID;
 		}
-		virtual int32 GetNumberOfAdaptationSets(EStreamType OfStreamType) const override
+		int32 GetNumberOfAdaptationSets(EStreamType OfStreamType) const override
 		{
 			int32 Num=0;
 			for(int32 i=0; i<AdaptationSets.Num(); ++i)
@@ -663,7 +701,7 @@ public:
 			}
 			return Num;
 		}
-		virtual TSharedPtrTS<IPlaybackAssetAdaptationSet> GetAdaptationSetByTypeAndIndex(EStreamType OfStreamType, int32 AdaptationSetIndex) const override
+		TSharedPtrTS<IPlaybackAssetAdaptationSet> GetAdaptationSetByTypeAndIndex(EStreamType OfStreamType, int32 AdaptationSetIndex) const override
 		{
 			int32 Num=0;
 			for(int32 i=0; i<AdaptationSets.Num(); ++i)
@@ -679,7 +717,7 @@ public:
 			return nullptr;
 		}
 
-		virtual void GetMetaData(TArray<FTrackMetadata>& OutMetadata, EStreamType OfStreamType) const override
+		void GetMetaData(TArray<FTrackMetadata>& OutMetadata, EStreamType OfStreamType) const override
 		{
 			for(int32 i=0, iMax=GetNumberOfAdaptationSets(OfStreamType); i<iMax; ++i)
 			{
@@ -798,6 +836,24 @@ public:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
 
 
+	TSharedPtrTS<const FLowLatencyDescriptor> GetLowLatencyDescriptor() const
+	{
+		return LowLatencyDescriptor;
+	}
+	TSharedPtrTS<FProducerReferenceTimeInfo> GetProducerReferenceTimeElement(int64 InID) const
+	{
+		return InID >= 0 ? ProducerReferenceTimeElements.FindRef((uint32)InID) : nullptr;
+	}
+
+	FTimeValue GetSegmentFetchDelay() const
+	{
+		return SegmentFetchDelay;
+	}
+	void SetSegmentFetchDelay(const FTimeValue& InNewFetchDelay)
+	{
+		SegmentFetchDelay = InNewFetchDelay;
+	}
+
 	FTimeValue GetAnchorTime() const;
 	FTimeRange GetTotalTimeRange() const;
 	FTimeRange GetSeekableTimeRange() const;
@@ -807,6 +863,7 @@ public:
 	FTimeValue GetDefaultStartTime() const;
 	void ClearDefaultStartTime();
 	FTimeRange GetPlayTimesFromURI() const;
+	FTimeValue GetDesiredLiveLatency() const;
 
 	FTimeValue GetMPDValidityEndTime() const;
 	FTimeValue GetLastPeriodEndTime() const;
@@ -850,6 +907,13 @@ private:
 	EEpicEventType EpicEventType = EEpicEventType::None;
 
 	TArray<TSharedPtrTS<FPeriod>> Periods;
+
+	TMap<uint32, TSharedPtrTS<FProducerReferenceTimeInfo>> ProducerReferenceTimeElements;
+	TSharedPtrTS<FLowLatencyDescriptor> LowLatencyDescriptor;
+
+	FTimeValue SegmentFetchDelay;
+
+	mutable FTimeValue CalculatedLiveDistance;
 
 	mutable FTimeRange TotalTimeRange;
 	mutable FTimeRange SeekableTimeRange;

@@ -585,6 +585,24 @@ namespace Electra
 	}
 
 
+	namespace RFC5905
+	{
+		bool ParseNTPTime(FTimeValue& OutTimeValue, uint64 NtpTimestampFormat)
+		{
+			if (NtpTimestampFormat)
+			{
+				// Parse an NTP time such that it based on the Unix Epoch.
+				uint64 Seconds = (NtpTimestampFormat >> 32) - 2208988800UL;			// 70 years, with 17 leap year days as seconds (70*365 + 17) * 86400
+				uint64 Nanos = ((NtpTimestampFormat & 0xffffffff) * 1000000) >> 32;
+				int64 HNS = Seconds * 10000000 + Nanos * 10;
+				OutTimeValue.SetFromHNS(HNS);
+				return true;
+			}
+			return false;
+		}
+	}
+
+
 } // namespace Electra
 
 

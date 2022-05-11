@@ -30,34 +30,40 @@ public:
 
 	FErrorDetail Build(TSharedPtrTS<IParserISO14496_12> MP4Parser, const FString& URL, const HTTP::FConnectionInfo& InConnectionInfo);
 
-	virtual EType GetPresentationType() const override;
-	virtual FTimeValue GetAnchorTime() const override
+	EType GetPresentationType() const override;
+	TSharedPtrTS<const FLowLatencyDescriptor> GetLowLatencyDescriptor() const override
+	{ return nullptr; }
+	FTimeValue GetAnchorTime() const override
 	{ return FTimeValue::GetZero(); }
-	virtual FTimeRange GetTotalTimeRange() const override
+	FTimeRange GetTotalTimeRange() const override
 	{ return MediaAsset.IsValid() ? MediaAsset->GetTimeRange() : FTimeRange(); }
-	virtual FTimeRange GetSeekableTimeRange() const override
+	FTimeRange GetSeekableTimeRange() const override
 	{
 		// For the time being the seekable range equals the total range.
 		return GetTotalTimeRange();
 	}
-	virtual FTimeRange GetPlaybackRange() const override;
-	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override
+	FTimeRange GetPlaybackRange() const override;
+	void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override
 	{
 		// For the time being we do not return anything here as that would require to iterate the tracks.
 	}
-	virtual FTimeValue GetDuration() const override
+	FTimeValue GetDuration() const override
 	{ return MediaAsset.IsValid() ? MediaAsset->GetDuration() : FTimeValue(); }
-	virtual FTimeValue GetDefaultStartTime() const override
+	FTimeValue GetDefaultStartTime() const override
 	{ return DefaultStartTime; }
-	virtual void ClearDefaultStartTime() override
+	void ClearDefaultStartTime() override
 	{ DefaultStartTime.SetToInvalid(); }
-	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
-	virtual FTimeValue GetMinBufferTime() const override;
-	virtual void UpdateDynamicRefetchCounter() override;
+	void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
+	FTimeValue GetMinBufferTime() const override;
+	FTimeValue GetDesiredLiveLatency() const override
+	{ return FTimeValue(); }
+	TSharedPtrTS<IProducerReferenceTimeInfo> GetProducerReferenceTimeInfo(int64 ID) const override;
+	void UpdateDynamicRefetchCounter() override;
+	void TriggerClockSync(EClockSyncType InClockSyncType) override;
 
-	virtual IStreamReader* CreateStreamReaderHandler() override;
-	virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
-	virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
+	IStreamReader* CreateStreamReaderHandler() override;
+	FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+	FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 
 
 	class FRepresentationMP4 : public IPlaybackAssetRepresentation
@@ -68,15 +74,15 @@ public:
 
 		FErrorDetail CreateFrom(const IParserISO14496_12::ITrack* InTrack, const FString& URL);
 
-		virtual FString GetUniqueIdentifier() const override
+		FString GetUniqueIdentifier() const override
 		{ return UniqueIdentifier; }
-		virtual const FStreamCodecInformation& GetCodecInformation() const override
+		const FStreamCodecInformation& GetCodecInformation() const override
 		{ return CodecInformation; }
-		virtual int32 GetBitrate() const override
+		int32 GetBitrate() const override
 		{ return Bitrate; }
-		virtual int32 GetQualityIndex() const override
+		int32 GetQualityIndex() const override
 		{ return 0; }
-		virtual bool CanBePlayed() const override
+		bool CanBePlayed() const override
 		{ return true; }
 
 		const FString& GetName() const
@@ -99,17 +105,19 @@ public:
 
 		FErrorDetail CreateFrom(const IParserISO14496_12::ITrack* InTrack, const FString& URL);
 
-		virtual FString GetUniqueIdentifier() const override
+		FString GetUniqueIdentifier() const override
 		{ return UniqueIdentifier; }
-		virtual FString GetListOfCodecs() const override
+		FString GetListOfCodecs() const override
 		{ return CodecRFC6381; }
-		virtual FString GetLanguage() const override
+		FString GetLanguage() const override
 		{ return Language; }
-		virtual int32 GetNumberOfRepresentations() const override
+		int32 GetNumberOfRepresentations() const override
 		{ return Representation.IsValid() ? 1 : 0; }
-		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByIndex(int32 RepresentationIndex) const override
+		bool IsLowLatencyEnabled() const override
+		{ return false; }
+		TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByIndex(int32 RepresentationIndex) const override
 		{ return RepresentationIndex == 0 ? Representation : TSharedPtrTS<IPlaybackAssetRepresentation>(); }
-		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& InUniqueIdentifier) const override
+		TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& InUniqueIdentifier) const override
 		{ return Representation.IsValid() && Representation->GetUniqueIdentifier() == InUniqueIdentifier ? Representation : TSharedPtrTS<IPlaybackAssetRepresentation>(); }
 	private:
 		TSharedPtrTS<FRepresentationMP4>		Representation;
@@ -267,23 +275,24 @@ public:
 	public:
 		FPlayPeriodMP4(TSharedPtrTS<FTimelineAssetMP4> InMediaAsset);
 		virtual ~FPlayPeriodMP4();
-		virtual void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
-		virtual EReadyState GetReadyState() override;
-		virtual void Load() override;
-		virtual void PrepareForPlay() override;
-		virtual int64 GetDefaultStartingBitrate() const override;
-		virtual TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
-		virtual FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
-		virtual ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
-		virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
-		virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
-		virtual FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
-		virtual FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& LoopState, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
-		virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
-		virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
-		virtual FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
-		virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
-		virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
+		void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
+		EReadyState GetReadyState() override;
+		void Load() override;
+		void PrepareForPlay() override;
+		int64 GetDefaultStartingBitrate() const override;
+		TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
+		FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
+		ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
+		TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
+		void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
+		void TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload) override;
+		FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+		FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& LoopState, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+		FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
+		FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
+		FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+		void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
+		void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
 
 	private:
 		void SelectInitialStream(EStreamType StreamType);

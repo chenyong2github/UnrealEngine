@@ -66,6 +66,11 @@ void FElectraHTTPStreamRequestLibCurl::SetVerb(const FString& InVerb)
 	Verb = InVerb; 
 }
 
+void FElectraHTTPStreamRequestLibCurl::EnableTimingTraces()
+{
+	Response->SetEnableTimingTraces();
+}
+
 IElectraHTTPStreamBuffer& FElectraHTTPStreamRequestLibCurl::POSTDataBuffer()
 { 
 	return PostData; 

@@ -9,14 +9,16 @@
 #include "ElectraPlayer.h"
 #include "ElectraPlayerPrivate.h"
 
-void FElectraRendererAudio::SampleReleasedToPool(FTimespan DurationToRelease)
+void FElectraRendererAudio::SampleReleasedToPool(IDecoderOutput* InDecoderOutput)
 {
 	FPlatformAtomics::InterlockedDecrement(&NumOutputAudioBuffersInUse);
 	check(NumOutputAudioBuffersInUse >= 0 && NumOutputAudioBuffersInUse <= NumBuffers)
-}
 
-FElectraRendererAudio::SystemConfiguration::SystemConfiguration()
-{
+	TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe> Parent = ParentRenderer.Pin();
+	if (Parent.IsValid())
+	{
+		Parent->SampleReleasedToPool(InDecoderOutput);
+	}
 }
 
 bool FElectraRendererAudio::Startup(const FElectraRendererAudio::SystemConfiguration& Configuration)
@@ -174,12 +176,13 @@ UEMediaError FElectraRendererAudio::ReturnBuffer(IBuffer* Buffer, bool bRender, 
 		uint32 InSampleRate = (uint32)variantSampleRate.GetInt64();
 		uint32 InUsedBufferBytes = (uint32)variantBufferUsedBytes.GetInt64();
 
-		FTimespan InDuration = FTimespan(variantDuration.GetTimeValue().GetAsHNS());
+		FTimespan InDuration = variantDuration.GetTimeValue().GetAsTimespan();
 		FTimespan InPts = variantPts.GetTimeValue().GetAsTimespan();
 		int64 InSequenceIndex = variantPts.GetTimeValue().GetSequenceIndex();
 
 		//UE_LOG(LogElectraPlayer, VeryVerbose, TEXT("-- FElectraRendererAudio::ReturnBuffer: Audio sample for time %s"), *InPts.ToString(TEXT("%h:%m:%s.%f")));
 
+		DecoderOutput->GetMutablePropertyDictionary() = InSampleProperties;
 		DecoderOutput->Initialize(IAudioDecoderOutput::ESampleFormat::Int16, InNumChannels, InSampleRate, InDuration, FDecoderTimeStamp(InPts, InSequenceIndex), InUsedBufferBytes);
 
 		// Push buffer to output queue...
@@ -196,15 +199,6 @@ UEMediaError FElectraRendererAudio::ReturnBuffer(IBuffer* Buffer, bool bRender, 
 	delete MediaBufferSharedPtrWrapper;
 
 	return UEMEDIA_ERROR_OK;
-}
-
-void FElectraRendererAudio::SetRenderClock(const FTimespan& RenderTime)
-{
-	// Latest audio as time reference
-	Electra::FTimeValue AudioRenderTime;
-	AudioRenderTime.SetFromHNS(RenderTime.GetTicks());
-	RenderClock->SetCurrentTime(Electra::IMediaRenderClock::ERendererType::Audio, AudioRenderTime);
-	RenderClock->SetCurrentTime(Electra::IMediaRenderClock::ERendererType::Video, AudioRenderTime);
 }
 
 UEMediaError FElectraRendererAudio::ReleaseBufferPool()
@@ -230,6 +224,12 @@ void FElectraRendererAudio::SetRenderClock(TSharedPtr<Electra::IMediaRenderClock
 {
 	RenderClock = InRenderClock;
 }
+
+void FElectraRendererAudio::SetParentRenderer(TWeakPtr<IMediaRenderer, ESPMode::ThreadSafe> InParentRenderer)
+{
+	ParentRenderer = MoveTemp(InParentRenderer);
+}
+
 
 void FElectraRendererAudio::SetNextApproximatePresentationTime(const Electra::FTimeValue& NextApproxPTS)
 {
@@ -272,5 +272,3 @@ void FElectraRendererAudio::StopRendering(const Electra::FParamDict& InOptions)
 		PinnedPlayer->OnAudioRenderingStopped();
 	}
 }
-
-

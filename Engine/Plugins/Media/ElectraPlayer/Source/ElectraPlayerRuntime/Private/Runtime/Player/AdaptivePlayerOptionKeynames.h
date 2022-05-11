@@ -21,8 +21,11 @@ namespace Electra
 	//! (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should end.
 	const TCHAR* const OptionKeyLiveSeekableEndOffset = TEXT("seekable_range_live_end_offset");
 
-	//! (bool) absolute end time (excluding) of the range to limit playback to
+	//! (bool) true to just finish the currently loading segment when rebuffering. false to start over with.
 	const TCHAR* const OptionRebufferingContinuesLoading = TEXT("rebuffering_continues_loading");
+
+	//! (bool) true to throw a playback error when rebuffering occurs, false to continue normally.
+	const TCHAR* const OptionThrowErrorWhenRebuffering = TEXT("throw_error_when_rebuffering");
 
 	//! (bool) true to perform frame accurate seeks (slow as decoding and discarding data from a preceeding keyframe is required)
 	const TCHAR* const OptionKeyFrameAccurateSeek = TEXT("frame_accurate_seeking");

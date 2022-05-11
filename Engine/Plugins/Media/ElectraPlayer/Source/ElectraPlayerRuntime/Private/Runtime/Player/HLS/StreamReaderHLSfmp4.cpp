@@ -54,7 +54,7 @@ uint32 FStreamSegmentRequestHLSfmp4::GetPlaybackSequenceID() const
 	return CurrentPlaybackSequenceID;
 }
 
-void FStreamSegmentRequestHLSfmp4::SetExecutionDelay(const FTimeValue& ExecutionDelay)
+void FStreamSegmentRequestHLSfmp4::SetExecutionDelay(const FTimeValue& UTCNow, const FTimeValue& ExecutionDelay)
 {
 	// No-op for HLS.
 }
@@ -635,7 +635,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	ds.TimeToDownload      = 0.0;
 	ds.ByteSize 		   = -1;
 	ds.NumBytesDownloaded  = 0;
-	ds.ThroughputBps	   = 0;
 	ds.bInsertedFillerData = false;
 
 	ds.MediaAssetID 	= Request->MediaAsset.IsValid() ? Request->MediaAsset->GetUniqueIdentifier() : "";
@@ -644,7 +643,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	ds.URL  			= Request->URL;
 	ds.CDN  			= Request->CDN;
 	ds.RetryNumber  	= Request->NumOverallRetries;
-	ds.ABRState.Reset();
 
 	bIsEmptyFillerSegment = Request->bInsertFillerData;
 
@@ -657,6 +655,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	bAbortedByABR   	   = false;
 	bAllowEarlyEmitting    = false;
 	bFillRemainingDuration = false;
+	ABRAbortReason.Empty();
 	DurationSuccessfullyRead.SetToZero();
 	DurationSuccessfullyDelivered.SetToZero();
 	AccessUnitFIFO.Clear();
@@ -797,7 +796,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				ds.TimeToDownload      = 0.0;
 				ds.ByteSize 		   = -1;
 				ds.NumBytesDownloaded  = 0;
-				ds.ThroughputBps	   = 0;
 
 				// Clear out the current connection info which may now be populated with the init segment fetch results.
 				CurrentRequest->ConnectionInfo = {};
@@ -832,6 +830,9 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				bool bIsFirstAU = true;
 				while(!bDone && !HasErrored() && !HasReadBeenAborted())
 				{
+					Metrics::FSegmentDownloadStats::FMovieChunkInfo MoofInfo;
+					MoofInfo.HeaderOffset = GetCurrentOffset();
+
 					UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService, MP4InitSegment.Get());
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
@@ -921,9 +922,16 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										// There should not be any gaps!
 								// TODO: what if there are?
 										check(GetCurrentOffset() == TrackIterator->GetSampleFileOffset());
+
+										if (MoofInfo.PayloadStartOffset == 0)
+										{
+											MoofInfo.PayloadStartOffset = GetCurrentOffset();
+										}
+
 										int64 NumRead = ReadData(AccessUnit->AUData, AccessUnit->AUSize);
 										if (NumRead == AccessUnit->AUSize)
 										{
+											MoofInfo.ContentDuration += Duration;
 											DurationSuccessfullyRead += Duration;
 											NextExpectedDTS = AccessUnit->DTS + Duration;
 											LastKnownAUDuration = Duration;
@@ -990,6 +998,14 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										bIsFirstAU = false;
 									}
 									delete TrackIterator;
+
+									MoofInfo.PayloadEndOffset = LastSuccessfulFilePos;
+									/*
+										Not adding this at the moment since it is not needed. We are not gathering download timing traces to
+										make use of the moof chunks. Segments are expected to be downloaded in one fell swoop.
+
+									ds.MovieChunkInfos.Emplace(MoveTemp(MoofInfo));
+									*/
 
 									if (Error != UEMEDIA_ERROR_OK && Error != UEMEDIA_ERROR_END_OF_STREAM)
 									{
@@ -1226,7 +1242,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	if (bAbortedByABR)
 	{
 		// If aborted set the reason as the download failure.
-		ds.FailureReason = ds.ABRState.ProgressDecision.Reason;
+		ds.FailureReason = ABRAbortReason;
 	}
 	ds.bWasAborted  	  = bAbortedByABR;
 	ds.bWasSuccessful     = !bHasErrored && !bAbortedByABR;
@@ -1238,12 +1254,8 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	ds.TimeToDownload     = (CurrentRequest->ConnectionInfo.RequestEndTime - CurrentRequest->ConnectionInfo.RequestStartTime).GetAsSeconds();
 	ds.ByteSize 		  = CurrentRequest->ConnectionInfo.ContentLength;
 	ds.NumBytesDownloaded = CurrentRequest->ConnectionInfo.BytesReadSoFar;
-	ds.ThroughputBps	  = CurrentRequest->ConnectionInfo.Throughput.GetThroughput();
-	if (ds.ThroughputBps == 0)
-	{
-		ds.ThroughputBps = ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0;
-	}
-	ds.bIsCachedResponse = CurrentRequest->ConnectionInfo.bIsCachedResponse;
+	ds.bIsCachedResponse  = CurrentRequest->ConnectionInfo.bIsCachedResponse;
+	CurrentRequest->ConnectionInfo.GetTimingTraces(ds.TimingTraces);
 
 	if (!bSilentCancellation)
 	{
@@ -1304,7 +1316,6 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 
 				Metrics::FSegmentDownloadStats& ds = CurrentRequest->DownloadStats;
 				FABRDownloadProgressDecision StreamSelectorDecision = StreamSelector->ReportDownloadProgress(currentDownloadStats);
-				ds.ABRState.ProgressDecision = StreamSelectorDecision;
 				if ((StreamSelectorDecision.Flags & FABRDownloadProgressDecision::EDecisionFlags::eABR_EmitPartialData) != 0)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
@@ -1339,6 +1350,7 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 					{
 						bFillRemainingDuration = true;
 					}
+					ABRAbortReason = StreamSelectorDecision.Reason;
 					bAbortedByABR = true;
 					return -1;
 				}

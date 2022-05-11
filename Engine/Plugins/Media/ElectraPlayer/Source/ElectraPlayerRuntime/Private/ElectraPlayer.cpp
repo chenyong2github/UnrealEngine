@@ -1035,6 +1035,12 @@ void FElectraPlayer::CalculateTargetSeekTime(FTimespan& OutTargetTime, const FTi
 		// into content already aired.
 		if (IsLive())
 		{
+			// If the target is maximum we treat it as going to the Live edge.
+			if (InTime == FTimespan::MaxValue())
+			{
+				OutTargetTime = InTime;
+				return;
+			}
 			// In case the seek time has been given as a negative number we negate it.
 			if (newTime.GetAsHNS() < 0)
 			{
@@ -1085,7 +1091,10 @@ bool FElectraPlayer::Seek(const FTimespan& Time, const FSeekParam& Param)
 		FTimespan Target;
 		CalculateTargetSeekTime(Target, Time);
 		Electra::IAdaptiveStreamingPlayer::FSeekParam seek;
-		seek.Time.SetFromTimespan(Target);
+		if (Target != FTimespan::MaxValue())
+		{
+			seek.Time.SetFromTimespan(Target);
+		}
 		seek.StartingBitrate = Param.StartingBitrate;
 		seek.bOptimizeForScrubbing = Param.bOptimizeForScrubbing;
 		seek.DistanceThreshold = Param.DistanceThreshold;

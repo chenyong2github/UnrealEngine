@@ -45,11 +45,15 @@ protected:
 class FVideoDecoderOutput : public IDecoderOutput
 {
 public:
-	virtual ~FVideoDecoderOutput() {}
+	virtual ~FVideoDecoderOutput() = default;
 
-	const Electra::FParamDict& GetDict() const { return *ParamDict; }
+	virtual const Electra::FParamDict& GetDict() const
+	{ 
+		check(ParamDict.IsValid());
+		return *ParamDict; 
+	}
 
-	FDecoderTimeStamp GetTime() const
+	virtual FDecoderTimeStamp GetTime() const
 	{
 		if (!ParamDict)
 		{
@@ -59,16 +63,16 @@ public:
 		return FDecoderTimeStamp(pts.GetAsTimespan(), pts.GetSequenceIndex());
 	}
 
-	FTimespan GetDuration() const
+	virtual FTimespan GetDuration() const
 	{
 		if (!ParamDict)
 		{
-			return 0;
+			return FTimespan(0);
 		}
 		return FTimespan(ParamDict->GetValue("duration").GetTimeValue().GetAsHNS());
 	}
 
-	FIntPoint GetOutputDim() const
+	virtual FIntPoint GetOutputDim() const
 	{
 		if (!ParamDict)
 		{
@@ -84,7 +88,7 @@ public:
 		return Cached.OutputDim;
 	}
 
-	double GetAspectRatio() const
+	virtual double GetAspectRatio() const
 	{
 		if (!ParamDict)
 		{
@@ -94,7 +98,7 @@ public:
 		return ((double)Dim.X / (double)Dim.Y) * ParamDict->GetValue("aspect_ratio").SafeGetDouble(1.0);
 	}
 
-	FVideoDecoderCropInfo GetCropInfo() const
+	virtual FVideoDecoderCropInfo GetCropInfo() const
 	{
 		if (!ParamDict)
 		{
@@ -127,7 +131,7 @@ public:
 		return Dim;
 	}
 
-	EPixelFormat GetFormat() const
+	virtual EPixelFormat GetFormat() const
 	{
 		if (!ParamDict)
 		{
@@ -136,7 +140,7 @@ public:
 		return (EPixelFormat)ParamDict->GetValue("pixelfmt").SafeGetInt64((int64)EPixelFormat::PF_Unknown);
 	}
 
-	EVideoOrientation GetOrientation() const
+	virtual EVideoOrientation GetOrientation() const
 	{
 		if (!ParamDict)
 		{
@@ -152,12 +156,7 @@ public:
 	}
 
 protected:
-	FVideoDecoderOutput()
-	{
-		Cached.Flags = 0;
-		Cached.OutputDim = FIntPoint::ZeroValue;
-		Cached.Orientation = EVideoOrientation::Original;
-	}
+	FVideoDecoderOutput() = default;
 
 	void Initialize(Electra::FParamDict* InParamDict)
 	{
@@ -166,10 +165,12 @@ protected:
 	}
 
 private:
-	TUniquePtr<Electra::FParamDict> ParamDict;
-
-	mutable struct FCached
+	struct FCached
 	{
+		FCached()
+		{
+			OutputDim = FIntPoint::ZeroValue;
+		}
 		enum
 		{
 			Valid_CropInfo = 1 << 0,
@@ -177,11 +178,13 @@ private:
 			Valid_Orientation = 1 << 2,
 		};
 
-		uint32 Flags;
 		FVideoDecoderCropInfo CropInfo;
 		FIntPoint OutputDim;
-		EVideoOrientation Orientation;
-	} Cached;
+		EVideoOrientation Orientation = EVideoOrientation::Original;;
+		uint32 Flags = 0;
+	};
+	mutable FCached Cached;
+	TUniquePtr<Electra::FParamDict> ParamDict;
 };
 
 using FVideoDecoderOutputPtr = TSharedPtr<FVideoDecoderOutput, ESPMode::ThreadSafe>;

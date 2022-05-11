@@ -47,19 +47,20 @@ public:
 	FElectraHTTPStreamRequestLibCurl();
 	virtual ~FElectraHTTPStreamRequestLibCurl();
 
-	virtual void SetVerb(const FString& InVerb) override;
-	virtual IElectraHTTPStreamBuffer& POSTDataBuffer() override;
-	virtual void SetUserAgent(const FString& InUserAgent) override;
-	virtual void SetURL(const FString& InURL) override;
-	virtual void SetRange(const FString& InRange) override;
-	virtual void AllowCompression(bool bInAllowCompression) override;
-	virtual void AllowUnsafeRequestsForDebugging() override;
-	virtual void AddHeader(const FString& Header, const FString& Value, bool bAppendIfExists) override;
-	virtual FElectraHTTPStreamNotificationDelegate& NotificationDelegate() override;
-	virtual void Cancel() override;
-	virtual IElectraHTTPStreamResponsePtr GetResponse() override;
-	virtual bool HasFailed() override;
-	virtual FString GetErrorMessage() override;
+	void SetVerb(const FString& InVerb) override;
+	void EnableTimingTraces() override;
+	IElectraHTTPStreamBuffer& POSTDataBuffer() override;
+	void SetUserAgent(const FString& InUserAgent) override;
+	void SetURL(const FString& InURL) override;
+	void SetRange(const FString& InRange) override;
+	void AllowCompression(bool bInAllowCompression) override;
+	void AllowUnsafeRequestsForDebugging() override;
+	void AddHeader(const FString& Header, const FString& Value, bool bAppendIfExists) override;
+	FElectraHTTPStreamNotificationDelegate& NotificationDelegate() override;
+	void Cancel() override;
+	IElectraHTTPStreamResponsePtr GetResponse() override;
+	bool HasFailed() override;
+	FString GetErrorMessage() override;
 
 	EState GetCurrentState();
 	bool WasCanceled();

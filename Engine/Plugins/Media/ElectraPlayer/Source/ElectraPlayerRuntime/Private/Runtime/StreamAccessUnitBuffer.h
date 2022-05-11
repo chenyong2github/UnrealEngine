@@ -71,6 +71,7 @@ namespace Electra
 		FTimeValue					EarliestPTS;					//!< Earliest PTS at which to present samples. If this is larger than PTS the sample is not to be presented.
 		FTimeValue					LatestPTS;						//!< Latest PTS at which to present samples. If this is less than PTS the sample is not to be presented.
 		FTimeValue					OffsetFromSegmentStart;			//!< If set, the difference between the first segment AU's PTS and the expected time according to the playlist.
+		FTimeValue					ProducerReferenceTime;			//!< If set, the wallclock time of the producer when this AU was encoded or captured
 		int64						SequenceIndex;
 		uint32						AUSize;							//!< Size of this access unit
 		void*						AUData;							//!< Access unit data
@@ -350,7 +351,7 @@ namespace Electra
 					else
 					{
 						FrontDTS.SetToInvalid();
-						for(uint32 i = 1; i < AccessUnits.Num(); ++i)
+						for(int32 i=1; i<AccessUnits.Num(); ++i)
 						{
 							if (AccessUnits[i]->DropState == FAccessUnit::EDropState::None)
 							{

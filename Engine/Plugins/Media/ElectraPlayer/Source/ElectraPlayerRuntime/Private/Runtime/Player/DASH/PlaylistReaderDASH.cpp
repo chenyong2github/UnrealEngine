@@ -52,26 +52,27 @@ public:
 	void Initialize(IPlayerSessionServices* PlayerSessionServices);
 
 	virtual ~FPlaylistReaderDASH();
-	virtual void Close() override;
-	virtual void HandleOnce() override;
-	virtual const FString& GetPlaylistType() const override
+	void Close() override;
+	void HandleOnce() override;
+	const FString& GetPlaylistType() const override
 	{
 		static FString Type("dash");
 		return Type;
 	}
-	virtual void LoadAndParse(const FString& URL) override;
-	virtual FString GetURL() const override;
-	virtual TSharedPtrTS<IManifest> GetManifest() override;
-	virtual void AddElementLoadRequests(const TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& RemoteElementLoadRequests) override;
-	virtual void RequestMPDUpdate(EMPDRequestType InRequestType) override;
-	virtual TSharedPtrTS<FManifestDASHInternal> GetCurrentMPD() override
+	void LoadAndParse(const FString& URL) override;
+	FString GetURL() const override;
+	TSharedPtrTS<IManifest> GetManifest() override;
+	void AddElementLoadRequests(const TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& RemoteElementLoadRequests) override;
+	void RequestMPDUpdate(EMPDRequestType InRequestType) override;
+	void RequestClockResync() override;
+	TSharedPtrTS<FManifestDASHInternal> GetCurrentMPD() override
 	{
 		return Manifest;
 	}
-	virtual void SetStreamInbandEventUsage(EStreamType InStreamType, bool bUsesInbandDASHEvents) override;
+	void SetStreamInbandEventUsage(EStreamType InStreamType, bool bUsesInbandDASHEvents) override;
 
 
-	virtual void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
+	void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
 
 private:
 	using FResourceLoadRequestPtr = TSharedPtrTS<FMPDLoadRequestDASH>;
@@ -109,6 +110,8 @@ private:
 	void EnqueueInitialXLinkRequests();
 
 	void ManifestDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
+	void FinishManifestBuildingAfterTimesync(bool bGotTheTime);
+	void PrepareNextTimeSync();
 	void ManifestUpdateDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
 	void InitialMPDXLinkElementDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
 
@@ -153,10 +156,28 @@ private:
 	TSharedPtrTS<FManifestDASH>								PlayerManifest;
 
 	// Time synchronization.
+	struct FInitialTimesync
+	{
+		FTimeValue UtcTimeThen;
+		FTimeValue HttpRequestStart;
+		FString HttpDateHeader;
+		FString Utc_direct2014;
+		TUniquePtr<HTTP::FConnectionInfo> ConnInfo;
+		void Reset()
+		{
+			UtcTimeThen.SetToInvalid();
+			HttpRequestStart.SetToInvalid();
+			HttpDateHeader.Reset();
+			Utc_direct2014.Reset();
+			ConnInfo.Reset();
+		}
+	};
+	FInitialTimesync										InitialTimesync;
+	bool													bIsInitialTimesync = true;
 	TArray<TSharedPtrTS<FDashMPD_DescriptorType>>			AttemptedTimesyncDescriptors;
 	FTimeValue												NextTimeSyncTime;
 	bool													bTimeSyncInProgress = false;
-	bool													bInitialTimeSyncedToMPDDateTimeHeader = false;
+
 
 	// Warnings
 	bool													bWarnedAboutNoUTCTimingElements = false;
@@ -230,20 +251,19 @@ void FPlaylistReaderDASH::InternalHandleOnce()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_PlaylistWorker);
 		CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_PlaylistWorker);
+
 		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-
-		HandleCompletedRequests(Now);
-
-		ExecutePendingRequests(Now);
-
-		// Check if the MPD must be updated.
-		CheckForMPDUpdate();
-
-		// Time sync
+		// Check for time sync first. The time sync result and thus the clock gets changed in HandleCompletedRequest()
+		// which may trigger a jump in time, making "Now" and NextTimeSyncTime obsolete until the next loop.
 		if (NextTimeSyncTime.IsValid() && Now >= NextTimeSyncTime)
 		{
 			TriggerTimeSynchronization();
 		}
+
+		HandleCompletedRequests(Now);
+		ExecutePendingRequests(Now);
+		// Check if the MPD must be updated.
+		CheckForMPDUpdate();
 	}
 }
 
@@ -490,7 +510,8 @@ void FPlaylistReaderDASH::CheckForMPDUpdate()
 			TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
 			FString URL, RequestHeader;
 			FTimeValue UrlATO;
-			DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, MPDRoot->GetDocumentURL(), OutBaseURLs, NewMPDLocation);
+			TMediaOptionalValue<bool> bATOComplete;
+			DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, bATOComplete, MPDRoot->GetDocumentURL(), OutBaseURLs, NewMPDLocation);
 
 			// The URL query might need to be changed. Look for the UrlQuery properties.
 			TArray<TSharedPtrTS<FDashMPD_UrlQueryInfoType>> UrlQueries;
@@ -607,6 +628,12 @@ void FPlaylistReaderDASH::RequestMPDUpdate(IPlaylistReaderDASH::EMPDRequestType 
 	UpdateRequested.Emplace(MoveTemp(Request));
 }
 
+void FPlaylistReaderDASH::RequestClockResync()
+{
+	NextTimeSyncTime.SetToZero();
+}
+
+
 void FPlaylistReaderDASH::SetStreamInbandEventUsage(EStreamType InStreamType, bool bUsesInbandDASHEvents)
 {
 	switch(InStreamType)
@@ -633,139 +660,131 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 	// We're doing a sync now. Clear the next time.
 	NextTimeSyncTime.SetToInvalid();
 
-	// Time sync is only necessary when there is either an MPD@availabilityStartTime or MPD@type is dynamic.
-	if (Manifest.IsValid() && (Manifest->UsesAST() || !Manifest->IsStaticType()))
+	if (Manifest.IsValid())
 	{
-		TSharedPtrTS<FDashMPD_MPDType> MPDRoot = Manifest->GetMPDRoot();
-		if (MPDRoot.IsValid())
+		// Time sync is only necessary when there is either an MPD@availabilityStartTime or MPD@type is dynamic.
+		if (Manifest->UsesAST() || !Manifest->IsStaticType())
 		{
-			bool bFoundSupportedElement = false;
-			FString MPDDocumentURL = MPDRoot->GetDocumentURL();
-			const TArray<TSharedPtrTS<FDashMPD_DescriptorType>>& UTCTimings = MPDRoot->GetUTCTimings();
-
-			// Emit a one-time only warning if there is no <UTCTiming> element in the MPD when there should be.
-			if (UTCTimings.Num() == 0 && !bWarnedAboutNoUTCTimingElements)
+			TSharedPtrTS<FDashMPD_MPDType> MPDRoot = Manifest->GetMPDRoot();
+			if (MPDRoot.IsValid())
 			{
-				bWarnedAboutNoUTCTimingElements = true;
-				LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No <UTCTiming> element found in MPD. This could result in playback failures. For detailed validation of your MPD please use https://conformance.dashif.org/")));
-			}
+				bool bFoundSupportedElement = false;
+				FString MPDDocumentURL = MPDRoot->GetDocumentURL();
+				const TArray<TSharedPtrTS<FDashMPD_DescriptorType>>& UTCTimings = MPDRoot->GetUTCTimings();
 
-			/*
-				We go over the UTC timing elements in two passes.
-				In the first we look only for the (discouraged) urn:mpeg:dash:utc:direct:2014 scheme because
-				if it is available we can set it immediately. Its value is baked into the manifest and is therefore
-				only really valid right at the time the MPD was fetched.
-				If we try other schemes first that involve a network request and those fail then there will have
-				passed that much time that the hardcoded value in the MPD will no longer make sense to associate
-				with the current system time.
-			*/
-			for(int32 i=0; i<UTCTimings.Num(); ++i)
-			{
-				if (UTCTimings[i]->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_direct2014))
+				// Emit a one-time only warning if there is no <UTCTiming> element in the MPD when there should be.
+				if (UTCTimings.Num() == 0 && !bWarnedAboutNoUTCTimingElements)
 				{
-					FTimeValue DirectTime;
-					if (ISO8601::ParseDateTime(DirectTime, UTCTimings[i]->GetValue()))
+					bWarnedAboutNoUTCTimingElements = true;
+					LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No <UTCTiming> element found in MPD. This could result in playback failures. For detailed validation of your MPD please use https://conformance.dashif.org/")));
+				}
+
+				/*
+					We go over the UTC timing elements in two passes.
+					In the first we look only for the (discouraged) urn:mpeg:dash:utc:direct:2014 scheme because
+					if it is available we can set it immediately. Its value is baked into the manifest and is therefore
+					only really valid right at the time the MPD was fetched.
+					If we try other schemes first that involve a network request and those fail then there will have
+					passed that much time that the hardcoded value in the MPD will no longer make sense to associate
+					with the current system time.
+				*/
+				for(int32 i=0; i<UTCTimings.Num(); ++i)
+				{
+					if (UTCTimings[i]->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_direct2014))
 					{
-						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
+						InitialTimesync.Utc_direct2014 = UTCTimings[i]->GetValue();
 						// Remove this timing element. It can not be used indefinitely and we best get rid of it now.
 						MPDRoot->RemoveUTCTimingElement(UTCTimings[i]);
 						--i;
+						bFoundSupportedElement = true;
 					}
-					bFoundSupportedElement = true;
 				}
-			}
-			// 2nd pass. Use the more appropriate timing elements.
-			for(int32 i=0; i<UTCTimings.Num(); ++i)
-			{
-				auto GetRequestURL = [MPDDocumentURL](FString ListOfURLs, int32 Index) -> FString
+				// 2nd pass. Use the more appropriate timing elements.
+				for(int32 i=0; i<UTCTimings.Num(); ++i)
 				{
-					TArray<FString> URLs;
-					ListOfURLs.ParseIntoArrayWS(URLs);
-					if (Index < URLs.Num())
+					auto GetRequestURL = [MPDDocumentURL](FString ListOfURLs, int32 Index) -> FString
 					{
-						TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
-						FString URL, RequestHeader;
-						FTimeValue UrlATO;
-						DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, MPDDocumentURL, OutBaseURLs, URLs[Index]);
-						return URL;
+						TArray<FString> URLs;
+						ListOfURLs.ParseIntoArrayWS(URLs);
+						if (Index < URLs.Num())
+						{
+							TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
+							FString URL, RequestHeader;
+							FTimeValue UrlATO;
+							TMediaOptionalValue<bool> bATOComplete;
+							DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, bATOComplete, MPDDocumentURL, OutBaseURLs, URLs[Index]);
+							return URL;
+						}
+						return FString();
+					};
+
+
+					const FString& SchemeIdUri = UTCTimings[i]->GetSchemeIdUri();
+					const FString& Value = UTCTimings[i]->GetValue();
+
+					TSharedPtrTS<FMPDLoadRequestDASH> TimeSyncRequest;
+					// Check for supported schemes. They appear in the manifest in the order the author has prioritized them.
+					if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014))
+					{
+						TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+						TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
+						TimeSyncRequest->URL = GetRequestURL(Value, 0);
+						TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpxsdate_Completed);
 					}
-					return FString();
-				};
+					else if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpiso2014))
+					{
+						TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+						TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
+						TimeSyncRequest->URL = GetRequestURL(Value, 0);
+						TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpiso_Completed);
+					}
+					else if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httphead2014))
+					{
+						TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+						TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
+						TimeSyncRequest->URL = GetRequestURL(Value, 0);
+						TimeSyncRequest->Verb = TEXT("HEAD");
+						TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httphead_Completed);
+					}
+					else
+					{
+						// Not supported, skip it.
+					}
 
-
-				const FString& SchemeIdUri = UTCTimings[i]->GetSchemeIdUri();
-				const FString& Value = UTCTimings[i]->GetValue();
-
-				TSharedPtrTS<FMPDLoadRequestDASH> TimeSyncRequest;
-				// Check for supported schemes. They appear in the manifest in the order the author has prioritized them.
-				if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014))
-				{
-					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
-					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
-					TimeSyncRequest->URL = GetRequestURL(Value, 0);
-					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpxsdate_Completed);
+					// When a request has been set up, enqueue it and leave the loop.
+					if (TimeSyncRequest.IsValid())
+					{
+						bTimeSyncInProgress = true;
+						AttemptedTimesyncDescriptors.Emplace(UTCTimings[i]);
+						EnqueueResourceRequest(MoveTemp(TimeSyncRequest));
+						bFoundSupportedElement = true;
+						break;
+					}
 				}
-				else if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpiso2014))
+				// Warn once when there is no UTCTiming element we support.
+				if (!bFoundSupportedElement && !bWarnedAboutUnsupportedUTCTimingElement)
 				{
-					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
-					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
-					TimeSyncRequest->URL = GetRequestURL(Value, 0);
-					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpiso_Completed);
-				}
-				else if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httphead2014))
-				{
-					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
-					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
-					TimeSyncRequest->URL = GetRequestURL(Value, 0);
-					TimeSyncRequest->Verb = TEXT("HEAD");
-					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httphead_Completed);
-				}
-				else
-				{
-					// Not supported.
+					bWarnedAboutUnsupportedUTCTimingElement = true;
+					if (InitialTimesync.HttpDateHeader.Len())
+					{
+						LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD, but time was synchronized to the MPD's HTTP response Date header. This may not be accurate enough.")));
+					}
+					else
+					{
+						LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD. This could result in playback failures.")));
+					}
 				}
 
-				// When a request has been set up, enqueue it and leave the loop.
-				if (TimeSyncRequest.IsValid())
+				// If no request was enqueued and this is the initial time sync we need to complete the manifest setup now.
+				if (!bTimeSyncInProgress)
 				{
-					bTimeSyncInProgress = true;
-					AttemptedTimesyncDescriptors.Emplace(UTCTimings[i]);
-					EnqueueResourceRequest(MoveTemp(TimeSyncRequest));
-					bFoundSupportedElement = true;
-					break;
-				}
-			}
-			// Warn once when there is no UTCTiming element we support.
-			if (!bFoundSupportedElement && !bWarnedAboutUnsupportedUTCTimingElement)
-			{
-				bWarnedAboutUnsupportedUTCTimingElement = true;
-				if (!bInitialTimeSyncedToMPDDateTimeHeader)
-				{
-					LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD. This could result in playback failures.")));
-				}
-				else
-				{
-					LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD, but time was synchronized to the MPD's HTTP response Date header. This may not be accurate enough.")));
+					FinishManifestBuildingAfterTimesync(false);
 				}
 			}
-
-			// Do not re-sync the time too often.
-			const FTimeValue MinResyncTimeInterval(120.0);		// not sooner than every 120 seconds.
-			const FTimeValue MaxResyncTimeInterval(1800.0);	// at least once every 30 minutes.
-
-			FTimeValue ResyncTimeInterval(MinResyncTimeInterval);
-			// How frequently does the MPD update?
-			FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
-			if (mup.IsValid() && mup > MinResyncTimeInterval)
-			{
-				ResyncTimeInterval = mup;
-			}
-			if (ResyncTimeInterval > MaxResyncTimeInterval)
-			{
-				ResyncTimeInterval = MaxResyncTimeInterval;
-			}
-
-			NextTimeSyncTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime() + ResyncTimeInterval;
+		}
+		else
+		{
+			FinishManifestBuildingAfterTimesync(false);
 		}
 	}
 }
@@ -1121,8 +1140,6 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 			return;
 		}
 		
-		// Get the Date header from the response and set our clock to this time.
-		// Do this once only with the date from the master playlist.
 		const HTTP::FConnectionInfo* ConnInfo = Request->GetConnectionInfo();
 		if (!ConnInfo)
 		{
@@ -1130,22 +1147,15 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		}
 
 		FString ETag;
-		FTimeValue FetchTime;
 		FString EffectiveURL = ConnInfo->EffectiveURL;
+		InitialTimesync.HttpRequestStart = ConnInfo->RequestStartTime;
+		InitialTimesync.UtcTimeThen = MEDIAutcTime::Current();
+		InitialTimesync.ConnInfo = MakeUnique<HTTP::FConnectionInfo>(*ConnInfo);
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 		{
 			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
 			{
-				// Parse the header
-				FTimeValue DateFromHeader;
-				bool bDateParsedOk = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
-				if (bDateParsedOk && DateFromHeader.IsValid())
-				{
-					PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(ConnInfo->RequestStartTime, DateFromHeader);
-				}
-				// The MPD 'FetchTime' is the time at which the request to get the MPD was made to the server.
-				FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
-				bInitialTimeSyncedToMPDDateTimeHeader = true;
+				InitialTimesync.HttpDateHeader = ConnInfo->ResponseHeaders[i].Value;
 			}
 			else if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag"), ESearchCase::IgnoreCase))
 			{
@@ -1175,60 +1185,6 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 
 				// Set the next time sync time to zero to cause a time sync as soon as possible.
 				NextTimeSyncTime.SetToZero();
-
-				if (Manifest.IsValid())
-				{
-					// Note: This is not like the standard defines FetchTime. It should be the time the server is processing the request
-					//       but we can't know this. Also if there is a direct <UTCTiming> element in the MPD it may be different from
-					//       what our local clock is set to at the moment. So instead we set FetchTime to NOW.
-					FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-					Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
-					MostRecentMPDUpdateTime = FetchTime;
-
-					// If the URL has a special fragment part to turn this presentation into an event, do so.
-					// Do this before preparing the default start times!
-					// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
-					Manifest->TransformIntoEpicEvent();
-
-					// Do a one-time preparation of the default start time from the #t= URL fragment.
-					// This is not to be repeated for manifest updates.
-					Manifest->PrepareDefaultStartTime();
-				}
-
-				PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Manifest);
-
-				// Check if the MPD defines an @minimumUpdatePeriod
-				FTimeValue mup = Manifest.IsValid() ? Manifest->GetMinimumUpdatePeriod() : FTimeValue::GetInvalid();
-				// If the update time is zero then updates happen just in time when segments are required or through
-				// an inband event stream. Either way, we do not need to update periodically.
-				if (mup.IsValid() && mup > FTimeValue::GetZero())
-				{
-					// Warn if MUP is really small
-					if (mup.GetAsMilliseconds() < 1000)
-					{
-						LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("MPD@minimumUpdatePeriod is set to a really small value of %lld msec. This could be a performance issue."), (long long int)mup.GetAsMilliseconds()));
-					}
-					RequestsLock.Lock();
-					NextMPDUpdateTime = MostRecentMPDUpdateTime + mup;
-					RequestsLock.Unlock();
-				}
-
-				// Notify that the "master playlist" has been parsed, successfully or not. If we still need to resolve remote entities this is not an error!
-				PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(!LastErrorDetail.IsTryAgain() ? LastErrorDetail : FErrorDetail(), ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
-				if (LastErrorDetail.IsOK())
-				{
-					// Notify that the "variant playlists" are ready. There are no variants in DASH, but this is the trigger that the playlists are all set up and are good to go now.
-					PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, ConnInfo, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
-				}
-				// "try again" is returned when there are remote entities that need to be resolved first.
-				else if (LastErrorDetail.IsTryAgain())
-				{
-					EnqueueInitialXLinkRequests();
-				}
-				else
-				{
-					PostError(LastErrorDetail);
-				}
 			}
 			else
 			{
@@ -1245,6 +1201,130 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		PostError(FString::Printf(TEXT("Failed to download MPD \"%s\" (%s)"), *Request->URL, *Request->GetErrorDetail()), ERRCODE_DASH_MPD_DOWNLOAD_FAILED, UEMEDIA_ERROR_READ_ERROR);
 	}
 }
+
+
+void FPlaylistReaderDASH::PrepareNextTimeSync()
+{
+	if (Manifest.IsValid())
+	{
+		// Do not re-sync the time too often.
+		const FTimeValue MinResyncTimeInterval(120.0);		// not sooner than every 120 seconds.
+		const FTimeValue MaxResyncTimeInterval(1800.0);		// at least once every 30 minutes.
+
+		FTimeValue ResyncTimeInterval(MinResyncTimeInterval);
+		// How frequently does the MPD update?
+		FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+		if (mup.IsValid() && mup > MinResyncTimeInterval)
+		{
+			ResyncTimeInterval = mup;
+		}
+		if (ResyncTimeInterval > MaxResyncTimeInterval)
+		{
+			ResyncTimeInterval = MaxResyncTimeInterval;
+		}
+
+		NextTimeSyncTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime() + ResyncTimeInterval;
+	}
+}
+
+
+void FPlaylistReaderDASH::FinishManifestBuildingAfterTimesync(bool bGotTheTime)
+{
+	// After a time sync clear the segment fetch delay.
+	if (Manifest.IsValid())
+	{
+		Manifest->SetSegmentFetchDelay(FTimeValue::GetZero());
+	}
+
+	if (!bIsInitialTimesync)
+	{
+		PrepareNextTimeSync();
+		return;
+	}
+	bIsInitialTimesync = false;
+
+	FTimeValue Now = MEDIAutcTime::Current();
+	FTimeValue TimeDiffSinceStart = Now - InitialTimesync.UtcTimeThen;
+	if (!bGotTheTime)
+	{
+		// First check if the MPD contained a direct time value.
+		if (InitialTimesync.Utc_direct2014.Len())
+		{
+			FTimeValue DirectTime;
+			if (ISO8601::ParseDateTime(DirectTime, InitialTimesync.Utc_direct2014))
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime + TimeDiffSinceStart);
+				// No need to use the Date header any more.
+				InitialTimesync.HttpDateHeader.Reset();
+			}
+		}
+		// As a last resort use the Date header from the HTTP response
+		if (InitialTimesync.HttpDateHeader.Len())
+		{
+			FTimeValue DateFromHeader;
+			bool bDateParsedOk = RFC7231::ParseDateTime(DateFromHeader, InitialTimesync.HttpDateHeader);
+			if (bDateParsedOk && DateFromHeader.IsValid())
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(InitialTimesync.HttpRequestStart, DateFromHeader);
+			}
+		}
+	}
+
+	if (Manifest.IsValid())
+	{
+		FTimeValue FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime() - TimeDiffSinceStart;
+		Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
+		MostRecentMPDUpdateTime = FetchTime;
+
+		// If the URL has a special fragment part to turn this presentation into an event, do so.
+		// Do this before preparing the default start times!
+		// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
+		Manifest->TransformIntoEpicEvent();
+
+		// Do a one-time preparation of the default start time from the #t= URL fragment.
+		// This is not to be repeated for manifest updates.
+		Manifest->PrepareDefaultStartTime();
+	}
+
+	PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Manifest);
+
+	// Check if the MPD defines an @minimumUpdatePeriod
+	FTimeValue mup = Manifest.IsValid() ? Manifest->GetMinimumUpdatePeriod() : FTimeValue::GetInvalid();
+	// If the update time is zero then updates happen just in time when segments are required or through
+	// an inband event stream. Either way, we do not need to update periodically.
+	if (mup.IsValid() && mup > FTimeValue::GetZero())
+	{
+		// Warn if MUP is really small
+		if (mup.GetAsMilliseconds() < 1000)
+		{
+			LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("MPD@minimumUpdatePeriod is set to a really small value of %lld msec. This could be a performance issue."), (long long int)mup.GetAsMilliseconds()));
+		}
+		RequestsLock.Lock();
+		NextMPDUpdateTime = MostRecentMPDUpdateTime + mup;
+		RequestsLock.Unlock();
+	}
+
+	// Notify that the "master playlist" has been parsed, successfully or not. If we still need to resolve remote entities this is not an error!
+	PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(!LastErrorDetail.IsTryAgain() ? LastErrorDetail : FErrorDetail(), InitialTimesync.ConnInfo.Get(), Playlist::EListType::Master, Playlist::ELoadType::Initial));
+	if (LastErrorDetail.IsOK())
+	{
+		// Notify that the "variant playlists" are ready. There are no variants in DASH, but this is the trigger that the playlists are all set up and are good to go now.
+		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, InitialTimesync.ConnInfo.Get(), Playlist::EListType::Variant, Playlist::ELoadType::Initial));
+		PrepareNextTimeSync();
+	}
+	// "try again" is returned when there are remote entities that need to be resolved first.
+	else if (LastErrorDetail.IsTryAgain())
+	{
+		EnqueueInitialXLinkRequests();
+	}
+	else
+	{
+		PostError(LastErrorDetail);
+	}
+
+	InitialTimesync.Reset();
+}
+
 
 
 void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess)
@@ -1267,7 +1347,6 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 		FString EffectiveURL;
 		FTimeValue FetchTime;
 		EffectiveURL = ConnInfo->EffectiveURL;
-		// See above why we use NOW for FetchTime.
 		//FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
 		FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
@@ -1385,6 +1464,7 @@ void FPlaylistReaderDASH::InitialMPDXLinkElementDownloadCompleted(FResourceLoadR
 			LastErrorDetail = ForManifest->BuildAfterInitialRemoteElementDownload();
 			// Notify that the "variant playlists" are ready. There are no variants in DASH, but this is the trigger that the playlists are all set up and are good to go now.
 			PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, nullptr, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
+			PrepareNextTimeSync();
 		}
 		else if (LastErrorDetail.IsTryAgain())
 		{
@@ -1396,6 +1476,7 @@ void FPlaylistReaderDASH::InitialMPDXLinkElementDownloadCompleted(FResourceLoadR
 			PostError(LastErrorDetail);
 		}
 	}
+	InitialTimesync.Reset();
 }
 
 
@@ -1425,6 +1506,7 @@ void FPlaylistReaderDASH::Timesync_httphead_Completed(FResourceLoadRequestPtr Re
 	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.
 	AttemptedTimesyncDescriptors.Empty();
 	bTimeSyncInProgress = false;
+	FinishManifestBuildingAfterTimesync(bSuccess);
 }
 
 void FPlaylistReaderDASH::Timesync_httpxsdate_Completed(FResourceLoadRequestPtr Request, bool bSuccess)
@@ -1453,6 +1535,7 @@ void FPlaylistReaderDASH::Timesync_httpxsdate_Completed(FResourceLoadRequestPtr 
 	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.
 	AttemptedTimesyncDescriptors.Empty();
 	bTimeSyncInProgress = false;
+	FinishManifestBuildingAfterTimesync(bSuccess);
 }
 
 void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Request, bool bSuccess)
@@ -1472,6 +1555,7 @@ void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Req
 	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.
 	AttemptedTimesyncDescriptors.Empty();
 	bTimeSyncInProgress = false;
+	FinishManifestBuildingAfterTimesync(bSuccess);
 }
 
 void FPlaylistReaderDASH::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode)

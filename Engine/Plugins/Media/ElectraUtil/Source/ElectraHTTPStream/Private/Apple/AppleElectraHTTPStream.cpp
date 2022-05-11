@@ -67,16 +67,16 @@ public:
 	virtual ~FElectraHTTPStreamApple();
 
 	FElectraHTTPStreamApple();
-	virtual bool Initialize(const Electra::FParamDict& InOptions);
+	bool Initialize(const Electra::FParamDict& InOptions);
 
-	virtual FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() override
+	FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() override
 	{ return ThreadHandlerCallback; }
 
-	virtual void Close() override;
+	void Close() override;
 
-	virtual IElectraHTTPStreamRequestPtr CreateRequest() override;
+	IElectraHTTPStreamRequestPtr CreateRequest() override;
 
-	virtual void AddRequest(IElectraHTTPStreamRequestPtr Request) override;
+	void AddRequest(IElectraHTTPStreamRequestPtr Request) override;
 
 	NSURLSession* GetSession()
 	{ return Session; }
@@ -188,33 +188,35 @@ public:
 	FElectraHTTPStreamRequestApple();
 	virtual ~FElectraHTTPStreamRequestApple();
 
-	virtual void SetVerb(const FString& InVerb) override
+	void SetVerb(const FString& InVerb) override
 	{ Verb = InVerb; }
-	virtual IElectraHTTPStreamBuffer& POSTDataBuffer() override
+	void EnableTimingTraces() override
+	{ Response->SetEnableTimingTraces(); }
+	IElectraHTTPStreamBuffer& POSTDataBuffer() override
 	{ return PostData; }
-	virtual void SetUserAgent(const FString& InUserAgent) override
+	void SetUserAgent(const FString& InUserAgent) override
 	{ UserAgent = InUserAgent; }
-	virtual void SetURL(const FString& InURL) override
+	void SetURL(const FString& InURL) override
 	{ URL = InURL; }
-	virtual void SetRange(const FString& InRange) override
+	void SetRange(const FString& InRange) override
 	{ Range = InRange; }
-	virtual void AllowCompression(bool bInAllowCompression) override
+	void AllowCompression(bool bInAllowCompression) override
 	{ bAllowCompression = bInAllowCompression; }
-	virtual void AllowUnsafeRequestsForDebugging() override
+	void AllowUnsafeRequestsForDebugging() override
 	{
 	#if ELECTRA_HTTPSTREAM_APPLE_ALLOW_UNSAFE_CONNECTIONS_FOR_DEBUGGING
 		bAllowUnsafeConnectionsForDebugging = true;
 	#endif
 	}
-	virtual void AddHeader(const FString& Header, const FString& Value, bool bAppendIfExists) override;
-	virtual FElectraHTTPStreamNotificationDelegate& NotificationDelegate() override
+	void AddHeader(const FString& Header, const FString& Value, bool bAppendIfExists) override;
+	FElectraHTTPStreamNotificationDelegate& NotificationDelegate() override
 	{ return NotificationCallback; }
-	virtual void Cancel() override;
-	virtual IElectraHTTPStreamResponsePtr GetResponse() override
+	void Cancel() override;
+	IElectraHTTPStreamResponsePtr GetResponse() override
 	{ return Response; }
-	virtual bool HasFailed() override
+	bool HasFailed() override
 	{ return Response->GetErrorMessage().Len() > 0; }
-	virtual FString GetErrorMessage() override
+	FString GetErrorMessage() override
 	{ return Response->GetErrorMessage(); }
 
 	NSURLSessionTask* GetTaskHandle()

@@ -517,6 +517,11 @@ private:
 			return BoxSize;
 		}
 
+		const FMP4Box* GetParentBox() const
+		{
+			return ParentBox;
+		}
+
 		void AddChildBox(FMP4Box* Child)
 		{
 			Child->ParentBox = this;
@@ -833,6 +838,11 @@ private:
 			: FMP4BoxBasic(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
 			, Flags(0), Version(0)
 		{
+		}
+
+		uint32 GetFlags() const
+		{
+			return Flags;
 		}
 
 		virtual ~FMP4BoxFull()
@@ -2919,6 +2929,21 @@ private:
 
 		virtual ~FMP4BoxPRFT()
 		{
+		}
+
+		uint32 GetReferenceTrackID() const
+		{
+			return ReferenceTrackID;
+		}
+
+		uint64 GetNtpTimestamp() const
+		{
+			return NtpTimestamp;
+		}
+
+		uint64 GetMediaTime() const
+		{
+			return MediaTime;
 		}
 
 	private:
@@ -5476,6 +5501,7 @@ private:
 			virtual const FBitrateInfo& GetBitrateInfo() const override;
 			virtual const FString GetLanguage() const override;
 			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const override;
+			virtual void GetPRFTBoxes(TArray<ITrack::FProducerReferenceTime>& OutBoxes) const override;
 
 			//private:
 			const FMP4BoxMVHD* MVHDBox = nullptr;
@@ -5506,6 +5532,7 @@ private:
 			const FMP4BoxTFHD* TFHDBox = nullptr;
 			const FMP4BoxTFDT* TFDTBox = nullptr;
 			TArray<const FMP4BoxTRUN*>	TRUNBoxes;
+			TArray<ITrack::FProducerReferenceTime> PRFTBoxes;
 			// Future boxes: sbgp, sgpd, subs
 
 			FStreamCodecInformation					CodecInformation;
@@ -5768,6 +5795,12 @@ private:
 			}
 		}
 	}
+
+	void FParserISO14496_12::FTrack::GetPRFTBoxes(TArray<ITrack::FProducerReferenceTime>& OutBoxes) const
+	{
+		OutBoxes = PRFTBoxes;
+	}
+
 
 	/***************************************************************************************************************************************************/
 	/***************************************************************************************************************************************************/
@@ -7247,7 +7280,7 @@ private:
 									}
 
 									// Get the PSSH boxes from the track fragment.
-									Box->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
+									MOOFBox->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
 									for(int32 nPSSHs=0; nPSSHs<AllPSSHBoxes.Num(); ++nPSSHs)
 									{
 										Track->PSSHBoxes.Add(static_cast<const FMP4BoxPSSH*>(AllPSSHBoxes[nPSSHs]));
@@ -7259,6 +7292,36 @@ private:
 										if (Error != UEMEDIA_ERROR_OK)
 										{
 											return Error;
+										}
+									}
+
+									// Get the PRFT boxes from the track fragment that apply to this track.
+									TArray<const FMP4Box*> AllPRFTBoxes;
+									MOOFBox->GetParentBox()->GetAllBoxInstances(AllPRFTBoxes, FMP4Box::kBox_prft);
+									for(int32 nPRFTs=0; nPRFTs<AllPRFTBoxes.Num(); ++nPRFTs)
+									{
+										const FMP4BoxPRFT* PRFTBox = static_cast<const FMP4BoxPRFT*>(AllPRFTBoxes[nPRFTs]);
+										if (PRFTBox->GetReferenceTrackID() == Track->GetID())
+										{
+											ITrack::FProducerReferenceTime prft;
+											prft.NtpTimestamp = PRFTBox->GetNtpTimestamp();
+											prft.MediaTime = PRFTBox->GetMediaTime();
+											switch(PRFTBox->GetFlags() & (8 | 16))
+											{
+												case 0:
+													prft.Reference = ITrack::FProducerReferenceTime::EReferenceType::Encoder;
+													break;
+												case 8|16:
+													prft.Reference = ITrack::FProducerReferenceTime::EReferenceType::Captured;
+													break;
+												case 16:
+													prft.Reference = ITrack::FProducerReferenceTime::EReferenceType::Application;
+													break;
+												default:
+													prft.Reference = ITrack::FProducerReferenceTime::EReferenceType::Undefined;
+													break;
+											}
+											Track->PRFTBoxes.Emplace(MoveTemp(prft));
 										}
 									}
 								}

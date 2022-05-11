@@ -18,74 +18,121 @@ public:
 	FElectraHTTPStreamResponse() = default;
 	virtual ~FElectraHTTPStreamResponse() = default;
 
-	virtual EStatus GetStatus() override
+	EStatus GetStatus() override
 	{ return CurrentStatus; }
 
-	virtual EState GetState() override
+	EState GetState() override
 	{ return CurrentState; }
 
-	virtual FString GetErrorMessage() override
+	FString GetErrorMessage() override
 	{ 
-		FScopeLock lock(&ErrorLock);
+		FScopeLock lock(&Lock);
 		return ErrorMessage; 
 	}
 
-	virtual int32 GetHTTPResponseCode() override
+	int32 GetHTTPResponseCode() override
 	{ return HTTPResponseCode; }
 
-	virtual int64 GetNumResponseBytesReceived() override
+	int64 GetNumResponseBytesReceived() override
 	{ return ResponseData.GetNumTotalBytesAdded(); }
 
-	virtual int64 GetNumRequestBytesSent() override
+	int64 GetNumRequestBytesSent() override
 	{ return 0;	}
 
-	virtual FString GetEffectiveURL() override
+	FString GetEffectiveURL() override
 	{ return EffectiveURL; }
 
-	virtual void GetAllHeaders(TArray<FElectraHTTPStreamHeader>& OutHeaders) override
+	void GetAllHeaders(TArray<FElectraHTTPStreamHeader>& OutHeaders) override
 	{ OutHeaders = ResponseHeaders;	}
 
-	virtual FString GetHTTPStatusLine() override
+	FString GetHTTPStatusLine() override
 	{ return HTTPStatusLine; }
-	virtual FString GetContentLengthHeader() override
+	FString GetContentLengthHeader() override
 	{ return ContentLength; }
-	virtual FString GetContentRangeHeader() override
+	FString GetContentRangeHeader() override
 	{ return ContentRange; }
-	virtual FString GetAcceptRangesHeader() override
+	FString GetAcceptRangesHeader() override
 	{ return AcceptRanges; }
-	virtual FString GetTransferEncodingHeader() override
+	FString GetTransferEncodingHeader() override
 	{ return TransferEncoding; }
-	virtual FString GetContentTypeHeader() override
+	FString GetContentTypeHeader() override
 	{ return ContentType; }
 
-	virtual IElectraHTTPStreamBuffer& GetResponseData() override
+	IElectraHTTPStreamBuffer& GetResponseData() override
 	{ return ResponseData; }
 
-	virtual double GetTimeElapsed() override
+	double GetTimeElapsed() override
 	{ return CurrentStatus == EStatus::NotRunning ? 0.0 : TimeUntilFinished > 0.0 ? TimeUntilFinished : FPlatformTime::Seconds() - StartTime; }
 
-	virtual double GetTimeSinceLastDataArrived() override
+	double GetTimeSinceLastDataArrived() override
 	{ return CurrentStatus == EStatus::NotRunning || TimeOfMostRecentReceive == 0.0 || TimeUntilFinished > 0.0 ? 0.0 : FPlatformTime::Seconds() - TimeOfMostRecentReceive; }
 
-	virtual double GetTimeUntilNameResolved() override
+	double GetTimeUntilNameResolved() override
 	{ return TimeUntilNameResolved; }
-	virtual double GetTimeUntilConnected() override
+	double GetTimeUntilConnected() override
 	{ return TimeUntilConnected; }
-	virtual double GetTimeUntilRequestSent() override
+	double GetTimeUntilRequestSent() override
 	{ return TimeUntilRequestSent; }
-	virtual double GetTimeUntilHeadersAvailable() override
+	double GetTimeUntilHeadersAvailable() override
 	{ return TimeUntilHeadersAvailable; }
-	virtual double GetTimeUntilFirstByte() override
+	double GetTimeUntilFirstByte() override
 	{ return TimeUntilFirstByte; }
-	virtual double GetTimeUntilFinished() override
+	double GetTimeUntilFinished() override
 	{ return TimeUntilFinished; }
 
-	void AddResponseData(const TArray<uint8>& InNewData)
-	{ ResponseData.AddData(InNewData); }
-	void AddResponseData(TArray<uint8>&& InNewData)
-	{ ResponseData.AddData(MoveTemp(InNewData)); }
-	void AddResponseData(const TConstArrayView<const uint8>& InNewData)
-	{ ResponseData.AddData(InNewData); }
+	int32 GetTimingTraces(TArray<FTimingTrace>* OutTraces, int32 InNumToRemove) override
+	{
+		FScopeLock lock(&Lock);
+		int32 Num = TimingTraces.Num();
+		if (OutTraces)
+		{
+			OutTraces->Append(TimingTraces);
+		}
+		if (InNumToRemove > 0)
+		{
+			int32 nr = InNumToRemove > Num ? Num : InNumToRemove;
+			TimingTraces.RemoveAt(0, nr);
+			Num = OutTraces ? Num : nr;	// If only removing the return value is to indicate how many got removed.
+		}
+		return Num;
+	}
+
+	void SetEnableTimingTraces() override
+	{
+		bCollectTimingTraces = true;
+	}
+
+
+	template<typename T>
+	void AddTrace(T InNewData, bool bAddTrace)
+	{
+		if (bAddTrace && bCollectTimingTraces)
+		{
+			FTimingTrace Trace;
+			Trace.TimeSinceStart = FPlatformTime::Seconds() - StartTime;
+			Trace.NumBytesAdded = InNewData.Num();
+			Trace.TotalBytesAdded = ResponseData.GetNumTotalBytesAdded() + InNewData.Num();
+			FScopeLock lock(&Lock);
+			TimingTraces.Emplace(MoveTemp(Trace));
+		}
+	}
+
+
+	void AddResponseData(const TArray<uint8>& InNewData, bool bAddTrace=true)
+	{ 
+		AddTrace(InNewData, bAddTrace);
+		ResponseData.AddData(InNewData); 
+	}
+	void AddResponseData(TArray<uint8>&& InNewData, bool bAddTrace=true)
+	{ 
+		AddTrace(InNewData, bAddTrace);
+		ResponseData.AddData(MoveTemp(InNewData)); 
+	}
+	void AddResponseData(const TConstArrayView<const uint8>& InNewData, bool bAddTrace=true)
+	{ 
+		AddTrace(InNewData, bAddTrace);
+		ResponseData.AddData(InNewData); 
+	}
 
 
 	void SetEOS()
@@ -93,7 +140,7 @@ public:
 
 	void SetErrorMessage(const FString& InErrorMessage)
 	{
-		FScopeLock lock(&ErrorLock);
+		FScopeLock lock(&Lock);
 		ErrorMessage = InErrorMessage;
 	}
 
@@ -123,7 +170,12 @@ public:
 	double TimeUntilFinished = 0.0;
 	double TimeOfMostRecentReceive = 0.0;
 
+	FCriticalSection Lock;
+
 	// Error message.
-	FCriticalSection ErrorLock;
 	FString ErrorMessage;
+
+	// Timing traces.
+	TArray<FTimingTrace> TimingTraces;
+	bool bCollectTimingTraces = false;
 };

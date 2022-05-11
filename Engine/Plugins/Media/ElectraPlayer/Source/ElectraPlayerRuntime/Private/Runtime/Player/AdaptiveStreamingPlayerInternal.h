@@ -19,6 +19,7 @@
 #include "Player/PlaylistReader.h"
 #include "Player/PlayerStreamFilter.h"
 #include "Player/PlayerEntityCache.h"
+#include "Player/AdaptiveStreamingPlayerABR.h"
 
 #include "ElectraCDM.h"
 
@@ -40,6 +41,19 @@
 namespace Electra
 {
 class FAdaptiveStreamingPlayer;
+
+
+class IAdaptiveStreamingWrappedRenderer : public IMediaRenderer
+{
+public:
+	virtual ~IAdaptiveStreamingWrappedRenderer() = default;
+	virtual FTimeValue GetEnqueuedSampleDuration() = 0;
+	virtual int32 GetNumEnqueuedSamples(FTimeValue* OutOptionalDuration) = 0;
+
+	virtual FTimeRange GetSupportedRenderRateScale() = 0;
+	virtual void SetPlayRateScale(double InNewScale) = 0;
+	virtual double GetPlayRateScale() = 0;
+};
 
 
 class FMediaRenderClock : public IMediaRenderClock
@@ -169,10 +183,12 @@ struct FPlaybackState
 	}
 	void Reset()
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		SeekableRange.Reset();
 		Duration.SetToInvalid();
 		CurrentPlayPosition.SetToInvalid();
+		EncoderLatency.SetToInvalid();
+		CurrentLiveLatency.SetToInvalid();
 		LoopState = {};
 		bHaveMetadata = false;
 		bHasEnded = false;
@@ -182,13 +198,16 @@ struct FPlaybackState
 		bIsPaused = false;
 		bPlayrangeHasChanged = false;
 		bLoopStateHasChanged = false;
+		bShouldPlayOnLiveEdge = false;
 	}
 
-	mutable FMediaCriticalSection			Lock;
+	mutable FCriticalSection				Lock;
 	FTimeRange								SeekableRange;
 	FTimeRange								TimelineRange;
 	FTimeValue								Duration;
 	FTimeValue								CurrentPlayPosition;
+	FTimeValue								EncoderLatency;
+	FTimeValue								CurrentLiveLatency;
 	IAdaptiveStreamingPlayer::FLoopState	LoopState;
 	bool									bHaveMetadata;
 	bool									bHasEnded;
@@ -198,6 +217,7 @@ struct FPlaybackState
 	bool									bIsPaused;
 	bool									bPlayrangeHasChanged;
 	bool									bLoopStateHasChanged;
+	bool									bShouldPlayOnLiveEdge;
 	TArray<FTrackMetadata>					VideoTracks;
 	TArray<FTrackMetadata>					AudioTracks;
 	TArray<FTrackMetadata>					SubtitleTracks;
@@ -206,135 +226,168 @@ struct FPlaybackState
 
 	void SetSeekableRange(const FTimeRange& TimeRange)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		SeekableRange = TimeRange;
 	}
 	void GetSeekableRange(FTimeRange& OutRange) const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		OutRange = SeekableRange;
 	}
 
 	void SetSeekablePositions(const TArray<FTimespan>& InSeekablePositions)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		SeekablePositions = InSeekablePositions;
 	}
 	void GetSeekablePositions(TArray<FTimespan>& OutSeekablePositions) const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		OutSeekablePositions = SeekablePositions;
 	}
 
 	void SetTimelineRange(const FTimeRange& TimeRange)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		TimelineRange = TimeRange;
 	}
 	void GetTimelineRange(FTimeRange& OutRange) const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		OutRange = TimelineRange;
 	}
 
 	void SetDuration(const FTimeValue& InDuration)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		Duration = InDuration;
 	}
 	FTimeValue GetDuration() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return Duration;
 	}
 
 	void SetPlayPosition(const FTimeValue& InPosition)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		CurrentPlayPosition = InPosition;
 	}
 	FTimeValue GetPlayPosition() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return CurrentPlayPosition;
+	}
+
+	void SetEncoderLatency(const FTimeValue& InEncoderLatency)
+	{
+		FScopeLock lock(&Lock);
+		EncoderLatency = InEncoderLatency;
+	}
+	FTimeValue GetEncoderLatency() const
+	{
+		FScopeLock lock(&Lock);
+		return EncoderLatency;
+	}
+
+	void SetCurrentLiveLatency(const FTimeValue& InCurrentLiveLatency)
+	{
+		FScopeLock lock(&Lock);
+		CurrentLiveLatency = InCurrentLiveLatency;
+	}
+	FTimeValue GetCurrentLiveLatency() const
+	{
+		FScopeLock lock(&Lock);
+		return CurrentLiveLatency;
+	}
+
+	void SetShouldPlayOnLiveEdge(bool bInShouldPlayOnLiveEdge)
+	{
+		FScopeLock lock(&Lock);
+		bShouldPlayOnLiveEdge = bInShouldPlayOnLiveEdge;
+	}
+	bool GetShouldPlayOnLiveEdge() const
+	{
+		FScopeLock lock(&Lock);
+		return bShouldPlayOnLiveEdge;
 	}
 
 	void SetHaveMetadata(bool bInHaveMetadata)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bHaveMetadata = bInHaveMetadata;
 	}
 	bool GetHaveMetadata() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bHaveMetadata;
 	}
 
 	void SetHasEnded(bool bInHasEnded)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bHasEnded = bInHasEnded;
 	}
 	bool GetHasEnded() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bHasEnded;
 	}
 
 	void SetIsSeeking(bool bInIsSeeking)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bIsSeeking = bInIsSeeking;
 	}
 	bool GetIsSeeking() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bIsSeeking;
 	}
 
 	void SetIsBuffering(bool bInIsBuffering)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bIsBuffering = bInIsBuffering;
 	}
 	bool GetIsBuffering() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bIsBuffering;
 	}
 
 	void SetIsPlaying(bool bInIsPlaying)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bIsPlaying = bInIsPlaying;
 	}
 	bool GetIsPlaying() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bIsPlaying;
 	}
 
 	void SetIsPaused(bool bInIsPaused)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bIsPaused = bInIsPaused;
 	}
 	bool GetIsPaused() const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bIsPaused;
 	}
 
 	void SetPausedAndPlaying(bool bInIsPaused, bool bInIsPlaying)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bIsPaused  = bInIsPaused;
 		bIsPlaying = bInIsPlaying;
 	}
 
 	bool SetTrackMetadata(const TArray<FTrackMetadata> &InVideoTracks, const TArray<FTrackMetadata>& InAudioTracks, const TArray<FTrackMetadata>& InSubtitleTracks)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 
 		auto ChangedTrackMetadata = [](const TArray<FTrackMetadata> &These, const TArray<FTrackMetadata>& Other) -> bool
 		{
@@ -360,7 +413,7 @@ struct FPlaybackState
 	}
 	void GetTrackMetadata(TArray<FTrackMetadata> &OutVideoTracks, TArray<FTrackMetadata>& OutAudioTracks, TArray<FTrackMetadata>& OutSubtitleTracks) const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		OutVideoTracks = VideoTracks;
 		OutAudioTracks = AudioTracks;
 		OutSubtitleTracks = SubtitleTracks;
@@ -368,38 +421,38 @@ struct FPlaybackState
 
 	void SetLoopState(const IAdaptiveStreamingPlayer::FLoopState& InLoopState)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		LoopState = InLoopState;
 	}
 	void GetLoopState(IAdaptiveStreamingPlayer::FLoopState& OutLoopState) const
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		OutLoopState = LoopState;
 	}
 	void SetLoopStateEnable(bool bEnable)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		LoopState.bIsEnabled = bEnable;
 	}
 
 	void SetPlayRangeHasChanged(bool bWasChanged)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bPlayrangeHasChanged = bWasChanged;
 	}
 	bool GetPlayRangeHasChanged()
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bPlayrangeHasChanged;
 	}
 	void SetLoopStateHasChanged(bool bWasChanged)
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		bLoopStateHasChanged = bWasChanged;
 	}
 	bool GetLoopStateHasChanged()
 	{
-		FMediaCriticalSection::ScopedLock lock(Lock);
+		FScopeLock lock(&Lock);
 		return bLoopStateHasChanged;
 	}
 };
@@ -674,17 +727,22 @@ struct FMetricEvent
 class FAdaptiveStreamingPlayerWorkerThread
 {
 public:
-	static TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread> Create();
+	static TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread> Create(bool bUseSharedWorkerThread);
 
 	void AddPlayerInstance(FAdaptiveStreamingPlayer* Instance)
 	{
-		FScopeLock lock(&SingletonLock);
-		PlayerInstances.Emplace(Instance);
+		InstancesToAdd.Enqueue(Instance);
+		TriggerWork();
 	}
 	void RemovePlayerInstance(FAdaptiveStreamingPlayer* Instance)
 	{
-		FScopeLock lock(&SingletonLock);
-		PlayerInstances.Remove(Instance);
+		FInstanceToRemove That;
+		FMediaEvent Done;
+		That.Player = Instance;
+		That.DoneSignal = &Done;
+		InstancesToRemove.Enqueue(MoveTemp(That));
+		TriggerWork();
+		Done.Wait();
 	}
 
 	void TriggerWork()
@@ -698,10 +756,19 @@ private:
 	void StopWorkerThread();
 	void WorkerThreadFN();
 
-	FMediaThread						WorkerThread;
-	TArray<FAdaptiveStreamingPlayer*>	PlayerInstances;
-	FMediaEvent							HaveWorkSignal;
-	bool								bTerminate = false;
+	struct FInstanceToRemove
+	{
+		FAdaptiveStreamingPlayer* Player = nullptr;
+		FMediaEvent* DoneSignal = nullptr;
+	};
+
+	FMediaThread										WorkerThread;
+	TQueue<FAdaptiveStreamingPlayer*, EQueueMode::Mpsc>	InstancesToAdd;
+	TQueue<FInstanceToRemove, EQueueMode::Mpsc>			InstancesToRemove;
+	TArray<FAdaptiveStreamingPlayer*>					PlayerInstances;
+	FMediaEvent											HaveWorkSignal;
+	bool												bTerminate = false;
+	bool												bIsDedicatedWorker = false;
 
 	static TWeakPtrTS<FAdaptiveStreamingPlayerWorkerThread>	SingletonSelf;
 	static FCriticalSection									SingletonLock;
@@ -735,6 +802,7 @@ class FAdaptiveStreamingPlayer : public IAdaptiveStreamingPlayer
 							   , public IAccessUnitMemoryProvider
 							   , public IPlayerStreamFilter
 							   , public TSharedFromThis<FAdaptiveStreamingPlayer, ESPMode::ThreadSafe>
+							   , public IAdaptiveStreamSelector::IPlayerLiveControl
 {
 public:
 	FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlayer::FCreateParam& InCreateParameters);
@@ -828,9 +896,8 @@ private:
 	virtual void GetExternalGuid(FGuid& OutExternalGuid) override;
 	virtual ISynchronizedUTCTime* GetSynchronizedUTCTime() override;
 	virtual TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> GetStaticResourceProvider() override;
-	virtual IElectraHttpManager* GetHTTPManager() override;
+	virtual TSharedPtrTS<IElectraHttpManager> GetHTTPManager() override;
 	virtual TSharedPtrTS<IAdaptiveStreamSelector> GetStreamSelector() override;
-	virtual void GetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) override;
 	virtual IPlayerStreamFilter* GetStreamFilter() override;
 	virtual const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) override;
 	virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() override;
@@ -844,6 +911,24 @@ private:
 	// Methods from IPlayerStreamFilter
 	virtual bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const override;
 	virtual bool CanDecodeSubtitle(const FString& MimeType, const FString& Codec) const override;
+
+
+	// Methods from IAdaptiveStreamSelector::IPlayerLiveControl
+	FTimeValue ABRGetPlayPosition() const override;
+	FTimeRange ABRGetTimeline() const override;
+	FTimeValue ABRGetWallclockTime() const override;
+	bool ABRIsLive() const override;
+	bool ABRShouldPlayOnLiveEdge() const override;
+	TSharedPtrTS<const FLowLatencyDescriptor> ABRGetLowLatencyDescriptor() const override;
+	FTimeValue ABRGetDesiredLiveEdgeLatency() const override;
+	FTimeValue ABRGetLatency() const override;
+	FTimeValue ABRGetPlaySpeed() const override;
+	void ABRGetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) override;
+	void ABRGetStreamBufferStats(IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats& OutBufferStats, EStreamType ForStream) override;
+	FTimeRange ABRGetSupportedRenderRateScale() override;
+	void ABRSetRenderRateScale(double InRenderRateScale) override;
+	double ABRGetRenderRateScale() const override;
+	void ABRTriggerClockSync(IAdaptiveStreamSelector::IPlayerLiveControl::EClockSyncType InClockSyncType) override;
 
 
 	enum class EPlayerState
@@ -939,7 +1024,7 @@ private:
 				Renderer->Flush(options);
 			}
 		}
-		TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe>	Renderer;
+		TSharedPtr<IAdaptiveStreamingWrappedRenderer, ESPMode::ThreadSafe>	Renderer;
 	};
 
 	struct FAudioRenderer
@@ -956,7 +1041,7 @@ private:
 				Renderer->Flush(options);
 			}
 		}
-		TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe>	Renderer;
+		TSharedPtr<IAdaptiveStreamingWrappedRenderer, ESPMode::ThreadSafe>	Renderer;
 	};
 
 	struct FVideoDecoder : public IAccessUnitBufferListener, public IDecoderOutputBufferListener
@@ -1399,7 +1484,7 @@ private:
 		}
 
 		TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread>	SharedWorkerThread;
-		TQueue<FMessage, EQueueMode::Spsc>					WorkMessages;
+		TQueue<FMessage, EQueueMode::Mpsc>					WorkMessages;
 	};
 
 	struct FPendingStartRequest
@@ -1742,6 +1827,7 @@ private:
 	void InternalHandleCompletedSegmentRequests(const FTimeValue& CurrentTime);
 	void InternalHandleSegmentTrackChanges(const FTimeValue& CurrentTime);
 	void InternalStartoverAtCurrentPosition();
+	void InternalStartoverAtLiveEdge();
 	void InternalHandleLiveSync();
 
 	void UpdateDiagnostics();
@@ -1762,12 +1848,13 @@ private:
 
 	void CheckForErrors();
 
+	FTimeValue CalculateCurrentLiveLatency(bool bViaLatencyElement);
 	double GetMinBufferTimeBeforePlayback();
 	bool HaveEnoughBufferedDataToStartPlayback();
 	void PrepareForPrerolling();
 
 	void SetPlaystartOptions(FPlayStartOptions& OutOptions);
-	void ClampStartRequestTime();
+	void ClampStartRequestTime(FTimeValue& InOutTimeToClamp);
 	FTimeValue ClampTimeToCurrentRange(const FTimeValue& InTime, bool bClampToStart, bool bClampToEnd);
 
 	TSharedPtrTS<FMultiTrackAccessUnitBuffer> GetStreamBuffer(EStreamType InStreamType, const TSharedPtrTS<FStreamDataBuffers>& InFromStreamBuffers)
@@ -1824,6 +1911,7 @@ private:
 
 	void UpdateDataAvailabilityState(Metrics::FDataAvailabilityChange& DataAvailabilityState, Metrics::FDataAvailabilityChange::EAvailability NewAvailability);
 
+	TSharedPtr<IAdaptiveStreamingWrappedRenderer, ESPMode::ThreadSafe> CreateWrappedRenderer(TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe> RendererToWrap, EStreamType InType);
 	void StartRendering();
 	void StopRendering();
 
@@ -1841,6 +1929,7 @@ private:
 	TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler>					EventDispatcher;
 	TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread>					SharedWorkerThread;
 	FWorkerThreadMessages												WorkerThread;
+	bool																bUseSharedWorkerThread;
 
 	FParamDict															PlayerOptions;
 	FPlaybackState														PlaybackState;
@@ -1910,6 +1999,7 @@ private:
 	FSeekVars															SeekVars;
 	EPlayerState														LastBufferingState;
 	double																PlaybackRate;
+	double																RenderRateScale;
 	FTimeValue															RebufferDetectedAtPlayPos;
 	bool																bRebufferPending;
 	bool																bIsClosing;

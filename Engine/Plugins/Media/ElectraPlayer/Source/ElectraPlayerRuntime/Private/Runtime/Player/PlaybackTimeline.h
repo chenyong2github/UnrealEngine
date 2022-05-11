@@ -44,6 +44,8 @@ namespace Electra
 
 		virtual int32 GetNumberOfRepresentations() const = 0;
 
+		virtual bool IsLowLatencyEnabled() const = 0;
+
 		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByIndex(int32 RepresentationIndex) const = 0;
 
 		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& UniqueIdentifier) const = 0;

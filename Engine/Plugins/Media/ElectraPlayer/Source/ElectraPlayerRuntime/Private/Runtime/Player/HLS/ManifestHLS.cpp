@@ -30,32 +30,33 @@ public:
 	FPlayPeriodHLS(IPlayerSessionServices* SessionServices, IPlaylistReaderHLS* PlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest);
 	virtual ~FPlayPeriodHLS();
 
-	virtual void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
+	void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 
-	virtual EReadyState GetReadyState() override;
-	virtual void Load() override;
-	virtual void PrepareForPlay() override;
-	virtual int64 GetDefaultStartingBitrate() const override;
+	EReadyState GetReadyState() override;
+	void Load() override;
+	void PrepareForPlay() override;
+	int64 GetDefaultStartingBitrate() const override;
 
-	virtual TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
-	virtual FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
-	virtual ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
+	TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
+	FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
+	ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 
 	// TODO: need to provide metadata (duration, streams, languages, etc.)
 
-	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
-	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
-	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
+	IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
+	IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
+	IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
 
 	// Obtains information on the stream segmentation of a particular stream starting at a given current reference segment (optional, if not given returns suitable default values).
-	virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
+	void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
 
-	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
+	TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
 
-	virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
+	void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
+	void TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload) override;
 
 private:
 	struct FSegSearchParam
@@ -126,6 +127,10 @@ IManifest::EType FManifestHLS::GetPresentationType() const
 	return InternalManifest->MasterPlaylistVars.PresentationType;
 }
 
+TSharedPtrTS<const FLowLatencyDescriptor> FManifestHLS::GetLowLatencyDescriptor() const
+{
+	return nullptr; 
+}
 
 FTimeValue FManifestHLS::GetAnchorTime() const
 {
@@ -222,6 +227,26 @@ FTimeValue FManifestHLS::GetMinBufferTime() const
 	return FTimeValue().SetFromSeconds(2.0);
 }
 
+FTimeValue FManifestHLS::GetDesiredLiveLatency() const
+{
+	FTimeValue ll;
+	if (InternalManifest.IsValid() && InternalManifest->CurrentMediaAsset.IsValid() && InternalManifest->MasterPlaylistVars.PresentationType == IManifest::EType::Live)
+	{
+		FTimeRange Full, Seekable;
+		FScopeLock lock(&InternalManifest->CurrentMediaAsset->UpdateLock);
+		Full = InternalManifest->CurrentMediaAsset->TimeRange;
+		Seekable = InternalManifest->CurrentMediaAsset->SeekableTimeRange;
+		ll = Full.End - Seekable.End;
+	}
+	return ll;
+}
+
+
+TSharedPtrTS<IProducerReferenceTimeInfo> FManifestHLS::GetProducerReferenceTimeInfo(int64 ID) const
+{
+	return nullptr;
+}
+
 
 
 
@@ -250,6 +275,11 @@ IManifest::FResult FManifestHLS::FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& O
 	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
+
+void FManifestHLS::TriggerClockSync(IManifest::EClockSyncType InClockSyncType)
+{
+	// No-op.
+}
 
 
 /**
@@ -1406,7 +1436,10 @@ void FPlayPeriodHLS::SelectStream(const FString& AdaptationSetID, const FString&
 	}
 }
 
+void FPlayPeriodHLS::TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload)
+{
+	// No-op
+}
+
 
 } // namespace Electra
-
-

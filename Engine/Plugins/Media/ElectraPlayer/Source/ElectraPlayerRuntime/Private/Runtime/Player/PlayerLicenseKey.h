@@ -60,7 +60,7 @@ namespace Electra
 			if (InConnectionInfo)
 			{
 				// Have to make a dedicated copy of the connection info in order to get a copy of the retry info at this point in time.
-				ConnectionInfo.CopyFrom(*InConnectionInfo);
+				ConnectionInfo = *InConnectionInfo;
 			}
 		}
 		HTTP::FConnectionInfo	ConnectionInfo;

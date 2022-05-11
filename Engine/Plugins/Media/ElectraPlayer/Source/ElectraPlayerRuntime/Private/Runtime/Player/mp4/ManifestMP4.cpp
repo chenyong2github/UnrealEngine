@@ -173,8 +173,18 @@ FTimeValue FManifestMP4Internal::GetMinBufferTime() const
 	return FTimeValue().SetFromSeconds(2.0);
 }
 
+TSharedPtrTS<IProducerReferenceTimeInfo> FManifestMP4Internal::GetProducerReferenceTimeInfo(int64 ID) const
+{
+	return nullptr;
+}
+
 
 void FManifestMP4Internal::UpdateDynamicRefetchCounter()
+{
+	// No-op.
+}
+
+void FManifestMP4Internal::TriggerClockSync(IManifest::EClockSyncType InClockSyncType)
 {
 	// No-op.
 }
@@ -481,6 +491,10 @@ void FManifestMP4Internal::FPlayPeriodMP4::SelectStream(const FString& Adaptatio
 	// .....
 }
 
+void FManifestMP4Internal::FPlayPeriodMP4::TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload)
+{
+	// No-op.
+}
 
 //-----------------------------------------------------------------------------
 /**
@@ -677,6 +691,7 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 	// Limit the segment download size.
 	// This helps with downloads that might otherwise take too long or keep the connection open for too long (when downloading a large mp4 from start to finish).
 	const int64 MaxSegmentSize = 4 * 1024 * 1024;
+	const int64 MaxSegmentDurationMSec = 2000;
 	if (InOutSegment.IsValid())
 	{
 		FStreamSegmentRequestMP4* Request = static_cast<FStreamSegmentRequestMP4*>(InOutSegment.Get());
@@ -690,6 +705,7 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 		int64 TrackDur = 0;
 		int64 LastTrackOffset = -1;
 		int64 LastSampleSize = 0;
+		int64 TrackDurationLimit = -1;
 		while(AllTrackIterator.IsValid())
 		{
 			const IParserISO14496_12::ITrackIterator* CurrentTrackIt = AllTrackIterator->Current();
@@ -702,13 +718,19 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 					bFirst = false;
 					TrackId = CurrentTrackIt->GetTrack()->GetID();
 					TrackTimeScale = CurrentTrackIt->GetTimescale();
+					if (MaxSegmentDurationMSec > 0)
+					{
+						TrackDurationLimit = MaxSegmentDurationMSec * TrackTimeScale / 1000;
+					}
 				}
 				if (TrackId == CurrentTrackIt->GetTrack()->GetID())
 				{
 					TrackDur += CurrentTrackIt->GetDuration();
 				}
 				int64 CurrentTrackOffset = LastTrackOffset;
-				if (CurrentTrackOffset >= EndOffset || CurrentTrackOffset - StartOffset >= MaxSegmentSize)
+				if (CurrentTrackOffset >= EndOffset || 
+					CurrentTrackOffset - StartOffset >= MaxSegmentSize ||
+					(TrackDurationLimit > 0 && TrackDur > TrackDurationLimit))
 				{
 					// Limit reached.
 					Request->FileEndOffset = CurrentTrackOffset - 1;

@@ -352,8 +352,9 @@ namespace Electra
 		FParamDict poolOpts;
 		uint32 frameSize = sizeof(int16) * AACDEC_MAX_CHANNELS * AACDEC_PCM_SAMPLE_SIZE;
 		poolOpts.Set("max_buffer_size", FVariantValue((int64)frameSize));
-		//	poolOpts.Set("buffer_alignment", FVariantValue((int64) 32));
 		poolOpts.Set("num_buffers", FVariantValue((int64)8));
+		poolOpts.Set("samples_per_block", FVariantValue((int64)AACDEC_PCM_SAMPLE_SIZE));
+		poolOpts.Set("max_channels", FVariantValue((int64)AACDEC_MAX_CHANNELS));
 
 		UEMediaError Error = Renderer->CreateBufferPool(poolOpts);
 		check(Error == UEMEDIA_ERROR_OK);

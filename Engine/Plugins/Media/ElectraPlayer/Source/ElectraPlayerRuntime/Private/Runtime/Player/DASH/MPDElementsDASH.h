@@ -92,6 +92,7 @@ public:
 		PlaybackRate,
 		Latency,
 		ServiceDescription,
+		Resync,
 		Other
 	};
 
@@ -219,13 +220,13 @@ public:
 	{ return EType::BaseURL; }
 
 	// Convenience method to get the URL.
-	const FString& GetURL() const						{ return Data; }
+	const FString& GetURL() const											{ return Data; }
 
-	const FString& GetServiceLocation() const			{ return ServiceLocation; }
-	const FString& GetByteRange() const					{ return ByteRange; }
-	const FTimeValue& GetAvailabilityTimeOffset() const	{ return AvailabilityTimeOffset; }
-	bool GetAvailabilityTimeComplete() const			{ return bAvailabilityTimeComplete; }
-	const FTimeValue& GetTimeShiftBufferDepth() const	{ return TimeShiftBufferDepth; }
+	const FString& GetServiceLocation() const								{ return ServiceLocation; }
+	const FString& GetByteRange() const										{ return ByteRange; }
+	const FTimeValue& GetAvailabilityTimeOffset() const						{ return AvailabilityTimeOffset; }
+	const TMediaOptionalValue<bool>& GetAvailabilityTimeComplete() const	{ return bAvailabilityTimeComplete; }
+	const FTimeValue& GetTimeShiftBufferDepth() const						{ return TimeShiftBufferDepth; }
 
 private:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
@@ -234,7 +235,7 @@ private:
 	FString ServiceLocation;
 	FString ByteRange;
 	FTimeValue AvailabilityTimeOffset = FTimeValue::GetZero();
-	bool bAvailabilityTimeComplete = true;
+	TMediaOptionalValue<bool> bAvailabilityTimeComplete;
 	FTimeValue TimeShiftBufferDepth;
 };
 
@@ -653,7 +654,7 @@ public:
 	const FString& GetIndexRange() const									{ return IndexRange; }
 	bool GetIndexRangeExact() const											{ return bIndexRangeExact; }
 	const FTimeValue& GetAvailabilityTimeOffset() const						{ return AvailabilityTimeOffset; }
-	bool GetAvailabilityTimeComplete() const								{ return bAvailabilityTimeComplete; }
+	const TMediaOptionalValue<bool>& GetAvailabilityTimeComplete() const	{ return bAvailabilityTimeComplete; }
 
 protected:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
@@ -673,7 +674,7 @@ private:
 	FString IndexRange;
 	bool bIndexRangeExact = false;
 	FTimeValue AvailabilityTimeOffset = FTimeValue::GetZero();
-	bool bAvailabilityTimeComplete = true;
+	TMediaOptionalValue<bool> bAvailabilityTimeComplete;
 };
 
 
@@ -896,7 +897,7 @@ public:
 
 	TSharedPtrTS<FDashMPD_DescriptorType> GetUTCTiming() const	{ return UTCTiming; }
 
-	uint64 GetID() const						{ return ID; }
+	uint32 GetID() const						{ return (uint32)ID; }
 	bool GetInband() const						{ return bInband; }
 	const FString& GetType() const				{ return Type; }
 	const FString& GetApplicationScheme() const	{ return ApplicationScheme; }
@@ -1209,7 +1210,7 @@ public:
 	const TArray<TSharedPtrTS<FDashMPD_OperatingQualityType>>& GetOperatingQualities() const	{ return OperatingQualities; }
 	const TArray<TSharedPtrTS<FDashMPD_OperatingBandwidthType>>& GetOperatingBandwidths() const	{ return OperatingBandwidths; }
 
-	const TMediaOptionalValue<uint64>& GetID() const	{ return ID; }
+	uint32 GetID() const { return (uint32) ID; }
 
 private:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
@@ -1223,7 +1224,43 @@ private:
 	TArray<TSharedPtrTS<FDashMPD_OperatingBandwidthType>> OperatingBandwidths;
 
 	// Attributes
-	TMediaOptionalValue<uint64> ID;
+	uint64 ID = 0;
+};
+
+
+/**
+ * 5.3.12 - ResyncType
+ */
+class FDashMPD_ResyncType : public IDashMPDElement
+{
+	typedef IDashMPDElement Super;
+public:
+	FDashMPD_ResyncType(const TCHAR* Name, const TCHAR* Data) : Super(Name, Data)
+	{ }
+	virtual ~FDashMPD_ResyncType() = default;
+	virtual EType GetElementType() const override
+	{ return EType::Resync; }
+
+	int32 GetType() const							{ return Type; }
+	TMediaOptionalValue<uint32> GetdT() const		{ return dT; }
+	TMediaOptionalValue<double> GetdIMax() const	{ return dIMax; }
+	double GetdIMin() const							{ return dIMin; }
+	bool GetMarker() const							{ return bMarker; }
+	bool GetRangeAccess() const						{ return bRangeAccess; }
+	const FString& GetIndex() const					{ return Index; }
+
+private:
+	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
+	virtual bool ProcessAttribute(FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue) override;
+
+	// Attributes
+	int32 Type = 0;						// SAP type
+	TMediaOptionalValue<uint32> dT;
+	TMediaOptionalValue<double> dIMax;
+	double dIMin = 0.0;
+	bool bMarker = false;
+	bool bRangeAccess = false;
+	FString Index;
 };
 
 
@@ -1250,6 +1287,7 @@ public:
 	const TArray<TSharedPtrTS<FDashMPD_LabelType>>& GetLabels() const										{ return Labels; }
 	const TArray<TSharedPtrTS<FDashMPD_ProducerReferenceTimeType>>& GetProducerReferenceTimes() const		{ return ProducerReferenceTimes; }
 	const TArray<TSharedPtrTS<FDashMPD_ContentPopularityRateType>>& GetContentPopularityRates() const		{ return ContentPopularityRates; }
+	const TArray<TSharedPtrTS<FDashMPD_ResyncType>>& GetResyncs() const										{ return Resyncs; }
 
 	const TArray<FString>& GetProfiles() const						{ return Profiles; }
 	const TMediaOptionalValue<uint64>& GetWidth() const				{ return Width; }
@@ -1286,6 +1324,7 @@ private:
 	TArray<TSharedPtrTS<FDashMPD_LabelType>> Labels;
 	TArray<TSharedPtrTS<FDashMPD_ProducerReferenceTimeType>> ProducerReferenceTimes;
 	TArray<TSharedPtrTS<FDashMPD_ContentPopularityRateType>> ContentPopularityRates;
+	TArray<TSharedPtrTS<FDashMPD_ResyncType>> Resyncs;
 
 	// Attributes
 	TArray<FString> Profiles;

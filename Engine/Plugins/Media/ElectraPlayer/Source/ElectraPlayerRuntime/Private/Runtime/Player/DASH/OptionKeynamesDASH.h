@@ -23,6 +23,7 @@ const TCHAR* const OptionKey_MinTimeBetweenMPDUpdates = TEXT("dash:min_mpd_updat
 
 const TCHAR* const OptionKey_CurrentCDN = TEXT("dash:current_cdn");			//!< A string giving the currently selected CDN to be used with <BaseURL@serviceLocation> elements.
 
+const TCHAR* const OptionKey_LatencyReferenceId = TEXT("dash:latency_refId");	//!< The Id of the <ProducerReferenceTime> element used by <ServiceDescription><Latency>
 
 const TCHAR* const HTTPHeaderOptionName = TEXT("MPEG-DASH-Param");			//!< HTTP request header name carrying optional DASH specific parameters.
 

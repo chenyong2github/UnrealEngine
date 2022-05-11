@@ -18,44 +18,65 @@ namespace Electra
 class IAdaptiveStreamSelector : public IAdaptiveStreamingPlayerMetrics
 {
 public:
-	struct FConfiguration
+	class IPlayerLiveControl
 	{
-		FConfiguration();
-		struct FRateScale
+	public:
+		virtual ~IPlayerLiveControl() = default;
+
+		// Provides the current playback position.
+		virtual FTimeValue ABRGetPlayPosition() const = 0;
+
+		// Provides the current full media timeline, not adjusted for seeking.
+		virtual FTimeRange ABRGetTimeline() const = 0;
+
+		// Provides the current wallclock time (server real time).
+		virtual FTimeValue ABRGetWallclockTime() const = 0;
+		
+		// Returns true if this is a Live presentation, false for VoD.
+		virtual bool ABRIsLive() const = 0;
+		
+		// Returns true if playback should be on the Live edge. false if the user intentionally seeked away from the edge.
+		virtual bool ABRShouldPlayOnLiveEdge() const = 0;
+		
+		// Provides the current low latency descriptor if low latency playback is active. Returns nullptr if not.
+		virtual TSharedPtrTS<const FLowLatencyDescriptor> ABRGetLowLatencyDescriptor() const = 0;
+
+		// Provides the desired latency to the live edge for both low-latency and normal live playback.
+		virtual FTimeValue ABRGetDesiredLiveEdgeLatency() const = 0;
+
+		// Provides the currently measured latency to the live edge.
+		virtual FTimeValue ABRGetLatency() const = 0;
+
+		// Provides the current playback speed.
+		virtual FTimeValue ABRGetPlaySpeed() const = 0;
+
+		// Returns the current stream access unit buffer stats.
+		virtual void ABRGetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) = 0;
+
+		struct FABRBufferStats
 		{
-			FRateScale();
-			double Apply(const double lastKbps, const double averageKbps) const;
-			float		LastToAvg;			//!< [last, average] bandwidth scaler such that Rate = last + mLastToAvg * (average - last)
-			float		Scale;				//!< Scale factor to apply next
-			uint32		MaxClampBPS;		//!< Maximum value to clamp result to (in bits per second)
+			FTimeValue PlayableContentDuration;
 		};
-		FRateScale		SimulationLongtermRateScale;
-		FRateScale		SimulationNextFragmentRateScale;
-		FRateScale		FinalRateAdjust;
-		uint32			ForwardSimulationDurationMSec;			//!< Forward simulation duration
-		uint32			VideoBufferLowWatermarkMSec;
-		uint32			VideoBufferHighWatermarkMSec;
-		uint32			MaxBandwidthHistorySize;				//!< Number of bandwidth history samples to give the estimated average bandwidth.
-		uint32			DiscardSmallBandwidthSamplesLess;
-		uint32			FudgeSmallBandwidthSamplesLess;
-		uint32			FudgeSmallBandwidthSamplesFactor;
-		bool			bRebufferingJustResumesLoading;
+		virtual void ABRGetStreamBufferStats(FABRBufferStats& OutBufferStats, EStreamType ForStream) = 0;
+
+		virtual FTimeRange ABRGetSupportedRenderRateScale() = 0;
+		virtual void ABRSetRenderRateScale(double InRenderRateScale) = 0;
+		virtual double ABRGetRenderRateScale() const = 0;
+
+		enum class EClockSyncType
+		{
+			Recommended,
+			Required
+		};
+		virtual void ABRTriggerClockSync(EClockSyncType InClockSyncType) = 0;
 	};
+
 
 	//! Create an instance of this class
-	static TSharedPtrTS<IAdaptiveStreamSelector> Create(IPlayerSessionServices* PlayerSessionServices, const FConfiguration& config);
+	static TSharedPtrTS<IAdaptiveStreamSelector> Create(IPlayerSessionServices* PlayerSessionServices, IPlayerLiveControl* PlayerLiveControl);
 	virtual ~IAdaptiveStreamSelector() = default;
 
-	enum class EMediaPresentationType
-	{
-		OnDemand,
-		Live,
-		Realtime
-	};
-	virtual void SetPresentationType(EMediaPresentationType AssetType) = 0;
-
-	//! Sets whether or not a segment download failure can potentially be resolved by switching to a different stream. Defaults to yes.
-	virtual void SetCanSwitchToAlternateStreams(bool bCanSwitch) = 0;
+	virtual void SetFormatType(EMediaFormatType FormatType) = 0;
 
 	//! Sets the manifest from which to select streams.
 	virtual void SetCurrentPlaybackPeriod(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> CurrentPlayPeriod) = 0;
@@ -65,6 +86,39 @@ public:
 
 	//! Sets a forced bitrate for the next segment fetches until the given duration of playable content has been received.
 	virtual void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) = 0;
+
+	enum class EMinBufferType
+	{
+		Initial,
+		Seeking,
+		Rebuffering
+	};
+	virtual FTimeValue GetMinBufferTimeForPlayback(EMinBufferType InBufferingType, FTimeValue InDefaultMBT) = 0;
+
+	enum class EHandlingAction
+	{
+		None,
+		SeekToLive
+	};
+
+	virtual EHandlingAction PeriodicHandle() = 0;
+
+	struct FRebufferAction
+	{
+		enum class EAction
+		{
+			Restart,
+			ContinueLoading,
+			GoToLive,
+			ThrowError
+		};
+		EAction Action = EAction::Restart;
+		int32 SuggestedRestartBitrate = 0;
+	};
+
+	// Call when rebuffering occurs to get the recommended action. This implies that rebuffering has actually occurred.
+	// The ABR may take internal action to switch quality when this is called!
+	virtual FRebufferAction GetRebufferAction(const FParamDict& CurrentPlayerOptions) = 0;
 
 	struct FBufferingQuality
 	{
@@ -125,32 +179,7 @@ public:
 	virtual ESegmentAction SelectSuitableStreams(FTimeValue& OutDelay, TSharedPtrTS<const IStreamSegment> CurrentSegment) = 0;
 
 
-	virtual void ReportOpenSource(const FString& URL) = 0;
-	virtual void ReportReceivedMasterPlaylist(const FString& EffectiveURL) = 0;
-	virtual void ReportReceivedPlaylists() = 0;
-	virtual void ReportTracksChanged() = 0;
-	virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) = 0;
-	virtual void ReportBufferingStart(Metrics::EBufferingReason BufferingReason) = 0;
-	virtual void ReportBufferingEnd(Metrics::EBufferingReason BufferingReason) = 0;
-	virtual void ReportBandwidth(int64 EffectiveBps, int64 ThroughputBps, double LatencyInSeconds) = 0;
-	virtual void ReportBufferUtilization(const Metrics::FBufferStats& BufferStats) = 0;
-	virtual void ReportSegmentDownload(const Metrics::FSegmentDownloadStats& SegmentDownloadStats) = 0;
-	virtual void ReportLicenseKey(const Metrics::FLicenseKeyStats& LicenseKeyStats) = 0;
-	virtual void ReportDataAvailabilityChange(const Metrics::FDataAvailabilityChange& DataAvailability) = 0;
-	virtual void ReportVideoQualityChange(int32 NewBitrate, int32 PreviousBitrate, bool bIsDrasticDownswitch) = 0;
-	virtual void ReportPrerollStart() = 0;
-	virtual void ReportPrerollEnd() = 0;
-	virtual void ReportPlaybackStart() = 0;
-	virtual void ReportPlaybackPaused() = 0;
-	virtual void ReportPlaybackResumed() = 0;
-	virtual void ReportPlaybackEnded() = 0;
-	virtual void ReportJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason) = 0;
-	virtual void ReportPlaybackStopped() = 0;
-	virtual void ReportSeekCompleted() = 0;
-	virtual void ReportError(const FString& ErrorReason) = 0;
-	virtual void ReportLogMessage(IInfoLog::ELevel LogLevel, const FString& LogMessage, int64 PlayerWallclockMilliseconds) = 0;
-	virtual void ReportDroppedVideoFrame() = 0;
-	virtual void ReportDroppedAudioFrame() = 0;
+	virtual void DebugPrint(void* pThat, void (*pPrintFN)(void* pThat, const char *pFmt, ...)) = 0;
 };
 
 

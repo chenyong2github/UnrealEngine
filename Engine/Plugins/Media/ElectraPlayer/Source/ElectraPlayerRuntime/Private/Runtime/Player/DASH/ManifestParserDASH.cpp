@@ -101,6 +101,7 @@ DEF_ELEMENT(PlaybackRate);
 DEF_ELEMENT(OperatingQuality);
 DEF_ELEMENT(OperatingBandwidth);
 DEF_ELEMENT(ServiceDescription);
+DEF_ELEMENT(Resync);
 
 const TCHAR* const Element_up_UrlQueryInfo = TEXT("up:UrlQueryInfo");
 const TCHAR* const Element_up_ExtUrlQueryInfo = TEXT("up:ExtUrlQueryInfo");
@@ -225,6 +226,12 @@ DEF_ATTR(queryString);
 DEF_ATTR(includeInRequests);
 DEF_ATTR(headerParamSource);
 DEF_ATTR(sameOriginOnly);
+DEF_ATTR(dT);
+DEF_ATTR(dImin);
+DEF_ATTR(dImax);
+DEF_ATTR(marker);
+DEF_ATTR(rangeAccess);
+
 
 // xlink attributes. Due to the xlink namespace they have a colon in them
 const TCHAR* const Attr_xlink_href = TEXT("xlink:href");
@@ -270,6 +277,8 @@ namespace
 	static bool ParseUIntAttribute(TMediaOptionalValue<uint32>& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
 	static bool ParseDoubleAttribute(FTimeFraction& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
 	static bool ParseDoubleAttribute(FTimeValue& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
+	static bool ParseDoubleAttribute(double& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
+	static bool ParseDoubleAttribute(TMediaOptionalValue<double>& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
 	static bool ParseDuration(FTimeValue& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
 	static bool ParseDateTime(FTimeValue& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
 	static bool ParseRatioAttribute(FTimeFraction& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber);
@@ -1576,6 +1585,11 @@ bool FDashMPD_RepresentationBaseType::ProcessElement(FManifestParserDASH* Builde
 		ContentPopularityRates.Emplace(MakeSharedTS<FDashMPD_ContentPopularityRateType>(ElementName, ElementData));
 		return Builder->PushNewElement(ContentPopularityRates.Last(), XmlFileLineNumber);
 	}
+	else if (StringHelpers::StringEquals(ElementName, ELEMENT(Resync)))
+	{
+		Resyncs.Emplace(MakeSharedTS<FDashMPD_ResyncType>(ElementName, ElementData));
+		return Builder->PushNewElement(Resyncs.Last(), XmlFileLineNumber);
+	}
 	else
 	{
 		return Super::ProcessElement(Builder, ElementName, ElementData, XmlFileLineNumber);
@@ -2512,7 +2526,7 @@ bool FDashMPD_ServiceDescriptionType::ProcessElement(FManifestParserDASH* Builde
 		OperatingQualities.Emplace(MakeSharedTS<FDashMPD_OperatingQualityType>(ElementName, ElementData));
 		return Builder->PushNewElement(OperatingQualities.Last(), XmlFileLineNumber);
 	}
-	else if (StringHelpers::StringEquals(ElementName, ELEMENT(Scope)))
+	else if (StringHelpers::StringEquals(ElementName, ELEMENT(OperatingBandwidth)))
 	{
 		OperatingBandwidths.Emplace(MakeSharedTS<FDashMPD_OperatingBandwidthType>(ElementName, ElementData));
 		return Builder->PushNewElement(OperatingBandwidths.Last(), XmlFileLineNumber);
@@ -2528,6 +2542,49 @@ bool FDashMPD_ServiceDescriptionType::ProcessAttribute(FManifestParserDASH* Buil
 	if (AttrEquals(id))
 	{
 		return ParseUIntAttribute(ID, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else
+	{
+		return Super::ProcessAttribute(Builder, AttributeName, AttributeValue);
+	}
+}
+
+/*********************************************************************************************************************/
+
+bool FDashMPD_ResyncType::ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber)
+{
+	return NoChildElementAllowed(Builder, ElementName, ElementData, XmlFileLineNumber);
+}
+
+bool FDashMPD_ResyncType::ProcessAttribute(FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue)
+{
+	if (AttrEquals(type))
+	{
+		return ParseIntAttribute(Type, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else if (AttrEquals(dT))
+	{
+		return ParseUIntAttribute(dT, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else if (AttrEquals(dImax))
+	{
+		return ParseDoubleAttribute(dIMax, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else if (AttrEquals(dImin))
+	{
+		return ParseDoubleAttribute(dIMin, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else if (AttrEquals(marker))
+	{
+		return ParseBooleanAttribute(bMarker, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else if (AttrEquals(rangeAccess))
+	{
+		return ParseBooleanAttribute(bRangeAccess, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
+	}
+	else if (AttrEquals(index))
+	{
+		return ParseStringAttribute(Index, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
 	}
 	else
 	{
@@ -3145,6 +3202,23 @@ static bool ParseDoubleAttribute(FTimeValue& OutValue, FManifestParserDASH* Buil
 	}
 	return false;
 }
+
+static bool ParseDoubleAttribute(double& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber)
+{
+	double v;
+	LexFromString(v, AttributeValue);
+	OutValue = v;
+	return true;
+}
+
+static bool ParseDoubleAttribute(TMediaOptionalValue<double>& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber)
+{
+	double v;
+	LexFromString(v, AttributeValue);
+	OutValue.Set(v);
+	return true;
+}
+
 
 static bool ParseConditionalUIntAttribute(IDashMPDElement::FBoolUInt64& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber)
 {

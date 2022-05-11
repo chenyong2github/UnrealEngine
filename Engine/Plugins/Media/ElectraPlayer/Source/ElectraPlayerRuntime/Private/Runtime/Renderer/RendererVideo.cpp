@@ -16,9 +16,15 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Electra::MEDIArendererVideoUE_NumUsedOutputVide
 
 // -----------------------------------------------------------------------------------------------------------------------
 
-void FElectraRendererVideo::SampleReleasedToPool(FTimespan durationToRelease)
+void FElectraRendererVideo::SampleReleasedToPool(IDecoderOutput* InDecoderOutput)
 {
 	FPlatformAtomics::InterlockedDecrement(&NumOutputTexturesInUse);
+
+	TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe> Parent = ParentRenderer.Pin();
+	if (Parent.IsValid())
+	{
+		Parent->SampleReleasedToPool(InDecoderOutput);
+	}
 }
 
 
@@ -188,6 +194,7 @@ UEMediaError FElectraRendererVideo::ReturnBuffer(IBuffer* Buffer, bool bRender, 
 	}
 
 	FMediaBufferSharedPtrWrapper* MediaBufferSharedPtrWrapper = static_cast<FMediaBufferSharedPtrWrapper*>(Buffer);
+	MediaBufferSharedPtrWrapper->DecoderOutput->GetMutablePropertyDictionary() = InSampleProperties;
 
 	if (bRender)
 	{
@@ -237,6 +244,11 @@ bool FElectraRendererVideo::CanReceiveOutputFrames(uint64 NumFrames) const
 void FElectraRendererVideo::SetRenderClock(TSharedPtr<Electra::IMediaRenderClock, ESPMode::ThreadSafe> InRenderClock)
 {
 	RenderClock = InRenderClock;
+}
+
+void FElectraRendererVideo::SetParentRenderer(TWeakPtr<IMediaRenderer, ESPMode::ThreadSafe> InParentRenderer)
+{
+	ParentRenderer = MoveTemp(InParentRenderer);
 }
 
 /**

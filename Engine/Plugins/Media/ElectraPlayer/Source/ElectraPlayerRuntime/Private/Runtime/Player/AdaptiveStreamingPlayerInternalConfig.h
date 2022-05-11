@@ -6,13 +6,10 @@
 #include "Decoder/VideoDecoderH265.h"
 #include "Decoder/AudioDecoderAAC.h"
 #include "StreamAccessUnitBuffer.h"
-#include "Player/AdaptiveStreamingPlayerABR.h"
 
 
 namespace Electra
 {
-
-
 	namespace AdaptiveStreamingPlayerConfig
 	{
 		struct FConfiguration
@@ -62,8 +59,6 @@ namespace Electra
 			FAccessUnitBuffer::FConfiguration					StreamBufferConfigVideo;
 			FAccessUnitBuffer::FConfiguration					StreamBufferConfigAudio;
 			FAccessUnitBuffer::FConfiguration					StreamBufferConfigText;
-
-			IAdaptiveStreamSelector::FConfiguration				StreamSelectorConfig;
 
 			IVideoDecoderH264::FInstanceConfiguration			DecoderCfg264;
 			IAudioDecoderAAC::FInstanceConfiguration			DecoderCfgAAC;
