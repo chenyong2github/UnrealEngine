@@ -21,7 +21,7 @@ void UInputMappingContext::UnmapKey(const UInputAction* Action, FKey Key)
 	}
 }
 
-void UInputMappingContext::UnmapAction(const UInputAction* Action)
+void UInputMappingContext::UnmapAllKeysFromAction(const UInputAction* Action)
 {
 	int32 Found = Mappings.RemoveAllSwap([&Action](const FEnhancedActionKeyMapping& Mapping) { return Mapping.Action == Action; });
 	if (Found > 0)

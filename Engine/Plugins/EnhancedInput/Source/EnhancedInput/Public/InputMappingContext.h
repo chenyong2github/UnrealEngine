@@ -59,11 +59,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mapping")
 	void UnmapKey(const UInputAction* Action, FKey Key);
 
+	UE_DEPRECATED(5.1, "UnmapAction has been deprecated, please use UnmapAllKeysFromAction instead.")
+	UFUNCTION(BlueprintCallable, Category = "Mapping", meta=(DeprecatedFunction, DeprecatedMessage="UnmapAction has been deprecated, please use UnmapAllKeysFromAction instead."))
+	void UnmapAction(const UInputAction* Action) { UnmapAllKeysFromAction(Action); }
+	
 	/**
 	* Unmap all key maps to an action within the mapping context.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Mapping")
-	void UnmapAction(const UInputAction* Action);
+	void UnmapAllKeysFromAction(const UInputAction* Action);
 
 	/**
 	* Unmap everything within the mapping context.
