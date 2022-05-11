@@ -144,7 +144,7 @@ bool UAnimGraphNode_RigidBody::AreAnyBodiesHidden() const
 
 	if (RigidBodyNode)
 	{
-		PhysicsAssetRenderInterface.AreAnyBodiesHidden(RigidBodyNode->GetPhysicsAsset());
+		return PhysicsAssetRenderInterface.AreAnyBodiesHidden(RigidBodyNode->GetPhysicsAsset());
 	}
 
 	return false;
@@ -157,7 +157,7 @@ bool UAnimGraphNode_RigidBody::AreAnyConstraintsHidden() const
 
 	if (RigidBodyNode)
 	{
-		PhysicsAssetRenderInterface.AreAnyConstraintsHidden(RigidBodyNode->GetPhysicsAsset());
+		return PhysicsAssetRenderInterface.AreAnyConstraintsHidden(RigidBodyNode->GetPhysicsAsset());
 	}
 
 	return false;
