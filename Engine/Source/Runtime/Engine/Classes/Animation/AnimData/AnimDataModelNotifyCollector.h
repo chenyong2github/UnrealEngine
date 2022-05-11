@@ -22,15 +22,15 @@ struct ENGINE_API FAnimDataModelNotifyCollector
 	/** Handle a broadcasted notify, reset if we are opening a new top-level bracket*/
 	void Handle(EAnimDataModelNotifyType NotifyType)
 	{
+		if (BracketDepth == 0)
+		{
+			Reset();
+		}
+		
 		NotifyTypes.Add(NotifyType);
 
 		if (NotifyType == EAnimDataModelNotifyType::BracketOpened)
 		{
-			if (BracketDepth == 0)
-			{
-				Reset();
-			}
-
 			++BracketDepth;
 		}
 		else if (NotifyType == EAnimDataModelNotifyType::BracketClosed)
