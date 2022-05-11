@@ -108,7 +108,7 @@ void FWindowsErrorOutputDevice::HandleError()
 	// make sure it happens after GIsGuarded is set to 0 in case this hook crashes
 	FCoreDelegates::OnHandleSystemError.Broadcast();
 
-	// Dump the error and flush the log.
+	// Dump the error and flush the log. If you change behavior here, you should probably update RenderingThread's __except block in FRenderingThread::Run
 #if !NO_LOGGING
 	FDebug::LogFormattedMessageWithCallstack(LogWindows.GetCategoryName(), __FILE__, __LINE__, TEXT("=== Critical error: ==="), GErrorHist, ELogVerbosity::Error);
 #endif

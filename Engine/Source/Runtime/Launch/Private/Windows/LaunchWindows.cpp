@@ -247,6 +247,13 @@ LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevIns
 
 	bool bNoExceptionHandler = FParse::Param(CmdLine,TEXT("noexceptionhandler"));
 	(void)bNoExceptionHandler;
+
+	bool bIgnoreDebugger = FParse::Param(CmdLine, TEXT("IgnoreDebugger"));
+	(void)bIgnoreDebugger;
+
+	bool bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent() && !bIgnoreDebugger;
+	(void)bIsDebuggerPresent;
+
 	// Using the -noinnerexception parameter will disable the exception handler within native C++, which is call from managed code,
 	// which is called from this function.
 	// The default case is to have three wrapped exception handlers 
@@ -264,7 +271,7 @@ LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevIns
 #if UE_BUILD_DEBUG
 	if (GUELibraryOverrideSettings.bIsEmbedded || !GAlwaysReportCrash)
 #else
-	if (GUELibraryOverrideSettings.bIsEmbedded || bNoExceptionHandler || (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash))
+	if (GUELibraryOverrideSettings.bIsEmbedded || bNoExceptionHandler || (bIsDebuggerPresent && !GAlwaysReportCrash))
 #endif
 	{
 		// Don't use exception handling when a debugger is attached to exactly trap the crash. This does NOT check

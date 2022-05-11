@@ -528,6 +528,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 			__except(FlushRHILogsAndReportCrash(GetExceptionInformation()))
 			{
+#if !NO_LOGGING
+				// Dump the error and flush the log. This is the same logging behavior as FWindowsErrorOutputDevice::HandleError which is called in GuardedMain's caller's __except
+				FDebug::LogFormattedMessageWithCallstack(LogWindows.GetCategoryName(), __FILE__, __LINE__, TEXT("=== Critical error: ==="), GErrorHist, ELogVerbosity::Error);
+#endif
+				GLog->Panic();
+
 				GRenderingThreadError = GErrorHist;
 
 				// Use a memory barrier to ensure that the game thread sees the write to GRenderingThreadError before
