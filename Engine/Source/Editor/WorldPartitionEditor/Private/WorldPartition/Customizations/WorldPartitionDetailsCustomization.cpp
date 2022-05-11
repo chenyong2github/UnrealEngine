@@ -42,10 +42,10 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 		.ValueContent()
 		[
 			SNew(SCheckBox)
-			.IsChecked(MakeAttributeLambda([this]() { return WorldPartition->IsStreamingEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
+			.IsChecked(MakeAttributeLambda([this]() { return WorldPartition.IsValid() && WorldPartition->IsStreamingEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
 			.OnCheckStateChanged(this, &FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged)
 		]
-		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition->SupportsStreaming() ? EVisibility::Visible : EVisibility::Hidden; }));
+		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->SupportsStreaming() ? EVisibility::Visible : EVisibility::Hidden; }));
 
 	if (WorldPartition->RuntimeHash)
 	{
@@ -58,7 +58,7 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 			(*RuntimeHashRow)
 				.ShouldAutoExpand(true)
 				.DisplayName(LOCTEXT("RuntimeHash", "Runtime Hash"))
-				.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
+				.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
 		}
 	}
 

@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
 #include "IDetailCustomization.h"
+#include "WorldPartition/WorldPartition.h"
 
 class IDetailLayoutBuilder;
-class UWorldPartition;
 
 enum class ECheckBoxState : uint8;
 
@@ -34,5 +34,5 @@ private:
 	// Callback for getting the world partition editor cell size.
 	TOptional<uint32> HandleWorldPartitionEditorCellSizeValue() const;
 
-	UWorldPartition* WorldPartition;
+	TWeakObjectPtr<UWorldPartition> WorldPartition;
 };
