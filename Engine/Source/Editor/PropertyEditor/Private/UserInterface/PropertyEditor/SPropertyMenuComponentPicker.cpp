@@ -216,7 +216,7 @@ bool SPropertyMenuComponentPicker::CanPaste()
 		bCanPaste = !Class.IsEmpty() && !PossibleObjectPath.IsEmpty();
 		if (bCanPaste)
 		{
-			bCanPaste = LoadClass<UActorComponent>(nullptr, *Class) != nullptr;
+			bCanPaste = LoadClass<UActorComponent>(nullptr, *Class, nullptr, LOAD_Quiet | LOAD_NoWarn) != nullptr;
 		}
 		if (bCanPaste)
 		{
