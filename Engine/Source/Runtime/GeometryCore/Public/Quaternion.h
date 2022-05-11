@@ -390,7 +390,7 @@ void TQuaternion<RealType>::SetFromTo(const TVector<RealType>& From, const TVect
 	//   output TQuaternion is not normalized and this causes problems,
 	//   eg like drift if we do repeated SetFromTo()
 	TVector<RealType> from = UE::Geometry::Normalized(From), to = UE::Geometry::Normalized(To);
-	TVector<RealType> bisector = UE::Geometry::Normalized(from + to);
+	TVector<RealType> bisector = UE::Geometry::Normalized(from + to, TMathUtil<RealType>::ZeroTolerance);
 	W = from.Dot(bisector);
 	if (W != 0) 
 	{
