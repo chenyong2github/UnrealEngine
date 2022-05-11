@@ -88,6 +88,7 @@ public:
 	// initializes the filtered permutations to all possible permutations
 	void InitializeFilteredPermutations();
 
+	// Initializes the filtered permutations and preferred permutation from the types of the pins
 	void InitializeFilteredPermutationsFromTypes();
 	
 protected:
@@ -97,7 +98,7 @@ protected:
 	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
 	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
 
-	int32 FindPermuationForTypes(const TArray<FString>& ArgumentTypes);
+	TArray<int32> FindPermuationsForTypes(const TArray<FString>& ArgumentTypes);
 	TArray<FString> GetArgumentTypesForPermutation(const int32 InPermutationIndex);
 
 	UPROPERTY()

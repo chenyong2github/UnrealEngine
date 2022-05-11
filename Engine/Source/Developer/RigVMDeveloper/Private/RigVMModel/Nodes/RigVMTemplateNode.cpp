@@ -557,7 +557,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 		}
 	}
 
-	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>({FindPermuationForTypes(PreferredPermutationTypes)});
+	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>(FindPermuationsForTypes(PreferredPermutationTypes));
 	bool bLinkedIsTemplate = false;
 	if (URigVMTemplateNode* LinkedTemplate = Cast<URigVMTemplateNode>(LinkedPin->GetNode()))
 	{
@@ -619,7 +619,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, c
 		}
 	}
 
-	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>({FindPermuationForTypes(PreferredPermutationTypes)});
+	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>(FindPermuationsForTypes(PreferredPermutationTypes));
 	
 	if (const FRigVMTemplateArgument* Argument = GetTemplate()->FindArgument(RootPin->GetFName()))
 	{
@@ -639,8 +639,9 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, c
 	return NewFilteredPermutations;
 }
 
-int32 URigVMTemplateNode::FindPermuationForTypes(const TArray<FString>& ArgumentTypes)
+TArray<int32> URigVMTemplateNode::FindPermuationsForTypes(const TArray<FString>& ArgumentTypes)
 {
+	TArray<int32> Permutations;
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
 		for (int32 i=0; i<Template->NumPermutations(); ++i)
@@ -651,7 +652,7 @@ int32 URigVMTemplateNode::FindPermuationForTypes(const TArray<FString>& Argument
 				FString ArgName, Type;
 				if (!TypePairString.Split(TEXT(":"), &ArgName, &Type))
 				{
-					return INDEX_NONE;
+					return {};
 				}
 				
 				if (const FRigVMTemplateArgument* Argument = Template->FindArgument(*ArgName))
@@ -664,17 +665,17 @@ int32 URigVMTemplateNode::FindPermuationForTypes(const TArray<FString>& Argument
 				}
 				else
 				{
-					return INDEX_NONE;
+					return {};
 				}
 			}
 
 			if (bAllArgsMatched)
 			{
-				return i;
+				Permutations.Add(i);
 			}
 		}
 	}
-	return INDEX_NONE;
+	return Permutations;
 }
 
 TArray<FString> URigVMTemplateNode::GetArgumentTypesForPermutation(const int32 InPermutationIndex)
@@ -782,7 +783,7 @@ void URigVMTemplateNode::InitializeFilteredPermutations()
 	{
 		if (!PreferredPermutationTypes.IsEmpty())
 		{
-			FilteredPermutations = {FindPermuationForTypes(PreferredPermutationTypes)};
+			FilteredPermutations = FindPermuationsForTypes(PreferredPermutationTypes);
 		}
 		else
 		{
@@ -810,14 +811,18 @@ void URigVMTemplateNode::InitializeFilteredPermutationsFromTypes()
 			const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgIndex);
 			if (URigVMPin* Pin = FindPin(Argument->GetName().ToString()))
 			{
-				ArgTypes.Add(Argument->GetName().ToString() + TEXT(":") + Pin->GetCPPType());
+				if (!Pin->IsWildCard())
+				{
+					ArgTypes.Add(Argument->GetName().ToString() + TEXT(":") + Pin->GetCPPType());
+				}
 			}
 		}
 
-		int32 Permutation = FindPermuationForTypes(ArgTypes);
-		if (Permutation != INDEX_NONE)
+		TArray<int32> Permutations = FindPermuationsForTypes(ArgTypes);
+		if (!Permutations.IsEmpty())
 		{
-			FilteredPermutations = {Permutation};
+			FilteredPermutations = Permutations;
+			PreferredPermutationTypes = ArgTypes;
 		}
 		else
 		{

@@ -3541,7 +3541,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 					}
 					if (!TemplateNode->PreferredPermutationTypes.IsEmpty())
 					{
-						TemplateNode->FilteredPermutations = {TemplateNode->FindPermuationForTypes(TemplateNode->PreferredPermutationTypes)};
+						TemplateNode->FilteredPermutations = TemplateNode->FindPermuationsForTypes(TemplateNode->PreferredPermutationTypes);
 					}
 					UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
 				}
@@ -15470,7 +15470,7 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 			return false;
 		}
 
-		if (Pin->GetSubPins().Num() > 0)
+		if (Pin->IsArray())
 		{
 			for (FRigVMTemplateArgument::FType& Type : Types)
 			{
@@ -15488,7 +15488,7 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 	return true;
 }
 
-void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
+void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo, bool bKeepResolvedTypes)
 {
 	if (!IsValidGraph())
 	{
@@ -15618,6 +15618,26 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 			if (TemplateNode->IsSingleton())
 			{
 				continue;
+			}
+
+			if (bKeepResolvedTypes && TemplateNode->FilteredPermutations.Num() > 1)
+			{
+				if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+				{
+					TArray<FString> Types;
+					for (int32 i=0; i<Template->NumArguments(); ++i)
+					{
+						const FRigVMTemplateArgument* Argument = Template->GetArgument(i);
+						URigVMPin* Pin = TemplateNode->FindPin(Argument->GetName().ToString());
+						if (const FRigVMTemplateArgument::FType* Type = TypesBeforeRecomputing.Find(Pin))
+						{
+							Types.Add(Argument->GetName().ToString() + TEXT(":") + Type->CPPType);
+						}						
+					}
+
+					TemplateNode->FilteredPermutations = TemplateNode->FindPermuationsForTypes(Types);
+					TemplateNode->PreferredPermutationTypes = Types;
+				}
 			}
 
 			UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
