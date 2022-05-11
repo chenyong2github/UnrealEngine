@@ -497,7 +497,7 @@ namespace GeometryScriptBakeLocals
 			const FTransformSRT3d SourceToWorld = SourceTransform;
 			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld);
 			const FTransformSRT3d TargetToWorld = TargetTransform;
-			MeshTransforms::ApplyTransform(SourceMeshCopy, TargetToWorld.Inverse());
+			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld);
 			SourceMeshToUse = &SourceMeshCopy;
 		}
 
@@ -662,7 +662,7 @@ namespace GeometryScriptBakeLocals
 			const FTransformSRT3d SourceToWorld = SourceTransform;
 			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld);
 			const FTransformSRT3d TargetToWorld = TargetTransform;
-			MeshTransforms::ApplyTransform(SourceMeshCopy, TargetToWorld.Inverse());
+			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld);
 			SourceMeshToUse = &SourceMeshCopy;
 		}
 

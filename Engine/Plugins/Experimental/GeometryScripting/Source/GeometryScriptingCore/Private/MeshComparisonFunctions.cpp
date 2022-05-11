@@ -101,9 +101,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshComparisonFunctions::IsIntersectingMesh
 			}
 			else
 			{
-				Transform1 = Transform1.Inverse();
 				bIsIntersecting = Spatials[0].TestIntersection(Spatials[1],
-					[&](const FVector3d& Pos) { return Transform1.TransformPosition(Transform2.TransformPosition(Pos)); });
+					[&](const FVector3d& Pos) { return Transform1.InverseTransformPosition(Transform2.TransformPosition(Pos)); });
 			}
 		});
 	});

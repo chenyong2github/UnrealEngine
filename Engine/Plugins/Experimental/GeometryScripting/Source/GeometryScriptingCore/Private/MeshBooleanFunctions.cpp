@@ -85,7 +85,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean(
 	}
 
 	// Boolean result is in the space of TargetTransform, so invert that
-	MeshTransforms::ApplyTransform(NewResultMesh, (FTransformSRT3d)TargetTransform.Inverse());
+	MeshTransforms::ApplyTransformInverse(NewResultMesh, (FTransformSRT3d)TargetTransform);
 
 	if (NewBoundaryEdges.Num() > 0 && Options.bFillHoles)
 	{

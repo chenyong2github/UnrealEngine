@@ -447,7 +447,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshPolygroupBe
 		if (Options.bApplyFilterBox)
 		{
 			FAxisAlignedBox3d QueryBox(Options.FilterBox);
-			FTransformSRT3d InvTransform(Options.FilterBoxTransform.Inverse());
 			TSet<int32> FoundEdges;
 
 			// find all mesh edges inside filter shape
@@ -455,7 +454,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshPolygroupBe
 			FDynamicMeshAABBTree3 Spatial(&EditMesh, true);
 			FDynamicMeshAABBTree3::FTreeTraversal EdgeTraversal;
 			EdgeTraversal.NextBoxF = [&QueryBox](const FAxisAlignedBox3d& Box, int Depth) { return Box.Intersects(QueryBox); };
-			EdgeTraversal.NextTriangleF = [&QueryBox, &InvTransform, &FoundEdges, &EditMesh, &Options](int TriangleID)
+			EdgeTraversal.NextTriangleF = [&QueryBox, &FoundEdges, &EditMesh, &Options](int TriangleID)
 			{
 				FIndex3i Edges = EditMesh.GetTriEdges(TriangleID);
 				for (int32 j = 0; j < 3; ++j)
@@ -464,8 +463,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshPolygroupBe
 					{
 						FVector3d A, B;
 						EditMesh.GetEdgeV(Edges[j], A, B);
-						A = InvTransform.TransformPosition(A);
-						B = InvTransform.TransformPosition(B);
+						A = Options.FilterBoxTransform.InverseTransformPosition(A);
+						B = Options.FilterBoxTransform.InverseTransformPosition(B);
 						bool bIntersects = (Options.bFullyContained) ?
 							(QueryBox.Contains(A) && QueryBox.Contains(B)) :
 							(QueryBox.Contains(A) || QueryBox.Contains(B));
