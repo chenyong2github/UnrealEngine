@@ -28,6 +28,8 @@ namespace UE
 			RegisterType<FIntegerAnimationAttribute>();
 			RegisterType<FStringAnimationAttribute>();
 			RegisterType<FTransformAnimationAttribute>();
+			RegisterType<FVectorAnimationAttribute>();
+			RegisterType<FQuaternionAnimationAttribute>();
 		}
 		
 		static FDelayedAutoRegisterHelper DelayedAttributeTypesInitializationHelper(EDelayedRegisterRunPhase::ObjectSystemReady, []()
