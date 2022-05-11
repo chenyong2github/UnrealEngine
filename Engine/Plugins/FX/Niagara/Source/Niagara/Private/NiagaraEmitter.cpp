@@ -2667,19 +2667,11 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	}
 
 	// Copy scratch pad scripts.
-	EmitterData->ParentScratchPads->Scripts.Empty();
-	for (UNiagaraScript* MergedParentScratchPadScript : MergedData->ParentScratchPads->Scripts)
-	{
-		ReouterMergedObject(EmitterData->ParentScratchPads, MergedParentScratchPadScript);
-		EmitterData->ParentScratchPads->Scripts.Add(MergedParentScratchPadScript);
-	}
+	EmitterData->ParentScratchPads = NewObject<UNiagaraScratchPadContainer>(this);
+	EmitterData->ParentScratchPads->AppendScripts(MergedData->ParentScratchPads->Scripts);
 
-	EmitterData->ScratchPads->Scripts.Empty();
-	for (UNiagaraScript* MergedScratchPadScript : MergedData->ScratchPads->Scripts)
-	{
-		ReouterMergedObject(EmitterData->ScratchPads, MergedScratchPadScript);
-		EmitterData->ScratchPads->Scripts.Add(MergedScratchPadScript);
-	}
+	EmitterData->ScratchPads = NewObject<UNiagaraScratchPadContainer>(this);
+	EmitterData->ScratchPads->AppendScripts(MergedData->ScratchPads->Scripts);
 
 	UNiagaraEditorDataBase* NewEditorData = MergedData->GetEditorData();
 	ReouterMergedObject(this, NewEditorData);

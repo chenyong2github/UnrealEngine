@@ -458,9 +458,9 @@ void SNiagaraVersionWidget::AddNewMajorVersion()
 	// select the new version
 	FText ItemName = FormatVersionLabel(VersionedObject->GetVersionDataAccessor(NewVersion)->GetObjectVersion());
 	VersionListWidget->SelectItemByName(FName(ItemName.ToString()));
-	
-	OnVersionDataChanged.ExecuteIfBound();
+
 	OnChangeToVersion.ExecuteIfBound(NewVersion);
+	OnVersionDataChanged.ExecuteIfBound();
 }
 
 void SNiagaraVersionWidget::AddNewMinorVersion()
@@ -474,9 +474,9 @@ void SNiagaraVersionWidget::AddNewMinorVersion()
 	// select the new version
 	FText ItemName = FormatVersionLabel(VersionedObject->GetVersionDataAccessor(NewVersion)->GetObjectVersion());
 	VersionListWidget->SelectItemByName(FName(ItemName.ToString()));
-	
-	OnVersionDataChanged.ExecuteIfBound();
+
 	OnChangeToVersion.ExecuteIfBound(NewVersion);
+	OnVersionDataChanged.ExecuteIfBound();
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

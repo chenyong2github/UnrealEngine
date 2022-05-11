@@ -13,7 +13,7 @@ void UNiagaraScratchPadContainer::PostLoad()
 void UNiagaraScratchPadContainer::CheckConsistency()
 {
 #if WITH_EDITORONLY_DATA
-	for (UNiagaraScript* Script : Scripts)
+	for (TObjectPtr<UNiagaraScript> Script : Scripts)
 	{
 		if (Script && Script->GetOuter() != this)
 		{
@@ -44,9 +44,16 @@ void UNiagaraScratchPadContainer::AppendScripts(TObjectPtr<UNiagaraScratchPadCon
 #if WITH_EDITORONLY_DATA
 	if (InScripts)
 	{
-		Scripts.Append(InScripts->Scripts);
+		for (TObjectPtr<UNiagaraScript> Script : InScripts->Scripts)
+		{
+			if (Script)
+			{
+				FName UniqueName = MakeUniqueObjectName(this, Script->GetClass(), Script->GetFName());
+				Script->Rename(*UniqueName.ToString(), this, REN_ForceNoResetLoaders | REN_NonTransactional);
+				Scripts.Add(Script);
+			}
+		}
 		InScripts->Scripts.Empty();
-		CheckConsistency();
 	}
 #endif
 }
