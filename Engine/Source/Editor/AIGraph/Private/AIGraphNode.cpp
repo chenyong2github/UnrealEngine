@@ -301,8 +301,8 @@ void UAIGraphNode::OnSubNodeAdded(UAIGraphNode* SubNode)
 
 void UAIGraphNode::RemoveSubNode(UAIGraphNode* SubNode)
 {
-	SubNodes.RemoveSingle(SubNode);
 	Modify();
+	SubNodes.RemoveSingle(SubNode);
 
 	OnSubNodeRemoved(SubNode);
 }
