@@ -24,7 +24,7 @@ namespace
 	{
 		class FFilterMenuBuilder
 		{
-			FMenuBuilder MenuBuilder = FMenuBuilder(true, nullptr, nullptr, true, &FCoreStyle::Get(), false);
+			FMenuBuilder MenuBuilder = FMenuBuilder(true, nullptr, nullptr, true, &FAppStyle::Get(), false);
 			UFavoriteFilterContainer* FilterModel;
 			
 			const SFilterSearchMenu::FFilterDelegate OnSelectFilter;
@@ -207,7 +207,7 @@ void SFilterSearchMenu::Construct(const FArguments& InArgs, UFavoriteFilterConta
 		);
 
 
-	FMenuBuilder BaseMenuBuilder(true, nullptr, nullptr, false, &FCoreStyle::Get(), false);
+	FMenuBuilder BaseMenuBuilder(true, nullptr, nullptr, false, &FAppStyle::Get(), false);
 	BaseMenuBuilder.AddWidget(SearchBox.ToSharedRef(), FText(), true, false);
 	BaseMenuBuilder.AddWidget(SAssignNew(MenuContainer, SHorizontalBox), FText(), true, false);
 	ChildSlot

@@ -89,6 +89,15 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 	CallOnCloseDelegate = CallOnClose;
 	bNameDiffersFromDefault = ULevelSnapshotsEditorSettings::Get()->IsNameOverridden();
 	
+	FSlateFontInfo NameTextFont = FAppStyle::Get().GetFontStyle("Regular");
+	NameTextFont.Size = 9;
+	
+	FSlateFontInfo OverrideNameTextFont = FAppStyle::Get().GetFontStyle("Bold");
+	OverrideNameTextFont.Size = 16;
+
+	FSlateFontInfo DescriptionTextFont = FAppStyle::Get().GetFontStyle("Bold");
+	DescriptionTextFont.Size = 10;
+	
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -114,7 +123,7 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 					.VAlign(VAlign_Top)
 					[
 						SNew(STextBlock)
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+						.Font(NameTextFont)
 						.ColorAndOpacity(FColor(200, 200, 200))
 						.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameLabel", "Name"))
 					]
@@ -129,7 +138,7 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 						.HAlign(HAlign_Fill)
 						[
 							SNew(SEditableTextBox)
-							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+							.Font(OverrideNameTextFont)
 							.BackgroundColor(FLinearColor::Transparent)
 							.ForegroundColor(FSlateColor::UseForeground())
 							.Justification(ETextJustify::Center)
@@ -169,7 +178,7 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 			.VAlign(VAlign_Fill)
 			[
 				SNew(SMultiLineEditableTextBox)
-				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+				.Font(DescriptionTextFont)
 				.BackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.SelectAllTextWhenFocused(true)

@@ -13,6 +13,7 @@
 #include "AssetThumbnail.h"
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
+#include "Editor/EditorStyle/Public/EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "Misc/ScopedSlowTask.h"
@@ -302,6 +303,9 @@ TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetDat
 	FString OutCaptureTime;
 	AssetData.GetTagValue("CaptureTime",OutCaptureTime);
 	
+	FSlateFontInfo AssetNameTextFont = FAppStyle::Get().GetFontStyle("Bold");
+	AssetNameTextFont.Size = 10;
+	
 	return SNew(SToolTip)
 	[
 		SNew(SBox)
@@ -334,7 +338,7 @@ TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetDat
 				[
 					SNew(STextBlock)
 					.Text(FText::FromName(AssetData.AssetName))
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+					.Font(AssetNameTextFont)
 					.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 				]
 

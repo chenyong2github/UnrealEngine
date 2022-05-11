@@ -75,7 +75,10 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	Style->Set("LevelSnapshots.ToolbarButton.Small", new IMAGE_BRUSH_SVG("Icons/Icon", Icon16x16));
 	Style->Set("ClassIcon.LevelSnapshotsEditorData", new IMAGE_BRUSH_SVG("Icons/Icon", Icon16x16));
 
-	// Brush
+	// Button Icons
+	Style->Set( "LevelSnapshotsEditor.Add", new IMAGE_BRUSH_SVG("Starship/MainToolbar/ToolBadgePlus", Icon20x20));
+
+	// Border Brushes
 	Style->Set("LevelSnapshotsEditor.GroupBorder", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
 	Style->Set("LevelSnapshotsEditor.BrightBorder", new FSlateColorBrush(FColor(112, 112, 112, 100)));
 	Style->Set("LevelSnapshotsEditor.FilterSelected", new BOX_BRUSH("Common/Filter_Selected", FMargin(18.0f / 64.0f)));
@@ -102,8 +105,10 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 
 	FTextBlockStyle AndTextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Graph.CompactNode.Title");
 	FTextBlockStyle OrTextStyle = AndTextStyle;
-	AndTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("BoldCondensed", 16 ));
-	OrTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("BoldCondensed", 18 ));
+	FSlateFontInfo AndFont = FAppStyle::Get().GetFontStyle("BoldCondensed"); AndFont.Size = 16;
+	FSlateFontInfo OrFont = FAppStyle::Get().GetFontStyle("BoldCondensed"); OrFont.Size = 18;
+	AndTextStyle.SetFont(AndFont);
+	OrTextStyle.SetFont(OrFont);
 	Style->Set("LevelSnapshotsEditor.FilterRow.And", AndTextStyle);
 	Style->Set("LevelSnapshotsEditor.FilterRow.Or", OrTextStyle);
 	

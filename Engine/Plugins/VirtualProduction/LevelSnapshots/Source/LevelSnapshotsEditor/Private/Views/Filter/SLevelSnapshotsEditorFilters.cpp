@@ -17,6 +17,7 @@
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "SPositiveActionButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -84,35 +85,7 @@ SLevelSnapshotsEditorFilters::~SLevelSnapshotsEditorFilters()
 }
 
 void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* EditorData)
-{
-	struct Local
-	{
-		static TSharedRef<SWidget> CreatePlusText(const FText& Text)
-		{
-			return SNew(SHorizontalBox)
-                    + SHorizontalBox::Slot()
-                    .HAlign(HAlign_Center)
-                    .AutoWidth()
-                    .Padding(FMargin(0.f, 1.f))
-                    [
-	                    SNew(STextBlock)
-						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-	                    .TextStyle(FAppStyle::Get(), "NormalText.Important")
-	                    .Text(FEditorFontGlyphs::Plus)
-                    ]
-
-                    + SHorizontalBox::Slot()
-                    .HAlign(HAlign_Left)
-                    .AutoWidth()
-                    .Padding(2.f, 1.f)
-                    [
-                        SNew(STextBlock)
-                        .Justification(ETextJustify::Center)
-                        .TextStyle(FAppStyle::Get(), "NormalText.Important")
-                        .Text(Text)
-                    ];
-		}
-	};
+{	
 	
 	EditorDataPtr = EditorData;
 
@@ -218,13 +191,9 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSna
                     .AutoHeight()
                     [
                         SNew(SButton)
-                            .ButtonStyle(FAppStyle::Get(), "RoundButton")
-                            .ContentPadding(FMargin(4.0, 10.0))
-                            .OnClicked(this, &SLevelSnapshotsEditorFilters::AddFilterClick)
-                            .HAlign(HAlign_Center)
-                            [
-								Local::CreatePlusText(LOCTEXT("AddFilterGroup", "Filter Group"))
-                            ]
+                        .Text(LOCTEXT("AddFilterGroup", "Filter Group"))
+                        .OnClicked(this, &SLevelSnapshotsEditorFilters::AddFilterClick)
+						.HAlign(HAlign_Center)
                     ]
                 ]
             ]

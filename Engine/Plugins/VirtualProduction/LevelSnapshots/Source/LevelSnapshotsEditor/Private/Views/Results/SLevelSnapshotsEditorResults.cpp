@@ -40,6 +40,15 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 	OnRefreshResultsHandle = InEditorData->OnRefreshResults.AddSP(this, &SLevelSnapshotsEditorResults::RefreshResults, false);
 	
 	FMenuBuilder ShowOptionsMenuBuilder = BuildShowOptionsMenu();
+	
+	FSlateFontInfo SnapshotNameTextFont = FAppStyle::Get().GetFontStyle("Bold");
+	SnapshotNameTextFont.Size = 16;
+
+	FSlateFontInfo SelectedActorCountTextFont = FAppStyle::Get().GetFontStyle("Bold");
+	SelectedActorCountTextFont.Size = 14;
+	
+	FSlateFontInfo MiscActorCountTextFont = FAppStyle::Get().GetFontStyle("Regular");
+	MiscActorCountTextFont.Size = 10;
 
 	ChildSlot
 	[
@@ -68,7 +77,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 			[
 				SAssignNew(SelectedSnapshotNamePtr, STextBlock)
 				.Text(DefaultNameText)
-				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+				.Font(SnapshotNameTextFont)
 			]
 		]	
 		
@@ -175,7 +184,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 					.AutoHeight()
 					[
 						SAssignNew(SelectedActorCountText, STextBlock)
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
+						.Font(SelectedActorCountTextFont)
 						.Justification(ETextJustify::Right)
 					]
 
@@ -183,7 +192,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 					.AutoHeight()
 					[
 						SAssignNew(MiscActorCountText, STextBlock)
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+						.Font(MiscActorCountTextFont)
 						.Justification(ETextJustify::Right)
 					]
 				]

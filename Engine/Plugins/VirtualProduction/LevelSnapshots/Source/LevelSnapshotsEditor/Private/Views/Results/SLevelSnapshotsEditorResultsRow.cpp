@@ -241,10 +241,9 @@ void SLevelSnapshotsEditorResultsRow::GenerateAddedAndRemovedRowComponents(
 	.AutoWidth()
 	.Padding(FMargin(5, 0))
 	[
-		SNew(STextBlock)
-		.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-        .TextStyle(FAppStyle::Get(), "NormalText.Important")
-        .Text(PinnedItem->GetRowType() == FLevelSnapshotsEditorResultsRow::RemovedComponentToAdd ? FEditorFontGlyphs::Plus : FEditorFontGlyphs::Minus)
+		SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush(
+			PinnedItem->GetRowType() == FLevelSnapshotsEditorResultsRow::RemovedComponentToAdd ? "Icons.Plus" : "Icons.Minus"))
 	];
 
 	BasicRowWidgets->AddSlot()
@@ -252,7 +251,7 @@ void SLevelSnapshotsEditorResultsRow::GenerateAddedAndRemovedRowComponents(
 	.HAlign(HAlign_Left)
 	[
 		SNew(STextBlock)
-		.Font(FCoreStyle::GetDefaultFontStyle("Italic", FCoreStyle::RegularTextSize))
+		.Font(FAppStyle::Get().GetFontStyle("Italic"))
 		.Text(InDisplayText)
 		.ToolTipText(
 			FText::Format
