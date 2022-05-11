@@ -1000,7 +1000,7 @@ void FAndroidInputInterface::SendControllerEvents()
 						FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE;
 						FInputDeviceId DeviceId = INPUTDEVICEID_NONE;
 			
-						DeviceMapper.RemapControllerIdToPlatformUser	AndDevice(DeviceIndex, OUT PlatformUserId, OUT DeviceId);
+						DeviceMapper.RemapControllerIdToPlatformUserAndDevice(DeviceIndex, OUT PlatformUserId, OUT DeviceId);
 						DeviceMapper.Internal_MapInputDeviceToUser(DeviceId, PlatformUserId, EInputDeviceConnectionState::Connected);
 
 						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Assigned new gamepad controller %d: DeviceId=%d, ControllerId=%d, DeviceName=%s, Descriptor=%s"),
