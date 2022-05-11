@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 class FEvalGraphEditorCommandsImpl : public TCommands<FEvalGraphEditorCommandsImpl>
 {
 public:
 
 	FEvalGraphEditorCommandsImpl()
-		: TCommands<FEvalGraphEditorCommandsImpl>( TEXT("EvalGraphEditor"), NSLOCTEXT("Contexts", "EvalGraphEditor", "Scene Graph Editor"), NAME_None, FEditorStyle::GetStyleSetName() )
+		: TCommands<FEvalGraphEditorCommandsImpl>( TEXT("EvalGraphEditor"), NSLOCTEXT("Contexts", "EvalGraphEditor", "Scene Graph Editor"), NAME_None, FAppStyle::GetAppStyleSetName() )
 	{
 	}	
 
