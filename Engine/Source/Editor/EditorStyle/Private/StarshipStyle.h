@@ -35,6 +35,8 @@ public:
 		FStarshipEditorStyle::StyleInstance->SyncSettings();
 	}
 
+	static const FName& GetStyleSetName();
+
 	class FStyle : public FSlateStyleSet
 	{
 	public:
@@ -154,4 +156,5 @@ public:
 
 	static TSharedPtr<FStarshipEditorStyle::FStyle> StyleInstance;
 	static TWeakObjectPtr<UEditorStyleSettings> Settings;
+	static FName StyleSetName;
 };

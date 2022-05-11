@@ -22,6 +22,8 @@
 
 #define LOCTEXT_NAMESPACE "EditorStyle"
 
+FName FStarshipEditorStyle::StyleSetName = TEXT("EditorStyle");
+
 void FStarshipEditorStyle::Initialize()
 {
 	LLM_SCOPE_BYNAME(TEXT("FStarshipEditorStyle"));
@@ -57,6 +59,11 @@ void FStarshipEditorStyle::Shutdown()
 	StyleInstance.Reset();
 }
 
+const FName& FStarshipEditorStyle::GetStyleSetName()
+{
+	return FStarshipEditorStyle::StyleSetName;
+}
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 /* FStarshipEditorStyle static initialization
@@ -86,7 +93,7 @@ bool FStarshipEditorStyle::FStyle::IncludeEditorSpecificStyles()
  *****************************************************************************/
 
 FStarshipEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings >& InSettings )
-	: FSlateStyleSet("EditorStyle")
+	: FSlateStyleSet(FStarshipEditorStyle::StyleSetName)
 
 	// Note, these sizes are in Slate Units.
 	// Slate Units do NOT have to map to pixels.
