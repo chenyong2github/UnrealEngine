@@ -40,7 +40,7 @@ namespace UE::GameFeatures
 	static TAutoConsoleVariable<bool> CVarVerifyPluginUnload(TEXT("GameFeaturePlugin.VerifyUnload"), 
 		false,
 		TEXT("Verify plugin assets are no longer in memory when unloading."),
-		ECVF_Cheat);
+		ECVF_Default);
 
 	FString ToString(const UE::GameFeatures::FResult& Result)
 	{
