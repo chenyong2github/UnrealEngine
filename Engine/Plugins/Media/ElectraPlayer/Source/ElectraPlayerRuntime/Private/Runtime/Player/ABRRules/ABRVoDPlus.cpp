@@ -865,21 +865,23 @@ IAdaptiveStreamSelector::EHandlingAction FABROnDemandPlus::PeriodicHandle()
 	{
 		const EStreamType StreamType = GetPrimaryStreamType();
 		const FStreamWorkVars* WorkVars = GetWorkVars(StreamType);
-
-		const double AvailableBufferedDuration = GetPlayablePlayerDuration(StreamType);
-		const double NetworkLatency = WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency);
-		const double CurrentPlayRate = Info->ABRGetRenderRateScale();
-		const bool bOvertime = WorkVars ? WorkVars->bWentIntoOvertime : false;
-
-		// Slow down because of insufficient buffered data?
-		bool bBufferSlowDown = bOvertime || AvailableBufferedDuration < Utils::Max(SlowDownWhenBufferDurationUnder, NetworkLatency);
-		if (bBufferSlowDown)
+		if (WorkVars)
 		{
-			SetRenderRateScale(SlowDownRateWhenBufferDurationUnder);
-		}
-		else if (CurrentPlayRate != 1.0)
-		{
-			SetRenderRateScale(1.0);
+			const double AvailableBufferedDuration = GetPlayablePlayerDuration(StreamType);
+			const double NetworkLatency = WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency);
+			const double CurrentPlayRate = Info->ABRGetRenderRateScale();
+			const bool bOvertime = WorkVars->bWentIntoOvertime;
+
+			// Slow down because of insufficient buffered data?
+			bool bBufferSlowDown = bOvertime || AvailableBufferedDuration < Utils::Max(SlowDownWhenBufferDurationUnder, NetworkLatency);
+			if (bBufferSlowDown)
+			{
+				SetRenderRateScale(SlowDownRateWhenBufferDurationUnder);
+			}
+			else if (CurrentPlayRate != 1.0)
+			{
+				SetRenderRateScale(1.0);
+			}
 		}
 	}
 	return NextAction;

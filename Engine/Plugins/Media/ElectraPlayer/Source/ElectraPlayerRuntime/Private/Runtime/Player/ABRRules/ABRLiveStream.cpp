@@ -1571,59 +1571,61 @@ IAdaptiveStreamSelector::EHandlingAction FABRLiveStream::PeriodicHandle()
 	{
 		const EStreamType StreamType = GetPrimaryStreamType();
 		const FStreamWorkVars* WorkVars = GetWorkVars(StreamType);
-
-		const double AvailableBufferedDuration = GetPlayablePlayerDuration(StreamType);
-		const double CurrentLatency = Info->ABRGetLatency().GetAsSeconds();
-		const double TargetLatency = lc.TargetLatency;
-		const double NetworkLatency = WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency);
-		const double Distance = CurrentLatency - TargetLatency;
-		const double AbsDistance = Utils::AbsoluteValue(Distance);
-		const double CurrentPlayRate = Info->ABRGetRenderRateScale();
-		const bool bOvertime = WorkVars ? WorkVars->bWentIntoOvertime : false;
-
-		int32 Gain, Trend;
-		const bool bStable = HasStableBuffer(Gain, Trend, StreamType, 0.0);
-		const bool bMaybeSpeedUp = bStable || Trend>=0;
-
-		// Slow down because of insufficient buffered data?
-		bool bBufferSlowDown = bOvertime || AvailableBufferedDuration < Utils::Max(lc.LowBufferContentBackoff, NetworkLatency);
-		// Do not slow down if we are supposed to play on the Live edge and are already too far behind.
-		if (Info->ABRShouldPlayOnLiveEdge() && Distance > lc.LowBufferMaxTargetLatencyDistance)
+		if (WorkVars)
 		{
-			bBufferSlowDown = false;
-		}
-		if (bBufferSlowDown)
-		{
-			const double NewRate = lc.LowBufferMinMinPlayRate;
-			SetRenderRateScale(NewRate);
-		}
-		// Should we be playing on the Live edge?
-		else if (Info->ABRShouldPlayOnLiveEdge() && AbsDistance > lc.ActivationThreshold * TargetLatency)
-		{
-			double NewRate = CalculateCatchupPlayRate(lc, Distance);
-			if (Utils::AbsoluteValue(NewRate - CurrentPlayRate) > lc.MinRateChangeUseThreshold)
+			const double AvailableBufferedDuration = GetPlayablePlayerDuration(StreamType);
+			const double CurrentLatency = Info->ABRGetLatency().GetAsSeconds();
+			const double TargetLatency = lc.TargetLatency;
+			const double NetworkLatency = WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency);
+			const double Distance = CurrentLatency - TargetLatency;
+			const double AbsDistance = Utils::AbsoluteValue(Distance);
+			const double CurrentPlayRate = Info->ABRGetRenderRateScale();
+			const bool bOvertime = WorkVars->bWentIntoOvertime;
+
+			int32 Gain, Trend;
+			const bool bStable = HasStableBuffer(Gain, Trend, StreamType, 0.0);
+			const bool bMaybeSpeedUp = bStable || Trend>=0;
+
+			// Slow down because of insufficient buffered data?
+			bool bBufferSlowDown = bOvertime || AvailableBufferedDuration < Utils::Max(lc.LowBufferContentBackoff, NetworkLatency);
+			// Do not slow down if we are supposed to play on the Live edge and are already too far behind.
+			if (Info->ABRShouldPlayOnLiveEdge() && Distance > lc.LowBufferMaxTargetLatencyDistance)
 			{
-				// If we are to speed up to catch up with the Live edge we do so only if the buffer is stable.
-				if (NewRate > 1.0 && !bMaybeSpeedUp)
-				{
-					NewRate = 1.0;
-				}
+				bBufferSlowDown = false;
+			}
+			if (bBufferSlowDown)
+			{
+				const double NewRate = lc.LowBufferMinMinPlayRate;
 				SetRenderRateScale(NewRate);
 			}
-		}
-		else if (CurrentPlayRate != 1.0)
-		{
-			SetRenderRateScale(1.0);
-		}
-
-		// Is the maximum latency exceeded and a jump to the Live edge required?
-		if (Info->ABRShouldPlayOnLiveEdge() && CurrentLatency > lc.MaxLatency)
-		{
-			if (!LatencyExceededVars.bLiveSeekRequestIssued)
+			// Should we be playing on the Live edge?
+			else if (Info->ABRShouldPlayOnLiveEdge() && AbsDistance > lc.ActivationThreshold * TargetLatency)
 			{
-				LatencyExceededVars.bLiveSeekRequestIssued = true;
-				NextAction = IAdaptiveStreamSelector::EHandlingAction::SeekToLive;
-				Info->LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Maximum latency exceeded, requesting seek to Live edge")));
+				double NewRate = CalculateCatchupPlayRate(lc, Distance);
+				if (Utils::AbsoluteValue(NewRate - CurrentPlayRate) > lc.MinRateChangeUseThreshold)
+				{
+					// If we are to speed up to catch up with the Live edge we do so only if the buffer is stable.
+					if (NewRate > 1.0 && !bMaybeSpeedUp)
+					{
+						NewRate = 1.0;
+					}
+					SetRenderRateScale(NewRate);
+				}
+			}
+			else if (CurrentPlayRate != 1.0)
+			{
+				SetRenderRateScale(1.0);
+			}
+
+			// Is the maximum latency exceeded and a jump to the Live edge required?
+			if (Info->ABRShouldPlayOnLiveEdge() && CurrentLatency > lc.MaxLatency)
+			{
+				if (!LatencyExceededVars.bLiveSeekRequestIssued)
+				{
+					LatencyExceededVars.bLiveSeekRequestIssued = true;
+					NextAction = IAdaptiveStreamSelector::EHandlingAction::SeekToLive;
+					Info->LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Maximum latency exceeded, requesting seek to Live edge")));
+				}
 			}
 		}
 	}
