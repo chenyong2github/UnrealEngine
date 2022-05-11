@@ -13,7 +13,7 @@ namespace Eg
 	// Input Output Base
 	//
 
-	class EVALGRAPH_API FConnectionTypeBase
+	class EVALGRAPHCORE_API FConnectionTypeBase
 	{
 
 	protected:
@@ -56,7 +56,7 @@ namespace Eg
 	//
 
 	template<class T>
-	struct EVALGRAPH_API FInputParameters {
+	struct EVALGRAPHCORE_API FInputParameters {
 		FInputParameters(FName InName, FNode* InOwner, T InDefault = T())
 			: Name(InName)
 			, Owner(InOwner)
@@ -67,7 +67,7 @@ namespace Eg
 	};
 
 	template<class T>
-	class EVALGRAPH_API FInput : public FConnectionTypeBase
+	class EVALGRAPHCORE_API FInput : public FConnectionTypeBase
 	{
 		friend class FConnectionTypeBase;
 
@@ -133,7 +133,7 @@ namespace Eg
 	// Output
 	//
 
-	struct EVALGRAPH_API FOutputParameters {
+	struct EVALGRAPHCORE_API FOutputParameters {
 		FOutputParameters(FName InName, FNode * InOwner) 
 			: Name(InName)
 			, Owner(InOwner) {}
@@ -142,7 +142,7 @@ namespace Eg
 	};
 
 	template<class T>
-	class EVALGRAPH_API FOutput : public FConnectionTypeBase
+	class EVALGRAPHCORE_API FOutput : public FConnectionTypeBase
 	{
 		typedef FConnectionTypeBase Super;
 		friend class FConnectionTypeBase;

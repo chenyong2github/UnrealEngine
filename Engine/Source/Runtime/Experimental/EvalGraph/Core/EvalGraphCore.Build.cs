@@ -2,13 +2,10 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class EvalGraph : ModuleRules
+	public class EvalGraphCore : ModuleRules
 	{
-        public EvalGraph(ReadOnlyTargetRules Target) : base(Target)
+        public EvalGraphCore(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("EvalGraph/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

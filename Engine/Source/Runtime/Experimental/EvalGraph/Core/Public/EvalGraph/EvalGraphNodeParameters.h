@@ -10,7 +10,7 @@ class  UEdGraphPin;
 
 namespace Eg
 {
-	struct EVALGRAPH_API FContext 
+	struct EVALGRAPHCORE_API FContext
 	{
 		float Timestamp = 0.f;
 

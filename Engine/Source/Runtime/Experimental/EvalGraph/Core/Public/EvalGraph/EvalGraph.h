@@ -17,7 +17,7 @@ namespace Eg
 	//
 	//
 	//
-	class EVALGRAPH_API FGraph
+	class EVALGRAPHCORE_API FGraph
 	{
 
 		FGuid  Guid;

@@ -10,7 +10,7 @@ namespace Eg
 	class FNode;
 	class FConnectionTypeBase;
 
-	struct EVALGRAPH_API FNewNodeParameters {
+	struct EVALGRAPHCORE_API FNewNodeParameters {
 		FGuid Guid;
 		FName Type;
 		FName Name; 
@@ -19,7 +19,7 @@ namespace Eg
 	//
 	//
 	//
-	class EVALGRAPH_API FNodeFactory
+	class EVALGRAPHCORE_API FNodeFactory
 	{
 		typedef TFunction<FNode* (const FNewNodeParameters&)> FNewNodeFunction;
 

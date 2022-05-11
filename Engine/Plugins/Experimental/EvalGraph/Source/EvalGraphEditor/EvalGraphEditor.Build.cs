@@ -32,7 +32,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"AdvancedPreviewScene",
 					"GraphEditor",
-					"EvalGraph",
+					"EvalGraphCore",
 					"EvalGraphEngine",
 					"Slate",
 				}

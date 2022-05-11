@@ -11,7 +11,7 @@ class FConnectionTypeBase;
 namespace Eg
 {
 
-	struct EVALGRAPH_API FNodeParameters {
+	struct EVALGRAPHCORE_API FNodeParameters {
 		FName Name;
 	};
 

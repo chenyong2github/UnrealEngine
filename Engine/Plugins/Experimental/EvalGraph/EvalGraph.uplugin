@@ -10,27 +10,17 @@
     "DocsURL" : "",
     "MarketplaceURL" : "",
     "SupportURL" : "",
-    "EnabledByDefault" : false,
+    "EnabledByDefault" : true,
     "CanContainContent" : true,
     "IsBetaVersion" : true,
 	"IsExperimentalVersion": true,
-    "Installed" : false,
+    "Installed" : true,
 	"Modules": [
-		{
-			"Name": "EvalGraph",
-			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
-		},
-		{
-			"Name": "EvalGraphEngine",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
 		{
 			"Name": "EvalGraphEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
-		}
+		},
 	],
 	"Plugins": [
 	]

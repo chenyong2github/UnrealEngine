@@ -6,17 +6,14 @@ namespace UnrealBuildTool.Rules
 	{
         public EvalGraphEngine(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("EvalGraphEngine/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
+			bTreatAsEngineModule = true;
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"SlateCore",
-					"EvalGraph"
+					"EvalGraphCore"
 				}
 				);
 		}
