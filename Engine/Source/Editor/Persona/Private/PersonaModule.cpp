@@ -391,19 +391,13 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 			WeakHostingApp.Pin()->EditCurves(InAnimSequence, InCurveInfo, InExternalTimeSliderController);
 		};
 
-		auto OnStopEditingCurves = [WeakHostingApp](const TArray<IAnimationEditor::FCurveEditInfo>& InCurveInfo)
-		{ 
-			WeakHostingApp.Pin()->StopEditingCurves(InCurveInfo);
-		};
-
 		if (UAnimSequence* Sequence = Cast<UAnimSequence>(InAnimAsset))
 		{
 			Result = SNew(SSequenceEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef(), InHostingApp->GetToolkitCommands())
 				.Sequence(Sequence)
 				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
 				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
-				.OnEditCurves_Lambda(OnEditCurves)
-				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
+				.OnEditCurves_Lambda(OnEditCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/Sequences");
 		}
@@ -413,8 +407,7 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 				.Composite(Composite)
 				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
 				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
-				.OnEditCurves_Lambda(OnEditCurves)
-				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
+				.OnEditCurves_Lambda(OnEditCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/AnimationComposite");
 		}
@@ -427,8 +420,7 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 				.OnSectionsChanged(InArgs.OnDespatchSectionsChanged)
 				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
 				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
-				.OnEditCurves_Lambda(OnEditCurves)
-				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
+				.OnEditCurves_Lambda(OnEditCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/AnimMontage");
 		}
@@ -438,8 +430,7 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 				.StreamableAnim(StreamableAnim)
 				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
 				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
-				.OnEditCurves_Lambda(OnEditCurves)
-				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
+				.OnEditCurves_Lambda(OnEditCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/Sequences");
 		}

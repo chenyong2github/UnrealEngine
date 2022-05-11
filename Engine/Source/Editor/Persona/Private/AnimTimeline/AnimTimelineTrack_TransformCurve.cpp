@@ -127,21 +127,6 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 		FSmartName CurveToDelete;
 		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, TransformCurve->Name.UID, CurveToDelete))
 		{
-			// Stop editing these curves in the external editor window
-			TArray<IAnimationEditor::FCurveEditInfo> CurveEditInfo;
-			for(int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
-			{
-				FSmartName Name;
-				ERawCurveTrackTypes Type;
-				int32 CurveEditIndex;
-				GetCurveEditInfo(CurveIndex, Name, Type, CurveEditIndex);
-				IAnimationEditor::FCurveEditInfo EditInfo(Name, Type, CurveEditIndex);
-				CurveEditInfo.Add(EditInfo);
-			}
-
-			BaseModel->OnStopEditingCurves.ExecuteIfBound(CurveEditInfo);
-
-
 			IAnimationDataController& Controller = AnimSequenceBase->GetController();
 			Controller.RemoveCurve(CurveId);
 

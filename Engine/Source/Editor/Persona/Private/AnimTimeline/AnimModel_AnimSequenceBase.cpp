@@ -43,25 +43,14 @@ FAnimModel_AnimSequenceBase::FAnimModel_AnimSequenceBase(const TSharedRef<IPerso
 		bElementNodeDisplayFlag = false;
 	}
 
-	AnimSequenceBase->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshSnapTimes));
-	
-	if(GEditor)
-	{
-		GEditor->RegisterForUndo(this);
-	}
+	AnimSequenceBase->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshSnapTimes));	
 
 	AnimSequenceBase->GetDataModel()->GetModifiedEvent().AddRaw(this, &FAnimModel_AnimSequenceBase::OnDataModelChanged);
 }
 
 FAnimModel_AnimSequenceBase::~FAnimModel_AnimSequenceBase()
 {
-	if(GEditor)
-	{
-		GEditor->UnregisterForUndo(this);
-	}
-
 	AnimSequenceBase->UnregisterOnNotifyChanged(this);
-
 	AnimSequenceBase->GetDataModel()->GetModifiedEvent().RemoveAll(this);
 }
 
@@ -430,14 +419,6 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 				FSmartName TrackName;
 				if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveName.UID, TrackName))
 				{
-					// Stop editing this curve in the external editor window
-					FSmartName Name;
-					ERawCurveTrackTypes Type;
-					int32 CurveEditIndex;
-					FloatCurveTrack->GetCurveEditInfo(0, Name, Type, CurveEditIndex);
-					IAnimationEditor::FCurveEditInfo EditInfo(Name, Type, CurveEditIndex);
-					OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
-
 					Controller.RemoveCurve(FloatCurveId);
 					bDeletedCurve = true;
 				}
@@ -457,20 +438,6 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 				FSmartName CurveToDelete;
 				if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, CurveName.UID, CurveToDelete))
 				{
-					// Stop editing these curves in the external editor window
-					TArray<IAnimationEditor::FCurveEditInfo> CurveEditInfo;
-					for(int32 CurveIndex = 0; CurveIndex < TransformCurveTrack->GetCurves().Num(); ++CurveIndex)
-					{
-						FSmartName Name;
-						ERawCurveTrackTypes Type;
-						int32 CurveEditIndex;
-						TransformCurveTrack->GetCurveEditInfo(CurveIndex, Name, Type, CurveEditIndex);
-						IAnimationEditor::FCurveEditInfo EditInfo(Name, Type, CurveEditIndex);
-						CurveEditInfo.Add(EditInfo);
-					}
-
-					OnStopEditingCurves.ExecuteIfBound(CurveEditInfo);
-
 					Controller.RemoveCurve(TransformCurveId);
 					bDeletedCurve = true;
 				}
@@ -544,19 +511,6 @@ void FAnimModel_AnimSequenceBase::ToggleDisplaySecondary()
 bool FAnimModel_AnimSequenceBase::IsDisplaySecondaryChecked() const
 {
 	return GetDefault<UPersonaOptions>()->bTimelineDisplayFormatSecondary;
-}
-
-void FAnimModel_AnimSequenceBase::HandleUndoRedo()
-{
-	// Close any curves that are no longer editable
-	for (const FFloatCurve& FloatCurve : AnimSequenceBase->GetDataModel()->GetCurveData().FloatCurves)
-	{
-		if(FloatCurve.GetCurveTypeFlag(AACF_Metadata))
-		{
-			IAnimationEditor::FCurveEditInfo CurveEditInfo(FloatCurve.Name, ERawCurveTrackTypes::RCT_Float, 0);
-			OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ CurveEditInfo }));
-		}
-	}
 }
 
 void FAnimModel_AnimSequenceBase::UpdateRange()

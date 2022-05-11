@@ -32,7 +32,6 @@ void SAnimCompositeEditor::Construct(const FArguments& InArgs, const TSharedRef<
 		InOnEditCurves.ExecuteIfBound(InAnimSequence, InCurveInfo, TimelineWidget->GetTimeSliderController());
 	});
 
-	AnimModel->OnStopEditingCurves = InArgs._OnStopEditingCurves;
 	AnimModel->Initialize();
 
 	SAnimEditorBase::Construct( SAnimEditorBase::FArguments()

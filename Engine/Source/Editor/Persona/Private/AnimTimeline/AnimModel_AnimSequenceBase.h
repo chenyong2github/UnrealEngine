@@ -18,7 +18,7 @@ class FAnimTimelineTrack_Attributes;
 enum class EFrameNumberDisplayFormats : uint8;
 
 /** Anim model for an anim sequence base */
-class FAnimModel_AnimSequenceBase : public FAnimModel, public FEditorUndoClient
+class FAnimModel_AnimSequenceBase : public FAnimModel
 {
 public:
 	FAnimModel_AnimSequenceBase(const TSharedRef<IPersonaPreviewScene>& InPreviewScene, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList, UAnimSequenceBase* InAnimSequenceBase);
@@ -31,17 +31,10 @@ public:
 	virtual void Initialize() override;
 	virtual void UpdateRange() override;
 
-	/** FEditorUndoClient interface */
-	virtual void PostUndo(bool bSuccess) override { HandleUndoRedo(); }
-	virtual void PostRedo(bool bSuccess) override { HandleUndoRedo(); }
-
 	const TSharedPtr<FAnimTimelineTrack_Notifies>& GetNotifyRoot() const { return NotifyRoot; }
 
 	/** Delegate used to edit curves */
 	FOnEditCurves OnEditCurves;
-
-	/** Delegate used to edit curves */
-	FOnStopEditingCurves OnStopEditingCurves;
 
 	/** Notify track timing options */
 	bool IsNotifiesTimingElementDisplayEnabled(ETimingElementType::Type ElementType) const;
@@ -81,7 +74,6 @@ private:
 	bool IsDisplayPercentageChecked() const;
 	void ToggleDisplaySecondary();
 	bool IsDisplaySecondaryChecked() const;
-	void HandleUndoRedo();
 
 private:
 	/** The anim sequence base we wrap */

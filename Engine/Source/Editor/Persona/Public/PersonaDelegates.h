@@ -35,6 +35,7 @@ DECLARE_DELEGATE_RetVal(UObject*, FOnGetAsset);
 DECLARE_DELEGATE_ThreeParams(FOnEditCurves, UAnimSequenceBase* /*InAnimSequence*/, const TArray<IAnimationEditor::FCurveEditInfo>& /*InCurveInfo*/, const TSharedPtr<ITimeSliderController>& /*InTimeSliderController*/);
 
 // Called to stop editing curves in the curve editor
+UE_DEPRECATED(5.1, "FOnStopEditingCurves has been deprecated and its use-case replaced with Animation Data Model notifies")
 DECLARE_DELEGATE_OneParam(FOnStopEditingCurves, const TArray<IAnimationEditor::FCurveEditInfo>& /*InCurveInfo*/);
 
 // Called when the user navigates with pageup

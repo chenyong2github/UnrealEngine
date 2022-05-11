@@ -54,7 +54,6 @@ public:
 	SLATE_ARGUMENT( UAnimMontage*, Montage )
 	SLATE_EVENT(FOnObjectsSelected, OnObjectsSelected)
 	SLATE_EVENT(FOnEditCurves, OnEditCurves)
-	SLATE_EVENT(FOnStopEditingCurves, OnStopEditingCurves)
 
 	SLATE_END_ARGS()
 

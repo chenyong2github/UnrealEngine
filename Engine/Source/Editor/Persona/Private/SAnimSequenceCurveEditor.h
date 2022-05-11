@@ -52,7 +52,7 @@ public:
 	TUniquePtr<IAnimationDataController::FScopedBracket> InteractiveBracket;
 };
 
-class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor, public FEditorUndoClient
+class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor
 {
 	SLATE_BEGIN_ARGS(SAnimSequenceCurveEditor) {}
 
@@ -62,7 +62,6 @@ class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor, public FEditor
 
 	SLATE_END_ARGS()
 
-	SAnimSequenceCurveEditor();
 	~SAnimSequenceCurveEditor();
 
 	void Construct(const FArguments& InArgs, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, UAnimSequenceBase* InAnimSequence);
@@ -73,15 +72,11 @@ class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor, public FEditor
 	virtual void RemoveCurve(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex) override;
 	virtual void ZoomToFit() override;
 	
-	virtual void PostUndo(bool bSuccess) override { PostUndoRedo(); }
-	virtual void PostRedo(bool bSuccess) override { PostUndoRedo(); }
+	void OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload);
 
 private:
 	// Build the toolbar for this curve editor
 	TSharedRef<SWidget> MakeToolbar(TSharedRef<SCurveEditorPanel> InEditorPanel);
-
-	// Handle undo/redo to check underlying curve data is still valid
-	void PostUndoRedo();
 
 private:
 	/** The actual curve editor */

@@ -21,7 +21,6 @@
 #include "AnimModel_AnimSequenceBase.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "SAnimOutlinerItem.h"
-#include "Animation/AnimData/AnimDataModel.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_FloatCurve"
 
@@ -153,10 +152,6 @@ void FAnimTimelineTrack_FloatCurve::ConvertCurveToMetaData()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	// Stop editing this curve in the external editor window
-	IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
-	StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
-
 	IAnimationDataController& Controller = AnimSequenceBase->GetController();
 	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ConvertCurveToMetaData_Bracket", "Converting curve to metadata"));
 	Controller.SetCurveFlag(CurveId, AACF_Metadata, true);
@@ -185,8 +180,7 @@ void FAnimTimelineTrack_FloatCurve::RemoveCurve()
 		{
 			// Stop editing this curve in the external editor window
 			IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
-			StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
-
+			
 			AnimSequenceBase->Modify(true);
 
 			IAnimationDataController& Controller = AnimSequenceBase->GetController();
@@ -207,10 +201,6 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 		FText CurrentCurveName = GetLabel();
 		if (!CurrentCurveName.EqualToCaseIgnored(InText))
 		{
-			// Stop editing this curve in the external editor window
-			IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
-			StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
-
 			// Check that the name doesn't already exist
 			const FName RequestedName = FName(*InText.ToString());
 

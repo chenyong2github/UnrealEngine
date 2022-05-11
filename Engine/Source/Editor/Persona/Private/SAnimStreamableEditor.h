@@ -27,7 +27,6 @@ public:
 	SLATE_EVENT(FOnObjectsSelected, OnObjectsSelected)
 	SLATE_EVENT(FOnInvokeTab, OnInvokeTab)
 	SLATE_EVENT(FOnEditCurves, OnEditCurves)
-	SLATE_EVENT(FOnStopEditingCurves, OnStopEditingCurves)
 
 	SLATE_END_ARGS()
 
