@@ -7,6 +7,7 @@
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchema.h"
 #include "PCGGraph.h"
+#include "SPCGEditorGraphNodePalette.h"
 
 #include "EdGraphUtilities.h"
 #include "Editor.h"
@@ -32,7 +33,7 @@ namespace FPCGEditor_private
 {
 	const FName GraphEditorID = FName(TEXT("GraphEditor"));
 	const FName PropertyDetailsID = FName(TEXT("PropertyDetails"));
-	const FName LibraryID = FName(TEXT("Library"));
+	const FName PaletteID = FName(TEXT("Palette"));
 	const FName AttributesID = FName(TEXT("Attributes"));
 	const FName ViewportID = FName(TEXT("Viewport"));
 }
@@ -51,10 +52,12 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.bHideSelectionTip = true;
 	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	PropertyDetailsWidget->SetObject(PCGGraphBeingEdited);
 
 	GraphEditorWidget = CreateGraphEditorWidget();
+	PaletteWidget = CreatePaletteWidget();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.3")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.4")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
@@ -75,7 +78,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.84)
 					->SetHideTabWell(true)
-					->AddTab(FPCGEditor_private::LibraryID, ETabState::OpenedTab)
+					->AddTab(FPCGEditor_private::PaletteID, ETabState::OpenedTab)
 				)
 			)
 			->Split
@@ -127,8 +130,8 @@ void FPCGEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabM
 		.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 
-	InTabManager->RegisterTabSpawner(FPCGEditor_private::LibraryID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Library))
-		.SetDisplayName(LOCTEXT("LibraryTab", "Library"))
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::PaletteID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Palette))
+		.SetDisplayName(LOCTEXT("PaletteTab", "Palette"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::AttributesID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Attributes))
@@ -144,7 +147,7 @@ void FPCGEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTa
 {
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::GraphEditorID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::PropertyDetailsID);
-	InTabManager->UnregisterTabSpawner(FPCGEditor_private::LibraryID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::PaletteID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::AttributesID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::ViewportID);
 
@@ -570,17 +573,29 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 		.ShowGraphStateOverlay(false);
 }
 
+TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
+{
+	return SNew(SPCGEditorGraphNodePalette);
+}
+
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
-	for (UObject* Object : NewSelection)
+	if (NewSelection.Num() == 0)
 	{
-		if (UPCGEditorGraphNodeBase* GraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
+		SelectedObjects.Add(PCGGraphBeingEdited);
+	}
+	else
+	{
+		for (UObject* Object : NewSelection)
 		{
-			if (UPCGNode* PCGNode = GraphNode->GetPCGNode())
+			if (UPCGEditorGraphNodeBase* GraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
 			{
-				SelectedObjects.Add(PCGNode->DefaultSettings);
+				if (UPCGNode* PCGNode = GraphNode->GetPCGNode())
+				{
+					SelectedObjects.Add(PCGNode->DefaultSettings);
+				}
 			}
 		}
 	}
@@ -620,13 +635,13 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_PropertyDetails(const FSpawnTabArgs& A
 		];
 }
 
-TSharedRef<SDockTab> FPCGEditor::SpawnTab_Library(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Palette(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Label(LOCTEXT("PCGLibraryTitle", "Library"))
+		.Label(LOCTEXT("PCGPaletteTitle", "Palette"))
 		.TabColorScale(GetTabColorScale())
 		[
-			SNullWidget::NullWidget
+			PaletteWidget.ToSharedRef()
 		];
 }
 

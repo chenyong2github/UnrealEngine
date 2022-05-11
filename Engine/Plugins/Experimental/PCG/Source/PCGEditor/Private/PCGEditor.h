@@ -5,11 +5,12 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "EditorUndoClient.h"
 
-class UPCGGraph;
-class UPCGEditorGraph;
-class SGraphEditor;
-class IDetailsView;
 class FUICommandList;
+class IDetailsView;
+class SGraphEditor;
+class SPCGEditorGraphNodePalette;
+class UPCGEditorGraph;
+class UPCGGraph;
 
 class FPCGEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
 {
@@ -81,6 +82,9 @@ private:
 	/** Create new graph editor widget */
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 
+	/** Create new palette widget */
+	TSharedRef<SPCGEditorGraphNodePalette> CreatePaletteWidget();
+
 	/** Called when the selection changes in the GraphEditor */
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
@@ -89,12 +93,13 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_GraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Library(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Attributes(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
+	TSharedPtr<SPCGEditorGraphNodePalette> PaletteWidget;
 
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 

@@ -103,6 +103,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
 	bool bHasDefaultOutPin = true;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	bool bExposeToLibrary = false;
+
+	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	FText Category;
+
+	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	FText Description;
+#endif
+
 protected:
 #if WITH_EDITOR
 	void OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);

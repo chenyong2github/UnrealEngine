@@ -15,6 +15,8 @@ class UPCGEditorGraphSchema : public UEdGraphSchema
 	GENERATED_BODY()
 
 public:
+	void GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+
 	//~ Begin EdGraphSchema Interface
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const;
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
@@ -24,6 +26,11 @@ public:
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
 	virtual FConnectionDrawingPolicy* CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const override;
 	//~ End EdGraphSchema Interface
+
+private:
+	void GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+	void GetBlueprintElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+	void GetSubgraphElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 };
 
 class FPCGEditorConnectionDrawingPolicy : public FConnectionDrawingPolicy

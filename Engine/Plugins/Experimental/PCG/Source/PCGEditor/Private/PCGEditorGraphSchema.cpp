@@ -2,6 +2,7 @@
 
 #include "PCGEditorGraphSchema.h"
 
+#include "Elements/PCGExecuteBlueprint.h"
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
@@ -9,37 +10,28 @@
 #include "PCGGraph.h"
 #include "PCGSettings.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/Blueprint.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchema"
 
+
+void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+{
+	GetNativeElementActions(ActionMenuBuilder);
+	GetSubgraphElementActions(ActionMenuBuilder);
+	GetBlueprintElementActions(ActionMenuBuilder);
+}
+
 void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
 	Super::GetGraphContextActions(ContextMenuBuilder);
 
-	const UPCGEditorGraph* PCGEditorGraph = CastChecked<UPCGEditorGraph>(ContextMenuBuilder.CurrentGraph);
-
-	TArray<UClass*> SettingsClasses;
-	for (TObjectIterator<UClass> It; It; ++It)
-	{
-		UClass* Class = *It;
-		
-		if (Class->IsChildOf(UPCGSettings::StaticClass()) &&
-			!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_Hidden))
-		{
-			SettingsClasses.Add(Class);
-		}
-	}
-
-	for (UClass* SettingsClass : SettingsClasses)
-	{
-		const FText MenuDesc = FText::FromName(SettingsClass->GetFName());
-
-		TSharedPtr<FPCGEditorGraphSchemaAction_NewNode> NewAction(new FPCGEditorGraphSchemaAction_NewNode(FText::GetEmpty(), MenuDesc, FText::GetEmpty(), 0));
-		NewAction->SettingsClass = SettingsClass;
-		ContextMenuBuilder.AddAction(NewAction);
-	}
+	GetNativeElementActions(ContextMenuBuilder);
+	GetSubgraphElementActions(ContextMenuBuilder);
+	GetBlueprintElementActions(ContextMenuBuilder);
 }
 
 FLinearColor UPCGEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
@@ -146,6 +138,90 @@ void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphP
 	UPCGGraph* PCGGraph = SourcePCGNode->GetGraph();
 	PCGGraph->RemoveEdge(SourcePCGNode, SourcePin->PinName, TargetPCGNode, TargetPin->PinName);
 }
+
+void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+{
+	TArray<UClass*> SettingsClasses;
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		UClass* Class = *It;
+
+		if (Class->IsChildOf(UPCGSettings::StaticClass()) &&
+			!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_Hidden))
+		{
+			SettingsClasses.Add(Class);
+		}
+	}
+
+	for (UClass* SettingsClass : SettingsClasses)
+	{
+		if (const UPCGSettings* PCGSettings = SettingsClass->GetDefaultObject<UPCGSettings>())
+		{
+			const FText MenuDesc = FText::FromName(PCGSettings->GetDefaultNodeName());
+			const FText Category = StaticEnum<EPCGSettingsType>()->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGSettingsType)>(PCGSettings->GetType()));
+			const FText Description = FText::GetEmpty();
+
+			TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
+			NewAction->SettingsClass = SettingsClass;
+			ActionMenuBuilder.AddAction(NewAction);
+		}
+	}
+}
+
+void UPCGEditorGraphSchema::GetBlueprintElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	FARFilter Filter;
+	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+	Filter.bRecursiveClasses = true;
+	Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UPCGBlueprintElement::StaticClass()->GetPathName()));
+
+	TArray<FAssetData> BlueprintElementAssets;
+	AssetRegistryModule.Get().GetAssets(Filter, BlueprintElementAssets);
+
+	for (const FAssetData& AssetData : BlueprintElementAssets)
+	{
+		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
+		if (bExposeToLibrary)
+		{
+			const FText MenuDesc = FText::FromName(AssetData.AssetName);
+			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
+			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
+
+			const FString GeneratedClass = AssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+
+			TSharedPtr<FPCGEditorGraphSchemaAction_NewBlueprintElement> NewBlueprintAction(new FPCGEditorGraphSchemaAction_NewBlueprintElement(Category, MenuDesc, Description, 0));
+			NewBlueprintAction->BlueprintClassPath = FSoftClassPath(GeneratedClass);
+			ActionMenuBuilder.AddAction(NewBlueprintAction);
+		}
+	}
+}
+
+void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	TArray<FAssetData> AssetDataList;
+	AssetRegistryModule.Get().GetAssetsByClass(UPCGGraph::StaticClass()->GetFName(), AssetDataList);
+
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
+		if (bExposeToLibrary)
+		{
+			const FText MenuDesc = FText::FromName(AssetData.AssetName);
+			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
+			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
+
+			TSharedPtr<FPCGEditorGraphSchemaAction_NewSubgraphElement> NewSubgraphAction(new FPCGEditorGraphSchemaAction_NewSubgraphElement(Category, MenuDesc, Description, 0));
+			NewSubgraphAction->SubgraphObjectPath = AssetData.ObjectPath;
+			ActionMenuBuilder.AddAction(NewSubgraphAction);
+		}
+	}
+}
+
+
 
 FPCGEditorConnectionDrawingPolicy::FPCGEditorConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraph)
 	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements)
