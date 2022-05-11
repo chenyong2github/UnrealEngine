@@ -1401,6 +1401,10 @@ void FSequencer::RerunConstructionScripts()
 	FMovieSceneRootEvaluationTemplateInstance& RootTemplate = GetEvaluationTemplate();
 		
 	UMovieSceneSequence* Sequence = RootTemplate.GetSequence(MovieSceneSequenceID::Root);
+	if (!Sequence)
+	{
+		return;
+	}
 
 	TArray < TPair<FMovieSceneSequenceID, FGuid> > BoundGuids;
 
@@ -6624,7 +6628,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 		return;
 	}
 
-	if (!Sequence->GetMovieScene())
+	if (!Sequence || !Sequence->GetMovieScene())
 	{
 		return;
 	}

@@ -184,6 +184,7 @@ UTakeRecorderActorSource::UTakeRecorderActorSource(const FObjectInitializer& Obj
 	RecordType = ETakeRecorderActorRecordType::ProjectDefault;
 	bReduceKeys = true;
 	bRecordParentHierarchy = true;
+	bShowProgressDialog = true;
 
 	TargetSequenceID = MovieSceneSequenceID::Invalid;
 
@@ -776,7 +777,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 	Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
 	FScopedSlowTask SlowTask((float)TrackRecorders.Num() + 1.0f, FText::Format(LOCTEXT("ProcessingActor", "Generating MovieScene Data for Actor {0}"), Target.IsValid() ? FText::FromString(Target.Get()->GetActorLabel()) : FText::GetEmpty()));
-	SlowTask.MakeDialog(false, true);
+	SlowTask.MakeDialog(false, bShowProgressDialog);
 
 	// We need to do some post-processing tasks on the Track Recorders (such as animation motion source fixup) so we do this now before finalizing
 	{

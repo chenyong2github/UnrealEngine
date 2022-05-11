@@ -104,6 +104,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<UTakeRecorderActorSource> ParentSource;
 
+	/** Show Dialog during the (possibly) slow parts of the take recording */
+	UPROPERTY()
+	bool bShowProgressDialog;
+
 public:
 
 	/*
