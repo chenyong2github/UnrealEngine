@@ -670,7 +670,14 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 	if(NewObject != nullptr)
 	{
 		// Assets must have RF_Public and RF_Standalone
+		const bool bIsAsset = NewObject->IsAsset();
 		NewObject->SetFlags(RF_Public | RF_Standalone);
+
+		if (!bIsAsset && NewObject->IsAsset())
+		{
+			// Notify the asset registry
+			FAssetRegistryModule::AssetCreated(NewObject);
+		}
 
 		if ( ISourceControlModule::Get().IsEnabled() )
 		{
@@ -685,9 +692,6 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 			// now attempt to branch, we can do this now as we should have a file on disk
 			SourceControlHelpers::BranchPackage(NewObject->GetOutermost(), OriginalObject->GetOutermost());
 		}
-
-		// Notify the asset registry
-		FAssetRegistryModule::AssetCreated(NewObject);
 
 		// analytics create record
 		UAssetToolsImpl::OnNewCreateRecord(NewObject->GetClass(), true);
