@@ -445,6 +445,11 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	}
 
 	FModuleManager& ModuleManager = FModuleManager::Get();
+
+	// Load DerivedDataCache before the rest of the modules because that will make it the last to
+	// shut down on exit. This is an approximation of the module load/unload order in the editor.
+	ModuleManager.LoadModule(TEXT("DerivedDataCache"));
+
 	TArray<FName> Modules;
 	ModuleManager.FindModules(TEXT("*"), Modules);
 	for (FName Module : Modules)
