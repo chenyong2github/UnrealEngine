@@ -65,6 +65,24 @@ public:
 
 	// Ensures that controls mask is updated according to contained ControlRig (control) elements
 	void RefreshActiveControls();
+
+	struct FRigElementInitializationOptions
+	{	
+		// Flag whether or not to generate a transform control for bones
+		bool bGenerateBoneControls = true;
+		// Flag whether or not to generate a float control for all curves in the hierarchy
+		bool bGenerateCurveControls = true;
+		
+		// Flag whether or not to import all curves from SmartNameMapping
+		bool bImportCurves = true;
+
+		// Set of bone names to generate a transform control for
+		TArray<FName> BoneNames;
+		// Set of curve names to generate a float control for (requires bImportCurves to be false)
+		TArray<FName> CurveNames;
+	};
+	void SetInitializationOptions(const FRigElementInitializationOptions& Options) { InitializationOptions = Options; }
+	
 private:
 
 	/** Create RigElements - bone hierarchy and curves - from incoming skeleton */
@@ -79,5 +97,6 @@ private:
 	EControlRigFKRigExecuteMode ApplyMode;
 	EControlRigFKRigExecuteMode CachedToggleApplyMode;
 
+	FRigElementInitializationOptions InitializationOptions;
 	friend class FControlRigInteractionTest;
 };
