@@ -71,10 +71,15 @@ void UBakeTransformTool::Setup()
 	}
 
 	bool bHasZeroScales = false;
+	BasicProperties->bAllowNoScale = true;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		FTransform Transform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
-		if (Transform.GetScale3D().GetAbsMin() < KINDA_SMALL_NUMBER)
+		FVector Scale = Transform.GetScale3D();
+		// Set variable so a DetailCustomization can disable "DoNotBakeScale" if we have some targets w/ both rotation and non-uniform scale
+		// Note we could relax this to allow DoNotBakeScale if the rotation axis is aligned to the non-uniform scale axis, but that might make the enable/disable condition harder to understand.
+		BasicProperties->bAllowNoScale = BasicProperties->bAllowNoScale && (Transform.GetRotation().IsIdentity() || Transform.GetScale3D().AllComponentsEqual());
+		if (Scale.GetAbsMin() < KINDA_SMALL_NUMBER)
 		{
 			bHasZeroScales = true;
 		}

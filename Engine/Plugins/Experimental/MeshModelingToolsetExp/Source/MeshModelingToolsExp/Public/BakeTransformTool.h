@@ -63,6 +63,11 @@ public:
 	/** Recenter pivot after baking transform */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bRecenterPivot = false;
+
+	// This variable is used to enable/disable the "DoNotBakeScale" option in the BakeScale enum
+	// It is marked as visible only so that the FBakeTransformToolDetails can read it; it will be hidden by that DetailCustomization
+	UPROPERTY(VisibleAnywhere, Category = Options)
+	bool bAllowNoScale = true;
 };
 
 

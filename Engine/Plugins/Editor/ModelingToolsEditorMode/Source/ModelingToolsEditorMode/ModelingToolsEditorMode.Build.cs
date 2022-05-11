@@ -58,6 +58,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"ModelingEditorUI",
 				"StylusInput",
 				"DeveloperSettings",
+				"PropertyEditor",
 				// ... add private dependencies that you statically link with here ...	
 			}
 		);

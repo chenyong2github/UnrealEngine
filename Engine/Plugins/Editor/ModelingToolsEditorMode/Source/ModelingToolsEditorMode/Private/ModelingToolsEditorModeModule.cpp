@@ -15,12 +15,14 @@
 #include "DetailsCustomizations/ModelingToolsBrushSizeCustomization.h"
 #include "DetailsCustomizations/MeshVertexSculptToolCustomizations.h"
 #include "DetailsCustomizations/BakeMeshAttributeToolCustomizations.h"
+#include "DetailsCustomizations/BakeTransformToolCustomizations.h"
 
 #include "PropertySets/AxisFilterPropertyType.h"
 #include "MeshVertexSculptTool.h"
 #include "BakeMeshAttributeMapsTool.h"
 #include "BakeMultiMeshAttributeMapsTool.h"
 #include "BakeMeshAttributeVertexTool.h"
+#include "BakeTransformTool.h"
 
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeModule"
@@ -91,6 +93,9 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 	ClassesToUnregisterOnShutdown.Add(UBakeMultiMeshAttributeMapsToolProperties::StaticClass()->GetFName());
 	PropertyModule.RegisterCustomClassLayout("BakeMeshAttributeVertexToolProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FBakeMeshAttributeVertexToolDetails::MakeInstance));
 	ClassesToUnregisterOnShutdown.Add(UBakeMeshAttributeVertexToolProperties::StaticClass()->GetFName());
+
+	PropertyModule.RegisterCustomClassLayout("BakeTransformToolProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FBakeTransformToolDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UBakeTransformToolProperties::StaticClass()->GetFName());
 }
 
 #undef LOCTEXT_NAMESPACE
