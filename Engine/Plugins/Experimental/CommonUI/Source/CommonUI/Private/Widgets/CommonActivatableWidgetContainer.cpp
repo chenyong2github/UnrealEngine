@@ -32,7 +32,7 @@ UCommonActivatableWidgetContainerBase::UCommonActivatableWidgetContainerBase(con
 	: Super(Initializer)
 	, GeneratedWidgetsPool(*this)
 {
-	SetVisibility(ESlateVisibility::Collapsed);
+	SetVisibilityInternal(ESlateVisibility::Collapsed);
 }
 
 void UCommonActivatableWidgetContainerBase::AddWidgetInstance(UCommonActivatableWidget& ActivatableWidget)

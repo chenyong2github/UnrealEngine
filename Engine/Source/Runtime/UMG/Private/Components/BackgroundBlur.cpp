@@ -25,7 +25,7 @@ UBackgroundBlur::UBackgroundBlur(const FObjectInitializer& ObjectInitializer)
 	, LowQualityFallbackBrush(FSlateNoResource())
 {
 	bIsVariable = false;
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
 void UBackgroundBlur::ReleaseSlateResources(bool bReleaseChildren)

@@ -19,7 +19,7 @@ UWindowTitleBarArea::UWindowTitleBarArea(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	bIsVariable = false;
-	SetVisibility(ESlateVisibility::Visible);
+	SetVisibilityInternal(ESlateVisibility::Visible);
 
 	bDoubleClickTogglesFullscreen = false;
 }

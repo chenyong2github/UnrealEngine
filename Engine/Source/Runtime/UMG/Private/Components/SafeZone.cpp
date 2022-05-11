@@ -14,7 +14,7 @@ USafeZone::USafeZone()
 	, PadBottom(true)
 {
 	bCanHaveMultipleChildren = false;
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
 #if WITH_EDITOR

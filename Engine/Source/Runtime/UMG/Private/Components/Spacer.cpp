@@ -14,7 +14,7 @@ USpacer::USpacer(const FObjectInitializer& ObjectInitializer)
 	, Size(1.0f, 1.0f)
 {
 	bIsVariable = false;
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
 void USpacer::ReleaseSlateResources(bool bReleaseChildren)

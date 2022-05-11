@@ -26,7 +26,7 @@ UCommonBorder::UCommonBorder(const FObjectInitializer& ObjectInitializer)
 {
 	Background.DrawAs = ESlateBrushDrawType::NoDrawType;
 
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
 void UCommonBorder::PostLoad()

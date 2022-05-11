@@ -555,6 +555,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	virtual void SetVisibility(ESlateVisibility InVisibility);
 
+protected:
+	void SetVisibilityInternal(ESlateVisibility InVisibility);
+
+public:
 	/** Gets the current visibility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	float GetRenderOpacity() const;

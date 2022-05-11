@@ -271,7 +271,7 @@ UCommonLoadGuard::UCommonLoadGuard(const FObjectInitializer& Initializer)
 	, ThrobberAlignment(EHorizontalAlignment::HAlign_Center)
 	, LoadingText(NSLOCTEXT("LoadGuard", "Loading", "Loading..."))
 {
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 
 	// Default to not showing the loading BG brush - it's an opt-in kind of thing
 	LoadingBackgroundBrush.DrawAs = ESlateBrushDrawType::NoDrawType;

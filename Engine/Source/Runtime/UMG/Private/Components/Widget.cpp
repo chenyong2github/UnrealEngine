@@ -376,6 +376,11 @@ ESlateVisibility UWidget::GetVisibility() const
 
 void UWidget::SetVisibility(ESlateVisibility InVisibility)
 {
+	SetVisibilityInternal(InVisibility);
+}
+
+void UWidget::SetVisibilityInternal(ESlateVisibility InVisibility)
+{
 	if (Visibility != InVisibility)
 	{
 		Visibility = InVisibility;
