@@ -2256,18 +2256,6 @@ FTextureCubeRHIRef FOpenGLDynamicRHI::RHICreateTextureCubeFromResource(EPixelFor
 {
 	if (bArray)
 	{
-		return new FOpenGLTexture(FRHITextureCreateDesc::CreateCube(
-			TEXT("RHICreateTextureCubeFromResource"),
-			Size,
-			Format,
-			ClearValueBinding,
-			TexCreateFlags,
-			NumMips,
-			NumSamples
-		), Resource);
-	}
-	else
-	{
 		return new FOpenGLTexture(FRHITextureCreateDesc::CreateCubeArray(
 			TEXT("RHICreateTextureCubeFromResource"),
 			Size,
@@ -2275,6 +2263,18 @@ FTextureCubeRHIRef FOpenGLDynamicRHI::RHICreateTextureCubeFromResource(EPixelFor
 			ClearValueBinding,
 			TexCreateFlags,
 			ArraySize,
+			NumMips,
+			NumSamples
+		), Resource);
+	}
+	else
+	{
+		return new FOpenGLTexture(FRHITextureCreateDesc::CreateCube(
+			TEXT("RHICreateTextureCubeFromResource"),
+			Size,
+			Format,
+			ClearValueBinding,
+			TexCreateFlags,
 			NumMips,
 			NumSamples
 		), Resource);
