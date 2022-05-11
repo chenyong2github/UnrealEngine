@@ -32,6 +32,8 @@ public:
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
+	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
+
 private:
 	void InitColor(const FSolverParticles& InParticles);
 	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
