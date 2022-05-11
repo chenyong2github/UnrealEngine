@@ -2067,23 +2067,62 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 	return ESavePackageResult::Success;
 }
 
-void BeginCachePlatformCookedData(FSaveContext& SaveContext)
+ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 {
 #if WITH_EDITOR
+	// TODO: Remove BeginCacheForCookedPlatformData from SavePackage; it is already called by the cooker.
 	// Cache platform cooked data
 	if (SaveContext.IsCooking() && !SaveContext.IsConcurrent())
 	{
+		const ITargetPlatform* TargetPlatform = SaveContext.GetTargetPlatform();
 		TArray<UObject*> ObjectsInPackage;
 		GetObjectsWithPackage(SaveContext.GetPackage(), ObjectsInPackage);
-		for (UObject* Object : ObjectsInPackage)
+		for (int32 Index = 0; Index < ObjectsInPackage.Num(); /** incremented in loop */)
 		{
-			if (!SaveContext.IsUnsaveable(Object))
+			UObject* Object = ObjectsInPackage[Index];
+			if (SaveContext.IsUnsaveable(Object))
 			{
-				Object->BeginCacheForCookedPlatformData(SaveContext.GetTargetPlatform());
+				ObjectsInPackage.RemoveAtSwap(Index);
+				continue;
+			}
+			Object->BeginCacheForCookedPlatformData(TargetPlatform);
+			if (Object->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+			{
+				ObjectsInPackage.RemoveAtSwap(Index);
+				continue;
+			}
+			++Index;
+		}
+		if (ObjectsInPackage.Num())
+		{
+			if (SaveContext.GetSaveArgs().SaveFlags & SAVE_AllowTimeout)
+			{
+				return ESavePackageResult::Timeout;
+			}
+			const float MaxWaitSeconds = 30.f;
+			const double EndTimeSeconds = FPlatformTime::Seconds() + MaxWaitSeconds;
+			while (ObjectsInPackage.Num())
+			{
+				if (FPlatformTime::Seconds() > EndTimeSeconds)
+				{
+					UE_LOG(LogSavePackage, Error, TEXT("Save of %s failed: timed out waiting for IsCachedCookedPlatformDataLoaded on %s."),
+						SaveContext.GetFilename(), *ObjectsInPackage[0]->GetFullName());
+					return ESavePackageResult::Error;
+				}
+				for (int32 Index = 0; Index < ObjectsInPackage.Num(); /** incremented in loop */)
+				{
+					if (ObjectsInPackage[Index]->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+					{
+						ObjectsInPackage.RemoveAtSwap(Index);
+						continue;
+					}
+					++Index;
+				}
 			}
 		}
 	}
 #endif
+	return ESavePackageResult::Success;
 }
 
 void ClearCachedPlatformCookedData(FSaveContext& SaveContext)
@@ -2530,7 +2569,11 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 
 	// Trigger platform cooked data caching before package harvesting 
 	// because it might modify some property and hence affect harvested property name for tagged property for example
-	BeginCachePlatformCookedData(SaveContext);
+	SaveContext.Result = BeginCachePlatformCookedData(SaveContext);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
 
 	SlowTask.EnterProgressFrame();
 	{

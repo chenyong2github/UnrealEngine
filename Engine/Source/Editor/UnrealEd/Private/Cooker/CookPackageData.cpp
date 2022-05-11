@@ -46,7 +46,7 @@ static FAutoConsoleVariableRef CVarPollAsyncPeriod(
 //////////////////////////////////////////////////////////////////////////
 // FPackageData
 FPackageData::FPlatformData::FPlatformData()
-	: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bExplored(false)
+	: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bExplored(false), bSaveTimedOut(false)
 {
 }
 
@@ -288,6 +288,8 @@ void FPackageData::SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool
 			bModified = bModified | (Pair.Value.bCookAttempted == false);
 			Pair.Value.bCookAttempted = true;
 			Pair.Value.bCookSucceeded = bSucceeded;
+			// Clear the SaveTimedOut when get a cook result, in case we save again later and need to allow retry again
+			Pair.Value.bSaveTimedOut = false;
 		}
 		else
 		{
@@ -299,6 +301,7 @@ void FPackageData::SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool
 		FPlatformData& Value = PlatformDatas.FindOrAdd(TargetPlatform);
 		Value.bCookAttempted = true;
 		Value.bCookSucceeded = bSucceeded;
+		Value.bSaveTimedOut = false;
 		bModified = true;
 	}
 	if (bModified && !bHasAnyOthers)
@@ -324,6 +327,7 @@ void FPackageData::ClearCookProgress()
 		Pair.Value.bCookAttempted = false;
 		Pair.Value.bCookSucceeded = false;
 		Pair.Value.bExplored = false;
+		Pair.Value.bSaveTimedOut = false;
 	}
 	if (bModifiedCookAttempted)
 	{
@@ -343,6 +347,7 @@ void FPackageData::ClearCookProgress(const ITargetPlatform* TargetPlatform)
 			Pair.Value.bCookAttempted = false;
 			Pair.Value.bCookSucceeded = false;
 			Pair.Value.bExplored = false;
+			Pair.Value.bSaveTimedOut = false;
 		}
 		else
 		{

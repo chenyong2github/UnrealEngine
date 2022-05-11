@@ -127,6 +127,7 @@ public:
 		bool bCookAttempted : 1;
 		bool bCookSucceeded : 1;
 		bool bExplored : 1;
+		bool bSaveTimedOut : 1;
 	};
 
 	FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName);

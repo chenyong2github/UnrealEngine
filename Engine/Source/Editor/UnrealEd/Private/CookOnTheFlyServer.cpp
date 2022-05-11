@@ -3158,6 +3158,8 @@ private: // Used only by UCookOnTheFlyServer, which has private access
 	FString Filename;
 	uint32 SaveFlags = 0;
 	bool bReferencedOnlyByEditorOnlyData = false;
+	bool bHasTimeOut = false;
+	bool bHasRetryErrorCode = false;
 	bool bHasFirstPlatformResults = false;
 
 	// General Package Data that is delay-loaded the first time we save a platform
@@ -3394,6 +3396,15 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 
 		FSaveCookedPackageContext Context(*this, PackageData, PlatformsForPackage, StackData);
 		SaveCookedPackage(Context);
+		if (Context.bHasTimeOut)
+		{
+			// Timeouts can occur because of new objects created during the save, so we need to update our object cache,
+			// so we call ReleaseCookedPlatformData and ClearObjectCache to clear it and recache on next attempt.
+			ReleaseCookedPlatformData(PackageData, false/* bCompletedSave */);
+			PackageData.ClearObjectCache();
+			SaveQueue.Add(&PackageData);
+			continue;
+		}
 
 		ReleaseCookedPlatformData(PackageData, true /* bCompletedSave */);
 		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -4435,10 +4446,25 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 	Info.PackageName = Package->GetFName();
 	Info.LooseFilePath = PlatFilename;
 	PackageWriter->BeginPackage(Info);
+	// Set platform-specific save flags
+	FPackageData::FPlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
+	uint32 PlatformSaveFlagsMask = SAVE_AllowTimeout;
+	SaveFlags = (SaveFlags & ~PlatformSaveFlagsMask);
+	if (!PlatformData.bSaveTimedOut)
+	{
+		// If we timedout before, do not allow another timeout, otherwise do allow it
+		SaveFlags |= SAVE_AllowTimeout;
+	}
 
 	// Indicate Setup was successful
 	bPlatformSetupSuccessful = true;
 	SavePackageResult = ESavePackageResult::Success;
+}
+
+bool IsRetryErrorCode(ESavePackageResult Result)
+{
+	return (Result == ESavePackageResult::ReferencedOnlyByEditorOnlyData) |
+		(Result == ESavePackageResult::Timeout);
 }
 
 void FSaveCookedPackageContext::FinishPlatform()
@@ -4446,7 +4472,6 @@ void FSaveCookedPackageContext::FinishPlatform()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSaveCookedPackageContext::FinishPlatform);
 
 	bool bSuccessful = SavePackageResult.IsSuccessful();
-	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 
 	FAssetRegistryGenerator& Generator = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
 	if (bPlatformSetupSuccessful)
@@ -4489,7 +4514,8 @@ void FSaveCookedPackageContext::FinishPlatform()
 
 	// In success or failure we want to mark the package as cooked, unless the failure was due to being referenced only
 	// by editor-only data; we may need to save it later when new content loads it through non editor-only references.
-	if (!bLocalReferencedOnlyByEditorOnlyData)
+	bool bIsRetryErrorCode = IsRetryErrorCode(SavePackageResult.Result);
+	if (!bIsRetryErrorCode)
 	{
 		PackageData.SetPlatformCooked(TargetPlatform, bSuccessful);
 	}
@@ -4510,10 +4536,11 @@ void FSaveCookedPackageContext::FinishPlatform()
 	}
 
 	// Accumulate results for SaveCookedPackage_Finish
+	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult.Result == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 	if (bHasFirstPlatformResults && bLocalReferencedOnlyByEditorOnlyData != bReferencedOnlyByEditorOnlyData)
 	{
 		UE_LOG(LogCook, Error, TEXT("Package %s had different values for IsReferencedOnlyByEditorOnlyData from multiple platforms. ")
-			TEXT("Treading all platforms as IsReferencedOnlyByEditorOnlyData = true; this will cause the package to be ignored on the platforms that need it."),
+			TEXT("Treating all platforms as IsReferencedOnlyByEditorOnlyData = true; this will cause the package to be ignored on the platforms that need it."),
 			*Package->GetName());
 		bReferencedOnlyByEditorOnlyData = true;
 	}
@@ -4521,6 +4548,13 @@ void FSaveCookedPackageContext::FinishPlatform()
 	{
 		bReferencedOnlyByEditorOnlyData = bLocalReferencedOnlyByEditorOnlyData;
 	}
+	if (SavePackageResult.Result == ESavePackageResult::Timeout)
+	{
+		PackageData.FindOrAddPlatformData(TargetPlatform).bSaveTimedOut = true;
+		bHasTimeOut = true;
+	}
+
+	bHasRetryErrorCode |= bIsRetryErrorCode;
 	bHasFirstPlatformResults = true;
 }
 
@@ -4578,7 +4612,7 @@ void FSaveCookedPackageContext::FinishPackage()
 		}
 	}
 
-	if (!bReferencedOnlyByEditorOnlyData)
+	if (!bHasRetryErrorCode)
 	{
 		if ((COTFS.CurrentCookMode == ECookMode::CookOnTheFly) && !PackageData.GetIsUrgent())
 		{
@@ -7502,6 +7536,7 @@ void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*
 				{
 					PlatformData->bCookAttempted = false;
 					PlatformData->bCookSucceeded = false;
+					PlatformData->bSaveTimedOut = false;
 				}
 			}
 		}

@@ -60,6 +60,8 @@ enum class ESavePackageResult
 	ValidatorSuppress,
 	/** Internal save result used to identify a valid empty internal save realm to skip over. @see ESaveRealm */
 	EmptyRealm,
+	/** SavePackage is blocked by an asynchronous operation, so it quickly aborted. Can only be returned if SAVE_AllowTimeout is present in SaveFlags */
+	Timeout,
 };
 
 /**
