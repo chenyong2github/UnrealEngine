@@ -428,7 +428,7 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*InjectionInfoOutputPinName, 
 					*UnitNode->GetName()));
 		}
-		else
+		else if (UnitNode->IsSingleton())
 		{
 			// add_struct_node_from_struct_path(script_struct_path, method_name, position=[0.0, 0.0], node_name='', undo=True)
 			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_unit_node_from_struct_path('%s', 'Execute', %s, '%s')"),
@@ -437,6 +437,49 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*RigVMPythonUtils::Vector2DToPythonString(UnitNode->GetPosition()),
 					*NodeName));
 		}
+		else
+		{
+			// add_template_node(notation, position=[0.0, 0.0], node_name='', undo=True)
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_template_node('%s', %s, '%s')"),
+							*GraphName,
+							*UnitNode->GetNotation().ToString(),
+							*RigVMPythonUtils::Vector2DToPythonString(UnitNode->GetPosition()),
+							*NodeName));
+
+			// Try to resolve wildcard pins			
+			if (const FRigVMTemplate* Template = UnitNode->GetTemplate())
+			{
+				// Lets minimize the number of commands by stopping when the number of permutations left is 1 (or less)
+				TArray<int32> Permutations;
+				Permutations.SetNumUninitialized(Template->NumPermutations());
+				FRigVMTemplate::FTypeMap TypeMap;
+		
+				for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ++ArgIndex)
+				{
+					if (Permutations.Num() < 2)
+					{
+						break;
+					}
+			
+					const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgIndex);
+					if (!Argument->IsSingleton())
+					{
+						URigVMPin* Pin = UnitNode->FindPin(Argument->GetName().ToString());
+						if (!Pin->IsWildCard())
+						{
+							Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').resolve_wild_card_pin('%s', '%s', '%s')"),
+									*GraphName,
+									*Pin->GetPinPath(),
+									*Pin->GetCPPType(),
+									*Pin->GetCPPTypeObject()->GetPathName()));
+
+							TypeMap.Add(Argument->GetName(), FRigVMTemplateArgument::FType(Pin->GetCPPType(), Pin->GetCPPTypeObject()));
+							Template->Resolve(TypeMap, Permutations, false);
+						}
+					}
+				}
+			}			
+		}		
 	}
 	else if (const URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(Node))
 	{
@@ -569,15 +612,6 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
 					*NodeName));	
 		}
-	}
-	else if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
-	{
-		// add_template_node(notation, position=[0.0, 0.0], node_name='', undo=True)
-		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_template_node('%s', %s, '%s')"),
-						*GraphName,
-						*TemplateNode->GetNotation().ToString(),
-						*RigVMPythonUtils::Vector2DToPythonString(TemplateNode->GetPosition()),
-						*NodeName));
 	}
 	else if (const URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Node))
 	{
@@ -15190,7 +15224,23 @@ bool URigVMController::ResolveWildCardPin(const FString& InPinPath, const FStrin
 
 	if (URigVMPin* Pin = Graph->FindPin(InPinPath))
 	{
-		return ResolveWildCardPin(Pin, FRigVMTemplateArgument::FType(CPPType, CPPTypeObject), bSetupUndoRedo, bPrintPythonCommand);
+		if (ResolveWildCardPin(Pin, FRigVMTemplateArgument::FType(CPPType, CPPTypeObject), bSetupUndoRedo, bPrintPythonCommand))
+		{
+			if (bPrintPythonCommand)
+			{
+				const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+
+				// bool ResolveWildCardPin(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+				RigVMPythonUtils::Print(GetGraphOuterName(), 
+									FString::Printf(TEXT("blueprint.get_controller_by_name('%s').resolve_wild_card_pin('%s', '%s', '%s')"),
+													*GraphName,
+													*InPinPath,
+													*InCPPType,
+													*InCPPTypeObjectPath.ToString()));
+			}
+			
+			return true;
+		}
 	}
 
 	return false;
@@ -15243,10 +15293,19 @@ bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, const FRigVMTemplate
 		{
 			ActionStack->EndAction(Action);
 		}
-
-		// Print python command
 		
 		return true;		
+	}
+	else
+	{
+		OpenUndoBracket(TEXT("Resolving wildcard pin"));
+		UnresolveTemplateNodes({*InPin->GetNode()->GetName()}, bSetupUndoRedo);
+		if (ResolveWildCardPin(InPin, InType, bSetupUndoRedo, bPrintPythonCommand))
+		{
+			CloseUndoBracket();
+			return true;
+		}
+		CancelUndoBracket();
 	}
 
 	return false;

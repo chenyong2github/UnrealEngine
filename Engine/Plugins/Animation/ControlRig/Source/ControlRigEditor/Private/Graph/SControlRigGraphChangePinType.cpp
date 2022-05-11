@@ -394,7 +394,7 @@ void SControlRigChangePinType::HandlePinTypeChanged(FRigVMTemplateArgument::FTyp
 			continue;
 		}
 
-		Controller->ResolveWildCardPin(ModelPin->GetPinPath(), InType.CPPType, InType.GetCPPTypeObjectPath());
+		Controller->ResolveWildCardPin(ModelPin->GetPinPath(), InType.CPPType, InType.GetCPPTypeObjectPath(), true, true);
 	}
 }
 

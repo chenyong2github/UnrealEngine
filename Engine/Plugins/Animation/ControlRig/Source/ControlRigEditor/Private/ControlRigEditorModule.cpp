@@ -1405,7 +1405,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								FSlateIcon(),
 								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
 									const TArray<FName> Nodes = ModelPin->GetGraph()->GetSelectNodes();
-									Controller->UnresolveTemplateNodes(Nodes);
+									Controller->UnresolveTemplateNodes(Nodes, true, true);
 								})
 							));
 						}
@@ -2341,7 +2341,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								FSlateIcon(),
 								FUIAction(FExecuteAction::CreateLambda([Controller, Model]() {
 									const TArray<FName> Nodes = Model->GetSelectNodes();
-									Controller->UnresolveTemplateNodes(Nodes);
+									Controller->UnresolveTemplateNodes(Nodes, true, true);
 								})
 							));
 						}
