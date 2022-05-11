@@ -395,7 +395,7 @@ namespace DatasmithRhino.ExportContext
 			bool bHasMesh = false;
 			if (ObjectIdToMeshInfoDictionary.TryGetValue(InRhinoObject.Id, out DatasmithMeshInfo MeshInfo))
 			{
-				// #ueent-todo	The MeshInfo is the one holding the OffsetTransform but changing it actually affects the actor and not the mesh. 
+				// #ueent_todo	The MeshInfo is the one holding the OffsetTransform but changing it actually affects the actor and not the mesh.
 				//				It is weird that the actor is the one modified here, we should move the OffsetTransform into it's associated DatasmithActorInfo.
 				MeshInfo.OffsetTransform = InTransform * MeshInfo.OffsetTransform;
 				bHasMesh = true;

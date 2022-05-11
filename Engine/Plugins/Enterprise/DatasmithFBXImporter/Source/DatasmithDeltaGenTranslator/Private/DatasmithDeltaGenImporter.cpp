@@ -121,7 +121,6 @@ bool FDatasmithDeltaGenImporter::ParseFbxFile(const FString& FBXPath)
 		return false;
 	}
 
-	// #ueent_wip_baseoptions
 	FDatasmithImportBaseOptions DefaultBaseOptions;
 
 	FDatasmithFBXFileImporter Importer(FbxImporter->Scene, IntermediateScene.Get(), ImportOptions, &DefaultBaseOptions);

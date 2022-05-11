@@ -62,7 +62,7 @@ namespace DatasmithRhino.DirectLink
 					RhinoDoc.TextureMappingEvent += OnTextureMappingEvent;
 					RhinoDoc.DocumentPropertiesChanged += OnDocumentPropertiesChanged;
 
-					//#ueent-todo Listen to the following events to update their associated DatasmithElement
+					//#ueent_todo Listen to the following events to update their associated DatasmithElement
 					//RhinoDoc.DimensionStyleTableEvent;
 					//RhinoDoc.LightTableEvent;
 					//RhinoDoc.RenderEnvironmentTableEvent;
