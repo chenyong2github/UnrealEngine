@@ -336,7 +336,7 @@ void UDataLayerEditorSubsystem::InitializeNewActorDataLayers(AActor* Actor)
 
 UWorld* UDataLayerEditorSubsystem::GetWorld() const
 {
-	return GWorld;
+	return GEditor->GetEditorWorldContext().World();
 }
 
 bool UDataLayerEditorSubsystem::SetParentDataLayer(UDataLayerInstance* DataLayer, UDataLayerInstance* ParentDataLayer)
