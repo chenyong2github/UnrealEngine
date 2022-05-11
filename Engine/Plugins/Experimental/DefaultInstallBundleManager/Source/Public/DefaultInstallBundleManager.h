@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleManagerUtil.h"
 #include "InstallBundleCache.h"
