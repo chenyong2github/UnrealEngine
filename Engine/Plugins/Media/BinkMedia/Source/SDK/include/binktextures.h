@@ -136,8 +136,8 @@ RADDEFSTART
 
 #endif
 
-typedef struct BINKSHADERS BINKSHADERS;   // defined below
-typedef struct BINKTEXTURES BINKTEXTURES; // defined below
+typedef struct BINKSHADERS2 BINKSHADERS;   // defined below
+typedef struct BINKTEXTURES2 BINKTEXTURES; // defined below
 
 //=============================================================================
 
@@ -396,7 +396,7 @@ typedef S32  After_Reset_Bink_textures_ft( BINKTEXTURES * textures );
 #define After_Reset_Bink_textures( textures )            {if ((textures)->After_Reset_textures) (textures)->After_Reset_textures( textures );}
 #define Free_Bink_textures( textures )                   (textures)->Free_textures( textures )
 
-struct BINKSHADERS
+struct BINKSHADERS2
 {
   Create_Bink_textures_ft * Create_textures;
   Free_Bink_shaders_ft * Free_shaders;
@@ -405,7 +405,7 @@ struct BINKSHADERS
   UINTa user_data[ 4 ];
 };
 
-struct BINKTEXTURES
+struct BINKTEXTURES2
 {
   // wrap around doframe
   Start_Bink_texture_update_ft * Start_texture_update;
