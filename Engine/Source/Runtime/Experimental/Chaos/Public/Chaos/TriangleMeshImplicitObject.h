@@ -122,9 +122,7 @@ namespace Chaos
 			const auto BoundsFilter = [&StartSimd, &InvDirSimd, &Parallel, &CurrentLength](const FAABBVectorized& Bounds) -> EFilterResult
 			{
 				const VectorRegister4Float CurDataLength = VectorLoadFloat1(&CurrentLength);
-
-				FAABBVectorized CleanBounds(Bounds.GetMin(), Bounds.GetMax());
-				const bool bHit = CleanBounds.RaycastFast(StartSimd, InvDirSimd, Parallel, CurDataLength);
+				const bool bHit = Bounds.RaycastFast(StartSimd, InvDirSimd, Parallel, CurDataLength);
 
 				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
 			};
@@ -171,8 +169,7 @@ namespace Chaos
 		{
 			const auto BoundsFilter = [&AABB](const FAABBVectorized& Bounds) -> EFilterResult
 			{
-				FAABBVectorized CleanBounds(Bounds.GetMin(), Bounds.GetMax());
-				const bool bHit = CleanBounds.Intersects(AABB);
+				const bool bHit = Bounds.Intersects(AABB);
 				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
 			};
 
