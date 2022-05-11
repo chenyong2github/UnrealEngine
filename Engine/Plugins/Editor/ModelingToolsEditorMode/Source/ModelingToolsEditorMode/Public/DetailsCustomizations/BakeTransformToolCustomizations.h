@@ -5,6 +5,9 @@
 #include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
 
+class IPropertyHandle;
+class FPropertyRestriction;
+
 // Customization for UBakeTransformToolProperties
 class FBakeTransformToolDetails : public IDetailCustomization
 {
