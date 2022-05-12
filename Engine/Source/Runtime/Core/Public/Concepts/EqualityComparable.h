@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Templates/Models.h"
+
 /**
  * Describes a type comparable with another type.
  */
