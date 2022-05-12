@@ -392,6 +392,11 @@ void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType Change
 
 #endif // WITH_EDITOR
 
+void UPCGNode::UpdateAfterSettingsChangeDuringCreation()
+{
+	UpdatePins();
+}
+
 bool UPCGNode::UpdatePins()
 {
 	return UpdatePins([](UPCGNode* Node){ return NewObject<UPCGPin>(Node); });

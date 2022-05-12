@@ -79,6 +79,8 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewBlueprintElement::PerformAction(UEd
 	TSubclassOf<UPCGBlueprintElement> BlueprintClass = BlueprintClassPath.TryLoadClass<UPCGBlueprintElement>();
 	DefaultBlueprintSettings->SetElementType(BlueprintClass, ElementInstance);
 
+	NewPCGNode->UpdateAfterSettingsChangeDuringCreation();
+
 	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
 	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
 	NewNode->Construct(NewPCGNode, EPCGEditorGraphNodeType::Settings);
@@ -124,6 +126,8 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewSubgraphElement::PerformAction(UEdG
 	UPCGNode* NewPCGNode = PCGGraph->AddNodeOfType(UPCGSubgraphSettings::StaticClass(), DefaultNodeSettings);
 	UPCGSubgraphSettings* DefaultSubgraphSettings = CastChecked<UPCGSubgraphSettings>(DefaultNodeSettings);
 	DefaultSubgraphSettings->Subgraph = Subgraph;
+
+	NewPCGNode->UpdateAfterSettingsChangeDuringCreation();
 
 	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
 	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);

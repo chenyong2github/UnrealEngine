@@ -68,6 +68,9 @@ public:
 	/** Changes the default settings in the node */
 	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings, bool bUpdatePins = true);
 
+	/** Triggers some uppdates after creating a new node and changing its settings */
+	void UpdateAfterSettingsChangeDuringCreation();
+
 	UPCGPin* GetInputPin(const FName& Label);
 	const UPCGPin* GetInputPin(const FName& Label) const;
 	UPCGPin* GetOutputPin(const FName& Label);
