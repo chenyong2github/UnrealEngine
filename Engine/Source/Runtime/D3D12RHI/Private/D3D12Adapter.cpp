@@ -526,15 +526,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		));
 	}
 
-	// Detect availability of shader model 6.0 wave operations
-	{
-		D3D12_FEATURE_DATA_D3D12_OPTIONS1 Features = {};
-		RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &Features, sizeof(Features));
-		GRHISupportsWaveOperations = Features.WaveOps;
-		GRHIMinimumWaveSize = Features.WaveLaneCountMin;
-		GRHIMaximumWaveSize = Features.WaveLaneCountMax;
-	}
-
 #if ENABLE_RESIDENCY_MANAGEMENT
 	if (!CVarResidencyManagement.GetValueOnAnyThread())
 	{
@@ -1000,6 +991,15 @@ void FD3D12Adapter::InitializeDevices()
 			{
 				GRHISupportsBindless = true;
 				UE_LOG(LogD3D12RHI, Log, TEXT("Bindless resources are supported"));
+			}
+
+			// Detect availability of shader model 6.0 wave operations
+			{
+				D3D12_FEATURE_DATA_D3D12_OPTIONS1 Features{};
+				RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &Features, sizeof(Features));
+				GRHISupportsWaveOperations = Features.WaveOps;
+				GRHIMinimumWaveSize = Features.WaveLaneCountMin;
+				GRHIMaximumWaveSize = Features.WaveLaneCountMax;
 			}
 
 #if D3D12_RHI_RAYTRACING
