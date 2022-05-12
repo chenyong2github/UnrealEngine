@@ -228,7 +228,7 @@ bool IsVisibleHZB( FScreenRect Rect, float3 PlaneHZB )
 	bool4 bIsVisible10 = min( PlaneDepth10, Rect.Depth ) >= HZBDepth10;
 	bool4 bIsVisible11 = min( PlaneDepth11, Rect.Depth ) >= HZBDepth11;
 
-	bool4 bIsVisible = bIsVisible00 || bIsVisible01 || bIsVisible10 || bIsVisible11;
+	bool4 bIsVisible = or(or(bIsVisible00, bIsVisible01), or(bIsVisible10, bIsVisible11));
 
 	bIsVisible.yz = (Rect.HZBTexels.x == Rect.HZBTexels.z) ? false : bIsVisible.yz;	// Mask off right pixels
 	bIsVisible.xy = (Rect.HZBTexels.y == Rect.HZBTexels.w) ? false : bIsVisible.xy;	// Mask off bottom pixels

@@ -1476,8 +1476,8 @@ void AccumulateSquare3x3Kernel(
 	ISOLATE
 	{
 		
-		float2 SampleOffset0 = (bool2(bFlipX, bFlipY) ? -SampleOffsetArray[BatchId * 2 + 0] : SampleOffsetArray[BatchId * 2 + 0]);
-		float2 SampleOffset1 = (bool2(bFlipX, bFlipY) ? -SampleOffsetArray[BatchId * 2 + 1] : SampleOffsetArray[BatchId * 2 + 1]);
+		float2 SampleOffset0 = select(bool2(bFlipX, bFlipY), -SampleOffsetArray[BatchId * 2 + 0], SampleOffsetArray[BatchId * 2 + 0]);
+		float2 SampleOffset1 = select(bool2(bFlipX, bFlipY), -SampleOffsetArray[BatchId * 2 + 1], SampleOffsetArray[BatchId * 2 + 1]);
 	
 		float2 SampleBufferUV[2];
 		SampleBufferUV[0] = KernelConfig.BufferUV + SampleOffset0 * KernelConfig.BufferSizeAndInvSize.zw;

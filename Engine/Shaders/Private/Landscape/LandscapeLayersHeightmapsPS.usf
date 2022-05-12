@@ -489,8 +489,8 @@ void GenerateMips(in float4 SVPos : SV_POSITION, out float4 OutColor : SV_Target
 	if (InNumSubsections == 2)
 	{
 		uint2 SubsectionSize = InCurrentMipSubregionSize / 2;
-		bIsMinBorder = bIsMinBorder || (RelativeTextureCoordinates == SubsectionSize);
-		bIsMaxBorder = bIsMaxBorder || (RelativeTextureCoordinates == SubsectionSize - 1);
+		bIsMinBorder = or(bIsMinBorder, RelativeTextureCoordinates == SubsectionSize);
+		bIsMaxBorder = or(bIsMaxBorder, RelativeTextureCoordinates == SubsectionSize - 1);
 	}
 		
 	float SampleWeights[4] =
