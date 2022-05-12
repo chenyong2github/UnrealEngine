@@ -254,11 +254,9 @@ public:
 	POINTL CursorPosition;
 };
 
-
 //disable warnings from overriding the deprecated force feedback.  
 //calls to the deprecated function will still generate warnings.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
 
 /**
  * Interface for classes that handle Windows events.
@@ -531,8 +529,19 @@ private:
 	TOGGLEKEYS							StartupToggleKeys;
 	FILTERKEYS							StartupFilterKeys;
 
-	/** Maps touch indexes to windows touch IDs. */
-	TArray<TOptional<int32>> TouchIDs;
+	struct TouchInfo
+	{
+		bool HasMoved;
+		FVector2D PreviousLocation;
+		TOptional<int32> TouchID;
+
+		TouchInfo()
+			: HasMoved(false)
+			, PreviousLocation(0.f, 0.f)
+		{ }
+	};
+	/** Maps touch information such as TouchID PreviousLocation and HasMoved to windows touch IDs. */
+	TArray<TouchInfo> TouchInfoArray;
 
 	bool bSimulatingHighPrecisionMouseInputForRDP;
 
