@@ -171,6 +171,9 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 void UNiagaraEmitter::PostInitProperties()
 {
 	Super::PostInitProperties();
+#if WITH_EDITORONLY_DATA
+	CheckVersionDataAvailable();
+#endif
 	if (HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
 	{
 		for (FVersionedNiagaraEmitterData& Data : VersionData)
