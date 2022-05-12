@@ -39,30 +39,27 @@ void UPCGGraphInputOutputSettings::PostLoad()
 	}
 }
 
-TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::InputPinProperties() const
+TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::GetPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	Algo::Transform(StaticLabels(), PinProperties, [](const FName& InLabel) { return FPCGPinProperties(InLabel, EPCGDataType::Spatial); });
+	const EPCGDataType DefaultPinDataType = bIsInput ? EPCGDataType::Spatial : EPCGDataType::Any;
+	Algo::Transform(StaticLabels(), PinProperties, [DefaultPinDataType](const FName& InLabel) { return FPCGPinProperties(InLabel, DefaultPinDataType); });
 	
 	if (bShowAdvancedPins)
 	{
-		Algo::Transform(StaticAdvancedLabels(), PinProperties, [](const FName& InLabel) { return FPCGPinProperties(InLabel, EPCGDataType::Spatial); });
+		Algo::Transform(StaticAdvancedLabels(), PinProperties, [DefaultPinDataType](const FName& InLabel) { return FPCGPinProperties(InLabel, DefaultPinDataType); });
 	}
 
 	PinProperties.Append(CustomPins);
 	return PinProperties;
 }
 
+TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::InputPinProperties() const
+{
+	return GetPinProperties();
+}
+
 TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::OutputPinProperties() const
 {
-	TArray<FPCGPinProperties> PinProperties;
-	Algo::Transform(StaticLabels(), PinProperties, [](const FName& InLabel) { return FPCGPinProperties(InLabel, EPCGDataType::Spatial); });
-
-	if (bShowAdvancedPins)
-	{
-		Algo::Transform(StaticAdvancedLabels(), PinProperties, [](const FName& InLabel) { return FPCGPinProperties(InLabel, EPCGDataType::Spatial); });
-	}
-
-	PinProperties.Append(CustomPins);
-	return PinProperties;
+	return GetPinProperties();
 }

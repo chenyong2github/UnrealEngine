@@ -52,6 +52,8 @@ protected:
 	const TArray<FName>& StaticLabels() const { return bIsInput ? StaticInLabels : StaticOutLabels; }
 	const TArray<FName>& StaticAdvancedLabels() const { return bIsInput ? StaticAdvancedInLabels : StaticAdvancedOutLabels; }
 
+	TArray<FPCGPinProperties> GetPinProperties() const;
+
 protected:
 	UPROPERTY()
 	TSet<FName> PinLabels_DEPRECATED;
