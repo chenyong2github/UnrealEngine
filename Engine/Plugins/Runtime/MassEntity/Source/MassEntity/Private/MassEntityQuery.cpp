@@ -136,6 +136,8 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 {
 #if WITH_MASSENTITY_DEBUG
 	int32 NumEntitiesToProcess = 0;
+
+	EntitySubsystem.GetRequirementAccessDetector().RequireAccess(*this);
 #endif
 
 	ExecutionContext.SetSubsystemRequirements(RequiredConstSubsystems, RequiredMutableSubsystems);
@@ -178,6 +180,8 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	// Not using VLOG to be thread safe
 	UE_CLOG(!ExecutionContext.DebugGetExecutionDesc().IsEmpty(), LogMass, VeryVerbose,
 		TEXT("%s: %d entities sent for processing"), *ExecutionContext.DebugGetExecutionDesc(), NumEntitiesToProcess);
+
+	EntitySubsystem.GetRequirementAccessDetector().ReleaseAccess(*this);
 #endif
 
 	ExecutionContext.ClearExecutionData();

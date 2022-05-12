@@ -16,6 +16,8 @@ struct FMassExecutionContext;
 struct FMassFragment;
 struct FMassArchetypeHandle;
 
+struct FMassRequirementAccessDetector;
+
 enum class EMassFragmentAccess : uint8
 {
 	// no binding required
@@ -410,6 +412,8 @@ protected:
 	void ReadCommandlineParams();
 
 protected:
+	friend struct FMassRequirementAccessDetector;
+
 	TArray<FMassFragmentRequirement> Requirements;
 	TArray<FMassFragmentRequirement> ChunkRequirements;
 	TArray<FMassFragmentRequirement> ConstSharedRequirements;

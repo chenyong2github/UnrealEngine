@@ -97,6 +97,8 @@ struct FStructTracker
 template<typename TBaseStruct, typename TStructTrackerWrapper, typename TUStructType = UScriptStruct>
 struct TStructTypeBitSet
 {
+	using FStructTrackerWrapper = TStructTrackerWrapper;
+
 private:
 	struct FBitArrayExt : TBitArray<>
 	{

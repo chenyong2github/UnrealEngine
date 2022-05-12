@@ -108,6 +108,9 @@ void UMassEntitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}
 	}
+#if WITH_MASSENTITY_DEBUG
+	RequirementAccessDetector.Initialize();	
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 void UMassEntitySubsystem::PostInitialize()

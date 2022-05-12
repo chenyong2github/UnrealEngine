@@ -12,6 +12,7 @@
 #include "MassExecutionContext.h"
 #include "Containers/MpscQueue.h"
 #include "MassExecutionContext.h"
+#include "MassRequirementAccessDetector.h"
 #include "MassEntitySubsystem.generated.h"
 
 
@@ -356,6 +357,8 @@ public:
 	void DebugForceArchetypeDataVersionBump() { ++ArchetypeDataVersion; }
 	void DebugGetArchetypeStrings(const FMassArchetypeHandle& Archetype, TArray<FName>& OutFragmentNames, TArray<FName>& OutTagNames);
 	FMassEntityHandle DebugGetEntityIndexHandle(const int32 EntityIndex) const { return Entities.IsValidIndex(EntityIndex) ? FMassEntityHandle(EntityIndex, Entities[EntityIndex].SerialNumber) : FMassEntityHandle(); }
+
+	FMassRequirementAccessDetector& GetRequirementAccessDetector() { return RequirementAccessDetector; }
 #endif // WITH_MASSENTITY_DEBUG
 
 protected:
@@ -420,4 +423,8 @@ private:
 
 	UPROPERTY(Transient)
 	FMassObserverManager ObserverManager;
+
+#if WITH_MASSENTITY_DEBUG
+	FMassRequirementAccessDetector RequirementAccessDetector;
+#endif // WITH_MASSENTITY_DEBUG
 };
