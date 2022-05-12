@@ -10,6 +10,8 @@ FName FGameplayProvider::ProviderName("GameplayProvider");
 #define LOCTEXT_NAMESPACE "GameplayProvider"
 
 #if WITH_EDITOR
+#include "Engine/BlueprintCore.h"
+
 // This is copied from EditorUtilitySubsystem (where it is not public)
 // Should probably be somewhere shared
 static UClass* FindBlueprintClass(const FString& TargetNameRaw)
