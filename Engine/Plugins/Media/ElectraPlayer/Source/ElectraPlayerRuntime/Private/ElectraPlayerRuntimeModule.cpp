@@ -19,6 +19,8 @@
 #include "ElectraPlayer.h"
 #include "ElectraPlayerPlatform.h"
 
+#include "IElectraHTTPStreamModule.h"
+
 DEFINE_LOG_CATEGORY(LogElectraPlayer);
 DEFINE_LOG_CATEGORY(LogElectraPlayerStats);
 
@@ -88,6 +90,9 @@ public:
 		// AAC decoder
 		IAudioDecoderAAC::FSystemConfiguration SysCfgAAC;
 		IAudioDecoderAAC::Startup(SysCfgAAC);
+
+		// The HTTP stream module is required.
+		FModuleManager::LoadModuleChecked<IElectraHTTPStreamModule>("ElectraHTTPStream");
 
 		bInitialized = true;
 	}

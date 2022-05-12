@@ -411,15 +411,16 @@ void FHTTPResponseCache::CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd)
 {
 	if (EntityToAdd.IsValid())
 	{
-		check(EntityToAdd->EffectiveURL.Len());
-
-		int64 SizeRequired = EntityToAdd->Response->GetResponseData().GetNumTotalBytesAdded();
-		EvictToAddSize(SizeRequired);
-		FScopeLock ScopeLock(&Lock);
-		if (SizeInUse + SizeRequired <= MaxElementSize && Cache.Num() < MaxNumElements)
+		if (EntityToAdd->EffectiveURL.Len())
 		{
-			Cache.Insert(MoveTemp(EntityToAdd), 0);
-			SizeInUse += SizeRequired;
+			int64 SizeRequired = EntityToAdd->Response->GetResponseData().GetNumTotalBytesAdded();
+			EvictToAddSize(SizeRequired);
+			FScopeLock ScopeLock(&Lock);
+			if (SizeInUse + SizeRequired <= MaxElementSize && Cache.Num() < MaxNumElements)
+			{
+				Cache.Insert(MoveTemp(EntityToAdd), 0);
+				SizeInUse += SizeRequired;
+			}
 		}
 	}
 }
