@@ -12,6 +12,7 @@
 #include "RewindDebuggerStyle.h"
 #include "RewindDebuggerCommands.h"
 #include "SRewindDebugger.h"
+#include "SRewindDebuggerDetails.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -22,6 +23,25 @@
 #define LOCTEXT_NAMESPACE "RewindDebuggerModule"
 
 static const FName RewindDebuggerTabName("RewindDebugger");
+static const FName RewindDebuggerDetailsTabName("RewindDebuggerDetails");
+
+
+TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerDetailsTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	if (FRewindDebugger::Instance() == nullptr)
+	{
+		FRewindDebugger::Initialize();
+	}
+	
+	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	RewindDebuggerDetailsWidget = SNew(SRewindDebuggerDetails, MajorTab, SpawnTabArgs.GetOwnerWindow());
+
+	MajorTab->SetContent(RewindDebuggerDetailsWidget.ToSharedRef());
+
+	return MajorTab;
+}
 
 TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnTabArgs& SpawnTabArgs)
 {
@@ -38,8 +58,6 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 			RewindDebuggerWidget->CloseAllTabs();
 			RewindDebuggerWidget = nullptr;
 		});
-
-	TSharedPtr<SWidget> TabContent;
 
 	TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
 	const FRewindDebuggerCommands& Commands = FRewindDebuggerCommands::Get();
@@ -105,9 +123,10 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 	RewindDebuggerWidget = SNew(SRewindDebugger, CommandList.ToSharedRef(), MajorTab, SpawnTabArgs.GetOwnerWindow())
 								.DebugTargetActor(DebuggerInstance->GetDebugTargetActorProperty())
 								.RecordingDuration(DebuggerInstance->GetRecordingDurationProperty())
-								.DebugComponents(&DebuggerInstance->GetDebugComponents())
+								.DebugComponents(&DebuggerInstance->GetDebugTracks())
 								.TraceTime(DebuggerInstance->GetTraceTimeProperty())
 								.OnScrubPositionChanged_Raw(DebuggerInstance,&FRewindDebugger::ScrubToTime)
+								.OnViewRangeChanged_Raw(DebuggerInstance,&FRewindDebugger::SetCurrentViewRange)
 								.OnComponentDoubleClicked_Raw(DebuggerInstance, &FRewindDebugger::ComponentDoubleClicked)
 								.OnComponentSelectionChanged_Raw(DebuggerInstance, &FRewindDebugger::ComponentSelectionChanged)
 								.BuildComponentContextMenu_Raw(DebuggerInstance, &FRewindDebugger::BuildComponentContextMenu)
@@ -137,7 +156,13 @@ void FRewindDebuggerModule::StartupModule()
 		.SetDisplayName(LOCTEXT("TabTitle", "Rewind Debugger"))
 		.SetIcon(FSlateIcon("RewindDebuggerStyle", "RewindDebugger.RewindIcon"))
 		.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger."));
-
+	
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+		RewindDebuggerDetailsTabName,
+    	FOnSpawnTab::CreateRaw(this, &FRewindDebuggerModule::SpawnRewindDebuggerDetailsTab))
+		.SetDisplayName(LOCTEXT("DetailsTabTitle", "Rewind Debugger Details"))
+		.SetIcon(FSlateIcon("RewindDebuggerStyle", "RewindDebugger.RewindIcon"))
+		.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger Details Window."));
 
 	RewindDebuggerCameraExtension.Initialize();
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);

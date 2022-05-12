@@ -5,7 +5,6 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Docking/LayoutService.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Modules/ModuleManager.h"
@@ -19,16 +18,12 @@
 #include "Styling/SlateIconFinder.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "IRewindDebuggerViewCreator.h"
-#include "RewindDebuggerViewCreators.h"
 #include "IRewindDebuggerDoubleClickHandler.h"
-#include "Interfaces/IMainFrameModule.h"
 
 #define LOCTEXT_NAMESPACE "SRewindDebugger"
 
@@ -81,7 +76,13 @@ void SRewindDebugger::TrackCursor(bool bReverse)
 		}
 	}
 
-	ViewRange = CurrentViewRange;
+	SetViewRange(CurrentViewRange);
+}
+
+void SRewindDebugger::SetViewRange(TRange<double> NewRange)
+{
+	ViewRange = NewRange;
+	OnViewRangeChanged.ExecuteIfBound(NewRange);
 }
 
 void SRewindDebugger::SetDebugTargetActor(AActor* Actor)
@@ -184,27 +185,10 @@ TSharedRef<SWidget> SRewindDebugger::MakeSelectActorMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SRewindDebugger::CloseAllTabs()
-{
-	 for(FName& TabName : TabNames)
-	 {
-		CloseTab(TabName);
-	 }
-}
-
-void SRewindDebugger::MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
-{
-	IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
-	
-	 // close all tabs that may be open from restoring the saved layout config
-	CloseAllTabs();
-}
-
 void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> CommandList, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
-	bInitializing = true;
-	
 	OnScrubPositionChanged = InArgs._OnScrubPositionChanged;
+	OnViewRangeChanged = InArgs._OnViewRangeChanged;
 	OnComponentSelectionChanged = InArgs._OnComponentSelectionChanged;
 	BuildComponentContextMenu = InArgs._BuildComponentContextMenu;
 	ScrubTimeAttribute = InArgs._ScrubTime;
@@ -232,75 +216,66 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	}
 	ToolBarBuilder.EndSection();
 
+	TSharedPtr<SScrollBar> ScrollBar = SNew(SScrollBar); 
+
 	ComponentTreeView =	SNew(SRewindDebuggerComponentTree)
-				.DebugComponents(InArgs._DebugComponents)
-				.OnMouseButtonDoubleClick(InArgs._OnComponentDoubleClicked)
-				.OnContextMenuOpening(this, &SRewindDebugger::OnContextMenuOpening)
-				.OnSelectionChanged(this, &SRewindDebugger::ComponentSelectionChanged);
-
-
-	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateRaw(this, &SRewindDebugger::TraceTimeChanged);
-
-	// Tab Manager 
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
-
-	TabManager->SetOnPersistLayout(
-		FTabManager::FOnPersistLayout::CreateStatic(
-			[](const TSharedRef<FTabManager::FLayout>& InLayout)
+		.ExternalScrollBar(ScrollBar)
+		.OnExpansionChanged_Lambda([this]() { TimelinesView->RestoreExpansion(); })
+		.OnScrolled_Lambda([this](double ScrollOffset){ TimelinesView->ScrollTo(ScrollOffset); })
+		.DebugComponents(InArgs._DebugComponents)
+		.OnMouseButtonDoubleClick(InArgs._OnComponentDoubleClicked)
+		.OnContextMenuOpening(this, &SRewindDebugger::OnContextMenuOpening)
+		.OnSelectionChanged_Lambda(
+			[this](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem, ESelectInfo::Type SelectInfo)
 			{
-				if (InLayout->GetPrimaryArea().Pin().IsValid())
+				if (!bInSelectionChanged)
 				{
-					FLayoutSaveRestore::SaveToConfig(GEditorLayoutIni, InLayout);
+					bInSelectionChanged = true;
+					TimelinesView->SetSelection(SelectedItem);
+					ComponentSelectionChanged(SelectedItem, SelectInfo);
+					bInSelectionChanged = false;
 				}
-			}
-		)
-	);
+			});
 
-	// Default Layout: all tabs in one stack, inside the rewind debugger tab
-
-	TSharedPtr<FTabManager::FStack> MainTabStack = FTabManager::NewStack();
-
-	FRewindDebuggerViewCreators::EnumerateCreators([this, MainTabStack](const IRewindDebuggerViewCreator* Creator)
-		{
-			FName TabName = Creator->GetName();
-			TabNames.Add(TabName);
-			// Add a closed tabs to the main tab stack in the default layout, so that the first time they won't pop up in their own window
-			TabManager->RegisterTabSpawner(TabName, FOnSpawnTab::CreateRaw(this, &SRewindDebugger::SpawnTab, TabName),
-													FCanSpawnTab::CreateRaw(this, &SRewindDebugger::CanSpawnTab, TabName))
-				.SetDisplayName(Creator->GetTitle())
-				.SetIcon(Creator->GetIcon());
-
-			MainTabStack->AddTab(TabName, ETabState::ClosedTab);
-		}
-	);
-
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("RewindDebuggerLayout1.0") 
-		->AddArea
-		(
-			FTabManager::NewPrimaryArea()
-			->Split
-			(
-				MainTabStack.ToSharedRef()
-			)
-		);
-
-	// load saved layout if it exists
-	Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, Layout);
+	 TimelinesView = SNew(SRewindDebuggerTimelines)
+		.ExternalScrollbar(ScrollBar)
+		.OnExpansionChanged_Lambda([this]() { ComponentTreeView->RestoreExpansion(); })
+		.OnScrolled_Lambda([this](double ScrollOffset){ ComponentTreeView->ScrollTo(ScrollOffset); })
+		.DebugComponents(InArgs._DebugComponents)
+		.ViewRange_Lambda([this](){return ViewRange;})
+		.ClampRange_Lambda(
+			 [this]()
+			 {
+				 return TRange<double>(0.0f, RecordingDuration.Get());
+			 })
+		.OnViewRangeChanged(this, &SRewindDebugger::SetViewRange)
+		.ScrubPosition(ScrubTimeAttribute)
+		.OnScrubPositionChanged_Lambda(
+			[this](double NewScrubTime, bool bIsScrubbing)
+			{
+				if (bIsScrubbing)
+				{
+					OnScrubPositionChanged.ExecuteIfBound( NewScrubTime, bIsScrubbing );
+				}
+			})
+		.OnSelectionChanged_Lambda(
+			[this](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem, ESelectInfo::Type SelectInfo)
+			{
+				if (!bInSelectionChanged)
+				{
+					bInSelectionChanged = true;
+					ComponentTreeView->SetSelection(SelectedItem);
+					ComponentSelectionChanged(SelectedItem, SelectInfo);
+					bInSelectionChanged = false;
+				}
+			});
 
 	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.MainMenu");
 
-	FToolMenuSection& Section = Menu->AddSection("ViewsSection", LOCTEXT("Views", "Views"));
-
-	Section.AddDynamicEntry("ViewsSection", FNewToolMenuDelegateLegacy::CreateLambda([this](FMenuBuilder& InMenuBuilder, UToolMenu* InMenu)
-	{
-		MakeViewsMenu(InMenuBuilder);
-	}));
-
-
 	ChildSlot
 	[
-		SNew(SSplitter)
-		+SSplitter::Slot().MinSize(280).Value(0)
+		SNew(SVerticalBox)
+		 + SVerticalBox::Slot().AutoHeight()
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot().AutoHeight()
@@ -322,327 +297,141 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 					ToolBarBuilder.MakeWidget()
 				]
 			]
-			+SVerticalBox::Slot().AutoHeight()
+		]
+		 + SVerticalBox::Slot().FillHeight(1.0)
+		 [
+			SNew(SSplitter)
+			+SSplitter::Slot().MinSize(280).Value(0)
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot() .FillWidth(1.0f)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(SComboButton)
-					.OnGetMenuContent(this, &SRewindDebugger::MakeSelectActorMenu)
-					.ButtonContent()
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot() .FillWidth(1.0f)
 					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot().AutoWidth().Padding(3)
+						SNew(SComboButton)
+						.OnGetMenuContent(this, &SRewindDebugger::MakeSelectActorMenu)
+						.ButtonContent()
 						[
-							SNew(SImage)
-							.Image_Lambda([this]
-								{
-									FSlateIcon ActorIcon = FSlateIconFinder::FindIconForClass(AActor::StaticClass());
-									if (DebugComponents != nullptr && DebugComponents->Num()>0)
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot().AutoWidth().Padding(3)
+							[
+								SNew(SImage)
+								.Image_Lambda([this]
 									{
-										if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->ObjectId))
+										FSlateIcon ActorIcon = FSlateIconFinder::FindIconForClass(AActor::StaticClass());
+										if (DebugComponents != nullptr && DebugComponents->Num()>0)
 										{
-											ActorIcon = FSlateIconFinder::FindIconForClass(Object->GetClass());
+											if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->GetObjectId()))
+											{
+												ActorIcon = FSlateIconFinder::FindIconForClass(Object->GetClass());
+											}
+										}
+
+										return ActorIcon.GetIcon();
+									}
+								)
+							]
+							+SHorizontalBox::Slot().Padding(3)
+							[
+								SNew(STextBlock)
+								.Text_Lambda([this](){
+									if (DebugComponents == nullptr || DebugComponents->Num()==0)
+									{
+										return LOCTEXT("Select Actor", "Debug Target Actor");
+									}
+
+									FText ReadableName = (*DebugComponents)[0]->GetDisplayName();
+
+									if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->GetObjectId()))
+									{
+										if (AActor* Actor = Cast<AActor>(Object))
+										{
+											ReadableName = FText::FromString(Actor->GetActorLabel());
 										}
 									}
 
-									return ActorIcon.GetIcon();
-								}
-							)
-						]
-						+SHorizontalBox::Slot().Padding(3)
-						[
-							SNew(STextBlock)
-							.Text_Lambda([this](){
-								if (DebugComponents == nullptr || DebugComponents->Num()==0)
-								{
-									return LOCTEXT("Select Actor", "Debug Target Actor");
-								}
-
-								FString ReadableName = (*DebugComponents)[0]->ObjectName;
-
-								if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->ObjectId))
-								{
-									if (AActor* Actor = Cast<AActor>(Object))
-									{
-										ReadableName = Actor->GetActorLabel();
-									}
-								}
-
-								return FText::FromString(ReadableName);
-							} )
+									return ReadableName;
+								} )
+							]
 						]
 					]
-				]
-				+SHorizontalBox::Slot().AutoWidth().HAlign(HAlign_Right)
-				[
-					SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-						.OnClicked(this, &SRewindDebugger::OnSelectActorClicked)
+					+SHorizontalBox::Slot().AutoWidth().HAlign(HAlign_Right)
 					[
-						SNew(SImage)
-						.Image(FRewindDebuggerStyle::Get().GetBrush("RewindDebugger.SelectActor"))
+						SNew(SButton)
+							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+							.OnClicked(this, &SRewindDebugger::OnSelectActorClicked)
+						[
+							SNew(SImage)
+							.Image(FRewindDebuggerStyle::Get().GetBrush("RewindDebugger.SelectActor"))
+						]
 					]
 				]
+				+SVerticalBox::Slot().FillHeight(1.0f)
+				[
+					ComponentTreeView.ToSharedRef()
+				]
 			]
-			+SVerticalBox::Slot().FillHeight(1.0f)
+			+SSplitter::Slot() 
 			[
-				ComponentTreeView.ToSharedRef()
-			]
-		]
-		+SSplitter::Slot() 
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot().AutoHeight()
-			[
-				SNew(SSimpleTimeSlider)
-					.ClampRangeHighlightSize(0.15f)
-					.ClampRangeHighlightColor(FLinearColor::Red.CopyWithNewOpacity(0.5f))
-					.ScrubPosition(ScrubTimeAttribute)
-					.ViewRange_Lambda([this](){ return ViewRange; })
-					.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
-					.ClampRange_Lambda(
-							[this]()
-							{ 
-								return TRange<double>(0.0f,RecordingDuration.Get());
-							})	
-					.OnScrubPositionChanged_Lambda(
-						[this](double NewScrubTime, bool bIsScrubbing)
-								{
-									if (bIsScrubbing)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SSimpleTimeSlider)
+						.DesiredSize({100,24})
+						.ClampRangeHighlightSize(0.15f)
+						.ClampRangeHighlightColor(FLinearColor::Red.CopyWithNewOpacity(0.5f))
+						.ScrubPosition(ScrubTimeAttribute)
+						.ViewRange_Lambda([this](){ return ViewRange; })
+						.OnViewRangeChanged(this, &SRewindDebugger::SetViewRange)
+						.ClampRange_Lambda(
+								[this]()
+								{ 
+									return TRange<double>(0.0f,RecordingDuration.Get());
+								})	
+						.OnScrubPositionChanged_Lambda(
+							[this](double NewScrubTime, bool bIsScrubbing)
 									{
-										OnScrubPositionChanged.ExecuteIfBound( NewScrubTime, bIsScrubbing );
-									}
-								})
-			]
-			+SVerticalBox::Slot().FillHeight(1.0f)
-			[
-				TabManager->RestoreFrom(Layout,TSharedPtr<SWindow>()).ToSharedRef()
+										if (bIsScrubbing)
+										{
+											OnScrubPositionChanged.ExecuteIfBound( NewScrubTime, bIsScrubbing );
+										}
+									})
+				]
+				+SVerticalBox::Slot().FillHeight(1.0f)
+				[
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[				
+						TimelinesView.ToSharedRef()
+					]
+					+SOverlay::Slot().HAlign(EHorizontalAlignment::HAlign_Right)
+					[
+						ScrollBar.ToSharedRef()
+					]
+					
+				]
 			]
 		]
 	];
-
-	if (IMainFrameModule::Get().IsWindowInitialized())
-	{
-		// close all tabs that may be open from restoring the saved layout config
-		CloseAllTabs();
-	}
-	else
-	{
-		// close them later if we are initalizing the layout, to avoid issues with empty windows and crashes
-		IMainFrameModule::Get().OnMainFrameCreationFinished().AddRaw(this, &SRewindDebugger::MainFrameCreationFinished);
-	}
-	
-	bInitializing = false;
 }
 
 void SRewindDebugger::RefreshDebugComponents()
 {
 	ComponentTreeView->Refresh();
+	TimelinesView->Refresh();
 }
-
-void SRewindDebugger::TraceTimeChanged(double Time)
-{
-	for(TSharedPtr<IRewindDebuggerView>& DebugView : DebugViews)
-	{
-		DebugView->SetTimeMarker(Time);
-	}
-	for(TSharedPtr<IRewindDebuggerView>& DebugView : PinnedDebugViews)
-	{
-		DebugView->SetTimeMarker(Time);
-	}
-}
-
-TSharedRef<SDockTab> SRewindDebugger::SpawnTab(const FSpawnTabArgs& Args, FName ViewName)
-{
-	TSharedPtr<IRewindDebuggerView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName; } );
-	if (View)
-	{
-		HiddenTabs.Remove(ViewName);
-
-		return SNew(SDockTab)
-		[
-			View->ToSharedRef()
-		]
-		.OnExtendContextMenu(this, &SRewindDebugger::ExtendTabMenu, *View)
-		.OnTabClosed_Lambda([this,ViewName](TSharedRef<SDockTab>)
-		{
-			if(!bInternalClosingTab) // skip this if the tab is being closed by our own code
-			{
-				HiddenTabs.Add(ViewName);
-			}
-		});
-	}
-
-	return SNew(SDockTab);
-}
-
-// returns true if DebugViews contains a view for the ViewName, but there is no matching Pinned view already open
-bool SRewindDebugger::CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName)
-{
-	if (bInitializing)
-	{
-		return true;
-	}
-	
-	TSharedPtr<IRewindDebuggerView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName; } );
-	
-	if (View!=nullptr)
-	{
-		bool bPinned = nullptr != PinnedDebugViews.FindByPredicate(
-			[View](TSharedPtr<IRewindDebuggerView>& PinnedView)
-			{
-				return PinnedView->GetName() == (*View)->GetName() && PinnedView->GetObjectId() == (*View)->GetObjectId();
-			}
-		);
-	
-		return !bPinned;
-	}
-	return false;
-}
-
-void SRewindDebugger::OnPinnedTabClosed(TSharedRef<SDockTab> Tab)
-{
-	// remove view from list of pinned views
-	TSharedRef<IRewindDebuggerView> View = StaticCastSharedRef<IRewindDebuggerView>(Tab->GetContent());
-	PinnedDebugViews.Remove(View);
-
-	// recreate non-pinned tabs, so when closing a pinned tab for the currently selected component, the non-pinned one will appear
-	CreateDebugTabs();
-}
-
- void SRewindDebugger::PinTab(TSharedPtr<IRewindDebuggerView> View)
- {
-	if (PinnedDebugViews.Find(View) != INDEX_NONE)
-	{
-		return;
-	}
-
-	FName TabName = View->GetName();
-
-	CloseTab(TabName);
-
-	FSlateIcon TabIcon;
-	FText TabLabel;
-
-	if (const IRewindDebuggerViewCreator* Creator = FRewindDebuggerViewCreators::GetCreator(TabName))
-	{
-		TabIcon = Creator->GetIcon();
-		TabLabel = Creator->GetTitle();
-	}
-
-	TSharedPtr<SDockTab> NewTab = SNew(SDockTab)
-	[
-		// add a wrapper widget here, that says the name of the object/component for pinned tabs 
-		View.ToSharedRef()
-	]
-	.OnExtendContextMenu(this, &SRewindDebugger::ExtendTabMenu, View)
-	.OnTabClosed(this, &SRewindDebugger::OnPinnedTabClosed)
-	.Label(TabLabel)
-	.LabelSuffix(LOCTEXT(" (Locked)", " \xD83D\xDD12")); // unicode lock image
-
-	NewTab->SetTabIcon(TabIcon.GetIcon());
-
-
-	static const FName RewindDebuggerPinnedTab = "RewindDebuggerPinnedTabName";
-	TabManager->InsertNewDocumentTab(TabName, RewindDebuggerPinnedTab, FTabManager::FRequireClosedTab(), NewTab.ToSharedRef());
-
-	PinnedDebugViews.Add(View);
- }
 
 TSharedRef<SWidget> SRewindDebugger::MakeMainMenu()
 {
 	return UToolMenus::Get()->GenerateWidget("RewindDebugger.MainMenu", FToolMenuContext());
 }
 
-void SRewindDebugger::MakeViewsMenu(FMenuBuilder& MenuBuilder)
-{
-
-	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
-
-	MenuBuilder.AddMenuEntry(LOCTEXT("Show All Views", "Show All Views"),
-							 LOCTEXT("Show All tooltip", "Show all debug views that are relevant to the selected object type"),
-							 FSlateIcon(),
-							 FExecuteAction::CreateLambda([this]() { ShowAllViews(); }));
-}
-
-void SRewindDebugger::ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IRewindDebuggerView> View)
-{
-	MenuBuilder.BeginSection("RewindDebugger", LOCTEXT("Rewind Debugger", "Rewind Debugger"));
-
-	MenuBuilder.AddMenuEntry(LOCTEXT("Keep View Open", "Keep View Open"),
-							 LOCTEXT("Keep View Open tooltip", "Keep this debug view open even while selected component/actor changes"),
-							 FSlateIcon(),
-							 FUIAction(
-								FExecuteAction::CreateRaw(this, &SRewindDebugger::PinTab, View),
-								FCanExecuteAction::CreateLambda([this,View](){ return PinnedDebugViews.Find(View) == INDEX_NONE; })
-							 )); 
-
-
-	MenuBuilder.EndSection();
-}
-
-void SRewindDebugger::ShowAllViews()
-{
-	HiddenTabs.Empty();
-	CreateDebugTabs();
-}
-
-void SRewindDebugger::CreateDebugViews()
-{
-	DebugViews.Empty();
-
-	if (SelectedComponent.IsValid())
-	{
-		IUnrealInsightsModule &UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-		TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
-
-		FRewindDebuggerViewCreators::CreateDebugViews(SelectedComponent->ObjectId, TraceTime.Get(), *Session, DebugViews);
-	}
-}
-
-void SRewindDebugger::CloseTab(FName TabName)
-{
-	// using bInternalClosingTab to distinguish between procedural, and user initiated tab closing in the OnTabClosed callback
-	bInternalClosingTab = true;
-	TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabName);
-	if (Tab.IsValid())
-	{
-		Tab->RequestCloseTab();
-	}
-	bInternalClosingTab = false;
-}
-
-void SRewindDebugger::CreateDebugTabs()
-{
-	for(FName& TabName : TabNames)
-	{
-		CloseTab(TabName);
-	}
-
-	for(TSharedPtr<IRewindDebuggerView> DebugView : DebugViews)
-	{
-		FName ViewName = DebugView->GetName();
-		uint64 ObjectId = DebugView->GetObjectId();
-
-	    bool bPinned = nullptr != PinnedDebugViews.FindByPredicate([ViewName, ObjectId](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName && View->GetObjectId() == ObjectId; } );
-	    bool bHidden = HiddenTabs.Find(ViewName) != INDEX_NONE;
-
-		if(!bPinned && !bHidden)
-		{
-			TabManager->TryInvokeTab(ViewName);
-		}
-	}
-}
-
-void SRewindDebugger::ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
+void SRewindDebugger::ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem, ESelectInfo::Type SelectInfo)
 {
 	SelectedComponent = SelectedItem;
 
 	OnComponentSelectionChanged.ExecuteIfBound(SelectedItem);
-
-	CreateDebugViews();
-	CreateDebugTabs();
 }
 
 TSharedPtr<SWidget> SRewindDebugger::OnContextMenuOpening()
@@ -652,14 +441,14 @@ TSharedPtr<SWidget> SRewindDebugger::OnContextMenuOpening()
 
 FReply SRewindDebugger::OnSelectActorClicked()
 {
-		FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
-		
-		// todo: force eject (from within BeginActorPickingMode?)
+	FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
+	
+	// todo: force eject (from within BeginActorPickingMode?)
 
-		ActorPickerMode.BeginActorPickingMode(
-			FOnGetAllowedClasses(), 
-			FOnShouldFilterActor(),
-			FOnActorSelected::CreateRaw(this, &SRewindDebugger::SetDebugTargetActor));
+	ActorPickerMode.BeginActorPickingMode(
+		FOnGetAllowedClasses(), 
+		FOnShouldFilterActor(),
+		FOnActorSelected::CreateRaw(this, &SRewindDebugger::SetDebugTargetActor));
 
 
 

@@ -17,10 +17,12 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	auto& Builder = Context.InterfaceBuilder;
 
 	Builder.RouteEvent(RouteId_TickRecord, "Animation", "TickRecord");
+	Builder.RouteEvent(RouteId_TickRecord2, "Animation", "TickRecord2");
 	Builder.RouteEvent(RouteId_SkeletalMesh, "Animation", "SkeletalMesh");
 	Builder.RouteEvent(RouteId_SkeletalMesh2, "Animation", "SkeletalMesh2");
 	Builder.RouteEvent(RouteId_SkeletalMeshComponent, "Animation", "SkeletalMeshComponent");
 	Builder.RouteEvent(RouteId_SkeletalMeshComponent2, "Animation", "SkeletalMeshComponent2");
+	Builder.RouteEvent(RouteId_SkeletalMeshComponent3, "Animation", "SkeletalMeshComponent3");
 	Builder.RouteEvent(RouteId_SkeletalMeshFrame, "Animation", "SkeletalMeshFrame");
 	Builder.RouteEvent(RouteId_AnimGraph, "Animation", "AnimGraph");
 	Builder.RouteEvent(RouteId_AnimNodeStart, "Animation", "AnimNodeStart");
@@ -40,6 +42,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Notify, "Animation", "Notify");
 	Builder.RouteEvent(RouteId_SyncMarker, "Animation", "SyncMarker");
 	Builder.RouteEvent(RouteId_Montage, "Animation", "Montage");
+	Builder.RouteEvent(RouteId_Montage2, "Animation", "Montage2");
 	Builder.RouteEvent(RouteId_Sync, "Animation", "Sync");
 }
 
@@ -52,6 +55,28 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
 	{
+	case RouteId_TickRecord2:
+	{
+		double RecordingTime = EventData.GetValue<double>("RecordingTime");
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint64 AssetId = EventData.GetValue<uint64>("AssetId");
+		int32 NodeId = EventData.GetValue<int32>("NodeId");
+		float BlendWeight = EventData.GetValue<float>("BlendWeight");
+		float PlaybackTime = EventData.GetValue<float>("PlaybackTime");
+		float RootMotionWeight = EventData.GetValue<float>("RootMotionWeight");
+		float PlayRate = EventData.GetValue<float>("PlayRate");
+		float BlendSpacePositionX = EventData.GetValue<float>("BlendSpacePositionX");
+		float BlendSpacePositionY = EventData.GetValue<float>("BlendSpacePositionY");
+		float BlendSpaceFilteredPositionX = EventData.GetValue<float>("BlendSpaceFilteredPositionX");
+		float BlendSpaceFilteredPositionY = EventData.GetValue<float>("BlendSpaceFilteredPositionY");
+		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
+		bool bLooping = EventData.GetValue<bool>("Looping");
+		bool bIsBlendSpace = EventData.GetValue<bool>("IsBlendSpace");
+		AnimationProvider.AppendTickRecord(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, AssetId, NodeId, BlendWeight, PlaybackTime, RootMotionWeight, PlayRate, BlendSpacePositionX, BlendSpacePositionY, BlendSpaceFilteredPositionX, BlendSpaceFilteredPositionY, FrameCounter, bLooping, bIsBlendSpace);
+		break;
+	}
+        	
 	case RouteId_TickRecord:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
@@ -69,7 +94,7 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
 		bool bLooping = EventData.GetValue<bool>("Looping");
 		bool bIsBlendSpace = EventData.GetValue<bool>("IsBlendSpace");
-		AnimationProvider.AppendTickRecord(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), AssetId, NodeId, BlendWeight, PlaybackTime, RootMotionWeight, PlayRate, BlendSpacePositionX, BlendSpacePositionY, BlendSpaceFilteredPositionX, BlendSpaceFilteredPositionY, FrameCounter, bLooping, bIsBlendSpace);
+		AnimationProvider.AppendTickRecord(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), 0.0, AssetId, NodeId, BlendWeight, PlaybackTime, RootMotionWeight, PlayRate, BlendSpacePositionX, BlendSpacePositionY, BlendSpaceFilteredPositionX, BlendSpaceFilteredPositionY, FrameCounter, bLooping, bIsBlendSpace);
 		break;
 	}
 	case RouteId_SkeletalMesh:
@@ -99,7 +124,7 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint16 LodIndex = EventData.GetValue<uint16>("LodIndex");
 		TArrayView<const FTransform> Pose(reinterpret_cast<const FTransform*>(EventData.GetAttachment()), BoneCount);
 		TArrayView<const FSkeletalMeshNamedCurve> Curves(reinterpret_cast<const FSkeletalMeshNamedCurve*>(EventData.GetAttachment() + (sizeof(FTransform) * BoneCount)), CurveCount);
-		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.EventTime.AsSeconds(Cycle), LodIndex, FrameCounter, Pose, Curves);
+		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.EventTime.AsSeconds(Cycle), 0.0, LodIndex, FrameCounter, Pose, Curves);
 		break;
 	}
 	case RouteId_SkeletalMeshComponent2:
@@ -118,7 +143,28 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		TArrayView<const float> CurveValues = EventData.GetArrayView<float>("CurveValues");
 		check(CurveIds.Num() == CurveValues.Num());
 
-		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.EventTime.AsSeconds(Cycle), LodIndex, FrameCounter, ComponentToWorldFloatArray, PoseFloatArray, CurveIds, CurveValues);
+		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.EventTime.AsSeconds(Cycle), 0.0,  LodIndex, FrameCounter, ComponentToWorldFloatArray, PoseFloatArray, CurveIds, CurveValues);
+		break;
+	}
+	case RouteId_SkeletalMeshComponent3:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double RecordingTime = EventData.GetValue<double>("RecordingTime");
+		
+		uint64 ComponentId = EventData.GetValue<uint64>("ComponentId");
+		uint64 MeshId = EventData.GetValue<uint64>("MeshId");
+		uint32 BoneCount = EventData.GetValue<uint32>("BoneCount");
+		uint32 CurveCount = EventData.GetValue<uint32>("CurveCount");
+		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
+		uint16 LodIndex = EventData.GetValue<uint16>("LodIndex");
+
+		TArrayView<const float> ComponentToWorldFloatArray = EventData.GetArrayView<float>("ComponentToWorld");
+		TArrayView<const float> PoseFloatArray = EventData.GetArrayView<float>("Pose");
+		TArrayView<const uint32> CurveIds = EventData.GetArrayView<uint32>("CurveIds");
+		TArrayView<const float> CurveValues = EventData.GetArrayView<float>("CurveValues");
+		check(CurveIds.Num() == CurveValues.Num());
+
+		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.EventTime.AsSeconds(Cycle), RecordingTime, LodIndex, FrameCounter, ComponentToWorldFloatArray, PoseFloatArray, CurveIds, CurveValues);
 		break;
 	}
 	case RouteId_Name:
@@ -311,7 +357,22 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		float DesiredWeight = EventData.GetValue<float>("DesiredWeight");
 		float Position = EventData.GetValue<float>("Position");
 		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
-		AnimationProvider.AppendMontage(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, Position, FrameCounter);
+		AnimationProvider.AppendMontage(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), 0.0, MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, Position, FrameCounter);
+		break;
+	}
+	case RouteId_Montage2:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double RecordingTime = EventData.GetValue<double>("RecordingTime");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint64 MontageId = EventData.GetValue<uint64>("MontageId");
+		uint32 CurrentSectionNameId = EventData.GetValue<uint32>("CurrentSectionNameId");
+		uint32 NextSectionNameId = EventData.GetValue<uint32>("NextSectionNameId");
+		float Weight = EventData.GetValue<float>("Weight");
+		float DesiredWeight = EventData.GetValue<float>("DesiredWeight");
+		float Position = EventData.GetValue<float>("Position");
+		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
+		AnimationProvider.AppendMontage(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, Position, FrameCounter);
 		break;
 	}
 	case RouteId_Sync:

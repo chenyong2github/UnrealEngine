@@ -2827,6 +2827,29 @@ TSharedPtr<IRewindDebuggerView> FDebuggerViewCreator::CreateDebugView(uint64 Obj
 	return FDebugger::Get()->GenerateInstance(ObjectId);
 }
 
+bool FDebuggerViewCreator::HasDebugInfo(uint64 AnimInstanceId, const TraceServices::IAnalysisSession& Session) const
+{
+	// Get provider and validate
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
+
+	const FTraceProvider* PoseSearchProvider = Session.ReadProvider<FTraceProvider>(FTraceProvider::ProviderName);
+	const IAnimationProvider* AnimationProvider = Session.ReadProvider<IAnimationProvider>("AnimationProvider");
+	const IGameplayProvider* GameplayProvider = Session.ReadProvider<IGameplayProvider>("GameplayProvider");
+	if (!(PoseSearchProvider && AnimationProvider && GameplayProvider))
+	{
+		return false;
+	}
+	
+	bool bHasData = false;
+	
+	PoseSearchProvider->EnumerateMotionMatchingStateTimelines(AnimInstanceId, [&bHasData](const FTraceProvider::FMotionMatchingStateTimeline& InTimeline)
+	{
+		bHasData = true;
+	});
+	
+	return bHasData;
+}
+
 FName FDebuggerViewCreator::GetName() const
 {
 	static const FName Name("PoseSearchDebugger");

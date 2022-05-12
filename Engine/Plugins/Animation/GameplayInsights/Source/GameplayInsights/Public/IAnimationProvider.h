@@ -24,6 +24,7 @@ struct FSkeletalMeshNamedCurve
 struct FSkeletalMeshPoseMessage
 {
 	FTransform ComponentToWorld;
+	double RecordingTime = 0.0;
 	uint64 TransformStartIndex = 0;
 	uint64 CurveStartIndex = 0;
 	uint64 ComponentId = 0;	
@@ -46,6 +47,7 @@ struct FTickRecordMessage
 	uint64 ComponentId = 0;
 	uint64 AnimInstanceId = 0;
 	uint64 AssetId = 0;
+	double RecordingTime = 0.0;
 	int32 NodeId = -1;
 	float BlendWeight = 0.0f;
 	float PlaybackTime = 0.0f;
@@ -225,6 +227,7 @@ struct FAnimMontageMessage
 {
 	uint64 AnimInstanceId = 0;
 	uint64 MontageId = 0;
+	double RecordingTime = 0.0;
 	uint32 CurrentSectionNameId = 0;
 	uint32 NextSectionNameId = 0;
 	float Weight = 0.0f;

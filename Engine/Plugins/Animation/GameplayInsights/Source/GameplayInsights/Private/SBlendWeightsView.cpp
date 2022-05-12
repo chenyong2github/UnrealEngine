@@ -4,13 +4,8 @@
 #include "AnimationProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
-#include "Styling/SlateIconFinder.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
-
-#if WITH_EDITOR
-#include "Animation/AnimInstance.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "SBlendWeightsView"
 
@@ -23,12 +18,20 @@ void SBlendWeightsView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame,
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
-		AnimationProvider->ReadTickRecordTimeline(ObjectId, [&GameplayProvider, &OutVariants, &InFrame](const FAnimationProvider::TickRecordTimeline& InTimeline)
+		AnimationProvider->ReadTickRecordTimeline(ObjectId, [this, &GameplayProvider, &OutVariants, &InFrame](const FAnimationProvider::TickRecordTimeline& InTimeline)
 		{
-			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [&GameplayProvider, &OutVariants, &InFrame](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, &GameplayProvider, &OutVariants, &InFrame](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 			{
 				if(InStartTime >= InFrame.StartTime && InEndTime <= InFrame.EndTime)
 				{
+					if (bAssetFilterSet)
+					{
+						if (InMessage.NodeId != NodeIdFilter || InMessage.AssetId != AssetIdFilter)
+						{
+							return TraceServices::EEventEnumerate::Continue;
+						}
+					}
+					
 					const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(InMessage.AssetId);
 					TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeObject(FText::FromString(ClassInfo.Name), InMessage.AssetId, InMessage.AssetId));
 					
@@ -50,43 +53,11 @@ void SBlendWeightsView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame,
 	}
 }
 
-
 static const FName BlendWeightsName("BlendWeights");
 
 FName SBlendWeightsView::GetName() const
 {
 	return BlendWeightsName;
 }
-
-FName FBlendWeightsViewCreator::GetTargetTypeName() const
-{
-	static FName TargetTypeName = "AnimInstance";
-	return TargetTypeName;
-}
-
-FName FBlendWeightsViewCreator::GetName() const
-{
-	return BlendWeightsName;
-}
-
-FText FBlendWeightsViewCreator::GetTitle() const
-{
-	return LOCTEXT("Blend Weights", "Blend Weights");
-}
-
-FSlateIcon FBlendWeightsViewCreator::GetIcon() const
-{
-#if WITH_EDITOR
-	return FSlateIconFinder::FindIconForClass(UAnimInstance::StaticClass());
-#else
-	return FSlateIcon();
-#endif
-}
-
-TSharedPtr<IRewindDebuggerView> FBlendWeightsViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
-{
-	return SNew(SBlendWeightsView, ObjectId, CurrentTime, AnalysisSession);
-}
-
 
 #undef LOCTEXT_NAMESPACE

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "IRewindDebugger.h"
+#include "RewindDebuggerTrack.h"
 #include "BindableProperty.h"
 #include "Containers/Ticker.h"
 #include "UObject/WeakObjectPtr.h"
@@ -31,6 +32,8 @@ public:
 
 	// IRewindDebugger interface
 	virtual double CurrentTraceTime() const override { return TraceTime.Get(); }
+	virtual const TRange<double>& GetCurrentTraceRange() const override { return CurrentTraceRange; }
+	virtual const TRange<double>& GetCurrentViewRange() const override { return CurrentViewRange; }
 	virtual const TraceServices::IAnalysisSession* GetAnalysisSession() const override;
 	virtual uint64 GetTargetActorId() const override;
 	virtual bool GetTargetActorPosition(FVector& OutPosition) const override;
@@ -38,7 +41,10 @@ public:
 	virtual bool IsRecording() const override { return bRecording; }
 	virtual bool IsPIESimulating() const override { return bPIESimulating; }
 	virtual double GetRecordingDuration() const override { return RecordingDuration.Get(); }
-	virtual TSharedPtr<FDebugObjectInfo> GetSelectedComponent() const override { return SelectedComponent; }
+	virtual TSharedPtr<FDebugObjectInfo> GetSelectedComponent() const override;
+	virtual TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() override;
+	
+	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>& GetDebugTracks() { return DebugTracks; }
 
 	// create singleton instance
 	static void Initialize();
@@ -47,7 +53,7 @@ public:
 	static void Shutdown();
 
 	// get singleton instance
-	static FRewindDebugger* Instance() { return InternalInstance; }
+	static FRewindDebugger* Instance() { return static_cast<FRewindDebugger*>(InternalInstance); }
 
 	// Start a new Recording:  Start tracing Object + Animation data, increment the current recording index, and reset the recording elapsed time to 0
 	void StartRecording();
@@ -86,16 +92,16 @@ public:
 	// Tick function: While recording, update recording duration.  While paused, and we have recorded data, update skinned mesh poses for the current frame, and handle playback.
 	void Tick(float DeltaTime);
 
-	// update the list of components for the currently selected debug target
-	void RefreshDebugComponents();
-
-	TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() override { return DebugComponents; };
+	// update the list of tracks for the currently selected debug target
+	void RefreshDebugTracks();
+	
+	void SetCurrentViewRange(const TRange<double>& Range);
 
 	DECLARE_DELEGATE(FOnComponentListChanged)
 	void OnComponentListChanged(const FOnComponentListChanged& ComponentListChangedCallback);
 	
-	void ComponentDoubleClicked(TSharedPtr<FDebugObjectInfo> SelectedObject);
-	void ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedObject);
+	void ComponentDoubleClicked(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject);
+	void ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject);
 	TSharedPtr<SWidget> BuildComponentContextMenu();
 
 	DECLARE_DELEGATE_OneParam( FOnTrackCursor, bool)
@@ -106,6 +112,8 @@ public:
 	TBindableProperty<FString, BindingType_Out>* GetDebugTargetActorProperty() { return &DebugTargetActor; }
 
 private:
+	void RefreshDebugComponents(TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>& InTracks, TArray<TSharedPtr<FDebugObjectInfo>>& OutComponents);
+	
 	void OnPIEStarted(bool bSimulating);
 	void OnPIEPaused(bool bSimulating);
 	void OnPIEResumed(bool bSimulating);
@@ -113,7 +121,6 @@ private:
 	void OnPIESingleStepped(bool bSimulating);
 
 
-	bool UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& NewComponentList, bool bAddController = false);
 	void SetCurrentScrubTime(double Time);
 	void UpdateTraceTime();
 
@@ -141,13 +148,16 @@ private:
 
 	float PlaybackRate;
 	double CurrentScrubTime;
+	TRange<double> CurrentViewRange;
+	TRange<double> CurrentTraceRange;
 	int64 ScrubFrameIndex;
 	uint16 RecordingIndex;
 
-	static FRewindDebugger* InternalInstance;
-
 	TArray<TSharedPtr<FDebugObjectInfo>> DebugComponents;
-	TSharedPtr<FDebugObjectInfo> SelectedComponent;
+	mutable TSharedPtr<FDebugObjectInfo> SelectedComponent;
+	
+	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> DebugTracks;
+	TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedTrack;
 
 	struct FMeshComponentResetData
 	{

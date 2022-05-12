@@ -28,6 +28,7 @@ public:
 		, _CursorSize(0)
 		, _ClampRangeHighlightColor(FLinearColor(0.05,0.05,0.05,1.0))
 		, _ClampRangeHighlightSize(1.0)
+		, _DesiredSize(100,22)
 	{}
 		/* If we should mirror the labels on the timeline */
 		SLATE_ATTRIBUTE( bool, MirrorLabels )
@@ -55,6 +56,9 @@ public:
 
 		/** Size of clamp range overlay 0.0 for none 1.0 for the height of the slider */
 		SLATE_ATTRIBUTE(float, ClampRangeHighlightSize);
+
+		/* Widget desired size */
+		SLATE_ARGUMENT(FVector2d, DesiredSize);
     
 	
 		/** Called when the scrub position changes */
@@ -84,15 +88,66 @@ public:
 	void SetClampRange(double MinValue, double MaxValue);
 	bool IsPanning() { return bPanning; }
 
+	/** Utility struct for converting between scrub range space and local/absolute screen space */
+	struct FScrubRangeToScreen
+	{
+		FVector2D WidgetSize;
+	
+		TRange<double> ViewInput;
+		float ViewInputRange;
+		float PixelsPerInput;
+	
+		FScrubRangeToScreen(TRange<double> InViewInput, const FVector2D& InWidgetSize )
+		{
+			WidgetSize = InWidgetSize;
+	
+			ViewInput = InViewInput;
+			ViewInputRange = ViewInput.Size<float>();
+			PixelsPerInput = ViewInputRange > 0 ? ( WidgetSize.X / ViewInputRange ) : 0;
+		}
+	
+		/** Local Widget Space -> Curve Input domain. */
+		float LocalXToInput(float ScreenX) const
+		{
+			float LocalX = ScreenX;
+			return (LocalX/PixelsPerInput) + ViewInput.GetLowerBoundValue();
+		}
+	
+		/** Curve Input domain -> local Widget Space */
+		float InputToLocalX(float Input) const
+		{
+			return (Input - ViewInput.GetLowerBoundValue()) * PixelsPerInput;
+		}
+	};
+
 protected:
-	// forward declared as class members to prevent name collision with similar types defined in other units
-	struct FScrubRangeToScreen;
-	struct FDrawTickArgs;
+	
+	struct FDrawTickArgs
+    {
+    	/** Geometry of the area */
+    	FGeometry AllottedGeometry;
+    	/** Clipping rect of the area */
+    	FSlateRect ClippingRect;
+    	/** Color of each tick */
+    	FLinearColor TickColor;
+    	/** Offset in Y where to start the tick */
+    	float TickOffset;
+    	/** Height in of major ticks */
+    	float MajorTickHeight;
+    	/** Start layer for elements */
+    	int32 StartLayer;
+    	/** Draw effects to apply */
+    	ESlateDrawEffect DrawEffects;
+    	/** Whether or not to only draw major ticks */
+    	bool bOnlyDrawMajorTicks;
+    	/** Whether or not to mirror labels */
+    	bool bMirrorLabels;
+    };
 
 	// SWidget interface
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
@@ -147,6 +202,7 @@ protected:
 	/***/
 	TSharedPtr<SScrollBar> Scrollbar;
 	FVector2D SoftwareCursorPosition;
+	FVector2D DesiredSize;
 
 	
 };

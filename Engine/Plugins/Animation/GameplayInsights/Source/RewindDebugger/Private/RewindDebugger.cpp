@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RewindDebugger.h"
+
 #include "Components/SkeletalMeshComponent.h"
 #include "Editor.h"
 #include "IAnimationProvider.h"
@@ -12,11 +13,12 @@
 #include "SLevelViewport.h"
 #include "IRewindDebuggerExtension.h"
 #include "IRewindDebuggerDoubleClickHandler.h"
+#include "RewindDebuggerObjectTrack.h"
+#include "RewindDebuggerViewCreators.h"
+#include "RewindDebuggerTrackCreators.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "ToolMenus.h"
-
-FRewindDebugger* FRewindDebugger::InternalInstance = nullptr;
 
 static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
 {
@@ -31,6 +33,95 @@ static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension
 	}
 }
 
+static double FindProfileTime(double InDebugTime, const TraceServices::IAnalysisSession* AnalysisSession)
+{
+	const IGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<IGameplayProvider>("GameplayProvider");
+	const IAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<IAnimationProvider>("AnimationProvider");
+
+	if (GameplayProvider && AnimationProvider)
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+		int ScrubFrameIndex = 0;
+		int RecordingIndex = 0;
+		while (GameplayProvider->GetRecordingInfo(RecordingIndex))
+		{
+			// find latest recording. (hack!)
+			RecordingIndex++;
+		}
+		RecordingIndex--;
+
+		if (const IGameplayProvider::RecordingInfoTimeline* Recording = GameplayProvider->GetRecordingInfo(RecordingIndex))
+		{
+			uint64 EventCount = Recording->GetEventCount();
+
+			if (EventCount > 0)
+			{
+				// check if we are outside of the recorded range, and apply the first or last frame
+				const FRecordingInfoMessage& FirstEvent = Recording->GetEvent(0);
+				const FRecordingInfoMessage& LastEvent = Recording->GetEvent(EventCount - 1);
+				if (InDebugTime <= FirstEvent.ElapsedTime)
+				{
+					ScrubFrameIndex = FMath::Min<uint64>(1, EventCount - 1);
+				}
+				else if (InDebugTime >= LastEvent.ElapsedTime)
+				{
+					ScrubFrameIndex = EventCount - 1;
+				}
+				else
+				{
+					// find the two keys surrounding the CurrentScrubTime, and pick the nearest to update ProfileTime
+					if (Recording->GetEvent(ScrubFrameIndex).ElapsedTime > InDebugTime)
+					{
+						for (uint64 EventIndex = ScrubFrameIndex; EventIndex > 0; EventIndex--)
+						{
+							const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
+							const FRecordingInfoMessage& NextEvent = Recording->GetEvent(EventIndex - 1);
+							if (Event.ElapsedTime >= InDebugTime && NextEvent.ElapsedTime <= InDebugTime)
+							{
+								if (Event.ElapsedTime - InDebugTime < InDebugTime - NextEvent.ElapsedTime)
+								{
+									ScrubFrameIndex = EventIndex;
+								}
+								else
+								{
+									ScrubFrameIndex = EventIndex - 1;
+								}
+								break;
+							}
+						}
+					}
+					else
+					{
+						for (uint64 EventIndex = ScrubFrameIndex; EventIndex < EventCount - 1; EventIndex++)
+						{
+							const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
+							const FRecordingInfoMessage& NextEvent = Recording->GetEvent(EventIndex + 1);
+							if (Event.ElapsedTime <= InDebugTime && NextEvent.ElapsedTime >= InDebugTime)
+							{
+								if (InDebugTime - Event.ElapsedTime < NextEvent.ElapsedTime - InDebugTime)
+								{
+									ScrubFrameIndex = EventIndex;
+								}
+								else
+								{
+									ScrubFrameIndex = EventIndex + 1;
+								}
+								break;
+							}
+						}
+					}
+				}
+
+				const FRecordingInfoMessage& Event = Recording->GetEvent(ScrubFrameIndex);
+				return Event.ProfileTime;
+			}
+		}
+	}
+
+	return 0;
+}
+
 FRewindDebugger::FRewindDebugger()  :
 	ControlState(FRewindDebugger::EControlState::Pause),
 	bPIEStarted(false),
@@ -39,6 +130,8 @@ FRewindDebugger::FRewindDebugger()  :
 	bRecording(false),
 	PlaybackRate(1),
 	CurrentScrubTime(0),
+	CurrentViewRange(0,0),
+	CurrentTraceRange(0,0),
 	ScrubFrameIndex(0),
 	RecordingIndex(0),
 	bTargetActorPositionValid(false)
@@ -56,7 +149,7 @@ FRewindDebugger::FRewindDebugger()  :
 	FEditorDelegates::EndPIE.AddRaw(this, &FRewindDebugger::OnPIEStopped);
 	FEditorDelegates::SingleStepPIE.AddRaw(this, &FRewindDebugger::OnPIESingleStepped);
 
-	DebugTargetActor.OnPropertyChanged = DebugTargetActor.OnPropertyChanged.CreateLambda([this](FString Target) { RefreshDebugComponents(); });
+	DebugTargetActor.OnPropertyChanged = DebugTargetActor.OnPropertyChanged.CreateLambda([this](FString Target) { RefreshDebugTracks(); });
 
 	UnrealInsightsModule = &FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 
@@ -179,80 +272,6 @@ void FRewindDebugger::OnPIEStopped(bool bSimulating)
 	SetCurrentScrubTime(0);
 }
 
-bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& ComponentList, bool bAddController)
-{
-	TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule->GetAnalysisSession();
-	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-	UWorld* World = GetWorldToVisualize();
-
-	const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
-
-	bool bChanged = false;
-
-	double Time = CurrentTraceTime();
-
-	TArray<uint64, TInlineAllocator<32>> FoundObjects;
-
-	GameplayProvider->EnumerateObjects(Time, Time, [this, &bChanged, ParentId, GameplayProvider, &ComponentList, &FoundObjects](const FObjectInfo& InObjectInfo)
-	{
-		if (InObjectInfo.OuterId == ParentId)
-		{
-			const int32 FoundIndex = ComponentList.FindLastByPredicate([&InObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == InObjectInfo.Name; });
-
-			if (FoundIndex >= 0 && ComponentList[FoundIndex]->ObjectName == InObjectInfo.Name)
-			{
-				// we need to make sure we reusing existing FDebugObjectInfo instances for the treeview selection to be stable
-				ComponentList[FoundIndex]->ObjectId = InObjectInfo.Id; // there is an issue with skeletal mesh components changing ids
-				bChanged = bChanged || UpdateComponentList(InObjectInfo.Id, ComponentList[FoundIndex]->Children);
-			}
-			else
-			{
-				bChanged = true;
-				ComponentList.Add(MakeShared<FDebugObjectInfo>(InObjectInfo.Id,InObjectInfo.Name));
-				UpdateComponentList(InObjectInfo.Id, ComponentList.Last()->Children);
-			}
-			
-			FoundObjects.Add(InObjectInfo.Id);
-		}
-	});
-
-	// add controller and it's component hierarchy if one is attached
-	if (bAddController)
-	{
-		if (uint64 ControllerId = GameplayProvider->FindPossessingController(ParentId, CurrentTraceTime()))
-		{
-			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ControllerId);
-			const int32 FoundIndex = ComponentList.FindLastByPredicate([ObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == ObjectInfo.Name; });
-
-			if (FoundIndex >= 0 && ComponentList[FoundIndex]->ObjectName == ObjectInfo.Name)
-			{
-				ComponentList[FoundIndex]->ObjectId = ObjectInfo.Id;
-				bChanged = bChanged || UpdateComponentList(ObjectInfo.Id, ComponentList[FoundIndex]->Children);
-			}
-			else
-			{
-				bChanged = true;
-				ComponentList.Add(MakeShared<FDebugObjectInfo>(ObjectInfo.Id,ObjectInfo.Name));
-				UpdateComponentList(ObjectInfo.Id, ComponentList.Last()->Children);
-			}
-			
-			FoundObjects.Add(ControllerId);
-		}
-	}
-	
-	// remove any components previously in the list that were not found in this time range.
-	for(int Index=ComponentList.Num()-1; Index>=0; Index--)
-	{
-		if (!FoundObjects.Contains(ComponentList[Index]->ObjectId))
-		{
-			bChanged = true;
-			ComponentList.RemoveAt(Index);
-		}
-	}
-	
-	return bChanged;
-}
-
 bool FRewindDebugger::GetTargetActorPosition(FVector& OutPosition) const
 {
 	OutPosition = TargetActorPosition;
@@ -286,7 +305,7 @@ uint64 FRewindDebugger::GetTargetActorId() const
 	return TargetActorId;
 }
 
-void FRewindDebugger::RefreshDebugComponents()
+void FRewindDebugger::RefreshDebugTracks()
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
@@ -305,23 +324,24 @@ void FRewindDebugger::RefreshDebugComponents()
 			bool bChanged = false;
 
 			// add actor (even if it isn't found in the gameplay provider)
-			if (DebugComponents.Num() == 0)
+			if (DebugTracks.Num() == 0)
 			{
 				bChanged = true;
-				DebugComponents.Add(MakeShared<FDebugObjectInfo>(TargetActorId, DebugTargetActor.Get()));
+				const bool bAddController = true;
+				DebugTracks.Add(MakeShared<RewindDebugger::FRewindDebuggerObjectTrack>(TargetActorId, DebugTargetActor.Get(), bAddController));
 			}
 			else
 			{
-				if (DebugComponents[0]->ObjectName != DebugTargetActor.Get() || DebugComponents[0]->ObjectId != TargetActorId)
+				if (DebugTracks[0]->GetDisplayName().ToString() != DebugTargetActor.Get() || DebugTracks[0]->GetObjectId() != TargetActorId)
 				{
 					bChanged = true;
-					DebugComponents[0] = MakeShared<FDebugObjectInfo>(TargetActorId, DebugTargetActor.Get());
+					DebugTracks[0] = MakeShared<RewindDebugger::FRewindDebuggerObjectTrack>(TargetActorId, DebugTargetActor.Get());
 				}
 			}
 
-			if (TargetActorId != 0 && DebugComponents.Num() > 0)
+			if (TargetActorId != 0 && DebugTracks.Num() > 0)
 			{
-				bChanged = bChanged || UpdateComponentList(TargetActorId, DebugComponents[0]->Children, true);
+				bChanged = bChanged || DebugTracks[0]->Update();
 			}
 
 			if (bChanged)
@@ -488,7 +508,7 @@ void FRewindDebugger::Step(int frames)
 						ScrubFrameIndex = FMath::Clamp<int64>(ScrubFrameIndex + frames, 0, (int64)EventCount - 1);
 
 						const FRecordingInfoMessage& Event = Recording->GetEvent(ScrubFrameIndex);
-						CurrentScrubTime = Event.ElapsedTime;
+						SetCurrentScrubTime(Event.ElapsedTime);
 						TraceTime.Set(Event.ProfileTime);
 						TrackCursorDelegate.ExecuteIfBound(false);
 					}
@@ -541,89 +561,28 @@ UWorld* FRewindDebugger::GetWorldToVisualize() const
 	return World;
 }
 
-void  FRewindDebugger::SetCurrentScrubTime(double Time)
+void FRewindDebugger::SetCurrentViewRange(const TRange<double>& Range)
+{
+	CurrentViewRange = Range;
+	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+	{
+		CurrentTraceRange.SetLowerBoundValue(FindProfileTime(CurrentViewRange.GetLowerBoundValue(), Session));
+		CurrentTraceRange.SetUpperBoundValue(FindProfileTime(CurrentViewRange.GetUpperBoundValue(), Session));
+	}
+}
+
+void FRewindDebugger::SetCurrentScrubTime(double Time)
 {
 	CurrentScrubTime = Time;
 	UpdateTraceTime();
 }
 
+
 void FRewindDebugger::UpdateTraceTime()
 {
-	// find the current Insights trace time for the current scrub time.
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
-		UWorld* World = GetWorldToVisualize();
-
-		if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
-		{
-			if (const IGameplayProvider::RecordingInfoTimeline* Recording = GameplayProvider->GetRecordingInfo(RecordingIndex))
-			{
-				uint64 EventCount = Recording->GetEventCount();
-
-				if (EventCount > 0)
-				{
-					// check if we are outside of the recorded range, and apply the first or last frame
-					const FRecordingInfoMessage& FirstEvent = Recording->GetEvent(0);
-					const FRecordingInfoMessage& LastEvent = Recording->GetEvent(EventCount - 1);
-					if (CurrentScrubTime <= FirstEvent.ElapsedTime)
-					{
-						ScrubFrameIndex = FMath::Min<uint64>(1, EventCount - 1);
-					}
-					else if (CurrentScrubTime >= LastEvent.ElapsedTime)
-					{
-						ScrubFrameIndex = EventCount - 1;
-					}
-					else
-					{
-						// find the two keys surrounding the CurrentScrubTime, and pick the nearest to update ProfileTime
-						if (Recording->GetEvent(ScrubFrameIndex).ElapsedTime > CurrentScrubTime)
-						{
-							for (uint64 EventIndex = ScrubFrameIndex; EventIndex > 0; EventIndex--)
-							{
-								const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
-								const FRecordingInfoMessage& NextEvent = Recording->GetEvent(EventIndex - 1);
-								if (Event.ElapsedTime >= CurrentScrubTime && NextEvent.ElapsedTime <= CurrentScrubTime)
-								{
-									if (Event.ElapsedTime - CurrentScrubTime < CurrentScrubTime - NextEvent.ElapsedTime)
-									{
-										ScrubFrameIndex = EventIndex;
-									}
-									else
-									{
-										ScrubFrameIndex = EventIndex - 1;
-									}
-									break;
-								}
-							}
-						}
-						else
-						{
-							for (uint64 EventIndex = ScrubFrameIndex; EventIndex < EventCount - 1; EventIndex++)
-							{
-								const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
-								const FRecordingInfoMessage& NextEvent = Recording->GetEvent(EventIndex + 1);
-								if (Event.ElapsedTime <= CurrentScrubTime && NextEvent.ElapsedTime >= CurrentScrubTime)
-								{
-									if (CurrentScrubTime - Event.ElapsedTime < NextEvent.ElapsedTime - CurrentScrubTime)
-									{
-										ScrubFrameIndex = EventIndex;
-									}
-									else
-									{
-										ScrubFrameIndex = EventIndex + 1;
-									}
-									break;
-								}
-							}
-						}
-					}
-
-					const FRecordingInfoMessage& Event = Recording->GetEvent(ScrubFrameIndex);
-					TraceTime.Set(Event.ProfileTime);
-				}
-			}
-		}
+		TraceTime.Set(FindProfileTime(CurrentScrubTime, Session));
 	}
 }
 
@@ -644,7 +603,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 		if (bRecording)
 		{
 			// if you select a debug target before you start recording, update component list when it becomes valid
-			RefreshDebugComponents();
+			RefreshDebugTracks();
 		}
 		
 		const IAnimationProvider* AnimationProvider = Session->ReadProvider<IAnimationProvider>("AnimationProvider");
@@ -900,19 +859,46 @@ void FRewindDebugger::Tick(float DeltaTime)
 	}
 }
 
-void FRewindDebugger::ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedObject)
+void FRewindDebugger::ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject)
 {
-	SelectedComponent = SelectedObject;
+	SelectedTrack = SelectedObject;
+
+	// todo: if not hidden (add a toggle button to toolbar to hide/show details)
+	TSharedPtr<SDockTab> DetailsTab = FGlobalTabmanager::Get()->TryInvokeTab(FName("RewindDebuggerDetails"));
+
+	TSharedPtr<SWidget> DetailsView;
+
+	if (SelectedObject)
+	{
+		if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+		{
+			DetailsView = SelectedObject->GetDetailsView();
+		}
+	}
+	
+	if (DetailsView)
+	{
+		DetailsTab->SetContent(DetailsView.ToSharedRef());
+	}
+	else
+	{
+		static TSharedPtr<SWidget> EmptyDetails;
+		if (EmptyDetails == nullptr)
+		{
+			EmptyDetails = 	SNew(SSpacer);
+		}
+		DetailsTab->SetContent(EmptyDetails.ToSharedRef());
+	}
 }
 
-void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<FDebugObjectInfo> SelectedObject)
+void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject)
 {
 	if (!SelectedObject.IsValid())
 	{
 		return;
 	}
 	
-	SelectedComponent = SelectedObject;
+	SelectedTrack = SelectedObject;
 	
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 	static const FName HandlerFeatureName = IRewindDebuggerDoubleClickHandler::ModularFeatureName;
@@ -922,7 +908,7 @@ void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<FDebugObjectInfo> Select
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 	
 		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
-		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedObject->ObjectId);
+		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedObject->GetObjectId());
 		uint64 ClassId = ObjectInfo.ClassId;
 		bool bHandled = false;
 		
@@ -954,9 +940,9 @@ void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<FDebugObjectInfo> Select
 TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu()
 {
 	UComponentContextMenuContext* MenuContext = NewObject<UComponentContextMenuContext>();
-	MenuContext->SelectedObject = SelectedComponent;
+	MenuContext->SelectedObject = GetSelectedComponent();
 
-	if (SelectedComponent.IsValid())
+	if (SelectedTrack.IsValid())
 	{
 		// build a list of class hierarchy names to make it easier for extensions to enable menu entries by type
 		if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
@@ -964,7 +950,7 @@ TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu()
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 	
 			const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
-			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedComponent->ObjectId);
+			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedTrack->GetObjectId());
 			uint64 ClassId = ObjectInfo.ClassId;
 			while (ClassId != 0)
 			{
@@ -977,3 +963,35 @@ TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu()
 
 	return UToolMenus::Get()->GenerateWidget("RewindDebugger.ComponentContextMenu", FToolMenuContext(MenuContext));
  }
+
+
+TSharedPtr<FDebugObjectInfo> FRewindDebugger::GetSelectedComponent() const
+{
+	if (!SelectedComponent.IsValid())
+	{
+		SelectedComponent = MakeShared<FDebugObjectInfo>(0,"");
+	}
+	SelectedComponent->ObjectId = SelectedTrack->GetObjectId();
+	SelectedComponent->ObjectName = SelectedTrack->GetDisplayName().ToString();
+	return SelectedComponent;
+}
+
+// build a component tree that's compatible with the public api from 5.0 for GetDebugComponents.
+void FRewindDebugger::RefreshDebugComponents(TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>& InTracks, TArray<TSharedPtr<FDebugObjectInfo>>& OutComponents)
+{
+	OutComponents.SetNum(0);
+	for(auto& Track : InTracks)
+	{
+		int Index = OutComponents.Num();
+		OutComponents.Add(MakeShared<FDebugObjectInfo>(Track->GetObjectId(), Track->GetDisplayName().ToString()));
+		TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> TrackChildren;
+		Track->IterateSubTracks([&TrackChildren](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Child) { TrackChildren.Add(Child); });
+		RefreshDebugComponents(TrackChildren, OutComponents[Index]->Children);
+	}
+}
+
+TArray<TSharedPtr<FDebugObjectInfo>>& FRewindDebugger::GetDebugComponents()
+{
+	RefreshDebugComponents(DebugTracks, DebugComponents);
+	return DebugComponents;
+}

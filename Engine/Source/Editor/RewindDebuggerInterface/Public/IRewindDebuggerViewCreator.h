@@ -19,6 +19,12 @@ public:
 
 	// returns the name of a type of UObject for which this debug view will be created
 	virtual FName GetTargetTypeName() const = 0;
+	
+	// optional additional filter, to prevent debug views from being listed if they have no data
+	virtual bool HasDebugInfo(uint64 ObjectId) const
+	{
+		return true;
+	};
 
 	// returns a unique name for identifying this type of widget (same value returned by IRewindDebuggerView::GetName)
 	virtual FName GetName() const = 0;

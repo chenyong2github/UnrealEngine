@@ -14,6 +14,7 @@ void SPropertiesDebugViewBase::Construct(const FArguments& InArgs, uint64 InObje
 {
 	ObjectId = InObjectId;
 	AnalysisSession = &InAnalysisSession;
+	CurrentTime = InArgs._CurrentTime;
 
 	View = SNew(SVariantValueView, InAnalysisSession).OnGetVariantValues(this, &SPropertiesDebugViewBase::GetVariantsAtFrame);
 
@@ -23,7 +24,6 @@ void SPropertiesDebugViewBase::Construct(const FArguments& InArgs, uint64 InObje
 	[
 		View.ToSharedRef()
 	];
-
 }
 
 void SPropertiesDebugViewBase::SetTimeMarker(double Time)
@@ -39,6 +39,16 @@ void SPropertiesDebugViewBase::SetTimeMarker(double Time)
 			View->RequestRefresh(MarkerFrame);
 		}
 	}
+}
+
+void SPropertiesDebugViewBase::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+{
+	if (CurrentTime.IsBound())
+	{
+		SetTimeMarker(CurrentTime.Get());
+	}
+
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 #undef LOCTEXT_NAMESPACE

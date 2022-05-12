@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRewindDebuggerComponentTree.h"
+
+#include "ISequencerWidgetsModule.h"
 #include "ObjectTrace.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
+
+#include "RewindDebugger.h"
 
 #define LOCTEXT_NAMESPACE "SAnimationInsights"
 
@@ -15,84 +19,95 @@ SRewindDebuggerComponentTree::SRewindDebuggerComponentTree()
 
 SRewindDebuggerComponentTree::~SRewindDebuggerComponentTree() 
 {
+
 }
 
-TSharedRef<ITableRow> ComponentTreeViewGenerateRow(TSharedPtr<FDebugObjectInfo> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRewindDebuggerComponentTree::ComponentTreeViewGenerateRow(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	FString ReadableName = InItem->ObjectName;
-
-	FSlateIcon ObjectIcon = FSlateIconFinder::FindIconForClass(UObject::StaticClass());
-
-	if (UObject* Object = FObjectTrace::GetObjectFromId(InItem->ObjectId))
-	{
-		if (AActor* Actor = Cast<AActor>(Object))
-		{
-			ReadableName = Actor->GetActorLabel();
-		}
-		else if (UActorComponent* Component = Cast<UActorComponent>(Object))
-		{
-			ReadableName = Component->GetName();
-		}
-
-		ObjectIcon = FSlateIconFinder::FindIconForClass(Object->GetClass());
-	}
-
+	FSlateIcon ObjectIcon = InItem->GetIcon();
+	
 	return 
-		SNew(STableRow<TSharedPtr<FDebugObjectInfo>>, OwnerTable)
+		SNew(STableRow<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>, OwnerTable)
 		[
 			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot().AutoWidth().Padding(3)
+			+SHorizontalBox::Slot().AutoWidth().Padding(2)
 			[
-				SNew(SImage)
+				SNew(SImage).DesiredSizeOverride(FVector2D(16,16))
 				.Image(ObjectIcon.GetIcon())
 			]
-			+SHorizontalBox::Slot().Padding(3)
+			+SHorizontalBox::Slot()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(ReadableName))
+				.Text(InItem->GetDisplayName())
 			]
 		];
 }
 
-void ComponentTreeViewGetChildren(TSharedPtr<FDebugObjectInfo> InItem, TArray<TSharedPtr<FDebugObjectInfo>>& OutChildren)
+void ComponentTreeViewGetChildren(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> InItem, TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>& OutChildren)
 {
-	OutChildren.Append(InItem->Children);
+	InItem->IterateSubTracks([&OutChildren](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Track)
+	{
+		OutChildren.Add(Track);
+	});
 }
 
-void ComponentTreeViewExpansionChanged(TSharedPtr<FDebugObjectInfo> InItem, bool bShouldBeExpanded)
+void SRewindDebuggerComponentTree::ComponentTreeViewExpansionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> InItem, bool bShouldBeExpanded)
 {
-	InItem->bExpanded = bShouldBeExpanded;
+	InItem->SetIsExpanded(bShouldBeExpanded);
+	OnExpansionChanged.ExecuteIfBound();
 }
 
+void SRewindDebuggerComponentTree::SetSelection(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem)
+{
+	ComponentTreeView->SetSelection(SelectedItem);
+}
 
+void SRewindDebuggerComponentTree::ScrollTo(double ScrollOffset)
+{
+	ComponentTreeView->SetScrollOffset(ScrollOffset);
+}
 
 void SRewindDebuggerComponentTree::Construct(const FArguments& InArgs)
 {
 	DebugComponents = InArgs._DebugComponents;
 
-	ComponentTreeView = SNew(STreeView<TSharedPtr<FDebugObjectInfo>>)
-									.ItemHeight(16.0f)
+	ComponentTreeView = SNew(STreeView<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>)
+									.ItemHeight(20.0f)
 									.TreeItemsSource(DebugComponents)
-									.OnGenerateRow_Static(&ComponentTreeViewGenerateRow)
+									.OnGenerateRow(this, &SRewindDebuggerComponentTree::ComponentTreeViewGenerateRow)
 									.OnGetChildren_Static(&ComponentTreeViewGetChildren)
-									.OnExpansionChanged_Static(&ComponentTreeViewExpansionChanged)
+									.OnExpansionChanged(this, &SRewindDebuggerComponentTree::ComponentTreeViewExpansionChanged)
 									.SelectionMode(ESelectionMode::Single)
 									.OnSelectionChanged(InArgs._OnSelectionChanged)
 									.OnMouseButtonDoubleClick(InArgs._OnMouseButtonDoubleClick)
+									.ExternalScrollbar(InArgs._ExternalScrollBar)
+									.AllowOverscroll(EAllowOverscroll::No)
+									.OnTreeViewScrolled(InArgs._OnScrolled)
+									.ScrollbarDragFocusCause(EFocusCause::SetDirectly)
 									.OnContextMenuOpening(InArgs._OnContextMenuOpening);
 
 	ChildSlot
 	[
 		ComponentTreeView.ToSharedRef()
 	];
+
+	OnExpansionChanged = InArgs._OnExpansionChanged;
 }
 
-void RestoreExpansion(TArray<TSharedPtr<FDebugObjectInfo>>& Components, TSharedPtr<STreeView<TSharedPtr<FDebugObjectInfo>>>& TreeView)
+static void RestoreExpansion(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Track, TSharedPtr<STreeView<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>>& TreeView)
 {
-	for(TSharedPtr<FDebugObjectInfo> &Component : Components)
+	TreeView->SetItemExpansion(Track, Track->GetIsExpanded());
+	Track->IterateSubTracks([&TreeView](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SubTrack)
 	{
-		TreeView->SetItemExpansion(Component, Component->bExpanded);
-		RestoreExpansion(Component->Children, TreeView);
+		RestoreExpansion(SubTrack, TreeView);
+	});
+}
+
+void SRewindDebuggerComponentTree::RestoreExpansion()
+{
+	for (auto& Track : *DebugComponents)
+	{
+		::RestoreExpansion(Track, ComponentTreeView);
 	}
 }
 
@@ -103,7 +118,7 @@ void SRewindDebuggerComponentTree::Refresh()
 	if (DebugComponents)
 	{
 		// make sure any newly added TreeView nodes are created expanded
-		RestoreExpansion(*DebugComponents, ComponentTreeView);
+		RestoreExpansion();
 	}
 }
 

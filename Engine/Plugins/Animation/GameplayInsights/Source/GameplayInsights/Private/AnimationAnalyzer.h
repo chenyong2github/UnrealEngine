@@ -20,10 +20,12 @@ private:
 	enum : uint16
 	{
 		RouteId_TickRecord,
+		RouteId_TickRecord2,
 		RouteId_SkeletalMesh,
 		RouteId_SkeletalMesh2,
 		RouteId_SkeletalMeshComponent,
 		RouteId_SkeletalMeshComponent2,
+		RouteId_SkeletalMeshComponent3,
 		RouteId_SkeletalMeshFrame,
 		RouteId_AnimGraph,
 		RouteId_AnimNodeStart,
@@ -43,6 +45,7 @@ private:
 		RouteId_Notify,
 		RouteId_SyncMarker,
 		RouteId_Montage,
+		RouteId_Montage2,
 		RouteId_Sync,
 	};
 

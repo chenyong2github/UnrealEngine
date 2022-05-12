@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IRewindDebuggerView.h"
-#include "IRewindDebuggerViewCreator.h"
 #include "SPropertiesDebugViewBase.h"
 
 namespace TraceServices { class IAnalysisSession; }
@@ -14,15 +12,19 @@ class SAnimationCurvesView : public SPropertiesDebugViewBase
 public:
 	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 	virtual FName GetName() const override;
-};
+	
+	void SetCurveFilter(uint32 InCurveFilter)
+	{
+		CurveFilter = InCurveFilter;
+		bCurveFilterSet = true;
+	}
 
-class FAnimationCurvesViewCreator : public IRewindDebuggerViewCreator
-{
-	public:
+	void ClearCurveFilter()
+	{
+		bCurveFilterSet = false;
+	}
 
-		virtual FName GetTargetTypeName() const;
-		virtual FName GetName() const override;
-		virtual FText GetTitle() const override;
-		virtual FSlateIcon GetIcon() const override;
-		virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
+private:
+	uint32 CurveFilter = 0;
+	bool bCurveFilterSet = false;
 };

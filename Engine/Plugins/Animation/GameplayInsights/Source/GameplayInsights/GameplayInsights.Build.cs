@@ -20,7 +20,8 @@ namespace UnrealBuildTool.Rules
 				"TraceInsights",
 				"AssetRegistry",
 				"ApplicationCore",
-				"RewindDebuggerInterface"
+				"RewindDebuggerInterface",
+				"ToolWidgets"
 			});
 
 			if (Target.bCompileAgainstEngine)

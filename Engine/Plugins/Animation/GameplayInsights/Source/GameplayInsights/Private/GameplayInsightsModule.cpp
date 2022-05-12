@@ -15,15 +15,16 @@
 #include "Trace/StoreClient.h"
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
-#include "SAnimationCurvesView.h"
 #include "SBlendWeightsView.h"
 #include "SMontageView.h"
 #include "SObjectPropertiesView.h"
 #include "SNotifiesView.h"
+#include "AnimCurvesTrack.h"
+#include "BlendWeightsTrack.h"
+#include "MontagesTrack.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
-#include "Editor.h"
 #include "ToolMenus.h"
 #include "Engine/Selection.h"
 #include "SubobjectEditorMenuContext.h"
@@ -69,14 +70,15 @@ void FGameplayInsightsModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &ObjectPropertiesViewCreator);
 	static FAnimGraphSchematicViewCreator AnimGraphSchematicViewCreator;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimGraphSchematicViewCreator);
-	static FBlendWeightsViewCreator BlendWeightsViewCreator;
-	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &BlendWeightsViewCreator);
-	static FMontageViewCreator MontageViewCreator;
-	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &MontageViewCreator);
 	static FNotifiesViewCreator NotifiesViewCreator;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &NotifiesViewCreator);
-	static FAnimationCurvesViewCreator AnimationCurvesViewCreator;
-	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimationCurvesViewCreator);
+	
+	static RewindDebugger::FAnimationCurvesTrackCreator AnimationCurvesTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &AnimationCurvesTrackCreator);
+	static RewindDebugger::FBlendWeightsTrackCreator BlendWeightsTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &BlendWeightsTrackCreator);
+	static RewindDebugger::FMontagesTrackCreator MontagesTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &MontagesTrackCreator);
 
 
 	if (!IsRunningCommandlet())

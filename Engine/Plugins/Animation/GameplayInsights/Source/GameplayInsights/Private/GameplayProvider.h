@@ -26,6 +26,7 @@ public:
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const override;
 	virtual void EnumerateObjects(double StartTime, double EndTime, TFunctionRef<void(const FObjectInfo&)> Callback) const override;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const override;
+	virtual const UClass* FindClass(uint64 InClassId) const override;
 	virtual const FClassInfo* FindClassInfo(const TCHAR* InClassPath) const override;
 	virtual const FObjectInfo* FindObjectInfo(uint64 InObjectId) const override;
 	virtual const FWorldInfo* FindWorldInfo(uint64 InObjectId) const override;
@@ -39,6 +40,7 @@ public:
 	virtual const RecordingInfoTimeline* GetRecordingInfo(uint32 RecordingId) const override; 
 	virtual void ReadViewTimeline(TFunctionRef<void(const ViewTimeline&)> Callback) const override;
 
+
 	/** Add a class message */
 	void AppendClass(uint64 InClassId, uint64 InSuperId, const TCHAR* InClassName, const TCHAR* InClassPathName);
 
@@ -46,10 +48,10 @@ public:
 	void AppendObject(uint64 InObjectId, uint64 InOuterId, uint64 InClassId, const TCHAR* InObjectName, const TCHAR* InObjectPathName);
 
 	/** Add an object create message */
-	void AppendObjectLifetimeBegin(uint64 InObjectId, double InTime);
+	void AppendObjectLifetimeBegin(uint64 InObjectId, double InProfileTime, double InRecordingTime);
 	
 	/** Add an object destroy message */
-	void AppendObjectLifetimeEnd(uint64 InObjectId, double InTime);	
+	void AppendObjectLifetimeEnd(uint64 InObjectId, double InProfileTime, double InRecordingTime);	
 
 	/** Add an object event message */
 	void AppendObjectEvent(uint64 InObjectId, double InTime, const TCHAR* InEvent);
@@ -86,6 +88,9 @@ public:
 
 	/** Search PawnPossession timeline to find the Controller Object Id for a Pawn (or 0 if none)*/
 	virtual uint64 FindPossessingController(uint64 Pawn, double Time) const override;
+	
+	/** find the time range for which an object existed */
+	virtual TRange<double> GetObjectRecordingLifetime(uint64 ObjectId) const override;
 
 private:
 	TraceServices::IAnalysisSession& Session;
@@ -157,6 +162,9 @@ private:
 	
 	// Timeline containing intervals where an object exists
 	TraceServices::TIntervalTimeline<FObjectExistsMessage> ObjectLifetimes;
+	
+	// Timeline containing intervals where an object exists - In Rewind Debugger recording time units, to avoid excessive conversions
+	TraceServices::TIntervalTimeline<FObjectExistsMessage> ObjectRecordingLifetimes;
 
 
 	// map from controller id to index in the PawnPossession timeline, for lookup when ending events
@@ -164,6 +172,9 @@ private:
 
 	// map from object id to index in ObjectLifetimes, for lookup when objects are destroyed
 	TMap<uint64, uint64> ActiveObjectLifetimes;
+	
+	// map from object id to index in ObjectRecordingLifetimes, for lookup
+	TMap<uint64, uint64> ActiveObjectRecordingLifetimes;
 
 	/** Whether we have any data */
 	bool bHasAnyData;

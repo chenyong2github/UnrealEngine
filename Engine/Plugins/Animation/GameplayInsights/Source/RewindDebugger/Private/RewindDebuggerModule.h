@@ -8,6 +8,7 @@
 #include "RewindDebuggerCamera.h"
 
 class SRewindDebugger;
+class SRewindDebuggerDetails;
 
 class FRewindDebuggerModule : public IModuleInterface
 {
@@ -17,9 +18,11 @@ public:
 	virtual void ShutdownModule() override;
 
 	TSharedRef<SDockTab> SpawnRewindDebuggerTab(const FSpawnTabArgs& SpawnTabArgs);
+	TSharedRef<SDockTab> SpawnRewindDebuggerDetailsTab(const FSpawnTabArgs& SpawnTabArgs);
 
 private:
 	TSharedPtr<SRewindDebugger> RewindDebuggerWidget;
+	TSharedPtr<SRewindDebuggerDetails> RewindDebuggerDetailsWidget;
 
 	FRewindDebuggerCamera RewindDebuggerCameraExtension;
 };

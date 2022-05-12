@@ -4,6 +4,7 @@
 #include "AnimationProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
+#include "IRewindDebugger.h"
 #include "Styling/SlateIconFinder.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
@@ -140,6 +141,23 @@ FSlateIcon FNotifiesViewCreator::GetIcon() const
 TSharedPtr<IRewindDebuggerView> FNotifiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SNotifiesView, ObjectId, CurrentTime, AnalysisSession);
+}
+
+bool FNotifiesViewCreator::HasDebugInfo(uint64 ObjectId) const
+{
+	const TraceServices::IAnalysisSession* AnalysisSession = IRewindDebugger::Instance()->GetAnalysisSession();
+	
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+	bool bHasData = false;
+	if (const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName))
+	{
+		AnimationProvider->ReadNotifyTimeline(ObjectId, [&bHasData](const FAnimationProvider::AnimNotifyTimeline& InTimeline)
+		{
+			bHasData = true;
+		});
+	}
+
+	return bHasData;
 }
 
 

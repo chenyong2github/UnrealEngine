@@ -4,10 +4,9 @@
 #include "BindableProperty.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Docking/TabManager.h"
 #include "IRewindDebuggerView.h"
-#include "RewindDebuggerModule.h"
 #include "SRewindDebuggerComponentTree.h"
+#include "SRewindDebuggerTimelines.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SCompoundWidget.h"
@@ -20,18 +19,20 @@ class SRewindDebugger : public SCompoundWidget
 
 public:
 	DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, double, bool )
+	DECLARE_DELEGATE_OneParam( FOnViewRangeChanged, const TRange<double>& )
 	DECLARE_DELEGATE_OneParam( FOnDebugTargetChanged, TSharedPtr<FString> )
-	DECLARE_DELEGATE_OneParam( FOnComponentDoubleClicked, TSharedPtr<FDebugObjectInfo> )
-	DECLARE_DELEGATE_OneParam( FOnComponentSelectionChanged, TSharedPtr<FDebugObjectInfo> )
+	DECLARE_DELEGATE_OneParam( FOnComponentDoubleClicked, TSharedPtr<RewindDebugger::FRewindDebuggerTrack> )
+	DECLARE_DELEGATE_OneParam( FOnComponentSelectionChanged, TSharedPtr<RewindDebugger::FRewindDebuggerTrack> )
 	DECLARE_DELEGATE_RetVal( TSharedPtr<SWidget>, FBuildComponentContextMenu )
 
 	SLATE_BEGIN_ARGS(SRewindDebugger) { }
-		SLATE_ARGUMENT( TArray< TSharedPtr< FDebugObjectInfo > >*, DebugComponents );
+		SLATE_ARGUMENT( TArray< TSharedPtr< RewindDebugger::FRewindDebuggerTrack > >*, DebugComponents );
 		SLATE_ARGUMENT(DebugTargetInitializer, DebugTargetActor);
 		SLATE_ARGUMENT(TBindablePropertyInitializer<double>, TraceTime);
 		SLATE_ARGUMENT(TBindablePropertyInitializer<float>, RecordingDuration);
 		SLATE_ATTRIBUTE(double, ScrubTime);
 		SLATE_EVENT( FOnScrubPositionChanged, OnScrubPositionChanged);
+		SLATE_EVENT( FOnViewRangeChanged, OnViewRangeChanged);
 		SLATE_EVENT( FBuildComponentContextMenu, BuildComponentContextMenu );
 		SLATE_EVENT( FOnComponentDoubleClicked, OnComponentDoubleClicked );
 		SLATE_EVENT( FOnComponentSelectionChanged, OnComponentSelectionChanged );
@@ -57,14 +58,17 @@ public:
 
 	void TrackCursor(bool bReverse);
 	void RefreshDebugComponents();
-	void CloseAllTabs();
 private:
+	void SetViewRange(TRange<double> NewRange);
+
+	
 	void MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
 	
 	// Time Slider
 	TAttribute<double> ScrubTimeAttribute;
 	TAttribute<bool> TrackScrubbingAttribute;
 	FOnScrubPositionChanged OnScrubPositionChanged;
+	FOnViewRangeChanged OnViewRangeChanged;
 	TRange<double> ViewRange;
 	TBindableProperty<double> TraceTime;
 	TBindableProperty<float> RecordingDuration;
@@ -75,7 +79,6 @@ private:
 	FReply OnSelectActorClicked();
 
 	TBindableProperty<FString, BindingType_Out> DebugTargetActor;
-	TBindableProperty<float> DebugTargetAnimInstanceId;
 
 	void TraceTimeChanged(double Time);
 
@@ -83,31 +86,15 @@ private:
 	void MakeViewsMenu(FMenuBuilder& MenuBuilder);
 	
 	// component tree view
-	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
-	TSharedPtr<FDebugObjectInfo> SelectedComponent;
-    void ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
+	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>* DebugComponents;
+	TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedComponent;
+    void ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem, ESelectInfo::Type SelectInfo);
 	FBuildComponentContextMenu BuildComponentContextMenu;
 	FOnComponentSelectionChanged OnComponentSelectionChanged;
 	
 	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
+	TSharedPtr<SRewindDebuggerTimelines> TimelinesView;
 	TSharedPtr<SWidget> OnContextMenuOpening();
 
-	// Debug View Tabs
-	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName ViewName);
-	bool CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName);
-	void CloseTab(FName TabName);
-	void OnPinnedTabClosed(TSharedRef<SDockTab> Tab);
-	void ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IRewindDebuggerView> View);
-	void PinTab(TSharedPtr<IRewindDebuggerView> View);
-	void ShowAllViews();
-	void CreateDebugViews();
-	void CreateDebugTabs();
-	TArray<TSharedPtr<IRewindDebuggerView>> DebugViews;
-	TArray<TSharedPtr<IRewindDebuggerView>> PinnedDebugViews;
-	TArray<FName> TabNames;
-	TArray<FName> HiddenTabs;  // keep track of tabs that have been closed so we don't automatically reopen them when switching components
-	bool bInternalClosingTab = false;
-	bool bInitializing = false;
-
-	TSharedPtr<FTabManager> TabManager;
+	bool bInSelectionChanged = false;
 };

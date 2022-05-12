@@ -12,6 +12,7 @@ namespace TraceServices { class IAnalysisSession; }
 class SPropertiesDebugViewBase : public IRewindDebuggerView
 {
 	SLATE_BEGIN_ARGS(SPropertiesDebugViewBase) {}
+	SLATE_ATTRIBUTE(double, CurrentTime)
 	SLATE_END_ARGS()
 public:
 	void Construct(const FArguments& InArgs, uint64 InObjectId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession);
@@ -21,10 +22,13 @@ public:
 
 	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const = 0;
 
+	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 protected:
 	TSharedPtr<SVariantValueView> View;
 
 	uint64 ObjectId;
 	double TimeMarker;
+
+	TAttribute<double> CurrentTime;
 	const TraceServices::IAnalysisSession* AnalysisSession;
 };

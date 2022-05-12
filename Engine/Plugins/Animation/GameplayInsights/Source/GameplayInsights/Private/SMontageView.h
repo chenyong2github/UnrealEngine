@@ -14,14 +14,19 @@ class SMontageView : public SPropertiesDebugViewBase
 public:
 	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 	virtual FName GetName() const override;
-};
+	
+	void SetAssetFilter(uint64 InAssetIdFilter)
+	{
+		AssetIdFilter = InAssetIdFilter;
+		bAssetFilterSet = true;
+	}
 
-class FMontageViewCreator : public IRewindDebuggerViewCreator
-{
-	public:
-		virtual FName GetTargetTypeName() const;
-		virtual FName GetName() const override;
-		virtual FText GetTitle() const override;
-		virtual FSlateIcon GetIcon() const override;
-		virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
+	void ClearAssetFilter()
+	{
+		bAssetFilterSet = false;
+	}
+
+private:
+	uint64 AssetIdFilter = 0;
+	bool bAssetFilterSet = false;
 };

@@ -45,6 +45,12 @@ public:
 	// get the time the debugger is scrubbed to, in seconds since the capture started (or the recording duration while the game is running)
 	virtual double CurrentTraceTime() const = 0;
 
+	// current visible range in trace/profiler units (same units as CurrentTraceTime)
+	virtual const TRange<double>& GetCurrentTraceRange() const = 0;
+	
+	// current visible range in Rewind Debugger recording time units
+	virtual const TRange<double>& GetCurrentViewRange() const = 0;
+
 	// get the current analysis session
 	virtual const TraceServices::IAnalysisSession* GetAnalysisSession() const = 0;
 
@@ -71,4 +77,10 @@ public:
 
 	// returns the length of the current recording
 	virtual double GetRecordingDuration() const = 0;
+
+	// get the current IRewindDebugger instance
+	static IRewindDebugger* Instance();
+	
+protected:
+	static IRewindDebugger* InternalInstance;
 };

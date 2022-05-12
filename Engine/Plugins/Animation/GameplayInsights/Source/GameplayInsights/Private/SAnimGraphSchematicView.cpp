@@ -10,6 +10,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
 #include "GameplayInsightsStyle.h"
+#include "IRewindDebugger.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -1031,6 +1032,23 @@ FSlateIcon FAnimGraphSchematicViewCreator::GetIcon() const
 TSharedPtr<IRewindDebuggerView> FAnimGraphSchematicViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SAnimGraphSchematicView, ObjectId, CurrentTime, AnalysisSession);
+}
+
+bool FAnimGraphSchematicViewCreator::HasDebugInfo(uint64 ObjectId) const
+{
+	const TraceServices::IAnalysisSession* AnalysisSession = IRewindDebugger::Instance()->GetAnalysisSession();
+	
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+	bool bHasData = false;
+	if (const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName))
+	{
+		AnimationProvider->ReadAnimGraphTimeline(ObjectId, [&bHasData](const FAnimationProvider::AnimGraphTimeline& InGraphTimeline)
+		{
+			bHasData = true;
+		});
+	}
+	
+	return bHasData;
 }
 
 #undef LOCTEXT_NAMESPACE

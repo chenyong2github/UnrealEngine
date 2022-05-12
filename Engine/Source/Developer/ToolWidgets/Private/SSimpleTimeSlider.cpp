@@ -22,6 +22,7 @@ void SSimpleTimeSlider::Construct( const SSimpleTimeSlider::FArguments& InArgs )
     OnViewRangeChanged = InArgs._OnViewRangeChanged;
 	ClampRangeHighlightColor = InArgs._ClampRangeHighlightColor;
 	ClampRangeHighlightSize = InArgs._ClampRangeHighlightSize;
+	DesiredSize = InArgs._DesiredSize;
 	
 	DistanceDragged = 0.0f;
 	bDraggingScrubber = false;
@@ -44,7 +45,7 @@ int32 SSimpleTimeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 FVector2D SSimpleTimeSlider::ComputeDesiredSize( float ) const
 {
-	return FVector2D(100, 22);
+	return DesiredSize;
 }
 
 namespace ScrubConstants
@@ -55,40 +56,6 @@ namespace ScrubConstants
 	/**The smallest number of units between between major tick marks */
 	const float MinDisplayTickSpacing = 0.001f;
 }
-
-
-/** Utility struct for converting between scrub range space and local/absolute screen space */
-struct SSimpleTimeSlider::FScrubRangeToScreen
-{
-	FVector2D WidgetSize;
-
-	TRange<double> ViewInput;
-	float ViewInputRange;
-	float PixelsPerInput;
-
-	FScrubRangeToScreen(TRange<double> InViewInput, const FVector2D& InWidgetSize )
-	{
-		WidgetSize = InWidgetSize;
-
-		ViewInput = InViewInput;
-		ViewInputRange = ViewInput.Size<float>();
-		PixelsPerInput = ViewInputRange > 0 ? ( WidgetSize.X / ViewInputRange ) : 0;
-	}
-
-	/** Local Widget Space -> Curve Input domain. */
-	float LocalXToInput(float ScreenX) const
-	{
-		float LocalX = ScreenX;
-		return (LocalX/PixelsPerInput) + ViewInput.GetLowerBoundValue();
-	}
-
-	/** Curve Input domain -> local Widget Space */
-	float InputToLocalX(float Input) const
-	{
-		return (Input - ViewInput.GetLowerBoundValue()) * PixelsPerInput;
-	}
-};
-
 
 /**
  * Gets the the next spacing value in the series 
@@ -138,28 +105,7 @@ static double DetermineOptimalSpacing(float InPixelsPerInput, uint32 InMinTick, 
 	return Spacing;
 }
 
-struct SSimpleTimeSlider::FDrawTickArgs
-{
-	/** Geometry of the area */
-	FGeometry AllottedGeometry;
-	/** Clipping rect of the area */
-	FSlateRect ClippingRect;
-	/** Color of each tick */
-	FLinearColor TickColor;
-	/** Offset in Y where to start the tick */
-	float TickOffset;
-	/** Height in of major ticks */
-	float MajorTickHeight;
-	/** Start layer for elements */
-	int32 StartLayer;
-	/** Draw effects to apply */
-	ESlateDrawEffect DrawEffects;
-	/** Whether or not to only draw major ticks */
-	bool bOnlyDrawMajorTicks;
-	/** Whether or not to mirror labels */
-	bool bMirrorLabels;
-	
-};
+
 
 void SSimpleTimeSlider::DrawTicks( FSlateWindowElementList& OutDrawElements, const struct FScrubRangeToScreen& RangeToScreen, FDrawTickArgs& InArgs ) const
 {
@@ -361,7 +307,7 @@ int32 SSimpleTimeSlider::OnPaintTimeSlider( bool bMirrorLabels, const FGeometry&
 	return LayerId;
 }
 
-FReply SSimpleTimeSlider::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+FReply SSimpleTimeSlider::OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
 	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && AllowPan.Get();
@@ -553,7 +499,7 @@ FReply SSimpleTimeSlider::OnMouseWheel( const FGeometry& MyGeometry, const FPoin
 {
 	FReply ReturnValue = FReply::Unhandled();
 
-	if ( AllowZoom.Get() )
+	if ( AllowZoom.Get() && MouseEvent.GetModifierKeys().IsControlDown())
 	{
 		const float ZoomDelta = -0.1f * MouseEvent.GetWheelDelta();
 

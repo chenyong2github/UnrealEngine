@@ -18,30 +18,6 @@ void FRewindDebuggerViewCreators::EnumerateCreators(TFunctionRef<void(const IRew
     }
 }
 
-void FRewindDebuggerViewCreators::CreateDebugViews(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& Session, TArray<TSharedPtr<IRewindDebuggerView>>& OutDebugViews)
-{
-	TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
-
-	const IGameplayProvider* GameplayProvider = Session.ReadProvider<IGameplayProvider>("GameplayProvider");
-	const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ObjectId);
-	uint64 ClassId = ObjectInfo.ClassId;
-	TArray<FName> TypeNameHierarchy;
-	while (ClassId != 0)
-	{
-		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(ClassId);
-		TypeNameHierarchy.Add(ClassInfo.Name);
-		ClassId = ClassInfo.SuperId;
-	}
-
-	EnumerateCreators([&OutDebugViews, &TypeNameHierarchy, ObjectId, CurrentTime, &Session](const IRewindDebuggerViewCreator* ViewCreator)
-	{
-		if (TypeNameHierarchy.Contains(ViewCreator->GetTargetTypeName()))
-		{
-			OutDebugViews.Add(ViewCreator->CreateDebugView(ObjectId, CurrentTime, Session));
-		}
-	});
-}
-
 const IRewindDebuggerViewCreator* FRewindDebuggerViewCreators::GetCreator(FName CreatorName)
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
