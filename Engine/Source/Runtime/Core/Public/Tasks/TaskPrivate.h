@@ -292,6 +292,14 @@ namespace UE::Tasks
 					return true;
 				}
 
+#if TASKGRAPH_NEW_FRONTEND
+				// task retraction is not supported for named thread tasks
+				if (IsNamedThreadTask())
+				{
+					return false;
+				}
+#endif
+
 				// avoid stack overflow. is not expected in a real-life cases but happens in stress tests
 				if (RecursionDepth == 200)
 				{
@@ -818,6 +826,10 @@ namespace UE::Tasks
 			TTypeCompatibleBytes<TaskBodyType> TaskBodyStorage;
 		};
 
+		// waiting on named threads that replicates TaskGraph logic
+		// returns true if called on a named thread
+		CORE_API bool TryWaitOnNamedThread(FTaskBase& Task);
+
 		// a special kind of task that is used for signalling or dependency management. It can have prerequisites or be used as a prerequisite for other tasks. 
 		// It's optimized for the fact that it doesn't have a task body and so doesn't need to be scheduled and executed
 		class FTaskEventBase : public TConcurrentLinearObject<FTaskEventBase, FTaskBlockAllocationTag>, public FTaskBase
@@ -844,17 +856,28 @@ namespace UE::Tasks
 
 		inline void FTaskBase::Wait()
 		{
+			if (IsCompleted())
+			{
+				return;
+			}
+
 			TaskTrace::FWaitingScope WaitingScope(GetTraceId());
 			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
+
+			if (!IsAwaitable())
+			{
+				UE_LOG(LogTemp, Fatal, TEXT("Deadlock detected! A task can't be waited here, e.g. because it's being executed by the currect thread"));
+				return;
+			}
 
 			if (TryRetractAndExecute())
 			{
 				return;
 			}
 
-			if (!IsAwaitable())
+			// if we are on a named thread, handle waiting in TaskGraph-specific style
+			if (TryWaitOnNamedThread(*this))
 			{
-				UE_LOG(LogTemp, Fatal, TEXT("Deadlock detected! A task can't be waited here, e.g. because it's being executed by the currect thread"));
 				return;
 			}
 

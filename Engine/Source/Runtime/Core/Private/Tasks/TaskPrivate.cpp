@@ -73,4 +73,31 @@ namespace UE::Tasks::Private
 		CurrentTask = Task;
 		return PrevTask;
 	}
+
+	bool TryWaitOnNamedThread(FTaskBase& Task)
+	{
+#if TASKGRAPH_NEW_FRONTEND
+		// handle waiting only on a named thread and if not called from inside a task
+		FTaskGraphInterface& TaskGraph = FTaskGraphInterface::Get();
+		ENamedThreads::Type CurrentThread = TaskGraph.GetCurrentThreadIfKnown();
+		if (CurrentThread < ENamedThreads::ActualRenderingThread /* is a named thread? */ && !TaskGraph.IsThreadProcessingTasks(CurrentThread))
+		{
+			// execute other tasks of this named thread while waiting
+			ETaskPriority Dummy;
+			EExtendedTaskPriority ExtendedPriority;
+			FBaseGraphTask::TranslatePriority(CurrentThread, Dummy, ExtendedPriority);
+
+			auto TaskBody = [CurrentThread, &TaskGraph] { TaskGraph.RequestReturn(CurrentThread); };
+			using FReturnFromNamedThreadTask = TExecutableTask<decltype(TaskBody)>;
+			FReturnFromNamedThreadTask ReturnTask{ TEXT("ReturnFromNamedThreadTask"), MoveTemp(TaskBody), ETaskPriority::High, ExtendedPriority };
+			ReturnTask.AddPrerequisites(Task);
+			ReturnTask.TryLaunch(); // the result doesn't matter
+
+			TaskGraph.ProcessThreadUntilRequestReturn(CurrentThread);
+			return true;
+		}
+#endif
+
+		return false;
+	}
 }

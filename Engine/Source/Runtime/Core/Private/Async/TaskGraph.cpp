@@ -2140,26 +2140,6 @@ private:
 		TaskTrace::FWaitingScope WaitingScope(GetTraceIds(Tasks));
 		TRACE_CPUPROFILER_EVENT_SCOPE(WaitUntilTasksComplete);
 
-#if TASKGRAPH_NEW_FRONTEND
-		bool HasNamedThreadTasks = false;
-		for (const FGraphEventRef& Task : Tasks)
-		{
-			if (!Task->IsNamedThreadTask())
-			{
-				Task->Wait();
-			}
-			else
-			{
-				HasNamedThreadTasks = true;
-			}
-		}
-
-		if (!HasNamedThreadTasks)
-		{
-			return;
-		}
-#endif
-	
 		ENamedThreads::Type CurrentThread = CurrentThreadIfKnown;
 		if (ENamedThreads::GetThreadIndex(CurrentThreadIfKnown) == ENamedThreads::AnyThread)
 		{
@@ -2199,8 +2179,31 @@ private:
 			// named thread process tasks while we wait
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
+			return;
 		}
-		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread() || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
+
+#if TASKGRAPH_NEW_FRONTEND
+		// use the waiting logic of the new frontend, except for named thread tasks
+		bool HasNamedThreadTasks = false;
+		for (const FGraphEventRef& Task : Tasks)
+		{
+			if (!Task->IsNamedThreadTask())
+			{
+				Task->Wait();
+			}
+			else
+			{
+				HasNamedThreadTasks = true;
+			}
+		}
+
+		if (!HasNamedThreadTasks)
+		{
+			return;
+		}
+#endif
+
+		if (LowLevelTasks::FScheduler::Get().IsWorkerThread() || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
 		{
 			// a worker thread gets blocked, involve a reserve worker to utilise an idle core
 			bool bSuccess = false; // has a reserve worker helped?

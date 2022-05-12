@@ -551,14 +551,13 @@ public:
 
 	void Wait(ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		if (!IsNamedThreadTask())
+		// local queue have to be handled by the original TaskGraph implementation. The new frontend doesn't support local queues
+		if (ENamedThreads::GetQueueIndex(CurrentThreadIfKnown) != ENamedThreads::MainQueue)
 		{
-			FTaskBase::Wait();
+			return FTaskGraphInterface::Get().WaitUntilTaskCompletes(this, CurrentThreadIfKnown);
 		}
-		else
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(this, CurrentThreadIfKnown);
-		}
+
+		return FTaskBase::Wait();
 	}
 
 	ENamedThreads::Type GetThreadToExecuteOn() const

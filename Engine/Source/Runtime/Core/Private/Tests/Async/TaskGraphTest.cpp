@@ -1045,6 +1045,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			check(LocalQueueTask.GetRefCount() == 1);
 		}
 
+		{	// launch a GT task, then an any-thread task that depends on it. wait for the any-thread task. this was a deadlock on the new frontend
+			FGraphEventRef GTTask = FFunctionGraphTask::CreateAndDispatchWhenReady([] { IsInGameThread(); }, TStatId{}, nullptr, ENamedThreads::GameThread);
+			FGraphEventRef AnyThreadTask = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, GTTask);
+			AnyThreadTask->Wait();
+		}
+
 		return true;
 	}
 
