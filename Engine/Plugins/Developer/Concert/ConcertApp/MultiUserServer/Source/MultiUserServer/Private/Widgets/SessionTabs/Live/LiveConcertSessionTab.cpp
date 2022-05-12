@@ -5,7 +5,7 @@
 #include "IConcertSession.h"
 #include "LiveServerSessionHistoryController.h"
 #include "PackageViewer/ConcertSessionPackageViewerController.h"
-#include "SConcertSessionInspector.h"
+#include "SConcertLiveSessionTabView.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #include "Widgets/Docking/SDockTab.h"
@@ -20,7 +20,7 @@ FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession>
 
 void FLiveConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& InDockTab)
 {
-	const SConcertSessionInspector::FRequiredArgs WidgetArgs
+	const SConcertLiveSessionTabView::FRequiredWidgets WidgetArgs
 	{
 		InDockTab,
 		ConstructUnderWindow.Get(),
@@ -28,11 +28,7 @@ void FLiveConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& InDoc
 		PackageViewerController->GetPackageViewer()
 	};
 	InDockTab->SetContent(
-		SNew(SConcertSessionInspector, WidgetArgs)
-			.StatusBar()
-			[
-				SNew(SConcertStatusBar, *GetTabId())
-			]
+		SNew(SConcertLiveSessionTabView, WidgetArgs, *GetTabId())
 		);
 }
 

@@ -85,8 +85,15 @@ namespace UE::ConcertServerUI::Private
 				// Destroying StatusBarOutputLog in ~FStatusBarSingleton is too late: it causes a crash
 				FSlateApplication::Get().OnPreShutdown().AddRaw(this, &FStatusBarSingleton::PreShutdownSlate);
 			}
+
+			const bool bIsDrawerNameUnique = !StatusBars.ContainsByPredicate([&WidgetDrawer](TWeakPtr<SWidgetDrawer> WeakDrawer)
+			{
+				return ensure(WeakDrawer.IsValid())
+					&& WeakDrawer.Pin()->GetDrawerName() == WidgetDrawer->GetDrawerName();
+			});
+			checkf(bIsDrawerNameUnique, TEXT("Every widget drawer is expected to have an unique ID"));
 			
-			StatusBars.Add(WidgetDrawer);
+			StatusBars.Add(MoveTemp(WidgetDrawer));
 			
 			OutputLogDrawer.GetDrawerContentDelegate.BindRaw(this, &FStatusBarSingleton::OnGetOutputLog);
 			OutputLogDrawer.OnDrawerOpenedDelegate.BindRaw(this, &FStatusBarSingleton::OnOutputLogOpened);

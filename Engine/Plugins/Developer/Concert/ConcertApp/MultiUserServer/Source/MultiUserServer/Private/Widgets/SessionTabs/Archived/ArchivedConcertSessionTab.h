@@ -8,7 +8,7 @@
 
 struct FConcertSessionActivity;
 class FArchivedSessionHistoryController;
-class SConcertArchivedSessionInspector;
+class SConcertArchivedSessionTabView;
 
 /** Manages the tab for an archived session.  */
 class FArchivedConcertSessionTab : public FConcertSessionTabBase
@@ -38,7 +38,7 @@ private:
 	TSharedPtr<FArchivedSessionHistoryController> HistoryController;
 	
 	/** Displays session */
-	TSharedPtr<SConcertArchivedSessionInspector> Inspector;
+	TSharedPtr<SConcertArchivedSessionTabView> Inspector;
 
 	void OnRequestDeleteActivity(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const;
 	FCanDeleteActivitiesResult CanDeleteActivity(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const;

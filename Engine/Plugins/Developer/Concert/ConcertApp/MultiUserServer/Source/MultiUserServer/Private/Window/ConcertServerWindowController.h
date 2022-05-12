@@ -54,20 +54,18 @@ private:
 	/** Holds the current layout for saving later. */
 	TSharedPtr<FTabManager::FLayout> PersistentLayout;
 
-	TSharedPtr<IConcertSyncServer> ServerInstance;
+	TSharedRef<IConcertSyncServer> ServerInstance;
 
 	/** The main window being managed */
 	TSharedPtr<SWindow> RootWindow;
 	TMap<FGuid, TSharedRef<FConcertSessionTabBase>> RegisteredSessions;
 	
 	/** Manages the session browser */
-	TSharedPtr<FConcertServerSessionBrowserController> SessionBrowserController;
-	
-
+	TSharedRef<FConcertServerSessionBrowserController> SessionBrowserController;
 	/** Additional external concert components */
-	TArray<TSharedRef<IConcertComponent>> AdditionalConcertComponents;
+	TArray<TSharedRef<IConcertComponent>> ConcertComponents;
 	
-	void InitComponents(const TSharedRef<FTabManager::FArea>& MainArea);
+	void InitComponents(const TSharedRef<FTabManager::FStack>& MainArea);
 
 	/** Gets the manager for a session tab if the session ID is valid */
 	TSharedPtr<FConcertSessionTabBase> GetOrRegisterSessionTab(const FGuid& SessionId);

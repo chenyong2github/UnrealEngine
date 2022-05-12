@@ -23,7 +23,7 @@
 #include "Session/History/SSessionHistory.h"
 
 #include "Widgets/HistoryDeletion/SDeleteActivityDependenciesDialog.h"
-#include "Widgets/SessionTabs/Archived/SConcertArchivedSessionInspector.h"
+#include "Widgets/SessionTabs/Archived/SConcertArchivedSessionTabView.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
@@ -45,16 +45,12 @@ void FArchivedConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& I
 	});
 	
 	InDockTab->SetContent(
-		SNew(SConcertArchivedSessionInspector)
+		SNew(SConcertArchivedSessionTabView, *GetTabId())
 			.ConstructUnderMajorTab(InDockTab)
 			.ConstructUnderWindow(ConstructUnderWindow.Get())
 			.MakeSessionHistory(MoveTemp(MakeSessionHistory))
 			.DeleteActivity_Raw(this, &FArchivedConcertSessionTab::OnRequestDeleteActivity)
 			.CanDeleteActivity_Raw(this, &FArchivedConcertSessionTab::CanDeleteActivity)
-			.StatusBar()
-			[
-				SNew(SConcertStatusBar, *GetTabId())
-			]
 		);
 }
 

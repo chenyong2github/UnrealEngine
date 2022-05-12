@@ -5,14 +5,13 @@
 #include "CoreMinimal.h"
 #include "Session/Browser/SConcertSessionBrowser.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SConcertTabViewBase.h"
 
-class SMessageDialog;
 class FConcertServerSessionBrowserController;
-class SSearchBox;
+class SConcertSessionBrowser;
 
 /** Shows a list of server sessions */
-class SConcertServerSessionBrowser : public SCompoundWidget
+class SConcertServerSessionBrowser : public SConcertTabViewBase
 {
 public:
 	

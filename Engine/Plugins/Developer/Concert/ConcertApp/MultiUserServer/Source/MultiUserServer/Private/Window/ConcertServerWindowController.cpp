@@ -24,10 +24,11 @@
 
 FConcertServerWindowController::FConcertServerWindowController(const FConcertServerWindowInitParams& Params)
 	: MultiUserServerLayoutIni(Params.MultiUserServerLayoutIni)
-	, AdditionalConcertComponents(Params.AdditionalConcertComponents)
+	, ServerInstance(Params.Server)
+	, SessionBrowserController(MakeShared<FConcertServerSessionBrowserController>())
+	, ConcertComponents(Params.AdditionalConcertComponents)
 {
-	ServerInstance = Params.Server;
-	SessionBrowserController = MakeShared<FConcertServerSessionBrowserController>();
+	ConcertComponents.Add(SessionBrowserController);
 }
 
 FConcertServerWindowController::~FConcertServerWindowController()
@@ -62,9 +63,11 @@ TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 	FGlobalTabmanager::Get()->SetAllowWindowMenuBar(true);
 	FSlateNotificationManager::Get().SetRootWindow(RootWindowRef);
 	
-	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealMultiUserServerLayout_v1.0");
-	TSharedRef<FTabManager::FArea> MainWindowArea = FTabManager::NewPrimaryArea();
-	InitComponents(MainWindowArea);
+	const TSharedRef<FTabManager::FStack> MainStack = FTabManager::NewStack();
+	InitComponents(MainStack);
+	const TSharedRef<FTabManager::FArea> MainWindowArea = FTabManager::NewPrimaryArea();
+	const TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealMultiUserServerLayout_v1.0");
+	MainWindowArea->Split(MainStack);
 	DefaultLayout->AddArea(MainWindowArea);
 	
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(MultiUserServerLayoutIni, DefaultLayout);
@@ -82,7 +85,7 @@ TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 
 void FConcertServerWindowController::OpenSessionTab(const FGuid& SessionId)
 {
-	if (TSharedPtr<FConcertSessionTabBase> SessionTab = GetOrRegisterSessionTab(SessionId))
+	if (const TSharedPtr<FConcertSessionTabBase> SessionTab = GetOrRegisterSessionTab(SessionId))
 	{
 		SessionTab->OpenSessionTab();
 	}
@@ -103,7 +106,7 @@ TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegister
 	
 	if (TSharedPtr<IConcertServerSession> Session = ServerInstance->GetConcertServer()->GetLiveSession(SessionId))
 	{
-		const TSharedRef<FLiveConcertSessionTab> SessionTab = MakeShared<FLiveConcertSessionTab>(Session.ToSharedRef(), ServerInstance.ToSharedRef(), RootWindow.ToSharedRef());
+		const TSharedRef<FLiveConcertSessionTab> SessionTab = MakeShared<FLiveConcertSessionTab>(Session.ToSharedRef(), ServerInstance, RootWindow.ToSharedRef());
 		RegisteredSessions.Add(SessionId, SessionTab);
 		return SessionTab;
 	}
@@ -111,7 +114,7 @@ TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegister
 	const bool bIsArchivedSession = ServerInstance->GetConcertServer()->GetArchivedSessionInfo(SessionId).IsSet();
 	if (bIsArchivedSession)
 	{
-		const TSharedRef<FArchivedConcertSessionTab> SessionTab = MakeShared<FArchivedConcertSessionTab>(SessionId, ServerInstance.ToSharedRef(), RootWindow.ToSharedRef());
+		const TSharedRef<FArchivedConcertSessionTab> SessionTab = MakeShared<FArchivedConcertSessionTab>(SessionId, ServerInstance, RootWindow.ToSharedRef());
 		RegisteredSessions.Add(SessionId, SessionTab);
 		return SessionTab;
 	}
@@ -119,12 +122,10 @@ TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegister
 	return nullptr;
 }
 
-void FConcertServerWindowController::InitComponents(const TSharedRef<FTabManager::FArea>& MainArea)
+void FConcertServerWindowController::InitComponents(const TSharedRef<FTabManager::FStack>& MainArea)
 {
-	const FConcertComponentInitParams Params { ServerInstance.ToSharedRef(), SharedThis(this), MainArea };
-	SessionBrowserController->Init(Params);
-	
-	for (const TSharedRef<IConcertComponent>& ConcertComponent : AdditionalConcertComponents)
+	const FConcertComponentInitParams Params { ServerInstance, SharedThis(this), MainArea };
+	for (const TSharedRef<IConcertComponent>& ConcertComponent : ConcertComponents)
 	{
 		ConcertComponent->Init(Params);
 	}

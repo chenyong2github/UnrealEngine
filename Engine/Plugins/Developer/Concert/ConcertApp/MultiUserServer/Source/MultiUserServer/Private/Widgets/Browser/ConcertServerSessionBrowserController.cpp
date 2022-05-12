@@ -45,11 +45,8 @@ void FConcertServerSessionBrowserController::Init(const FConcertComponentInitPar
 		.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "A section to browse, start, archive, and restore server sessions."))
 		.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.MultiUser"))
 	);
-	Params.MainWindowArea->Split(
-		FTabManager::NewStack()
-			->AddTab(ConcertServerTabs::GetSessionBrowserTabId(), ETabState::OpenedTab)
-			->SetForegroundTab(ConcertServerTabs::GetSessionBrowserTabId())
-		);
+	Params.MainStack->AddTab(ConcertServerTabs::GetSessionBrowserTabId(), ETabState::OpenedTab)
+		->SetForegroundTab(ConcertServerTabs::GetSessionBrowserTabId());
 
 	ConcertServerEvents::OnLiveSessionCreated().AddSP(this, &FConcertServerSessionBrowserController::OnLiveSessionCreated);
 	ConcertServerEvents::OnLiveSessionDestroyed().AddSP(this, &FConcertServerSessionBrowserController::OnLiveSessionDestroyed);
@@ -258,7 +255,6 @@ TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowser
 				.DoubleClickArchivedSession(this, &FConcertServerSessionBrowserController::OpenSession)
 		];
 
-	FGlobalTabmanager::Get()->SetMainTab(DockTab);
 	return DockTab;
 }
 

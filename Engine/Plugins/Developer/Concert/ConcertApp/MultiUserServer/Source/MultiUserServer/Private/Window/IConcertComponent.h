@@ -17,12 +17,12 @@ struct FConcertComponentInitParams
 	TSharedRef<FConcertServerWindowController> WindowController;
 
 	/** The root area of the main window layout. Add tabs to this. */
-	TSharedRef<FTabManager::FArea> MainWindowArea;
+	TSharedRef<FTabManager::FStack> MainStack;
 
-	FConcertComponentInitParams(TSharedRef<IConcertSyncServer> Server, TSharedRef<FConcertServerWindowController> WindowController, TSharedRef<FTabManager::FArea> MainWindowArea)
+	FConcertComponentInitParams(TSharedRef<IConcertSyncServer> Server, TSharedRef<FConcertServerWindowController> WindowController, TSharedRef<FTabManager::FStack> MainStack)
 		: Server(MoveTemp(Server))
 		, WindowController(MoveTemp(WindowController))
-		, MainWindowArea(MoveTemp(MainWindowArea))
+		, MainStack(MoveTemp(MainStack))
 	{}
 };
 
