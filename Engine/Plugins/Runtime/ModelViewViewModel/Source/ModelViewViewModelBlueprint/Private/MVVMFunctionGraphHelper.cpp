@@ -235,163 +235,49 @@ bool GenerateViewModelFieldNotifySetter(FKismetCompilerContext& InContext, UEdGr
 		return false;
 	}
 
-	UK2Node_VariableSet* SetVariableNode = InContext.SpawnIntermediateNode<UK2Node_VariableSet>(FunctionEntry, InFunctionGraph);
+	UK2Node_VariableGet* OldValueGetNode = InContext.SpawnIntermediateNode<UK2Node_VariableGet>(FunctionEntry, InFunctionGraph);
 	{
-		//SetVariableNode->SetFromProperty(InProperty, true, nullptr);
-		SetVariableNode->VariableReference.SetSelfMember(InProperty->GetFName());
-		SetVariableNode->AllocateDefaultPins();
+		bool bSelfContext = true;
+		OldValueGetNode->VariableReference.SetFromField<FProperty>(InProperty, bSelfContext);
+		OldValueGetNode->AllocateDefaultPins();
 	}
 
-	UK2Node_CallFunction* CallBroadcast = InContext.SpawnIntermediateNode<UK2Node_CallFunction>(FunctionEntry, InFunctionGraph);
+	UK2Node_CallFunction* CallSetPropertyValue = InContext.SpawnIntermediateNode<UK2Node_CallFunction>(FunctionEntry, InFunctionGraph);
 	{
-		CallBroadcast->FunctionReference.SetExternalMember("K2_BroadcastFieldValueChanged", UMVVMViewModelBase::StaticClass());
-		CallBroadcast->AllocateDefaultPins();
-
-		UEdGraphPin* NamePin = CallBroadcast->FindPin(TEXT("FieldId"), EGPD_Input);
-		ensure(NamePin);
-		if (!NamePin)
-		{
-			return false;
-		}
-
-		FFieldNotificationId NewPropertyNotifyId;
-		NewPropertyNotifyId.FieldName = InProperty->GetFName();
-
-		FString ValueString;
-		FFieldNotificationId::StaticStruct()->ExportText(ValueString, &NewPropertyNotifyId, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-
-		bool bMarkAsModified = false;
-		Schema->TrySetDefaultValue(*NamePin, ValueString, bMarkAsModified);
-	}
-
-	UK2Node_VariableGet* GetVariableNode = InContext.SpawnIntermediateNode<UK2Node_VariableGet>(FunctionEntry, InFunctionGraph);
-	{
-		//GetVariableNode->SetFromProperty(InProperty, true, nullptr);
-		GetVariableNode->VariableReference.SetSelfMember(InProperty->GetFName());
-		GetVariableNode->AllocateDefaultPins();
-	}
-
-	UK2Node_IfThenElse* BranchNode = InContext.SpawnIntermediateNode<UK2Node_IfThenElse>(FunctionEntry, InFunctionGraph);
-	{
-		BranchNode->AllocateDefaultPins();
-	}
-
-	UFunction* CompareFunction = nullptr;
-	{
-		TArray<UEdGraphPin*> PromotableOperatorPinsToConsider;
-		UEdGraphPin* EntryValuePin = FunctionEntry->FindPin(InInputPinName, EGPD_Output);
-		if (ensure(EntryValuePin))
-		{
-			PromotableOperatorPinsToConsider.Add(EntryValuePin);
-		}
-		UEdGraphPin* GetVariableNode_Property = GetVariableNode->FindPin(InProperty->GetFName(), EGPD_Output);
-		if (ensure(GetVariableNode_Property))
-		{
-			PromotableOperatorPinsToConsider.Add(GetVariableNode_Property);
-		}
-		UEdGraphPin* BranchCondition = BranchNode->FindPin(UEdGraphSchema_K2::PN_Condition, EGPD_Input);
-		if (ensure(BranchCondition))
-		{
-			PromotableOperatorPinsToConsider.Add(BranchCondition);
-		}
-
-		CompareFunction = FTypePromotion::FindBestMatchingFunc(TEXT("NotEqual"), PromotableOperatorPinsToConsider);
+		CallSetPropertyValue->FunctionReference.SetExternalMember("K2_SetPropertyValue", UMVVMViewModelBase::StaticClass());
+		CallSetPropertyValue->AllocateDefaultPins();
 	}
 
 	bool bResult = true;
-
-	bool bDoBranchTest = CompareFunction != nullptr;
-	if (bDoBranchTest)
+	// Entry -> SetProperty
 	{
-		UK2Node_PromotableOperator* CompareOperator = InContext.SpawnIntermediateNode<UK2Node_PromotableOperator>(FunctionEntry, InFunctionGraph);
-		{
-			CompareOperator->SetFromFunction(CompareFunction);
-			CompareOperator->AllocateDefaultPins();
-		}
-
-		// Entry -> Branch
-		{
-			UEdGraphPin* ThenPin = FunctionEntry->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-			UEdGraphPin* ExecPin = BranchNode->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
-			if (ensure(ThenPin && ExecPin))
-			{
-				ensure(Schema->TryCreateConnection(ThenPin, ExecPin));
-			}
-			bResult = bResult && ThenPin && ExecPin;
-		}
-
-		// Entry -> Compare, Get -> Compare, Compare -> Branch
-		{
-			UEdGraphPin* EntryValuePin = FunctionEntry->FindPin(InInputPinName, EGPD_Output);
-			UEdGraphPin* TopInputPin = CompareOperator->FindPin(TEXT("A"), EGPD_Input);
-			if (ensure(EntryValuePin && TopInputPin))
-			{
-				ensure(Schema->TryCreateConnection(EntryValuePin, TopInputPin));
-			}
-			bResult = bResult && EntryValuePin && TopInputPin;
-
-			UEdGraphPin* GetPin = GetVariableNode->FindPin(InProperty->GetFName(), EGPD_Output);
-			UEdGraphPin* BottomInputPin = CompareOperator->FindPin(TEXT("B"), EGPD_Input);
-			if (ensure(GetPin && BottomInputPin))
-			{
-				ensure(Schema->TryCreateConnection(GetPin, BottomInputPin));
-			}
-			bResult = bResult && GetPin && BottomInputPin;
-
-			UEdGraphPin* OutputPin = CompareOperator->GetOutputPin();
-			UEdGraphPin* BranchCondition = BranchNode->FindPin(UEdGraphSchema_K2::PN_Condition, EGPD_Input);
-			if (ensure(BranchCondition && OutputPin))
-			{
-				ensure(Schema->TryCreateConnection(OutputPin, BranchCondition));
-			}
-			bResult = bResult && BranchCondition && OutputPin;
-		}
-
-		// Branch -> Set
-		{
-			UEdGraphPin* ThenPin = BranchNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-			UEdGraphPin* ExecPin = SetVariableNode->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
-			if (ensure(ThenPin && ExecPin))
-			{
-				ensure(Schema->TryCreateConnection(ThenPin, ExecPin));
-			}
-			bResult = bResult && ThenPin && ExecPin;
-		}
-	}
-	else
-	{
-		// Entry -> Set
-		{
-			UEdGraphPin* ThenPin = FunctionEntry->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-			UEdGraphPin* ExecPin = SetVariableNode->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
-			if (ensure(ThenPin && ExecPin))
-			{
-				ensure(Schema->TryCreateConnection(ThenPin, ExecPin));
-			}
-			bResult = bResult && ThenPin && ExecPin;
-		}
-	}
-
-	// Entry -> Set {Set value}
-	{
-		UEdGraphPin* EntryValuePin = FunctionEntry->FindPin(InInputPinName, EGPD_Output);
-		UEdGraphPin* SetValuePin = SetVariableNode->FindPin(InProperty->GetFName(), EGPD_Input);
-		if (ensure(EntryValuePin && SetValuePin))
-		{
-			ensure(Schema->TryCreateConnection(EntryValuePin, SetValuePin));
-		}
-		bResult = bResult && EntryValuePin && SetValuePin;
-	}
-
-	// Set -> Broadcast
-	{
-		UEdGraphPin* ThenPin = SetVariableNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-		UEdGraphPin* ExecPin = CallBroadcast->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
+		UEdGraphPin* ThenPin = FunctionEntry->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
+		UEdGraphPin* ExecPin = CallSetPropertyValue->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
 		if (ensure(ThenPin && ExecPin))
 		{
 			ensure(Schema->TryCreateConnection(ThenPin, ExecPin));
 		}
 		bResult = bResult && ThenPin && ExecPin;
+	}
+	// OldValue -> SetProperty(OldValue)
+	{
+		UEdGraphPin* ViewModelValuePin = OldValueGetNode->FindPin(InProperty->GetFName(), EGPD_Output);
+		UEdGraphPin* OldValuePin = CallSetPropertyValue->FindPin(TEXT("OldValue"), EGPD_Input);
+		if (ensure(ViewModelValuePin && OldValuePin))
+		{
+			ensure(Schema->TryCreateConnection(ViewModelValuePin, OldValuePin));
+		}
+		bResult = bResult && ViewModelValuePin && OldValuePin;
+	}
+	// NewValue -> SetProperty(NewValue)
+	{
+		UEdGraphPin* EntryValuePin = FunctionEntry->FindPin(InInputPinName, EGPD_Output);
+		UEdGraphPin* NewValuePin = CallSetPropertyValue->FindPin(TEXT("NewValue"), EGPD_Input);
+		if (ensure(EntryValuePin && NewValuePin))
+		{
+			ensure(Schema->TryCreateConnection(EntryValuePin, NewValuePin));
+		}
+		bResult = bResult && EntryValuePin && NewValuePin;
 	}
 
 	return bResult;

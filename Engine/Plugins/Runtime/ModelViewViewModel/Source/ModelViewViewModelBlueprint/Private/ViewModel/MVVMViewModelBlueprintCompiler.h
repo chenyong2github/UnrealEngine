@@ -54,7 +54,6 @@ private:
 	virtual void CreateClassVariablesFromBlueprint() override;
 	virtual void SpawnNewClass(const FString& NewClassName) override;
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
-	virtual void PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags) override;
 	virtual void PostcompileFunction(FKismetFunctionContext& Context) override;
 	virtual void FinishCompilingClass(UClass* Class) override;
 	//~ End FKismetCompilerContext Interface

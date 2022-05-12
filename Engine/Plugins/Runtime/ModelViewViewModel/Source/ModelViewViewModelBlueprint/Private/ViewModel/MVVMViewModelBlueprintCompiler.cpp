@@ -79,8 +79,7 @@ FProperty* FViewModelBlueprintCompilerContext::FindPropertyByNameOnNewClass(FNam
 	{
 		if (CurrentField->GetFName() == PropertyName)
 		{
-			return  CastField<FProperty>(CurrentField);
-			break;
+			return CastField<FProperty>(CurrentField);
 		}
 	}
 	return nullptr;
@@ -131,22 +130,9 @@ void FViewModelBlueprintCompilerContext::CreateFunctionList()
 				continue;
 			}
 		}
-
-		// HACK: Since the VariableSetter doesn't work because of the BlueprintReadOnly, clear it before processing the functions
-		Function.SkelProperty->ClearPropertyFlags(CPF_BlueprintReadOnly);
 	}
 
 	Super::CreateFunctionList();
-
-	// HACK: Reset the BlueprintReadOnly flag
-	for (const FGeneratedFunction& Function : GeneratedFunctions)
-	{
-		if (Function.SkelProperty == nullptr)
-		{
-			continue;
-		}
-		Function.SkelProperty->SetPropertyFlags(CPF_BlueprintReadOnly);
-	}
 }
 
 
@@ -167,38 +153,33 @@ void FViewModelBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		{
 			Property->SetPropertyFlags(CPF_BlueprintReadOnly | CPF_DisableEditOnInstance);
 
-			FGeneratedFunction* FoundGeneratedFunction = GeneratedFunctions.FindByPredicate([PropertyName](const FGeneratedFunction& Other)
-				{
-					return Other.PropertyName == PropertyName;
-				});
+			const FString SetterName = FString::Printf(TEXT("Set%s"), *Property->GetName());
+			const FString NetRepName = FString::Printf(TEXT("__RepNotify_%s"), *Property->GetName());
 
-
-			if (FoundGeneratedFunction)
+#if WITH_EDITOR
+			if (bGenerateSetterFunction)
 			{
-				if (CompileOptions.CompileType == EKismetCompileType::SkeletonOnly)
-				{
-					FoundGeneratedFunction->SkelProperty = Property;
-					ensureMsgf(false, TEXT("The generated function should already exist"));
-				}
-				else
-				{
-					FoundGeneratedFunction->Property = Property;
-					if (FoundGeneratedFunction->NetRepFunction)
-					{
-						Property->SetPropertyFlags(CPF_Net);
-						Property->RepNotifyFunc = FoundGeneratedFunction->NetRepFunction->GetFName();
-					}
-				}
+				Property->SetMetaData(FBlueprintMetadata::MD_PropertySetFunction, *SetterName);
 			}
-			else if (CompileOptions.CompileType == EKismetCompileType::SkeletonOnly)
+#endif
+
+			if (CompileOptions.CompileType == EKismetCompileType::SkeletonOnly)
 			{
 				FGeneratedFunction GeneratedFunction;
 				GeneratedFunction.PropertyName = PropertyName;
 				GeneratedFunction.SkelProperty = Property;
 
+				if (GeneratedFunctions.ContainsByPredicate([PropertyName](const FGeneratedFunction& Other)
+					{
+						return Other.PropertyName == PropertyName;
+					}))
+				{
+					MessageLog.Error(*FString::Printf(TEXT("Internal error. The functions are already generated for properpty."), *PropertyName.ToString()));
+					continue;
+				}
+
 				if (bGenerateSetterFunction)
 				{
-					const FString SetterName = FString::Printf(TEXT("Set%s"), *Property->GetName());
 					GeneratedFunction.SetterFunction = FunctionGraphHelper::CreateIntermediateFunctionGraph(
 						*this
 						, *SetterName
@@ -217,7 +198,6 @@ void FViewModelBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 
 				if (bGenerateReplicatedFunction)
 				{
-					const FString NetRepName = FString::Printf(TEXT("__RepNotify_%s"), *Property->GetName());
 					GeneratedFunction.NetRepFunction = FunctionGraphHelper::CreateIntermediateFunctionGraph(
 						*this
 						, *NetRepName
@@ -271,19 +251,6 @@ void FViewModelBlueprintCompilerContext::OnNewClassSet(UBlueprintGeneratedClass*
 }
 
 
-void FViewModelBlueprintCompilerContext::PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags)
-{
-	// HACK: Since the VariableSet doesn't work because of the BlueprintReadOnly, clear it before processing the functions
-	for (const FGeneratedFunction& Function : GeneratedFunctions)
-	{
-		check(Function.Property);
-		Function.Property->ClearPropertyFlags(CPF_BlueprintReadOnly);
-	}
-
-	Super::PrecompileFunction(Context, InternalFlags);
-}
-
-
 void FViewModelBlueprintCompilerContext::PostcompileFunction(FKismetFunctionContext& Context)
 {
 	Super::PostcompileFunction(Context);
@@ -295,13 +262,6 @@ void FViewModelBlueprintCompilerContext::PostcompileFunction(FKismetFunctionCont
 			MessageLog.Error(*LOCTEXT("FieldNotify_IsEventGraph", "Function @@ cannot be a FieldNotify. A function needs to be const, returns a single properties, has no inputs, not be an event or a net function.").ToString(), Context.EntryPoint);
 		}
 		NewViewModelBlueprintClass->FieldNotifyNames.Emplace(Context.Function->GetFName());
-	}
-
-	// HACK: Reset the BlueprintReadOnly flag
-	for (const FGeneratedFunction& Function : GeneratedFunctions)
-	{
-		check(Function.Property);
-		Function.Property->SetPropertyFlags(CPF_BlueprintReadOnly);
 	}
 }
 
@@ -319,6 +279,22 @@ void FViewModelBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			{
 				BPGClass->InitializeFieldNotification(ViewModelBase);
 			}
+		}
+
+		auto DeleteGraph = [](UEdGraph* Graph)
+		{
+			if (Graph)
+			{
+				ensureMsgf(Graph->HasAnyFlags(RF_Transient), TEXT("The graph should be temporary and should be generated automatically."));
+				// GC may not have clean the graph (GC doesn't run when bRegenerateSkeletonOnly is on)
+				Graph->Rename(nullptr, Graph->GetOuter(), REN_DoNotDirty | REN_ForceNoResetLoaders);
+			}
+		};
+
+		for (FGeneratedFunction& GeneratedFunction : GeneratedFunctions)
+		{
+			DeleteGraph(GeneratedFunction.SetterFunction);
+			DeleteGraph(GeneratedFunction.NetRepFunction);
 		}
 	}
 }
