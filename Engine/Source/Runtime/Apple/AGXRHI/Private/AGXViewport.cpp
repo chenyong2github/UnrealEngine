@@ -238,17 +238,15 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
 		TRefCountPtr<FAGXSurface> NewBackBuffer;
 		TRefCountPtr<FAGXSurface> DoubleBuffer;
 
-		ETextureCreateFlags Flags = GAGXSupportsIntermediateBackBuffer
-			? TexCreate_RenderTargetable
-			: TexCreate_RenderTargetable | TexCreate_Presentable;
-
-		FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
-			  TEXT("BackBuffer")
-			, { (int32)InSizeX, (int32)InSizeY }
-			, Format
-			, FClearValueBinding::None
-			, Flags
-		);
+		FRHITextureCreateDesc CreateDesc =
+			FRHITextureCreateDesc::Create2D(TEXT("BackBuffer"), InSizeX, InSizeY, Format)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::RenderTargetable);
+		
+		if (!GAGXSupportsIntermediateBackBuffer)
+		{
+			CreateDesc.AddFlags(ETextureCreateFlags::Presentable);
+		}
 
 		NewBackBuffer = new FAGXSurface(CreateDesc);
 		NewBackBuffer->Viewport = this;

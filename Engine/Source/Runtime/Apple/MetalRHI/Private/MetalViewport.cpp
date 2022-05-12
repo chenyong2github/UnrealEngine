@@ -242,17 +242,15 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		TRefCountPtr<FMetalSurface> NewBackBuffer;
 		TRefCountPtr<FMetalSurface> DoubleBuffer;
 
-		ETextureCreateFlags Flags = GMetalSupportsIntermediateBackBuffer
-			? TexCreate_RenderTargetable
-			: TexCreate_RenderTargetable | TexCreate_Presentable;
-
-		FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
-			  TEXT("BackBuffer")
-			, { (int32)InSizeX, (int32)InSizeY }
-			, Format
-			, FClearValueBinding::None
-			, Flags
-		);
+		FRHITextureCreateDesc CreateDesc =
+			FRHITextureCreateDesc::Create2D(TEXT("BackBuffer"), InSizeX, InSizeY, Format)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::RenderTargetable);
+		
+		if (!GMetalSupportsIntermediateBackBuffer)
+		{
+			CreateDesc.AddFlags(ETextureCreateFlags::Presentable);
+		}
 
 		NewBackBuffer = new FMetalSurface(CreateDesc);
 		NewBackBuffer->Viewport = this;
