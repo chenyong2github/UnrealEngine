@@ -53,8 +53,5 @@ static int GetNumSpeakers()
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBink, Log, All);
 
-#ifndef LOCTEXT_NAMESPACE
-#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
-#endif
 
 

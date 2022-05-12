@@ -10,6 +10,8 @@
 
 DEFINE_LOG_CATEGORY(LogBink);
 
+#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
+
 TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 
 TArray< FTexture2DRHIRef > BinkActiveTextureRefs;
@@ -270,3 +272,4 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 
 IMPLEMENT_MODULE( FBinkMediaPlayerModule, BinkMediaPlayer )
 
+#undef LOCTEXT_NAMESPACE
