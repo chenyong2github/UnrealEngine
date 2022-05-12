@@ -54,8 +54,14 @@ public:
 		return BindingReference;
 	}
 
-	void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField)
+	void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField)
 	{
+		if (InField.IsEmpty())
+		{
+			Reset();
+			return;
+		}
+
 		BindingReference = InField.CreateMemberReference();
 
 		if (InField.IsProperty())
@@ -69,31 +75,6 @@ public:
 		else
 		{
 			ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
-		}
-	}
-
-	void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField)
-	{
-		if (InField.IsEmpty())
-		{
-			Reset();
-		}
-		else
-		{
-			BindingReference = InField.CreateMemberReference();
-
-			if (InField.IsProperty())
-			{
-				BindingKind = EBindingKind::Property;
-			}
-			else if (InField.IsFunction())
-			{
-				BindingKind = EBindingKind::Function;
-			}
-			else
-			{
-				ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
-			}
 		}
 	}
 
