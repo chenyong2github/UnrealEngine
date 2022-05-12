@@ -235,6 +235,11 @@ void SIKRetargetChainMapList::Construct(
 	RefreshView();
 }
 
+void SIKRetargetChainMapList::ClearSelection() const
+{
+	ListView->ClearSelection();
+}
+
 UIKRetargeterController* SIKRetargetChainMapList::GetRetargetController() const
 {
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
@@ -293,15 +298,28 @@ void SIKRetargetChainMapList::RefreshView()
 		return; 
 	}
 	
+	TArray<TSharedPtr<FRetargetChainMapElement>> PreviouslySelectedItems = ListView->GetSelectedItems();
+	TArray<TObjectPtr<URetargetChainSettings>> SelectedChainMaps;
+	for (TSharedPtr<FRetargetChainMapElement> SelectedItem : PreviouslySelectedItems)
+	{
+		SelectedChainMaps.Add(SelectedItem->ChainMap.Get());
+	}
+	
 	// refresh list of chains
+	TArray< TSharedPtr<FRetargetChainMapElement> > SelectedItems;
 	ListViewItems.Reset();
 	const TArray<TObjectPtr<URetargetChainSettings>>& ChainMappings = RetargeterController->GetChainMappings();
 	for (const TObjectPtr<URetargetChainSettings> ChainMap : ChainMappings)
 	{
 		TSharedPtr<FRetargetChainMapElement> ChainItem = FRetargetChainMapElement::Make(ChainMap);
 		ListViewItems.Add(ChainItem);
-	}
 
+		if (SelectedChainMaps.Contains(ChainMap))
+		{
+			ListView->SetItemSelection(ChainItem, true, ESelectInfo::Direct);
+		}
+	}
+	
 	ListView->RequestListRefresh();
 }
 
@@ -328,8 +346,8 @@ void SIKRetargetChainMapList::OnSelectionChanged()
 		return;
 	}
 	
-	// update selected settings
-	SelectedChainSettings.Empty();
+	// get selected chain settings
+	TArray<UObject*> SelectedChainSettings;
 	TArray<TSharedPtr<FRetargetChainMapElement>> SelectedItems = ListView.Get()->GetSelectedItems();
 	for (const TSharedPtr<FRetargetChainMapElement>& Item : SelectedItems)
 	{

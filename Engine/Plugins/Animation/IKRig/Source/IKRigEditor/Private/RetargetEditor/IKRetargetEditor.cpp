@@ -235,36 +235,12 @@ TStatId FIKRetargetEditor::GetStatId() const
 
 void FIKRetargetEditor::PostUndo(bool bSuccess)
 {
-	EditorController->ClearOutputLog();
-	
-	const bool WasEditing = EditorController->IsEditingPose();
-	
-	EditorController->AssetController->BroadcastNeedsReinitialized();
-	EditorController->RefreshAllViews();
-
-	// restore pose mode state to avoid stepping out of the edition when undoing things
-	// note that BroadcastNeedsReinitialized will unset it in FIKRetargetEditorController::OnRetargeterNeedsInitialized
-	if (WasEditing)
-	{
-		EditorController->HandleEditPose();
-	}
+	EditorController->OnRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
 }
 
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
-	EditorController->ClearOutputLog();
-	
-	const bool WasEditing = EditorController->IsEditingPose();
-	
-	EditorController->AssetController->BroadcastNeedsReinitialized();
-	EditorController->RefreshAllViews();
-	
-	// restore pose mode state to avoid stepping out of the edition when undoing things
-	// note that BroadcastNeedsReinitialized will unset it in FIKRetargetEditorController::OnRetargeterNeedsInitialized
-	if (WasEditing)
-	{
-		EditorController->HandleEditPose();
-	}
+	EditorController->OnRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
 }
 
 void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)

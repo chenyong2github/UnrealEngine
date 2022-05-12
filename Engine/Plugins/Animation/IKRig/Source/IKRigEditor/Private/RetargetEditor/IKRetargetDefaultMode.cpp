@@ -9,6 +9,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "RetargetEditor/IKRetargetEditor.h"
+#include "RetargetEditor/SIKRetargetChainMapList.h"
 
 
 #define LOCTEXT_NAMESPACE "IKRetargetDefaultMode"
@@ -279,6 +280,7 @@ void FIKRetargetDefaultMode::SetSelectedComponent(UPrimitiveComponent* InCompone
 	// when clicking in empty space, show global details
 	if (SelectedComponent == nullptr)
 	{
+		Controller->ChainsView->ClearSelection();
 		Controller->DetailsView->SetObject(Controller->AssetController->GetAsset());
 	}
 }

@@ -75,12 +75,16 @@ typedef SListView< TSharedPtr<FRetargetChainMapElement> > SRetargetChainMapListV
 
 class SIKRetargetChainMapList : public SCompoundWidget, public FEditorUndoClient
 {
+	
 public:
+	
 	SLATE_BEGIN_ARGS(SIKRetargetChainMapList) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRetargetEditorController> InEditorController);
 
+	void ClearSelection() const;
+	
 private:
 	
 	/** menu for adding new solver commands */
@@ -107,7 +111,6 @@ private:
 
 	/** update selection / details view */
 	void OnSelectionChanged();
-	TArray<UObject*> SelectedChainSettings;
 
 	/** auto-map chain button*/
 	EVisibility IsAutoMapButtonVisible() const;

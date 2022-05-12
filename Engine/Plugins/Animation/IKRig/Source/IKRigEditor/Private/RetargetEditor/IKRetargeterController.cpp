@@ -335,11 +335,12 @@ void UIKRetargeterController::OnRetargetChainRemoved(UIKRigDefinition* IKRig, co
 
 void UIKRetargeterController::SetSourceChainForTargetChain(URetargetChainSettings* ChainMap, FName SourceChainToMapTo) const
 {
-	FScopedTransaction Transaction(LOCTEXT("SetRetargetChainSource", "Set Retarget Chain Source"));
-	Asset->Modify();
-	
 	check(ChainMap)
+	
+	FScopedTransaction Transaction(LOCTEXT("SetRetargetChainSource", "Set Retarget Chain Source"));
+	ChainMap->Modify();
 	ChainMap->SourceChain = SourceChainToMapTo;
+	
 	BroadcastNeedsReinitialized();
 }
 

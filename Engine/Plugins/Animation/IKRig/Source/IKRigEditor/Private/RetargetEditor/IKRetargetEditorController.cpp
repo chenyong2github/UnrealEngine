@@ -84,8 +84,6 @@ void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetarget
 {
 	// clear the output log
 	ClearOutputLog();
-	// force edit pose mode to be off
-	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 	// force reinit the runtime retarget processor
 	TargetAnimInstance->SetProcessorNeedsInitialized();
 	// refresh all the UI views
@@ -141,6 +139,7 @@ FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(
 	// scale and offset
 	BoneTransform.ScaleTranslation(AssetController->GetAsset()->TargetMeshScale);
 	BoneTransform.AddToTranslation(AssetController->GetAsset()->TargetMeshOffset);
+	BoneTransform.NormalizeRotation();
 
 	return BoneTransform;
 }
@@ -276,6 +275,7 @@ void FIKRetargetEditorController::HandleEditPose() const
 		// stop pose editing
 		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
+		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
 		
 		// must reinitialize after editing the retarget pose
 		AssetController->BroadcastNeedsReinitialized();
@@ -287,6 +287,7 @@ void FIKRetargetEditorController::HandleEditPose() const
 		// start pose editing
 		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetDefaultMode::ModeName);
 		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
+		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::EditRetargetPose);
 	}
 }
 
