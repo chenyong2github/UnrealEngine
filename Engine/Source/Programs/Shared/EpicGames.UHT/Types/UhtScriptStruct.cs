@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
+using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Utils;
 
@@ -642,6 +643,21 @@ namespace EpicGames.UHT.Types
 					break;
 			}
 		}
+
+		/// <inheritdoc/>
+		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
+		{
+			bool result = base.ResolveSelf(resolvePhase);
+
+			switch (resolvePhase)
+			{
+				case UhtResolvePhase.Properties:
+					UhtPropertyParser.ResolveChildren(this, UhtPropertyParseOptions.AddModuleRelativePath);
+					break;
+			}
+			return result;
+		}
+
 		/// <inheritdoc/>
 		protected override void ResolveChildren(UhtResolvePhase phase)
 		{

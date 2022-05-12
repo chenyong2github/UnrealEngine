@@ -829,6 +829,10 @@ namespace EpicGames.UHT.Types
 					}
 					break;
 
+				case UhtResolvePhase.Properties:
+					UhtPropertyParser.ResolveChildren(this, UhtPropertyParseOptions.AddModuleRelativePath);
+					break;
+
 				case UhtResolvePhase.Final:
 					Dictionary<string, List<GetterSetterToResolve>>? gsToResolve = null;
 					foreach (UhtType child in this.Children)
