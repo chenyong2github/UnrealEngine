@@ -214,8 +214,7 @@ FInterchangeTestFunctionResult FInterchangeTestFunction::Invoke(const TArray<UOb
 	TArray<UObject*> AssetsToPass;
 	AssetsToPass.Reserve(AssetsToTest.Num());
 
-	UClass* ExpectedClass = GetExpectedClass();
-
+	UClass* ExpectedClass = AssetClass;
 	for (UObject* Asset : AssetsToTest)
 	{
 		if (Asset->GetClass()->IsChildOf(ExpectedClass))
