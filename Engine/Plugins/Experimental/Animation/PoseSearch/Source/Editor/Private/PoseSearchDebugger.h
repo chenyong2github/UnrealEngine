@@ -758,7 +758,6 @@ public:
 	
 	/** Creates the PoseSearch Slate view for the provided AnimInstance */
 	virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
-	virtual bool HasDebugInfo(uint64 ObjectId, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
 };
 
 
