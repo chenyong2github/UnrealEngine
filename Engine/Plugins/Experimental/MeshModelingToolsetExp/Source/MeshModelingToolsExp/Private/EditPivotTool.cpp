@@ -401,7 +401,7 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EditPivotToolTransactionName", "Edit Pivot"));
 
 	FTransform NewWorldTransform = NewPivotWorldFrame.ToFTransform();
-	FTransform NewWorldInverse = NewWorldTransform.Inverse();
+	FTransform NewWorldInverse = NewPivotWorldFrame.ToInverseFTransform();
 	TArray<FTransform> OriginalTransforms;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
@@ -512,7 +512,8 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		}
 		else
 		{
-			// try to invert baked transform
+			// try to invert baked transform -- note that this may not be a correct inverse if there is rotation + non-uniform scale,
+			// but it's the best we can do given we can not bake a separate custom scale when this is not the first occurrence
 			FTransform Baked = OriginalTransforms[MapToFirstOccurrences[ComponentIdx]] * NewWorldInverse;
 			Component->SetWorldTransform(Baked.Inverse() * OriginalTransforms[ComponentIdx]);
 		}

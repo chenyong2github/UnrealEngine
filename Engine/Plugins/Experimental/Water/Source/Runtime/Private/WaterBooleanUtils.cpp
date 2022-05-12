@@ -243,7 +243,7 @@ void FWaterBooleanUtils::MakeNormalizationTransform(
 	FromNormalizedOut = FTransformSRT3d::Identity();
 	FromNormalizedOut.SetTranslation(Bounds.Center());
 	FromNormalizedOut.SetScale(WorldSize * FVector3d::One());
-	ToNormalizedOut = FromNormalizedOut.Inverse();
+	ToNormalizedOut = FromNormalizedOut.InverseUnsafe(); // Ok to invert because there is no rotation
 }
 
 void FWaterBooleanUtils::SetToFaceNormals(FDynamicMesh3& Mesh)

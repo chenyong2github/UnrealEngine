@@ -172,28 +172,30 @@ void UPolyEditPlanarProjectionUVActivity::ApplySetUVs()
 	TArray<int32> ActiveTriangleSelection;
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
 
-	// align projection frame to line user drew
-	FFrame3d PlanarFrame = SurfacePathMechanic->HitPath[0];
-	double UVScale = 1.0 / ActiveSelectionBounds.MaxDim();
-	FVector3d Delta = SurfacePathMechanic->HitPath[1].Origin - PlanarFrame.Origin;
-	double Dist = UE::Geometry::Normalize(Delta);
-	UVScale *= FMathd::Lerp(1.0, 25.0, Dist / ActiveSelectionBounds.MaxDim());
-	PlanarFrame.ConstrainedAlignAxis(0, Delta, PlanarFrame.Z());
-
-	// transform to local, use 3D point to transfer UV scale value
-	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
-	FVector3d ScalePt = PlanarFrame.Origin + UVScale * PlanarFrame.Z();
-	FTransform3d ToLocalXForm(WorldTransform.Inverse());
-	PlanarFrame.Transform(ToLocalXForm);
-	ScalePt = ToLocalXForm.TransformPosition(ScalePt);
-	UVScale = Distance(ScalePt, PlanarFrame.Origin);
+	// Get world-position data about line user drew
+	FFrame3d WorldPlanarFrame = SurfacePathMechanic->HitPath[0];
+	double WorldUVScale = 1.0 / ActiveSelectionBounds.MaxDim();
+	FVector3d WorldDelta = SurfacePathMechanic->HitPath[1].Origin - WorldPlanarFrame.Origin;
+	double WorldDist = UE::Geometry::Normalize(WorldDelta);
+	WorldUVScale *= FMathd::Lerp(1.0, 25.0, WorldDist / ActiveSelectionBounds.MaxDim());
+	FVector3d WorldNormal = WorldPlanarFrame.Z();
+	
+	// Create a local frame w/ matching normal, aligned to the user's line
+	FTransformSRT3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	FVector3d LocalNormal = WorldTransform.InverseTransformNormal(WorldNormal);
+	FFrame3d LocalPlanarFrame(WorldTransform.InverseTransformPosition(WorldPlanarFrame.Origin), LocalNormal);
+	LocalPlanarFrame.ConstrainedAlignAxis(0, WorldTransform.InverseTransformVector(WorldDelta), LocalPlanarFrame.Z());
+	// Use a reference point to get a uniform scale factor based on the world scale. Note it will not match exactly if the WorldTransform has non-uniform scale.
+	FVector3d ScalePt = WorldPlanarFrame.Origin + WorldUVScale * (WorldPlanarFrame.X() + WorldPlanarFrame.Y()) * FMathd::InvSqrt2;
+	ScalePt = WorldTransform.InverseTransformPosition(ScalePt);
+	double LocalUVScale = Distance(ScalePt, LocalPlanarFrame.Origin);
 
 	// track changes
 	FDynamicMeshChangeTracker ChangeTracker(ActivityContext->CurrentMesh.Get());
 	ChangeTracker.BeginChange();
 	ChangeTracker.SaveTriangles(ActiveTriangleSelection, true);
 	FDynamicMeshEditor Editor(ActivityContext->CurrentMesh.Get());
-	Editor.SetTriangleUVsFromProjection(ActiveTriangleSelection, PlanarFrame, UVScale, FVector2f::Zero(), false, 0);
+	Editor.SetTriangleUVsFromProjection(ActiveTriangleSelection, LocalPlanarFrame, LocalUVScale, FVector2f::Zero(), false, 0);
 
 	// Emit undo (also updates relevant structures). We didn't change the mesh topology here but for now we use
 	// the same route as everything else. See :HandlePositionOnlyMeshChanges

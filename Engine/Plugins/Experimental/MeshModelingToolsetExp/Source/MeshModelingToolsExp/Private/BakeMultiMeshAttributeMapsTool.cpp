@@ -287,7 +287,7 @@ public:
 		const FVector3d NormalOut3d(NormalOut);
 		// As a stop-gap fix, transform our normal to the local space of the Base mesh here.
 		// TODO: Handle WorldToBase transformation in the evaluator.
-		NormalOut = WorldToBaseTransform.TransformNormal(FVector3f(ChildMesh->WorldTransform.TransformNormal(NormalOut3d)));
+		NormalOut = BaseToWorldTransform.InverseTransformNormal(FVector3f(ChildMesh->WorldTransform.TransformNormal(NormalOut3d)));
 		return bSuccess;
 	}
 
@@ -348,7 +348,6 @@ public:
 
 public:
 	FTransformSRT3d BaseToWorldTransform;
-	FTransformSRT3d WorldToBaseTransform;
 	TMap<UActorComponent*, const FActorAdapter*> ActorComponentMap;
 
 protected:
@@ -422,7 +421,6 @@ public:
 		};
 		DetailMeshScene->ProcessActorChildMeshes(ProcessChildMesh);
 		DetailSampler.BaseToWorldTransform = BaseToWorldTransform;
-		DetailSampler.WorldToBaseTransform = BaseToWorldTransform.Inverse();
 		Baker->SetDetailSampler(&DetailSampler);
 
 		for (const EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)

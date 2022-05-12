@@ -356,7 +356,6 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	SkipActor = UE::ToolTarget::GetTargetActor(Targets[SkipIndex]);
 
 	FTransform3d TargetToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[SkipIndex]);
-	FTransform3d WorldToTarget = TargetToWorld.Inverse();
 
 	FSimpleShapeSet3d SimpleCollision;
 	UE::Geometry::FComponentCollisionSettings CollisionSettings;
@@ -403,13 +402,28 @@ void UCombineMeshesTool::UpdateExistingAsset()
 				{
 					ComponentDMesh.ReverseOrientation(true);
 				}
-				MeshTransforms::ApplyTransform(ComponentDMesh, WorldToTarget);
-				if (WorldToTarget.GetDeterminant() < 0)
+				MeshTransforms::ApplyTransformInverse(ComponentDMesh, TargetToWorld);
+				if (TargetToWorld.GetDeterminant() < 0)
 				{
 					ComponentDMesh.ReverseOrientation(true);
 				}
 				Transforms[0] = ComponentToWorld;
-				Transforms[1] = WorldToTarget;
+				if (TargetToWorld.GetRotation().IsIdentity() || TargetToWorld.GetScale3D().IsUniform())
+				{
+					// Inverse can be represented by a single FTransform3d
+					Transforms[1] = TargetToWorld.Inverse();
+				}
+				else
+				{
+					// Separate inverse into a rotation+translation part and a scale part
+					FQuat4d WorldToTargetR = TargetToWorld.GetRotation().Inverse();
+					FTransform3d WorldToTargetRT(WorldToTargetR, WorldToTargetR * (-TargetToWorld.GetTranslation()), FVector3d::One());
+					FTransform3d WorldToTargetS = FTransform3d::Identity;
+					WorldToTargetS.SetScale3D(FTransform3d::GetSafeScaleReciprocal(TargetToWorld.GetScale3D()));
+
+					Transforms[1] = WorldToTargetRT;
+					Transforms.Add(WorldToTargetS);
+				}
 				if (bOutputComponentSupportsCollision && UE::Geometry::ComponentTypeSupportsCollision(PrimitiveComponent))
 				{
 					UE::Geometry::AppendSimpleCollision(PrimitiveComponent, &SimpleCollision, Transforms);

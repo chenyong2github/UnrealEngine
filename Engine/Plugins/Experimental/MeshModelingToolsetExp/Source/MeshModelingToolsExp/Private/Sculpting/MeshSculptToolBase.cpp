@@ -634,7 +634,8 @@ retry_frame_update:
 	ActiveStrokePathArcLen += Distance(LastBrushFrameWorld.Origin, PrevBrushFrameWorld.Origin);
 
 	LastBrushFrameLocal = LastBrushFrameWorld;
-	LastBrushFrameLocal.Transform(CurTargetTransform.Inverse());
+	LastBrushFrameLocal.Transform(CurTargetTransform.InverseUnsafe()); // Note: Unsafe inverse used because we cannot handle scales on a frame regardless.
+	// TODO: in the case of a non-uniform scale, consider whether we should do additional work to align the Z axis?
 }
 
 void UMeshSculptToolBase::AlignBrushToView()

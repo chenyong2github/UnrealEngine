@@ -61,13 +61,13 @@ TUniquePtr<FDynamicMeshOperator> UMirrorOperatorFactory::MakeNewOperator()
 		}
 	}
 	LocalToWorld.SetScale3D(LocalToWorldScale);
-	FTransformSRT3d WorldToLocal = FTransformSRT3d(LocalToWorld).Inverse();
 
 	// Now we can get the plane parameters in local space.
-	MirrorOp->LocalPlaneOrigin = WorldToLocal.TransformPosition(MirrorTool->MirrorPlaneOrigin);;
+	MirrorOp->LocalPlaneOrigin = LocalToWorld.InverseTransformPosition(MirrorTool->MirrorPlaneOrigin);;
 
 	FVector3d WorldNormal = MirrorTool->MirrorPlaneNormal;
-	MirrorOp->LocalPlaneNormal = WorldToLocal.TransformNormal(MirrorTool->MirrorPlaneNormal);
+	FTransformSRT3d LocalToWorldSRT(LocalToWorld); // Convert to Geometry::FTransformSRT3d for InverseTransformNormal function
+	MirrorOp->LocalPlaneNormal = LocalToWorldSRT.InverseTransformNormal(MirrorTool->MirrorPlaneNormal);
 
 	return MirrorOp;
 }

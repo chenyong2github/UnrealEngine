@@ -187,8 +187,8 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 	FTransform3d NewTransform;
 	if (Targets.Num() == 1) // in the single-selection case, shove the result back into the original component space
 	{
-		FTransform3d ToSourceComponentSpace = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]).Inverse();
-		MeshTransforms::ApplyTransform(*OpResult.Mesh, ToSourceComponentSpace);
+		FTransform3d FromSourceComponentSpace = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+		MeshTransforms::ApplyTransformInverse(*OpResult.Mesh, FromSourceComponentSpace);
 		NewTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	}
 	else // in the multi-selection case, center the pivot for the combined result

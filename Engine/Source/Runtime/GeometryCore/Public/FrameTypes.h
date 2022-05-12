@@ -170,6 +170,13 @@ struct TFrame3
 		return FTransform((FQuat)Rotation, (FVector)Origin);
 	}
 
+	/** @return conversion of this Frame to an inverse FTransform */
+	FTransform ToInverseFTransform() const
+	{
+		TQuaternion<RealType> InverseRotation = Rotation.Inverse();
+		return FTransform((FQuat)InverseRotation, (FVector)(InverseRotation * (-Origin)));
+	}
+
 	/** @return conversion of this Frame to FPlane */
 	FPlane ToFPlane() const
 	{
@@ -180,6 +187,13 @@ struct TFrame3
 	TTransformSRT3<RealType> ToTransform() const
 	{
 		return TTransformSRT3<RealType>(Rotation, Origin);
+	}
+
+	/** @return conversion of this Frame to an inverse TTransform */
+	TTransformSRT3<RealType> ToInverseTransform() const
+	{
+		TQuaternion<RealType> InverseRotation = Rotation.Inverse();
+		return TTransformSRT3<RealType>(InverseRotation, InverseRotation * (-Origin));
 	}
 
 	/** @return point at distances along frame axes */
@@ -338,7 +352,7 @@ struct TFrame3
 
 
 	/**
-	 * transform this frame by the given transform
+	 * transform this frame by the given transform. Note: Ignores scale, as TFrame3 does not support scaling
 	 */
 	void Transform(const FTransform& XForm)
 	{
@@ -348,7 +362,7 @@ struct TFrame3
 
 
 	/**
-	 * transform this frame by the given transform
+	 * transform this frame by the given transform. Note: Ignores scale, as TFrame3 does not support scaling
 	 */
 	void Transform(const TTransformSRT3<RealType>& XForm)
 	{

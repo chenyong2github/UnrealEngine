@@ -471,7 +471,7 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 		const FTransformSRT3d DetailToWorld(DetailComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
 		const FTransformSRT3d WorldToBase(TargetComponent->GetWorldTransform());
-		MeshTransforms::ApplyTransform(*DetailMesh, WorldToBase.Inverse());
+		MeshTransforms::ApplyTransformInverse(*DetailMesh, WorldToBase);
 	}
 
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();

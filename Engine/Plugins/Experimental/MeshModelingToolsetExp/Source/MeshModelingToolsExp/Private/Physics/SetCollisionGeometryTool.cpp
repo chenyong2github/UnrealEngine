@@ -602,7 +602,6 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 
 	UToolTarget* CollisionTarget = Targets[Targets.Num() - 1];
 	FTransformSRT3d TargetTransform(UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget));
-	FTransformSRT3d TargetTransformInv = TargetTransform.Inverse();
 
 	InputMeshes.Reset();
 	InputMeshes.SetNum(SourceObjectIndices.Num());
@@ -613,7 +612,7 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 		{
 			FTransformSRT3d ToWorld(UE::ToolTarget::GetLocalToWorldTransform(Targets[k]));
 			MeshTransforms::ApplyTransform(SourceMesh, ToWorld);
-			MeshTransforms::ApplyTransform(SourceMesh, TargetTransformInv);
+			MeshTransforms::ApplyTransformInverse(SourceMesh, TargetTransform);
 		}
 		SourceMesh.DiscardAttributes();
 		InputMeshes[k] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(MoveTemp(SourceMesh));

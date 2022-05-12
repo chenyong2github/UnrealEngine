@@ -639,16 +639,14 @@ static void TransformToSpace(FDynamicMesh3* Mesh, UPrimitiveComponent* SourceCom
 	{
 		check(TargetSpace.TargetActor);
 		FTransformSRT3d ActorTransform(TargetSpace.TargetActor->GetActorTransform());
-		FTransformSRT3d ToActorTransform = ActorTransform.Inverse();
-		MeshTransforms::ApplyTransform(*Mesh, ToActorTransform);
+		MeshTransforms::ApplyTransformInverse(*Mesh, ActorTransform);
 
 	}
 	else if (TargetSpace.TargetSpace == ETargetSpaceType::Component)
 	{
 		check(TargetSpace.TargetComponent);
 		FTransformSRT3d ComponentTransform(TargetSpace.TargetComponent->GetComponentTransform());
-		FTransformSRT3d ToComponentTransform = ComponentTransform.Inverse();
-		MeshTransforms::ApplyTransform(*Mesh, ToComponentTransform);
+		MeshTransforms::ApplyTransformInverse(*Mesh, ComponentTransform);
 	}
 	else if (TargetSpace.TargetSpace == ETargetSpaceType::Frame)
 	{
