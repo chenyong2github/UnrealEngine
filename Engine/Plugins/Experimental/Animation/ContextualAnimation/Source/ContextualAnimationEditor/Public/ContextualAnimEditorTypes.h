@@ -67,7 +67,7 @@ struct FContextualAnimNewVariantData
 	FName RoleName = NAME_None;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	UAnimMontage* Animation = nullptr;
+	UAnimSequenceBase* Animation = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRequiresFlyingMode = false;
