@@ -10,42 +10,6 @@
 class UContextualAnimScenePivotProvider;
 class UContextualAnimSceneInstance;
 
-USTRUCT(BlueprintType)
-struct FContextualAnimAlignmentSectionData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FName WarpTargetName = NAME_None;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (GetOptions = "GetRoles"))
-	FName Origin = NAME_None;
-		
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	bool bAlongClosestDistance = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (GetOptions = "GetRoles", EditCondition = "bAlongClosestDistance"))
-	FName OtherRole = NAME_None;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "bAlongClosestDistance"))
-	float Weight = 0.f;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimRoleDefinition
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FName Name;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TSubclassOf<AActor> PreviewActorClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
-};
-
 UCLASS(Blueprintable)
 class CONTEXTUALANIMATION_API UContextualAnimRolesAsset : public UDataAsset
 {
@@ -62,6 +26,8 @@ public:
 	{
 		return Roles.FindByPredicate([Name](const FContextualAnimRoleDefinition& RoleDef) { return RoleDef.Name == Name; });
 	}
+
+	FORCEINLINE int32 GetNumRoles() const { return Roles.Num(); }
 };
 
 USTRUCT(BlueprintType)
@@ -105,8 +71,14 @@ public:
 	FORCEINLINE const TSubclassOf<UContextualAnimSceneInstance>& GetSceneInstanceClass() const { return SceneInstanceClass; }
 	FORCEINLINE const TArray<FContextualAnimAlignmentSectionData>& GetAlignmentSections() const { return  AlignmentSections; }
 
+	bool HasValidData() const { return RolesAsset && Variants.Num() > 0; }
+
+	const UContextualAnimRolesAsset* GetRolesAsset() const { return RolesAsset; }
+
 	UFUNCTION()
 	TArray<FName> GetRoles() const;
+
+	int32 GetNumRoles() const { return RolesAsset ? RolesAsset->GetNumRoles() : 0; }
 
 	const FContextualAnimTrack* GetAnimTrack(const FName& Role, int32 VariantIdx) const;
 
@@ -115,9 +87,9 @@ public:
 
 	FName FindRoleByAnimation(const UAnimSequenceBase* Animation) const;
 
-	const FContextualAnimTrack* FindFirstAnimTrackForRoleThatPassesSelectionCriteria(const FName& Role, const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const;
-	
-	const FContextualAnimTrack* FindAnimTrackForRoleWithClosestEntryLocation(const FName& Role, const FContextualAnimPrimaryActorData& PrimaryActorData, const FVector& TestLocation) const;
+	const FContextualAnimTrack* FindFirstAnimTrackForRoleThatPassesSelectionCriteria(const FName& Role, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const;
+
+	const FContextualAnimTrack* FindAnimTrackForRoleWithClosestEntryLocation(const FName& Role, const FContextualAnimSceneBindingContext& Primary, const FVector& TestLocation) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
 	FTransform GetAlignmentTransformForRoleRelativeToScenePivot(FName Role, int32 VariantIdx, float Time) const;

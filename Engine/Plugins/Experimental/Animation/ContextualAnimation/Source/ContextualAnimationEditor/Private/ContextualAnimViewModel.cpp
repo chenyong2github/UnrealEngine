@@ -76,7 +76,7 @@ void FContextualAnimViewModel::Initialize(UContextualAnimSceneAsset* InSceneAsse
 
 UAnimSequenceBase* FContextualAnimViewModel::FindAnimationByGuid(const FGuid& Guid) const
 {
-	return SceneInstance.IsValid() ? SceneInstance->FindSceneActorDataByGuid(Guid)->GetAnimTrack().Animation : nullptr;
+	return SceneInstance.IsValid() ? SceneInstance->FindBindingByGuid(Guid)->GetAnimTrack().Animation : nullptr;
 }
 
 void FContextualAnimViewModel::CreateSequencer()
@@ -184,9 +184,10 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 	{
 		for (auto& MapEntry : StartSceneParams.RoleToActorMap)
 		{
-			if (MapEntry.Value)
+			
+			if (AActor* Actor = MapEntry.Value.GetActor())
 			{
-				MapEntry.Value->Destroy();
+				Actor->Destroy();
 			}
 		}
 	}
@@ -362,16 +363,16 @@ UObject* FContextualAnimViewModel::GetPlaybackContext() const
 
 void FContextualAnimViewModel::SequencerTimeChanged()
 {
-	auto ResetActorTransform = [](FContextualAnimSceneActorData& SceneActorData, float Time)
+	auto ResetActorTransform = [](FContextualAnimSceneBinding& Binding, float Time)
 	{
-		const USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(SceneActorData.GetActor());
+		const USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(Binding.GetActor());
 
-		const FTransform RootTransform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(SceneActorData.GetAnimTrack().Animation, Time);
+		const FTransform RootTransform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(Binding.GetAnimTrack().Animation, Time);
 		const FTransform StartTransform = SkelMeshComp->GetRelativeTransform().Inverse() * RootTransform;
 
-		SceneActorData.GetActor()->SetActorLocationAndRotation(StartTransform.GetLocation(), StartTransform.GetRotation());
+		Binding.GetActor()->SetActorLocationAndRotation(StartTransform.GetLocation(), StartTransform.GetRotation());
 
-		if (UCharacterMovementComponent* MovementComp = SceneActorData.GetActor()->FindComponentByClass<UCharacterMovementComponent>())
+		if (UCharacterMovementComponent* MovementComp = Binding.GetActor()->FindComponentByClass<UCharacterMovementComponent>())
 		{
 			MovementComp->StopMovementImmediately();
 		}
@@ -492,7 +493,7 @@ void FContextualAnimViewModel::OnPreviewActorClassChanged()
 	{
 		for (const auto& Binding : SceneInstance->GetBindings())
 		{
-			if (const FContextualAnimRoleDefinition* RoleDef = RolesAsset->FindRoleDefinitionByName(Binding.GetRole()))
+			if (const FContextualAnimRoleDefinition* RoleDef = RolesAsset->FindRoleDefinitionByName(Binding.GetRoleDef().Name))
 			{
 				const UClass* DesiredPreviewClass = RoleDef->PreviewActorClass;
 				const UClass* CurrentPreviewClass = Binding.GetActor()->GetClass();

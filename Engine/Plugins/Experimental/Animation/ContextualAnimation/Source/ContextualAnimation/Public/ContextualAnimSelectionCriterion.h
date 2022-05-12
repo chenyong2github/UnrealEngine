@@ -21,7 +21,7 @@ public:
 
 	class UContextualAnimSceneAsset* GetSceneAssetOwner() const;
 
-	virtual bool DoesQuerierPassCondition(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const { return false; }
+	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const { return false; }
 };
 
 // UContextualAnimSelectionCriterion_TriggerArea
@@ -42,7 +42,7 @@ public:
 
 	UContextualAnimSelectionCriterion_TriggerArea(const FObjectInitializer& ObjectInitializer);
 
-	virtual bool DoesQuerierPassCondition(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const override;
+	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };
 
 // UContextualAnimSelectionCriterion_Facing
@@ -60,5 +60,5 @@ public:
 
 	UContextualAnimSelectionCriterion_Facing(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
-	virtual bool DoesQuerierPassCondition(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const override;
+	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };

@@ -2,15 +2,19 @@
 
 #include "ContextualAnimTypes.h"
 #include "AnimationUtils.h"
+#include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Containers/ArrayView.h"
 #include "AnimNotifyState_MotionWarping.h"
 #include "ContextualAnimUtilities.h"
 #include "RootMotionModifier.h"
 #include "ContextualAnimSelectionCriterion.h"
+#include "ContextualAnimSceneActorComponent.h"
+#include "ContextualAnimSceneAsset.h"
 
 DEFINE_LOG_CATEGORY(LogContextualAnim);
 
+const FContextualAnimSceneBinding FContextualAnimSceneBinding::InvalidBinding;
 const FContextualAnimTrack FContextualAnimTrack::EmptyTrack;
 const FContextualAnimIKTarget FContextualAnimIKTarget::InvalidIKTarget;
 const FContextualAnimIKTargetDefContainer FContextualAnimIKTargetDefContainer::EmptyContainer;
@@ -171,15 +175,182 @@ float FContextualAnimTrack::FindBestAnimStartTime(const FVector& LocalLocation) 
 	return BestTime;
 }
 
-bool FContextualAnimTrack::DoesQuerierPassSelectionCriteria(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const
+bool FContextualAnimTrack::DoesQuerierPassSelectionCriteria(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
 {
 	for (const UContextualAnimSelectionCriterion* Criterion : SelectionCriteria)
 	{
-		if (Criterion && !Criterion->DoesQuerierPassCondition(PrimaryActorData, QuerierData))
+		if (Criterion && !Criterion->DoesQuerierPassCondition(Primary, Querier))
 		{
 			return false;
 		}
 	}
 
 	return true;
+}
+
+// FContextualAnimSceneBindingContext
+///////////////////////////////////////////////////////////////////////
+
+void FContextualAnimSceneBindingContext::SetExternalTransform(const FTransform& InTransform)
+{
+	ExternalTransform = InTransform;
+}
+
+FTransform FContextualAnimSceneBindingContext::GetTransform() const
+{
+	if (ExternalTransform.IsSet())
+	{
+		return ExternalTransform.GetValue();
+	}
+	else if (AActor* ActorPtr = GetActor())
+	{
+		return ActorPtr->GetActorTransform();
+	}
+
+	return FTransform::Identity;
+}
+
+FVector FContextualAnimSceneBindingContext::GetVelocity() const
+{
+	if (ExternalVelocity.IsSet())
+	{
+		return ExternalVelocity.GetValue();
+	}
+	else if (AActor* ActorPtr = GetActor())
+	{
+		return ActorPtr->GetVelocity();
+	}
+
+	return FVector::ZeroVector;
+}
+
+// FContextualAnimSceneBinding
+///////////////////////////////////////////////////////////////////////
+
+FContextualAnimSceneBinding::FContextualAnimSceneBinding(const FContextualAnimSceneBindingContext& InContext, const UContextualAnimSceneAsset& InSceneAsset, const FContextualAnimTrack& InAnimTrack)
+{
+	check(InSceneAsset.HasValidData());
+
+	Context = InContext;
+	SceneAsset = &InSceneAsset;
+	AnimTrackPtr = &InAnimTrack;
+	RoleDefPtr = InSceneAsset.GetRolesAsset()->FindRoleDefinitionByName(InAnimTrack.Role);
+	check(RoleDefPtr);
+}
+
+UContextualAnimSceneActorComponent* FContextualAnimSceneBinding::GetSceneActorComponent() const
+{
+	//@TODO: Cache this during the binding
+	AActor* Actor = Context.GetActor();
+	return Actor ? Actor->FindComponentByClass<UContextualAnimSceneActorComponent>() : nullptr;
+}
+
+UAnimInstance* FContextualAnimSceneBinding::GetAnimInstance() const
+{
+	return UContextualAnimUtilities::TryGetAnimInstance(GetActor());
+}
+
+USkeletalMeshComponent* FContextualAnimSceneBinding::GetSkeletalMeshComponent() const
+{
+	return UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
+}
+
+FAnimMontageInstance* FContextualAnimSceneBinding::GetAnimMontageInstance() const
+{
+	if (UAnimInstance* AnimInstance = GetAnimInstance())
+	{
+		return AnimInstance->GetActiveMontageInstance();
+	}
+
+	return nullptr;
+}
+
+float FContextualAnimSceneBinding::GetAnimMontageTime() const
+{
+	const FAnimMontageInstance* MontageInstance = GetAnimMontageInstance();
+	return MontageInstance ? MontageInstance->GetPosition() : -1.f;
+}
+
+FName FContextualAnimSceneBinding::GetCurrentSection() const
+{
+	const FAnimMontageInstance* MontageInstance = GetAnimMontageInstance();
+	return MontageInstance ? MontageInstance->GetCurrentSection() : NAME_None;
+}
+
+int32 FContextualAnimSceneBinding::GetCurrentSectionIndex() const
+{
+	if (const FAnimMontageInstance* MontageInstance = GetAnimMontageInstance())
+	{
+		float CurrentPosition;
+		return MontageInstance->Montage->GetAnimCompositeSectionIndexFromPos(MontageInstance->GetPosition(), CurrentPosition);
+	}
+
+	return INDEX_NONE;
+}
+
+const FContextualAnimIKTargetDefContainer& FContextualAnimSceneBinding::GetIKTargetDefs() const
+{
+	return GetSceneAsset().GetIKTargetDefsForRole(GetAnimTrack().Role);
+}
+
+// FContextualAnimSceneBindings
+///////////////////////////////////////////////////////////////////////
+
+bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 VariantIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
+{
+	check(SceneAsset.HasValidData());
+
+	OutBindings.Reset();
+
+	// Find the actor that should be bound to the primary Role.
+	const FName PrimaryRole = SceneAsset.GetPrimaryRole();
+	const FContextualAnimSceneBindingContext* PrimaryPtr = Params.Find(PrimaryRole);
+	if (PrimaryPtr == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid actor for primary role. SceneAsset: %s PrimaryRole: %s"),
+			*GetNameSafe(&SceneAsset), *PrimaryRole.ToString());
+
+		return false;
+	}
+
+	// First, try to bind primary track. 
+	// @TODO: Revisit this, passing the same data twice (as primary and querier) feels weird, but this allow us to run the selection mechanism even on the primary actor.
+
+	const FContextualAnimTrack* PrimaryAnimTrack = SceneAsset.GetAnimTrack(PrimaryRole, VariantIdx);
+	if (PrimaryAnimTrack && PrimaryAnimTrack->DoesQuerierPassSelectionCriteria(*PrimaryPtr, *PrimaryPtr))
+	{
+		OutBindings.Add(FContextualAnimSceneBinding(*PrimaryPtr, SceneAsset, *PrimaryAnimTrack));
+	}
+	else
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for primary actor. SceneAsset: %s Role: %s Actor: %s Variant: %d"),
+			*GetNameSafe(&SceneAsset), *PrimaryRole.ToString(), *GetNameSafe(PrimaryPtr->GetActor()), VariantIdx);
+
+		return false;
+	}
+
+	// Now try to bind secondary tracks
+
+	for (const auto& Pair : Params)
+	{
+		FName RoleToBind = Pair.Key;
+		if (RoleToBind != PrimaryRole)
+		{
+			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(RoleToBind, VariantIdx);
+			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(*PrimaryPtr, Pair.Value))
+			{
+				OutBindings.Add(FContextualAnimSceneBinding(Pair.Value, SceneAsset, *AnimTrack));
+			}
+			else
+			{
+				UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for secondary actor. SceneAsset: %s Role: %s Actor: %s Variant: %d"),
+					*GetNameSafe(&SceneAsset), *RoleToBind.ToString(), *GetNameSafe(Pair.Value.GetActor()), VariantIdx);
+
+				return false;
+			}
+		}
+	}
+
+	// Success if all the roles were filled
+	return (OutBindings.Num() == SceneAsset.GetNumRoles());
 }

@@ -468,7 +468,7 @@ TArray<FName> UContextualAnimSceneAsset::GetRoles() const
  	return Result;
 }
 
-const FContextualAnimTrack* UContextualAnimSceneAsset::FindFirstAnimTrackForRoleThatPassesSelectionCriteria(const FName& Role, const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const
+const FContextualAnimTrack* UContextualAnimSceneAsset::FindFirstAnimTrackForRoleThatPassesSelectionCriteria(const FName& Role, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
 {
 	for (const FContextualAnimTracksContainer& Variant : Variants)
 	{
@@ -479,7 +479,7 @@ const FContextualAnimTrack* UContextualAnimSceneAsset::FindFirstAnimTrackForRole
 				bool bSuccess = true;
 				for (const UContextualAnimSelectionCriterion* Criterion : AnimTrack.SelectionCriteria)
 				{
-					if (Criterion && !Criterion->DoesQuerierPassCondition(PrimaryActorData, QuerierData))
+					if (Criterion && !Criterion->DoesQuerierPassCondition(Primary, Querier))
 					{
 						bSuccess = false;
 						break;
@@ -497,7 +497,7 @@ const FContextualAnimTrack* UContextualAnimSceneAsset::FindFirstAnimTrackForRole
 	return nullptr;
 }
 
-const FContextualAnimTrack* UContextualAnimSceneAsset::FindAnimTrackForRoleWithClosestEntryLocation(const FName& Role, const FContextualAnimPrimaryActorData& PrimaryActorData, const FVector& TestLocation) const
+const FContextualAnimTrack* UContextualAnimSceneAsset::FindAnimTrackForRoleWithClosestEntryLocation(const FName& Role, const FContextualAnimSceneBindingContext& Primary, const FVector& TestLocation) const
 {
 	const FContextualAnimTrack* Result = nullptr;
 
@@ -508,7 +508,7 @@ const FContextualAnimTrack* UContextualAnimSceneAsset::FindAnimTrackForRoleWithC
 		{
 			if (AnimTrack.Role == Role)
 			{
-				const FTransform EntryTransform = AnimTrack.GetAlignmentTransformAtEntryTime() * PrimaryActorData.Transform;
+				const FTransform EntryTransform = AnimTrack.GetAlignmentTransformAtEntryTime() * Primary.GetTransform();
 				const float DistSq = FVector::DistSquared(EntryTransform.GetLocation(), TestLocation);
 				if (DistSq < BestDistanceSq)
 				{
@@ -526,28 +526,25 @@ bool UContextualAnimSceneAsset::Query(FName Role, FContextualAnimQueryResult& Ou
 {
 	//@TODO: Kept around only to do not break existing content. It will go away in the future.
 
-	FContextualAnimPrimaryActorData PrimaryActorData;
-	PrimaryActorData.Transform = ToWorldTransform;
+	FContextualAnimSceneBindingContext Primary(ToWorldTransform);
+	FContextualAnimSceneBindingContext Querier(QueryParams.Querier.IsValid() ? QueryParams.Querier->GetActorTransform() : QueryParams.QueryTransform);
 
-	FContextualAnimQuerierData QuerierData;
-	QuerierData.Transform = QueryParams.Querier.IsValid() ? QueryParams.Querier->GetActorTransform() : QueryParams.QueryTransform;
-
-	if(const FContextualAnimTrack* AnimTrack = FindFirstAnimTrackForRoleThatPassesSelectionCriteria(Role, PrimaryActorData, QuerierData))
+	if (const FContextualAnimTrack* AnimTrack = FindFirstAnimTrackForRoleThatPassesSelectionCriteria(Role, Primary, Querier))
 	{
 		OutResult.VariantIdx = AnimTrack->VariantIdx;
-		OutResult.Animation = Cast<UAnimMontage>(AnimTrack->Animation); // Its ok to cast here to montage. Content using this function uses montage
+		OutResult.Animation = Cast<UAnimMontage>(AnimTrack->Animation);
 		OutResult.EntryTransform = AnimTrack->GetAlignmentTransformAtEntryTime() * ToWorldTransform;
 		OutResult.SyncTransform = AnimTrack->GetAlignmentTransformAtSyncTime() * ToWorldTransform;
 
 		if (QueryParams.bFindAnimStartTime)
 		{
-			const FVector LocalLocation = (QuerierData.Transform.GetRelativeTransform(ToWorldTransform)).GetLocation();
+			const FVector LocalLocation = (Querier.GetTransform().GetRelativeTransform(ToWorldTransform)).GetLocation();
 			OutResult.AnimStartTime = AnimTrack->FindBestAnimStartTime(LocalLocation);
 		}
 
 		return true;
 	}
-	
+
 	return false;
 }
 

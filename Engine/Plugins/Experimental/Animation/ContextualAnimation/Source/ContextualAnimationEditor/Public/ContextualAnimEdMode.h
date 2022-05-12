@@ -77,7 +77,7 @@ public:
 
 	bool GetHitResultUnderCursor(FHitResult& OutHitResult, FEditorViewportClient* InViewportClient, const FViewportClick& Click) const;
 
-	void DrawIKTargetsForSceneActor(class FPrimitiveDrawInterface& PDI, const struct FContextualAnimSceneActorData& SceneActorData) const;
+	void DrawIKTargetsForBinding(class FPrimitiveDrawInterface& PDI, const struct FContextualAnimSceneBinding& Binding) const;
 
 private:
 

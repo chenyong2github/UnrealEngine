@@ -99,42 +99,32 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 			}
 
 			FTransform PrimaryActorTransform = FTransform::Identity;
-			if (const FContextualAnimSceneActorData* PreviewData = SceneInstance->FindSceneActorDataByRole(SceneAsset->GetPrimaryRole()))
+			if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(SceneAsset->GetPrimaryRole()))
 			{
-				PrimaryActorTransform = PreviewData->GetActor()->GetTransform();
+				PrimaryActorTransform = Binding->GetTransform();
 			}
 
 			const EShowIKTargetsDrawMode IKTargetsDrawMode = ViewportClient->GetShowIKTargetsDrawMode();
 
-			for (const FContextualAnimSceneActorData& SceneActorData : SceneInstance->GetBindings())
+			for (const FContextualAnimSceneBinding& Binding : SceneInstance->GetBindings())
 			{
 				// Draw IK Targets
-				if (IKTargetsDrawMode == EShowIKTargetsDrawMode::All || (IKTargetsDrawMode == EShowIKTargetsDrawMode::Selected && SceneActorData.GetActor() == SelectedActor.Get()))
+				if (IKTargetsDrawMode == EShowIKTargetsDrawMode::All || (IKTargetsDrawMode == EShowIKTargetsDrawMode::Selected && Binding.GetActor() == SelectedActor.Get()))
 				{
-					DrawIKTargetsForSceneActor(*PDI, SceneActorData);
+					DrawIKTargetsForBinding(*PDI, Binding);
 				}
 
 				// Draw Selection Criteria
-				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SceneActorData.GetRole(), VariantIdx))
+				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(Binding.GetRoleDef().Name, VariantIdx))
 				{
 					for (int32 CriterionIdx = 0; CriterionIdx < AnimTrack->SelectionCriteria.Num(); CriterionIdx++)
 					{
 						if(const UContextualAnimSelectionCriterion* Criterion = AnimTrack->SelectionCriteria[CriterionIdx])
 						{
 							FLinearColor DrawColor = FLinearColor::White;
-
+							if (Criterion->DoesQuerierPassCondition(FContextualAnimSceneBindingContext(PrimaryActorTransform), Binding.GetContext()))
 							{
-								FContextualAnimQuerierData QuerierData;
-								QuerierData.Transform = SceneActorData.GetActor()->GetActorTransform();
-								QuerierData.Velocity = SceneActorData.GetActor()->GetVelocity();
-
-								FContextualAnimPrimaryActorData PrimaryActorData;
-								PrimaryActorData.Transform = PrimaryActorTransform;
-
-								if (Criterion->DoesQuerierPassCondition(PrimaryActorData, QuerierData))
-								{
-									DrawColor = FLinearColor::Green;
-								}
+								DrawColor = FLinearColor::Green;
 							}
 
 							//@TODO: Each SelectionCriterion should implement this, and here we should just call "Criterion->Draw()"
@@ -153,11 +143,11 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 									PDI->DrawLine(P0, P0 + FVector::UpVector * Spatial->Height, DrawColor, SDPG_Foreground, 2.f);
 
-									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(SceneActorData.GetRole(), VariantIdx, CriterionIdx, Idx)));
+									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(Binding.GetRoleDef().Name, VariantIdx, CriterionIdx, Idx)));
 									PDI->DrawPoint(P0, FLinearColor::Black, 15.f, SDPG_Foreground);
 									PDI->SetHitProxy(nullptr);
 
-									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(SceneActorData.GetRole(), VariantIdx, CriterionIdx, Idx + 4)));
+									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(Binding.GetRoleDef().Name, VariantIdx, CriterionIdx, Idx + 4)));
 									PDI->DrawPoint(P0 + FVector::UpVector * Spatial->Height, FLinearColor::Black, 15.f, SDPG_Foreground);
 									PDI->SetHitProxy(nullptr);
 								}
@@ -175,15 +165,15 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 	}
 }
 
-void FContextualAnimEdMode::DrawIKTargetsForSceneActor(FPrimitiveDrawInterface& PDI, const FContextualAnimSceneActorData& SceneActorData) const
+void FContextualAnimEdMode::DrawIKTargetsForBinding(FPrimitiveDrawInterface& PDI, const FContextualAnimSceneBinding& Binding) const
 {
-	for (const FContextualAnimIKTargetDefinition& IKTargetDef : SceneActorData.GetIKTargetDefs().IKTargetDefs)
+	for (const FContextualAnimIKTargetDefinition& IKTargetDef : Binding.GetIKTargetDefs().IKTargetDefs)
 	{
-		if (const FContextualAnimSceneActorData* TargetSceneActorData = SceneActorData.GetSceneInstance().FindSceneActorDataByRole(IKTargetDef.TargetRoleName))
+		if (const FContextualAnimSceneBinding* TargetBinding = Binding.GetSceneInstance()->FindBindingByRole(IKTargetDef.TargetRoleName))
 		{
-			if (USkeletalMeshComponent* TargetSkelMeshComp = TargetSceneActorData->GetSkeletalMeshComponent())
+			if (USkeletalMeshComponent* TargetSkelMeshComp = TargetBinding->GetSkeletalMeshComponent())
 			{
-				const float Alpha = UAnimNotifyState_IKWindow::GetIKAlphaValue(IKTargetDef.GoalName, SceneActorData.GetAnimMontageInstance());
+				const float Alpha = UAnimNotifyState_IKWindow::GetIKAlphaValue(IKTargetDef.GoalName, Binding.GetAnimMontageInstance());
 
 				if (IKTargetDef.Provider == EContextualAnimIKTargetProvider::Bone)
 				{
@@ -193,7 +183,7 @@ void FContextualAnimEdMode::DrawIKTargetsForSceneActor(FPrimitiveDrawInterface& 
 				{
 					const FTransform ParentTransform = TargetSkelMeshComp->GetSocketTransform(IKTargetDef.TargetBoneName);
 
-					const FTransform TargetTransform = SceneActorData.GetAnimTrack().IKTargetData.ExtractTransformAtTime(IKTargetDef.GoalName, SceneActorData.GetAnimTime()) * ParentTransform;
+					const FTransform TargetTransform = Binding.GetAnimTrack().IKTargetData.ExtractTransformAtTime(IKTargetDef.GoalName, Binding.GetAnimMontageTime()) * ParentTransform;
 
 					FLinearColor Color = Alpha > 0.f ? FLinearColor(FColor::MakeRedToGreenColorFromScalar(Alpha)) : FLinearColor::White;
 
@@ -355,9 +345,9 @@ bool FContextualAnimEdMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, 
 			if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
 			{
 				FTransform PrimaryActorTransform = FTransform::Identity;
-				if (const FContextualAnimSceneActorData* PreviewData = SceneInstance->FindSceneActorDataByRole(ViewModel->GetSceneAsset()->GetPrimaryRole()))
+				if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(ViewModel->GetSceneAsset()->GetPrimaryRole()))
 				{
-					PrimaryActorTransform = PreviewData->GetActor()->GetTransform();
+					PrimaryActorTransform = Binding->GetTransform();
 					InMatrix = PrimaryActorTransform.ToMatrixNoScale().RemoveTranslation();
 					return true;
 				}
@@ -399,9 +389,9 @@ FVector FContextualAnimEdMode::GetWidgetLocation() const
 							}
 
 							FTransform PrimaryActorTransform = FTransform::Identity;
-							if (const FContextualAnimSceneActorData* PreviewData = SceneInstance->FindSceneActorDataByRole(SceneAsset->GetPrimaryRole()))
+							if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(SceneAsset->GetPrimaryRole()))
 							{
-								PrimaryActorTransform = PreviewData->GetActor()->GetTransform();
+								PrimaryActorTransform = Binding->GetTransform();
 							}
 
 							return PrimaryActorTransform.TransformPositionNoScale(Location);

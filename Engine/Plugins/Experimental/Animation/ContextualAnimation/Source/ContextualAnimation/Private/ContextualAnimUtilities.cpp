@@ -19,6 +19,7 @@
 #include "EngineUtils.h"
 #include "AnimNotifyState_IKWindow.h"
 #include "SceneManagement.h"
+#include "MotionWarpingComponent.h"
 
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
@@ -257,3 +258,103 @@ void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FV
 		LastDirection = NewDirection;
 	}
 }
+
+bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings(const UContextualAnimSceneAsset* SceneAsset, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
+{
+	if(SceneAsset == nullptr || !SceneAsset->HasValidData())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::FindBestVariantForActors Failed. Reason: Invalid or Empty SceneAsset (%s)"), *GetNameSafe(SceneAsset));
+		return false;
+	}
+
+	for (int32 VariantIdx = 0; VariantIdx < SceneAsset->GetTotalVariants(); VariantIdx++)
+	{
+		OutBindings.Reset();
+		if(FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, VariantIdx, Params, OutBindings))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool UContextualAnimUtilities::CalculateScenePivotForAlignmentSection(const FContextualAnimAlignmentSectionData& AligmentSectionData, const FContextualAnimSceneBindings& Bindings, FTransform& OutScenePivot)
+{
+	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByRole(AligmentSectionData.Origin))
+	{
+		if (AligmentSectionData.bAlongClosestDistance)
+		{
+			if (const FContextualAnimSceneBinding* OtherBinding = Bindings.FindBindingByRole(AligmentSectionData.OtherRole))
+			{
+				const FTransform T1 = Binding->GetTransform();
+				const FTransform T2 = OtherBinding->GetTransform();
+
+				OutScenePivot.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AligmentSectionData.Weight));
+				OutScenePivot.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
+				return true;
+			}
+		}
+		else
+		{
+			OutScenePivot = Binding->GetTransform();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// SceneBindings Blueprint Interface
+//------------------------------------------------------------------------------------------
+
+const FContextualAnimSceneBinding& UContextualAnimUtilities::BP_SceneBindings_GetBindingByRole(const FContextualAnimSceneBindings& Bindings, FName Role)
+{
+	if(const FContextualAnimSceneBinding* SceneActorData = Bindings.FindBindingByRole(Role))
+	{
+		return *SceneActorData;
+	}
+
+	return FContextualAnimSceneBinding::InvalidBinding;
+}
+
+void UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBindings(const FContextualAnimSceneBindings& Bindings)
+{
+	const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset();
+	if(ensureAlways(SceneAsset))
+	{
+		for (const FContextualAnimAlignmentSectionData& AlignmentSection : SceneAsset->GetAlignmentSections())
+		{
+			FTransform ScenePivot = FTransform::Identity;
+			if (UContextualAnimUtilities::CalculateScenePivotForAlignmentSection(AlignmentSection, Bindings, ScenePivot))
+			{
+				for (const FContextualAnimSceneBinding& Binding : Bindings)
+				{
+					//@TODO: Cache this
+					const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(AlignmentSection.WarpTargetName);
+
+					const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(AlignmentSection.WarpTargetName, Time);
+					const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot);
+
+					if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
+					{
+						MotionWarpComp->AddOrUpdateWarpTargetFromTransform(AlignmentSection.WarpTargetName, WarpTarget);
+					}
+				}
+			}
+		}
+	}
+}
+
+FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRoleRelativeToOtherRole(const FContextualAnimSceneBindings& Bindings, FName Role, FName RelativeToRole, float Time = 0.f)
+{
+	FTransform Result = FTransform::Identity;
+
+	if(const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset())
+	{
+		Result = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRole(Role, RelativeToRole, Bindings.GetVariantIdx(), Time);
+	}
+
+	return Result;
+}
+

@@ -30,24 +30,27 @@ UContextualAnimSelectionCriterion_TriggerArea::UContextualAnimSelectionCriterion
 	PolygonPoints.Add(FVector(100, 100, 0));
 }
 
-bool UContextualAnimSelectionCriterion_TriggerArea::DoesQuerierPassCondition(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const
+bool UContextualAnimSelectionCriterion_TriggerArea::DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
 {
 	if (PolygonPoints.Num() == 4)
 	{
+		const FTransform PrimaryTransform = Primary.GetTransform();
+		const FTransform QuerierTransform = Querier.GetTransform();
+
 		const float HalfHeight = FMath::Max((Height / 2.f), 0.f);
-		const float VDist = FMath::Abs((PrimaryActorData.Transform.GetLocation().Z + PolygonPoints[0].Z + HalfHeight) - QuerierData.Transform.GetLocation().Z);
+		const float VDist = FMath::Abs((PrimaryTransform.GetLocation().Z + PolygonPoints[0].Z + HalfHeight) - QuerierTransform.GetLocation().Z);
 		if (VDist > HalfHeight)
 		{
 			return false;
 		}
 
-		const FVector2D TestPoint = FVector2D(QuerierData.Transform.GetLocation());
+		const FVector2D TestPoint = FVector2D(QuerierTransform.GetLocation());
 		const int32 NumPoints = PolygonPoints.Num();
 		float AngleSum = 0.0f;
 		for (int32 PointIndex = 0; PointIndex < NumPoints; ++PointIndex)
 		{
-			const FVector2D& VecAB = FVector2D(PrimaryActorData.Transform.TransformPositionNoScale(PolygonPoints[PointIndex])) - TestPoint;
-			const FVector2D& VecAC = FVector2D(PrimaryActorData.Transform.TransformPositionNoScale(PolygonPoints[(PointIndex + 1) % NumPoints])) - TestPoint;
+			const FVector2D& VecAB = FVector2D(PrimaryTransform.TransformPositionNoScale(PolygonPoints[PointIndex])) - TestPoint;
+			const FVector2D& VecAC = FVector2D(PrimaryTransform.TransformPositionNoScale(PolygonPoints[(PointIndex + 1) % NumPoints])) - TestPoint;
 			const float Angle = FMath::Sign(FVector2D::CrossProduct(VecAB, VecAC)) * FMath::Acos(FMath::Clamp(FVector2D::DotProduct(VecAB, VecAC) / (VecAB.Size() * VecAC.Size()), -1.0f, 1.0f));
 			AngleSum += Angle;
 		}
@@ -61,13 +64,16 @@ bool UContextualAnimSelectionCriterion_TriggerArea::DoesQuerierPassCondition(con
 // UContextualAnimSelectionCriterion_Facing
 //===========================================================================
 
-bool UContextualAnimSelectionCriterion_Facing::DoesQuerierPassCondition(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const
+bool UContextualAnimSelectionCriterion_Facing::DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
 {
 	if (MaxAngle > 0.f)
 	{
+		const FTransform PrimaryTransform = Primary.GetTransform();
+		const FTransform QuerierTransform = Querier.GetTransform();
+
 		const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(MaxAngle), 0.f, PI));
-		const FVector ToTarget = (PrimaryActorData.Transform.GetLocation() - QuerierData.Transform.GetLocation()).GetSafeNormal2D();
-		const float DotProduct = FVector::DotProduct(QuerierData.Transform.GetRotation().GetForwardVector(), ToTarget);
+		const FVector ToTarget = (PrimaryTransform.GetLocation() - QuerierTransform.GetLocation()).GetSafeNormal2D();
+		const float DotProduct = FVector::DotProduct(QuerierTransform.GetRotation().GetForwardVector(), ToTarget);
 		return (DotProduct > FacingCos);
 	}
 

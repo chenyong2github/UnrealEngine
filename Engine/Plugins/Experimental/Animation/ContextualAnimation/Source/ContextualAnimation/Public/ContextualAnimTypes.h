@@ -12,6 +12,10 @@ CONTEXTUALANIMATION_API DECLARE_LOG_CATEGORY_EXTERN(LogContextualAnim, Log, All)
 class AActor;
 class UAnimSequenceBase;
 class UContextualAnimSelectionCriterion;
+class UContextualAnimSceneAsset;
+class UContextualAnimSceneInstance;
+class UContextualAnimSceneActorComponent;
+struct FAnimMontageInstance;
 
 namespace UE 
 {
@@ -98,7 +102,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 
 	float FindBestAnimStartTime(const FVector& LocalLocation) const;
 
-	bool DoesQuerierPassSelectionCriteria(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const;
+	bool DoesQuerierPassSelectionCriteria(const FContextualAnimSceneBindingContext& PrimaryActorData, const FContextualAnimSceneBindingContext& QuerierData) const;
 
 	static const FContextualAnimTrack EmptyTrack;
 };
@@ -188,6 +192,201 @@ struct CONTEXTUALANIMATION_API FContextualAnimIKTargetDefContainer
 	static const FContextualAnimIKTargetDefContainer EmptyContainer;
 };
 
+// FContextualAnimRoleDefinition
+///////////////////////////////////////////////////////////////////////
+
+USTRUCT(BlueprintType)
+struct FContextualAnimRoleDefinition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	TSubclassOf<AActor> PreviewActorClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FTransform MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
+};
+
+// FContextualAnimAlignmentSectionData
+///////////////////////////////////////////////////////////////////////
+
+USTRUCT(BlueprintType)
+struct FContextualAnimAlignmentSectionData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FName WarpTargetName = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (GetOptions = "GetRoles"))
+	FName Origin = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	bool bAlongClosestDistance = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (GetOptions = "GetRoles", EditCondition = "bAlongClosestDistance"))
+	FName OtherRole = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "bAlongClosestDistance"))
+	float Weight = 0.f;
+};
+
+// FContextualAnimSceneBindingContext
+///////////////////////////////////////////////////////////////////////
+
+USTRUCT(BlueprintType, meta = (HasNativeMake = "ContextualAnimUtilities.BP_SceneBindingContext_MakeFromActor"))
+struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
+{
+	GENERATED_BODY()
+
+	FContextualAnimSceneBindingContext() {}
+
+	FContextualAnimSceneBindingContext(AActor* InActor, const TOptional<FTransform>& InExternalTransform = TOptional<FTransform>(), const TOptional<FVector>& InExternalVelocity = TOptional<FVector>())
+		: Actor(InActor), ExternalTransform(InExternalTransform), ExternalVelocity(InExternalVelocity) {}
+
+	FContextualAnimSceneBindingContext(const FTransform& InExternalTransform, const TOptional<FVector>& InExternalVelocity = TOptional<FVector>())
+		: ExternalTransform(InExternalTransform), ExternalVelocity(InExternalVelocity) {}
+
+	AActor* GetActor() const { return Actor.Get(); }
+
+	void SetExternalTransform(const FTransform& InTransform);
+
+	FTransform GetTransform() const;
+
+	FVector GetVelocity() const;
+
+	//@TODO: Add accessors for GameplayTags
+
+private:
+
+	TWeakObjectPtr<AActor> Actor = nullptr;
+
+	TOptional<FTransform> ExternalTransform;
+
+	TOptional<FVector> ExternalVelocity;
+
+	FGameplayTagContainer ExternalGameplayTags;
+};
+
+/** Represent an actor bound to a role in the scene */
+USTRUCT(BlueprintType)
+struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
+{
+	GENERATED_BODY()
+
+	FContextualAnimSceneBinding() {}
+	FContextualAnimSceneBinding(const FContextualAnimSceneBindingContext& InContext, const UContextualAnimSceneAsset& InSceneAsset, const FContextualAnimTrack& InAnimTrack);
+
+	FORCEINLINE const FContextualAnimSceneBindingContext& GetContext() const { return Context; }
+	FORCEINLINE FContextualAnimSceneBindingContext& GetContext() { return Context; }
+	FORCEINLINE AActor* GetActor() const { return GetContext().GetActor(); }
+	FORCEINLINE FTransform GetTransform() const { return GetContext().GetTransform(); }
+	FORCEINLINE FVector GetVelocity()  const { return GetContext().GetVelocity(); }
+
+	/** Returns the track in the scene asset used by this actor */
+	FORCEINLINE const FContextualAnimTrack& GetAnimTrack() const { check(AnimTrackPtr);  return *AnimTrackPtr; }
+
+	/** Returns the role definition used by this actor */
+	FORCEINLINE const FContextualAnimRoleDefinition& GetRoleDef() const { check(RoleDefPtr); return *RoleDefPtr; }
+
+	/** Returns the SceneInstance we belong to (if any) */
+	FORCEINLINE const UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstancePtr.Get(); }
+
+	/** Returns the SceneAsset we were created from */
+	FORCEINLINE const UContextualAnimSceneAsset& GetSceneAsset() const { return *SceneAsset; }
+
+	const FContextualAnimIKTargetDefContainer& GetIKTargetDefs() const;
+
+	/** Return the current playback time of the animation this actor is playing */
+	float GetAnimMontageTime() const;
+
+	FName GetCurrentSection() const;
+
+	int32 GetCurrentSectionIndex() const;
+
+	/** Returns the ActiveMontageInstance or null in the case of static actors */
+	FAnimMontageInstance* GetAnimMontageInstance() const;
+
+	UAnimInstance* GetAnimInstance() const;
+
+	USkeletalMeshComponent* GetSkeletalMeshComponent() const;
+
+	UContextualAnimSceneActorComponent* GetSceneActorComponent() const;
+
+	static const FContextualAnimSceneBinding InvalidBinding;
+
+private:
+
+	friend UContextualAnimSceneInstance;
+
+	FContextualAnimSceneBindingContext Context;
+
+	/** Scene Asset we are bound to */
+	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
+
+	/** Ptr to the animation data in the scene asset used by this actor */
+	const FContextualAnimTrack* AnimTrackPtr = nullptr;
+
+	/** Ptr to the role definition used by this actor */
+	const FContextualAnimRoleDefinition* RoleDefPtr = nullptr;
+
+	/** Ptr back to the scene instance we belong to (if any) */
+	TWeakObjectPtr<const UContextualAnimSceneInstance> SceneInstancePtr = nullptr;
+
+#if WITH_EDITOR
+public:
+	/** Guid only used in editor to bind this actor to sequencer */
+	FGuid Guid;
+#endif
+
+};
+
+USTRUCT(BlueprintType)
+struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
+{
+	GENERATED_BODY()
+
+	const FContextualAnimSceneBinding* FindBindingByActor(const AActor* Actor) const
+	{
+		return Actor ? Data.FindByPredicate([Actor](const auto& Item) { return Item.GetActor() == Actor; }) : nullptr;
+	}
+
+	const FContextualAnimSceneBinding* FindBindingByRole(const FName& Role) const
+	{
+		return Role != NAME_None ? Data.FindByPredicate([&Role](const auto& Item) { return Item.GetAnimTrack().Role == Role; }) : nullptr;
+	}
+
+#if WITH_EDITOR
+	const FContextualAnimSceneBinding* FindBindingByGuid(const FGuid& Guid) const
+	{
+		return Guid.IsValid() ? Data.FindByPredicate([&Guid](const auto& Item) { return Item.Guid == Guid; }) : nullptr;
+	}
+#endif
+
+	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return Num() > 0 ? &Data[0].GetSceneAsset() : nullptr; }
+	FORCEINLINE int32 GetVariantIdx() const { return Num() > 0 ? Data[0].GetAnimTrack().VariantIdx : INDEX_NONE; }
+	FORCEINLINE int32 Num() const { return Data.Num(); }
+	FORCEINLINE int32 Add(const FContextualAnimSceneBinding& NewData) { return Data.Add(NewData); }
+	FORCEINLINE void Reset() { return Data.Reset(); }
+	FORCEINLINE const TArray<FContextualAnimSceneBinding>& GetBindings() const { return Data; }
+
+	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForIteratorType      begin() { return Data.begin(); }
+	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForConstIteratorType begin() const { return Data.begin(); }
+	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForIteratorType      end() { return Data.end(); }
+	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForConstIteratorType end() const { return Data.end(); }
+
+	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 VariantIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings);
+
+private:
+
+	/** List of actors bound to each role in the SceneAsset */
+	UPROPERTY()
+	TArray<FContextualAnimSceneBinding> Data;
+};
+
 USTRUCT(BlueprintType)
 struct FContextualAnimStartSceneParams
 {
@@ -195,21 +394,16 @@ struct FContextualAnimStartSceneParams
 
 	/** Map with actors to bind to each role in the scene */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TMap<FName, AActor*> RoleToActorMap;
+	TMap<FName, FContextualAnimSceneBindingContext> RoleToActorMap;
 
 	/** Desired variant. If INDEX_NONE the Manager will attempt to find the best variant to use by running the selection criteria */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	int32 VariantIdx = INDEX_NONE;
 
-	/** Desired start time */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float AnimStartTime = 0.f;
-
 	void Reset()
 	{
 		RoleToActorMap.Reset();
 		VariantIdx = INDEX_NONE;
-		AnimStartTime = 0.f;
 	}
 };
 
@@ -272,28 +466,4 @@ struct FContextualAnimQueryParams
 
 	FContextualAnimQueryParams(const FTransform& InQueryTransform, bool bInComplexQuery, bool bInFindAnimStartTime)
 		: QueryTransform(InQueryTransform), bComplexQuery(bInComplexQuery), bFindAnimStartTime(bInFindAnimStartTime) {}
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimQuerierData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform Transform;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FVector Velocity = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FGameplayTagContainer GameplayTags;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimPrimaryActorData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform Transform;
 };

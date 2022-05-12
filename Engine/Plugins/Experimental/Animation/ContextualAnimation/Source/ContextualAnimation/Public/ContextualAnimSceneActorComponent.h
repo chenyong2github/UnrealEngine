@@ -11,7 +11,7 @@ class UAnimInstance;
 class UAnimMontage;
 class AActor;
 class UContextualAnimSceneInstance;
-struct FContextualAnimSceneActorData;
+struct FContextualAnimSceneBinding;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FContextualAnimSceneActorCompDelegate, class UContextualAnimSceneActorComponent*, SceneActorComponent);
 
@@ -46,10 +46,10 @@ public:
 	virtual void AddIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) override;
 
 	/** Called from the scene instance when the actor owner of this component joins an scene */
-	void OnJoinedScene(const FContextualAnimSceneActorData* SceneActorData);
+	void OnJoinedScene(const FContextualAnimSceneBinding* Binding);
 	
 	/** Called from the scene instance when the actor owner of this component leave an scene */
-	void OnLeftScene(const FContextualAnimSceneActorData* SceneActorData);
+	void OnLeftScene(const FContextualAnimSceneBinding* Binding);
 
 	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Actor Component")
 	const TArray<FContextualAnimIKTarget>& GetIKTargets() const { return IKTargets; }
@@ -59,8 +59,8 @@ public:
 
 protected:
 
-	/** Ptr back to the scene actor data that represent us in the scene instance we are part of */
-	const FContextualAnimSceneActorData* SceneActorDataPtr = nullptr;
+	/** Ptr back to the binding that represent us in the scene instance we are part of */
+	const FContextualAnimSceneBinding* BindingPtr = nullptr;
 
 	/** List of IKTarget for this frame */
 	UPROPERTY()
