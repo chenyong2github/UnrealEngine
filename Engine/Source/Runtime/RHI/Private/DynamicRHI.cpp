@@ -410,6 +410,9 @@ void RHIExit()
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
+
+	void CleanupRHICommandListGraphEvents();
+	CleanupRHICommandListGraphEvents();
 }
 
 
