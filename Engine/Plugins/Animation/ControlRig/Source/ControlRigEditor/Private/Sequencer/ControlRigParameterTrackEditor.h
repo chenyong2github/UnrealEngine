@@ -113,9 +113,6 @@ private:
 	/** Delegate for when track immediately changes, so we need to do an interaction edit for things like fk/ik*/
 	void OnChannelChanged(const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection* InSection);
 
-	/** Delegate for Curve Selection Changed Event */
-	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed, const FCurveEditor* InCurveEditor);
-
 	/** Delegate for difference focused movie scene sequence*/
 	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
 
