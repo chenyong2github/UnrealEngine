@@ -915,7 +915,7 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 
 	FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
 		TEXT("FVulkanSwapChainQCOM"),
-		{ (int32)Desc.Extent.X, (int32)Desc.Extent.Y }, // Yes, these are intentionally swapped.
+		{ (int32)Desc.Extent.Y, (int32)Desc.Extent.X }, // Yes, these are intentionally swapped.
 		Desc.Format,
 		FClearValueBinding::None,
 		UEFlags,
