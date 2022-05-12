@@ -2936,7 +2936,11 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 				const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, PropertyName);
 				if (VarIndex != INDEX_NONE)
 				{
-					NewVariables.RemoveAt(VarIndex);
+					// only remove the variable if it was backing up a rig unit
+					if(UnitStruct != nullptr)
+					{
+						NewVariables.RemoveAt(VarIndex);
+					}
 					FBlueprintEditorUtils::RemoveVariableNodes(this, PropertyName);
 				}
 			}
