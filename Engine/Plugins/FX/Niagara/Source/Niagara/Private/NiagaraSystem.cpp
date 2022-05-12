@@ -3637,7 +3637,7 @@ void UNiagaraSystem::FixupPositionUserParameters()
 		// different types of the same user parameter linked throughout the system.
 		ForEachScript([&LinkedParameter](UNiagaraScript* Script)
 		{
-			if (Script)
+			if (Script && Script->GetLatestSource() != nullptr)
 			{
 				Script->GetLatestSource()->ChangedLinkedInputTypes(LinkedParameter, FNiagaraTypeDefinition::GetPositionDef());
 			}
