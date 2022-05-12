@@ -6,30 +6,74 @@ struct FFinalGatherHitPoint
 	float3 WorldNormal;
 };
 
-bool ICHashTableAdd( uint Key, out uint Index )
+uint ICKeyMix(uint2 Key)
+{
+	return MurmurMix(MurmurAdd(Key.x, Key.y));
+}
+
+bool ICHashTableAdd(uint2 Key, out uint Index)
 {
 	// Zero is reserved as invalid
 	Key++;
 
 	LOOP
 	[allow_uav_condition]
-	for( Index = MurmurMix( Key );; Index++ )
+	for(Index = ICKeyMix(Key); ; Index++)
 	{
 		Index = Index % IrradianceCachingParameters.HashTableSize;
+		
+		uint2 StoredKey = 0;
 
-		uint StoredKey = IrradianceCachingParameters.RWHashTable[ Index ];
-		if( StoredKey != Key )
+		bool bAtomicReadSuccessful = false;
+		uint SemaphoreState;
+		InterlockedCompareExchange(IrradianceCachingParameters.HashTableSemaphore[Index], 0, 1, SemaphoreState);
+		if (SemaphoreState == 0 || SemaphoreState == 1)
 		{
-			if( StoredKey != 0 )
+			StoredKey = IrradianceCachingParameters.RWHashTable[Index];
+			bAtomicReadSuccessful = true;
+			
+			if (SemaphoreState == 0)
+			{
+				InterlockedCompareExchange(IrradianceCachingParameters.HashTableSemaphore[Index], 1, 0, SemaphoreState);
+			}
+		}
+
+		if (!bAtomicReadSuccessful)
+		{
+			return false;
+		}
+		
+		if(any(StoredKey != Key))
+		{
+			if(any(StoredKey != 0))
 				continue;
 
-			uint PrevKey;
-			InterlockedCompareExchange( IrradianceCachingParameters.RWHashTable[ Index ], 0, Key, PrevKey );
+			uint2 PrevKey = 0xffffffff;
 			
-			if( PrevKey == 0 )
-				return true;
-			else if( PrevKey != Key )
-				continue;
+			bool bAtomicWriteSuccessful = false;
+			InterlockedCompareExchange(IrradianceCachingParameters.HashTableSemaphore[Index], 0, 2, SemaphoreState);
+			if (SemaphoreState == 0)
+			{
+				bAtomicWriteSuccessful = true;
+				PrevKey = IrradianceCachingParameters.RWHashTable[ Index ];
+				if (all(PrevKey == 0))
+				{
+					IrradianceCachingParameters.RWHashTable[Index] = Key;
+				}
+				InterlockedCompareExchange(IrradianceCachingParameters.HashTableSemaphore[Index], 2, 0, SemaphoreState);
+			}
+
+			if (bAtomicWriteSuccessful)
+			{
+				if(all(PrevKey == 0))
+					return true;
+				else if(any(PrevKey != Key))
+					continue;
+			}
+			else
+			{
+				return false;
+			}
 		}
 
 		break;
@@ -40,21 +84,41 @@ bool ICHashTableAdd( uint Key, out uint Index )
 
 // Returns true if key is found.
 // Index output is the hash table bucket this key is stored in if found.
-bool ICHashTableFind( uint Key, out uint Index )
+bool ICHashTableFind(uint2 Key, out uint Index)
 {
 	// Zero is reserved as invalid
 	Key++;
 
 	LOOP
 	[allow_uav_condition]
-	for( Index = MurmurMix( Key );; Index++ )
+	for(Index = ICKeyMix(Key); ; Index++)
 	{
 		Index = Index % IrradianceCachingParameters.HashTableSize;
 
-		uint StoredKey = IrradianceCachingParameters.RWHashTable[ Index ];
-		if( StoredKey != Key )
+		uint2 StoredKey = 0;
+
+		bool bAtomicReadSuccessful = false;
+		uint SemaphoreState;
+		InterlockedCompareExchange(IrradianceCachingParameters.HashTableSemaphore[Index], 0, 1, SemaphoreState);
+		if (SemaphoreState == 0 || SemaphoreState == 1)
 		{
-			if( StoredKey != 0 )
+			StoredKey = IrradianceCachingParameters.RWHashTable[Index];
+			bAtomicReadSuccessful = true;
+			
+			if (SemaphoreState == 0)
+			{
+				InterlockedCompareExchange(IrradianceCachingParameters.HashTableSemaphore[Index], 1, 0, SemaphoreState);
+			}
+		}
+		
+		if (!bAtomicReadSuccessful)
+		{
+			return false;
+		}
+		
+		if(any(StoredKey != Key))
+		{
+			if(any(StoredKey != 0))
 				continue;
 		}
 		else
@@ -70,8 +134,8 @@ bool ICHashTableFind( uint Key, out uint Index )
 
 uint3 EncodeVoxelKey(float3 VoxelPos)
 {
-	int3 Signed = int3( VoxelPos ) + 0x1000000;
-	uint3 Voxel = uint3( Signed ) & 0xfffffff;
+	int3 Signed = int3( VoxelPos ) + 0x3ffff;
+	uint3 Voxel = uint3( Signed ) & 0x7ffff;
 
 	uint3 Key;
 	Key.x = Voxel.x;
@@ -119,16 +183,29 @@ uint EncodeNormalBits(float3 WorldNormal)
 			;
 }
 
-uint EncodeICHashKey(float3 WorldPosition, float3 WorldNormal, float Spacing)
+uint2 EncodeICHashKey(float3 WorldPosition, float3 WorldNormal, float Spacing)
 {
 	float3 PosKey = EncodePositionKey(WorldPosition, WorldNormal, Spacing); // RT_LWC_TODO
 	uint3 Key = EncodeVoxelKey(PosKey);
-	uint NormalDirectionBits = EncodeNormalBits(WorldNormal);			
-	uint HashKey = 0;		
-	HashKey = MurmurAdd( HashKey, NormalDirectionBits << 26);
-	HashKey = MurmurAdd( HashKey, Key.x << 17);
-	HashKey = MurmurAdd( HashKey, Key.y << 8);
-	HashKey = MurmurAdd( HashKey, Key.z << 0);
+	uint NormalDirectionBits = EncodeNormalBits(WorldNormal);
+	
+	uint2 HashKey = uint2(0, 0);
+
+	// We have 64 bits in total
+	// x: 31 - 26: 06 bits for normal direction
+	// x: 25 - 07: 19 bits for world position x
+	// x: 06 - 00: 07 bits for world position y (19 bits in total)
+	// y: 31 - 20: 12 bits for world position y (19 bits in total)
+	// y: 19 - 01: 19 bits for world position z
+	// y: 00: unused
+	
+	HashKey.x = HashKey.x | NormalDirectionBits << 26;
+	HashKey.x = HashKey.x | ((Key.x & 0x7fff) << 7);
+	HashKey.x = HashKey.x | ((Key.y & 0x7f) << 0);
+	
+	HashKey.y = HashKey.y | (Key.y & 0xfff) << 20;
+	HashKey.y = HashKey.y | (Key.z & 0x7fff) << 1;
+	
 	return HashKey;
 }
 
@@ -150,9 +227,8 @@ uint EncodeICHashKey(float3 WorldPosition, float3 WorldNormal, float Spacing)
 
 void EmitGeometryHitPoint(FFinalGatherHitPoint HitPoint, uint Size)
 {
-	uint HashKey = EncodeICHashKey(HitPoint.WorldPosition, HitPoint.WorldNormal, Size);
 	uint Index;
-	if (ICHashTableAdd(HashKey, Index))
+	if (ICHashTableAdd(EncodeICHashKey(HitPoint.WorldPosition, HitPoint.WorldNormal, Size), Index))
 	{
 		uint RecordIndex = 0;
 		InterlockedAdd(IrradianceCachingParameters.RecordAllocator[0], 1, RecordIndex);

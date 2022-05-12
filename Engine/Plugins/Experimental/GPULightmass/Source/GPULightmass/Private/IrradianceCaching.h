@@ -13,10 +13,11 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, )
 	SHADER_PARAMETER(float, Spacing)
 	SHADER_PARAMETER(float, CornerRejection)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint4>, IrradianceCacheRecords)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWHashTable)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint2>, RWHashTable)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWHashToIndex)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWIndexToHash)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RecordAllocator)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, HashTableSemaphore)
 END_UNIFORM_BUFFER_STRUCT()
 
 struct FIrradianceCache
@@ -34,6 +35,7 @@ struct FIrradianceCache
 	FRWBuffer HashToIndex;
 	FRWBuffer IndexToHash;
 	FRWBuffer RecordAllocator;
+	FRWBuffer HashTableSemaphore;
 
 	int32 CurrentRevision = 0;
 };

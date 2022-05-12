@@ -25,10 +25,9 @@ void VisualizeIrradianceCachePS(
 			
 	uint NearestRecordIndex = 0;
 	float3 RecordIrradiance;
-			
-	uint HashKey = EncodeICHashKey(WorldPosition, ShadingNormal, IrradianceCachingParameters.Spacing);
+
 	uint Index;
-	if (ICHashTableFind(HashKey, Index))
+	if (ICHashTableFind(EncodeICHashKey(WorldPosition, ShadingNormal, IrradianceCachingParameters.Spacing), Index))
 	{
 		uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
 		uint4 RecordIrradianceAndSampleCount = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];

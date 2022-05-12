@@ -31,17 +31,20 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 
 	{
 		{
-			HashTable.Initialize(TEXT("ICHashTable"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
+			HashTable.Initialize(TEXT("ICHashTable"), sizeof(uint32) * 2, HashTableSize, PF_R32G32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
 			HashToIndex.Initialize(TEXT("ICHashToIndex"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
 			IndexToHash.Initialize(TEXT("ICIndexToHash"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
+			HashTableSemaphore.Initialize(TEXT("ICHashTableSemaphore"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
 
 			IrradianceCacheTotalBytes += HashTable.NumBytes;
 			IrradianceCacheTotalBytes += HashToIndex.NumBytes;
 			IrradianceCacheTotalBytes += IndexToHash.NumBytes;
+			IrradianceCacheTotalBytes += HashTableSemaphore.NumBytes;
 
 			RHICmdList.ClearUAVUint(HashTable.UAV, FUintVector4(0, 0, 0, 0));
 			RHICmdList.ClearUAVUint(HashToIndex.UAV, FUintVector4(0, 0, 0, 0));
 			RHICmdList.ClearUAVUint(IndexToHash.UAV, FUintVector4(0, 0, 0, 0));
+			RHICmdList.ClearUAVUint(HashTableSemaphore.UAV, FUintVector4(0, 0, 0, 0));
 		}
 		{
 			RecordAllocator.Initialize(TEXT("ICAllocator"), sizeof(uint32), 1, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
@@ -64,5 +67,6 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 	IrradianceCachingParameters.RWHashToIndex = HashToIndex.UAV;
 	IrradianceCachingParameters.RWIndexToHash = IndexToHash.UAV;
 	IrradianceCachingParameters.RecordAllocator = RecordAllocator.UAV;
+	IrradianceCachingParameters.HashTableSemaphore = HashTableSemaphore.UAV;
 	IrradianceCachingParametersUniformBuffer = TUniformBufferRef<FIrradianceCachingParameters>::CreateUniformBufferImmediate(IrradianceCachingParameters, EUniformBufferUsage::UniformBuffer_MultiFrame);
 }

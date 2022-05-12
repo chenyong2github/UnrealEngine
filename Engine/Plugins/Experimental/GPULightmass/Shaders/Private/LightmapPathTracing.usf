@@ -410,16 +410,7 @@ void PathTracingKernel(
 		float3 TexelPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float3 HitPosition = Payload.TranslatedWorldPos - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float DistanceFromTexelToHit = length(HitPosition - TexelPosition);
-		bool bRejectedByCornerRejection = DistanceFromTexelToHit < IrradianceCachingParameters.Spacing * IrradianceCachingParameters.CornerRejection;
-			
-		// If we're in IC building passes and the entry is going to be rejected, terminate immediately as the path isn't going to generate any useful result
-		if (RenderPassIndex < GetIrradianceCachingQuality())
-		{
-			if (Bounce == 1 && bRejectedByCornerRejection)
-			{
-				break;
-			}
-		}
+		bool bRejectedByCornerRejection = RenderPassIndex >= GetIrradianceCachingQuality() && DistanceFromTexelToHit < IrradianceCachingParameters.Spacing * IrradianceCachingParameters.CornerRejection;
 		
 		if (NearestCacheEntryID == -1 && Bounce >= 1 && !bRejectedByCornerRejection)
 		{
@@ -428,10 +419,9 @@ void PathTracingKernel(
 			
 			uint NearestRecordIndex = 0;
 			float3 RecordIrradiance;
-				
-			uint HashKey = EncodeICHashKey(HitPosition, Payload.WorldNormal, IrradianceCachingParameters.Spacing);
+
 			uint Index;
-			if (ICHashTableFind(HashKey, Index))
+			if (ICHashTableFind(EncodeICHashKey(HitPosition, Payload.WorldNormal, IrradianceCachingParameters.Spacing), Index))
 			{
 				uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
 
