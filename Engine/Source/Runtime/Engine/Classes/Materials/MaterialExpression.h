@@ -185,10 +185,10 @@ class ENGINE_API UMaterialExpression : public UObject
 	static void InitializeNumExecutionInputs(TArrayView<UMaterialExpression*> Expressions);
 #endif
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = MaterialEditing)
 	int32 MaterialExpressionEditorX;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = MaterialEditing)
 	int32 MaterialExpressionEditorY;
 
 	/** Expression's Graph representation */

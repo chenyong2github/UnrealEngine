@@ -800,6 +800,50 @@ UMaterialExpression* UMaterialEditingLibrary::GetMaterialPropertyInputNode(UMate
 	return nullptr;
 }
 
+static FString GetExpressionOutputName(const FExpressionOutput& Output)
+{
+	if (!Output.OutputName.IsNone())
+	{
+		return Output.OutputName.ToString();
+	}
+	else if (Output.Mask)
+	{
+		if (Output.MaskR && !Output.MaskG && !Output.MaskB && !Output.MaskA)
+		{
+			return TEXT("R");
+		}
+		else if (!Output.MaskR && Output.MaskG && !Output.MaskB && !Output.MaskA)
+		{
+			return TEXT("G");
+		}
+		else if (!Output.MaskR && !Output.MaskG && Output.MaskB && !Output.MaskA)
+		{
+			return TEXT("B");
+		}
+		else if (!Output.MaskR && !Output.MaskG && !Output.MaskB && Output.MaskA)
+		{
+			return TEXT("A");
+		}
+	}
+	return FString();
+}
+
+FString UMaterialEditingLibrary::GetMaterialPropertyInputNodeOutputName(UMaterial* Material, EMaterialProperty Property)
+{
+	if (Material)
+	{
+		FExpressionInput* ExpressionInput = Material->GetExpressionInputForProperty(Property);
+		if (ExpressionInput->OutputIndex != INDEX_NONE
+			&& ExpressionInput->Expression
+			&& ExpressionInput->OutputIndex < ExpressionInput->Expression->Outputs.Num())
+		{
+			FExpressionOutput& Output = ExpressionInput->Expression->Outputs[ExpressionInput->OutputIndex];
+			return GetExpressionOutputName(Output);
+		}
+	}
+	return FString();
+}
+
 TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpression(UMaterial* Material, UMaterialExpression* MaterialExpression)
 {
 	TArray<UMaterialExpression*> MaterialExpressions;
@@ -812,6 +856,24 @@ TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpres
 	}
 
 	return MaterialExpressions;
+}
+
+bool UMaterialEditingLibrary::GetInputNodeOutputNameForMaterialExpression(UMaterialExpression* MaterialExpression, UMaterialExpression* InputNode, FString& OutputName)
+{
+	OutputName = TEXT("");
+	for (const FExpressionInput* Input : MaterialExpression->GetInputs())
+	{
+		if (Input->Expression == InputNode)
+		{
+			if(Input->OutputIndex != INDEX_NONE && Input->OutputIndex < InputNode->Outputs.Num())
+			{
+				FExpressionOutput& Output = InputNode->Outputs[Input->OutputIndex];
+				OutputName = GetExpressionOutputName(Output);
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 TArray<UTexture*> UMaterialEditingLibrary::GetUsedTextures(UMaterial* Material)

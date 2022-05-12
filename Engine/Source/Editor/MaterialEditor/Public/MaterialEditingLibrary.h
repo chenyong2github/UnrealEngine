@@ -195,9 +195,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static UMaterialExpression* GetMaterialPropertyInputNode(UMaterial* Material, EMaterialProperty Property);
 
+	/** Get the node output name providing the output for a given material property from an active material editor */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static FString GetMaterialPropertyInputNodeOutputName(UMaterial* Material, EMaterialProperty Property);
+
 	/** Get the set of nodes acting as inputs to a node from an active material editor */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static TArray<UMaterialExpression*> GetInputsForMaterialExpression(UMaterial* Material, UMaterialExpression* MaterialExpression);
+
+	/** Get the output name of input node connected to MaterialExpression from an active material editor */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool GetInputNodeOutputNameForMaterialExpression(UMaterialExpression* MaterialExpression, UMaterialExpression* InputNode, FString& OutputName);
 
 	/** Get the list of textures used by a material */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
