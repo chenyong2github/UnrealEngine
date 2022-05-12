@@ -286,8 +286,13 @@ namespace Horde.Agent.Execution
 		{
 			DirectoryReference buildDir = GetAutomationToolDir(sharedStorageDir);
 
-			FileReference automationTool = FileReference.Combine(buildDir, "Engine", "Binaries", "DotNET", "AutomationTool.exe");
-			if(FileReference.Exists(automationTool))
+			FileReference[] automationToolPaths = new FileReference[]
+			{
+				FileReference.Combine(buildDir, "Engine", "Binaries", "DotNET", "AutomationTool.exe"),
+				FileReference.Combine(buildDir, "Engine", "Binaries", "DotNET", "AutomationTool", "AutomationTool.exe")
+			};
+
+			if (automationToolPaths.Any(automationTool => FileReference.Exists(automationTool)))
 			{
 				logger.LogInformation("Copying AutomationTool binaries from '{BuildDir}' to '{WorkspaceDir}", buildDir, workspaceDir);
 				foreach (FileReference sourceFile in DirectoryReference.EnumerateFiles(buildDir, "*", SearchOption.AllDirectories))
