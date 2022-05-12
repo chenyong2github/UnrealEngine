@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FPaintArgs;
