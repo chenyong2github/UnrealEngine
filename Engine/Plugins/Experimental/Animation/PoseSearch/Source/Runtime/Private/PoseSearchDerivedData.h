@@ -77,7 +77,7 @@ namespace UE::PoseSearch
 		void BeginCache();
 		void OnGetComplete(UE::DerivedData::FCacheGetResponse&& Response);
 		void BuildAndWrite(const UE::DerivedData::FCacheKey& NewKey);
-		void WriteIndexToCache();
+		void WriteIndexToCache(const UE::DerivedData::FCacheKey& NewKey);
 		void BuildIndexFromCacheRecord(UE::DerivedData::FCacheRecord&& CacheRecord);
 
 		UE::DerivedData::IRequestOwner& GetRequestOwner() { return Owner; }
@@ -103,12 +103,6 @@ namespace UE::PoseSearch
 	// Serialization for FPoseSearchIndexPreprocessInfo.
 	FArchive& operator<<(FArchive& Ar, FPoseSearchIndexPreprocessInfo& Info);
 
-	// Serialization for const FPoseSearchIndexPreprocessInfo.
-	FArchive& operator<<(FArchive& Ar, const FPoseSearchIndexPreprocessInfo& Info);
-
 	// Serialization for FPoseSearchIndex.
 	FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index);
-
-	// Serialization for const FPoseSearchIndex.
-	FArchive& operator<<(FArchive& Ar, const FPoseSearchIndex& Index);
 }

@@ -148,13 +148,12 @@ namespace UE::PoseSearch
 				DerivedData.SearchIndex.Schema = Database.Schema;
 				const bool bIndexReady = BuildIndex(&Database, DerivedData.SearchIndex);
 
-				WriteIndexToCache();
-				DerivedData.DerivedDataKey = NewKey;
+				WriteIndexToCache(NewKey);
 			}
 		});
 	}
 
-	void FPoseSearchDatabaseAsyncCacheTask::WriteIndexToCache()
+	void FPoseSearchDatabaseAsyncCacheTask::WriteIndexToCache(const UE::DerivedData::FCacheKey& NewKey)
 	{
 		using namespace UE::DerivedData;
 
@@ -163,11 +162,12 @@ namespace UE::PoseSearch
 		Writer << DerivedData.SearchIndex;
 		FSharedBuffer RawData = MakeSharedBufferFromArray(MoveTemp(RawBytes));
 
-		FCacheRecordBuilder Builder(DerivedData.DerivedDataKey);
+		FCacheRecordBuilder Builder(NewKey);
 		Builder.AddValue(Id, RawData);
 
 		Owner.KeepAlive();
 		GetCache().Put({ { { Database.GetPathName() }, Builder.Build() } }, Owner);
+		DerivedData.DerivedDataKey = NewKey;
 	}
 
 	void FPoseSearchDatabaseAsyncCacheTask::BuildIndexFromCacheRecord(UE::DerivedData::FCacheRecord&& CacheRecord)
@@ -362,13 +362,6 @@ namespace UE::PoseSearch
 		return Ar;
 	}
 
-	FArchive& operator<<(FArchive& Ar, const FPoseSearchIndexPreprocessInfo& Info)
-	{
-		check(Ar.IsSaving());
-		return (Ar << const_cast<FPoseSearchIndexPreprocessInfo&>(Info));
-	}
-
-
 	FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	{
 		int32 NumValues = 0;
@@ -411,9 +404,4 @@ namespace UE::PoseSearch
 		return Ar;
 	}
 
-	FArchive& operator<<(FArchive& Ar, const FPoseSearchIndex& Index)
-	{
-		check(Ar.IsSaving());
-		return (Ar << const_cast<FPoseSearchIndex&>(Index));
-	}
 }

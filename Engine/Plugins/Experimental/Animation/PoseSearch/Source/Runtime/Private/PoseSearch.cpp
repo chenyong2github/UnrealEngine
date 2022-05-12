@@ -895,6 +895,9 @@ void FPoseSearchWeightsContext::Update(
 	if (Database != ActiveDatabase)
 	{
 		Database = ActiveDatabase;
+#if WITH_EDITOR
+		SearchIndexHash = Database->GetSearchIndexHash();
+#endif
 		bRecomputeWeights = true;
 	}
 
@@ -903,6 +906,14 @@ void FPoseSearchWeightsContext::Update(
 		DynamicWeights = ActiveWeights;
 		bRecomputeWeights = true;
 	}
+
+#if WITH_EDITOR
+	if (Database.IsValid() && Database->GetSearchIndexHash() != SearchIndexHash)
+	{
+		SearchIndexHash = Database->GetSearchIndexHash();
+		bRecomputeWeights = true;
+	}
+#endif
 
 	if (bRecomputeWeights)
 	{
@@ -1018,11 +1029,16 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset*
 
 bool FPoseSearchIndex::IsValid() const
 {
-	bool bSchemaValid = Schema && Schema->IsValid();
-	bool bAssetsValid = Assets.Num() > 0;
-	bool bSearchIndexValid = bSchemaValid && bAssetsValid && (NumPoses * Schema->Layout.NumFloats == Values.Num());
+	const bool bSchemaValid = Schema && Schema->IsValid();
+	const bool bSearchIndexValid = bSchemaValid && (NumPoses * Schema->Layout.NumFloats == Values.Num());
 
 	return bSearchIndexValid;
+}
+
+bool FPoseSearchIndex::IsEmpty() const
+{
+	const bool bEmpty = Assets.Num() == 0 || NumPoses == 0;
+	return bEmpty;
 }
 
 TArrayView<const float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
@@ -1126,7 +1142,7 @@ bool UPoseSearchSequenceMetaData::IsValidForIndexing() const
 
 bool UPoseSearchSequenceMetaData::IsValidForSearch() const
 {
-	return IsValidForIndexing() && SearchIndex.IsValid();
+	return IsValidForIndexing() && SearchIndex.IsValid() && !SearchIndex.IsEmpty();
 }
 
 
@@ -1291,7 +1307,7 @@ bool UPoseSearchDatabase::IsValidForIndexing() const
 bool UPoseSearchDatabase::IsValidForSearch() const
 {
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	bool bIsValid = IsValidForIndexing() && SearchIndex && SearchIndex->IsValid();
+	bool bIsValid = IsValidForIndexing() && SearchIndex && SearchIndex->IsValid() && !SearchIndex->IsEmpty();
 
 #if WITH_EDITOR
 	const bool bIsCurrentDerivedData = 
@@ -1780,8 +1796,16 @@ void UPoseSearchDatabase::Serialize(FArchive& Ar)
 
 	if (Ar.IsFilterEditorOnly())
 	{
+		if (Ar.IsLoading())
+		{
+			if (!PrivateDerivedData)
+			{
+				PrivateDerivedData = new FPoseSearchDatabaseDerivedData();
+				PrivateDerivedData->SearchIndex.Schema = Schema;
+			}
+		}
 		check(Ar.IsLoading() || (Ar.IsCooking() && IsDerivedDataValid()));
-		const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+		FPoseSearchIndex* SearchIndex = GetSearchIndex();
 		Ar << *SearchIndex;
 	}
 }
@@ -2518,7 +2542,7 @@ bool FDebugDrawParams::CanDraw() const
 		return false;
 	}
 
-	return SearchIndex->IsValid();
+	return SearchIndex->IsValid() && !SearchIndex->IsEmpty();
 }
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
@@ -4522,7 +4546,7 @@ static void PreprocessSearchIndexNone(FPoseSearchIndex* SearchIndex)
 
 	using namespace Eigen;
 
-	check(SearchIndex->IsValid());
+	check(SearchIndex->IsValid() && !SearchIndex->IsEmpty());
 
 	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
 	Info.Reset();
@@ -4633,7 +4657,7 @@ static void PreprocessSearchIndexNormalize(FPoseSearchIndex* SearchIndex)
 
 	using namespace Eigen;
 
-	check(SearchIndex->IsValid());
+	check(SearchIndex->IsValid() && !SearchIndex->IsEmpty());
 
 	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
 	Info.Reset();
@@ -4791,7 +4815,7 @@ static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
 
 	using namespace Eigen;
 
-	check(SearchIndex->IsValid());
+	check(SearchIndex->IsValid() && !SearchIndex->IsEmpty());
 
 	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
 	Info.Reset();
@@ -5208,7 +5232,7 @@ FSearchResult Search(FSearchContext& SearchContext)
 		return Result;
 	}
 
-	if (!ensure(SearchIndex->IsValid()))
+	if (!ensure(SearchIndex->IsValid() && !SearchIndex->IsEmpty()))
 	{
 		return Result;
 	}

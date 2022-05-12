@@ -417,6 +417,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	TArray<FPoseSearchIndexAsset> Assets;
 
 	bool IsValid() const;
+	bool IsEmpty() const;
 
 	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
 
@@ -634,6 +635,11 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<FPoseSearchWeights> ComputedGroupWeights;
+
+#if WITH_EDITOR
+	// used to check if the data has changed, which requires the weights to be recomputed
+	FIoHash SearchIndexHash = FIoHash::Zero;
+#endif
 };
 
 UENUM()
