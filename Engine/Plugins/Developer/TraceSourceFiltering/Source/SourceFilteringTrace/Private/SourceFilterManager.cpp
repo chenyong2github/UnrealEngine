@@ -655,7 +655,10 @@ void FSourceFilterManager::DrawFilterResults(const AActor* Actor)
 
 void FSourceFilterManager::SetupAsyncTasks(ENamedThreads::Type CurrentThread)
 {
-	static FGraphEventRef LastApplyAsyncTaskEvent = nullptr;
+	static FGraphEventRef LastApplyAsyncTaskEvent;
+
+	// if the static var left alive it can be destroyed after its allocator
+	UE_CALL_ONCE([] { FCoreDelegates::OnEnginePreExit.AddLambda([] { LastApplyAsyncTaskEvent = nullptr; }); });
 
 	if (CAN_TRACE_OBJECT(World))
 	{
