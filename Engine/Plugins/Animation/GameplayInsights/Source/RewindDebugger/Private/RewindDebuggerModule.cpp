@@ -55,7 +55,6 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 		.OnTabClosed_Lambda([this](TSharedRef<SDockTab>)
 		{
 			// clear reference to widget so it will be destroyed
-			RewindDebuggerWidget->CloseAllTabs();
 			RewindDebuggerWidget = nullptr;
 		});
 
