@@ -31,15 +31,16 @@ FAutoConsoleVariableRef CVarLumenVisualize(
 	TEXT("6 - Geometry normals\n")
 	TEXT("7 - Normals\n")
 	TEXT("8 - Emissive\n")
-	TEXT("9 - Card weights\n")
-	TEXT("10 - Direct lighting\n")
-	TEXT("11 - Indirect lighting\n")
-	TEXT("12 - Local Position (hardware ray-tracing only)\n")
-	TEXT("13 - Velocity (hardware ray-tracing only)\n")
-	TEXT("14 - Direct lighting updates\n")
-	TEXT("15 - Indirect lighting updates\n")
-	TEXT("16 - Last used pages\n")
-	TEXT("17 - Last used high res pages"),
+	TEXT("9 - Opacity (disable alpha masking)\n")
+	TEXT("10 - Card weights\n")
+	TEXT("11 - Direct lighting\n")
+	TEXT("12 - Indirect lighting\n")
+	TEXT("13 - Local Position (hardware ray-tracing only)\n")
+	TEXT("14 - Velocity (hardware ray-tracing only)\n")
+	TEXT("15 - Direct lighting updates\n")
+	TEXT("16 - Indirect lighting updates\n")
+	TEXT("17 - Last used pages\n")
+	TEXT("18 - Last used high res pages"),
 	ECVF_RenderThreadSafe
 );
 

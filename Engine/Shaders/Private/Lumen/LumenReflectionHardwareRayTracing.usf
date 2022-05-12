@@ -134,6 +134,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;
+		Context.bAlphaMasking = true;
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING
 		if (TraceData.bIsFarField)

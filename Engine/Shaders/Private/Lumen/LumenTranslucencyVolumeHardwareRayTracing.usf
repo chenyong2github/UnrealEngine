@@ -19,7 +19,6 @@
 #include "LumenTranslucencyVolumeLightingShared.ush"
 
 #if LUMEN_HARDWARE_RAYTRACING
-#define ENABLE_TRANSLUCENT_SKIP_COUNT 0
 #include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE

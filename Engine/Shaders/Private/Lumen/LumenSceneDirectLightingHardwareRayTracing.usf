@@ -66,9 +66,14 @@ StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 StructuredBuffer<uint> LightTileAllocator;
 StructuredBuffer<uint2> LightTiles;
 
-bool IsRayOccluded(FLumenMinimalRayResult Result)
+bool IsRayOccluded(FLumenMinimalRayResult RayResult)
 {
-	return Result.bHit || !Result.bCompleted;
+	return RayResult.bHit || !RayResult.bCompleted;
+}
+
+bool IsRayOccluded(FRayTracedLightingResult RayResult)
+{
+	return RayResult.bIsHit || !RayResult.bIsCompleted;
 }
 
 StructuredBuffer<uint> ShadowTraceAllocator;
@@ -171,24 +176,25 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 					Context.HitGroupData = HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-					FLumenMinimalPayload Payload;
-					
-					FLumenMinimalRayResult MinimalRayResult;
-					MinimalRayResult.bHit = false;
-					MinimalRayResult.bCompleted = true;
+					bool bRayOccluded = false;
 
 #if ENABLE_FAR_FIELD_TRACING
 					{
 						// Rebase origin and point-source direction for far-field rays
 						RayDesc FarFieldRay;
-						FarFieldRay.Origin = TranslatedWorldPosition + FarFieldReferencePos;
+						FarFieldRay.Origin = TranslatedWorldPosition;
 						FarFieldRay.Direction = Ray.Direction;
 						FarFieldRay.TMin = NearFieldTMax;
 						FarFieldRay.TMax = FarFieldTMax;
 
 						Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
 						Context.bSkipClosestHitShader = true;
-						MinimalRayResult = TraceLumenMinimalRay(FarFieldRay, Context, Payload);
+						Context.TranslucentSkipCountMax = 0;
+						Context.FarFieldReferencePos = FarFieldReferencePos;
+						Context.FarFieldMaxTraceDistance = FarFieldTMax;
+						
+						FRayTracedLightingResult RayResult = TraceSurfaceCacheFarFieldRay(FarFieldRay, Context);
+						bRayOccluded = IsRayOccluded(RayResult);
 
 						Context.bSkipClosestHitShader = false;
 					}
@@ -196,7 +202,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 #if ENABLE_HEIGHTFIELD_PROJECTION_BIAS
 					// Find the heightfield intersection that corresponds to the given card position.
-					if (Card.bHeightfield && !IsRayOccluded(MinimalRayResult))
+					if (Card.bHeightfield && !bRayOccluded)
 					{
 						float SearchRadius = HeightfieldProjectionBiasSearchRadius;
 						float3 SearchDirection = float3(0.0, 0.0, 1.0);
@@ -208,27 +214,28 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						ProjectedRay.TMax = 2.0f * SearchRadius;
 						Context.CullingMode = RAY_FLAG_CULL_FRONT_FACING_TRIANGLES;
 
-						FLumenMinimalPayload SearchPayload;
-						FLumenMinimalRayResult SearchResult = TraceLumenMinimalRay(ProjectedRay, Context, SearchPayload);
+						FLumenMinimalRayResult SearchResult = TraceLumenMinimalRay(ProjectedRay, Context);
 
 						if (IsRayOccluded(SearchResult))
 						{
 							float Epsilon = 0.01;
-							Ray.Origin = ProjectedRay.Origin + ProjectedRay.Direction * SearchPayload.HitT + SearchPayload.GetWorldNormal() * Epsilon;
+							Ray.Origin = ProjectedRay.Origin + ProjectedRay.Direction * SearchResult.HitT + SearchResult.HitNormal * Epsilon;
 						}
 					}
 #endif // ENABLE_HEIGHTFIELD_PROJECTION_BIAS
 
-					if (!IsRayOccluded(MinimalRayResult))
+					if (!bRayOccluded)
 					{
 						Ray.TMin = 0;
 						Ray.TMax = NearFieldTMax;
 						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
-						FLumenRayHitBookmark UnusedBookmark;
-						MinimalRayResult = TraceLumenMinimalRayWithRetries(Ray, Context, Payload, UnusedBookmark);
+						Context.TranslucentSkipCountMax = MaxTranslucentSkipCount;
+
+						FRayTracedLightingResult RayResult = TraceSurfaceCacheRay(Ray, Context);
+						bRayOccluded = IsRayOccluded(RayResult);
 					}
 
-					ShadowMaskRay.ShadowFactor = IsRayOccluded(MinimalRayResult) ? 0.0f : 1.0f;
+					ShadowMaskRay.ShadowFactor = bRayOccluded ? 0.0f : 1.0f;
 				}
 
 				ShadowMaskRay.bShadowFactorComplete = true;

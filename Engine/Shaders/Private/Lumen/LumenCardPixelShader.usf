@@ -54,13 +54,6 @@ void Main(
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 	}
 
-	// Don't clip when rendering heightfields (e.g. Landscape) in order to capture height in masked regions
-	#if !VERTEX_FACTORY_HEIGHTFIELD
-	{
-		GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
-	}
-	#endif
-
 #if TEMPLATE_USES_STRATA
 	const float3 V = MaterialParameters.WorldNormal; // Use the normal to avoid view dependent transmittance effects when baking non directional card data.
 	const float3 L = MaterialParameters.WorldNormal;

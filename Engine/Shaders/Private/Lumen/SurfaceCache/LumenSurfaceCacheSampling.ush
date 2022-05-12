@@ -31,15 +31,16 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_GEOMETRY_NORMALS 6
 	#define VISUALIZE_MODE_NORMALS 7
 	#define VISUALIZE_MODE_EMISSIVE 8
-	#define VISUALIZE_MODE_CARD_WEIGHTS 9
-	#define VISUALIZE_MODE_DIRECT_LIGHTING 10
-	#define VISUALIZE_MODE_INDIRECT_LIGHTING 11
-	#define VISUALIZE_MODE_LOCAL_POSITION 12
-	#define VISUALIZE_MODE_VELOCITY 13
-	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 14
-	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 15
-	#define VISUALIZE_MODE_LAST_USED_PAGE 16
-	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 17
+	#define VISUALIZE_MODE_OPACITY 9
+	#define VISUALIZE_MODE_CARD_WEIGHTS 10
+	#define VISUALIZE_MODE_DIRECT_LIGHTING 11
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING 12
+	#define VISUALIZE_MODE_LOCAL_POSITION 13
+	#define VISUALIZE_MODE_VELOCITY 14
+	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 15
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 16
+	#define VISUALIZE_MODE_LAST_USED_PAGE 17
+	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 18
 
 	uint VisualizeMode;
 #endif
@@ -183,6 +184,7 @@ struct FCardSampleAccumulator
 
 	float MaxSampleWeight;
 	float3 LightingSum;
+	float OpacitySum;
 	float SampleWeightSum;
 };
 
@@ -190,18 +192,12 @@ void InitCardSampleAccumulator(inout FCardSampleAccumulator CardSampleAccumulato
 {
 	CardSampleAccumulator.MaxSampleWeight = 0.0f;
 	CardSampleAccumulator.LightingSum = 0.0f;
+	CardSampleAccumulator.OpacitySum = 0.0f;
 	CardSampleAccumulator.SampleWeightSum = 0.0f;
 
 	CardSampleAccumulator.CardSample = (FLumenCardSample) 0;
 	CardSampleAccumulator.CardSample.bValid = false;
 }
-
-struct FSurfaceCacheSample
-{
-	// Surface properties
-	float3 Lighting;
-	bool bValid;
-};
 
 float3 SampleSurfaceCacheAtlas(Texture2D AtlasTexture, float2 AtlasUV, float4 TexelWeights)
 {
@@ -284,6 +280,7 @@ void SampleLumenCard(
 							float TexelWeightSum = dot(TexelWeights, 1.0f);
 							TexelWeights /= TexelWeightSum;
 
+							float Opacity = SampleSurfaceCacheAtlas(OpacityAtlas, CardSample.PhysicalAtlasUV, TexelWeights).x;
 							float3 Lighting = 0.0f;
 
 							if (AtlasId == FINAL_LIGHTING_ATLAS_ID)
@@ -325,6 +322,11 @@ void SampleLumenCard(
 								else if (VisualizeMode == VISUALIZE_MODE_EMISSIVE)
 								{
 									Lighting = SampleSurfaceCacheAtlas(EmissiveAtlas, CardSample.PhysicalAtlasUV, TexelWeights);
+								}
+								else if (VisualizeMode == VISUALIZE_MODE_OPACITY)
+								{
+									Lighting = Opacity * View.OneOverPreExposure;
+									Opacity = 1.0f;
 								}
 								else if (VisualizeMode == VISUALIZE_MODE_CARD_WEIGHTS)
 								{
@@ -374,6 +376,7 @@ void SampleLumenCard(
 							#endif
 
 							CardSampleAccumulator.LightingSum += Lighting * CardSampleWeight;
+							CardSampleAccumulator.OpacitySum += Opacity * CardSampleWeight;
 							CardSampleAccumulator.SampleWeightSum += CardSampleWeight;
 
 							// Pick single sample based on the max weight
@@ -390,6 +393,23 @@ void SampleLumenCard(
 	}
 }
 
+struct FSurfaceCacheSample
+{
+	// Surface properties
+	float3 Lighting;
+	float Opacity;
+	bool bValid;
+};
+
+FSurfaceCacheSample InitSurfaceCacheSample()
+{
+	FSurfaceCacheSample SurfaceCacheSample;
+	SurfaceCacheSample.Lighting = 0.0f;
+	SurfaceCacheSample.Opacity = 1.0f;
+	SurfaceCacheSample.bValid = false;
+	return SurfaceCacheSample;
+}
+
 /**
  * Sample surface cache
  */
@@ -403,12 +423,10 @@ FSurfaceCacheSample SampleLumenMeshCards(
 	bool bHiResSurface, // Whether to allow to sample high res surface pages or use only the lowest quality ones (always resident)
 	uint AtlasId)
 {
-	FSurfaceCacheSample SurfaceCacheSample;
-	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
-	SurfaceCacheSample.bValid = false;
+	FSurfaceCacheSample SurfaceCacheSample = InitSurfaceCacheSample();
 
 #if ENABLE_VISUALIZE_MODE == 1
-	if (VisualizeMode == VISUALIZE_MODE_SURFACE_CACHE)
+	if (VisualizeMode == VISUALIZE_MODE_SURFACE_CACHE || VisualizeMode == VISUALIZE_MODE_OPACITY)
 	{
 		SurfaceCacheSample.Lighting = (MeshCardsIndex < LumenCardScene.NumMeshCards ? float3(1, 0, 1) : float3(1, 1, 0)) * View.OneOverPreExposure;
 	}
@@ -495,6 +513,7 @@ FSurfaceCacheSample SampleLumenMeshCards(
 		if (CardSampleAccumulator.SampleWeightSum > 0.0f)
 		{
 			SurfaceCacheSample.Lighting = CardSampleAccumulator.LightingSum / CardSampleAccumulator.SampleWeightSum;
+			SurfaceCacheSample.Opacity = CardSampleAccumulator.OpacitySum / CardSampleAccumulator.SampleWeightSum;
 			SurfaceCacheSample.bValid = true;
 		}
 

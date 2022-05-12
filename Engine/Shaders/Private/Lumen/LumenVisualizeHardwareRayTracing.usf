@@ -488,6 +488,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			MaxTranslucentSkipCount,
 			MaxTraversalIterations,
 			bHiResSurface);
+		Context.bAlphaMasking = true;
 		Context.FarFieldMaxTraceDistance = MaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 #if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE

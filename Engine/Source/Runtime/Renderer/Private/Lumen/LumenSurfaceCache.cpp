@@ -65,7 +65,7 @@ const FLumenSurfaceLayerConfig& GetSurfaceLayerConfig(ELumenSurfaceCacheLayer La
 	{
 		{ TEXT("Depth"),		PF_G16,				PF_Unknown,	PF_Unknown,				FVector(1.0f, 0.0f, 0.0f) },
 		{ TEXT("Albedo"),		PF_R8G8B8A8,		PF_BC7,		PF_R32G32B32A32_UINT,	FVector(0.0f, 0.0f, 0.0f) },
-		{ TEXT("Opacity"),		PF_G8,				PF_BC4,		PF_R32G32_UINT,			FVector(1.0f, 0.0f, 0.0f) },
+		{ TEXT("Opacity"),		PF_G8,				PF_Unknown,	PF_Unknown,				FVector(1.0f, 0.0f, 0.0f) }, // #lumen_todo: Fix BC4 compression and re-enable
 		{ TEXT("Normal"),		PF_R8G8,			PF_BC5,		PF_R32G32B32A32_UINT,	FVector(0.0f, 0.0f, 0.0f) },
 		{ TEXT("Emissive"),		PF_FloatR11G11B10,	PF_BC6H,	PF_R32G32B32A32_UINT,	FVector(0.0f, 0.0f, 0.0f) }
 	};	
