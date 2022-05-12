@@ -930,7 +930,14 @@ void UTakeRecorder::PreRecord()
 	{
 		const float ExistingMatineeTimeDilation = WorldSettings->MatineeTimeDilation;
 
-		if (Parameters.User.EngineTimeDilation != ExistingMatineeTimeDilation)
+		const bool bInvalidTimeDilation = Parameters.User.EngineTimeDilation == 0.f;
+
+		if (bInvalidTimeDilation)
+		{
+			UE_LOG(LogTakesCore, Warning, TEXT("Time dilation cannot be 0. Ignoring time dilation for this recording."));
+		}
+
+		if (Parameters.User.EngineTimeDilation != ExistingMatineeTimeDilation && !bInvalidTimeDilation)
 		{
 			WorldSettings->MatineeTimeDilation = Parameters.User.EngineTimeDilation;
 

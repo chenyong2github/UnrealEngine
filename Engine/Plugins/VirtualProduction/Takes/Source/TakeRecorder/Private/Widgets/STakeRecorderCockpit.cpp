@@ -458,14 +458,33 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 				.Padding(8, 0, 8, 8)
 				.AutoHeight()
 				[
-					SNew(SEditableTextBox)
-					.IsEnabled(this, &STakeRecorderCockpit::EditingMetaData)
-					.Style(FTakeRecorderStyle::Get(), "TakeRecorder.EditableTextBox")
-					.Font(FTakeRecorderStyle::Get().GetFontStyle("TakeRecorder.Cockpit.SmallText"))
-					.SelectAllTextWhenFocused(true)
-					.HintText(LOCTEXT("EnterSlateDescription_Hint", "<description>"))
-					.Text(this, &STakeRecorderCockpit::GetUserDescriptionText)
-					.OnTextCommitted(this, &STakeRecorderCockpit::SetUserDescriptionText)
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					[
+						SNew(SEditableTextBox)
+						.IsEnabled(this, &STakeRecorderCockpit::EditingMetaData)
+						.Style(FTakeRecorderStyle::Get(), "TakeRecorder.EditableTextBox")
+						.Font(FTakeRecorderStyle::Get().GetFontStyle("TakeRecorder.Cockpit.SmallText"))
+						.SelectAllTextWhenFocused(true)
+						.HintText(LOCTEXT("EnterSlateDescription_Hint", "<description>"))
+						.Text(this, &STakeRecorderCockpit::GetUserDescriptionText)
+						.OnTextCommitted(this, &STakeRecorderCockpit::SetUserDescriptionText)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SSpinBox<float>)
+						.ToolTipText(LOCTEXT("EngineTimeDilation", "Recording speed"))
+						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.OnValueChanged(this, &STakeRecorderCockpit::SetEngineTimeDilation)
+						.OnValueCommitted_Lambda([=](float InEngineTimeDilation, ETextCommit::Type) { SetEngineTimeDilation(InEngineTimeDilation); })
+						.MinValue(TOptional<float>())
+						.MaxValue(TOptional<float>())
+						.Value(this, &STakeRecorderCockpit::GetEngineTimeDilation)
+						.Delta(0.5f)
+					]
 				]
 			]
 		]
@@ -905,6 +924,16 @@ void STakeRecorderCockpit::OnEndSetTakeNumber(int32 InFinalValue)
 
 	GEditor->EndTransaction();
 	TransactionIndex = INDEX_NONE;
+}
+
+float STakeRecorderCockpit::GetEngineTimeDilation() const
+{
+	return GetDefault<UTakeRecorderUserSettings>()->Settings.EngineTimeDilation;
+}
+
+void STakeRecorderCockpit::SetEngineTimeDilation(float InEngineTimeDilation)
+{
+	GetMutableDefault<UTakeRecorderUserSettings>()->Settings.EngineTimeDilation = InEngineTimeDilation;
 }
 
 FReply STakeRecorderCockpit::OnAddMarkedFrame()

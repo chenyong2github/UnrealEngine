@@ -119,6 +119,10 @@ private:
 
 	void OnEndSetTakeNumber(int32 InFinalValue);
 
+	float GetEngineTimeDilation() const;
+
+	void SetEngineTimeDilation(float InEngineTimeDilation);
+
 	FReply OnAddMarkedFrame();
 
 	void OnToggleRecording(ECheckBoxState);
