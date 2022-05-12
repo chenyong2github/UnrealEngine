@@ -20,6 +20,10 @@
 #define LQ_TEXTURE_LIGHTMAP 0
 #endif
 
+#ifndef ENABLE_PLANAR_REFLECTION
+#define ENABLE_PLANAR_REFLECTION 0
+#endif 
+
 #define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 1
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 0 // Adds additional sampler
 #define REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES 1
@@ -95,9 +99,14 @@ return ShadowMap;
 // Add fading CSM plane:
 #define FADE_CSM 1
 
+#ifndef ENABLE_MOBILE_CSM
+#define ENABLE_MOBILE_CSM 1
+#endif
+
 half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, half NoL, inout float ShadowPositionZ)
 {
 	half ShadowMap = 1;
+#if ENABLE_MOBILE_CSM
 	ShadowPositionZ = 0;
 	FPCFSamplerSettings Settings;
 	Settings.ShadowDepthTexture = MobileDirectionalLight.DirectionalLightShadowTexture;
@@ -144,6 +153,7 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, half NoL
 			ShadowMap = lerp(ShadowMap, 1.0, Fade * Fade);
 		#endif
 	}
+#endif //ENABLE_MOBILE_CSM
 	return ShadowMap;
 }
 
@@ -182,7 +192,7 @@ void AccumulateDirectionalLighting(FGBufferData GBuffer, FMobileShadingModelCont
 		{		
 			Shadow = ApplyPrecomputedShadowMask(ShadowMap, Shadow);
 		}
-	#elif MOBILE_DEFERRED_SHADING && APPLY_CSM
+	#elif MOBILE_DEFERRED_SHADING
 		Shadow = min(ShadowMap, Shadow);
 	#endif
 #endif
@@ -332,7 +342,7 @@ void AccumulateReflection(FGBufferData GBuffer
 		, GridIndex
 	);
 
-#if MOBILE_DEFERRED_LIGHTING || MATERIAL_PLANAR_FORWARD_REFLECTIONS
+#if ENABLE_PLANAR_REFLECTION || MATERIAL_PLANAR_FORWARD_REFLECTIONS
 	BRANCH
 	if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
 	{

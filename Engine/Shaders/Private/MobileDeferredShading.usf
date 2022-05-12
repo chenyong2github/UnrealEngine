@@ -180,8 +180,7 @@ void MobileDirectionalLightPS(
 	half NoL = 0.0f;
 	AccumulateDirectionalLighting(GBuffer, ShadingModelContext, CameraVector, ScreenPosition, SvPosition, Shadow, DynamicShadowFactors, NoL, MobileLightAccumulator);
 
-
-#if ENABLE_CLUSTERED_REFLECTION || ENABLE_SKY_LIGHT
+#if ENABLE_CLUSTERED_REFLECTION || ENABLE_SKY_LIGHT || ENABLE_PLANAR_REFLECTION
 	// If we have a single directional light, apply relfection and sky contrubution here
 	ReflectionEnvironmentSkyLighting(ShadingModelContext, GBuffer, TranslatedWorldPosition, ReflectionVector, GridIndex, MobileLightAccumulator);
 #endif
