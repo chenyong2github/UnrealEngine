@@ -9,6 +9,7 @@
 #include "InterchangeImportLog.h"
 #include "InterchangeManager.h"
 #include "Material/InterchangeMaterialFactory.h"
+#include "MaterialX/InterchangeMaterialXTranslator.h"
 #include "Mesh/InterchangeOBJTranslator.h"
 #include "Mesh/InterchangePhysicsAssetFactory.h"
 #include "Mesh/InterchangeSkeletalMeshFactory.h"
@@ -53,6 +54,9 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterTranslator(UInterchangeGltfTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeOBJTranslator::StaticClass());
 
+		//Materials
+		InterchangeManager.RegisterTranslator(UInterchangeMaterialXTranslator::StaticClass());
+
 		//Textures
 		InterchangeManager.RegisterTranslator(UInterchangeImageWrapperTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeImageWrapperTranslator::StaticClass());
@@ -80,7 +84,7 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterFactory(UInterchangeStaticMeshActorFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshActorFactory::StaticClass());
 	};
-
+	
 	if (GEngine)
 	{
 		RegisterItems();

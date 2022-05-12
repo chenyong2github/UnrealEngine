@@ -51,6 +51,8 @@ namespace UnrealBuildTool.Rules
 					}
 				);
 			}
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "MaterialX");
 		}
 	}
 }
