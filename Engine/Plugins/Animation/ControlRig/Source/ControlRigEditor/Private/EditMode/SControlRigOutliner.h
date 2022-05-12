@@ -80,6 +80,7 @@ public:
 	FMultiRigData() {};
 	FMultiRigData(UControlRig* InControlRig, FRigElementKey InKey) : ControlRig(InControlRig), Key(InKey) {};
 	FText GetName() const;
+	FText GetDisplayName() const;
 	bool operator == (const FMultiRigData & Other) const;
 	bool IsValid() const;
 	URigHierarchy* GetHierarchy() const;
@@ -127,6 +128,7 @@ private:
 	FMultiRigTreeDelegates Delegates;
 
 	FText GetName() const;
+	FText GetDisplayName() const;
 	FReply OnGetSelectedClicked();
 
 };
