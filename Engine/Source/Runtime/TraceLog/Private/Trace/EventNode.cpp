@@ -38,9 +38,16 @@ const FEventNode* FEventNode::FIter::GetNext()
 ////////////////////////////////////////////////////////////////////////////////
 FEventNode::FIter FEventNode::Read()
 {
+	// This is the current event list as of the last ReadNew() call
 	if (GEventListHead)
 	{
 		return { GEventListHead };
+	}
+
+	// This is the current event list if ReadNew() has never been called
+	if (GNewEventList)
+	{
+		return { GNewEventList };
 	}
 
 	return {};
