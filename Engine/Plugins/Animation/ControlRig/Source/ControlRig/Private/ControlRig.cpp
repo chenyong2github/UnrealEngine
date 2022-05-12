@@ -1401,7 +1401,7 @@ void UControlRig::UpdateVMSettings()
 #if WITH_EDITOR
 
 		// setup array handling and error reporting on the VM
-		VMRuntimeSettings.LogFunction = [this](EMessageSeverity::Type InSeverity, const FRigVMExecuteContext* InContext, const FString& Message)
+		VMRuntimeSettings.SetLogFunction([this](EMessageSeverity::Type InSeverity, const FRigVMExecuteContext* InContext, const FString& Message)
 		{
 			check(InContext);
 
@@ -1413,8 +1413,7 @@ void UControlRig::UpdateVMSettings()
 			{
 				LogOnce(InSeverity, InContext->InstructionIndex, Message);
 			}
-		};
-		
+		});
 #endif
 		
 		VM->SetRuntimeSettings(VMRuntimeSettings);

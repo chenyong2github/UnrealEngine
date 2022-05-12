@@ -177,7 +177,13 @@ struct RIGVM_API FRigVMRuntimeSettings
 	/*
 	 * The function to use for logging anything from the VM to the host
 	 */
-	TFunction<void(EMessageSeverity::Type,const FRigVMExecuteContext*,const FString&)> LogFunction = nullptr;
+	using LogFunctionType = TFunction<void(EMessageSeverity::Type,const FRigVMExecuteContext*,const FString&)>;
+	TSharedPtr<LogFunctionType> LogFunction = nullptr;
+
+	void SetLogFunction(LogFunctionType InLogFunction)
+	{
+		LogFunction = MakeShared<LogFunctionType>(InLogFunction);
+	}
 
 	/*
 	 * Validate the settings
@@ -208,9 +214,9 @@ struct RIGVM_API FRigVMExecuteContext
 
 	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
 	{
-		if(RuntimeSettings.LogFunction)
+		if(RuntimeSettings.LogFunction.IsValid())
 		{
-			RuntimeSettings.LogFunction(InSeverity, this, InMessage);
+			(*RuntimeSettings.LogFunction)(InSeverity, this, InMessage);
 		}
 		else
 		{
