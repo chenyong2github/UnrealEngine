@@ -13,7 +13,7 @@
 /**
  * Defines a curve of interpolated points to evaluate over a given range
  */
-UCLASS(abstract)
+UCLASS(abstract, BlueprintType)
 class ENGINE_API UCurveBase
 	: public UObject
 	, public FCurveOwnerInterface
