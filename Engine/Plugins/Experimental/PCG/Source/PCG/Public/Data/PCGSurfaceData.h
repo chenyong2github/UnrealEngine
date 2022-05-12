@@ -13,6 +13,10 @@ class PCG_API UPCGSurfaceData : public UPCGSpatialDataWithPointCache
 	GENERATED_BODY()
 
 public:
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Surface | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override { return 2; }
 	virtual bool HasNonTrivialTransform() const override { return true; }

@@ -15,6 +15,10 @@ class PCG_API UPCGRenderTargetData : public UPCGBaseTextureData
 	GENERATED_BODY()
 
 public:
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::RenderTarget | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	UFUNCTION(BlueprintCallable, Category = RenderTarget)
 	void Initialize(UTextureRenderTarget2D* InRenderTarget, const FTransform& InTransform);
 

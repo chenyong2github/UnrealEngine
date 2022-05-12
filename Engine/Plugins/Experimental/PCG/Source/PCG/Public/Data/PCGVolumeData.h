@@ -18,6 +18,10 @@ public:
 	void Initialize(AVolume* InVolume, AActor* InTargetActor = nullptr);
 	void Initialize(const FBox& InBounds, AActor* InTargetActor);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Volume | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	// ~Begin UPGCSpatialData interface
 	virtual int GetDimension() const override { return 3; }
 	virtual FBox GetBounds() const override;

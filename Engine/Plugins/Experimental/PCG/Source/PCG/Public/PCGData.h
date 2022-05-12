@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "PCGModule.h"
+#include "PCGCommon.h"
 
 #include "PCGData.generated.h"
 
@@ -21,6 +22,9 @@ UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGData : public UObject
 {
 	GENERATED_BODY()
+
+public:
+	virtual EPCGDataType GetDataType() const { return EPCGDataType::None; }
 };
 
 USTRUCT(BlueprintType)

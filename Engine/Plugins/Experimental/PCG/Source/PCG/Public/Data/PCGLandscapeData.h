@@ -37,6 +37,10 @@ class PCG_API UPCGLandscapeData : public UPCGSurfaceData
 public:
 	void Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Landscape | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	// ~Begin UPGCSpatialData interface
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;

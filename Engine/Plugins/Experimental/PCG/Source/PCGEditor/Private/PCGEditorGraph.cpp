@@ -77,7 +77,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 	{
 		for (const UPCGPin* InputPin : PCGNode->GetInputPins())
 		{
-			UEdGraphPin* InPin = GraphNode->FindPin(InputPin->Label, EEdGraphPinDirection::EGPD_Input);
+			UEdGraphPin* InPin = GraphNode->FindPin(InputPin->Properties.Label, EEdGraphPinDirection::EGPD_Input);
 
 			if (!InPin)
 			{
@@ -94,7 +94,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 				const UPCGNode* InboundNode = InboundEdge->InputPin->Node;
 				if (UPCGEditorGraphNodeBase* const* ConnectedGraphNode = GraphNodeToPCGNodeMap.Find(InboundNode))
 				{
-					if (UEdGraphPin* OutPin = (*ConnectedGraphNode)->FindPin(InboundEdge->InputPin->Label, EEdGraphPinDirection::EGPD_Output))
+					if (UEdGraphPin* OutPin = (*ConnectedGraphNode)->FindPin(InboundEdge->InputPin->Properties.Label, EEdGraphPinDirection::EGPD_Output))
 					{
 						OutPin->MakeLinkTo(InPin);
 					}
@@ -111,7 +111,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 	{
 		for (const UPCGPin* OutputPin : PCGNode->GetOutputPins())
 		{
-			UEdGraphPin* OutPin = GraphNode->FindPin(OutputPin->Label, EEdGraphPinDirection::EGPD_Output);
+			UEdGraphPin* OutPin = GraphNode->FindPin(OutputPin->Properties.Label, EEdGraphPinDirection::EGPD_Output);
 
 			if (!OutPin)
 			{
@@ -128,7 +128,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 				const UPCGNode* OutboundNode = OutboundEdge->OutputPin->Node;
 				if (UPCGEditorGraphNodeBase* const* ConnectedGraphNode = GraphNodeToPCGNodeMap.Find(OutboundNode))
 				{
-					if (UEdGraphPin* InPin = (*ConnectedGraphNode)->FindPin(OutboundEdge->OutputPin->Label, EEdGraphPinDirection::EGPD_Input))
+					if (UEdGraphPin* InPin = (*ConnectedGraphNode)->FindPin(OutboundEdge->OutputPin->Properties.Label, EEdGraphPinDirection::EGPD_Input))
 					{
 						OutPin->MakeLinkTo(InPin);
 					}

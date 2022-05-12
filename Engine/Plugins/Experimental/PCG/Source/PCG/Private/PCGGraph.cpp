@@ -59,13 +59,18 @@ void UPCGGraph::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
+	// TODO: review this once the data has been updated, it's unwanted weight going forward
 	// Deprecation
+	InputNode->ConditionalPostLoad();
+
 	if (!Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings))
 	{
 		InputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
 	}
 
 	Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings)->SetInput(true);
+
+	OutputNode->ConditionalPostLoad();
 
 	if (!Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings))
 	{
@@ -74,10 +79,25 @@ void UPCGGraph::PostLoad()
 
 	Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings)->SetInput(false);
 
-	// Additional deprecation
+	// Ensure that all nodes are loaded (& updated their deprecated data)
+	for (UPCGNode* Node : Nodes)
+	{
+		Node->ConditionalPostLoad();
+	}
+	
+	// Update pins on all nodes
+	InputNode->UpdatePins();
+	OutputNode->UpdatePins();
+
+	for (UPCGNode* Node : Nodes)
+	{
+		Node->UpdatePins();
+	}
+
+	// Finally, apply deprecation that changes edges/rebinds
 	InputNode->ApplyDeprecation();
 	OutputNode->ApplyDeprecation();
-
+	
 	for (UPCGNode* Node : Nodes)
 	{
 		Node->ApplyDeprecation();

@@ -575,14 +575,22 @@ namespace PCGPointFilterHelpers
 	}
 }
 
-TArray<FName> UPCGPointFilterSettings::InLabels() const
+TArray<FPCGPinProperties> UPCGPointFilterSettings::InputPinProperties() const
 {
-	return { PCGPointFilterConstants::DataToFilterLabel, PCGPointFilterConstants::FilterLabel };
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPointFilterConstants::DataToFilterLabel, EPCGDataType::Any);
+	PinProperties.Emplace(PCGPointFilterConstants::FilterLabel, EPCGDataType::Spatial);
+
+	return PinProperties;
 }
 
-TArray<FName> UPCGPointFilterSettings::OutLabels() const
+TArray<FPCGPinProperties> UPCGPointFilterSettings::OutputPinProperties() const
 {
-	return { PCGPointFilterConstants::InFilterLabel, PCGPointFilterConstants::OutFilterLabel };
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPointFilterConstants::InFilterLabel, EPCGDataType::Point);
+	PinProperties.Emplace(PCGPointFilterConstants::OutFilterLabel, EPCGDataType::Point);
+
+	return PinProperties;
 }
 
 FPCGElementPtr UPCGPointFilterSettings::CreateElement() const

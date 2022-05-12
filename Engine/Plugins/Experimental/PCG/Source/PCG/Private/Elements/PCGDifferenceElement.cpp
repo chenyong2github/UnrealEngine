@@ -12,9 +12,13 @@ namespace PCGDifferenceConstants
 	const FName DifferencesLabel = TEXT("Differences");
 }
 
-TArray<FName> UPCGDifferenceSettings::InLabels() const
+TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 {
-	return { PCGPinConstants::DefaultInputLabel, PCGDifferenceConstants::SourceLabel, PCGDifferenceConstants::DifferencesLabel };
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGDifferenceConstants::SourceLabel, EPCGDataType::Any);
+	PinProperties.Emplace(PCGDifferenceConstants::DifferencesLabel, EPCGDataType::Spatial);
+
+	return PinProperties;
 }
 
 FPCGElementPtr UPCGDifferenceSettings::CreateElement() const

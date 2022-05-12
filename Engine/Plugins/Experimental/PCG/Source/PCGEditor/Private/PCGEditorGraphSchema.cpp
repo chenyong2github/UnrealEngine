@@ -7,6 +7,7 @@
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchemaActions.h"
+#include "PCGEditorSettings.h"
 #include "PCGGraph.h"
 #include "PCGSettings.h"
 
@@ -36,7 +37,7 @@ void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Con
 
 FLinearColor UPCGEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	return GetDefault<UPCGEditorSettings>()->GetPinColor(PinType);
 }
 
 FConnectionDrawingPolicy* UPCGEditorGraphSchema::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const
@@ -46,6 +47,7 @@ FConnectionDrawingPolicy* UPCGEditorGraphSchema::CreateConnectionDrawingPolicy(i
 
 const FPinConnectionResponse UPCGEditorGraphSchema::CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const
 {
+	check(A && B);
 	const UEdGraphNode* NodeA = A->GetOwningNode();
 	const UEdGraphNode* NodeB = B->GetOwningNode();
 
@@ -59,11 +61,40 @@ const FPinConnectionResponse UPCGEditorGraphSchema::CanCreateConnection(const UE
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionSameDirection", "Both pins are the same direction"));
 	}
 
+	const UPCGEditorGraphNodeBase* EditorNodeA = CastChecked<const UPCGEditorGraphNodeBase>(NodeA);
+	const UPCGEditorGraphNodeBase* EditorNodeB = CastChecked<const UPCGEditorGraphNodeBase>(NodeB);
+
+	// Check type compatibility & whether we can connect more pins
+	const UPCGPin* InputPin = nullptr;
+	const UPCGPin* OutputPin = nullptr;
+
+	if (A->Direction == EGPD_Output)
+	{
+		OutputPin = EditorNodeA->GetPCGNode()->GetOutputPin(A->PinName);
+		InputPin = EditorNodeB->GetPCGNode()->GetInputPin(B->PinName);
+	}
+	else
+	{
+		OutputPin = EditorNodeB->GetPCGNode()->GetOutputPin(B->PinName);
+		InputPin = EditorNodeA->GetPCGNode()->GetInputPin(A->PinName);
+	}
+
+	if (!InputPin || !OutputPin)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionFailed", "Unable to verify pins"));
+	}
+
+	if (!InputPin->IsCompatible(OutputPin))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypesIncompatible", "Pins are incompatible"));
+	}
+
 	return FPinConnectionResponse();
 }
 
 bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* InB) const
 {
+	// TODO: check if we need to verify connectivity first
 	bool bModified = Super::TryCreateConnection(InA, InB);
 
 	if (bModified)
@@ -88,6 +119,19 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 		check(PCGGraph);
 
 		PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
+
+		// TODO: unclear if that kind of behavior should be down the code hierarchy or not,
+		// Since we really want to do cleanup only on manual interaction
+		if (UPCGPin* InputPin = PCGNodeB->GetInputPin(B->PinName))
+		{
+			if (!InputPin->Properties.bAllowMultipleConnections)
+			{
+				if (InputPin->BreakAllIncompatibleEdges())
+				{
+					PCGGraphNodeB->ReconstructNode();
+				}
+			}
+		}
 	}
 
 	return bModified;
@@ -238,6 +282,12 @@ void FPCGEditorConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 	if (HoveredPins.Contains(InputPin) && HoveredPins.Contains(OutputPin))
 	{
 		Params.WireThickness = Params.WireThickness * 3;
+	}
+
+	// Base the color of the wire on the color of the output pin
+	if (OutputPin)
+	{
+		Params.WireColor = GetDefault<UPCGEditorSettings>()->GetPinColor(OutputPin->PinType);
 	}
 }
 

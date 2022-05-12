@@ -69,6 +69,12 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = Graph)
 	EPCGSettingsType NodeTypeOverride() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Input & Output")
+	TSet<FName> InputLabels() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Input & Output")
+	TSet<FName> OutputLabels() const;
+
 	/** Called after object creation to setup the object callbacks */
 	void Initialize();
 
@@ -91,11 +97,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bCanBeMultithreaded = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
-	TSet<FName> InputPinLabels;
+	UPROPERTY(BlueprintGetter=InputLabels, Category = "Settings|Input & Output")
+	TSet<FName> InputPinLabels_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
-	TSet<FName> OutputPinLabels;
+	UPROPERTY(BlueprintGetter=OutputLabels, Category = "Settings|Input & Output")
+	TSet<FName> OutputPinLabels_DEPRECATED;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	TArray<FPCGPinProperties> CustomInputPins;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	TArray<FPCGPinProperties> CustomOutputPins;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
 	bool bHasDefaultInPin = true;
@@ -138,8 +150,8 @@ public:
 #endif
 
 	virtual FName AdditionalTaskName() const override;
-	virtual TArray<FName> InLabels() const override;
-	virtual TArray<FName> OutLabels() const override;
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

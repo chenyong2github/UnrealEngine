@@ -43,14 +43,21 @@ uint32 UPCGSettings::GetCrc32() const
 	return Ar.Crc32(const_cast<UPCGSettings*>(this));
 }
 
-TArray<FName> UPCGSettings::InLabels() const
+TArray<FPCGPinProperties> UPCGSettings::InputPinProperties() const
 {
-	return { PCGPinConstants::DefaultInputLabel };
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
+
+	return PinProperties;
 }
 
-TArray<FName> UPCGSettings::OutLabels() const
+TArray<FPCGPinProperties> UPCGSettings::OutputPinProperties() const
 {
-	return { PCGPinConstants::DefaultOutputLabel };
+	TArray<FPCGPinProperties> PinProperties;
+	// This is not true for everything, use a virtual call?
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
+
+	return PinProperties;
 }
 
 FPCGElementPtr UPCGSettings::GetElement() const
@@ -95,6 +102,13 @@ void UPCGSettings::DirtyCache()
 	}
 }
 #endif // WITH_EDITOR
+
+TArray<FPCGPinProperties> UPCGSettings::DefaultPointOutputPinProperties() const
+{
+	TArray<FPCGPinProperties> Properties;
+	Properties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point);
+	return Properties;
+}
 
 FPCGElementPtr UPCGTrivialSettings::CreateElement() const
 {

@@ -30,6 +30,10 @@ class PCG_API UPCGBaseTextureData : public UPCGSurfaceData
 	GENERATED_BODY()
 
 public:
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::BaseTexture | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;
@@ -69,6 +73,10 @@ class PCG_API UPCGTextureData : public UPCGBaseTextureData
 	GENERATED_BODY()
 
 public:
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Texture | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	UFUNCTION(BlueprintCallable, Category = Texture)
 	void Initialize(UTexture2D* InTexture, const FTransform& InTransform);
 

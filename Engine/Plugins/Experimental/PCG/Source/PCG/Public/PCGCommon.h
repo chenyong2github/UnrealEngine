@@ -16,6 +16,34 @@ enum class EPCGChangeType : uint8
 };
 ENUM_CLASS_FLAGS(EPCGChangeType);
 
+UENUM(meta = (Bitflags))
+enum class EPCGDataType : uint32
+{
+	None = 0 UMETA(Hidden),
+	Point = 1 << 1,
+
+	Spline = 1 << 2,
+	LandscapeSpline = 1 << 3,
+	PolyLine = Spline | LandscapeSpline UMETA(Hidden),
+
+	Landscape = 1 << 4,
+	Texture = 1 << 5,
+	RenderTarget = 1 << 6,
+	BaseTexture = Texture | RenderTarget UMETA(Hidden),
+	Surface = Landscape | BaseTexture,
+
+	Volume = 1 << 7,
+	Primitive = 1 << 8,
+
+	Spatial = Point | PolyLine | Surface | Volume | Primitive,
+
+	Param = 1 << 27,
+	Settings = 1 << 28 UMETA(Hidden),
+	Other = 1 << 29,
+	Any = (1 << 30) - 1
+};
+ENUM_CLASS_FLAGS(EPCGDataType);
+
 namespace PCGPinConstants
 {
 	const FName DefaultInputLabel = TEXT("In");

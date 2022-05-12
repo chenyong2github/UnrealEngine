@@ -16,6 +16,10 @@ class PCG_API UPCGLandscapeSplineData : public UPCGPolyLineData
 public:
 	void Initialize(ULandscapeSplinesComponent* InSplineComponent);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::LandscapeSpline | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	//~Begin UPCGPolyLineData interface
 	virtual int GetNumSegments() const override;
 	virtual float GetSegmentLength(int SegmentIndex) const override;

@@ -77,27 +77,27 @@ void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStr
 }
 #endif // WITH_EDITOR
 
-TArray<FName> UPCGBaseSubgraphSettings::InLabels() const
+TArray<FPCGPinProperties> UPCGBaseSubgraphSettings::InputPinProperties() const
 {
 	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
-		return Subgraph->GetInputNode()->InLabels();
+		return Subgraph->GetInputNode()->InputPinProperties();
 	}
 	else
 	{
-		return Super::InLabels();
+		return Super::InputPinProperties();
 	}
 }
 
-TArray<FName> UPCGBaseSubgraphSettings::OutLabels() const
+TArray<FPCGPinProperties> UPCGBaseSubgraphSettings::OutputPinProperties() const
 {
 	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
-		return Subgraph->GetOutputNode()->OutLabels();
+		return Subgraph->GetOutputNode()->OutputPinProperties();
 	}
 	else
 	{
-		return Super::OutLabels();
+		return Super::OutputPinProperties();
 	}
 }
 

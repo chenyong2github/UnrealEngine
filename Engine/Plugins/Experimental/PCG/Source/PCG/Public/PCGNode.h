@@ -53,11 +53,11 @@ public:
 	/** Returns the node title, based either on the current node label, or defaulted to its settings */
 	FName GetNodeTitle() const;
 
-	/** Returns all the input labels */
-	TArray<FName> InLabels() const;
+	/** Returns all the input pin properties */
+	TArray<FPCGPinProperties> InputPinProperties() const;
 
-	/** Returns all the output labels */
-	TArray<FName> OutLabels() const;
+	/** Returns all the output pin properties */
+	TArray<FPCGPinProperties> OutputPinProperties() const;
 
 	/** Returns true if the input pin is connected */
 	bool IsInputPinConnected(const FName& Label) const;

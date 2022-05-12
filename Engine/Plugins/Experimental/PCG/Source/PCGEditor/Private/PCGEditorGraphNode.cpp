@@ -47,12 +47,12 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 	{
 		for (const UPCGPin* InputPin : PCGNode->GetInputPins())
 		{
-			CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, InputPin->Label);
+			CreatePin(EEdGraphPinDirection::EGPD_Input, GetPinType(InputPin), InputPin->Properties.Label);
 		}
 
 		for (const UPCGPin* OutputPin : PCGNode->GetOutputPins())
 		{
-			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, OutputPin->Label);
+			CreatePin(EEdGraphPinDirection::EGPD_Output, GetPinType(OutputPin), OutputPin->Properties.Label);
 		}
 	}
 }

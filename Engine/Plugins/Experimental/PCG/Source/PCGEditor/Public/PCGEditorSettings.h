@@ -7,6 +7,8 @@
 
 #include "PCGEditorSettings.generated.h"
 
+struct FEdGraphPinType;
+
 UCLASS(config=EditorPerProjectUserSettings)
 class PCGEDITOR_API UPCGEditorSettings : public UObject
 {
@@ -16,6 +18,7 @@ public:
 	UPCGEditorSettings(const FObjectInitializer& ObjectInitializer);
 
 	FLinearColor GetColor(UPCGSettings* InSettings) const;
+	FLinearColor GetPinColor(const FEdGraphPinType& InPinType) const;
 
 	/** Default node color */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
@@ -60,6 +63,26 @@ public:
 	/** Color used for debug operations */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor DebugNodeColor;
+
+	/** Default pin color */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor DefaultPinColor;
+
+	/** Color used for spatial data pins */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor SpatialDataPinColor;
+
+	/** Color used for render targets / GPU pins */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor RenderTargetDataPinColor;
+
+	/** Color used for param data pins */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor ParamDataPinColor;
+
+	/** Color used for other/unknown data types */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor UnknownDataPinColor;
 
 	/** User-driven color overrides */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))

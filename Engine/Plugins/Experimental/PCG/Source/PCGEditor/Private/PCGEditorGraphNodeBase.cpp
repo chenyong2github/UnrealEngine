@@ -2,6 +2,7 @@
 
 #include "PCGEditorGraphNodeBase.h"
 
+#include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphSchema.h"
 #include "PCGEditorSettings.h"
@@ -93,7 +94,7 @@ void UPCGEditorGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)
 	{
 		if (PCGNode && PCGNode->GetInputPins().Num() > 0)
 		{
-			const FName& InPinName = PCGNode->GetInputPins()[0]->Label;
+			const FName& InPinName = PCGNode->GetInputPins()[0]->Properties.Label;
 			UEdGraphPin* ToPin = FindPinChecked(InPinName, EEdGraphPinDirection::EGPD_Input);
 			GetSchema()->TryCreateConnection(FromPin, ToPin);
 		}
@@ -102,7 +103,7 @@ void UPCGEditorGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)
 	{
 		if (PCGNode && PCGNode->GetOutputPins().Num() > 0)
 		{
-			const FName& OutPinName = PCGNode->GetOutputPins()[0]->Label;
+			const FName& OutPinName = PCGNode->GetOutputPins()[0]->Properties.Label;
 			UEdGraphPin* ToPin = FindPinChecked(OutPinName, EEdGraphPinDirection::EGPD_Output);
 			GetSchema()->TryCreateConnection(FromPin, ToPin);
 		}
@@ -274,6 +275,66 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 	}
 
 	return GetDefault<UPCGEditorSettings>()->DefaultNodeColor;
+}
+
+FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
+{
+	FEdGraphPinType EdPinType;
+	EdPinType.ResetToDefaults();
+	EdPinType.PinCategory = NAME_None;
+	EdPinType.PinSubCategory = NAME_None;
+	EdPinType.ContainerType = EPinContainerType::None;
+
+	const EPCGDataType PinType = InPin->Properties.AllowedTypes;
+	auto CheckType = [PinType](EPCGDataType AllowedType)
+	{
+		return !!(PinType & AllowedType) && !(PinType & ~AllowedType);
+	};
+
+	if (CheckType(EPCGDataType::Spatial))
+	{
+		EdPinType.PinCategory = FPCGEditorCommon::SpatialDataType;
+
+		// Assign subcategory if we have precise information
+		if (CheckType(EPCGDataType::Point))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::PointDataType;
+		}
+		else if (CheckType(EPCGDataType::PolyLine))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::PolyLineDataType;
+		}
+		else if (CheckType(EPCGDataType::RenderTarget))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::RenderTargetDataType;
+		}
+		else if (CheckType(EPCGDataType::Surface))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::SurfaceDataType;
+		}
+		else if (CheckType(EPCGDataType::Volume))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::VolumeDataType;
+		}
+		else if (CheckType(EPCGDataType::Primitive))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::PrimitiveDataType;
+		}
+	}
+	else if (CheckType(EPCGDataType::Param))
+	{
+		EdPinType.PinCategory = FPCGEditorCommon::ParamDataType;
+	}
+	else if (CheckType(EPCGDataType::Settings))
+	{
+		EdPinType.PinCategory = FPCGEditorCommon::SettingsDataType;
+	}
+	else if (CheckType(EPCGDataType::Other))
+	{
+		EdPinType.PinCategory = FPCGEditorCommon::OtherDataType;
+	}	
+
+	return EdPinType;
 }
 
 #undef LOCTEXT_NAMESPACE

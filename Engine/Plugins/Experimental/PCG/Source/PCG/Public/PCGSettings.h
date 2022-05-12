@@ -52,12 +52,16 @@ class PCG_API UPCGSettings : public UPCGData
 	GENERATED_BODY()
 
 public:
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
 
-	virtual TArray<FName> InLabels() const;
-	virtual TArray<FName> OutLabels() const;
+	virtual TArray<FPCGPinProperties> InputPinProperties() const;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const;
 	
 	bool operator==(const UPCGSettings& Other) const;
 	uint32 GetCrc32() const;
@@ -109,6 +113,9 @@ protected:
 	/** Method that can be called to dirty the cache data from this settings objects if the operator== does not allow to detect changes */
 	void DirtyCache();
 #endif 
+
+	/** Methods to remove boilerplate code across settings */
+	TArray<FPCGPinProperties> DefaultPointOutputPinProperties() const;
 
 private:
 	mutable FPCGElementPtr CachedElement;

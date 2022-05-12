@@ -35,6 +35,10 @@ class PCG_API UPCGSpatialData : public UPCGData
 public:
 	UPCGSpatialData(const FObjectInitializer& ObjectInitializer);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	/** Returns the dimension of the data type, which has nothing to do with the dimension of its points */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual int GetDimension() const PURE_VIRTUAL(UPCGSpatialData::GetDimension, return 0;);

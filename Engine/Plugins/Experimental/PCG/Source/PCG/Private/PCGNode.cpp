@@ -22,6 +22,7 @@ void UPCGNode::PostLoad()
 	if (DefaultSettings)
 	{
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+		DefaultSettings->ConditionalPostLoad();
 	}
 
 	// Make sure legacy nodes support transactions.
@@ -30,19 +31,26 @@ void UPCGNode::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
-	ApplyDeprecation();
+	for (UPCGPin* InputPin : InputPins)
+	{
+		check(InputPin);
+		InputPin->ConditionalPostLoad();
+	}
+
+	for (UPCGPin* OutputPin : OutputPins)
+	{
+		check(OutputPin);
+		OutputPin->ConditionalPostLoad();
+	}
 #endif
 }
 
 #if WITH_EDITOR
 void UPCGNode::ApplyDeprecation()
 {
-	UpdatePins();
-
 	UPCGPin* DefaultOutputPin = OutputPins.IsEmpty() ? nullptr : OutputPins[0];
 	for (TObjectPtr<UPCGNode> OutboundNode : OutboundNodes_DEPRECATED)
 	{
-		OutboundNode->UpdatePins();
 		UPCGPin* OtherNodeInputPin = OutboundNode->InputPins.IsEmpty() ? nullptr : OutboundNode->InputPins[0];
 
 		if (DefaultOutputPin && OtherNodeInputPin)
@@ -87,8 +95,6 @@ void UPCGNode::ApplyDeprecation()
 			UE_LOG(LogPCG, Error, TEXT("Unable to apply deprecation on outbound edge on node %s - can't find other node"), *GetFName().ToString());
 			continue;
 		}
-
-		OtherNode->UpdatePins();
 
 		UPCGPin* OtherNodeInputPin = nullptr;
 		if (OutboundEdge->OutboundLabel_DEPRECATED == NAME_None)
@@ -209,33 +215,25 @@ FName UPCGNode::GetNodeTitle() const
 	return TEXT("Unnamed node");
 }
 
-TArray<FName> UPCGNode::InLabels() const
+TArray<FPCGPinProperties> UPCGNode::InputPinProperties() const
 {
-	TArray<FName> Labels;
-	for (UPCGPin* InputPin : InputPins)
-	{
-		Labels.Add(InputPin->Label);
-	}
-
-	return Labels;
+	TArray<FPCGPinProperties> PinProperties;
+	Algo::Transform(InputPins, PinProperties, [](const UPCGPin* InputPin) { return InputPin->Properties; });
+	return PinProperties;
 }
 
-TArray<FName> UPCGNode::OutLabels() const
+TArray<FPCGPinProperties> UPCGNode::OutputPinProperties() const
 {
-	TArray<FName> Labels;
-	for (UPCGPin* OutputPin : OutputPins)
-	{
-		Labels.Add(OutputPin->Label);
-	}
-
-	return Labels;
+	TArray<FPCGPinProperties> PinProperties;
+	Algo::Transform(OutputPins, PinProperties, [](const UPCGPin* OutputPin) { return OutputPin->Properties; });
+	return PinProperties;
 }
 
 UPCGPin* UPCGNode::GetInputPin(const FName& Label)
 {
 	for (UPCGPin* InputPin : InputPins)
 	{
-		if (InputPin->Label == Label)
+		if (InputPin->Properties.Label == Label)
 		{
 			return InputPin;
 		}
@@ -248,7 +246,7 @@ const UPCGPin* UPCGNode::GetInputPin(const FName& Label) const
 {
 	for (const UPCGPin* InputPin : InputPins)
 	{
-		if (InputPin->Label == Label)
+		if (InputPin->Properties.Label == Label)
 		{
 			return InputPin;
 		}
@@ -261,7 +259,7 @@ UPCGPin* UPCGNode::GetOutputPin(const FName& Label)
 {
 	for (UPCGPin* OutputPin : OutputPins)
 	{
-		if (OutputPin->Label == Label)
+		if (OutputPin->Properties.Label == Label)
 		{
 			return OutputPin;
 		}
@@ -274,7 +272,7 @@ const UPCGPin* UPCGNode::GetOutputPin(const FName& Label) const
 {
 	for (const UPCGPin* OutputPin : OutputPins)
 	{
-		if (OutputPin->Label == Label)
+		if (OutputPin->Properties.Label == Label)
 		{
 			return OutputPin;
 		}
@@ -415,84 +413,83 @@ bool UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 		return bChanged;
 	}
 
-	TArray<FName> InboundLabels = DefaultSettings->InLabels();
-	TArray<FName> OutboundLabels = DefaultSettings->OutLabels();
+	TArray<FPCGPinProperties> InboundPinProperties = DefaultSettings->InputPinProperties();
+	TArray<FPCGPinProperties> OutboundPinProperties = DefaultSettings->OutputPinProperties();
 
-	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FName>& Labels)
+	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FPCGPinProperties>& PinProperties)
 	{
-		TArray<FName> OldLabels;
-		Algo::Transform(Pins, OldLabels, [](UPCGPin* Pin) { return Pin->Label; });
+		bool bAppliedEdgeChanges = false;
 
-		auto GetUnmatched = [](const TArray<FName>& InA, const TArray<FName>& InB)
+		// Find unmatched pins vs. properties on a name basis
+		TArray<UPCGPin*> UnmatchedPins;
+		for (UPCGPin* Pin : Pins)
 		{
-			TArray<FName> Unmatched;
-			for (const FName& A : InA)
+			if (const FPCGPinProperties* MatchingProperties = PinProperties.FindByPredicate([Pin](const FPCGPinProperties& Prop) { return Prop.Label == Pin->Properties.Label; }))
 			{
-				if (!InB.Contains(A))
-				{
-					Unmatched.Add(A);
-				}
-			}
-
-			return Unmatched;
-		};
-
-		TArray<FName> UnmatchedLabels = GetUnmatched(Labels, OldLabels);
-		TArray<FName> UnmatchedOldLabels = GetUnmatched(OldLabels, Labels);
-
-		const bool bRenameUnmatchedPin = UnmatchedLabels.Num() == 1 && UnmatchedOldLabels.Num() == 1;
-		if (bRenameUnmatchedPin)
-		{
-			for (UPCGPin* Pin : Pins)
-			{
-				if (Pin->Label == UnmatchedOldLabels[0])
+				if (!(Pin->Properties == *MatchingProperties))
 				{
 					Pin->Modify();
-					Pin->Label = UnmatchedLabels[0];
+					Pin->Properties = *MatchingProperties;
+					bAppliedEdgeChanges |= Pin->BreakAllIncompatibleEdges();
 				}
 			}
+			else
+			{
+				UnmatchedPins.Add(Pin);
+			}
+		}
 
-			return false;
+		// Find unmatched properties vs pins on a name basis
+		TArray<FPCGPinProperties> UnmatchedProperties;
+		for (const FPCGPinProperties& Properties : PinProperties)
+		{
+			if (!Pins.FindByPredicate([&Properties](const UPCGPin* Pin) { return Pin->Properties.Label == Properties.Label; }))
+			{
+				UnmatchedProperties.Add(Properties);
+			}
+		}
+
+		const bool bUpdateUnmatchedPin = UnmatchedPins.Num() == 1 && UnmatchedProperties.Num() == 1;
+		if (bUpdateUnmatchedPin)
+		{
+			UnmatchedPins[0]->Modify();
+			UnmatchedPins[0]->Properties = UnmatchedProperties[0];
+			bAppliedEdgeChanges |= UnmatchedPins[0]->BreakAllIncompatibleEdges();
 		}
 		else
 		{
-			if (!UnmatchedOldLabels.IsEmpty() || !UnmatchedLabels.IsEmpty())
+			if(!UnmatchedPins.IsEmpty() || !UnmatchedProperties.IsEmpty())
 			{
 				Modify();
 			}
 
-			bool bAppliedEdgeChanges = false;
-
 			// Remove old pins
-			if (UnmatchedOldLabels.Num() > 0)
+			for (int32 UnmatchedPinIndex = UnmatchedPins.Num() - 1; UnmatchedPinIndex >= 0; --UnmatchedPinIndex)
 			{
-				for (int32 PinIndex = Pins.Num() - 1; PinIndex >= 0; --PinIndex)
-				{
-					if (UnmatchedOldLabels.Contains(Pins[PinIndex]->Label))
-					{
-						bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
-						Pins.RemoveAt(PinIndex);
-					}
-				}
+				const int32 PinIndex = Pins.IndexOfByKey(UnmatchedPins[UnmatchedPinIndex]);
+				check(PinIndex >= 0);
+
+				bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
+				Pins.RemoveAt(PinIndex);
 			}
 
 			// Add new pins
-			for (const FName& UnmatchedLabel : UnmatchedLabels)
+			for (const FPCGPinProperties& UnmatchedProperty : UnmatchedProperties)
 			{
-				const int32 InsertIndex = Labels.IndexOfByKey(UnmatchedLabel);
+				const int32 InsertIndex = PinProperties.IndexOfByKey(UnmatchedProperty);
 				UPCGPin* NewPin = PinAllocator(this);
 				NewPin->Node = this;
-				NewPin->Label = UnmatchedLabel;
+				NewPin->Properties = UnmatchedProperty;
 				Pins.Insert(NewPin, InsertIndex);
 			}
-
-			return bAppliedEdgeChanges;
 		}
+
+		return bAppliedEdgeChanges;
 	};
 
 	bool bChanged = false;
-	bChanged |= UpdatePins(InputPins, InboundLabels);
-	bChanged |= UpdatePins(OutputPins, OutboundLabels);
+	bChanged |= UpdatePins(InputPins, InboundPinProperties);
+	bChanged |= UpdatePins(OutputPins, OutboundPinProperties);
 
 	return bChanged;
 }

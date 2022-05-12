@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 
 #include "PCGCommon.h"
 
 #include "PCGEditorGraphNodeBase.generated.h"
 
 class UPCGNode;
+class UPCGPin;
 class UToolMenu;
 
 UENUM()
@@ -44,6 +46,7 @@ public:
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
+	const UPCGNode* GetPCGNode() const { return PCGNode; }
 	void PostCopy();
 	void PostPaste();
 
@@ -51,6 +54,8 @@ public:
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
 
 protected:
+	static FEdGraphPinType GetPinType(const UPCGPin* InPin);
+
 	void RebuildEdgesFromPins();
 
 	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);

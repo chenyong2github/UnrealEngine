@@ -27,7 +27,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 	{
 		//Pass-through
 		Context->OutputData = Context->InputData;
-		CleanupAndValidateOutputLabels(Context);
+		CleanupAndValidateOutput(Context);
 		return true;
 	}
 	else
@@ -81,7 +81,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 		if (bDone)
 		{
-			CleanupAndValidateOutputLabels(Context);
+			CleanupAndValidateOutput(Context);
 
 #if WITH_EDITOR
 			PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
@@ -152,7 +152,7 @@ void IPCGElement::DebugDisplay(FPCGContext* Context) const
 }
 #endif // WITH_EDITOR
 
-void IPCGElement::CleanupAndValidateOutputLabels(FPCGContext* Context) const
+void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 {
 	check(Context);
 	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
@@ -161,12 +161,12 @@ void IPCGElement::CleanupAndValidateOutputLabels(FPCGContext* Context) const
 	{
 		// Cleanup any residual labels if the node isn't supposed to produce them
 		// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
-		TArray<FName> OutLabels = Settings->OutLabels();
-		if (OutLabels.Num() == 1)
+		TArray<FPCGPinProperties> OutputPinProperties = Settings->OutputPinProperties();
+		if(OutputPinProperties.Num() == 1)
 		{
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
-				TaggedData.Pin = OutLabels[0];
+				TaggedData.Pin = OutputPinProperties[0].Label;
 			}
 		}
 
@@ -176,9 +176,14 @@ void IPCGElement::CleanupAndValidateOutputLabels(FPCGContext* Context) const
 		{
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
-				if (TaggedData.Pin != NAME_None && !OutLabels.Contains(TaggedData.Pin))
+				int32 MatchIndex = OutputPinProperties.IndexOfByPredicate([&TaggedData](const FPCGPinProperties& InProp) { return TaggedData.Pin == InProp.Label; });
+				if (MatchIndex == INDEX_NONE)
 				{
 					PCGE_LOG(Warning, "Output generated for pin %s but cannot be routed", *TaggedData.Pin.ToString());
+				}
+				else if(TaggedData.Data && !(OutputPinProperties[MatchIndex].AllowedTypes & TaggedData.Data->GetDataType()))
+				{
+					PCGE_LOG(Warning, "Output generated for pin %s does not have a compatible type", *TaggedData.Pin.ToString());
 				}
 			}
 		}

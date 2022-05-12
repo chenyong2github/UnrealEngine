@@ -47,21 +47,14 @@ namespace PCGDebugElement
 
 		if (Context->Node)
 		{
-			if (Context->Node->IsOutputPinConnected(NAME_None))
+			TArray<FPCGPinProperties> OutputPinProperties = Context->Node->OutputPinProperties();
+			for(const FPCGPinProperties& OutPin : OutputPinProperties)
 			{
-				bFilterOnPin = true;
-			}
-			else
-			{
-				TArray<FName> OutLabels = Context->Node->OutLabels();
-				for (const FName& OutLabel : OutLabels)
+				if (Context->Node->IsOutputPinConnected(OutPin.Label))
 				{
-					if (Context->Node->IsOutputPinConnected(OutLabel))
-					{
-						PinFilter = OutLabel;
-						bFilterOnPin = true;
-						break;
-					}
+					PinFilter = OutPin.Label;
+					bFilterOnPin = true;
+					break;
 				}
 			}
 		}

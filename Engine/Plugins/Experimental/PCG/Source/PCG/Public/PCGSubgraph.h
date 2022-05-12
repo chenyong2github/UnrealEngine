@@ -29,8 +29,8 @@ protected:
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
 #endif
 
-	virtual TArray<FName> InLabels() const override;
-	virtual TArray<FName> OutLabels() const override;
+	TArray<FPCGPinProperties> InputPinProperties() const override;
+	TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
 
 #if WITH_EDITOR

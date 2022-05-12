@@ -18,6 +18,10 @@ class PCG_API UPCGParamData : public UPCGData
 public:
 	UPCGParamData(const FObjectInitializer& ObjectInitializer);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Param | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	UFUNCTION(BlueprintCallable, Category = Metadata)
 	const UPCGMetadata* ConstMetadata() const { return Metadata; }
 

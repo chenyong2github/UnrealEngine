@@ -14,6 +14,10 @@ class PCG_API UPCGPrimitiveData : public UPCGSpatialDataWithPointCache
 public:
 	void Initialize(UPrimitiveComponent* InPrim);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Primitive | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	// ~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override { return 3; }
 	virtual FBox GetBounds() const override { return CachedBounds; }

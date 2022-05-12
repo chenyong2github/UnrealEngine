@@ -13,6 +13,10 @@ class PCG_API UPCGPolyLineData : public UPCGSpatialDataWithPointCache
 	GENERATED_BODY()
 
 public:
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::PolyLine | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override { return 1; }
 	virtual FBox GetBounds() const override;

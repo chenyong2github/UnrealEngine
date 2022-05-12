@@ -55,7 +55,7 @@ protected:
 #endif
 
 private:
-	void CleanupAndValidateOutputLabels(FPCGContext* Context) const;
+	void CleanupAndValidateOutput(FPCGContext* Context) const;
 };
 
 /**

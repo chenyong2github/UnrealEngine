@@ -18,6 +18,10 @@ class PCG_API UPCGSplineData : public UPCGPolyLineData
 public:
 	void Initialize(USplineComponent* InSpline);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spline | Super::GetDataType(); }
+	// ~End UPCGData interface
+
 	//~Begin UPCGPolyLineData interface
 	virtual int GetNumSegments() const override;
 	virtual float GetSegmentLength(int SegmentIndex) const override;

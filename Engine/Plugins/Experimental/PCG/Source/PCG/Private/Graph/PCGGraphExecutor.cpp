@@ -456,7 +456,7 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		const int32 TaggedDataOffset = TaskInput.TaggedData.Num();
 		if (Input.InPin)
 		{
-			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Label));
+			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Properties.Label));
 		}
 		else
 		{
@@ -469,7 +469,7 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		{
 			for (int32 TaggedDataIndex = TaggedDataOffset; TaggedDataIndex < TaskInput.TaggedData.Num(); ++TaggedDataIndex)
 			{
-				TaskInput.TaggedData[TaggedDataIndex].Pin = Input.OutPin->Label;
+				TaskInput.TaggedData[TaggedDataIndex].Pin = Input.OutPin->Properties.Label;
 			}
 		}
 	}

@@ -37,6 +37,26 @@ void UPCGBlueprintElement::PostLoad()
 {
 	Super::PostLoad();
 	Initialize();
+
+	if (!InputPinLabels_DEPRECATED.IsEmpty())
+	{
+		for (const FName& Label : InputPinLabels_DEPRECATED)
+		{
+			CustomInputPins.Emplace(Label);
+		}
+
+		InputPinLabels_DEPRECATED.Reset();
+	}
+
+	if (!OutputPinLabels_DEPRECATED.IsEmpty())
+	{
+		for (const FName& Label : OutputPinLabels_DEPRECATED)
+		{
+			CustomOutputPins.Emplace(Label);
+		}
+
+		OutputPinLabels_DEPRECATED.Reset();
+	}
 }
 
 void UPCGBlueprintElement::BeginDestroy()
@@ -102,6 +122,28 @@ FLinearColor UPCGBlueprintElement::NodeColorOverride_Implementation() const
 EPCGSettingsType UPCGBlueprintElement::NodeTypeOverride_Implementation() const
 {
 	return EPCGSettingsType::Blueprint;
+}
+
+TSet<FName> UPCGBlueprintElement::InputLabels() const
+{
+	TSet<FName> Labels;
+	for (const FPCGPinProperties& PinProperty : CustomInputPins)
+	{
+		Labels.Emplace(PinProperty.Label);
+	}
+
+	return Labels;
+}
+
+TSet<FName> UPCGBlueprintElement::OutputLabels() const
+{
+	TSet<FName> Labels;
+	for (const FPCGPinProperties& PinProperty : CustomOutputPins)
+	{
+		Labels.Emplace(PinProperty.Label);
+	}
+
+	return Labels;
 }
 
 void UPCGBlueprintSettings::SetupBlueprintEvent()
@@ -173,6 +215,7 @@ void UPCGBlueprintSettings::PostLoad()
 
 	if (BlueprintElementInstance)
 	{
+		BlueprintElementInstance->ConditionalPostLoad();
 		BlueprintElementInstance->bCreatesArtifacts |= bCreatesArtifacts_DEPRECATED;
 		BlueprintElementInstance->bCanBeMultithreaded |= bCanBeMultithreaded_DEPRECATED;
 	}
@@ -326,46 +369,46 @@ FName UPCGBlueprintSettings::AdditionalTaskName() const
 	}
 }
 
-TArray<FName> UPCGBlueprintSettings::InLabels() const
+TArray<FPCGPinProperties> UPCGBlueprintSettings::InputPinProperties() const
 {
-	TArray<FName> InputLabels;
+	TArray<FPCGPinProperties> PinProperties;
 
 	if (BlueprintElementInstance)
 	{
 		if (BlueprintElementInstance->bHasDefaultInPin)
 		{
-			InputLabels.Add(PCGPinConstants::DefaultInputLabel);
+			PinProperties.Append(Super::InputPinProperties());
 		}
 
-		InputLabels.Append(BlueprintElementInstance->InputPinLabels.Array());
+		PinProperties.Append(BlueprintElementInstance->CustomInputPins);
 	}
 	else
 	{
-		InputLabels = Super::InLabels();
+		PinProperties = Super::InputPinProperties();
 	}
 
-	return InputLabels;
+	return PinProperties;
 }
 
-TArray<FName> UPCGBlueprintSettings::OutLabels() const
+TArray<FPCGPinProperties> UPCGBlueprintSettings::OutputPinProperties() const
 {
-	TArray<FName> OutputLabels;
-	
+	TArray<FPCGPinProperties> PinProperties;
+
 	if (BlueprintElementInstance)
 	{
 		if (BlueprintElementInstance->bHasDefaultOutPin)
 		{
-			OutputLabels.Add(PCGPinConstants::DefaultOutputLabel);
+			PinProperties.Append(Super::OutputPinProperties());
 		}
 
-		OutputLabels.Append(BlueprintElementInstance->OutputPinLabels.Array());
+		PinProperties.Append(BlueprintElementInstance->CustomOutputPins);
 	}
 	else
 	{
-		OutputLabels = Super::OutLabels();
+		PinProperties = Super::OutputPinProperties();
 	}
 
-	return OutputLabels;
+	return PinProperties;
 }
 
 FPCGElementPtr UPCGBlueprintSettings::CreateElement() const

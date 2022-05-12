@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGEditorSettings.h"
+#include "PCGEditorCommon.h"
+
+#include "EdGraph/EdGraphPin.h"
 
 UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -16,6 +19,12 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	SpawnerNodeColor = FLinearColor(1.0f, 0.6f, 0.4f);
 	SubgraphNodeColor = FLinearColor(1.0f, 0.1f, 0.1f);
 	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
+
+	DefaultPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
+	SpatialDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
+	RenderTargetDataPinColor = FLinearColor(1.0f, 0.3f, 0.f);
+	ParamDataPinColor = FLinearColor(1.0f, 0.6f, 0.0f);
+	UnknownDataPinColor = FLinearColor(0.3f, 0.3f, 0.3f);
 }
 
 FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
@@ -74,5 +83,32 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 	{
 		// Finally, we couldn't find any match, so return the default value
 		return DefaultNodeColor;
+	}
+}
+
+FLinearColor UPCGEditorSettings::GetPinColor(const FEdGraphPinType& PinType) const
+{
+	if (PinType.PinCategory == FPCGEditorCommon::SpatialDataType)
+	{
+		if (PinType.PinSubCategory == FPCGEditorCommon::RenderTargetDataType)
+		{
+			return RenderTargetDataPinColor;
+		}
+		else
+		{
+			return SpatialDataPinColor;
+		}
+	}
+	else if (PinType.PinCategory == FPCGEditorCommon::ParamDataType)
+	{
+		return ParamDataPinColor;
+	}
+	else if (PinType.PinCategory == FPCGEditorCommon::OtherDataType)
+	{
+		return UnknownDataPinColor;
+	}
+	else
+	{
+		return DefaultPinColor;
 	}
 }

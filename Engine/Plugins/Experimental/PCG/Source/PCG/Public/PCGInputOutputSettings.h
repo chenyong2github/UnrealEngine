@@ -30,14 +30,18 @@ class PCG_API UPCGGraphInputOutputSettings : public UPCGSettings
 public:
 	UPCGGraphInputOutputSettings(const FObjectInitializer& ObjectInitializer);
 
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return bIsInput ? FName(TEXT("InputNode")) : FName(TEXT("OutputNode")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::InputOutput; }
 #endif
 
-	virtual TArray<FName> InLabels() const override { return GetLabels(); }
-	virtual TArray<FName> OutLabels() const override { return GetLabels(); }
+	TArray<FPCGPinProperties> InputPinProperties() const override;
+	TArray<FPCGPinProperties> OutputPinProperties() const override;
 
 	void SetInput(bool bInIsInput) { bIsInput = bInIsInput; }
 
@@ -48,21 +52,12 @@ protected:
 	const TArray<FName>& StaticLabels() const { return bIsInput ? StaticInLabels : StaticOutLabels; }
 	const TArray<FName>& StaticAdvancedLabels() const { return bIsInput ? StaticAdvancedInLabels : StaticAdvancedOutLabels; }
 
-	TArray<FName> GetLabels() const
-	{
-		TArray<FName> Labels = StaticLabels();
-		if (bShowAdvancedPins)
-		{
-			Labels += StaticAdvancedLabels();
-		}
-
-		Labels += PinLabels.Array();
-		return Labels;
-	}
-
 protected:
+	UPROPERTY()
+	TSet<FName> PinLabels_DEPRECATED;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input")
-	TSet<FName> PinLabels;
+	TArray<FPCGPinProperties> CustomPins;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input")
 	bool bShowAdvancedPins = false;
