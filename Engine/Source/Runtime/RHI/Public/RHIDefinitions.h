@@ -413,6 +413,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsROV : 1;
 	uint32 bSupportsOIT : 1;
 	uint32 bSupportsRealTypes : int32(ERHIFeatureSupport::NumBits);
+	uint32 EnablesHLSL2021ByDefault : 2; // 0: disabled, 1: global shaders only, 2: all shaders
 		
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -944,6 +945,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const ERHIFeatureSupport GetSupportsRealTypes(const FStaticShaderPlatform Platform)
 	{
 		return ERHIFeatureSupport(Infos[Platform].bSupportsRealTypes);
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetEnablesHLSL2021ByDefault(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].EnablesHLSL2021ByDefault;
 	}
 
 #if WITH_EDITOR

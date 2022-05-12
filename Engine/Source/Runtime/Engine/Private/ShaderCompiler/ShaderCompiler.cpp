@@ -5462,6 +5462,17 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("RAYMISSSHADER"), Target.Frequency == SF_RayMiss);
 	}
 
+	// Enables HLSL 2021
+	uint32 EnablesHLSL2021ByDefault = FDataDrivenShaderPlatformInfo::GetEnablesHLSL2021ByDefault(EShaderPlatform(Target.Platform));
+	if (EnablesHLSL2021ByDefault == uint32(1) && DebugGroupName == TEXT("Global"))
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_HLSL2021);
+	}
+	else if (EnablesHLSL2021ByDefault == uint32(2))
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_HLSL2021);
+	}
+
 	// #defines get stripped out by the preprocessor without this. We can override with this
 	Input.Environment.SetDefine(TEXT("COMPILER_DEFINE"), TEXT("#define"));
 

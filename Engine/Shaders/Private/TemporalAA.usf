@@ -540,6 +540,16 @@ float UpscaleFactor; // = 1 / ScreenPercentage
 
 //------------------------------------------------------- FUNCTIONS
 
+#if COMPILER_SUPPORTS_HLSL2021
+
+template<typename T>
+void CorrectExposure(inout T X)
+{
+	X *= HistoryPreExposureCorrection;
+}
+
+#endif
+
 float3 RGBToYCoCg( float3 RGB )
 {
 	float Y  = dot( RGB, float3(  1, 2,  1 ) );
@@ -1858,7 +1868,11 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 		HistoryPayload.CocRadius = RawHistory0.a;
 	#endif
 
-	HistoryPayload.Color.rgb *= HistoryPreExposureCorrection;
+	#if COMPILER_SUPPORTS_HLSL2021
+		CorrectExposure(HistoryPayload.Color.rgb);
+	#else
+		HistoryPayload.Color.rgb *= HistoryPreExposureCorrection;
+	#endif
 
 	HistoryPayload.Color = TransformSceneColor(HistoryPayload.Color);
 
