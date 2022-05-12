@@ -93,10 +93,10 @@ bool UPCGBaseTextureData::SamplePoint(const FTransform& InTransform, const FBox&
 
 	// Compute transform
 	// TODO: embed local bounds center offset at this time?
-	OutPoint.Transform = Transform.Inverse() * InTransform;
-	FVector PointPositionInLocalSpace = OutPoint.Transform.GetLocation();
+	OutPoint.Transform = InTransform;
+	FVector PointPositionInLocalSpace = Transform.InverseTransformPosition(InTransform.GetLocation());
 	PointPositionInLocalSpace.Z = 0;
-	OutPoint.Transform.SetLocation(PointPositionInLocalSpace);
+	OutPoint.Transform.SetLocation(Transform.TransformPosition(PointPositionInLocalSpace));
 	OutPoint.SetLocalBounds(InBounds); // TODO: should set Min.Z = Max.Z = 0;
 
 	// Compute density & color (& metadata)

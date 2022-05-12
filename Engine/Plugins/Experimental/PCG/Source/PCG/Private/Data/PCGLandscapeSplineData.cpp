@@ -211,10 +211,10 @@ bool UPCGLandscapeSplineData::SamplePoint(const FTransform& InTransform, const F
 	// TODO : add support for bounds
 	check(Spline);
 
-	OutPoint.Transform = Spline->GetComponentTransform().Inverse() * InTransform;
+	OutPoint.Transform = InTransform;
 	OutPoint.SetLocalBounds(InBounds); // TODO: should maybe do Min.Z = Max.Z = 0 ?
 
-	const FVector Position = OutPoint.Transform.GetLocation();
+	const FVector Position = Spline->GetComponentTransform().InverseTransformPosition(OutPoint.Transform.GetLocation());
 
 	float PointDensity = 0.0f;
 
