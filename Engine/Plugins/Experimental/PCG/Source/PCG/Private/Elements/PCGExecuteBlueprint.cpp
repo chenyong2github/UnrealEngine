@@ -398,7 +398,8 @@ TArray<FPCGPinProperties> UPCGBlueprintSettings::OutputPinProperties() const
 	{
 		if (BlueprintElementInstance->bHasDefaultOutPin)
 		{
-			PinProperties.Append(Super::OutputPinProperties());
+			// Note: we do not use the default base class pin here, as a blueprint node might return anything
+			PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
 		}
 
 		PinProperties.Append(BlueprintElementInstance->CustomOutputPins);
