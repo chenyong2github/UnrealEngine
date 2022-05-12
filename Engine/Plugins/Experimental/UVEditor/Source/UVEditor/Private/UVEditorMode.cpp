@@ -33,6 +33,7 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVEditorCommands.h"
 #include "UVEditorLayoutTool.h"
+#include "UVEditorTransformTool.h"
 #include "UVEditorParameterizeMeshTool.h"
 #include "UVEditorLayerEditTool.h"
 #include "UVEditorSeamTool.h"
@@ -369,6 +370,18 @@ void UUVEditorMode::RegisterTools()
 	UUVEditorLayoutToolBuilder* UVEditorLayoutToolBuilder = NewObject<UUVEditorLayoutToolBuilder>();
 	UVEditorLayoutToolBuilder->Targets = &ToolInputObjects;
 	RegisterTool(CommandInfos.BeginLayoutTool, TEXT("BeginLayoutTool"), UVEditorLayoutToolBuilder);
+
+	UUVEditorTransformToolBuilder* UVEditorTransformToolBuilder = NewObject<UUVEditorTransformToolBuilder>();
+	UVEditorTransformToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginTransformTool, TEXT("BeginTransformTool"), UVEditorTransformToolBuilder);
+
+	UUVEditorAlignToolBuilder* UVEditorAlignToolBuilder = NewObject<UUVEditorAlignToolBuilder>();
+	UVEditorAlignToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginAlignTool, TEXT("BeginAlignTool"), UVEditorAlignToolBuilder);
+
+	UUVEditorDistributeToolBuilder* UVEditorDistributeToolBuilder = NewObject<UUVEditorDistributeToolBuilder>();
+	UVEditorDistributeToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginDistributeTool, TEXT("BeginDistributeTool"), UVEditorDistributeToolBuilder);
 
 	UUVEditorParameterizeMeshToolBuilder* UVEditorParameterizeMeshToolBuilder = NewObject<UUVEditorParameterizeMeshToolBuilder>();
 	UVEditorParameterizeMeshToolBuilder->Targets = &ToolInputObjects;

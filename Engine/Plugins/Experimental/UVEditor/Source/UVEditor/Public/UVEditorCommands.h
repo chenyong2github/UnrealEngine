@@ -19,6 +19,9 @@ public:
 	TSharedPtr<FUICommandInfo> ApplyChanges;
 
 	TSharedPtr<FUICommandInfo> BeginLayoutTool;
+	TSharedPtr<FUICommandInfo> BeginTransformTool;
+	TSharedPtr<FUICommandInfo> BeginAlignTool;
+	TSharedPtr<FUICommandInfo> BeginDistributeTool;
 	TSharedPtr<FUICommandInfo> BeginParameterizeMeshTool;
 	TSharedPtr<FUICommandInfo> BeginChannelEditTool;
 	TSharedPtr<FUICommandInfo> BeginSeamTool;
