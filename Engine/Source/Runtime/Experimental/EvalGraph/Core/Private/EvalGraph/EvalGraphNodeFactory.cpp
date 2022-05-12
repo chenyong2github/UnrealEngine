@@ -2,7 +2,6 @@
 
 #include "EvalGraph/EvalGraphNodeFactory.h"
 
-#include "EvalGraph/EvalGraphConnectionTypes.h"
 #include "EvalGraph/EvalGraphNode.h"
 
 namespace Eg

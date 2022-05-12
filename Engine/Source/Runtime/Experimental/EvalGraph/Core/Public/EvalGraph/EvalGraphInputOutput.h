@@ -9,6 +9,9 @@ namespace Eg
 {
 	class FNode;
 
+	template<class T> inline EVALGRAPHCORE_API FName GraphConnectionTypeName();
+
+
 	//
 	// Input Output Base
 	//
@@ -17,7 +20,7 @@ namespace Eg
 	{
 
 	protected:
-		EGraphConnectionType Type;
+		FName Type;
 		FName Name;
 		FGuid  Guid;
 		FNode* OwningNode = nullptr;
@@ -28,10 +31,10 @@ namespace Eg
 
 
 	public:
-		FConnectionTypeBase(EGraphConnectionType InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
+		FConnectionTypeBase(FName InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
 		virtual ~FConnectionTypeBase() {};
 
-		EGraphConnectionType GetType() const { return Type; }
+		FName GetType() const { return Type; }
 
 		FGuid GetGuid() const { return Guid; }
 		void SetGuid(FGuid InGuid) { Guid = InGuid; }
@@ -58,9 +61,10 @@ namespace Eg
 	template<class T>
 	struct EVALGRAPHCORE_API FInputParameters {
 		FInputParameters(FName InName, FNode* InOwner, T InDefault = T())
-			: Name(InName)
+			: Type(GraphConnectionTypeName<T>())
 			, Owner(InOwner)
 			, Default(InDefault) {}
+		FName Type;
 		FName Name;
 		FNode* Owner = nullptr;
 		T Default;
@@ -133,10 +137,13 @@ namespace Eg
 	// Output
 	//
 
+	template<class T>
 	struct EVALGRAPHCORE_API FOutputParameters {
 		FOutputParameters(FName InName, FNode * InOwner) 
-			: Name(InName)
+			: Type(GraphConnectionTypeName<T>())
+			, Name(InName)
 			, Owner(InOwner) {}
+		FName Type;
 		FName Name;
 		FNode* Owner = nullptr;
 	};
@@ -152,7 +159,7 @@ namespace Eg
 		TArray< FInput<T>* > Connections;
 	
 	public:
-		FOutput(const FOutputParameters& Param, FGuid InGuid = FGuid::NewGuid());
+		FOutput(const FOutputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid());
 
 		const TArray<FInput<T>*>& GetConnections() const { return Connections; }
 		TArray<FInput<T>* >& GetConnections() { return Connections; }
@@ -185,5 +192,11 @@ namespace Eg
 		virtual void Invalidate() override;
 
 	};
+
+
+#define EVAL_GRAPH_CONNECTION_TYPE(a,A) \
+template<> FName GraphConnectionTypeName<a>() { return FName(TEXT(#A)); }\
+template class FOutput<a>;\
+template class FInput<a>;
 }
 

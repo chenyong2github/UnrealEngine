@@ -8,6 +8,7 @@
 
 class FConnectionTypeBase;
 
+
 namespace Eg
 {
 
@@ -61,4 +62,15 @@ namespace Eg
 
 	};
 }
+
+#define EVAL_GRAPH_REGISTER_CREATION_FACTORY(A) Eg::FNodeFactory::GetInstance()->RegisterNode(Eg::A::Type, [](const Eg::FNewNodeParameters& InParam) {return new Eg::A({InParam.Name}, InParam.Guid); });
+
+#define EVAL_GRAPH_DEFINE_EXTERNAL(A) FName A::Type = #A;
+
+#define EVAL_GRAPH_DEFINE_INTERNAL(A) public:\
+ static FName Type;\
+ virtual FName GetType() const { return Type; }\
+ private:
+
+
 

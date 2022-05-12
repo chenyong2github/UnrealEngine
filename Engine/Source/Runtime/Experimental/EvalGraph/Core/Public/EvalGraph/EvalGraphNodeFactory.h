@@ -42,8 +42,10 @@ namespace Eg
 
 		void RegisterNode(const FName& Type, FNewNodeFunction NewFunction)
 		{
-			ensure(!ClassMap.Contains(Type));
-			ClassMap.Add(Type, NewFunction);
+			if (ensure(!ClassMap.Contains(Type)))
+			{
+				ClassMap.Add(Type, NewFunction);
+			}
 		}
 
 		TSharedPtr<FNode> NewNodeFromRegisteredType(FGraph& Graph, const FNewNodeParameters& Param);

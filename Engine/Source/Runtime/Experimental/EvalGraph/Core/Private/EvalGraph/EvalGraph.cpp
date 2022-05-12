@@ -3,7 +3,6 @@
 #include "EvalGraph/EvalGraph.h"
 
 #include "EvalGraph/EvalGraphInputOutput.h"
-#include "EvalGraph/EvalGraphConnectionTypes.h"
 #include "EvalGraph/EvalGraphNodeParameters.h"
 #include "EvalGraph/EvalGraphNodeFactory.h"
 #include "Logging/LogMacros.h"
@@ -15,7 +14,8 @@ namespace Eg
 
 	FGraph::FGraph(FGuid InGuid)
 		: Guid(InGuid)
-	{}
+	{
+	}
 
 
 	void FGraph::RemoveNode(TSharedPtr<FNode> Node)
@@ -74,7 +74,6 @@ namespace Eg
 		{
 			FGuid ArGuid;
 			FName ArType, ArName;
-			uint32 ArIntType;
 			int32 ArNum = Nodes.Num();
 			Ar << ArNum;
 			for (TSharedPtr<FNode> Node : Nodes)
@@ -91,9 +90,9 @@ namespace Eg
 				for (FConnectionTypeBase* Conn : IO)
 				{
 					ArGuid = Conn->GetGuid();
-					ArIntType = (int32)Conn->GetType();
+					ArType = Conn->GetType();
 					ArName = Conn->GetName();
-					Ar << ArGuid << ArIntType << ArName;
+					Ar << ArGuid << ArType << ArName;
 				}
 
 				Node->SerializeInternal(Ar);
@@ -106,7 +105,6 @@ namespace Eg
 		{
 			FGuid ArGuid;
 			FName ArType, ArName;
-			uint32 ArIntType;
 			int32 ArNum = 0;
 
 			TMap<FGuid, FConnectionTypeBase* > ConnectionGuidMap;
@@ -122,16 +120,16 @@ namespace Eg
 					TArray< FConnectionTypeBase* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
 					for (int Cdx=0;Cdx< ArNumInner; Cdx++)
 					{
-						Ar << ArGuid << ArIntType << ArName;
+						Ar << ArGuid << ArType << ArName;
 						if (Cdx < IO.Num())
 						{
-							if ((EGraphConnectionType)ArIntType!=IO[Cdx]->GetType())
-							{
-								FName TypeName = GraphConnectionTypeName((EGraphConnectionType)ArIntType);
-								FName FromType = GraphConnectionTypeName(IO[Cdx]->GetType());
-								UE_LOG(EGGRAPH_LOG, Fatal, TEXT("Type mismatch in input file for Ed::FGraphNode Input/Output (%s,%s) to type (%s)"),
-									*TypeName.ToString(), *ArName.ToString(), *FromType.ToString());
-							}
+							//if ((EGraphConnectionType)ArIntType!=IO[Cdx]->GetType())
+							//{
+							//	FName TypeName = GraphConnectionTypeName((EGraphConnectionType)ArIntType);
+							//	FName FromType = GraphConnectionTypeName(IO[Cdx]->GetType());
+							//	UE_LOG(EGGRAPH_LOG, Fatal, TEXT("Type mismatch in input file for Ed::FGraphNode Input/Output (%s,%s) to type (%s)"),
+							//		*TypeName.ToString(), *ArName.ToString(), *FromType.ToString());
+							//}
 
 							IO[Cdx]->SetGuid(ArGuid);
 							ensure(!ConnectionGuidMap.Contains(ArGuid));

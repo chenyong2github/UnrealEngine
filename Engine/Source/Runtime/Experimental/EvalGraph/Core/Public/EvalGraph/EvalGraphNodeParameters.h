@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EvalGraph/EvalGraphConnectionTypes.h"
 
 class  UEvalGraph;
 class  UEdGraphPin;
@@ -21,16 +20,10 @@ namespace Eg
 	};
 
 
-	struct FCacheValueBase {
-		FCacheValueBase(EGraphConnectionType InType) : Type(InType) {}
-		EGraphConnectionType Type;
-	};
-
 	template<class T>
-	struct TCacheValue : public FCacheValueBase {
+	struct TCacheValue  {
 		TCacheValue(T InData = T())
-			: FCacheValueBase(GraphConnectionType<T>())
-			, Data(InData) {}
+			: Data(InData) {}
 		T Data;
 	};
 }

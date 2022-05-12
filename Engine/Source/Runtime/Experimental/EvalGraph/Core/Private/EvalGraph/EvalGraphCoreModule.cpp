@@ -1,31 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
+#include "EvalGraph/EvalGraphCoreModule.h"
 
 #include "CoreMinimal.h"
-#include "EvalGraphCoreLogPrivate.h"
+#include "EvalGraph/EvalGraphNodeFactory.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+#define LOCTEXT_NAMESPACE "EvalGraphCore"
 
-/**
- * The public interface to this module
- */
-class FEvalGraphCoreModule : public IModuleInterface
-{
+void IEvalGraphCoreModule::StartupModule()
+{/*Never Called ?*/}
 
-public:
+void IEvalGraphCoreModule::ShutdownModule()
+{/*Never Called ?*/ }
 
-	// IModuleInterface interface
+IMPLEMENT_MODULE(IEvalGraphCoreModule, EvalGraphCore)
 
-	virtual void StartupModule() override { }
-	virtual void ShutdownModule() override { }
-
-	virtual bool SupportsDynamicReloading() override
-	{
-		return false;
-	}
-
-};
-
-IMPLEMENT_MODULE( FEvalGraphCoreModule, EvalGraphCore )
+#undef LOCTEXT_NAMESPACE

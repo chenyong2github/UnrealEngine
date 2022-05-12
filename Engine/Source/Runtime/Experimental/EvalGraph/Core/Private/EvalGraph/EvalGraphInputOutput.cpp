@@ -2,14 +2,12 @@
 
 #include "EvalGraph/EvalGraphInputOutput.h"
 
-#include "EvalGraph/EvalGraphConnectionTypes.h"
 #include "EvalGraph/EvalGraphNodeParameters.h"
 #include "EvalGraph/EvalGraphNode.h"
 
 namespace Eg
 {
-
-	FConnectionTypeBase::FConnectionTypeBase(EGraphConnectionType InType, FName InName, FNode* InOwningNode, FGuid InGuid)
+	FConnectionTypeBase::FConnectionTypeBase(FName InType, FName InName, FNode* InOwningNode, FGuid InGuid)
 		: Type(InType)
 		, Name(InName)
 		, Guid(InGuid)
@@ -24,7 +22,7 @@ namespace Eg
 
 	template<class T>
 	FInput<T>::FInput(const FInputParameters<T>& Param, FGuid InGuid )
-		: FConnectionTypeBase(GraphConnectionType<T>(), Param.Name, Param.Owner, InGuid)
+		: FConnectionTypeBase(Param.Type, Param.Name, Param.Owner, InGuid)
 		, Default(Param.Default)
 		, Connection(nullptr)
 	{
@@ -48,8 +46,8 @@ namespace Eg
 	}
 
 	template<class T>
-	FOutput<T>::FOutput(const FOutputParameters& Param, FGuid InGuid )
-		: FConnectionTypeBase(GraphConnectionType<T>(), Param.Name, Param.Owner, InGuid)
+	FOutput<T>::FOutput(const FOutputParameters<T>& Param, FGuid InGuid )
+		: FConnectionTypeBase(Param.Type, Param.Name, Param.Owner, InGuid)
 	{
 		Super::AddBaseOutput(Param.Owner, this);
 	}
@@ -88,13 +86,13 @@ namespace Eg
 		}
 	}
 
+// Base Types
+EVAL_GRAPH_CONNECTION_TYPE(bool, Bool)
+EVAL_GRAPH_CONNECTION_TYPE(char, Char)
+EVAL_GRAPH_CONNECTION_TYPE(int, Integer)
+EVAL_GRAPH_CONNECTION_TYPE(uint8, UInt8)
+EVAL_GRAPH_CONNECTION_TYPE(float, Float)
+EVAL_GRAPH_CONNECTION_TYPE(double, Double)
 
-#define EVAL_GRAPH_CONNECTION_TYPE(a,A) template class FOutput<a>;
-#include "../../Public/EvalGraph/EvalGraphConnectionTypeValues.inl"
-#undef EVAL_GRAPH_CONNECTION_TYPE
-
-#define EVAL_GRAPH_CONNECTION_TYPE(a,A) template class FInput<a>;
-#include "../../Public/EvalGraph/EvalGraphConnectionTypeValues.inl"
-#undef EVAL_GRAPH_CONNECTION_TYPE
 }
 
