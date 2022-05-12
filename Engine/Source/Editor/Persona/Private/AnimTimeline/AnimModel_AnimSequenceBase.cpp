@@ -144,7 +144,7 @@ void FAnimModel_AnimSequenceBase::RefreshTracks()
 	ClearTrackSelection();
 
 	// Clear all tracks
-	RootTracks.Empty();
+	ClearRootTracks();
 
 	// Add notifies
 	RefreshNotifyTracks();
@@ -178,7 +178,7 @@ void FAnimModel_AnimSequenceBase::RefreshNotifyTracks()
 	}
 
 	NotifyRoot->ClearChildren();
-	RootTracks.Add(NotifyRoot.ToSharedRef());
+	AddRootTrack(NotifyRoot.ToSharedRef());
 
 	if(!NotifyPanel.IsValid())
 	{
@@ -198,7 +198,7 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 	}
 
 	CurveRoot->ClearChildren();
-	RootTracks.Add(CurveRoot.ToSharedRef());
+	AddRootTrack(CurveRoot.ToSharedRef());
 
 	// Next add a track for each float curve
 	const FAnimationCurveData& AnimationModelCurveData = AnimSequenceBase->GetDataModel()->GetCurveData();
@@ -217,7 +217,7 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 		}
 
 		AdditiveRoot->ClearChildren();
-		RootTracks.Add(AdditiveRoot.ToSharedRef());
+		AddRootTrack(AdditiveRoot.ToSharedRef());
 
 		// Next add a track for each transform curve
 		for(const FTransformCurve& TransformCurve : AnimationModelCurveData.TransformCurves)
@@ -279,7 +279,7 @@ void FAnimModel_AnimSequenceBase::RefreshAttributeTracks()
 		}
 
 		AttributesRoot->ClearChildren();
-		RootTracks.Add(AttributesRoot.ToSharedRef());
+		AddRootTrack(AttributesRoot.ToSharedRef());
 			   
 		TMap<FName, TSharedPtr<FAnimTimelineTrack_PerBoneAttributes>> BoneTracks;
 

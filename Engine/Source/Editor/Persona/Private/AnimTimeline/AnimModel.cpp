@@ -346,4 +346,31 @@ void FAnimModel::BuildContextMenu(FMenuBuilder& InMenuBuilder)
 	}
 }
 
+void FAnimModel::AddRootTrack(TSharedRef<FAnimTimelineTrack> InTrack)
+{
+	if (GetMutableDefault<UPersonaOptions>()->GetAllowedAnimationEditorTracks().PassesFilter(InTrack->GetTypeName()))
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RootTracks.Add(InTrack);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+
+void FAnimModel::ClearRootTracks()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	RootTracks.Empty();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FAnimModel::ForEachRootTrack(TFunctionRef<void(FAnimTimelineTrack&)> InFunction)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	for (TSharedRef<FAnimTimelineTrack>& Track : RootTracks)
+	{
+		InFunction(Track.Get());
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 #undef LOCTEXT_NAMESPACE

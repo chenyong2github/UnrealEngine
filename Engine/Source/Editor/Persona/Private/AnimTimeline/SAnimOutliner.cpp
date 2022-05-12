@@ -42,7 +42,7 @@ void SAnimOutliner::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 	STreeView::Construct
 	(
 		STreeView::FArguments()
-		.TreeItemsSource(&InAnimModel->GetRootTracks())
+		.TreeItemsSource(&InAnimModel->GetAllRootTracks())
 		.SelectionMode(ESelectionMode::Multi)
 		.OnGenerateRow(this, &SAnimOutliner::HandleGenerateRow) 
 		.OnGetChildren(this, &SAnimOutliner::HandleGetChildren)
@@ -54,10 +54,10 @@ void SAnimOutliner::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 	);
 
 	// expand all
-	for(TSharedRef<FAnimTimelineTrack>& RootTrack : InAnimModel->GetRootTracks())
+	InAnimModel->ForEachRootTrack([this](FAnimTimelineTrack& InRootTrack)
 	{
-		RootTrack->Traverse_ParentFirst([this](FAnimTimelineTrack& InTrack){ SetItemExpansion(InTrack.AsShared(), InTrack.IsExpanded()); return true; });
-	}
+		InRootTrack.Traverse_ParentFirst([this](FAnimTimelineTrack& InTrack){ SetItemExpansion(InTrack.AsShared(), InTrack.IsExpanded()); return true; });
+	});
 }
 
 void SAnimOutliner::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

@@ -23,14 +23,37 @@ class FAnimModel : public TSharedFromThis<FAnimModel>, public FGCObject
 public:
 	FAnimModel(const TSharedRef<IPersonaPreviewScene>& InPreviewScene, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual ~FAnimModel() {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Bind commands and perform any one-time initialization */
 	virtual void Initialize();
 
 	/** Get the root tracks representing the tree */
-	TArray<TSharedRef<FAnimTimelineTrack>>& GetRootTracks() { return RootTracks; }
-	const TArray<TSharedRef<FAnimTimelineTrack>>& GetRootTracks() const { return RootTracks; }
+	UE_DEPRECATED(5.1, "Mutable access to root tracks is deprecated, please use AddRootTrack/ClearRootTracks/ForEachRootTrack")
+	TArray<TSharedRef<FAnimTimelineTrack>>& GetRootTracks() 
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RootTracks;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Get the root tracks representing the tree */
+	const TArray<TSharedRef<FAnimTimelineTrack>>& GetRootTracks() const 
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RootTracks;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Get the root tracks representing the tree - alias to aid deprecation */
+	const TArray<TSharedRef<FAnimTimelineTrack>>& GetAllRootTracks() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RootTracks;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Get the current view range */
 	FAnimatedRange GetViewRange() const;
@@ -172,8 +195,19 @@ public:
 	/** Build a context menu for selected items */
 	virtual void BuildContextMenu(FMenuBuilder& InMenuBuilder);
 
+	/** Run a predicate for each root track */
+	void ForEachRootTrack(TFunctionRef<void(FAnimTimelineTrack&)> InFunction);
+
 protected:
+	/** Adds a track to the root tracks collection */
+	void AddRootTrack(TSharedRef<FAnimTimelineTrack> InTrack);
+
+	/** Clears all root tracks */
+	void ClearRootTracks();
+
+protected:	
 	/** Tracks used to generate a tree */
+	UE_DEPRECATED(5.1, "Direct access to RootTracks is deprecated, please use GetRootTracks/AddRootTrack/ClearRootTracks")
 	TArray<TSharedRef<FAnimTimelineTrack>> RootTracks;
 
 	/** Tracks that are selected */

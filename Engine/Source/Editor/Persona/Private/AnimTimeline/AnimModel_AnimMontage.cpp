@@ -46,7 +46,7 @@ void FAnimModel_AnimMontage::RefreshTracks()
 	ClearTrackSelection();
 
 	// Clear all tracks
-	RootTracks.Empty();
+	ClearRootTracks();
 
 	bool bIsChildAnimMontage = AnimMontage->HasParentAsset();
 
@@ -57,7 +57,7 @@ void FAnimModel_AnimMontage::RefreshTracks()
 	}
 
 	MontageRoot->ClearChildren();
-	RootTracks.Add(MontageRoot.ToSharedRef());
+	AddRootTrack(MontageRoot.ToSharedRef());
 
 	// Create & add the montage panel
 	MontagePanel = MakeShared<FAnimTimelineTrack_MontagePanel>(SharedThis(this));

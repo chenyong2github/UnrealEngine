@@ -22,7 +22,7 @@ void FAnimModel_AnimComposite::RefreshTracks()
 	ClearTrackSelection();
 
 	// Clear all tracks
-	RootTracks.Empty();
+	ClearRootTracks();
 
 	// Add the composite root track
 	if(!CompositeRoot.IsValid())
@@ -31,7 +31,7 @@ void FAnimModel_AnimComposite::RefreshTracks()
 	}
 
 	CompositeRoot->ClearChildren();
-	RootTracks.Add(CompositeRoot.ToSharedRef());
+	AddRootTrack(CompositeRoot.ToSharedRef());
 
 	TSharedRef<FAnimTimelineTrack_CompositePanel> CompositePanel = MakeShared<FAnimTimelineTrack_CompositePanel>(SharedThis(this));
 	CompositeRoot->AddChild(CompositePanel);

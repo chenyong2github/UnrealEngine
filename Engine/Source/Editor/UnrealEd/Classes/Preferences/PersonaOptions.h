@@ -13,6 +13,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Misc/NamePermissionList.h"
 #include "PersonaOptions.generated.h"
 
 enum class EFrameNumberDisplayFormats : uint8;
@@ -245,7 +246,12 @@ public:
 		OnSettingsChange.Remove(Object);
 	}
 
+	FNamePermissionList& GetAllowedAnimationEditorTracks() { return AllowedAnimationEditorTracks; }
+
 protected:
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+private:
+	FNamePermissionList AllowedAnimationEditorTracks;
 };

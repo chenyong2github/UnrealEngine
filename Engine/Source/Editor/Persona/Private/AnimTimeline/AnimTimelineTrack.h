@@ -91,7 +91,7 @@ public:
 	const TArray<TSharedRef<FAnimTimelineTrack>>& GetChildren() { return Children; }
 
 	/** Add a child track */
-	void AddChild(const TSharedRef<FAnimTimelineTrack>& InChild) { Children.Add(InChild); }
+	void AddChild(const TSharedRef<FAnimTimelineTrack>& InChild);
 
 	/** Clear all child tracks */
 	void ClearChildren() { Children.Empty(); }

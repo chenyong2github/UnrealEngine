@@ -198,4 +198,12 @@ void FAnimTimelineTrack::OnSetInputViewRange(float ViewMin, float ViewMax)
 	GetModel()->SetViewRange(TRange<double>(ViewMin, ViewMax));
 }
 
+void FAnimTimelineTrack::AddChild(const TSharedRef<FAnimTimelineTrack>& InChild)
+{
+	if (GetMutableDefault<UPersonaOptions>()->GetAllowedAnimationEditorTracks().PassesFilter(InChild->GetTypeName()))
+	{
+		Children.Add(InChild); 
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
