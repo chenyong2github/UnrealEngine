@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "CoreMinimal.h"
 #include "EvalGraphEngineLogPrivate.h"
 #include "Modules/ModuleInterface.h"
