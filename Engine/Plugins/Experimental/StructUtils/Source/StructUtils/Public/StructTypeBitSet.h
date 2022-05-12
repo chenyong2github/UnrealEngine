@@ -281,6 +281,45 @@ public:
 		}
 	}
 
+	/** Retrieves indices of bits of given value. */
+	struct FIndexIterator
+	{
+	public:
+		explicit FIndexIterator(const FBitArrayExt& BitArray, const bool bInValueToCheck = true)
+			: It(BitArray), bValueToCheck(bInValueToCheck)
+		{
+			if (It && It.GetValue() != bInValueToCheck)
+			{
+				// will result in either setting IT to the first bInValue, or making bool(It) == false
+				++(*this);
+			}
+		}
+
+		operator bool() const { return bool(It); }
+
+		/** @todo can be optimized to skip whole empty words, similar to TBitArray<>::Find */
+		FIndexIterator& operator++() 
+		{ 
+			while (++It)
+			{
+				if (It.GetValue() == bValueToCheck)
+				{
+					break;
+				}
+			}
+			return *this; 
+		}
+
+		int32 operator*() const
+		{
+			return It.GetIndex();
+		}
+
+	private:
+		TBitArray<>::FConstIterator It;
+		const bool bValueToCheck;
+	};
+
 private:
 	/** 
 	 * A private constructor for a creating an instance straight from TBitArrays. 
@@ -480,6 +519,11 @@ public:
 	FORCEINLINE bool IsBitSet(const int32 BitIndex) const
 	{
 		return StructTypesBitArray.Contains(BitIndex);
+	}
+
+	FIndexIterator GetIndexIterator(const bool bValueToCheck = true) const
+	{
+		return FIndexIterator(StructTypesBitArray, bValueToCheck);
 	}
 
 	static int32 GetMaxNum() 

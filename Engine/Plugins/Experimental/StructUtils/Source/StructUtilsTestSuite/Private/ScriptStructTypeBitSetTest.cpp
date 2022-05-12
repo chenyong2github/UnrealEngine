@@ -327,6 +327,82 @@ struct FStructUtilsTest_CompileTimeBitSetReversed : FAITestBase
 
 IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_CompileTimeBitSetReversed, "System.StructUtils.BitSet.CompileTime_Reversed");
 
+struct FStructUtilsTest_BitSetIndexIteratorBase : FAITestBase
+{
+	TArray<int32> Indices;
+	FTestStructBitSet BitSet;
+	bool bValue = true;
+
+	FStructUtilsTest_BitSetIndexIteratorBase()
+		: Indices({ 0, 3, 9, 230 })
+	{}
+
+	virtual bool SetUp() override
+	{
+		for (int32 Index : Indices)
+		{
+			BitSet.AddBit(Index);
+		}
+		return FAITestBase::SetUp();
+	}
+
+	virtual bool InstantTest() override
+	{
+		int32 i = 0;
+		for (auto It = BitSet.GetIndexIterator(/*bValue=*/bValue); It; ++It, ++i)
+		{
+			AITEST_EQUAL("Indices fetched by FIndexIterator need to reflect Bitset\'s contents", Indices[i], *It);
+		}
+		return true;
+	}
+};
+
+IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_BitSetIndexIteratorBase, "System.StructUtils.BitSet.IndexIterator");
+
+struct FStructUtilsTest_BitSetIndexIteratorEmpty : FStructUtilsTest_BitSetIndexIteratorBase
+{
+	FStructUtilsTest_BitSetIndexIteratorEmpty()
+	{
+		Indices = {};
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_BitSetIndexIteratorEmpty, "System.StructUtils.BitSet.IndexIterator.Empty");
+
+struct FStructUtilsTest_BitSetIndexIteratorTrailingFalse : FStructUtilsTest_BitSetIndexIteratorBase
+{
+	virtual bool SetUp() override
+	{
+		Indices.Sort();
+		for (int32 Index : Indices)
+		{
+			BitSet.AddBit(Index);
+		}
+		const int32 TrailingFalseBitIndex = Indices.Last() + 1;
+		BitSet.AddBit(TrailingFalseBitIndex);
+		BitSet.RemoveBit(TrailingFalseBitIndex);
+
+		return FAITestBase::SetUp();
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_BitSetIndexIteratorTrailingFalse, "System.StructUtils.BitSet.IndexIterator.TrailingFalse");
+
+struct FStructUtilsTest_BitSetIndexIteratorBeginningFalse : FStructUtilsTest_BitSetIndexIteratorBase
+{
+	virtual bool SetUp() override
+	{
+		Indices.Sort();
+		for (int32 Index : Indices)
+		{
+			BitSet.AddBit(Index);
+		}
+		BitSet.RemoveBit(Indices[0]);
+		Indices.RemoveAt(0);
+
+		return FAITestBase::SetUp();
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_BitSetIndexIteratorBeginningFalse, "System.StructUtils.BitSet.IndexIterator.BeginningFalse");
+
 } // namespace FStructTypeBitSetTests
 
 #undef LOCTEXT_NAMESPACE
