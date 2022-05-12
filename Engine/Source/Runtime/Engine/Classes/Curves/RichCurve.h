@@ -396,6 +396,9 @@ struct ENGINE_API FCompressedRichCurve
 	/** Evaluate this rich curve at the specified time */
 	float Eval(float InTime, float InDefaultValue = 0.0f) const;
 
+	/** Populate RichCurve with decompressed key-data */
+	void PopulateCurve(FRichCurve& OutCurve) const;
+
 	/** Evaluate this rich curve at the specified time */
 	static float StaticEval(ERichCurveCompressionFormat CompressionFormat, ERichCurveKeyTimeCompressionFormat KeyTimeCompressionFormat, ERichCurveExtrapolation PreInfinityExtrap, ERichCurveExtrapolation PostInfinityExtrap, TConstantValueNumKeys ConstantValueNumKeys, const uint8* CompressedKeys, float InTime, float InDefaultValue = 0.0f);
 
