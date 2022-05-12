@@ -550,6 +550,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 	this->TabRole = InArgs._TabRole;
 	this->OnTabClosed = InArgs._OnTabClosed;
 	this->OnCanCloseTab = InArgs._OnCanCloseTab;
+	this->bCanEverClose = InArgs._CanEverClose;
 	this->OnPersistVisualState = InArgs._OnPersistVisualState;
 	this->OnExtendContextMenu = InArgs._OnExtendContextMenu;
 	this->TabLabel = InArgs._Label;
@@ -935,7 +936,7 @@ FText SDockTab::GetCloseButtonToolTipText() const
 
 EVisibility SDockTab::HandleIsCloseButtonVisible() const
 {
-	return ((IsHovered() || IsForeground()) && MyTabManager.Pin()->IsTabCloseable(SharedThis(this))) ? EVisibility::Visible : EVisibility::Hidden;
+	return bCanEverClose && ((IsHovered() || IsForeground()) && MyTabManager.Pin()->IsTabCloseable(SharedThis(this))) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 TOptional<FVector2D> SDockTab::GetTabIconSize() const

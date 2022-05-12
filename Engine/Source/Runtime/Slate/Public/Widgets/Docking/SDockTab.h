@@ -108,7 +108,10 @@ public:
 		SLATE_EVENT( FSimpleDelegate, OnTabRelocated )
 		SLATE_EVENT( FSimpleDelegate, OnTabDraggedOverDockArea )
 		SLATE_ARGUMENT( bool, ShouldAutosize )
+		/** When the close button is pressed, checks whether the tab can be closed in that moment. Example: Show dialog and ask user whether they're sure to close. */
 		SLATE_EVENT( FCanCloseTab, OnCanCloseTab )
+		/** Whether this tab can ever be closed. Example: certain programs may want to show tabs for the lifetime of the program. */
+		SLATE_ARGUMENT( bool, CanEverClose )
 		SLATE_EVENT( FOnPersistVisualState, OnPersistVisualState )
 		SLATE_EVENT( FExtendContextMenu, OnExtendContextMenu )
 		/** Invoked when a tab is closed from a drawer. This does not mean the tab or its contents is destroyed, just hidden. Use OnTabClosed for that */
@@ -230,7 +233,7 @@ public:
 	/** Set whether this tab should be sized based on its content. */
 	void SetShouldAutosize(const bool bNewShouldAutosize);
 
-	/** @return true if the tab can be closed */
+	/** @return true if the tab can be closed right now. Example: Callback could ask user via dialog. */
 	bool CanCloseTab() const;
 
 	/** Requests that the tab be closed.  Tabs may prevent closing depending on their state */	
@@ -414,6 +417,9 @@ protected:
 
 	/** Is this an MajorTab? A tool panel tab? */
 	ETabRole TabRole;
+
+	/** Determines whether the close button for the tab is shown. */
+	bool bCanEverClose;
 
 	/** The tab's parent tab well. Null if it is a floating tab. */
 	TWeakPtr<SDockingTabWell> ParentPtr;
