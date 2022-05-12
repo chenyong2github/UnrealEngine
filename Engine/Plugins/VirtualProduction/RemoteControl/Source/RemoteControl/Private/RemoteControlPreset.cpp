@@ -956,15 +956,15 @@ URemoteControlBinding* URemoteControlPreset::FindMatchingBinding(const URemoteCo
 				continue;
 			}
 
-			TSoftObjectPtr<ULevel> CurrentWorldLevel = LevelDependantBindingIt->SubLevelSelectionMap.FindRef(InObject->GetWorld());
+			TSoftObjectPtr<ULevel> CurrentWorldLevel = LevelDependantBindingIt->SubLevelSelectionMapByPath.FindRef(InObject->GetWorld());
 
 			bool bSameBoundObjectMap = true;
 			// Check if the binding it has the same bound object map except for the current level.
-			for (const TPair<TSoftObjectPtr<ULevel>, TSoftObjectPtr<UObject>>& Pair : InLevelDependingBinding->BoundObjectMap)
+			for (const TPair<FSoftObjectPath, TSoftObjectPtr<UObject>>& Pair : InLevelDependingBinding->BoundObjectMapByPath)
 			{
-				if (Pair.Key != CurrentWorldLevel)
+				if (Pair.Key != CurrentWorldLevel.ToSoftObjectPath())
 				{
-					TSoftObjectPtr<UObject>* BoundObject = LevelDependantBindingIt->BoundObjectMap.Find(Pair.Key);
+					TSoftObjectPtr<UObject>* BoundObject = LevelDependantBindingIt->BoundObjectMapByPath.Find(Pair.Key);
 					if (BoundObject)
 					{
 						if (*BoundObject != Pair.Value)

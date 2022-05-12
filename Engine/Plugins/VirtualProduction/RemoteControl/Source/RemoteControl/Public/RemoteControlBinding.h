@@ -148,6 +148,8 @@ public:
 	virtual bool PruneDeletedObjects() override;
 	//~ Begin URemoteControlBinding Interface
 
+	virtual void PostLoad() override;
+
 	/**
 	 *	Set the bound object by specifying the level it resides in.
 	 *	@Note Useful is you want to set the bound object without loading the level/object.
@@ -178,19 +180,27 @@ private:
 	void InitializeBindingContext(UObject* InObject) const;
 
 private:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "BoundObjectMap is deprecated, please use BoundObjectMapByPath instead."))
+	TMap<TSoftObjectPtr<ULevel>, TSoftObjectPtr<UObject>> BoundObjectMap_DEPRECATED;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "SubLevelSelectionMap is deprecated, please use SubLevelSelectionMapByPath instead."))
+	mutable TMap<TSoftObjectPtr<UWorld>, TSoftObjectPtr<ULevel>> SubLevelSelectionMap_DEPRECATED;
+#endif
+
 	/**
 	 *	The map bound objects with their level as key.
 	 */
 	UPROPERTY()
-	TMap<TSoftObjectPtr<ULevel>, TSoftObjectPtr<UObject>> BoundObjectMap;
+	TMap<FSoftObjectPath, TSoftObjectPtr<UObject>> BoundObjectMapByPath;
 
 	/**
 	 * Keeps track of which sublevel was last used when binding in a particular world.
-	 * Used in the case where a binding points to objects that end up in the same world but in different sublevels, 
-	 * this ensures that we know which object was last 
+	 * Used in the case where a binding points to objects that end up in the same world but in different sublevels,
+	 * this ensures that we know which object was last
 	 */
 	UPROPERTY()
-	mutable TMap<TSoftObjectPtr<UWorld>, TSoftObjectPtr<ULevel>> SubLevelSelectionMap;
+	mutable TMap<FSoftObjectPath, TSoftObjectPtr<ULevel>> SubLevelSelectionMapByPath;
 
 	/**
 	 * Caches the last level that had a successful resolve.

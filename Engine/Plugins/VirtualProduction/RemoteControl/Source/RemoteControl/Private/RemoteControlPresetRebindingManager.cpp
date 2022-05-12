@@ -596,7 +596,7 @@ TArray<FGuid> FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameAc
 		if (Binding && Binding->IsA<URemoteControlLevelDependantBinding>())
 		{
 			URemoteControlLevelDependantBinding* LDBinding = CastChecked<URemoteControlLevelDependantBinding>(Binding);
-			FString Path = LDBinding->BoundObjectMap.FindRef(LDBinding->LevelWithLastSuccessfulResolve).ToString();
+			FString Path = LDBinding->BoundObjectMapByPath.FindRef(LDBinding->LevelWithLastSuccessfulResolve.ToSoftObjectPath()).ToString();
 			static const TCHAR* PersistentLevel = TEXT("PersistentLevel.");
 			const int32 PersistentLevelStringLength = 16;
 
