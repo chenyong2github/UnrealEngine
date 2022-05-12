@@ -491,8 +491,15 @@ PCGMetadataEntryKey UPCGMetadata::GetParentKey(PCGMetadataEntryKey LocalItemKey)
 	else
 	{
 		FReadScopeLock ScopeLock(ItemLock);
-		check(LocalItemKey - ItemKeyOffset < ParentKeys.Num());
-		return ParentKeys[LocalItemKey - ItemKeyOffset];
+		if (LocalItemKey - ItemKeyOffset < ParentKeys.Num())
+		{
+			return ParentKeys[LocalItemKey - ItemKeyOffset];
+		}
+		else
+		{
+			UE_LOG(LogPCG, Warning, TEXT("Invalid metadata key - check for entry key not properly initialized"));
+			return PCGInvalidEntryKey;
+		}
 	}
 }
 
