@@ -20,6 +20,7 @@
 //
 
 #include "Detour/DetourCommon.h"
+#include "Detour/DetourAssert.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -360,6 +361,8 @@ bool dtOverlapPolyPoly2D(const dtReal* polya, const int npolya,
 void dtRandomPointInConvexPoly(const dtReal* pts, const int npts, dtReal* areas,
 							   const dtReal s, const dtReal t, dtReal* out)
 {
+	dtAssert(npts > 2);
+
 	// Calc triangle araes
 	dtReal areasum = 0.0f;
 	for (int i = 2; i < npts; i++) {
@@ -381,6 +384,8 @@ void dtRandomPointInConvexPoly(const dtReal* pts, const int npts, dtReal* areas,
 		}
 		acc += dacc;
 	}
+
+	dtAssert(tri >= 2);
 	
 	dtReal v = dtSqrt(t);
 	

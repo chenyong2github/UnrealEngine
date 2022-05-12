@@ -610,27 +610,38 @@ dtStatus dtNavMeshQuery::findRandomPointInPoly(dtPolyRef ref, float(*frand)(), d
 	if (dtStatusFailed(m_nav->getTileAndPolyByRef(ref, &tile, &poly)))
 		return DT_FAILURE | DT_INVALID_PARAM;
 
-	dtReal verts[3*DT_VERTS_PER_POLYGON] = {0};
-	dtReal areas[DT_VERTS_PER_POLYGON] = {0};
-	for (int j = 0; j < poly->vertCount; ++j)
+	if (poly->getType() == DT_POLYTYPE_OFFMESH_POINT)
 	{
-		const dtReal* v = &tile->verts[poly->verts[j]*3];
-		dtVcopy(&verts[j*3],v);
+		const dtReal* v0 = &tile->verts[poly->verts[0]*3];
+		const dtReal* v1 = &tile->verts[poly->verts[1]*3];
+		const dtReal s = frand();
+		dtVlerp(randomPt, v0, v1, s);
+		return DT_SUCCESS;
 	}
+	else
+	{
+		dtReal verts[3*DT_VERTS_PER_POLYGON] = {0};
+		dtReal areas[DT_VERTS_PER_POLYGON] = {0};
+		for (int j = 0; j < poly->vertCount; ++j)
+		{
+			const dtReal* v = &tile->verts[poly->verts[j]*3];
+			dtVcopy(&verts[j*3],v);
+		}
 
-	const dtReal s = frand();
-	const dtReal t = frand();
+		const dtReal s = frand();
+		const dtReal t = frand();
 
-	dtReal pt[3];
-	dtRandomPointInConvexPoly(verts, poly->vertCount, areas, s, t, pt);
+		dtReal pt[3];
+		dtRandomPointInConvexPoly(verts, poly->vertCount, areas, s, t, pt);
 
-	dtReal h = 0.0;
-	dtStatus status = getPolyHeight(ref, pt, &h);
-	if (dtStatusFailed(status))
-		return status;
-	pt[1] = h;
+		dtReal h = 0.0;
+		dtStatus status = getPolyHeight(ref, pt, &h);
+		if (dtStatusFailed(status))
+			return status;
+		pt[1] = h;
 
-	dtVcopy(randomPt, pt);
+		dtVcopy(randomPt, pt);
+	}
 
 	return DT_SUCCESS;
 }
