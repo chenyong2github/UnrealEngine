@@ -117,6 +117,32 @@ void ISaveGameSystem::DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, F
 	);
 }
 
+void ISaveGameSystem::GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback)
+{
+	// start the delete operation on a background thread.
+	AsyncTaskPipe.Launch(UE_SOURCE_LOCATION,
+		[this, PlatformUserId, Callback]()
+		{
+			// get the list of savegames
+			TArray<FString> FoundSaves;
+			int32 UserIndex = FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId);
+			const bool bResult = GetSaveGameNames(FoundSaves, UserIndex);
+
+			// trigger the callback on the game thread
+			if (Callback)
+			{
+				OnAsyncComplete(
+					[PlatformUserId, bResult, FoundSaves = MoveTemp(FoundSaves), Callback]()
+					{
+						Callback(PlatformUserId, bResult, FoundSaves);
+					}
+				);
+			}
+		}
+	);
+
+}
+
 
 void ISaveGameSystem::InitAsync(bool bAttemptToUseUI, FPlatformUserId PlatformUserId, FSaveGameAsyncInitCompleteCallback Callback)
 {

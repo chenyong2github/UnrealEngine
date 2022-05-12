@@ -41,7 +41,7 @@ public:
 	/** Similar to DoesSaveGameExist, except returns a result code with more information. */
 	virtual ESaveExistsResult DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex) = 0;
 
-	/** Gets a list of all known saves.  This isn't possible on all platforms,  */
+	/** Gets a list of all known saves.  This isn't possible on all platforms. */
 	virtual bool GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex)
 	{
 		return false;
@@ -69,6 +69,9 @@ public:
 	// indicates that an async savegame initialize has completed. PlatformUserId, bool=success. Should always be called from the gamethread.
 	typedef TFunction<void(FPlatformUserId, bool)> FSaveGameAsyncInitCompleteCallback;
 
+	// indicates that an async savegame list names has completed. PlatformUserId, bool=success, FoundSaves. Should always be called from the game thread
+	typedef TFunction<void(FPlatformUserId, bool, const TArray<FString>&)> FSaveGameAsyncGetNamesCallback;
+
 
 	/* Asyncronously checks if the named savegame exists. Default implementation runs blocking version on a background thread */
 	virtual void DoesSaveGameExistAsync(const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncExistsCallback Callback);
@@ -81,6 +84,9 @@ public:
 
 	/* Delete the named savegame asyncronously. Default implementation runs blocking version on a background thread */
 	virtual void DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncOpCompleteCallback Callback);
+
+	/* Gets a list of all known saves if the platform supports it. Default implementatino runs blocking version on a background thread */
+	virtual void GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback);
 
 	/* (Optional) initialise the save system for the given user. Useful if the platform may display UI on first use - this can be called as part of the user login flow, for example. 
 	   If this is not used, any UI may be displayed on the first use of the other save api functions */
