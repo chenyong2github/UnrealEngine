@@ -62,24 +62,36 @@ FLumenViewCardTracingInputs::FLumenViewCardTracingInputs(FRDGBuilder& GraphBuild
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelLighting);
 		VoxelGridResolution = View.ViewState->Lumen.VoxelGridResolution;
 		NumClipmapLevels = View.ViewState->Lumen.NumClipmapLevels;
-
-		for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmapLevels; ++ClipmapIndex)
-		{
-			const FLumenVoxelLightingClipmapState& Clipmap = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex];
-
-			ClipmapWorldToUVScale[ClipmapIndex] = Clipmap.Extent.GetMax() > 0.0f ? FVector(1.0f) / (2.0f * Clipmap.Extent) : FVector(1.0f);
-			ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * ClipmapWorldToUVScale[ClipmapIndex];
-			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
-			ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
-			ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
-			ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
-		}
 	}
 	else
 	{
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
 		VoxelGridResolution = FIntVector(1);
 		NumClipmapLevels = 0;
+	}
+
+	for (int32 ClipmapIndex = 0; ClipmapIndex < MaxVoxelClipmapLevels; ++ClipmapIndex)
+	{
+		if (ClipmapIndex < NumClipmapLevels)
+		{
+			const FLumenVoxelLightingClipmapState& Clipmap = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex];
+
+			ClipmapWorldToUVScale[ClipmapIndex] = Clipmap.Extent.GetMax() > 0.0f ? FVector(1.0f) / (2.0f * Clipmap.Extent) : FVector(1.0f);
+			ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * ClipmapWorldToUVScale[ClipmapIndex];
+			ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
+			ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
+			ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
+			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
+		}
+		else
+		{
+			ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0);
+			ClipmapWorldToUVBias[ClipmapIndex] = FVector(0.0);
+			ClipmapWorldCenter[ClipmapIndex] = FVector(0.0);
+			ClipmapWorldExtent[ClipmapIndex] = FVector(1.0);
+			ClipmapWorldSamplingExtent[ClipmapIndex] = FVector(1.0);
+			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f(1.0f);
+		}
 	}
 }
 
