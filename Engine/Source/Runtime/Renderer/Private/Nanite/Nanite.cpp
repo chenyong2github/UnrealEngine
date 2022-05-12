@@ -70,6 +70,12 @@ void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar)
 			ParameterCount = 0;
 			break;
 		}
+		else if (Parameter == TEXT("off"))
+		{
+			// disable stats
+			GNaniteShowStats = 0;
+			return;
+		}
 		else
 		{
 			GNaniteStatsFilter = Parameter;
