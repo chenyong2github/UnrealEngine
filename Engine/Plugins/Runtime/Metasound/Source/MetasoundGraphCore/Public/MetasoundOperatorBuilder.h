@@ -163,7 +163,7 @@ namespace Metasound
 			FBuildStatus CreateOperators(FBuildContext& InOutContext, const TArray<const INode*>& InSortedNodes, const FDataReferenceCollection& InGraphInputs) const;
 
 			// Create the final graph operator from the provided build context.
-			TUniquePtr<IOperator> CreateGraphOperator(FBuildContext& InOutContext, const FBuildGraphParams& InParams) const;
+			TUniquePtr<IOperator> CreateGraphOperator(FBuildContext& InOutContext) const;
 	};
 }
 

@@ -12,24 +12,15 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		class METASOUNDFRONTEND_API FVertexAnalyzerTriggerDensity : public TVertexAnalyzer<FVertexAnalyzerTriggerDensity, FTrigger>
+		class METASOUNDFRONTEND_API FVertexAnalyzerTriggerDensity : public FVertexAnalyzerBase
 		{
-			TUniquePtr<ISender> Sender;
-			int32 NumFramesPerBlock = 0;
-
-			Audio::FEnvelopeFollower EnvelopeFollower;
-			Audio::FAlignedFloatBuffer ScratchBuffer;
-
 		public:
-			static const FName& GetAnalyzerName()
-			{
-				static const FName AnalyzerName = "UE.Trigger.Density";
-				return AnalyzerName;
-			}
+			static const FName& GetAnalyzerName();
+			static const FName& GetDataType();
 
 			struct METASOUNDFRONTEND_API FOutputs
 			{
-				static const FAnalyzerOutput Value;
+				static const FAnalyzerOutput& GetValue();
 
 			};
 
@@ -38,7 +29,7 @@ namespace Metasound
 			public:
 				virtual const TArray<FAnalyzerOutput>& GetAnalyzerOutputs() const override
 				{
-					static const TArray<FAnalyzerOutput> Outputs { FOutputs::Value };
+					static const TArray<FAnalyzerOutput> Outputs { FOutputs::GetValue() };
 					return Outputs;
 				}
 			};
@@ -47,6 +38,13 @@ namespace Metasound
 			virtual ~FVertexAnalyzerTriggerDensity() = default;
 
 			virtual void Execute() override;
+
+		private:
+
+			Audio::FEnvelopeFollower EnvelopeFollower;
+			TDataWriteReference<float> EnvelopeValue;
+			int32 NumFramesPerBlock = 0;
+			Audio::FAlignedFloatBuffer ScratchBuffer;
 		};
 	} // namespace Frontend
 } // namespace Metasound

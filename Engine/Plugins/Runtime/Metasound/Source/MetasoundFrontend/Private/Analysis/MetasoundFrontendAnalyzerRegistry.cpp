@@ -3,8 +3,8 @@
 
 #include "Analysis/MetasoundFrontendAnalyzerFactory.h"
 #include "Analysis/MetasoundFrontendVertexAnalyzerEnvelopeFollower.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerForwardValue.h"
 #include "Analysis/MetasoundFrontendVertexAnalyzerTriggerDensity.h"
-#include "Analysis/MetasoundFrontendVertexAnalyzerValue.h"
 #include "MetasoundPrimitives.h"
 
 
@@ -27,16 +27,16 @@ namespace Metasound
 			FVertexAnalyzerRegistry() = default;
 			virtual ~FVertexAnalyzerRegistry() = default;
 
-			virtual const TUniquePtr<IVertexAnalyzerFactory>& FindAnalyzerFactory(FName InAnalyzerName) const override
+			virtual const IVertexAnalyzerFactory* FindAnalyzerFactory(FName InAnalyzerName) const override
 			{
 				const TUniquePtr<IVertexAnalyzerFactory>* Factory = AnalyzerFactoryRegistry.Find(InAnalyzerName);
 				if (ensureMsgf(Factory, TEXT("Failed to find registered MetaSound Analyzer Factory with name '%s'"), *InAnalyzerName.ToString()))
 				{
-					return *Factory;
+					check(Factory->IsValid());
+					return Factory->Get();
 				}
 
-				static const TUniquePtr<IVertexAnalyzerFactory> InvalidFactory;
-				return InvalidFactory;
+				return nullptr;
 			}
 
 			virtual void RegisterAnalyzerFactories() override
@@ -45,10 +45,10 @@ namespace Metasound
 				RegisterAnalyzerFactory<FVertexAnalyzerTriggerDensity::FFactory>();
 
 				// Primitives
-				RegisterAnalyzerFactory<FVertexAnalyzerBool::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerFloat::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerInt::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerString::FFactory>();
+				RegisterAnalyzerFactory<FVertexAnalyzerForwardBool::FFactory>();
+				RegisterAnalyzerFactory<FVertexAnalyzerForwardFloat::FFactory>();
+				RegisterAnalyzerFactory<FVertexAnalyzerForwardInt::FFactory>();
+				RegisterAnalyzerFactory<FVertexAnalyzerForwardString::FFactory>();
 			}
 		};
 

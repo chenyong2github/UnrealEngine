@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorBuilderSettings.h"
@@ -44,10 +45,6 @@ namespace Metasound
 			virtual const TArray<FDataEdge>& GetDataEdges() const = 0;
 	};
 
-	/** Map of NodeID (Guid) to DataReferenceCollection. */
-	// TODO: Move to FAnyDataReference
-	using FNodeVertexDataMap = TMap<FGuid, FDataReferenceCollection>;
-
 	/** Array of build errors. */
 	using FBuildErrorArray = TArray<TUniquePtr<IOperatorBuildError>>;
 
@@ -57,8 +54,8 @@ namespace Metasound
 		/** An array of errors. Errors can be added if issues occur while creating an IOperator. */
 		FBuildErrorArray Errors;
 
-		/** References used by graph analyzer, if enabled (not collected if analysis is disabled). */
-		FNodeVertexDataMap InternalDataReferences;
+		/** Internal data references if enabled by build settings (not populated if disabled). */
+		TMap<FGuid, FDataReferenceCollection> InternalDataReferences;
 	};
 
 	/** FCreateOperatorParams holds the parameters provided to operator factories

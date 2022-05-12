@@ -12,32 +12,42 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		const FAnalyzerOutput FVertexAnalyzerTriggerDensity::FOutputs::Value = { "TriggerDensity", GetMetasoundDataTypeName<float>() };
+		const FAnalyzerOutput& FVertexAnalyzerTriggerDensity::FOutputs::GetValue()
+		{
+			static const FAnalyzerOutput Value = { "TriggerDensity", GetMetasoundDataTypeName<float>() };
+			return Value;
+		}
+
+		const FName& FVertexAnalyzerTriggerDensity::GetAnalyzerName()
+		{
+			static const FName AnalyzerName = "UE.Trigger.Density";
+			return AnalyzerName;
+		}
+
+		const FName& FVertexAnalyzerTriggerDensity::GetDataType()
+		{
+			return GetMetasoundDataTypeName<FTrigger>();
+		}
 
 		FVertexAnalyzerTriggerDensity::FVertexAnalyzerTriggerDensity(const FCreateAnalyzerParams& InParams)
-			: TVertexAnalyzer(InParams)
+			: FVertexAnalyzerBase(InParams.AnalyzerAddress, InParams.VertexDataReference)
+			, EnvelopeValue(TDataWriteReference<float>::CreateNew())
 			, NumFramesPerBlock(InParams.OperatorSettings.GetNumFramesPerBlock())
 		{
 			Audio::FEnvelopeFollowerInitParams Params;
 			Params.Mode = Audio::EPeakMode::Peak;
-			Params.SampleRate = OperatorSettings.GetSampleRate();
+			Params.SampleRate = InParams.OperatorSettings.GetSampleRate();
 			Params.NumChannels = 1;
 			Params.AttackTimeMsec = 0;
 			Params.ReleaseTimeMsec = 120;
 			EnvelopeFollower.Init(Params);
 
-			FAnalyzerAddress OutputAddress = InParams.AnalyzerAddress;
-			OutputAddress.DataType = FOutputs::Value.DataType;
-			OutputAddress.AnalyzerMemberName = FOutputs::Value.Name;
-			FSendAddress SendAddress = OutputAddress.ToSendAddress();
-
-			const FSenderInitParams InitParams { InParams.OperatorSettings, 0.0f };
-			Sender = FDataTransmissionCenter::Get().RegisterNewSender(MoveTemp(SendAddress), InitParams);
+			FVertexAnalyzerBase::BindOutputData<float>(FOutputs::GetValue().Name, InParams.OperatorSettings, TDataReadReference<float>(EnvelopeValue));
 		}
 
 		void FVertexAnalyzerTriggerDensity::Execute()
 		{
-			const FTrigger& Trigger = GetAnalysisData();
+			const FTrigger& Trigger = GetVertexData<FTrigger>();
 
 			ScratchBuffer.Reset();
 			ScratchBuffer.AddZeroed(NumFramesPerBlock);
@@ -54,10 +64,9 @@ namespace Metasound
 			EnvelopeFollower.ProcessAudio(ScratchBuffer.GetData(), ScratchBuffer.Num());
 
 			check(EnvelopeFollower.GetEnvelopeValues().Num() == 1);
-			const float EnvelopeValue = EnvelopeFollower.GetEnvelopeValues().Last();
-			FLiteral Literal;
-			Literal.Set(EnvelopeValue);
-			Sender->PushLiteral(Literal);
+			*EnvelopeValue = EnvelopeFollower.GetEnvelopeValues().Last();
+
+			MarkOutputDirty();
 		}
 	} // namespace Frontend
 } // namespace Metasound

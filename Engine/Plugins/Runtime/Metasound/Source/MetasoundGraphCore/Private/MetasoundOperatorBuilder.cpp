@@ -112,7 +112,7 @@ namespace Metasound
 		}
 
 		// Create graph operator from collection of node operators.
-		return CreateGraphOperator(BuildContext, InParams);
+		return CreateGraphOperator(BuildContext);
 	}
 
 	FOperatorBuilder::FBuildStatus FOperatorBuilder::DepthFirstTopologicalSort(FBuildContext& InOutContext, TArray<const INode*>& OutNodes) const
@@ -466,14 +466,14 @@ namespace Metasound
 		return BuildStatus;
 	}
 
-	TUniquePtr<IOperator> FOperatorBuilder::CreateGraphOperator(FBuildContext& InOutContext, const FBuildGraphParams& InParams) const
+	TUniquePtr<IOperator> FOperatorBuilder::CreateGraphOperator(FBuildContext& InOutContext) const
 	{
 		FDataReferenceCollection GraphInputs;
 		FDataReferenceCollection GraphOutputs;
 
 		FBuildStatus BuildStatus = GatherGraphDataReferences(InOutContext, GraphInputs, GraphOutputs);
 
-		if (BuildStatus > FBuildStatus::GetMaxErrorLevel(InParams.BuilderSettings))
+		if (BuildStatus > FBuildStatus::GetMaxErrorLevel(InOutContext.BuilderSettings))
 		{
 			return TUniquePtr<IOperator>(nullptr);
 		}
@@ -493,10 +493,7 @@ namespace Metasound
 				References.Emplace(Node->GetInstanceID(), MoveTemp(ReferencePair.Value.Outputs));
 			}
 
-			if (InParams.BuilderSettings.bPopulateInternalDataReferences)
-			{
-				InOutContext.Results.InternalDataReferences.Append(MoveTemp(References));
-			}
+			InOutContext.Results.InternalDataReferences.Append(MoveTemp(References));
 		}
 
 		for (FOperatorPtr& Ptr : InOutContext.Operators)

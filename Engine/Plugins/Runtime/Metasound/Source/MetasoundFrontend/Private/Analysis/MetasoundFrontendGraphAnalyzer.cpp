@@ -12,7 +12,7 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		FGraphAnalyzer::FGraphAnalyzer(const FOperatorSettings& InSettings, uint64 InInstanceID, FNodeVertexDataMap&& InReferences)
+		FGraphAnalyzer::FGraphAnalyzer(const FOperatorSettings& InSettings, uint64 InInstanceID, FNodeVertexDataReferenceMap&& InReferences)
 			: OperatorSettings(InSettings)
 			, InstanceID(InInstanceID)
 			, InternalDataReferences(MoveTemp(InReferences))
@@ -72,12 +72,14 @@ namespace Metasound
 // 						if (ensureMsgf(Collection != nullptr, TEXT("Failed to create MetaSoundAnalyzer: DataReferenceCollection for node analyzer at address '%s' not found."), *AnalyzerKey))
 						if (Collection)
 						{
-							const TUniquePtr<IVertexAnalyzerFactory>& Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName);
-							if (Factory.IsValid())
+							if (const IVertexAnalyzerFactory* Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName))
 							{
-								FCreateAnalyzerParams Params { AnalyzerAddress, OperatorSettings, *Collection };
-								TUniquePtr<IVertexAnalyzer> NewAnalyzer = Factory->CreateAnalyzer(Params);
-								Analyzers.Add(MoveTemp(NewAnalyzer));
+								if (const FAnyDataReference* DataRef = Collection->FindDataReference(AnalyzerAddress.OutputName))
+								{
+									FCreateAnalyzerParams Params{ AnalyzerAddress, OperatorSettings, *DataRef };
+									TUniquePtr<IVertexAnalyzer> NewAnalyzer = Factory->CreateAnalyzer(Params);
+									Analyzers.Add(MoveTemp(NewAnalyzer));
+								}
 							}
 						}
 					}

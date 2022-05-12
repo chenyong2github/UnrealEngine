@@ -19,7 +19,7 @@ namespace Metasound
 		public:
 			static IVertexAnalyzerRegistry& Get();
 
-			virtual const TUniquePtr<IVertexAnalyzerFactory>& FindAnalyzerFactory(FName InAnalyzerName) const = 0;
+			virtual const IVertexAnalyzerFactory* FindAnalyzerFactory(FName InAnalyzerName) const = 0;
 			virtual void RegisterAnalyzerFactories() = 0;
 		};
 	} // namespace Frontend

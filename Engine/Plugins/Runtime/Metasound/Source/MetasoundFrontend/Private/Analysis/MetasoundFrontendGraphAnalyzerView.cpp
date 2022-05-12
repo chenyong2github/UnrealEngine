@@ -21,8 +21,8 @@ namespace Metasound
 			using FIterateOutputFunctionRef = TFunctionRef<void(const FConstOutputHandle&, const FAnalyzerAddress& AnalyzerAddress)>;
 			void IterateOutputsSupportingAnalyzer(const FConstGraphHandle& GraphHandle, uint64 InInstanceID, FName InAnalyzerName, bool bInRequiresConnection, FIterateOutputFunctionRef InFunc)
 			{
-				const TUniquePtr<IVertexAnalyzerFactory>& Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(InAnalyzerName);
-				if (!Factory.IsValid())
+				const IVertexAnalyzerFactory* Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(InAnalyzerName);
+				if (!Factory)
 				{
 					return;
 				}
@@ -71,18 +71,18 @@ namespace Metasound
 			using namespace GraphAnalyzerViewPrivate;
 
 			FConstGraphHandle GraphHandle = GetMetaSoundAssetChecked().GetRootGraphHandle();
-			const TUniquePtr<IVertexAnalyzerFactory>& Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(InAnalyzerName);
-			if (!Factory.IsValid())
+			const IVertexAnalyzerFactory* Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(InAnalyzerName);
+			if (!Factory)
 			{
 				return;
 			}
 
-			IterateOutputsSupportingAnalyzer(GraphHandle, InstanceID, InAnalyzerName, bInRequiresConnection, [this, FactoryPtr = Factory.Get(), &InAnalyzerName](FConstOutputHandle OutputHandle, const FAnalyzerAddress& AnalyzerAddress)
+			IterateOutputsSupportingAnalyzer(GraphHandle, InstanceID, InAnalyzerName, bInRequiresConnection, [this, &Factory, &InAnalyzerName](FConstOutputHandle OutputHandle, const FAnalyzerAddress& AnalyzerAddress)
 			{
 				FString AnalyzerKey = AnalyzerAddress.ToString();
 				ActiveAnalyzerKeys.Add(MoveTemp(AnalyzerKey));
 
-				const TArray<FAnalyzerOutput>& AnalyzerOutputs = FactoryPtr->GetAnalyzerOutputs();
+				const TArray<FAnalyzerOutput>& AnalyzerOutputs = Factory->GetAnalyzerOutputs();
 				for (const FAnalyzerOutput& AnalyzerOutput : AnalyzerOutputs)
 				{
 					FAnalyzerAddress OutputReceiverAddress = AnalyzerAddress;
@@ -90,7 +90,8 @@ namespace Metasound
 					OutputReceiverAddress.DataType = AnalyzerOutput.DataType;
 
 					FMetasoundGraphAnalyzerOutputKey OutputKey { AnalyzerAddress.NodeID, AnalyzerAddress.OutputName };
-					FMetasoundAnalyzerView NewView(OperatorSettings, MoveTemp(OutputReceiverAddress));
+					FMetasoundAnalyzerView NewView(MoveTemp(OutputReceiverAddress));
+					NewView.BindToAllOutputs(OperatorSettings);
 					AnalyzerViews.FindOrAdd(OutputKey).Add(MoveTemp(NewView));
 				}
 			});

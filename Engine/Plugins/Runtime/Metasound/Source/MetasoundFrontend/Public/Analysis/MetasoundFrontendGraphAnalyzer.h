@@ -5,6 +5,7 @@
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
+#include "MetasoundVertex.h"
 #include "Templates/UniquePtr.h"
 
 
@@ -12,6 +13,8 @@ namespace Metasound
 {
 	namespace Frontend
 	{
+		using FNodeVertexDataReferenceMap = TMap<FGuid, FDataReferenceCollection>;
+
 		// Handles intrinsic analysis operations within a given graph
 		// should the graph's operator be enabled for analysis.
 		class METASOUNDFRONTEND_API FGraphAnalyzer
@@ -21,10 +24,10 @@ namespace Metasound
 
 			TUniquePtr<IReceiver> ActiveAnalyzerReceiver;
 			TArray<TUniquePtr<Frontend::IVertexAnalyzer>> Analyzers;
-			FNodeVertexDataMap InternalDataReferences;
+			FNodeVertexDataReferenceMap InternalDataReferences;
 
 		public:
-			FGraphAnalyzer(const FOperatorSettings& InSettings, uint64 InInstanceID, FNodeVertexDataMap&& InGraphReferences);
+			FGraphAnalyzer(const FOperatorSettings& InSettings, uint64 InInstanceID, FNodeVertexDataReferenceMap&& InGraphReferences);
 			~FGraphAnalyzer() = default;
 
 			// Creates a send channel name unique for the given sound instance used to send array of analyzer

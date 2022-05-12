@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Analysis/MetasoundFrontendAnalyzerView.h"
 
+#include "Analysis/MetasoundFrontendAnalyzerFactory.h"
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
 #include "Analysis/MetasoundFrontendVertexAnalyzer.h"
 #include "Analysis/MetasoundFrontendVertexAnalyzerEnvelopeFollower.h"
 #include "Analysis/MetasoundFrontendGraphAnalyzer.h"
@@ -15,24 +17,32 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		FMetasoundAnalyzerView::FMetasoundAnalyzerView(const FOperatorSettings& InOperatorSettings, FAnalyzerAddress&& InAnalyzerAddress)
+		FMetasoundAnalyzerView::FMetasoundAnalyzerView(FAnalyzerAddress&& InAnalyzerAddress)
 			: AnalyzerAddress(MoveTemp(InAnalyzerAddress))
 		{
-			const FSendAddress SendAddress = AnalyzerAddress.ToSendAddress();
-			const FReceiverInitParams ReceiverParams { InOperatorSettings };
-			Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver(SendAddress, ReceiverParams);
 		}
 
-		IReceiver& FMetasoundAnalyzerView::GetReceiverChecked()
+		void FMetasoundAnalyzerView::BindToAllOutputs(const FOperatorSettings& InOperatorSettings)
 		{
-			check(Receiver.IsValid());
-			return *Receiver;
+			const IVertexAnalyzerFactory* Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName);
+			if (ensureMsgf(Factory, TEXT("Failed to bind AnalyzerView to all Analyzer outputs: Missing factory definition for analyzer with name '%s'"), *AnalyzerAddress.AnalyzerName.ToString()))
+			{
+				for (const FAnalyzerOutput& Output : Factory->GetAnalyzerOutputs())
+				{
+					FAnalyzerAddress OutputAddress = AnalyzerAddress;
+					OutputAddress.AnalyzerMemberName = Output.Name;
+					OutputAddress.DataType = Output.DataType;
+					const FSendAddress SendAddress = OutputAddress.ToSendAddress();
+					const FReceiverInitParams ReceiverParams { InOperatorSettings };
+					IReceiver* Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver(SendAddress, ReceiverParams).Release();
+					OutputReceivers.Add({ Output.Name, TSharedPtr<IReceiver>(Receiver) });
+				}
+			}
 		}
 
-		const IReceiver& FMetasoundAnalyzerView::GetReceiverChecked() const
+		bool FMetasoundAnalyzerView::UnbindOutput(FName InOutputName)
 		{
-			check(Receiver.IsValid());
-			return *Receiver;
+			return OutputReceivers.Remove(InOutputName) > 0;
 		}
 	} // namespace Frontend
 } // namespace Metasound

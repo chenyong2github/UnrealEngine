@@ -2,6 +2,7 @@
 
 #include "Analysis/MetasoundFrontendVertexAnalyzerEnvelopeFollower.h"
 
+#include "MetasoundAudioBuffer.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundRouter.h"
@@ -11,39 +12,46 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		const FAnalyzerOutput FVertexAnalyzerEnvelopeFollower::FOutputs::Value = { "EnvelopeValue", GetMetasoundDataTypeName<float>() };
+		const FAnalyzerOutput& FVertexAnalyzerEnvelopeFollower::FOutputs::GetValue()
+		{
+			static FAnalyzerOutput Value = { "EnvelopeValue", GetMetasoundDataTypeName<float>() };
+			return Value;
+		}
+
+		const FName& FVertexAnalyzerEnvelopeFollower::GetAnalyzerName()
+		{
+			static const FName AnalyzerName = "UE.Audio.EnvelopeFollower"; return AnalyzerName;
+		}
+
+		const FName& FVertexAnalyzerEnvelopeFollower::GetDataType()
+		{
+			return GetMetasoundDataTypeName<FAudioBuffer>();
+		}
 
 		FVertexAnalyzerEnvelopeFollower::FVertexAnalyzerEnvelopeFollower(const FCreateAnalyzerParams& InParams)
-			: TVertexAnalyzer(InParams)
+		: FVertexAnalyzerBase(InParams.AnalyzerAddress, InParams.VertexDataReference)
+		, EnvelopeValue(TDataWriteReference<float>::CreateNew())
 		{
-			FAnalyzerAddress OutputAddress = InParams.AnalyzerAddress;
-			OutputAddress.DataType = FOutputs::Value.DataType;
-			OutputAddress.AnalyzerMemberName = FOutputs::Value.Name;
-			FSendAddress SendAddress = OutputAddress.ToSendAddress();
-
-			const FSenderInitParams InitParams { InParams.OperatorSettings, 0.0f };
-			Sender = FDataTransmissionCenter::Get().RegisterNewSender(MoveTemp(SendAddress), InitParams);
-
 			Audio::FEnvelopeFollowerInitParams Params;
 			Params.Mode = Audio::EPeakMode::RootMeanSquared;
-			Params.SampleRate = OperatorSettings.GetSampleRate();
+			Params.SampleRate = InParams.OperatorSettings.GetSampleRate();
 			Params.NumChannels = 1;
 			Params.AttackTimeMsec = 10;
 			Params.ReleaseTimeMsec = 10;
 			EnvelopeFollower.Init(Params);
+
+			FVertexAnalyzerBase::BindOutputData<float>(FOutputs::GetValue().Name, InParams.OperatorSettings, TDataReadReference<float>(EnvelopeValue));
 		}
 
 		void FVertexAnalyzerEnvelopeFollower::Execute()
 		{
-			const FAudioBuffer& InputData = GetAnalysisData();
-			EnvelopeFollower.ProcessAudio(InputData.GetData(), InputData.Num());
+			const FAudioBuffer& AudioBuffer = GetVertexData<FAudioBuffer>();
+			EnvelopeFollower.ProcessAudio(AudioBuffer.GetData(), AudioBuffer.Num());
 
 			check(EnvelopeFollower.GetEnvelopeValues().Num() == 1);
-			const float EnvelopeValue = EnvelopeFollower.GetEnvelopeValues().Last();
+			*EnvelopeValue = EnvelopeFollower.GetEnvelopeValues().Last();
 
-			FLiteral Literal;
-			Literal.Set(EnvelopeValue);
-			Sender->PushLiteral(Literal);
+			MarkOutputDirty();
 		}
 	} // namespace Frontend
 } // namespace Metasound

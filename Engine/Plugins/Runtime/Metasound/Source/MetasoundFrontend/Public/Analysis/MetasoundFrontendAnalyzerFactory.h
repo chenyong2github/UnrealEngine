@@ -16,7 +16,7 @@ namespace Metasound
 
 			virtual const TArray<FAnalyzerOutput>& GetAnalyzerOutputs() const = 0;
 			virtual FName GetDataType() const = 0;
-			virtual TUniquePtr<IVertexAnalyzer> CreateAnalyzer(const FCreateAnalyzerParams& InParams) = 0;
+			virtual TUniquePtr<IVertexAnalyzer> CreateAnalyzer(const FCreateAnalyzerParams& InParams) const = 0;
 		};
 
 		template<typename TAnalyzerClass>
@@ -28,7 +28,7 @@ namespace Metasound
 			virtual ~TVertexAnalyzerFactory() = default;
 
 			virtual FName GetDataType() const override { return TAnalyzerClass::GetDataType(); }
-			virtual TUniquePtr<IVertexAnalyzer> CreateAnalyzer(const FCreateAnalyzerParams& InParams) override
+			virtual TUniquePtr<IVertexAnalyzer> CreateAnalyzer(const FCreateAnalyzerParams& InParams) const override
 			{
 				return TUniquePtr<IVertexAnalyzer>(new TAnalyzerClass(InParams));
 			}

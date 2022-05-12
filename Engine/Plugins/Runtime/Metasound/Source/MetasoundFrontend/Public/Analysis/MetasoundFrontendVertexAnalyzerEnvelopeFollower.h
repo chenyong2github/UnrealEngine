@@ -13,21 +13,15 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		class METASOUNDFRONTEND_API FVertexAnalyzerEnvelopeFollower : public TVertexAnalyzer<FVertexAnalyzerEnvelopeFollower, FAudioBuffer>
+		class METASOUNDFRONTEND_API FVertexAnalyzerEnvelopeFollower : public FVertexAnalyzerBase
 		{
-			TUniquePtr<ISender> Sender;
-			Audio::FEnvelopeFollower EnvelopeFollower;
-
 		public:
-			static const FName& GetAnalyzerName()
-			{
-				static const FName AnalyzerName = "UE.Audio.EnvelopeFollower";
-				return AnalyzerName;
-			}
+			static const FName& GetAnalyzerName();
+			static const FName& GetDataType();
 
 			struct METASOUNDFRONTEND_API FOutputs
 			{
-				static const FAnalyzerOutput Value;
+				static const FAnalyzerOutput& GetValue();
 			};
 
 			class METASOUNDFRONTEND_API FFactory : public TVertexAnalyzerFactory<FVertexAnalyzerEnvelopeFollower>
@@ -35,7 +29,7 @@ namespace Metasound
 			public:
 				virtual const TArray<FAnalyzerOutput>& GetAnalyzerOutputs() const override
 				{
-					static const TArray<FAnalyzerOutput> Outputs { FOutputs::Value };
+					static const TArray<FAnalyzerOutput> Outputs { FOutputs::GetValue() };
 					return Outputs;
 				}
 			};
@@ -44,6 +38,10 @@ namespace Metasound
 			virtual ~FVertexAnalyzerEnvelopeFollower() = default;
 
 			virtual void Execute() override;
+
+		private:
+			Audio::FEnvelopeFollower EnvelopeFollower;
+			TDataWriteReference<float> EnvelopeValue;
 		};
 	} // namespace Frontend
 } // namespace Metasound
