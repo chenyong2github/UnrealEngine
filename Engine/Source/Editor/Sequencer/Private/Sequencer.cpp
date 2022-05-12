@@ -7172,11 +7172,25 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 				{
 					if (bSelectParentInstead || bSelect == false)
 					{
-						Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+						if(bSelect)
+						{
+							NodesToSelect.Add(KeyAreaNode->GetParent()->AsShared());
+						}
+						else
+						{
+							Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+						}
 					}
 					if (!bSelectParentInstead || bSelect == false)
 					{
-						Nodes.Add(KeyAreaNode);
+						if(bSelect)
+						{
+							NodesToSelect.Add(KeyAreaNode);
+						}
+						else
+						{
+							Nodes.Add(KeyAreaNode);
+						}
 					}
 				}
 			}

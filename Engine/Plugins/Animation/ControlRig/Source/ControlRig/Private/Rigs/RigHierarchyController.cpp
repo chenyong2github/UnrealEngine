@@ -1267,7 +1267,6 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		Settings.PrimaryAxis = Control.PrimaryAxis;
 		Settings.bIsCurve = Control.bIsCurve;
 		Settings.SetAnimationTypeFromDeprecatedData(Control.bAnimatable, Control.bGizmoEnabled);
-		Settings.AnimationType = Control.bAnimatable ? ERigControlAnimationType::AnimationControl : ERigControlAnimationType::ProxyControl;
 		Settings.SetupLimitArrayForType(Control.bLimitTranslation, Control.bLimitRotation, Control.bLimitScale);
 		Settings.bDrawLimits = Control.bDrawLimits;
 		Settings.MinimumValue = Control.MinimumValue;
@@ -1276,6 +1275,12 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		Settings.ShapeName = Control.GizmoName;
 		Settings.ShapeColor = Control.GizmoColor;
 		Settings.ControlEnum = Control.ControlEnum;
+		Settings.bGroupWithParentControl = Settings.IsAnimatable() && (
+			Settings.ControlType == ERigControlType::Bool ||
+			Settings.ControlType == ERigControlType::Float ||
+			Settings.ControlType == ERigControlType::Integer ||
+			Settings.ControlType == ERigControlType::Vector2D
+		);
 
 		if(Settings.ShapeName == FRigControl().GizmoName)
 		{
