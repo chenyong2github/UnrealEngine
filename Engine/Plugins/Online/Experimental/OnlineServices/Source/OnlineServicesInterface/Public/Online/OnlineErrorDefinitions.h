@@ -8,6 +8,7 @@ namespace UE::Online::Errors {
 
 UE_ONLINE_ERROR_CATEGORY(Common, Engine, 0x1, "Online Services")
 
+UE_ONLINE_ERROR_COMMON(Common, Success, 0, TEXT("success"), LOCTEXT("Success", "Success"))
 UE_ONLINE_ERROR_COMMON(Common, NoConnection, 1, TEXT("no_connection"), LOCTEXT("NotConnected", "No valid connection"))
 UE_ONLINE_ERROR_COMMON(Common, RequestFailure, 2, TEXT("request_failure"), LOCTEXT("RequestFailure", "Failed to send request"))
 UE_ONLINE_ERROR_COMMON(Common, InvalidCreds, 3, TEXT("invalid_creds"), LOCTEXT("InvalidCreds", "Invalid credentials"))
@@ -23,8 +24,12 @@ UE_ONLINE_ERROR_COMMON(Common, IncompatibleVersion, 12, TEXT("incompatible_versi
 UE_ONLINE_ERROR_COMMON(Common, NotConfigured, 13, TEXT("not_configured"), LOCTEXT("NotConfigured", "No valid configuration"))
 UE_ONLINE_ERROR_COMMON(Common, NotImplemented, 14, TEXT("not_implemented"), LOCTEXT("NotImplemented", "Not implemented"))
 UE_ONLINE_ERROR_COMMON(Common, MissingInterface, 15, TEXT("missing_interface"), LOCTEXT("MissingInterface", "Interface not found"))
-UE_ONLINE_ERROR_COMMON(Common, Cancelled, 16, TEXT("cancelled"), LOCTEXT("Canceled", "Operation was cancelled"))
-UE_ONLINE_ERROR_COMMON(Common, Unknown, 17, TEXT("unknown"), LOCTEXT("Unknown", "Unknown Error"))
+UE_ONLINE_ERROR_COMMON(Common, Cancelled, 16, TEXT("cancelled"), LOCTEXT("Cancelled", "Operation was cancelled"))
+UE_ONLINE_ERROR_COMMON(Common, NotLoggedIn, 17, TEXT("not_logged_in"), LOCTEXT("NotLoggedIn", "User is not logged in"))
+UE_ONLINE_ERROR_COMMON(Common, NotFound, 18, TEXT("not_found"), LOCTEXT("NotFound", "Request not found"))
+UE_ONLINE_ERROR_COMMON(Common, WillRetry, 19, TEXT("will_retry"), LOCTEXT("WillRetry", "Retrying request"))
+UE_ONLINE_ERROR_COMMON(Common, Timeout, 20, TEXT("timeout"), LOCTEXT("Timeout", "Operation timed out"))
+UE_ONLINE_ERROR_COMMON(Common, Unknown, 21, TEXT("unknown"), LOCTEXT("Unknown", "Unknown Error"))
 
 } /* namespace UE::Online::Errors */
 
