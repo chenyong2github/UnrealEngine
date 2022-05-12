@@ -1003,13 +1003,12 @@ FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, ui
 {
 	if (FOpenGL::IsAndroidGLESCompatibilityModeEnabled())
 	{
-		return new FOpenGLTexture(FRHITextureCreateDesc::Create2D(
-			TEXT("PlatformCreateBuiltinBackBuffer"),
-			{ (int32)SizeX, (int32)SizeY },
-			PF_B8G8R8A8,
-			FClearValueBinding::Transparent,
-			TexCreate_RenderTargetable | TexCreate_Presentable | TexCreate_ResolveTargetable
-		));
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("PlatformCreateBuiltinBackBuffer"), SizeX, SizeY, PF_B8G8R8A8)
+			.SetClearValue(FClearValueBinding::Transparent)
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::Presentable | ETextureCreateFlags::ResolveTargetable);
+
+		return new FOpenGLTexture(Desc);
 	}
 
 	return nullptr;

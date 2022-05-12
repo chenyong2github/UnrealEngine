@@ -913,15 +913,12 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 	const ETextureCreateFlags UEFlags = Desc.Flags;
 	check(UEFlags & TexCreate_DepthStencilTargetable);
 
-	FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(
-		TEXT("FVulkanSwapChainQCOM"),
-		{ (int32)Desc.Extent.Y, (int32)Desc.Extent.X }, // Yes, these are intentionally swapped.
-		Desc.Format,
-		FClearValueBinding::None,
-		UEFlags,
-		Desc.NumMips,
-		Desc.NumSamples
-	);
+	const FRHITextureCreateDesc CreateDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("FVulkanSwapChainQCOM"), Desc.Extent.Y, Desc.Extent.X, Desc.Format) // Desc.Extent.X and Desc.Extent.Y are intentionally swapped.
+		.SetClearValue(FClearValueBinding::None)
+		.SetFlags(UEFlags)
+		.SetNumMips(Desc.NumMips)
+		.SetNumSamples(Desc.NumSamples);
 
 	QCOMDepthStencilSurface = new FVulkanTexture(Device, CreateDesc, nullptr);
 

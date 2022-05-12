@@ -1115,17 +1115,11 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		FSamplerStateInitializerRHI Default(SF_Point);
 		DefaultSampler = ResourceCast(RHICreateSamplerState(Default).GetReference());
 
-		FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-			TEXT("FVulkanDevice_DefaultImage"),
-			{ 1, 1 },
-			PF_B8G8R8A8,
-			FClearValueBinding::None,
-			TexCreate_RenderTargetable | TexCreate_ShaderResource,
-			1,
-			1,
-			0,
-			ERHIAccess::SRVMask
-		);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FVulkanDevice_DefaultImage"), 1, 1, PF_B8G8R8A8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask);
 
 		DefaultTexture = new FVulkanTexture(*this, Desc, nullptr);
 	}

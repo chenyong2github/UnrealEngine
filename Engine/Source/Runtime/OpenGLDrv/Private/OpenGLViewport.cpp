@@ -315,13 +315,12 @@ void FOpenGLViewport::Resize(uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen)
 		BackBuffer = PlatformCreateBuiltinBackBuffer(OpenGLRHI, InSizeX, InSizeY);
 		if (!BackBuffer)
 		{
-			BackBuffer = new FOpenGLTexture(FRHITextureCreateDesc::Create2D(
-				TEXT("FOpenGLViewport"),
-				{ (int32)InSizeX, (int32)InSizeY },
-				PixelFormat,
-				FClearValueBinding::Transparent,
-				TexCreate_RenderTargetable | TexCreate_ResolveTargetable
-			));
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FOpenGLViewport"), InSizeX, InSizeY, PixelFormat)
+				.SetClearValue(FClearValueBinding::Transparent)
+				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ResolveTargetable);
+
+			BackBuffer = new FOpenGLTexture(Desc);
 		}
 
 		RHICmdList.EnqueueLambda([=](FRHICommandListImmediate&)

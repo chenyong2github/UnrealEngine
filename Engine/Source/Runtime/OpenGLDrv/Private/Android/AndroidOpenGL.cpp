@@ -451,13 +451,9 @@ FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, ui
 	// Otherwise return null and we will create an off-screen surface afterward.
 	if (!FPlatformMisc::SupportsBackbufferSampling())
 	{
-		FOpenGLTextureCreateDesc CreateDesc = FOpenGLTextureCreateDesc::Create2D(
-			TEXT("PlatformCreateBuiltinBackBuffer"),
-			{ (int32)SizeX, (int32)SizeY },
-			PF_B8G8R8A8,
-			FClearValueBinding::Transparent,
-			TexCreate_RenderTargetable | TexCreate_Presentable | TexCreate_ResolveTargetable
-		);
+		const FOpenGLTextureCreateDesc CreateDesc =
+			FRHITextureCreateDesc::Create2D(TEXT("PlatformCreateBuiltinBackBuffer"), SizeX, SizeY, PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::Presentable | ETextureCreateFlags::ResolveTargetable);
 
 		return new FOpenGLTexture(CreateDesc);
 	}

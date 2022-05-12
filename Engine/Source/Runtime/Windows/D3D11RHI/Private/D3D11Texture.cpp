@@ -997,17 +997,13 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		SubresourceData[MipIndex].SysMemSlicePitch = MipSize;
 	}
 
-	FTextureRHIRef Texture = CreateD3D11Texture2D(
-		FRHITextureCreateDesc::Create2D(
-			  TEXT("RHIAsyncCreateTexture2D")
-			, { (int32)SizeX, (int32)SizeY }
-			, (EPixelFormat)Format
-			, FClearValueBinding::None
-			, Flags
-			, NumMips
-		)
-		, SubresourceData
-	);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("RHIAsyncCreateTexture2D"), SizeX, SizeY, (EPixelFormat)Format)
+		.SetClearValue(FClearValueBinding::None)
+		.SetFlags(Flags)
+		.SetNumMips(NumMips);
+
+	FTextureRHIRef Texture = CreateD3D11Texture2D(Desc, SubresourceData);
 
 	if (TempBufferSize != ZeroBufferSize)
 	{
@@ -1944,24 +1940,20 @@ FD3D11Texture* FD3D11DynamicRHI::CreateTextureFromResource(bool bTextureArray, b
 		check(IsValidRef(ShaderResourceView));
 	}
 
-	ETextureDimension Dimension = bTextureArray
+	const ETextureDimension Dimension = bTextureArray
 		? (bCubeTexture ? ETextureDimension::TextureCubeArray : ETextureDimension::Texture2DArray)
 		: (bCubeTexture ? ETextureDimension::TextureCube      : ETextureDimension::Texture2D     );
 
-	FRHITextureCreateDesc RHITextureDesc = FRHITextureCreateDesc(
-		Dimension,
-		TexCreateFlags,
-		(EPixelFormat)Format,
-		ClearValueBinding,
-		{ (int32)TextureDesc.Width, (int32)TextureDesc.Height },
-		1, // Depth
-		TextureDesc.ArraySize,
-		TextureDesc.MipLevels,
-		TextureDesc.SampleDesc.Count,
-		0, // ExtData
-		RHIGetDefaultResourceState(TexCreateFlags, false),
-		TEXT("FD3D11DynamicRHI::CreateTextureFromResource")
-	);
+	const FRHITextureCreateDesc RHITextureDesc =
+		FRHITextureCreateDesc::Create(TEXT("FD3D11DynamicRHI::CreateTextureFromResource"), Dimension)
+		.SetExtent(TextureDesc.Width, TextureDesc.Height)
+		.SetFormat((EPixelFormat)Format)
+		.SetClearValue(ClearValueBinding)
+		.SetArraySize(TextureDesc.ArraySize)
+		.SetFlags(TexCreateFlags)
+		.SetNumMips(TextureDesc.MipLevels)
+		.SetNumSamples(TextureDesc.SampleDesc.Count)
+		.SetInitialState(RHIGetDefaultResourceState(TexCreateFlags, false));
 
 	FD3D11Texture* Texture2D = new FD3D11Texture(
 		RHITextureDesc,

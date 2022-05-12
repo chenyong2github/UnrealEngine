@@ -76,31 +76,21 @@ namespace UE::PixelStreaming
 	inline FTextureRHIRef CreateRHITexture(uint32 Width, uint32 Height)
 	{
 		// Create empty texture
-		ETextureCreateFlags Flags;
-		ERHIAccess InitialState;
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("PixelStreamingBlankTexture"), Width, Height, PF_B8G8R8A8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::RenderTargetable);
 
 		if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 		{
-			Flags = TexCreate_RenderTargetable | TexCreate_External;
-			InitialState = ERHIAccess::Present;
+			Desc.AddFlags(ETextureCreateFlags::External)
+				.SetInitialState(ERHIAccess::Present);
 		}
 		else
 		{
-			Flags = TexCreate_RenderTargetable | TexCreate_Shared;
-			InitialState = ERHIAccess::CopyDest;
+			Desc.AddFlags(ETextureCreateFlags::Shared)
+				.SetInitialState(ERHIAccess::CopyDest);
 		}
-
-		FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-			TEXT("PixelStreamingBlankTexture"),
-			{ (int32)Width, (int32)Height },
-			EPixelFormat::PF_B8G8R8A8,
-			FClearValueBinding::None,
-			Flags,
-			1,
-			1,
-			0,
-			InitialState
-		);
 
 		return GDynamicRHI->RHICreateTexture(Desc);
 	}
@@ -108,31 +98,19 @@ namespace UE::PixelStreaming
 	inline FTextureRHIRef CreateCPUReadbackTexture(uint32 Width, uint32 Height)
 	{
 		// Create empty texture
-		ETextureCreateFlags Flags;
-		ERHIAccess InitialState;
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("PixelStreamingBlankTexture"), Width, Height, PF_B8G8R8A8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::HideInVisualizeTexture | ETextureCreateFlags::CPUReadback);
 
 		if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 		{
-			Flags = TexCreate_HideInVisualizeTexture | TexCreate_CPUReadback;
-			InitialState = ERHIAccess::Present;
+			Desc.SetInitialState(ERHIAccess::Present);
 		}
 		else
 		{
-			Flags = TexCreate_HideInVisualizeTexture | TexCreate_CPUReadback;
-			InitialState = ERHIAccess::CopyDest;
+			Desc.SetInitialState(ERHIAccess::CopyDest);
 		}
-
-		FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-			TEXT("PixelStreamingBlankTexture"),
-			{ (int32)Width, (int32)Height },
-			EPixelFormat::PF_B8G8R8A8,
-			FClearValueBinding::None,
-			Flags,
-			1,
-			1,
-			0,
-			InitialState
-		);
 
 		return GDynamicRHI->RHICreateTexture(Desc);
 	}

@@ -15,7 +15,7 @@
 
 
 FVulkanBackBuffer::FVulkanBackBuffer(FVulkanDevice& Device, FVulkanViewport* InViewport, EPixelFormat Format, uint32 SizeX, uint32 SizeY, ETextureCreateFlags UEFlags)
-	: FVulkanTexture(Device, FRHITextureCreateDesc::Create2D(TEXT("FVulkanBackBuffer"), { (int32)SizeX, (int32)SizeY }, Format, FClearValueBinding::None, UEFlags), VK_NULL_HANDLE, false)
+	: FVulkanTexture(Device, FRHITextureCreateDesc::Create2D(TEXT("FVulkanBackBuffer"), SizeX, SizeY, Format).SetFlags(UEFlags), VK_NULL_HANDLE, false)
 	, Viewport(InViewport)
 {
 }
@@ -692,17 +692,11 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		uint32 BackBufferSizeX = RequiresRenderingBackBuffer() ? SizeX : 1;
 		uint32 BackBufferSizeY = RequiresRenderingBackBuffer() ? SizeY : 1;
 
-		FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-			TEXT("RenderingBackBuffer"),
-			{ (int32)BackBufferSizeX, (int32)BackBufferSizeY },
-			PixelFormat,
-			FClearValueBinding::None,
-			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_ResolveTargetable,
-			1,
-			1,
-			0,
-			ERHIAccess::Present
-		);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("RenderingBackBuffer"), BackBufferSizeX, BackBufferSizeY, PixelFormat)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::ResolveTargetable)
+			.SetInitialState(ERHIAccess::Present);
 
 		RenderingBackBuffer = new FVulkanTexture(*Device, Desc, nullptr);
 #if VULKAN_ENABLE_DRAW_MARKERS

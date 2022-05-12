@@ -217,22 +217,14 @@ public:
 
 	virtual FTextureRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips) final override
 	{ 
-		const uint32 NumSamples = 1;
-		const uint32 ExtData = 0;
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FNullDynamicRHI::RHIAsyncCreateTexture2D"), SizeX, SizeY, (EPixelFormat)Format)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(Flags)
+			.SetNumMips(NumMips)
+			.SetInitialState(InResourceState);
 
-		return this->RHICreateTexture(
-			FRHITextureCreateDesc::Create2D(
-				  TEXT("FNullDynamicRHI::RHIAsyncCreateTexture2D")
-				, { (int32)SizeX, (int32)SizeY}
-				, (EPixelFormat)Format
-				, FClearValueBinding::None
-				, Flags
-				, NumMips
-				, NumSamples
-				, ExtData
-				, InResourceState
-			)
-		);
+		return this->RHICreateTexture(Desc);
 	}
 
 	virtual void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) final override
@@ -253,18 +245,15 @@ public:
 		return 0; 
 	}
 	virtual FTexture2DRHIRef RHIAsyncReallocateTexture2D(FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus) final override
-	{ 
-		return this->RHICreateTexture(
-			FRHITextureCreateDesc::Create2D(
-				  TEXT("FNullDynamicRHI::RHIAsyncReallocateTexture2D")
-				, { NewSizeX, NewSizeY }
-				, Texture2D->GetFormat()
-				, Texture2D->GetClearBinding()
-				, Texture2D->GetFlags()
-				, NewMipCount
-				, Texture2D->GetNumSamples()
-			)
-		);
+	{
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FNullDynamicRHI::RHIAsyncReallocateTexture2D"), NewSizeX, NewSizeY, Texture2D->GetFormat())
+			.SetClearValue(Texture2D->GetClearBinding())
+			.SetFlags(Texture2D->GetFlags())
+			.SetNumMips(NewMipCount)
+			.SetNumSamples(Texture2D->GetNumSamples());
+
+		return this->RHICreateTexture(Desc);
 	}
 	virtual ETextureReallocationStatus RHIFinalizeAsyncReallocateTexture2D(FRHITexture2D* Texture2D, bool bBlockUntilCompleted) final override
 	{ 
@@ -388,15 +377,11 @@ public:
 
 	virtual FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport) final override
 	{
-		return this->RHICreateTexture(
-			FRHITextureCreateDesc::Create2D(
-				  TEXT("FNullDynamicRHI::RHIGetViewportBackBuffer")
-				, { 1, 1 }
-				, PF_B8G8R8A8
-				, FClearValueBinding::None
-				, ETextureCreateFlags::RenderTargetable
-			)
-		);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FNullDynamicRHI::RHIGetViewportBackBuffer"), 1, 1, PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::RenderTargetable);
+
+		return this->RHICreateTexture(Desc);
 	}
 
 	virtual void RHIBeginFrame() final override

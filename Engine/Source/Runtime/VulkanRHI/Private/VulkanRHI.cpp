@@ -1427,64 +1427,38 @@ void FVulkanDynamicRHI::RHISubmitCommandsAndFlushGPU()
 
 FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags)
 {
-	FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-		TEXT("VulkanTexture2DFromResource"),
-		{ (int32)SizeX, (int32)SizeY },
-		Format,
-		EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
-		Flags,
-		NumMips,
-		NumSamples
-	);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("VulkanTexture2DFromResource"), SizeX, SizeY, Format)
+		.SetClearValue(EnumHasAnyFlags(Flags, ETextureCreateFlags::DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent)
+		.SetFlags(Flags)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples);
 
 	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
 
 FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags)
 {
-	FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2DArray(
-		TEXT("VulkanTextureArrayFromResource"),
-		{ (int32)SizeX, (int32)SizeY },
-		Format,
-		EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
-		Flags,
-		ArraySize,
-		NumMips,
-		NumSamples
-	);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2DArray(TEXT("VulkanTextureArrayFromResource"), SizeX, SizeY, ArraySize, Format)
+		.SetClearValue(EnumHasAnyFlags(Flags, ETextureCreateFlags::DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent)
+		.SetFlags(Flags)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples);
 
 	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
 
 FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, ETextureCreateFlags Flags)
 {
-	FRHITextureCreateDesc Desc;
-
-	if (ArraySize > 1)
-	{
-		Desc = FRHITextureCreateDesc::CreateCubeArray(
-			TEXT("VulkanTextureCubeFromResource"),
-			Size,
-			Format,
-			EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
-			Flags,
-			ArraySize,
-			NumMips,
-			1
-		);
-	}
-	else
-	{
-		Desc = FRHITextureCreateDesc::CreateCube(
-			TEXT("VulkanTextureCubeFromResource"),
-			Size,
-			Format,
-			EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent,
-			Flags,
-			NumMips,
-			1
-		);
-	}
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create(TEXT("VulkanTextureCubeFromResource"), ArraySize > 1 ? ETextureDimension::TextureCubeArray : ETextureDimension::TextureCube)
+		.SetExtent(Size)
+		.SetArraySize(ArraySize)
+		.SetFormat(Format)
+		.SetClearValue(EnumHasAnyFlags(Flags, ETextureCreateFlags::DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent)
+		.SetFlags(Flags)
+		.SetNumMips(NumMips);
 
 	return new FVulkanTexture(*Device, Desc, Resource, false);
 }

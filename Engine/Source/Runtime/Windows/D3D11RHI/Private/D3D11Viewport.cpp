@@ -180,20 +180,10 @@ FD3D11Texture* FD3D11Viewport::GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, EPi
 	SRVDesc.Texture2D.MipLevels = 1;
 	VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->CreateShaderResourceView(BackBufferResource,&SRVDesc,BackBufferShaderResourceView.GetInitReference()), D3DRHI->GetDevice());
 
-	FRHITextureCreateDesc CreateDesc(
-		ETextureDimension::Texture2D,
-		ETextureCreateFlags::RenderTargetable,
-		PixelFormat,
-		FClearValueBinding(),
-		{ (int32)TextureDesc.Width, (int32)TextureDesc.Height },
-		1, // Depth
-		1, // ArraySize,
-		1, // NumMips,
-		1, // NumSamples
-		0, // ExtData
-		RHIGetDefaultResourceState(ETextureCreateFlags::RenderTargetable, false),
-		TEXT("FD3D11Viewport::GetSwapChainSurface")
-	);
+	const FRHITextureCreateDesc CreateDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("FD3D11Viewport::GetSwapChainSurface"), TextureDesc.Width, TextureDesc.Height, PixelFormat)
+		.SetFlags(ETextureCreateFlags::RenderTargetable)
+		.SetInitialState(RHIGetDefaultResourceState(ETextureCreateFlags::RenderTargetable, false));
 
 	FD3D11Texture* NewTexture = new FD3D11Texture(
 		CreateDesc,

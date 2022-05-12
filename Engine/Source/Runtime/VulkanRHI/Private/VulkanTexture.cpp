@@ -1056,16 +1056,14 @@ FTexture2DRHIRef FVulkanDynamicRHI::AsyncReallocateTexture2D_RenderThread(FRHICo
 	}
 
 	FVulkanTexture* OldTexture = FVulkanTexture::Cast(OldTextureRHI);
+	const FRHITextureDesc& OldDesc = OldTexture->GetDesc();
 
-	FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-		TEXT("AsyncReallocateTexture2D_RenderThread"),
-		{ NewSizeX, NewSizeY },
-		OldTexture->GetFormat(),
-		OldTexture->GetClearBinding(),
-		OldTexture->GetFlags(),
-		NewMipCount,
-		OldTexture->GetNumSamples()
-	);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("AsyncReallocateTexture2D_RenderThread"), NewSizeX, NewSizeY, OldDesc.Format)
+		.SetClearValue(OldDesc.ClearValue)
+		.SetFlags(OldDesc.Flags)
+		.SetNumMips(NewMipCount)
+		.SetNumSamples(OldDesc.NumSamples);
 
 	FVulkanTexture* NewTexture = new FVulkanTexture(*Device, Desc, nullptr);
 	FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext();
@@ -1078,16 +1076,15 @@ FTexture2DRHIRef FVulkanDynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* O
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	FVulkanTexture* OldTexture = FVulkanTexture::Cast(OldTextureRHI);
+	const FRHITextureDesc& OldDesc = OldTexture->GetDesc();
 
-	FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-		TEXT("AsyncReallocateTexture2D_RenderThread"),
-		{ NewSizeX, NewSizeY },
-		OldTexture->GetFormat(),
-		OldTexture->GetClearBinding(),
-		OldTexture->GetFlags(),
-		NewMipCount,
-		OldTexture->GetNumSamples()
-	);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("AsyncReallocateTexture2D_RenderThread"), NewSizeX, NewSizeY, OldDesc.Format)
+		.SetClearValue(OldDesc.ClearValue)
+		.SetFlags(OldDesc.Flags)
+		.SetNumMips(NewMipCount)
+		.SetNumSamples(OldDesc.NumSamples);
+
 	FVulkanTexture* NewTexture = new FVulkanTexture(*Device, Desc, nullptr);
 
 	DoAsyncReallocateTexture2D(Device->GetImmediateContext(), OldTexture, NewTexture, NewMipCount, NewSizeX, NewSizeY, RequestStatus);

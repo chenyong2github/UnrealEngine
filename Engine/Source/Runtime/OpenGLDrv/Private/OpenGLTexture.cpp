@@ -2227,58 +2227,41 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags TexCreateFlags)
 {
-	return new FOpenGLTexture(FRHITextureCreateDesc::Create2D(
-		TEXT("RHICreateTexture2DFromResource"),
-		{ (int32)SizeX, (int32)SizeY },
-		Format,
-		ClearValueBinding,
-		TexCreateFlags,
-		NumMips,
-		NumSamples
-	), Resource);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("RHICreateTexture2DFromResource"), SizeX, SizeY, Format)
+		.SetClearValue(ClearValueBinding)
+		.SetFlags(TexCreateFlags)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples);
+
+	return new FOpenGLTexture(Desc, Resource);
 }
 
 FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags TexCreateFlags)
 {
-	return new FOpenGLTexture(FRHITextureCreateDesc::Create2DArray(
-		TEXT("RHICreateTexture2DArrayFromResource"),
-		{ (int32)SizeX, (int32)SizeY },
-		Format,
-		ClearValueBinding,
-		TexCreateFlags,
-		ArraySize,
-		NumMips,
-		NumSamples
-	), Resource);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2DArray(TEXT("RHICreateTexture2DArrayFromResource"), SizeX, SizeY, ArraySize, Format)
+		.SetClearValue(ClearValueBinding)
+		.SetFlags(TexCreateFlags)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples);
+
+	return new FOpenGLTexture(Desc, Resource);
 }
 
 FTextureCubeRHIRef FOpenGLDynamicRHI::RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags TexCreateFlags)
 {
-	if (bArray)
-	{
-		return new FOpenGLTexture(FRHITextureCreateDesc::CreateCubeArray(
-			TEXT("RHICreateTextureCubeFromResource"),
-			Size,
-			Format,
-			ClearValueBinding,
-			TexCreateFlags,
-			ArraySize,
-			NumMips,
-			NumSamples
-		), Resource);
-	}
-	else
-	{
-		return new FOpenGLTexture(FRHITextureCreateDesc::CreateCube(
-			TEXT("RHICreateTextureCubeFromResource"),
-			Size,
-			Format,
-			ClearValueBinding,
-			TexCreateFlags,
-			NumMips,
-			NumSamples
-		), Resource);
-	}
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create(TEXT("RHICreateTextureCubeFromResource"), bArray ? ETextureDimension::TextureCube : ETextureDimension::TextureCubeArray)
+		.SetExtent(Size)
+		.SetArraySize(bArray ? ArraySize : 1)
+		.SetFormat(Format)
+		.SetClearValue(ClearValueBinding)
+		.SetFlags(TexCreateFlags)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples);
+
+	return new FOpenGLTexture(Desc, Resource);
 }
 
 void FOpenGLDynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestRHITexture, FTextureRHIRef& SrcRHITexture)

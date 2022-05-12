@@ -61,53 +61,31 @@ namespace
 	{
 		Buffer = webrtc::I420Buffer::Create(PlaneYDimensions.X, PlaneYDimensions.Y);
 
-		FRHITextureCreateDesc TextureDescY = FRHITextureCreateDesc::Create2D(
-			TEXT("Compute YUV Target"),
-			{ PlaneYDimensions.X, PlaneYDimensions.Y },
-			EPixelFormat::PF_R8,
-			FClearValueBinding::None,
-			TexCreate_UAV,
-			1,
-			1,
-			0,
-			ERHIAccess::UAVCompute);
+		const FRHITextureCreateDesc TextureDescY =
+			FRHITextureCreateDesc::Create2D(TEXT("Compute YUV Target"), PlaneYDimensions, PF_R8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::UAV)
+			.SetInitialState(ERHIAccess::UAVCompute);
 
-		FRHITextureCreateDesc TextureDescUV = FRHITextureCreateDesc::Create2D(
-			TEXT("Compute YUV Target"),
-			{ PlaneUVDimensions.X, PlaneUVDimensions.Y },
-			EPixelFormat::PF_R8,
-			FClearValueBinding::None,
-			TexCreate_UAV,
-			1,
-			1,
-			0,
-			ERHIAccess::UAVCompute);
+		const FRHITextureCreateDesc TextureDescUV =
+			FRHITextureCreateDesc::Create2D(TEXT("Compute YUV Target"), PlaneUVDimensions, PF_R8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::UAV)
+			.SetInitialState(ERHIAccess::UAVCompute);
 
 		TextureY = GDynamicRHI->RHICreateTexture(TextureDescY);
 		TextureU = GDynamicRHI->RHICreateTexture(TextureDescUV);
 		TextureV = GDynamicRHI->RHICreateTexture(TextureDescUV);
 
-		FRHITextureCreateDesc StagingDescY = FRHITextureCreateDesc::Create2D(
-			TEXT("YUV Output CPU Texture"),
-			{ PlaneYDimensions.X, PlaneYDimensions.Y },
-			EPixelFormat::PF_R8,
-			FClearValueBinding::None,
-			TexCreate_CPUReadback,
-			1,
-			1,
-			0,
-			ERHIAccess::Unknown);
+		const FRHITextureCreateDesc StagingDescY =
+			FRHITextureCreateDesc::Create2D(TEXT("YUV Output CPU Texture"), PlaneYDimensions, PF_R8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::CPUReadback);
 
-		FRHITextureCreateDesc StagingDescUV = FRHITextureCreateDesc::Create2D(
-			TEXT("YUV Output CPU Texture"),
-			{ PlaneUVDimensions.X, PlaneUVDimensions.Y },
-			EPixelFormat::PF_R8,
-			FClearValueBinding::None,
-			TexCreate_CPUReadback,
-			1,
-			1,
-			0,
-			ERHIAccess::Unknown);
+		const FRHITextureCreateDesc StagingDescUV =
+			FRHITextureCreateDesc::Create2D(TEXT("YUV Output CPU Texture"), PlaneUVDimensions, PF_R8)
+			.SetClearValue(FClearValueBinding::None)
+			.SetFlags(ETextureCreateFlags::CPUReadback);
 
 		StagingTextureY = GDynamicRHI->RHICreateTexture(StagingDescY);
 		StagingTextureU = GDynamicRHI->RHICreateTexture(StagingDescUV);
@@ -147,16 +125,10 @@ namespace
 
 		if (!TempFBCopy)
 		{
-			FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(
-				TEXT("PixelStreamingBlankTexture"),
-				{ (int32)SourceTexture->GetDesc().Extent.X, (int32)SourceTexture->GetDesc().Extent.Y },
-				SourceTexture->GetDesc().Format,
-				FClearValueBinding::None,
-				TexCreate_ShaderResource,
-				1,
-				1,
-				0,
-				ERHIAccess::Unknown);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("PixelStreamingBlankTexture"), SourceTexture->GetDesc().Extent, SourceTexture->GetDesc().Format)
+				.SetClearValue(FClearValueBinding::None)
+				.SetFlags(ETextureCreateFlags::ShaderResource);
 
 			TempFBCopy = GDynamicRHI->RHICreateTexture(Desc);
 		}
