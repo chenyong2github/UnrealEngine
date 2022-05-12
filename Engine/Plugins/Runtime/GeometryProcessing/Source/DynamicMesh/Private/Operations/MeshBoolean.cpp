@@ -885,8 +885,8 @@ bool FMeshBoolean::CollapseWouldHurtTriangleQuality(
 bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 	const FDynamicMesh3& Mesh, const TSet<int>& CutBoundaryEdgeSet, double DotTolerance, int SourceEID,
 	int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos, const FVector3d& EdgeDir,
-	bool bPreserveTriangleGroups, bool bPreserveUVsForMesh, bool bPreserveVertexUVs, bool bPreserveOverlayUVs, 
-	float UVEqualThresholdSq)
+	bool bPreserveTriangleGroups, bool bPreserveUVsForMesh, bool bPreserveVertexUVs, bool bPreserveOverlayUVs,
+	float UVEqualThresholdSq, bool bPreserveVertexNormals, float NormalEqualCosThreshold)
 {
 	// Search the edges connected to the vertex to find one in the boundary set that points in the opposite direction
 	// If we don't find that edge, or if there are other boundary/seam edges attached, we can't remove this vertex
@@ -955,6 +955,17 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 					FVector2f RemoveUV = Mesh.GetVertexUV(RemoveV);
 					FVector2f KeepUV = Mesh.GetVertexUV(KeepV);
 					if ( DistanceSquared( Lerp(OtherUV, KeepUV, LerpT), RemoveUV) > UVEqualThresholdSq)
+					{
+						bHasBadEdge = true;
+						return;
+					}
+				}
+				if (bPreserveVertexNormals && Mesh.HasVertexNormals())
+				{
+					FVector3f OtherN = Mesh.GetVertexNormal(OtherV);
+					FVector3f RemoveN = Mesh.GetVertexNormal(RemoveV);
+					FVector3f KeepN = Mesh.GetVertexNormal(KeepV);
+					if (Normalized(Lerp(OtherN, KeepN, LerpT)).Dot(Normalized(RemoveN)) < NormalEqualCosThreshold)
 					{
 						bHasBadEdge = true;
 						return;
@@ -1154,7 +1165,8 @@ void FMeshBoolean::SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* 
 						*CutMesh[MeshIdx], CutBoundaryEdgeSets[MeshIdx], DotTolerance,
 						SourceEID, RemoveV, RemoveVPos, KeepV, KeepVPos, EdgeDir, bPreserveTriangleGroups,
 						PreserveUVsOnlyForMesh == -1 || MeshIdx == PreserveUVsOnlyForMesh,
-						bPreserveVertexUVs, bPreserveOverlayUVs, UVDistortTolerance* UVDistortTolerance);
+						bPreserveVertexUVs, bPreserveOverlayUVs, UVDistortTolerance * UVDistortTolerance,
+						bPreserveVertexNormals, FMathf::Cos(NormalDistortTolerance * FMathf::DegToRad));
 				};
 
 				if (bHasBadEdge)

@@ -80,6 +80,10 @@ public:
 	bool bPreserveOverlayUVs = true;
 	/** When preserving UVs, sets maximum allowed change in UV coordinates from collapsing an edge, measured at the removed vertex */
 	float UVDistortTolerance = FMathf::ZeroTolerance;
+	/** Prevent simplification from distorting vertex normals */
+	bool bPreserveVertexNormals = true;
+	/** When preserving normals, sets maximum allowed change in normals from collapsing an edge, measured at the removed vertex in degrees */
+	float NormalDistortTolerance = .01f;
 
 
 	//
