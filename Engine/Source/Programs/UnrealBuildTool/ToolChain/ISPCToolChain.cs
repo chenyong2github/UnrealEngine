@@ -383,10 +383,10 @@ namespace UnrealBuildTool
 					Arguments.Add(String.Format("--cpu={0}", CpuTarget));
 				}
 
-				// PIC is needed for modular builds except on Windows
+				// PIC is needed for modular builds except on Microsoft platforms
 				if ((CompileEnvironment.bIsBuildingDLL ||
 					CompileEnvironment.bIsBuildingLibrary) &&
-					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Windows))
+					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Microsoft))
 				{
 					Arguments.Add("--pic");
 				}
@@ -588,10 +588,10 @@ namespace UnrealBuildTool
 					Arguments.Add("-O2");
 				}
 
-				// PIC is needed for modular builds except on Windows
+				// PIC is needed for modular builds except on Microsoft platforms
 				if ((CompileEnvironment.bIsBuildingDLL ||
 					CompileEnvironment.bIsBuildingLibrary) &&
-					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Windows))
+					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Microsoft))
 				{
 					Arguments.Add("--pic");
 				}
