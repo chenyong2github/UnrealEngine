@@ -40,6 +40,7 @@ UPhysicsAssetEditorOptions::UPhysicsAssetEditorOptions(const FObjectInitializer&
 	InterpolationSpeed = 50.f;
 
 	bShowConstraintsAsPoints = false;
+	bSimulationFloorCollisionEnabled = true;
 	ConstraintDrawSize = 1.0f;
 
 	// view options

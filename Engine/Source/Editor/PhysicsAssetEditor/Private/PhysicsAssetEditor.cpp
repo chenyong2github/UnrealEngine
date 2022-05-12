@@ -2280,22 +2280,25 @@ bool FPhysicsAssetEditor::IsNoGravitySimulationEnabled() const
 
 void FPhysicsAssetEditor::OnToggleSimulationFloorCollision()
 {
-	SharedData->bSimulationFloorCollisionEnabled = !SharedData->bSimulationFloorCollisionEnabled;
-
-	// Update collision for floor
-	if (PersonaToolkit)
+	if (SharedData && SharedData->EditorOptions)
 	{
-		TSharedRef<IPersonaPreviewScene> PersonaPreviewScene = PersonaToolkit->GetPreviewScene();
+		SharedData->EditorOptions->bSimulationFloorCollisionEnabled = !SharedData->EditorOptions->bSimulationFloorCollisionEnabled;
 
-		if (UStaticMeshComponent* FloorMeshComponent = const_cast<UStaticMeshComponent*>(PersonaPreviewScene->GetFloorMeshComponent()))
+		// Update collision for floor
+		if (PersonaToolkit)
 		{
-			if (SharedData->bSimulationFloorCollisionEnabled)
+			TSharedRef<IPersonaPreviewScene> PersonaPreviewScene = PersonaToolkit->GetPreviewScene();
+
+			if (UStaticMeshComponent* FloorMeshComponent = const_cast<UStaticMeshComponent*>(PersonaPreviewScene->GetFloorMeshComponent()))
 			{
-				FloorMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			}
-			else
-			{
-				FloorMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				if (SharedData->EditorOptions->bSimulationFloorCollisionEnabled)
+				{
+					FloorMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+				}
+				else
+				{
+					FloorMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				}
 			}
 		}
 	}
@@ -2303,7 +2306,7 @@ void FPhysicsAssetEditor::OnToggleSimulationFloorCollision()
 
 bool FPhysicsAssetEditor::IsSimulationFloorCollisionEnabled() const
 {
-	return SharedData->bSimulationFloorCollisionEnabled;
+	return SharedData && SharedData->EditorOptions && SharedData->EditorOptions->bSimulationFloorCollisionEnabled;
 }
 
 bool FPhysicsAssetEditor::IsFullSimulation() const

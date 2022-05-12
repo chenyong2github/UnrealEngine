@@ -111,6 +111,10 @@ class UNREALED_API UPhysicsAssetEditorOptions : public UObject
 	UPROPERTY(config)
 	uint32 bRenderOnlySelectedConstraints:1;
 
+	/* Toggle collisions with floor in the simulation */
+	UPROPERTY(config)
+	uint32 bSimulationFloorCollisionEnabled:1;
+
 	/** Controls how large constraints are drawn in Physics Asset Editor */
 	UPROPERTY(config)
 	float ConstraintDrawSize;
