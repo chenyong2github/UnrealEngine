@@ -2083,8 +2083,8 @@ public:
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
 	TArray<FRenderBounds> PrimitiveModifiedBounds[GDF_Num];
 
-	TArray<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
-	TArray<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
+	TSet<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
+	TSet<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
 	TArray<FHeightFieldPrimitiveRemoveInfo> PendingHeightFieldRemoveOps;
 
 	int32 HeightFieldAtlasGeneration;
