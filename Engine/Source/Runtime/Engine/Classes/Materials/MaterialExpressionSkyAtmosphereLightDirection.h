@@ -14,7 +14,7 @@ class UMaterialExpressionSkyAtmosphereLightDirection : public UMaterialExpressio
 	GENERATED_UCLASS_BODY()
 
 	/** Index of the atmosphere light to sample. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTextureCoordinate, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTextureCoordinate, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", ShowAsInputPin = "Primary"))
 	int32 LightIndex;
 
 	//~ Begin UMaterialExpression Interface

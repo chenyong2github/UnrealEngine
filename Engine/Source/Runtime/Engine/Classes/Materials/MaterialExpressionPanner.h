@@ -23,14 +23,14 @@ class UMaterialExpressionPanner : public UMaterialExpression
 	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Vector2 speed scale, if specified"))
 	FExpressionInput Speed;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionPanner)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionPanner, meta = (OverridingInputProperty = "Speed"))
 	float SpeedX;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionPanner)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionPanner, meta = (OverridingInputProperty = "Speed"))
 	float SpeedY;
 
 	/** only used if Coordinate is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionPanner)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionPanner, meta = (OverridingInputProperty = "Coordinate"))
 	uint32 ConstCoordinate;
 
 	// Output only the fractional part of the pan calculation for greater precision.

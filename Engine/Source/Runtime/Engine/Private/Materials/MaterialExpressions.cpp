@@ -934,8 +934,10 @@ void UMaterialExpression::PostDuplicate(bool bDuplicateForPIE)
 
 #if WITH_EDITOR
 
-FProperty* UMaterialExpression::GetInputPinProperty(int32 PinIndex)
+TArray<FProperty*> UMaterialExpression::GetInputPinProperty(int32 PinIndex)
 {
+	// Find all UPROPERTYs associated with this input pin
+	TArray<FProperty*> Properties;
 	// Explicit input pins are before property input pins
 	TArray<FProperty*> PropertyInputs = GetPropertyInputs();
 	const int32 NumInputs = GetInputs().Num();
@@ -943,7 +945,8 @@ FProperty* UMaterialExpression::GetInputPinProperty(int32 PinIndex)
 	{
 		FExpressionInput* Input = GetInput(PinIndex);
 
-		// Find the UPROPERTY that has OverridingInputProperty meta data pointing to the expression input.
+		// Find the UPROPERTYs that have OverridingInputProperty meta data pointing to the expression input.
+		// There can be multiple scalar entries together forming a vector parameter, e.g. DecalMipmapLevel node has FExpressionInput TextureSize <-> float ConstWidth/ConstHeight.
 		static FName OverridingInputPropertyMetaData(TEXT("OverridingInputProperty"));
 		for (TFieldIterator<FProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
 		{
@@ -956,7 +959,7 @@ FProperty* UMaterialExpression::GetInputPinProperty(int32 PinIndex)
 				{
 					if (Input == StructProp->ContainerPtrToValuePtr<FExpressionInput>(this))
 					{
-						return Property;
+						Properties.Add(Property);
 					}
 				}
 			}
@@ -970,11 +973,11 @@ FProperty* UMaterialExpression::GetInputPinProperty(int32 PinIndex)
 			FProperty* Property = *InputIt;
 			if (PropertyName == Property->GetFName())
 			{
-				return Property;
+				Properties.Add(Property);
 			}
 		}
 	}
-	return nullptr;
+	return Properties;
 }
 
 FName UMaterialExpression::GetInputPinSubCategory(int32 PinIndex)
@@ -982,12 +985,17 @@ FName UMaterialExpression::GetInputPinSubCategory(int32 PinIndex)
 	FName PinSubCategory;
 
 	// Find the UPROPERTY associated with the pin
-	FProperty* Property = GetInputPinProperty(PinIndex);
-	if (Property)
+	TArray<FProperty*> Properties = GetInputPinProperty(PinIndex);
+	if (Properties.Num() == 1)
 	{
 		// This is the UPROPERTY matching with the target input
+		FProperty* Property = Properties[0];
 		FFieldClass* PropertyClass = Property->GetClass();
 		if (PropertyClass == FFloatProperty::StaticClass())
+		{
+			PinSubCategory = UMaterialGraphSchema::PSC_Red;
+		}
+		else if (PropertyClass == FDoubleProperty::StaticClass())
 		{
 			PinSubCategory = UMaterialGraphSchema::PSC_Red;
 		}
@@ -1028,6 +1036,19 @@ FName UMaterialExpression::GetInputPinSubCategory(int32 PinIndex)
 			}	
 		}
 	}
+	// There can be multiple scalar entries together forming a vector2/3/4.
+	else if (Properties.Num() == 2)
+	{
+		PinSubCategory = UMaterialGraphSchema::PSC_RG;
+	}
+	else if (Properties.Num() == 3)
+	{
+		PinSubCategory = UMaterialGraphSchema::PSC_RGB;
+	}
+	else if (Properties.Num() == 4)
+	{
+		PinSubCategory = UMaterialGraphSchema::PSC_Vector4;
+	}
 
 	return PinSubCategory;
 }
@@ -1035,10 +1056,10 @@ FName UMaterialExpression::GetInputPinSubCategory(int32 PinIndex)
 UObject* UMaterialExpression::GetInputPinSubCategoryObject(int32 PinIndex)
 {
 	UObject* PinSubCategoryObject = nullptr;
-	FProperty* Property = GetInputPinProperty(PinIndex);
-	if (Property)
+	TArray<FProperty*> Properties = GetInputPinProperty(PinIndex);
+	if (Properties.Num() > 0)
 	{
-		if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+		if (FByteProperty* ByteProperty = CastField<FByteProperty>(Properties[0]))
 		{
 			PinSubCategoryObject = ByteProperty->GetIntPropertyEnum();
 		}
@@ -1049,138 +1070,171 @@ UObject* UMaterialExpression::GetInputPinSubCategoryObject(int32 PinIndex)
 void UMaterialExpression::PinDefaultValueChanged(int32 PinIndex, const FString& DefaultValue)
 {
 	// Update the default value of the expression input when pin value changes
-	// Find the UPROPERTY that has OverridingInputProperty meta data pointing to the input, override its value.
-	FProperty* Property = GetInputPinProperty(PinIndex);
-	if (Property)
+	// Find the UPROPERTYs that have OverridingInputProperty meta data pointing to the input, override their values.
+	TArray<FProperty*> Properties = GetInputPinProperty(PinIndex);
+	if (Properties.Num() > 0)
 	{
-		const FString& ClampMin = Property->GetMetaData(TEXT("ClampMin"));
-		const FString& ClampMax = Property->GetMetaData(TEXT("ClampMax"));
+		TArray<FString> PropertyValues;
+		if (Properties.Num() == 1)
+		{
+			PropertyValues.Add(DefaultValue);
+		}
+		else if (Properties.Num() == 2)
+		{
+			// Vector2 is formatted as (X=0.0, Y=0.0)
+			FVector2D Value;
+			Value.InitFromString(DefaultValue);
+			PropertyValues.Add(FString::SanitizeFloat(Value.X));
+			PropertyValues.Add(FString::SanitizeFloat(Value.Y));
+		}
+		else
+		{
+			// Vector3/4 are formatted as numbers separated by commas
+			DefaultValue.ParseIntoArray(PropertyValues, TEXT(","), true);
+			check(PropertyValues.Num() == Properties.Num());
+		}
 
-		FFieldClass* PropertyClass = Property->GetClass();
-		if (PropertyClass == FFloatProperty::StaticClass())
+		for (int32 i = 0; i < Properties.Num(); ++i)
 		{
-			float Value = FCString::Atof(*DefaultValue);
-			Value = ClampMin.Len() ? (FMath::Max<float>(FCString::Atof(*ClampMin), Value)) : Value;
-			Value = ClampMax.Len() ? (FMath::Min<float>(FCString::Atof(*ClampMax), Value)) : Value;
-			FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property);
-			FloatProperty->SetPropertyValue_InContainer(this, Value);
-		}
-		else if (PropertyClass == FIntProperty::StaticClass())
-		{
-			int32 Value = FCString::Atoi(*DefaultValue);
-			Value = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), Value)) : Value;
-			Value = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), Value)) : Value;
-			FIntProperty* IntProperty = CastField<FIntProperty>(Property);
-			IntProperty->SetPropertyValue_InContainer(this, Value);
-		}
-		else if (PropertyClass == FUInt32Property::StaticClass())
-		{	
-			int32 IntValue = FCString::Atoi(*DefaultValue);
-			IntValue = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), IntValue)) : IntValue;
-			IntValue = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), IntValue)) : IntValue;
-			// Make sure the value is not negative
-			uint32 Value = (uint32)FMath::Max(IntValue, 0);
-			FUInt32Property* UInt32Property = CastField<FUInt32Property>(Property);
-			UInt32Property->SetPropertyValue_InContainer(this, Value);
-		}
-		else if (PropertyClass == FByteProperty::StaticClass())
-		{
-			FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
-			uint8 Value;
-			UEnum* Enum = ByteProperty->GetIntPropertyEnum();
-			if (Enum)
+			FProperty* Property = Properties[i];
+			const FString& ClampMin = Property->GetMetaData(TEXT("ClampMin"));
+			const FString& ClampMax = Property->GetMetaData(TEXT("ClampMax"));
+
+			FString PropertyValue = PropertyValues[i];
+			FFieldClass* PropertyClass = Property->GetClass();
+			if (PropertyClass == FFloatProperty::StaticClass())
 			{
-				Value = (uint8)Enum->GetValueByName(FName(DefaultValue));
+				float Value = FCString::Atof(*PropertyValue);
+				Value = ClampMin.Len() ? (FMath::Max<float>(FCString::Atof(*ClampMin), Value)) : Value;
+				Value = ClampMax.Len() ? (FMath::Min<float>(FCString::Atof(*ClampMax), Value)) : Value;
+				FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property);
+				FloatProperty->SetPropertyValue_InContainer(this, Value);
 			}
-			else
+			else if (PropertyClass == FDoubleProperty::StaticClass())
 			{
-				int32 IntValue = FCString::Atoi(*DefaultValue);
+				double Value = FCString::Atod(*PropertyValue);
+				Value = ClampMin.Len() ? (FMath::Max<double>(FCString::Atod(*ClampMin), Value)) : Value;
+				Value = ClampMax.Len() ? (FMath::Min<double>(FCString::Atod(*ClampMax), Value)) : Value;
+				FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(Property);
+				DoubleProperty->SetPropertyValue_InContainer(this, Value);
+			}
+			else if (PropertyClass == FIntProperty::StaticClass())
+			{
+				int32 Value = FCString::Atoi(*PropertyValue);
+				Value = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), Value)) : Value;
+				Value = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), Value)) : Value;
+				FIntProperty* IntProperty = CastField<FIntProperty>(Property);
+				IntProperty->SetPropertyValue_InContainer(this, Value);
+			}
+			else if (PropertyClass == FUInt32Property::StaticClass())
+			{
+				int32 IntValue = FCString::Atoi(*PropertyValue);
 				IntValue = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), IntValue)) : IntValue;
 				IntValue = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), IntValue)) : IntValue;
-				// Make sure the value doesn't exceed byte limit
-				Value = (uint8)FMath::Max(FMath::Min(IntValue, 255), 0);
-			}	
-			ByteProperty->SetPropertyValue_InContainer(this, Value);
-		}
-		else if (PropertyClass == FBoolProperty::StaticClass())
-		{
-			bool Value = FCString::ToBool(*DefaultValue);
-			FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
-			BoolProperty->SetPropertyValue_InContainer(this, Value);
-		}
-		else if (PropertyClass == FStructProperty::StaticClass())
-		{
-			UScriptStruct* Struct = ((FStructProperty*)Property)->Struct;
-			if (Struct == TBaseStructure<FLinearColor>::Get())
+				// Make sure the value is not negative
+				uint32 Value = (uint32)FMath::Max(IntValue, 0);
+				FUInt32Property* UInt32Property = CastField<FUInt32Property>(Property);
+				UInt32Property->SetPropertyValue_InContainer(this, Value);
+			}
+			else if (PropertyClass == FByteProperty::StaticClass())
 			{
-				FLinearColor* ColorProperty = Property->ContainerPtrToValuePtr<FLinearColor>(this);
-				if (Property->HasMetaData(TEXT("HideAlphaChannel")))
+				FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
+				uint8 Value;
+				UEnum* Enum = ByteProperty->GetIntPropertyEnum();
+				if (Enum)
 				{
-					// This is a 3 element vector
-					TArray<FString> Elements;
-					DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
-					check(Elements.Num() == 3);
-					ColorProperty->R = FCString::Atof(*Elements[0]);
-					ColorProperty->G = FCString::Atof(*Elements[1]);
-					ColorProperty->B = FCString::Atof(*Elements[2]);
+					Value = (uint8)Enum->GetValueByName(FName(PropertyValue));
 				}
 				else
 				{
-					// This is a 4 element vector
-					ColorProperty->InitFromString(DefaultValue);
+					int32 IntValue = FCString::Atoi(*PropertyValue);
+					IntValue = ClampMin.Len() ? (FMath::Max<int32>(FCString::Atoi(*ClampMin), IntValue)) : IntValue;
+					IntValue = ClampMax.Len() ? (FMath::Min<int32>(FCString::Atoi(*ClampMax), IntValue)) : IntValue;
+					// Make sure the value doesn't exceed byte limit
+					Value = (uint8)FMath::Max(FMath::Min(IntValue, 255), 0);
+				}
+				ByteProperty->SetPropertyValue_InContainer(this, Value);
+			}
+			else if (PropertyClass == FBoolProperty::StaticClass())
+			{
+				bool Value = FCString::ToBool(*PropertyValue);
+				FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
+				BoolProperty->SetPropertyValue_InContainer(this, Value);
+			}
+			else if (PropertyClass == FStructProperty::StaticClass())
+			{
+				UScriptStruct* Struct = ((FStructProperty*)Property)->Struct;
+				if (Struct == TBaseStructure<FLinearColor>::Get())
+				{
+					FLinearColor* ColorProperty = Property->ContainerPtrToValuePtr<FLinearColor>(this);
+					if (Property->HasMetaData(TEXT("HideAlphaChannel")))
+					{
+						// This is a 3 element vector
+						TArray<FString> Elements;
+						PropertyValue.ParseIntoArray(Elements, TEXT(","), true);
+						check(Elements.Num() == 3);
+						ColorProperty->R = FCString::Atof(*Elements[0]);
+						ColorProperty->G = FCString::Atof(*Elements[1]);
+						ColorProperty->B = FCString::Atof(*Elements[2]);
+					}
+					else
+					{
+						// This is a 4 element vector
+						ColorProperty->InitFromString(PropertyValue);
+					}
+				}
+				else if (Struct == TBaseStructure<FVector4>::Get())
+				{
+					TArray<FString> Elements;
+					PropertyValue.ParseIntoArray(Elements, TEXT(","), true);
+					check(Elements.Num() == 4);
+					FVector4* Value = Property->ContainerPtrToValuePtr<FVector4>(this);
+					Value->X = FCString::Atod(*Elements[0]);
+					Value->Y = FCString::Atod(*Elements[1]);
+					Value->Z = FCString::Atod(*Elements[2]);
+					Value->W = FCString::Atod(*Elements[3]);
+				}
+				else if (Struct == TVariantStructure<FVector4d>::Get())
+				{
+					TArray<FString> Elements;
+					PropertyValue.ParseIntoArray(Elements, TEXT(","), true);
+					check(Elements.Num() == 4);
+					FVector4d* Value = Property->ContainerPtrToValuePtr<FVector4d>(this);
+					Value->X = FCString::Atod(*Elements[0]);
+					Value->Y = FCString::Atod(*Elements[1]);
+					Value->Z = FCString::Atod(*Elements[2]);
+					Value->W = FCString::Atod(*Elements[3]);
+				}
+				else if (Struct == TBaseStructure<FVector>::Get())
+				{
+					TArray<FString> Elements;
+					PropertyValue.ParseIntoArray(Elements, TEXT(","), true);
+					check(Elements.Num() == 3);
+					FVector* Value = Property->ContainerPtrToValuePtr<FVector>(this);
+					Value->X = FCString::Atod(*Elements[0]);
+					Value->Y = FCString::Atod(*Elements[1]);
+					Value->Z = FCString::Atod(*Elements[2]);
+				}
+				else if (Struct == TVariantStructure<FVector3f>::Get())
+				{
+					TArray<FString> Elements;
+					PropertyValue.ParseIntoArray(Elements, TEXT(","), true);
+					check(Elements.Num() == 3);
+					FVector3f* Value = Property->ContainerPtrToValuePtr<FVector3f>(this);
+					Value->X = FCString::Atof(*Elements[0]);
+					Value->Y = FCString::Atof(*Elements[1]);
+					Value->Z = FCString::Atof(*Elements[2]);
+				}
+				else if (Struct == TBaseStructure<FVector2D>::Get())
+				{
+					FVector2D* Value = Property->ContainerPtrToValuePtr<FVector2D>(this);
+					Value->InitFromString(PropertyValue);
 				}
 			}
-			else if (Struct == TBaseStructure<FVector4>::Get())
-			{
-				TArray<FString> Elements;
-				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
-				check(Elements.Num() == 4);
-				FVector4* Value = Property->ContainerPtrToValuePtr<FVector4>(this);
-				Value->X = FCString::Atod(*Elements[0]);
-				Value->Y = FCString::Atod(*Elements[1]);
-				Value->Z = FCString::Atod(*Elements[2]);
-				Value->W = FCString::Atod(*Elements[3]);
-			}
-			else if (Struct == TVariantStructure<FVector4d>::Get())
-			{
-				TArray<FString> Elements;
-				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
-				check(Elements.Num() == 4);
-				FVector4d* Value = Property->ContainerPtrToValuePtr<FVector4d>(this);
-				Value->X = FCString::Atod(*Elements[0]);
-				Value->Y = FCString::Atod(*Elements[1]);
-				Value->Z = FCString::Atod(*Elements[2]);
-				Value->W = FCString::Atod(*Elements[3]);
-			}
-			else if (Struct == TBaseStructure<FVector>::Get())
-			{
-				TArray<FString> Elements;
-				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
-				check(Elements.Num() == 3);
-				FVector* Value = Property->ContainerPtrToValuePtr<FVector>(this);
-				Value->X = FCString::Atod(*Elements[0]);
-				Value->Y = FCString::Atod(*Elements[1]);
-				Value->Z = FCString::Atod(*Elements[2]);
-			}
-			else if (Struct == TVariantStructure<FVector3f>::Get())
-			{
-				TArray<FString> Elements;
-				DefaultValue.ParseIntoArray(Elements, TEXT(","), true);
-				check(Elements.Num() == 3);
-				FVector3f* Value = Property->ContainerPtrToValuePtr<FVector3f>(this);
-				Value->X = FCString::Atof(*Elements[0]);
-				Value->Y = FCString::Atof(*Elements[1]);
-				Value->Z = FCString::Atof(*Elements[2]);
-			}
-			else if (Struct == TBaseStructure<FVector2D>::Get())
-			{
-				FVector2D* Value = Property->ContainerPtrToValuePtr<FVector2D>(this);
-				Value->InitFromString(DefaultValue);
-			}
-		}
 
-		FPropertyChangedEvent Event(Property);
-		PostEditChangeProperty(Event);
+			FPropertyChangedEvent Event(Property);
+			PostEditChangeProperty(Event);
+		}
 
 		// Update the expression preview and the material to reflect the change
 		Modify();
@@ -1194,41 +1248,51 @@ void UMaterialExpression::PinDefaultValueChanged(int32 PinIndex, const FString& 
 
 FString UMaterialExpression::GetInputPinDefaultValue(int32 PinIndex)
 {
-	// Find the UPROPERTY for the input pin, retrieve its value.
-	FProperty* Property = GetInputPinProperty(PinIndex);
-	if (Property)
+	TArray<FString> PropertyValues;
+
+	// Find the UPROPERTYs for the input pin, retrieve their values.
+	TArray<FProperty*> Properties = GetInputPinProperty(PinIndex);
+	for (int32 i = 0; i < Properties.Num(); ++i)
 	{
 		// This is the UPROPERTY matching with the target input
+		FProperty* Property = Properties[i];
+		FString PropertyValue;
 		FFieldClass* PropertyClass = Property->GetClass();
 		if (PropertyClass == FFloatProperty::StaticClass())
 		{
 			FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property);
 			float Value = FloatProperty->GetPropertyValue_InContainer(this);
-			return FString::SanitizeFloat(Value);
+			PropertyValue = FString::SanitizeFloat(Value);
+		}
+		else if (PropertyClass == FDoubleProperty::StaticClass())
+		{
+			FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(Property);
+			double Value = DoubleProperty->GetPropertyValue_InContainer(this);
+			PropertyValue = LexToString(Value);
 		}
 		else if (PropertyClass == FIntProperty::StaticClass())
 		{
 			FIntProperty* IntProperty = CastField<FIntProperty>(Property);
 			int32 Value = IntProperty->GetPropertyValue_InContainer(this);
-			return FString::FromInt(Value);
+			PropertyValue = FString::FromInt(Value);
 		}
 		else if (PropertyClass == FUInt32Property::StaticClass())
 		{
 			FUInt32Property* UInt32Property = CastField<FUInt32Property>(Property);
 			uint32 Value = UInt32Property->GetPropertyValue_InContainer(this);
-			return FString::FromInt((int32)Value);
+			PropertyValue = FString::FromInt((int32)Value);
 		}
 		else if (PropertyClass == FByteProperty::StaticClass())
 		{
 			FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
 			uint8 Value = ByteProperty->GetPropertyValue_InContainer(this);
-			return ByteProperty->Enum ? ByteProperty->Enum->GetDisplayNameTextByValue(Value).ToString() : FString::FromInt(Value);
+			PropertyValue = (ByteProperty->Enum ? ByteProperty->Enum->GetDisplayNameTextByValue(Value).ToString() : FString::FromInt(Value));
 		}
 		else if (PropertyClass == FBoolProperty::StaticClass())
 		{
 			FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
 			bool Value = BoolProperty->GetPropertyValue_InContainer(this);
-			return Value ? TEXT("true") : TEXT("false");
+			PropertyValue = (Value ? TEXT("true") : TEXT("false"));
 		}
 		else if (PropertyClass == FStructProperty::StaticClass())
 		{
@@ -1239,40 +1303,65 @@ FString UMaterialExpression::GetInputPinDefaultValue(int32 PinIndex)
 				if (Property->HasMetaData(TEXT("HideAlphaChannel")))
 				{
 					// This is a 3 element vector
-					return FString::SanitizeFloat(Value.R) + FString(TEXT(",")) + FString::SanitizeFloat(Value.G) + FString(TEXT(",")) + FString::SanitizeFloat(Value.B);
+					PropertyValue = FString::SanitizeFloat(Value.R) + FString(TEXT(",")) + FString::SanitizeFloat(Value.G) + FString(TEXT(",")) + FString::SanitizeFloat(Value.B);
 				}
 				else
 				{
 					// This is a 4 element vector
-					return Value.ToString();
+					PropertyValue = Value.ToString();
 				}
 			}
 			else if (Struct == TBaseStructure<FVector4>::Get())
 			{
 				FVector4 Value = *Property->ContainerPtrToValuePtr<FVector4>(this);		
-				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z) + FString(TEXT(",")) + FString::SanitizeFloat(Value.W);
+				PropertyValue = FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z) + FString(TEXT(",")) + FString::SanitizeFloat(Value.W);
 			}
 			else if (Struct == TVariantStructure<FVector4d>::Get())
 			{
 				FVector4d Value = *Property->ContainerPtrToValuePtr<FVector4d>(this);		
-				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z) + FString(TEXT(",")) + FString::SanitizeFloat(Value.W);
+				PropertyValue = FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z) + FString(TEXT(",")) + FString::SanitizeFloat(Value.W);
 			}
 			else if (Struct == TBaseStructure<FVector>::Get())
 			{
 				FVector Value = *Property->ContainerPtrToValuePtr<FVector>(this);
-				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z);
+				PropertyValue = FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z);
 			}
 			else if (Struct == TVariantStructure<FVector3f>::Get())
 			{
 				FVector3f Value = *Property->ContainerPtrToValuePtr<FVector3f>(this);
-				return FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z);
+				PropertyValue = FString::SanitizeFloat(Value.X) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Y) + FString(TEXT(",")) + FString::SanitizeFloat(Value.Z);
 			}
 			else if (Struct == TBaseStructure<FVector2D>::Get())
 			{
 				FVector2D* Value = Property->ContainerPtrToValuePtr<FVector2D>(this);
-				return Value->ToString();
+				PropertyValue = Value->ToString();
 			}
 		}
+
+		PropertyValues.Add(PropertyValue);
+	}
+
+	check(PropertyValues.Num() == Properties.Num());
+	if (Properties.Num() == 1)
+	{
+		return PropertyValues[0];
+	}
+	else if (Properties.Num() == 2)
+	{
+		// Vector2 is formatted as (X=0.0, Y=0.0)
+		float X = FCString::Atof(*PropertyValues[0]);
+		float Y = FCString::Atof(*PropertyValues[1]);
+		FVector2D Value(X, Y);
+		return Value.ToString();
+	}
+	// Vector3/4 are formatted as numbers separated by commas
+	else if (Properties.Num() == 3)
+	{
+		return PropertyValues[0] + TEXT(",") + PropertyValues[1] + TEXT(",") + PropertyValues[2];
+	}
+	else if (Properties.Num() == 4)
+	{
+		return PropertyValues[0] + TEXT(",") + PropertyValues[1] + TEXT(",") + PropertyValues[2] + TEXT(",") + PropertyValues[3];
 	}
 
 	return TEXT("");
@@ -1301,6 +1390,7 @@ TArray<FProperty*> UMaterialExpression::GetPropertyInputs() const
 			// Check if the property type fits within the allowed widget types
 			FFieldClass* PropertyClass = Property->GetClass();
 			if (PropertyClass == FFloatProperty::StaticClass()
+				|| PropertyClass == FDoubleProperty::StaticClass()
 				|| PropertyClass == FIntProperty::StaticClass()
 				|| PropertyClass == FUInt32Property::StaticClass()
 				|| PropertyClass == FByteProperty::StaticClass()
@@ -5067,15 +5157,6 @@ int32 UMaterialExpressionClamp::Compile(class FMaterialCompiler* Compiler, int32
 void UMaterialExpressionClamp::GetCaption(TArray<FString>& OutCaptions) const
 {
 	FString	NewCaption = TEXT( "Clamp" );
-
-	if (ClampMode == CMODE_ClampMin || ClampMode == CMODE_Clamp)
-	{
-		NewCaption += Min.GetTracedInput().Expression ? TEXT(" (Min)") : FString::Printf(TEXT(" (Min=%.4g)"), MinDefault);
-	}
-	if (ClampMode == CMODE_ClampMax || ClampMode == CMODE_Clamp)
-	{
-		NewCaption += Max.GetTracedInput().Expression ? TEXT(" (Max)") : FString::Printf(TEXT(" (Max=%.4g)"), MaxDefault);
-	}
 	OutCaptions.Add(NewCaption);
 }
 #endif // WITH_EDITOR

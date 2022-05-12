@@ -22,7 +22,7 @@ class UMaterialExpressionSamplePhysicsVectorField : public UMaterialExpression
 	FExpressionInput WorldPosition;
 
 	/** Target Type to be accessed */
-	UPROPERTY(EditAnywhere, Category = "Field Setup", meta = (DisplayName = "Target Type"))
+	UPROPERTY(EditAnywhere, Category = "Field Setup", meta = (DisplayName = "Target Type", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<EFieldVectorType> FieldTarget;
 
 	//~ Begin UMaterialExpression Interface
@@ -42,7 +42,7 @@ class UMaterialExpressionSamplePhysicsScalarField : public UMaterialExpression
 	FExpressionInput WorldPosition;
 
 	/** Target Type to be accessed */
-	UPROPERTY(EditAnywhere, Category = "Field Setup", meta = (DisplayName = "Target Type"))
+	UPROPERTY(EditAnywhere, Category = "Field Setup", meta = (DisplayName = "Target Type", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<EFieldScalarType> FieldTarget;
 
 	//~ Begin UMaterialExpression Interface
@@ -62,7 +62,7 @@ class UMaterialExpressionSamplePhysicsIntegerField : public UMaterialExpression
 	FExpressionInput WorldPosition;
 
 	/** Target Type to be accessed */
-	UPROPERTY(EditAnywhere, Category = "Field Setup", meta = (DisplayName = "Target Type"))
+	UPROPERTY(EditAnywhere, Category = "Field Setup", meta = (DisplayName = "Target Type", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<EFieldIntegerType> FieldTarget;
 
 	//~ Begin UMaterialExpression Interface

@@ -18,7 +18,7 @@ class UMaterialExpressionPerInstanceCustomData : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionPerInstanceCustomData, meta = (OverridingInputProperty = "DefaultValue"))
 	float ConstDefaultValue;
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionPerInstanceCustomData)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionPerInstanceCustomData, meta = (ShowAsInputPin = "Advanced"))
 	uint32 DataIndex;
 
 	//~ Begin UMaterialExpression Interface
@@ -40,7 +40,7 @@ class UMaterialExpressionPerInstanceCustomData3Vector : public UMaterialExpressi
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionPerInstanceCustomData, meta = (OverridingInputProperty = "DefaultValue"))
 	FLinearColor ConstDefaultValue;
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionPerInstanceCustomData)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionPerInstanceCustomData, meta = (ShowAsInputPin = "Advanced"))
 	uint32 DataIndex;
 
 	//~ Begin UMaterialExpression Interface

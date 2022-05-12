@@ -58,21 +58,21 @@ class UMaterialExpressionVectorNoise : public UMaterialExpression
 	FExpressionInput Position;
 
 	/** Noise function, affects performance and look */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorNoise, meta = (DisplayName = "Function"))
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorNoise, meta = (DisplayName = "Function", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EVectorNoiseFunction> NoiseFunction;
 
 	/** For noise functions where applicable, lower numbers are faster and lower quality, higher numbers are slower and higher quality */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionVectorNoise, meta=(UIMin = "1", UIMax = "4"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionVectorNoise, meta=(UIMin = "1", UIMax = "4", ShowAsInputPin = "Advanced"))
 	int32 Quality;
 
 	/** Whether tile the noise pattern, useful for baking to seam-free repeating textures */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorNoise)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorNoise, meta = (ShowAsInputPin = "Advanced"))
 	uint32 bTiling:1;
 
 	/** How many units in each tile (if Tiling is on) 
 	  * For Perlin noise functions, Tile Size must be a multiple of three
 	  */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorNoise, meta=(UIMin = "4"))
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorNoise, meta=(UIMin = "4", ShowAsInputPin = "Advanced"))
 	uint32 TileSize;
 
 	//~ Begin UMaterialExpression Interface

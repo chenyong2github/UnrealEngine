@@ -26,7 +26,7 @@ class UMaterialExpressionRotateAboutAxis : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Position;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotateAboutAxis)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotateAboutAxis, meta = (ShowAsInputPin = "Advanced"))
 	float Period;
 
 

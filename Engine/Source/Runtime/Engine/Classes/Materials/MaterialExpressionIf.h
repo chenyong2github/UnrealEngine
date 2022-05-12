@@ -29,11 +29,11 @@ class UMaterialExpressionIf : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput ALessThanB;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionIf)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionIf, meta = (ShowAsInputPin = "Advanced"))
 	float EqualsThreshold;
 
 	/** only used if B is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionIf)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionIf, meta = (OverridingInputProperty = "B"))
 	float ConstB;
 
 	UPROPERTY()

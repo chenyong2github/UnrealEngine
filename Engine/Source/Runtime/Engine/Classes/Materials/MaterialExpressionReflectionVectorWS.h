@@ -19,7 +19,7 @@ class UMaterialExpressionReflectionVectorWS : public UMaterialExpression
 	FExpressionInput CustomWorldNormal;
 
 	/** (true): The specified world normal will be normalized. (false): WorldNormal will just be used as is, faster but possible artifacts if normal length isn't 1 */
-	UPROPERTY(EditAnywhere, Category=UMaterialExpressionReflectionVectorWS, meta=(DisplayName = "Normalize custom world normal"))
+	UPROPERTY(EditAnywhere, Category=UMaterialExpressionReflectionVectorWS, meta=(DisplayName = "Normalize custom world normal", ShowAsInputPin = "Advanced"))
 	uint32 bNormalizeCustomWorldNormal : 1;
 
 	//~ Begin UMaterialExpression Interface

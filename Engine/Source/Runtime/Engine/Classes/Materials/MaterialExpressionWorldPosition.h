@@ -32,7 +32,7 @@ class UMaterialExpressionWorldPosition : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 	
-	UPROPERTY(EditAnywhere, Category=UMaterialExpressionWorldPosition, meta=(DisplayName = "Shader Offsets"))
+	UPROPERTY(EditAnywhere, Category=UMaterialExpressionWorldPosition, meta=(DisplayName = "Shader Offsets", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<EWorldPositionIncludedOffsets> WorldPositionShaderOffset;
 	
 	//~ Begin UMaterialExpression Interface

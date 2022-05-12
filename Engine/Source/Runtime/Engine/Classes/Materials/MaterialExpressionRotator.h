@@ -20,17 +20,17 @@ class UMaterialExpressionRotator : public UMaterialExpression
 	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to Game Time if not specified"))
 	FExpressionInput Time;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotator)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotator, meta = (ShowAsInputPin = "Advanced"))
 	float CenterX;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotator)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotator, meta = (ShowAsInputPin = "Advanced"))
 	float CenterY;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotator)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionRotator, meta = (ShowAsInputPin = "Advanced"))
 	float Speed;
 
 	/** only used if Coordinate is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionRotator)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionRotator, meta = (OverridingInputProperty = "Coordinate"))
 	uint32 ConstCoordinate;
 
 	//~ Begin UMaterialExpression Interface

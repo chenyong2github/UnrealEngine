@@ -46,11 +46,11 @@ class UMaterialExpressionTransformPosition : public UMaterialExpression
 	FExpressionInput Input;
 
 	/** source format of the position that will be transformed */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransformPosition, meta=(DisplayName = "Source"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransformPosition, meta=(DisplayName = "Source", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialPositionTransformSource> TransformSourceType;
 
 	/** type of transform to apply to the input expression */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransformPosition, meta=(DisplayName = "Destination"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransformPosition, meta=(DisplayName = "Destination", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialPositionTransformSource> TransformType;
 
 

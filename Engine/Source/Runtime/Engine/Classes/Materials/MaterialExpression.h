@@ -351,7 +351,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	};
 
 	/** Find the property that is associated with the input pin. */
-	virtual FProperty* GetInputPinProperty(int32 PinIndex);
+	virtual TArray<FProperty*> GetInputPinProperty(int32 PinIndex);
 	virtual FName GetInputPinSubCategory(int32 PinIndex);
 	virtual UObject* GetInputPinSubCategoryObject(int32 PinIndex);
 	virtual void PinDefaultValueChanged(int32 PinIndex, const FString& DefaultValue);

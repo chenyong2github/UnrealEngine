@@ -29,7 +29,7 @@ class UMaterialExpressionConstantDouble : public UMaterialExpressionGenericConst
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionConstant)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionConstant, meta = (ShowAsInputPin = "Primary"))
 	double Value;
 
 	virtual UE::Shader::FValue GetConstantValue() const override { return Value; }

@@ -13,7 +13,7 @@ class UMaterialExpressionStaticBoolParameter : public UMaterialExpressionParamet
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticBoolParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticBoolParameter, meta = (ShowAsInputPin = "Primary"))
 	uint32 DefaultValue:1;
 
 public:

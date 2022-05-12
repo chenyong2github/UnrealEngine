@@ -17,16 +17,16 @@ class UMaterialExpressionStaticComponentMaskParameter : public UMaterialExpressi
 	UPROPERTY()
 	FExpressionInput Input;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter, meta = (ShowAsInputPin = "Advanced"))
 	uint32 DefaultR:1;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter, meta = (ShowAsInputPin = "Advanced"))
 	uint32 DefaultG:1;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter, meta = (ShowAsInputPin = "Advanced"))
 	uint32 DefaultB:1;
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter, meta = (ShowAsInputPin = "Advanced"))
 	uint32 DefaultA:1;
 
 

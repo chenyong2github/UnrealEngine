@@ -19,7 +19,7 @@ class UMaterialExpressionSceneDepth : public UMaterialExpression
 	* Coordinates - UV coordinates to apply to the scene depth lookup.
 	* OffsetFraction - An offset to apply to the scene depth lookup in a 2d fraction of the screen.
 	*/ 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionSceneDepth)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionSceneDepth, meta = (ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialSceneAttributeInputMode::Type> InputMode;
 
 	/**
@@ -34,7 +34,7 @@ class UMaterialExpressionSceneDepth : public UMaterialExpression
 	FExpressionInput Coordinates_DEPRECATED;
 
 	/** only used if Input is not hooked up */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionSceneDepth)
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionSceneDepth, meta = (OverridingInputProperty = "Input"))
 	FVector2D ConstInput;
 
 	//~ Begin UObject Interface.

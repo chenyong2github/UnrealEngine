@@ -49,7 +49,7 @@ class UMaterialExpressionViewProperty : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 	
 	/** View input property to be accessed */
-	UPROPERTY(EditAnywhere, Category=UMaterialExpressionViewProperty, meta=(DisplayName = "View Property"))
+	UPROPERTY(EditAnywhere, Category=UMaterialExpressionViewProperty, meta=(DisplayName = "View Property", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<EMaterialExposedViewProperty> Property;
 	
 	//~ Begin UMaterialExpression Interface

@@ -33,7 +33,7 @@ class ENGINE_API UMaterialExpressionTextureProperty : public UMaterialExpression
 	FExpressionInput TextureObject;
 	
 	/** Texture property to be accessed */
-	UPROPERTY(EditAnywhere, Category=UMaterialExpressionTextureProperty, meta=(DisplayName = "Texture Property"))
+	UPROPERTY(EditAnywhere, Category=UMaterialExpressionTextureProperty, meta=(DisplayName = "Texture Property", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<EMaterialExposedTextureProperty> Property;
 	
 	//~ Begin UMaterialExpression Interface

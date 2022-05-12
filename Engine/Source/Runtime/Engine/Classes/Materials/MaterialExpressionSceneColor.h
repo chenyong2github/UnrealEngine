@@ -28,7 +28,7 @@ class UMaterialExpressionSceneColor : public UMaterialExpression
 	* Coordinates - UV coordinates to apply to the scene color lookup.
 	* OffsetFraction - 	An offset to apply to the scene color lookup in a 2d fraction of the screen.
 	*/ 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionSceneColor)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionSceneColor, meta = (ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialSceneAttributeInputMode::Type> InputMode;
 
 	/**

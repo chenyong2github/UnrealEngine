@@ -73,11 +73,11 @@ class UMaterialExpressionTransform : public UMaterialExpression
 	FExpressionInput Input;
 
 	/** Source coordinate space of the FVector */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransform, meta=(DisplayName = "Source"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransform, meta=(DisplayName = "Source", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialVectorCoordTransformSource> TransformSourceType;
 
 	/** Destination coordinate space of the FVector */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransform, meta=(DisplayName = "Destination"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionTransform, meta=(DisplayName = "Destination", ShowAsInputPin = "Advanced"))
 	TEnumAsByte<enum EMaterialVectorCoordTransform> TransformType;
 
 	//~ Begin UMaterialExpression Interface
