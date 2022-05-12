@@ -49,8 +49,8 @@ namespace Chaos
 
 		/** Registration name for modular features module */
 		static const FName FeatureName;
-		static const uint8 EngineAdapterPriotityBegin;
-		static const uint8 UserAdapterPriotityBegin;
+		static const uint8 EngineAdapterPriorityBegin;
+		static const uint8 UserAdapterPriorityBegin;
 
 		FComponentCacheAdapter()          = default;
 		virtual ~FComponentCacheAdapter() = default;
@@ -98,7 +98,7 @@ namespace Chaos
 		 * Gets the priority for an adapter.
 		 * When two or more adapters give the same support level for a given component class this priority will be
 		 * used to decide which adapter will be used. All base engine level adapters per type will use a priority
-		 * between EngineAdapterPriotityBegin and UserAdapterPriorityBegin defined in this interface.
+		 * between EngineAdapterPriorityBegin and UserAdapterPriorityBegin defined in this interface.
 		 *
 		 * Users implementing adapters intended to override all engine functionality should return priorities
 		 * above UserAdapterPriorityBegin to ensure they will always be selected above engine adapters.

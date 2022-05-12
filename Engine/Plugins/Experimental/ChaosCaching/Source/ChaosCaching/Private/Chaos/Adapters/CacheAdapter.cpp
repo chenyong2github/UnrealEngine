@@ -7,11 +7,11 @@
 // Feature registration name for modular features
 const FName Chaos::FComponentCacheAdapter::FeatureName("ChaosCacheAdapter");
 
-// Engine adapters will always use priorities between EngineAdapterPriotityBegin and UserAdapterPriotityBegin
-const uint8 Chaos::FComponentCacheAdapter::EngineAdapterPriotityBegin(0);
+// Engine adapters will always use priorities between EngineAdapterPriorityBegin and UserAdapterPriorityBegin
+const uint8 Chaos::FComponentCacheAdapter::EngineAdapterPriorityBegin(0);
 
 // Any priority of this or above is a user implemented adapter
-const uint8 Chaos::FComponentCacheAdapter::UserAdapterPriotityBegin(1 << 3);
+const uint8 Chaos::FComponentCacheAdapter::UserAdapterPriorityBegin(1 << 3);
 
 DEFINE_LOG_CATEGORY(LogCacheAdapter);
 

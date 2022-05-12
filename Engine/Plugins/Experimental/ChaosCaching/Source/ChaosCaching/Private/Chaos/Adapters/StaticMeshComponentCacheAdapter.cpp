@@ -33,7 +33,7 @@ namespace Chaos
 
 	uint8 FStaticMeshCacheAdapter::GetPriority() const
 	{
-		return EngineAdapterPriotityBegin;
+		return EngineAdapterPriorityBegin;
 	}
 
 	void RecordToCacheInternal(FSingleParticlePhysicsProxy* InProxy, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime)

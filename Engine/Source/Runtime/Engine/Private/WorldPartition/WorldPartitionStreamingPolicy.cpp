@@ -355,7 +355,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 #if !UE_BUILD_SHIPPING
 void UWorldPartitionStreamingPolicy::UpdateDebugCellsStreamingPriority(const TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells, const TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells)
 {
-	if (FWorldPartitionDebugHelper::IsRuntimeSpatialHashCellStreamingPriotityShown())
+	if (FWorldPartitionDebugHelper::IsRuntimeSpatialHashCellStreamingPriorityShown())
 	{
 		TSet<const UWorldPartitionRuntimeCell*> CellsToSort;
 		CellsToSort.Append(ActivateStreamingCells);

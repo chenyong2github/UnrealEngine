@@ -180,10 +180,10 @@ void FWorldPartitionDebugHelper::DrawLegendItem(UCanvas* Canvas, const FString& 
 	Pos.Y = TextPos.Y;
 }
 
-bool FWorldPartitionDebugHelper::bShowRuntimeSpatialHashCellStreamingPriotity = false;
-FAutoConsoleVariableRef FWorldPartitionDebugHelper::ShowRuntimeSpatialHashCellStreamingPriotityCommand(
-	TEXT("wp.Runtime.ShowRuntimeSpatialHashCellStreamingPriotity"),
-	FWorldPartitionDebugHelper::bShowRuntimeSpatialHashCellStreamingPriotity,
+bool FWorldPartitionDebugHelper::bShowRuntimeSpatialHashCellStreamingPriority = false;
+FAutoConsoleVariableRef FWorldPartitionDebugHelper::ShowRuntimeSpatialHashCellStreamingPriorityCommand(
+	TEXT("wp.Runtime.ShowRuntimeSpatialHashCellStreamingPriority"),
+	FWorldPartitionDebugHelper::bShowRuntimeSpatialHashCellStreamingPriority,
 	TEXT("Enable to show a heatmap of the runtime spatial hash grid cells based on their priority."));
 
 FLinearColor FWorldPartitionDebugHelper::GetHeatMapColor(float ValueNormalized)

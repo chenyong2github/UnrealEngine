@@ -40,7 +40,7 @@ namespace Chaos
 
 	uint8 FGeometryCollectionCacheAdapter::GetPriority() const
 	{
-		return EngineAdapterPriotityBegin;
+		return EngineAdapterPriorityBegin;
 	}
 	
 	void FGeometryCollectionCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
