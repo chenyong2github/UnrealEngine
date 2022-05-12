@@ -712,6 +712,21 @@ void UNiagaraSystem::PreEditChange(FProperty* PropertyThatWillChange)
 	}
 }
 
+void UNiagaraSystem::ResolveWarmupTickCount()
+{
+	//Set the WarmupTickCount to feed back to the user.
+	if (FMath::IsNearlyZero(WarmupTickDelta))
+	{
+		WarmupTickDelta = 0.0f;
+		WarmupTickCount = 0;
+	}
+	else
+	{
+		WarmupTickCount = WarmupTime / WarmupTickDelta;
+		WarmupTime = WarmupTickDelta * WarmupTickCount;
+	}
+}
+
 void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -724,19 +739,15 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 		{
 			//Set the WarmupTime to feed back to the user.
 			WarmupTime = WarmupTickCount * WarmupTickDelta;
+			ResolveWarmupTickCount();
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, WarmupTime))
 		{
-			//Set the WarmupTickCount to feed back to the user.
-			if (FMath::IsNearlyZero(WarmupTickDelta))
-			{
-				WarmupTickDelta = 0.0f;
-			}
-			else
-			{
-				WarmupTickCount = WarmupTime / WarmupTickDelta;
-				WarmupTime = WarmupTickDelta * WarmupTickCount;
-			}
+			ResolveWarmupTickCount();
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, WarmupTickDelta))
+		{
+			ResolveWarmupTickCount();
 		}
 	}
 	else
@@ -959,7 +970,7 @@ void UNiagaraSystem::RemoveSystemParametersForEmitter(const FNiagaraEmitterHandl
 #endif
 
 
-const TArray<FNiagaraEmitterHandle>& UNiagaraSystem::GetEmitterHandles()
+TArray<FNiagaraEmitterHandle>& UNiagaraSystem::GetEmitterHandles()
 {
 	return EmitterHandles;
 }

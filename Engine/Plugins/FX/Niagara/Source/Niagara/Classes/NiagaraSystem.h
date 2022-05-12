@@ -255,7 +255,7 @@ public:
 #endif 
 
 	/** Gets an array of the emitter handles. */
-	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
+	TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles()const;
 	
 	FNiagaraSystemScalabilityOverrides& GetScalabilityOverrides(){return SystemScalabilityOverrides; }
@@ -350,6 +350,10 @@ public:
 
 	FORCEINLINE bool NeedsDeterminism() const { return bDeterminism; }
 	FORCEINLINE int32 GetRandomSeed() const { return RandomSeed; }
+
+	FORCEINLINE void SetWarmupTime(float InWarmupTime) { WarmupTime = InWarmupTime; ResolveWarmupTickCount(); }
+	FORCEINLINE void SetWarmupTickDelta(float InWarmupTickDelta) { WarmupTickDelta = InWarmupTickDelta; ResolveWarmupTickCount(); }
+	void ResolveWarmupTickCount();
 
 #if STATS
 	FNiagaraStatDatabase& GetStatData() { return StatDatabase; }

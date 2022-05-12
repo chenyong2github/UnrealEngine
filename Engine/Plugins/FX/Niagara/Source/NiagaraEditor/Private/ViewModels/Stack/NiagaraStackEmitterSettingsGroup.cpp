@@ -137,29 +137,87 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 	FNiagaraStackGraphUtilities::CheckForDeprecatedEmitterVersion(GetEmitterViewModel(), GetStackEditorDataKey(), GetUpgradeVersionFix(), NewIssues);
 	
 	FVersionedNiagaraEmitterData* ActualEmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData();
-	if (ActualEmitterData && ActualEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
+	if (ActualEmitterData)
 	{
-		bool bAddError = true;
-		
-		UNiagaraSystem& Sys = GetSystemViewModel()->GetSystem();
-		if (Sys.bFixedBounds)
+		if (ActualEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
 		{
-			bAddError = false;
-		}			
-		
+			bool bAddError = true;
 
-		if (bAddError)
+			UNiagaraSystem& Sys = GetSystemViewModel()->GetSystem();
+			if (Sys.bFixedBounds)
+			{
+				bAddError = false;
+			}
+
+			if (bAddError)
+			{
+				FStackIssue MissingRequiredFixedBoundsModuleError(
+					EStackIssueSeverity::Warning,
+					LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU and is using dynamic bounds mode.\r\nPlease update the Emitter or System properties otherwise bounds may be incorrect."),
+					LOCTEXT("MissingFixedBounds", "Missing fixed bounds."),
+					GetStackEditorDataKey(),
+					false);
+
+				NewIssues.Add(MissingRequiredFixedBoundsModuleError);
+			}
+		}
+
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		TWeakPtr<FNiagaraSystemViewModel> WeakSysViewModel = GetSystemViewModel();
+		if (System.NeedsWarmup())
 		{
-			FStackIssue MissingRequiredFixedBoundsModuleError(
-				EStackIssueSeverity::Warning,
-				LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU and is using dynamic bounds mode.\r\nPlease update the Emitter or System properties otherwise bounds may be incorrect."),
-				LOCTEXT("MissingFixedBounds", "Missing fixed bounds."),
-				GetStackEditorDataKey(),
-				false);
+			float WarmupDelta = System.GetWarmupTickDelta();
+			if (ActualEmitterData->bLimitDeltaTime && ActualEmitterData->MaxDeltaTimePerTick < WarmupDelta)
+			{
+				TArray<FStackIssueFix> Fixes;
 
-			NewIssues.Add(MissingRequiredFixedBoundsModuleError);
+				float MaxEmitterDt = ActualEmitterData->MaxDeltaTimePerTick;
+				//This emitter does not allow ticks with a delta time so large.
+				FText FixDescriptionReduceWarmupDt = LOCTEXT("FixWarmupDeltaTime", "Reduce System Warmup Delta Time");
+				Fixes.Emplace(
+					FixDescriptionReduceWarmupDt,
+					FStackIssueFixDelegate::CreateLambda([=]()
+						{
+							if (auto Pinned = WeakSysViewModel.Pin())
+							{
+								FScopedTransaction ScopedTransaction(FixDescriptionReduceWarmupDt);
+								Pinned->GetSystem().Modify();
+								Pinned->GetSystem().SetWarmupTickDelta(MaxEmitterDt);
+								Pinned->RefreshAll();
+							}
+						}));
+
+				FVersionedNiagaraEmitterWeakPtr WeakEmitter = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
+				FText FixDescriptionReduceIncreaseEmitterDt = LOCTEXT("FixEmitterDeltaTime", "Increase Max Emitter Delta Time");
+				Fixes.Emplace(
+					FixDescriptionReduceIncreaseEmitterDt,
+					FStackIssueFixDelegate::CreateLambda([=]()
+						{
+							auto PinnedSysViewModel = WeakSysViewModel.Pin();
+							FVersionedNiagaraEmitter PinnedEmitter = WeakEmitter.ResolveWeakPtr();
+							if (PinnedEmitter.Emitter && PinnedSysViewModel)
+							{
+								FScopedTransaction ScopedTransaction(FixDescriptionReduceIncreaseEmitterDt);
+
+								PinnedEmitter.Emitter->Modify();
+								PinnedEmitter.GetEmitterData()->MaxDeltaTimePerTick = WarmupDelta;
+								PinnedSysViewModel->RefreshAll();
+							}
+						}));
+
+				FStackIssue WarmupDeltaTimeExceedsEmitterDeltaTimeWarning(
+					EStackIssueSeverity::Warning,
+					LOCTEXT("WarmupDeltaTimeExceedsEmitterDeltaTimeWarningSummary", "System Warmup Delta Time Exceeds Emitter Max Delta Time."),
+					LOCTEXT("WarmupDeltaTimeExceedsEmitterDeltaTimeWarningText", "Max Tick Delta Time is smaller than the System's Warmup Delta Time. This could cause unintended results during warmup for this emitter."),
+					GetStackEditorDataKey(),
+					false,
+					Fixes);
+
+				NewIssues.Add(WarmupDeltaTimeExceedsEmitterDeltaTimeWarning);
+			}
 		}
 	}
+
 }
 
 void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
