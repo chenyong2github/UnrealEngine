@@ -1006,7 +1006,7 @@ void FConcertWorkspaceUI::OnPreSequencerInit(TSharedRef<ISequencer> InSequencer,
 	{
 		TWeakPtr<FConcertWorkspaceUI> Weak = AsShared();
 		TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
-		InitParams.ViewParams.ToolbarExtender->AddToolBarExtension("Curve Editor", EExtensionHook::Before, CommandList, FToolBarExtensionDelegate::CreateLambda([Weak](FToolBarBuilder& ToolbarBuilder)
+		InitParams.ViewParams.ToolbarExtender->AddToolBarExtension("CurveEditor", EExtensionHook::Before, CommandList, FToolBarExtensionDelegate::CreateLambda([Weak](FToolBarBuilder& ToolbarBuilder)
 		{
 			if (TSharedPtr<FConcertWorkspaceUI> PinThis = Weak.Pin())
 			{
