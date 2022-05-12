@@ -252,7 +252,8 @@ bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(
 	NumPoints = FMath::Min(NumPoints, Mesh->VertexCount());
 
 	// cannot seem to use auto or TUniqueFunction here...
-	TFunction<bool(int,int)> TrisConnectedPredicate = [](int, int) -> bool { return true; };
+	TFunction<bool(int32, int32)> TrisConnectedPredicate;
+	TrisConnectedPredicate = [](int, int) -> bool { return true; };
 	if (StartingGroups != nullptr)
 	{
 		TrisConnectedPredicate = [StartingGroups](int a, int b) -> bool { return StartingGroups->GetGroup(a) == StartingGroups->GetGroup(b) ? true : false; };
@@ -375,7 +376,7 @@ bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(
 
 	if (bApplyPostProcessing)
 	{
-		PostProcessPolygroups(true);
+		PostProcessPolygroups(true, TrisConnectedPredicate);
 	}
 	if (bCopyToMesh)
 	{
@@ -388,19 +389,20 @@ bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(
 
 
 
-void FPolygroupsGenerator::PostProcessPolygroups(bool bApplyMerging)
+void FPolygroupsGenerator::PostProcessPolygroups(bool bApplyMerging, TFunctionRef<bool(int32, int32)> TrisConnectedPredicate)
 {
 	if (bApplyMerging && MinGroupSize > 1)
 	{
-		OptimizePolygroups();
+		OptimizePolygroups(TrisConnectedPredicate);
 	}
 }
 
 
-void FPolygroupsGenerator::OptimizePolygroups()
+void FPolygroupsGenerator::OptimizePolygroups(TFunctionRef<bool(int32, int32)> TrisConnectedPredicate)
 {
 	FMeshRegionGraph RegionGraph;
-	RegionGraph.BuildFromTriangleSets(*Mesh, FoundPolygroups, [&](int32 SetIdx) { return SetIdx; });
+	RegionGraph.BuildFromTriangleSets(*Mesh, FoundPolygroups, [&](int32 SetIdx) { return SetIdx; },
+		                                                      TrisConnectedPredicate);		                                                      
 	bool bMerged = RegionGraph.MergeSmallRegions(MinGroupSize-1, [&](int32 A, int32 B) { return RegionGraph.GetRegionTriCount(A) > RegionGraph.GetRegionTriCount(B); });
 	bool bSwapped = RegionGraph.OptimizeBorders();
 	if (bMerged || bSwapped)

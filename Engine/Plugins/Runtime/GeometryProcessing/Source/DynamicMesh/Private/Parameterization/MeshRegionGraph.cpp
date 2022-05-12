@@ -45,7 +45,10 @@ void FMeshRegionGraph::BuildFromComponents(
 }
 
 
-void FMeshRegionGraph::BuildFromTriangleSets(const FDynamicMesh3& Mesh, const TArray<TArray<int32>>& TriangleSets, TFunctionRef<int32(int32)> ExternalIDFunc)
+void FMeshRegionGraph::BuildFromTriangleSets(const FDynamicMesh3& Mesh,
+	const TArray<TArray<int32>>& TriangleSets,
+	TFunctionRef<int32(int32)> ExternalIDFunc,
+	TFunctionRef<bool(int32, int32)> TrisConnectedPredicate)
 {
 	int32 N = TriangleSets.Num();
 	Regions.SetNum(N);
@@ -60,7 +63,15 @@ void FMeshRegionGraph::BuildFromTriangleSets(const FDynamicMesh3& Mesh, const TA
 		for (int32 tid : TriangleSets[k])
 		{
 			TriangleToRegionMap[tid] = k;
-			TriangleNbrTris[tid] = Mesh.GetTriNeighbourTris(tid);
+			FIndex3i NbrTris = Mesh.GetTriNeighbourTris(tid);
+			for (int j = 0; j < 3; ++j)
+			{
+				if (NbrTris[j] >= 0 && TrisConnectedPredicate(tid, NbrTris[j]) == false)
+				{
+					NbrTris[j] = -1;
+				}
+			}
+			TriangleNbrTris[tid] = NbrTris;
 		}
 	}
 

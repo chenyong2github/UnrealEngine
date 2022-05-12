@@ -12,6 +12,7 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshUVChannelProperties.h"
 #include "UVEditorToolAnalyticsUtils.h"
+#include "Polygroups/PolygroupSet.h"
 
 #include "UVEditorParameterizeMeshTool.generated.h"
 
@@ -20,11 +21,12 @@ class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UUVEditorToolMeshInput;
-class UParameterizeMeshToolProperties;
-class UParameterizeMeshToolUVAtlasProperties;
-class UParameterizeMeshToolXAtlasProperties;
-class UParameterizeMeshToolPatchBuilderProperties;
-class UParameterizeMeshOperatorFactory;
+class UUVEditorParameterizeMeshToolProperties;
+class UUVEditorParameterizeMeshToolUVAtlasProperties;
+class UUVEditorParameterizeMeshToolXAtlasProperties;
+class UUVEditorParameterizeMeshToolPatchBuilderProperties;
+class UUVEditorParameterizeMeshOperatorFactory;
+class UPolygroupLayersProperties;
 
 UCLASS()
 class UVEDITORTOOLSEDITORONLY_API UUVEditorParameterizeMeshToolBuilder : public UInteractiveToolBuilder
@@ -75,21 +77,28 @@ protected:
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
-	TObjectPtr<UParameterizeMeshToolProperties> Settings = nullptr;
+	TObjectPtr<UUVEditorParameterizeMeshToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UParameterizeMeshToolUVAtlasProperties> UVAtlasProperties = nullptr;
+	TObjectPtr<UUVEditorParameterizeMeshToolUVAtlasProperties> UVAtlasProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UParameterizeMeshToolXAtlasProperties> XAtlasProperties = nullptr;
+	TObjectPtr<UUVEditorParameterizeMeshToolXAtlasProperties> XAtlasProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
+	TObjectPtr<UUVEditorParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UParameterizeMeshOperatorFactory>> Factories;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UUVEditorParameterizeMeshOperatorFactory>> Factories;
 
 	void OnMethodTypeChanged();
+
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
+	void OnSelectedGroupLayerChanged();
+	void UpdateActiveGroupLayer(bool bUpdateFactories = true);
 
 	//
 	// Analytics

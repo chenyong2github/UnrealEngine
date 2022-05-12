@@ -34,7 +34,7 @@ public:
 	void BuildFromComponents(const FDynamicMesh3& Mesh, 
 							 const FMeshConnectedComponents& Components,
 							 TFunctionRef<int32(int32)> ExternalIDFunc,
-							 TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int a, int b) { return true; } );
+							 TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int, int) { return true; } );
 
 	/**
 	 * Build a region graph for a Mesh using the given triangle sets
@@ -42,7 +42,8 @@ public:
 	 */
 	void BuildFromTriangleSets(const FDynamicMesh3& Mesh,
 							 const TArray<TArray<int32>>& TriangleSets,
-							 TFunctionRef<int32(int32)> ExternalIDFunc);
+							 TFunctionRef<int32(int32)> ExternalIDFunc,
+		                     TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int, int) { return true; });
 
 	/** 
 	 * @return Max valid region index. Some region indices may be invalid. 

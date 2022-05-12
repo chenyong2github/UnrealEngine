@@ -115,8 +115,8 @@ public:
 
 
 protected:
-	void PostProcessPolygroups(bool bApplyMerging);
-	void OptimizePolygroups();
+	void PostProcessPolygroups(bool bApplyMerging, TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int, int) { return true; });
+	void OptimizePolygroups(TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int, int) { return true; });
 };
 
 
