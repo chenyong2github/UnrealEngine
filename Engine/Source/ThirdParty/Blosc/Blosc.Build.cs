@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using UnrealBuildTool;
+
 using System.IO;
+using UnrealBuildTool;
 
 public class Blosc : ModuleRules
 {
@@ -8,29 +9,27 @@ public class Blosc : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		const string bloscVersion = "1.5.0";
+		bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
 
-		string BloscDir = Target.UEThirdPartySourceDirectory + "Blosc/Deploy/c-blosc-" + bloscVersion;
-		string BloscBinDir = Path.Combine(BloscDir, "bin");
-		string BloscIncludeDir = Path.Combine(BloscDir, "include");
-		string BloscLibDir = Path.Combine(BloscDir, "lib");
-		
-		PublicIncludePaths.Add(BloscIncludeDir);
-		
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "c-blosc-1.21.0");
+
+		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+
+		string LibPostfix = bDebug ? "_d" : "";
+
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			string Win64Config = "Release";
-			string Win64Dir = Path.Combine("Win64", "VS2019", Win64Config);
-			
-			const string bloscWin64LibName = "libblosc.lib";
-			string BloscWin64LibDir = Path.Combine(BloscLibDir, Win64Dir);
-			string BloscWin64Lib = Path.Combine(BloscWin64LibDir, bloscWin64LibName);
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+				Target.WindowsPlatform.GetArchitectureSubpath(),
+				"lib");
 
-			PublicAdditionalLibraries.Add(BloscWin64Lib);
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".lib"));
 		}
 		else
-        {
-	        string Err = "Platform " + Target.Platform + " not supported!";
+		{
+			string Err = "Platform " + Target.Platform + " not supported!";
 			System.Console.WriteLine(Err);
 			throw new BuildException(Err);
 		}
