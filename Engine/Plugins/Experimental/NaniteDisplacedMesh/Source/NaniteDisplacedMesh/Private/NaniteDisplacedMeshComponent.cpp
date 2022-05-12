@@ -2,8 +2,6 @@
 
 #include "NaniteDisplacedMeshComponent.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogNaniteDisplacedMesh, Log, All);
-
 UNaniteDisplacedMeshComponent::UNaniteDisplacedMeshComponent(const FObjectInitializer& Init)
 : Super(Init)
 {

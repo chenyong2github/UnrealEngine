@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
+					"TargetPlatform",
 				}
 			);
 
@@ -30,6 +31,12 @@ namespace UnrealBuildTool.Rules
 				{
 					"EditorSubsystem",
 					"NaniteDisplacedMesh"
+				}
+			);
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"DerivedDataCache",
 				}
 			);
 		}

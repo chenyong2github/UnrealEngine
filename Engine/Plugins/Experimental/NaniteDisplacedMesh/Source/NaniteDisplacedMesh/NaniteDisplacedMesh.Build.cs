@@ -29,22 +29,6 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 				}
 			);
-
-			PrivateIncludePathModuleNames.AddRange(
-				new string[] {
-					"DerivedDataCache",
-				}
-			);
-
-			if (Target.bBuildEditor == true)
-			{
-				PrivateDependencyModuleNames.AddRange(
-					new string[]
-					{
-						"TargetPlatform",
-					}
-				);
-			}
 		}
 	}
 }

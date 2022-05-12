@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
-#include "NaniteDisplacedMesh.h"
 #include "NaniteDisplacedMeshFactory.generated.h"
+
+class UNaniteDisplacedMesh;
+struct FNaniteDisplacedMeshParams;
 
 UCLASS(hidecategories = Object)
 class NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMeshFactory : public UFactory
@@ -20,3 +22,15 @@ public:
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	static UNaniteDisplacedMesh* StaticFactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn);
 };
+
+NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMesh* LinkDisplacedMeshAsset(
+	UNaniteDisplacedMesh* ExistingDisplacedMesh,
+	const FNaniteDisplacedMeshParams& InParameters,
+	const FString& DisplacedMeshFolder
+);
+
+NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams);
+NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const UNaniteDisplacedMesh& DisplacedMesh);
+
+NANITEDISPLACEDMESHEDITOR_API FString GetAggregatedIdString(const FNaniteDisplacedMeshParams& DisplacedMeshParams);
+NANITEDISPLACEDMESHEDITOR_API FString GetAggregatedIdString(const UNaniteDisplacedMesh& DisplacedMesh);

@@ -138,11 +138,6 @@ struct FNaniteDisplacedMeshParams
 		return !(*this == Other);
 	}
 #endif // WITH_EDITORONLY_DATA
-
-#if WITH_EDITOR
-	FGuid GetAggregatedId() const;
-	FString GetAggregatedIdString() const;
-#endif
 };
 
 class FNaniteDisplacedMeshData
@@ -181,10 +176,5 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Parameters)
 	FNaniteDisplacedMeshParams Parameters;
-#endif
-
-#if WITH_EDITOR
-	FGuid GetAggregatedId() const;
-	FString GetAggregatedIdString() const;
 #endif
 };
