@@ -14,6 +14,7 @@
 #include "LensDistortionModelHandlerBase.h"
 #include "LensFileRendering.h"
 #include "LensInterpolationUtils.h"
+#include "Curves/CurveEvaluation.h"
 #include "Models/SphericalLensModel.h"
 #include "Tables/BaseLensTable.h"
 #include "Tables/LensTableUtils.h"
@@ -45,19 +46,6 @@ namespace LensFileUtils
 		return NewRenderTarget2D;
 	}
 
-	/** From FRichCurve - Util to find float value on bezier defined by 4 control points */
-	float BezierInterp(float P0, float P1, float P2, float P3, float Alpha)
-	{
-		const float P01 = FMath::Lerp(P0, P1, Alpha);
-		const float P12 = FMath::Lerp(P1, P2, Alpha);
-		const float P23 = FMath::Lerp(P2, P3, Alpha);
-		const float P012 = FMath::Lerp(P01, P12, Alpha);
-		const float P123 = FMath::Lerp(P12, P23, Alpha);
-		const float P0123 = FMath::Lerp(P012, P123, Alpha);
-
-		return P0123;
-	}
-
 	float EvalAtTwoPoints(const float EvalTime, const float Time0, const float Time1, const float Value0, const float Value1, const float Tangent0, const float Tangent1)
 	{
 		if (FMath::IsNearlyEqual(Time0, Time1))
@@ -79,7 +67,7 @@ namespace LensFileUtils
 		const float P3 = Value1;
 		const float P1 = P0 + (CurveTan0 * CurveDiff * OneThird);
 		const float P2 = P3 - (CurveTan1 * CurveDiff * OneThird);
-		return BezierInterp(P0, P1, P2, P3, CurveAlpha);
+		return UE::Curves::BezierInterp(P0, P1, P2, P3, CurveAlpha);
 	}
 
 	void FindWeightsAndInterp(float InEvalTime, TConstArrayView<float> InTimes, TConstArrayView<float> InTangents, TOptional<float> LerpFactor, TConstArrayView<float> Inputs, float& Output)

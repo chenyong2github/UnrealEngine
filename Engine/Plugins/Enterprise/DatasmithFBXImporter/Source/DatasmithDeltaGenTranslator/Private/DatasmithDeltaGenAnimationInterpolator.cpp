@@ -3,6 +3,7 @@
 #include "DatasmithDeltaGenAnimationInterpolator.h"
 
 #include "Algo/BinarySearch.h"
+#include "Curves/CurveEvaluation.h"
 
 namespace DeltaGen
 {
@@ -28,104 +29,6 @@ namespace DeltaGen
 		OutLerpFactor = FMath::IsNearlyEqual(Time1, Time2) ? 0.0f : (InTime - Time1) / (Time2 - Time1);
 		OutIndex1 = Index1;
 		OutIndex2 = Index2;
-	}
-
-	/**
-	 * Copied from FRichCurve
-	 * Assuming that P0, P1, P2 and P3 are sequential control points of an N=4 Bezier curve, returns
-	 * the interpolated value for interpolation constant Alpha in [0, 1]
-	 */
-	FVector BezierInterp(const FVector& P0, const FVector& P1, const FVector& P2, const FVector& P3, float Alpha)
-	{
-		const FVector P01 = FMath::Lerp(P0, P1, Alpha);
-		const FVector P12 = FMath::Lerp(P1, P2, Alpha);
-		const FVector P23 = FMath::Lerp(P2, P3, Alpha);
-		const FVector P012 = FMath::Lerp(P01, P12, Alpha);
-		const FVector P123 = FMath::Lerp(P12, P23, Alpha);
-		const FVector P0123 = FMath::Lerp(P012, P123, Alpha);
-
-		return P0123;
-	}
-
-	/**
-	 * Copied from MovieSceneFloatChannel
-	 * Solve Cubic Equation using Cardano's forumla
-	 * Adopted from Graphic Gems 1
-	 * https://github.com/erich666/GraphicsGems/blob/master/gems/Roots3And4.c
-	 *
-	 * @param Coeff Coefficient parameters of form  Coeff[0] + Coeff[1]*x + Coeff[2]*x^2 + Coeff[3]*x^3 = 0
-	 * @param Solution Up to 3 real solutions. We don't include imaginary solutions, as would need a complex number object
-	 * @return Returns the number of real solutions returned in the Solution array.
-	 */
-	int32 SolveCubic(double Coeff[4], double Solution[3])
-	{
-		auto Cbrt = [](double x) -> double
-		{
-			return ((x) > 0.0 ? pow((x), 1.0 / 3.0) : ((x) < 0.0 ? -pow((double)-(x), 1.0 / 3.0) : 0.0));
-		};
-		int32 NumSolutions = 0;
-
-		// Normal form: x^3 + Ax^2 + Bx + C = 0
-		double Denominator = (Coeff[3] != 0.0) ? Coeff[3] : SMALL_NUMBER * SMALL_NUMBER;
-		double A = Coeff[2] / Denominator;
-		double B = Coeff[1] / Denominator;
-		double C = Coeff[0] / Denominator;
-
-		// Substitute x = y - A/3 to eliminate quadric term: x^3 +px + q = 0
-		double SqOfA = A * A;
-		double P = 1.0 / 3 * (-1.0 / 3 * SqOfA + B);
-		double Q = 1.0 / 2 * (2.0 / 27 * A * SqOfA - 1.0 / 3 * A * B + C);
-
-		// Use Cardano's formula
-		double CubeOfP = P * P * P;
-		double D = Q * Q + CubeOfP;
-		if (FMath::IsNearlyZero(D))
-		{
-			// One triple solution
-			if (FMath::IsNearlyZero(Q))
-			{
-				Solution[0] = 0;
-				NumSolutions = 1;
-			}
-			// One single and one double solution
-			else
-			{
-				double U = Cbrt(-Q);
-				Solution[0] = 2 * U;
-				Solution[1] = -U;
-				NumSolutions = 2;
-			}
-		}
-		// Three real solutions
-		else if (D < 0)
-		{
-			double Phi = 1.0 / 3 * acos(-Q / sqrt(-CubeOfP));
-			double T = 2 * sqrt(-P);
-
-			Solution[0] = T * cos(Phi);
-			Solution[1] = -T * cos(Phi + UE_DOUBLE_PI / 3);
-			Solution[2] = -T * cos(Phi - UE_DOUBLE_PI / 3);
-			NumSolutions = 3;
-		}
-		// One real solution
-		else
-		{
-			double SqrtD = sqrt(D);
-			double U = Cbrt(SqrtD - Q);
-			double V = -Cbrt(SqrtD + Q);
-
-			Solution[0] = U + V;
-			NumSolutions = 1;
-		}
-
-		// Resubstitute
-		double Sub = 1.0 / 3 * A;
-		for (int32 Index = 0; Index < NumSolutions; ++Index)
-		{
-			Solution[Index] -= Sub;
-		}
-
-		return NumSolutions;
 	}
 
 	FInterpolator::FInterpolator(const TArray<float>& InTimes, const TArray<FVector>& InValues)
@@ -271,7 +174,7 @@ namespace DeltaGen
 		const FVector& ArriveControlPoint = Index2 > 0 ?               Values[3 * Index2 - 1] : Values[3 * Index2];
 
 		// Index1 * 3 and Index2 * 3 because Values stores arrive/leave control points too
-		return BezierInterp(Values[Index1 * 3],
+		return UE::Curves::BezierInterp(Values[Index1 * 3],
 							LeaveControlPoint,
 							ArriveControlPoint,
 							Values[Index2 * 3],
@@ -340,7 +243,7 @@ namespace DeltaGen
 		// Solve cubic polynomial with Gerolano Cardano's formula
 		double Coefs[4] = { CoefConst, CoefT1, CoefT2, CoefT3 };
 		double Solutions[3] = {-1., -1., -1.};
-		int32 NumSolutions = SolveCubic(Coefs, Solutions);
+		int32 NumSolutions = UE::Curves::SolveCubic(Coefs, Solutions);
 
 		// The target solution, if it exists, is the only real one within [0, 1]
 		float TargetAlpha = FLT_MAX;

@@ -9,23 +9,7 @@
 #include "CurveModel.h"
 #include "Templates/SharedPointer.h"
 #include "CurveEditorSnapMetrics.h"
-
-/**
-The following key reduction is the same as that found in FRichCurve.
-It would be nice if there was just one implementation of the reduction (and) baking algorithms.
-*/
-/** Util to find float value on bezier defined by 4 control points */
-static float BezierInterp(float P0, float P1, float P2, float P3, float Alpha)
-{
-	const float P01 = FMath::Lerp(P0, P1, Alpha);
-	const float P12 = FMath::Lerp(P1, P2, Alpha);
-	const float P23 = FMath::Lerp(P2, P3, Alpha);
-	const float P012 = FMath::Lerp(P01, P12, Alpha);
-	const float P123 = FMath::Lerp(P12, P23, Alpha);
-	const float P0123 = FMath::Lerp(P012, P123, Alpha);
-
-	return P0123;
-}
+#include "Curves/CurveEvaluation.h"
 
 static float EvalForTwoKeys(const FKeyPosition& Key1Pos, const FKeyAttributes& Key1Attrib,
 	const FKeyPosition& Key2Pos, const FKeyAttributes& Key2Attrib,
@@ -49,7 +33,7 @@ static float EvalForTwoKeys(const FKeyPosition& Key1Pos, const FKeyAttributes& K
 			const float P1 = Key1Attrib.HasLeaveTangent() ? P0 + (Key1Attrib.GetLeaveTangent() * Diff*OneThird) : P0;
 			const float P2 = Key2Attrib.HasArriveTangent() ? P3 - (Key2Attrib.GetArriveTangent() * Diff*OneThird) : P3;
 
-			return BezierInterp(P0, P1, P2, P3, Alpha);
+			return UE::Curves::BezierInterp(P0, P1, P2, P3, Alpha);
 		}
 	}
 	else

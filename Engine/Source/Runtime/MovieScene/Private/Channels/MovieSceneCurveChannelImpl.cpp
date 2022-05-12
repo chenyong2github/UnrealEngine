@@ -5,6 +5,7 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "HAL/ConsoleManager.h"
 #include "MovieSceneFrameMigration.h"
+#include "Curves/CurveEvaluation.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/SequencerObjectVersion.h"
 
@@ -26,20 +27,6 @@ namespace UE
 {
 namespace MovieScene
 {
-
-/** Util to find value on bezier defined by 4 control points */
-template<typename CurveValueType>
-CurveValueType BezierInterp(CurveValueType P0, CurveValueType P1, CurveValueType P2, CurveValueType P3, float Alpha)
-{
-	const CurveValueType P01   = FMath::Lerp(P0,   P1,   Alpha);
-	const CurveValueType P12   = FMath::Lerp(P1,   P2,   Alpha);
-	const CurveValueType P23   = FMath::Lerp(P2,   P3,   Alpha);
-	const CurveValueType P012  = FMath::Lerp(P01,  P12,  Alpha);
-	const CurveValueType P123  = FMath::Lerp(P12,  P23,  Alpha);
-	const CurveValueType P0123 = FMath::Lerp(P012, P123, Alpha);
-
-	return P0123;
-}
 
 template<typename ChannelType>
 static typename ChannelType::CurveValueType
@@ -76,7 +63,7 @@ EvalForTwoKeys(
 			const CurveValueType P1 = P0 + (LeaveTangent * Diff*OneThird);
 			const CurveValueType P2 = P3 - (ArriveTangent * Diff*OneThird);
 
-			return BezierInterp(P0, P1, P2, P3, Alpha);
+			return UE::Curves::BezierInterp(P0, P1, P2, P3, Alpha);
 		}
 	}
 	else
@@ -141,104 +128,6 @@ FCycleParams CycleTime(FFrameNumber MinFrame, FFrameNumber MaxFrame, FFrameTime 
 
 	return Params;
 }
-
-/* Solve Cubic Equation using Cardano's forumla
-* Adopted from Graphic Gems 1
-* https://github.com/erich666/GraphicsGems/blob/master/gems/Roots3And4.c
-*  Solve cubic of form
-*
-* @param Coeff Coefficient parameters of form  Coeff[0] + Coeff[1]*x + Coeff[2]*x^2 + Coeff[3]*x^3 + Coeff[4]*x^4 = 0
-* @param Solution Up to 3 real solutions. We don't include imaginary solutions, would need a complex number objecct
-* @return Returns the number of real solutions returned in the Solution array.
-*/
-static int SolveCubic(double Coeff[4], double Solution[3])
-{
-	auto cbrt = [](double x) -> double
-	{
-		return ((x) > 0.0 ? pow((x), 1.0 / 3.0) : ((x) < 0.0 ? -pow((double)-(x), 1.0 / 3.0) : 0.0));
-	};
-	int     NumSolutions = 0;
-
-	/* normal form: x^3 + Ax^2 + Bx + C = 0 */
-
-	double A = Coeff[2] / Coeff[3];
-	double B = Coeff[1] / Coeff[3];
-	double C = Coeff[0] / Coeff[3];
-
-	/*  substitute x = y - A/3 to eliminate quadric term:
-	x^3 +px + q = 0 */
-
-	double SqOfA = A * A;
-	double P = 1.0 / 3 * (-1.0 / 3 * SqOfA + B);
-	double Q = 1.0 / 2 * (2.0 / 27 * A * SqOfA - 1.0 / 3 * A * B + C);
-
-	/* use Cardano's formula */
-
-	double CubeOfP = P * P * P;
-	double D = Q * Q + CubeOfP;
-
-	if (FMath::IsNearlyZero(D))
-	{
-		if (FMath::IsNearlyZero(Q)) /* one triple solution */
-		{
-			Solution[0] = 0;
-			NumSolutions = 1;
-		}
-		else /* one single and one double solution */
-		{
-			double u = cbrt(-Q);
-			Solution[0] = 2 * u;
-			Solution[1] = -u;
-			NumSolutions = 2;
-		}
-	}
-	else if (D < 0) /* Casus irreducibilis: three real solutions */
-	{
-		double phi = 1.0 / 3 * acos(-Q / sqrt(-CubeOfP));
-		double t = 2 * sqrt(-P);
-
-		Solution[0] = t * cos(phi);
-		Solution[1] = -t * cos(phi + UE_DOUBLE_PI / 3);
-		Solution[2] = -t * cos(phi - UE_DOUBLE_PI / 3);
-		NumSolutions = 3;
-	}
-	else /* one real solution */
-	{
-		double sqrt_D = sqrt(D);
-		double u = cbrt(sqrt_D - Q);
-		double v = -cbrt(sqrt_D + Q);
-
-		Solution[0] = u + v;
-		NumSolutions = 1;
-	}
-
-	/* resubstitute */
-
-	double Sub = 1.0 / 3 * A;
-
-	for (int i = 0; i < NumSolutions; ++i)
-		Solution[i] -= Sub;
-
-	return NumSolutions;
-}
-
-/*
-*   Convert the control values for a polynomial defined in the Bezier
-*		basis to a polynomial defined in the power basis (t^3 t^2 t 1).
-*/
-static void BezierToPower(	double A1, double B1, double C1, double D1,
-	double *A2, double *B2, double *C2, double *D2)
-{
-	double A = B1 - A1;
-	double B = C1 - B1;
-	double C = D1 - C1;
-	double D = B - A;
-	*A2 = C- B - D;
-	*B2 = 3.0 * D;
-	*C2 = 3.0 * A;
-	*D2 = A1;
-}
-
 
 } // namespace MovieScene
 } // namespace UE
@@ -508,7 +397,7 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::Evaluate(const ChannelType* InCha
 				const float P3 = Key2.Value;
 				const float P2 = P3 - (Key2.Tangent.ArriveTangent * Diff * OneThird);
 
-				OutValue = Params.ValueOffset + BezierInterp(P0, P1, P2, P3, Interp);
+				OutValue = Params.ValueOffset + UE::Curves::BezierInterp(P0, P1, P2, P3, Interp);
 				break;
 			}
 			else //its weighted
@@ -566,14 +455,14 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::Evaluate(const ChannelType* InCha
 				double Results[3];
 
 				//Convert Bezier to Power basis, also float to double for precision for root finding.
-				BezierToPower(
+				UE::Curves::BezierToPower(
 					0.0, NormalizedX1, NormalizedX2, 1.0,
 					&(Coeff[3]), &(Coeff[2]), &(Coeff[1]), &(Coeff[0])
 				);
 
 				Coeff[0] = Coeff[0] - Interp;
 				
-				int NumResults = SolveCubic(Coeff, Results);
+				const int32 NumResults = UE::Curves::SolveCubic(Coeff, Results);
 				float NewInterp = Interp;
 				if (NumResults == 1)
 				{
@@ -605,7 +494,7 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::Evaluate(const ChannelType* InCha
 				const float P3 = Key2.Value;
 				const float P2 = Key2TanY;
 
-				OutValue = Params.ValueOffset + BezierInterp(P0, P1, P2, P3,  NewInterp);
+				OutValue = Params.ValueOffset + UE::Curves::BezierInterp(P0, P1, P2, P3,  NewInterp);
 			}
 			break;
 		}

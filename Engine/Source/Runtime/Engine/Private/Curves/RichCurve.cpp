@@ -3,6 +3,7 @@
 #include "Curves/RichCurve.h"
 #include "Templates/Function.h"
 #include "Containers/ArrayView.h"
+#include "Curves/CurveEvaluation.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 // Broken - do not turn on! 
@@ -942,266 +943,6 @@ void FRichCurve::RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float 
 }
 
 
-/* Solve Cubic Euqation using Cardano's forumla
-* Adopted from Graphic Gems 1
-* https://github.com/erich666/GraphicsGems/blob/master/gems/Roots3And4.c
-*  Solve cubic of form
-*
-* @param Coeff Coefficient parameters of form  Coeff[0] + Coeff[1]*x + Coeff[2]*x^2 + Coeff[3]*x^3 + Coeff[4]*x^4 = 0
-* @param Solution Up to 3 real solutions. We don't include imaginary solutions, would need a complex number objecct
-* @return Returns the number of real solutions returned in the Solution array.
-*/
-static int SolveCubic(double Coeff[4], double Solution[3])
-{
-	auto cbrt = [](double x) -> double
-	{
-		return ((x) > 0.0 ? pow((x), 1.0 / 3.0) : ((x) < 0.0 ? -pow((double)-(x), 1.0 / 3.0) : 0.0));
-	};
-	int     NumSolutions = 0;
-
-	/* normal form: x^3 + Ax^2 + Bx + C = 0 */
-
-	double A = Coeff[2] / Coeff[3];
-	double B = Coeff[1] / Coeff[3];
-	double C = Coeff[0] / Coeff[3];
-
-	/*  substitute x = y - A/3 to eliminate quadric term:
-	x^3 +px + q = 0 */
-
-	double SqOfA = A * A;
-	double P = 1.0 / 3 * (-1.0 / 3 * SqOfA + B);
-	double Q = 1.0 / 2 * (2.0 / 27 * A * SqOfA - 1.0 / 3 * A * B + C);
-
-	/* use Cardano's formula */
-
-	double CubeOfP = P * P * P;
-	double D = Q * Q + CubeOfP;
-
-	if (FMath::IsNearlyZero(D))
-	{
-		if (FMath::IsNearlyZero(Q)) /* one triple solution */
-		{
-			Solution[0] = 0;
-			NumSolutions = 1;
-		}
-		else /* one single and one double solution */
-		{
-			double u = cbrt(-Q);
-			Solution[0] = 2 * u;
-			Solution[1] = -u;
-			NumSolutions = 2;
-		}
-	}
-	else if (D < 0) /* Casus irreducibilis: three real solutions */
-	{
-		double phi = 1.0 / 3 * acos(-Q / sqrt(-CubeOfP));
-		double t = 2 * sqrt(-P);
-
-		Solution[0] = t * cos(phi);
-		Solution[1] = -t * cos(phi + UE_DOUBLE_PI / 3);
-		Solution[2] = -t * cos(phi - UE_DOUBLE_PI / 3);
-		NumSolutions = 3;
-	}
-	else /* one real solution */
-	{
-		double sqrt_D = sqrt(D);
-		double u = cbrt(sqrt_D - Q);
-		double v = -cbrt(sqrt_D + Q);
-
-		Solution[0] = u + v;
-		NumSolutions = 1;
-	}
-
-	/* resubstitute */
-
-	double Sub = 1.0 / 3 * A;
-
-	for (int i = 0; i < NumSolutions; ++i)
-	{
-		Solution[i] -= Sub;
-
-	}
-	return NumSolutions;
-}
-
-/** Util to find float value on bezier defined by 4 control points */
-FORCEINLINE_DEBUGGABLE static float BezierInterp(float P0, float P1, float P2, float P3, float Alpha)
-{
-	const float P01 = FMath::Lerp(P0, P1, Alpha);
-	const float P12 = FMath::Lerp(P1, P2, Alpha);
-	const float P23 = FMath::Lerp(P2, P3, Alpha);
-	const float P012 = FMath::Lerp(P01, P12, Alpha);
-	const float P123 = FMath::Lerp(P12, P23, Alpha);
-	const float P0123 = FMath::Lerp(P012, P123, Alpha);
-
-	return P0123;
-}
-
-/*
-*   Convert the control values for a polynomial defined in the Bezier
-*		basis to a polynomial defined in the power basis (t^3 t^2 t 1).
-*/
-static void BezierToPower(double A1, double B1, double C1, double D1,
-	double* A2, double* B2, double* C2, double* D2)
-{
-	double A = B1 - A1;
-	double B = C1 - B1;
-	double C = D1 - C1;
-	double D = B - A;
-	*A2 = C - B - D;
-	*B2 = 3.0 * D;
-	*C2 = 3.0 * A;
-	*D2 = A1;
-}
-
-static float WeightedEvalForTwoKeys(
-	float Key1Value, float Key1Time, float Key1LeaveTangent, float Key1LeaveTangentWeight,ERichCurveTangentWeightMode Key1TangentWeightMode,
-	float Key2Value, float Key2Time, float Key2ArriveTangent, float Key2ArriveTangentWeight,  ERichCurveTangentWeightMode Key2TangentWeightMode,
-	float InTime)
-{
-	const float Diff = Key2Time - Key1Time;
-	const float Alpha = (InTime - Key1Time) / Diff;
-	const float P0 = Key1Value;
-	const float P3 = Key2Value;
-	const float OneThird = 1.0f / 3.0f;
-	const double Time1 = Key1Time;
-	const double Time2 = Key2Time;
-	const float X = Time2 - Time1;
-	float CosAngle, SinAngle;
-	float Angle = FMath::Atan(Key1LeaveTangent);
-	FMath::SinCos(&SinAngle, &CosAngle, Angle);
-	float LeaveWeight;
-	if (Key1TangentWeightMode == RCTWM_WeightedNone || Key1TangentWeightMode == RCTWM_WeightedArrive)
-	{
-		const float LeaveTangentNormalized = Key1LeaveTangent;
-		const float Y = LeaveTangentNormalized * X;
-		LeaveWeight = FMath::Sqrt(X * X + Y * Y) * OneThird;
-	}
-	else
-	{
-		LeaveWeight = Key1LeaveTangentWeight;
-	}
-	const float Key1TanX = CosAngle * LeaveWeight + Time1;
-	const float Key1TanY = SinAngle * LeaveWeight + Key1Value;
-
-	Angle = FMath::Atan(Key2ArriveTangent);
-	FMath::SinCos(&SinAngle, &CosAngle, Angle);
-	float ArriveWeight;
-	if (Key2TangentWeightMode == RCTWM_WeightedNone || Key2TangentWeightMode == RCTWM_WeightedLeave)
-	{
-		const float ArriveTangentNormalized = Key2ArriveTangent;
-		const float Y = ArriveTangentNormalized * X;
-		ArriveWeight = FMath::Sqrt(X * X + Y * Y) * OneThird;
-	}
-	else
-	{
-		ArriveWeight = Key2ArriveTangentWeight;
-	}
-	const float Key2TanX = -CosAngle * ArriveWeight + Time2;
-	const float Key2TanY = -SinAngle * ArriveWeight + Key2Value;
-
-	//Normalize the Time Range
-	const float RangeX = Time2 - Time1;
-
-	const float Dx1 = Key1TanX - Time1;
-	const float Dx2 = Key2TanX - Time1;
-
-	// Normalize values
-	const float NormalizedX1 = Dx1 / RangeX;
-	const float NormalizedX2 = Dx2 / RangeX;
-
-	double Coeff[4];
-	double Results[3];
-
-	//Convert Bezier to Power basis, also float to double for precision for root finding.
-	BezierToPower(
-		0.0, NormalizedX1, NormalizedX2, 1.0,
-		&(Coeff[3]), &(Coeff[2]), &(Coeff[1]), &(Coeff[0])
-	);
-
-	Coeff[0] = Coeff[0] - Alpha;
-
-	int NumResults = SolveCubic(Coeff, Results);
-	float NewInterp = Alpha;
-	if (NumResults == 1)
-	{
-		NewInterp = Results[0];
-	}
-	else
-	{
-		NewInterp = TNumericLimits<float>::Lowest(); //just need to be out of range
-		for (double Result : Results)
-		{
-			if ((Result >= 0.0f) && (Result <= 1.0f))
-			{
-				if (NewInterp < 0.0f || Result > NewInterp)
-				{
-					NewInterp = Result;
-				}
-			}
-		}
-
-		if (NewInterp == TNumericLimits<float>::Lowest())
-		{
-			NewInterp = 0.f;
-		}
-
-	}
-	//now use NewInterp and adjusted tangents plugged into the Y (Value) part of the graph.
-	//const float P0 = Key1.Value;
-	const float P1 = Key1TanY;
-	//const float P3 = Key2.Value;
-	const float P2 = Key2TanY;
-
-	float OutValue = BezierInterp(P0, P1, P2, P3, NewInterp);
-	return OutValue;
-}
-
-static bool IsItNotWeighted(const FRichCurveKey& Key1, const FRichCurveKey& Key2)
-{
-	return ((Key1.TangentWeightMode == RCTWM_WeightedNone || Key1.TangentWeightMode == RCTWM_WeightedArrive)
-		&& (Key2.TangentWeightMode == RCTWM_WeightedNone || Key2.TangentWeightMode == RCTWM_WeightedLeave));
-}
-
-float EvalForTwoKeys(const FRichCurveKey& Key1, const FRichCurveKey& Key2, const float InTime)
-{
-	const float Diff = Key2.Time - Key1.Time;
-
-	if (Diff > 0.f && Key1.InterpMode != RCIM_Constant)
-	{
-		const float Alpha = (InTime - Key1.Time) / Diff;
-		const float P0 = Key1.Value;
-		const float P3 = Key2.Value;
-
-		if (Key1.InterpMode == RCIM_Linear)
-		{
-			return FMath::Lerp(P0, P3, Alpha);
-		}
-		else 
-		{
-			if (IsItNotWeighted(Key1,Key2))
-			{
-				const float OneThird = 1.0f / 3.0f;
-				const float P1 = P0 + (Key1.LeaveTangent * Diff * OneThird);
-				const float P2 = P3 - (Key2.ArriveTangent * Diff * OneThird);
-
-				return BezierInterp(P0, P1, P2, P3, Alpha);
-			}
-			else //it's weighted
-			{
-				return  WeightedEvalForTwoKeys(
-					Key1.Value, Key1.Time, Key1.LeaveTangent, Key1.LeaveTangentWeight, Key1.TangentWeightMode,
-					Key2.Value, Key2.Time, Key2.ArriveTangent, Key2.ArriveTangentWeight, Key2.TangentWeightMode,
-					InTime);
-			}
-		}
-	}
-	else
-	{
-		return Key1.Value;
-	}
-}
-
 void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepKey, int32 InEndKeepKey, FFrameRate SampleRate)
 {
 	if (Keys.Num() < 3) // Will always keep first and last key
@@ -1272,11 +1013,11 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 				while (SampleFrameTime <= KeyTwoFrameTime)
 				{
 					const float SampleSeconds = SampleRate.AsSeconds(SampleFrameTime);
-					const float ValueWithoutKey = EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], SampleSeconds);
+					const float ValueWithoutKey = UE::Curves::EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], SampleSeconds);
 
 					const FRichCurveKey& KeyOne = SampleSeconds <= ToRemoveKeyTime ? Keys[MostRecentKeepKeyIndex] : Keys[TestIndex];
 					const FRichCurveKey& KeyTwo = SampleSeconds <= ToRemoveKeyTime ? Keys[TestIndex] : Keys[TestIndex + 1];
-					const float ValueWithKey = EvalForTwoKeys(KeyOne, KeyTwo, SampleSeconds);
+					const float ValueWithKey = UE::Curves::EvalForTwoKeys(KeyOne, KeyTwo, SampleSeconds);
 				
 					if (FMath::Abs(ValueWithoutKey - ValueWithKey) > Tolerance)
 					{
@@ -1299,7 +1040,7 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 				if (IsNonUserTangentKey(Keys[MostRecentKeepKeyIndex]) && IsNonUserTangentKey(Keys[TestIndex + 1]) && IsNonUserTangentKey(Keys[TestIndex]))
 				{
 					const float KeyValue = Keys[TestIndex].Value;
-					const float ValueWithoutKey = EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], Keys[TestIndex].Time);
+					const float ValueWithoutKey = UE::Curves::EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], Keys[TestIndex].Time);
 
 					bKeepKey = FMath::Abs(ValueWithoutKey - KeyValue) > Tolerance;
 				}
@@ -1450,7 +1191,7 @@ float FRichCurve::Eval(float InTime, float InDefaultValue) const
 			}
 		}
 
-		InterpVal = EvalForTwoKeys(Keys[first - 1], Keys[first], InTime);
+		InterpVal = UE::Curves::EvalForTwoKeys(Keys[first - 1], Keys[first], InTime);
 	}
 	else
 	{
@@ -1582,17 +1323,17 @@ static ERichCurveKeyTimeCompressionFormat FindRichCurveKeyFormat(const FRichCurv
 			{
 				return FMath::Lerp(P0, P3, Alpha);
 			}
-			else if(IsItNotWeighted(Key1,Key2))
+			else if(UE::Curves::IsItNotWeighted(Key1,Key2))
 			{
 				const float OneThird = 1.0f / 3.0f;
 				const float P1 = P0 + (Key1.LeaveTangent * Diff * OneThird);
 				const float P2 = P3 - (Key2.ArriveTangent * Diff * OneThird);
 
-				return BezierInterp(P0, P1, P2, P3, Alpha);
+				return UE::Curves::BezierInterp(P0, P1, P2, P3, Alpha);
 			}
 			else //it's weighted
 			{
-				return  WeightedEvalForTwoKeys(
+				return  UE::Curves::WeightedEvalForTwoKeys(
 					Key1.Value, KeyTime1, Key1.LeaveTangent, Key1.LeaveTangentWeight, Key1.TangentWeightMode,
 					Key2.Value, KeyTime2, Key2.ArriveTangent, Key2.ArriveTangentWeight, Key2.TangentWeightMode,
 					InTime);
@@ -1657,7 +1398,7 @@ static ERichCurveKeyTimeCompressionFormat FindRichCurveKeyFormat(const FRichCurv
 		}
 
 		const float Result_16 = EvalForTwoKeys(Curve.Keys[CurrentLossyKey], LossyTime1_16, Curve.Keys[CurrentLossyKey + 1], LossyTime2_16, CurrentTime);
-		const float Result_Ref = ::EvalForTwoKeys(Curve.Keys[CurrentRefKey], Curve.Keys[CurrentRefKey + 1], CurrentTime);
+		const float Result_Ref = UE::Curves::EvalForTwoKeys(Curve.Keys[CurrentRefKey], Curve.Keys[CurrentRefKey + 1], CurrentTime);
 
 		const float Error_16 = FMath::Abs(Result_Ref - Result_16);
 
@@ -2317,13 +2058,13 @@ FORCEINLINE_DEBUGGABLE static float InterpEval(float InTime, const KeyTimeAdapte
 			const float P1 = P0 + (KeyLeaveTangent0 * ScaledDiff);
 			const float P2 = P3 - (KeyArriveTangent1 * ScaledDiff);
 
-			InterpolatedValue = BezierInterp(P0, P1, P2, P3, Alpha);
+			InterpolatedValue = UE::Curves::BezierInterp(P0, P1, P2, P3, Alpha);
 		}
 		else //it's weighted
 		{
-			return  WeightedEvalForTwoKeys(
-				KeyValue0, KeyTime0, KeyDataAdapter.GetKeyLeaveTangent(KeyValueHandle0), KeyDataAdapter.GetKeyLeaveTangentWeight(KeyValueHandle0), KeyDataAdapter.GetKeyTangentWeightMode(KeyValueHandle0),
-				KeyValue1, KeyTime1, KeyDataAdapter.GetKeyArriveTangent(KeyValueHandle1), KeyDataAdapter.GetKeyArriveTangentWeight(KeyValueHandle1), KeyDataAdapter.GetKeyTangentWeightMode(KeyValueHandle1),
+			return  UE::Curves::WeightedEvalForTwoKeys(
+				KeyValue0, KeyTime0, KeyDataAdapter.GetKeyLeaveTangent(KeyValueHandle0), KeyDataAdapter.GetKeyLeaveTangentWeight(KeyValueHandle0), KeyDataAdapter.GetKeyTangentWeightMode(First - 1),
+				KeyValue1, KeyTime1, KeyDataAdapter.GetKeyArriveTangent(KeyValueHandle1), KeyDataAdapter.GetKeyArriveTangentWeight(KeyValueHandle1), KeyDataAdapter.GetKeyTangentWeightMode(First),
 				InTime);
 		}
 	}
