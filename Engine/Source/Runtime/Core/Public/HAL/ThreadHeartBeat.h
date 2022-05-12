@@ -17,6 +17,10 @@
 DECLARE_DELEGATE_OneParam(FOnThreadStuck, uint32);
 DECLARE_DELEGATE_OneParam(FOnThreadUnstuck, uint32);
 
+#if !UE_BUILD_SHIPPING
+DECLARE_DELEGATE_OneParam(FOnHangDelegate, uint32);
+#endif
+
 /**
  * Our own local clock.
  * Platforms that support suspend/resume have problems where a suspended title acts like
@@ -140,6 +144,9 @@ class CORE_API FThreadHeartBeat : public FRunnable
 
 	FOnThreadStuck OnStuck;
 	FOnThreadUnstuck OnUnstuck;
+#if !UE_BUILD_SHIPPING
+	FOnHangDelegate OnHangDelegate;
+#endif
 
 	FThreadHeartBeat();
 	virtual ~FThreadHeartBeat();
@@ -233,6 +240,15 @@ public:
 	*/
 	FOnThreadStuck& GetOnThreadStuck() { return OnStuck; }
 	FOnThreadUnstuck& GetOnThreadUnstuck() { return OnUnstuck; }
+
+	/*
+	* Get delegate for callback on hang.
+	* Delegate implementation will be called from the hang detector thread and not from the hung thread
+	* Disabled in shipping build
+	*/
+#if !UE_BUILD_SHIPPING
+	FOnHangDelegate& GetOnHangDelegate() { return OnHangDelegate; }
+#endif
 
 	/*
 	*  Get hang duration threshold.

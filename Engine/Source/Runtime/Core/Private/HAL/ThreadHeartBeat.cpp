@@ -220,6 +220,12 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 #if PLATFORM_SWITCH
 	FPlatformCrashContext::UpdateDynamicData();
 #endif
+
+#if !UE_BUILD_SHIPPING
+	// Delegate implementation will be called from the hang detector thread and not from the hung thread
+	OnHangDelegate.ExecuteIfBound(ThreadThatHung);
+#endif
+
 	// We want to avoid all memory allocations if a hang is detected.
 	// Force a crash in a way that will generate a crash report.
 
