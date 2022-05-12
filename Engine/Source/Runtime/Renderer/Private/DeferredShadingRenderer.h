@@ -421,7 +421,6 @@ private:
 		return bAnyViewHasGIMethodSupportingDFAO;
 	}
 
-	static FGraphEventRef TranslucencyTimestampQuerySubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1];
 	static FGlobalDynamicIndexBuffer DynamicIndexBufferForInitViews;
 	static FGlobalDynamicIndexBuffer DynamicIndexBufferForInitShadows;
 	static FGlobalDynamicVertexBuffer DynamicVertexBufferForInitViews;
