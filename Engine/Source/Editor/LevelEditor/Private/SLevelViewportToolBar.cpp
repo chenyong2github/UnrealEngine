@@ -5,6 +5,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
 #include "ToolMenus.h"
 #include "LevelEditorMenuContext.h"
 #include "Modules/ModuleManager.h"
@@ -277,6 +278,14 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					.OnGetMenuContent(this, &SLevelViewportToolBar::GetScalabilityWarningMenuContent)
 					.Visibility(this, &SLevelViewportToolBar::GetScalabilityWarningVisibility)
 					.ToolTipText(LOCTEXT("ScalabilityWarning_ToolTip", "Non-default scalability settings could be affecting what is shown in this viewport.\nFor example you may experience lower visual quality, reduced particle counts, and other artifacts that don't match what the scene would look like when running outside of the editor. Click to make changes."))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(ToolbarSlotPadding)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Fill)
+				[
+					SAssignNew(ExtensionPanel, SExtensionPanel)
+					.ExtensionPanelID("LevelViewportToolBar.MiddleExtension")
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(ToolbarSlotPadding)

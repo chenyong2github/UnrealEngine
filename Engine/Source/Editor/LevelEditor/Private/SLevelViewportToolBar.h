@@ -11,6 +11,7 @@
 
 class ACameraActor;
 class FExtender;
+class SExtensionPanel;
 class FMenuBuilder;
 class UToolMenu;
 struct FToolMenuSection;
@@ -279,5 +280,8 @@ private:
 private:
 	/** The viewport that we are in */
 	TWeakPtr<class SLevelViewport> Viewport;
+
+	/** SLevelViewportToolBar UI extension */
+	TSharedPtr<SExtensionPanel> ExtensionPanel;
 };
 
