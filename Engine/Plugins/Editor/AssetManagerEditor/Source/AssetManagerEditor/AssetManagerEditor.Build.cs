@@ -45,6 +45,7 @@ public class AssetManagerEditor : ModuleRules
 				"EditorWidgets",
 				"TreeMap",
 				"ToolMenus",
+				"ToolWidgets",
 			}
 		);
 	}

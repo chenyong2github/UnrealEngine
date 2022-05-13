@@ -276,7 +276,7 @@ int32 UEdGraph_ReferenceViewer::GetSearchDependencyDepthLimit() const
 
 void UEdGraph_ReferenceViewer::SetSearchDependencyDepthLimit(int32 NewDepthLimit)
 {
-	MaxSearchDependencyDepth = NewDepthLimit;
+	MaxSearchDependencyDepth = FMath::Max(NewDepthLimit, 0);
 }
 
 int32 UEdGraph_ReferenceViewer::GetSearchReferencerDepthLimit() const
@@ -286,7 +286,7 @@ int32 UEdGraph_ReferenceViewer::GetSearchReferencerDepthLimit() const
 
 void UEdGraph_ReferenceViewer::SetSearchReferencerDepthLimit(int32 NewDepthLimit)
 {
-	MaxSearchReferencerDepth = NewDepthLimit;
+	MaxSearchReferencerDepth = FMath::Max(NewDepthLimit, 0);
 }
 
 int32 UEdGraph_ReferenceViewer::GetSearchBreadthLimit() const
@@ -296,7 +296,7 @@ int32 UEdGraph_ReferenceViewer::GetSearchBreadthLimit() const
 
 void UEdGraph_ReferenceViewer::SetSearchBreadthLimit(int32 NewBreadthLimit)
 {
-	MaxSearchBreadth = NewBreadthLimit;
+	MaxSearchBreadth = FMath::Max(NewBreadthLimit, 0);
 }
 
 FName UEdGraph_ReferenceViewer::GetCurrentCollectionFilter() const

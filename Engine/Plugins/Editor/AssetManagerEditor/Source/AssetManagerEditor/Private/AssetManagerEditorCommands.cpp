@@ -23,8 +23,33 @@ void FAssetManagerEditorCommands::RegisterCommands()
 	
 	UI_COMMAND(ViewAssetAudit, "Audit Assets...", "Opens the Asset Audit UI and displays information about the selected assets", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift | EModifierKey::Alt, EKeys::A));
 
-	UI_COMMAND(OpenSelectedInAssetEditor, "Edit...", "Opens the selected asset in the relevant editor.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenSelectedInAssetEditor, "Edit...", "Opens the selected asset in the relevant editor.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::E));
 	UI_COMMAND(ZoomToFit, "Zoom to Fit", "Zoom in and center the view on the selected item", EUserInterfaceActionType::Button, FInputChord(EKeys::Home));
+
+	UI_COMMAND(IncreaseReferencerSearchDepth, "Increase Referencer Search Depth", "Increase the Referencer Search Depth", EUserInterfaceActionType::Button, FInputChord(EKeys::R));
+	UI_COMMAND(DecreaseReferencerSearchDepth, "Decrease Referencer Search Depth", "Decrease the Referencer Search Depth", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::R));
+	UI_COMMAND(SetReferencerSearchDepth, "Set Referencer Search Depth", "Set the Referencer Search Depth", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::R));
+
+	UI_COMMAND(IncreaseDependencySearchDepth, "Increase Dependency Search Depth", "Increase the Dependency Search Depth", EUserInterfaceActionType::Button, FInputChord(EKeys::D));
+	UI_COMMAND(DecreaseDependencySearchDepth, "Decrease Dependency Search Depth", "Decrease the Dependency Search Depth", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::D));
+	UI_COMMAND(SetDependencySearchDepth, "Set Dependency Search Depth", "Set the Dependency Search Depth", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::D));
+
+	UI_COMMAND(IncreaseBreadth, "Increase Search Breadth", "Increase the Breadth Limit", EUserInterfaceActionType::Button, FInputChord( EKeys::L));
+	UI_COMMAND(DecreaseBreadth, "Decrease Search Breadth", "Decrease the Breadth Limit", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::L));
+	UI_COMMAND(SetBreadth, "Set the Breadth", "Set the Breadth Limit", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
+
+	UI_COMMAND(ShowSoftReferences, "Show Soft References", "Toggles visibility of Soft References", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::S));
+	UI_COMMAND(ShowHardReferences, "Show Hard References", "Toggles visibility of Hard References", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::H));
+	UI_COMMAND(ShowEditorOnlyReferences, "Show EditorOnly References","Toggles visibility of EditorOnly References", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::E));
+
+	UI_COMMAND(ShowManagementReferences, "Show Management References","Toggles visibility of Management References (i.e. PrimaryAssetIDs)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::M));
+	UI_COMMAND(ShowGamePlayTags, "Show GamePlayTags","Toggles visibility of GameplayTags", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::G));
+	UI_COMMAND(ShowNativePackages, "Show Native Packages","Toggles visibility of Native Packages", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::N));
+
+	UI_COMMAND(ShowDuplicates, "Show Duplicate References", "Toggles visibility of Duplicate References", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
+	UI_COMMAND(CompactMode, "Compact Mode", "Toggles Compact Mode", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::C));
+	UI_COMMAND(FilterSearch, "Filter Search Results", "Toggles filtering of search results", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::F));
+
 	UI_COMMAND(ReCenterGraph, "Re-Center Graph", "Re-centers the graph on this node, showing all referencers and references for this asset instead", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CopyReferencedObjects, "Copy Referenced Objects List", "Copies the list of objects that the selected asset references to the clipboard.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CopyReferencingObjects, "Copy Referencing Objects List", "Copies the list of objects that reference the selected asset to the clipboard.", EUserInterfaceActionType::Button, FInputChord());

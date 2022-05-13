@@ -47,6 +47,10 @@ public:
 	/** Called when the current registry source changes */
 	void SetCurrentRegistrySource(const FAssetManagerEditorRegistrySource* RegistrySource);
 
+	/**SWidget interface **/
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+
 private:
 
 	/** Call after a structural change is made that causes the graph to be recreated */
@@ -120,34 +124,35 @@ private:
 	void HandleCollectionFilterChanged(TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
 	FText GetCollectionFilterText() const;
 
-	void OnShowSoftReferencesChanged( ECheckBoxState NewState );
-	ECheckBoxState IsShowSoftReferencesChecked() const;
-	void OnShowHardReferencesChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowHardReferencesChecked() const;
-	void OnShowEditorOnlyReferencesChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowEditorOnlyReferencesChecked() const;
+	void OnShowSoftReferencesChanged();
+	bool IsShowSoftReferencesChecked() const;
+	void OnShowHardReferencesChanged();
+	bool IsShowHardReferencesChecked() const;
+	void OnShowEditorOnlyReferencesChanged();
+	bool IsShowEditorOnlyReferencesChecked() const;
 
-	void OnShowFilteredPackagesOnlyChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowFilteredPackagesOnlyChecked() const;
+	void OnShowFilteredPackagesOnlyChanged();
+	bool IsShowFilteredPackagesOnlyChecked() const;
 	void UpdateIsPassingFilterPackageCallback();
 
-	void OnCompactModeChanged(ECheckBoxState NewState);
-	ECheckBoxState IsCompactModeChecked() const;
+	void OnCompactModeChanged();
+	bool IsCompactModeChecked() const;
 
-	void OnShowDuplicatesChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowDuplicatesChecked() const;
+	void OnShowDuplicatesChanged();
+	bool IsShowDuplicatesChecked() const;
 
-	EVisibility GetManagementReferencesVisibility() const;
-	void OnShowManagementReferencesChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowManagementReferencesChecked() const;
-
-	void OnShowSearchableNamesChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowSearchableNamesChecked() const;
-	void OnShowNativePackagesChanged(ECheckBoxState NewState);
-	ECheckBoxState IsShowNativePackagesChecked() const;
+	bool GetManagementReferencesVisibility() const;
+	void OnShowManagementReferencesChanged();
+	bool IsShowManagementReferencesChecked() const;
+	void OnShowSearchableNamesChanged();
+	bool IsShowSearchableNamesChecked() const;
+	void OnShowNativePackagesChanged();
+	bool IsShowNativePackagesChecked() const;
 
 	int32 GetSearchBreadthCount() const;
 	void OnSearchBreadthCommitted(int32 NewValue);
+
+	TSharedRef<SWidget> GetShowMenuContent();
 
 	void RegisterActions();
 	void ShowSelectionInContentBrowser();
@@ -193,6 +198,9 @@ private:
 
 	TSharedPtr<FUICommandList> ReferenceViewerActions;
 	TSharedPtr<SSearchBox> SearchBox;
+	TSharedPtr<SWidget> ReferencerCountBox;
+	TSharedPtr<SWidget> DependencyCountBox;
+	TSharedPtr<SWidget> BreadthLimitBox;
 
 	UEdGraph_ReferenceViewer* GraphObj;
 

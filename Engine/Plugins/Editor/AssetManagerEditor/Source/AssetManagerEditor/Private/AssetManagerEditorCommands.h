@@ -34,6 +34,60 @@ public:
 	// Re-constructs the graph with the selected asset as the center
 	TSharedPtr<FUICommandInfo> ReCenterGraph;
 
+	// Increase Referencer Search Depth
+	TSharedPtr<FUICommandInfo> IncreaseReferencerSearchDepth;
+
+	// Decrease Referencer Search Depth
+	TSharedPtr<FUICommandInfo> DecreaseReferencerSearchDepth;
+
+	// Set the Referencer Serach Depth 
+	TSharedPtr<FUICommandInfo> SetReferencerSearchDepth;
+
+	// Increase Dependency Search Depth
+	TSharedPtr<FUICommandInfo> IncreaseDependencySearchDepth;
+
+	// Decrease Dependency Search Depth
+	TSharedPtr<FUICommandInfo> DecreaseDependencySearchDepth;
+
+	// Set the Dependency Serach Depth 
+	TSharedPtr<FUICommandInfo> SetDependencySearchDepth;
+
+	// Increase Search Breadth
+	TSharedPtr<FUICommandInfo> IncreaseBreadth;
+
+	// Decrease Search Breadth
+	TSharedPtr<FUICommandInfo> DecreaseBreadth;
+
+	// Set the Breadth LImit
+	TSharedPtr<FUICommandInfo> SetBreadth;;
+
+	// Toggles visiblity of Soft References
+	TSharedPtr<FUICommandInfo> ShowSoftReferences;
+
+	// Toggles visiblity of Hard References
+	TSharedPtr<FUICommandInfo> ShowHardReferences;
+
+	// Toggles visiblity of EditorOnly References
+	TSharedPtr<FUICommandInfo> ShowEditorOnlyReferences;
+
+	// Toggles visiblity of Management References (i.e. PrimaryAssetIDs)
+	TSharedPtr<FUICommandInfo> ShowManagementReferences;
+
+	// Toggles visiblity of GameplayTags
+	TSharedPtr<FUICommandInfo> ShowGamePlayTags;
+
+	// Toggles visiblity of Native Packages
+	TSharedPtr<FUICommandInfo> ShowNativePackages;
+
+	// Toggles visiblity of Duplicate References
+	TSharedPtr<FUICommandInfo> ShowDuplicates;
+
+	// Toggles Compact Mode
+	TSharedPtr<FUICommandInfo> CompactMode;
+
+	// Toggles whether search results are filtered or just selected 
+	TSharedPtr<FUICommandInfo> FilterSearch;
+
 	// Copies the list of objects that the selected asset references
 	TSharedPtr<FUICommandInfo> CopyReferencedObjects;
 

@@ -924,7 +924,7 @@ public:
 	/** Called when 'Go to Documentation for Actor' is clicked */
 	static void GoToDocsForActor_Clicked();
 
-	/**
+/**
 	 * Called when the LockActorMovement command is executed
 	 */
 	static void LockActorMovement_Clicked();
