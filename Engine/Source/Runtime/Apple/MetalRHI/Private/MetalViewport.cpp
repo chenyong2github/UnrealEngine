@@ -251,6 +251,8 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		{
 			CreateDesc.AddFlags(ETextureCreateFlags::Presentable);
 		}
+		
+		CreateDesc.SetInitialState(RHIGetDefaultResourceState(CreateDesc.Flags, false));
 
 		NewBackBuffer = new FMetalSurface(CreateDesc);
 		NewBackBuffer->Viewport = this;

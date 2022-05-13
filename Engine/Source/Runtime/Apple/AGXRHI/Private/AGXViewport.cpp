@@ -247,6 +247,8 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
 		{
 			CreateDesc.AddFlags(ETextureCreateFlags::Presentable);
 		}
+		
+		CreateDesc.SetInitialState(RHIGetDefaultResourceState(CreateDesc.Flags, false));
 
 		NewBackBuffer = new FAGXSurface(CreateDesc);
 		NewBackBuffer->Viewport = this;
