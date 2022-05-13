@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassRequirementAccessDetector.h"
-#include "MassEntityQuery.h"
-
-
 #if WITH_MASSENTITY_DEBUG
+#include "MassEntityQuery.h"
+#include "HAL/IConsoleManager.h"
+
 namespace UE::Mass::Private
 {
 	bool bTrackRequirementsAccess = false;
