@@ -380,6 +380,8 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 			
 			if (!LayoutBuilder.IsPropertyPathAllowed(ChildNode->GetPropertyPath()))
 			{
+				ChildNode->SetNodeFlags( EPropertyNodeFlags::RequiresValidation, false); 
+				ChildNode->SetNodeFlags( EPropertyNodeFlags::IsBeingFiltered | EPropertyNodeFlags::SkipChildValidation, true);
 				continue;
 			}
 			
