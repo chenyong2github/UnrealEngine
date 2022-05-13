@@ -104,7 +104,6 @@ public:
 
 private:
 	static const uint32 TextureCapacity = (VIRTUALTEXTURE_SPACE_MAXLAYERS + LayersPerPageTableTexture - 1u) / LayersPerPageTableTexture;
-	static const uint32 MinPageTableWidth = 128u; // UE-149293
 
 	struct FTextureEntry
 	{
