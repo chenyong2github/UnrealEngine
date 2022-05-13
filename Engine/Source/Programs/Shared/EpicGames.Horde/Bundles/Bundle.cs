@@ -850,7 +850,7 @@ namespace EpicGames.Horde.Bundles
 				nextBlobCost += writeNodes[maxIdx].Length;
 				if (nextBlobCost > Options.MaxBlobSize)
 				{
-					await WriteObjectAsync(writeNodes.Slice(minIdx, maxIdx - minIdx));
+					await WriteObjectAsync(writeNodes.AsSegment(minIdx, maxIdx - minIdx));
 					minIdx = maxIdx;
 					nextBlobCost = writeNodes[maxIdx].Length;
 				}
@@ -858,12 +858,12 @@ namespace EpicGames.Horde.Bundles
 
 			if (nextBlobCost > Options.MaxInlineBlobSize && minIdx + 1 < writeNodes.Length)
 			{
-				await WriteObjectAsync(writeNodes.Slice(minIdx, writeNodes.Length - 1 - minIdx));
+				await WriteObjectAsync(writeNodes.AsSegment(minIdx, writeNodes.Length - 1 - minIdx));
 				minIdx = writeNodes.Length - 1;
 			}
 
 			// Write the final ref
-			await WriteRefAsync(writeNodes.Slice(minIdx), bucketId, refId, metadata);
+			await WriteRefAsync(writeNodes.AsSegment(minIdx), bucketId, refId, metadata);
 
 			// Copy the stats over
 			Stats = _nextStats;
