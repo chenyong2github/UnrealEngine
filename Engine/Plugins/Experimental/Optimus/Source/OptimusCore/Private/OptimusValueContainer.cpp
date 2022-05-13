@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptimusValueContainer.h"
+#include "OptimusHelpers.h"
 
 FName UOptimusValueContainerGeneratorClass::ValuePropertyName = TEXT("Value");
 
@@ -14,17 +15,19 @@ void UOptimusValueContainerGeneratorClass::Link(FArchive& Ar, bool bRelinkExisti
 }
 
 
-UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UObject* InPackage, FOptimusDataTypeRef InDataType)
+UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UPackage* InPackage, FOptimusDataTypeRef InDataType)
 {
+	UObject* ClassOuter = Optimus::GetGeneratorClassOuter(InPackage);
+	
 	const FString ClassName = TEXT("OptimusValueContainer_") + InDataType.TypeName.ToString();
 
-	// Check if the package already owns this class.
-	UOptimusValueContainerGeneratorClass *TypeClass = FindObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName);
+	// Check if the asset object already owns this class.
+	UOptimusValueContainerGeneratorClass *TypeClass = FindObject<UOptimusValueContainerGeneratorClass>(ClassOuter, *ClassName);
 	if (!TypeClass)
 	{
 		UClass *ParentClass = UOptimusValueContainer::StaticClass();
 		// Construct a value node class for this data type
-		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName, RF_Standalone|RF_Public);
+		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(ClassOuter, *ClassName, RF_Standalone|RF_Public);
 		TypeClass->SetSuperStruct(ParentClass);
 		TypeClass->PropertyLink = ParentClass->PropertyLink;
 
@@ -49,12 +52,28 @@ UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UObject* InPackage
 		// Finalize the class
 		TypeClass->Bind();
 		TypeClass->StaticLink(true);
-		TypeClass->AddToRoot();
 
 		// Make sure the CDO exists.
 		(void)TypeClass->GetDefaultObject();
 	}
 	return TypeClass;
+}
+
+void UOptimusValueContainer::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetClass()->GetOuter()->IsA<UPackage>())
+	{
+		// This class should be parented to the asset object instead of the package
+		// because the engine no longer supports multiple 'assets' per package
+		// In the past, there were assets created with this class parented to the package directly
+		if (UObject* AssetObject = Optimus::GetGeneratorClassOuter(this->GetPackage()))
+		{
+			AssetObject->Modify();
+			Optimus::RenameObject(GetClass(), nullptr, AssetObject);
+		}
+	}
 }
 
 UOptimusValueContainer* UOptimusValueContainer::MakeValueContainer(UObject* InOwner, FOptimusDataTypeRef InDataTypeRef)

@@ -11,14 +11,17 @@ class OPTIMUSCORE_API UOptimusValueContainerGeneratorClass : public UClass
 {
 public:
 	GENERATED_BODY()
-	
+	// This class should be parented to the asset object, instead of the package
+	// because the engine no longer supports multiple 'assets' per package
+	DECLARE_WITHIN(UObject)
+
 	static FName ValuePropertyName;
 	
 	// UClass overrides
 	void Link(FArchive& Ar, bool bRelinkExistingProperties) override;
 	
 	static UClass *GetClassForType(
-		UObject *InPackage,
+		UPackage*InPackage,
 		FOptimusDataTypeRef InDataType
 		);
 
@@ -32,6 +35,8 @@ class OPTIMUSCORE_API UOptimusValueContainer : public UObject
 public:
 	GENERATED_BODY()
 
+	void PostLoad() override;
+	
 	static UOptimusValueContainer* MakeValueContainer(UObject* InOwner, FOptimusDataTypeRef InDataTypeRef);
 
 	FOptimusDataTypeRef GetValueType() const;

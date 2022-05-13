@@ -15,13 +15,16 @@ class UOptimusNode_ConstantValueGeneratorClass :
 	public UClass
 {
 	GENERATED_BODY()
-
+	// This class should be parented to the asset object, instead of the package
+	// because the engine no longer supports multiple 'assets' per package
+	DECLARE_WITHIN(UObject)
+	
 public:
 	// UClass overrides
 	void Link(FArchive& Ar, bool bRelinkExistingProperties) override;
 	
 	static UClass *GetClassForType(
-		UObject *InPackage,
+		UPackage* InPackage,
 		FOptimusDataTypeRef InDataType
 		);
 
@@ -37,13 +40,17 @@ class UOptimusNode_ConstantValue :
 	GENERATED_BODY()
 
 public:
+	
 	FName GetNodeCategory() const override
 	{
 		return CategoryName::Values; 
 	}
 
-#if WITH_EDITOR
+
 	// UObject overrides
+	void PostLoad() override;
+
+#if WITH_EDITOR
 	void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
