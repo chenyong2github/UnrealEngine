@@ -15,16 +15,6 @@
 // If the textures are atlased or something like that in the future it should be ok to turn on.
 #define USE_SOURCE_TEXTURE 0
 
-#include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
-#include "Common.ush"
-#include "Strata/Strata.ush"
-#include "DeferredShadingCommon.ush"  
-#include "BRDF.ush"
-#include "ShadingModels.ush"
-#include "LightGridCommon.ush"
-#include "DeferredLightingCommon.ush"
-#include "VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush"
-
 #if STRATA_ENABLED
   #if STRATA_TILETYPE == 0
 	#define STRATA_FASTPATH 1
@@ -35,9 +25,19 @@
   #else
 	#error Strata tile type non-implemented
   #endif
+#endif
+
+#include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
+#include "Common.ush"
+#include "Strata/Strata.ush"
+#include "DeferredShadingCommon.ush"  
+#include "BRDF.ush"
+#include "ShadingModels.ush"
+#include "LightGridCommon.ush"
+#include "DeferredLightingCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush"
 #include "Strata/StrataEvaluation.ush"
 #include "Strata/StrataDeferredLighting.ush"
-#endif
 
 #if USE_HAIR_LIGHTING == 1
 	#include "HairStrands/HairStrandsCommon.ush"

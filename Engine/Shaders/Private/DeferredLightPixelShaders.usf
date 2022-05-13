@@ -7,6 +7,18 @@
 #define SUPPORT_CONTACT_SHADOWS 1
 #define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 
+#if STRATA_ENABLED 
+  #if STRATA_TILETYPE == 0
+	#define STRATA_FASTPATH 1
+  #elif STRATA_TILETYPE == 1
+	#define STRATA_SINGLEPATH 1
+  #elif STRATA_TILETYPE == 2
+	// COMPLEX PATH
+  #else
+	#error Strata tile type non-implemented
+  #endif
+#endif
+
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
 #include "Common.ush"
 
@@ -32,19 +44,8 @@
 #include "VolumetricCloudCommon.ush"
 #endif
 
-#if STRATA_ENABLED 
-  #if STRATA_TILETYPE == 0
-	#define STRATA_FASTPATH 1
-  #elif STRATA_TILETYPE == 1
-	#define STRATA_SINGLEPATH 1
-  #elif STRATA_TILETYPE == 2
-	// COMPLEX PATH
-  #else
-	#error Strata tile type non-implemented
-  #endif
 #include "Strata/StrataEvaluation.ush"
 #include "Strata/StrataDeferredLighting.ush"
-#endif
 
 struct FInputParams
 {

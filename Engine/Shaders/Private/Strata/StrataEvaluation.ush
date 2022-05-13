@@ -23,14 +23,6 @@
 #include "../HairStrands/HairStrandsDeepTransmittanceCommon.ush"
 #include "../HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
 
-#ifndef STRATA_FASTPATH 
-#define STRATA_FASTPATH 0
-#endif
-
-#ifndef STRATA_SINGLE 
-#define STRATA_SINGLE 0
-#endif
-
 #ifndef STRATA_TRANSLUCENT_ENABLED
 #define STRATA_TRANSLUCENT_ENABLED 0
 #endif

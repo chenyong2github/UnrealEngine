@@ -4,6 +4,19 @@
 	ReflectionEnvironmentComputeShaders - functionality to apply local cubemaps.
 =============================================================================*/
   
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 0
+#if STRATA_TILETYPE == 0
+	#define STRATA_FASTPATH 1
+#elif STRATA_TILETYPE == 1
+	#define STRATA_SINGLEPATH 1
+#elif STRATA_TILETYPE == 2
+	// COMPLEX PATH
+#else
+	#error Strata tile type non-implemented
+#endif
+#endif
+
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"  
 #include "BRDF.ush"
@@ -18,8 +31,8 @@
 #define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 1
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 1
 #include "ReflectionEnvironmentComposite.ush"
-
-
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
+#include "/Engine/Private/Strata/StrataEnvironmentLighting.ush"
 
 Texture2D ScreenSpaceReflectionsTexture;
 SamplerState ScreenSpaceReflectionsSampler;
@@ -35,22 +48,6 @@ int CloudSkyAOEnabled;
 
 Texture2D AmbientOcclusionTexture;
 SamplerState AmbientOcclusionSampler;
-
-
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#if STRATA_TILETYPE == 0
-	#define STRATA_FASTPATH 1
-#elif STRATA_TILETYPE == 1
-	#define STRATA_SINGLEPATH 1
-#elif STRATA_TILETYPE == 2
-	// COMPLEX PATH
-#else
-	#error Strata tile type non-implemented
-#endif
-#include "/Engine/Private/Strata/StrataEvaluation.ush"
-#include "/Engine/Private/Strata/StrataEnvironmentLighting.ush"
-#endif
 
 
 float3 GatherRadiance(float CompositeAlpha, float3 TranslatedWorldPosition, float3 RayDirection, float Roughness, float3 BentNormal, float IndirectIrradiance, uint ShadingModelID, uint NumCulledReflectionCaptures, uint CaptureDataStartIndex)
