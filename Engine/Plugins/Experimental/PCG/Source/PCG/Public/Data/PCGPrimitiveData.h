@@ -30,7 +30,7 @@ public:
 	// ~End UPCGSpatialDataWithPointCache implementation
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data")
-	float VoxelSize = 100.0f;
+	FVector VoxelSize = FVector(100.0, 100.0, 100.0);
 
 protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Data")
