@@ -191,13 +191,10 @@ namespace UnrealBuildTool
 			return ArchArg;
 		}
 
-		string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result = "";
+			string Result = base.GetCompileArguments_Global(CompileEnvironment);
 
-			Result += " -fmessage-length=0";
-			Result += " -pipe";
-			Result += " -fpascal-strings";
 
 			Result += " -fexceptions";
 			Result += " -DPLATFORM_EXCEPTIONS_DISABLED=0";
@@ -249,8 +246,6 @@ namespace UnrealBuildTool
 				Result += " -faligned-new"; // aligned operator new is supported only on macOS 10.14 and above
 			}
 
-			Result += " -c";
-
 			// Pass through architecture and OS info
 			Result += " " + FormatArchitectureArg(CompileEnvironment.Architecture);	
 			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
@@ -299,12 +294,6 @@ namespace UnrealBuildTool
 			{
 				Result += " -gdwarf-2";
 			}
-
-			// Add include paths to the argument list.
-			Result += GetIncludePathArguments(CompileEnvironment);
-
-			// Add preprocessor definitions to the argument list.
-			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
 
 			return Result;
 		}

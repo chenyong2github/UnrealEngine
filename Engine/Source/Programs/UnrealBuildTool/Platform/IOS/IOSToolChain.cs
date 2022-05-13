@@ -226,13 +226,9 @@ namespace UnrealBuildTool
 		}
 
 
-		string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result = "";
-
-			Result += " -fmessage-length=0";
-			Result += " -pipe";
-			Result += " -fpascal-strings";
+			string Result = base.GetCompileArguments_Global(CompileEnvironment);
 
 			if (RuntimePlatform.IsWindows)
 			{
@@ -312,8 +308,6 @@ namespace UnrealBuildTool
 				Result += " -fembed-bitcode";
 			}
 
-			Result += " -c";
-
 			// What architecture(s) to build for
 			Result += GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture);
 
@@ -371,12 +365,6 @@ namespace UnrealBuildTool
 					Result += String.Format(" -F\"{0}\"", FrameworkDir);
 				}
 			}
-
-			// Add include paths to the argument list.
-			Result += GetIncludePathArguments(CompileEnvironment);
-
-			// Add preprocessor definitions to the argument list.
-			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
 
 			return Result;
 		}

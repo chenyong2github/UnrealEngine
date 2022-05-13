@@ -516,11 +516,9 @@ namespace UnrealBuildTool
 
 		protected virtual string GetCLArguments_Global(CppCompileEnvironment CompileEnvironment)
 		{
-			string Result = "";
+			string Result = base.GetCompileArguments_Global(CompileEnvironment);
 
 			// build up the commandline common to C and C++
-			Result += " -c";
-			Result += " -pipe";
 
 			if (ShouldUseLibcxx(CompileEnvironment.Architecture))
 			{
@@ -794,12 +792,6 @@ namespace UnrealBuildTool
 				}
 				Result += String.Format(" --sysroot=\"{0}\"", BaseLinuxPath);
 			}
-
-			// Add include paths to the argument list.
-			Result += GetIncludePathArguments(CompileEnvironment);
-
-			// Add preprocessor definitions to the argument list.
-			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
 
 			return Result;
 		}

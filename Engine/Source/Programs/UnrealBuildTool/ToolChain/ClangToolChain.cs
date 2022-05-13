@@ -234,5 +234,26 @@ namespace UnrealBuildTool
 			}
 			return Result;
 		}
+
+		/// <summary>
+		/// Common compile arguments for all files in a module.
+		/// Override and call base.GetCompileArguments_Global() in derived classes.
+		/// </summary>
+		protected virtual string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = "";
+
+			// build up the commandline common to C and C++
+			Result += " -c";
+			Result += " -pipe";
+
+			// Add include paths to the argument list.
+			Result += GetIncludePathArguments(CompileEnvironment);
+
+			// Add preprocessor definitions to the argument list.
+			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
+
+			return Result;
+		}
 	}
 }

@@ -253,6 +253,16 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		{
+			string Result = base.GetCompileArguments_Global(CompileEnvironment);
+
+			Result += " -fmessage-length=0";
+			Result += " -fpascal-strings";
+
+			return Result;
+		}
+
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
