@@ -18,6 +18,7 @@ class UAnimGraphNode_PoseHandler : public UAnimGraphNode_AssetPlayerBase
 	virtual void ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog) override;
 	virtual void PreloadRequiredAssets() override;
 	virtual UAnimationAsset* GetAnimationAsset() const override;
+	virtual TSubclassOf<UAnimationAsset> GetAnimationAssetClass() const override;
 	virtual void OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const override;
 	// End of UAnimGraphNode_Base
 

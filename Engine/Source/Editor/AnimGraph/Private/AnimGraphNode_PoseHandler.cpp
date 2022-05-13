@@ -57,3 +57,8 @@ UAnimationAsset* UAnimGraphNode_PoseHandler::GetAnimationAsset() const
 
 	return PoseAsset;
 }
+
+TSubclassOf<UAnimationAsset> UAnimGraphNode_PoseHandler::GetAnimationAssetClass() const
+{
+	return UPoseAsset::StaticClass();
+}
