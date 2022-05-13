@@ -181,6 +181,26 @@ void SMVVMConversionPath::SetConversionFunction(const UFunction* Function)
 	OnFunctionChanged.ExecuteIfBound(Function);
 }
 
+void SMVVMConversionPath::PopulateMenuForEntry(FMenuBuilder& MenuBuilder, const FFunctionEntry* FunctionEntry)
+{
+	for (const FFunctionEntry& Category : FunctionEntry->Categories)
+	{
+		MenuBuilder.AddSubMenu(FText::FromString(Category.CategoryName), 
+			FText::FromString(Category.CategoryName), 
+			FNewMenuDelegate::CreateSP(this, &SMVVMConversionPath::PopulateMenuForEntry, &Category));
+	}
+
+	for (const UFunction* Function : FunctionEntry->Functions)
+	{
+		MenuBuilder.AddMenuEntry(
+			Function->GetDisplayNameText(),
+			Function->GetToolTipText(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon"),
+			FUIAction(FExecuteAction::CreateSP(this, &SMVVMConversionPath::SetConversionFunction, Function))
+		);
+	}
+}
+
 TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 {
 	TArray<FMVVMBlueprintViewBinding*> ViewBindings = Bindings.Get(TArray<FMVVMBlueprintViewBinding*>());
@@ -204,7 +224,7 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 		Args.DestinationBinding = bSourceToDestination ? WidgetField : ViewModelField;
 
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		TArray<const UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(Args.SourceBinding, Args.DestinationBinding);
+		TArray<const UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(Args.SourceBinding, Args.DestinationBinding, WidgetBlueprint);
 
 		if (ConversionFunctions.Num() > 0)
 		{
@@ -233,15 +253,40 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 			true // searchable
 		);
 	}
-
-	for (const UFunction* Function : ConversionFunctions)
+	else
 	{
-		FUIAction Action(FExecuteAction::CreateSP(this, &SMVVMConversionPath::SetConversionFunction, Function));
-		MenuBuilder.AddMenuEntry(
-			Function->GetDisplayNameText(),
-			Function->GetToolTipText(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon"),
-			Action);
+		RootEntry = FFunctionEntry();
+
+		TArray<FString> SubCategories;
+		for (const UFunction* Function : ConversionFunctions)
+		{
+			const FString Category = Function->GetMetaData("Category");
+			SubCategories.Reset();
+			Category.ParseIntoArray(SubCategories, TEXT("|"));
+
+			// create categories
+			FFunctionEntry* CurrentEntry = &RootEntry;
+			for (const FString& CategoryName : SubCategories)
+			{
+				FFunctionEntry* ExistingCategory = CurrentEntry->Categories.FindByPredicate([CategoryName](const FFunctionEntry& Entry)
+					{
+						return Entry.CategoryName == CategoryName;
+					});
+				if (ExistingCategory == nullptr)
+				{
+					int32 NewIndex = CurrentEntry->Categories.Add(FFunctionEntry());
+					ExistingCategory = &CurrentEntry->Categories[NewIndex];
+
+					ExistingCategory->CategoryName = CategoryName;
+				}
+
+				CurrentEntry = ExistingCategory;
+			}
+
+			CurrentEntry->Functions.Add(Function);
+		}
+
+		PopulateMenuForEntry(MenuBuilder, &RootEntry);
 	}
 
 	const FString Path = GetFunctionPath();

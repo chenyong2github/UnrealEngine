@@ -76,10 +76,11 @@ namespace UE::MVVM::BindingHelper
 		// A setter can return a value "bool SetValue(int32)" but is not valid for MVVM
 		//&& ((InFunction->NumParms == 1 && GetReturnProperty() == nullptr) || (InFunction->NumParms == 2 && GetReturnProperty() != nullptr));
 
+		TValueOrError<TArray<const FProperty*>, FString> Result = TryGetArgumentsForConversionFunction(InFunction);
+
 		return Private::IsValidCommon(InFunction)
 			&& !InFunction->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure)
-			&& InFunction->NumParms == 1
-			&& GetFirstArgumentProperty(InFunction) != nullptr;
+			&& Result.HasValue() && Result.GetValue().Num() > 0;
 	}
 
 
@@ -372,8 +373,7 @@ namespace UE::MVVM::BindingHelper
 			return TryGetPropertyTypeForDestinationBinding(InField.GetFunction());
 		}
 	}
-
-	TValueOrError<FConversionFunctionArguments, FString> TryGetPropertyTypeForConversionFunction(const UFunction* InFunction)
+	TValueOrError<const FProperty*, FString> TryGetReturnTypeForConversionFunction(const UFunction* InFunction)
 	{
 		FString CommonResult = Private::TryGetPropertyTypeCommon(InFunction);
 		if (!CommonResult.IsEmpty())
@@ -386,27 +386,62 @@ namespace UE::MVVM::BindingHelper
 			return MakeError(FString::Printf(TEXT("The function '%s' is not static or is not const and pure."), *InFunction->GetName()));
 		}
 
-		if (InFunction->NumParms != 2)
+		if (InFunction->NumParms < 2)
 		{
 			return MakeError(FString::Printf(TEXT("The function '%s' does not have the correct number of arguments."), *InFunction->GetName()));
 		}
 
-		FConversionFunctionArguments Result;
-		Result.ReturnProperty = GetReturnProperty(InFunction);
-		if (Result.ReturnProperty == nullptr)
+		const FProperty* ReturnProperty = GetReturnProperty(InFunction);
+		if (ReturnProperty == nullptr)
 		{
 			return MakeError(FString::Printf(TEXT("The return value for function '%s' is invalid."), *InFunction->GetName()));
 		}
 
-		Result.ArgumentProperty = GetFirstArgumentProperty(InFunction);
-		if (Result.ArgumentProperty == nullptr)
-		{
-			return MakeError(FString::Printf(TEXT("The function '%s' doesn't not have a valid argument."), *InFunction->GetName()));
-		}
-
-		return MakeValue(Result);
+		return MakeValue(ReturnProperty);
 	}
 
+	TValueOrError<TArray<const FProperty*>, FString> TryGetArgumentsForConversionFunction(const UFunction* InFunction)
+	{
+		FString CommonResult = Private::TryGetPropertyTypeCommon(InFunction);
+		if (!CommonResult.IsEmpty())
+		{
+			return MakeError(MoveTemp(CommonResult));
+		}
+
+		if (!InFunction->HasAllFunctionFlags(FUNC_Static) && !InFunction->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
+		{
+			return MakeError(FString::Printf(TEXT("The function '%s' is not static or is not const and pure."), *InFunction->GetName()));
+		}
+
+		if (InFunction->NumParms < 2)
+		{
+			return MakeError(FString::Printf(TEXT("The function '%s' does not have the correct number of arguments."), *InFunction->GetName()));
+		}
+
+		const FProperty* ReturnProperty = GetReturnProperty(InFunction);
+		if (ReturnProperty == nullptr)
+		{
+			return MakeError(FString::Printf(TEXT("The return value for function '%s' is invalid."), *InFunction->GetName()));
+		}
+
+		TArray<const FProperty*> Arguments;
+		for (TFieldIterator<FProperty> It(InFunction); It && (It->PropertyFlags & CPF_Parm); ++It)
+		{
+			const FProperty* Property = *It;
+			if (It->HasAllPropertyFlags(CPF_Parm) && !It->HasAnyPropertyFlags(CPF_Deprecated | CPF_EditorOnly | CPF_ReturnParm))
+			{
+				// argument is either an out parameter or not const
+				if (It->HasAllPropertyFlags(CPF_OutParm) && !It->HasAllPropertyFlags(CPF_ConstParm))
+				{
+					continue;
+				}
+
+				Arguments.Add(*It);
+			}
+		}
+
+		return MakeValue(Arguments);
+	}
 
 	namespace Private
 	{

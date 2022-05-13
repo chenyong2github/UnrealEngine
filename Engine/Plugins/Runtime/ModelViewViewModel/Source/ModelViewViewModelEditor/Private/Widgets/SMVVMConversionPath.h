@@ -4,12 +4,24 @@
 
 #include "Widgets/SCompoundWidget.h"
 
+struct FCreateWidgetForActionData;
+struct FEdGraphSchemaAction;
+struct FGraphActionListBuilderBase;
+class FMenuBuilder;
 struct FMVVMBlueprintViewBinding;
 class SMenuAnchor;
 class UWidgetBlueprint;
 
 class SMVVMConversionPath : public SCompoundWidget
 {
+private:
+	struct FFunctionEntry
+	{
+		FString CategoryName;
+		TArray<FFunctionEntry> Categories;
+		TArray<const UFunction*> Functions;
+	};
+
 public:
 	DECLARE_DELEGATE_OneParam(FOnFunctionChanged, const UFunction*);
 
@@ -30,8 +42,11 @@ private:
 	TSharedRef<SWidget> GetFunctionMenuContent();
 	FReply OnButtonClicked() const;
 	FString GetFunctionPath() const;
+	void PopulateMenuForEntry(FMenuBuilder& MenuBuilder, const FFunctionEntry* FunctionEntry);
 
 private:
+
+	FFunctionEntry RootEntry;
 	TAttribute<TArray<FMVVMBlueprintViewBinding*>> Bindings;
 	FOnFunctionChanged OnFunctionChanged;
 	TSharedPtr<SMenuAnchor> Anchor;

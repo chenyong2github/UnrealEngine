@@ -6,6 +6,7 @@
 #include "BlueprintActionDatabase.h"
 #include "BlueprintNodeSpawner.h"
 #include "Engine/Engine.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "WidgetBlueprint.h"
@@ -68,10 +69,64 @@ void UMVVMEditorSubsystem::RemoveBinding(UWidgetBlueprint* WidgetBlueprint, cons
 	}
 }
 
-TArray<const UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(const UE::MVVM::FMVVMConstFieldVariant& Source, const UE::MVVM::FMVVMConstFieldVariant& Destination) const
+bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, const UE::MVVM::FMVVMConstFieldVariant& Source, const UE::MVVM::FMVVMConstFieldVariant& Destination) const
+{
+	if (Source.IsEmpty() || Destination.IsEmpty())
+	{
+		return false;
+	}
+
+	TValueOrError<const FProperty*, FString> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Function);
+	if (ReturnResult.HasError())
+	{
+		return false;
+	}
+
+	TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Function);
+	if (ArgumentsResult.HasError())
+	{
+		return false;
+	}
+
+	const FProperty* ReturnProperty = ReturnResult.GetValue();
+	const FProperty* SourceProperty = Source.IsProperty() ? Source.GetProperty() : UE::MVVM::BindingHelper::GetReturnProperty(Source.GetFunction());
+	const FProperty* DestinationProperty = Destination.IsProperty() ? Destination.GetProperty() : UE::MVVM::BindingHelper::GetFirstArgumentProperty(Destination.GetFunction());
+
+	// check that at least one source -> argument binding is compatible
+	bool bAnyCompatible = false;
+
+	const TArray<const FProperty*>& ConversionArgProperties = ArgumentsResult.GetValue();
+	for (const FProperty* ArgumentProperty : ConversionArgProperties)
+	{
+		if (ArgumentProperty->IsA<FObjectProperty>())
+		{
+			// filter out any functions with UObject properties - they aren't valid conversion functions
+			return false;
+		}
+
+		if (UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ArgumentProperty))
+		{
+			bAnyCompatible = true;
+		}
+	}
+
+	if (!bAnyCompatible)
+	{
+		return false;
+	}
+
+	// check that the return -> dest is valid
+	if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ReturnProperty, DestinationProperty))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+TArray<const UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(const UE::MVVM::FMVVMConstFieldVariant& Source, const UE::MVVM::FMVVMConstFieldVariant& Destination, const UWidgetBlueprint* WidgetBlueprint) const
 {
 	TArray<const UFunction*> ConversionFunctions;
-	TArray<const UFunction*> DEBUG_StaticTwoArgFunctions;
 
 	if (Source.IsEmpty() || Destination.IsEmpty())
 	{
@@ -93,33 +148,16 @@ TArray<const UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(c
 				const UFunction* Function = BlueprintAction.GetAssociatedFunction();
 				if (Function != nullptr)
 				{
-					TValueOrError<UE::MVVM::BindingHelper::FConversionFunctionArguments, FString> FunctionProperties = UE::MVVM::BindingHelper::TryGetPropertyTypeForConversionFunction(Function);
-					if (FunctionProperties.HasError())
+					// functions in the widget blueprint can do anything they want, other functions have to be static functions in a BlueprintFunctionLibrary
+					const UClass* FunctionClass = Function->GetOuterUClass();
+					if ((FunctionClass->ClassGeneratedBy == WidgetBlueprint) ||
+						(FunctionClass->IsChildOf<UBlueprintFunctionLibrary>() && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure)))
 					{
-						continue;
+						if (IsValidConversionFunction(Function, Destination, Source))
+						{
+							ConversionFunctions.Add(Function);
+						}
 					}
-
-					const FProperty* ArgumentProperty = FunctionProperties.GetValue().ArgumentProperty;
-					const FProperty* ReturnProperty = FunctionProperties.GetValue().ReturnProperty;
-
-					DEBUG_StaticTwoArgFunctions.Add(Function);
-
-					const FProperty* SourceProperty = Source.IsProperty() ? Source.GetProperty() : UE::MVVM::BindingHelper::GetReturnProperty(Source.GetFunction());
-					const FProperty* DestinationProperty = Destination.IsProperty() ? Destination.GetProperty() : UE::MVVM::BindingHelper::GetFirstArgumentProperty(Destination.GetFunction());
-
-					// check that the source -> argument is valid
-					if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ArgumentProperty))
-					{
-						continue;
-					}
-					
-					// check that the return -> dest is valid
-					if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ReturnProperty, DestinationProperty))
-					{
-						continue;
-					}
-
-					ConversionFunctions.Add(Function);
 				}
 			}
 		}
