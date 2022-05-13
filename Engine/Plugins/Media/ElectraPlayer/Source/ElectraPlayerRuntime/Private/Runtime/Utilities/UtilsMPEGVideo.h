@@ -362,7 +362,7 @@ namespace Electra
 			{
 				if (vui_parameters_present_flag && vui_timing_info_present_flag && vui_time_scale)
 				{
-					return FTimeFraction(vui_num_units_in_tick, vui_time_scale);
+					return FTimeFraction(vui_time_scale, vui_num_units_in_tick);
 				}
 				return FTimeFraction();
 			}
