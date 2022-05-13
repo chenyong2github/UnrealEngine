@@ -61,6 +61,13 @@ public class MaterialX : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
+			// TODO: MaterialX needs to be built specifically for arm64 before
+			// we can support it here.
+			if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
+			{
+				return;
+			}
+
 			// Note that since we no longer support OpenGL on
 			// Linux, we do not build the MaterialXRender
 			// libraries, since MaterialX does not offer a way to
