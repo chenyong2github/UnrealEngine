@@ -163,6 +163,13 @@ void FXRTrackingSystemBase::GetMotionControllerData(UObject* WorldContext, const
 	}
 }
 
+bool FXRTrackingSystemBase::GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile)
+{
+	UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile for %i failed because the current VR tracking system does not support it!"), Hand);
+
+	return false;
+}
+
 
 class IXRLoadingScreen* FXRTrackingSystemBase::GetLoadingScreen()
 {

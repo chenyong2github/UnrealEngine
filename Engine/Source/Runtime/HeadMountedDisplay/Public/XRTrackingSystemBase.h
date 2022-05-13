@@ -161,6 +161,7 @@ public:
 	virtual class IXRLoadingScreen* GetLoadingScreen() override final;
 
 	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) override;
+	virtual bool GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile) override;
 
 	virtual bool ConfigureGestures(const FXRGestureConfig& GestureConfig) override { return false; }
 

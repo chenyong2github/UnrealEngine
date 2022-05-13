@@ -487,6 +487,16 @@ bool UHeadMountedDisplayFunctionLibrary::ConfigureGestures(const FXRGestureConfi
 	return false;
 }
 
+bool UHeadMountedDisplayFunctionLibrary::GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile)
+{
+	IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+	if (TrackingSys)
+	{
+		return TrackingSys->GetCurrentInteractionProfile(Hand, InteractionProfile);
+	}
+
+	return false;
+}
 
 /** Connect to a remote device for Remote Debugging */
 EXRDeviceConnectionResult::Type UHeadMountedDisplayFunctionLibrary::ConnectRemoteXRDevice(const FString& IpAddress, const int32 BitRate)

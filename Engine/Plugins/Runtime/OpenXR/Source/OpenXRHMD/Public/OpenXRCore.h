@@ -200,3 +200,35 @@ bool PreInitOpenXRCore(PFN_xrGetInstanceProcAddr InGetProcAddr);
  * @returns true if initialization was successful.
  */
 bool InitOpenXRCore(XrInstance Instance);
+
+FORCEINLINE XrResult OpenXRPathToFString(XrInstance Instance, XrPath Path, FString& OutString)
+{
+	uint32 PathCount = 0;
+	char PathChars[XR_MAX_PATH_LENGTH];
+	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
+	if (Result == XR_SUCCESS)
+	{
+		OutString = FString(PathCount, PathChars);
+	}
+	else
+	{
+		OutString = "";
+	}	
+	return Result;
+}
+
+FORCEINLINE XrResult OpenXRPathToFName(XrInstance Instance, XrPath Path, FName& OutFName)
+{
+	uint32 PathCount = 0;
+	char PathChars[XR_MAX_PATH_LENGTH];
+	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
+	if (Result == XR_SUCCESS)
+	{
+		OutFName = FName(PathCount, PathChars);
+	}
+	else
+	{
+		OutFName = NAME_None;
+	}
+	return Result;
+}

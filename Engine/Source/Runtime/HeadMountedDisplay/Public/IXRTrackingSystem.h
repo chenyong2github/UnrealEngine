@@ -422,6 +422,7 @@ public:
 	 * Platform Agnostic Query about MotionControllers details
 	 */
 	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) = 0;
+	virtual bool GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile) = 0;
 
 	virtual bool ConfigureGestures(const FXRGestureConfig& GestureConfig) = 0;
 

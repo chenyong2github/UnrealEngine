@@ -328,10 +328,15 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
 	static void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData);
 
-
 	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking", meta = (ToolTip = "Specify which gestures to capture."))
 	static bool ConfigureGestures(const FXRGestureConfig& GestureConfig);
 
+	/**
+	 * Get the openXR interaction profile name for the given controller. Returns true if the openxr call is successfully made.  The string may be empty
+	 * if there is no interaction profile associated with the controller.
+	 */	
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking|OpenXR")
+	static bool GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile);
 	
 	/** Connect to a remote device */
 	UFUNCTION(BlueprintCallable, Category = "XR|HeadMountedDisplay")

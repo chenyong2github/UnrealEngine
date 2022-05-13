@@ -192,18 +192,11 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 		FReadScopeLock SessionLock(SessionHandleMutex);
 		if (Session)
 		{
-			XrInteractionProfileState Profile;
-			Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;
-			Profile.next = nullptr;
+			XrInteractionProfileState Profile = { XR_TYPE_INTERACTION_PROFILE_STATE };
 			if (XR_SUCCEEDED(xrGetCurrentInteractionProfile(Session, GetTrackedDevicePath(Devices[(int32)Hand]), &Profile)) &&
 				Profile.interactionProfile != XR_NULL_PATH)
 			{
-				TArray<char> Path;
-				uint32 PathCount = 0;
-				XR_ENSURE(xrPathToString(Instance, Profile.interactionProfile, 0, &PathCount, nullptr));
-				Path.SetNum(PathCount);
-				XR_ENSURE(xrPathToString(Instance, Profile.interactionProfile, PathCount, &PathCount, Path.GetData()));
-				MotionControllerData.DeviceName = Path.GetData();
+				XR_ENSURE(OpenXRPathToFName(Instance, Profile.interactionProfile, MotionControllerData.DeviceName));
 			}
 		}
 	}
@@ -271,6 +264,70 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 
 	//TODO: this is reportedly a wmr specific convenience function for rapid prototyping.  Not sure it is useful for openxr.
 	MotionControllerData.bIsGrasped = false;
+}
+
+bool FOpenXRHMD::GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile)
+{
+	int32 DeviceId = -1;
+	if (Hand == EControllerHand::HMD)
+	{
+		DeviceId = IXRTrackingSystem::HMDDeviceId;
+	}
+	else
+	{
+		TArray<int32> Devices;
+		if (EnumerateTrackedDevices(Devices, EXRTrackedDeviceType::Controller))
+		{
+			if (Devices.IsValidIndex((int32)Hand))
+			{
+				DeviceId = Devices[(int32)Hand];
+			}
+		}
+	}
+
+	if (DeviceId == -1)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile failed because that EControllerHandValue %i does not map to a device!"), Hand);
+		return false;
+	}
+
+	FReadScopeLock SessionLock(SessionHandleMutex);
+	if (Session)
+	{
+		XrInteractionProfileState Profile{ XR_TYPE_INTERACTION_PROFILE_STATE };
+		XrPath Path = GetTrackedDevicePath(DeviceId);
+		XrResult Result = xrGetCurrentInteractionProfile(Session, Path, &Profile);
+		if (XR_SUCCEEDED(Result))
+		{
+			if (Profile.interactionProfile == XR_NULL_PATH)
+			{
+				InteractionProfile = "";
+				return true;
+			}
+			else
+			{				
+				XR_ENSURE(OpenXRPathToFString(Instance, Profile.interactionProfile, InteractionProfile));
+				return true;
+			}
+		}
+		else
+		{
+			FString PathStr;
+			XrResult PathResult = OpenXRPathToFString(Instance, Path, PathStr);
+			if (!XR_SUCCEEDED(PathResult))
+			{
+				PathStr = FString::Printf(TEXT("xrPathToString returned %s"), OpenXRResultToString(Result));
+			}
+			UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile for %i (%s) failed because xrGetCurrentInteractionProfile failed with result %s."), Hand, *PathStr, OpenXRResultToString(Result));
+			return false;
+		}
+	}
+	else
+	{
+		UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile for %i failed because session is null!"), Hand);
+		return false;
+	}
+
 }
 
 float FOpenXRHMD::GetWorldToMetersScale() const
