@@ -116,7 +116,8 @@ public:
 		const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,
 		const ECollisionTypeEnum CollisionType,
 		const FTransform& MassTransform,
-		const Chaos::FReal CollisionMarginFraction);
+		const Chaos::FReal CollisionMarginFraction,
+		const float CollisionObjectReduction);
 
 	static FImplicit* NewImplicitLevelset(
 		Chaos::FErrorReporter ErrorReporter,

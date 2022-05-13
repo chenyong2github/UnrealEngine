@@ -2216,7 +2216,8 @@ static FGeometryDynamicCollection::FSharedImplicit CreateImplicitGeometry(
 							ConvexGeometry,
 							CollisionTypeData.CollisionType,
 							CollectionMassToLocal[TransformGroupIndex],
-							CollisionTypeData.CollisionMarginFraction
+							CollisionTypeData.CollisionMarginFraction,
+							CollisionTypeData.CollisionObjectReductionPercentage
 						)
 					);
 				}
