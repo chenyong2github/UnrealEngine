@@ -50,9 +50,9 @@ namespace UnrealBuildTool.Rules
 						"UnrealEd",
 					}
 				);
-			}
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "MaterialX");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "MaterialX");
+			}
 		}
 	}
 }
