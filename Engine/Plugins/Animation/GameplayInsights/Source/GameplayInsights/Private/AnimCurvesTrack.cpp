@@ -164,7 +164,7 @@ bool FAnimCurveTrack::UpdateInternal()
 		
 	bool bChanged = false;
 
-	if (CurveName.IsEmpty())
+	if (CurveName.IsEmpty() && AnimationProvider)
 	{
 		CurveName = FText::FromString(AnimationProvider->GetName(CurveId));
 		bChanged = true;

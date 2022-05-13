@@ -182,7 +182,7 @@ bool FMontageTrack::UpdateInternal()
 	if (CurveType == ECurveType::BlendWeight)
 	{
 		// Blend Weight track gets name/icon of animation
-		if (CurveName.IsEmpty())
+		if (CurveName.IsEmpty() && GameplayProvider)
 		{
 			if (const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(AssetId))
 			{
