@@ -181,4 +181,8 @@ private:
 	TSharedPtr<FUICommandList> CommandList;
 
 	TSharedPtr<FDigitsTypeInterface> DigitsTypeInterface;
+
+	// Cached take numbers and slate used to UpdateTakeError() only when necesary
+	int32 CachedTakeNumber;
+	FString CachedTakeSlate;
 };
