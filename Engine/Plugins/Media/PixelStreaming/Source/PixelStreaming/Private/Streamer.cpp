@@ -38,6 +38,10 @@ namespace UE::PixelStreaming
 		FSignallingServerConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
 		SignallingServerConnection = MakeUnique<FSignallingServerConnection>(WebSocketFactory, *this, InStreamerId);
 		StartWebRtcSignallingThread();
+		FCoreDelegates::OnPreExit.AddLambda([&]()
+		{ 
+			PlayerSessions.DeleteAllPlayerSessions(true);
+		});
 	}
 
 	FStreamer::~FStreamer()

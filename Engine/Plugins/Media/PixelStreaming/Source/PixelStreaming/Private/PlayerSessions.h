@@ -28,7 +28,7 @@ namespace UE::PixelStreaming
 			FSignallingServerConnection* SignallingServerConnection);
 
 		int DeletePlayerSession(FPixelStreamingPlayerId PlayerId);
-		void DeleteAllPlayerSessions();
+		void DeleteAllPlayerSessions(bool bEnginePreExit = false);
 
 		int GetNumPlayers() const;
 

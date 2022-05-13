@@ -193,7 +193,7 @@ namespace UE::PixelStreaming
 		return false;
 	}
 
-	void FPlayerSessions::DeleteAllPlayerSessions()
+	void FPlayerSessions::DeleteAllPlayerSessions(bool bEnginePreExit)
 	{
 		const FPixelStreamingPlayerId OldQualityController = QualityControllingPlayer;
 		TSet<FPixelStreamingPlayerId> OldPlayerIds;
@@ -211,12 +211,13 @@ namespace UE::PixelStreaming
 		}
 
 		// Notify all delegates of all the closed players
+		bool bEngineShuttingDown = (bEnginePreExit || IsEngineExitRequested());
 		UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates();
-		if (Delegates && FModuleManager::Get().IsModuleLoaded("PixelStreaming"))
+		if (Delegates && FModuleManager::Get().IsModuleLoaded("PixelStreaming") && !bEngineShuttingDown)
 		{
 			for (auto&& PlayerId : OldPlayerIds)
 			{
-				bool bWasQualityController = OldQualityController == PlayerId;
+				bool bWasQualityController = (OldQualityController == PlayerId);
 
 				Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
 				Delegates->OnClosedConnectionNative.Broadcast(PlayerId, bWasQualityController);
