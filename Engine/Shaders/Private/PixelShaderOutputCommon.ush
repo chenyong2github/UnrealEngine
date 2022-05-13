@@ -90,6 +90,9 @@ void MainPS
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
+#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 2
+#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been update but not the uint MRTs
+#endif
 #if PIXELSHADEROUTPUT_MRT3
 #error Strata cannot map to such a case
 #endif

@@ -1753,6 +1753,9 @@ void FPixelShaderInOut_MainPS(
 			SSSData, TopLayerData, OpaqueRoughRefractionData);
 
 		// Write out MRT data
+	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 2
+	#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been update but not StrataOutput
+	#endif
 		Out.StrataOutput[0] = RWStrataMaterialContainer.MaterialRenderTargets[0];
 		Out.StrataOutput[1] = RWStrataMaterialContainer.MaterialRenderTargets[1];
 		Out.StrataOutput[2] = StrataPackTopLayerData(TopLayerData);
