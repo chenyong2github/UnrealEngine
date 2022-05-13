@@ -3,6 +3,10 @@
 #include "Rigs/RigHierarchyDefines.h"
 #include "Rigs/RigHierarchy.h"
 
+#if WITH_EDITOR
+#include "RigVMPythonUtils.h"
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigControlLimitEnabled
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,6 +78,17 @@ void FRigElementKey::Load(FArchive& Ar)
 	Type = (ERigElementType)TypeValue;
 
 	Ar << Name;
+}
+
+FString FRigElementKey::ToPythonString() const
+{
+#if WITH_EDITOR
+	return FString::Printf(TEXT("unreal.RigElementKey(type=%s, name='%s')"),
+		*RigVMPythonUtils::EnumValueToPythonString<ERigElementType>((int64)Type),
+		*Name.ToString());
+#else
+	return FString();
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////

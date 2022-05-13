@@ -13,6 +13,14 @@ namespace RigVMPythonUtils
 	RIGVMDEVELOPER_API FString Vector2DToPythonString(const FVector2D& Vector);
 
 	RIGVMDEVELOPER_API FString LinearColorToPythonString(const FLinearColor& Color);
+
+	RIGVMDEVELOPER_API FString EnumValueToPythonString(UEnum* Enum, int64 Value);
+
+	template<typename T>
+	FORCEINLINE RIGVMDEVELOPER_API FString EnumValueToPythonString(int64 Value)
+	{
+		return EnumValueToPythonString(StaticEnum<T>(), Value);
+	}
 	
 #if WITH_EDITOR
 	RIGVMDEVELOPER_API void Print(const FString& BlueprintTitle, const FString& InMessage);

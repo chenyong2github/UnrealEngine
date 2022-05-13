@@ -1515,13 +1515,7 @@ public:
 		return FString();
 	}
 
-	FORCEINLINE_DEBUGGABLE FString ToPythonString() const
-	{
-		FString TypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByIndex((int32)Type).ToUpper().ToString();
-		return FString::Printf(TEXT("unreal.RigElementKey(type=unreal.RigElementType.%s, name='%s')"),
-			*TypeStr,
-			*Name.ToString());
-	}
+	FString ToPythonString() const;
 };
 
 USTRUCT(BlueprintType)

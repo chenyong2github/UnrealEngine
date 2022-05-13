@@ -3168,18 +3168,11 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 					}
 					if (!BlueprintName.IsEmpty())
 					{
-						FString TypeStr;
-						switch (InValueType)
-						{
-						case ERigControlValueType::Minimum: TypeStr = TEXT("MINIMUM"); break;
-						case ERigControlValueType::Maximum: TypeStr = TEXT("MAXIMUM"); break;
-						default: ensure(false);
-						}
 						RigVMPythonUtils::Print(BlueprintName,
-							FString::Printf(TEXT("hierarchy.set_control_value(%s, %s, unreal.RigControlValueType.%s)"),
+							FString::Printf(TEXT("hierarchy.set_control_value(%s, %s, %s)"),
 							*InControlElement->GetKey().ToPythonString(),
 							*InValue.ToPythonString(InControlElement->Settings.ControlType),
-							*TypeStr));
+							*RigVMPythonUtils::EnumValueToPythonString<ERigControlValueType>((int64)InValueType)));
 					}
 				}
 #endif
@@ -5423,9 +5416,24 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	TArray<FString> Commands;
 	Commands.Add(FString::Printf(TEXT("%s = unreal.RigControlSettings()"),
 			*NameSettings));
-	
-	const FString AnimationTypeStr = StaticEnum<ERigControlAnimationType>()->GetNameStringByValue((int64)Settings.AnimationType).ToUpper();
-	const FString ControlTypeStr = StaticEnum<ERigControlType>()->GetNameStringByValue((int64)Settings.ControlType).ToUpper();
+
+	ERigControlType ControlType = Settings.ControlType;
+	switch(ControlType)
+	{
+		case ERigControlType::Transform:
+		case ERigControlType::TransformNoScale:
+		{
+			ControlType = ERigControlType::EulerTransform;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	const FString AnimationTypeStr = RigVMPythonUtils::EnumValueToPythonString<ERigControlAnimationType>((int64)Settings.AnimationType);
+	const FString ControlTypeStr = RigVMPythonUtils::EnumValueToPythonString<ERigControlType>((int64)ControlType);
 
 	static const TCHAR* TrueText = TEXT("True");
 	static const TCHAR* FalseText = TEXT("False");
@@ -5440,10 +5448,10 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	
 	const FString LimitEnabledStr = FString::Join(LimitEnabledParts, TEXT(", "));
 	
-	Commands.Add(FString::Printf(TEXT("%s.animation_type = unreal.RigControlAnimationType.%s"),
+	Commands.Add(FString::Printf(TEXT("%s.animation_type = %s"),
 									*NameSettings,
 									*AnimationTypeStr));
-	Commands.Add(FString::Printf(TEXT("%s.control_type = unreal.RigControlType.%s"),
+	Commands.Add(FString::Printf(TEXT("%s.control_type = %s"),
 									*NameSettings,
 									*ControlTypeStr));
 	Commands.Add(FString::Printf(TEXT("%s.display_name = '%s'"),
@@ -5473,9 +5481,9 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	Commands.Add(FString::Printf(TEXT("%s.maximum_value = %s"),
 		*NameSettings,
 		*Settings.MaximumValue.ToPythonString(Settings.ControlType)));
-	Commands.Add(FString::Printf(TEXT("%s.primary_axis = unreal.RigControlAxis.%s"),
+	Commands.Add(FString::Printf(TEXT("%s.primary_axis = %s"),
 		*NameSettings,
-		Settings.PrimaryAxis == ERigControlAxis::X ? TEXT("X") : Settings.PrimaryAxis == ERigControlAxis::Y ? TEXT("Y") : TEXT("Z")));
+		*RigVMPythonUtils::EnumValueToPythonString<ERigControlAxis>((int64)Settings.PrimaryAxis)));
 
 	return Commands;
 }

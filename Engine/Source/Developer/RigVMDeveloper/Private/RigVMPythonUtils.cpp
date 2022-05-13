@@ -38,7 +38,8 @@ FString RigVMPythonUtils::NameToPep8(const FString& Name)
 
 FString RigVMPythonUtils::TransformToPythonString(const FTransform& Transform)
 {
-	return FString::Printf(TEXT("unreal.Transform(location=[%f,%f,%f],rotation=[%f,%f,%f],scale=[%f,%f,%f])"),
+	static constexpr TCHAR TransformFormat[] = TEXT("unreal.Transform(location=[%f,%f,%f],rotation=[%f,%f,%f],scale=[%f,%f,%f])");
+	return FString::Printf(TransformFormat,
 	                       Transform.GetLocation().X,
 	                       Transform.GetLocation().Y,
 	                       Transform.GetLocation().Z,
@@ -52,15 +53,32 @@ FString RigVMPythonUtils::TransformToPythonString(const FTransform& Transform)
 
 FString RigVMPythonUtils::Vector2DToPythonString(const FVector2D& Vector)
 {
-	return FString::Printf(TEXT("unreal.Vector2D(%f, %f)"),
+	static constexpr TCHAR Vector2DFormat[] = TEXT("unreal.Vector2D(%f, %f)");
+	return FString::Printf(Vector2DFormat,
 	                       Vector.X,
 	                       Vector.Y);
 }
 
 FString RigVMPythonUtils::LinearColorToPythonString(const FLinearColor& Color)
 {
-	return FString::Printf(TEXT("unreal.LinearColor(%f, %f, %f, %f)"),
+	static constexpr TCHAR LinearColorFormat[] = TEXT("unreal.LinearColor(%f, %f, %f, %f)");
+	return FString::Printf(LinearColorFormat,
 	                       Color.R, Color.G, Color.B, Color.A);
+}
+
+FString RigVMPythonUtils::EnumValueToPythonString(UEnum* Enum, int64 Value)
+{
+	static constexpr TCHAR EnumPrefix[] = TEXT("E");
+	static constexpr TCHAR EnumValueFormat[] = TEXT("unreal.%s.%s");
+
+	FString EnumName = Enum->GetName();
+	EnumName.RemoveFromStart(EnumPrefix, ESearchCase::CaseSensitive);
+	
+	return FString::Printf(
+		EnumValueFormat,
+		*EnumName,
+		*NameToPep8(Enum->GetNameStringByValue((int64)Value)).ToUpper()
+	);
 }
 
 #if WITH_EDITOR
@@ -92,14 +110,21 @@ void RigVMPythonUtils::PrintPythonContext(const FString& InBlueprintPath)
 	{
 		BlueprintName = BlueprintName.Right(BlueprintName.Len() - DotIndex - 1);
 	}
+
+	static constexpr TCHAR LoadObjectFormat[] = TEXT("blueprint = unreal.load_object(name = '%s', outer = None)");
+	static constexpr TCHAR DefineFunctionLibraryFormat[] = TEXT("library = blueprint.get_local_function_library()");
+	static constexpr TCHAR DefineLibraryControllerFormat[] = TEXT("library_controller = blueprint.get_controller(library)");
+	static constexpr TCHAR DefineHierarchyFormat[] = TEXT("hierarchy = blueprint.hierarchy");
+	static constexpr TCHAR DefineHierarchyControllerFormat[] = TEXT("hierarchy_controller = hierarchy.get_controller()");
 		
 	TArray<FString> PyCommands = {
 		TEXT("import unreal"),
-		FString::Printf(TEXT("blueprint = unreal.load_object(name = '%s', outer = None)"), *InBlueprintPath),
-		TEXT("library = blueprint.get_local_function_library()"),
-		TEXT("library_controller = blueprint.get_controller(library)"),
-		TEXT("hierarchy = blueprint.hierarchy"),
-		TEXT("hierarchy_controller = hierarchy.get_controller()")};
+		FString::Printf(LoadObjectFormat, *InBlueprintPath),
+		DefineFunctionLibraryFormat,
+		DefineLibraryControllerFormat,
+		DefineHierarchyFormat,
+		DefineHierarchyControllerFormat
+	};
 
 	for (FString& Command : PyCommands)
 	{

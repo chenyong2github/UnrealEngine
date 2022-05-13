@@ -1425,11 +1425,12 @@ TArray<FString> URigHierarchyController::GetAddBonePythonCommands(FRigBoneElemen
 	}
 	
 	// AddBone(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, ERigBoneType InBoneType = ERigBoneType::User, bool bSetupUndo = false);
-	Commands.Add(FString::Printf(TEXT("hierarchy_controller.add_bone('%s', %s, %s, False, unreal.RigBoneType.%s)"),
+	Commands.Add(FString::Printf(TEXT("hierarchy_controller.add_bone('%s', %s, %s, False, %s)"),
 		*Bone->GetName().ToString(),
 		*ParentKeyStr,
 		*TransformStr,
-		Bone->BoneType == ERigBoneType::Imported ? TEXT("IMPORTED") : TEXT("USER")));
+		*RigVMPythonUtils::EnumValueToPythonString<ERigBoneType>((int64)Bone->BoneType)
+	));
 
 	return Commands;
 }
@@ -1538,19 +1539,10 @@ TArray<FString> URigHierarchyController::GetAddRigidBodyPythonCommands(FRigRigid
 TArray<FString> URigHierarchyController::GetSetControlValuePythonCommands(const FRigControlElement* Control, const FRigControlValue& Value,
                                                                           const ERigControlValueType& Type) const
 {
-	FString TypeStr;
-	switch (Type)
-	{
-		case ERigControlValueType::Initial: TypeStr = TEXT("INITIAL"); break;
-		case ERigControlValueType::Current: TypeStr = TEXT("CURRENT"); break;
-		case ERigControlValueType::Minimum: TypeStr = TEXT("MINIMUM"); break;
-		case ERigControlValueType::Maximum: TypeStr = TEXT("MAXIMUM"); break;
-		default: ensure(false);
-	}
-	return {FString::Printf(TEXT("hierarchy.set_control_value(%s, %s, unreal.RigControlValueType.%s)"),
+	return {FString::Printf(TEXT("hierarchy.set_control_value(%s, %s, %s)"),
 		*Control->GetKey().ToPythonString(),
 		*Value.ToPythonString(Control->Settings.ControlType),
-		*TypeStr)};
+		*RigVMPythonUtils::EnumValueToPythonString<ERigControlValueType>((int64)Type))};
 }
 
 TArray<FString> URigHierarchyController::GetSetControlOffsetTransformPythonCommands(const FRigControlElement* Control,
@@ -2573,10 +2565,10 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 			ArrayStr += TEXT("]");
 
 			RigVMPythonUtils::Print(Blueprint->GetFName().ToString(),
-				FString::Printf(TEXT("hierarchy_controller.mirror_elements(%s, unreal.RigMirrorSettings(unreal.AxisType.%s, unreal.AxisType.%s, '%s', '%s'), %s)"),
+				FString::Printf(TEXT("hierarchy_controller.mirror_elements(%s, unreal.RigMirrorSettings(%s, %s, '%s', '%s'), %s)"),
 				*ArrayStr,
-				(InSettings.MirrorAxis.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.MirrorAxis.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
-				(InSettings.AxisToFlip.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.AxisToFlip.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
+				*RigVMPythonUtils::EnumValueToPythonString<EAxis::Type>((int64)InSettings.MirrorAxis.GetValue()),
+				*RigVMPythonUtils::EnumValueToPythonString<EAxis::Type>((int64)InSettings.AxisToFlip.GetValue()),
 				*InSettings.SearchString,
 				*InSettings.ReplaceString,
 				(bSelectNewElements) ? TEXT("True") : TEXT("False")));

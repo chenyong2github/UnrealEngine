@@ -588,16 +588,13 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 	}
 	else if (const URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(Node))
 	{
-		FString OpCodeString = StaticEnum<ERigVMOpCode>()->GetNameStringByValue((int64)ArrayNode->GetOpCode());
-		OpCodeString = RigVMPythonUtils::NameToPep8(OpCodeString);
-		OpCodeString.ToUpperInline();
-		
 		// add_array_node(opcode, cpp_type, cpp_type_object, position=[0.0, 0.0], node_name='', undo=True)
 		if (ArrayNode->GetCPPTypeObject())
 		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_array_node_from_object_path(unreal.RigVMOpCode.%s, '%s', '%s', %s, '%s')"),
+			static constexpr TCHAR ArrayNodeFormat[] = TEXT("blueprint.get_controller_by_name('%s').add_array_node_from_object_path(%s, '%s', '%s', %s, '%s')");
+			Commands.Add(FString::Printf(ArrayNodeFormat,
 					*GraphName,
-					*OpCodeString,
+					*RigVMPythonUtils::EnumValueToPythonString<ERigVMOpCode>((int64)ArrayNode->GetOpCode()),
 					*ArrayNode->GetCPPType(),
 					*ArrayNode->GetCPPTypeObject()->GetPathName(),
 					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
@@ -605,9 +602,10 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 		}
 		else
 		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_array_node(unreal.RigVMOpCode.%s, '%s', None, %s, '%s')"),
+			static constexpr TCHAR ArrayNodeFormat[] = TEXT("blueprint.get_controller_by_name('%s').add_array_node(%s, '%s', None, %s, '%s')");
+			Commands.Add(FString::Printf(ArrayNodeFormat,
 					*GraphName,
-					*OpCodeString,
+					*RigVMPythonUtils::EnumValueToPythonString<ERigVMOpCode>((int64)ArrayNode->GetOpCode()),
 					*ArrayNode->GetCPPType(),
 					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
 					*NodeName));	
@@ -9768,25 +9766,16 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 
 	if (bPrintPythonCommand)
 	{
-		FString DirectionStr;
-		switch (InDirection)
-		{
-			case ERigVMPinDirection::Hidden: DirectionStr = TEXT("unreal.RigVMPinDirection.HIDDEN"); break;
-			case ERigVMPinDirection::Input: DirectionStr = TEXT("unreal.RigVMPinDirection.INPUT"); break;
-			case ERigVMPinDirection::Output: DirectionStr = TEXT("unreal.RigVMPinDirection.OUTPUT"); break;
-			case ERigVMPinDirection::Visible: DirectionStr = TEXT("unreal.RigVMPinDirection.VISIBLE"); break;
-			case ERigVMPinDirection::IO: DirectionStr = TEXT("unreal.RigVMPinDirection.IO"); break;
-		}
-		
 		//AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 
 		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+		static constexpr TCHAR AddExposedPinFormat[] = TEXT("blueprint.get_controller_by_name('%s').add_exposed_pin('%s', %s, '%s', '%s', '%s')");
 		
 		RigVMPythonUtils::Print(GetGraphOuterName(), 
-			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_exposed_pin('%s', %s, '%s', '%s', '%s')"),
+			FString::Printf(AddExposedPinFormat,
 				*GraphName,
 				*GetSanitizedPinName(InPinName.ToString()),
-				*DirectionStr,
+				*RigVMPythonUtils::EnumValueToPythonString<ERigVMPinDirection>((int64)InDirection),
 				*InCPPType,
 				*InCPPTypeObjectPath.ToString(),
 				*InDefaultValue));
@@ -14780,15 +14769,17 @@ void URigVMController::ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, b
 {
 #if WITH_EDITOR
 	check(InNode);
-
-	const FLinearColor PreviousColor = InNode->NodeColor;
 	
 	const TArray<int32> FilteredPermutationIndices = InNode->GetFilteredPermutationsIndices();
-	InNode->NodeColor = InNode->GetTemplate()->GetColor(FilteredPermutationIndices);
 
-	if(!InNode->NodeColor.Equals(PreviousColor, 0.01f))
+	if(InNode->IsA<URigVMUnitNode>())
 	{
-		Notify(ERigVMGraphNotifType::NodeColorChanged, InNode);
+		const FLinearColor PreviousColor = InNode->NodeColor;
+		InNode->NodeColor = InNode->GetTemplate()->GetColor(FilteredPermutationIndices);
+		if(!InNode->NodeColor.Equals(PreviousColor, 0.01f))
+		{
+			Notify(ERigVMGraphNotifType::NodeColorChanged, InNode);
+		}
 	}
 #endif
 
