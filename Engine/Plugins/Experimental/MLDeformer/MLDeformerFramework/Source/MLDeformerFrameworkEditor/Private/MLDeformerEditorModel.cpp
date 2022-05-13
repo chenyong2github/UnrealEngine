@@ -762,7 +762,6 @@ namespace UE::MLDeformer
 
 		BoneNames.Reset();
 		BoneNameStrings.Reset();
-		BoneNames.Reset();
 		CurveNames.Reset();
 
 		InputInfo->SetNumBaseVertices(Model->GetNumBaseMeshVerts());

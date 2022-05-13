@@ -18,7 +18,9 @@ class UMLDeformerTestModel
 public:
 	UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	FString GetDisplayName() const override;
+#if WITH_EDITOR
 	void UpdateNumTargetMeshVertices() override;
+#endif
 };
 
 UCLASS()

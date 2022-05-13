@@ -65,6 +65,7 @@ public:
 	virtual void InitGPUData();
 	virtual UMLDeformerInputInfo* CreateInputInfo();
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component);
+	virtual FString GetDisplayName() const PURE_VIRTUAL(UMLDeformerModel::GetDisplayName, return FString(););
 #if WITH_EDITORONLY_DATA
 	virtual bool HasTrainingGroundTruth() const { return false; }
 	virtual void SampleGroundTruthPositions(float SampleTime, TArray<FVector3f>& OutPositions) {}
@@ -72,13 +73,9 @@ public:
 #if WITH_EDITOR
 	virtual void UpdateNumBaseMeshVertices();
 	virtual void UpdateCachedNumVertices();
-
+	virtual void UpdateNumTargetMeshVertices() PURE_VIRTUAL(UMLDeformerModel::GetNumTargetMeshVertices; mTargetMeshVerts = 0;);
 	static int32 ExtractNumImportedSkinnedVertices(const USkeletalMesh* SkeletalMesh);
 #endif
-
-	// Methods you are required to override.
-	virtual FString GetDisplayName() const PURE_VIRTUAL(UMLDeformerModel::GetDisplayName, return FString(););
-	virtual void UpdateNumTargetMeshVertices() PURE_VIRTUAL(UMLDeformerModel::GetNumTargetMeshVertices; mTargetMeshVerts=0;);
 
 	// UObject overrides.
 	virtual void Serialize(FArchive& Archive) override;
