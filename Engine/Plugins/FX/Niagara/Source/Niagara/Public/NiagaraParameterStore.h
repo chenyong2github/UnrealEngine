@@ -179,7 +179,7 @@ struct NIAGARA_API FNiagaraParameterStore
 private:
 	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
 	UPROPERTY(Transient)
-	TObjectPtr<UObject> Owner;
+	TWeakObjectPtr<UObject> Owner;
 	
 #if WITH_EDITORONLY_DATA
 	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
@@ -253,7 +253,7 @@ public:
 #endif
 
 	void SetOwner(UObject* InOwner);
-	UObject* GetOwner()const { return Owner; }
+	UObject* GetOwner() const { return Owner.Get(); }
 
 	void Dump();
 	void DumpParameters(bool bDumpBindings = false)const;
@@ -469,8 +469,8 @@ public:
 				{
 					if (ensureMsgf(DestStore.Owner != nullptr, TEXT("Destination data interface pointer was null and a new one couldn't be created because the destination store's owner pointer was also null.")))
 					{
-						UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *DestStore.Owner->GetPathName());
-						DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner, Parameter.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public);
+						UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *GetPathNameSafe(DestStore.Owner.Get()));
+						DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner.Get(), Parameter.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public);
 						DestStore.DataInterfaces[DestIndex] = DestDataInterface;
 					}
 					else

@@ -174,9 +174,9 @@ void UNiagaraEmitter::PostInitProperties()
 
 	if (HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
 	{
-	#if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
     	CheckVersionDataAvailable();
-    #endif
+#endif
 		for (FVersionedNiagaraEmitterData& Data : VersionData)
 		{
 			Data.PostInitProperties(this);

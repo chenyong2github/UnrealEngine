@@ -596,7 +596,7 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 #if WITH_EDITORONLY_DATA
 	if (ParameterOffsets.Num())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("AddParameter: ParameterOffsets.Num() should be 0 is %d, please investigate for %s."), ParameterOffsets.Num() , *GetPathNameSafe(Owner));
+		UE_LOG(LogNiagara, Warning, TEXT("AddParameter: ParameterOffsets.Num() should be 0 is %d, please investigate for %s."), ParameterOffsets.Num() , *GetPathNameSafe(Owner.Get()));
 	}
 	//check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
@@ -629,7 +629,7 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 	if (ParamType.IsDataInterface())
 	{
 		Offset = DataInterfaces.AddZeroed();
-		DataInterfaces[Offset] = bInitInterfaces ? NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(ParamType.GetClass()), NAME_None, RF_Transactional | RF_Public) : nullptr;
+		DataInterfaces[Offset] = bInitInterfaces ? NewObject<UNiagaraDataInterface>(Owner.Get(), const_cast<UClass*>(ParamType.GetClass()), NAME_None, RF_Transactional | RF_Public) : nullptr;
 		bInterfacesDirty = true;
 	}
 	else if (ParamType.IsUObject())
@@ -700,7 +700,7 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariableBase& ToRemov
 #if WITH_EDITORONLY_DATA
 	if (ParameterOffsets.Num())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("RemoveParameter: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner));
+		UE_LOG(LogNiagara, Warning, TEXT("RemoveParameter: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner.Get()));
 	}
 	//check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
@@ -762,7 +762,7 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariableBase& Param, 
 #if WITH_EDITORONLY_DATA
 	if (ParameterOffsets.Num())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("RenameParameter: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner));
+		UE_LOG(LogNiagara, Warning, TEXT("RenameParameter: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner.Get()));
 	}
 	//check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
@@ -856,9 +856,9 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 
 					OwnerDirtied = true;
 				}
-				if (DataInterfaces[SrcIndex] == nullptr && bInitInterfaces && Owner)
+				if (DataInterfaces[SrcIndex] == nullptr && bInitInterfaces && Owner.IsValid())
 				{
-					DataInterfaces[SrcIndex] = NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(Parameter.GetType().GetClass()), NAME_None, RF_Transactional | RF_Public);
+					DataInterfaces[SrcIndex] = NewObject<UNiagaraDataInterface>(Owner.Get(), const_cast<UClass*>(Parameter.GetType().GetClass()), NAME_None, RF_Transactional | RF_Public);
 					UE_LOG(LogNiagara, Verbose, TEXT("Had to initialize data interface! %s on %s"), *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
 
 					OwnerDirtied = true;
@@ -894,7 +894,7 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 		ParameterData.AddZeroed(ParameterDataSize - ParameterData.Num());
 	}
 
-	if (Owner && OwnerDirtied)
+	if (Owner.IsValid() && OwnerDirtied)
 	{
 		UE_LOG(LogNiagara, Verbose, TEXT("%s needs to be resaved to prevent above warnings due to the parameter state being stale."), *Owner->GetFullName());
 	}
@@ -1028,7 +1028,7 @@ void FNiagaraParameterStore::InitFromSource(const FNiagaraParameterStore* SrcSto
 	ParameterOffsets = SrcStore->ParameterOffsets;
 	if (ParameterOffsets.Num())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("InitFromSource: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner));
+		UE_LOG(LogNiagara, Warning, TEXT("InitFromSource: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner.Get()));
 	}
 #endif // WITH_EDITORONLY_DATA
 	CopySortedParameterOffsets(SrcStore->ReadParameterVariables());
@@ -1281,7 +1281,7 @@ const int32* FNiagaraParameterStore::FindParameterOffset(const FNiagaraVariableB
 #if WITH_EDITORONLY_DATA
 	if (ParameterOffsets.Num())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("FindParameterOffset: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner));
+		UE_LOG(LogNiagara, Warning, TEXT("FindParameterOffset: ParameterOffsets.Num() should be 0 is %d, please investigate for %s"), ParameterOffsets.Num(), *GetPathNameSafe(Owner.Get()));
 	}
 	//check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
