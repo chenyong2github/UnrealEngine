@@ -174,7 +174,15 @@ public:
 
 public:
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Parameters)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Parameters, meta=(EditCondition = "bIsEditable"))
 	FNaniteDisplacedMeshParams Parameters;
+
+	/**
+	 * Was this asset created by a procedural tool?
+	 * This flag is generally set by tool that created the asset.
+	 * It's used to tell the users that they shouldn't modify the asset by themselves.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Asset, AdvancedDisplay)
+	bool bIsEditable = true;
 #endif
 };
