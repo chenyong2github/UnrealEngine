@@ -238,7 +238,6 @@ namespace UE
 									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, GlobalTransform, bResetCache);
 								}
 							}
-							FFbxAnimation::AddJointAnimation(SDKScene, Node, NodeContainer, UnrealNode, PayloadContexts);
 							break;
 						}
 
@@ -280,6 +279,8 @@ namespace UE
 						}
 					}
 				}
+				//Scene node transform can be animated, add the animation payload key.
+				FFbxAnimation::AddNodeTransformAnimation(SDKScene, Node, NodeContainer, UnrealNode, PayloadContexts);
 
 				//Add all custom Attributes for the node
 				auto IsSupportedExtraAttributeType = [](int32 InDataType)

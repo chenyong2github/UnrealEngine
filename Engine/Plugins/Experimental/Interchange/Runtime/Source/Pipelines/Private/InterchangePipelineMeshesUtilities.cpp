@@ -398,8 +398,10 @@ void UInterchangePipelineMeshesUtilities::IterateAllMeshInstanceUsingMeshGeometr
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid, const bool bConvertStaticMeshToSkeletalMesh) const
+void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(UInterchangeBaseNodeContainer* BaseNodeContainer, TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid, const bool bConvertStaticMeshToSkeletalMesh) const
 {
+	check(BaseNodeContainer);
+
 	for (const TPair<FString, FInterchangeMeshInstance>& MeshInstanceUidAndMeshInstance : MeshInstancesPerMeshInstanceUid)
 	{
 		const FInterchangeMeshInstance& MeshInstance = MeshInstanceUidAndMeshInstance.Value;
@@ -428,7 +430,20 @@ void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(TMap<F
 			else if (bIsStaticMesh)
 			{
 				//Create a joint from the instance node (the scene node pointing on the mesh).
+				//Since we are dealing with rigid mesh and combine we will use the outermost valid parent
 				SkeletonRootUid = MeshInstance.MeshInstanceUid;
+				if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(MeshInstance.MeshInstanceUid)))
+				{
+					FString ParentUid = SceneNode->GetParentUid();
+					while (!ParentUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+					{
+						if (const UInterchangeSceneNode* ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUid)))
+						{
+							SkeletonRootUid = ParentUid;
+							ParentUid = ParentNode->GetParentUid();
+						}
+					}
+				}
 			}
 			else
 			{

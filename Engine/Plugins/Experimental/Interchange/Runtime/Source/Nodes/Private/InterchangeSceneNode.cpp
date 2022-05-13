@@ -109,10 +109,13 @@ FString UInterchangeSceneNode::GetAttributeCategory(const UE::Interchange::FAttr
 		return FString(TEXT("Scene"));
 	}
 	else if (NodeAttributeKey == Macro_CustomBindPoseLocalTransformKey
-		|| NodeAttributeKey == Macro_CustomTimeZeroLocalTransformKey
-		|| NodeAttributeKey == Macro_CustomTransformCurvePayloadKeyKey)
+		|| NodeAttributeKey == Macro_CustomTimeZeroLocalTransformKey)
 	{
 		return FString(TEXT("Joint"));
+	}
+	else if (NodeAttributeKey == Macro_CustomTransformCurvePayloadKeyKey)
+	{
+		return FString(TEXT("Animation"));
 	}
 	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString()))
 	{

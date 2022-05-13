@@ -129,7 +129,6 @@ namespace UE::Interchange::Private
 						RawTrack.ScaleKeys.Reserve(BakeKeyCount);
 						TArray<float> TimeKeys;
 						TimeKeys.Reserve(BakeKeyCount);
-
 						for (double CurrentTime = RangeStart; CurrentTime <= RangeStop + SMALL_NUMBER; CurrentTime += BakeInterval)
 						{
 							//Default value to identity
@@ -140,6 +139,12 @@ namespace UE::Interchange::Private
 							for (int32 CurveIndex = 0; CurveIndex < AnimationTransformPayload->TransformCurves.Num(); ++CurveIndex)
 							{
 								const UE::Interchange::FAnimationCurveTransformPayloadData& CurveData = AnimationTransformPayload->TransformCurves[CurveIndex];
+								if (CurveData.Curve.GetNumKeys() <= 0)
+								{
+									//skip empty curve, the default value will be applied
+									continue;
+								}
+
 								if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::TranslationX)
 								{
 									Position.X = CurveData.Curve.Eval(CurrentTime);

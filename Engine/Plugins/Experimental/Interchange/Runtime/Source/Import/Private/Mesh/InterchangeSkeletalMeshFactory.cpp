@@ -443,7 +443,8 @@ namespace UE
 					FElementIDRemappings ElementIDRemappings;
 					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
 
-					if (bSkinControlPointToTimeZero)
+					const bool bIsRigidMesh = LodMeshPayload->JointNames.Num() <= 0 && MeshNodeContext.SceneNode;
+					if (bSkinControlPointToTimeZero && !bIsRigidMesh)
 					{
 						//We need to rebind the mesh at time 0. Skeleton joint have the time zero transform, so we need to apply the skinning to the mesh
 						//With the skeleton transform at time zero
@@ -457,6 +458,7 @@ namespace UE
 					}
 
 					const int32 RefBoneCount = RefBonesBinary.Num();
+					
 					//Remap the influence vertex index to point on the correct index
 					if (LodMeshPayload->JointNames.Num() > 0)
 					{
@@ -478,6 +480,36 @@ namespace UE
 							}
 						}
 					}
+					else if(bIsRigidMesh)
+					{
+						// We have a rigid mesh instance (a scene node point on the mesh, the scene node will be the bone on which the rigid mesh is skin).
+						// We must add skinning to the mesh description on bone 0 and remap it to the correct RefBonesBinary in the append settings
+						const FString ToSkinBoneName = MeshNodeContext.SceneNode->GetDisplayLabel();
+						for (int32 RefBoneIndex = 0; RefBoneIndex < RefBoneCount; ++RefBoneIndex)
+						{
+							const SkeletalMeshImportData::FBone& Bone = RefBonesBinary[RefBoneIndex];
+							if (Bone.Name.Equals(ToSkinBoneName))
+							{
+								SkeletalMeshAppendSettings.SourceRemapBoneIndex.AddZeroed_GetRef() = RefBoneIndex;
+								break;
+							}
+						}
+						//Add the skinning in the mesh description
+						{
+							FSkeletalMeshAttributes PayloadSkeletalMeshAttributes(LodMeshPayload->LodMeshDescription);
+							PayloadSkeletalMeshAttributes.Register();
+							using namespace UE::AnimationCore;
+							TArray<FBoneWeight> BoneWeights;
+							FBoneWeight& BoneWeight = BoneWeights.AddDefaulted_GetRef();
+							BoneWeight.SetBoneIndex(0);
+							BoneWeight.SetWeight(1.0f);
+							FSkinWeightsVertexAttributesRef PayloadVertexSkinWeights = PayloadSkeletalMeshAttributes.GetVertexSkinWeights();
+							for (const FVertexID& PayloadVertexID : LodMeshPayload->LodMeshDescription.Vertices().GetElementIDs())
+							{
+								PayloadVertexSkinWeights.Set(PayloadVertexID, BoneWeights);
+							}
+						}
+					}
 					//Bake the payload, with the provide transform
 					if (MeshNodeContext.SceneGlobalTransform.IsSet())
 					{
@@ -488,7 +520,7 @@ namespace UE
 						AppendSettings.MeshTransform.Reset();
 					}
 					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->LodMeshDescription, LodMeshDescription, AppendSettings);
-					if (MeshNodeContext.MeshNode->IsSkinnedMesh())
+					if (MeshNodeContext.MeshNode->IsSkinnedMesh() || bIsRigidMesh)
 					{
 						FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
 					}

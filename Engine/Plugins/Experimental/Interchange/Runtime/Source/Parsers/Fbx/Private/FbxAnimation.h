@@ -18,7 +18,7 @@ namespace UE::Interchange::Private
 	{
 	public:
 		virtual ~FAnimationPayloadContextTransform() {}
-		virtual FString GetPayloadType() const override { return TEXT("JointAnimation-PayloadContext"); }
+		virtual FString GetPayloadType() const override { return TEXT("TransformAnimation-PayloadContext"); }
 		virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
 		FbxNode* Node = nullptr;
 		FbxScene* SDKScene = nullptr;
@@ -27,6 +27,7 @@ namespace UE::Interchange::Private
 	class FFbxAnimation
 	{
 	public:
-		static void AddJointAnimation(FbxScene* SDKScene, FbxNode* JointNode, UInterchangeBaseNodeContainer& NodeContainer, UInterchangeSceneNode* UnrealNode, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
+		/** This function add the payload key if the scene node transform is animated. */
+		static void AddNodeTransformAnimation(FbxScene* SDKScene, FbxNode* JointNode, UInterchangeBaseNodeContainer& NodeContainer, UInterchangeSceneNode* UnrealNode, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
 	};
 }//ns UE::Interchange::Private

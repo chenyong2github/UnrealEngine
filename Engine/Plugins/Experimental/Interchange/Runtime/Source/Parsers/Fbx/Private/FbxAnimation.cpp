@@ -563,7 +563,7 @@ namespace UE::Interchange::Private
 		return true;
 	}
 
-	void FFbxAnimation::AddJointAnimation(FbxScene* SDKScene, FbxNode* JointNode, UInterchangeBaseNodeContainer& NodeContainer, UInterchangeSceneNode* SceneNode, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
+	void FFbxAnimation::AddNodeTransformAnimation(FbxScene* SDKScene, FbxNode* JointNode, UInterchangeBaseNodeContainer& NodeContainer, UInterchangeSceneNode* SceneNode, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
 	{
 		int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
 		//Anim stack should be merge so we expect to have only one stack here

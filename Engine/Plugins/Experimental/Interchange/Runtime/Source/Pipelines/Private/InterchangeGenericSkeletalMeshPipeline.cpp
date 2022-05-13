@@ -156,13 +156,14 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 		bool bFoundMeshes = false;
 		if (CommonMeshesProperties->bBakeMeshes)
 		{
-			PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh);
+			PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(BaseNodeContainer, MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh);
 			const bool bUseMeshInstance = true;
 			bFoundMeshes = CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
 		}
 
 		if (!bFoundMeshes)
 		{
+			//Fall back to support mesh not reference by any scene node
 			MeshUidsPerSkeletonRootUid.Empty();
 			PipelineMeshesUtilities->GetCombinedSkinnedMeshGeometries(MeshUidsPerSkeletonRootUid);
 			const bool bUseMeshInstance = false;
