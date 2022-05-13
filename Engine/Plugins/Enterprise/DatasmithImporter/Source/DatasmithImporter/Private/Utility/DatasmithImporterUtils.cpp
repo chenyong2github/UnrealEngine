@@ -1376,6 +1376,8 @@ FScopedLogger::~FScopedLogger()
 
 TSharedRef<FTokenizedMessage> FScopedLogger::Push(EMessageSeverity::Type Severity, const FText& Message)
 {
+	FScopeLock Lock(&TokenizedMessageCS);
+
 	TokenizedMessages.Add(FTokenizedMessage::Create(Severity, Message));
 
 	return TokenizedMessages.Last();
@@ -1383,6 +1385,8 @@ TSharedRef<FTokenizedMessage> FScopedLogger::Push(EMessageSeverity::Type Severit
 
 void FScopedLogger::Dump(bool bClearPrevious)
 {
+	FScopeLock Lock(&TokenizedMessageCS);
+
 	if (TokenizedMessages.Num() > 0)
 	{
 		if (bClearPrevious)
@@ -1403,6 +1407,8 @@ void FScopedLogger::ClearLog()
 
 void FScopedLogger::ClearPending()
 {
+	FScopeLock Lock(&TokenizedMessageCS);
+
 	TokenizedMessages.Empty();
 }
 

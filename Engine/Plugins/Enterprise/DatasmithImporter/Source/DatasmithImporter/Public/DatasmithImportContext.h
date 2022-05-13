@@ -93,6 +93,7 @@ private:
 	FMessageLogModule& MessageLogModule;
 	TSharedPtr<IMessageLogListing> LogListing;
 	TArray<TSharedRef<FTokenizedMessage>> TokenizedMessages;
+	FCriticalSection TokenizedMessageCS;
 };
 
 struct FDatasmithActorImportContext
