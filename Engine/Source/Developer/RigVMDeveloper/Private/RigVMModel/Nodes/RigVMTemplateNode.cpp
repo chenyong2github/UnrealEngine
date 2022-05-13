@@ -639,7 +639,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, c
 	return NewFilteredPermutations;
 }
 
-TArray<int32> URigVMTemplateNode::FindPermuationsForTypes(const TArray<FString>& ArgumentTypes)
+TArray<int32> URigVMTemplateNode::FindPermuationsForTypes(const TArray<FString>& ArgumentTypes, bool bAllowCasting)
 {
 	TArray<int32> Permutations;
 	if (const FRigVMTemplate* Template = GetTemplate())
@@ -657,7 +657,8 @@ TArray<int32> URigVMTemplateNode::FindPermuationsForTypes(const TArray<FString>&
 				
 				if (const FRigVMTemplateArgument* Argument = Template->FindArgument(*ArgName))
 				{
-					if (!Argument->GetTypes()[i].Matches(Type))
+					if ((bAllowCasting && !Argument->GetTypes()[i].Matches(Type)) ||
+						(!bAllowCasting && Argument->GetTypes()[i].CPPType != Type))
 					{
 						bAllArgsMatched = false;
 						break;
