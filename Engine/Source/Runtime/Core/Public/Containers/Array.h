@@ -154,6 +154,17 @@ public:
 		Index--;
 	}
 
+	/**
+	 * Removes current element in array by swapping it with the end element and popping it from the end.
+	 * This invalidates the current iterator value and it must be incremented.
+	 * Note this modifies the order of the remaining elements in the array.
+	 */
+	void RemoveCurrentSwap()
+	{
+		Container.RemoveAtSwap(Index);
+		Index--;
+	}
+
 	FORCEINLINE friend bool operator==(const TIndexedContainerIterator& Lhs, const TIndexedContainerIterator& Rhs) { return &Lhs.Container == &Rhs.Container && Lhs.Index == Rhs.Index; }
 	FORCEINLINE friend bool operator!=(const TIndexedContainerIterator& Lhs, const TIndexedContainerIterator& Rhs) { return &Lhs.Container != &Rhs.Container || Lhs.Index != Rhs.Index; }
 

@@ -2083,21 +2083,20 @@ ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 		const ITargetPlatform* TargetPlatform = SaveContext.GetTargetPlatform();
 		TArray<UObject*> ObjectsInPackage;
 		GetObjectsWithPackage(SaveContext.GetPackage(), ObjectsInPackage);
-		for (int32 Index = 0; Index < ObjectsInPackage.Num(); /** incremented in loop */)
+		for (TArray<UObject*>::TIterator Iter(ObjectsInPackage); Iter; ++Iter)
 		{
-			UObject* Object = ObjectsInPackage[Index];
+			UObject* Object = *Iter;
 			if (SaveContext.IsUnsaveable(Object))
 			{
-				ObjectsInPackage.RemoveAtSwap(Index);
+				Iter.RemoveCurrentSwap();
 				continue;
 			}
 			Object->BeginCacheForCookedPlatformData(TargetPlatform);
 			if (Object->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 			{
-				ObjectsInPackage.RemoveAtSwap(Index);
+				Iter.RemoveCurrentSwap();
 				continue;
 			}
-			++Index;
 		}
 		if (ObjectsInPackage.Num())
 		{
@@ -2115,14 +2114,13 @@ ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 						SaveContext.GetFilename(), *ObjectsInPackage[0]->GetFullName());
 					return ESavePackageResult::Error;
 				}
-				for (int32 Index = 0; Index < ObjectsInPackage.Num(); /** incremented in loop */)
+				for (TArray<UObject*>::TIterator Iter(ObjectsInPackage); Iter; ++Iter)
 				{
-					if (ObjectsInPackage[Index]->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+					if ((*Iter)->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 					{
-						ObjectsInPackage.RemoveAtSwap(Index);
+						Iter.RemoveCurrentSwap();
 						continue;
 					}
-					++Index;
 				}
 			}
 		}
