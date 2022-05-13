@@ -401,8 +401,8 @@ class UMaterial : public UMaterialInterface
 #if WITH_EDITORONLY_DATA
 	ENGINE_API virtual const UClass* GetEditorOnlyDataClass() const override { return UMaterialEditorOnlyData::StaticClass(); }
 
-	UMaterialEditorOnlyData* GetEditorOnlyData() { return CastChecked<UMaterialEditorOnlyData>(Super::GetEditorOnlyData()); }
-	const UMaterialEditorOnlyData* GetEditorOnlyData() const { return CastChecked<UMaterialEditorOnlyData>(Super::GetEditorOnlyData()); }
+	virtual UMaterialEditorOnlyData* GetEditorOnlyData() override { return CastChecked<UMaterialEditorOnlyData>(Super::GetEditorOnlyData(), ECastCheckedType::NullAllowed); }
+	virtual const UMaterialEditorOnlyData* GetEditorOnlyData() const override { return CastChecked<UMaterialEditorOnlyData>(Super::GetEditorOnlyData(), ECastCheckedType::NullAllowed); }
 #endif // WITH_EDITORONLY_DATA
 
 	// Physics.
