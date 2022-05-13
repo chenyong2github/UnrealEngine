@@ -810,6 +810,18 @@ protected:
 
 	void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices);
 
+#if !UE_BUILD_SHIPPING
+	/** Data struct used by 'LogDirtyAreas' that contains all the information regarding the areas that are being dirtied, per dirtied tile. */
+	struct FNavigationDirtyAreaPerTileDebugInformation
+	{
+		FNavigationDirtyArea DirtyArea;
+		bool bTileWasAlreadyAdded = false;
+	};
+
+	/** Used internally, when LogNavigationDirtyArea is VeryVerbose, to log the number of tiles a dirty area is requesting. */
+	void LogDirtyAreas(const TMap<FPendingTileElement, TArray<FNavigationDirtyAreaPerTileDebugInformation>>& DirtyAreasDebuggingInformation) const; 
+#endif
+	
 protected:
 	friend ARecastNavMesh;
 

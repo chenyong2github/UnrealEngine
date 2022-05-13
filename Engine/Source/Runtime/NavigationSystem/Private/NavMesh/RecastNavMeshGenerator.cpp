@@ -5468,6 +5468,56 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+void FRecastNavMeshGenerator::LogDirtyAreas(
+	const TMap<FPendingTileElement, TArray<FNavigationDirtyAreaPerTileDebugInformation>>& DirtyAreasDebuggingInformation) const
+{
+	// Helper struct used to collate the raw information provided to the method, needed for the log results
+	struct FNavigationDirtyAreaDebugInformation
+	{
+		FNavigationDirtyArea DirtyArea;
+		int32 NewlyAddedDirtyTiles = 0;
+		int32 TotalDirtyTiles = 0;
+	};
+	
+	// Array used to describe per dirty area the amount of dirtied tiles
+	TArray<FNavigationDirtyAreaDebugInformation> DirtyAreaToDirtyTilesCount;
+	for (const TPair<FPendingTileElement, TArray<FNavigationDirtyAreaPerTileDebugInformation>>& DirtyAreasDebuggingInformationPair : DirtyAreasDebuggingInformation)
+	{
+		for (const FNavigationDirtyAreaPerTileDebugInformation& DirtyAreaPerTileDebugInformation : DirtyAreasDebuggingInformationPair.Value)
+		{
+			FNavigationDirtyAreaDebugInformation* DirtyResultsTuple = DirtyAreaToDirtyTilesCount.FindByPredicate([&DirtyAreaPerTileDebugInformation](const FNavigationDirtyAreaDebugInformation& OtherDirtyResultsTuple)
+			{
+				return OtherDirtyResultsTuple.DirtyArea == DirtyAreaPerTileDebugInformation.DirtyArea;
+			});
+
+			if (!DirtyResultsTuple)
+			{
+				DirtyResultsTuple = &DirtyAreaToDirtyTilesCount.Add_GetRef({DirtyAreaPerTileDebugInformation.DirtyArea, 0, 0});
+			}
+
+			if (!DirtyAreaPerTileDebugInformation.bTileWasAlreadyAdded)
+			{
+				DirtyResultsTuple->NewlyAddedDirtyTiles++;
+			}
+			DirtyResultsTuple->TotalDirtyTiles++;
+		}
+	}
+		
+	for (const FNavigationDirtyAreaDebugInformation& DirtyResultsTuple : DirtyAreaToDirtyTilesCount)
+	{
+		const UObject* const SourceObject = DirtyResultsTuple.DirtyArea.OptionalSourceObject.Get();
+		const UActorComponent* const ObjectAsComponent = Cast<UActorComponent>(SourceObject);
+		const AActor* const ComponentOwner = ObjectAsComponent ? ObjectAsComponent->GetOwner() : nullptr;
+		
+		UE_LOG(LogNavigationDirtyArea, VeryVerbose,
+			TEXT("(navmesh: %s) Dirty area trying to dirt %d tiles (out of which %d are newly added/not pending) | Source Object = %s | Potential component's owner = %s | Bounds size = %s)"),
+			*GetNameSafe(GetOwner()), DirtyResultsTuple.TotalDirtyTiles, DirtyResultsTuple.NewlyAddedDirtyTiles, *GetFullNameSafe(SourceObject),
+			*GetFullNameSafe(ComponentOwner), *DirtyResultsTuple.DirtyArea.Bounds.ToString());
+	}
+}
+#endif
+
 ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<uint32>& OutResultTileIndices)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastAddGeneratedTiles);
@@ -5738,6 +5788,10 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 		
 	// find all tiles that need regeneration
 	TSet<FPendingTileElement> DirtyTiles;
+#if !UE_BUILD_SHIPPING
+	// Used for debug purposes to track the number of new dirty tiles per area; Updated only if LogNavigationDirtyArea is VeryVerbose
+	TMap<FPendingTileElement, TArray<FNavigationDirtyAreaPerTileDebugInformation>> DirtyAreasDebugging;
+#endif
 	for (const FNavigationDirtyArea& DirtyArea : DirtyAreas)
 	{
 		// Static navmeshes accept only area modifiers updates
@@ -5785,11 +5839,6 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 			// then FindInclusionBoundEncapsulatingBox can produce false negative
 			bDoTileInclusionTest = (FindInclusionBoundEncapsulatingBox(CutDownArea) == INDEX_NONE);
 		}
-		
-#if !UE_BUILD_SHIPPING
-		// Used for debug purposes to track the number of tiles relevant to this area
-		uint32 RelevantTiles = 0;
-#endif
 		
 		const FRcTileBox TileBox(AdjustedAreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
@@ -5842,29 +5891,14 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 				}
 				
 #if !UE_BUILD_SHIPPING
-				RelevantTiles++;
+				UE_SUPPRESS(LogNavigationDirtyArea, VeryVerbose, 
+				{
+					const bool bAlreadyAdded = ExistingElement != nullptr;
+					DirtyAreasDebugging.FindOrAdd(Element).Add({DirtyArea, bAlreadyAdded});
+				});
 #endif
 			}
 		}
-		
-#if !UE_BUILD_SHIPPING
-		UE_SUPPRESS(LogNavigationDirtyArea, VeryVerbose, 
-		{
-			if (RelevantTiles > 0)
-			{
-				if (const UObject* const SourceObject = DirtyArea.OptionalSourceObject.Get())
-				{
-					const UActorComponent* const ObjectAsComponent = Cast<UActorComponent>(SourceObject);
-					const AActor* const ComponentOwner = ObjectAsComponent ? ObjectAsComponent->GetOwner() : nullptr;
-					
-					UE_LOG(LogNavigationDirtyArea, VeryVerbose,
-						TEXT("(navmesh: %s) Dirty area trying to dirt %d tiles | Source Object = %s | Potential component's owner = %s | Bounds size = %s)"),
-						*GetNameSafe(GetOwner()), RelevantTiles, *GetFullNameSafe(SourceObject),
-						*GetFullNameSafe(ComponentOwner), *DirtyArea.Bounds.ToString());
-				}
-			}
-		});
-#endif
 	}
 	
 	int32 NumTilesMarked = DirtyTiles.Num();
@@ -5888,8 +5922,26 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 				ExistingElement.DirtyAreas.Empty();
 			}
 			DirtyTiles.Remove(Id);
+
+#if !UE_BUILD_SHIPPING
+			UE_SUPPRESS(LogNavigationDirtyArea, VeryVerbose, 
+			{
+				// Flag everything in the map to set a true boolean (since it was already inserted)
+				for (FNavigationDirtyAreaPerTileDebugInformation& Pair : DirtyAreasDebugging.FindChecked(ExistingElement))
+				{
+					Pair.bTileWasAlreadyAdded = true;
+				}
+			});
+#endif
 		}
 	}
+
+#if !UE_BUILD_SHIPPING
+	UE_SUPPRESS(LogNavigationDirtyArea, VeryVerbose, 
+	{
+		LogDirtyAreas(DirtyAreasDebugging);
+	});
+#endif
 
 	// Append remaining new dirty tile elements
 	PendingDirtyTiles.Reserve(PendingDirtyTiles.Num() + DirtyTiles.Num());

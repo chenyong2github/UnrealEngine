@@ -106,6 +106,16 @@ struct FNavigationDirtyArea
 	FNavigationDirtyArea() : Flags(0) {}
 	FNavigationDirtyArea(const FBox& InBounds, int32 InFlags, UObject* const InOptionalSourceObject = nullptr) : Bounds(InBounds), Flags(InFlags), OptionalSourceObject(InOptionalSourceObject) {}
 	FORCEINLINE bool HasFlag(ENavigationDirtyFlag::Type Flag) const { return (Flags & Flag) != 0; }
+
+	bool operator==(const FNavigationDirtyArea& Other) const 
+	{ 
+		return Flags == Other.Flags && OptionalSourceObject == Other.OptionalSourceObject && Bounds.Equals(Other.Bounds); 
+	}
+	
+	bool operator!=( const FNavigationDirtyArea& Other) const
+	{
+		return !(*this == Other);
+	}
 };
 
 USTRUCT()
