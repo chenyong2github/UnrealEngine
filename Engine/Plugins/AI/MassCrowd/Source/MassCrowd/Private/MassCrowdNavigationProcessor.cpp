@@ -62,6 +62,7 @@ void UMassCrowdLaneTrackingSignalProcessor::SignalEntities(UMassEntitySubsystem&
 // UMassCrowdLaneTrackingDestructor
 //----------------------------------------------------------------------//
 UMassCrowdLaneTrackingDestructor::UMassCrowdLaneTrackingDestructor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	ObservedType = FMassCrowdLaneTrackingFragment::StaticStruct();
@@ -99,6 +100,7 @@ void UMassCrowdLaneTrackingDestructor::Execute(UMassEntitySubsystem& EntitySubsy
 //----------------------------------------------------------------------//
 
 UMassCrowdDynamicObstacleProcessor::UMassCrowdDynamicObstacleProcessor()
+	: EntityQuery_Conditional(*this)
 {
 	bAutoRegisterWithProcessingPhases = true;
 
@@ -222,6 +224,7 @@ void UMassCrowdDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySub
 // UMassCrowdDynamicObstacleInitializer
 //----------------------------------------------------------------------//
 UMassCrowdDynamicObstacleInitializer::UMassCrowdDynamicObstacleInitializer()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	ObservedType = FMassCrowdObstacleFragment::StaticStruct();
@@ -261,6 +264,7 @@ void UMassCrowdDynamicObstacleInitializer::Execute(UMassEntitySubsystem& EntityS
 // UMassCrowdDynamicObstacleDeinitializer
 //----------------------------------------------------------------------//
 UMassCrowdDynamicObstacleDeinitializer::UMassCrowdDynamicObstacleDeinitializer()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	ObservedType = FMassCrowdObstacleFragment::StaticStruct();

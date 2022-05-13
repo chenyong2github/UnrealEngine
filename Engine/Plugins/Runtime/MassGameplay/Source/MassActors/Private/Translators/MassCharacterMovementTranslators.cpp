@@ -13,6 +13,7 @@
 //  UMassCharacterMovementToMassTranslator
 //----------------------------------------------------------------------//
 UMassCharacterMovementToMassTranslator::UMassCharacterMovementToMassTranslator()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
@@ -53,6 +54,7 @@ void UMassCharacterMovementToMassTranslator::Execute(UMassEntitySubsystem& Entit
 //  UMassCharacterMovementToActorTranslator
 //----------------------------------------------------------------------//
 UMassCharacterMovementToActorTranslator::UMassCharacterMovementToActorTranslator()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
@@ -90,6 +92,7 @@ void UMassCharacterMovementToActorTranslator::Execute(UMassEntitySubsystem& Enti
 //  UMassCharacterOrientationToMassTranslator
 //----------------------------------------------------------------------//
 UMassCharacterOrientationToMassTranslator::UMassCharacterOrientationToMassTranslator()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
@@ -129,6 +132,7 @@ void UMassCharacterOrientationToMassTranslator::Execute(UMassEntitySubsystem& En
 //  UMassCharacterOrientationToActorTranslator
 //----------------------------------------------------------------------//
 UMassCharacterOrientationToActorTranslator::UMassCharacterOrientationToActorTranslator()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;

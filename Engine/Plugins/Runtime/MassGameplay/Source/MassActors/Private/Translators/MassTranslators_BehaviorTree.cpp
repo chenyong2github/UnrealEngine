@@ -5,6 +5,7 @@
 #include "MassEntitySubsystem.h"
 
 UMassTranslator_BehaviorTree::UMassTranslator_BehaviorTree()
+	: EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = false;
 }

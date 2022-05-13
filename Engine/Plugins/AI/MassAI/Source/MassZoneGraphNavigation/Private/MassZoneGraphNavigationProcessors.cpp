@@ -36,6 +36,7 @@ namespace UE::MassNavigation::Debug
 //  UMassZoneGraphLocationInitializer
 //----------------------------------------------------------------------//
 UMassZoneGraphLocationInitializer::UMassZoneGraphLocationInitializer()
+	: EntityQuery(*this)
 {
 	ObservedType = FMassZoneGraphLaneLocationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Add;
@@ -110,6 +111,7 @@ void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubs
 //  UMassZoneGraphPathFollowProcessor
 //----------------------------------------------------------------------//
 UMassZoneGraphPathFollowProcessor::UMassZoneGraphPathFollowProcessor()
+	: EntityQuery_Conditional(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Tasks;
@@ -409,6 +411,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 //  UMassZoneGraphLaneCacheBoundaryProcessor
 //----------------------------------------------------------------------//
 UMassZoneGraphLaneCacheBoundaryProcessor::UMassZoneGraphLaneCacheBoundaryProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 

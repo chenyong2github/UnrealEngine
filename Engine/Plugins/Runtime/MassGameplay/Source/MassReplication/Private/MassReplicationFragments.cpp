@@ -9,6 +9,7 @@
 // UMassNetworkIDFragmentInitializer 
 //----------------------------------------------------------------------//
 UMassNetworkIDFragmentInitializer::UMassNetworkIDFragmentInitializer()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	ObservedType = FMassNetworkIDFragment::StaticStruct();

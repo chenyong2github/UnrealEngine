@@ -45,6 +45,7 @@ void UMassCrowdVisualizationProcessor::ConfigureQueries()
 // UMassDebugCrowdVisualizationProcessor
 //----------------------------------------------------------------------//
 UMassDebugCrowdVisualizationProcessor::UMassDebugCrowdVisualizationProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 

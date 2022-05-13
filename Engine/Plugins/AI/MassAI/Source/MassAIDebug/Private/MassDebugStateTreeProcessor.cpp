@@ -13,6 +13,7 @@
 // UMassDebugStateTreeProcessor
 //----------------------------------------------------------------------//
 UMassDebugStateTreeProcessor::UMassDebugStateTreeProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Behavior;
 	ExecutionOrder.ExecuteAfter.Add(TEXT("MassStateTreeProcessor"));

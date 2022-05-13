@@ -10,6 +10,7 @@
 // UAssignDebugVisProcessor
 //----------------------------------------------------------------------//
 UAssignDebugVisProcessor::UAssignDebugVisProcessor()
+	: EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = false;
 	ObservedType = FSimDebugVisFragment::StaticStruct();

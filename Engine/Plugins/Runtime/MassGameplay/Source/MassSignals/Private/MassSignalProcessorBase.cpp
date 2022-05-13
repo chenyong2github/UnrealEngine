@@ -5,6 +5,12 @@
 #include "MassArchetypeTypes.h"
 #include "Engine/World.h"
 
+
+UMassSignalProcessorBase::UMassSignalProcessorBase(const FObjectInitializer& ObjectInitializer)
+	: EntityQuery(*this)
+{
+}
+
 void UMassSignalProcessorBase::Initialize(UObject& Owner)
 {
 	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());

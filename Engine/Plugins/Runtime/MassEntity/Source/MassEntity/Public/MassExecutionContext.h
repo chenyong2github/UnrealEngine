@@ -70,6 +70,8 @@ private:
 	TArrayView<FConstSharedFragmentView> GetMutableConstSharedRequirements() { return ConstSharedFragmentViews; }
 	TArrayView<FSharedFragmentView> GetMutableSharedRequirements() { return SharedFragmentViews; }
 
+	EMassExecutionContextType ExecutionType = EMassExecutionContextType::Local;
+
 	friend FMassArchetypeData;
 	friend FMassEntityQuery;
 
@@ -98,6 +100,7 @@ public:
 	void SetEntityCollection(FMassArchetypeEntityCollection&& InEntityCollection);
 	void ClearEntityCollection() { EntityCollection.Reset(); }
 	void SetAuxData(const FInstancedStruct& InAuxData) { AuxData = InAuxData; }
+	void SetExecutionType(EMassExecutionContextType InExecutionType) { check(InExecutionType != EMassExecutionContextType::MAX); ExecutionType = InExecutionType; }
 
 	float GetDeltaTimeSeconds() const
 	{

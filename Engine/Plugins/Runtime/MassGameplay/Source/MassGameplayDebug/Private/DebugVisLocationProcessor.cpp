@@ -12,6 +12,7 @@
 // UDebugVisLocationProcessor
 //----------------------------------------------------------------------//
 UDebugVisLocationProcessor::UDebugVisLocationProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::SyncWorldToMass);
 }
@@ -71,6 +72,7 @@ void UDebugVisLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 //  UMassProcessor_UpdateDebugVis
 //----------------------------------------------------------------------//
 UMassProcessor_UpdateDebugVis::UMassProcessor_UpdateDebugVis()
+	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::UpdateWorldFromMass);
 }

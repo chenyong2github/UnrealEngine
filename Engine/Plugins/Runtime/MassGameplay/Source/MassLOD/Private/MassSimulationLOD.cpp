@@ -62,6 +62,11 @@ namespace UE::MassLOD
 } // UE::MassLOD
 
 UMassSimulationLODProcessor::UMassSimulationLODProcessor()
+	: EntityQuery(*this)
+	, EntityQueryCalculateLOD(*this)
+	, EntityQueryAdjustDistances(*this)
+	, EntityQueryVariableTick(*this)
+	, EntityQuerySetLODTag(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;

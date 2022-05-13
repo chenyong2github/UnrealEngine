@@ -11,6 +11,9 @@
 //  UMassReplicationGridProcessor
 //----------------------------------------------------------------------//
 UMassReplicationGridProcessor::UMassReplicationGridProcessor()
+	: AddToGridEntityQuery(*this)
+	, UpdateGridEntityQuery(*this)
+	, RemoveFromGridEntityQuery(*this)
 {
 #if !UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
 	ExecutionFlags = int32(EProcessorExecutionFlags::Server);
@@ -122,6 +125,7 @@ void UMassReplicationGridProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 //  UMassReplicationGridRemoverProcessor
 //----------------------------------------------------------------------//
 UMassReplicationGridRemoverProcessor::UMassReplicationGridRemoverProcessor()
+	: EntityQuery(*this)
 {
 	ObservedType = FMassReplicationGridCellLocationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Remove;

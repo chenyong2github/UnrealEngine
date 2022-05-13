@@ -21,6 +21,7 @@ namespace UE::MassRepresentation
 // UMassRepresentationProcessor(); 
 //----------------------------------------------------------------------//
 UMassRepresentationProcessor::UMassRepresentationProcessor()
+	: EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = false;
 
@@ -367,6 +368,7 @@ void UMassVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 // UMassRepresentationFragmentDestructor 
 //----------------------------------------------------------------------//
 UMassRepresentationFragmentDestructor::UMassRepresentationFragmentDestructor()
+	: EntityQuery(*this)
 {
 	ObservedType = FMassRepresentationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Remove;

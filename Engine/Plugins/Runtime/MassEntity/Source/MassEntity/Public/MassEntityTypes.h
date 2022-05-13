@@ -340,6 +340,13 @@ enum class EMassObservedOperation : uint8
 	MAX
 };
 
+enum class EMassExecutionContextType : uint8
+{
+	Local,
+	Processor,
+	MAX
+};
+
 /** 
  * Note that this is a view and is valid only as long as the source data is valid. Used when flushing mass commands to
  * wrap different kinds of data into a uniform package so that it can be passed over to a common interface.

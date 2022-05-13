@@ -70,6 +70,10 @@ public:
 
 	TConstArrayView<const int32> GetPrerequisiteIndices() const { return DependencyIndices; }
 
+	/** Adds Query to RegisteredQueries list. Query is required to be a member variable of this processor. Not meeting
+	 *  this requirement will cause check failure and the query won't be registered. */
+	void RegisterQuery(FMassEntityQuery& Query);
+
 	bool ShouldAutoAddToGlobalList() const { return bAutoRegisterWithProcessingPhases; }
 #if WITH_EDITOR
 	bool ShouldShowUpInSettings() const { return ShouldAutoAddToGlobalList() || bCanShowUpInSettings; }
@@ -127,6 +131,12 @@ protected:
 	friend class UMassCompositeProcessor;
 	TArray<int32> DependencyIndices;
 	TArray<int32> TransientDependencyIndices;
+
+private:
+	/** Stores processor's queries registered via RegisterQuery. 
+	 *  @note that it's safe to store pointers here since RegisterQuery does verify that a given registered query is 
+	 *  a member variable of a given processor */
+	TArray<FMassEntityQuery*> OwnedQueries;
 };
 
 

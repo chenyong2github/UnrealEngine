@@ -22,6 +22,7 @@ void UMassSimpleMovementTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bu
 //  UMassSimpleMovementProcessor
 //----------------------------------------------------------------------//
 UMassSimpleMovementProcessor::UMassSimpleMovementProcessor()
+	: EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = true;
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;

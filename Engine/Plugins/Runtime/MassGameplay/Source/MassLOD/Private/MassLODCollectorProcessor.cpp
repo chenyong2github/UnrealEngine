@@ -33,18 +33,22 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 	EntityQuery_VisibleRangeAndOnLOD = BaseQuery;
 	EntityQuery_VisibleRangeAndOnLOD.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
 	EntityQuery_VisibleRangeAndOnLOD.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
+	EntityQuery_VisibleRangeAndOnLOD.RegisterWithProcessor(*this);
 
 	EntityQuery_VisibleRangeOnly = BaseQuery;
 	EntityQuery_VisibleRangeOnly.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
 	EntityQuery_VisibleRangeOnly.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
+	EntityQuery_VisibleRangeOnly.RegisterWithProcessor(*this);
 
 	EntityQuery_OnLODOnly = BaseQuery;
 	EntityQuery_OnLODOnly.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
 	EntityQuery_OnLODOnly.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
+	EntityQuery_OnLODOnly.RegisterWithProcessor(*this);
 
 	EntityQuery_NotVisibleRangeAndOffLOD = BaseQuery;
 	EntityQuery_NotVisibleRangeAndOffLOD.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
 	EntityQuery_NotVisibleRangeAndOffLOD.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
+	EntityQuery_NotVisibleRangeAndOffLOD.RegisterWithProcessor(*this);
 }
 
 template <bool bLocalViewersOnly>

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmoothOrientation/MassSmoothOrientationProcessors.h"
 #include "SmoothOrientation/MassSmoothOrientationFragments.h"
@@ -17,6 +17,8 @@
 //  UMassSmoothOrientationProcessor
 //----------------------------------------------------------------------//
 UMassSmoothOrientationProcessor::UMassSmoothOrientationProcessor()
+	: HighResEntityQuery(*this)
+	, LowResEntityQuery_Conditional(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Movement;

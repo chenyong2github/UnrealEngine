@@ -173,6 +173,7 @@ void ForEachEntityInChunk(FMassExecutionContext& Context, FMassStateTreeExecutio
 // UMassStateTreeFragmentDestructor
 //----------------------------------------------------------------------//
 UMassStateTreeFragmentDestructor::UMassStateTreeFragmentDestructor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	ObservedType = FMassStateTreeInstanceFragment::StaticStruct();
@@ -233,6 +234,7 @@ void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsy
 // UMassStateTreeActivationProcessor
 //----------------------------------------------------------------------//
 UMassStateTreeActivationProcessor::UMassStateTreeActivationProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
 	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Behavior);

@@ -21,6 +21,7 @@
 //----------------------------------------------------------------------//
 
 UMassOffLODNavigationProcessor::UMassOffLODNavigationProcessor()
+	: EntityQuery_Conditional(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Movement;
@@ -69,6 +70,7 @@ void UMassOffLODNavigationProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 //----------------------------------------------------------------------//
 
 UMassNavigationSmoothHeightProcessor::UMassNavigationSmoothHeightProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
@@ -121,6 +123,7 @@ void UMassNavigationSmoothHeightProcessor::Execute(UMassEntitySubsystem& EntityS
 //----------------------------------------------------------------------//
 
 UMassMoveTargetFragmentInitializer::UMassMoveTargetFragmentInitializer()
+	: InitializerQuery(*this)
 {
 	ObservedType = FMassMoveTargetFragment::StaticStruct();
 	Operation = EMassObservedOperation::Add;
@@ -175,15 +178,18 @@ void UMassNavigationObstacleGridProcessor::ConfigureQueries()
 	AddToGridEntityQuery.AddRequirement<FMassAvoidanceColliderFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	AddToGridEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 	AddToGridEntityQuery.AddTagRequirement<FMassInNavigationObstacleGridTag>(EMassFragmentPresence::None);
+	AddToGridEntityQuery.RegisterWithProcessor(*this);
 
 	UpdateGridEntityQuery = BaseEntityQuery;
 	UpdateGridEntityQuery.AddRequirement<FMassAvoidanceColliderFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	UpdateGridEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 	UpdateGridEntityQuery.AddTagRequirement<FMassInNavigationObstacleGridTag>(EMassFragmentPresence::All);
+	UpdateGridEntityQuery.RegisterWithProcessor(*this);
 
 	RemoveFromGridEntityQuery = BaseEntityQuery;
 	RemoveFromGridEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
 	RemoveFromGridEntityQuery.AddTagRequirement<FMassInNavigationObstacleGridTag>(EMassFragmentPresence::All);
+	RemoveFromGridEntityQuery.RegisterWithProcessor(*this);
 }
 
 void UMassNavigationObstacleGridProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -272,6 +278,7 @@ void UMassNavigationObstacleGridProcessor::Execute(UMassEntitySubsystem& EntityS
 //  UMassNavigationObstacleRemoverProcessor
 //----------------------------------------------------------------------//
 UMassNavigationObstacleRemoverProcessor::UMassNavigationObstacleRemoverProcessor()
+	: EntityQuery(*this)
 {
 	ObservedType = FMassNavigationObstacleGridCellLocationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Remove;

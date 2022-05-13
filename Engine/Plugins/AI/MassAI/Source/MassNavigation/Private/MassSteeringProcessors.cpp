@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Steering/MassSteeringProcessors.h"
 #include "MassCommonUtils.h"
@@ -51,6 +51,7 @@ namespace UE::MassNavigation
 //  UMassSteerToMoveTargetProcessor
 //----------------------------------------------------------------------//
 UMassSteerToMoveTargetProcessor::UMassSteerToMoveTargetProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = int32(EProcessorExecutionFlags::All);
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Tasks);

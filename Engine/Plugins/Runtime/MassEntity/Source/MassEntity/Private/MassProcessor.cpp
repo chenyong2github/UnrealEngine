@@ -157,6 +157,25 @@ void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExe
 	Execute(EntitySubsystem, Context);
 }
 
+void UMassProcessor::RegisterQuery(FMassEntityQuery& Query)
+{
+	const uintptr_t ThisStart = (uintptr_t)this;
+	const uintptr_t ThisEnd = ThisStart + GetClass()->GetStructureSize();
+	const uintptr_t QueryStart = (uintptr_t)&Query;
+	const uintptr_t QueryEnd = QueryStart + sizeof(FMassEntityQuery);
+
+	if (QueryStart >= ThisStart && QueryEnd <= ThisEnd)
+	{
+		OwnedQueries.AddUnique(&Query);
+	}
+	else
+	{
+		constexpr TCHAR MessageFormat[] = TEXT("Registering entity query for %s while the query is not given processor's member variable. Skipping.");
+		checkf(false, MessageFormat, *GetProcessorName());
+		UE_LOG(LogMass, Error, MessageFormat, *GetProcessorName());
+	}
+}
+
 FGraphEventRef UMassProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
 {
 	FGraphEventRef ReturnVal;

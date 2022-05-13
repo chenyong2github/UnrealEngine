@@ -41,6 +41,8 @@ void UMassSmartObjectCandidatesFinderProcessor::ConfigureQueries()
 }
 
 UMassSmartObjectCandidatesFinderProcessor::UMassSmartObjectCandidatesFinderProcessor()
+	: WorldRequestQuery(*this)
+	, LaneRequestQuery(*this)
 {
 	// 1. Frame T Behavior create a request(deferred entity creation)
 	// 2. Frame T+1: Processor execute the request might mark it as done(deferred add tag flushed at the end of the frame)
@@ -312,6 +314,7 @@ void UMassSmartObjectTimedBehaviorProcessor::ConfigureQueries()
 }
 
 UMassSmartObjectTimedBehaviorProcessor::UMassSmartObjectTimedBehaviorProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
 }
@@ -383,6 +386,7 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 //  UMassSmartObjectUserFragmentDeinitializer
 //----------------------------------------------------------------------//
 UMassSmartObjectUserFragmentDeinitializer::UMassSmartObjectUserFragmentDeinitializer()
+	: EntityQuery(*this)
 {
 	ObservedType = FMassSmartObjectUserFragment::StaticStruct();
 	Operation = EMassObservedOperation::Remove;

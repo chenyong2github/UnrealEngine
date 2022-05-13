@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Movement/MassMovementProcessors.h"
 #include "MassCommonUtils.h"
@@ -16,6 +16,7 @@
 //----------------------------------------------------------------------//
 
 UMassApplyMovementProcessor::UMassApplyMovementProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Movement;

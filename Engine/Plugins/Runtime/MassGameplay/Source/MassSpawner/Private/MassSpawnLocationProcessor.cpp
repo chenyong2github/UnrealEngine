@@ -11,6 +11,7 @@
 // UMassSpawnLocationProcessor 
 //----------------------------------------------------------------------//
 UMassSpawnLocationProcessor::UMassSpawnLocationProcessor()
+	: EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = false;
 }

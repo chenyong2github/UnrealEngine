@@ -11,6 +11,7 @@
 
 
 class UMassEntitySubsystem;
+class UMassProcessor;
 struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
@@ -103,6 +104,9 @@ public:
 	FMassEntityQuery();
 	FMassEntityQuery(std::initializer_list<UScriptStruct*> InitList);
 	FMassEntityQuery(TConstArrayView<const UScriptStruct*> InitList);
+	FMassEntityQuery(UMassProcessor& Owner);
+
+	void RegisterWithProcessor(UMassProcessor& Owner);
 
 	/** Runs ExecuteFunction on all entities matching Requirements */
 	void ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
@@ -457,6 +461,12 @@ private:
 	TArray<FMassQueryRequirementIndicesMapping> ArchetypeFragmentMapping;
 
 	bool bAllowParallelExecution = false;
+
+	EMassExecutionContextType ExpectedContextType = EMassExecutionContextType::Local;
+
+#if WITH_MASSENTITY_DEBUG
+	uint8 bRegistered : 1;
+#endif // WITH_MASSENTITY_DEBUG
 };
 
 template<>

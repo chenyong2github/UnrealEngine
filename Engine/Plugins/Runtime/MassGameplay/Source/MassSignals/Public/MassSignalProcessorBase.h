@@ -19,6 +19,9 @@ class MASSSIGNALS_API UMassSignalProcessorBase : public UMassProcessor
 {
 	GENERATED_BODY()
 
+public:
+	UMassSignalProcessorBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 protected:
 	/**
 	 * Initialize the processor

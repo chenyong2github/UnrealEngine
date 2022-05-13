@@ -8,6 +8,10 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Async/ParallelFor.h"
 #include "Containers/UnrealString.h"
+#include "MassProcessor.h"
+#if WITH_MASSENTITY_DEBUG
+#include "MassRequirementAccessDetector.h"
+#endif // WITH_MASSENTITY_DEBUG
 
 //////////////////////////////////////////////////////////////////////
 // FMassEntityQuery
@@ -34,6 +38,20 @@ FMassEntityQuery::FMassEntityQuery(TConstArrayView<const UScriptStruct*> InitLis
 	{
 		AddRequirement(FragmentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
 	}
+}
+
+FMassEntityQuery::FMassEntityQuery(UMassProcessor& Owner)
+{
+	RegisterWithProcessor(Owner);
+}
+
+void FMassEntityQuery::RegisterWithProcessor(UMassProcessor& Owner)
+{
+	ExpectedContextType = EMassExecutionContextType::Processor;
+	Owner.RegisterQuery(*this);
+#if WITH_MASSENTITY_DEBUG
+	bRegistered = true;
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 void FMassEntityQuery::ReadCommandlineParams()
@@ -136,6 +154,9 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 {
 #if WITH_MASSENTITY_DEBUG
 	int32 NumEntitiesToProcess = 0;
+
+	checkf(ExecutionContext.ExecutionType == ExpectedContextType && (ExpectedContextType == EMassExecutionContextType::Local || bRegistered)
+		, TEXT("ExecutionContextType mismatch, make sure all the queries run as part of processor execution are registered with some processor with a FMassEntityQuery::RegisterWithProcessor call"));
 
 	EntitySubsystem.GetRequirementAccessDetector().RequireAccess(*this);
 #endif

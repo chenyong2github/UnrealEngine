@@ -97,6 +97,7 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	ExecutionContext.SetDeferredCommandBuffer(CommandBuffer);
 	ExecutionContext.SetFlushDeferredCommands(false);
 	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
+	ExecutionContext.SetExecutionType(EMassExecutionContextType::Processor);
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Execute Processors")

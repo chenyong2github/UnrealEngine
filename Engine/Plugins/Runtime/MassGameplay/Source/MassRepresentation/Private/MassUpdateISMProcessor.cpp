@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 
 UMassUpdateISMProcessor::UMassUpdateISMProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 

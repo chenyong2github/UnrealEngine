@@ -345,6 +345,7 @@ namespace UE::MassAvoidance
 //  UMassMovingAvoidanceProcessor
 //----------------------------------------------------------------------//
 UMassMovingAvoidanceProcessor::UMassMovingAvoidanceProcessor()
+	: EntityQuery(*this) 
 {
 	bAutoRegisterWithProcessingPhases = true;
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
@@ -1008,6 +1009,8 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 //  UMassStandingAvoidanceProcessor
 //----------------------------------------------------------------------//
 UMassStandingAvoidanceProcessor::UMassStandingAvoidanceProcessor()
+	: EntityQuery(*this)
+
 {
 	bAutoRegisterWithProcessingPhases = true;
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;

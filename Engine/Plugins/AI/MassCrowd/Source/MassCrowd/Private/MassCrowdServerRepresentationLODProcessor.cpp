@@ -11,6 +11,7 @@ namespace UE::MassCrowd
 } // UE::MassCrowd
 
 UMassCrowdServerRepresentationLODProcessor::UMassCrowdServerRepresentationLODProcessor()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::Server;
 

@@ -15,6 +15,7 @@
 //  UMassZoneGraphAnnotationTagsInitializer
 //----------------------------------------------------------------------//
 UMassZoneGraphAnnotationTagsInitializer::UMassZoneGraphAnnotationTagsInitializer()
+	: EntityQuery(*this)
 {
 	ObservedType = FMassZoneGraphAnnotationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Add;

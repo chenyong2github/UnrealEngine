@@ -28,20 +28,24 @@ void UMassVisualizationLODProcessor::ConfigureQueries()
 
 	CloseEntityQuery = BaseQuery;
 	CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
-	
+	CloseEntityQuery.RegisterWithProcessor(*this);
+
 	CloseEntityAdjustDistanceQuery = CloseEntityQuery;
 	CloseEntityAdjustDistanceQuery.SetArchetypeFilter([](const FMassExecutionContext& Context)
 	{
 		const FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetSharedFragment<FMassVisualizationLODSharedFragment>();
 		return LODSharedFragment.bHasAdjustedDistancesFromCount;
 	});
+	CloseEntityAdjustDistanceQuery.RegisterWithProcessor(*this);
 
 	FarEntityQuery = BaseQuery;
 	FarEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
 	FarEntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 	FarEntityQuery.SetChunkFilter(&FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk);
+	FarEntityQuery.RegisterWithProcessor(*this);
 
 	DebugEntityQuery = BaseQuery;
+	DebugEntityQuery.RegisterWithProcessor(*this);
 }
 
 void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

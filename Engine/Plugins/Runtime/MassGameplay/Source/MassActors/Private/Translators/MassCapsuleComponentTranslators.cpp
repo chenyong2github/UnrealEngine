@@ -10,6 +10,7 @@
 // UMassCapsuleTransformToMassTranslator
 //----------------------------------------------------------------------//
 UMassCapsuleTransformToMassTranslator::UMassCapsuleTransformToMassTranslator()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	RequiredTags.Add<FMassCapsuleTransformCopyToMassTag>();
@@ -43,6 +44,7 @@ void UMassCapsuleTransformToMassTranslator::Execute(UMassEntitySubsystem& Entity
 // UMassTransformToActorCapsuleTranslator
 //----------------------------------------------------------------------//
 UMassTransformToActorCapsuleTranslator::UMassTransformToActorCapsuleTranslator()
+	: EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	RequiredTags.Add<FMassCapsuleTransformCopyToActorTag>();

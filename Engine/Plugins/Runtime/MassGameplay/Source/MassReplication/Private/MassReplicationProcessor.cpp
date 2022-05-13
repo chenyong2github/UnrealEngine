@@ -15,6 +15,11 @@ namespace UE::Mass::Replication
 //  UMassReplicationProcessor
 //----------------------------------------------------------------------//
 UMassReplicationProcessor::UMassReplicationProcessor()
+	: SyncClientData(*this)
+	, CollectViewerInfoQuery(*this)
+	, CalculateLODQuery(*this)
+	, AdjustLODDistancesQuery(*this)
+	, EntityQuery(*this)
 {
 #if !UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
 	ExecutionFlags = int32(EProcessorExecutionFlags::Server);

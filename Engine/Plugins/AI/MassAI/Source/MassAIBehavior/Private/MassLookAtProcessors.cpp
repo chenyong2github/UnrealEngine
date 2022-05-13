@@ -89,6 +89,7 @@ namespace UE::MassBehavior
 // UMassLookAtProcessor
 //----------------------------------------------------------------------//
 UMassLookAtProcessor::UMassLookAtProcessor()
+	: EntityQuery_Conditional(*this)
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Tasks;
