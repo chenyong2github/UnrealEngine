@@ -2138,24 +2138,26 @@ UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngi
 
 void UWorld::RemoveActor(AActor* Actor, bool bShouldModifyLevel) const
 {
-	ULevel* CheckLevel = Actor->GetLevel();
-	const int32 ActorListIndex = CheckLevel->Actors.Find( Actor );
-	// Search the entire list.
-	if( ActorListIndex != INDEX_NONE )
+	if (ULevel* CheckLevel = Actor->GetLevel())
 	{
-		if ( bShouldModifyLevel && GUndo )
+		const int32 ActorListIndex = CheckLevel->Actors.Find(Actor);
+		// Search the entire list.
+		if (ActorListIndex != INDEX_NONE)
 		{
-			ModifyLevel( CheckLevel );
-		}
-		
-		if (!IsGameWorld())
-		{
-			CheckLevel->Actors[ActorListIndex]->Modify();
-		}
-		
-		CheckLevel->Actors[ActorListIndex] = nullptr;
+			if (bShouldModifyLevel && GUndo)
+			{
+				ModifyLevel(CheckLevel);
+			}
 
-		CheckLevel->ActorsForGC.RemoveSwap(Actor);
+			if (!IsGameWorld())
+			{
+				CheckLevel->Actors[ActorListIndex]->Modify();
+			}
+
+			CheckLevel->Actors[ActorListIndex] = nullptr;
+
+			CheckLevel->ActorsForGC.RemoveSwap(Actor);
+		}
 	}
 
 	// Remove actor from network list

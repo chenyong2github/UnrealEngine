@@ -5429,7 +5429,7 @@ void AActor::SetLifeSpan( float InLifespan )
 	// Store the new value
 	InitialLifeSpan = InLifespan;
 	// Initialize a timer for the actors lifespan if there is one. Otherwise clear any existing timer
-	if ((GetLocalRole() == ROLE_Authority || GetTearOff()) && IsValidChecked(this))
+	if ((GetLocalRole() == ROLE_Authority || GetTearOff()) && IsValidChecked(this) && GetWorld())
 	{
 		if( InLifespan > 0.0f)
 		{
