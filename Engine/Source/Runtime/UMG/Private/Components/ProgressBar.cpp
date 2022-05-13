@@ -10,9 +10,6 @@
 // UProgressBar
 
 
-UE_FIELD_NOTIFICATION_IMPLEMENT_CLASS_DESCRIPTOR_ThreeFields(UProgressBar, Percent, FillColorAndOpacity, bIsMarquee);
-
-
 static FProgressBarStyle* DefaultProgressBarStyle = nullptr;
 
 #if WITH_EDITOR
@@ -30,6 +27,7 @@ UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 		DefaultProgressBarStyle->UnlinkColors();
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WidgetStyle = *DefaultProgressBarStyle;
 
 #if WITH_EDITOR 
@@ -58,6 +56,7 @@ UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 	Percent = 0;
 	FillColorAndOpacity = FLinearColor::White;
 	BorderPadding = FVector2D(0, 0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UProgressBar::ReleaseSlateResources(bool bReleaseChildren)
@@ -74,6 +73,7 @@ TSharedRef<SWidget> UProgressBar::RebuildWidget()
 	return MyProgressBar.ToSharedRef();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UProgressBar::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
@@ -90,47 +90,104 @@ void UProgressBar::SynchronizeProperties()
 	MyProgressBar->SetBorderPadding(BorderPadding);
 }
 
+const FProgressBarStyle& UProgressBar::GetWidgetStyle() const
+{
+	return WidgetStyle;
+}
+
+void UProgressBar::SetWidgetStyle(const FProgressBarStyle& InStyle)
+{
+	WidgetStyle = InStyle;
+	if (MyProgressBar.IsValid())
+	{
+		MyProgressBar->SetStyle(&WidgetStyle);
+	}
+}
+
+float UProgressBar::GetPercent() const
+{
+	return Percent;
+}
+
+void UProgressBar::SetPercent(float InPercent)
+{
+	Percent = InPercent;
+	if (MyProgressBar.IsValid())
+	{
+		MyProgressBar->SetPercent(InPercent);
+	}
+}
+
+EProgressBarFillType::Type UProgressBar::GetBarFillType() const
+{
+	return BarFillType;
+}
+
+void UProgressBar::SetBarFillType(EProgressBarFillType::Type InBarFillType)
+{
+	BarFillType = InBarFillType;
+	if (MyProgressBar.IsValid())
+	{
+		MyProgressBar->SetBarFillType(BarFillType);
+	}
+}
+
+EProgressBarFillStyle::Type UProgressBar::GetBarFillStyle() const
+{
+	return BarFillStyle;
+}
+
+void UProgressBar::SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle)
+{
+	BarFillStyle = InBarFillStyle;
+	if (MyProgressBar.IsValid())
+	{
+		MyProgressBar->SetBarFillStyle(BarFillStyle);
+	}
+}
+
+bool UProgressBar::UseMarquee() const
+{
+	return bIsMarquee;
+}
+
 void UProgressBar::SetIsMarquee(bool InbIsMarquee)
 {
-	if (bIsMarquee != InbIsMarquee)
-	{
-		bIsMarquee = InbIsMarquee;
-		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::bIsMarquee);
-	}
-
+	bIsMarquee = InbIsMarquee;
 	if (MyProgressBar.IsValid())
 	{
 		MyProgressBar->SetPercent(bIsMarquee ? TOptional<float>() : Percent);
 	}
 }
 
+FVector2D UProgressBar::GetBorderPadding() const
+{
+	return BorderPadding;
+}
+
+void UProgressBar::SetBorderPadding(FVector2D InBorderPadding)
+{
+	BorderPadding = InBorderPadding;
+	if (MyProgressBar.IsValid())
+	{
+		MyProgressBar->SetBorderPadding(BorderPadding);
+	}
+}
+
+FLinearColor UProgressBar::GetFillColorAndOpacity() const
+{
+	return FillColorAndOpacity;
+}
+
 void UProgressBar::SetFillColorAndOpacity(FLinearColor Color)
 {
-	if (FillColorAndOpacity != Color)
-	{
-		FillColorAndOpacity = Color;
-		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::FillColorAndOpacity);
-	}
-
+	FillColorAndOpacity = Color;
 	if (MyProgressBar.IsValid())
 	{
 		MyProgressBar->SetFillColorAndOpacity(FillColorAndOpacity);
 	}
 }
-
-void UProgressBar::SetPercent(float InPercent)
-{
-	if (Percent != InPercent)
-	{
-		Percent = InPercent;
-		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Percent);
-	}
-
-	if (MyProgressBar.IsValid())
-	{
-		MyProgressBar->SetPercent(InPercent);
-	}
-}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 
@@ -141,7 +198,9 @@ const FText UProgressBar::GetPaletteCategory()
 
 void UProgressBar::OnCreationFromPalette()
 {
-	FillColorAndOpacity = FLinearColor(0, 0.5f, 1.0f);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FillColorAndOpacity = FLinearColor(0.f, 0.5f, 1.0f);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #endif

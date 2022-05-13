@@ -21,31 +21,36 @@ UCLASS()
 class UMG_API UProgressBar : public UWidget
 {
 	GENERATED_UCLASS_BODY()
-	
-public:
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_ThreeFields(Percent, FillColorAndOpacity, bIsMarquee);
 
 public:
 	/** The progress bar style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
+	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FProgressBarStyle WidgetStyle;
 
 	/** Used to determine the fill position of the progress bar ranging 0..1 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress, meta=( UIMin = "0", UIMax = "1" ))
+	UE_DEPRECATED(5.1, "Direct access to Percent is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPercent", Category="Progress", meta = (UIMin = "0", UIMax = "1"))
 	float Percent;
 
 	/** Defines the direction in which the progress bar fills */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress)
+	UE_DEPRECATED(5.1, "Direct access to BarFillType is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Progress")
 	TEnumAsByte<EProgressBarFillType::Type> BarFillType;
 
 	/** Defines the visual style of the progress bar fill - scale or mask */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress)
+	UE_DEPRECATED(5.1, "Direct access to BarFillStyle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Progress")
 	TEnumAsByte<EProgressBarFillStyle::Type> BarFillStyle;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress)
+	/** */
+	UE_DEPRECATED(5.1, "Direct access to bIsMarquee is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="UseMarquee", Setter="SetIsMarquee", BlueprintSetter="SetIsMarquee", Category="Progress")
 	bool bIsMarquee;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress)
+	/** */
+	UE_DEPRECATED(5.1, "Direct access to BorderPadding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Progress")
 	FVector2D BorderPadding;
 
 	/** A bindable delegate to allow logic to drive the text of the widget */
@@ -53,7 +58,8 @@ public:
 	FGetFloat PercentDelegate;
 
 	/** Fill Color and Opacity */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to FillColorAndOpacity is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter, Setter, BlueprintSetter="SetFillColorAndOpacity", Category="Appearance")
 	FLinearColor FillColorAndOpacity;
 
 	/** */
@@ -62,19 +68,50 @@ public:
 
 public:
 	
+	/** */
+	const FProgressBarStyle& GetWidgetStyle() const;
+
+	/**/
+	void SetWidgetStyle(const FProgressBarStyle& InStyle);
+
+	/** */
+	float GetPercent() const;
+
 	/** Sets the current value of the ProgressBar. */
 	UFUNCTION(BlueprintCallable, Category="Progress")
 	void SetPercent(float InPercent);
 
-	/** Sets the fill color of the progress bar. */
-	UFUNCTION(BlueprintCallable, Category="Progress")
-	void SetFillColorAndOpacity(FLinearColor InColor);
+	/** */
+	EProgressBarFillType::Type GetBarFillType() const;
+
+	/** */
+	void SetBarFillType(EProgressBarFillType::Type InBarFillType);
+
+	/** */
+	EProgressBarFillStyle::Type GetBarFillStyle() const;
+
+	/** */
+	void SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle);
+
+	/** */
+	bool UseMarquee() const;
 
 	/** Sets the progress bar to show as a marquee. */
 	UFUNCTION(BlueprintCallable, Category="Progress")
 	void SetIsMarquee(bool InbIsMarquee);
 
-	//TODO UMG Add Set BarFillType.
+	/** */
+	FVector2D GetBorderPadding() const;
+
+	/** */
+	void SetBorderPadding(FVector2D InBorderPadding);
+
+	/** */
+	FLinearColor GetFillColorAndOpacity() const;
+
+	/** Sets the fill color of the progress bar. */
+	UFUNCTION(BlueprintCallable, Category="Progress")
+	void SetFillColorAndOpacity(FLinearColor InColor);
 
 public:
 	
