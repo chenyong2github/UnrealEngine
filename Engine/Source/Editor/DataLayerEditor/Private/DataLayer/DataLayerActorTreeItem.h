@@ -82,12 +82,14 @@ private:
 	{
 		FActorTreeItem::UpdateDisplayString();
 
-		UWorld* OwningWorld = Actor.IsValid() ? Actor->GetWorld() : nullptr;
-		ULevel* Level = Actor.IsValid() ? Actor->GetLevel() : nullptr;
-		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
-		if (LevelInstanceSubsystem && Level && (Level != OwningWorld->GetCurrentLevel()))
+		if (UWorld* OwningWorld = Actor.IsValid() ? Actor->GetWorld() : nullptr)
 		{
-			DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Actor->GetLevel());
+			ULevel* Level = Actor.IsValid() ? Actor->GetLevel() : nullptr;
+			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
+			if (LevelInstanceSubsystem && Level && (Level != OwningWorld->GetCurrentLevel()))
+			{
+				DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Actor->GetLevel());
+			}
 		}
 	}
 
