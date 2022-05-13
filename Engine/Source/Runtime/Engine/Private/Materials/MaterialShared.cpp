@@ -2560,8 +2560,15 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 
 		if (IsValidRef(OutUniformExpressionCache.UniformBuffer))
 		{
-			check(OutUniformExpressionCache.UniformBuffer->GetLayout() == UniformBufferLayout);
-			RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
+			if (OutUniformExpressionCache.UniformBuffer->GetLayout() == UniformBufferLayout)
+			{
+				RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
+			}
+			else
+			{
+				OutUniformExpressionCache.UniformBuffer.SafeRelease();
+				OutUniformExpressionCache.UniformBuffer = RHICreateUniformBuffer(TempBuffer, UniformBufferLayout, UniformBuffer_MultiFrame);
+			}
 		}
 		else
 		{
