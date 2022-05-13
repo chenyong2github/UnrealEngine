@@ -36,6 +36,7 @@
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeSourceNode.h"
 #include "Templates/Function.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
@@ -85,14 +86,21 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 		}
 	});
 
+	// Check to see whether materials should be created even if unused
+	// By default we do not create the materials, every node with mesh attribute can enable them. So we won't create unused materials.
+	bool bImportUnusedMaterial = false;
+	if (const UInterchangeSourceNode* SourceNode = UInterchangeSourceNode::GetUniqueInstance(BaseNodeContainer))
+	{
+		SourceNode->GetCustomImportUnusedMaterial(bImportUnusedMaterial);
+	}
+
 	if (MaterialImport == EInterchangeMaterialImportOption::ImportAsMaterials)
 	{
 		for (const UInterchangeShaderGraphNode* ShaderGraphNode : MaterialNodes)
 		{
 			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = CreateMaterialFactoryNode(ShaderGraphNode))
 			{
-				//By default we do not create the materials, every node with mesh attribute can enable them. So we wont create unused materials.
-				MaterialFactoryNode->SetEnabled(false);
+				MaterialFactoryNode->SetEnabled(bImportUnusedMaterial);
 			}
 		}
 	}
@@ -102,8 +110,7 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 		{
 			if (UInterchangeMaterialInstanceFactoryNode* MaterialInstanceFactoryNode = CreateMaterialInstanceFactoryNode(ShaderGraphNode))
 			{
-				//By default we do not create the materials, every node with mesh attribute can enable them. So we wont create unused materials.
-				MaterialInstanceFactoryNode->SetEnabled(false);
+				MaterialInstanceFactoryNode->SetEnabled(bImportUnusedMaterial);
 			}
 		}
 	}

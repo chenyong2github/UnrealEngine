@@ -89,53 +89,49 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 	double RangeStart = 0;
 	double RangeStop = 0;
 	bool bRangeIsValid = false;
-	TArray<FString> SourceNodeUids;
-	BaseNodeContainer->GetNodes(UInterchangeSourceNode::StaticClass(), SourceNodeUids);
-	if (SourceNodeUids.Num() > 0)
+	const UInterchangeSourceNode* SourceNode = UInterchangeSourceNode::GetUniqueInstance(BaseNodeContainer);
+	if (SourceNode)
 	{
-		if (const UInterchangeSourceNode* SourceNode = Cast<UInterchangeSourceNode>(BaseNodeContainer->GetNode(SourceNodeUids[0])))
+		if (bImportBoneTracks)
 		{
-			if (bImportBoneTracks)
+			int32 Numerator, Denominator;
+			if (!bUse30HzToBakeBoneAnimation && CustomBoneAnimationSampleRate == 0 && SourceNode->GetCustomSourceFrameRateNumerator(Numerator))
 			{
-				int32 Numerator, Denominator;
-				if (!bUse30HzToBakeBoneAnimation && CustomBoneAnimationSampleRate == 0 && SourceNode->GetCustomSourceFrameRateNumerator(Numerator))
+				if (SourceNode->GetCustomSourceFrameRateDenominator(Denominator) && Denominator > 0 && Numerator > 0)
 				{
-					if (SourceNode->GetCustomSourceFrameRateDenominator(Denominator) && Denominator > 0 && Numerator > 0)
+					SampleRate = static_cast<double>(Numerator) / static_cast<double>(Denominator);
+				}
+			}
+			else if ((!bUse30HzToBakeBoneAnimation && CustomBoneAnimationSampleRate > 0))
+			{
+				SampleRate = static_cast<double>(CustomBoneAnimationSampleRate);
+			}
+
+			if (AnimationRange == EInterchangeAnimationRange::Timeline)
+			{
+				if (SourceNode->GetCustomSourceTimelineStart(RangeStart))
+				{
+					if (SourceNode->GetCustomSourceTimelineEnd(RangeStop))
 					{
-						SampleRate = static_cast<double>(Numerator) / static_cast<double>(Denominator);
+						bRangeIsValid = true;
 					}
 				}
-				else if ((!bUse30HzToBakeBoneAnimation && CustomBoneAnimationSampleRate > 0))
+			}
+			else if (AnimationRange == EInterchangeAnimationRange::Animated)
+			{
+				if (SourceNode->GetCustomAnimatedTimeStart(RangeStart))
 				{
-					SampleRate = static_cast<double>(CustomBoneAnimationSampleRate);
-				}
-			
-				if (AnimationRange == EInterchangeAnimationRange::Timeline)
-				{
-					if (SourceNode->GetCustomSourceTimelineStart(RangeStart))
+					if (SourceNode->GetCustomAnimatedTimeEnd(RangeStop))
 					{
-						if (SourceNode->GetCustomSourceTimelineEnd(RangeStop))
-						{
-							bRangeIsValid = true;
-						}
+						bRangeIsValid = true;
 					}
 				}
-				else if (AnimationRange == EInterchangeAnimationRange::Animated)
-				{
-					if (SourceNode->GetCustomAnimatedTimeStart(RangeStart))
-					{
-						if (SourceNode->GetCustomAnimatedTimeEnd(RangeStop))
-						{
-							bRangeIsValid = true;
-						}
-					}
-				}
-				else if (AnimationRange == EInterchangeAnimationRange::SetRange)
-				{
-					RangeStart = static_cast<double>(FrameImportRange.Min) / SampleRate;
-					RangeStop = static_cast<double>(FrameImportRange.Max) / SampleRate;
-					bRangeIsValid = true;
-				}
+			}
+			else if (AnimationRange == EInterchangeAnimationRange::SetRange)
+			{
+				RangeStart = static_cast<double>(FrameImportRange.Min) / SampleRate;
+				RangeStop = static_cast<double>(FrameImportRange.Max) / SampleRate;
+				bRangeIsValid = true;
 			}
 		}
 	}

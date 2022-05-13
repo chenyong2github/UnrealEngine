@@ -12,7 +12,7 @@
 
 #include "InterchangeSourceNode.generated.h"
 
-
+class UInterchangeBaseNodeContainer;
 
 /**
  * This class allow a translator to add general source data that describe the whole source. Pipeline can use this information.
@@ -22,9 +22,9 @@ class INTERCHANGECORE_API UInterchangeSourceNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
-public:
 	UInterchangeSourceNode();
 
+public:
 	/**
 	 * Initialize the base data of the node
 	 * @param UniqueID - The uniqueId for this node
@@ -38,6 +38,12 @@ public:
 	 * Return the node type name of the class, we use this when reporting error
 	 */
 	virtual FString GetTypeName() const override;
+
+	/* The translators that want to modify the common data should ensure they create the unique common pipeline node. */
+	static UInterchangeSourceNode* FindOrCreateUniqueInstance(UInterchangeBaseNodeContainer* NodeContainer);
+
+	/* If the unique instance doesn't exist it will return nullptr. This function should be use by the pipelines, to avoid creating a node. */
+	static const UInterchangeSourceNode* GetUniqueInstance(const UInterchangeBaseNodeContainer* NodeContainer);
 
 	/** Query the source frame rate numerator. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
@@ -87,6 +93,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
 	bool SetCustomAnimatedTimeEnd(const double& AttributeValue);
 
+	/** Query the source animated time end. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
+	bool GetCustomImportUnusedMaterial(bool& AttributeValue) const;
+
+	/** Store the source animated time end. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
+	bool SetCustomImportUnusedMaterial(const bool& AttributeValue);
+
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomSourceFrameRateNumeratorKey = UE::Interchange::FAttributeKey(TEXT("SourceFrameRateNumerator"));
 	const UE::Interchange::FAttributeKey Macro_CustomSourceFrameRateDenominatorKey = UE::Interchange::FAttributeKey(TEXT("SourceFrameRateDenominator"));
@@ -94,5 +108,6 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomSourceTimelineEndKey = UE::Interchange::FAttributeKey(TEXT("SourceTimelineEnd"));
 	const UE::Interchange::FAttributeKey Macro_CustomAnimatedTimeStartKey = UE::Interchange::FAttributeKey(TEXT("AnimatedTimeStart"));
 	const UE::Interchange::FAttributeKey Macro_CustomAnimatedTimeEndKey = UE::Interchange::FAttributeKey(TEXT("AnimatedTimeEnd"));
+	const UE::Interchange::FAttributeKey Macro_CustomImportUnusedMaterialKey = UE::Interchange::FAttributeKey(TEXT("ImportUnusedMaterial"));
 };
 

@@ -472,16 +472,13 @@ namespace UE
 				 FbxNode* RootNode = SDKScene->GetRootNode();
 				 //Create a source node where we can store any general file info
 				 {
-					 FString NodeName = FFbxHelper::GetFbxObjectName(RootNode) + TEXT("_SourceInfo");
-					 FString NodeUniqueID = TEXT("\\SourceInfo\\") + FFbxHelper::GetFbxNodeHierarchyName(RootNode);
-					 UInterchangeSourceNode* SourceNode = NewObject<UInterchangeSourceNode>(&NodeContainer, NAME_None);
+					 UInterchangeSourceNode* SourceNode = UInterchangeSourceNode::FindOrCreateUniqueInstance(&NodeContainer);
 					 if (!ensure(SourceNode))
 					 {
 						 UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 						 Message->Text = LOCTEXT("NodeAllocationError", "Unable to allocate a node when importing FBX.");
 						 return;
 					 }
-					 SourceNode->InitializeNode(NodeUniqueID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
 
 					 //Store the fbx frame rate
 					 {
@@ -515,8 +512,6 @@ namespace UE
 						 SourceNode->SetCustomAnimatedTimeStart(AnimatedTimeSpan.GetStart().GetSecondDouble());
 						 SourceNode->SetCustomAnimatedTimeEnd(AnimatedTimeSpan.GetStop().GetSecondDouble());
 					 }
-
-					 NodeContainer.AddNode(SourceNode);
 				 }
 				 AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer, PayloadContexts);
 			}

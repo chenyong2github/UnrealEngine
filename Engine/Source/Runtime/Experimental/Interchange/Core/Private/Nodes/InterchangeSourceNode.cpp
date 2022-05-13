@@ -1,11 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Nodes/InterchangeSourceNode.h"
 
+#include "Nodes/InterchangeBaseNodeContainer.h"
+
 #include "CoreMinimal.h"
 #include "Types/AttributeStorage.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+
+
+namespace UE::Interchange::SourceNode
+{
+	FString GetSourceNodeUniqueID()
+	{
+		static FString StaticUid = TEXT("__SourceNode__");
+		return StaticUid;
+	}
+}
 
 UInterchangeSourceNode::UInterchangeSourceNode()
 {
@@ -20,6 +32,27 @@ FString UInterchangeSourceNode::GetTypeName() const
 {
 	const FString TypeName = TEXT("SourceNode");
 	return TypeName;
+}
+
+
+UInterchangeSourceNode* UInterchangeSourceNode::FindOrCreateUniqueInstance(UInterchangeBaseNodeContainer* NodeContainer)
+{
+	const FString StaticUid = UE::Interchange::SourceNode::GetSourceNodeUniqueID();
+	UInterchangeSourceNode* SourceNode = Cast<UInterchangeSourceNode>(const_cast<UInterchangeBaseNode*>(NodeContainer->GetNode(StaticUid)));
+	if (!SourceNode)
+	{
+		SourceNode = NewObject<UInterchangeSourceNode>(NodeContainer, NAME_None);
+		SourceNode->InitializeNode(StaticUid, StaticUid, EInterchangeNodeContainerType::FactoryData);
+		NodeContainer->AddNode(SourceNode);
+	}
+
+	return SourceNode;
+}
+
+const UInterchangeSourceNode* UInterchangeSourceNode::GetUniqueInstance(const UInterchangeBaseNodeContainer* NodeContainer)
+{
+	static FString StaticUid = UE::Interchange::SourceNode::GetSourceNodeUniqueID();
+	return Cast<const UInterchangeSourceNode>(NodeContainer->GetNode(StaticUid));
 }
 
 bool UInterchangeSourceNode::GetCustomSourceFrameRateNumerator(int32& AttributeValue) const
@@ -80,4 +113,14 @@ bool UInterchangeSourceNode::GetCustomAnimatedTimeEnd(double& AttributeValue) co
 bool UInterchangeSourceNode::SetCustomAnimatedTimeEnd(const double& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimatedTimeEnd, double);
+}
+
+bool UInterchangeSourceNode::GetCustomImportUnusedMaterial(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ImportUnusedMaterial, bool);
+}
+
+bool UInterchangeSourceNode::SetCustomImportUnusedMaterial(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ImportUnusedMaterial, bool);
 }

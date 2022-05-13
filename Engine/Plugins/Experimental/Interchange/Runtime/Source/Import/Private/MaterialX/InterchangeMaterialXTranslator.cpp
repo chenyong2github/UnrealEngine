@@ -10,11 +10,42 @@
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeMaterialXDefinitions.h"
 #include "InterchangeTexture2DNode.h"
+#include "Nodes/InterchangeSourceNode.h"
 #include "UObject/GCObjectScopeGuard.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeMaterialXTranslator"
 
 namespace mx = MaterialX;
+
+namespace UE::Interchange::MaterialX
+{
+	bool IsStandardSurfacePackageLoaded()
+	{
+		static const bool bStandardSurfacePackageLoaded = []() -> bool
+		{
+			if (FString FunctionPath = FPackageName::ExportTextPathToObjectPath(TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'"));
+				FPackageName::DoesPackageExist(FunctionPath))
+			{
+				if (FSoftObjectPath(FunctionPath).TryLoad())
+				{
+					return true;
+				}
+				else
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't load %s"), *FunctionPath);
+				}
+			}
+			else
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't find %s"), *FunctionPath);
+			}
+
+			return false;
+		}();
+
+		return bStandardSurfacePackageLoaded;
+	}
+}
 
 UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 #if WITH_EDITOR
@@ -51,29 +82,14 @@ UEInputs{ TEXT("A"), TEXT("B"), TEXT("Input"), TEXT("Factor"), TEXT("Min"), TEXT
 
 TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 {
-	static const bool bStandardSurfacePackageLoaded = []() -> bool
-	{
-		if(FString FunctionPath = FPackageName::ExportTextPathToObjectPath(TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'"));
-			FPackageName::DoesPackageExist(FunctionPath))
+	// Call to UInterchangeMaterialXTranslator::GetSupportedFormats is not supported out of game thread
+	// A more global solution must be found for translators which require some initialization
+	if (!IsInGameThread())
 		{
-			if(FSoftObjectPath(FunctionPath).TryLoad())
-			{
-				return true;
+		return TArray<FString>{};
 			}
-			else
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't load %s"), *FunctionPath);
-			}
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't find %s"), *FunctionPath);
-		}
 
-		return false;
-	}();
-
-	return bStandardSurfacePackageLoaded ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
+	return UE::Interchange::MaterialX::IsStandardSurfacePackageLoaded() ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
 }
 
 bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
@@ -160,6 +176,12 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 	}
 
 #endif // WITH_EDITOR
+
+	if (bIsDocumentValid && bIsReferencesValid)
+	{
+		UInterchangeSourceNode* SourceNode = UInterchangeSourceNode::FindOrCreateUniqueInstance(&BaseNodeContainer);
+		SourceNode->SetCustomImportUnusedMaterial(true);
+	}
 
 	return bIsDocumentValid && bIsReferencesValid;
 }
