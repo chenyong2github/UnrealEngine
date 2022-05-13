@@ -715,9 +715,187 @@ float AddSlider(inout FShaderPrintContext InContext, FShaderPrintText InTextEntr
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Primitives (Line, AABB, OBB, Referentials, ...)
+// Primitives types
 
-struct FShaderDrawElement 
+// Type of primitives
+#define SHADER_PRINT_TYPE_LINE 0
+#define SHADER_PRINT_TYPE_TRIANGLE 1
+
+// Size of packed data, in uint
+#define SHADER_PRINT_UINT_COUNT_LINE 8
+#define SHADER_PRINT_UINT_COUNT_TRIANGLE 12
+
+// Counter offset
+#define SHADER_PRINT_COUNTER_OFFSET_LINE 0
+#define SHADER_PRINT_COUNTER_OFFSET_TRIANGLE 1
+#define SHADER_PRINT_COUNTER_OFFSET_FREE0 2
+#define SHADER_PRINT_COUNTER_OFFSET_FREE1 3
+#define SHADER_PRINT_COUNTER_COUNT 4
+
+// Primitive buffer layout
+//  ------------------------------------------------------------------------------------------------------------------------------------------------
+// ||  Line    | Triangle |  Empty  |  Empty  ||  Line0  |  Line1  |  Line2  |  Line3  |  ...  | Triangle0 | Triangle1 | Triangle2 | Triangle3 | ...
+// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  |           |           |           |           | ...
+// || (1uint)  | (1uint)  | (1uint) | (1uint) || (8uint) | (8uint) | (8uint) | (8uint) |  ...  | (12uint)  | (12uint)  | (12uint)  | (12uint)  | ...
+//  ------------------------------------------------------------------------------------------------------------------------------------------------
+RWStructuredBuffer<uint> ShaderPrint_RWPrimitivesBuffer;
+
+uint GetPrimitiveLineOffset    (uint InIndex) { return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * InIndex; }
+uint GetPrimitiveTriangleOffset(uint InIndex) { return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * ShaderPrintData.MaxLineCount + SHADER_PRINT_UINT_COUNT_TRIANGLE * InIndex; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Triangle-based Primitives (Triangle, Point, ...)
+
+struct FTriangleElement 
+{
+	float3 Pos0;
+	float3 Pos1;
+	float3 Pos2;
+	float4 Color;
+	bool bIsScreenSpace;
+};
+
+struct FPackedTriangleElement
+{
+	uint4 Packed0;
+	uint4 Packed1;
+	uint4 Packed2;
+};
+
+FTriangleElement UnpackTriangleElement(FPackedTriangleElement In)
+{
+	FTriangleElement Out = (FTriangleElement)0;
+	{
+		Out.Pos0.x = asfloat(In.Packed0.x);
+		Out.Pos0.y = asfloat(In.Packed0.y);
+		Out.Pos0.z = asfloat(In.Packed0.z);
+		Out.Color  = float4((In.Packed0.w >> 24) & 0xFF, (In.Packed0.w >> 16) & 0xFF, (In.Packed0.w >> 8) & 0xFF, (In.Packed0.w) & 0xFF) / 255.0f;
+	}
+	{
+		Out.Pos1.x = asfloat(In.Packed1.x);
+		Out.Pos1.y = asfloat(In.Packed1.y);
+		Out.Pos1.z = asfloat(In.Packed1.z);
+
+		// The 'space' info is stored into the alpha's LSB
+		Out.bIsScreenSpace = (In.Packed1.w & 0x1) > 0u;
+	}
+	{
+		Out.Pos2.x = asfloat(In.Packed2.x);
+		Out.Pos2.y = asfloat(In.Packed2.y);
+		Out.Pos2.z = asfloat(In.Packed2.z);
+	}
+	return Out;
+}
+
+FPackedTriangleElement PackTriangleElement(FTriangleElement In)
+{
+	uint4 PackedC = uint4(255.0f * saturate(In.Color));
+
+	FPackedTriangleElement Out = (FPackedTriangleElement)0;
+	Out.Packed0.x = asuint(In.Pos0.x);
+	Out.Packed0.y = asuint(In.Pos0.y);
+	Out.Packed0.z = asuint(In.Pos0.z);
+	Out.Packed0.w = (PackedC.x << 24) | (PackedC.y << 16) | (PackedC.z << 8) | (PackedC.w);
+
+	Out.Packed1.x = asuint(In.Pos1.x);
+	Out.Packed1.y = asuint(In.Pos1.y);
+	Out.Packed1.z = asuint(In.Pos1.z);
+	Out.Packed1.w = In.bIsScreenSpace ? 0x1 : 0x0;
+
+	Out.Packed2.x = asuint(In.Pos2.x);
+	Out.Packed2.y = asuint(In.Pos2.y);
+	Out.Packed2.z = asuint(In.Pos2.z);
+	Out.Packed2.w = 0;
+	return Out;
+}
+
+FTriangleElement UnpackTriangleElement(StructuredBuffer<uint> InPrimitiveBuffer, uint InIndex)
+{
+	const uint Index12 = GetPrimitiveTriangleOffset(InIndex);
+
+	FPackedTriangleElement Out = (FPackedTriangleElement)0;
+	Out.Packed0.x = InPrimitiveBuffer[Index12 + 0];
+	Out.Packed0.y = InPrimitiveBuffer[Index12 + 1];
+	Out.Packed0.z = InPrimitiveBuffer[Index12 + 2];
+	Out.Packed0.w = InPrimitiveBuffer[Index12 + 3];
+
+	Out.Packed1.x = InPrimitiveBuffer[Index12 + 4];
+	Out.Packed1.y = InPrimitiveBuffer[Index12 + 5];
+	Out.Packed1.z = InPrimitiveBuffer[Index12 + 6];
+	Out.Packed1.w = InPrimitiveBuffer[Index12 + 7];
+
+	Out.Packed2.x = InPrimitiveBuffer[Index12 + 8];
+	Out.Packed2.y = InPrimitiveBuffer[Index12 + 9];
+	Out.Packed2.z = InPrimitiveBuffer[Index12 + 10];
+	Out.Packed2.w = InPrimitiveBuffer[Index12 + 11];
+	return UnpackTriangleElement(Out);
+}
+
+bool AllocateTriangleElement(uint Count, inout uint OutIndex)
+{
+	OutIndex = 0;
+	if (ShaderPrintData.MaxTriangleCount == 0)
+	{
+		return false;
+	}
+
+	InterlockedAdd(ShaderPrint_RWPrimitivesBuffer[SHADER_PRINT_COUNTER_OFFSET_TRIANGLE], Count, OutIndex);
+	return (OutIndex + Count) < ShaderPrintData.MaxTriangleCount;
+}
+
+void AddTriangleElement(FTriangleElement In, uint Index)
+{
+	const uint Index12 = GetPrimitiveTriangleOffset(Index);
+
+	FPackedTriangleElement Out = PackTriangleElement(In);
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 0] = Out.Packed0.x;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 1] = Out.Packed0.y;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 2] = Out.Packed0.z;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 3] = Out.Packed0.w;
+
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 4] = Out.Packed1.x;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 5] = Out.Packed1.y;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 6] = Out.Packed1.z;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 7] = Out.Packed1.w;
+
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 8] = Out.Packed2.x;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 9] = Out.Packed2.y;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 10]= Out.Packed2.z;
+	ShaderPrint_RWPrimitivesBuffer[Index12 + 11]= Out.Packed2.w;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Filled Quad
+
+void AddFilledQuadTWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
+{
+	uint Offset = 0;
+	if (AllocateTriangleElement(2, Offset))
+	{
+		FTriangleElement Element;
+		Element.bIsScreenSpace = false;
+		Element.Color = Color;
+
+		Element.Pos0 = Pos0;
+		Element.Pos1 = Pos1;
+		Element.Pos2 = Pos2;
+		AddTriangleElement(Element, Offset + 0);
+
+		Element.Pos0 = Pos0;
+		Element.Pos1 = Pos2;
+		Element.Pos2 = Pos3;
+		AddTriangleElement(Element, Offset + 1);
+	}
+}
+
+void AddFilledQuadWS (float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)							 { AddFilledQuadTWS(Pos0 + ShaderPrintData.TranslatedWorldOffset, Pos1 + ShaderPrintData.TranslatedWorldOffset, Pos2 + ShaderPrintData.TranslatedWorldOffset, Pos3 + ShaderPrintData.TranslatedWorldOffset, Color); }
+void AddFilledQuadTWS(FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color) { if (Ctx.bIsActive) { AddFilledQuadTWS(Pos0, Pos1, Pos2, Pos3, Color); } }
+void AddFilledQuadWS (FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color) { if (Ctx.bIsActive) { AddFilledQuadTWS(Pos0 + ShaderPrintData.TranslatedWorldOffset, Pos1 + ShaderPrintData.TranslatedWorldOffset, Pos2 + ShaderPrintData.TranslatedWorldOffset, Pos3 + ShaderPrintData.TranslatedWorldOffset, Color); } }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Line-based Primitives (Line, AABB, OBB, Referentials, ...)
+
+struct FLineElement 
 {
 	float3 Pos0;
 	float3 Pos1;
@@ -726,36 +904,73 @@ struct FShaderDrawElement
 	bool bIsScreenSpace;
 };
 
-FShaderDrawElement UnpackShaderElement(StructuredBuffer<uint> InPrimitiveBuffer, uint InIndex)
+struct FPackedLineElement
 {
-	const uint Index8 = (1 + InIndex) * 8;
+	uint4 Packed0;
+	uint4 Packed1;
+};
 
-	FShaderDrawElement Out = (FShaderDrawElement)0;
+FLineElement UnpackLineElement(FPackedLineElement In)
+{
+	FLineElement Out = (FLineElement)0;
 	{
-		Out.Pos0.x = asfloat(InPrimitiveBuffer[Index8 + 0]);
-		Out.Pos0.y = asfloat(InPrimitiveBuffer[Index8 + 1]);
-		Out.Pos0.z = asfloat(InPrimitiveBuffer[Index8 + 2]);
-
-		const uint PackedColor0 = InPrimitiveBuffer[Index8 + 3];
-		Out.Color0 = float4((PackedColor0 >> 24) & 0xFF, (PackedColor0 >> 16) & 0xFF, (PackedColor0 >> 8) & 0xFF, (PackedColor0) & 0xFF) / 255.0f;
+		Out.Pos0.x = asfloat(In.Packed0.x);
+		Out.Pos0.y = asfloat(In.Packed0.y);
+		Out.Pos0.z = asfloat(In.Packed0.z);
+		Out.Color0 = float4((In.Packed0.w >> 24) & 0xFF, (In.Packed0.w >> 16) & 0xFF, (In.Packed0.w >> 8) & 0xFF, (In.Packed0.w) & 0xFF) / 255.0f;
 	}
 	{
-		Out.Pos1.x = asfloat(InPrimitiveBuffer[Index8 + 4]);
-		Out.Pos1.y = asfloat(InPrimitiveBuffer[Index8 + 5]);
-		Out.Pos1.z = asfloat(InPrimitiveBuffer[Index8 + 6]);
-
-		const uint PackedColor1 = InPrimitiveBuffer[Index8 + 7];
-		Out.Color1 = float4((PackedColor1 >> 24) & 0xFF, (PackedColor1 >> 16) & 0xFF, (PackedColor1 >> 8) & 0xFF, (PackedColor1) & 0xFF) / 255.0f;
+		Out.Pos1.x = asfloat(In.Packed1.x);
+		Out.Pos1.y = asfloat(In.Packed1.y);
+		Out.Pos1.z = asfloat(In.Packed1.z);
+		Out.Color1 = float4((In.Packed1.w >> 24) & 0xFF, (In.Packed1.w >> 16) & 0xFF, (In.Packed1.w >> 8) & 0xFF, (In.Packed1.w) & 0xFF) / 255.0f;
 
 		// The 'space' info is stored into the alpha's LSB
-		Out.bIsScreenSpace = (PackedColor1 & 0x1) > 0u;
+		Out.bIsScreenSpace = (In.Packed1.w & 0x1) > 0u;
 	}
 	return Out;
 }
 
-RWStructuredBuffer<uint> ShaderPrint_RWLinesBuffer;
+FPackedLineElement PackLineElement(FLineElement In)
+{
+	uint4 PackedC0 = uint4(255.0f * saturate(In.Color0));
+	uint4 PackedC1 = uint4(255.0f * saturate(In.Color1));
 
-bool AllocateShaderDrawElement(uint Count, inout uint OutIndex)
+	// Store 'space' info into the alpha's LSB
+	PackedC1 = PackedC1 & 0xFE;
+	PackedC1 = PackedC1 | (In.bIsScreenSpace ? 0x1 : 0x0);
+
+	FPackedLineElement Out = (FPackedLineElement)0;
+	Out.Packed0.x = asuint(In.Pos0.x);
+	Out.Packed0.y = asuint(In.Pos0.y);
+	Out.Packed0.z = asuint(In.Pos0.z);
+	Out.Packed0.w = (PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w);
+
+	Out.Packed1.x = asuint(In.Pos1.x);
+	Out.Packed1.y = asuint(In.Pos1.y);
+	Out.Packed1.z = asuint(In.Pos1.z);
+	Out.Packed1.w = (PackedC1.x << 24) | (PackedC1.y << 16) | (PackedC1.z << 8) | (PackedC1.w);
+	return Out;
+}
+
+FLineElement UnpackLineElement(StructuredBuffer<uint> InPrimitiveBuffer, uint InIndex)
+{
+	const uint Index8 = GetPrimitiveLineOffset(InIndex);
+
+	FPackedLineElement Out = (FPackedLineElement)0;
+	Out.Packed0.x = InPrimitiveBuffer[Index8 + 0];
+	Out.Packed0.y = InPrimitiveBuffer[Index8 + 1];
+	Out.Packed0.z = InPrimitiveBuffer[Index8 + 2];
+	Out.Packed0.w = InPrimitiveBuffer[Index8 + 3];
+
+	Out.Packed1.x = InPrimitiveBuffer[Index8 + 4];
+	Out.Packed1.y = InPrimitiveBuffer[Index8 + 5];
+	Out.Packed1.z = InPrimitiveBuffer[Index8 + 6];
+	Out.Packed1.w = InPrimitiveBuffer[Index8 + 7];
+	return UnpackLineElement(Out);
+}
+
+bool AllocateLineElement(uint Count, inout uint OutIndex)
 {
 	OutIndex = 0;
 	if (ShaderPrintData.MaxLineCount == 0)
@@ -763,29 +978,24 @@ bool AllocateShaderDrawElement(uint Count, inout uint OutIndex)
 		return false;
 	}
 
-	InterlockedAdd(ShaderPrint_RWLinesBuffer[0], Count, OutIndex);
-	return (1+OutIndex) < ShaderPrintData.MaxLineCount;
+	InterlockedAdd(ShaderPrint_RWPrimitivesBuffer[SHADER_PRINT_COUNTER_OFFSET_LINE], Count, OutIndex);
+	return (OutIndex + Count) < ShaderPrintData.MaxLineCount;
 }
 
-void AddShaderElement(FShaderDrawElement E, uint Index)
+void AddLineElement(FLineElement In, uint Index)
 {
-	uint4 PackedC0 = uint4(255.0f * saturate(E.Color0));
-	uint4 PackedC1 = uint4(255.0f * saturate(E.Color1));
+	const uint Index8 = GetPrimitiveLineOffset(Index);
 
-	// Store 'space' info into the alpha's LSB
-	PackedC1 = PackedC1 & 0xFE;
-	PackedC1 = PackedC1 | (E.bIsScreenSpace ? 0x1 : 0x0);
+	FPackedLineElement Out = PackLineElement(In);
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 0] = Out.Packed0.x;
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 1] = Out.Packed0.y;
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 2] = Out.Packed0.z;
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 3] = Out.Packed0.w;
 
-	const uint Index8 = (1 + Index) * 8;
-	ShaderPrint_RWLinesBuffer[Index8 + 0] = asuint(E.Pos0.x);
-	ShaderPrint_RWLinesBuffer[Index8 + 1] = asuint(E.Pos0.y);
-	ShaderPrint_RWLinesBuffer[Index8 + 2] = asuint(E.Pos0.z);
-	ShaderPrint_RWLinesBuffer[Index8 + 3] = (PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w);
-
-	ShaderPrint_RWLinesBuffer[Index8 + 4] = asuint(E.Pos1.x);
-	ShaderPrint_RWLinesBuffer[Index8 + 5] = asuint(E.Pos1.y);
-	ShaderPrint_RWLinesBuffer[Index8 + 6] = asuint(E.Pos1.z);
-	ShaderPrint_RWLinesBuffer[Index8 + 7] = (PackedC1.x << 24) | (PackedC1.y << 16) | (PackedC1.z << 8) | (PackedC1.w);
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 4] = Out.Packed1.x;
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 5] = Out.Packed1.y;
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 6] = Out.Packed1.z;
+	ShaderPrint_RWPrimitivesBuffer[Index8 + 7] = Out.Packed1.w;
 }
 
 int2 GetCursorPos()
@@ -799,15 +1009,15 @@ int2 GetCursorPos()
 void AddLineTWS(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
 {
 	uint Offset = 0;
-	if (AllocateShaderDrawElement(1, Offset))
+	if (AllocateLineElement(1, Offset))
 	{
-		FShaderDrawElement Element;
+		FLineElement Element;
 		Element.Pos0 = Pos0;
 		Element.Pos1 = Pos1;
 		Element.Color0 = Color0;
 		Element.Color1 = Color1;
 		Element.bIsScreenSpace = false;
-		AddShaderElement(Element, Offset);
+		AddLineElement(Element, Offset);
 	}
 }
 
@@ -831,15 +1041,15 @@ void AddLineSS(float2 InPosInPixel0, float2 InPosInPixel1, float4 Color0, float4
 	const float2 Pos1 = float2(InPosInPixel1) / float2(ShaderPrintData.Resolution);
 
 	uint Offset = 0;
-	if (AllocateShaderDrawElement(1, Offset))
+	if (AllocateLineElement(1, Offset))
 	{
-		FShaderDrawElement Element;
+		FLineElement Element;
 		Element.Pos0 = float3(Pos0, 0);
 		Element.Pos1 = float3(Pos1, 0);
 		Element.Color0 = Color0;
 		Element.Color1 = Color1;
 		Element.bIsScreenSpace = true;
-		AddShaderElement(Element, Offset);
+		AddLineElement(Element, Offset);
 	}
 }
 void AddLineSS(float2 Pos0, float2 Pos1, float4 Color)											{ AddLineSS(Pos0, Pos1, Color, Color); }
@@ -853,15 +1063,15 @@ void AddLineSS(FShaderPrintContext Ctx, float2 Pos0, float2 Pos1, float4 Color)	
 void AddQuadTWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 {
 	uint Offset = 0;
-	if (AllocateShaderDrawElement(4, Offset))
+	if (AllocateLineElement(4, Offset))
 	{
-		FShaderDrawElement Element;
+		FLineElement Element;
 		Element.bIsScreenSpace = false;
 		Element.Color0 = Element.Color1 = Color;
-		Element.Pos0 = Pos0; Element.Pos1 = Pos1; AddShaderElement(Element, Offset + 0);
-		Element.Pos0 = Pos1; Element.Pos1 = Pos2; AddShaderElement(Element, Offset + 1);
-		Element.Pos0 = Pos2; Element.Pos1 = Pos3; AddShaderElement(Element, Offset + 2);
-		Element.Pos0 = Pos3; Element.Pos1 = Pos0; AddShaderElement(Element, Offset + 3);
+		Element.Pos0 = Pos0; Element.Pos1 = Pos1; AddLineElement(Element, Offset + 0);
+		Element.Pos0 = Pos1; Element.Pos1 = Pos2; AddLineElement(Element, Offset + 1);
+		Element.Pos0 = Pos2; Element.Pos1 = Pos3; AddLineElement(Element, Offset + 2);
+		Element.Pos0 = Pos3; Element.Pos1 = Pos0; AddLineElement(Element, Offset + 3);
 	}
 }
 
@@ -878,7 +1088,7 @@ void AddQuad   (FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, 
 void AddAABBTWS(float3 Min, float3 Max, float4 Color)
 {
 	uint Offset = 0;
-	if (AllocateShaderDrawElement(12, Offset))
+	if (AllocateLineElement(12, Offset))
 	{
 		float3 P0 = float3(Min.x, Min.y, Min.z);
 		float3 P1 = float3(Max.x, Min.y, Min.z);
@@ -889,24 +1099,24 @@ void AddAABBTWS(float3 Min, float3 Max, float4 Color)
 		float3 P6 = float3(Max.x, Max.y, Max.z);
 		float3 P7 = float3(Min.x, Max.y, Max.z);
 
-		FShaderDrawElement Element;
+		FLineElement Element;
 		Element.bIsScreenSpace = false;
 		Element.Color0 = Element.Color1 = Color;
 
-		Element.Pos0 = P0; Element.Pos1 = P1; AddShaderElement(Element, Offset + 0);
-		Element.Pos0 = P1; Element.Pos1 = P2; AddShaderElement(Element, Offset + 1);
-		Element.Pos0 = P2; Element.Pos1 = P3; AddShaderElement(Element, Offset + 2);
-		Element.Pos0 = P3; Element.Pos1 = P0; AddShaderElement(Element, Offset + 3);
+		Element.Pos0 = P0; Element.Pos1 = P1; AddLineElement(Element, Offset + 0);
+		Element.Pos0 = P1; Element.Pos1 = P2; AddLineElement(Element, Offset + 1);
+		Element.Pos0 = P2; Element.Pos1 = P3; AddLineElement(Element, Offset + 2);
+		Element.Pos0 = P3; Element.Pos1 = P0; AddLineElement(Element, Offset + 3);
 
-		Element.Pos0 = P4; Element.Pos1 = P5; AddShaderElement(Element, Offset + 4);
-		Element.Pos0 = P5; Element.Pos1 = P6; AddShaderElement(Element, Offset + 5);
-		Element.Pos0 = P6; Element.Pos1 = P7; AddShaderElement(Element, Offset + 6);
-		Element.Pos0 = P7; Element.Pos1 = P4; AddShaderElement(Element, Offset + 7);
+		Element.Pos0 = P4; Element.Pos1 = P5; AddLineElement(Element, Offset + 4);
+		Element.Pos0 = P5; Element.Pos1 = P6; AddLineElement(Element, Offset + 5);
+		Element.Pos0 = P6; Element.Pos1 = P7; AddLineElement(Element, Offset + 6);
+		Element.Pos0 = P7; Element.Pos1 = P4; AddLineElement(Element, Offset + 7);
 
-		Element.Pos0 = P0; Element.Pos1 = P4; AddShaderElement(Element, Offset + 8);
-		Element.Pos0 = P1; Element.Pos1 = P5; AddShaderElement(Element, Offset + 9);
-		Element.Pos0 = P2; Element.Pos1 = P6; AddShaderElement(Element, Offset +10);
-		Element.Pos0 = P3; Element.Pos1 = P7; AddShaderElement(Element, Offset +11);
+		Element.Pos0 = P0; Element.Pos1 = P4; AddLineElement(Element, Offset + 8);
+		Element.Pos0 = P1; Element.Pos1 = P5; AddLineElement(Element, Offset + 9);
+		Element.Pos0 = P2; Element.Pos1 = P6; AddLineElement(Element, Offset +10);
+		Element.Pos0 = P3; Element.Pos1 = P7; AddLineElement(Element, Offset +11);
 	}
 }
 
@@ -1029,7 +1239,7 @@ void AddLineTriangle   (FShaderPrintContext Ctx, float3 P0, float3 P1, float3 P2
 void AddOBBTWS(float3 Min, float3 Max, float4 Color, float4x4 Transform)
 {
 	uint Offset = 0;
-	if (AllocateShaderDrawElement(12, Offset))
+	if (AllocateLineElement(12, Offset))
 	{
 		float3 P0 = mul(float4(Min.x, Min.y, Min.z, 1.0f), Transform).xyz;
 		float3 P1 = mul(float4(Max.x, Min.y, Min.z, 1.0f), Transform).xyz;
@@ -1040,24 +1250,24 @@ void AddOBBTWS(float3 Min, float3 Max, float4 Color, float4x4 Transform)
 		float3 P6 = mul(float4(Max.x, Max.y, Max.z, 1.0f), Transform).xyz;
 		float3 P7 = mul(float4(Min.x, Max.y, Max.z, 1.0f), Transform).xyz;
 
-		FShaderDrawElement Element;
+		FLineElement Element;
 		Element.bIsScreenSpace = false;
 		Element.Color0 = Element.Color1 = Color;
 
-		Element.Pos0 = P0; Element.Pos1 = P1; AddShaderElement(Element, Offset + 0);
-		Element.Pos0 = P1; Element.Pos1 = P2; AddShaderElement(Element, Offset + 1);
-		Element.Pos0 = P2; Element.Pos1 = P3; AddShaderElement(Element, Offset + 2);
-		Element.Pos0 = P3; Element.Pos1 = P0; AddShaderElement(Element, Offset + 3);
+		Element.Pos0 = P0; Element.Pos1 = P1; AddLineElement(Element, Offset + 0);
+		Element.Pos0 = P1; Element.Pos1 = P2; AddLineElement(Element, Offset + 1);
+		Element.Pos0 = P2; Element.Pos1 = P3; AddLineElement(Element, Offset + 2);
+		Element.Pos0 = P3; Element.Pos1 = P0; AddLineElement(Element, Offset + 3);
 
-		Element.Pos0 = P4; Element.Pos1 = P5; AddShaderElement(Element, Offset + 4);
-		Element.Pos0 = P5; Element.Pos1 = P6; AddShaderElement(Element, Offset + 5);
-		Element.Pos0 = P6; Element.Pos1 = P7; AddShaderElement(Element, Offset + 6);
-		Element.Pos0 = P7; Element.Pos1 = P4; AddShaderElement(Element, Offset + 7);
+		Element.Pos0 = P4; Element.Pos1 = P5; AddLineElement(Element, Offset + 4);
+		Element.Pos0 = P5; Element.Pos1 = P6; AddLineElement(Element, Offset + 5);
+		Element.Pos0 = P6; Element.Pos1 = P7; AddLineElement(Element, Offset + 6);
+		Element.Pos0 = P7; Element.Pos1 = P4; AddLineElement(Element, Offset + 7);
 
-		Element.Pos0 = P0; Element.Pos1 = P4; AddShaderElement(Element, Offset + 8);
-		Element.Pos0 = P1; Element.Pos1 = P5; AddShaderElement(Element, Offset + 9);
-		Element.Pos0 = P2; Element.Pos1 = P6; AddShaderElement(Element, Offset + 10);
-		Element.Pos0 = P3; Element.Pos1 = P7; AddShaderElement(Element, Offset + 11);
+		Element.Pos0 = P0; Element.Pos1 = P4; AddLineElement(Element, Offset + 8);
+		Element.Pos0 = P1; Element.Pos1 = P5; AddLineElement(Element, Offset + 9);
+		Element.Pos0 = P2; Element.Pos1 = P6; AddLineElement(Element, Offset + 10);
+		Element.Pos0 = P3; Element.Pos1 = P7; AddLineElement(Element, Offset + 11);
 	}
 }
 

@@ -19,17 +19,51 @@ float4x4 TranslatedWorldToClip;
 
 SamplerState DepthSampler;
 
-#if GPU_DEBUG_RENDERING_VS 
+#if GPU_DEBUG_RENDERING_LINE_VS 
 void ShaderDrawDebugVS(
 	in uint InstanceId : SV_InstanceID,
 	in uint VertexId : SV_VertexID,
 	out float4 Position : SV_POSITION,
 	out float4 ColorAlpha : TEXCOORD0)
 {
-	const FShaderDrawElement Item = UnpackShaderElement(ShaderDrawDebugPrimitive, InstanceId);
+	const FLineElement Item = UnpackLineElement(ShaderDrawDebugPrimitive, InstanceId);
 
 	float4 VertexPositionTWS = float4(VertexId == 0 ? Item.Pos0 : Item.Pos1, 1.0f);
 	float4 VertexColor = VertexId == 0 ? Item.Color0 : Item.Color1;
+
+	if (Item.bIsScreenSpace)
+	{
+		Position = VertexPositionTWS;
+		Position.xy = Position.xy * 2 - 1;
+		Position.y = -Position.y;
+
+		Position.z = 1;
+		Position.w = 1;
+	}
+	else
+	{
+		// Optional world offset. For 'locked' debug drawing, this offset translates the world 
+		// position recorded for a given translated world offset, into the current translated 
+		// world offset
+		VertexPositionTWS.xyz += TranslatedWorldOffsetConversion;
+
+		Position = mul(VertexPositionTWS, TranslatedWorldToClip);
+	}
+	ColorAlpha = VertexColor;
+}
+#endif
+
+#if GPU_DEBUG_RENDERING_TRIANGLE_VS 
+void ShaderDrawDebugVS(
+	in uint InstanceId : SV_InstanceID,
+	in uint VertexId : SV_VertexID,
+	out float4 Position : SV_POSITION,
+	out float4 ColorAlpha : TEXCOORD0)
+{
+	const FTriangleElement Item = UnpackTriangleElement(ShaderDrawDebugPrimitive, InstanceId);
+
+	float4 VertexPositionTWS = float4(VertexId == 0 ? Item.Pos0 : (VertexId == 1 ? Item.Pos1 : Item.Pos2), 1.0f);
+	float4 VertexColor = Item.Color;
 
 	if (Item.bIsScreenSpace)
 	{
@@ -84,10 +118,6 @@ void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	RWElementBuffer[1] = 0;
 	RWElementBuffer[2] = 0;
 	RWElementBuffer[3] = 0;
-	RWElementBuffer[4] = 0;
-	RWElementBuffer[5] = 0;
-	RWElementBuffer[6] = 0;
-	RWElementBuffer[7] = 0;
 }
 #endif
 
@@ -95,14 +125,18 @@ void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 StructuredBuffer<uint> ElementBuffer;
 RWBuffer<uint> RWIndirectArgs;
-uint MaxInstanceCount;
+uint PrimitiveType;
 
 [numthreads(1, 1, 1)]
 void ShaderDrawDebugCopyCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint IndirectArgInstanceCount = min(MaxInstanceCount, ElementBuffer[0]);
+	const bool bLine    = PrimitiveType == SHADER_PRINT_TYPE_LINE;
+	const uint Index    = bLine ? SHADER_PRINT_COUNTER_OFFSET_LINE : SHADER_PRINT_COUNTER_OFFSET_TRIANGLE;
+	const uint MaxCount = bLine ? ShaderPrintData.MaxLineCount : ShaderPrintData.MaxTriangleCount;
 
-	RWIndirectArgs[0] = 2; // Line primitive
+	const uint IndirectArgInstanceCount = min(MaxCount, ElementBuffer[Index]);
+
+	RWIndirectArgs[0] = bLine ? 2 : 3; // Line or Triangle primitive
 	RWIndirectArgs[1] = IndirectArgInstanceCount;
 	RWIndirectArgs[2] = 0;
 	RWIndirectArgs[3] = 0;

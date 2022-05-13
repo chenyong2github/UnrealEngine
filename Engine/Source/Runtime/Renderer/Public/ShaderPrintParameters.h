@@ -32,6 +32,7 @@ namespace ShaderPrint
 		SHADER_PARAMETER(uint32, MaxSymbolCount)
 		SHADER_PARAMETER(uint32, MaxStateCount)
 		SHADER_PARAMETER(uint32, MaxLineCount)
+		SHADER_PARAMETER(uint32, MaxTriangleCount)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 	// ShaderPrint parameter struct declaration
@@ -39,7 +40,7 @@ namespace ShaderPrint
 		SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, ShaderPrint_StateBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, ShaderPrint_RWValuesBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, ShaderPrint_RWLinesBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, ShaderPrint_RWPrimitivesBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Does the platform support the ShaderPrint system?
@@ -97,6 +98,8 @@ namespace ShaderPrint
 		uint32 MaxStateCount;
 		/** Initial size of line buffer. Will also be increased by RequestSpaceForLines(). */
 		uint32 MaxLineCount;
+		/** Initial size of triangle buffer. Will also be increased by RequestSpaceForLines(). */
+		uint32 MaxTriangleCount;
 	};
 
 	/** Create the shader print render data. This allocates and clears the render buffers. */
@@ -123,5 +126,5 @@ struct RENDERER_API FShaderPrintData
 
 	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
 	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
-	FRDGBufferRef ShaderPrintLineBuffer = nullptr;
+	FRDGBufferRef ShaderPrintPrimitiveBuffer = nullptr;
 };

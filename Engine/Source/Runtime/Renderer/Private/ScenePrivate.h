@@ -623,7 +623,7 @@ struct FHLODSceneNodeVisibilityState
 struct FShaderPrintStateData
 {
 	TRefCountPtr<FRDGPooledBuffer> StateBuffer;
-	TRefCountPtr<FRDGPooledBuffer> LineBuffer;
+	TRefCountPtr<FRDGPooledBuffer> PrimitiveBuffer;
 	FVector PreViewTranslation = FVector::ZeroVector;
 	bool bIsLocked = false;
 
@@ -632,7 +632,7 @@ struct FShaderPrintStateData
 		bIsLocked = false;
 		PreViewTranslation = FVector::ZeroVector;
 		StateBuffer = nullptr;
-		LineBuffer = nullptr;
+		PrimitiveBuffer = nullptr;
 	}
 };
 
