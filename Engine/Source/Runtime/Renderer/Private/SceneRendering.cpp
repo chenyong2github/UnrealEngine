@@ -401,7 +401,17 @@ static TAutoConsoleVariable<int32> CVarNaniteShowUnsupportedError(
 #endif
 
 static FParallelCommandListSet* GOutstandingParallelCommandListSet = nullptr;
+
 FOcclusionSubmittedFenceState FSceneRenderer::OcclusionSubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+
+// cleanup OcclusionSubmittedFence to avoid undefined order of destruction that can destroy it after its allocator
+void CleanupOcclusionSubmittedFence()
+{
+	for (FOcclusionSubmittedFenceState& FenceState : FSceneRenderer::OcclusionSubmittedFence)
+	{
+		FenceState.Fence = nullptr;
+	}
+}
 
 extern int32 GetTranslucencyLightingVolumeDim();
 

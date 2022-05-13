@@ -83,6 +83,9 @@ void FRendererModule::ShutdownModule()
 
 	// Free up global resources in Lumen
 	Lumen::Shutdown();
+
+	void CleanupOcclusionSubmittedFence();
+	CleanupOcclusionSubmittedFence();
 }
 
 void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)
