@@ -1063,7 +1063,8 @@ FTexture2DRHIRef FVulkanDynamicRHI::AsyncReallocateTexture2D_RenderThread(FRHICo
 		.SetClearValue(OldDesc.ClearValue)
 		.SetFlags(OldDesc.Flags)
 		.SetNumMips(NewMipCount)
-		.SetNumSamples(OldDesc.NumSamples);
+		.SetNumSamples(OldDesc.NumSamples)
+		.DetermineInititialState();
 
 	FVulkanTexture* NewTexture = new FVulkanTexture(*Device, Desc, nullptr);
 	FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext();
@@ -1083,7 +1084,8 @@ FTexture2DRHIRef FVulkanDynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* O
 		.SetClearValue(OldDesc.ClearValue)
 		.SetFlags(OldDesc.Flags)
 		.SetNumMips(NewMipCount)
-		.SetNumSamples(OldDesc.NumSamples);
+		.SetNumSamples(OldDesc.NumSamples)
+		.DetermineInititialState();
 
 	FVulkanTexture* NewTexture = new FVulkanTexture(*Device, Desc, nullptr);
 

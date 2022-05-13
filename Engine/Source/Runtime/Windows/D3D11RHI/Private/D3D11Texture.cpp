@@ -1001,7 +1001,8 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		FRHITextureCreateDesc::Create2D(TEXT("RHIAsyncCreateTexture2D"), SizeX, SizeY, (EPixelFormat)Format)
 		.SetClearValue(FClearValueBinding::None)
 		.SetFlags(Flags)
-		.SetNumMips(NumMips);
+		.SetNumMips(NumMips)
+		.DetermineInititialState();
 
 	FTextureRHIRef Texture = CreateD3D11Texture2D(Desc, SubresourceData);
 
@@ -1953,7 +1954,7 @@ FD3D11Texture* FD3D11DynamicRHI::CreateTextureFromResource(bool bTextureArray, b
 		.SetFlags(TexCreateFlags)
 		.SetNumMips(TextureDesc.MipLevels)
 		.SetNumSamples(TextureDesc.SampleDesc.Count)
-		.SetInitialState(RHIGetDefaultResourceState(TexCreateFlags, false));
+		.DetermineInititialState();
 
 	FD3D11Texture* Texture2D = new FD3D11Texture(
 		RHITextureDesc,

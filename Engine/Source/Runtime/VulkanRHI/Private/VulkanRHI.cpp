@@ -1432,7 +1432,8 @@ FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat 
 		.SetClearValue(EnumHasAnyFlags(Flags, ETextureCreateFlags::DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent)
 		.SetFlags(Flags)
 		.SetNumMips(NumMips)
-		.SetNumSamples(NumSamples);
+		.SetNumSamples(NumSamples)
+		.DetermineInititialState();
 
 	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
@@ -1444,7 +1445,8 @@ FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArrayFromResource(EPi
 		.SetClearValue(EnumHasAnyFlags(Flags, ETextureCreateFlags::DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent)
 		.SetFlags(Flags)
 		.SetNumMips(NumMips)
-		.SetNumSamples(NumSamples);
+		.SetNumSamples(NumSamples)
+		.DetermineInititialState();
 
 	return new FVulkanTexture(*Device, Desc, Resource, false);
 }
@@ -1458,7 +1460,8 @@ FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeFromResource(EPixelFor
 		.SetFormat(Format)
 		.SetClearValue(EnumHasAnyFlags(Flags, ETextureCreateFlags::DepthStencilTargetable) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent)
 		.SetFlags(Flags)
-		.SetNumMips(NumMips);
+		.SetNumMips(NumMips)
+		.DetermineInititialState();
 
 	return new FVulkanTexture(*Device, Desc, Resource, false);
 }

@@ -80,12 +80,14 @@ namespace
 		const FRHITextureCreateDesc StagingDescY =
 			FRHITextureCreateDesc::Create2D(TEXT("YUV Output CPU Texture"), PlaneYDimensions, PF_R8)
 			.SetClearValue(FClearValueBinding::None)
-			.SetFlags(ETextureCreateFlags::CPUReadback);
+			.SetFlags(ETextureCreateFlags::CPUReadback)
+			.DetermineInititialState();
 
 		const FRHITextureCreateDesc StagingDescUV =
 			FRHITextureCreateDesc::Create2D(TEXT("YUV Output CPU Texture"), PlaneUVDimensions, PF_R8)
 			.SetClearValue(FClearValueBinding::None)
-			.SetFlags(ETextureCreateFlags::CPUReadback);
+			.SetFlags(ETextureCreateFlags::CPUReadback)
+			.DetermineInititialState();
 
 		StagingTextureY = GDynamicRHI->RHICreateTexture(StagingDescY);
 		StagingTextureU = GDynamicRHI->RHICreateTexture(StagingDescUV);
@@ -128,7 +130,8 @@ namespace
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create2D(TEXT("PixelStreamingBlankTexture"), SourceTexture->GetDesc().Extent, SourceTexture->GetDesc().Format)
 				.SetClearValue(FClearValueBinding::None)
-				.SetFlags(ETextureCreateFlags::ShaderResource);
+				.SetFlags(ETextureCreateFlags::ShaderResource)
+				.DetermineInititialState();
 
 			TempFBCopy = GDynamicRHI->RHICreateTexture(Desc);
 		}

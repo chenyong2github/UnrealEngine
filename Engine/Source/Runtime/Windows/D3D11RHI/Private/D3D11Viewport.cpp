@@ -183,7 +183,7 @@ FD3D11Texture* FD3D11Viewport::GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, EPi
 	const FRHITextureCreateDesc CreateDesc =
 		FRHITextureCreateDesc::Create2D(TEXT("FD3D11Viewport::GetSwapChainSurface"), TextureDesc.Width, TextureDesc.Height, PixelFormat)
 		.SetFlags(ETextureCreateFlags::RenderTargetable)
-		.SetInitialState(RHIGetDefaultResourceState(ETextureCreateFlags::RenderTargetable, false));
+		.DetermineInititialState();
 
 	FD3D11Texture* NewTexture = new FD3D11Texture(
 		CreateDesc,

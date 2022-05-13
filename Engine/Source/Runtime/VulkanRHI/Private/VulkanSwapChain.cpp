@@ -918,7 +918,8 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 		.SetClearValue(FClearValueBinding::None)
 		.SetFlags(UEFlags)
 		.SetNumMips(Desc.NumMips)
-		.SetNumSamples(Desc.NumSamples);
+		.SetNumSamples(Desc.NumSamples)
+		.DetermineInititialState();
 
 	QCOMDepthStencilSurface = new FVulkanTexture(Device, CreateDesc, nullptr);
 

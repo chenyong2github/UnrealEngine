@@ -2232,7 +2232,8 @@ FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat 
 		.SetClearValue(ClearValueBinding)
 		.SetFlags(TexCreateFlags)
 		.SetNumMips(NumMips)
-		.SetNumSamples(NumSamples);
+		.SetNumSamples(NumSamples)
+		.DetermineInititialState();
 
 	return new FOpenGLTexture(Desc, Resource);
 }
@@ -2244,7 +2245,8 @@ FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFo
 		.SetClearValue(ClearValueBinding)
 		.SetFlags(TexCreateFlags)
 		.SetNumMips(NumMips)
-		.SetNumSamples(NumSamples);
+		.SetNumSamples(NumSamples)
+		.DetermineInititialState();
 
 	return new FOpenGLTexture(Desc, Resource);
 }
@@ -2259,7 +2261,8 @@ FTextureCubeRHIRef FOpenGLDynamicRHI::RHICreateTextureCubeFromResource(EPixelFor
 		.SetClearValue(ClearValueBinding)
 		.SetFlags(TexCreateFlags)
 		.SetNumMips(NumMips)
-		.SetNumSamples(NumSamples);
+		.SetNumSamples(NumSamples)
+		.DetermineInititialState();
 
 	return new FOpenGLTexture(Desc, Resource);
 }
