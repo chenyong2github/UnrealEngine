@@ -193,6 +193,18 @@ void UMoviePipeline::RenderFrame()
 
 	// Add appropriate metadata here that is shared by all passes.
 	{
+		// Add hardware stats such as total memory, cpu vendor, etc.
+		FString ResolvedOutputDirectory;
+		TMap<FString, FString> FormatOverrides;
+		FMoviePipelineFormatArgs FinalFormatArgs;
+
+		// We really only need the output disk path for disk size info, but we'll try to resolve as much as possible anyways
+		ResolveFilenameFormatArguments(OutputSettings->OutputDirectory.Path, FormatOverrides, ResolvedOutputDirectory, FinalFormatArgs);
+		// Strip .{ext}
+		ResolvedOutputDirectory.LeftChopInline(6);
+
+		UE::MoviePipeline::GetHardwareUsageMetadata(CachedOutputState.FileMetadata, ResolvedOutputDirectory);
+
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.X));
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/y"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.Y));
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/z"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.Z));
