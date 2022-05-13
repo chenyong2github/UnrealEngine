@@ -187,4 +187,52 @@ namespace FPCGAsync
 			OutFilterPoints.SetNum(OutFilterRangeIndex);
 		}
 	}
+
+	void AsyncMultiPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<TArray<FPCGPoint>(int32)>& PointFunc)
+	{
+		const int32 MinIterationsPerTask = 256;
+		AsyncMultiPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+	}
+
+	void AsyncMultiPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<TArray<FPCGPoint>(int32)>& PointFunc)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncMultiPointProcessing);
+		check(NumAvailableTasks > 0 && MinIterationsPerTask > 0 && NumIterations >= 0);
+		// Get number of available threads from the context
+		const int32 NumTasks = FMath::Min(NumAvailableTasks, FMath::Max(1, NumIterations / MinIterationsPerTask));
+		const int32 IterationsPerTask = NumIterations / NumTasks;
+
+		TArray<TFuture<TArray<FPCGPoint>>> AsyncTasks;
+		AsyncTasks.Reserve(NumTasks);
+
+		// Launch the async tasks
+		for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+		{
+			const int32 StartIndex = TaskIndex * IterationsPerTask;
+			const int32 EndIndex = (TaskIndex == NumTasks - 1) ? NumIterations : (StartIndex + IterationsPerTask);
+
+			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&PointFunc, StartIndex, EndIndex]()
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncMultiPointProcessing::InnerLoop);
+				TArray<FPCGPoint> OutPoints;
+
+				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+				{
+					OutPoints.Append(PointFunc(Index));
+				}
+
+				return OutPoints;
+			}));
+		}
+
+		// Wait/Gather results & collapse points
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncMultiPointProcessing::WaitAndCollapseArray);
+			for (TFuture<TArray<FPCGPoint>>& AsyncTask : AsyncTasks)
+			{
+				AsyncTask.Wait();
+				OutPoints.Append(AsyncTask.Get());
+			}
+		}
+	}
 }

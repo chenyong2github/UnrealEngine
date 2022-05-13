@@ -506,6 +506,26 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 	});
 }
 
+void UPCGBlueprintElement::MultiLoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData) const
+{
+	if (!InData)
+	{
+		PCGE_LOG_C(Error, &InContext, "Invalid input data in MultiLoopOnPoints");
+		return;
+	}
+
+	OutData = OptionalOutData ? OptionalOutData : NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
+	OutData->InitializeFromData(InData);
+
+	const TArray<FPCGPoint>& InPoints = InData->GetPoints();
+	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
+
+	FPCGAsync::AsyncMultiPointProcessing(&InContext, InPoints.Num(), OutPoints, [this, &InContext, InData, OutData, &InPoints](int32 Index)
+	{
+		return MultiPointLoopBody(InContext, InData, InPoints[Index], OutData->Metadata);
+	});
+}
+
 void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData, UPCGPointData* OptionalOutData) const
 {
 	if (!InA || !InB)
