@@ -294,13 +294,16 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::GetEmitterHa
 
 TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::GetEmitterHandleViewModelForEmitter(const FVersionedNiagaraEmitter& InEmitter) const
 {
-	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	if (FVersionedNiagaraEmitterData* InEmitterData = InEmitter.GetEmitterData())
 	{
-		FVersionedNiagaraEmitterData* InEmitterData = InEmitter.GetEmitterData();
-		FVersionedNiagaraEmitterData* ViewModelEmitterData = EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData();
-		if (InEmitterData == ViewModelEmitterData)
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 		{
-			return EmitterHandleViewModel;
+			// we compare the pointer to the emitter data here because depending on the versioning status,
+			// two guids might point to the same or to different emitters 
+			if (InEmitterData == EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter().GetEmitterData())
+			{
+				return EmitterHandleViewModel;
+			}
 		}
 	}
 	return TSharedPtr<FNiagaraEmitterHandleViewModel>();
