@@ -111,4 +111,13 @@ void FAssetTypeActions_AnimCurveCompressionSettings::ExecuteCompression(TWeakObj
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_AnimCurveCompressionSettings::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimAdvancedSubMenu", "Advanced")
+	};
+	return SubMenus;
+}
+
 #undef LOCTEXT_NAMESPACE

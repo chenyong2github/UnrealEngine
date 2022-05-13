@@ -93,7 +93,7 @@ struct FMirrorFindReplaceExpression
 };
 
 /**
- * Data table for mirroring bones, notifies, and curves.   The mirroring table allows self mirroring with entries where the name and mirrored name are identical
+ * Data table for mirroring bones, notifies, and curves. The mirroring table allows self mirroring with entries where the name and mirrored name are identical
  */
 UCLASS(MinimalAPI, BlueprintType, hideCategories = (ImportOptions, ImportSource) /* AutoExpandCategories = "MirrorDataTable,ImportOptions"*/)
 class UMirrorDataTable : public UDataTable

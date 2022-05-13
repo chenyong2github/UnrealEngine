@@ -28,3 +28,12 @@ uint32 FAssetTypeActions_ComputeKernelFromText::GetCategories()
 {
 	return AssetCategoryBit;
 }
+
+const TArray<FText>& FAssetTypeActions_ComputeKernelFromText::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("ComputeFramework", "AnimDeformersSubMenu", "Deformers")
+	};
+	return SubMenus;
+}

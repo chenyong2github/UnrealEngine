@@ -112,4 +112,13 @@ void FAssetTypeActions_AnimBoneCompressionSettings::ExecuteCompression(TWeakObje
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_AnimBoneCompressionSettings::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimAdvancedSubMenu", "Advanced")
+	};
+	return SubMenus;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -13,4 +13,12 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AimOffset1D", "Aim Offset 1D"); }
 	virtual FColor GetTypeColor() const override { return FColor(0,162,232); }
 	virtual UClass* GetSupportedClass() const override { return UAimOffsetBlendSpace1D::StaticClass(); }
+	virtual const TArray<FText>& GetSubMenus() const override
+	{
+		static const TArray<FText> SubMenus
+		{
+			NSLOCTEXT("AssetTypeActions", "AnimLegacySubMenu", "Legacy")
+		};
+		return SubMenus;
+	};
 };

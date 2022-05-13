@@ -147,7 +147,7 @@ private:
 	friend class UPoseAsset;
 };
 
-/*
+/**
  * Pose Asset that can be blended by weight of curves 
  */
 UCLASS(MinimalAPI, BlueprintType)

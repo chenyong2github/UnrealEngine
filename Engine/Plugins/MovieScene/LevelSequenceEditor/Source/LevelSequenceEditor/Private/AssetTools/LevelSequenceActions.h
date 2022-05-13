@@ -28,6 +28,7 @@ public:
 	// IAssetTypeActions interface
 
 	virtual uint32 GetCategories() override;
+	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual FText GetName() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual FColor GetTypeColor() const override;

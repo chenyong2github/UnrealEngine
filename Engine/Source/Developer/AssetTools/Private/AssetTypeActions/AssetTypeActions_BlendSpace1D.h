@@ -14,4 +14,12 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(255,180,130); }
 	virtual UClass* GetSupportedClass() const override { return UBlendSpace1D::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
+	virtual const TArray<FText>& GetSubMenus() const override
+	{
+		static const TArray<FText> SubMenus
+		{
+			NSLOCTEXT("AssetTypeActions", "AnimLegacySubMenu", "Legacy")
+		};
+		return SubMenus;
+	};
 };

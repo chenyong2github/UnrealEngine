@@ -9,6 +9,9 @@
 
 #include "AnimationSharingSetup.generated.h"
 
+/**
+ * The Animation Sharing Setup asset contains all the information that will be shared across the specified Actors
+ */
 UCLASS(hidecategories = Object, Blueprintable, config = Engine)
 class ANIMATIONSHARING_API UAnimationSharingSetup : public UObject
 {

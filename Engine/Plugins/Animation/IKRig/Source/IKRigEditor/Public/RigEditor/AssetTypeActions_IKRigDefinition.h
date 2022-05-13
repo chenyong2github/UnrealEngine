@@ -16,6 +16,7 @@ public:
 	virtual UClass* GetSupportedClass() const override;
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }
+	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 	// END IAssetTypeActions Implementation
 };

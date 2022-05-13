@@ -22,4 +22,5 @@ public:
 	virtual UClass* GetSupportedClass() const override { return UControlRigShapeLibrary::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }
+	virtual const TArray<FText>& GetSubMenus() const override;
 };

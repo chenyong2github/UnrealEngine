@@ -133,4 +133,13 @@ void FAssetTypeActions_IKRetargeter::CreateRetargetSubMenu(FToolMenuSection& InS
 	);
 }
 
+const TArray<FText>& FAssetTypeActions_IKRetargeter::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimIKRigSubMenu", "IK Rig")
+	};
+	return SubMenus;
+}
+
 #undef LOCTEXT_NAMESPACE

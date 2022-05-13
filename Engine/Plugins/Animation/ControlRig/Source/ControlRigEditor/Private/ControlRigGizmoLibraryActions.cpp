@@ -9,4 +9,13 @@ void FControlRigShapeLibraryActions::GetActions( const TArray<UObject*>& InObjec
 	//FAssetTypeActions_AnimationAsset::GetActions(InObjects, MenuBuilder);
 }
 
+const TArray<FText>& FControlRigShapeLibraryActions::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimControlRigSubMenu", "Control Rig")
+	};
+	return SubMenus;
+}
+
 #undef LOCTEXT_NAMESPACE

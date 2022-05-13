@@ -46,7 +46,7 @@ void FFlipbookAssetTypeActions::OpenAssetEditor(const TArray<UObject*>& InObject
 
 uint32 FFlipbookAssetTypeActions::GetCategories()
 {
-	return EAssetTypeCategories::Animation | MyAssetCategory;
+	return MyAssetCategory;
 }
 
 //////////////////////////////////////////////////////////////////////////

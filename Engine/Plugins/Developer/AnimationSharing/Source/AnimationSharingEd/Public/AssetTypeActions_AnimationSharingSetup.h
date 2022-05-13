@@ -15,4 +15,12 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(255, 10, 255); }
 	virtual UClass* GetSupportedClass() const override { return UAnimationSharingSetup::StaticClass(); }	
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }
+	virtual const TArray<FText>& GetSubMenus() const override
+	{
+		static const TArray<FText> SubMenus
+		{
+			NSLOCTEXT("AssetTypeActions", "AnimAdvancedSubMenu", "Advanced")
+		};
+		return SubMenus;
+	};
 };

@@ -31,6 +31,15 @@ namespace UE::MLDeformer
 			}
 		}
 	}
+
+	const TArray<FText>& FMLDeformerAssetActions::GetSubMenus() const
+	{
+		static const TArray<FText> SubMenus
+		{
+			LOCTEXT("AnimDeformersSubMenu", "Deformers")
+		};
+		return SubMenus;
+	}
 }	// namespace UE::MLDeformer
 
 #undef LOCTEXT_NAMESPACE

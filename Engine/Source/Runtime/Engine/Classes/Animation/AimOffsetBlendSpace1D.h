@@ -12,6 +12,9 @@
 #include "Animation/BlendSpace1D.h"
 #include "AimOffsetBlendSpace1D.generated.h"
 
+ /**
+  * An Aim Offset is an asset that stores a blendable series of poses to help a character aim a weapon.
+  */
 UCLASS(config=Engine, hidecategories=Object, MinimalAPI, BlueprintType)
 class UAimOffsetBlendSpace1D : public UBlendSpace1D
 {

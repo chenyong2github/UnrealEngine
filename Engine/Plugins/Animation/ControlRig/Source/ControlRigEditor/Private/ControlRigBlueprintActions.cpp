@@ -414,5 +414,14 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 	}
 }
 
+const TArray<FText>& FControlRigBlueprintActions::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimControlRigSubMenu", "Control Rig")
+	};
+	return SubMenus;
+}
+
 #undef LOCTEXT_NAMESPACE
 

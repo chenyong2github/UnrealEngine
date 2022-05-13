@@ -26,6 +26,16 @@ uint32 FLevelSequenceActions::GetCategories()
 }
 
 
+const TArray<FText>& FLevelSequenceActions::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimSequencerSubMenu", "Sequencer")
+	};
+	return SubMenus;
+}
+
+
 FText FLevelSequenceActions::GetName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_LevelSequence", "Level Sequence");

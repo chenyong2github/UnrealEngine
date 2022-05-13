@@ -12,6 +12,9 @@
 #include "Animation/BlendSpace.h"
 #include "BlendSpace1D.generated.h"
 
+ /**
+  * Allows multiple animations to be blended between based on input parameters
+  */
 UCLASS(config=Engine, hidecategories=Object, MinimalAPI, BlueprintType)
 class UBlendSpace1D : public UBlendSpace
 {

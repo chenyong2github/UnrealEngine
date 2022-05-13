@@ -17,6 +17,15 @@ uint32 FTemplateSequenceActions::GetCategories()
 	return EAssetTypeCategories::Animation;
 }
 
+const TArray<FText>& FTemplateSequenceActions::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AnimSequencerSubMenu", "Sequencer")
+	};
+	return SubMenus;
+}
+
 FText FTemplateSequenceActions::GetName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_TemplateSequence", "Template Sequence");

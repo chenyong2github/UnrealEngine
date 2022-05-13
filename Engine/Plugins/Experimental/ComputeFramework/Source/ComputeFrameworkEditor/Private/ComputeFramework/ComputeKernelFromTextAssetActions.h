@@ -16,6 +16,7 @@ protected:
 	FColor GetTypeColor() const override;
 	UClass* GetSupportedClass() const override;
 	uint32 GetCategories() override;
+	const TArray<FText>& GetSubMenus() const override;
 	//~ End FAssetTypeActions_Base Interface.
 
 private:

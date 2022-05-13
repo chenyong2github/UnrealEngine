@@ -37,6 +37,15 @@ public:
 		return EAssetTypeCategories::Misc;
 	}
 
+	const TArray<FText>& GetSubMenus() const override
+	{
+		static const TArray<FText> SubMenus
+		{
+			NSLOCTEXT("FOptimusDeformerAssetActions", "AnimDeformersSubMenu", "Deformers")
+		};
+		return SubMenus;
+	}
+
 	TSharedPtr<SWidget> GetThumbnailOverlay(
 		const FAssetData& AssetData
 	) const override;
