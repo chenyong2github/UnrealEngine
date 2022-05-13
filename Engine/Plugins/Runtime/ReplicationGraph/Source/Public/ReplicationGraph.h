@@ -170,7 +170,7 @@ protected:
 // -----------------------------------
 
 
-struct FStreamingLevelActorListCollection
+struct REPLICATIONGRAPH_API FStreamingLevelActorListCollection
 {
 	void AddActor(const FNewReplicatedActorInfo& ActorInfo);
 	bool RemoveActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound, UReplicationGraphNode* Outer);
