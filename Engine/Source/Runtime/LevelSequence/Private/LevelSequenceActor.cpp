@@ -150,6 +150,7 @@ void ALevelSequenceActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ALevelSequenceActor, SequencePlayer);
+	DOREPLIFETIME(ALevelSequenceActor, LevelSequenceAsset);
 }
 
 void ALevelSequenceActor::PostInitializeComponents()
@@ -502,6 +503,16 @@ const TArray<FMovieSceneObjectBindingID>& ALevelSequenceActor::FindNamedBindings
 
 	static TArray<FMovieSceneObjectBindingID> EmptyBindings;
 	return EmptyBindings;
+}
+
+void ALevelSequenceActor::PostNetReceive()
+{
+	Super::PostNetReceive();
+
+	if (LevelSequenceAsset && SequencePlayer && SequencePlayer->GetSequence() != LevelSequenceAsset)
+	{
+		InitializePlayer();
+	}
 }
 
 #if WITH_EDITOR
