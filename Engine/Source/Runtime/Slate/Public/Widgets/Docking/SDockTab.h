@@ -84,6 +84,7 @@ public:
 		, _OnTabDraggedOverDockArea()
 		, _ShouldAutosize(false)
 		, _OnCanCloseTab()
+		, _CanEverClose(true)
 		, _OnPersistVisualState()
 		, _TabColorScale(FLinearColor::Transparent)
 		, _ForegroundColor(FSlateColor::UseStyle())
