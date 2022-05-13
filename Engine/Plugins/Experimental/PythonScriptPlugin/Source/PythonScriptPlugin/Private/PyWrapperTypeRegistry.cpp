@@ -22,7 +22,6 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
-#include "Misc/StringBuilder.h"
 #include "SourceCodeNavigation.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
@@ -30,7 +29,6 @@
 #include "UObject/Package.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/StructOnScope.h"
-#include "UObject/NameTypes.h"
 #include "Misc/CoreDelegates.h"
 #if WITH_EDITOR
 #include "Kismet2/ReloadUtilities.h"
@@ -2083,43 +2081,15 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunctio
 	PyGenUtil::AppendSourceInformationDocString(InDelegateSignature, TypeDocString);
 
 	const FString DelegateBaseTypename = PyGenUtil::GetDelegatePythonName(InDelegateSignature);
+	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*DelegateBaseTypename);
 	GeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*TypeDocString);
+
 	GeneratedWrappedType->PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-
-	// Two different UObject-based classes can each declare in their body a delegate with the same type name, but possibly
-	// with different parameters. While they will share the same 'DelegateBaseTypename', they aren't necessarily the same type. Make
-	// the name of the 'PythonCallableForDelegateClass' unique because NewObject<> will find pre-existing object with the same name and
-	// return the same address, then the code below will basically erase the previous delegate type with the new delegate type, possibly
-	// confusing the parameter types if they aren't the same.
-	FNameBuilder PythonCallableForDelegateObjectName;
-	if (UClass* OuterClass = Cast<UClass>(InDelegateSignature->GetOuter()))
-	{
-		FString DelegateOuterClassName = PyGenUtil::GetClassPythonName(OuterClass);
-
-		// The name of the UObject proxy wrapping the Python callable.
-		PythonCallableForDelegateObjectName += DelegateOuterClassName;
-		PythonCallableForDelegateObjectName += TEXT("_");
-		PythonCallableForDelegateObjectName += DelegateBaseTypename;
-
-		// The name of the Python type. Note that we don't 'nest' in the pure Python sense. The type is flatten and looks like "unreal.OuterName_DelegateName"
-		// A correctly nested type would require us to update the outer object Python data structure to mention it has an inner type which we don't.
-		FNameBuilder TypenameBuilder;
-		TypenameBuilder += DelegateOuterClassName;
-		TypenameBuilder += TEXT("_"); // Cannot use "." because we don't really nest the object.
-		TypenameBuilder += DelegateBaseTypename;
-		GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*TypenameBuilder);
-	}
-	else
-	{
-		PythonCallableForDelegateObjectName += DelegateBaseTypename;
-		GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*DelegateBaseTypename);
-	}
-	PythonCallableForDelegateObjectName += TEXT("__PythonCallable");
 
 	// Generate the proxy class needed to wrap Python callables in Unreal delegates
 	UClass* PythonCallableForDelegateClass = nullptr;
 	{
-		PythonCallableForDelegateClass = NewObject<UClass>(GetPythonTypeContainer(), *PythonCallableForDelegateObjectName, RF_Public | RF_Standalone | RF_Transient);
+		PythonCallableForDelegateClass = NewObject<UClass>(GetPythonTypeContainer(), *FString::Printf(TEXT("%s__PythonCallable"), *DelegateBaseTypename), RF_Public | RF_Standalone | RF_Transient);
 		UFunction* PythonCallableForDelegateFunc = nullptr;
 		{
 			FObjectDuplicationParameters FuncDuplicationParams(const_cast<UFunction*>(InDelegateSignature), PythonCallableForDelegateClass);

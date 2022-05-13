@@ -288,35 +288,3 @@ class UPyTestObjectLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptConstant="OtherConstantValue", ScriptConstantHost="PyTestObject"))
 	static int32 GetOtherConstantValue();
 };
-
-/**
- * This class along with UPyTestVectorDelegate verify that 2 UObjects with the same delegate name/type, do not collide.
- */
-UCLASS(Blueprintable)
-class UPyTestStructDelegate : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNameCollisionDelegate, const FPyTestStruct&, PyStruct);
-
-	/** Called when a new item is selected in the combobox. */
-	UPROPERTY(BlueprintAssignable, Category = "Python|Internal")
-	FOnNameCollisionDelegate OnNameCollisionTestDelegate; // Same prop name and type name as UPyTestVectorDelegate::FOnNameCollisionTestDelegate, but different params.
-};
-
-/**
- * This class along with UPyTestStructDelegate verify that 2 UObjects with the same delegate name/type, do not collide.
- */
-UCLASS(Blueprintable)
-class UPyTestVectorDelegate : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNameCollisionDelegate, const FVector2D&, Vec);
-
-	/** Called when a new item is selected in the combobox. */
-	UPROPERTY(BlueprintAssignable, Category = "Python|Internal")
-	FOnNameCollisionDelegate OnNameCollisionTestDelegate; // Same prop name and type name as UPyTestStructDelegate::FOnNameCollisionTestDelegate, but different params.
-};
