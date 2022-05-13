@@ -30,6 +30,7 @@ void UStateTree::ResetCompiled()
 
 	NumDataViews = 0;
 	ExternalDataBaseIndex = 0;
+	DefaultParametersDataViewIndex = INDEX_NONE;
 
 	InstanceDataDefaultValue.Reset();
 }
@@ -99,7 +100,7 @@ bool UStateTree::Link()
 	TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
 	TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
 
-	if (DefaultParametersDataViewIndex != INDEX_NONE)
+	if (SourceStructs.IsValidIndex(DefaultParametersDataViewIndex))
 	{
 		SourceStructs[DefaultParametersDataViewIndex].Struct = Parameters.GetPropertyBagStruct();
 	}

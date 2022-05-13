@@ -21,7 +21,7 @@
 #include "StateTreeEditorCommands.h"
 #include "ToolMenus.h"
 #include "StateTreeObjectHash.h"
-
+#include "StateTreeToolMenuContext.h"
 #include "Developer/MessageLog/Public/IMessageLogListing.h"
 #include "Developer/MessageLog/Public/MessageLogInitializationOptions.h"
 #include "Developer/MessageLog/Public/MessageLogModule.h"
@@ -106,8 +106,11 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 		EditorData = NewObject<UStateTreeEditorData>(StateTree, FName(), RF_Transactional);
 		EditorData->AddRootState();
 		StateTree->EditorData = EditorData;
+		Compile();
 	}
 
+	EditorDataHash = UE::StateTree::Editor::CalcAssetHash(*StateTree);
+	
 	// @todo: Temporary fix
 	// Make sure all states are transactional
 	for (UStateTreeState* SubTree : EditorData->SubTrees)
@@ -237,6 +240,13 @@ FString FStateTreeEditor::GetWorldCentricTabPrefix() const
 FLinearColor FStateTreeEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor( 0.0f, 0.0f, 0.2f, 0.5f );
+}
+
+void FStateTreeEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	UStateTreeToolMenuContext* Context = NewObject<UStateTreeToolMenuContext>();
+	Context->StateTreeEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 void FStateTreeEditor::HandleMessageTokenClicked(const TSharedRef<IMessageToken>& InMessageToken)
@@ -652,6 +662,31 @@ namespace UE::StateTree::Editor::Internal
 
 }
 
+namespace UE::StateTree::Editor
+{
+	void ValidateAsset(UStateTree& StateTree)
+	{
+		UE::StateTree::Editor::Internal::UpdateParents(StateTree);
+		UE::StateTree::Editor::Internal::ApplySchema(StateTree);
+		UE::StateTree::Editor::Internal::RemoveUnusedBindings(StateTree);
+		UE::StateTree::Editor::Internal::ValidateLinkedStates(StateTree);
+		UE::StateTree::Editor::Internal::UpdateLinkedStateParameters(StateTree);
+	}
+
+	uint32 CalcAssetHash(const UStateTree& StateTree)
+	{
+		uint32 EditorDataHash = 0;
+		if (StateTree.EditorData != nullptr)
+		{
+			FStateTreeObjectCRC32 Archive;
+			EditorDataHash = Archive.Crc32(StateTree.EditorData, 0);
+		}
+
+		return EditorDataHash;
+	}
+
+};
+
 void FStateTreeEditor::BindCommands()
 {
 	const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
@@ -677,15 +712,31 @@ void FStateTreeEditor::RegisterToolbar()
 		ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
 	}
 
-	const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
 	const FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
 
 	FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
-	Section.AddEntry(FToolMenuEntry::InitToolBarButton(
-		Commands.Compile,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		TAttribute<FSlateIcon>(this, &FStateTreeEditor::GetCompileStatusImage)));
+
+	Section.AddDynamicEntry("CompileCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		const UStateTreeToolMenuContext* Context = InSection.FindContext<UStateTreeToolMenuContext>();
+		if (Context && Context->StateTreeEditor.IsValid())
+		{
+			TSharedPtr<FStateTreeEditor> StateTreeEditor = Context->StateTreeEditor.Pin();
+			if (StateTreeEditor.IsValid())
+			{
+				const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
+
+				FToolMenuEntry CompileButton = FToolMenuEntry::InitToolBarButton(
+					Commands.Compile,
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					TAttribute<FSlateIcon>(StateTreeEditor.ToSharedRef(), &FStateTreeEditor::GetCompileStatusImage)
+					);
+
+				InSection.AddEntry(CompileButton);
+			}
+		}
+	}));
 }
 
 void FStateTreeEditor::Compile()
@@ -695,6 +746,8 @@ void FStateTreeEditor::Compile()
 		return;
 	}
 
+	// Note: If the compilation process changes, also update UStateTreeCompileAllCommandlet.
+	
 	UpdateAsset();
 	
 	if (CompilerResultsListing.IsValid())
@@ -705,14 +758,14 @@ void FStateTreeEditor::Compile()
 	FStateTreeCompilerLog Log;
 	FStateTreeCompiler Compiler(Log);
 
-	const bool bSuccess = Compiler.Compile(*StateTree);
+	bLastCompileSucceeded = Compiler.Compile(*StateTree);
 
 	if (CompilerResultsListing.IsValid())
 	{
 		Log.AppendToLog(CompilerResultsListing.Get());
 	}
 
-	if (bSuccess)
+	if (bLastCompileSucceeded)
 	{
 		// Success
 		StateTree->LastCompiledEditorDataHash = EditorDataHash;
@@ -754,12 +807,14 @@ FSlateIcon FStateTreeEditor::GetCompileStatusImage() const
 	static const FName CompileStatusGood("Blueprint.CompileStatus.Overlay.Good");
 	static const FName CompileStatusWarning("Blueprint.CompileStatus.Overlay.Warning");
 
+	const bool bCompiledDataResetDuringLoad = StateTree->LastCompiledEditorDataHash == EditorDataHash && !StateTree->IsReadyToRun(); 
+	
 	if (StateTree == nullptr)
 	{
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	}
 	
-	if (!StateTree->IsReadyToRun())
+	if (!bLastCompileSucceeded || bCompiledDataResetDuringLoad)
 	{
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
 	}
@@ -779,18 +834,8 @@ void FStateTreeEditor::UpdateAsset()
 		return;
 	}
 
-	UE::StateTree::Editor::Internal::UpdateParents(*StateTree);
-	UE::StateTree::Editor::Internal::ApplySchema(*StateTree);
-	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
-	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
-	UE::StateTree::Editor::Internal::UpdateLinkedStateParameters(*StateTree);
-
-	EditorDataHash = 0;
-	if (StateTree->EditorData != nullptr)
-	{
-		FStateTreeObjectCRC32 Archive;
-		EditorDataHash = Archive.Crc32(StateTree->EditorData, 0);
-	}
+	UE::StateTree::Editor::ValidateAsset(*StateTree);
+	EditorDataHash = UE::StateTree::Editor::CalcAssetHash(*StateTree);
 }
 
 

@@ -91,6 +91,9 @@ struct STATETREEEDITORMODULE_API FStateTreeCompilerLog
 
 	/** Appends StateTree log to log listing. */
 	void AppendToLog(class IMessageLogListing* LogListing) const;
+
+	/** Dumps StateTree log to log */
+	void DumpToLog(const FLogCategoryBase& Category) const;
 	
 protected:
 	UPROPERTY()

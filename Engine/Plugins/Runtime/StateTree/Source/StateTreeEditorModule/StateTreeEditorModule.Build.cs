@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 				"EditorStyle",
 				"PropertyEditor",
 				"StateTreeModule",
+				"SourceControl",
 				"Projects",
 				"BlueprintGraph",
 				"PropertyAccessEditor",

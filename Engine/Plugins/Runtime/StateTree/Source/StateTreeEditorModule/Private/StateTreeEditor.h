@@ -13,6 +13,17 @@ class IDetailsView;
 class UStateTree;
 class FStateTreeViewModel;
 
+namespace UE::StateTree::Editor
+{
+	// Validates asset state
+	void ValidateAsset(UStateTree& StateTree);
+
+	// Calculates editor data hash of the asset. 
+	uint32 CalcAssetHash(const UStateTree& StateTree);
+ 
+} // UE::StateTree::Editor
+
+
 class FStateTreeEditor : public IStateTreeEditor, public FSelfRegisteringEditorUndoClient, public FGCObject
 {
 public:
@@ -27,6 +38,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	//~ End IToolkit Interface
 
 	void OnAssetFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
@@ -80,6 +92,7 @@ private:
 	UStateTree* StateTree = nullptr;
 
 	uint32 EditorDataHash = 0;
+	bool bLastCompileSucceeded = true;
 	
 	/** Selection Property View */
 	TSharedPtr<class IDetailsView> SelectionDetailsView;
