@@ -109,6 +109,7 @@ public:
 	FOnPartyMemberStateChanged& OnPromotedToLeader() const { return OnPromotedToLeaderEvent; }
 	FOnPartyMemberStateChanged& OnDemoted() const { return OnDemotedEvent; }
 	FOnPartyMemberStateChanged& OnMemberConnectionStatusChanged() const { return OnMemberConnectionStatusChangedEvent; }
+	FOnPartyMemberStateChanged& OnDisplayNameChanged() const { return OnDisplayNameChangedEvent; }
 
 	DECLARE_EVENT_OneParam(UPartyMember, FOnPartyMemberLeft, EMemberExitedReason)
 	FOnPartyMemberLeft& OnLeftParty() const { return OnLeftPartyEvent; }
@@ -141,6 +142,7 @@ protected:
 private:
 	void HandleSocialUserInitialized(USocialUser& InitializedUser);
 	void HandleMemberConnectionStatusChanged(const FUniqueNetId& ChangedUserId, const EMemberConnectionStatus NewMemberConnectionStatus, const EMemberConnectionStatus PreviousMemberConnectionStatus);
+	void HandleMemberAttributeChanged(const FUniqueNetId& ChangedUserId, const FString& Attribute, const FString& NewValue, const FString& OldValue);
 
 	FOnlinePartyMemberConstPtr OssPartyMember;
 
@@ -149,6 +151,7 @@ private:
 
 	bool bHasReceivedInitialData = false;
 	mutable FOnPartyMemberStateChanged OnMemberConnectionStatusChangedEvent;
+	mutable FOnPartyMemberStateChanged OnDisplayNameChangedEvent;
 	mutable FOnPartyMemberStateChanged OnMemberInitializedEvent;
 	mutable FOnPartyMemberStateChanged OnPromotedToLeaderEvent;
 	mutable FOnPartyMemberStateChanged OnDemotedEvent;

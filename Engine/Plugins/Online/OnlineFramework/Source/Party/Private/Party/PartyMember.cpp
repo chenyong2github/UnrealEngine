@@ -70,6 +70,7 @@ void UPartyMember::InitializePartyMember(const FOnlinePartyMemberConstRef& InOss
 	{
 		OssPartyMember = InOssMember;
 		OssPartyMember->OnMemberConnectionStatusChanged().AddUObject(this, &ThisClass::HandleMemberConnectionStatusChanged);
+		OssPartyMember->OnMemberAttributeChanged().AddUObject(this, &ThisClass::HandleMemberAttributeChanged);
 		USocialToolkit* OwnerToolkit = GetParty().GetSocialManager().GetSocialToolkit(OssPartyMember->GetUserId());
 		// If we are not a local user then we simply get the first local user's toolkit
 		if (OwnerToolkit == nullptr)
@@ -277,4 +278,12 @@ EMemberConnectionStatus UPartyMember::GetMemberConnectionStatus() const
 void UPartyMember::HandleMemberConnectionStatusChanged(const FUniqueNetId& ChangedUserId, const EMemberConnectionStatus NewMemberConnectionStatus, const EMemberConnectionStatus PreviousMemberConnectionStatus)
 {
 	OnMemberConnectionStatusChanged().Broadcast();
+}
+
+void UPartyMember::HandleMemberAttributeChanged(const FUniqueNetId& ChangedUserId, const FString& Attribute, const FString& NewValue, const FString& OldValue)
+{
+	if (Attribute == USER_ATTR_DISPLAYNAME)
+	{
+		OnDisplayNameChanged().Broadcast();
+	}
 }
