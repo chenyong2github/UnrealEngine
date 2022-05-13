@@ -128,4 +128,5 @@ private:
 	int32 PreviousGeoCacheStreamerShowNotification;
 	int32 PreviousGeoCacheStreamerBlockTillFinish;
 #endif
+	float PreviousChaosImmPhysicsMinStepTime;
 };
