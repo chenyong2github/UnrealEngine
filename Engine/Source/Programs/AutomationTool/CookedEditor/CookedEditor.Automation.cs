@@ -511,6 +511,12 @@ public class MakeCookedEditor : BuildCommand
 			// these files were already staged by the client/release build, so we stage them as NonUFS
 			// these could be just copied, but StageFiles handles copying easily
 			SC.StageFiles(StagedFileType.NonUFS, ReleaseOptionalFileStageDirectory, StageFilesSearch.AllDirectories, new StagedDirectoryReference($"{Context.ProjectName}/Content/Paks"));
+
+			Log.TraceInformation($"Staging optional files from {ReleaseOptionalFileStageDirectory.FullName}:");
+			foreach (var OptionalFile in DirectoryReference.EnumerateFiles(ReleaseOptionalFileStageDirectory, "*"))
+			{
+				Log.TraceInformation($"  '{OptionalFile.FullName}'");
+			}
 		}
 	}
 

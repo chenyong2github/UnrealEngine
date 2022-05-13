@@ -2441,6 +2441,8 @@ void InitializeContainerTargetsAndPackages(
 					// if we have an optional output location, use that directory, combined with the name of the output path 
 					ContainerTarget->OptionalSegmentOutputPath = FPaths::Combine(ContainerSource.OptionalOutputPath, FPaths::GetCleanFilename(ContainerTarget->OutputPath) + FPackagePath::GetOptionalSegmentExtensionModifier());
 				}
+
+				UE_LOG(LogIoStore, Display, TEXT("Saving optional container to: '%s'", *ContainerTarget->OptionalSegmentOutputPath));
 			}
 		}
 	}
