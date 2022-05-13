@@ -3,7 +3,7 @@
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorOutputMappingToolbar.h"
 
 #include "DisplayClusterConfiguratorStyle.h"
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingCommands.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 

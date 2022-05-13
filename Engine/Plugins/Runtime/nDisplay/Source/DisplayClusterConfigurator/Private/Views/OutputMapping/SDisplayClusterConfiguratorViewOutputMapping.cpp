@@ -4,7 +4,7 @@
 
 #include "DisplayClusterConfiguratorCommands.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/OutputMapping/SDisplayClusterConfiguratorGraphEditor.h"
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorOutputMappingToolbar.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "BlueprintEditorModes.h"
-#include "Interfaces/IDisplayClusterConfiguratorBlueprintEditor.h"
+#include "IDisplayClusterConfiguratorBlueprintEditor.h"
 
 class ADisplayClusterRootActor;
 class UActorComponent;

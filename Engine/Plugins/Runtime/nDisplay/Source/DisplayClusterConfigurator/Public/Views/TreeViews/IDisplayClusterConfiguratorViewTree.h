@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/IDisplayClusterConfiguratorView.h"
+#include "Views/IDisplayClusterConfiguratorView.h"
 
 #include "Widgets/Views/SHeaderRow.h"
 

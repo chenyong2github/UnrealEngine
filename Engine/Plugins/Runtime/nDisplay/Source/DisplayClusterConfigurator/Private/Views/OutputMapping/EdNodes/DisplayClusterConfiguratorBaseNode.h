@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorOutputMappingItem.h"
+#include "Views/OutputMapping/IDisplayClusterConfiguratorOutputMappingItem.h"
 #include "EdGraph/EdGraphNode.h"
 
 #include "Views/OutputMapping/Alignment/DisplayClusterConfiguratorNodeAlignmentHelper.h"

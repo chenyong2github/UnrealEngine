@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeBuilder.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeBuilder.h"
 
 class FDisplayClusterConfiguratorBlueprintEditor;
 class IDisplayClusterConfiguratorTreeItem;

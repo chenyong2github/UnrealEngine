@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/IDisplayClusterConfiguratorBuilder.h"
+#include "Views/IDisplayClusterConfiguratorBuilder.h"
 #include "Containers/ArrayView.h"
 
 class IDisplayClusterConfiguratorTreeItem;

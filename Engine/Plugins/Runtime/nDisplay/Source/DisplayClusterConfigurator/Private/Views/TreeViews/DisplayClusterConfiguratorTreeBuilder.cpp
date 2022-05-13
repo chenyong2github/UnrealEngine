@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeBuilder.h"
-
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 
 void FDisplayClusterConfiguratorTreeBuilderOutput::Add(const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem, const FName& InParentName, const FName& InParentType, bool bAddToHead)
 {

@@ -5,9 +5,9 @@
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
-#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorHostNode.h"
 

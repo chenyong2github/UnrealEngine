@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Views/SDisplayClusterConfiguratorViewBase.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 
 #include "EditorUndoClient.h"
 

@@ -4,7 +4,7 @@
 
 #include "DisplayClusterConfiguratorStyle.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/SDisplayClusterConfiguratorTreeItemRow.h"
 
 #include "Misc/TextFilterExpressionEvaluator.h"

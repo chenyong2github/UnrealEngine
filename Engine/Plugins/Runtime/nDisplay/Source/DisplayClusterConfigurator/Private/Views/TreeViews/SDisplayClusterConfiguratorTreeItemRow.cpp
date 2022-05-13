@@ -2,8 +2,8 @@
 
 #include "Views/TreeViews/SDisplayClusterConfiguratorTreeItemRow.h"
 
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"

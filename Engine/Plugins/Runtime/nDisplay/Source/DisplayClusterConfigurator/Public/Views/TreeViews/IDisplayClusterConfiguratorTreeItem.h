@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/IDisplayClusterConfiguratorItem.h"
+#include "Views/IDisplayClusterConfiguratorItem.h"
 
 #include "Framework/SlateDelegates.h"
 

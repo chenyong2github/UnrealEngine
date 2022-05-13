@@ -4,7 +4,7 @@
 
 #include "DisplayClusterConfiguratorCompiler.h"
 #include "IAssetTypeActions.h"
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 
 class FPlacementModeID;
 class IAssetTools;

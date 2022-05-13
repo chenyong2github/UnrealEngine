@@ -6,8 +6,8 @@
 #include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorViewportViewModel.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorViewportNode.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationTypes_ViewportRemap.h"

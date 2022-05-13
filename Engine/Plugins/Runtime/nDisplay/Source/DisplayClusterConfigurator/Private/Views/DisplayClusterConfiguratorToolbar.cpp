@@ -8,7 +8,7 @@
 #include "DisplayClusterConfiguratorStyle.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 
 #include "WorkflowOrientedApp/SModeWidget.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

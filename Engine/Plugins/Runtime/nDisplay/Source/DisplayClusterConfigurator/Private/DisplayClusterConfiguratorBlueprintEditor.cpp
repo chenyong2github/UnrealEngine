@@ -2,7 +2,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorCommands.h"
 #include "DisplayClusterConfiguratorEditorMode.h"

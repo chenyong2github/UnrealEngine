@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"

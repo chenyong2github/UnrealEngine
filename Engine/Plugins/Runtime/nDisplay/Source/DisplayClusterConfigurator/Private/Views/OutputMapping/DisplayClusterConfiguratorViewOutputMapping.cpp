@@ -3,7 +3,7 @@
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraph.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraphSchema.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingCommands.h"

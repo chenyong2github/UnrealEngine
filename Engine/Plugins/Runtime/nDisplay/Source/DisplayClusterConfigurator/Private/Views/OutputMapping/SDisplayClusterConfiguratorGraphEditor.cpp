@@ -5,7 +5,7 @@
 #include "DisplayClusterConfiguratorCommands.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
-#include "Interfaces/IDisplayClusterConfigurator.h"
+#include "IDisplayClusterConfigurator.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "ClusterConfiguration/SDisplayClusterConfiguratorNewClusterItemDialog.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraph.h"
@@ -25,7 +25,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "IDocumentation.h"
 
-#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+#include "Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorGraphEditor"

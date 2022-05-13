@@ -3,9 +3,9 @@
 #include "Views/TreeViews/SDisplayClusterConfiguratorViewTree.h"
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeBuilder.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeBuilder.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeViewCommands.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"

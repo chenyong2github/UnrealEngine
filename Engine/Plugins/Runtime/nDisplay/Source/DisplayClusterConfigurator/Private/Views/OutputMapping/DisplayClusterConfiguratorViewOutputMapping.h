@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+#include "Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 
 #include "UObject/StrongObjectPtr.h"
 #include "Styling/SlateTypes.h"

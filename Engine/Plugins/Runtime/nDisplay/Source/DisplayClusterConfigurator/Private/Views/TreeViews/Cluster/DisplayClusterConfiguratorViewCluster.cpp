@@ -7,7 +7,7 @@
 #include "DisplayClusterConfiguratorCommands.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "ClusterConfiguration/SDisplayClusterConfiguratorNewClusterItemDialog.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Views/TreeViews/Cluster/DisplayClusterConfiguratorViewClusterBuilder.h"
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeViewCommands.h"
 #include "Views/TreeViews/SDisplayClusterConfiguratorViewTree.h"

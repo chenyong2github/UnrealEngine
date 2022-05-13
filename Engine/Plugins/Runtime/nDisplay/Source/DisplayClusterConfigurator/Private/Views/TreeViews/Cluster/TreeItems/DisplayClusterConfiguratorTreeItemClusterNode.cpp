@@ -13,7 +13,7 @@
 #include "Views/DragDrop/DisplayClusterConfiguratorViewportDragDropOp.h"
 #include "Views/TreeViews/Cluster/DisplayClusterConfiguratorViewCluster.h"
 #include "Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemViewport.h"
-#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"

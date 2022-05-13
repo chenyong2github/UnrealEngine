@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+#include "Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 
 class UDisplayClusterConfiguratorHostNode;
 

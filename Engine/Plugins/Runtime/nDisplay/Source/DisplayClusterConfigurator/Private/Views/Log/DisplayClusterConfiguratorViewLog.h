@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/Views/Log/IDisplayClusterConfiguratorViewLog.h"
+#include "Views/Log/IDisplayClusterConfiguratorViewLog.h"
 
 class SDisplayClusterConfiguratorViewLog;
 class FDisplayClusterConfiguratorBlueprintEditor;
