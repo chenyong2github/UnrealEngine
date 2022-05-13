@@ -581,6 +581,7 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 
 			InEngineShowFlags.SetLumenReflections(0);
 			InEngineShowFlags.SetLumenGlobalIllumination(0);
+			InEngineShowFlags.SetGlobalIllumination(0);
 
 			break;
 
