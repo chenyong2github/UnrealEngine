@@ -770,6 +770,7 @@ void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) co
 
 ULandscapeInfo::ULandscapeInfo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, XYComponentBounds(MAX_int32, MAX_int32, MIN_int32, MIN_int32)
 {
 }
 
@@ -3684,6 +3685,8 @@ void ULandscapeInfo::RegisterActorComponent(ULandscapeComponent* Component, bool
 		}
 	}
 #endif
+
+	XYComponentBounds.Include(ComponentKey);
 }
 
 void ULandscapeInfo::UnregisterActorComponent(ULandscapeComponent* Component)
@@ -3700,6 +3703,14 @@ void ULandscapeInfo::UnregisterActorComponent(ULandscapeComponent* Component)
 
 		SelectedComponents.Remove(Component);
 		SelectedRegionComponents.Remove(Component);
+
+		// When removing a key, we need to iterate to find the new bounds
+		XYComponentBounds = FIntRect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
+
+		for (const auto& XYComponentPair : XYtoComponentMap)
+		{
+			XYComponentBounds.Include(XYComponentPair.Key);
+		}
 	}
 }
 

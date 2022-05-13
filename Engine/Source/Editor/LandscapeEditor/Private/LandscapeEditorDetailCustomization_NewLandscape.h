@@ -57,6 +57,10 @@ public:
 
 	FText GetTotalComponentCount() const;
 
+	bool IsCreateButtonEnabled() const;
+	EVisibility GetNewLandscapeErrorVisibility() const;
+	FText GetNewLandscapeErrorText() const;
+	
 	FReply OnCreateButtonClicked();
 	FReply OnFillWorldButtonClicked();
 

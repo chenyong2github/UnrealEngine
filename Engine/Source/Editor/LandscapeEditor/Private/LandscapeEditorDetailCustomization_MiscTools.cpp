@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SlateOptMacros.h"
+#include "SWarningOrErrorBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -225,6 +226,16 @@ void FLandscapeEditorDetailCustomization_MiscTools::CustomizeDetails(IDetailLayo
 			]
 		];
 	}
+
+	if (IsToolActive("AddComponent"))
+	{
+		ToolsCategory.AddCustomRow(FText::GetEmpty())
+		[
+			SNew(SWarningOrErrorBox)
+			.Message(this, &FLandscapeEditorDetailCustomization_MiscTools::GetMiscLandscapeErrorText)
+		]
+		.Visibility(TAttribute<EVisibility>(this, &FLandscapeEditorDetailCustomization_MiscTools::GetMiscLandscapeErrorVisibility));
+	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -419,6 +430,30 @@ TOptional<float> FLandscapeEditorDetailCustomization_MiscTools::GetFlattenValue(
 	}
 
 	return 0.0f;
+}
+
+EVisibility FLandscapeEditorDetailCustomization_MiscTools::GetMiscLandscapeErrorVisibility() const
+{
+	FEdModeLandscape* EdMode = GetEditorMode();
+	
+	if (EdMode != nullptr)
+	{
+		return EdMode->IsLandscapeResolutionCompliant() ? EVisibility::Hidden : EVisibility::Visible;
+	}
+	
+	return EVisibility::Hidden;
+}
+
+FText FLandscapeEditorDetailCustomization_MiscTools::GetMiscLandscapeErrorText() const
+{
+	FEdModeLandscape* EdMode = GetEditorMode();
+
+	if (EdMode != nullptr)
+	{
+		return EdMode->GetLandscapeResolutionErrorText();
+	}
+
+	return FText::GetEmpty();
 }
 
 void FLandscapeEditorDetailCustomization_MiscTools::OnBeginFlattenToolEyeDrop()

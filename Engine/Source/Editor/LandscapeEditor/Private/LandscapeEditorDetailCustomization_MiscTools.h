@@ -53,4 +53,7 @@ protected:
 	void OnCompletedFlattenToolEyeDrop(bool Canceled);
 	TOptional<float> GetFlattenValue() const;
 
+	// Common Error handling
+	EVisibility GetMiscLandscapeErrorVisibility() const;
+	FText GetMiscLandscapeErrorText() const;
 };

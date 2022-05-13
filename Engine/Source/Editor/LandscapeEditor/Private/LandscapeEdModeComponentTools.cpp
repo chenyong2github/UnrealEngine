@@ -783,6 +783,7 @@ class FLandscapeToolAddComponent : public FLandscapeToolBase<FLandscapeToolStrok
 public:
 	FLandscapeToolAddComponent(FEdModeLandscape* InEdMode)
 		: FLandscapeToolBase<FLandscapeToolStrokeAddComponent>(InEdMode)
+		, bIsToolActionResolutionCompliant(true)
 	{
 	}
 	virtual bool ShouldUpdateEditingLayer() const override { return false; }
@@ -793,6 +794,21 @@ public:
 
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }
+
+	virtual bool CanToolBeActivated() const override
+	{ 
+		return FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::CanToolBeActivated() && bIsToolActionResolutionCompliant;
+	}
+
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
+	{
+		if (EdMode != nullptr)
+		{
+			bIsToolActionResolutionCompliant = EdMode->IsLandscapeResolutionCompliant();
+		}
+
+		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::Tick(ViewportClient, DeltaTime);
+	}
 	
 	virtual void EnterTool() override
 	{
@@ -815,13 +831,15 @@ public:
 	{
 		if (AddCollision.IsSet())
 		{
-			PDI->DrawLine(AddCollision->Corners[0], AddCollision->Corners[3], FColor(0, 255, 128), SDPG_Foreground);
-			PDI->DrawLine(AddCollision->Corners[3], AddCollision->Corners[1], FColor(0, 255, 128), SDPG_Foreground);
-			PDI->DrawLine(AddCollision->Corners[1], AddCollision->Corners[0], FColor(0, 255, 128), SDPG_Foreground);
+			const FColor LineColor = CanToolBeActivated() ? FColor(0, 255, 128) : FColor(255, 0, 64);
 
-			PDI->DrawLine(AddCollision->Corners[0], AddCollision->Corners[2], FColor(0, 255, 128), SDPG_Foreground);
-			PDI->DrawLine(AddCollision->Corners[2], AddCollision->Corners[3], FColor(0, 255, 128), SDPG_Foreground);
-			PDI->DrawLine(AddCollision->Corners[3], AddCollision->Corners[0], FColor(0, 255, 128), SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[0], AddCollision->Corners[3], LineColor, SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[3], AddCollision->Corners[1], LineColor, SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[1], AddCollision->Corners[0], LineColor, SDPG_Foreground);
+
+			PDI->DrawLine(AddCollision->Corners[0], AddCollision->Corners[2], LineColor, SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[2], AddCollision->Corners[3], LineColor, SDPG_Foreground);
+			PDI->DrawLine(AddCollision->Corners[3], AddCollision->Corners[0], LineColor, SDPG_Foreground);
 		}
 	}
 
@@ -865,6 +883,44 @@ public:
 		return false;
 	}
 
+	virtual int32 GetToolActionResolutionDelta() const override
+	{
+		int32 ResolutionDelta = 0;
+
+		if (EdMode == nullptr)
+		{
+			return 0;
+		}
+
+		const FLandscapeToolTarget& ToolTarget = EdMode->CurrentToolTarget;
+		FLandscapeBrush* CurrentBrush = EdMode->CurrentBrush;
+		TOptional<FVector2D> LastMousePosition = CurrentBrush->GetLastMousePosition();
+		FIntRect LandscapeIndices;
+
+		if (ToolTarget.LandscapeInfo.IsValid() && LastMousePosition.IsSet() && ToolTarget.LandscapeInfo->GetLandscapeXYComponentBounds(LandscapeIndices))
+		{
+			const int32 BrushSize = FMath::Max(EdMode->UISettings->BrushComponentSize, 0);
+			const int32 ComponentSizeQuads = ToolTarget.LandscapeInfo->ComponentSizeQuads;
+			const float BrushOriginX = LastMousePosition.GetValue().X / ComponentSizeQuads - (BrushSize - 1) / 2.0f;
+			const float BrushOriginY = LastMousePosition.GetValue().Y / ComponentSizeQuads - (BrushSize - 1) / 2.0f;
+			const int32 ComponentIndexX = FMath::FloorToInt(BrushOriginX);
+			const int32 ComponentIndexY = FMath::FloorToInt(BrushOriginY);
+			FIntPoint CurrentResolution = ToolTarget.LandscapeInfo->GetLandscapeProxy()->GetBoundingRect().Size() + 1;
+
+			if ((ComponentIndexX < LandscapeIndices.Min.X) || (ComponentIndexX > LandscapeIndices.Max.X))
+			{
+				ResolutionDelta += CurrentResolution.Y * BrushSize * ComponentSizeQuads;
+			}
+
+			if ((ComponentIndexY < LandscapeIndices.Min.Y) || (ComponentIndexY > LandscapeIndices.Max.Y))
+			{
+				ResolutionDelta += CurrentResolution.X * BrushSize * ComponentSizeQuads;
+			}
+		}
+
+		return ResolutionDelta;
+	}
+
 private:
 	bool RayIntersectTriangle(const FVector& Start, const FVector& End, const FVector& A, const FVector& B, const FVector& C, FVector& IntersectPoint)
 	{
@@ -887,6 +943,7 @@ private:
 	}
 
 	TOptional<FLandscapeAddCollision> AddCollision;
+	bool bIsToolActionResolutionCompliant;
 };
 
 //
@@ -2226,6 +2283,22 @@ public:
 			}
 		}
 	}
+
+	virtual int32 GetToolActionResolutionDelta() const override
+	{
+		if (EdMode != nullptr)
+		{
+			int32 NewLandscapeResolutionX = EdMode->GetNewLandscapeResolutionX();
+			int32 NewLandscapeResolutionY = EdMode->GetNewLandscapeResolutionY();
+
+			NewLandscapeResolutionX = (NewLandscapeResolutionX > 0) ? NewLandscapeResolutionX : 1;
+			NewLandscapeResolutionY = (NewLandscapeResolutionY > 0) ? NewLandscapeResolutionY : 1;
+
+			return NewLandscapeResolutionX * NewLandscapeResolutionY;
+		}
+
+		return 0;
+	}
 };
 
 
@@ -2531,6 +2604,22 @@ public:
 				PDI->DrawLine(GizmoTransform.TransformPosition(FVector(0, ImportHeight, 0)), GizmoTransform.TransformPosition(FVector(ImportWidth, ImportHeight, 0)), EdgeColor, SDPG_Foreground);
 			}
 		}
+	}
+
+	virtual int32 GetToolActionResolutionDelta() const override
+	{
+		if (EdMode != nullptr)
+		{
+			int32 ImportWidth = EdMode->UISettings->ImportLandscape_Width;
+			int32 ImportHeight = EdMode->UISettings->ImportLandscape_Height;
+
+			ImportWidth = (ImportWidth > 0) ? ImportWidth : 1;
+			ImportHeight = (ImportHeight > 0) ? ImportHeight : 1;
+
+			return ImportWidth * ImportHeight;
+		}
+
+		return 0;
 	}
 };
 

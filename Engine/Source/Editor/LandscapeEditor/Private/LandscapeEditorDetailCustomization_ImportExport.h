@@ -48,6 +48,9 @@ private:
 	static FReply OnImportExportButtonClicked();
 	static bool GetImportExportButtonIsEnabled();
 
+	EVisibility GetImportExportLandscapeErrorVisibility() const;
+	FText GetImportExportLandscapeErrorText() const;
+
 	static TSharedRef<SWidget> GetImportLandscapeResolutionMenu();
 	static void OnChangeImportLandscapeResolution(int32 DescriptorIndex);
 	static FText GetImportLandscapeResolution();

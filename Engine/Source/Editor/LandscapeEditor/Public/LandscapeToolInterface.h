@@ -99,6 +99,7 @@ class FLandscapeBrush : public FGCObject
 {
 public:
 	virtual void MouseMove(float LandscapeX, float LandscapeY) = 0;
+	virtual TOptional<FVector2D> GetLastMousePosition() const { return TOptional<FVector2D>(); }
 	virtual FLandscapeBrushData ApplyBrush(const TArray<FLandscapeToolInteractorPosition>& InteractorPositions) = 0;
 	virtual TOptional<bool> InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent) { return TOptional<bool>(); }
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) {};
@@ -235,7 +236,7 @@ public:
 
 	virtual void SetCanToolBeActivated(bool Value) { }
 	virtual bool CanToolBeActivated() const { return true;  }
-
+	
 	virtual EEditAction::Type GetActionEditDuplicate() { return EEditAction::Skip; }
 	virtual EEditAction::Type GetActionEditDelete() { return EEditAction::Skip; }
 	virtual EEditAction::Type GetActionEditCut() { return EEditAction::Skip; }
@@ -246,6 +247,9 @@ public:
 	virtual bool ProcessEditCut() { return false; }
 	virtual bool ProcessEditCopy() { return false; }
 	virtual bool ProcessEditPaste() { return false; }
+
+	/** Returns the resolution difference when the Tool action is applied. */
+	virtual int32 GetToolActionResolutionDelta() const { return 0; }
 
 	// Functions which doesn't need Viewport data...
 	virtual void Process(int32 Index, int32 Arg) {}

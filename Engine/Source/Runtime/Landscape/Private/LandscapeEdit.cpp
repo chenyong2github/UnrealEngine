@@ -3660,6 +3660,14 @@ bool ULandscapeInfo::GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, i
 	return (MinX != MAX_int32);
 }
 
+LANDSCAPE_API bool ULandscapeInfo::GetLandscapeXYComponentBounds(FIntRect& OutXYComponentBounds) const
+{
+	OutXYComponentBounds = XYComponentBounds;
+
+	return (OutXYComponentBounds.Min.X != MIN_int32) && (OutXYComponentBounds.Min.Y != MIN_int32)
+		&& (OutXYComponentBounds.Max.X != MAX_int32) && (OutXYComponentBounds.Max.Y != MAX_int32);
+}
+
 LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(ULandscapeComponent*)> Fn) const
 {
 	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)

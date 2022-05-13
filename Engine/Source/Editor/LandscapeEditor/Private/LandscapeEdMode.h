@@ -610,6 +610,18 @@ public:
 	}
 
 	void SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo);
+
+	/** Returns the sum of all landscape actors resolution. */
+	int32 GetAccumulatedAllLandscapesResolution() const;
+
+	/** Returns true if landscape resolution combined to the current tool action is still compliant to the currently applied limitations. */
+	bool IsLandscapeResolutionCompliant() const;
+
+	/** Returns the default Error Text when modifying or creating landscape would break the resolution limit. */
+	FText GetLandscapeResolutionErrorText() const;
+
+	int32 GetNewLandscapeResolutionX() const;
+	int32 GetNewLandscapeResolutionY() const;
 	
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;

@@ -481,6 +481,11 @@ public:
 		LastMousePosition = FVector2D(LandscapeX, LandscapeY);
 	}
 
+	virtual TOptional<FVector2D> GetLastMousePosition() const override
+	{ 
+		return LastMousePosition;
+	}
+
 	virtual FLandscapeBrushData ApplyBrush(const TArray<FLandscapeToolInteractorPosition>& InteractorPositions) override
 	{
 		// Selection Brush only works for 

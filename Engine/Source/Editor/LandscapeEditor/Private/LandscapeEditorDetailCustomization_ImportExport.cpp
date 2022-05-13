@@ -6,6 +6,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "SWarningOrErrorBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
@@ -219,6 +220,13 @@ void FLandscapeEditorDetailCustomization_ImportExport::CustomizeDetails(IDetailL
 			.IsEnabled_Static(&GetImportExportButtonIsEnabled)
 		]
 	];
+
+	ImportExportCategory.AddCustomRow(FText::GetEmpty())
+	[
+		SNew(SWarningOrErrorBox)
+		.Message(this, &FLandscapeEditorDetailCustomization_ImportExport::GetImportExportLandscapeErrorText)
+	]
+	.Visibility(TAttribute<EVisibility>(this, &FLandscapeEditorDetailCustomization_ImportExport::GetImportExportLandscapeErrorVisibility));
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -579,7 +587,31 @@ bool FLandscapeEditorDetailCustomization_ImportExport::GetImportExportButtonIsEn
 		}
 	}
 
-	return bHasOneSelection;
+	return bHasOneSelection && LandscapeEdMode->IsLandscapeResolutionCompliant();
+}
+
+EVisibility FLandscapeEditorDetailCustomization_ImportExport::GetImportExportLandscapeErrorVisibility() const
+{
+	FEdModeLandscape* EdMode = GetEditorMode();
+	
+	if (EdMode != nullptr)
+	{
+		return EdMode->IsLandscapeResolutionCompliant() ? EVisibility::Hidden : EVisibility::Visible;
+	}
+
+	return EVisibility::Hidden;
+}
+
+FText FLandscapeEditorDetailCustomization_ImportExport::GetImportExportLandscapeErrorText() const
+{
+	FEdModeLandscape* EdMode = GetEditorMode();
+
+	if (EdMode != nullptr)
+	{
+		return EdMode->GetLandscapeResolutionErrorText();
+	}
+
+	return FText::GetEmpty();
 }
 
 TSharedRef<SWidget> FLandscapeEditorDetailCustomization_ImportExport::GetImportLandscapeResolutionMenu()

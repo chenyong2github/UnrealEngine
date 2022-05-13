@@ -17,6 +17,7 @@
 #include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "SWarningOrErrorBox.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
 #include "Landscape.h"
@@ -562,6 +563,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			.Text(LOCTEXT("Create", "Create"))
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("CreateButton"), TEXT("LevelEditorToolBox")))
 			.OnClicked(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked)
+			.IsEnabled(this, &FLandscapeEditorDetailCustomization_NewLandscape::IsCreateButtonEnabled)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(4, 0)
@@ -574,6 +576,14 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			.IsEnabled(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled)
 		]
 	];
+
+	NewLandscapeCategory.AddCustomRow(FText::GetEmpty())
+	.WholeRowContent()
+	[
+		SNew(SWarningOrErrorBox)
+		.Message(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetNewLandscapeErrorText)
+	]
+	.Visibility(TAttribute<EVisibility>(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetNewLandscapeErrorVisibility));
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -692,7 +702,7 @@ TOptional<int32> FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeR
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
-		return (LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X * LandscapeEdMode->UISettings->NewLandscape_SectionsPerComponent * LandscapeEdMode->UISettings->NewLandscape_QuadsPerSection + 1);
+		return LandscapeEdMode->GetNewLandscapeResolutionX();
 	}
 
 	return 0;
@@ -721,7 +731,7 @@ TOptional<int32> FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeR
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
-		return (LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y * LandscapeEdMode->UISettings->NewLandscape_SectionsPerComponent * LandscapeEdMode->UISettings->NewLandscape_QuadsPerSection + 1);
+		return LandscapeEdMode->GetNewLandscapeResolutionY();
 	}
 
 	return 0;
@@ -796,6 +806,34 @@ EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetVisibilityOnlyI
 	return EVisibility::Collapsed;
 }
 
+bool FLandscapeEditorDetailCustomization_NewLandscape::IsCreateButtonEnabled() const
+{
+	const FEdModeLandscape* EdMode = GetEditorMode();
+	
+	if (EdMode != nullptr)
+	{
+		return EdMode->IsLandscapeResolutionCompliant();
+	}
+
+	return true;
+}
+
+EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetNewLandscapeErrorVisibility() const
+{
+	return IsCreateButtonEnabled() ? EVisibility::Hidden : EVisibility::Visible;
+}
+
+FText FLandscapeEditorDetailCustomization_NewLandscape::GetNewLandscapeErrorText() const
+{
+	const FEdModeLandscape* EdMode = GetEditorMode();
+
+	if (EdMode != nullptr)
+	{
+		return EdMode->GetLandscapeResolutionErrorText();
+	}
+
+	return FText::GetEmpty();
+}
 
 FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 {
@@ -960,7 +998,7 @@ bool FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled(
 			}
 		}
 
-		return true;
+		return IsCreateButtonEnabled();
 	}
 	
 	return false;

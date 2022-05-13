@@ -2,6 +2,7 @@
 
 #include "LandscapeEdMode.h"
 
+#include "Algo/Accumulate.h"
 #include "SceneView.h"
 #include "Engine/Texture2D.h"
 #include "EditorViewportClient.h"
@@ -16,6 +17,7 @@
 #include "Landscape.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeSubsystem.h"
+#include "LandscapeSettings.h"
 
 #include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
@@ -358,6 +360,53 @@ void FEdModeLandscape::SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo)
 		}
 		RefreshDetailPanel();
 	}
+}
+
+int32 FEdModeLandscape::GetAccumulatedAllLandscapesResolution() const
+{
+	int32 TotalResolution = 0;
+
+	TotalResolution = Algo::Accumulate(LandscapeList, TotalResolution, [](int32 Accum, const FLandscapeListInfo& LandscapeListInfo)
+	{
+		return Accum + ((LandscapeListInfo.Width > 0) ? LandscapeListInfo.Width : 1)
+					 * ((LandscapeListInfo.Height > 0) ? LandscapeListInfo.Height : 1);
+	});
+
+	return TotalResolution;
+}
+
+bool FEdModeLandscape::IsLandscapeResolutionCompliant() const
+{
+	const TObjectPtr<const ULandscapeSettings> Settings = GetDefault<ULandscapeSettings>();
+	check(!Settings.IsNull());
+
+	if (Settings->IsLandscapeResolutionRestricted())
+	{
+		int32 TotalResolution = (CurrentTool != nullptr) ? CurrentTool->GetToolActionResolutionDelta() : 0;
+		TotalResolution += GetAccumulatedAllLandscapesResolution();
+		
+		return TotalResolution <= Settings->GetTotalResolutionLimit();
+	}
+
+	return true;
+}
+
+FText FEdModeLandscape::GetLandscapeResolutionErrorText() const
+{
+	const TObjectPtr<const ULandscapeSettings> Settings = GetDefault<ULandscapeSettings>();
+	check(!Settings.IsNull());
+
+	return FText::Format(LOCTEXT("LandscapeResolutionError", "Total resolution for all Landscape actors cannot exceed the equivalent of {0} x {0}."), Settings->GetSideResolutionLimit());
+}
+
+int32 FEdModeLandscape::GetNewLandscapeResolutionX() const
+{
+	return UISettings->NewLandscape_ComponentCount.X * UISettings->NewLandscape_SectionsPerComponent * UISettings->NewLandscape_QuadsPerSection + 1;
+}
+
+int32 FEdModeLandscape::GetNewLandscapeResolutionY() const
+{
+	return UISettings->NewLandscape_ComponentCount.Y * UISettings->NewLandscape_SectionsPerComponent * UISettings->NewLandscape_QuadsPerSection + 1;
 }
 
 /** FEdMode: Called when the mode is entered */
