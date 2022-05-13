@@ -3501,7 +3501,10 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	{
 		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(CreatedNode))
 		{
-			EditGuards.Emplace(LibraryNode->GetContainedGraph()->bEditable, true);
+			if (URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
+			{
+				EditGuards.Emplace(ContainedGraph->bEditable, true);
+			}
 		}
 	}
 
