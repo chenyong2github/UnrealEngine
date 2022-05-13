@@ -112,7 +112,6 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 		return;
 	}
 	UInterchangePipelineBase* Pipeline = AsyncHelper->Pipelines[PipelineIndex];
-	Pipeline->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
 
 	//Call the pipeline outside of the lock, we do this in case the pipeline take a long time. We call it for each asset created by this import
 	for (int32 ObjectIndex = 0; ObjectIndex < ImportedObjects.Num(); ++ObjectIndex)
