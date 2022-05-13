@@ -569,16 +569,6 @@ void AddPostProcessingPasses(
 		FVelocityFlattenTextures VelocityFlattenTextures;
 		if (TAAConfig != EMainTAAPassConfig::Disabled)
 		{
-			// Whether we allow the temporal AA pass to downsample scene color. It may choose not to based on internal context,
-			// in which case the output half resolution texture will remain null.
-			const bool bAllowSceneDownsample =
-				IsTemporalAASceneDownsampleAllowed(View) &&
-				// We can only merge if the normal downsample pass would happen immediately after.
-				bNeedPostMotionBlurHalfRes &&
-				!bMotionBlurEnabled && !bVisualizeMotionBlur &&
-				// TemporalAA is only able to match the low quality mode (box filter).
-				DownsampleQuality == EDownsampleQuality::Low;
-
 			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
 			check(UpscalerToUse);
 			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
@@ -594,10 +584,24 @@ void AddPostProcessingPasses(
 				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
 
 			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
-
-			UpscalerPassInputs.bAllowDownsampleSceneColor = bAllowSceneDownsample;
-			UpscalerPassInputs.bGenerateOutputMip1 = bMotionBlurNeedsHalfResInput;
-			UpscalerPassInputs.bGenerateVelocityFlattenTextures = PassSequence.IsEnabled(EPass::MotionBlur) && FVelocityFlattenTextures::AllowExternal(View) && !bVisualizeMotionBlur;
+			if (PassSequence.IsEnabled(EPass::MotionBlur))
+			{
+				if (bVisualizeMotionBlur)
+				{
+					// NOP
+				}
+				else
+				{
+					UpscalerPassInputs.bGenerateOutputMip1 = bMotionBlurNeedsHalfResInput;
+					UpscalerPassInputs.bGenerateVelocityFlattenTextures = FVelocityFlattenTextures::AllowExternal(View) && !bVisualizeMotionBlur;
+				}
+			}
+			else
+			{
+				UpscalerPassInputs.bAllowDownsampleSceneColor =
+					(bNeedPostMotionBlurHalfRes || bNeedPostMotionBlurQuarterRes) &&
+					DownsampleQuality == EDownsampleQuality::Low;;
+			}
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;

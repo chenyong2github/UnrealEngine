@@ -47,8 +47,6 @@ enum class ETAAPassConfig
 	MAX
 };
 
-bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View);
-
 static FORCEINLINE bool IsTAAUpsamplingConfig(ETAAPassConfig Pass)
 {
 	return Pass == ETAAPassConfig::MainUpsampling || Pass == ETAAPassConfig::DiaphragmDOFUpsampling || Pass == ETAAPassConfig::MainSuperSampling;

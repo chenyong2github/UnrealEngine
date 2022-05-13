@@ -55,12 +55,6 @@ TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
 	TEXT("Size of temporal AA's history."),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTemporalAAAllowDownsampling(
-	TEXT("r.TemporalAA.AllowDownsampling"),
-	1,
-	TEXT("Allows half-resolution color buffer to be produced during TAA. Only possible when motion blur is off and when using compute shaders for post processing."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarUseTemporalAAUpscaler(
 	TEXT("r.TemporalAA.Upscaler"),
 	1,
@@ -370,11 +364,6 @@ static_assert(UE_ARRAY_COUNT(kTAAOutputNames) == int32(ETAAPassConfig::MAX), "Mi
 static_assert(UE_ARRAY_COUNT(kTAAPassNames) == int32(ETAAPassConfig::MAX), "Missing TAA pass name.");
 static_assert(UE_ARRAY_COUNT(kTAAQualityNames) == int32(ETAAQuality::MAX), "Missing TAA quality name.");
 } //! namespace
-
-bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View)
-{
-	return CVarTemporalAAAllowDownsampling.GetValueOnRenderThread() != 0;
-}
 
 FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat)
 {
