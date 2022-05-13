@@ -47,6 +47,10 @@ DEFINE_LOG_CATEGORY(LogFbx);
 namespace UnFbx
 {
 
+static bool GDisableAutomaticPhysicsAssetCreation = false;
+static FAutoConsoleVariableRef DisableAutomaticPhysicsAssetCreationCVar(TEXT("FbxImport.DisableAutomaticPhysicsAssetCreation"),
+	GDisableAutomaticPhysicsAssetCreation, TEXT("Prevents physics assets from being created automatically by FBX import (False: disabled, True: enabled"));
+
 TSharedPtr<FFbxImporter> FFbxImporter::StaticInstance;
 
 TSharedPtr<FFbxImporter> FFbxImporter::StaticPreviewInstance;
@@ -123,6 +127,11 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 		else
 		{
 			ImportUI->PhysicsAsset = NULL;
+		}
+
+		if (GDisableAutomaticPhysicsAssetCreation)
+		{
+			ImportUI->bCreatePhysicsAsset = false;
 		}
 
 		if(bForceImportType)
