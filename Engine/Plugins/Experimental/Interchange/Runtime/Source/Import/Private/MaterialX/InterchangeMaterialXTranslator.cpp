@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved. 
+
 #include "MaterialX/InterchangeMaterialXTranslator.h"
 #if WITH_EDITOR
 #include "MaterialXFormat/Util.h"
