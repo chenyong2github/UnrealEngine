@@ -65,8 +65,7 @@
 
 FLWCVector3 TransformLocalToWorld(float3 LocalPosition, FLWCMatrix LocalToWorld)
 {
-	//invariant code!
-	return LWCInvariantMultiply(LocalPosition, LocalToWorld);
+	return LWCMultiply(LocalPosition, LocalToWorld);
 }
 
 FLWCVector3 TransformLocalToWorld(float3 LocalPosition)

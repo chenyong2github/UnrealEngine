@@ -621,23 +621,6 @@ uint3 Mod(uint3 a, uint3 b)
 #endif
 }
 
-MaterialFloat UnClampedPow(MaterialFloat X, MaterialFloat Y)
-{
-	return pow(X, INVARIANT(Y));
-}
-MaterialFloat2 UnClampedPow(MaterialFloat2 X, MaterialFloat2 Y)
-{
-	return pow(X, INVARIANT(Y));
-}
-MaterialFloat3 UnClampedPow(MaterialFloat3 X, MaterialFloat3 Y)
-{
-	return pow(X, INVARIANT(Y));
-}
-MaterialFloat4 UnClampedPow(MaterialFloat4 X, MaterialFloat4 Y)
-{
-	return pow(X, INVARIANT(Y));
-}
-
 #define POW_CLAMP 0.000001f
 
 // Clamp the base, so it's never <= 0.0f (INF/NaN).

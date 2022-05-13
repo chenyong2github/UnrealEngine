@@ -253,13 +253,6 @@ FLWCVector3 LWCMultiply(float3 Position, FLWCMatrix InMatrix)
 	return MakeLWCVector3(LWCGetTile(InMatrix), Offset);
 }
 
-FLWCVector3 LWCInvariantMultiply(float3 Position, FLWCMatrix InMatrix)
-{
-	// Explicit operations rather than mul() avoids z-fighting between depth/base passes
-	float3 Offset = INVARIANT((Position.xxx * InMatrix.M[0].xyz + Position.yyy * InMatrix.M[1].xyz + Position.zzz * InMatrix.M[2].xyz) + InMatrix.M[3].xyz);
-	return MakeLWCVector3(LWCGetTile(InMatrix), Offset);
-}
-
 FLWCVector4 LWCMultiply(float4 Position, FLWCMatrix InMatrix)
 {
 	float4 Offset = mul(Position, InMatrix.M);

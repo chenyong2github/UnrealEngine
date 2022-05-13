@@ -776,7 +776,7 @@ float4 CalcWorldPosition(float4 Position, FLWCMatrix LocalToWorld)
 	// Transform from mesh to world space
 	return TransformLocalToTranslatedWorld(LocalPos.xyz);
 	*/
-	return INVARIANT(TransformLocalToTranslatedWorld(float3(mul(Position, CalcSliceTransform(dot(Position.xyz, SplineMeshDir))).xyz), LocalToWorld));
+	return TransformLocalToTranslatedWorld(float3(mul(Position, CalcSliceTransform(dot(Position.xyz, SplineMeshDir))).xyz), LocalToWorld);
 #else
 	return TransformLocalToTranslatedWorld(Position.xyz, LocalToWorld);
 #endif
