@@ -24,7 +24,7 @@ public:
  * Migrate the frame times of the movie scene from the source frame rate to the destination frame rate
  */
 
-static void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovieScene* MovieScene);
+static void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovieScene* MovieScene, bool bApplyRecursively = false);
 
 };
 
