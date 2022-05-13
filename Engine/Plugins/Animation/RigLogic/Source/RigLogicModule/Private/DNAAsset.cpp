@@ -7,11 +7,11 @@
 #include "DNAAssetCustomVersion.h"
 #include "DNAReaderAdapter.h"
 #include "FMemoryResource.h"
-#include "Hasher.h"
 #include "RigLogicMemoryStream.h"
+#include "SharedRigRuntimeContext.h"
 
 #if WITH_EDITORONLY_DATA
-#include "EditorFramework/AssetImportData.h"
+    #include "EditorFramework/AssetImportData.h"
 #endif
 #include "Engine/AssetUserData.h"
 #include "Serialization/BufferArchive.h"
@@ -19,6 +19,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "UObject/UObjectGlobals.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #include "riglogic/RigLogic.h"
 
@@ -26,7 +27,7 @@ DEFINE_LOG_CATEGORY(LogDNAAsset);
 
 static constexpr uint32 AVG_EMPTY_SIZE = 4 * 1024;
 static constexpr uint32 AVG_BEHAVIOR_SIZE = 5 * 1024 * 1024;
-static constexpr uint32 AVG_GEOMETRY_SIZE = 150 * 1024 * 1024;
+static constexpr uint32 AVG_GEOMETRY_SIZE = 50 * 1024 * 1024;
 
 static TSharedPtr<IDNAReader> ReadDNAFromStream(rl4::BoundedIOStream* Stream, EDNADataLayer Layer, uint16 MaxLOD)
 {
@@ -80,74 +81,120 @@ static TSharedPtr<IDNAReader> CreateEmptyDNA(uint32 PredictedSize)
 	return ReadDNAFromBuffer(&MemoryBuffer, EDNADataLayer::All);
 }
 
-static void InvalidateSharedRigRuntimeContext(FSharedRigRuntimeContext& Context)
+UDNAAsset::UDNAAsset() : RigRuntimeContext{nullptr}
 {
-	Context.RigLogic = nullptr;
-	Context.VariableJointIndices.Reset();
-	Context.DNAHash = 0u;
 }
 
-static uint32 HashDescriptor(const IDescriptorReader* Reader)
+UDNAAsset::~UDNAAsset() = default;
+
+TSharedPtr<IBehaviorReader> UDNAAsset::GetBehaviorReader()
 {
-	Hasher DescriptorHasher;
-	DescriptorHasher.Update(Reader->GetName());
-	DescriptorHasher.Update(Reader->GetArchetype());
-	DescriptorHasher.Update(Reader->GetGender());
-	DescriptorHasher.Update(Reader->GetAge());
-	DescriptorHasher.Update(Reader->GetMetaDataCount());
-	DescriptorHasher.Update(Reader->GetTranslationUnit());
-	DescriptorHasher.Update(Reader->GetRotationUnit());
-	DescriptorHasher.Update(Reader->GetCoordinateSystem());
-	DescriptorHasher.Update(Reader->GetLODCount());
-	DescriptorHasher.Update(Reader->GetDBMaxLOD());
-	DescriptorHasher.Update(Reader->GetDBComplexity());
-	DescriptorHasher.Update(Reader->GetDBName());
-	return DescriptorHasher.GetHash();
+	FScopeLock ScopeLock{&DNAUpdateSection};
+	return BehaviorReader;
 }
 
-UDNAAsset::UDNAAsset() :
-	Context{}
+#if WITH_EDITORONLY_DATA
+TSharedPtr<IGeometryReader> UDNAAsset::GetGeometryReader()
 {
+	FScopeLock ScopeLock{&DNAUpdateSection};
+	return GeometryReader;
+}
+#endif
+
+void UDNAAsset::SetBehaviorReader(TSharedPtr<IDNAReader> SourceDNAReader)
+{
+	FScopeLock ScopeLock{&DNAUpdateSection};
+	BehaviorReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior, AVG_BEHAVIOR_SIZE);
+	InvalidateRigRuntimeContext();
+}
+
+void UDNAAsset::SetGeometryReader(TSharedPtr<IDNAReader> SourceDNAReader)
+{
+#if WITH_EDITORONLY_DATA
+	FScopeLock ScopeLock{&DNAUpdateSection};
+	GeometryReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Geometry, AVG_GEOMETRY_SIZE);
+#endif // #if WITH_EDITORONLY_DATA
+}
+
+void UDNAAsset::InvalidateRigRuntimeContext()
+{
+	FWriteScopeLock ScopeLock{RigRuntimeContextUpdateLock};
+	RigRuntimeContext = nullptr;
+}
+
+TSharedPtr<FSharedRigRuntimeContext> UDNAAsset::GetRigRuntimeContext(EDNARetentionPolicy Policy)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
+	FRWScopeLock ContextScopeLock(RigRuntimeContextUpdateLock, SLT_ReadOnly);
+	if (!RigRuntimeContext.IsValid())
+	{
+		ContextScopeLock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+		if (!RigRuntimeContext.IsValid())
+		{
+			TSharedPtr<FSharedRigRuntimeContext> NewContext = MakeShared<FSharedRigRuntimeContext>();
+			FScopeLock DNAScopeLock{&DNAUpdateSection};
+			if (BehaviorReader.IsValid() && (BehaviorReader->GetJointCount() != 0))
+			{
+				NewContext->BehaviorReader = BehaviorReader;
+				NewContext->RigLogic = MakeShared<FRigLogic>(BehaviorReader.Get());
+				NewContext->CacheVariableJointIndices();
+				RigRuntimeContext = NewContext;
+#if !WITH_EDITOR
+				if (Policy == EDNARetentionPolicy::Unload)
+				{
+					BehaviorReader->Unload(EDNADataLayer::Behavior);
+					BehaviorReader->Unload(EDNADataLayer::Geometry);
+				}
+#endif  // !WITH_EDITOR
+			}
+		}
+	}
+	return RigRuntimeContext;
 }
 
 bool UDNAAsset::Init(const FString& DNAFilename)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
 	if (!rl4::Status::isOk())
 	{
 		UE_LOG(LogDNAAsset, Warning, TEXT("%s"), ANSI_TO_TCHAR(rl4::Status::get().message));
 	}
 
 	this->DNAFileName = DNAFilename; //memorize for re-import
-
+	
 	if (!FPaths::FileExists(DNAFilename))
 	{
 		UE_LOG(LogDNAAsset, Error, TEXT("DNA file %s doesn't exist!"), *DNAFilename);
 		return false;
 	}
-
+	
 	// Temporary buffer for the DNA file
 	TArray<uint8> TempFileBuffer;
-
+	
 	if (!FFileHelper::LoadFileToArray(TempFileBuffer, *DNAFilename)) //load entire DNA file into the array
 	{
 		UE_LOG(LogDNAAsset, Error, TEXT("Couldn't read DNA file %s!"), *DNAFilename);
 		return false;
 	}
+	
+	FScopeLock ScopeLock{&DNAUpdateSection};
 
 	// Load run-time data (behavior) from whole-DNA buffer into BehaviorReader
-	InvalidateSharedRigRuntimeContext(Context);
-	Context.BehaviorReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
-	if (!Context.BehaviorReader.IsValid())
+	BehaviorReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
+	if (!BehaviorReader.IsValid())
 	{
 		return false;
 	}
-	Context.DNAHash = HashDescriptor(Context.BehaviorReader.Get());
+
+	InvalidateRigRuntimeContext();
 
 #if WITH_EDITORONLY_DATA
 	//We use geometry part of the data in MHC only (for updating the SkeletalMesh with
 	//result of GeneSplicer), so we can drop geometry part when cooking for runtime
-	Context.GeometryReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
-	if (!Context.GeometryReader.IsValid())
+	GeometryReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
+	if (!GeometryReader.IsValid())
 	{
 		return false;
 	}
@@ -162,59 +209,45 @@ bool UDNAAsset::Init(const FString& DNAFilename)
 
 void UDNAAsset::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FDNAAssetCustomVersion::GUID);
 
+	FScopeLock ScopeLock{&DNAUpdateSection};
+
 	if (Ar.CustomVer(FDNAAssetCustomVersion::GUID) >= FDNAAssetCustomVersion::BeforeCustomVersionWasAdded)
 	{
-		LLM_SCOPE(ELLMTag::SkeletalMesh);
-
 		if (Ar.IsLoading())
 		{
-			InvalidateSharedRigRuntimeContext(Context);
-
-			FArchiveMemoryStream BehaviorStream{ &Ar };
-			Context.BehaviorReader = ReadDNAFromStream(&BehaviorStream, EDNADataLayer::Behavior, 0u); //0u = max LOD
-			Context.DNAHash = HashDescriptor(Context.BehaviorReader.Get());
-
+			FArchiveMemoryStream BehaviorStream{&Ar};
+			BehaviorReader = ReadDNAFromStream(&BehaviorStream, EDNADataLayer::Behavior, 0u); //0u = max LOD
 			// Geometry data is always present (even if only as an empty placeholder), just so the uasset
 			// format remains consistent between editor and non-editor builds
-			FArchiveMemoryStream GeometryStream{ &Ar };
+			FArchiveMemoryStream GeometryStream{&Ar};
 			auto Reader = ReadDNAFromStream(&GeometryStream, EDNADataLayer::Geometry, 0u); //0u = max LOD
 #if WITH_EDITORONLY_DATA
 			// Geometry data is discarded unless in Editor
-			Context.GeometryReader = Reader;
+			GeometryReader = Reader;
 #endif // #if WITH_EDITORONLY_DATA
+
+			InvalidateRigRuntimeContext();
 		}
 
 		if (Ar.IsSaving())
 		{
 			TSharedPtr<IDNAReader> EmptyDNA = CreateEmptyDNA(AVG_EMPTY_SIZE);
-			IDNAReader* BehaviorReaderPtr = (Context.BehaviorReader.IsValid() ? static_cast<IDNAReader*>(Context.BehaviorReader.Get()) : EmptyDNA.Get());
-			FArchiveMemoryStream BehaviorStream{ &Ar };
+			IDNAReader* BehaviorReaderPtr = (BehaviorReader.IsValid() ? static_cast<IDNAReader*>(BehaviorReader.Get()) : EmptyDNA.Get());
+			FArchiveMemoryStream BehaviorStream{&Ar};
 			WriteDNAToStream(BehaviorReaderPtr, EDNADataLayer::Behavior, &BehaviorStream);
 
 			// When cooking (or when there was no Geometry data available), an empty DNA structure is written
 			// into the stream, serving as a placeholder just so uasset files can be conveniently loaded
 			// regardless if they were cooked or prepared for in-editor work
-			IDNAReader* GeometryReaderPtr = (Context.GeometryReader.IsValid() && !Ar.IsCooking() ? static_cast<IDNAReader*>(Context.GeometryReader.Get()) : EmptyDNA.Get());
-			FArchiveMemoryStream GeometryStream{ &Ar };
+			IDNAReader* GeometryReaderPtr = (GeometryReader.IsValid() && !Ar.IsCooking() ? static_cast<IDNAReader*>(GeometryReader.Get()) : EmptyDNA.Get());
+			FArchiveMemoryStream GeometryStream{&Ar};
 			WriteDNAToStream(GeometryReaderPtr, EDNADataLayer::Geometry, &GeometryStream);
 		}
 	}
-}
-
-void UDNAAsset::SetBehaviorReader(TSharedPtr<IDNAReader> SourceDNAReader)
-{
-	InvalidateSharedRigRuntimeContext(Context);
-	Context.BehaviorReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior, AVG_BEHAVIOR_SIZE);
-	Context.DNAHash = HashDescriptor(Context.BehaviorReader.Get());
-}
-
-void UDNAAsset::SetGeometryReader(TSharedPtr<IDNAReader> SourceDNAReader)
-{
-#if WITH_EDITORONLY_DATA
-	Context.GeometryReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Geometry, AVG_GEOMETRY_SIZE);
-#endif // #if WITH_EDITORONLY_DATA
 }

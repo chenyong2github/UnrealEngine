@@ -49,7 +49,7 @@ RigInstance::~RigInstance() = default;
 
 RigInstanceImpl::RigInstanceImpl(const RigMetrics& metrics, MemoryResource* memRes_) :
     memRes{memRes_},
-    lodCount{metrics.lodCount},
+    lodMaxLevel{metrics.lodCount > 0u ? static_cast<std::uint16_t>(metrics.lodCount - 1) : static_cast<std::uint16_t>(0)},
     lodLevel{},
     guiControlCount{metrics.guiControlCount},
     rawControlCount{metrics.rawControlCount},
@@ -94,7 +94,7 @@ std::uint16_t RigInstanceImpl::getLOD() const {
 }
 
 void RigInstanceImpl::setLOD(std::uint16_t level) {
-    lodLevel = extd::clamp(level, static_cast<std::uint16_t>(0), lodCount);
+    lodLevel = extd::clamp(level, static_cast<std::uint16_t>(0), lodMaxLevel);
 }
 
 ArrayView<float> RigInstanceImpl::getGUIControlValues() {

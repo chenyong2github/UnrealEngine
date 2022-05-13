@@ -681,6 +681,7 @@ struct RawGeometry {
 };
 
 struct DNA {
+	MemoryResource* memRes;
     Signature<3> signature{{'D', 'N', 'A'}};
     Version version{2, 1};
     SectionLookupTable sections;
@@ -690,7 +691,8 @@ struct DNA {
     RawGeometry geometry;
     Signature<3> eof{{'A', 'N', 'D'}};
 
-    explicit DNA(MemoryResource* memRes) :
+    explicit DNA(MemoryResource* memRes_) :
+        memRes{memRes_},
         sections{},
         descriptor{sections.descriptor, memRes},
         definition{sections.definition, memRes},
@@ -716,6 +718,21 @@ struct DNA {
     void save(Archive& archive) {
         archive(signature, version, sections, descriptor, definition, behavior, geometry, eof);
     }
+
+	void unloadDefinition()
+	{
+		definition = RawDefinition{sections.definition, memRes};
+	}
+
+	void unloadBehavior()
+	{
+		behavior = RawBehavior{sections.behavior, sections.controls, sections.joints, sections.blendShapeChannels, sections.animatedMaps, memRes};
+	}
+
+	void unloadGeometry()
+	{
+		geometry = RawGeometry{sections.geometry, memRes};
+	}
 
 };
 

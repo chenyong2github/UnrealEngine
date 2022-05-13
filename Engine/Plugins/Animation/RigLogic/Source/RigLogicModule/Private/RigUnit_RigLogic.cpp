@@ -6,6 +6,7 @@
 #include "DNAReader.h"
 #include "RigInstance.h"
 #include "RigLogic.h"
+#include "SharedRigRuntimeContext.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Math/TransformNonVectorized.h"
 #include "Units/RigUnitContext.h"
@@ -39,25 +40,17 @@ static FString ConstructCurveName(const FString& NameToSplit, const FString& For
 	return CurveName;
 }
 
-FRigDefinitionMapping::FRigDefinitionMapping(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy) : FRigDefinitionMapping()
-{
-	MapInputCurveIndices(DNABehavior, InHierarchy);
-	MapJoints(DNABehavior, InHierarchy);
-	MapMaskMultipliers(DNABehavior, InHierarchy);
-	MapMorphTargets(DNABehavior, InHierarchy);
-}
-
 FRigUnit_RigLogic_Data::FRigUnit_RigLogic_Data()
-	: SkelMeshComponent(nullptr)
-	, SharedRigRuntimeContext(nullptr)
-	, RigInstance(nullptr)
-	, CurrentLOD(0)
+: SkelMeshComponent(nullptr)
+, LocalRigRuntimeContext(nullptr)
+, RigInstance(nullptr)
+, CurrentLOD(0)
 {
 }
 
 FRigUnit_RigLogic_Data::~FRigUnit_RigLogic_Data()
 {
-	SharedRigRuntimeContext = nullptr;
+	LocalRigRuntimeContext = nullptr;
 }
 
 FRigUnit_RigLogic_Data::FRigUnit_RigLogic_Data(const FRigUnit_RigLogic_Data& Other)
@@ -68,59 +61,58 @@ FRigUnit_RigLogic_Data::FRigUnit_RigLogic_Data(const FRigUnit_RigLogic_Data& Oth
 FRigUnit_RigLogic_Data& FRigUnit_RigLogic_Data::operator=(const FRigUnit_RigLogic_Data& Other)
 {
 	SkelMeshComponent = Other.SkelMeshComponent;
-	SharedRigRuntimeContext = nullptr;
+	LocalRigRuntimeContext = nullptr;
 	RigInstance = nullptr;
-	Mappings = Other.Mappings;
+	InputCurveIndices = Other.InputCurveIndices;
+	HierarchyBoneIndices = Other.HierarchyBoneIndices;
+	MorphTargetCurveIndices = Other.MorphTargetCurveIndices;
+	BlendShapeIndices = Other.BlendShapeIndices;
+	CurveElementIndicesForAnimMaps = Other.CurveElementIndicesForAnimMaps;
+	RigLogicIndicesForAnimMaps = Other.RigLogicIndicesForAnimMaps;
 	CurrentLOD = Other.CurrentLOD;
 	return *this;
 }
 
 bool FRigUnit_RigLogic_Data::IsRigLogicInitialized()
 {
-	return (SharedRigRuntimeContext != nullptr) && SharedRigRuntimeContext->RigLogic.IsValid() && RigInstance.IsValid();
+	return (LocalRigRuntimeContext != nullptr) && LocalRigRuntimeContext->RigLogic.IsValid() && RigInstance.IsValid();
 }
 
-TDiscardableKeyValueCache<uint32, TSharedPtr<const FRigDefinitionMapping>> FRigUnit_RigLogic_Data::RigDefintionMappingsCache{};
-
-void FRigUnit_RigLogic_Data::InitializeRigLogic(const URigHierarchy* InHierarchy)
+void FRigUnit_RigLogic_Data::InitializeRigLogic(const URigHierarchy* InHierarchy, TSharedPtr<FSharedRigRuntimeContext> NewContext)
 {
-	if ((SharedRigRuntimeContext == nullptr) || !SharedRigRuntimeContext->BehaviorReader.IsValid() || SharedRigRuntimeContext->BehaviorReader->GetJointCount() == 0u)
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_InitializeRigLogic);
+	if (!NewContext.IsValid())
 	{
 		UE_LOG(LogRigLogicUnit, Warning, TEXT("No valid DNA file found, abort initialization."));
 		return;
 	}
 
-	if (!SharedRigRuntimeContext->RigLogic.IsValid())
+	if (LocalRigRuntimeContext != NewContext)
 	{
-		SharedRigRuntimeContext->RigLogic = MakeShared<FRigLogic>(SharedRigRuntimeContext->BehaviorReader.Get());
-		CacheVariableJointIndices();
+		LocalRigRuntimeContext = NewContext;
 		RigInstance = nullptr;
 	}
 
 	if (!RigInstance.IsValid())
 	{
-		RigInstance = MakeUnique<FRigInstance>(SharedRigRuntimeContext->RigLogic.Get());
+		RigInstance = MakeUnique<FRigInstance>(LocalRigRuntimeContext->RigLogic.Get());
 		RigInstance->SetLOD(CurrentLOD);
+		CurrentLOD = RigInstance->GetLOD();
 
-		const IBehaviorReader* DNABehavior = SharedRigRuntimeContext->BehaviorReader.Get();
-		const uint16 TopologyVersion = InHierarchy->GetTopologyVersion();
-		const uint32 CacheKey = SharedRigRuntimeContext->DNAHash + TopologyVersion;
-		auto& Cache = FRigUnit_RigLogic_Data::RigDefintionMappingsCache;
-
-		using FLockFLags = TDiscardableKeyValueCache< FString, TSharedPtr<FRigDefinitionMapping>>::LockFlags;
-		uint32 LockFlags = Cache.ApplyLock(0, FLockFLags::ReadLock);
-		if (!Cache.Find(CacheKey, Mappings, LockFlags | FLockFLags::WriteLockOnAddFail, LockFlags))
-		{
-			Mappings = MakeShared<const FRigDefinitionMapping>(DNABehavior, InHierarchy);
-			Cache.Add(CacheKey, Mappings, LockFlags);
-		}
-		Cache.Unlock(LockFlags);
+		MapJoints(InHierarchy);
+		MapInputCurveIndices(InHierarchy);
+		MapMorphTargets(InHierarchy);
+		MapMaskMultipliers(InHierarchy);
 	}
 }
 
 //maps indices of input curves from dna file to control rig curves
-void FRigDefinitionMapping::MapInputCurveIndices(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy)
+void FRigUnit_RigLogic_Data::MapInputCurveIndices(const URigHierarchy* InHierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_MapInputCurveIndices);
+	const IBehaviorReader* DNABehavior = LocalRigRuntimeContext->BehaviorReader.Get();
 	const uint32 ControlCount = DNABehavior->GetRawControlCount();
 	InputCurveIndices.Reset(ControlCount);
 	for (uint32_t ControlIndex = 0; ControlIndex < ControlCount; ++ControlIndex)
@@ -137,42 +129,27 @@ void FRigDefinitionMapping::MapInputCurveIndices(const IBehaviorReader* DNABehav
 	}
 }
 
-void FRigDefinitionMapping::MapJoints(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy)
+void FRigUnit_RigLogic_Data::MapJoints(const URigHierarchy* Hierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_MapJoints);
+	const IBehaviorReader* DNABehavior = LocalRigRuntimeContext->BehaviorReader.Get();
 	const uint16 JointCount = DNABehavior->GetJointCount();
 	HierarchyBoneIndices.Reset(JointCount);
-	for (uint16 JointIndex = 0; JointIndex < JointCount; ++JointIndex)
+	for (uint16 JointIndex = 0; JointIndex < JointCount ; ++JointIndex)
 	{
 		const FString RLJointName = DNABehavior->GetJointName(JointIndex);
 		const FName JointFName = FName(*RLJointName);
-		const int32 BoneIndex = InHierarchy->GetIndex(FRigElementKey(JointFName, ERigElementType::Bone));
+		const int32 BoneIndex = Hierarchy->GetIndex(FRigElementKey(JointFName, ERigElementType::Bone));
 		HierarchyBoneIndices.Add(BoneIndex);
 	}
 }
 
-void FRigUnit_RigLogic_Data::CacheVariableJointIndices()
+void FRigUnit_RigLogic_Data::MapMorphTargets(const URigHierarchy* InHierarchy)
 {
-	const IBehaviorReader* DNABehavior = SharedRigRuntimeContext->BehaviorReader.Get();
-	const uint16 LODCount = DNABehavior->GetLODCount();
-	SharedRigRuntimeContext->VariableJointIndices.Reset();
-	SharedRigRuntimeContext->VariableJointIndices.AddDefaulted(LODCount);
-	TSet<uint16> DistinctVariableJointIndices;
-	for (uint16 LodIndex = 0; LodIndex < LODCount; ++LodIndex)
-	{
-		TArrayView<const uint16> VariableAttributeIndices = DNABehavior->GetJointVariableAttributeIndices(LodIndex);
-		DistinctVariableJointIndices.Reset();
-		DistinctVariableJointIndices.Reserve(VariableAttributeIndices.Num());
-		for (const uint16 AttrIndex : VariableAttributeIndices)
-		{
-			const uint16 JointIndex = AttrIndex / MAX_ATTRS_PER_JOINT;
-			DistinctVariableJointIndices.Add(JointIndex);
-		}
-		SharedRigRuntimeContext->VariableJointIndices[LodIndex].Values = DistinctVariableJointIndices.Array();
-	}
-}
-
-void FRigDefinitionMapping::MapMorphTargets(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy)
-{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_MapMorphTargets);
+	const IBehaviorReader* DNABehavior = LocalRigRuntimeContext->BehaviorReader.Get();
 	const uint16 LODCount = DNABehavior->GetLODCount();
 
 	MorphTargetCurveIndices.Reset();
@@ -186,7 +163,7 @@ void FRigDefinitionMapping::MapMorphTargets(const IBehaviorReader* DNABehavior, 
 			DNABehavior->GetMeshBlendShapeChannelMappingIndicesForLOD(LodIndex);
 		MorphTargetCurveIndices[LodIndex].Values.Reserve(BlendShapeChannelIndicesForLOD.Num());
 		BlendShapeIndices[LodIndex].Values.Reserve(BlendShapeChannelIndicesForLOD.Num());
-		for (uint16 MappingIndex : BlendShapeChannelIndicesForLOD)
+		for (uint16 MappingIndex: BlendShapeChannelIndicesForLOD)
 		{
 			const FMeshBlendShapeChannelMapping Mapping = DNABehavior->GetMeshBlendShapeChannelMapping(MappingIndex);
 			const uint16 BlendShapeIndex = Mapping.BlendShapeChannelIndex;
@@ -202,8 +179,11 @@ void FRigDefinitionMapping::MapMorphTargets(const IBehaviorReader* DNABehavior, 
 	}
 }
 
-void FRigDefinitionMapping::MapMaskMultipliers(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy)
+void FRigUnit_RigLogic_Data::MapMaskMultipliers(const URigHierarchy* InHierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_MapMaskMultipliers);
+	const IBehaviorReader* DNABehavior = LocalRigRuntimeContext->BehaviorReader.Get();
 	const uint16 LODCount = DNABehavior->GetLODCount();
 	CurveElementIndicesForAnimMaps.Reset();
 	CurveElementIndicesForAnimMaps.AddDefaulted(LODCount);
@@ -216,7 +196,7 @@ void FRigDefinitionMapping::MapMaskMultipliers(const IBehaviorReader* DNABehavio
 		TArrayView<const uint16> AnimMapIndicesPerLOD = DNABehavior->GetAnimatedMapIndicesForLOD(LodIndex);
 		CurveElementIndicesForAnimMaps[LodIndex].Values.Reserve(AnimMapIndicesPerLOD.Num());
 		RigLogicIndicesForAnimMaps[LodIndex].Values.Reserve(AnimMapIndicesPerLOD.Num());
-		for (uint16 AnimMapIndexPerLOD : AnimMapIndicesPerLOD)
+		for (uint16 AnimMapIndexPerLOD: AnimMapIndicesPerLOD)
 		{
 			const FString AnimMapNameFStr = DNABehavior->GetAnimatedMapName(AnimMapIndexPerLOD);
 			const FString MaskMultiplierNameStr = ConstructCurveName(AnimMapNameFStr, TEXT("<obj>_<attr>"));
@@ -233,36 +213,45 @@ void FRigDefinitionMapping::MapMaskMultipliers(const IBehaviorReader* DNABehavio
 
 void FRigUnit_RigLogic_Data::CalculateRigLogic(const URigHierarchy* InHierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_Calculate);
 
 	// LOD change is inexpensive
 	RigInstance->SetLOD(CurrentLOD);
+	CurrentLOD = RigInstance->GetLOD();
 
 	const int32 RawControlCount = RigInstance->GetRawControlCount();
 	for (int32 ControlIndex = 0; ControlIndex < RawControlCount; ++ControlIndex)
 	{
-		const uint32 CurveIndex = Mappings->InputCurveIndices[ControlIndex];
+		const uint32 CurveIndex = InputCurveIndices[ControlIndex];
 		const float Value = InHierarchy->GetCurveValue(CurveIndex);
 		RigInstance->SetRawControl(ControlIndex, Value);
 	}
-	SharedRigRuntimeContext->RigLogic->Calculate(RigInstance.Get());
+	LocalRigRuntimeContext->RigLogic->Calculate(RigInstance.Get());
 }
 
-void FRigUnit_RigLogic_Data::UpdateJoints(URigHierarchy* Hierarchy, const FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams)
+void FRigUnit_RigLogic_Data::UpdateJoints(URigHierarchy* Hierarchy, TArrayView<const float> NeutralJointValues, TArrayView<const float> DeltaJointValues)
 {
-	FRigHierarchyValidityBracket ValidityBracket(Hierarchy);
-	for (const uint16 JointIndex : SharedRigRuntimeContext->VariableJointIndices[CurrentLOD].Values)
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_UpdateJoints);
+
+	const float* N = NeutralJointValues.GetData();
+	const float* D = DeltaJointValues.GetData();
+
+	for (const uint16 JointIndex : LocalRigRuntimeContext->VariableJointIndicesPerLOD[CurrentLOD].Values)
 	{
-		const int32 BoneIndex = Mappings->HierarchyBoneIndices[JointIndex];
+		const int32 BoneIndex = HierarchyBoneIndices[JointIndex];
 		if (BoneIndex != INDEX_NONE)
 		{
-			const FTransform& Neutral = JointUpdateParams.NeutralJointTransforms[JointIndex];
-			const FTransform& Delta = JointUpdateParams.DeltaTransforms[JointIndex];
+			const uint16 AttrIndex = JointIndex * MAX_ATTRS_PER_JOINT;
 			const FTransform Transform
 			{
-				Neutral.GetRotation() * Delta.GetRotation(),
-				Neutral.GetTranslation() + Delta.GetTranslation(),
-				Neutral.GetScale3D() + Delta.GetScale3D()  // Neutral scale is always 1.0
+				// Rotation: X = -Y, Y = -Z, Z = X
+				FQuat(FRotator(-N[AttrIndex + 4], -N[AttrIndex + 5], N[AttrIndex + 3])) * FQuat(FRotator(-D[AttrIndex + 4], -D[AttrIndex + 5], D[AttrIndex + 3])),
+				// Translation: X = X, Y = -Y, Z = Z
+				FVector((N[AttrIndex + 0] + D[AttrIndex + 0]), -(N[AttrIndex + 1] + D[AttrIndex + 1]), (N[AttrIndex + 2] + D[AttrIndex + 2])),
+				// Scale: X = X, Y = Y, Z = Z
+				FVector((N[AttrIndex + 6] + D[AttrIndex + 6]), (N[AttrIndex + 7] + D[AttrIndex + 7]), (N[AttrIndex + 8] + D[AttrIndex + 8]))
 			};
 			Hierarchy->SetLocalTransform(BoneIndex, Transform);
 		}
@@ -271,17 +260,19 @@ void FRigUnit_RigLogic_Data::UpdateJoints(URigHierarchy* Hierarchy, const FRigUn
 
 void FRigUnit_RigLogic_Data::UpdateBlendShapeCurves(URigHierarchy* InHierarchy, TArrayView<const float> BlendShapeValues)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_UpdateBlendShapeCurves);
 	// set output blend shapes
-	if (Mappings->BlendShapeIndices.IsValidIndex(CurrentLOD) && Mappings->MorphTargetCurveIndices.IsValidIndex(CurrentLOD))
+	if (BlendShapeIndices.IsValidIndex(CurrentLOD) && MorphTargetCurveIndices.IsValidIndex(CurrentLOD))
 	{
-		const uint32 BlendShapePerLODCount = static_cast<uint32>(Mappings->BlendShapeIndices[CurrentLOD].Values.Num());
+		const uint32 BlendShapePerLODCount = static_cast<uint32>(BlendShapeIndices[CurrentLOD].Values.Num());
 
-		if (ensure(BlendShapePerLODCount == Mappings->MorphTargetCurveIndices[CurrentLOD].Values.Num()))
+		if (ensure(BlendShapePerLODCount == MorphTargetCurveIndices[CurrentLOD].Values.Num()))
 		{
 			for (uint32 MeshBlendIndex = 0; MeshBlendIndex < BlendShapePerLODCount; MeshBlendIndex++)
 			{
-				const int32 BlendShapeIndex = Mappings->BlendShapeIndices[CurrentLOD].Values[MeshBlendIndex];
-				const int32 MorphTargetCurveIndex = Mappings->MorphTargetCurveIndices[CurrentLOD].Values[MeshBlendIndex];
+				const int32 BlendShapeIndex = BlendShapeIndices[CurrentLOD].Values[MeshBlendIndex];
+				const int32 MorphTargetCurveIndex = MorphTargetCurveIndices[CurrentLOD].Values[MeshBlendIndex];
 				if (MorphTargetCurveIndex != INDEX_NONE)
 				{
 					const float Value = BlendShapeValues[BlendShapeIndex];
@@ -298,16 +289,18 @@ void FRigUnit_RigLogic_Data::UpdateBlendShapeCurves(URigHierarchy* InHierarchy, 
 
 void FRigUnit_RigLogic_Data::UpdateAnimMapCurves(URigHierarchy* InHierarchy, TArrayView<const float> AnimMapOutputs)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_UpdateAnimMapCurves);
 	// set output mask multipliers
 	// In case curves are not imported yet into CL, AnimatedMapsCurveIndices will be empty, so we need to check
 	// array bounds before trying to access it:
-	if (Mappings->RigLogicIndicesForAnimMaps.IsValidIndex(CurrentLOD) && Mappings->CurveElementIndicesForAnimMaps.IsValidIndex(CurrentLOD))
+	if (RigLogicIndicesForAnimMaps.IsValidIndex(CurrentLOD) && CurveElementIndicesForAnimMaps.IsValidIndex(CurrentLOD))
 	{
-		const uint32 AnimMapPerLODCount = Mappings->RigLogicIndicesForAnimMaps[CurrentLOD].Values.Num();
+		const uint32 AnimMapPerLODCount = RigLogicIndicesForAnimMaps[CurrentLOD].Values.Num();
 		for (uint32 AnimMapIndexForLOD = 0; AnimMapIndexForLOD < AnimMapPerLODCount; ++AnimMapIndexForLOD)
 		{
-			const int32 RigLogicAnimMapIndex = Mappings->RigLogicIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
-			const int32 InHierarchyAnimMapIndex = Mappings->CurveElementIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
+			const int32 RigLogicAnimMapIndex = RigLogicIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
+			const int32 InHierarchyAnimMapIndex = CurveElementIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
 			if (InHierarchyAnimMapIndex != INDEX_NONE)
 			{
 				const float Value = AnimMapOutputs[RigLogicAnimMapIndex];
@@ -318,10 +311,10 @@ void FRigUnit_RigLogic_Data::UpdateAnimMapCurves(URigHierarchy* InHierarchy, TAr
 	else
 	{
 		UE_LOG(LogRigLogicUnit, Warning, TEXT("Invalid LOD Index for the AnimationMaps. Ensure your curve is set up correctly!"));
-	}
+	}	
 }
 
-FSharedRigRuntimeContext* FRigUnit_RigLogic::GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh)
+TSharedPtr<FSharedRigRuntimeContext> FRigUnit_RigLogic::GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh)
 {
 	UAssetUserData* UserData = SkelMesh->GetAssetUserDataOfClass(UDNAAsset::StaticClass());
 	if (UserData == nullptr)
@@ -329,69 +322,74 @@ FSharedRigRuntimeContext* FRigUnit_RigLogic::GetSharedRigRuntimeContext(USkeleta
 		return nullptr;
 	}
 	UDNAAsset* DNAAsset = Cast<UDNAAsset>(UserData);
-	return &(DNAAsset->Context);
+	return DNAAsset->GetRigRuntimeContext(UDNAAsset::EDNARetentionPolicy::Keep);
 }
 
 FRigUnit_RigLogic_Execute()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_Execute);
 
-	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+ 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
 		{
-		case EControlRigState::Init:
-		{
-			if (!Data.SkelMeshComponent.IsValid())
+			case EControlRigState::Init:
 			{
-				Data.SkelMeshComponent = Context.DataSourceRegistry->RequestSource<USkeletalMeshComponent>(UControlRig::OwnerComponent);
-				// In normal execution, Data.SkelMeshComponent will be nullptr at the beginning
-				// however, during unit testing we cannot fetch it from DataSourceRegistry 
-				// in that case, a mock version will be inserted into Data by unit test beforehand
+				//const double startTime = FPlatformTime::Seconds();
+				if (!Data.SkelMeshComponent.IsValid())
+				{
+					Data.SkelMeshComponent = Context.DataSourceRegistry->RequestSource<USkeletalMeshComponent>(UControlRig::OwnerComponent);
+					// In normal execution, Data.SkelMeshComponent will be nullptr at the beginning
+					// however, during unit testing we cannot fetch it from DataSourceRegistry 
+					// in that case, a mock version will be inserted into Data by unit test beforehand
+				}
+				if (!Data.SkelMeshComponent.IsValid() || Data.SkelMeshComponent->SkeletalMesh == nullptr)
+				{
+					return;
+				}
+				Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
+
+				// Fetch shared runtime context of rig from DNAAsset
+				TSharedPtr<FSharedRigRuntimeContext> RigRuntimeContext = GetSharedRigRuntimeContext(Data.SkelMeshComponent->SkeletalMesh);
+				// Context is initialized with a BehaviorReader, which can be imported into SkeletalMesh from DNA file
+				// or overwritten by GeneSplicer when making a new character
+				Data.InitializeRigLogic(Hierarchy, RigRuntimeContext);
+				//const double delta = FPlatformTime::Seconds() - startTime;
+				//UE_LOG(LogRigLogicUnit, Warning, TEXT("RigLogic::Init execution time: %f"), delta);
+
+				break; 
 			}
-			if (!Data.SkelMeshComponent.IsValid() || Data.SkelMeshComponent->SkeletalMesh == nullptr)
+			case EControlRigState::Update:
 			{
-				return;
-			}
-			Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
+				//const double startTime = FPlatformTime::Seconds();
+				// Fetch shared runtime context of rig from DNAAsset
+				if (!Data.SkelMeshComponent.IsValid() || !Data.IsRigLogicInitialized() || Hierarchy == nullptr)
+				{
+					return;
+				}
+				Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
+				Data.CalculateRigLogic(Hierarchy);
 
-			// Fetch shared runtime context of rig from DNAAsset
-			Data.SharedRigRuntimeContext = GetSharedRigRuntimeContext(Data.SkelMeshComponent->SkeletalMesh);
-			// Context is initialized with a BehaviorReader, which can be imported into SkeletalMesh from DNA file
-			// or overwritten by GeneSplicer when making a new character
-			Data.InitializeRigLogic(Hierarchy);
-			break;
-		}
-		case EControlRigState::Update:
-		{
-			// Fetch shared runtime context of rig from DNAAsset
-			if (!Data.SkelMeshComponent.IsValid() || !Data.IsRigLogicInitialized() || Hierarchy == nullptr)
+				//Filing a struct so we can call the same method for updating joints from tests
+				TArrayView<const float> NeutralJointValues = Data.LocalRigRuntimeContext->RigLogic->GetRawNeutralJointValues();
+				TArrayView<const float> DeltaJointValues = Data.RigInstance->GetRawJointOutputs();
+				Data.UpdateJoints(Hierarchy, NeutralJointValues, DeltaJointValues);
+
+				TArrayView<const float> BlendShapeValues = Data.RigInstance->GetBlendShapeOutputs();
+				Data.UpdateBlendShapeCurves(Hierarchy, BlendShapeValues);
+
+				TArrayView<const float> AnimMapOutputs = Data.RigInstance->GetAnimatedMapOutputs();
+				Data.UpdateAnimMapCurves(Hierarchy, AnimMapOutputs);
+
+				//const double delta = FPlatformTime::Seconds() - startTime;
+				//UE_LOG(LogRigLogicUnit, Warning, TEXT("RigLogic::Update execution time: %f"), delta);
+			}
+			default:
 			{
-				return;
+				break;
 			}
-			Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
-			Data.CalculateRigLogic(Hierarchy);
-
-			//Filing a struct so we can call the same method for updating joints from tests
-			FRigUnit_RigLogic_JointUpdateParams JointUpdateParamsTemp
-			(
-				Data.SharedRigRuntimeContext->RigLogic->GetNeutralJointValues(),
-				Data.RigInstance->GetJointOutputs()
-			);
-
-			Data.UpdateJoints(Hierarchy, JointUpdateParamsTemp);
-
-			TArrayView<const float> BlendShapeValues = Data.RigInstance->GetBlendShapeOutputs();
-			Data.UpdateBlendShapeCurves(Hierarchy, BlendShapeValues);
-
-			TArrayView<const float> AnimMapOutputs = Data.RigInstance->GetAnimatedMapOutputs();
-			Data.UpdateAnimMapCurves(Hierarchy, AnimMapOutputs);
-		}
-		default:
-		{
-			break;
-		}
 		}
 	}
 }

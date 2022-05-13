@@ -42,7 +42,7 @@ class RigInstanceImpl : public RigInstance {
     private:
         MemoryResource* memRes;
 
-        std::uint16_t lodCount;
+        std::uint16_t lodMaxLevel;
         std::uint16_t lodLevel;
         std::uint16_t guiControlCount;
         std::uint16_t rawControlCount;

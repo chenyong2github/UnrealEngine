@@ -27,6 +27,12 @@ uint16 FRigLogic::GetLODCount() const
 	return RigLogic->getLODCount();
 }
 
+TArrayView<const float> FRigLogic::GetRawNeutralJointValues() const
+{
+	rl4::ConstArrayView<float> Values = RigLogic->getRawNeutralJointValues();
+	return TArrayView<const float>{Values.data(), static_cast<int32>(Values.size())};
+}
+
 FTransformArrayView FRigLogic::GetNeutralJointValues() const
 {
 	rl4::ConstArrayView<float> Values = RigLogic->getRawNeutralJointValues();

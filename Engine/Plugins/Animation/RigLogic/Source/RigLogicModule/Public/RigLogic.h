@@ -42,6 +42,7 @@ public:
 	FRigLogic& operator=(FRigLogic&&) = default;
 
 	uint16 GetLODCount() const;
+	TArrayView<const float> GetRawNeutralJointValues() const;
 	FTransformArrayView GetNeutralJointValues() const;
 	uint16 GetJointGroupCount() const;
 	TArrayView<const uint16> GetJointVariableAttributeIndices(uint16 LOD) const;

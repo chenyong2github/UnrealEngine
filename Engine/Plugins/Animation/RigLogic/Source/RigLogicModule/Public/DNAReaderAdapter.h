@@ -117,6 +117,8 @@ public:
 	TArrayView<const float> GetBlendShapeTargetDeltaZs(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
 	TArrayView<const uint32> GetBlendShapeTargetVertexIndices(uint16 MeshIndex, uint16 BlendShapeTargetIndex) const override;
 
+	void Unload(EDNADataLayer Layer) override;
+
 private:
 	dna::Reader* Unwrap() const override;
 
@@ -141,6 +143,12 @@ template <class TWrappedReader>
 dna::Reader* FDNAReader<TWrappedReader>::Unwrap() const
 {
 	return ReaderPtr.Get();
+}
+
+template <class TWrappedReader>
+void FDNAReader<TWrappedReader>::Unload(EDNADataLayer Layer)
+{
+	ReaderPtr->unload(static_cast<dna::DataLayer>(Layer));
 }
 
 template <class TWrappedReader>

@@ -23,6 +23,9 @@ class FakeReader : public Reader {
     public:
         ~FakeReader();
 
+        void unload(DataLayer layer) override {
+        }
+
         // DescriptorReader methods start
         StringView getName() const override {
             return {};

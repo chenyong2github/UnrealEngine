@@ -3,6 +3,7 @@
 #pragma once
 
 #include "dna/Defs.h"
+#include "dna/DataLayer.h"
 #include "dna/layers/BehaviorReader.h"
 #include "dna/layers/GeometryReader.h"
 
@@ -20,7 +21,12 @@ namespace dna {
 class DNAAPI Reader : public BehaviorReader, public GeometryReader {
     public:
         ~Reader() override;
-
+		/**
+			@brief Unload all data of the specified layer and all layers dependent on it.
+			@param layer
+				Layer which data should be unloaded.
+		*/
+		virtual void unload(DataLayer layer) = 0;
 };
 
 }  // namespace dna

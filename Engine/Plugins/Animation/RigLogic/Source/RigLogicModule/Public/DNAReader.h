@@ -41,6 +41,7 @@ public:
 	virtual FString GetDBName() const = 0;
 
 	virtual dna::Reader* Unwrap() const = 0;
+	virtual void Unload(EDNADataLayer Layer) = 0;
 
 };
 

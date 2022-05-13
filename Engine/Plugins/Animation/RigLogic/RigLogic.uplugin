@@ -33,6 +33,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name" : "RigLogicDeveloper",
+			"Type" : "UncookedOnly",
+			"LoadingPhase" : "PreDefault"
+		},
+		{
 			"Name": "RigLogicEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

@@ -123,6 +123,7 @@ class DNAAPI StreamReader : public Reader {
            @brief read data from stream into internal structures.
         */
         virtual void read() = 0;
+
 };
 
 }  // namespace dna

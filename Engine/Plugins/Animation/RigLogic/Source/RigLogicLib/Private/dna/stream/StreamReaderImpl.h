@@ -21,6 +21,7 @@ class StreamReaderImpl : public ReaderImpl<StreamReader> {
                          MemoryResource* memRes_);
         StreamReaderImpl(BoundedIOStream* stream_, DataLayer layer_, ConstArrayView<std::uint16_t> lods, MemoryResource* memRes_);
 
+        void unload(DataLayer layer) override;
         void read() override;
         bool isLODConstrained() const;
 

@@ -20,6 +20,11 @@ struct FRigUnit_RigLogic_JointUpdateParams;
 class TestBehaviorReader: public IBehaviorReader
 {
 public:
+	void Unload(EDNADataLayer Layer) override
+	{
+
+	}
+
 	// DescriptorReader methods start
 	FString GetName() const override
 	{
@@ -528,9 +533,9 @@ struct FRigUnit_RigLogic::TestAccessor
 	FTransformArrayView CreateTwoJointNeutralTransforms(float *InValueArray);
 	TArrayView<const uint16> CreateTwoJointVariableAttributes(uint16* InVariableAttributeIndices, uint8 LOD);
 
-	void Exec_UpdateJoints(URigHierarchy* TestHierarchy, FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams);
+	void Exec_UpdateJoints(URigHierarchy* TestHierarchy, TArrayView<const float> NeutralJointValues, TArrayView<const float> DeltaJointValues);
 
-	FSharedRigRuntimeContext* GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh);
+	TSharedPtr<FSharedRigRuntimeContext> GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh);
 
 private:
 	FName RawCtrlName;

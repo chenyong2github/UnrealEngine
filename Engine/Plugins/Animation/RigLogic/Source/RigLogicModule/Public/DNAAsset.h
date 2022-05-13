@@ -20,41 +20,14 @@ class IBehaviorReader;
 class IGeometryReader;
 class FRigLogicMemoryStream;
 class UAssetUserData;
-enum class EDNADataLayer : uint8;
+struct FSharedRigRuntimeContext;
+enum class EDNADataLayer: uint8;
 
-struct FSharedRigRuntimeContext
-{
-	template <typename T>
-	struct TNestedArray
-	{
-		TArray<T> Values;
-	};
-
-	uint32 DNAHash;
-
-	/** Part of the .dna file needed for run-time execution of RigLogic;
-	 **/
-	TSharedPtr<IBehaviorReader> BehaviorReader;
-
-	/** Part of the .dna file used design-time for updating SkeletalMesh geometry
-	 **/
-	TSharedPtr<IGeometryReader> GeometryReader;
-
-	/** RigLogic itself is stateless, and is designed to be shared between
-	  * multiple rig instances based on the same DNA.
-	**/
-	TSharedPtr<FRigLogic> RigLogic;
-
-	/** Cached joint indices that need to be updated for each LOD **/
-	TArray<TNestedArray<uint16>> VariableJointIndices;
-};
-
-
-/** An asset holding the data needed to generate/update/animate a RigLogic character
- * It is imported from character's DNA file as a bit stream, and separated out it into runtime (behavior) and design-time chunks;
- * Currently, the design-time part still loads the geometry, as it is needed for the skeletal mesh update; once SkeletalMeshDNAReader is
- * fully implemented, it will be able to read the geometry directly from the SkeletalMesh and won't load it into this asset
- **/
+ /** An asset holding the data needed to generate/update/animate a RigLogic character
+  * It is imported from character's DNA file as a bit stream, and separated out it into runtime (behavior) and design-time chunks;
+  * Currently, the design-time part still loads the geometry, as it is needed for the skeletal mesh update; once SkeletalMeshDNAReader is
+  * fully implemented, it will be able to read the geometry directly from the SkeletalMesh and won't load it into this asset 
+  **/
 UCLASS(NotBlueprintable, hidecategories = (Object))
 class RIGLOGICMODULE_API UDNAAsset : public UAssetUserData
 {
@@ -62,26 +35,20 @@ class RIGLOGICMODULE_API UDNAAsset : public UAssetUserData
 
 public:
 	UDNAAsset();
+	~UDNAAsset();
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
-		class UAssetImportData* AssetImportData;
+	class UAssetImportData* AssetImportData;
 #endif
 
-	TSharedPtr<IBehaviorReader> GetBehaviorReader()
-	{
-		return Context.BehaviorReader;
-	}
-
+	TSharedPtr<IBehaviorReader> GetBehaviorReader();
 #if WITH_EDITORONLY_DATA
-	TSharedPtr<IGeometryReader> GetGeometryReader()
-	{
-		return Context.GeometryReader;
-	}
+	TSharedPtr<IGeometryReader> GetGeometryReader();
 #endif
 
 	UPROPERTY()
-		FString DNAFileName;
+	FString DNAFileName; 
 
 	bool Init(const FString& Filename);
 	void Serialize(FArchive& Ar) override;
@@ -93,10 +60,36 @@ public:
 	void SetGeometryReader(TSharedPtr<IDNAReader> SourceDNAReader);
 
 private:
+	friend struct FAnimNode_RigLogic;
+	friend struct FRigUnit_RigLogic;
+
+	enum class EDNARetentionPolicy
+	{
+		Keep,
+		Unload
+	};
+
+	TSharedPtr<FSharedRigRuntimeContext> GetRigRuntimeContext(EDNARetentionPolicy Policy);
+	void InvalidateRigRuntimeContext();
+
+private:
+	// Synchronize DNA updates
+	FCriticalSection DNAUpdateSection;
+
+	// Synchronize Rig Runtime Context updates
+	FRWLock RigRuntimeContextUpdateLock;
+
+	/** Part of the .dna file needed for run-time execution of RigLogic;
+	 **/
+	TSharedPtr<IBehaviorReader> BehaviorReader;
+
+	/** Part of the .dna file used design-time for updating SkeletalMesh geometry
+	 **/
+	TSharedPtr<IGeometryReader> GeometryReader;
+
 	/** Runtime data necessary for rig computations that is shared between
 	  * multiple rig instances based on the same DNA.
 	**/
-	friend struct FRigUnit_RigLogic;
-	FSharedRigRuntimeContext Context;
+	TSharedPtr<FSharedRigRuntimeContext> RigRuntimeContext;
 
 };
