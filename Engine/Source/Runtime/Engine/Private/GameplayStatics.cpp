@@ -45,6 +45,7 @@
 #include "ContentStreaming.h"
 #include "Async/Async.h"
 #include "Engine/SceneCapture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
@@ -2982,6 +2983,56 @@ bool UGameplayStatics::DeprojectScreenToWorld(APlayerController const* Player, c
 		{
 			FMatrix const InvViewProjMatrix = ProjectionData.ComputeViewProjectionMatrix().InverseFast();
 			FSceneView::DeprojectScreenToWorld(ScreenPosition, ProjectionData.GetConstrainedViewRect(), InvViewProjMatrix, /*out*/ WorldPosition, /*out*/ WorldDirection);
+			return true;
+		}
+	}
+
+	// something went wrong, zero things and return false
+	WorldPosition = FVector::ZeroVector;
+	WorldDirection = FVector::ZeroVector;
+	return false;
+}
+
+bool UGameplayStatics::DeprojectSceneCaptureToWorld(ASceneCapture2D const* SceneCapture2D, const FVector2D& TargetUV, FVector& WorldPosition, FVector& WorldDirection)
+{
+	if (USceneCaptureComponent2D* SceneCaptureComponent2D = SceneCapture2D->GetCaptureComponent2D())
+	{
+		if (SceneCaptureComponent2D->TextureTarget)
+		{
+			FMinimalViewInfo ViewInfo;
+			SceneCaptureComponent2D->GetCameraView(0.0f, ViewInfo);
+
+			FMatrix ProjectionMatrix;
+			if (SceneCaptureComponent2D->bUseCustomProjectionMatrix)
+			{
+				ProjectionMatrix = AdjustProjectionMatrixForRHI(SceneCaptureComponent2D->CustomProjectionMatrix);
+			}
+			else//
+			{
+				ProjectionMatrix = AdjustProjectionMatrixForRHI(ViewInfo.CalculateProjectionMatrix());
+			}
+			FMatrix InvProjectionMatrix = ProjectionMatrix.Inverse();
+
+			// A view matrix is the inverse of the viewer's matrix, so an inverse view matrix is just the viewer's matrix.
+			// To save precision, we directly compute the viewer's matrix, plus it also avoids the cost of the inverse.
+			// The matrix to convert from world coordinate space to view coordinate space also needs to be included (this
+			// is the transpose of the similar matrix used in CalculateViewProjectionMatricesFromMinimalView).
+			FMatrix InvViewMatrix = FMatrix(
+				FPlane(0, 1, 0, 0),
+				FPlane(0, 0, 1, 0),
+				FPlane(1, 0, 0, 0),
+				FPlane(0, 0, 0, 1)) * FRotationTranslationMatrix(ViewInfo.Rotation, ViewInfo.Location);
+
+			FIntPoint TargetSize = FIntPoint(SceneCaptureComponent2D->TextureTarget->SizeX, SceneCaptureComponent2D->TextureTarget->SizeY);
+
+			FSceneView::DeprojectScreenToWorld(
+				TargetUV * FVector2D(TargetSize),
+				FIntRect(FIntPoint(0, 0), TargetSize),
+				InvViewMatrix,
+				InvProjectionMatrix,
+				WorldPosition,
+				WorldDirection);
+
 			return true;
 		}
 	}
