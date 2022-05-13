@@ -19,7 +19,7 @@ UE::FDynamicallyTypedValueType& UE::FDynamicallyTypedValue::NullType()
 		virtual void SerializeValue(FStructuredArchive::FSlot Slot, void* Data) const {}
 
 		virtual uint32 GetValueHash(const void* Data) const override { return 0; }
-		virtual bool AreEqual(const void* DataA, const void* DataB) const override { return true; }
+		virtual bool AreIdentical(const void* DataA, const void* DataB) const override { return true; }
 	};
 
 	static FNullType Singleton;

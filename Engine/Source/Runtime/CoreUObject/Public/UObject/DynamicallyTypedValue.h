@@ -38,7 +38,7 @@ namespace UE
 		virtual void SerializeValue(FStructuredArchive::FSlot Slot, void* Data) const = 0;
 
 		virtual uint32 GetValueHash(const void* Data) const = 0;
-		virtual bool AreEqual(const void* DataA, const void* DataB) const = 0;
+		virtual bool AreIdentical(const void* DataA, const void* DataB) const = 0;
 
 		SIZE_T GetNumBytes() const { return NumBytes; }
 		uint8 GetMinAlignmentLogTwo() const { return MinAlignmentLogTwo; }
