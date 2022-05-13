@@ -30,6 +30,7 @@
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/PlatformInput.h"
+#include "HAL/ThreadHeartBeat.h"
 #include "Modules/ModuleManager.h"
 #include "IMessagingModule.h"
 #include "Android/AndroidStats.h"
@@ -1225,6 +1226,8 @@ static void ActivateApp_EventThread()
 		EventHandlerEvent->Trigger();
 	}
 
+	FThreadHeartBeat::Get().ResumeHeartBeat(true);
+
 	FPreLoadScreenManager::EnableRendering(true);
 
 	extern void AndroidThunkCpp_ShowHiddenAlertDialog();
@@ -1275,6 +1278,8 @@ static void SuspendApp_EventThread()
 	FEmbeddedCommunication::WakeGameThread();
 
 	FPreLoadScreenManager::EnableRendering(false);
+
+	FThreadHeartBeat::Get().SuspendHeartBeat(true);
 
 	// wait for a period of time before blocking rendering
 	UE_LOG(LogAndroid, Log, TEXT("AndroidEGL::  SuspendApp_EventThread, waiting for event manager to process. tid: %d"), FPlatformTLS::GetCurrentThreadId());

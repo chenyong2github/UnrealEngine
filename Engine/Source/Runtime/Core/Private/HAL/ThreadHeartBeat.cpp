@@ -806,6 +806,12 @@ void FThreadHeartBeat::ResumeHeartBeat(bool bAllThreads)
 	bool bLastThreadResumed = false;
 	{
 		FScopeLock HeartBeatLock(&HeartBeatCritical);
+		if (GlobalSuspendCount.GetValue() == 0)
+		{
+			// Resume without matching Suspend, ignore it
+			return;
+		}
+		
 		const double CurrentTime = Clock.Seconds();
 		if (bAllThreads)
 		{
