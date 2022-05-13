@@ -450,7 +450,7 @@ public:
 	void SwapVMToNativizedIfRequired(UClass* InNativizedClass = nullptr);
 	static bool AreNativizedVMsDisabled() ;
 
-private:
+protected:
 
 	void PostInitInstance(UControlRig* InCDO);
 

@@ -15,9 +15,7 @@ AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectIni
 	, ControlName(NAME_None)
 	, ShapeName(NAME_None)
 	, OverrideColor(0, 0, 0, 0)
-	, bEnabled(true)
 	, bSelected(false)
-	, bSelectable(true)
 	, bHovered(false)
 {
 
@@ -35,28 +33,12 @@ AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectIni
 	StaticMeshComponent->SetupAttachment(RootComponent);
 	StaticMeshComponent->bCastStaticShadow = false;
 	StaticMeshComponent->bCastDynamicShadow = false;
-	StaticMeshComponent->bSelectable = bSelectable && bEnabled;
-}
-
-void AControlRigShapeActor::SetEnabled(bool bInEnabled)
-{
-	if(bEnabled != bInEnabled)
-	{
-		bEnabled = bInEnabled;
-		StaticMeshComponent->bSelectable = bSelectable && bEnabled;
-		FEditorScriptExecutionGuard Guard;
-		OnEnabledChanged(bEnabled);
-	}
-}
-
-bool AControlRigShapeActor::IsEnabled() const
-{
-	return bEnabled;
+	StaticMeshComponent->bSelectable = true;
 }
 
 void AControlRigShapeActor::SetSelected(bool bInSelected)
 {
-	if(!bSelectable && bInSelected)
+	if(!IsSelectable() && bInSelected)
 	{
 		return;
 	}
@@ -73,16 +55,23 @@ bool AControlRigShapeActor::IsSelectedInEditor() const
 	return bSelected;
 }
 
+bool AControlRigShapeActor::IsSelectable() const
+{
+	return StaticMeshComponent->bSelectable;
+}
+
 void AControlRigShapeActor::SetSelectable(bool bInSelectable)
 {
-	if (bSelectable != bInSelectable)
+	if (StaticMeshComponent->bSelectable != bInSelectable)
 	{
-		bSelectable = bInSelectable;
-		StaticMeshComponent->bSelectable = bSelectable && bEnabled;
-		if (!bSelectable)
+		StaticMeshComponent->bSelectable = bInSelectable;
+		if (!StaticMeshComponent->bSelectable)
 		{
 			SetSelected(false);
 		}
+
+		FEditorScriptExecutionGuard Guard;
+		OnEnabledChanged(bInSelectable);
 	}
 }
 
@@ -181,17 +170,6 @@ bool AControlRigShapeActor::UpdateControlSettings(
 	
 	// update the shape color
 	SetShapeColor(ControlSettings.ShapeColor);
-
-#if WITH_EDITOR
-	// update visibility
-	SetIsTemporarilyHiddenInEditor(!ControlSettings.IsVisible() || bHideManipulators);
-#endif
-	
-	// update selectability state
-	if (!bIsInLevelEditor) //don't change this in level editor otherwise we can never select it
-	{
-		SetSelectable(ControlSettings.IsSelectable() && !bHideManipulators);
-	}
 
 	return true;
 }

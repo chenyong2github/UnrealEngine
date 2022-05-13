@@ -90,11 +90,11 @@ public:
 
 	UFUNCTION(BlueprintSetter)
 	/** Set the control to be enabled/disabled */
-	virtual void SetEnabled(bool bInEnabled);
+	virtual void SetEnabled(bool bInEnabled) { SetSelectable(bInEnabled); }
 
 	UFUNCTION(BlueprintGetter)
 	/** Get whether the control is enabled/disabled */
-	virtual bool IsEnabled() const;
+	virtual bool IsEnabled() const { return IsSelectable(); }
 
 	UFUNCTION(BlueprintSetter)
 	/** Set the control to be selected/unselected */
@@ -105,7 +105,7 @@ public:
 	virtual bool IsSelectedInEditor() const;
 
 	/** Get wether the control is selectable/unselectable */
-	virtual bool IsSelectable() const { return bSelectable; }
+	virtual bool IsSelectable() const;
 
 	UFUNCTION(BlueprintSetter)
 	/** Set the control to be selected/unselected */
@@ -165,17 +165,10 @@ public:
 		bool bIsInLevelEditor);
 	
 private:
-	/** Whether this control is enabled */
-	UPROPERTY(BlueprintGetter = IsEnabled, BlueprintSetter= SetEnabled, Category = "ControlRig|Shape")
-	uint8 bEnabled : 1;
 
 	/** Whether this control is selected */
 	UPROPERTY(BlueprintGetter = IsSelectedInEditor, BlueprintSetter = SetSelected, Category = "ControlRig|Shape")
 	uint8 bSelected : 1;
-
-	/** Whether this control can be selected */
-	UPROPERTY(BlueprintGetter = IsSelectable, BlueprintSetter = SetSelectable, Category = "ControlRig|Shape")
-	uint8 bSelectable : 1;
 
 	/** Whether this control is hovered */
 	UPROPERTY(BlueprintGetter = IsHovered, BlueprintSetter = SetHovered, Category = "ControlRig|Shape")

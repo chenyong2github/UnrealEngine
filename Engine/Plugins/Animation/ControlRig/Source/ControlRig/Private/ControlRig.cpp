@@ -701,7 +701,11 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	}
 
 	FRigUnitContext Context;
-	DrawInterface.Reset();
+
+	if(!GetEventQueue().Contains(InEventName) || (GetEventQueue()[0] == InEventName))
+	{
+		DrawInterface.Reset();
+	}
 	Context.DrawInterface = &DrawInterface;
 
 	Context.AnimAttributeContainer = ExternalAnimAttributeContainer;
@@ -1012,7 +1016,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		}
 	}
 
-	if (Context.DrawInterface && Context.DrawContainer)
+	if (Context.DrawInterface && Context.DrawContainer && GetEventQueue().Last() == InEventName)
 	{
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
@@ -1773,20 +1777,26 @@ FTransform UControlRig::GetControlLocalTransform(const FName& InControlName)
 
 const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& UControlRig::GetShapeLibraries() const
 {
-	if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
+	const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>* LibrariesPtr = &ShapeLibraries;
+
+	if(!GetClass()->IsNative())
 	{
-		for(TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : CDO->ShapeLibraries)
+		if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 		{
-			if (!ShapeLibrary.IsValid())
-			{
-				ShapeLibrary.LoadSynchronous();
-			}
+			LibrariesPtr = &CDO->ShapeLibraries;
 		}
-		return CDO->ShapeLibraries;
 	}
 
-	static TArray<TSoftObjectPtr<UControlRigShapeLibrary>> EmptyShapeLibraries;
-	return EmptyShapeLibraries;
+	const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& Libraries = *LibrariesPtr;
+	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : Libraries)
+	{
+		if (!ShapeLibrary.IsValid())
+		{
+			ShapeLibrary.LoadSynchronous();
+		}
+	}
+
+	return Libraries;
 }
 
 void UControlRig::SelectControl(const FName& InControlName, bool bSelect)

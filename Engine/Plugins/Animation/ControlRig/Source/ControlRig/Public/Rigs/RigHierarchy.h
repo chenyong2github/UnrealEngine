@@ -286,6 +286,21 @@ public:
 	}
 
 	/**
+	 * Returns the indices of an array of keys
+	 * @param InKeys The keys of the elements to retrieve the indices for
+	 * @return The indices of the elements or INDEX_NONE
+	 */
+	FORCEINLINE TArray<int32> GetIndices(const TArray<FRigElementKey>& InKeys) const
+	{
+		TArray<int32> Indices;
+		for(const FRigElementKey& Key : InKeys)
+		{
+			Indices.Add(GetIndex(Key));
+		}
+		return Indices;
+	}
+
+	/**
 	 * Returns the key of an element given its index
 	 * @param InElementIndex The index of the element to retrieve the key for
 	 * @return The key of an element given its index
@@ -298,6 +313,22 @@ public:
 			return Elements[InElementIndex]->Key;
 		}
 		return FRigElementKey();
+	}
+
+	/**
+	 * Returns the keys of an array of indices
+	 * @param InElementIndices The indices to retrieve the keys for
+	 * @return The keys of the elements given the indices
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE TArray<FRigElementKey> GetKeys(const TArray<int32> InElementIndices) const
+	{
+		TArray<FRigElementKey> Keys;
+		for(int32 Index : InElementIndices)
+		{
+			Keys.Add(GetKey(Index));
+		}
+		return Keys;
 	}
 
 	/**

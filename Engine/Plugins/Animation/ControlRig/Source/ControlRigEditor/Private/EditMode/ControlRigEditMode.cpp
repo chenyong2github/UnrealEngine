@@ -706,6 +706,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			{
 				ComponentTransform = GetHostingSceneComponentTransform(ControlRig);
 			}
+			/*
 			const TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig);
 			if (ShapeActors)
 			{
@@ -717,6 +718,8 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					}
 				}
 			}
+			*/
+			
 			//only draw stuff if not in game view
 			if (!bIsInGameView)
 			{
@@ -732,6 +735,14 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					}
 					Hierarchy->ForEach<FRigTransformElement>([PDI, Hierarchy, ComponentTransform, ControlRig, bHasFKRig, bBoolSetHitProxies, ActiveControlName](FRigTransformElement* TransformElement) -> bool
 						{
+							if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(TransformElement))
+							{
+								if(ControlElement->Settings.AnimationType != ERigControlAnimationType::AnimationControl)
+								{
+									return true;
+								}
+							}
+						
 							const FTransform Transform = Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
 
 							FRigBaseElementParentArray Parents = Hierarchy->GetParents(TransformElement);
@@ -889,20 +900,6 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						break;
 					}
 
-					}
-				}
-			}
-		}
-		else
-		{
-			const TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig);
-			if (ShapeActors)
-			{
-				for (AControlRigShapeActor* Actor : *ShapeActors)
-				{
-					if (GIsEditor && Actor->GetWorld() != nullptr && !Actor->GetWorld()->IsPlayInEditor())
-					{
-						Actor->SetIsTemporarilyHiddenInEditor(true);
 					}
 				}
 			}
@@ -2575,17 +2572,20 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 
 			TArray<FRigElementKey> SelectedRigElements = GetSelectedRigElements(ControlRig);
 			TArray<FRigElementKey> ControlsToReset = SelectedRigElements;
+			TArray<FRigElementKey> ControlsInteracting = SelectedRigElements;
 			if (!bSelectionOnly)
 			{
 				TArray<FRigControlElement*> Controls;
 				ControlRig->GetControlsInOrder(Controls);
 				ControlsToReset.SetNum(0);
+				ControlsInteracting.SetNum(0);
 				for (const FRigControlElement* Control : Controls)
 				{
+					ControlsToReset.Add(Control->GetKey());
 					if(Control->Settings.AnimationType == ERigControlAnimationType::AnimationControl ||
 						Control->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
 					{
-						ControlsToReset.Add(Control->GetKey());
+						ControlsInteracting.Add(Control->GetKey());
 					}
 				}
 			}
@@ -2602,7 +2602,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 			}
 
 			FScopedTransaction Transaction(LOCTEXT("HierarchyResetTransforms", "Reset Transforms"));
-			FControlRigInteractionScope InteractionScope(ControlRig, ControlsToReset);
+			FControlRigInteractionScope InteractionScope(ControlRig, ControlsInteracting);
 
 			for (const FRigElementKey& ControlToReset : ControlsToReset)
 			{
@@ -3793,7 +3793,7 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 				ShapeActor->SetShapeColor(ShapeActor->OverrideColor.A < SMALL_NUMBER ?
 					ControlElement->Settings.ShapeColor : ShapeActor->OverrideColor);
 				ShapeActor->SetIsTemporarilyHiddenInEditor(
-					(!ControlElement->Settings.IsVisible() && !Settings->bShowAllProxyControls) ||
+					!bIsVisible ||
 					bControlsHiddenInViewport);
 				
 				ShapeActor->SetSelectable(
