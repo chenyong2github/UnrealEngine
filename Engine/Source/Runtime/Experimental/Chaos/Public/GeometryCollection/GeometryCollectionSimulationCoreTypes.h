@@ -188,6 +188,7 @@ struct FSimulationParameters
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
 		, ObjectType(EObjectStateTypeEnum::Chaos_NONE)
+		, StartAwake(true)
 		, bGenerateBreakingData(false)
 		, bGenerateCollisionData(false)
 		, bGenerateTrailingData(false)
@@ -224,6 +225,7 @@ struct FSimulationParameters
 		, ReverseCacheBeginTime(Other.ReverseCacheBeginTime)
 		, bClearCache(Other.bClearCache)
 		, ObjectType(Other.ObjectType)
+		, StartAwake(Other.StartAwake)
 		, PhysicalMaterialHandle(Other.PhysicalMaterialHandle)
 		, bGenerateBreakingData(Other.bGenerateBreakingData)
 		, bGenerateCollisionData(Other.bGenerateCollisionData)
@@ -280,6 +282,7 @@ struct FSimulationParameters
 	bool bClearCache;
 
 	EObjectStateTypeEnum ObjectType;
+	bool StartAwake;
 
 	Chaos::FMaterialHandle PhysicalMaterialHandle;
 

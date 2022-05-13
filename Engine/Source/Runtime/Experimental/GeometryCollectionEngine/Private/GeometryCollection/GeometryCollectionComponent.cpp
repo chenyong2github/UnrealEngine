@@ -2116,6 +2116,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			// If the Component is set to Dynamic, we look to the RestCollection for initial dynamic state override per transform.
 			TManagedArray<int32> & DynamicState = DynamicCollection->DynamicState;
 
+			// if this code is changed you may need to account for bStartAwake
 			EObjectStateTypeEnum LocalObjectType = (ObjectType != EObjectStateTypeEnum::Chaos_Object_Sleeping) ? ObjectType : EObjectStateTypeEnum::Chaos_Object_Dynamic;
 			if (LocalObjectType != EObjectStateTypeEnum::Chaos_Object_UserDefined)
 			{
@@ -2232,6 +2233,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.InitialAngularVelocity = InitialAngularVelocity;
 		SimulationParameters.bClearCache = true;
 		SimulationParameters.ObjectType = ObjectType;
+		SimulationParameters.StartAwake = BodyInstance.bStartAwake;
 		SimulationParameters.CacheType = CacheParameters.CacheMode;
 		SimulationParameters.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;
 		SimulationParameters.bGenerateBreakingData = bNotifyBreaks;

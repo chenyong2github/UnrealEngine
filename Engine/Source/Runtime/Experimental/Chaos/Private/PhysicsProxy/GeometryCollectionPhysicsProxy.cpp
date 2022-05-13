@@ -750,6 +750,32 @@ void FGeometryCollectionPhysicsProxy::SetGravityEnabled(const Chaos::FPBDRigidsS
 	}
 }
 
+void FGeometryCollectionPhysicsProxy::SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver)
+{
+	for (FClusterHandle* Handle: SolverParticleHandles)
+	{
+		if (Handle && !Handle->Disabled())
+		{
+			// Sleeping Geometry Collections:
+			//   A sleeping geometry collection is dynamic internally, and then the top level
+			//   active clusters are set to sleeping. Sleeping is not propagated up from the 
+			//   leaf nodes like kinematic or dynamic clusters.
+			RigidsSolver.GetEvolution()->SetParticleObjectState(Handle, Chaos::EObjectStateType::Sleeping);
+		}
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::DirtyAllParticles(const Chaos::FPBDRigidsSolver& RigidsSolver)
+{
+	for (FClusterHandle* Handle: SolverParticleHandles)
+	{
+		if (Handle)
+		{
+			RigidsSolver.GetEvolution()->DirtyParticle(*Handle);
+		}
+	}
+}
+
 void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver* RigidsSolver, typename Chaos::FPBDRigidsSolver::FParticlesType& Particles)
 {
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
@@ -1066,23 +1092,16 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		const bool bEnableGravity = Parameters.EnableGravity && !DisableGeometryCollectionGravity;
 		SetGravityEnabled(*RigidsSolver, bEnableGravity);
 
-		// call DirtyParticle to make sure the acceleration structure is up to date with all the changes happening here
-		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+		const bool bStartSleeping =
+				(Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Sleeping
+			 || (Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Dynamic && !Parameters.StartAwake));
+		if (bStartSleeping)
 		{
-			if (FClusterHandle* Handle = SolverParticleHandles[TransformGroupIndex])
-			{
-				// Sleeping Geometry Collections:
-				//   A sleeping geometry collection is dynamic internally, and then the top level
-				//   active clusters are set to sleeping. Sleeping is not propagated up from the 
-				//   leaf nodes like kinematic or dynamic clusters. 
-				if (!Handle->Disabled() && Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Sleeping)
-				{
-				 	RigidsSolver->GetEvolution()->SetParticleObjectState(Handle, Chaos::EObjectStateType::Sleeping);
-				}
-
-				RigidsSolver->GetEvolution()->DirtyParticle(*Handle);
-			}
+			SetSleepingState(*RigidsSolver);
 		}
+
+		// call DirtyParticle to make sure the acceleration structure is up to date with all the changes happening here
+		DirtyAllParticles(*RigidsSolver);
 
 	} // end if simulating...
 
