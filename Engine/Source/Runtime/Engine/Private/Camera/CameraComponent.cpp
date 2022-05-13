@@ -307,9 +307,9 @@ void UCameraComponent::OnCameraMeshHiddenChanged()
 #endif
 }
 
-void UCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView)
+bool UCameraComponent::IsXRHeadTrackedCamera() const
 {
-	if (GEngine && GEngine->XRSystem.IsValid() && GetWorld() && GetWorld()->WorldType != EWorldType::Editor )
+	if (GEngine && GEngine->XRSystem.IsValid() && GetWorld() && GetWorld()->WorldType != EWorldType::Editor)
 	{
 		IXRTrackingSystem* XRSystem = GEngine->XRSystem.Get();
 		auto XRCamera = XRSystem->GetXRCamera();
@@ -318,27 +318,44 @@ void UCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredV
 		{
 			if (XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()))
 			{
-				const FTransform ParentWorld = CalcNewComponentToWorld(FTransform());
-
-				XRCamera->SetupLateUpdate(ParentWorld, this, bLockToHmd == 0);
-
-				if (bLockToHmd)
-				{
-					FQuat Orientation;
-					FVector Position;
-					if (XRCamera->UpdatePlayerCamera(Orientation, Position))
-					{
-						SetRelativeTransform(FTransform(Orientation, Position));
-					}
-					else
-					{
-						ResetRelativeTransform();
-					}
-				}
-
-				XRCamera->OverrideFOV(this->FieldOfView);
+				return true;
 			}
 		}
+	}
+
+	return false;
+}
+
+void UCameraComponent::HandleXRCamera()
+{
+	IXRTrackingSystem* XRSystem = GEngine->XRSystem.Get();
+	auto XRCamera = XRSystem->GetXRCamera();
+	const FTransform ParentWorld = CalcNewComponentToWorld(FTransform());
+
+	XRCamera->SetupLateUpdate(ParentWorld, this, bLockToHmd == 0);
+
+	if (bLockToHmd)
+	{
+		FQuat Orientation;
+		FVector Position;
+		if (XRCamera->UpdatePlayerCamera(Orientation, Position))
+		{
+			SetRelativeTransform(FTransform(Orientation, Position));
+		}
+		else
+		{
+			ResetRelativeTransform();
+		}
+	}
+
+	XRCamera->OverrideFOV(this->FieldOfView);
+}
+
+void UCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView)
+{
+	if (IsXRHeadTrackedCamera())
+	{
+		HandleXRCamera();
 	}
 
 	if (bUsePawnControlRotation)

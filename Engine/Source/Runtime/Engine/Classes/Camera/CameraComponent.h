@@ -136,6 +136,11 @@ public:
 #endif
 	// End of UObject interface
 
+protected:
+	bool IsXRHeadTrackedCamera() const;
+	virtual void HandleXRCamera();
+
+public:
 	/**
 	 * Returns camera's Point of View.
 	 * Called by Camera class. Subclass and postprocess to add any effects.
