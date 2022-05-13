@@ -226,94 +226,94 @@ namespace UnrealBuildTool
 		}
 
 
-		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = base.GetCompileArguments_Global(CompileEnvironment);
+			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
 			if (RuntimePlatform.IsWindows)
 			{
-				Result += " -fdiagnostics-format=msvc";
+				Arguments.Add("-fdiagnostics-format=msvc");
 			}
 
 			// Optionally enable exception handling (off by default since it generates extra code needed to propagate exceptions)
 			if (CompileEnvironment.bEnableExceptions)
 			{
-				Result += " -fexceptions";
-				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=0";
+				Arguments.Add("-fexceptions");
+				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
 			}
 			else
 			{
-				Result += " -fno-exceptions";
-				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=1";
+				Arguments.Add("-fno-exceptions");
+				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=1");
 			}
 
 			string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(IOSToolChainOptions.EnableAddressSanitizer)))
 			{
-				Result += " -fsanitize=address -fno-omit-frame-pointer -DFORCE_ANSI_ALLOCATOR=1";
+				Arguments.Add("-fsanitize=address -fno-omit-frame-pointer -DFORCE_ANSI_ALLOCATOR=1");
 			}
 
 			string? UndefSanitizerMode = Environment.GetEnvironmentVariable("ENABLE_UNDEFINED_BEHAVIOR_SANITIZER");
 			if ((UndefSanitizerMode != null && UndefSanitizerMode == "YES") || (Options.HasFlag(IOSToolChainOptions.EnableUndefinedBehaviorSanitizer)))
 			{
-				Result += " -fsanitize=undefined -fno-sanitize=bounds,enum,return,float-divide-by-zero";
+				Arguments.Add("-fsanitize=undefined -fno-sanitize=bounds,enum,return,float-divide-by-zero");
 			}
 
 			if (Options.HasFlag(IOSToolChainOptions.EnableThreadSanitizer))
 			{
-				Result += " -fsanitize=thread";
+				Arguments.Add("-fsanitize=thread");
 			}
 
-			Result += GetRTTIFlag(CompileEnvironment);
-			Result += " -fvisibility=hidden"; // hides the linker warnings with PhysX
+			Arguments.Add(GetRTTIFlag(CompileEnvironment));
+			Arguments.Add("-fvisibility=hidden"); // hides the linker warnings with PhysX
 
 			// use LTO if desired (like VCToolchain does)
 			if (CompileEnvironment.bAllowLTCG)
 			{
-				Result += " -flto";
+				Arguments.Add("-flto");
 			}
 
-			Result += " -Wall -Werror";
-			Result += " -Wdelete-non-virtual-dtor";
+			Arguments.Add("-Wall -Werror");
+			Arguments.Add("-Wdelete-non-virtual-dtor");
 
 			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
 			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
 			// See also MacToolChain.cs
 			if (GetClangVersion().Major >= 12)
 			{
-				Result += " -Wno-range-loop-analysis";
+				Arguments.Add("-Wno-range-loop-analysis");
 
 				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
-				Result += " -fno-delete-null-pointer-checks";
+				Arguments.Add("-fno-delete-null-pointer-checks");
 			}
 
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
-				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
+				Arguments.Add("-Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow"));
 			}
 
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
 			{
-				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
+				Arguments.Add("-Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
 			}
 
 			// fix for Xcode 8.3 enabling nonportable include checks, but p4 has some invalid cases in it
 			if (Settings.Value.IOSSDKVersionFloat >= 10.3)
 			{
-				Result += " -Wno-nonportable-include-path";
+				Arguments.Add("-Wno-nonportable-include-path");
 			}
 
 			if (IsBitcodeCompilingEnabled(CompileEnvironment.Configuration))
 			{
-				Result += " -fembed-bitcode";
+				Arguments.Add("-fembed-bitcode");
 			}
 
 			// What architecture(s) to build for
-			Result += GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture);
+			Arguments.Add(GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture));
 
-			Result += string.Format(" -isysroot \"{0}\"", Settings.Value.GetSDKPath(CompileEnvironment.Architecture));
+			Arguments.Add(string.Format(" -isysroot \"{0}\"", Settings.Value.GetSDKPath(CompileEnvironment.Architecture)));
 
-			Result += " -m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion;
+			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
 
 			bool bStaticAnalysis = false;
 			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
@@ -327,27 +327,27 @@ namespace UnrealBuildTool
 			{
 				if (CompileEnvironment.bOptimizeForSize)
 				{
-					Result += " -Oz";
+					Arguments.Add("-Oz");
 				}
 				else
 				{
-					Result += " -O3";
+					Arguments.Add("-O3");
 				}
 			}
 			else
 			{
-				Result += " -O0";
+				Arguments.Add("-O0");
 			}
 
 			if (!CompileEnvironment.bUseInlining)
 			{
-				Result += " -fno-inline-functions";
+				Arguments.Add("-fno-inline-functions");
 			}
 
 			// Create DWARF format debug info if wanted,
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Result += " -gdwarf-2";
+				Arguments.Add("-gdwarf-2");
 			}
 
 			// Add additional frameworks so that their headers can be found
@@ -362,11 +362,9 @@ namespace UnrealBuildTool
 					{
 						FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
 					}
-					Result += String.Format(" -F\"{0}\"", FrameworkDir);
+					Arguments.Add(String.Format(" -F\"{0}\"", FrameworkDir));
 				}
 			}
-
-			return Result;
 		}
 
 		// Conditionally enable (default disabled) Objective-C exceptions
@@ -376,11 +374,11 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bEnableObjCExceptions)
 			{
-				Result += " -fobjc-exceptions";
+				Result += "-fobjc-exceptions";
 			}
 			else
 			{
-				Result += " -fno-objc-exceptions";
+				Result += "-fno-objc-exceptions";
 			}
 
 			return Result;
@@ -555,63 +553,67 @@ namespace UnrealBuildTool
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
-			string Arguments = GetCompileArguments_Global(CompileEnvironment);
-			string PCHArguments = "";
+			List<string> GlobalArguments = new();
+
+			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			List<string> PCHArguments = new();
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
-				PCHArguments += GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!);
+				// Add the precompiled header file's path to the include path so GCC can find it.
+				// This needs to be before the other include paths to ensure GCC uses it instead of the source header file.
+				PCHArguments.Add(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 				if (GetClangVersion().Major >= 11)
 				{
-					PCHArguments += " -fpch-validate-input-files-content";
+					PCHArguments.Add("-fpch-validate-input-files-content");
 				}
 			}
 
-			Arguments += GetForceIncludeFileArguments(CompileEnvironment);
+			GetCompileArguments_ForceInclude(CompileEnvironment, GlobalArguments);
 
 			CPPOutput Result = new CPPOutput();
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
-				string FilePCHArguments = "";
-				string FileArguments = "";
+				List<string> FilePCHArguments = new();
+				List<string> FileArguments = new();
 				string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
 					// Compile the file as a C++ PCH.
-					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+					GetCompileArguments_PCH(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
+					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
 				}
 				else if (Extension == ".C")
 				{
 					// Compile the file as C code.
-					FileArguments += GetCompileArguments_C();
+					GetCompileArguments_C(CompileEnvironment, FileArguments);
 				}
 				else if (Extension == ".MM")
 				{
 					// Compile the file as Objective-C++ code.
-					FileArguments += GetCompileArguments_MM(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+					GetCompileArguments_MM(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
+					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
 				}
 				else if (Extension == ".M")
 				{
 					// Compile the file as Objective-C code.
-					FileArguments += GetCompileArguments_M(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+					GetCompileArguments_M(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
 				}
 				else
 				{
 					// Compile the file as C++ code.
-					FileArguments += GetCompileArguments_CPP(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
-					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
+					GetCompileArguments_CPP(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
+					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
 
 					// only use PCH for .cpp files
-					FilePCHArguments = PCHArguments;
+					FilePCHArguments.AddRange(PCHArguments);
 				}
 
 				// Add the C++ source file and its included files to the prerequisite item list.
@@ -639,7 +641,7 @@ namespace UnrealBuildTool
 					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
 
 					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments += string.Format(" -o \"{0}\"", PrecompiledHeaderFile.AbsolutePath);
+					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(PrecompiledHeaderFile)));
 				}
 				else
 				{
@@ -663,25 +665,38 @@ namespace UnrealBuildTool
 
 					CompileAction.ProducedItems.Add(ObjectFile);
 					Result.ObjectFiles.Add(ObjectFile);
-					FileArguments += string.Format(" -o \"{0}\"", ObjectFile.AbsolutePath);
+					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(ObjectFile)));
 					OutputFilePath = ObjectFile.AbsolutePath;
 				}
 
 				// Add the source file path to the command-line.
-				FileArguments += string.Format(" \"{0}\"", SourceFile.AbsolutePath);
+				FileArguments.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(SourceFile)));
 
 				// Generate the included header dependency list
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					FileArguments += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
+					FileArguments.Add(string.Format("-MD -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
 
 				string CompilerPath = Settings.Value.ToolchainDir + IOSCompiler;
 
-				string AllArgs = FilePCHArguments + Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
+				// Gets the target file so we can get the correct output path.
+				FileItem TargetFile = CompileAction.ProducedItems[0];
+
+				// Creates the path to the response file using the name of the output file and creates its contents.
+				FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
+				List<string> ResponseFileContents = new();
+				ResponseFileContents.AddRange(FilePCHArguments);
+				ResponseFileContents.AddRange(GlobalArguments);
+				ResponseFileContents.AddRange(FileArguments);
+				if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+				{
+					ResponseFileContents.Add(CompileEnvironment.AdditionalArguments);
+				}
+				ResponseFileContents = ResponseFileContents.Select(x => Utils.ExpandVariables(x)).ToList();
 				/*				string SourceText = System.IO.File.ReadAllText(SourceFile.AbsolutePath);
 								if (CompileEnvironment.bOptimizeForSize && (SourceFile.AbsolutePath.Contains("ElementBatcher.cpp") || SourceText.Contains("ElementBatcher.cpp") || SourceFile.AbsolutePath.Contains("AnimationRuntime.cpp") || SourceText.Contains("AnimationRuntime.cpp")
 									|| SourceFile.AbsolutePath.Contains("AnimEncoding.cpp") || SourceText.Contains("AnimEncoding.cpp") || SourceFile.AbsolutePath.Contains("TextRenderComponent.cpp") || SourceText.Contains("TextRenderComponent.cpp")
@@ -693,24 +708,27 @@ namespace UnrealBuildTool
 									AllArgs = AllArgs.Replace("-Oz", "-O3");
 								}*/
 
+				// Adds the response file to the compiler input.
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
+				CompileAction.CommandArguments += string.Format("@\"{0}\"", NormalizeCommandLinePath(ResponseFileItem));
+				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
+
 				// Analyze and then compile using the shell to perform the indirection
 				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
 				if (StaticAnalysisMode != null && StaticAnalysisMode != "" && OutputFilePath != null)
 				{
-					string TempArgs = "-c \"" + CompilerPath + " " + AllArgs + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + OutputFilePath.Replace(".o", ".html") + "; " + CompilerPath + " " + AllArgs + "\"";
-					AllArgs = TempArgs;
+					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + OutputFilePath.Replace(".o", ".html") + "; " + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + "\"";
 					CompilerPath = "/bin/sh";
 				}
 
 				// RPC utility parameters are in terms of the Mac side
 				CompileAction.WorkingDirectory = GetMacDevSrcRoot();
 				CompileAction.CommandPath = new FileReference(CompilerPath);
-				CompileAction.CommandArguments = AllArgs; // Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
 				CompileAction.CommandDescription = "Compile";
 				CompileAction.StatusDescription = string.Format("{0}", Path.GetFileName(SourceFile.AbsolutePath));
 				CompileAction.bIsGCCCompiler = true;
 				// We're already distributing the command by execution on Mac.
-				CompileAction.bCanExecuteRemotely = true;
+				CompileAction.bCanExecuteRemotely = CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create;
 				CompileAction.bShouldOutputStatusDescription = true;
 				CompileAction.CommandVersion = GetFullClangVersion();
 

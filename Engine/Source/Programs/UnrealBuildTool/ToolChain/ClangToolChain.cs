@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnrealBuildBase;
 
@@ -88,20 +89,19 @@ namespace UnrealBuildTool
 				(ClangVersionMajor == Major && ClangVersionMinor == Minor && ClangVersionPatch < Patch);
 		}
 
-		protected virtual string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result;
 			switch (CompileEnvironment.CppStandard)
 			{
 				case CppStandardVersion.Cpp14:
-					Result = " -std=c++14";
+					Arguments.Add("-std=c++14");
 					break;
 				case CppStandardVersion.Latest:
 				case CppStandardVersion.Cpp17:
-					Result = " -std=c++17";
+					Arguments.Add("-std=c++17");
 					break;
 				case CppStandardVersion.Cpp20:
-					Result = " -std=c++20";
+					Arguments.Add("-std=c++20");
 					break;
 				default:
 					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
@@ -109,62 +109,50 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bEnableCoroutines)
 			{
-				Result += " -fcoroutines-ts";
+				Arguments.Add("-fcoroutines-ts");
 				if (!CompileEnvironment.bEnableExceptions)
 				{
-					Result += " -Wno-coroutine-missing-unhandled-exception";
+					Arguments.Add("-Wno-coroutine-missing-unhandled-exception");
 				}
 			}
-
-			return Result;
 		}
 
-		protected virtual string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			return Result;
+			Arguments.Add("-x c++");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
-		protected virtual string GetCompileArguments_C()
+		protected virtual void GetCompileArguments_C(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x c";
-			return Result;
+			Arguments.Add("-x c");
 		}
 
-		protected virtual string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x objective-c++";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			return Result;
+			Arguments.Add("-x objective-c++");
+			Arguments.Add("-fobjc-abi-version=2");
+			Arguments.Add("-fobjc-legacy-dispatch");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
-		protected virtual string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_M(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x objective-c";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			return Result;
+			Arguments.Add("-x objective-c");
+			Arguments.Add("-fobjc-abi-version=2");
+			Arguments.Add("-fobjc-legacy-dispatch");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
-		protected virtual string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x c++-header";
+			Arguments.Add("-x c++-header");
 			if (CompilerVersionGreaterOrEqual(11, 0, 0))
 			{
-				Result += " -fpch-validate-input-files-content";
-				Result += " -fpch-instantiate-templates";
+				Arguments.Add("-fpch-validate-input-files-content");
+				Arguments.Add("-fpch-instantiate-templates");
 			}
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			return Result;
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
 		// Conditionally enable (default disabled) generation of information about every class with virtual functions for use by the C++ runtime type identification features
@@ -172,52 +160,39 @@ namespace UnrealBuildTool
 		// Note that exception handling uses the same information, but it will generate it as needed.
 		protected virtual string GetRTTIFlag(CppCompileEnvironment CompileEnvironment)
 		{
-			return CompileEnvironment.bUseRTTI ? " -frtti" : " -fno-rtti";
+			return CompileEnvironment.bUseRTTI ? "-frtti" : "-fno-rtti";
 		}
 
 		protected virtual string GetUserIncludePathArgument(DirectoryReference IncludePath)
 		{
-			return $" -I\"{NormalizeCommandLinePath(IncludePath)}\"";
+			return $"-I\"{NormalizeCommandLinePath(IncludePath)}\"";
 		}
 
 		protected virtual string GetSystemIncludePathArgument(DirectoryReference IncludePath)
 		{
 			// TODO: System include paths can be included with -isystem
-			return $" -I\"{NormalizeCommandLinePath(IncludePath)}\"";
+			return $"-I\"{NormalizeCommandLinePath(IncludePath)}\"";
 		}
 
-		protected virtual string GetIncludePathArguments(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_IncludePaths(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-			{
-				Result += GetUserIncludePathArgument(IncludePath);
-			}
-			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
-			{
-				Result += GetSystemIncludePathArgument(IncludePath);
-			}
-			return Result;
+			Arguments.AddRange(CompileEnvironment.UserIncludePaths.Select(IncludePath => GetUserIncludePathArgument(IncludePath)));
+			Arguments.AddRange(CompileEnvironment.SystemIncludePaths.Select(IncludePath => GetSystemIncludePathArgument(IncludePath)));
 		}
 
 		protected virtual string GetPreprocessorDefinitionArgument(string Definition)
 		{
-			return $" -D\"{EscapePreprocessorDefinition(Definition)}\"";
+			return $"-D\"{EscapePreprocessorDefinition(Definition)}\"";
 		}
 
-		protected virtual string GetPreprocessorDefinitionArguments(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_PreprocessorDefinitions(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				Result += GetPreprocessorDefinitionArgument(Definition);
-			}
-			return Result;
+			Arguments.AddRange(CompileEnvironment.Definitions.Select(Definition => GetPreprocessorDefinitionArgument(Definition)));
 		}
 
 		protected virtual string GetForceIncludeFileArgument(FileReference ForceIncludeFile)
 		{
-			return $" -include \"{NormalizeCommandLinePath(ForceIncludeFile)}\"";
+			return $"-include \"{NormalizeCommandLinePath(ForceIncludeFile)}\"";
 		}
 
 		protected virtual string GetForceIncludeFileArgument(FileItem ForceIncludeFile)
@@ -225,35 +200,30 @@ namespace UnrealBuildTool
 			return GetForceIncludeFileArgument(ForceIncludeFile.Location);
 		}
 
-		protected virtual string GetForceIncludeFileArguments(CppCompileEnvironment CompileEnvironment)
+		protected virtual void GetCompileArguments_ForceInclude(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-			{
-				Result += String.Format(" -include \"{0}\"", NormalizeCommandLinePath(ForceIncludeFile));
-			}
-			return Result;
+			Arguments.AddRange(CompileEnvironment.ForceIncludeFiles.Select(ForceIncludeFile => GetForceIncludeFileArgument(ForceIncludeFile)));
 		}
+
 
 		/// <summary>
 		/// Common compile arguments for all files in a module.
 		/// Override and call base.GetCompileArguments_Global() in derived classes.
 		/// </summary>
-		protected virtual string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		///
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-
 			// build up the commandline common to C and C++
-			Result += " -c";
-			Result += " -pipe";
+			Arguments.Add("-c");
+			Arguments.Add("-pipe");
 
 			// Add include paths to the argument list.
-			Result += GetIncludePathArguments(CompileEnvironment);
+			GetCompileArguments_IncludePaths(CompileEnvironment, Arguments);
 
 			// Add preprocessor definitions to the argument list.
-			Result += GetPreprocessorDefinitionArguments(CompileEnvironment);
-
-			return Result;
+			GetCompileArguments_PreprocessorDefinitions(CompileEnvironment, Arguments);
 		}
 	}
 }

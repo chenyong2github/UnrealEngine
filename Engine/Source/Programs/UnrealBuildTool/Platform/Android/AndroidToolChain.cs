@@ -717,7 +717,7 @@ namespace UnrealBuildTool
 				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=1";
 			}
 
-			Result += GetRTTIFlag(CompileEnvironment);
+			Result += $" {GetRTTIFlag(CompileEnvironment)}";
 
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
 			if (CompileEnvironment.bPGOOptimize)
@@ -1286,7 +1286,9 @@ namespace UnrealBuildTool
 					// Add C or C++ specific compiler arguments.
 					if (bIsPlainCFile)
 					{
-						FileArguments += GetCompileArguments_C();
+						List<string> CArguments = new();
+						GetCompileArguments_C(CompileEnvironment, CArguments);
+						FileArguments += $" {string.Join(' ', CArguments)}";
 
 						// remove shadow variable warnings for externally included files
 						if (!SourceFile.Location.IsUnderDirectory(Unreal.RootDirectory))
@@ -1296,11 +1298,15 @@ namespace UnrealBuildTool
 					}
 					else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 					{
-						FileArguments += GetCompileArguments_PCH(CompileEnvironment);
+						List<string> CreatePCHArguments = new();
+						GetCompileArguments_PCH(CompileEnvironment, CreatePCHArguments);
+						FileArguments += $" {string.Join(' ', CreatePCHArguments)}";
 					}
 					else
 					{
-						FileArguments += GetCompileArguments_CPP(CompileEnvironment);
+						List<string> CPPArguments = new();
+						GetCompileArguments_CPP(CompileEnvironment, CPPArguments);
+						FileArguments += $" {string.Join(' ', CPPArguments)}";
 
 						// only use PCH for .cpp files
 						FileArguments += PCHArguments;
@@ -1727,21 +1733,21 @@ namespace UnrealBuildTool
 					{
 						if (IsDirectoryForArch(IncludePath.FullName, Arch))
 						{
-							Arguments.Add(GetUserIncludePathArgument(IncludePath));
+							Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
 						}
 					}
 					foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 					{
 						if (IsDirectoryForArch(IncludePath.FullName, Arch))
 						{
-							Arguments.Add(GetSystemIncludePathArgument(IncludePath));
+							Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
 						}
 					}
 
 					// Preprocessor definitions.
 					foreach (string Definition in CompileEnvironment.Definitions)
 					{
-						Arguments.Add(GetPreprocessorDefinitionArgument(Definition));
+						Arguments.Add(String.Format(" -D\"{0}\"", Definition));
 					}
 
 					// Consume the included header dependency list

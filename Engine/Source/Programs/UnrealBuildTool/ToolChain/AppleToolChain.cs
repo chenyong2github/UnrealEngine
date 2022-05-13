@@ -206,61 +206,49 @@ namespace UnrealBuildTool
 			return Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
 		}
 
-		protected override string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x objective-c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-
-			return Result;
+			Arguments.Add("-x objective-c++");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+			Arguments.Add("-stdlib=libc++");
 		}
 
-		protected override string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x objective-c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-			return Result;
+			Arguments.Add("-x objective-c++");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+			Arguments.Add("-stdlib=libc++");
 		}
 
-		protected override string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_M(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x objective-c";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
-			return Result;
+			Arguments.Add("-x objective-c");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+			Arguments.Add("-stdlib=libc++");
 		}
 
-		protected override string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -x objective-c++-header";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
-			Result += " -stdlib=libc++";
+			Arguments.Add("-x objective-c++-header");
+			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+			Arguments.Add("-stdlib=libc++");
 
 			if (GetClangVersion().Major >= 11)
 			{
-				Result += " -fpch-validate-input-files-content";
+				Arguments.Add("-fpch-validate-input-files-content");
 			}
 			if (GetClangVersion().Major >= 13) // Note this is supported for >=11 on other clang platforms
 			{
-				Result += " -fpch-instantiate-templates";
+				Arguments.Add("-fpch-instantiate-templates");
 			}
-
-			return Result;
 		}
 
-		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = base.GetCompileArguments_Global(CompileEnvironment);
+			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
-			Result += " -fmessage-length=0";
-			Result += " -fpascal-strings";
-
-			return Result;
+			Arguments.Add("-fmessage-length=0");
+			Arguments.Add("-fpascal-strings");
 		}
 
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)

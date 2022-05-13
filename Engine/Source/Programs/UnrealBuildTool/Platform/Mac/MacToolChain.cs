@@ -191,65 +191,65 @@ namespace UnrealBuildTool
 			return ArchArg;
 		}
 
-		protected override string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
+		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = base.GetCompileArguments_Global(CompileEnvironment);
+			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
 
-			Result += " -fexceptions";
-			Result += " -DPLATFORM_EXCEPTIONS_DISABLED=0";
+			Arguments.Add("-fexceptions");
+			Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
 
-			Result += " -fasm-blocks";
+			Arguments.Add("-fasm-blocks");
 
 			if(CompileEnvironment.bHideSymbolsByDefault)
 			{
-				Result += " -fvisibility-ms-compat";
-				Result += " -fvisibility-inlines-hidden";
+				Arguments.Add("-fvisibility-ms-compat");
+				Arguments.Add("-fvisibility-inlines-hidden");
 			}
 			if (Options.HasFlag(MacToolChainOptions.EnableAddressSanitizer))
 			{
-				Result += " -fsanitize=address";
+				Arguments.Add("-fsanitize=address");
 			}
 			if (Options.HasFlag(MacToolChainOptions.EnableThreadSanitizer))
 			{
-				Result += " -fsanitize=thread";
+				Arguments.Add("-fsanitize=thread");
 			}
 			if (Options.HasFlag(MacToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
-				Result += " -fsanitize=undefined";
+				Arguments.Add("-fsanitize=undefined");
 			}			
 
-			Result += " -Wall -Werror";
-			Result += " -Wdelete-non-virtual-dtor";
+			Arguments.Add("-Wall -Werror");
+			Arguments.Add("-Wdelete-non-virtual-dtor");
 
 			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
 			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
 			if (GetClangVersion().Major >= 12)
 			{
-				Result += " -Wno-range-loop-analysis ";
+				Arguments.Add("-Wno-range-loop-analysis ");
 			}			
 
-			//Result += " -Wsign-compare"; // fed up of not seeing the signed/unsigned warnings we get on Windows - lets enable them here too.
+			//Arguments.Add("-Wsign-compare"); // fed up of not seeing the signed/unsigned warnings we get on Windows - lets enable them here too.
 
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
-				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
+				Arguments.Add("-Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow"));
 			}
 			
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
 			{
-				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
+				Arguments.Add("-Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
 			}
 
 			if (CompileEnvironment.bEnableOSX109Support)
 			{
-				Result += " -faligned-new"; // aligned operator new is supported only on macOS 10.14 and above
+				Arguments.Add("-faligned-new"); // aligned operator new is supported only on macOS 10.14 and above
 			}
 
 			// Pass through architecture and OS info
-			Result += " " + FormatArchitectureArg(CompileEnvironment.Architecture);	
-			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
-			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);
+			Arguments.Add("" + FormatArchitectureArg(CompileEnvironment.Architecture));
+			Arguments.Add(string.Format(" -isysroot \"{0}\"", SDKPath));
+			Arguments.Add("-mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion));
 
 			bool bStaticAnalysis = false;
 			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
@@ -264,38 +264,36 @@ namespace UnrealBuildTool
 				// Don't over optimise if using AddressSanitizer or you'll get false positive errors due to erroneous optimisation of necessary AddressSanitizer instrumentation.
 				if (Options.HasFlag(MacToolChainOptions.EnableAddressSanitizer))
 				{
-					Result += " -O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer";
+					Arguments.Add("-O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer");
 				}
 				else if (Options.HasFlag(MacToolChainOptions.EnableThreadSanitizer))
 				{
-					Result += " -O1 -g";
+					Arguments.Add("-O1 -g");
 				}
 				else if (CompileEnvironment.bOptimizeForSize)
 				{
-					Result += " -Oz";
+					Arguments.Add("-Oz");
 				}
 				else
 				{
-					Result += " -O3";
+					Arguments.Add("-O3");
 				}
 			}
 			else
 			{
-				Result += " -O0";
+				Arguments.Add("-O0");
 			}
 
 			if (!CompileEnvironment.bUseInlining)
 			{
-				Result += " -fno-inline-functions";
+				Arguments.Add("-fno-inline-functions");
 			}
 
 			// Create DWARF format debug info if wanted,
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Result += " -gdwarf-2";
+				Arguments.Add("-gdwarf-2");
 			}
-
-			return Result;
 		}
 		
 		string AddFrameworkToLinkCommand(string FrameworkName, string Arg = "-framework")
@@ -366,19 +364,19 @@ namespace UnrealBuildTool
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
-			StringBuilder Arguments = new StringBuilder();
-			StringBuilder PCHArguments = new StringBuilder();
+			List<string> GlobalArguments = new();
 
-			Arguments.Append(GetCompileArguments_Global(CompileEnvironment));
+			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+			List<string> PCHArguments = new();
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
 				// Add the precompiled header file's path to the include path so GCC can find it.
 				// This needs to be before the other include paths to ensure GCC uses it instead of the source header file.
-				PCHArguments.Append(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+				PCHArguments.Add(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 				if (GetClangVersion().Major >= 11)
 				{
-					PCHArguments.Append(" -fpch-validate-input-files-content");
+					PCHArguments.Add("-fpch-validate-input-files-content");
 				}
 			}
 
@@ -388,9 +386,7 @@ namespace UnrealBuildTool
 				FileReference FrameworkPath = new FileReference(Path.GetFullPath(Framework.Name));
 				if (!FrameworksSearchPaths.Contains(FrameworkPath.Directory.FullName))
 				{
-					Arguments.Append(" -F \"");
-					Arguments.Append(NormalizeCommandLinePath(FrameworkPath.Directory));
-					Arguments.Append("\"");
+					GlobalArguments.Add($"-F \"{NormalizeCommandLinePath(FrameworkPath.Directory)}\"");
 					FrameworksSearchPaths.Add(FrameworkPath.Directory.FullName);
 				}
 			}
@@ -403,42 +399,42 @@ namespace UnrealBuildTool
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
-				string FileArguments = "";
+				List<string> FileArguments = new();
 				string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
 					// Compile the file as a C++ PCH.
-					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
+					GetCompileArguments_PCH(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
 				}
 				else if (Extension == ".C")
 				{
 					// Compile the file as C code.
-					FileArguments += GetCompileArguments_C();
+					GetCompileArguments_C(CompileEnvironment, FileArguments);
 				}
 				else if (Extension == ".MM")
 				{
 					// Compile the file as Objective-C++ code.
-					FileArguments += GetCompileArguments_MM(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
+					GetCompileArguments_MM(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
 				}
 				else if (Extension == ".M")
 				{
 					// Compile the file as Objective-C++ code.
-					FileArguments += GetCompileArguments_M(CompileEnvironment);
+					GetCompileArguments_M(CompileEnvironment, FileArguments);
 				}
 				else
 				{
 					// Compile the file as C++ code.
-					FileArguments += GetCompileArguments_CPP(CompileEnvironment);
-					FileArguments += GetRTTIFlag(CompileEnvironment);
+					GetCompileArguments_CPP(CompileEnvironment, FileArguments);
+					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
 
 					// only use PCH for .cpp files
-					FileArguments += PCHArguments.ToString();
+					FileArguments.AddRange(PCHArguments);
 				}
 
-				FileArguments += GetForceIncludeFileArguments(CompileEnvironment);
+				GetCompileArguments_ForceInclude(CompileEnvironment, FileArguments);
 
 				// Add the C++ source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(SourceFile);
@@ -452,7 +448,7 @@ namespace UnrealBuildTool
 					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
 
 					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments += string.Format(" -o \"{0}\"", NormalizeCommandLinePath(PrecompiledHeaderFile));
+					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(PrecompiledHeaderFile)));
 				}
 				else
 				{
@@ -466,18 +462,18 @@ namespace UnrealBuildTool
 
 					CompileAction.ProducedItems.Add(ObjectFile);
 					Result.ObjectFiles.Add(ObjectFile);
-					FileArguments += string.Format(" -o \"{0}\"", NormalizeCommandLinePath(ObjectFile));
+					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(ObjectFile)));
 					OutputFilePath = ObjectFile.AbsolutePath;
 				}
 
 				// Add the source file path to the command-line.
-				FileArguments += string.Format(" \"{0}\"", NormalizeCommandLinePath(SourceFile));
+				FileArguments.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(SourceFile)));
 
 				// Generate the timing info
 				if (CompileEnvironment.bPrintTimingInfo)
 				{
 					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
-					FileArguments += " -ftime-trace";
+					FileArguments.Add("-ftime-trace");
 					CompileAction.ProducedItems.Add(TraceFile);
 				}
 
@@ -485,7 +481,7 @@ namespace UnrealBuildTool
 				if(!bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
 				{
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					FileArguments += string.Format(" -MD -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile));
+					FileArguments.Add(string.Format("-MD -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
@@ -507,22 +503,34 @@ namespace UnrealBuildTool
 					}
 				}
 
-				string AllArgs = Arguments + FileArguments + EscapedAdditionalArgs;
+				// Gets the target file so we can get the correct output path.
+				FileItem TargetFile = CompileAction.ProducedItems[0];
+
+				// Creates the path to the response file using the name of the output file and creates its contents.
+				FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
+				List<string> ResponseFileContents = new();
+				ResponseFileContents.AddRange(GlobalArguments);
+				ResponseFileContents.AddRange(FileArguments);
+				ResponseFileContents.Add(EscapedAdditionalArgs);
+
+				// Adds the response file to the compiler input.
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
+				CompileAction.CommandArguments += string.Format("@\"{0}\"", NormalizeCommandLinePath(ResponseFileItem));
+				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 
 				string CompilerPath = Settings.ToolchainDir + MacCompiler;
 				
 				// Analyze and then compile using the shell to perform the indirection
 				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-				if(StaticAnalysisMode != null && StaticAnalysisMode != "" && OutputFilePath != null)
+				if (StaticAnalysisMode != null && StaticAnalysisMode != "" && OutputFilePath != null)
 				{
-					string TempArgs = "-c \"" + CompilerPath + " " + AllArgs + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + OutputFilePath.Replace(".o", ".html") + "; " + CompilerPath + " " + AllArgs + "\"";
-					AllArgs = TempArgs;
+					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + OutputFilePath.Replace(".o", ".html") + "; " + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + "\"";
 					CompilerPath = "/bin/sh";
 				}
 
+				// RPC utility parameters are in terms of the Mac side
 				CompileAction.WorkingDirectory = GetMacDevSrcRoot();
 				CompileAction.CommandPath = new FileReference(CompilerPath);
-				CompileAction.CommandArguments = AllArgs;
 
 				// For compilation we delete everything we produce
 				CompileAction.DeleteItems.AddRange(CompileAction.ProducedItems);
@@ -546,24 +554,36 @@ namespace UnrealBuildTool
 					PrepassAction.CommandVersion = CompileAction.CommandVersion;
 					PrepassAction.WorkingDirectory = CompileAction.WorkingDirectory;
 
-					string PreprocessArguments = Arguments.ToString();
-					string PreprocessFileArguments = FileArguments;
-					PreprocessArguments = PreprocessArguments.Replace(" -c ", " ");
+					List<string> PreprocessGlobalArguments = new(GlobalArguments);
+					List<string> PreprocessFileArguments = new(FileArguments);
+					PreprocessGlobalArguments.Remove("-c");
 
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					PreprocessFileArguments += string.Format(" -M -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile));
+					PreprocessFileArguments.Add(string.Format("-M -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
 					PrepassAction.DependencyListFile = DependencyListFile;
 					PrepassAction.ProducedItems.Add(DependencyListFile);
 
-					PreprocessFileArguments = PreprocessFileArguments.Replace(" -ftime-trace", string.Empty);
-					PreprocessFileArguments = PreprocessFileArguments.Replace(string.Format(" -o \"{0}\"", NormalizeCommandLinePath(CompileAction.ProducedItems.First())), String.Empty);
+					PreprocessFileArguments.Remove("-ftime-trace");
+					PreprocessFileArguments.Remove(string.Format(" -o \"{0}\"", NormalizeCommandLinePath(CompileAction.ProducedItems.First())));
 
 					PrepassAction.DeleteItems.AddRange(PrepassAction.ProducedItems);
 
-					string AllPreprocessArgs = PreprocessArguments + PreprocessFileArguments + EscapedAdditionalArgs;
+					// Gets the target file so we can get the correct output path.
+					FileItem PreprocessTargetFile = PrepassAction.ProducedItems[0];
+
+					// Creates the path to the response file using the name of the output file and creates its contents.
+					FileReference PreprocessResponseFileName = new FileReference(PreprocessTargetFile.AbsolutePath + ".response");
+					List<string> PreprocessResponseFileContents = new();
+					PreprocessResponseFileContents.AddRange(PreprocessGlobalArguments);
+					PreprocessResponseFileContents.AddRange(PreprocessFileArguments);
+					PreprocessResponseFileContents.Add(EscapedAdditionalArgs);
+
+					// Adds the response file to the compiler input.
+					FileItem PreprocessResponseFileItem = Graph.CreateIntermediateTextFile(PreprocessResponseFileName, PreprocessResponseFileContents);
+					PrepassAction.PrerequisiteItems.Add(PreprocessResponseFileItem);
 
 					PrepassAction.CommandPath = new FileReference(CompilerPath);
-					PrepassAction.CommandArguments = AllPreprocessArgs;
+					PrepassAction.CommandArguments = string.Format("@\"{0}\"", PreprocessResponseFileItem);
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.PrerequisiteItems.Add(DependencyListFile);
 				}
