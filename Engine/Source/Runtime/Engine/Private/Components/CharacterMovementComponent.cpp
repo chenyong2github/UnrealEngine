@@ -1626,7 +1626,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_CharacterMovementSimulated);
 	checkSlow(CharacterOwner != nullptr);
 
-	if (NetworkSmoothingMode == ENetworkSmoothingMode::Replay)
+	if (GetWorld()->IsPlayingReplay())
 	{
 		const FVector OldLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
 		const FVector OldVelocity = Velocity;
