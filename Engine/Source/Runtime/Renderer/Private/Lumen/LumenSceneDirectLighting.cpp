@@ -1611,6 +1611,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			FRDGBufferUAVRef ShadowTraceAllocatorUAV = ShadowTraceAllocator ? GraphBuilder.CreateUAV(ShadowTraceAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
 			FRDGBufferUAVRef ShadowTracesUAV = ShadowTraces ? GraphBuilder.CreateUAV(ShadowTraces, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
 
+			int32 NumShadowedLights = 0;
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				const FViewInfo& View = Views[ViewIndex];
@@ -1634,8 +1635,16 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 							ShadowMaskTilesUAV,
 							ShadowTraceAllocatorUAV,
 							ShadowTracesUAV);
+
+						++NumShadowedLights;
 					}
 				}
+			}
+
+			// Clear to mark resource as used if it wasn't ever written to
+			if (ShadowTracesUAV && NumShadowedLights == 0)
+			{
+				AddClearUAVPass(GraphBuilder, ShadowTracesUAV, 0);
 			}
 		}
 
