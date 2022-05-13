@@ -647,6 +647,7 @@ FCachedSystemScalabilityCVars::FCachedSystemScalabilityCVars()
 	, ViewDistanceScale(-1)
 	, ViewDistanceScaleSquared(-1)
 	, StaticMeshLODDistanceScale(1.0f)
+	, SkeletalMeshOverlayDistanceScale(1.0f)
 	, MaxAnisotropy(-1)
 	
 {
@@ -661,7 +662,8 @@ bool FCachedSystemScalabilityCVars::operator==(const FCachedSystemScalabilityCVa
 		MaxCSMShadowResolution == Other.MaxCSMShadowResolution &&
 		ViewDistanceScale == Other.ViewDistanceScale &&
 		ViewDistanceScaleSquared == Other.ViewDistanceScaleSquared &&
-		StaticMeshLODDistanceScale == Other.StaticMeshLODDistanceScale;
+		StaticMeshLODDistanceScale == Other.StaticMeshLODDistanceScale &&
+		SkeletalMeshOverlayDistanceScale == Other.SkeletalMeshOverlayDistanceScale;
 }
 
 void ScalabilityCVarsSinkCallback()
@@ -726,6 +728,12 @@ void ScalabilityCVarsSinkCallback()
 	{
 		static const auto StaticMeshLODDistanceScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.StaticMeshLODDistanceScale"));
 		LocalScalabilityCVars.StaticMeshLODDistanceScale = StaticMeshLODDistanceScale->GetFloat();
+	}
+
+	{
+		static const auto SkeletalMeshOverlayDistanceScale = ConsoleMan.FindTConsoleVariableDataFloat(TEXT("r.ViewDistanceScale.SkeletalMeshOverlay"));
+		LocalScalabilityCVars.SkeletalMeshOverlayDistanceScale = FMath::Max(SkeletalMeshOverlayDistanceScale->GetValueOnGameThread(), 0.0f);
+		LocalScalabilityCVars.SkeletalMeshOverlayDistanceScale *= LocalScalabilityCVars.ViewDistanceScale;
 	}
 
 	LocalScalabilityCVars.bInitialized = true;

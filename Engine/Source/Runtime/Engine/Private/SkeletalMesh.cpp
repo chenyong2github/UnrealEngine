@@ -6740,7 +6740,8 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 				bool bAddOverlay = true;
 				if (bHasOverlayCullDistance)
 				{
-					float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+					// this is already combined with ViewDistanceScale
+					float MaxDrawDistanceScale = GetCachedScalabilityCVars().SkeletalMeshOverlayDistanceScale;
 					MaxDrawDistanceScale *= GetCachedScalabilityCVars().CalculateFieldOfViewDistanceScale(View->DesiredFOV);
 					float DistanceSquared = (GetBounds().Origin - View->ViewMatrices.GetViewOrigin()).SizeSquared();
 					if (DistanceSquared > FMath::Square(OverlayMaterialMaxDrawDistance * MaxDrawDistanceScale))

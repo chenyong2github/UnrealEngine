@@ -3062,6 +3062,13 @@ static TAutoConsoleVariable<int32> CVarViewDistanceScale_FieldOfViewAffectsHLOD(
 	TEXT("If enabled, applies the field of view scaling to HLOD draw distances as well as non-HLODs."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarViewDistanceScale_SkeletalMeshOverlay(
+	TEXT("r.ViewDistanceScale.SkeletalMeshOverlay"),
+	1.f,
+	TEXT("Controls the distance scale for skeletal mesh overlay, Default = 1.0. \n"
+		 "Higher values will increase skeletal mesh overlay draw distance. This value is applied together with r.ViewDistanceScale"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarLightFunctionQuality(
 	TEXT("r.LightFunctionQuality"),
 	2,

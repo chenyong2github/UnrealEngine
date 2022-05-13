@@ -425,6 +425,7 @@ struct FCachedSystemScalabilityCVars
 	float ViewDistanceScaleSquared;
 	int32 FieldOfViewAffectsHLOD;
 	float StaticMeshLODDistanceScale;
+	float SkeletalMeshOverlayDistanceScale;
 
 	float CalculateFieldOfViewDistanceScale(const float FieldOfView) const
 	{
