@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -115,6 +116,7 @@ namespace Horde.Agent.Execution
 			{
 				string fileName = FileReference.Combine(sandboxDir, task.WorkingDirectory.ToString(), task.Executable.ToString()).FullName;
 				string workingDirectory = DirectoryReference.Combine(sandboxDir, task.WorkingDirectory.ToString()).FullName;
+				EnsureFileIsExecutable(fileName);
 
 				Dictionary<string, string> newEnvironment = new Dictionary<string, string>();
 				foreach (System.Collections.DictionaryEntry? entry in Environment.GetEnvironmentVariables())
@@ -253,6 +255,15 @@ namespace Horde.Agent.Execution
 
 			IoHash hash = await _storageClient.WriteBlobAsync<DirectoryTree>(namespaceId, tree);
 			return (tree, hash);
+		}
+
+		private void EnsureFileIsExecutable(string filePath)
+		{
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			{
+				ushort mode = 493; // 0755 octal Posix permission
+				FileUtils.SetFileMode_Linux(filePath, mode);
+			}
 		}
 
 		async Task<DirectoryNode> CreateDirectoryNode(NamespaceId namespaceId, string name, int baseDirLen, List<FileReference> sortedFiles, int minIdx, int maxIdx)

@@ -154,6 +154,13 @@ namespace Horde.Agent.Commands
 	[Command("Compute", "AwsLambda", "Listen for AWS Lambda invocations")]
 	class AwsLambdaCommand : Command
 	{
+		private const string EnvVarHordeStorageUrl = "UE_HORDE_STORAGE_URL";
+		private const string EnvVarHordeStorageOAuthUrl = "UE_HORDE_STORAGE_OAUTH_URL";
+		private const string EnvVarHordeStorageOAuthGrantType = "UE_HORDE_STORAGE_OAUTH_GRANT_TYPE";
+		private const string EnvVarHordeStorageOAuthClientId = "UE_HORDE_STORAGE_OAUTH_CLIENT_ID";
+		private const string EnvVarHordeStorageOAuthClientSecretArn = "UE_HORDE_STORAGE_OAUTH_CLIENT_SECRET_ARN";
+		private const string EnvVarHordeStorageOAuthScope = "UE_HORDE_STORAGE_OAUTH_SCOPE";
+		
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
@@ -220,10 +227,11 @@ namespace Horde.Agent.Commands
 
 		private static async Task<string> GetOAuthClientSecretAsync(CancellationToken cancellationToken)
 		{
-			string oAuthClientSecret = GetEnvVar("UE_HORDE_STORAGE_OAUTH_CLIENT_SECRET_ARN");
+			string oAuthClientSecret = GetEnvVar(EnvVarHordeStorageOAuthClientSecretArn);
 			AmazonSimpleSystemsManagementClient ssmClient = new AmazonSimpleSystemsManagementClient();
-			GetParameterResponse paramRes = await ssmClient.GetParameterAsync(new GetParameterRequest { Name = oAuthClientSecret }, cancellationToken);
-			return paramRes.Parameter.Value;
+			GetParameterRequest request = new GetParameterRequest { Name = oAuthClientSecret, WithDecryption = true };
+			GetParameterResponse response = await ssmClient.GetParameterAsync(request, cancellationToken);
+			return response.Parameter.Value;
 		}
 
 		private static HttpServiceClientOptions CreateHttpServiceClientOptionsFromEnv(string clientSecret)
