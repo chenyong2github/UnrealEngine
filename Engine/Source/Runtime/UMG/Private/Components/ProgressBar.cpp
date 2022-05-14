@@ -9,7 +9,6 @@
 /////////////////////////////////////////////////////
 // UProgressBar
 
-
 static FProgressBarStyle* DefaultProgressBarStyle = nullptr;
 
 #if WITH_EDITOR

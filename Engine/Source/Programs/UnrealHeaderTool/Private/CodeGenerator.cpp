@@ -5084,6 +5084,7 @@ void FNativeClassHeaderGenerator::ExportFieldNotify(FOutputDevice& OutGeneratedH
 	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> EditorFunctions;
 	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> RuntimeFunctions;
 	const FString ClassCPPName = ClassDef.GetAlternateNameCPP();
+	const FString APIString = GetAPIString();
 
 	if (ClassDef.HasCustomFieldNotify())
 	{
@@ -5138,8 +5139,8 @@ void FNativeClassHeaderGenerator::ExportFieldNotify(FOutputDevice& OutGeneratedH
 			OutGeneratedCPPText.Logf(TEXT("#if WITH_EDITORONLY_DATA\r\n"));
 		}
 
-		RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN()\r\n"));
-		EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN()\r\n"));
+		RuntimeHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(%s)\r\n"), *APIString);
+		EditorHeaderStringBuilders.Logf(TEXT("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(%s)\r\n"), *APIString);
 
 		//UE_FIELD_NOTIFICATION_DECLARE_FIELD
 		{

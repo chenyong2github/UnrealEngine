@@ -21,7 +21,7 @@ UCLASS()
 class UMG_API UProgressBar : public UWidget
 {
 	GENERATED_UCLASS_BODY()
-
+	
 public:
 	/** The progress bar style */
 	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
@@ -30,7 +30,7 @@ public:
 
 	/** Used to determine the fill position of the progress bar ranging 0..1 */
 	UE_DEPRECATED(5.1, "Direct access to Percent is deprecated. Please use the getter or setter.")
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPercent", Category="Progress", meta = (UIMin = "0", UIMax = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter, Setter, BlueprintSetter="SetPercent", Category="Progress", meta = (UIMin = "0", UIMax = "1"))
 	float Percent;
 
 	/** Defines the direction in which the progress bar fills */
@@ -45,7 +45,7 @@ public:
 	
 	/** */
 	UE_DEPRECATED(5.1, "Direct access to bIsMarquee is deprecated. Please use the getter or setter.")
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="UseMarquee", Setter="SetIsMarquee", BlueprintSetter="SetIsMarquee", Category="Progress")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter="UseMarquee", Setter="SetIsMarquee", BlueprintSetter="SetIsMarquee", Category="Progress")
 	bool bIsMarquee;
 
 	/** */
