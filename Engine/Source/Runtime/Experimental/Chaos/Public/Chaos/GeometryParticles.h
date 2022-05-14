@@ -31,6 +31,11 @@ namespace Chaos
 	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 	using FConstraintHandleArray = TArray<FConstraintHandle*>;
 
+	namespace CVars
+	{
+		CHAOS_API extern int32 CCDAxisThresholdMode;
+	}
+
 	/** Data that is associated with geometry. If a union is used an entry is created per internal geometry */
 	class CHAOS_API FPerShapeData
 	{
@@ -638,25 +643,49 @@ namespace Chaos
 			{
 				MLocalBounds[Index] = TAABB<T, d>(InGeometry->BoundingBox());
 
-				// Update CCDAxisThreshold to be the extents of the bounds of the smallest shape on each axis
-				MCCDAxisThreshold[Index] = MLocalBounds[Index].Extents();
-				for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray(Index))
+				if (CVars::CCDAxisThresholdMode == 0)
 				{
-					// Only sim-enabled shapes should ever be swept with CCD, so make sure the
-					// sim-enabled flag is on for each shape before considering it's min bounds
-					// for CCD extents.
-					if (Shape->GetSimEnabled())
+					// Use object extents as CCD axis threshold
+					MCCDAxisThreshold[Index] = MLocalBounds[Index].Extents();
+				}
+				else if (CVars::CCDAxisThresholdMode == 1)
+				{
+					// Use thinnest object extents as all axis CCD thresholds
+					MCCDAxisThreshold[Index] = FVec3(MLocalBounds[Index].Extents().GetMin());
+				}
+				else
+				{
+					// Find minimum shape bounds thickness on each axis
+					FVec3 ThinnestBoundsPerAxis = MLocalBounds[Index].Extents();
+					for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray(Index))
 					{
-						const TSerializablePtr<FImplicitObject> Geometry = Shape->GetGeometry();
-						if (Geometry->HasBoundingBox())
+						// Only sim-enabled shapes should ever be swept with CCD, so make sure the
+						// sim-enabled flag is on for each shape before considering it's min bounds
+						// for CCD extents.
+						if (Shape->GetSimEnabled())
 						{
-							const TVector<T, d> ShapeExtents = Geometry->BoundingBox().Extents();
-							TVector<T, d>& CCDAxisThreshold = MCCDAxisThreshold[Index];
-							for (int32 AxisIndex = 0; AxisIndex < d; ++AxisIndex)
+							const TSerializablePtr<FImplicitObject> Geometry = Shape->GetGeometry();
+							if (Geometry->HasBoundingBox())
 							{
-								MCCDAxisThreshold[Index][AxisIndex] = FMath::Min(ShapeExtents[AxisIndex], MCCDAxisThreshold[Index][AxisIndex]);
+								const TVector<T, d> ShapeExtents = Geometry->BoundingBox().Extents();
+								TVector<T, d>& CCDAxisThreshold = MCCDAxisThreshold[Index];
+								for (int32 AxisIndex = 0; AxisIndex < d; ++AxisIndex)
+								{
+									ThinnestBoundsPerAxis[AxisIndex] = FMath::Min(ShapeExtents[AxisIndex], ThinnestBoundsPerAxis[AxisIndex]);
+								}
 							}
 						}
+					}
+
+					if (CVars::CCDAxisThresholdMode == 2)
+					{
+						// On each axis, use the thinnest shape bound on that axis
+						MCCDAxisThreshold[Index] = ThinnestBoundsPerAxis;
+					}
+					else if (CVars::CCDAxisThresholdMode == 3)
+					{
+						// Find the thinnest shape bound on any axis and use this for all axes
+						MCCDAxisThreshold[Index] = FVec3(ThinnestBoundsPerAxis.GetMin());
 					}
 				}
 
