@@ -77,28 +77,24 @@ void FEvalGraphEditorToolkit::EvaluateNode()
 {
 	if (UEvalGraph* Graph = dynamic_cast<UEvalGraph*>(GraphEditor->GetCurrentGraph()))
 	{
-		for (UObject* Ode : GetSelectedNodes())
+		if (TSharedPtr<Eg::FGraph> EgEvalGraph = Graph->GetEvalGraph())
 		{
-			if (UEvalGraphEdNode* Node = dynamic_cast<UEvalGraphEdNode*>(Ode))
+			for (UObject* Ode : GetSelectedNodes())
 			{
-				//UE_LOG(FEvalGraphEditorToolkitLog, Verbose, TEXT("FEvalGraphEditorToolkit::EvaluateNode(%s)"), *Ode->GetFullName());
-				//Graph->Evaluate(Node);
+				if (UEvalGraphEdNode* Node = dynamic_cast<UEvalGraphEdNode*>(Ode))
+				{
+					if (TSharedPtr<Eg::FNode> EgNode = EgEvalGraph->FindBaseNode(Node->GetEgNodeGuid()))
+					{
+						for (Eg::FConnectionBase* NodeOutput : EgNode->GetOutputs())
+						{
+							EgNode->Evaluate({0.f}, NodeOutput);
+						}
+					}
+				}
 			}
 		}
 	}
 }
-void FEvalGraphEditorToolkit::CreateNode(FName RegisteredNode)
-{
-	//UE_LOG(FEvalGraphEditorToolkitLog, Verbose, TEXT("FEvalGraphEditorToolkit::CreateNode"), RegisteredNode);
-	if (UEvalGraph* Graph = dynamic_cast<UEvalGraph*>(GraphEditor->GetCurrentGraph()))
-	{
-		if (UEvalGraph * Asset = GetEvalGraph())
-		{
-			//TSharedPtr<FNewManagedArrayCollectionNode> Node1 = AddNode(new FNewManagedArrayCollectionNode({ FName("Node1") }));
-		}
-	}
-}
-
 
 FGraphPanelSelectionSet FEvalGraphEditorToolkit::GetSelectedNodes() const
 {

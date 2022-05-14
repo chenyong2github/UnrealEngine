@@ -11,6 +11,17 @@ namespace Eg
 
 	template<class T> inline EVALGRAPHCORE_API FName GraphConnectionTypeName();
 
+	struct FPin
+	{
+		enum class EDirection : uint8 {
+			NONE = 0,
+			INPUT,
+			OUTPUT
+		};
+		EDirection Direction;
+		FName Type;
+		FName Name;
+	};
 
 	//
 	// Input Output Base
@@ -20,6 +31,7 @@ namespace Eg
 	{
 
 	protected:
+		FPin::EDirection Direction;
 		FName Type;
 		FName Name;
 		FGuid  Guid;
@@ -31,8 +43,13 @@ namespace Eg
 
 
 	public:
-		FConnectionBase(FName InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
+		FConnectionBase(FPin::EDirection Direction, FName InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
 		virtual ~FConnectionBase() {};
+
+		FNode* GetOwningNode() { return OwningNode; }
+		const FNode* GetOwningNode() const { return OwningNode; }
+
+		FPin::EDirection GetDirection() const { return Direction; }
 
 		FName GetType() const { return Type; }
 

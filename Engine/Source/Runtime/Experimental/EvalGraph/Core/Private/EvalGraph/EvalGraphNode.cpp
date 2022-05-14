@@ -6,6 +6,26 @@
 
 namespace Eg
 {
+	void FNode::AddBaseInput(FConnectionBase* InPtr)
+	{ 
+		for (FConnectionBase* In : Inputs)
+		{
+			ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Input Failed: Existing Node input already defined with name (%s)"), *InPtr->GetName().ToString());
+		}
+		Inputs.Add(InPtr); 
+	}
+
+	void FNode::AddBaseOutput(FConnectionBase* InPtr)
+	{ 
+		for (FConnectionBase* Out : Outputs)
+		{
+			ensureMsgf(!Out->GetName().IsEqual(InPtr->GetName()), TEXT("Add Output Failed: Existing Node output already defined with name (%s)"), *InPtr->GetName().ToString());
+		}
+		Outputs.Add(InPtr);
+	}
+
+
+
 	TArray<FPin> FNode::GetPins() const
 	{
 		TArray<FPin> RetVal;
@@ -22,6 +42,30 @@ namespace Eg
 		{
 			Output->Invalidate();
 		}
+	}
+
+	FConnectionBase* FNode::FindInput(FName InName) const
+	{
+		for (FConnectionBase* Input : Inputs)
+		{
+			if (Input->GetName().IsEqual(InName))
+			{
+				return Input;
+			}
+		}
+		return nullptr;
+	}
+
+	FConnectionBase* FNode::FindOutput(FName InName) const
+	{
+		for (FConnectionBase* Output : Outputs)
+		{
+			if (Output->GetName().IsEqual(InName))
+			{
+				return Output;
+			}
+		}
+		return nullptr;
 	}
 
 }

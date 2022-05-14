@@ -43,13 +43,30 @@ void UEvalGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextM
 {
 	if (Eg::FNodeFactory* Factory = Eg::FNodeFactory::GetInstance())
 	{
-		for (FName NodeName : Factory->RegisteredNodes())
+		for (FName NodeTypeName : Factory->RegisteredNodes())
 		{
-			if (FEvalGraphEditorCommands::Get().CreateNodesMap.Contains(NodeName))
+			if (FEvalGraphEditorCommands::Get().CreateNodesMap.Contains(NodeTypeName))
 			{
-				ContextMenuBuilder.AddAction(FAssetSchemaAction_EvalGraph_CreateNode_EvalGraphEdNode::CreateAction(ContextMenuBuilder.OwnerOfTemporaries, NodeName));
+				ContextMenuBuilder.AddAction(FAssetSchemaAction_EvalGraph_CreateNode_EvalGraphEdNode::CreateAction(ContextMenuBuilder.OwnerOfTemporaries, NodeTypeName));
 			}
 		}
 	}
 }
+
+const FPinConnectionResponse UEvalGraphSchema::CanCreateConnection(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const
+{
+	// Make sure the pins are not on the same node
+	if (PinA->GetOwningNode() != PinB->GetOwningNode())
+	{
+		// Make sure types match. 
+		if (PinA->PinType == PinB->PinType)
+		{
+			return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("PinConnect", "Connect nodes"));
+		}
+	}
+
+	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorSameNode", "Both are on the same node"));
+}
+
+
 #undef LOCTEXT_NAMESPACE

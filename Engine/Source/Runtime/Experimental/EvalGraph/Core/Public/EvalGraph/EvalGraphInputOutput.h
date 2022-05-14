@@ -19,6 +19,7 @@ namespace Eg
 	struct EVALGRAPHCORE_API FInputParameters {
 		FInputParameters(FName InName, FNode* InOwner, T InDefault = T())
 			: Type(GraphConnectionTypeName<T>())
+			, Name(InName)
 			, Owner(InOwner)
 			, Default(InDefault) {}
 		FName Type;
@@ -37,7 +38,7 @@ namespace Eg
 		FOutput<T>* Connection;
 	public:
 		FInput(const FInputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
-			: FConnectionBase(Param.Type, Param.Name, Param.Owner, InGuid)
+			: FConnectionBase(FPin::EDirection::INPUT, Param.Type, Param.Name, Param.Owner, InGuid)
 			, Default(Param.Default)
 			, Connection(nullptr)
 		{
@@ -133,7 +134,7 @@ namespace Eg
 	
 	public:
 		FOutput(const FOutputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
-			: FConnectionBase(Param.Type, Param.Name, Param.Owner, InGuid)
+			: FConnectionBase(FPin::EDirection::OUTPUT, Param.Type, Param.Name, Param.Owner, InGuid)
 		{
 			Super::AddBaseOutput(Param.Owner, this);
 		}

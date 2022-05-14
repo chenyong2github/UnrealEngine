@@ -7,8 +7,9 @@
 
 namespace Eg
 {
-	FConnectionBase::FConnectionBase(FName InType, FName InName, FNode* InOwningNode, FGuid InGuid)
-		: Type(InType)
+	FConnectionBase::FConnectionBase(FPin::EDirection InDirection, FName InType, FName InName, FNode* InOwningNode, FGuid InGuid)
+		: Direction(InDirection)
+		, Type(InType)
 		, Name(InName)
 		, Guid(InGuid)
 		, OwningNode(InOwningNode)

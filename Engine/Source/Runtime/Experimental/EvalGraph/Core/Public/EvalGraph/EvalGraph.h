@@ -68,6 +68,7 @@ namespace Eg
 
 		void RemoveNode(TSharedPtr<FNode> Node);
 
+		void ClearConnections(FConnectionBase*);
 		void Connect(FConnectionBase* Input, FConnectionBase* Output);
 		void Disconnect(FConnectionBase* Input, FConnectionBase* Output);
 

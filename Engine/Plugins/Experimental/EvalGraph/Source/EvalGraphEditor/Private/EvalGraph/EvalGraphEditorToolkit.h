@@ -36,7 +36,6 @@ public:
 	// Graph Editor Operations
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 	void EvaluateNode();
-	void CreateNode(FName RegisteredNode);
 	FGraphPanelSelectionSet GetSelectedNodes() const;
 
 	UEvalGraph* GetEvalGraph() { return EvalGraph; }

@@ -13,17 +13,6 @@ namespace Eg
 		FName Name;
 	};
 
-	struct FPin
-	{
-		enum class EDirection : uint8 {
-			NONE = 0,
-			INPUT,
-			OUTPUT
-		};
-		EDirection Direction;
-		FName Type;
-		FName Name;
-	};
 
 	//
 	// FNode
@@ -54,18 +43,19 @@ namespace Eg
 		FGuid GetGuid() const { return Guid; }
 
 		TArray<FPin> GetPins() const;
+		FConnectionBase* FindInput(FName Name) const;
+		FConnectionBase* FindOutput(FName Name) const;
 
 		virtual void Evaluate(const FContext& Context, FConnectionBase*) { ensure(false); }
 		void InvalidateOutputs();
 
 		virtual void SerializeInternal(FArchive& Ar) {};
 
-	protected:
-		void AddBaseInput(FConnectionBase* InPtr) { Inputs.Add(InPtr); }
+		void AddBaseInput(FConnectionBase* InPtr);
 		const TArray< FConnectionBase* >& GetInputs() const { return Inputs; }
 		TArray< FConnectionBase* >& GetInputs() { return Inputs; }
 
-		void AddBaseOutput(FConnectionBase* InPtr) { Outputs.Add(InPtr); }
+		void AddBaseOutput(FConnectionBase* InPtr);
 		const TArray< FConnectionBase* >& GetOutputs() const { return Outputs; }
 		TArray< FConnectionBase* >& GetOutputs() { return Outputs; }
 

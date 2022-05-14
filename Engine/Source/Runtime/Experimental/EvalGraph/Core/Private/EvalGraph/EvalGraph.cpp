@@ -50,6 +50,29 @@ namespace Eg
 		Nodes.Remove(Node);
 	}
 
+	void FGraph::ClearConnections(FConnectionBase* Connection)
+	{
+		// Todo(eg) : do this without triggering a invalidation. 
+		//            or implement a better sync for the EdGraph and EgGraph
+		if (Connection->GetDirection() == FPin::EDirection::INPUT)
+		{
+			TArray<FConnectionBase*> BaseOutputs = Connection->GetBaseOutputs();
+			for (FConnectionBase* Output : BaseOutputs)
+			{
+				Disconnect(Connection, Output);
+			}
+		}
+		else if (Connection->GetDirection() == FPin::EDirection::OUTPUT)
+		{
+			TArray<FConnectionBase*> BaseInputs = Connection->GetBaseInputs();
+			for (FConnectionBase* Input : BaseInputs)
+			{
+				Disconnect(Input, Connection);
+			}
+		}
+	}
+
+
 	void FGraph::Connect(FConnectionBase* Input, FConnectionBase* Output)
 	{
 		if (ensure(Input && Output))

@@ -14,6 +14,7 @@ public:
 	UEvalGraphSchema();
 
 	//~ Begin EdGraphSchema Interface
+	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const override;
 	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
 	//~ End EdGraphSchema Interface

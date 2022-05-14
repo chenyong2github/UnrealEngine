@@ -9,4 +9,5 @@
 class EVALGRAPHEDITOR_API FEvalGraphSNodeFactory : public FGraphPanelNodeFactory
 {
 	virtual TSharedPtr<class SGraphNode> CreateNode(class UEdGraphNode* InNode) const override;
+
 };
