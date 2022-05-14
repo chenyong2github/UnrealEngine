@@ -9,7 +9,7 @@
 
 //class ISlateStyle;
 //class FSlateStyleSet;
-//class FEvalGraphNodeFactory;
+class FEvalGraphSNodeFactory;
 class FEvalGraphAssetActions;
 
 /**
@@ -21,6 +21,9 @@ public:
 	virtual void StartupModule();
 	virtual void ShutdownModule();
 
+	TSharedRef<FAssetEditorToolkit> CreateEvalGraphAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UObject* EvalGraph);
+
+
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
@@ -29,7 +32,7 @@ public:
 	 */
 	static inline IEvalGraphEditorPlugin& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IEvalGraphEditorPlugin >( "EvalGraphEditorPlugin" );
+		return FModuleManager::LoadModuleChecked< IEvalGraphEditorPlugin >( "EvalGraphEditor" );
 	}
 
 	/**
@@ -39,7 +42,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "EvalGraphEditorPlugin" );
+		return FModuleManager::Get().IsModuleLoaded( "EvalGraphEditor" );
 	}
 
 	//TSharedPtr<FSlateStyleSet> GetStyleSet() { return StyleSet; }
@@ -47,14 +50,14 @@ public:
 	//static const ISlateStyle* GetEditorStyle();
 
 private:
-	//void RegisterMenus();
+	void RegisterMenus();
 
 private:
 
 	FEvalGraphAssetActions* EvalGraphAssetActions;
 
 	//TSharedPtr<FSlateStyleSet> StyleSet;
-	//TSharedPtr<FEvalGraphNodeFactory> EvalGraphNodeFactory;
+	TSharedPtr<FEvalGraphSNodeFactory> EvalGraphSNodeFactory;
 
 };
 

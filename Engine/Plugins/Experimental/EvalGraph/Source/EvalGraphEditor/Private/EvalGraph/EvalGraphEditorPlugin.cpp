@@ -5,8 +5,10 @@
 #include "AssetToolsModule.h"
 #include "CoreMinimal.h"
 #include "EdGraphUtilities.h"
+#include "EvalGraphEditorToolkit.h"
+#include "EvalGraph/EvalGraphNodeFactory.h"
 #include "EvalGraph/EvalGraphAssetActions.h"
-#include "EvalGraph/EvalGraphNodeFactories.h"
+#include "EvalGraph/EvalGraphSNodeFactories.h"
 
 #define LOCTEXT_NAMESPACE "EvalGraphEditor"
 
@@ -22,8 +24,8 @@ void IEvalGraphEditorPlugin::StartupModule()
 	AssetTools.RegisterAssetTypeActions(MakeShareable(EvalGraphAssetActions));
 
 
-	//EvalGraphNodeFactory = MakeShareable(new FEvalGraphNodeFactory());
-	//FEdGraphUtilities::RegisterVisualNodeFactory(EvalGraphNodeFactory);
+	EvalGraphSNodeFactory = MakeShareable(new FEvalGraphSNodeFactory());
+	FEdGraphUtilities::RegisterVisualNodeFactory(EvalGraphSNodeFactory);
 }
 
 void IEvalGraphEditorPlugin::ShutdownModule()
@@ -35,9 +37,17 @@ void IEvalGraphEditorPlugin::ShutdownModule()
 
 		AssetTools.UnregisterAssetTypeActions(EvalGraphAssetActions->AsShared());
 
-		//FEdGraphUtilities::UnregisterVisualNodeFactory(EvalGraphNodeFactory);
+		FEdGraphUtilities::UnregisterVisualNodeFactory(EvalGraphSNodeFactory);
 	}
 }
+
+TSharedRef<FAssetEditorToolkit> IEvalGraphEditorPlugin::CreateEvalGraphAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* FleshAsset)
+{
+	TSharedPtr<FEvalGraphEditorToolkit> NewEvalGraphAssetEditor = MakeShared<FEvalGraphEditorToolkit>();
+	NewEvalGraphAssetEditor->InitEvalGraphEditor(Mode, InitToolkitHost, FleshAsset);
+	return StaticCastSharedPtr<FAssetEditorToolkit>(NewEvalGraphAssetEditor).ToSharedRef();
+}
+
 
 IMPLEMENT_MODULE(IEvalGraphEditorPlugin, EvalGraphEditor)
 

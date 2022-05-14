@@ -22,6 +22,7 @@ public:
 	EVALGRAPHEDITOR_API virtual void RegisterCommands() override;
 
 	TSharedPtr< FUICommandInfo > EvaluateNode;
+	TMap< FName, TSharedPtr<FUICommandInfo> > CreateNodesMap;
 };
 
 class EVALGRAPHEDITOR_API FEvalGraphEditorCommands

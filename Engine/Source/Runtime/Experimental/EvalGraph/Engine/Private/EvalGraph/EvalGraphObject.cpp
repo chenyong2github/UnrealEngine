@@ -7,7 +7,7 @@
 #define LOCTEXT_NAMESPACE "UEvalGraph")
 
 UEvalGraph::UEvalGraph(const FObjectInitializer& ObjectInitializer)
-	: UObject(ObjectInitializer)
+	: UEdGraph(ObjectInitializer)
 	, EvalGraph(new Eg::FGraph())
 {}
 
@@ -27,6 +27,7 @@ void UEvalGraph::PostLoad()
 
 void UEvalGraph::Serialize(FArchive& Ar)
 {
+	Super::Serialize(Ar);
 	Ar << *EvalGraph.Get();
 }
 

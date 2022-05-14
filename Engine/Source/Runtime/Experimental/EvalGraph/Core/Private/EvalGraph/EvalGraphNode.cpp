@@ -6,9 +6,19 @@
 
 namespace Eg
 {
+	TArray<FPin> FNode::GetPins() const
+	{
+		TArray<FPin> RetVal;
+		for (FConnectionBase* Con : Inputs)
+			RetVal.Add({ FPin::EDirection::INPUT,Con->GetType(), Con->GetName() });
+		for (FConnectionBase* Con : Outputs)
+			RetVal.Add({ FPin::EDirection::OUTPUT,Con->GetType(), Con->GetName() });
+		return RetVal;
+	}
+
 	void FNode::InvalidateOutputs()
 	{
-		for(FConnectionTypeBase * Output :  Outputs)
+		for(FConnectionBase * Output :  Outputs)
 		{
 			Output->Invalidate();
 		}

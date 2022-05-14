@@ -20,11 +20,11 @@ namespace Eg
 
 	void FGraph::RemoveNode(TSharedPtr<FNode> Node)
 	{
-		for (FConnectionTypeBase* Output : Node->GetOutputs())
+		for (FConnectionBase* Output : Node->GetOutputs())
 		{
 			if (Output)
 			{
-				for (FConnectionTypeBase* Input : Output->GetBaseInputs())
+				for (FConnectionBase* Input : Output->GetBaseInputs())
 				{
 					if (Input)
 					{
@@ -33,12 +33,12 @@ namespace Eg
 				}
 			}
 		}
-		for (FConnectionTypeBase* Input : Node->GetInputs())
+		for (FConnectionBase* Input : Node->GetInputs())
 		{
 			if (Input)
 			{
-				TArray<FConnectionTypeBase*> Outputs = Input->GetBaseOutputs();
-				for (FConnectionTypeBase* Out : Outputs)
+				TArray<FConnectionBase*> Outputs = Input->GetBaseOutputs();
+				for (FConnectionBase* Out : Outputs)
 				{
 					if (Out)
 					{
@@ -50,7 +50,7 @@ namespace Eg
 		Nodes.Remove(Node);
 	}
 
-	void FGraph::Connect(FConnectionTypeBase* Input, FConnectionTypeBase* Output)
+	void FGraph::Connect(FConnectionBase* Input, FConnectionBase* Output)
 	{
 		if (ensure(Input && Output))
 		{
@@ -60,7 +60,7 @@ namespace Eg
 		}
 	}
 
-	void FGraph::Disconnect(FConnectionTypeBase* Input, FConnectionTypeBase* Output)
+	void FGraph::Disconnect(FConnectionBase* Input, FConnectionBase* Output)
 	{
 		Input->RemoveConnection(Output);
 		Output->RemoveConnection(Input);
@@ -84,10 +84,10 @@ namespace Eg
 				Ar << ArGuid << ArType << ArName;
 
 
-				TArray< FConnectionTypeBase* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
+				TArray< FConnectionBase* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
 				ArNum = IO.Num();
 				Ar << ArNum;
-				for (FConnectionTypeBase* Conn : IO)
+				for (FConnectionBase* Conn : IO)
 				{
 					ArGuid = Conn->GetGuid();
 					ArType = Conn->GetType();
@@ -107,7 +107,7 @@ namespace Eg
 			FName ArType, ArName;
 			int32 ArNum = 0;
 
-			TMap<FGuid, FConnectionTypeBase* > ConnectionGuidMap;
+			TMap<FGuid, FConnectionBase* > ConnectionGuidMap;
 
 			Ar << ArNum;
 			for (int32 Ndx = ArNum; Ndx > 0; Ndx--)
@@ -117,7 +117,7 @@ namespace Eg
 				{
 					int ArNumInner;
 					Ar << ArNumInner;
-					TArray< FConnectionTypeBase* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
+					TArray< FConnectionBase* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
 					for (int Cdx=0;Cdx< ArNumInner; Cdx++)
 					{
 						Ar << ArGuid << ArType << ArName;
@@ -158,6 +158,5 @@ namespace Eg
 
 		}
 	}
-
 }
 

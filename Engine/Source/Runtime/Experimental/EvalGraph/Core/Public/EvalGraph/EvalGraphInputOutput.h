@@ -4,54 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "EvalGraph/EvalGraphNodeParameters.h"
+#include "EvalGraph/EvalGraphNode.h"
+#include "EvalGraph/EvalGraphConnectionBase.h"
 
 namespace Eg
 {
-	class FNode;
-
-	template<class T> inline EVALGRAPHCORE_API FName GraphConnectionTypeName();
-
-
-	//
-	// Input Output Base
-	//
-
-	class EVALGRAPHCORE_API FConnectionTypeBase
-	{
-
-	protected:
-		FName Type;
-		FName Name;
-		FGuid  Guid;
-		FNode* OwningNode = nullptr;
-
-		friend class FNode;
-		static void AddBaseInput(FNode* InNode, FConnectionTypeBase*);
-		static void AddBaseOutput(FNode* InNode, FConnectionTypeBase*);
-
-
-	public:
-		FConnectionTypeBase(FName InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
-		virtual ~FConnectionTypeBase() {};
-
-		FName GetType() const { return Type; }
-
-		FGuid GetGuid() const { return Guid; }
-		void SetGuid(FGuid InGuid) { Guid = InGuid; }
-
-		FName GetName() const { return Name; }
-		void SetName(FName InName) { Name = InName; }
-
-
-		virtual bool AddConnection(FConnectionTypeBase* In) { return false; };
-		virtual bool RemoveConnection(FConnectionTypeBase* In) { return false; }
-
-		virtual TArray< FConnectionTypeBase* > GetBaseInputs() { return TArray<FConnectionTypeBase* >(); }
-		virtual TArray< FConnectionTypeBase* > GetBaseOutputs() { return TArray<FConnectionTypeBase* >(); }
-		virtual void Invalidate() {};
-
-	};
-
 	template<typename T> class FOutput;
 
 	//
@@ -71,22 +28,28 @@ namespace Eg
 	};
 
 	template<class T>
-	class EVALGRAPHCORE_API FInput : public FConnectionTypeBase
+	class EVALGRAPHCORE_API FInput : public FConnectionBase
 	{
-		friend class FConnectionTypeBase;
+		typedef FConnectionBase Super;
+		friend class FConnectionBase;
 
-		typedef FConnectionTypeBase Super;
 		T Default;
 		FOutput<T>* Connection;
 	public:
-		FInput(const FInputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid());
+		FInput(const FInputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
+			: FConnectionBase(Param.Type, Param.Name, Param.Owner, InGuid)
+			, Default(Param.Default)
+			, Connection(nullptr)
+		{
+			Super::AddBaseInput(Param.Owner, this);
+		}
 	
 		const T& GetDefault() const { return Default; }
 		
 		const FOutput<T>* GetConnection() const { return Connection; }
 		FOutput<T>* GetConnection() { return Connection; }
 
-		virtual bool AddConnection(FConnectionTypeBase* InOutput) override
+		virtual bool AddConnection(FConnectionBase* InOutput) override
 		{ 
 			ensure(Connection == nullptr);
 			if (ensure(InOutput->GetType()==this->GetType()))
@@ -97,7 +60,7 @@ namespace Eg
 			return false;
 		}
 
-		virtual bool RemoveConnection(FConnectionTypeBase* InOutput) override
+		virtual bool RemoveConnection(FConnectionBase* InOutput) override
 		{ 
 			if (ensure(Connection == (FOutput<T>*)InOutput))
 			{
@@ -116,11 +79,18 @@ namespace Eg
 			return Default;
 		}
 
-		void SetValue(const T& Value, const FContext& Context);
+		void SetValue(const T& Value, const FContext& Context)
+		{
+			Default = Value;
+			if (!Connection)
+			{
+				OwningNode->InvalidateOutputs();
+			}
+		}
 
-		virtual TArray< FConnectionTypeBase* > GetBaseOutputs() override
+		virtual TArray< FConnectionBase* > GetBaseOutputs() override
 		{ 
-			TArray<FConnectionTypeBase* > RetList;
+			TArray<FConnectionBase* > RetList;
 			if (GetConnection())
 			{
 				RetList.Add(GetConnection());
@@ -128,7 +98,10 @@ namespace Eg
 			return RetList;
 		}
 
-		virtual void Invalidate() override;
+		virtual void Invalidate() override
+		{
+			OwningNode->InvalidateOutputs();
+		}
 
 	};
 
@@ -149,31 +122,36 @@ namespace Eg
 	};
 
 	template<class T>
-	class EVALGRAPHCORE_API FOutput : public FConnectionTypeBase
+	class EVALGRAPHCORE_API FOutput : public FConnectionBase
 	{
-		typedef FConnectionTypeBase Super;
-		friend class FConnectionTypeBase;
+		typedef FConnectionBase Super;
+		friend class FConnectionBase;
 
 		uint32 CacheKey = UINT_MAX;
 		TCacheValue<T> Cache;
 		TArray< FInput<T>* > Connections;
 	
 	public:
-		FOutput(const FOutputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid());
+		FOutput(const FOutputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
+			: FConnectionBase(Param.Type, Param.Name, Param.Owner, InGuid)
+		{
+			Super::AddBaseOutput(Param.Owner, this);
+		}
+
 
 		const TArray<FInput<T>*>& GetConnections() const { return Connections; }
 		TArray<FInput<T>* >& GetConnections() { return Connections; }
 
-		virtual TArray<FConnectionTypeBase*> GetBaseInputs() override
+		virtual TArray<FConnectionBase*> GetBaseInputs() override
 		{ 
-			TArray<FConnectionTypeBase*> RetList;
+			TArray<FConnectionBase*> RetList;
 			RetList.Reserve(Connections.Num());
 			for (FInput<T>* Ptr : Connections) { RetList.Add(Ptr); }
 			return RetList;
 		}
 
 
-		virtual bool AddConnection(FConnectionTypeBase* InOutput) override
+		virtual bool AddConnection(FConnectionBase* InOutput) override
 		{
 			if (ensure(InOutput->GetType() == this->GetType()))
 			{
@@ -183,13 +161,37 @@ namespace Eg
 			return false;
 		}
 		
-		virtual bool RemoveConnection(FConnectionTypeBase* InInput) override { Connections.RemoveSwap((FInput<T>*)InInput); return true; }
+		virtual bool RemoveConnection(FConnectionBase* InInput) override { Connections.RemoveSwap((FInput<T>*)InInput); return true; }
 
-		void SetValue(T InVal, const FContext& Context);
+		void SetValue(T InVal, const FContext& Context)
+		{
+			CacheKey = Context.GetTypeHash();
+			Cache.Data = InVal;
+		}
 
-		T Evaluate(const FContext& Context);
+		T Evaluate(const FContext& Context)
+		{
+			if (CacheKey != Context.GetTypeHash())
+			{
+				OwningNode->Evaluate(Context, this);
+			}
+			ensure(CacheKey == Context.GetTypeHash());
+			return Cache.Data;
+		}
 
-		virtual void Invalidate() override;
+		virtual void Invalidate() override
+		{
+			if (CacheKey != UINT_MAX)
+			{
+				CacheKey = UINT_MAX;
+				Cache = T();
+
+				for (FConnectionBase* Con : GetConnections())
+				{
+					Con->Invalidate();
+				}
+			}
+		}
 
 	};
 
@@ -198,5 +200,7 @@ namespace Eg
 template<> FName GraphConnectionTypeName<a>() { return FName(TEXT(#A)); }\
 template class FOutput<a>;\
 template class FInput<a>;
+
+
 }
 

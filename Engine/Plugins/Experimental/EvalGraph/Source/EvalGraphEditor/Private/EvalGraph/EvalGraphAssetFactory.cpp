@@ -3,6 +3,11 @@
 #include "EvalGraph/EvalGraphAssetFactory.h"
 
 #include "EvalGraph/EvalGraphObject.h"
+#include "HAL/IConsoleManager.h"
+
+bool bEvalGraphEnableCreation = false;
+FAutoConsoleVariableRef CVarEvalGraphEnableCreation(TEXT("c.EvalGraphEnableCreation"), bEvalGraphEnableCreation, TEXT("Enable creation for evaluation graph (Dev-Only)"));
+
 
 UEvalGraphAssetFactory::UEvalGraphAssetFactory()
 {
@@ -11,7 +16,7 @@ UEvalGraphAssetFactory::UEvalGraphAssetFactory()
 
 bool UEvalGraphAssetFactory::CanCreateNew() const
 {
-	return true;
+	return bEvalGraphEnableCreation;
 }
 
 bool UEvalGraphAssetFactory::FactoryCanImport(const FString& Filename)
@@ -27,7 +32,7 @@ UObject* UEvalGraphAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 
 bool UEvalGraphAssetFactory::ShouldShowInNewMenu() const
 {
-	return true;
+	return bEvalGraphEnableCreation;
 }
 
 bool UEvalGraphAssetFactory::ConfigureProperties()

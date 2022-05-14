@@ -3,11 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EvalGraph/EvalGraphInputOutput.h"
+#include "EvalGraph/EvalGraphConnectionBase.h"
 #include "EvalGraph/EvalGraphNodeParameters.h"
-
-class FConnectionTypeBase;
-
 
 namespace Eg
 {
@@ -16,20 +13,31 @@ namespace Eg
 		FName Name;
 	};
 
+	struct FPin
+	{
+		enum class EDirection : uint8 {
+			NONE = 0,
+			INPUT,
+			OUTPUT
+		};
+		EDirection Direction;
+		FName Type;
+		FName Name;
+	};
 
 	//
 	// FNode
 	//
-	class FNode
+	class EVALGRAPHCORE_API FNode
 	{
 		friend class FGraph;
-		friend class FConnectionTypeBase;
+		friend class FConnectionBase;
 
 		FGuid Guid;
 		FName Name;
 
-		TArray< FConnectionTypeBase* > Inputs;
-		TArray< FConnectionTypeBase* > Outputs;
+		TArray< FConnectionBase* > Inputs;
+		TArray< FConnectionBase* > Outputs;
 	public:
 
 		FNode(const FNodeParameters& Param, FGuid InGuid = FGuid::NewGuid())
@@ -45,20 +53,21 @@ namespace Eg
 		virtual FName GetType() const { check(true); return FName("invalid"); }
 		FGuid GetGuid() const { return Guid; }
 
+		TArray<FPin> GetPins() const;
 
-		virtual void Evaluate(const FContext& Context, FConnectionTypeBase*) { ensure(false); }
+		virtual void Evaluate(const FContext& Context, FConnectionBase*) { ensure(false); }
 		void InvalidateOutputs();
 
 		virtual void SerializeInternal(FArchive& Ar) {};
 
 	protected:
-		void AddBaseInput(FConnectionTypeBase* InPtr) { Inputs.Add(InPtr); }
-		const TArray< FConnectionTypeBase* >& GetInputs() const { return Inputs; }
-		TArray< FConnectionTypeBase* >& GetInputs() { return Inputs; }
+		void AddBaseInput(FConnectionBase* InPtr) { Inputs.Add(InPtr); }
+		const TArray< FConnectionBase* >& GetInputs() const { return Inputs; }
+		TArray< FConnectionBase* >& GetInputs() { return Inputs; }
 
-		void AddBaseOutput(FConnectionTypeBase* InPtr) { Outputs.Add(InPtr); }
-		const TArray< FConnectionTypeBase* >& GetOutputs() const { return Outputs; }
-		TArray< FConnectionTypeBase* >& GetOutputs() { return Outputs; }
+		void AddBaseOutput(FConnectionBase* InPtr) { Outputs.Add(InPtr); }
+		const TArray< FConnectionBase* >& GetOutputs() const { return Outputs; }
+		TArray< FConnectionBase* >& GetOutputs() { return Outputs; }
 
 	};
 }

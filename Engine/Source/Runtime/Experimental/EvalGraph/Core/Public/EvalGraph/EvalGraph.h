@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Chaos/ChaosArchive.h"
-#include "Serialization/Archive.h"
 #include "EvalGraph/EvalGraphNode.h"
+#include "Serialization/Archive.h"
 
 namespace Eg
 {
-	class FConnectionTypeBase;
+	class FConnectionBase;
 
 	typedef TTuple<FGuid, FGuid> FConnection; // <Input, Output>
 
@@ -23,7 +23,7 @@ namespace Eg
 		FGuid  Guid;
 		TArray< TSharedPtr<FNode> > Nodes;
 		TArray< FConnection > Connections;
-		//TMap<FGuid, TSharedPtr<FConnectionTypeBase> > ConnectionMap;
+		//TMap<FGuid, TSharedPtr<FConnectionBase> > ConnectionMap;
 
 	public:
 		FGraph(FGuid InGuid = FGuid::NewGuid());
@@ -40,11 +40,11 @@ namespace Eg
 
 		template<class T> T* FindNode(FName InName)
 		{
-			for (TSharedPtr<FNode> Node : Nodes)  
+			for (TSharedPtr<FNode> Node : Nodes)
 			{
-				if (Node->GetName().ToString().Equals(InName.ToString())) 
+				if (Node->GetName().ToString().Equals(InName.ToString()))
 				{
-					if (Node->GetType().ToString().Equals(T::Type.ToString())) 
+					if (Node->GetType().ToString().Equals(T::Type.ToString()))
 					{
 						return reinterpret_cast<T*>(Node.Get()); // @todo(eg) : Can we do better here?
 					}
@@ -53,16 +53,27 @@ namespace Eg
 			return nullptr;
 		}
 
+		TSharedPtr<FNode> FindBaseNode(FGuid InGuid)
+		{
+			for (TSharedPtr<FNode> Node : Nodes)
+			{
+				if (Node->GetGuid() == InGuid)
+				{
+					return Node;
+				}
+			}
+			return TSharedPtr<FNode>(nullptr);
+		}
+
 
 		void RemoveNode(TSharedPtr<FNode> Node);
 
-		void Connect(FConnectionTypeBase* Input, FConnectionTypeBase* Output);
-		void Disconnect(FConnectionTypeBase* Input, FConnectionTypeBase* Output);
+		void Connect(FConnectionBase* Input, FConnectionBase* Output);
+		void Disconnect(FConnectionBase* Input, FConnectionBase* Output);
 
 		virtual void Serialize(FArchive& Ar);
 
 	};
-
 }
 
 FORCEINLINE FArchive& operator<<(FArchive& Ar, Eg::FGraph& Value)

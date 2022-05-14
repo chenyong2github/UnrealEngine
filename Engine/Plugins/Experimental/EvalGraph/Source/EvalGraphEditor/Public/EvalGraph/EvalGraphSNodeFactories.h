@@ -6,7 +6,7 @@
 #include "SGraphNode.h"
 #include "EdGraph/EdGraphNode.h"
 
-class EVALGRAPHEDITOR_API FEvalGraphNodeFactory : public FGraphPanelNodeFactory
+class EVALGRAPHEDITOR_API FEvalGraphSNodeFactory : public FGraphPanelNodeFactory
 {
 	virtual TSharedPtr<class SGraphNode> CreateNode(class UEdGraphNode* InNode) const override;
 };

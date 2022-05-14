@@ -8,7 +8,7 @@
 namespace Eg
 {
 	class FNode;
-	class FConnectionTypeBase;
+	class FConnectionBase;
 
 	struct EVALGRAPHCORE_API FNewNodeParameters {
 		FGuid Guid;
@@ -50,10 +50,16 @@ namespace Eg
 
 		TSharedPtr<FNode> NewNodeFromRegisteredType(FGraph& Graph, const FNewNodeParameters& Param);
 
-		void here() {}
 		template<class T> TSharedPtr<T> NewNode(FGraph& Graph, const FNewNodeParameters& Param)
 		{
 			return Graph.AddNode(new T(Param.Name, Param.Guid));
+		}
+
+		TArray<FName> RegisteredNodes() const
+		{
+			TArray<FName> ReturnNames;
+			for (auto Elem : ClassMap) ReturnNames.Add(Elem.Key);
+			return ReturnNames;
 		}
 	};
 

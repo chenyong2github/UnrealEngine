@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EvalGraph/EvalGraphAssetActions.h"
+#include "EvalGraph/EvalGraphEditorPlugin.h"
 
 #include "EvalGraph/EvalGraphObject.h"
 
@@ -27,10 +28,19 @@ void FEvalGraphAssetActions::GetActions(const TArray<UObject*>& InObjects,
 }
 
 void FEvalGraphAssetActions::OpenAssetEditor(
-	const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>()*/)
+	const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
-	FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
+	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	{
+		if (auto Object = Cast<UEvalGraph>(*ObjIt))
+		{
+			IEvalGraphEditorPlugin* EvalGraphEditorPlugin = &FModuleManager::LoadModuleChecked<IEvalGraphEditorPlugin>("EvalGraphEditor");
+			EvalGraphEditorPlugin->CreateEvalGraphAssetEditor(Mode, EditWithinLevelEditor, Object);
+		}
+	}
 }
+
 
 uint32 FEvalGraphAssetActions::GetCategories()
 {

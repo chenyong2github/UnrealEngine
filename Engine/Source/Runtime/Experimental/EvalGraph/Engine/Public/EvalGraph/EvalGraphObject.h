@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
 #include "EvalGraph/EvalGraph.h"
 
 #include "EvalGraphObject.generated.h"
@@ -14,7 +15,7 @@
 *
 */
 UCLASS(BlueprintType, customconstructor)
-class EVALGRAPHENGINE_API UEvalGraph : public UObject
+class EVALGRAPHENGINE_API UEvalGraph : public UEdGraph
 {
 	GENERATED_UCLASS_BODY()
 
