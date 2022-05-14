@@ -1577,7 +1577,7 @@ public:
 		}
 
 		// Emit named event for active cycle stat.
-		if (GCycleStatsShouldEmitNamedEvents > 0
+		if (GCycleStatsShouldEmitNamedEvents
 			&& (GShouldEmitVerboseNamedEvents || !EnumHasAnyFlags(InStatFlags, EStatFlags::Verbose)))
 		{
 #if PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
@@ -2374,7 +2374,7 @@ namespace Stats
 #if STATS && CPUPROFILERTRACE_ENABLED
 		return UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel) || FThreadStats::IsCollectingData();
 #else
-		return GCycleStatsShouldEmitNamedEvents > 0;
+		return GCycleStatsShouldEmitNamedEvents != 0;
 #endif
 	}
 }

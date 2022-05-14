@@ -624,7 +624,7 @@ PxCollection* MakePhysXCollection(const TArray<UPhysicalMaterial*>& PhysicalMate
 
 void* FPhysXProfilerCallback::zoneStart(const char* eventName, bool detached, uint64_t contextId)
 {
-	if(GCycleStatsShouldEmitNamedEvents > 0)
+	if(GCycleStatsShouldEmitNamedEvents)
 	{
 		FPlatformMisc::BeginNamedEvent(FColor::Red, *FString::Printf(TEXT("PHYSX: %s"), StringCast<TCHAR>(eventName).Get()));
 	}
@@ -634,7 +634,7 @@ void* FPhysXProfilerCallback::zoneStart(const char* eventName, bool detached, ui
 
 void FPhysXProfilerCallback::zoneEnd(void* profilerData, const char* eventName, bool detached, uint64_t contextId)
 {
-	if(GCycleStatsShouldEmitNamedEvents > 0)
+	if(GCycleStatsShouldEmitNamedEvents)
 	{
 		FPlatformMisc::EndNamedEvent();
 	}

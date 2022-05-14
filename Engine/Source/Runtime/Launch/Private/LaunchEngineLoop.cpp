@@ -1520,13 +1520,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// Command line option for enabling named events
 	if (FParse::Param(CmdLine, TEXT("statnamedevents")))
 	{
-		GCycleStatsShouldEmitNamedEvents = 1;
+		++GCycleStatsShouldEmitNamedEvents;
 	}
 	
 	if (FParse::Param(CmdLine, TEXT("verbosenamedevents")))
 	{
-		GCycleStatsShouldEmitNamedEvents = 1;
-		GShouldEmitVerboseNamedEvents = 1;
+		++GCycleStatsShouldEmitNamedEvents;
+		GShouldEmitVerboseNamedEvents = true;
 	}
 
 	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.

@@ -426,7 +426,7 @@ FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, i
 	GFrameProEnabled = true;
 
 	// Enable named events as well
-	GCycleStatsShouldEmitNamedEvents += 1;
+	++GCycleStatsShouldEmitNamedEvents:
 
 	// Set recording flag
 	GFrameProIsRecording = true;
@@ -450,7 +450,7 @@ void FFrameProProfiler::StopFrameProRecording()
 	FramePro::StopRecording();
 
 	// Disable named events
-	GCycleStatsShouldEmitNamedEvents -= 1;
+	GCycleStatsShouldEmitNamedEvents = FMath::Max(0, GCycleStatsShouldEmitNamedEvents - 1);
 
 	// Clear recording flag
 	GFrameProIsRecording = false;
