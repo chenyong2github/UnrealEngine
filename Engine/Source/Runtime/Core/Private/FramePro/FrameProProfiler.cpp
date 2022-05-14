@@ -426,7 +426,7 @@ FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, i
 	GFrameProEnabled = true;
 
 	// Enable named events as well
-	++GCycleStatsShouldEmitNamedEvents:
+	++GCycleStatsShouldEmitNamedEvents;
 
 	// Set recording flag
 	GFrameProIsRecording = true;
