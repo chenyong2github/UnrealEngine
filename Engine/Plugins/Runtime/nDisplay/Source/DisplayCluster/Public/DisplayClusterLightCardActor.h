@@ -10,6 +10,7 @@
 class USceneComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
+class UStaticMesh;
 
 UENUM(BlueprintType)
 enum class EDisplayClusterLightCardMask : uint8
@@ -40,6 +41,12 @@ public:
 	 * @param bIgnoreSpinYawPitch - If the light card component's spin, yaw, and pitch should be ignored when computing the transform
 	 */
 	FTransform GetLightCardTransform(bool bIgnoreSpinYawPitch = false) const;
+
+	/** Returns the current static mesh used by this light card */
+	UStaticMesh* GetStaticMesh() const;
+
+	/** Sets a new static mesh for the light card */
+	void SetStaticMesh(UStaticMesh* InStaticMesh);
 	
 protected:
 	void UpdateLightCardTransform();

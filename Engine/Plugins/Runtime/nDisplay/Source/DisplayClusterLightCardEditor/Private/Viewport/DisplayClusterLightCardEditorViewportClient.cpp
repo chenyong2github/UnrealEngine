@@ -825,6 +825,24 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 					LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
 					LightCardProxy->bIsProxy = true;
 
+					// Change mesh to proxy mesh with more vertices
+					if (const UStaticMesh* LightCardMesh = LightCardProxy->GetStaticMesh())
+					{
+						// Only change the mesh if we are using the default one.
+					
+						const FString DefaultPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlane.SM_LightCardPlane");
+						const UStaticMesh* DefaultPlane = Cast<UStaticMesh>(FSoftObjectPath(DefaultPlanePath).TryLoad());
+
+						if (DefaultPlane == LightCardMesh)
+						{
+							const FString LightCardPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlaneSubdivided.SM_LightCardPlaneSubdivided");
+							if (UStaticMesh* LightCardPlaneMesh = Cast<UStaticMesh>(FSoftObjectPath(LightCardPlanePath).TryLoad()))
+							{
+								LightCardProxy->SetStaticMesh(LightCardPlaneMesh);
+							}
+						}
+					}
+
 					LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
 					
 					if (LastSelectedLightCardLevelInstances.Contains(LightCard.Get()))

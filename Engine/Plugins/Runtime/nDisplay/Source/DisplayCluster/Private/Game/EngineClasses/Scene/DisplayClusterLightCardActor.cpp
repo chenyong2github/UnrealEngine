@@ -170,3 +170,13 @@ void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Feather"), Feathering);
 	}
 }
+
+UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const
+{
+	return LightCardComponent->GetStaticMesh();
+}
+
+void ADisplayClusterLightCardActor::SetStaticMesh(UStaticMesh* InStaticMesh)
+{
+	LightCardComponent->SetStaticMesh(InStaticMesh);
+}
