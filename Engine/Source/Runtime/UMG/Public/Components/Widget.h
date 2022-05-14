@@ -213,14 +213,8 @@ class UMG_API UWidget : public UVisual, public INotifyFieldValueChanged
 	GENERATED_UCLASS_BODY()
 
 public:
->>>> ORIGINAL //Fortnite/Main/Engine/Source/Runtime/UMG/Public/Components/Widget.h#57
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN()
-==== THEIRS //Fortnite/Main/Engine/Source/Runtime/UMG/Public/Components/Widget.h#58
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN(UMG_API)
-==== YOURS //dc.fortnite.dem/Engine/Source/Runtime/UMG/Public/Components/Widget.h
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN()
 		UE_FIELD_NOTIFICATION_DECLARE_FIELD(ToolTipText)
-<<<<
 		UE_FIELD_NOTIFICATION_DECLARE_FIELD(Visibility)
 		UE_FIELD_NOTIFICATION_DECLARE_FIELD(bIsEnabled)
 		UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(ToolTipText)
