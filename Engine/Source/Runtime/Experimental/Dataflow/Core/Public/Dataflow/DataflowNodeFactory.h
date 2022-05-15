@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowGraph.h"
 
 namespace Dataflow
 {
