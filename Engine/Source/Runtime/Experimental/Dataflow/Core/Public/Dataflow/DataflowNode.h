@@ -60,16 +60,23 @@ namespace Dataflow
 		TArray< FConnection* >& GetOutputs() { return Outputs; }
 
 	};
+
+//
+// Used these macros to register dataflow nodes. 
+//
+
+#define DATAFLOW_NODE_REGISTER_CREATION_FACTORY(A)					\
+	FNodeFactory::GetInstance()->RegisterNode(					\
+		A::StaticType(),										\
+		[](const FNewNodeParameters& InParam)					\
+			{return new A({InParam.Name}, InParam.Guid); });
+
+#define DATAFLOW_NODE_DEFINE_INTERNAL(A)								\
+public:															\
+   static FName StaticType() {return #A;}						\
+   virtual FName GetType() const { return #A; }					\
+private:
+
+
 }
-
-#define DATAFLOW_REGISTER_CREATION_FACTORY(A) Dataflow::FNodeFactory::GetInstance()->RegisterNode(Dataflow::A::Type, [](const Dataflow::FNewNodeParameters& InParam) {return new Dataflow::A({InParam.Name}, InParam.Guid); });
-
-#define DATAFLOW_DEFINE_EXTERNAL(A) FName A::Type = #A;
-
-#define DATAFLOW_DEFINE_INTERNAL(A) public:\
- static FName Type;\
- virtual FName GetType() const { return Type; }\
- private:
-
-
 
