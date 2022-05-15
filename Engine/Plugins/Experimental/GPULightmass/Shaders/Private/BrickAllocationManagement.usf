@@ -133,6 +133,7 @@ Texture3D<float4> SHCoefficients0G;
 Texture3D<float4> SHCoefficients1G;
 Texture3D<float4> SHCoefficients0B;
 Texture3D<float4> SHCoefficients1B;
+Texture3D<float4> SkyBentNormal;
 Texture3D<UNORM float> DirectionalLightShadowing;
 
 RWTexture3D<float3> OutAmbientVector;
@@ -142,6 +143,7 @@ RWTexture3D<UNORM float4> OutSHCoefficients0G;
 RWTexture3D<UNORM float4> OutSHCoefficients1G;
 RWTexture3D<UNORM float4> OutSHCoefficients0B;
 RWTexture3D<UNORM float4> OutSHCoefficients1B;
+RWTexture3D<UNORM float4> OutSkyBentNormal;
 RWTexture3D<UNORM float> OutDirectionalLightShadowing;
 
 uint FrameNumber;
@@ -369,6 +371,7 @@ void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupT
 		OutSHCoefficients1G[VoxelPos] = DilateWithValidityMask(OutSHCoefficients1G, AmbientVector, IndirectionTextureUVW);
 		OutSHCoefficients0B[VoxelPos] = DilateWithValidityMask(OutSHCoefficients0B, AmbientVector, IndirectionTextureUVW);
 		OutSHCoefficients1B[VoxelPos] = DilateWithValidityMask(OutSHCoefficients1B, AmbientVector, IndirectionTextureUVW);
+		OutSkyBentNormal[VoxelPos] = DilateWithValidityMask(OutSkyBentNormal, AmbientVector, IndirectionTextureUVW);
 		OutDirectionalLightShadowing[VoxelPos] = DilateWithValidityMask(OutDirectionalLightShadowing, AmbientVector, IndirectionTextureUVW);
 	}
 	
@@ -392,6 +395,7 @@ void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupT
 					OutSHCoefficients1G[VoxelPos] = ManualTrilinearFilter(OutSHCoefficients1G, BrickUVW);
 					OutSHCoefficients0B[VoxelPos] = ManualTrilinearFilter(OutSHCoefficients0B, BrickUVW);
 					OutSHCoefficients1B[VoxelPos] = ManualTrilinearFilter(OutSHCoefficients1B, BrickUVW);
+					   OutSkyBentNormal[VoxelPos] = ManualTrilinearFilter(OutSkyBentNormal, BrickUVW);
 					OutDirectionalLightShadowing[VoxelPos] = ManualTrilinearFilter(OutDirectionalLightShadowing, BrickUVW);
 				}
 			}
@@ -434,6 +438,7 @@ void FinalizeBrickResultsCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : S
 		OutSHCoefficients1G[VoxelPos] = (SHCoefficients1G[VoxelPos] / SampleCount) * InvAmbient.g * CoefficientNormalizationScale1 * 0.5f + 0.5f;
 		OutSHCoefficients0B[VoxelPos] = (SHCoefficients0B[VoxelPos] / SampleCount) * InvAmbient.b * CoefficientNormalizationScale0 * 0.5f + 0.5f;
 		OutSHCoefficients1B[VoxelPos] = (SHCoefficients1B[VoxelPos] / SampleCount) * InvAmbient.b * CoefficientNormalizationScale1 * 0.5f + 0.5f;
+		OutSkyBentNormal[VoxelPos] = SkyBentNormal[VoxelPos] / SampleCount * 0.5f + 0.5f;
 		OutDirectionalLightShadowing[VoxelPos] = DirectionalLightShadowing[VoxelPos];
 	}
 }

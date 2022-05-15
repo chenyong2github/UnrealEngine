@@ -129,6 +129,7 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SHCoefficients1G)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SHCoefficients0B)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SHCoefficients1B)
+		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SkyBentNormal)
 		SHADER_PARAMETER_UAV(RWTexture3D<float>, DirectionalLightShadowing)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)

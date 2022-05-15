@@ -1039,6 +1039,7 @@ RWTexture3D<float4> SHCoefficients0G;
 RWTexture3D<float4> SHCoefficients1G;
 RWTexture3D<float4> SHCoefficients0B;
 RWTexture3D<float4> SHCoefficients1B;
+RWTexture3D<float4> SkyBentNormal;
 RWTexture3D<UNORM float> DirectionalLightShadowing;
 
 uint MortonEncode3(uint3 Pixel)
@@ -1279,6 +1280,8 @@ void VolumetricLightmapPathTracingMainRG()
 		
 		SHCoefficients0B[VoxelPos] = float4(0, 0, 0, 0);
 		SHCoefficients1B[VoxelPos] = float4(0, 0, 0, 0);
+
+		SkyBentNormal[VoxelPos] = float4(0, 0, 0, 0);
 	}
 	
 	if (bIsValidSample)
@@ -1309,6 +1312,13 @@ void VolumetricLightmapPathTracingMainRG()
 			
 			SHCoefficients0B[VoxelPos] += float4(SH.B.V0.yzw, SH.B.V1.x);
 			SHCoefficients1B[VoxelPos] += float4(SH.B.V1.yzw, SH.B.V2);
+			
+			if (EffectiveRenderPassIndex % 2 == 0)
+			{
+				// Every even sample is upper hemisphere, odd sample is lower hemisphere
+				// SampleCount stored is twice as the actual full sphere sample count
+				SkyBentNormal[VoxelPos].rgb += SkyLightBentNormal * 2;
+			}
 		}
 
 		#ifndef LIGHTMAP_PATH_TRACING_MAIN_RG

@@ -46,11 +46,8 @@ void InitializeBrickData(FIntVector BrickDataDimensions, FVolumetricLightmapBric
 		BrickData.SHCoefficients[i].CreateUAV();
 	}
 
-	//if (BrickData.SkyBentNormal.Texture.IsValid())
-	//{
-	//	SkyBentNormal.CreateTargetTexture(BrickDataDimensions);
-	//	SkyBentNormal.CreateUAV();
-	//}
+	BrickData.SkyBentNormal.CreateTargetTexture(BrickDataDimensions);
+	BrickData.SkyBentNormal.CreateUAV();
 
 	BrickData.DirectionalLightShadowing.CreateTargetTexture(BrickDataDimensions);
 	BrickData.DirectionalLightShadowing.CreateUAV();
@@ -523,7 +520,9 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[2].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 				FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[3].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 				FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[4].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[5].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+				FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[5].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(VolumetricLightmapData.BrickData.SkyBentNormal.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(VolumetricLightmapData.BrickData.DirectionalLightShadowing.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 				}
 			);
 		}
@@ -563,6 +562,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->SHCoefficients1G = AccumulationBrickData.SHCoefficients[3].UAV;
 					PassParameters->SHCoefficients0B = AccumulationBrickData.SHCoefficients[4].UAV;
 					PassParameters->SHCoefficients1B = AccumulationBrickData.SHCoefficients[5].UAV;
+					PassParameters->SkyBentNormal = AccumulationBrickData.SkyBentNormal.UAV;
 					PassParameters->DirectionalLightShadowing = AccumulationBrickData.DirectionalLightShadowing.UAV;
 					PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 					PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
@@ -639,6 +639,8 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+						FRHITransitionInfo(AccumulationBrickData.SkyBentNormal.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+						FRHITransitionInfo(AccumulationBrickData.DirectionalLightShadowing.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						}
 					);
 				}
@@ -657,6 +659,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				PassParameters->SHCoefficients1G = AccumulationBrickData.SHCoefficients[3].Texture;
 				PassParameters->SHCoefficients0B = AccumulationBrickData.SHCoefficients[4].Texture;
 				PassParameters->SHCoefficients1B = AccumulationBrickData.SHCoefficients[5].Texture;
+				PassParameters->SkyBentNormal = AccumulationBrickData.SkyBentNormal.Texture;
 				PassParameters->DirectionalLightShadowing = AccumulationBrickData.DirectionalLightShadowing.Texture;
 				PassParameters->OutAmbientVector = VolumetricLightmapData.BrickData.AmbientVector.UAV;
 				PassParameters->OutSHCoefficients0R = VolumetricLightmapData.BrickData.SHCoefficients[0].UAV;
@@ -665,6 +668,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				PassParameters->OutSHCoefficients1G = VolumetricLightmapData.BrickData.SHCoefficients[3].UAV;
 				PassParameters->OutSHCoefficients0B = VolumetricLightmapData.BrickData.SHCoefficients[4].UAV;
 				PassParameters->OutSHCoefficients1B = VolumetricLightmapData.BrickData.SHCoefficients[5].UAV;
+				PassParameters->OutSkyBentNormal = VolumetricLightmapData.BrickData.SkyBentNormal.UAV;
 				PassParameters->OutDirectionalLightShadowing = VolumetricLightmapData.BrickData.DirectionalLightShadowing.UAV;
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("FinalizeBrickResults"), ComputeShader, PassParameters, FIntVector(BricksToCalcThisFrame, 1, 1));
@@ -680,6 +684,8 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+						FRHITransitionInfo(AccumulationBrickData.SkyBentNormal.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+						FRHITransitionInfo(AccumulationBrickData.DirectionalLightShadowing.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						}
 					);
 				}
@@ -708,6 +714,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->OutSHCoefficients1G = VolumetricLightmapData.BrickData.SHCoefficients[3].UAV;
 					PassParameters->OutSHCoefficients0B = VolumetricLightmapData.BrickData.SHCoefficients[4].UAV;
 					PassParameters->OutSHCoefficients1B = VolumetricLightmapData.BrickData.SHCoefficients[5].UAV;
+					PassParameters->OutSkyBentNormal = VolumetricLightmapData.BrickData.SkyBentNormal.UAV;
 					PassParameters->OutDirectionalLightShadowing = VolumetricLightmapData.BrickData.DirectionalLightShadowing.UAV;
 
 					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("VolumetricLightmapStitching %d bricks", BricksToCalcThisFrame), ComputeShader, PassParameters, FIntVector(BricksToCalcThisFrame, 1, 1));
@@ -722,7 +729,9 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 							FRHITransitionInfo(AccumulationBrickData.SHCoefficients[2].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 							FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 							FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
-							FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
+							FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+							FRHITransitionInfo(AccumulationBrickData.SkyBentNormal.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+							FRHITransitionInfo(AccumulationBrickData.DirectionalLightShadowing.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 							}
 						);
 					}
