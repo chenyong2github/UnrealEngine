@@ -699,19 +699,6 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 	}
 }
 
-#if WITH_EDITOR
-
-void UNiagaraSystem::PreEditChange(FProperty* PropertyThatWillChange)
-{
-	Super::PreEditChange(PropertyThatWillChange);
-
-	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, EffectType))
-	{
-		UpdateContext.SetDestroyOnAdd(true);
-		UpdateContext.Add(this, false);
-	}
-}
-
 void UNiagaraSystem::ResolveWarmupTickCount()
 {
 	//Set the WarmupTickCount to feed back to the user.
@@ -724,6 +711,19 @@ void UNiagaraSystem::ResolveWarmupTickCount()
 	{
 		WarmupTickCount = WarmupTime / WarmupTickDelta;
 		WarmupTime = WarmupTickDelta * WarmupTickCount;
+	}
+}
+
+#if WITH_EDITOR
+
+void UNiagaraSystem::PreEditChange(FProperty* PropertyThatWillChange)
+{
+	Super::PreEditChange(PropertyThatWillChange);
+
+	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, EffectType))
+	{
+		UpdateContext.SetDestroyOnAdd(true);
+		UpdateContext.Add(this, false);
 	}
 }
 
