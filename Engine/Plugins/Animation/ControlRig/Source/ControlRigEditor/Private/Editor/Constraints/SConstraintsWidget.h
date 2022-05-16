@@ -22,7 +22,7 @@ public:
 	static int8 GetType(UClass* InClass);
 private:
 	static const TArray< const FSlateBrush* >& GetBrushes();
-	static TMap< UClass*, ETransformConstraintType > ConstraintToType;
+	static const TMap< UClass*, ETransformConstraintType >& GetConstraintToType();
 };
 
 /**
