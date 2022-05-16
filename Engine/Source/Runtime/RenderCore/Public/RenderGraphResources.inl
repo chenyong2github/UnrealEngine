@@ -196,10 +196,6 @@ inline FRDGBufferSRVDesc::FRDGBufferSRVDesc(FRDGBufferRef InBuffer)
 	{
 		// nothing special here
 	}
-	else
-	{
-		checkf(EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::StructuredBuffer), TEXT("Non-structured buffer %s requires a type when creating a SRV."), Buffer->Name);
-	}
 }
 
 inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
@@ -208,10 +204,6 @@ inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
 	if (EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::DrawIndirect))
 	{
 		Format = PF_R32_UINT;
-	}
-	else
-	{
-		checkf(EnumHasAnyFlags(Buffer->Desc.Usage, EBufferUsageFlags::StructuredBuffer), TEXT("Non-structured buffer %s requires a type when creating a UAV."), Buffer->Name);
 	}
 }
 
