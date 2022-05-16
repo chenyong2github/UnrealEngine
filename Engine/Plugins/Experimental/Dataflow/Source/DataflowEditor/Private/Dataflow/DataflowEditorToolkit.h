@@ -36,6 +36,7 @@ public:
 
 	// Graph Editor Operations
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
+	void DeleteNode();
 	void EvaluateNode();
 	FGraphPanelSelectionSet GetSelectedNodes() const;
 

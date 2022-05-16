@@ -16,6 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "DataflowEditorToolkit"
 
@@ -96,6 +97,27 @@ void FDataflowEditorToolkit::EvaluateNode()
 	}
 }
 
+void FDataflowEditorToolkit::DeleteNode()
+{
+	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
+	{
+		if (TSharedPtr<Dataflow::FGraph> DataflowGraph = Graph->GetDataflow())
+		{
+			for (UObject* Ode : GetSelectedNodes())
+			{
+				if (UDataflowEdNode* EdNode = dynamic_cast<UDataflowEdNode*>(Ode))
+				{
+					if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
+					{
+						Graph->RemoveNode(EdNode);
+						DataflowGraph->RemoveNode(DataflowNode);
+					}
+				}
+			}
+		}
+	}
+}
+
 FGraphPanelSelectionSet FDataflowEditorToolkit::GetSelectedNodes() const
 {
 	if (GraphEditor.IsValid())
@@ -123,6 +145,9 @@ TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDatafl
 	{
 		GraphEditorCommands = MakeShareable(new FUICommandList);
 		{
+			GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+				FExecuteAction::CreateSP(this, &FDataflowEditorToolkit::DeleteNode)
+			);
 			GraphEditorCommands->MapAction(FDataflowEditorCommands::Get().EvaluateNode,
 				FExecuteAction::CreateSP(this, &FDataflowEditorToolkit::EvaluateNode)
 			);

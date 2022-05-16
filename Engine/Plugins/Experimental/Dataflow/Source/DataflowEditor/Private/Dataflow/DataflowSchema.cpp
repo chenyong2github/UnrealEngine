@@ -28,9 +28,6 @@ void UDataflowSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphN
 		FToolMenuSection& Section = Menu->AddSection("TestGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "Node Actions"));
 		{
 			Section.AddMenuEntry(FGenericCommands::Get().Delete);
-			Section.AddMenuEntry(FGenericCommands::Get().Cut);
-			Section.AddMenuEntry(FGenericCommands::Get().Copy);
-			Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 			Section.AddMenuEntry(FDataflowEditorCommands::Get().EvaluateNode);
 		}
