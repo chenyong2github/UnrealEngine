@@ -1356,7 +1356,7 @@ void Histogram_MainCS(
 				Bucket0 = (uint)(fBucket);
 				Bucket1 = Bucket0 + 1;
 
-//				Bucket0 = min(Bucket0, HistogramSizeMinusOne);
+				Bucket0 = min(Bucket0, HistogramSizeMinusOne);
 				Bucket1 = min(Bucket1, HistogramSizeMinusOne);
 
 				// Weighted blend between the two buckets.
