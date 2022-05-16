@@ -19,4 +19,7 @@ public:
 	/** List of info for all known LevelInstance template maps */
 	UPROPERTY(config)
 	TArray<FTemplateMapInfo> TemplateMapInfos;
+
+	UPROPERTY(config)
+	FString LevelInstanceClassName;
 };
