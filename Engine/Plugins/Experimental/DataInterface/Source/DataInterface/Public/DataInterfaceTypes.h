@@ -8,6 +8,13 @@
 
 class IDataInterface;
 
+#define DATA_INTERFACE_RETURN_TYPE(Typename) \
+virtual FName GetReturnTypeNameImpl() const final override\
+{\
+	static FName ReturnTypeNameValue = #Typename;\
+	return ReturnTypeNameValue;\
+}\
+
 #define DECLARE_DATA_INTERFACE_PARAM_TYPE_INTERNAL(ValueType, Identifier) \
 	template<> \
 	struct UE::DataInterface::Private::TParamTypeImpl<ValueType> \
