@@ -13,10 +13,12 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/OutputDeviceNull.h"
+#include "Misc/StringBuilder.h"
 #include "UObject/Class.h"
 #include "UObject/Stack.h"
 #include "UObject/Package.h"
 #include "UObject/EnumProperty.h"
+#include "UObject/NameTypes.h"
 #include "UObject/TextProperty.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/PropertyPortFlags.h"
@@ -2498,6 +2500,19 @@ FName GetTypeRegistryName(const UEnum* InEnum)
 
 FName GetTypeRegistryName(const UFunction* InDelegateSignature)
 {
+	// Two different UObject-based classes can each declare in their body a delegate with the same type name, but possibly
+	// with different parameters. While they will share the same FName, they aren't be the same type. Make the type registry
+	// name unique to each delegate.
+	if (UObject* Outer = InDelegateSignature->GetOuter())
+	{
+		if (UClass* OuterClass = Cast<UClass>(Outer))
+		{
+			FNameBuilder ConcatName(Outer->GetFName());
+			ConcatName += "_";
+			InDelegateSignature->GetFName().AppendString(ConcatName);
+			return FName(*ConcatName);
+		}
+	}
 	return InDelegateSignature->GetFName();
 }
 
