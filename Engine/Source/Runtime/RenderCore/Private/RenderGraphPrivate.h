@@ -196,6 +196,11 @@ FORCEINLINE bool IsRenderPassMergeEnabled()
 	return GRDGMergeRenderPasses != 0 && !IsImmediateMode();
 }
 
+FORCEINLINE bool IsAsyncComputeSupported()
+{
+	return GRDGAsyncCompute > 0 && !IsImmediateMode() && GSupportsEfficientAsyncCompute && GRHISupportsSeparateDepthStencilCopyAccess;
+}
+
 bool IsDumpingRDGResources();
 
 FORCEINLINE bool IsParallelExecuteEnabled()

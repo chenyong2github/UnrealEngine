@@ -490,6 +490,16 @@ void FRDGUserValidation::ValidateExternalAccess(FRDGViewableResource* Resource, 
 		Resource->Name, *GetRHIPipelineName(AccessModeState.Pipelines), *GetRHIPipelineName(Pass->GetPipeline()), Pass->GetName());
 }
 
+void FRDGUserValidation::ValidateAddSubresourceAccess(FRDGViewableResource* Resource, const FRDGSubresourceState& Subresource, ERHIAccess Access)
+{
+	const bool bOldAccessMergeable = EnumHasAnyFlags(Subresource.Access, GRHIMergeableAccessMask) || Subresource.Access == ERHIAccess::Unknown;
+	const bool bNewAccessMergeable = EnumHasAnyFlags(Access, GRHIMergeableAccessMask);
+
+	checkf(bOldAccessMergeable || bNewAccessMergeable || Subresource.Access == Access,
+		TEXT("Resource %s has incompatible access states specified for the same subresource. AccessBefore: %s, AccessAfter: %s."),
+		Resource->Name, *GetRHIAccessName(Subresource.Access), *GetRHIAccessName(Access));
+}
+
 void FRDGUserValidation::ValidateAddPass(const FRDGEventName& Name, ERDGPassFlags Flags)
 {
 	ExecuteGuard(TEXT("AddPass"), Name.GetTCHAR());

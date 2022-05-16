@@ -286,7 +286,7 @@ FAutoConsoleVariableSink CVarRDGAsyncComputeSink(FConsoleCommandDelegate::Create
 {
 	GRDGAsyncCompute = CVarRDGAsyncCompute.GetValueOnGameThread();
 
-	if (GRDGAsyncCompute && !GSupportsEfficientAsyncCompute)
+	if (!IsAsyncComputeSupported())
 	{
 		GRDGAsyncCompute = 0;
 	}
