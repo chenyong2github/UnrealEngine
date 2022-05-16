@@ -17,6 +17,9 @@ class AHierarchicalLODVolume : public AVolume
 	virtual bool NeedsLoadForClient() const override { return false; }
 	virtual bool NeedsLoadForServer() const override { return false; }
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
+
+	bool IsActorIncluded(const AActor* InActor) const;
+
 public:
 	bool AppliesToHLODLevel(int32 LODIdx) const;
 

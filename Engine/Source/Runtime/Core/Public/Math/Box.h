@@ -492,6 +492,13 @@ public:
 	 */
 	FString ToString() const;
 
+	/**
+	 * Get the vertices that make up this box.
+	 * 
+	 * 
+	 */
+	void GetVertices( TVector<T> (&Vertices)[8] ) const;
+
 public:
 
 	/** 
@@ -732,19 +739,23 @@ TBox<T> TBox<T>::TransformBy(const TTransform<T>& M) const
 }
 
 template<typename T>
+void TBox<T>::GetVertices(TVector<T>(&Vertices)[8]) const
+{
+	Vertices[0] = TVector<T>(Min);
+	Vertices[1] = TVector<T>(Min.X, Min.Y, Max.Z);
+	Vertices[2] = TVector<T>(Min.X, Max.Y, Min.Z);
+	Vertices[3] = TVector<T>(Max.X, Min.Y, Min.Z);
+	Vertices[4] = TVector<T>(Max.X, Max.Y, Min.Z);
+	Vertices[5] = TVector<T>(Max.X, Min.Y, Max.Z);
+	Vertices[6] = TVector<T>(Min.X, Max.Y, Max.Z);
+	Vertices[7] = TVector<T>(Max);
+}
+
+template<typename T>
 TBox<T> TBox<T>::InverseTransformBy(const TTransform<T>& M) const
 {
-	TVector<T> Vertices[8] =
-	{
-		TVector<T>(Min),
-		TVector<T>(Min.X, Min.Y, Max.Z),
-		TVector<T>(Min.X, Max.Y, Min.Z),
-		TVector<T>(Max.X, Min.Y, Min.Z),
-		TVector<T>(Max.X, Max.Y, Min.Z),
-		TVector<T>(Max.X, Min.Y, Max.Z),
-		TVector<T>(Min.X, Max.Y, Max.Z),
-		TVector<T>(Max)
-	};
+	TVector<T> Vertices[8];
+	GetVertices(Vertices);
 
 	TBox<T> NewBox(ForceInit);
 
@@ -760,17 +771,8 @@ TBox<T> TBox<T>::InverseTransformBy(const TTransform<T>& M) const
 template<typename T>
 TBox<T> TBox<T>::TransformProjectBy(const TMatrix<T>& ProjM) const
 {
-	TVector<T> Vertices[8] =
-	{
-		TVector<T>(Min),
-		TVector<T>(Min.X, Min.Y, Max.Z),
-		TVector<T>(Min.X, Max.Y, Min.Z),
-		TVector<T>(Max.X, Min.Y, Min.Z),
-		TVector<T>(Max.X, Max.Y, Min.Z),
-		TVector<T>(Max.X, Min.Y, Max.Z),
-		TVector<T>(Min.X, Max.Y, Max.Z),
-		TVector<T>(Max)
-	};
+	TVector<T> Vertices[8];
+	GetVertices(Vertices);
 
 	TBox<T> NewBox(ForceInit);
 

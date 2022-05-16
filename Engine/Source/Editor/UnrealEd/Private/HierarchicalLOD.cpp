@@ -226,12 +226,10 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 							if (VolumePtr && (*VolumePtr)->AppliesToHLODLevel(LODId))
 							{
 								AHierarchicalLODVolume* Volume = *VolumePtr;
-								FBox HLODVolumeBox = Volume->GetComponentsBoundingBox(true);
 
-								auto IsInVolume = [Volume, &HLODVolumeBox](const AActor* Actor)
+								auto IsInVolume = [Volume](const AActor* Actor)
 								{
-									FBox ActorBox = Actor->GetComponentsBoundingBox(true);
-									return HLODVolumeBox.IsInside(ActorBox) || (Volume->bIncludeOverlappingActors && HLODVolumeBox.Intersect(ActorBox));
+									return Volume->IsActorIncluded(Actor);
 								};
 
 								EvaluateValidActors(IsInVolume);
@@ -516,8 +514,7 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 		FBox ActorBox = InActor->GetComponentsBoundingBox(true);
 		for (TPair<AHierarchicalLODVolume*, FLODCluster>& Cluster : HLODVolumeClusters)
 		{
-			FBox HLODVolumeBox = Cluster.Key->GetComponentsBoundingBox(true);
-			if (HLODVolumeBox.IsInside(ActorBox) || (Cluster.Key->bIncludeOverlappingActors && HLODVolumeBox.Intersect(ActorBox)))
+			if (Cluster.Key->IsActorIncluded(InActor))
 			{
 				Cluster.Value += InActor;
 				return true;
