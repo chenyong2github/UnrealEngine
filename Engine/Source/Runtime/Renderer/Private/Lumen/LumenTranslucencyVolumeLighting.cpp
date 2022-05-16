@@ -191,7 +191,7 @@ FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheNumProbesToTraceBudge
 	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.NumProbesToTraceBudget"),
 	GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GTranslucencyVolumeRadianceCacheGridResolution = 24;

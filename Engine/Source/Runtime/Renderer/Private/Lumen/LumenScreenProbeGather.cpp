@@ -408,7 +408,7 @@ FAutoConsoleVariableRef CVarRadianceCacheNumProbesToTraceBudget(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"),
 	GRadianceCacheNumProbesToTraceBudget,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GRadianceCacheGridResolution = 48;
