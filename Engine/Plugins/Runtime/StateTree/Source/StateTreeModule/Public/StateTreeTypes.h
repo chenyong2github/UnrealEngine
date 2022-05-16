@@ -372,8 +372,6 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	uint16 TransitionsBegin = 0;						// Index to first transition
 	UPROPERTY()
 	uint16 TasksBegin = 0;								// Index to first task
-	UPROPERTY()
-	uint16 EvaluatorsBegin = 0;							// Index to first evaluator
 
 	UPROPERTY()
 	uint16 ParameterInstanceIndex = MAX_uint16;			// Index to state instance data
@@ -386,8 +384,6 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	uint8 TransitionsNum = 0;							// Number of transitions
 	UPROPERTY()
 	uint8 TasksNum = 0;									// Number of tasks
-	UPROPERTY()
-	uint8 EvaluatorsNum = 0;							// Number of evaluators
 	UPROPERTY()
 	EStateTreeStateType Type = EStateTreeStateType::State; 
 };

@@ -53,9 +53,6 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	// Set data views associated to the parameters using the default values
 	SetDefaultParameters();
 
-	// Initialize array to keep track of which states have been updated.
-	VisitedStates.Init(false, StateTree->States.Num());
-
 	return true;
 }
 
@@ -84,7 +81,6 @@ void FStateTreeExecutionContext::Reset()
 	InternalInstanceData.Reset();
 	DataViews.Reset();
 	StorageType = EStateTreeStorage::Internal;
-	VisitedStates.Reset();
 	StateTree = nullptr;
 	Owner = nullptr;
 }
@@ -140,6 +136,29 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* Ex
 	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
+	// Call TreeStart on evaluators.
+	STATETREE_CLOG(StateTree->EvaluatorsNum > 0, Verbose, TEXT("Start Evaluators"));
+	for (int32 EvalIndex = 0; EvalIndex < int32(StateTree->EvaluatorsNum); EvalIndex++)
+	{
+		const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(StateTree->EvaluatorsBegin) + EvalIndex);
+		const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
+		DataViews[Eval.DataViewIndex] = EvalInstanceView;
+
+		// Copy bound properties.
+		if (Eval.BindingsBatch.IsValid())
+		{
+			StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
+		}
+		STATETREE_LOG(Verbose, TEXT("  TreeStart: '%s'"), *Eval.Name.ToString());
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_TreeStart);
+			Eval.TreeStart(*this);
+		}
+	}
+
+	// First tick
+	TickEvaluators(InstanceData, 0.0f);
+
 	// Stop if still running previous state.
 	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running)
 	{
@@ -157,9 +176,6 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* Ex
 	Exec.ActiveStates.Reset();
 	Exec.LastTickStatus = EStateTreeRunStatus::Unset;
 
-	// Select new Starting from root.
-	VisitedStates.Init(false, StateTree->States.Num());
-	
 	static const FStateTreeHandle RootState = FStateTreeHandle(0);
 
 	FStateTreeActiveStates NextActiveStates;
@@ -214,6 +230,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeInstanceData* Ext
 	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
 	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
+	TickEvaluators(InstanceData, 0.0f);
+
 	// Exit states if still in some valid state.
 	if (!Exec.ActiveStates.IsEmpty() && (Exec.ActiveStates.Last() != FStateTreeHandle::Succeeded || Exec.ActiveStates.Last() != FStateTreeHandle::Failed))
 	{
@@ -236,6 +254,26 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeInstanceData* Ext
 	Exec.ActiveStates.Reset();
 
 	Exec.LastTickStatus = EStateTreeRunStatus::Unset;
+
+	// Call TreeStop on evaluators.
+	STATETREE_CLOG(StateTree->EvaluatorsNum > 0, Verbose, TEXT("Stop Evaluators"));
+	for (int32 EvalIndex = 0; EvalIndex < int32(StateTree->EvaluatorsNum); EvalIndex++)
+	{
+		const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(StateTree->EvaluatorsBegin) + EvalIndex);
+		const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
+		DataViews[Eval.DataViewIndex] = EvalInstanceView;
+
+		// Copy bound properties.
+		if (Eval.BindingsBatch.IsValid())
+		{
+			StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
+		}
+		STATETREE_LOG(Verbose, TEXT("  TreeStop: '%s'"), *Eval.Name.ToString());
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_TreeStart);
+			Eval.TreeStop(*this);
+		}
+	}
 
 	return Exec.TreeRunStatus;
 }
@@ -264,15 +302,11 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 		Exec.GatedTransitionTime -= DeltaTime;
 	}
 	
-	// Reset visited state, used to keep track which state's evaluators have been ticked.
-	VisitedStates.Init(false, StateTree->States.Num());
+	// Tick global evaluators.
+	TickEvaluators(InstanceData, DeltaTime);
 
 	if (Exec.LastTickStatus == EStateTreeRunStatus::Running)
 	{
-		// Tick evaluators on active states. Further evaluator may be ticked during selection as non-active states are visited.
-		// Ticked states are kept track of and evaluators are ticked just once per frame.
-		TickEvaluators(InstanceData, Exec.ActiveStates, EStateTreeEvaluationType::Tick, DeltaTime);
-
 		// Tick tasks on active states.
 		Exec.LastTickStatus = TickTasks(InstanceData, Exec, DeltaTime);
 		
@@ -316,9 +350,6 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 		{
 			break;
 		}
-		
-		// Reset visited states to allow evaluators to update during the next transition selection.
-		VisitedStates.Init(false, StateTree->States.Num());
 	}
 	
 	if (Exec.ActiveStates.IsEmpty())
@@ -389,27 +420,6 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeInstanceDat
 		const EStateTreeStateChangeType ChangeType = bWasActive ? EStateTreeStateChangeType::Sustained : EStateTreeStateChangeType::Changed;
 
 		STATETREE_CLOG(bIsEnteringState, Log, TEXT("%*sEnter state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.NextActiveStates, Index), *UEnum::GetValueAsString(ChangeType));
-		
-		for (int32 EvalIndex = State.EvaluatorsBegin; EvalIndex < (int32)(State.EvaluatorsBegin + State.EvaluatorsNum); EvalIndex++)
-		{
-			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
-			DataViews[Eval.DataViewIndex] = EvalInstanceView;
-
-			// Copy bound properties.
-			if (Eval.BindingsBatch.IsValid())
-			{
-				StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
-			}
-
-			if (bIsEnteringState)
-			{
-				STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'."), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_EnterState);
-				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Eval_EnterState);
-				Eval.EnterState(*this, ChangeType, CurrentTransition);
-			}
-		}
 		
 		// Activate tasks on current state.
 		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (int32)(State.TasksBegin + State.TasksNum); TaskIndex++)
@@ -501,19 +511,6 @@ void FStateTreeExecutionContext::ExitState(FStateTreeInstanceData& InstanceData,
 		}
 
 		// Do property copies, ExitState() is called below.
-		for (int32 EvalIndex = State.EvaluatorsBegin; EvalIndex < (int32)(State.EvaluatorsBegin + State.EvaluatorsNum); EvalIndex++)
-		{
-			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
-			DataViews[Eval.DataViewIndex] = EvalInstanceView;
-
-			// Copy bound properties.
-			if (Eval.BindingsBatch.IsValid())
-			{
-				StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
-			}
-		}
-
 		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (int32)(State.TasksBegin + State.TasksNum); TaskIndex++)
 		{
 			const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(TaskIndex);
@@ -558,19 +555,6 @@ void FStateTreeExecutionContext::ExitState(FStateTreeInstanceData& InstanceData,
 				}
 			}
 		}
-
-		// Evaluators
-		for (int32 EvalIndex = (int32)(State.EvaluatorsBegin + State.EvaluatorsNum) - 1; EvalIndex >= State.EvaluatorsBegin; EvalIndex--)
-		{
-			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
-
-			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'."), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_ExitState);
-				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Eval_ExitState);
-				Eval.ExitState(*this, ChangeType, CurrentTransition);
-			}
-		}
 	}
 }
 
@@ -607,86 +591,32 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeInstanceData& Instance
 				Task.StateCompleted(*this, Exec.LastTickStatus, Exec.ActiveStates);
 			}
 		}
-
-		// Notify evaluators
-		for (int32 EvalIndex = (int32)(State.EvaluatorsBegin + State.EvaluatorsNum) - 1; EvalIndex >= State.EvaluatorsBegin; EvalIndex--)
-		{
-			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
-
-			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-			Eval.StateCompleted(*this, Exec.LastTickStatus, Exec.ActiveStates);
-		}
 	}
 }
 
-void FStateTreeExecutionContext::TickEvaluatorsForSelect(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime)
-{
-	if (CurrentState == FStateTreeHandle::Succeeded || CurrentState == FStateTreeHandle::Failed || CurrentState == FStateTreeHandle::Invalid)
-	{
-		return;
-	}
-
-	FStateTreeActiveStates Branch;
-	FStateTreeHandle StateHandle = CurrentState;
-	while (StateHandle.IsValid())
-	{
-		if (!Branch.PushFront(StateHandle))
-		{
-			break;
-		}
-		StateHandle = StateTree->States[StateHandle.Index].Parent;
-	}
-
-	TickEvaluators(InstanceData, Branch, EvalType, DeltaTime);
-}
-
-void FStateTreeExecutionContext::TickEvaluators(FStateTreeInstanceData& InstanceData, const FStateTreeActiveStates& ActiveStates, const EStateTreeEvaluationType EvalType, const float DeltaTime)
+void FStateTreeExecutionContext::TickEvaluators(FStateTreeInstanceData& InstanceData, const float DeltaTime)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TickEvaluators);
 
-	for (int32 Index = 0; Index < ActiveStates.Num(); Index++)
+	STATETREE_CLOG(StateTree->EvaluatorsNum > 0, Verbose, TEXT("Ticking Evaluators"));
+
+	// Tick evaluators
+	for (int32 EvalIndex = 0; EvalIndex < int32(StateTree->EvaluatorsNum); EvalIndex++)
 	{
-		const FStateTreeHandle StateHandle = ActiveStates[Index];
+		const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(StateTree->EvaluatorsBegin) + EvalIndex);
+		const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
+		DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
-		if (VisitedStates[StateHandle.Index])
+		// Copy bound properties.
+		if (Eval.BindingsBatch.IsValid())
 		{
-			// Already ticked this frame.
-			continue;
+			StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
 		}
-
-		const FCompactStateTreeState& State = StateTree->States[StateHandle.Index];
-
-		if (State.Type == EStateTreeStateType::Linked)
+		STATETREE_LOG(Verbose, TEXT("  Tick: '%s'"), *Eval.Name.ToString());
 		{
-			UpdateLinkedStateParameters(InstanceData, State);
+			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_Tick);
+			Eval.Tick(*this, DeltaTime);
 		}
-		else if (State.Type == EStateTreeStateType::Subtree)
-		{
-			UpdateSubtreeStateParameters(InstanceData, State);
-		}
-		
-		STATETREE_CLOG(State.EvaluatorsNum > 0, Verbose, TEXT("%*sTicking Evaluators of state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(ActiveStates, Index), *UEnum::GetValueAsString(EvalType));
-
-		// Tick evaluators
-		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
-		{
-			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
-			DataViews[Eval.DataViewIndex] = EvalInstanceView;
-
-			// Copy bound properties.
-			if (Eval.BindingsBatch.IsValid())
-			{
-				StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
-			}
-			STATETREE_LOG(Verbose, TEXT("%*s  Evaluate: '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_Tick);
-				Eval.Evaluate(*this, EvalType, DeltaTime);
-			}
-		}
-
-		VisitedStates[StateHandle.Index] = true;
 	}
 }
 
@@ -1012,9 +942,6 @@ bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& Ins
 
 	const FCompactStateTreeState& State = StateTree->States[NextState.Index];
 
-	// Make sure all the evaluators for the target state are up to date.
-	TickEvaluatorsForSelect(InstanceData, NextState, EStateTreeEvaluationType::PreSelect, 0.0f);
-	
 	// Check that the state can be entered
 	if (TestAllConditions(State.EnterConditionsBegin, State.EnterConditionsNum))
 	{
@@ -1150,6 +1077,16 @@ FString FStateTreeExecutionContext::GetDebugInfoString(const FStateTreeInstanceD
 		DebugString += TEXT("--\n");
 	}
 
+	if (StateTree->EvaluatorsNum > 0)
+	{
+		DebugString += TEXT("\nEvaluators:\n");
+		for (int32 EvalIndex = 0; EvalIndex < int32(StateTree->EvaluatorsNum); EvalIndex++)
+		{
+			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(StateTree->EvaluatorsBegin) + EvalIndex);
+			Eval.AppendDebugInfoString(DebugString, *this);
+		}
+	}
+
 	// Active States
 	DebugString += TEXT("Current State:\n");
 	for (int32 Index = 0; Index < Exec.ActiveStates.Num(); Index++)
@@ -1167,15 +1104,6 @@ FString FStateTreeExecutionContext::GetDebugInfoString(const FStateTreeInstanceD
 				{
 					const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(int32(State.TasksBegin) + j);
 					Task.AppendDebugInfoString(DebugString, *this);
-				}
-			}
-			if (State.EvaluatorsNum > 0)
-			{
-				DebugString += TEXT("\nEvaluators:\n");
-				for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
-				{
-					const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-					Eval.AppendDebugInfoString(DebugString, *this);
 				}
 			}
 		}
@@ -1205,14 +1133,14 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 		DebugString += FString::Printf(TEXT("  %s\n"), Node.IsValid() ? *Node.GetScriptStruct()->GetName() : TEXT("null"));
 	}
 
-	// Instance InstanceData data (e.g. tasks, evaluators, conditions)
+	// Instance InstanceData data (e.g. tasks)
 	DebugString += FString::Printf(TEXT("\nInstance Data(%d)\n"), StateTree->Instances.Num());
 	for (const FInstancedStruct& Data : StateTree->Instances)
 	{
 		DebugString += FString::Printf(TEXT("  %s\n"), Data.IsValid() ? *Data.GetScriptStruct()->GetName() : TEXT("null"));
 	}
 
-	// Instance InstanceData offsets (e.g. tasks, evaluators, conditions)
+	// Instance InstanceData offsets (e.g. tasks)
 
 	if (const FStateTreeInstanceDataLayout* InstanceLayout = StateTree->GetInstanceDataDefaultValue().GetLayout().Get())
 	{
@@ -1264,28 +1192,29 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 		);
 	for (const FCompactStateTreeState& State : StateTree->States)
 	{
-		DebugString += FString::Printf(TEXT("  | %-30s | %15s | %5s [%3d:%-3d[ | %9s   %4d %4d %4d %4d | %3s   %4d %4d %4d %4d\n"),
+		DebugString += FString::Printf(TEXT("  | %-30s | %15s | %5s [%3d:%-3d[ | %9s   %4d %4d %4d | %3s   %4d %4d %4d\n"),
 									*State.Name.ToString(), *State.Parent.Describe(),
 									TEXT(""), State.ChildrenBegin, State.ChildrenEnd,
-									TEXT(""), State.EnterConditionsBegin, State.TransitionsBegin, State.TasksBegin, State.EvaluatorsBegin,
-									TEXT(""), State.EnterConditionsNum, State.TransitionsNum, State.TasksNum, State.EvaluatorsNum);
+									TEXT(""), State.EnterConditionsBegin, State.TransitionsBegin, State.TasksBegin,
+									TEXT(""), State.EnterConditionsNum, State.TransitionsNum, State.TasksNum);
 	}
+
+	// Evaluators
+	if (StateTree->EvaluatorsNum)
+	{
+		for (int32 EvalIndex = 0; EvalIndex < StateTree->EvaluatorsNum; EvalIndex++)
+		{
+			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(StateTree->EvaluatorsBegin + EvalIndex);
+			DebugString += FString::Printf(TEXT("| %-12s | %-30s | %15s | %10d |\n"),
+				TEXT("Evaluator"), *Eval.Name.ToString(), *Eval.BindingsBatch.Describe(), Eval.DataViewIndex);
+		}
+	}
+
 
 	DebugString += FString::Printf(TEXT("\nStates\n  [ %-30s | %-12s | %-30s | %15s | %10s ]\n"),
 		TEXT("State"), TEXT("Type"), TEXT("Name"), TEXT("Bindings"), TEXT("Struct Idx"));
 	for (const FCompactStateTreeState& State : StateTree->States)
 	{
-		// Evaluators
-		if (State.EvaluatorsNum)
-		{
-			for (int32 EvalIndex = 0; EvalIndex < State.EvaluatorsNum; EvalIndex++)
-			{
-				const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(State.EvaluatorsBegin + EvalIndex);
-				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
-					TEXT("  Evaluator"), *Eval.Name.ToString(), *Eval.BindingsBatch.Describe(), Eval.DataViewIndex);
-			}
-		}
-
 		// Tasks
 		if (State.TasksNum)
 		{

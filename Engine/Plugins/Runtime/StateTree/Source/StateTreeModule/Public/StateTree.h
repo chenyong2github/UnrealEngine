@@ -20,6 +20,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		BeforeCustomVersionWasAdded = 0,
 		// Separated conditions to shared instance data.
 		SharedInstanceData,
+		// Moved evaluators to be global.
+		GlobalEvaluators,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -151,7 +153,13 @@ private:
 	/** List of names external data enforced by the schema, created at compilation. */
 	UPROPERTY()
 	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
+
+	UPROPERTY()
+	uint16 EvaluatorsBegin = 0;
 	
+	UPROPERTY()
+	uint16 EvaluatorsNum = 0;
+
 	UPROPERTY(Transient)
 	int32 NumDataViews = 0;
 

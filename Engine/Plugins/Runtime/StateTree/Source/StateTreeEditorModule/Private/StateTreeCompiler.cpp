@@ -56,7 +56,7 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		return false;
 	}
 
-	if (!CreateStateEvaluators())
+	if (!CreateEvaluators())
 	{
 		StateTree->ResetCompiled();
 		return false;
@@ -208,6 +208,26 @@ bool FStateTreeCompiler::CreateConditions(UStateTreeState& State, TConstArrayVie
 	return true;
 }
 
+bool FStateTreeCompiler::CreateEvaluators()
+{
+	check(StateTree->Nodes.Num() <= int32(MAX_uint16));
+	StateTree->EvaluatorsBegin = uint16(StateTree->Nodes.Num());
+
+	for (FStateTreeEditorNode& EvalNode : TreeData->Evaluators)
+	{
+		if (!CreateEvaluator(EvalNode))
+		{
+			return false;
+		}
+	}
+	
+	const int32 EvaluatorsNum = StateTree->Nodes.Num() - int32(StateTree->EvaluatorsBegin);
+	check(EvaluatorsNum <= int32(MAX_uint16));
+	StateTree->EvaluatorsNum = uint16(EvaluatorsNum);
+
+	return true;
+}
+
 bool FStateTreeCompiler::CreateStateTasksAndParameters()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
@@ -250,7 +270,7 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 
 				// Check that the bindings for this struct are still all valid.
 				TArray<FStateTreeEditorPropertyBinding> Bindings;
-				if (!GetAndValidateBindings(*SourceState, StructDesc, Bindings))
+				if (!GetAndValidateBindings(StructDesc, Bindings))
 				{
 					return false;
 				}
@@ -287,36 +307,6 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 		CompactState.TasksNum = uint8(TasksNum);
 	}
 	
-	return true;
-}
-
-bool FStateTreeCompiler::CreateStateEvaluators()
-{
-	for (int32 i = 0; i < StateTree->States.Num(); i++)
-	{
-		FCompactStateTreeState& CompactState = StateTree->States[i];
-		UStateTreeState* SourceState = SourceStates[i];
-		check(SourceState != nullptr);
-
-		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
-		
-		// Collect evaluators
-		check(StateTree->Nodes.Num() <= int32(MAX_uint16));
-		CompactState.EvaluatorsBegin = uint16(StateTree->Nodes.Num());
-
-		for (FStateTreeEditorNode& EvalNode : SourceState->Evaluators)
-		{
-			if (!CreateEvaluator(*SourceState, EvalNode))
-			{
-				return false;
-			}
-		}
-		
-		const int32 EvaluatorsNum = StateTree->Nodes.Num() - int32(CompactState.EvaluatorsBegin);
-		check(EvaluatorsNum <= int32(MAX_uint8));
-		CompactState.EvaluatorsNum = uint8(EvaluatorsNum);
-	}
-
 	return true;
 }
 
@@ -512,7 +502,7 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
-	if (!GetAndValidateBindings(State, StructDesc, Bindings))
+	if (!GetAndValidateBindings(StructDesc, Bindings))
 	{
 		return false;
 	}
@@ -600,7 +590,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
-	if (!GetAndValidateBindings(State, StructDesc, Bindings))
+	if (!GetAndValidateBindings(StructDesc, Bindings))
 	{
 		return false;
 	}
@@ -621,7 +611,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 	return true;
 }
 
-bool FStateTreeCompiler::CreateEvaluator(UStateTreeState& State, const FStateTreeEditorNode& EvalNode)
+bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
 {
 	// Silently ignore empty items.
 	if (!EvalNode.Node.IsValid())
@@ -689,7 +679,7 @@ bool FStateTreeCompiler::CreateEvaluator(UStateTreeState& State, const FStateTre
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
-	if (!GetAndValidateBindings(State, StructDesc, Bindings))
+	if (!GetAndValidateBindings(StructDesc, Bindings))
 	{
 		return false;
 	}
@@ -730,7 +720,7 @@ bool FStateTreeCompiler::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& S
 	return bIsAnyEnum;
 }
 
-bool FStateTreeCompiler::GetAndValidateBindings(UStateTreeState& State, const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
+bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
 {
 	OutBindings.Reset();
 	

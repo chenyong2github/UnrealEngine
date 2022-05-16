@@ -24,7 +24,6 @@
 #include "StateTree.h"
 #include "StateTreeState.h"
 #include "StateTreeConditionBase.h"
-#include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeViewModel.h"
 #include "Algo/ForEach.h"
@@ -57,7 +56,6 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
     , InOwnerTableView);
 
 	static const FLinearColor TasksBackground = FLinearColor(FColor(17, 117, 131));
-	static const FLinearColor EvaluatorsBackground = FLinearColor(FColor(48, 48, 48));
 	static const FLinearColor LinkBackground = FLinearColor(FColor(84, 84, 84));
 	
 	this->ChildSlot
@@ -132,47 +130,6 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 						.Text(this, &SStateTreeViewRow::GetStateDesc)
 						.Clipping(EWidgetClipping::ClipToBounds)
 						.IsSelected(this, &SStateTreeViewRow::IsSelected)
-					]
-				]
-			]
-		]
-
-		// Evaluators Box
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(FMargin(0.0f, 4.0f))
-		.AutoWidth()
-		[
-			SNew(SBox)
-			.HeightOverride(28.0f)
-			.VAlign(VAlign_Fill)
-			.Visibility(this, &SStateTreeViewRow::GetEvaluatorsVisibility)
-			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(EvaluatorsBackground)
-				.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
-				[
-					// Evaluator icon
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(FEditorFontGlyphs::Crosshairs)
-						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
-					]
-
-					// Evalutors
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(this, &SStateTreeViewRow::GetEvaluatorsDesc)
-						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
 					]
 				]
 			]
@@ -489,44 +446,6 @@ FText SStateTreeViewRow::GetSelectorDesc() const
 	}
 
 	return FText::GetEmpty(); 
-}
-
-EVisibility SStateTreeViewRow::GetEvaluatorsVisibility() const
-{
-	if (const UStateTreeState* State = WeakState.Get())
-	{
-		int32 ValidCount = 0;
-		for (int32 i = 0; i < State->Evaluators.Num(); i++)
-		{
-			if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Node.GetPtr<FStateTreeEvaluatorBase>())
-			{
-				ValidCount++;
-			}
-		}
-		return ValidCount > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-	}
-	return EVisibility::Collapsed;
-}
-
-FText SStateTreeViewRow::GetEvaluatorsDesc() const
-{
-	const UStateTreeState* State = WeakState.Get();
-	if (!State)
-	{
-		return FText::GetEmpty();
-	}
-
-	TArray<FText> Names;
-
-	for (int32 i = 0; i < State->Evaluators.Num(); i++)
-	{
-		if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Node.GetPtr<FStateTreeEvaluatorBase>())
-		{
-			Names.Add(FText::FromName(Eval->Name));
-		}
-	}
-
-	return FText::Join((FText::FromString(TEXT(", "))), Names);
 }
 
 EVisibility SStateTreeViewRow::GetTasksVisibility() const

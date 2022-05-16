@@ -32,7 +32,7 @@ struct MASSAIBEHAVIOR_API FMassComponentHitEvaluator : public FMassStateTreeEval
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FMassComponentHitEvaluatorInstanceData::StaticStruct(); }
-	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const override;
+	virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 	TStateTreeExternalDataHandle<UMassComponentHitSubsystem> ComponentHitSubsystemHandle;
 

@@ -304,10 +304,9 @@ protected:
 	void TickEvaluatorsForSelect(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
 
 	/**
-	 * Ticks evaluators of all active states by delta time.
-	 * If TickEvaluators() is called multiple times per frame (i.e. during selection when visiting new states), each state and evaluator is ticked only once.
+	 * Ticks global evaluators by delta time.
 	 */
-	void TickEvaluators(FStateTreeInstanceData& InstanceData, const FStateTreeActiveStates& ActiveStates, const EStateTreeEvaluationType EvalType, const float DeltaTime);
+	void TickEvaluators(FStateTreeInstanceData& InstanceData, const float DeltaTime);
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.
@@ -416,9 +415,6 @@ protected:
 	/** Optional Instance of the storage */
 	UPROPERTY(Transient)
 	FStateTreeInstanceData InternalInstanceData;
-
-	/** States visited during a tick while updating evaluators. Initialized to match the number of states in the asset. */ 
-	TArray<bool> VisitedStates;
 
 	/** Array of data pointers (external data, tasks, evaluators, conditions), used during evaluation. Initialized to match the number of items in the asset. */
 	TArray<FStateTreeDataView> DataViews;

@@ -18,7 +18,7 @@ bool FMassComponentHitEvaluator::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-void FMassComponentHitEvaluator::Evaluate(FStateTreeExecutionContext &Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const
+void FMassComponentHitEvaluator::Tick(FStateTreeExecutionContext &Context, const float DeltaTime) const
 {
 	// Look for recent hits
 	UMassComponentHitSubsystem& HitSubsystem = Context.GetExternalData(ComponentHitSubsystemHandle);

@@ -7,6 +7,7 @@
 #include "Misc/Guid.h"
 #include "InstancedStruct.h"
 #include "PropertyBag.h"
+#include "StateTreeEditorNode.h"
 #include "StateTreeState.generated.h"
 
 class UStateTreeState;
@@ -35,59 +36,6 @@ struct STATETREEEDITORMODULE_API FStateTreeStateLink
 
 	UPROPERTY(EditDefaultsOnly, Category = Link)
 	EStateTreeTransitionType Type = EStateTreeTransitionType::GotoState;
-};
-
-
-/**
- * Base for Evaluator, Task and Condition nodes.
- */
-USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeEditorNode
-{
-	GENERATED_BODY()
-
-	void Reset()
-	{
-		Node.Reset();
-		Instance.Reset();
-		InstanceObject = nullptr;
-		ID = FGuid();
-	}
-
-	FName GetName() const
-	{
-		if (const FStateTreeNodeBase* NodePtr = Node.GetPtr<FStateTreeNodeBase>())
-		{
-			return NodePtr->Name;
-		}
-		return FName();
-	}
-
-	UPROPERTY(EditDefaultsOnly, Category = Node)
-	FInstancedStruct Node;
-
-	UPROPERTY(EditDefaultsOnly, Category = Node)
-	FInstancedStruct Instance;
-
-	UPROPERTY(EditDefaultsOnly, Instanced, Category = Node)
-	UObject* InstanceObject = nullptr;
-	
-	UPROPERTY(EditDefaultsOnly, Category = Node)
-	FGuid ID;
-
-	UPROPERTY(EditDefaultsOnly, Category = Node)
-	uint8 ConditionIndent = 0;
-
-	UPROPERTY(EditDefaultsOnly, Category = Node)
-	EStateTreeConditionOperand ConditionOperand = EStateTreeConditionOperand::And; 
-};
-
-template <typename T>
-struct TStateTreeEditorNode : public FStateTreeEditorNode
-{
-	typedef T NodeType;
-	FORCEINLINE T& GetItem() { return Node.template GetMutable<T>(); }
-	FORCEINLINE typename T::InstanceDataType& GetInstance() { return Instance.template GetMutable<typename T::InstanceDataType>(); }
 };
 
 /**
@@ -220,24 +168,6 @@ public:
 	}
 
 	/**
-	 * Adds Evaluator of specified type.
-	 * @return reference to the new Evaluator. 
-	 */
-	template<typename T, typename... TArgs>
-    TStateTreeEditorNode<T>& AddEvaluator(TArgs&&... InArgs)
-	{
-		FStateTreeEditorNode& EvalItem = Evaluators.AddDefaulted_GetRef();
-		EvalItem.ID = FGuid::NewGuid();
-		EvalItem.Node.InitializeAs<T>(Forward<TArgs>(InArgs)...);
-		T& Eval = EvalItem.Node.GetMutable<T>();
-		if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval.GetInstanceDataType()))
-		{
-			EvalItem.Instance.InitializeAs(InstanceType);
-		}
-		return static_cast<TStateTreeEditorNode<T>&>(EvalItem);
-	}
-
-	/**
 	 * Adds Transition.
 	 * @return reference to the new Transition. 
 	 */
@@ -266,8 +196,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions", meta = (BaseStruct = "StateTreeConditionBase", BaseClass = "StateTreeConditionBlueprintBase"))
 	TArray<FStateTreeEditorNode> EnterConditions;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "StateTreeEvaluatorBase", BaseClass = "StateTreeEvaluatorBlueprintBase"))
-	TArray<FStateTreeEditorNode> Evaluators;
+	UE_DEPRECATED(5.1, "Evaluators are moved into UStateTreeEditorData. This property will be removed for 5.1.")
+	UPROPERTY(meta = (DeprecatedProperty, BaseStruct = "StateTreeEvaluatorBase", BaseClass = "StateTreeEvaluatorBlueprintBase"))
+	TArray<FStateTreeEditorNode> Evaluators_DEPRECATED;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Tasks", meta = (BaseStruct = "StateTreeTaskBase", BaseClass = "StateTreeTaskBlueprintBase"))
 	TArray<FStateTreeEditorNode> Tasks;

@@ -42,7 +42,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		UStateTreeState& StateB = Root.AddChildState(FName(TEXT("B")));
 
 		// Root
-		auto& EvalA = Root.AddEvaluator<FTestEval_A>();
+		auto& EvalA = EditorData.AddEvaluator<FTestEval_A>();
 		
 		// State A
 		auto& TaskB1 = StateA.AddTask<FTestTask_B>();

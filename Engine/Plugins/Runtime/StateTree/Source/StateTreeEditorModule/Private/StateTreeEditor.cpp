@@ -585,6 +585,14 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 
+		// Clear evaluators if not allowed.
+		if (Schema->AllowEvaluators() == false && TreeData->Evaluators.Num() > 0)
+		{
+			UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Evaluators due to current schema restrictions."), *GetNameSafe(&StateTree));
+			TreeData->Evaluators.Reset();
+		}
+
+
 		TreeData->VisitHierarchy([&StateTree, Schema](UStateTreeState& State, UStateTreeState* /*ParentState*/)
 		{
 			// Clear enter conditions if not allowed.
@@ -592,13 +600,6 @@ namespace UE::StateTree::Editor::Internal
 			{
 				UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Enter Conditions in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
 				State.EnterConditions.Reset();
-			}
-
-			// Clear evaluators if not allowed.
-			if (Schema->AllowEvaluators() == false && State.Evaluators.Num() > 0)
-			{
-				UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Evaluators in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
-				State.Evaluators.Reset();
 			}
 
 			// Keep single and many tasks based on what is allowed.

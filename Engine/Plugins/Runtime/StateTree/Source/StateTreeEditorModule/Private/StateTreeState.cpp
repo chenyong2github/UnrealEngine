@@ -76,7 +76,6 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			if (Type == EStateTreeStateType::Group || Type == EStateTreeStateType::Linked)
 			{
 				Tasks.Reset();
-				Evaluators.Reset();
 			}
 
 			// If transitioning from linked state, reset the linked state.
@@ -131,18 +130,6 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			// Ensure unique ID on duplicated items.
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
 			{
-				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Evaluators))
-				{
-					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
-					if (Evaluators.IsValidIndex(ArrayIndex))
-					{
-						if (FStateTreeEvaluatorBase* Eval = Evaluators[ArrayIndex].Node.GetMutablePtr<FStateTreeEvaluatorBase>())
-						{
-							Eval->Name = FName(Eval->Name.ToString() + TEXT(" Duplicate"));
-						}
-						Evaluators[ArrayIndex].ID = FGuid::NewGuid();
-					}
-				}
 				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks))
 				{
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
@@ -179,6 +166,18 @@ void UStateTreeState::PostLoad()
 	{
 		SetFlags(RF_Transactional);
 	}
+
+	// Move deprecated evaluators to editor data.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (Evaluators_DEPRECATED.Num() > 0)
+	{
+		if (UStateTreeEditorData* TreeData = GetTypedOuter<UStateTreeEditorData>())
+		{
+			TreeData->Evaluators.Append(Evaluators_DEPRECATED);
+			Evaluators_DEPRECATED.Reset();
+		}		
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UStateTreeState::UpdateParametersFromLinkedState()

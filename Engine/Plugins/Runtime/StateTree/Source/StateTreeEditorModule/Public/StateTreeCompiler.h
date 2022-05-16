@@ -34,15 +34,15 @@ private:
 	bool CreateStates();
 	bool CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent);
 	
+	bool CreateEvaluators();
 	bool CreateStateTasksAndParameters();
-	bool CreateStateEvaluators();
 	bool CreateStateTransitions();
 	
 	bool CreateConditions(UStateTreeState& State, TConstArrayView<FStateTreeEditorNode> Conditions);
 	bool CreateCondition(UStateTreeState& State, const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent);
 	bool CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode);
-	bool CreateEvaluator(UStateTreeState& State, const FStateTreeEditorNode& EvalNode);
-	bool GetAndValidateBindings(UStateTreeState& State, const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
+	bool CreateEvaluator(const FStateTreeEditorNode& EvalNode);
+	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
 
 	FStateTreeCompilerLog& Log;

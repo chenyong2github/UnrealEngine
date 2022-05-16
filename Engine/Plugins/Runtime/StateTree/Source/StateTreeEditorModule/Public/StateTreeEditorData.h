@@ -9,22 +9,11 @@
 class UStateTreeSchema;
 
 UENUM()
-enum class EStateTreeNodeType : uint8
-{
-	EnterCondition,
-	Evaluator,
-	Task,
-	TransitionCondition,
-	StateParameters,
-};
-
-UENUM()
 enum class EStateTreeVisitor : uint8
 {
 	Continue,
 	Break,
 };
-
 
 /**
  * Edit time data for StateTree asset. This data gets baked into runtime format before being used by the StateTreeInstance.
@@ -44,7 +33,7 @@ public:
 	// ~IStateTreeEditorPropertyBindingsOwner
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
 	/** Returns parent state of a struct, or nullptr if not found. */
@@ -66,13 +55,13 @@ public:
 	 * Iterates over all structs that are related to binding
 	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	void VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+	void VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
 
 	/**
 	 * Iterates over all nodes in a given state.
 	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	EStateTreeVisitor VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+	EStateTreeVisitor VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
 
 	/**
 	 * Returns array of nodes along the execution path, up to the TargetStruct.
@@ -105,7 +94,25 @@ public:
 	{
 		return AddSubTree(FName(TEXT("Root")));
 	}
-	
+
+	/**
+	 * Adds Evaluator of specified type.
+	 * @return reference to the new Evaluator. 
+	 */
+	template<typename T, typename... TArgs>
+	TStateTreeEditorNode<T>& AddEvaluator(TArgs&&... InArgs)
+	{
+		FStateTreeEditorNode& EvalItem = Evaluators.AddDefaulted_GetRef();
+		EvalItem.ID = FGuid::NewGuid();
+		EvalItem.Node.InitializeAs<T>(Forward<TArgs>(InArgs)...);
+		T& Eval = EvalItem.Node.GetMutable<T>();
+		if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval.GetInstanceDataType()))
+		{
+			EvalItem.Instance.InitializeAs(InstanceType);
+		}
+		return static_cast<TStateTreeEditorNode<T>&>(EvalItem);
+	}
+
 	/**
 	 * Adds property binding between two structs.
 	 */
@@ -122,7 +129,10 @@ public:
 	/** Public parameters that could be used for bindings within the Tree. */
 	UPROPERTY(EditDefaultsOnly, Category = Common)
 	FStateTreeStateParameters RootParameters;
-	
+
+	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "StateTreeEvaluatorBase", BaseClass = "StateTreeEvaluatorBlueprintBase"))
+	TArray<FStateTreeEditorNode> Evaluators;
+
 	UPROPERTY(meta = (ExcludeFromHash))
 	FStateTreeEditorPropertyBindings EditorBindings;
 

@@ -500,7 +500,12 @@ void FStateTreeEditorNodeDetails::FindOuterObjects()
 	StructProperty->GetOuterObjects(OuterObjects);
 	for (UObject* Outer : OuterObjects)
 	{
-		UStateTreeEditorData* OuterEditorData = Outer->GetTypedOuter<UStateTreeEditorData>();
+		UStateTreeEditorData* OuterEditorData = Cast<UStateTreeEditorData>(Outer);
+		if (OuterEditorData == nullptr)
+		{
+			OuterEditorData = Outer->GetTypedOuter<UStateTreeEditorData>();
+		}
+		
 		UStateTree* OuterStateTree = OuterEditorData ? OuterEditorData->GetTypedOuter<UStateTree>() : nullptr;
 		if (OuterEditorData && OuterStateTree)
 		{

@@ -28,6 +28,9 @@ void UStateTree::ResetCompiled()
 	NamedExternalDataDescs.Reset();
 	PropertyBindings.Reset();
 
+	EvaluatorsBegin = 0;
+	EvaluatorsNum = 0;
+
 	NumDataViews = 0;
 	ExternalDataBaseIndex = 0;
 	DefaultParametersDataViewIndex = INDEX_NONE;

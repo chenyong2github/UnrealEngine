@@ -32,9 +32,6 @@ private:
 	EVisibility GetSelectorVisibility() const;
 	FText GetSelectorDesc() const;
 
-	EVisibility GetEvaluatorsVisibility() const;
-	FText GetEvaluatorsDesc() const;
-
 	EVisibility GetTasksVisibility() const;
 	FText GetTasksDesc() const;
 

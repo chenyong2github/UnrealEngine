@@ -259,12 +259,8 @@ void SStateTreeView::HandleModelStatesChanged(const TSet<UStateTreeState*>& Affe
 {
 	bool bArraysChanged = false;
 
-	// The purpose of the rebuild below is to update the evaluator and task visualization (number of widgets change).
+	// The purpose of the rebuild below is to update the task visualization (number of widgets change).
 	// This method is called when anything in a state changes, make sure to only rebuild when needed.
-	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Evaluators))
-	{
-		bArraysChanged = true;
-	}
 	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks))
 	{
 		bArraysChanged = true;
