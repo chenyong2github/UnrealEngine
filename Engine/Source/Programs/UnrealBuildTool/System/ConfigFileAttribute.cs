@@ -11,7 +11,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Attribute indicating a value which should be populated from a UE .ini config file
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Field)]
+	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 	public class ConfigFileAttribute : Attribute
 	{
 		/// <summary>
