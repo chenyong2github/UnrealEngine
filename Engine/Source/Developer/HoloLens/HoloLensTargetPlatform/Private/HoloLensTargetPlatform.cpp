@@ -188,15 +188,45 @@ void FHoloLensTargetPlatform::GetReflectionCaptureFormats(TArray<FName>& OutForm
 	OutFormats.Add(FName(TEXT("EncodedHDR")));
 }
 
+const static FName NameBC6H(TEXT("BC6H"));
+const static FName NameBC7(TEXT("BC7"));
+const static FName NameRGBA16F(TEXT("RGBA16F"));
+const static FName NameBGRA8(TEXT("BGRA8"));
+const static FName HoloLensRemap[][2] =
+{
+	{ NameBC6H,			NameRGBA16F		},
+	{ NameBC7,			NameBGRA8		},
+};
+
 void FHoloLensTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const
 {
 	bool bSupportFilteredFloat32Textures = false;
-	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, false, false,4, bSupportFilteredFloat32Textures);
+	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, false, 4, bSupportFilteredFloat32Textures);
+
+	// perform any remapping away from defaults
+	TArray<FName>& LayerFormats = OutFormats.Last();
+	for (FName& TextureFormatName : LayerFormats)
+	{
+		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(HoloLensRemap); ++RemapIndex)
+		{
+			if (TextureFormatName == HoloLensRemap[RemapIndex][0])
+			{
+				TextureFormatName = HoloLensRemap[RemapIndex][1];
+				break;
+			}
+		}
+	}
 }
 
 void FHoloLensTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	GetAllDefaultTextureFormats(this, OutFormats, false);
+	GetAllDefaultTextureFormats(this, OutFormats);
+
+	// not supported
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(HoloLensRemap); ++RemapIndex)
+	{
+		OutFormats.Remove(HoloLensRemap[RemapIndex][0]);
+	}
 }
 
 #endif

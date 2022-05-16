@@ -74,16 +74,22 @@ namespace AndroidTexFormat
 	const static FName NameAutoASTC(TEXT("ASTC_RGBAuto"));
 	
 	// Uncompressed Texture Formats
-	//const static FName NameBGRA8(TEXT("BGRA8"));
-	//const static FName NameG8(TEXT("G8"));
-	//const static FName NameVU8(TEXT("VU8"));
-	//const static FName NameRGBA16F(TEXT("RGBA16F"));
-	//const static FName NameR16F(TEXT("R16F"));
-	//const static FName NameR5G6B5(TEXT("R5G6B5"));
+	const static FName NameBGRA8(TEXT("BGRA8"));
+	const static FName NameG8(TEXT("G8"));
+	const static FName NameVU8(TEXT("VU8"));
+	const static FName NameRGBA16F(TEXT("RGBA16F"));
+	const static FName NameR16F(TEXT("R16F"));
+	const static FName NameR5G6B5(TEXT("R5G6B5"));
 
 	//A1RGB555 is mapped to RGB555A1, because OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
 	const static FName NameA1RGB555(TEXT("A1RGB555"));
 	const static FName NameRGB555A1(TEXT("RGB555A1"));
+
+	const static FName GenericRemap[][2] =
+	{
+		{ NameBC6H,			NameRGBA16F					},
+		{ NameBC7,			NameBGRA8					},
+	};
 
 	const static FName ASTCRemap[][2] =
 	{
@@ -93,8 +99,10 @@ namespace AndroidTexFormat
 		{ NameDXT5n,		FName(TEXT("ASTC_NormalAG"))},
 		{ NameBC5,			FName(TEXT("ASTC_NormalRG"))},
 		{ NameBC4,			NameETC2_R11				},
-		{ NameBC6H,			FName(TEXT("ASTC_RGB"))		},
-		{ NameBC7,			NameAutoASTC				},
+		{ NameBC6H,			NameRGBA16F					},
+		{ NameBC7,			NameBGRA8					},
+		//{ NameBC6H,			FName(TEXT("ASTC_RGB"))		},
+		//{ NameBC7,			NameAutoASTC				},
 		{ NameAutoDXT,		NameAutoASTC				},
 		{ NameA1RGB555,		NameRGB555A1				}
 	};
@@ -107,8 +115,10 @@ namespace AndroidTexFormat
 		{ NameDXT5n,		NameETC2_RGB	},
 		{ NameBC5,			NameETC2_RGB	},
 		{ NameBC4,			NameETC2_R11	},
-		{ NameBC6H,			NameETC2_RGB	}, // @todo Oodle : uncompressed float?
-		{ NameBC7,			NameAutoETC2	},
+		{ NameBC6H,			NameRGBA16F					},
+		{ NameBC7,			NameBGRA8					},
+		//{ NameBC6H,			NameETC2_RGB	},
+		//{ NameBC7,			NameAutoETC2	},
 		{ NameAutoDXT,		NameAutoETC2	},
 		{ NameA1RGB555,		NameRGB555A1	}
 	};
@@ -486,13 +496,11 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 	
 	// Supported in ES3.2 with ASTC
 	const bool bSupportCompressedVolumeTexture = SupportsTextureFormatCategory(EAndroidTextureFormatCategory::ASTC);
-	// TODO: compressed HDR formats
-	const bool bSupportDX11TextureFormats = false;
 	// OpenGL ES has F32 textures but doesn't allow linear filtering unless OES_texture_float_linear
 	const bool bSupportFilteredFloat32Textures = false;
 
 	TArray<FName>& LayerFormats = OutFormats.AddDefaulted_GetRef();
-	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, 1, bSupportFilteredFloat32Textures);
+	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportCompressedVolumeTexture, 1, bSupportFilteredFloat32Textures);
 
 	for (FName& TextureFormatName : LayerFormats)
 	{
@@ -513,6 +521,14 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 				{
 					TextureFormatName = FName(TEXT("ETC2_RGBA"));
 				}
+			}
+		}
+
+		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+		{
+			if(TextureFormatName == AndroidTexFormat::GenericRemap[RemapIndex][0]) 
+			{
+				TextureFormatName = AndroidTexFormat::GenericRemap[RemapIndex][1];
 			}
 		}
 	}
@@ -553,12 +569,32 @@ FName FAndroidTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) co
 
 void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	GetAllDefaultTextureFormats(this, OutFormats, false);
+	GetAllDefaultTextureFormats(this, OutFormats);
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+	{
+		OutFormats.Remove(AndroidTexFormat::GenericRemap[RemapIndex][0]);
+	}
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+	{
+		OutFormats.AddUnique(AndroidTexFormat::GenericRemap[RemapIndex][1]);
+	}
 }
 
 void FAndroid_ASTCTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	GetAllDefaultTextureFormats(this, OutFormats, false);
+	GetAllDefaultTextureFormats(this, OutFormats);
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+	{
+		OutFormats.Remove(AndroidTexFormat::GenericRemap[RemapIndex][0]);
+	}
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+	{
+		OutFormats.AddUnique(AndroidTexFormat::GenericRemap[RemapIndex][1]);
+	}
 
 	// not supported
 	OutFormats.Remove(AndroidTexFormat::NameDXT3);
@@ -594,7 +630,17 @@ void FAndroid_ASTCTargetPlatform::GetTextureFormats(const UTexture* Texture, TAr
 
 void FAndroid_ETC2TargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	GetAllDefaultTextureFormats(this, OutFormats, false);
+	GetAllDefaultTextureFormats(this, OutFormats);
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+	{
+		OutFormats.Remove(AndroidTexFormat::GenericRemap[RemapIndex][0]);
+	}
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
+	{
+		OutFormats.AddUnique(AndroidTexFormat::GenericRemap[RemapIndex][1]);
+	}
 
 	// not supported
 	OutFormats.Remove(AndroidTexFormat::NameDXT3);

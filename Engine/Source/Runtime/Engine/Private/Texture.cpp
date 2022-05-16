@@ -2856,7 +2856,7 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 	return TextureFormatName;
 }
 
-FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
+FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
 {
 	FName TextureFormatName = NAME_None;
 	bool bOodleTextureSdkVersionIsNone = true;
@@ -3124,23 +3124,6 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		TextureFormatName = NameBGRA8;
 	}
-
-	// fallback to non-DX11 formats if one was chosen, but we can't use it
-	if (!bSupportDX11TextureFormats)
-	{
-		if (TextureFormatName == NameBC6H)
-		{
-			UE_LOG(LogTexture, Display, TEXT("BC6H Texture expanded to uncompressed RGBA16F because !SupportDX11 : %s"), *Texture->GetPathName());
-
-			TextureFormatName = NameRGBA16F;
-		}
-		else if (TextureFormatName == NameBC7)
-		{
-			UE_LOG(LogTexture, Display, TEXT("BC7 Texture expanded to uncompressed BGRA8 because !SupportDX11 : %s"), *Texture->GetPathName());
-
-			TextureFormatName = NameBGRA8;
-		}
-	}
 	
 	// remap 32F to 16F if not supported :
 	if ( !bSupportFilteredFloat32Textures &&
@@ -3176,18 +3159,18 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	return ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform, bOodleTextureSdkVersionIsNone);
 }
 
-void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
+void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
 {
 #if WITH_EDITOR
 	OutFormatNames.Reserve(Texture->Source.GetNumLayers());
 	for (int32 LayerIndex = 0; LayerIndex < Texture->Source.GetNumLayers(); ++LayerIndex)
 	{
-		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures));
+		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures));
 	}
 #endif // WITH_EDITOR
 }
 
-void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TArray<FName>& OutFormats, bool bSupportDX11TextureFormats)
+void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TArray<FName>& OutFormats)
 {
 	// this is only used by CookOnTheFlyServer, it could be removed entirely
 
@@ -3227,11 +3210,8 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	OutFormats.Add(NameRGBA32F);
 	OutFormats.Add(NameR16F);
 	OutFormats.Add(NameR32F);
-	if (bSupportDX11TextureFormats)
-	{
-		OutFormats.Add(NameBC6H);
-		OutFormats.Add(NameBC7);
-	}
+	OutFormats.Add(NameBC6H);
+	OutFormats.Add(NameBC7);
 	// is there any drawback to just adding the 32F textures here even if we don't want them? -> no.
 	//	what is this list even used for?
 	//  AFAICT it's only used by CookOnTheFlyServer for GetVersionFormatNumbersForIniVersionStrings

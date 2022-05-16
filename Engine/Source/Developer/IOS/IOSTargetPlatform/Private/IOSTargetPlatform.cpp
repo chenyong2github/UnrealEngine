@@ -609,7 +609,7 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		// Compressed volume textures require MTLGPUFamilyApple3 or later
 		// min spec for TVOS is AppleTV HD which is MTLGPUFamilyApple2 (A8)
 		bool bSupportCompressedVolumeTexture = !bIsTVOS && !SupportsA8Devices();
-		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, true, bSupportCompressedVolumeTexture, BlockSize);
+		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, bSupportCompressedVolumeTexture, BlockSize);
 	}
 
 	// include the formats we want
@@ -653,7 +653,7 @@ void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
 	bool bFoundRemap = false;
 
-	GetAllDefaultTextureFormats(this, OutFormats, false);
+	GetAllDefaultTextureFormats(this, OutFormats);
 
 	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 2)
 	{

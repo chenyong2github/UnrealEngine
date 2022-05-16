@@ -320,7 +320,7 @@ public:
 		if (this->AllowAudioVisualData())
 		{
 			// just use the standard texture format name for this texture
-			GetAllDefaultTextureFormats(this, OutFormats, true);
+			GetAllDefaultTextureFormats(this, OutFormats);
 		}
 	}
 

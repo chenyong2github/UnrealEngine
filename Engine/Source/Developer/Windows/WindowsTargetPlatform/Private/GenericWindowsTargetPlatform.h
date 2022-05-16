@@ -71,7 +71,7 @@ public:
 		static FName NAME_SF_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
 		static FName NAME_OPENGL_150_ES3_1(TEXT("GLSL_150_ES31"));
 
-		bSupportDX11TextureFormats = true;
+		bool bSupportDX11TextureFormats = true;
 		bSupportCompressedVolumeTexture = true;
 
 		for (FName TargetedShaderFormat : TargetedShaderFormats)
@@ -94,6 +94,7 @@ public:
 				break;
 			}
 		}
+		check(bSupportDX11TextureFormats);
 
 		// If we are targeting ES3.1, we also must cook encoded HDR reflection captures
 		bRequiresEncodedHDRReflectionCaptures =	TargetedShaderFormats.Contains(NAME_SF_VULKAN_ES31)
@@ -306,7 +307,7 @@ public:
 	{
 		if (!TProperties::IsServerOnly())
 		{
-			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, bSupportCompressedVolumeTexture);
 		}
 	}
 
@@ -314,7 +315,7 @@ public:
 	{
 		if (!TProperties::IsServerOnly())
 		{
-			GetAllDefaultTextureFormats(this, OutFormats, bSupportDX11TextureFormats);
+			GetAllDefaultTextureFormats(this, OutFormats);
 		}
 	}
 
@@ -408,9 +409,6 @@ private:
 
 	// Holds static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
-
-	// True if the project supports non-DX11 texture formats.
-	bool bSupportDX11TextureFormats;
 
 	// True if the project requires encoded HDR reflection captures
 	bool bRequiresEncodedHDRReflectionCaptures;
