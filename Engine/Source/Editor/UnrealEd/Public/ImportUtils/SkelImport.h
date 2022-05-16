@@ -47,6 +47,29 @@ struct FSkeletalMeshLodImportDataBackup
 	ESkeletalMeshSkinningImportVersions MeshSkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
 };
 
+struct FStreamableRenderAssetData
+{
+	int32 NumCinematicMipLevels;
+	FPerQualityLevelInt NoRefStreamingLODBias;
+	bool NeverStream;
+	bool bGlobalForceMipLevelsToBeResident;
+
+	void Save(const USkeletalMesh* SkeletalMesh)
+	{
+		NumCinematicMipLevels = SkeletalMesh->NumCinematicMipLevels;
+		NoRefStreamingLODBias = SkeletalMesh->GetNoRefStreamingLODBias();
+		NeverStream = SkeletalMesh->NeverStream;
+		bGlobalForceMipLevelsToBeResident = SkeletalMesh->bGlobalForceMipLevelsToBeResident;
+	}
+	void Restore(USkeletalMesh* SkeletalMesh) const
+	{
+		SkeletalMesh->NumCinematicMipLevels = NumCinematicMipLevels;
+		SkeletalMesh->SetNoRefStreamingLODBias(NoRefStreamingLODBias);
+		SkeletalMesh->NeverStream = NeverStream;
+		SkeletalMesh->bGlobalForceMipLevelsToBeResident = bGlobalForceMipLevelsToBeResident;
+	}
+};
+
 struct FExistingSkelMeshData
 {
 	TArray<USkeletalMeshSocket*>			ExistingSockets;
@@ -109,6 +132,9 @@ struct FExistingSkelMeshData
 	bool bExistingSupportRayTracing;
 	int32 ExistingRayTracingMinLOD;
 	EClothLODBiasMode ExistingClothLODBiasMode;
+
+	//Streamable member
+	FStreamableRenderAssetData ExistingStreamableRenderAssetData;
 };
 
 /** 

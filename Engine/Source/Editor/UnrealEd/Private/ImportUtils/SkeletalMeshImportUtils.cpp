@@ -315,6 +315,7 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 	{
 		ExistingMeshDataPtr->ExistingUMetaDataTagValues = *MetaDataTagValues;
 	}
+	
 	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = InternalImportUtils::IsUsingMaterialSlotNameWorkflow(SourceSkeletalMesh->GetAssetImportData());
 	ExistingMeshDataPtr->MinLOD = SourceSkeletalMesh->GetMinLod();
 	ExistingMeshDataPtr->QualityLevelMinLOD = SourceSkeletalMesh->GetQualityLevelMinLod();
@@ -323,6 +324,8 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 	ExistingMeshDataPtr->bSupportLODStreaming = SourceSkeletalMesh->GetSupportLODStreaming();
 	ExistingMeshDataPtr->MaxNumStreamedLODs = SourceSkeletalMesh->GetMaxNumStreamedLODs();
 	ExistingMeshDataPtr->MaxNumOptionalLODs = SourceSkeletalMesh->GetMaxNumOptionalLODs();
+
+	ExistingMeshDataPtr->ExistingStreamableRenderAssetData.Save(SourceSkeletalMesh);
 
 	const TArray<FSkeletalMaterial>& SourceMaterials = SourceSkeletalMesh->GetMaterials();
 	//Add the existing Material slot name data
@@ -623,6 +626,8 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 	SkeletalMesh->SetSupportLODStreaming(MeshData->bSupportLODStreaming);
 	SkeletalMesh->SetMaxNumStreamedLODs(MeshData->MaxNumStreamedLODs);
 	SkeletalMesh->SetMaxNumOptionalLODs(MeshData->MaxNumOptionalLODs);
+
+	MeshData->ExistingStreamableRenderAssetData.Restore(SkeletalMesh);
 
 	FSkeletalMeshModel* SkeletalMeshImportedModel = SkeletalMesh->GetImportedModel();
 
