@@ -224,7 +224,7 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 		Args.DestinationBinding = bSourceToDestination ? WidgetField : ViewModelField;
 
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		TArray<const UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(Args.SourceBinding, Args.DestinationBinding, WidgetBlueprint);
+		TArray<const UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(Args.SourceBinding, Args.DestinationBinding);
 
 		if (ConversionFunctions.Num() > 0)
 		{
