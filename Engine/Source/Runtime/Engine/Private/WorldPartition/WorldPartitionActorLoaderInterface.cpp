@@ -183,7 +183,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::AllowUnloadingActors(c
 		if (RetCode == FEditorFileUtils::PR_Cancelled)
 		{
 			return false;
-		}		
+		}
 	}
 
 	return true;

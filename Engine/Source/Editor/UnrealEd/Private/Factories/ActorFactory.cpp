@@ -1915,8 +1915,8 @@ void UActorFactoryVectorFieldVolume::PostSpawnActor( UObject* Asset, AActor* New
 /*-----------------------------------------------------------------------------
 CreateBrushForVolumeActor
 -----------------------------------------------------------------------------*/
-// Helper function for the volume actor factories, not sure where it should live
-void CreateBrushForVolumeActor( AVolume* NewActor, UBrushBuilder* BrushBuilder )
+// Helper function for the volume actor factories
+void UActorFactory::CreateBrushForVolumeActor( AVolume* NewActor, UBrushBuilder* BrushBuilder )
 {
 	if ( NewActor != nullptr )
 	{

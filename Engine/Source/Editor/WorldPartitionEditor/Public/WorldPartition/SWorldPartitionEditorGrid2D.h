@@ -18,6 +18,7 @@ protected:
 		TSharedPtr<FUICommandInfo> CreateRegionFromSelection;
 		TSharedPtr<FUICommandInfo> LoadSelectedRegions;
 		TSharedPtr<FUICommandInfo> UnloadSelectedRegions;
+		TSharedPtr<FUICommandInfo> ConvertSelectedRegionsToActors;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
 
 		/**
@@ -35,6 +36,7 @@ public:
 	virtual void CreateRegionFromSelection();
 	virtual void LoadSelectedRegions();
 	virtual void UnloadSelectedRegions();
+	virtual void ConvertSelectedRegionsToActors();
 	void MoveCameraHere();
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;

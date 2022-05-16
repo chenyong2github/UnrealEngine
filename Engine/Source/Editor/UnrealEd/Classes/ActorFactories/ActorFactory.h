@@ -20,6 +20,8 @@ struct FAssetData;
 class UBlueprint;
 class ULevel;
 class UInstancedPlacemenClientSettings;
+class AVolume;
+class UBrushBuilder;
 
 UCLASS(collapsecategories, hidecategories=Object, editinlinenew, config=Editor, abstract, transient)
 class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
@@ -96,6 +98,8 @@ class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 	virtual void EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions) override;
 	virtual UInstancedPlacemenClientSettings* FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions) override;
 	// End IAssetFactoryInterface Interface
+
+	static void CreateBrushForVolumeActor(AVolume* NewActor, UBrushBuilder* BrushBuilder);
 
 protected:
 
