@@ -9,9 +9,34 @@
 #include "Async/ParallelFor.h"
 #include "Containers/UnrealString.h"
 #include "MassProcessor.h"
+#include "MassProcessorDependencySolver.h"
 #if WITH_MASSENTITY_DEBUG
 #include "MassRequirementAccessDetector.h"
 #endif // WITH_MASSENTITY_DEBUG
+
+
+namespace UE::Mass::Private
+{
+	template<typename TContainer>
+	void ExportRequirements(TConstArrayView<FMassFragmentRequirement> Requirements, TContainer(&Out)[EMassAccessOperation::MAX])
+	{
+		for (const FMassFragmentRequirement& Requirement : Requirements)
+		{
+			if (Requirement.Presence != EMassFragmentPresence::None)
+			{
+				check(Requirement.StructType);
+				if (Requirement.AccessMode == EMassFragmentAccess::ReadOnly)
+				{
+					Out[EMassAccessOperation::Read].Add(*Requirement.StructType);
+				}
+				else if (Requirement.AccessMode == EMassFragmentAccess::ReadWrite)
+				{
+					Out[EMassAccessOperation::Write].Add(*Requirement.StructType);
+				}
+			}
+		}
+	}
+}
 
 //////////////////////////////////////////////////////////////////////
 // FMassEntityQuery
@@ -19,6 +44,10 @@
 
 FMassEntityQuery::FMassEntityQuery()
 {
+	bAllowParallelExecution = false;
+	bRequiresGameThreadExecution = false;
+	bRequiresMutatingWorldAccess = false;
+
 	ReadCommandlineParams();
 }
 
@@ -302,6 +331,18 @@ bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsyst
 		}
 	}
 	return false;
+}
+
+void FMassEntityQuery::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
+{
+	OutRequirements.RequiredSubsystems[EMassAccessOperation::Read] += RequiredConstSubsystems;
+	OutRequirements.RequiredSubsystems[EMassAccessOperation::Write] += RequiredMutableSubsystems;
+
+	using UE::Mass::Private::ExportRequirements;
+	ExportRequirements(Requirements, OutRequirements.Fragments);
+	ExportRequirements(ChunkRequirements, OutRequirements.ChunkFragments);
+	ExportRequirements(ConstSharedRequirements, OutRequirements.SharedFragments);
+	ExportRequirements(SharedRequirements, OutRequirements.SharedFragments);
 }
 
 FString FMassEntityQuery::DebugGetDescription() const

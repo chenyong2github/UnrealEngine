@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MassProcessingTypes.h"
+#include "MassEntityTypes.h"
 
 
 class UMassProcessor;
@@ -13,6 +14,33 @@ enum class EDependencyNodeType : uint8
 	Processor,
 	GroupStart,
 	GroupEnd
+};
+
+namespace EMassAccessOperation
+{
+	constexpr int Read = 0;
+	constexpr int Write = 1;
+	constexpr int MAX = 2;
+};
+
+struct MASSENTITY_API FMassExecutionRequirements
+{
+	FMassExecutionRequirements& operator+=(const FMassExecutionRequirements& Other)
+	{
+		for (int i = 0; i < EMassAccessOperation::MAX; ++i)
+		{
+			Fragments[i] += Other.Fragments[i];
+			ChunkFragments[i] += Other.ChunkFragments[i];
+			SharedFragments[i] += Other.SharedFragments[i];
+			RequiredSubsystems[i] += Other.RequiredSubsystems[i];
+		}
+		return *this;
+	}
+
+	FMassFragmentBitSet Fragments[EMassAccessOperation::MAX];
+	FMassChunkFragmentBitSet ChunkFragments[EMassAccessOperation::MAX];
+	FMassSharedFragmentBitSet SharedFragments[EMassAccessOperation::MAX];
+	FMassExternalSubystemBitSet RequiredSubsystems[EMassAccessOperation::MAX];
 };
 
 struct MASSENTITY_API FProcessorDependencySolver

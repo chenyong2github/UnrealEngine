@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "MassEntityTypes.h"
 #include "MassArchetypeTypes.h"
+#include "MassExternalSubsystemTraits.h"
 #include "MassEntityQuery.generated.h"
 
 
@@ -16,7 +17,7 @@ struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
 struct FMassArchetypeHandle;
-
+struct FMassExecutionRequirements;
 struct FMassRequirementAccessDetector;
 
 enum class EMassFragmentAccess : uint8
@@ -301,10 +302,18 @@ public:
 		case EMassFragmentPresence::All:
 			RequiredAllSharedFragments.Add<T>();
 			SharedRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
+			if (AccessMode == EMassFragmentAccess::ReadWrite)
+			{
+				bRequiresGameThreadExecution |= TMassExternalSubsystemTraits<T>::GameThreadOnly;
+			}
 			break;
 		case EMassFragmentPresence::Optional:
 			RequiredOptionalSharedFragments.Add<T>();
 			SharedRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
+			if (AccessMode == EMassFragmentAccess::ReadWrite)
+			{
+				bRequiresGameThreadExecution |= TMassExternalSubsystemTraits<T>::GameThreadOnly;
+			}
 			break;
 		case EMassFragmentPresence::None:
 			RequiredNoneSharedFragments.Add<T>();
@@ -323,9 +332,11 @@ public:
 		{
 		case EMassFragmentAccess::ReadOnly:
 			RequiredConstSubsystems.Add<T>();
+			bRequiresGameThreadExecution |= TMassExternalSubsystemTraits<T>::GameThreadOnly;
 			break;
 		case EMassFragmentAccess::ReadWrite:
 			RequiredMutableSubsystems.Add<T>();
+			bRequiresGameThreadExecution |= TMassExternalSubsystemTraits<T>::GameThreadOnly;
 			break;
 		default:
 			check(false);
@@ -347,6 +358,9 @@ public:
 	}
 	
 	bool DoesArchetypeMatchRequirements(const FMassArchetypeHandle& ArchetypeHandle) const;
+
+	bool DoesRequireGameThreadExecution() const { return bRequiresGameThreadExecution || bRequiresMutatingWorldAccess; }
+	void RequireMutatingWorldAccess() { bRequiresMutatingWorldAccess = true; }
 
 	/** The function validates requirements we make for queries. See the FMassEntityQuery struct description for details.
 	 *  Note that this function is non-trivial and end users are not expected to need to use it. 
@@ -411,6 +425,8 @@ public:
 
 	bool HasArchetypeFilter() const { return bool(ArchetypeCondition); }
 
+	void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
+
 protected:
 	void SortRequirements();
 	void ReadCommandlineParams();
@@ -460,7 +476,9 @@ private:
 	TArray<FMassArchetypeHandle> ValidArchetypes;
 	TArray<FMassQueryRequirementIndicesMapping> ArchetypeFragmentMapping;
 
-	bool bAllowParallelExecution = false;
+	uint8 bAllowParallelExecution : 1;
+	uint8 bRequiresGameThreadExecution : 1;
+	uint8 bRequiresMutatingWorldAccess : 1;
 
 	EMassExecutionContextType ExpectedContextType = EMassExecutionContextType::Local;
 

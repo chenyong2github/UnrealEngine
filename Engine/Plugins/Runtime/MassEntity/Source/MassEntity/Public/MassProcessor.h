@@ -70,6 +70,10 @@ public:
 
 	TConstArrayView<const int32> GetPrerequisiteIndices() const { return DependencyIndices; }
 
+	/** By default fetches requirements declared entity queries registered via RegisterQuery. Processors can override 
+	 *	this function to supply additional requirements */
+	virtual void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
+
 	/** Adds Query to RegisteredQueries list. Query is required to be a member variable of this processor. Not meeting
 	 *  this requirement will cause check failure and the query won't be registered. */
 	void RegisterQuery(FMassEntityQuery& Query);

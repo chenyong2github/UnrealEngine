@@ -142,6 +142,18 @@ void UMassProcessor::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject) == false) 
 	{
 		ConfigureQueries();
+
+		bool bNeedsGameThread = false;
+		for (FMassEntityQuery* QueryPtr : OwnedQueries)
+		{
+			CA_ASSUME(QueryPtr);
+			bNeedsGameThread = (bNeedsGameThread || QueryPtr->DoesRequireGameThreadExecution());
+		}
+		UE_CLOG(bRequiresGameThreadExecution != bNeedsGameThread, LogMass, Warning, TEXT("%s is marked bRequiresGameThreadExecution = %s, while the registered quries' requirement indicate the opposite")
+			, *GetProcessorName(), bRequiresGameThreadExecution ? TEXT("TRUE") : TEXT("FALSE"));
+
+		// better safe than sorry - if queries indicate the game thread execution is required then we marked the whole processor as such
+		bRequiresGameThreadExecution = bRequiresGameThreadExecution || bNeedsGameThread;
 	}
 #if CPUPROFILERTRACE_ENABLED
 	StatId = GetProcessorName();
@@ -155,6 +167,15 @@ void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExe
 	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), *ToString(EntitySubsystem.GetWorld()->GetNetMode())));
 #endif
 	Execute(EntitySubsystem, Context);
+}
+
+void UMassProcessor::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
+{
+	for (FMassEntityQuery* Query : OwnedQueries)
+	{
+		CA_ASSUME(Query);
+		Query->ExportRequirements(OutRequirements);
+	}
 }
 
 void UMassProcessor::RegisterQuery(FMassEntityQuery& Query)
