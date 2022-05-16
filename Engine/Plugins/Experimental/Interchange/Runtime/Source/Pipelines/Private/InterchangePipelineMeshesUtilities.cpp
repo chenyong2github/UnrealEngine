@@ -69,7 +69,9 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 					FString MeshUid;
 					if (SceneNode->GetCustomAssetInstanceUid(MeshUid))
 					{
-						if (BaseNodeContainer->GetNode(MeshUid)->IsA<UInterchangeMeshNode>())
+						const UInterchangeBaseNode* MeshNode = BaseNodeContainer->GetNode(MeshUid);
+
+						if (MeshNode && MeshNode->IsA<UInterchangeMeshNode>())
 						{
 							const UInterchangeSceneNode* ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid()));
 							if (ParentMeshSceneNode)
