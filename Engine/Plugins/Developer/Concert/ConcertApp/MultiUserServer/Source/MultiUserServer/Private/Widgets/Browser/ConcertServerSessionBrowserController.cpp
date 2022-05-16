@@ -41,7 +41,7 @@ void FConcertServerSessionBrowserController::Init(const FConcertComponentInitPar
 			ConcertServerTabs::GetSessionBrowserTabId(),
 			FOnSpawnTab::CreateRaw(this, &FConcertServerSessionBrowserController::SpawnSessionBrowserTab)
 		)
-		.SetDisplayName(LOCTEXT("SessionBrowserTabTitle", "Session Browser"))
+		.SetDisplayName(LOCTEXT("SessionBrowserTabTitleLong", "Session Browser"))
 		.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "A section to browse, start, archive, and restore server sessions."))
 		.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.MultiUser"))
 	);
