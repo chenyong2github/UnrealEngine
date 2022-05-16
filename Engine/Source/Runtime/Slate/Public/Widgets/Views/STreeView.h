@@ -768,8 +768,8 @@ public:
 					continue;
 				}
 
-				// If the hierarchy is big enough, AND the smallest we have found so far
-				if (NumParents - IndexOffset < MinSpaceOccupied)
+				// If hierarchy is the smallest we have found so far, AND the number of pinned items it will require is < the allowed max
+				if (NumParents - IndexOffset < MinSpaceOccupied && IndexOffset <= CurrentMaxPinnedItems)
 				{
 					MinSpaceOccupied = NumParents - IndexOffset;
 					MinIndex = ItemIndex;
