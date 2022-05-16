@@ -2,6 +2,7 @@
 
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowEdNode.h"
 
 
 #define LOCTEXT_NAMESPACE "UDataflow")
@@ -22,6 +23,17 @@ void UDataflow::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCha
 
 void UDataflow::PostLoad()
 {
+#if WITH_EDITOR
+	for (UEdGraphNode* EdNode : Nodes)
+	{
+		UDataflowEdNode* DataflowEdNode = Cast<UDataflowEdNode>(EdNode);
+		if(ensure(DataflowEdNode))
+		{
+			DataflowEdNode->SetDataflowGraph(Dataflow);
+		}
+	}
+#endif
+
 	UObject::PostLoad();
 }
 

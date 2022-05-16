@@ -50,6 +50,8 @@ namespace Dataflow
 		FGraph(FGuid InGuid = FGuid::NewGuid());
 		virtual ~FGraph() {}
 
+		const TArray< TSharedPtr<FNode> >& GetNodes() const {return Nodes;}
+		TArray< TSharedPtr<FNode> >& GetNodes() { return Nodes; }
 		int NumNodes() { return Nodes.Num(); }
 
 		template<class T> TSharedPtr<T> AddNode(T* InNode)
