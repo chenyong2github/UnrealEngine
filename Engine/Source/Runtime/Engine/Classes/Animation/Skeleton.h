@@ -1013,7 +1013,7 @@ public:
 	 *
 	 * @param	InSkelMesh	: SkeletalMesh to build look up for
 	 */
-	void RebuildLinkup(const USkeletalMesh* InSkelMesh);
+	ENGINE_API void RebuildLinkup(const USkeletalMesh* InSkelMesh);
 
 	/**
 	 * Remove Link up cache for the SkelMesh
