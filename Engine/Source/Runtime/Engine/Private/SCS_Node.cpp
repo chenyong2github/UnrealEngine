@@ -332,7 +332,7 @@ void USCS_Node::PreloadChain()
 
 	if (ComponentTemplate && ComponentTemplate->HasAnyFlags(RF_NeedLoad))
 	{
-		if (ensure(ComponentTemplate->GetLinker()))
+		if (ensureMsgf(ComponentTemplate->GetLinker(), TEXT("Failed to find linker for %s, likely a circular dependency"), *ComponentTemplate->GetPathName()))
 		{
 			ComponentTemplate->GetLinker()->Preload(ComponentTemplate);
 		}
