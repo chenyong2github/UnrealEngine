@@ -150,7 +150,7 @@ namespace Horde.Agent.Execution
 			PerforceViewMap viewMap = new PerforceViewMap();
 			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
 			
-			JsonPerforceLogger perforceLogger = new JsonPerforceLogger(logger, new DirectoryReference("D:\\Test"), viewMap, 12345);
+			PerforceLogger perforceLogger = new PerforceLogger(logger, new DirectoryReference("D:\\Test"), viewMap, 12345);
 			using (LogParser filter = new LogParser(perforceLogger, new List<string>()))
 			{
 				if(outcome == JobStepOutcome.Warnings)

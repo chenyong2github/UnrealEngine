@@ -68,7 +68,7 @@ namespace Horde.Agent.Commands.Parse
 				PerforceViewMap viewMap = new PerforceViewMap();
 				viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", $"{Stream}/..."));
 
-				JsonPerforceLogger jsonLogger = new JsonPerforceLogger(logger, WorkspaceDir ?? DirectoryReference.GetCurrentDirectory(), viewMap, Change);
+				PerforceLogger jsonLogger = new PerforceLogger(logger, WorkspaceDir ?? DirectoryReference.GetCurrentDirectory(), viewMap, Change);
 				using (LogParser parser = new LogParser(jsonLogger, ignorePatterns))
 				{
 					byte[] data = new byte[1024];
