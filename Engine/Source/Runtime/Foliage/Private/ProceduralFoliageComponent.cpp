@@ -16,8 +16,8 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #endif
-
 
 #define LOCTEXT_NAMESPACE "ProceduralFoliage"
 
@@ -101,6 +101,36 @@ void UProceduralFoliageComponent::GetTileLayout(FTileLayout& OutTileLayout) cons
 	}
 }
 
+#if WITH_EDITOR
+void UProceduralFoliageComponent::LoadSimulatedRegion()
+{
+	if (GetOwner()->Implements<UWorldPartitionActorLoaderInterface>())
+	{
+		IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(GetOwner())->GetLoaderAdapter();
+		LoaderAdapter->Load();
+	}
+}
+
+void UProceduralFoliageComponent::UnloadSimulatedRegion()
+{
+	if (GetOwner()->Implements<UWorldPartitionActorLoaderInterface>())
+	{
+		IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(GetOwner())->GetLoaderAdapter();
+		LoaderAdapter->Unload();
+	}
+}
+
+bool UProceduralFoliageComponent::IsSimulatedRegionLoaded()
+{
+	if (GetOwner()->Implements<UWorldPartitionActorLoaderInterface>())
+	{
+		IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(GetOwner())->GetLoaderAdapter();
+		return LoaderAdapter->IsLoaded();
+	}
+	return true;
+}
+#endif
+
 FVector UProceduralFoliageComponent::GetWorldPosition() const
 {
 	FBox Bounds = GetBounds();
@@ -119,14 +149,7 @@ FVector UProceduralFoliageComponent::GetWorldPosition() const
 bool UProceduralFoliageComponent::ExecuteSimulation(TArray<FDesiredFoliageInstance>& OutInstances)
 {
 #if WITH_EDITOR
-
-	// In World Partition, load Editor Cells intersecting bounds affected by ProceduralFoliageCompoment
-	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
-	{
-		FBox Bounds = GetBounds();
-		check(Bounds.IsValid);
-		WorldPartition->LoadEditorCells(Bounds, false);
-	}
+	LoadSimulatedRegion();
 
 	FBodyInstance* BoundsBodyInstance = GetBoundsBodyInstance();
 	if (FoliageSpawner)

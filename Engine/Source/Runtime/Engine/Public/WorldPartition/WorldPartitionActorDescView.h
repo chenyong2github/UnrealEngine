@@ -42,7 +42,6 @@ public:
 	FBox GetBounds() const;
 	const TArray<FGuid>& GetReferences() const;
 	FString ToString() const;
-	uint32 GetTag() const;
 	const FGuid& GetParentActor() const;
 	FName GetActorName() const;
 	const FGuid& GetFolderGuid() const;

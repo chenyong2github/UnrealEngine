@@ -20,6 +20,6 @@ public:
 
 private:
 	void UpdateWorldMiniMapDetails();
-	FBox2D          WorldMiniMapBounds;
-	FSlateBrush		WorldMiniMapBrush;
+	FBox2D WorldMiniMapBounds;
+	FSlateBrush WorldMiniMapBrush;
 };

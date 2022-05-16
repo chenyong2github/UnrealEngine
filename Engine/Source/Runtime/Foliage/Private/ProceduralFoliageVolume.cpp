@@ -4,6 +4,7 @@
 #include "Components/BrushComponent.h"
 #include "ProceduralFoliageComponent.h"
 #include "ProceduralFoliageSpawner.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterActor.h"
 
 AProceduralFoliageVolume::AProceduralFoliageVolume(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -20,9 +21,31 @@ AProceduralFoliageVolume::AProceduralFoliageVolume(const FObjectInitializer& Obj
 		// That means during streaming we'll get a huge hitch for UpdateOverlaps
 		MyBrushComponent->SetGenerateOverlapEvents(false);
 	}
+
+#if WITH_EDITOR
+	if (!IsTemplate() && GetWorld() && GetWorld()->GetWorldPartition())
+	{
+		WorldPartitionActorLoader = new FLoaderAdapterActor(this);
+	}
+#endif
 }
 
 #if WITH_EDITOR
+void AProceduralFoliageVolume::BeginDestroy()
+{
+	if (WorldPartitionActorLoader)
+	{
+		delete WorldPartitionActorLoader;
+		WorldPartitionActorLoader = nullptr;
+	}
+
+	Super::BeginDestroy();
+}
+
+IWorldPartitionActorLoaderInterface::ILoaderAdapter* AProceduralFoliageVolume::GetLoaderAdapter()
+{
+	return WorldPartitionActorLoader;
+}
 
 void AProceduralFoliageVolume::PostEditImport()
 {
@@ -40,5 +63,4 @@ bool AProceduralFoliageVolume::GetReferencedContentObjects(TArray<UObject*>& Obj
 	}
 	return true;
 }
-
 #endif

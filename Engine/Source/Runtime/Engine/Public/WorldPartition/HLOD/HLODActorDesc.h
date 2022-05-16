@@ -26,7 +26,7 @@ public:
 
 	static uint64 ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ, FDataLayersID DataLayersID);
 
-	virtual bool ShouldBeLoadedByEditorCells() const { return false; }
+	virtual bool ShouldBeLoadedByEditor() const { return false; }
 
 protected:
 	virtual void Init(const AActor* InActor) override;

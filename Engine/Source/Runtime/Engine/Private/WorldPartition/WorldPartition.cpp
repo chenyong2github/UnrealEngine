@@ -5,7 +5,6 @@
 =============================================================================*/
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
-#include "WorldPartition/WorldPartitionEditorCell.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
@@ -45,6 +44,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "Modules/ModuleManager.h"
@@ -198,59 +198,16 @@ static FAutoConsoleCommand SetLogWorldPartitionVerbosity(
 	})
 );
 
-// Helper class to avoid sending global events until all cells updates are processed.
-struct FWorldPartionCellUpdateContext
+class FLoaderAdapterAlwaysLoadedActors : public FLoaderAdapterShape
 {
-	FWorldPartionCellUpdateContext(UWorldPartition* InWorldPartition)
-		: WorldPartition(InWorldPartition)
-		, bCancelled(false)
+public:
+	FLoaderAdapterAlwaysLoadedActors(UWorld* InWorld)
+		: FLoaderAdapterShape(InWorld, FBox(FVector(-WORLDPARTITION_MAX, -WORLDPARTITION_MAX, -WORLDPARTITION_MAX), FVector(WORLDPARTITION_MAX, WORLDPARTITION_MAX, WORLDPARTITION_MAX)), TEXT("Always Loaded"))
 	{
-		WorldPartition->OnCancelWorldPartitionUpdateEditorCells.AddRaw(this, &FWorldPartionCellUpdateContext::OnCancelUpdateEditorCells);
-
-		UpdatesInProgress++;
+		bIncludeSpatiallyLoadedActors = false;
+		bIncludeNonSpatiallyLoadedActors = true;
 	}
-
-	void OnCancelUpdateEditorCells(UWorldPartition* InWorldPartition)
-	{
-		if (WorldPartition == InWorldPartition)
-		{
-			bCancelled = true;
-		}
-	}
-
-	~FWorldPartionCellUpdateContext()
-	{
-		WorldPartition->OnCancelWorldPartitionUpdateEditorCells.RemoveAll(this);
-
-		UpdatesInProgress--;
-		if (UpdatesInProgress == 0 && !bCancelled)
-		{
-			// @todo_ow: Once Metadata is removed from external actor's package, testing WorldPartition->IsInitialized() won't be necessary anymore.
-			if (WorldPartition->IsInitialized())
-			{
-				if (!IsRunningCommandlet())
-				{
-					GEngine->BroadcastLevelActorListChanged();
-					GEditor->NoteSelectionChange();
-
-					if (WorldPartition->WorldPartitionEditor)
-					{
-						WorldPartition->WorldPartitionEditor->Refresh();
-					}
-
-					GEditor->ResetTransaction(LOCTEXT("LoadingEditorCellsResetTrans", "Editor Cells Loading State Changed"));
-				}
-			}
-		}
-	}
-
-	static int32 UpdatesInProgress;
-	UWorldPartition* WorldPartition;
-	bool bCancelled;
 };
-
-int32 FWorldPartionCellUpdateContext::UpdatesInProgress = 0;
-
 #endif
 
 UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
@@ -418,6 +375,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		// Don't rely on the editor hash for cooking or -game
 		EditorHash = nullptr;
+		AlwaysLoadedActors = nullptr;
 	}
 	else if (bIsEditor)
 	{
@@ -427,6 +385,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		check(EditorHash);
 
 		EditorHash->Initialize();
+
+		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(World);
 	}
 
 	check(RuntimeHash);
@@ -487,7 +447,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		// Also, this will ensure that FindObject will work on an external actor that was loading asynchronously.
 		FlushAsyncLoading();
 
-		// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
+		// Make sure to preload only AWorldDataLayers actor first
 		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
 			if (ActorDescIterator->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
@@ -532,18 +492,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	if (bIsEditor && !bIsCooking)
 	{
 		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
-		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true, false);
+		AlwaysLoadedActors->Load();
 
 		// Load more cells depending on the user's settings
 		// Skipped when running from a commandlet
 		if (!IsRunningCommandlet())
 		{
-			// Load last loaded cells
-			if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEnableLoadingOfLastLoadedCells())
+			// Load last loaded regions
+			if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEnableLoadingOfLastLoadedRegions())
 			{
-				TArray<FName> EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
-
-				LoadEditorCells(EditorGridLastLoadedCells, /*bIsFromUserChange=*/true);
+				LoadLastLoadedRegions();
 			}
 		}
 		
@@ -609,20 +567,21 @@ void UWorldPartition::Uninitialize()
 		{
 			OnEndPlay();
 		}
-		else
+		
+		if (AlwaysLoadedActors)
 		{
-			if (!IsEngineExitRequested())
+			delete AlwaysLoadedActors;
+			AlwaysLoadedActors = nullptr;
+		}
+
+		if (RegisteredEditorLoaderAdapters.Num())
+		{
+			for (IWorldPartitionActorLoaderInterface::ILoaderAdapter* RegisteredLoaderAdapter : RegisteredEditorLoaderAdapters)
 			{
-				// Unload all Editor cells
-				if (EditorHash)
-				{
-					// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
-					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-					{
-						UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
-					});
-				}
+				delete RegisteredLoaderAdapter;
 			}
+
+			RegisteredEditorLoaderAdapters.Empty();
 		}
 
 		WorldDataLayersActor = FWorldPartitionReference();
@@ -672,33 +631,16 @@ const FTransform* UWorldPartition::GetInstanceTransformPtr() const
 void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
 {
 #if WITH_EDITOR
-	if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadCells())
-{
+	if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion())
+	{
 		const FVector LoadExtent(GLoadingRangeBugItGo, GLoadingRangeBugItGo, WORLDPARTITION_MAX);
 		const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
-		LoadEditorCells(LoadCellsBox, false);
+
+		FLoaderAdapterShape* LoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("BugItGo"));
+		LoaderAdapter->Load();
 	}
 #endif
 }
-
-#if WITH_EDITOR
-void UWorldPartition::OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation)
-{
-	auto GetCellsToRefresh = [this](TArray<UWorldPartitionEditorCell*>& CellsToRefresh)
-	{
-		EditorHash->ForEachCell([&CellsToRefresh](UWorldPartitionEditorCell* Cell)
-		{
-			if (Cell->IsLoaded())
-			{
-				CellsToRefresh.Add(Cell);
-			}
-		});
-		return !CellsToRefresh.IsEmpty();
-	};
-
-	UpdateEditorCells(GetCellsToRefresh, /*bIsCellShouldBeLoaded*/true, bFromUserOperation);
-}
-#endif
 
 void UWorldPartition::RegisterDelegates()
 {
@@ -716,8 +658,6 @@ void UWorldPartition::RegisterDelegates()
 			FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
 			GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
 		}
-
-		FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddUObject(this, &UWorldPartition::OnActorDataLayersEditorLoadingStateChanged);
 	}
 #endif
 
@@ -752,8 +692,6 @@ void UWorldPartition::UnregisterDelegates()
 
 			GEditor->OnPostBugItGoCalled().RemoveAll(this);
 		}
-
-		FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
 	}
 #endif
 
@@ -869,267 +807,6 @@ bool UWorldPartition::IsSimulating()
 }
 
 #if WITH_EDITOR
-void UWorldPartition::LoadEditorCells(const FBox& Box, bool bIsFromUserChange)
-{
-	TArray<UWorldPartitionEditorCell*> CellsToLoad;
-	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::LoadEditorCells);
-
-		FWorldPartionCellUpdateContext CellUpdateContext(this);
-
-		int32 NumActorsToLoad = Algo::TransformAccumulate(CellsToLoad, [](UWorldPartitionEditorCell* Cell) { return Cell->Actors.Num() - Cell->LoadedActors.Num();}, 0);
-
-		FScopedSlowTask SlowTask(NumActorsToLoad, LOCTEXT("LoadingCells", "Loading cells..."));
-		SlowTask.MakeDialog();
-
-		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
-		{
-			SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num());
-			UpdateLoadingEditorCell(Cell, true, bIsFromUserChange);
-		}
-	}
-}
-
-void UWorldPartition::LoadEditorCells(const TArray<FName>& CellNames, bool bIsFromUserChange)
-{
-	for (FName CellName : CellNames)
-	{
-		if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *CellName.ToString()))
-		{
-			UpdateLoadingEditorCell(Cell, true, bIsFromUserChange);
-		}
-	}
-}
-
-void UWorldPartition::UnloadEditorCells(const FBox& Box, bool bIsFromUserChange)
-{
-	FWorldPartionCellUpdateContext CellUpdateContext(this);
-
-	auto GetCellsToUnload = [this, Box](TArray<UWorldPartitionEditorCell*>& CellsToUnload)
-	{
-		return EditorHash->GetIntersectingCells(Box, CellsToUnload) > 0;
-	};
-
-	UpdateEditorCells(GetCellsToUnload, /*bIsCellShouldBeLoaded*/false, bIsFromUserChange);
-}
-
-bool UWorldPartition::AreEditorCellsLoaded(const FBox& Box)
-{
-	TArray<UWorldPartitionEditorCell*> CellsToLoad;
-	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
-	{
-		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
-		{
-			if (!Cell->IsLoaded())
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded, bool bIsFromUserChange)
-{
-	FWorldPartionCellUpdateContext CellUpdateContext(this);
-
-	TArray<UWorldPartitionEditorCell*> CellsToProcess;
-	if (!GetCellsToProcess(CellsToProcess))
-	{
-		return true;
-	}
-
-	TSet<UPackage*> ModifiedPackages;
-	TMap<FWorldPartitionActorDesc*, int32> UnloadCount;
-
-	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
-	{
-		for (const UWorldPartitionEditorCell::FActorReference& ActorDesc : Cell->LoadedActors)
-		{
-			if (ActorDesc.IsValid())
-			{
-				if (!bIsCellShouldBeLoaded || !ShouldActorBeLoadedByEditorCells(*ActorDesc))
-				{
-					UnloadCount.FindOrAdd(*ActorDesc, 0)++;
-				}
-			}
-		}
-	}
-
-	bool bIsUpdateUnloadingActors = false;
-
-	for (const TPair<FWorldPartitionActorDesc*, int32> Pair : UnloadCount)
-	{
-		FWorldPartitionActorDesc* ActorDesc = Pair.Key;
-
-		// Only prompt if the actor will get unloaded by the unloading cells
-		if (ActorDesc->GetHardRefCount() == Pair.Value)
-		{
-			if (AActor* LoadedActor = ActorDesc->GetActor())
-			{
-				UPackage* ActorPackage = LoadedActor->GetExternalPackage();
-				if (ActorPackage && ActorPackage->IsDirty())
-				{
-					ModifiedPackages.Add(ActorPackage);
-				}
-				bIsUpdateUnloadingActors = true;
-			}
-		}
-	}
-
-	// Make sure we save modified actor packages before unloading
-	FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PR_Success;
-
-	// Skip this when running commandlet because MarkPackageDirty() is allowed to dirty packages at loading when running a commandlet.
-	// Usually, the main reason actor packages are dirtied is when RerunConstructionScripts is called on the actor when it is added to the level.
-	if (ModifiedPackages.Num() && !IsRunningCommandlet())
-	{
-		const bool bCheckDirty = false;
-		const bool bAlreadyCheckedOut = false;
-		const bool bCanBeDeclined = true;
-		const bool bPromptToSave = true;
-		const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
-		const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
-
-		RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
-		if (RetCode == FEditorFileUtils::PR_Cancelled)
-		{
-			OnCancelWorldPartitionUpdateEditorCells.Broadcast(this);
-			return false;
-		}
-
-		check(RetCode != FEditorFileUtils::PR_Failure);
-	}
-
-	if (bIsUpdateUnloadingActors)
-	{
-		GEditor->SelectNone(true, true);
-	}
-
-	// At this point, cells might have changed due to saving deleted actors
-	CellsToProcess.Empty(CellsToProcess.Num());
-	if (!GetCellsToProcess(CellsToProcess))
-	{
-		return true;
-	}
-
-	FScopedSlowTask SlowTask(CellsToProcess.Num(), LOCTEXT("UpdatingCells", "Updating cells..."));
-	SlowTask.MakeDialog();
-
-	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
-	{
-		SlowTask.EnterProgressFrame(1);
-		UpdateLoadingEditorCell(Cell, bIsCellShouldBeLoaded, bIsFromUserChange);
-	}
-
-	return true;
-}
-
-bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActorDesc* ActorDesc) const
-{
-	if (!ActorDesc->ShouldBeLoadedByEditorCells())
-	{
-		return false;
-	}
-
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
-	{
-		// Use DataLayers of loaded/dirty Actor if available to handle dirtied actors
-		FWorldPartitionActorViewProxy ActorDescProxy(ActorDesc);
-
-		if (IsRunningCookCommandlet())
-		{
-			// When running cook commandlet, dont allow loading of actors with dynamically loaded data layers
-			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
-			{
-				const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName);
-				if (DataLayerInstance && DataLayerInstance->IsRuntime())
-				{
-					return false;
-				}
-			}
-		}
-		else
-		{
-			uint32 NumValidLayers = 0;
-			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
-			{
-				if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName))
-				{
-					if (DataLayerInstance->IsEffectiveLoadedInEditor())
-					{
-						return true;
-					}
-					NumValidLayers++;
-				}
-			}
-			return !NumValidLayers;
-		}
-	}
-	
-	return true;
-};
-
-// Loads actors in Editor cell
-void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded, bool bFromUserOperation)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::UpdateLoadingEditorCell);
-	
-	FWorldPartionCellUpdateContext CellUpdateContext(this);
-
-	UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartition::UpdateLoadingEditorCell 0x%08llx [%s/%s]"), Cell, bShouldBeLoaded ? TEXT("Load") : TEXT("Unload"), bFromUserOperation ? TEXT("User") : TEXT("Auto"));
-
-	Cell->Modify(false);
-
-	bool bPotentiallyUnloadedActors = false;
-
-	if (!bShouldBeLoaded)
-	{
-		bPotentiallyUnloadedActors = !Cell->LoadedActors.IsEmpty();
-		Cell->LoadedActors.Empty();
-	}
-	else
-	{
-		for (UWorldPartitionEditorCell::FActorHandle& ActorHandle: Cell->Actors)
-		{
-			if (ActorHandle.IsValid())
-			{
-				// Filter actor against DataLayers
-				if (ShouldActorBeLoadedByEditorCells(*ActorHandle))
-				{
-					Cell->LoadedActors.Add(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
-				}
-				else
-				{
-					// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load.
-					for (const UWorldPartitionEditorCell::FActorReference& ActorReference : Cell->LoadedActors)
-					{
-						if ((ActorReference.Source == ActorHandle.Source) && (ActorReference.Handle == ActorHandle.Handle))
-						{
-							Cell->LoadedActors.Remove(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
-							bPotentiallyUnloadedActors = true;
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (Cell->IsLoaded() != bShouldBeLoaded)
-	{
-		Cell->SetLoaded(bShouldBeLoaded, bShouldBeLoaded && bFromUserOperation);
-	}
-
-	if (bPotentiallyUnloadedActors)
-	{
-		bForceGarbageCollection = true;
-		bForceGarbageCollectionPurge = true;
-	}
-}
-
 void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
 	Super::OnActorDescAdded(NewActorDesc);
@@ -1261,7 +938,7 @@ void UWorldPartition::OnEnableStreamingChanged()
 
 	if (!IsStreamingEnabled())
 	{
-		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true, false);
+		AlwaysLoadedActors->Load();
 	}
 
 	if (WorldPartitionEditor)
@@ -1274,6 +951,7 @@ void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
 	check(EditorHash);
+
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->HashActor(ActorHandle);
 
@@ -1284,6 +962,7 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
 	check(EditorHash);
+
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->UnhashActor(ActorHandle);
 }
@@ -1475,37 +1154,26 @@ bool UWorldPartition::FinalizeGeneratorPackageForCook(const TArray<ICookPackageS
 	return false;
 }
 
-TArray<FName> UWorldPartition::GetUserLoadedEditorGridCells() const
+TArray<FBox> UWorldPartition::GetUserLoadedEditorGridRegions() const
 {
-	// Save last loaded cells settings
-	TArray<FName> LastEditorGridLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(GetWorld());
+	TArray<FBox> Result;
 
-	TArray<FName> EditorGridLastLoadedCells;
-	EditorHash->ForEachCell([this, &LastEditorGridLoadedCells, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
+	for (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter : RegisteredEditorLoaderAdapters)
 	{
-		FName CellName = Cell->GetFName();
-
-		if (Cell != EditorHash->GetAlwaysLoadedCell())
+		if (LoaderAdapter->GetUserCreated())
 		{
-			if (Cell->IsLoaded() && Cell->IsLoadedChangedByUserOperation())
-			{
-				EditorGridLastLoadedCells.Add(CellName);
-			}
-			else if (!Cell->IsLoaded() && !Cell->IsLoadedChangedByUserOperation() && LastEditorGridLoadedCells.Contains(CellName))
-			{
-				EditorGridLastLoadedCells.Add(CellName);
-			}
+			Result.Add(*LoaderAdapter->GetBoundingBox());
 		}
-	});
+	}
 
-	return EditorGridLastLoadedCells;
+	return Result;
 }
 
 void UWorldPartition::SavePerUserSettings()
 {
 	if (GIsEditor && !World->IsGameWorld() && !IsRunningCommandlet() && !IsEngineExitRequested())
 	{
-		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(GetWorld(), GetUserLoadedEditorGridCells());
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedRegions(GetWorld(), GetUserLoadedEditorGridRegions());
 	}
 }
 
@@ -1621,6 +1289,18 @@ void UWorldPartition::UnpinActor(const FGuid& ActorGuid)
 bool UWorldPartition::IsActorPinned(const FGuid& ActorGuid) const
 {
 	return PinnedActors.Contains(ActorGuid);
+}
+
+void UWorldPartition::LoadLastLoadedRegions()
+{
+	TArray<FBox> EditorGridLastLoadedRegions = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedRegions(World);
+
+	for (const FBox& EditorGridLastLoadedRegion : EditorGridLastLoadedRegions)
+	{
+		FLoaderAdapterShape* LoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, EditorGridLastLoadedRegion, TEXT("Last Loaded Region"));
+		LoaderAdapter->SetUserCreated(true);
+		LoaderAdapter->Load();
+	}
 }
 
 void UWorldPartition::OnWorldRenamed()

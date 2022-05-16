@@ -2,23 +2,17 @@
 #include "WorldPartitionEditorModule.h"
 
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionVolume.h"
-
 #include "WorldPartition/WorldPartitionHLODsBuilder.h"
 #include "WorldPartition/WorldPartitionMiniMapBuilder.h"
-
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/HLOD/HLODLayerAssetTypeActions.h"
-
 #include "WorldPartition/SWorldPartitionEditor.h"
 #include "WorldPartition/SWorldPartitionEditorGridSpatialHash.h"
-
 #include "WorldPartition/Customizations/WorldPartitionDetailsCustomization.h"
 #include "WorldPartition/Customizations/WorldPartitionRuntimeSpatialHashDetailsCustomization.h"
-
 #include "WorldPartition/SWorldPartitionConvertDialog.h"
 #include "WorldPartition/WorldPartitionConvertOptions.h"
 #include "WorldPartition/WorldPartitionEditorSettings.h"
-
 #include "WorldPartition/HLOD/SWorldPartitionBuildHLODsDialog.h"
 
 #include "LevelEditor.h"
@@ -58,13 +52,23 @@ const FName WorldPartitionEditorTabId("WorldBrowserPartitionEditor");
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionEditor, All, All);
 
-// World Partition
-static void OnLoadSelectedWorldPartitionVolumes(TArray<TWeakObjectPtr<AActor>> Volumes)
+static void OnSelectedWorldPartitionVolumesToggleLoading(TArray<TWeakObjectPtr<AActor>> Volumes, bool bLoad)
 {
 	for (TWeakObjectPtr<AActor> Actor: Volumes)
 	{
-		AWorldPartitionVolume* WorldPartitionVolume = CastChecked<AWorldPartitionVolume>(Actor.Get());
-		WorldPartitionVolume->LoadIntersectingCells(true);
+		if (Actor->Implements<UWorldPartitionActorLoaderInterface>())
+		{
+			IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter();
+
+			if (bLoad)
+			{
+				LoaderAdapter->Load();
+			}
+			else
+			{
+				LoaderAdapter->Unload();
+			}
+		}
 	}
 }
 
@@ -73,10 +77,18 @@ static void CreateLevelViewportContextMenuEntries(FMenuBuilder& MenuBuilder, TAr
 	MenuBuilder.BeginSection("WorldPartition", LOCTEXT("WorldPartition", "World Partition"));
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("WorldPartitionLoad", "Load selected world partition volumes"),
-		LOCTEXT("WorldPartitionLoad_Tooltip", "Load selected world partition volumes"),
+		LOCTEXT("WorldPartitionLoad", "Load selected volumes"),
+		LOCTEXT("WorldPartitionLoad_Tooltip", "Load selected volumes"),
 		FSlateIcon(),
-		FExecuteAction::CreateStatic(OnLoadSelectedWorldPartitionVolumes, Volumes),
+		FExecuteAction::CreateStatic(OnSelectedWorldPartitionVolumesToggleLoading, Volumes, true),
+		NAME_None,
+		EUserInterfaceActionType::Button);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("WorldPartitionUnload", "Unload selected volumes"),
+		LOCTEXT("WorldPartitionUnload_Tooltip", "Load selected volumes"),
+		FSlateIcon(),
+		FExecuteAction::CreateStatic(OnSelectedWorldPartitionVolumesToggleLoading, Volumes, false),
 		NAME_None,
 		EUserInterfaceActionType::Button);
 
@@ -90,7 +102,7 @@ static TSharedRef<FExtender> OnExtendLevelEditorMenu(const TSharedRef<FUICommand
 	TArray<TWeakObjectPtr<AActor> > Volumes;
 	for (AActor* Actor : SelectedActors)
 	{
-		if (Actor->IsA(AWorldPartitionVolume::StaticClass()))
+		if (Actor->Implements<UWorldPartitionActorLoaderInterface>())
 		{
 			Volumes.Add(Actor);
 		}

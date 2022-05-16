@@ -14,6 +14,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Math/IntVector.h"
 #include "UObject/SavePackage.h"
@@ -233,7 +234,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("WorldBounds: Min %s, Max %s"), *CellInfo.EditorBounds.Min.ToString(), *CellInfo.EditorBounds.Max.ToString());
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iteration Count: %d"), IterationCount);
 		
-		FBox LoadedBounds(ForceInit);
+		TArray<TUniquePtr<IWorldPartitionActorLoaderInterface::ILoaderAdapter>> LoaderAdapters;
 
 		for (int32 z = BeginCellCoords.Z; CanIterateZ(bResult, z); z++)
 		{
@@ -260,17 +261,14 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 					CellInfo.Bounds = BoundsToLoad;
 
 					UE_LOG(LogWorldPartitionBuilder, Verbose, TEXT("Loading Bounds: Min %s, Max %s"), *BoundsToLoad.Min.ToString(), *BoundsToLoad.Max.ToString());
-					WorldPartition->LoadEditorCells(BoundsToLoad, false);
-					LoadedBounds += BoundsToLoad;
+
+					LoaderAdapters.Emplace_GetRef(MakeUnique<FLoaderAdapterShape>(World, BoundsToLoad, TEXT("Loaded Region")))->Load();
 
 					bResult = RunInternal(World, CellInfo, PackageHelper);
 
 					if (FWorldPartitionHelpers::HasExceededMaxMemory())
 					{
-						WorldPartition->UnloadEditorCells(LoadedBounds, false);
-						// Reset Loaded Bounds
-						LoadedBounds.Init();
-
+						LoaderAdapters.Empty();
 						FWorldPartitionHelpers::DoCollectGarbage();
 					}
 
@@ -290,16 +288,25 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	}
 	else
 	{
-		FBox BoundsToLoad(ForceInit);
+		TUniquePtr<FLoaderAdapterShape> LoaderAdapterShape;
+		
 		if (LoadingMode == ELoadingMode::EntireWorld)
 		{
-			BoundsToLoad += FBox(FVector(-WORLDPARTITION_MAX, -WORLDPARTITION_MAX, -WORLDPARTITION_MAX), FVector(WORLDPARTITION_MAX, WORLDPARTITION_MAX, WORLDPARTITION_MAX));
-			WorldPartition->LoadEditorCells(BoundsToLoad, false);
+			CellInfo.Bounds = FBox(FVector(-WORLDPARTITION_MAX, -WORLDPARTITION_MAX, -WORLDPARTITION_MAX), FVector(WORLDPARTITION_MAX, WORLDPARTITION_MAX, WORLDPARTITION_MAX));
+			LoaderAdapterShape = MakeUnique<FLoaderAdapterShape>(World, CellInfo.Bounds, TEXT("Loaded Region"));
+			LoaderAdapterShape->Load();
+		}
+		else
+		{
+			CellInfo.Bounds.Init();
 		}
 
-		CellInfo.Bounds = BoundsToLoad;
-
 		bResult = RunInternal(World, CellInfo, PackageHelper);
+
+		if (LoaderAdapterShape)
+		{
+			LoaderAdapterShape.Reset();
+		}
 	}
 
 	return PostRun(World, PackageHelper, bResult);

@@ -147,7 +147,11 @@ public:
 	AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;
 	AActor* Load() const;
 	virtual void Unload();
-	virtual bool ShouldBeLoadedByEditorCells() const { return true; }
+
+	UE_DEPRECATED(5.1, "ShouldBeLoadedByEditorCells is deprecated, ShouldBeLoadedByEditor should be used instead.")
+	bool ShouldBeLoadedByEditorCells() const { return ShouldBeLoadedByEditor(); }
+
+	virtual bool ShouldBeLoadedByEditor() const { return true; }
 
 	void RegisterActor();
 	void UnregisterActor();
@@ -212,10 +216,5 @@ protected:
 	UActorDescContainer*			Container;
 	TArray<FName>					DataLayerInstanceNames;
 	bool							bIsForcedNonSpatiallyLoaded;
-
-public:
-	// Tagging
-	mutable uint32					Tag;
-	static uint32					GlobalTag;
 #endif
 };

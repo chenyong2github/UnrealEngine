@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartition/WorldPartitionVolume.h"
-#include "WorldPartition/WorldPartitionEditorHash.h"
-#include "WorldPartition/WorldPartition.h"
+#include "LocationVolume.h"
+#include "EngineDefines.h"
+#include "Components/BrushComponent.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActor.h"
-#include "Engine/World.h"
-#include "Misc/ScopedSlowTask.h"
 
-#define LOCTEXT_NAMESPACE "WorldPartitionEditor"
-
-AWorldPartitionVolume::AWorldPartitionVolume(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+ALocationVolume::ALocationVolume(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
 {
+	GetBrushComponent()->SetGenerateOverlapEvents(false);
+
 #if WITH_EDITORONLY_DATA
 	bIsSpatiallyLoaded = false;
 #endif
@@ -24,7 +22,7 @@ AWorldPartitionVolume::AWorldPartitionVolume(const FObjectInitializer& ObjectIni
 #endif
 }
 
-void AWorldPartitionVolume::BeginDestroy()
+void ALocationVolume::BeginDestroy()
 {
 #if WITH_EDITOR
 	if (WorldPartitionActorLoader)
@@ -38,10 +36,8 @@ void AWorldPartitionVolume::BeginDestroy()
 }
 
 #if WITH_EDITOR
-IWorldPartitionActorLoaderInterface::ILoaderAdapter* AWorldPartitionVolume::GetLoaderAdapter()
+IWorldPartitionActorLoaderInterface::ILoaderAdapter* ALocationVolume::GetLoaderAdapter()
 {
 	return WorldPartitionActorLoader;
 }
 #endif
-
-#undef LOCTEXT_NAMESPACE

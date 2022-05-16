@@ -113,13 +113,7 @@ FReply FProceduralFoliageComponentDetails::OnLoadUnloadedAreas()
 	{
 		if(Component.IsValid())
 		{
-			if (UWorldPartition* WorldPartition = Component->GetWorld()->GetWorldPartition())
-			{
-				FVector Origin;
-				FVector Extent;
-				Component->GetOwner()->GetActorBounds(false, Origin, Extent);
-				WorldPartition->LoadEditorCells(FBox(Origin - Extent, Origin + Extent), true);
-			}
+			Component->LoadSimulatedRegion();
 		}
 	}
 
@@ -190,16 +184,9 @@ bool FProceduralFoliageComponentDetails::HasUnloadedAreas() const
 	{
 		if(Component.IsValid())
 		{
-			if (UWorldPartition* WorldPartition = Component->GetWorld()->GetWorldPartition())
+			if (!Component->IsSimulatedRegionLoaded())
 			{
-				FVector Origin;
-				FVector Extent;
-				Component->GetOwner()->GetActorBounds(false, Origin, Extent);
-	
-				if (!WorldPartition->AreEditorCellsLoaded(FBox(Origin - Extent, Origin + Extent)))
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 	}

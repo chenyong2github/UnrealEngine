@@ -140,11 +140,6 @@ FString FWorldPartitionActorDescView::ToString() const
 	return ActorDesc->ToString();
 }
 
-uint32 FWorldPartitionActorDescView::GetTag() const
-{
-	return ActorDesc->Tag;
-}
-
 const FGuid& FWorldPartitionActorDescView::GetParentActor() const
 {
 	return ActorDesc->GetParentActor();

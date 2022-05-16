@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Volume.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
-#include "WorldPartitionVolume.generated.h"
+
+#include "LocationVolume.generated.h"
 
 class FLoaderAdapterActor;
 
 /**
- * A world partition volume to allow loading cells inside (editor-only)
+ * A volume representing a location in the world
  */
 UCLASS()
-class ENGINE_API AWorldPartitionVolume : public AVolume, public IWorldPartitionActorLoaderInterface
+class ENGINE_API ALocationVolume : public AVolume, public IWorldPartitionActorLoaderInterface
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 
 public:
-	AWorldPartitionVolume(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
-	virtual bool IsEditorOnly() const override { return true; }
+	virtual bool IsEditorOnly() const override { return !bIsRuntime; }
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual bool SupportsDataLayer() const override { return false; }
@@ -36,6 +36,12 @@ public:
 	virtual ILoaderAdapter* GetLoaderAdapter() override;
 	//~ End IWorldPartitionActorLoaderInterface interface
 #endif
+
+	UPROPERTY(EditAnywhere, Category=LocationVolume)
+	FColor DebugColor;
+
+	UPROPERTY(EditAnywhere, Category=LocationVolume)
+	uint8 bIsRuntime : 1;
 
 #if WITH_EDITOR
 private:

@@ -18,13 +18,13 @@ struct FWorldPartitionPerWorldSettings
 	FWorldPartitionPerWorldSettings()
 	{}
 
-	FWorldPartitionPerWorldSettings(TArray<FName>& InLoadedEditorGridCells)
-		: LoadedEditorGridCells(InLoadedEditorGridCells)
+	FWorldPartitionPerWorldSettings(TArray<FBox>& InLoadedEditorGridRegions)
+		: LoadedEditorGridRegions(InLoadedEditorGridRegions)
 	{}
 
 	void Reset()
 	{
-		LoadedEditorGridCells.Empty();
+		LoadedEditorGridRegions.Empty();
 		NotLoadedDataLayers.Empty();
 		LoadedDataLayers.Empty();
 		EditorGridConfigHash = 0;
@@ -33,7 +33,7 @@ struct FWorldPartitionPerWorldSettings
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FName> LoadedEditorGridCells;
+	TArray<FBox> LoadedEditorGridRegions;
 
 	UPROPERTY()
 	TArray<FName> NotLoadedDataLayers;
@@ -62,31 +62,31 @@ public:
 		, bShowOnlySelectedActors(false)
 		, bHighlightSelectedDataLayers(true)
 		, bHideLevelInstanceContent(true)
-		, bDisableLoadingOfLastLoadedCells(false)
+		, bDisableLoadingOfLastLoadedRegions(false)
 #endif
 	{}
 
 #if WITH_EDITOR
 	void UpdateEditorGridConfigHash(UWorld* InWorld);
 	static void UpdateEditorGridConfigHash(UWorld* InWorld, FWorldPartitionPerWorldSettings& PerWorldSettings);
-	TArray<FName> GetEditorGridLoadedCells(UWorld* InWorld) const;
-	void SetEditorGridLoadedCells(UWorld* InWorld, const TArray<FName>& InEditorGridLoadedCells);
+	TArray<FBox> GetEditorGridLoadedRegions(UWorld* InWorld) const;
+	void SetEditorGridLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorGridLoadedRegions);
 
-	bool GetEnableLoadingOfLastLoadedCells() const
+	bool GetEnableLoadingOfLastLoadedRegions() const
 	{
-		return !bDisableLoadingOfLastLoadedCells;
+		return !bDisableLoadingOfLastLoadedRegions;
 	}
 
-	bool GetBugItGoLoadCells() const
+	bool GetBugItGoLoadRegion() const
 	{
-		return bBugItGoLoadCells;
+		return bBugItGoLoadRegion;
 	}
 
-	void SetBugItGoLoadCells(bool bInBugItGoLoadCells)
+	void SetBugItGoLoadRegion(bool bInBugItGoLoadRegion)
 	{
-		if (bBugItGoLoadCells != bInBugItGoLoadCells)
+		if (bBugItGoLoadRegion != bInBugItGoLoadRegion)
 		{
-			bBugItGoLoadCells = bInBugItGoLoadCells;
+			bBugItGoLoadRegion = bInBugItGoLoadRegion;
 			SaveConfig();
 		}
 	}
@@ -151,10 +151,10 @@ private:
 	}
 
 	UPROPERTY(config)
-	uint32 bDisableLoadingOfLastLoadedCells : 1;
+	uint32 bDisableLoadingOfLastLoadedRegions : 1;
 
 	UPROPERTY(config)
-	uint32 bBugItGoLoadCells : 1;
+	uint32 bBugItGoLoadRegion : 1;
 
 	UPROPERTY(config)
 	uint32 bShowCellCoords : 1;

@@ -15,6 +15,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 
 #if WITH_EDITOR
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "PackageSourceControlHelper.h"
 #include "CookPackageSplitter.h"
 #endif
@@ -22,12 +23,12 @@
 #include "WorldPartition.generated.h"
 
 class FWorldPartitionActorDesc;
-class UWorldPartitionEditorCell;
 class UWorldPartitionEditorHash;
 class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
 class IStreamingGenerationErrorHandler;
+class FLoaderAdapterAlwaysLoadedActors;
 class FHLODActorDesc;
 class UCanvas;
 
@@ -76,7 +77,6 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 
 	friend class FWorldPartitionActorDesc;
 	friend class FWorldPartitionConverter;
-	friend class UWorldPartitionEditorCell;
 	friend class UWorldPartitionConvertCommandlet;
 	friend class FWorldPartitionEditorModule;
 	friend class FWorldPartitionDetails;
@@ -85,20 +85,18 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 public:
 #if WITH_EDITOR
 	static UWorldPartition* CreateOrRepairWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
-	
-	DECLARE_MULTICAST_DELEGATE_OneParam(FCancelWorldPartitionUpdateEditorCellsDelegate, UWorldPartition*);
-	FCancelWorldPartitionUpdateEditorCellsDelegate OnCancelWorldPartitionUpdateEditorCells;
 #endif
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionInitializeDelegate, UWorldPartition*);
 	
 	UE_DEPRECATED(5.1, "Please use FWorldPartitionInitializedEvent& UWorld::OnWorldPartitionInitialized() instead.")
 	FWorldPartitionInitializeDelegate OnWorldPartitionInitialized;
+
 	UE_DEPRECATED(5.1, "Please use FWorldPartitionInitializedEvent& UWorld::OnWorldPartitionUninitialized() instead.")
 	FWorldPartitionInitializeDelegate OnWorldPartitionUninitialized;
 
 #if WITH_EDITOR
-	TArray<FName> GetUserLoadedEditorGridCells() const;
+	TArray<FBox> GetUserLoadedEditorGridRegions() const;
 
 public:
 	bool SupportsStreaming() const;
@@ -143,11 +141,6 @@ public:
 #if WITH_EDITOR
 	FName GetWorldPartitionEditorName() const;
 
-	void LoadEditorCells(const FBox& Box, bool bIsFromUserChange);
-	void LoadEditorCells(const TArray<FName>& CellNames, bool bIsFromUserChange);
-	void UnloadEditorCells(const FBox& Box, bool bIsFromUserChange);
-	bool AreEditorCellsLoaded(const FBox& Box);
-
 	// PIE/Game/Cook Methods
 	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
@@ -176,6 +169,8 @@ public:
 	AActor* PinActor(const FGuid& ActorGuid);
 	void UnpinActor(const FGuid& ActorGuid);
 	bool IsActorPinned(const FGuid& ActorGuid) const;
+
+	void LoadLastLoadedRegions();
 #endif
 
 public:
@@ -209,6 +204,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
+
+	FLoaderAdapterAlwaysLoadedActors* AlwaysLoadedActors;
 
 	IWorldPartitionEditor* WorldPartitionEditor;
 
@@ -280,16 +277,35 @@ private:
 	void UnregisterDelegates();	
 
 #if WITH_EDITOR
-	void OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation);
-
-	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded, bool bFromUserOperation);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
-	bool ShouldActorBeLoadedByEditorCells(const FWorldPartitionActorDesc* ActorDesc) const;
-	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded, bool bIsFromUserChange);
 
 	TMap<FGuid, FWorldPartitionReference> PinnedActors;
 	TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> PinnedActorRefs;
+
+public:
+	// Editor loader adapters management
+	template <typename T, typename... ArgsType>
+	T* CreateEditorLoaderAdapter(ArgsType&&... Args)
+	{
+		T* LoaderAdapter = new T(Forward<ArgsType>(Args)...);
+		RegisteredEditorLoaderAdapters.Add(LoaderAdapter);
+		return LoaderAdapter;
+	}
+
+	void ReleaseEditorLoaderAdapter(IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter)
+	{
+		verify(RegisteredEditorLoaderAdapters.Remove(LoaderAdapter) != INDEX_NONE);
+		delete LoaderAdapter;
+	}
+
+	const TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*>& GetRegisteredEditorLoaderAdapters() const
+	{
+		return RegisteredEditorLoaderAdapters;
+	}
+
+private:
+	TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> RegisteredEditorLoaderAdapters;
 #endif
 
 #if !UE_BUILD_SHIPPING

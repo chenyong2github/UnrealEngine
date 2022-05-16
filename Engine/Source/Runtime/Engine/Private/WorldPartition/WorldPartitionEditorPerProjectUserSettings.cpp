@@ -19,25 +19,25 @@ void UWorldPartitionEditorPerProjectUserSettings::SetWorldDataLayersNonDefaultEd
 	}
 }
 
-void UWorldPartitionEditorPerProjectUserSettings::SetEditorGridLoadedCells(UWorld* InWorld, const TArray<FName>& InEditorGridLoadedCells)
+void UWorldPartitionEditorPerProjectUserSettings::SetEditorGridLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorGridLoadedRegions)
 {
 	if (ShouldSaveSettings(InWorld))
 	{
 		FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
-		PerWorldSettings.LoadedEditorGridCells = InEditorGridLoadedCells;
+		PerWorldSettings.LoadedEditorGridRegions = InEditorGridLoadedRegions;
 		
 		SaveConfig();
 	}
 }
 
-TArray<FName> UWorldPartitionEditorPerProjectUserSettings::GetEditorGridLoadedCells(UWorld* InWorld) const
+TArray<FBox> UWorldPartitionEditorPerProjectUserSettings::GetEditorGridLoadedRegions(UWorld* InWorld) const
 {
 	if (const FWorldPartitionPerWorldSettings* PerWorldSettings = GetWorldPartitionPerWorldSettings(InWorld))
 	{
-		return PerWorldSettings->LoadedEditorGridCells;
+		return PerWorldSettings->LoadedEditorGridRegions;
 	}
 
-	return TArray<FName>();
+	return TArray<FBox>();
 }
 
 TArray<FName> UWorldPartitionEditorPerProjectUserSettings::GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const

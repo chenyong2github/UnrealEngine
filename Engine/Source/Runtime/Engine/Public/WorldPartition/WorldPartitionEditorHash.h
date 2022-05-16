@@ -8,8 +8,6 @@
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionEditorHash.generated.h"
 
-class UWorldPartitionEditorCell;
-
 UCLASS(Abstract, Config=Engine, Within = WorldPartition)
 class ENGINE_API UWorldPartitionEditorHash : public UObject
 {
@@ -26,40 +24,9 @@ public:
 	virtual void HashActor(FWorldPartitionHandle& InActorHandle) PURE_VIRTUAL(UWorldPartitionEditorHash::HashActor, ;);
 	virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) PURE_VIRTUAL(UWorldPartitionEditorHash::UnhashActor, ;);
 
-	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachIntersectingActor, return 0;);
-	virtual int32 ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachIntersectingCell, return 0;);
-	virtual int32 ForEachCell(TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachCell, return 0;);
-	virtual UWorldPartitionEditorCell* GetAlwaysLoadedCell() PURE_VIRTUAL(UWorldPartitionEditorHash::GetAlwaysLoadedCell, return nullptr;);
+	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors = true, bool bIncludeNonSpatiallyLoadedActors = true) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachIntersectingActor, return 0;);
 
 	virtual uint32 GetWantedEditorCellSize() const PURE_VIRTUAL(UWorldPartitionEditorHash::GetWantedEditorCellSize, return 0;);
 	virtual void SetEditorWantedCellSize(uint32 InCellSize) PURE_VIRTUAL(UWorldPartitionEditorHash::SetEditorWantedCellSize, );
-
-	virtual void AddBackReference(const FGuid& Reference, UWorldPartitionEditorCell* Cell, const FGuid& Source) PURE_VIRTUAL(UWorldPartitionEditorHash::AddBackReference, ;);
-	virtual void RemoveBackReference(const FGuid& Reference, UWorldPartitionEditorCell* Cell, const FGuid& Source) PURE_VIRTUAL(UWorldPartitionEditorHash::RemoveBackReference, ;);
-
-	// Helpers
-	inline int32 GetIntersectingActors(const FBox& Box, TArray<FWorldPartitionActorDesc*>& OutActors)
-	{
-		return ForEachIntersectingActor(Box, [&OutActors](FWorldPartitionActorDesc* ActorDesc)
-		{
-			OutActors.Add(ActorDesc);
-		});
-	}
-
-	int32 GetIntersectingCells(const FBox& Box, TArray<UWorldPartitionEditorCell*>& OutCells)
-	{
-		return ForEachIntersectingCell(Box, [&OutCells](UWorldPartitionEditorCell* Cell)
-		{
-			OutCells.Add(Cell);
-		});
-	}
-
-	int32 GetAllCells(TArray<UWorldPartitionEditorCell*>& OutCells)
-	{
-		return ForEachCell([&OutCells](UWorldPartitionEditorCell* Cell)
-		{
-			OutCells.Add(Cell);
-		});
-	}
 #endif
 };

@@ -3,7 +3,6 @@
 #include "GameFramework/WorldSettings.h"
 #include "DerivedDataCache/Public/DerivedDataCacheInterface.h"
 #include "Misc/SecureHash.h"
-#include "WorldPartition/WorldPartitionEditorCell.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -32,14 +31,17 @@
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
-SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
-	: WorldMiniMapBounds(ForceInit)
+static inline FBox2D ToBox2D(const FBox& Box)
 {
+	return FBox2D(FVector2D(Box.Min), FVector2D(Box.Max));
 }
 
+SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
+	: WorldMiniMapBounds(ForceInit)
+{}
+
 SWorldPartitionEditorGridSpatialHash::~SWorldPartitionEditorGridSpatialHash()
-{
-}
+{}
 
 void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 {
@@ -58,8 +60,7 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 
 void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 {
-	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World);
-	if (WorldMiniMap)
+	if (AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World))
 	{
 		WorldMiniMapBounds = FBox2D(FVector2D(WorldMiniMap->MiniMapWorldBounds.Min), FVector2D(WorldMiniMap->MiniMapWorldBounds.Max));
 		if (UTexture2D* MiniMapTexture = WorldMiniMap->MiniMapTexture)
@@ -73,21 +74,35 @@ void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 
 int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
+	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+	
+	// Found the best cell size depending on the current zoom
+	int32 EffectiveCellSize = EditorSpatialHash->CellSize;
+	for (const UWorldPartitionEditorSpatialHash::FCellNodeHashLevel& HashLevel : EditorSpatialHash->HashLevels)
+	{
+		const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EffectiveCellSize, EffectiveCellSize));
+		if (CellScreenSize.X > 32)
+		{
+			break;
+		}
+
+		EffectiveCellSize *= 2;
+	}
+	
+	// Compute visible rect
 	const FBox2D ViewRect(FVector2D(ForceInitToZero), AllottedGeometry.GetLocalSize());
 	const FBox2D ViewRectWorld(ScreenToWorld.TransformPoint(ViewRect.Min), ScreenToWorld.TransformPoint(ViewRect.Max));
 
-	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
-	
 	FBox VisibleGridRectWorld(
 		FVector(
-			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Min.X),
-			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Min.Y),
-			FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Z / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.X / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Min.X),
+			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Y / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Min.Y),
+			FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Z / EffectiveCellSize) * EffectiveCellSize
 		),
 		FVector(
-			FMath::Min(FMath::FloorToFloat(EditorSpatialHash->Bounds.Max.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Max.X),
-			FMath::Min(FMath::FloorToFloat(EditorSpatialHash->Bounds.Max.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Max.Y),
-			FMath::FloorToFloat(EditorSpatialHash->Bounds.Max.Z / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+			FMath::Min(FMath::CeilToFloat(EditorSpatialHash->Bounds.Max.X / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Max.X),
+			FMath::Min(FMath::CeilToFloat(EditorSpatialHash->Bounds.Max.Y / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Max.Y),
+			FMath::CeilToFloat(EditorSpatialHash->Bounds.Max.Z / EffectiveCellSize) * EffectiveCellSize
 		)
 	);
 
@@ -153,166 +168,25 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		}
 	}
 
-	struct FCellDesc2D
-	{
-		FCellDesc2D()
-			: Bounds(ForceInitToZero)
-			, NumLoaded(0)
-			, NumUnloaded(0)
-			, NumEmpty(0)
-		{}
-
-		FBox2D Bounds;
-		int32 NumLoaded;
-		int32 NumUnloaded;
-		int32 NumEmpty;
-	};
-
-	// Draw shadowed regions
-	{
-		TMap<uint32, FCellDesc2D> FlattenedCells2D;
-		EditorSpatialHash->ForEachIntersectingCells(VisibleGridRectWorld.ExpandBy(-1), 0, [&](const UWorldPartitionEditorSpatialHash::FCellCoord& CellCoord)
-		{
-			FHashBuilder HashBuilder;
-			HashBuilder << CellCoord.X << CellCoord.Y;
-			uint32 CellHash2D = HashBuilder.GetHash();			
-			
-			FCellDesc2D& CellDesc2D = FlattenedCells2D.FindOrAdd(CellHash2D);
-			
-			FBox CellBounds = EditorSpatialHash->GetCellBounds(CellCoord);
-			CellDesc2D.Bounds = FBox2D(FVector2D(CellBounds.Min), FVector2D(CellBounds.Max));
-
-			if (UWorldPartitionEditorCell** CellPtr = EditorSpatialHash->HashCells.Find(CellCoord))
-			{
-				if ((*CellPtr)->IsEmpty())
-				{
-					CellDesc2D.NumEmpty++;
-				}
-				else if ((*CellPtr)->IsLoaded())
-				{
-					CellDesc2D.NumLoaded++;
-				}
-				else
-				{
-					CellDesc2D.NumUnloaded++;
-				}
-			}
-			else
-			{
-				CellDesc2D.NumEmpty++;
-			}
-		});
-
-		for(auto& UniqueCell: FlattenedCells2D)
-		{
-			const FCellDesc2D& Cell = UniqueCell.Value;
-
-			// Fully loaded
-			if (Cell.NumLoaded && !Cell.NumUnloaded)
-			{
-				continue;
-			}
-
-			const FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
-				WorldToScreen.TransformPoint(Cell.Bounds.Min),
-				WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
-			);
-
-			const FSlateColorBrush CellBrush(FLinearColor::White);
-			const FLinearColor FullyUnloadedCellColor(0, 0, 0, 0.5f);
-			const FLinearColor PartiallyLoadedCellColor(0, 0, 0, 0.25f);
-			const FLinearColor EmptyCellColor(0, 0, 0, 0.75f);
-			
-			FLinearColor CellColor;
-
-			// Partially loaded aread
-			if (Cell.NumLoaded && Cell.NumUnloaded)
-			{
-				CellColor = PartiallyLoadedCellColor;
-			}
-			else if (Cell.NumEmpty && !Cell.NumUnloaded && !Cell.NumLoaded)
-			{
-				CellColor = EmptyCellColor;
-			}
-			else
-			{
-				CellColor = FullyUnloadedCellColor;
-			}
-
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				++LayerId,
-				CellGeometry,
-				&CellBrush,
-				ESlateDrawEffect::None,
-				CellColor
-			);
-		}
-	}
-
-	// Draw selected cells
-	if (SelectBox.IsValid)
-	{
-		const FBox VisibleSelectBox = SelectBox.Overlap(VisibleGridRectWorld);
-
-		if (VisibleSelectBox.IsValid)
-		{
-			TMap<uint32, FCellDesc2D> FlattenedCells2D;
-			WorldPartition->EditorHash->ForEachIntersectingCell(VisibleSelectBox, [&](UWorldPartitionEditorCell* Cell)
-			{
-				UWorldPartitionEditorSpatialHash::FCellCoord CellCoord = EditorSpatialHash->GetCellCoords(Cell->Bounds.GetCenter(), 0);
-
-				FHashBuilder HashBuilder;
-				HashBuilder << CellCoord.X << CellCoord.Y;
-				uint32 CellHash2D = HashBuilder.GetHash();
-				FCellDesc2D& CellDesc2D = FlattenedCells2D.Add(CellHash2D);
-
-				CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
-			});
-
-			for (auto& UniqueCell : FlattenedCells2D)
-			{
-				const FCellDesc2D& Cell = UniqueCell.Value;
-
-				FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
-					WorldToScreen.TransformPoint(Cell.Bounds.Min),
-					WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
-				);
-
-				FSlateColorBrush CellBrush(FLinearColor::White);
-				FLinearColor CellColor(1, 1, 1, 0.25f);
-
-				FSlateDrawElement::MakeBox(
-					OutDrawElements,
-					++LayerId,
-					CellGeometry,
-					&CellBrush,
-					ESlateDrawEffect::None,
-					CellColor
-				);
-			}
-		}
-	}
-
-	if (FBox2D(FVector2D(VisibleGridRectWorld.Min), FVector2D(VisibleGridRectWorld.Max)).GetArea() > 0.0f)
+	if (ToBox2D(VisibleGridRectWorld).GetArea() > 0.0f)
 	{
 		const FLinearColor Color = FLinearColor(0.1f, 0.1f, 0.1f, 1.f);
 
 		FIntVector2 TopLeftW(
-			FMath::FloorToFloat(VisibleGridRectWorld.Min.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize,
-			FMath::FloorToFloat(VisibleGridRectWorld.Min.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+			FMath::FloorToFloat(VisibleGridRectWorld.Min.X / EffectiveCellSize) * EffectiveCellSize,
+			FMath::FloorToFloat(VisibleGridRectWorld.Min.Y / EffectiveCellSize) * EffectiveCellSize
 		);
 
 		FIntVector2 BottomRightW(
-			FMath::CeilToFloat(VisibleGridRectWorld.Max.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize,
-			FMath::CeilToFloat(VisibleGridRectWorld.Max.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+			FMath::CeilToFloat(VisibleGridRectWorld.Max.X / EffectiveCellSize) * EffectiveCellSize,
+			FMath::CeilToFloat(VisibleGridRectWorld.Max.Y / EffectiveCellSize) * EffectiveCellSize
 		);
 
 		TArray<FVector2D> LinePoints;
 		LinePoints.SetNum(2);
 
 		// Horizontal
-		for (int32 i=TopLeftW.Y; i<=BottomRightW.Y; i+=EditorSpatialHash->CellSize)
+		for (int32 i=TopLeftW.Y; i<=BottomRightW.Y; i+=EffectiveCellSize)
 		{
 			FVector2D LineStartH(TopLeftW.X, i);
 			FVector2D LineEndH(BottomRightW.X, i);
@@ -324,7 +198,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		}
 
 		// Vertical
-		for (int32 i=TopLeftW.X; i<=BottomRightW.X; i+=EditorSpatialHash->CellSize)
+		for (int32 i=TopLeftW.X; i<=BottomRightW.X; i+=EffectiveCellSize)
 		{
 			FVector2D LineStartH(i, TopLeftW.Y);
 			FVector2D LineEndH(i, BottomRightW.Y);
@@ -336,10 +210,10 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		}
 
 		// Draw coordinates
-		if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords())
+		if ((EffectiveCellSize == EditorSpatialHash->CellSize) && GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords())
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EditorSpatialHash->CellSize, EditorSpatialHash->CellSize));
+			const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EffectiveCellSize, EffectiveCellSize));
 
 			FSlateFontInfo CoordsFont;
 			FVector2D DefaultCoordTextSize;
@@ -362,18 +236,18 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 				float ColorGradient = bNeedsGradient ? FMath::Min((CellScreenSize.X - DefaultCoordTextSize.X) / GradientDistance, 1.0f) : 1.0f;
 				const FLinearColor CoordTextColor(1.0f, 1.0f, 1.0f, ColorGradient);
 
-				for (int32 y = TopLeftW.Y; y < BottomRightW.Y; y += EditorSpatialHash->CellSize)
+				for (int32 y = TopLeftW.Y; y < BottomRightW.Y; y += EffectiveCellSize)
 				{
-					for (int32 x = TopLeftW.X; x < BottomRightW.X; x += EditorSpatialHash->CellSize)
+					for (int32 x = TopLeftW.X; x < BottomRightW.X; x += EffectiveCellSize)
 					{
-						const FString CoordText(FString::Printf(TEXT("(%d,%d)"), x / EditorSpatialHash->CellSize, y / EditorSpatialHash->CellSize));
+						const FString CoordText(FString::Printf(TEXT("(%d,%d)"), x / EffectiveCellSize, y / EffectiveCellSize));
 						const FVector2D CoordTextSize = FontMeasure->Measure(CoordText, CoordsFont);
 
 						FSlateDrawElement::MakeText(
 							OutDrawElements,
 							++LayerId,
-							AllottedGeometry.ToPaintGeometry(WorldToScreen.TransformPoint(FVector2D(x + EditorSpatialHash->CellSize / 2, y + EditorSpatialHash->CellSize / 2)) - CoordTextSize / 2, FVector2D(1,1)),
-							FString::Printf(TEXT("(%d,%d)"), x / EditorSpatialHash->CellSize, y / EditorSpatialHash->CellSize),
+							AllottedGeometry.ToPaintGeometry(WorldToScreen.TransformPoint(FVector2D(x + EffectiveCellSize / 2, y + EffectiveCellSize / 2)) - CoordTextSize / 2, FVector2D(1,1)),
+							FString::Printf(TEXT("(%d,%d)"), x / EffectiveCellSize, y / EffectiveCellSize),
 							CoordsFont,
 							ESlateDrawEffect::None,
 							CoordTextColor

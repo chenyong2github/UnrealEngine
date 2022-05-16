@@ -7,9 +7,6 @@
 #include "Layout/ArrangedChildren.h"
 #include "SWorldPartitionEditorGrid.h"
 
-class UWorldPartition2D;
-class UWorldPartitionEditorCell;
-
 class SWorldPartitionEditorGrid2D : public SWorldPartitionEditorGrid
 {
 protected:
@@ -18,9 +15,9 @@ protected:
 	public:
 		FEditorCommands();
 	
-		TSharedPtr<FUICommandInfo> LoadSelectedCells;
-		TSharedPtr<FUICommandInfo> UnloadSelectedCells;
-		TSharedPtr<FUICommandInfo> UnloadAllCells;
+		TSharedPtr<FUICommandInfo> CreateRegionFromSelection;
+		TSharedPtr<FUICommandInfo> LoadSelectedRegions;
+		TSharedPtr<FUICommandInfo> UnloadSelectedRegions;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
 
 		/**
@@ -35,9 +32,9 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	void LoadSelectedCells();
-	void UnloadSelectedCells();
-	void UnloadAllCells();
+	virtual void CreateRegionFromSelection();
+	virtual void LoadSelectedRegions();
+	virtual void UnloadSelectedRegions();
 	void MoveCameraHere();
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;

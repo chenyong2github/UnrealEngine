@@ -115,6 +115,12 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 	void SetSpawningVolume(AVolume* InSpawningVolume) { SpawningVolume = InSpawningVolume; }
 	const FGuid& GetProceduralGuid() const { return ProceduralGuid; }
 
+#if WITH_EDITOR
+	void LoadSimulatedRegion();
+	void UnloadSimulatedRegion();
+	bool IsSimulatedRegionLoaded();
+#endif
+
 private:
 	/** Does all the actual work of executing the procedural foliage simulation */
 	bool ExecuteSimulation(TArray<FDesiredFoliageInstance>& OutFoliageInstances);

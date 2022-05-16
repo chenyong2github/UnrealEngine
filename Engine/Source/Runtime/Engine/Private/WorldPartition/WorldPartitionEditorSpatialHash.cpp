@@ -2,7 +2,6 @@
 
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionEditorCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
@@ -18,7 +17,6 @@ UWorldPartitionEditorSpatialHash::UWorldPartitionEditorSpatialHash(const FObject
 #if WITH_EDITOR
 	, CellSize(12800)
 	, bBoundsDirty(false)
-	, AlwaysLoadedCell(nullptr)
 #endif
 {}
 
@@ -27,7 +25,7 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 {
 	check(!AlwaysLoadedCell);
 
-	AlwaysLoadedCell = NewObject<UWorldPartitionEditorCell>(this, TEXT("AlwaysLoadedCell"), RF_Transient);
+	AlwaysLoadedCell = MakeUnique<FCell>();
 	AlwaysLoadedCell->Bounds.Init();
 }
 
@@ -49,21 +47,20 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 	if (bBoundsDirty)
 	{
 		FBox NewBounds(ForceInit);
-		ForEachCell([&](UWorldPartitionEditorCell* Cell) { NewBounds += Cell->Bounds; });
+		for (FCell* Cell: Cells)
+		{
+			NewBounds += Cell->Bounds;
+		}
 
 		const int32 OldLevel = GetLevelForBox(Bounds);
+		check(OldLevel == HashLevels.Num() - 1);
+
 		const int32 NewLevel = GetLevelForBox(NewBounds);
-		check(NewLevel <= OldLevel);
+		check(NewLevel <= OldLevel);		
 
 		if (NewLevel < OldLevel)
 		{
-			for (int32 Level=NewLevel+1; Level<=OldLevel; Level++)
-			{
-				ForEachIntersectingCells(Bounds, Level, [&](const FCellCoord& CellCoord)
-				{
-					HashNodes.Remove(CellCoord);
-				});
-			}
+			HashLevels.SetNum(NewLevel + 1);
 		}
 
 		Bounds = NewBounds;
@@ -71,105 +68,88 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 	}
 
 	if (CVarEnableSpatialHashValidation.GetValueOnAnyThread())
-	{	
-		const int32 CurrentLevel = GetLevelForBox(Bounds);
-		ForEachIntersectingCells(Bounds, 0, [&](const FCellCoord& CellCoord)
+	{
+		if (Bounds.IsValid)
 		{
-			UWorldPartitionEditorCell* EditorCell = nullptr;
-			if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
+			const int32 CurrentLevel = GetLevelForBox(Bounds);
+			check(CurrentLevel == HashLevels.Num() - 1);
+
+			for (int32 HashLevel = 0; HashLevel < HashLevels.Num() - 1; HashLevel++)
 			{
-				if ((*EditorCellPtr)->IsLoaded())
+				for (auto& HashLevelPair : HashLevels[HashLevel])
 				{
-					FCellCoord LevelCellCoord = CellCoord;
-					while (LevelCellCoord.Level < CurrentLevel)
-					{
-						const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
-						LevelCellCoord = LevelCellCoord.GetParentCellCoord();
-						const FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-						check(CellNode.HasChildNode(ChildIndex));
-					}
+					const FCellCoord CellCoord = HashLevelPair.Key;
+					check(CellCoord.Level == HashLevel);
+
+					const uint32 ChildIndex = CellCoord.GetChildIndex();
+					const FCellCoord ParentCellCoord = CellCoord.GetParentCellCoord();
+					check(ParentCellCoord.Level == HashLevel + 1);
+
+					const FCellNodeElement& ParentCellNodeElement = HashLevels[ParentCellCoord.Level].FindChecked(ParentCellCoord);
+					const FCellNode& ParentCellNode = ParentCellNodeElement.Key;
+					check(ParentCellNode.HasChildNode(ChildIndex));
 				}
 			}
-		});
+		}
 	}
-}
-
-FBox UWorldPartitionEditorSpatialHash::GetActorBounds(const FWorldPartitionHandle& InActorHandle) const
-{
-	FBox ActorBounds;
-	if (InActorHandle->GetIsSpatiallyLoaded())
-	{
-		ActorBounds = InActorHandle->GetBounds();
-	}
-
-	check(ActorBounds.IsValid);
-	return ActorBounds;
-}
-
-bool UWorldPartitionEditorSpatialHash::IsActorAlwaysLoaded(const FWorldPartitionHandle& InActorHandle) const
-{
-	if (!InActorHandle->GetIsSpatiallyLoaded())
-	{
-		return true;
-	}
-
-	// If an actor covers more that 4 levels in the octree (which means 32K cells), treat it as always loaded
-	const FBox ActorBounds = GetActorBounds(InActorHandle);
-	const int32 ActorLevel = GetLevelForBox(ActorBounds);
-	return (ActorLevel > 4);
 }
 
 void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorHandle)
 {
 	check(InActorHandle.IsValid());
 
-	if (IsActorAlwaysLoaded(InActorHandle))
+	if (!InActorHandle->GetIsSpatiallyLoaded())
 	{
-		AlwaysLoadedCell->AddActor(InActorHandle);
+		AlwaysLoadedCell->Actors.Add(InActorHandle);
 	}
 	else
 	{
-		const FBox ActorBounds = GetActorBounds(InActorHandle);
+		const FBox ActorBounds = InActorHandle->GetBounds();
 		const int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
-		ForEachIntersectingCells(ActorBounds, 0, [&](const FCellCoord& CellCoord)
+		if (HashLevels.Num() <= ActorLevel)
 		{
-			UWorldPartitionEditorCell* EditorCell = nullptr;
-			if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
+			HashLevels.AddDefaulted(ActorLevel - HashLevels.Num() + 1);
+		}
+
+		ForEachIntersectingCells(ActorBounds, ActorLevel, [&](const FCellCoord& CellCoord)
+		{
+			FCellNodeElement& CellNodeElement = HashLevels[CellCoord.Level].FindOrAdd(CellCoord);
+
+			TUniquePtr<FCell>& Cell = CellNodeElement.Value;
+
+			if (!Cell)
 			{
-				EditorCell = *EditorCellPtr;
-			}
-			else
-			{
-				EditorCell = NewObject<UWorldPartitionEditorCell>(this, *FString::Printf(TEXT("EditorCell_S%d_X%lld_Y%lld_Z%lld"), CellSize, CellCoord.X, CellCoord.Y, CellCoord.Z), RF_Transient);
-				EditorCell->Bounds = GetCellBounds(CellCoord);
+				Cell = MakeUnique<FCell>();
+				Cell->Bounds = GetCellBounds(CellCoord);
 
-				Cells.Add(EditorCell);
-				HashCells.Add(CellCoord, EditorCell);
+				Cells.Add(Cell.Get());
 
-				Bounds += EditorCell->Bounds;
+				// Increment spatial structure bounds
+				Bounds += Cell->Bounds;
 
-				// Update parent cells
-				FCellCoord LevelCellCoord = CellCoord;
-				while (LevelCellCoord.Level < CurrentLevel)
+				// Update parent nodes
+				FCellCoord CurrentCellCoord = CellCoord;
+				while (CurrentCellCoord.Level < CurrentLevel)
 				{
-					const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
+					const uint32 ChildIndex = CurrentCellCoord.GetChildIndex();
+					CurrentCellCoord = CurrentCellCoord.GetParentCellCoord();
 
-					LevelCellCoord = LevelCellCoord.GetParentCellCoord();
+					FCellNodeElement& ParentCellNodeElement = HashLevels[CurrentCellCoord.Level].FindOrAdd(CurrentCellCoord);
+					FCellNode& ParentCellNode = ParentCellNodeElement.Key;
 
-					FCellNode& CellNode = HashNodes.FindOrAdd(LevelCellCoord);
-
-					if (CellNode.HasChildNode(ChildIndex))
+					if (ParentCellNode.HasChildNode(ChildIndex))
 					{
 						break;
 					}
 
-					CellNode.AddChildNode(ChildIndex);
+					ParentCellNode.AddChildNode(ChildIndex);
 				}
 			}
 
-			check(EditorCell);
-			EditorCell->AddActor(InActorHandle);
+			check(Cell);
+			Cell->Actors.Add(InActorHandle);
 		});
 
 		const int32 NewLevel = GetLevelForBox(Bounds);
@@ -177,18 +157,24 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 
 		if (NewLevel > CurrentLevel)
 		{
-			ForEachIntersectingCells(Bounds, CurrentLevel, [&](const FCellCoord& CellCoord)
+			if (HashLevels.Num() <= NewLevel)
 			{
-				if (CurrentLevel ? HashNodes.Contains(CellCoord) : HashCells.Contains(CellCoord))
+				HashLevels.AddDefaulted(NewLevel - HashLevels.Num() + 1);
+			}
+
+			for (int32 Level = CurrentLevel; Level < NewLevel; Level++)
+			{
+				for (auto& HashLevelPair : HashLevels[Level])
 				{
-					FCellCoord LevelCellCoord = CellCoord;
+					FCellCoord LevelCellCoord = HashLevelPair.Key;
 					while (LevelCellCoord.Level < NewLevel)
 					{
 						const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
 
 						LevelCellCoord = LevelCellCoord.GetParentCellCoord();
 
-						FCellNode& CellNode = HashNodes.FindOrAdd(LevelCellCoord);
+						FCellNodeElement& CellNodeElement = HashLevels[LevelCellCoord.Level].FindOrAdd(LevelCellCoord);
+						FCellNode& CellNode = CellNodeElement.Key;
 
 						// We can break updating when aggregated flags are already properly set for parent nodes
 						const bool bShouldBreak = CellNode.HasChildNodes();
@@ -205,7 +191,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 						}
 					}
 				}
-			});
+			}
 		}
 	}
 }
@@ -214,54 +200,49 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 {
 	check(InActorHandle.IsValid());
 
-	if (IsActorAlwaysLoaded(InActorHandle))
+	if (!InActorHandle->GetIsSpatiallyLoaded())
 	{
-		AlwaysLoadedCell->RemoveActor(InActorHandle);
+		AlwaysLoadedCell->Actors.Remove(InActorHandle);
 	}
 	else
 	{
-		const FBox ActorBounds = GetActorBounds(InActorHandle);
+		const FBox ActorBounds = InActorHandle->GetBounds();
 		const int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
-		ForEachIntersectingCells(ActorBounds, 0, [&](const FCellCoord& CellCoord)
+		ForEachIntersectingCells(ActorBounds, ActorLevel, [&](const FCellCoord& CellCoord)
 		{
-			UWorldPartitionEditorCell* EditorCell = HashCells.FindChecked(CellCoord);
+			FCellNodeElement& CellNodeElement = HashLevels[CellCoord.Level].FindChecked(CellCoord);
+			TUniquePtr<FCell>& Cell = CellNodeElement.Value;
+			check(Cell);
 
-			EditorCell->RemoveActor(InActorHandle);
+			Cell->Actors.Remove(InActorHandle);
 
-			if (!EditorCell->Actors.Num())
+			if (!Cell->Actors.Num())
 			{
-				verify(Cells.Remove(EditorCell));
-				verify(HashCells.Remove(CellCoord));
+				verify(Cells.Remove(Cell.Get()));
+				CellNodeElement.Value.Reset();
 
-				bool bClearChildMask = true;
-
-				FCellCoord LevelCellCoord = CellCoord;
-				while (LevelCellCoord.Level < CurrentLevel)
+				if (!CellNodeElement.Key.HasChildNodes())
 				{
-					const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
-
-					LevelCellCoord = LevelCellCoord.GetParentCellCoord();
-
-					FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-
-					if (bClearChildMask)
+					FCellCoord CurrentCellCoord = CellCoord;
+					while (CurrentCellCoord.Level < CurrentLevel)
 					{
-						CellNode.RemoveChildNode(ChildIndex);
+						FCellCoord ParentCellCoord = CurrentCellCoord.GetParentCellCoord();
+						FCellNodeElement& ParentCellNodeElement = HashLevels[ParentCellCoord.Level].FindChecked(ParentCellCoord);
+						FCellNode& ParentCellNode = ParentCellNodeElement.Key;
 
-						if (CellNode.HasChildNodes())
-						{
-							bClearChildMask = false;
-						}
-						else
-						{
-							HashNodes.Remove(LevelCellCoord);
-						}
-					}
+						const uint32 ChildIndex = CurrentCellCoord.GetChildIndex();
+						ParentCellNode.RemoveChildNode(ChildIndex);
 
-					if (!bClearChildMask)
-					{
-						break;
+						HashLevels[CurrentCellCoord.Level].Remove(CurrentCellCoord);
+
+						if (ParentCellNodeElement.Value || ParentCellNodeElement.Key.HasChildNodes())
+						{
+							break;
+						}
+
+						CurrentCellCoord = ParentCellCoord;
 					}
 				}
 
@@ -269,131 +250,103 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 			}
 		});
 	}
-
-	// Remove from all cells where it's back referenced
-	// This is important because the FWorldPartitionHandle will soon become invalid and Actors that were still 
-	// referencing this one will not be able to construct valid FWorldPartitionHandle to the actor we're 
-	// removing and it'll become impossible to clean the cells of their dangling actors
-	TArray<TTuple<UWorldPartitionEditorCell*, FGuid>> BackRefs;
-	BackReferences.MultiFind(InActorHandle->GetGuid(), BackRefs);
-
-	for (auto& BackRef : BackRefs)
-	{
-		BackRef.Get<0>()->RemoveActor(BackRef.Get<1>(), InActorHandle);
-	}
-
-	if (BackRefs.Num() != 0)
-	{
-		BackReferences.Remove(InActorHandle->GetGuid());
-	}
 }
 
-int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation)
+int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors, bool bIncludeNonSpatiallyLoadedActors)
 {
-	int32 NumIntersecting = 0;
+	TSet<FWorldPartitionActorDesc*> IntersectedActorDescs;
 
-	FWorldPartitionActorDesc::GlobalTag++;
-
-	ForEachIntersectingCell(Box, [&](UWorldPartitionEditorCell* EditorCell)
+	if (bIncludeSpatiallyLoadedActors)
 	{
-		for(UWorldPartitionEditorCell::FActorHandle& ActorDesc: EditorCell->Actors)
+		ForEachIntersectingCell(Box, [&](FCell* Cell)
 		{
-			if (ActorDesc.IsValid() && ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag)
+			for(FWorldPartitionHandle& ActorDesc: Cell->Actors)
+			{
+				if (ActorDesc.IsValid())
+				{
+					bool bWasAlreadyInSet;
+					IntersectedActorDescs.Add(*ActorDesc, &bWasAlreadyInSet);
+
+					if (!bWasAlreadyInSet)
+					{
+						if (Box.Intersect(ActorDesc->GetBounds()))
+						{
+							InOperation(*ActorDesc);
+						}
+					}
+				}
+			}
+		});
+	}
+
+	if (bIncludeNonSpatiallyLoadedActors)
+	{
+		for(FWorldPartitionHandle& ActorDesc: AlwaysLoadedCell->Actors)
+		{
+			if (ActorDesc.IsValid())
 			{
 				if (Box.Intersect(ActorDesc->GetBounds()))
 				{
-					InOperation(*ActorDesc);
-					NumIntersecting++;
+					bool bWasAlreadyInSet;
+					IntersectedActorDescs.Add(*ActorDesc, &bWasAlreadyInSet);
+				
+					if (!bWasAlreadyInSet)
+					{
+						InOperation(*ActorDesc);
+					}
 				}
-
-				ActorDesc->Tag = FWorldPartitionActorDesc::GlobalTag;
 			}
 		}
-	});
+	}
 
-	for(UWorldPartitionEditorCell::FActorHandle& ActorDesc: AlwaysLoadedCell->Actors)
+	return IntersectedActorDescs.Num();
+}
+
+int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(FCell*)> InOperation)
+{
+	int32 NumIntersecting = 0;
+
+	if (const FCellNodeElement* CellNodeElement = HashLevels[CellCoord.Level].Find(CellCoord))
 	{
-		if (ActorDesc.IsValid() && ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag)
+		if (CellNodeElement->Value)
 		{
-			if (Box.Intersect(ActorDesc->GetBounds()))
-			{
-				InOperation(*ActorDesc);
-				NumIntersecting++;
-			}
-
-			ActorDesc->Tag = FWorldPartitionActorDesc::GlobalTag;
+			InOperation(CellNodeElement->Value.Get());
+			NumIntersecting++;
 		}
+
+		CellNodeElement->Key.ForEachChild([&](uint32 ChildIndex)
+		{
+			const FCellCoord ChildCellCoord = CellCoord.GetChildCellCoord(ChildIndex);
+			const FBox CellBounds = GetCellBounds(ChildCellCoord);
+
+			if (Box.Intersect(CellBounds))
+			{
+				NumIntersecting += ForEachIntersectingCellInner(Box, ChildCellCoord, InOperation);
+			}
+		});
 	}
 
 	return NumIntersecting;
 }
 
-int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation)
+int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(FCell*)> InOperation)
 {
 	int32 NumIntersecting = 0;
 
-	if (CellCoord.Level)
+	if (HashLevels.Num())
 	{
-		FCellNode CellNode;
-		if (FCellNode* CellNodePtr = HashNodes.Find(CellCoord))
+		const FBox SearchBox = Box.Overlap(Bounds);
+
+		if (SearchBox.IsValid)
 		{
-			CellNode = *CellNodePtr;
-
-			check(CellNode.HasChildNodes());
-
-			CellNode.ForEachChild([&](uint32 ChildIndex)
+			ForEachIntersectingCells(SearchBox, HashLevels.Num() - 1, [&](const FCellCoord& CellCoord)
 			{
-				const FCellCoord ChildCellCoord = CellCoord.GetChildCellCoord(ChildIndex);
-				const FBox CellBounds = GetCellBounds(ChildCellCoord);
-
-				if (Box.Intersect(CellBounds))
-				{
-					NumIntersecting += ForEachIntersectingCellInner(Box, ChildCellCoord, InOperation);
-				}
+				NumIntersecting += ForEachIntersectingCellInner(Box, CellCoord, InOperation);
 			});
 		}
 	}
-	else
-	{
-		UWorldPartitionEditorCell* EditorCell = nullptr;
-		if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
-		{
-			InOperation(*EditorCellPtr);
-			NumIntersecting++;
-		}
-	}
 
 	return NumIntersecting;
-}
-
-int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation)
-{
-	int32 NumIntersecting = 0;
-
-	const FBox SearchBox = Box.Overlap(Bounds);
-	const int32 SearchLevel = GetLevelForBox(SearchBox);
-
-	ForEachIntersectingCells(Box, SearchLevel, [&](const FCellCoord& CellCoord)
-	{
-		NumIntersecting += ForEachIntersectingCellInner(Box, CellCoord, InOperation);
-	});
-
-	return NumIntersecting;
-}
-
-int32 UWorldPartitionEditorSpatialHash::ForEachCell(TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation)
-{
-	InOperation(AlwaysLoadedCell);
-	for (UWorldPartitionEditorCell* Cell: Cells)
-	{
-		InOperation(Cell);
-	}
-	return Cells.Num();
-}
-
-UWorldPartitionEditorCell* UWorldPartitionEditorSpatialHash::GetAlwaysLoadedCell()
-{
-	return AlwaysLoadedCell;
 }
 
 uint32 UWorldPartitionEditorSpatialHash::GetWantedEditorCellSize() const
@@ -416,17 +369,6 @@ void UWorldPartitionEditorSpatialHash::PostLoad()
 		CellSize = WantedCellSize;
 		WantedCellSize = 0;
 	}
-}
-
-
-void UWorldPartitionEditorSpatialHash::AddBackReference(const FGuid& Reference, UWorldPartitionEditorCell* Cell, const FGuid& Source)
-{
-	BackReferences.Add(Reference, MakeTuple(Cell, Source));
-}
-
-void UWorldPartitionEditorSpatialHash::RemoveBackReference(const FGuid& Reference, UWorldPartitionEditorCell* Cell, const FGuid& Source)
-{
-	BackReferences.RemoveSingle(Reference, MakeTuple(Cell, Source));
 }
 #endif
 

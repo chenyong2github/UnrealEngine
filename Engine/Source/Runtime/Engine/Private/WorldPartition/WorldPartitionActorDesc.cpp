@@ -25,15 +25,12 @@
 #endif
 
 #if WITH_EDITOR
-uint32 FWorldPartitionActorDesc::GlobalTag = 0;
-
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: bIsUsingDataLayerAsset(false)
 	, SoftRefCount(0)
 	, HardRefCount(0)
 	, Container(nullptr)
 	, bIsForcedNonSpatiallyLoaded(false)
-	, Tag(0)
 {}
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
@@ -237,18 +234,23 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 
 FString FWorldPartitionActorDesc::ToString() const
 {
+	auto GetBoolStr = [](bool bValue) -> const TCHAR*
+	{
+		return bValue ? TEXT("true") : TEXT("false");
+	};
+
 	return FString::Printf(
 		TEXT("Guid:%s BaseClass:%s NativeClass:%s Name:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
 		*Guid.ToString(), 
 		*BaseClass.ToString(), 
 		*NativeClass.ToString(), 
 		*GetActorName().ToString(),
-		bIsSpatiallyLoaded ? TEXT("true") : TEXT("false"),
+		GetBoolStr(bIsSpatiallyLoaded),
 		*GetBounds().ToString(),
 		*RuntimeGrid.ToString(),
-		bActorIsEditorOnly ? TEXT("true") : TEXT("false"),
-		bLevelBoundsRelevant ? TEXT("true") : TEXT("false"),
-		bActorIsHLODRelevant ? TEXT("true") : TEXT("false"),
+		GetBoolStr(bActorIsEditorOnly),
+		GetBoolStr(bLevelBoundsRelevant),
+		GetBoolStr(bActorIsHLODRelevant),
 		*FolderPath.ToString(),
 		*FolderGuid.ToString(),
 		*ParentActor.ToString()

@@ -729,8 +729,8 @@ static bool SaveWorld(UWorld* World,
 		UWorldPartition* RenamedWorldPartition = nullptr;
 		TArray<FWorldPartitionReference> ActorReferences;
 
-		// Save Loaded cells
-		TArray<FName> LoadedEditorCells;
+		// Save loaded regions
+		TArray<FBox> LoadedEditorRegions;
 
 		// Other packages to save
 		TArray<UPackage*> PackagesToSave;
@@ -754,7 +754,7 @@ static bool SaveWorld(UWorld* World,
 				// When creating a Partitioned Level for a Level Instance, the WorldPartition is not initialized, so no need to do this.
 				if (RenamedWorldPartition && RenamedWorldPartition->IsInitialized())
 				{
-					LoadedEditorCells = RenamedWorldPartition->GetUserLoadedEditorGridCells();
+					LoadedEditorRegions = RenamedWorldPartition->GetUserLoadedEditorGridRegions();
 					RenamedWorldPartition->LoadAllActors(ActorReferences);
 
 					if (bIsTempPackage)
@@ -899,9 +899,9 @@ static bool SaveWorld(UWorld* World,
 
 			if (RenamedWorldPartition)
 			{
-				// Save Snapshot of loaded Editor Cells
-				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(SaveWorld, LoadedEditorCells);
-				RenamedWorldPartition->LoadEditorCells(LoadedEditorCells, /*bIsFromUserChange=*/true);
+				// Save Snapshot of loaded Editor regions
+				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedRegions(SaveWorld, LoadedEditorRegions);
+				RenamedWorldPartition->LoadLastLoadedRegions();
 			}
 		}
 
