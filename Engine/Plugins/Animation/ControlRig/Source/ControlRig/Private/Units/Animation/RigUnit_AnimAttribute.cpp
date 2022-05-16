@@ -186,6 +186,21 @@ FRigUnit_GetAnimAttribute_Transform_Execute()
 	Value = ValuePtr ? *ValuePtr : FallbackValue;
 }
 
+FRigUnit_GetAnimAttribute_Vector_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
+	const FVector* ValuePtr = GetAnimAttributeValue<FVector>(false, Context, Name, BoneName, CachedBoneName, CachedBoneIndex);
+	bWasFound = ValuePtr ? true : false;
+	Value = ValuePtr ? *ValuePtr : FallbackValue;	
+}
 
+FRigUnit_GetAnimAttribute_Quaternion_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	const FQuat* ValuePtr = GetAnimAttributeValue<FQuat>(false, Context, Name, BoneName, CachedBoneName, CachedBoneIndex);
+	bWasFound = ValuePtr ? true : false;
+	Value = ValuePtr ? *ValuePtr : FallbackValue;	
+}
 

@@ -323,3 +323,87 @@ struct CONTROLRIG_API FRigUnit_GetAnimAttribute_Transform: public FRigUnit_GetAn
 	UPROPERTY()
 	int32 CachedBoneIndex;
 };
+
+
+USTRUCT(meta=(DisplayName="Get Attribute - Vector"))
+struct CONTROLRIG_API FRigUnit_GetAnimAttribute_Vector: public FRigUnit_GetAnimAttributeBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_GetAnimAttribute_Vector()
+	{
+		Name = TEXT("AttributeName");
+		BoneName = NAME_None;
+		FallbackValue = FVector::ZeroVector;
+		Value = FVector::ZeroVector;
+		bWasFound = false;
+		CachedBoneName = NAME_None;
+		CachedBoneIndex = 0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FName Name;
+	
+	UPROPERTY(meta=(Input, CustomWidget="BoneName"))
+	FName BoneName;
+
+	UPROPERTY(meta=(Input))
+	FVector FallbackValue;
+	
+	UPROPERTY(meta=(Output))
+	FVector Value;
+
+	UPROPERTY(meta=(Output))
+	bool bWasFound;
+
+	UPROPERTY()
+	FName CachedBoneName;
+	
+	UPROPERTY()
+	int32 CachedBoneIndex;
+};
+
+
+USTRUCT(meta=(DisplayName="Get Attribute - Quaternion"))
+struct CONTROLRIG_API FRigUnit_GetAnimAttribute_Quaternion: public FRigUnit_GetAnimAttributeBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_GetAnimAttribute_Quaternion()
+	{
+		Name = TEXT("AttributeName");
+		BoneName = NAME_None;
+		FallbackValue = FQuat::Identity;
+		Value = FQuat::Identity;
+		bWasFound = false;
+		CachedBoneName = NAME_None;
+		CachedBoneIndex = 0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FName Name;
+	
+	UPROPERTY(meta=(Input, CustomWidget="BoneName"))
+	FName BoneName;
+
+	UPROPERTY(meta=(Input))
+	FQuat FallbackValue;
+	
+	UPROPERTY(meta=(Output))
+	FQuat Value;
+
+	UPROPERTY(meta=(Output))
+	bool bWasFound;
+
+	UPROPERTY()
+	FName CachedBoneName;
+	
+	UPROPERTY()
+	int32 CachedBoneIndex;
+};
