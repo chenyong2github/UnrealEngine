@@ -1564,21 +1564,25 @@ namespace UnrealGameSync
 				// Run one worker on the current thread
 				await StaticSyncWorker(1, Perforce, Context, State, SyncOutput, LogWrapper, CancellationToken);
 
+				// Allow the tasks to throw
+				foreach (Task ChildTask in ChildTasks)
+				{
+					await ChildTask;
+				}
+
 				// Return the result that was set on the state object
 				return (State.Result, State.StatusMessage);
 			}
 			finally
 			{
-				await Task.WhenAll(ChildTasks);
+				foreach (Task ChildTask in ChildTasks)
+				{
+					await ChildTask.ContinueWith(_ => { }); // Swallow exceptions until we've disposed the connections
+				}
 
 				foreach (IPerforceConnection ChildConnection in ChildConnections)
 				{
 					ChildConnection.Dispose();
-				}
-
-				foreach (Task ChildTask in ChildTasks)
-				{
-					await ChildTask;
 				}
 			}
 		}
