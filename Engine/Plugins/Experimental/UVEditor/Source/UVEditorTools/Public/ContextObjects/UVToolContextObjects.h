@@ -119,6 +119,22 @@ public:
 		}
 	}
 
+	virtual void OnToolEnded(UInteractiveTool* DeadTool) override;
+
+	/**
+	 * Broadcast by the 3D live preview viewport on Render() so that mechanics/tools can
+	 * render there.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRender, IToolsContextRenderAPI* RenderAPI);
+	FOnRender OnRender;
+
+	/**
+	 * Broadcast by the 3D live preview viewport on DrawHUD() so that mechanics/tools can
+	 * draw there.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDrawHUD, FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+	FOnDrawHUD OnDrawHUD;
+
 protected:
 	UPROPERTY()
 	TWeakObjectPtr<UWorld> World;

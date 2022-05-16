@@ -410,6 +410,14 @@ void UUVToolSelectionAPI::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* Rende
 		SelectionMechanic->DrawHUD(Canvas, RenderAPI);
 	}
 }
+void UUVToolSelectionAPI::LivePreviewRender(IToolsContextRenderAPI* RenderAPI)
+{
+	//TODO: here we'd route the render call to whatever mechanic is dealing with selection in live preview
+}
+void UUVToolSelectionAPI::LivePreviewDrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	//TODO: here we'd route the DrawHUD call to whatever mechanic is dealing with selection in live preview
+}
 
 void UUVToolSelectionAPI::BeginChange()
 {

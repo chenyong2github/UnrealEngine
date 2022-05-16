@@ -14,6 +14,7 @@
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 class FAssetEditorModeManager;
+class UEditorInteractiveToolsContext;
 class FEditorViewportClient;
 class FToolCommandChange;
 class UContextObjectStore;
@@ -330,6 +331,9 @@ protected:
 	// Here largely for convenience to avoid having to pass it around functions.
 	UPROPERTY()
 	TObjectPtr<UWorld> LivePreviewWorld = nullptr;
+
+	// Used to forward Render/DrawHUD calls in the live preview to the api object.
+	TWeakObjectPtr<UEditorInteractiveToolsContext> LivePreviewITC;
 
 	UPROPERTY()
 	TObjectPtr<UUVToolSelectionAPI> SelectionAPI = nullptr;

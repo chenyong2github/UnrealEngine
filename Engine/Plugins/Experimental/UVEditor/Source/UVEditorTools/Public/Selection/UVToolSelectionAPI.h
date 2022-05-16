@@ -274,6 +274,10 @@ public:
 	// Called by the owner of the API
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+	// Could have had the api place these into the LivePreviewAPI delegates, but decided against
+	// it to align with Render() and DrawHUD() above. The owner will just call these directly.
+	virtual void LivePreviewRender(IToolsContextRenderAPI* RenderAPI);
+	virtual void LivePreviewDrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
 	// UUVToolContextObject
 	virtual void Shutdown() override;

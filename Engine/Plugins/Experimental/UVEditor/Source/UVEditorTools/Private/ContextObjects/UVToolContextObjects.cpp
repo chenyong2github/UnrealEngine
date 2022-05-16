@@ -84,6 +84,12 @@ void UUVToolLivePreviewAPI::Initialize(UWorld* WorldIn, UInputRouter* RouterIn,
 	GetLivePreviewCameraStateFunc = MoveTemp(GetLivePreviewCameraStateFuncIn);
 }
 
+void UUVToolLivePreviewAPI::OnToolEnded(UInteractiveTool* DeadTool)
+{
+	OnDrawHUD.RemoveAll(DeadTool);
+	OnRender.RemoveAll(DeadTool);
+}
+
 int32 FUDIMBlock::BlockU() const
 {
 	int32 BlockU, BlockV;

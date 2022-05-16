@@ -15,7 +15,7 @@
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
-#include "EdModeInteractiveToolsContext.h" //ToolsContext
+#include "EdModeInteractiveToolsContext.h" //ToolsContext, EditorInteractiveToolsContext
 #include "EngineAnalytics.h"
 #include "Framework/Commands/UICommandList.h"
 #include "InteractiveTool.h"
@@ -39,6 +39,7 @@
 #include "UVEditorSeamTool.h"
 #include "UVEditorRecomputeUVsTool.h"
 #include "UVSelectTool.h"
+#include "UVEditorInitializationContext.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
 #include "ContextObjects/UVToolContextObjects.h"
@@ -268,6 +269,41 @@ void UUVEditorMode::Enter()
 	// causes those to be called. Instead, we'll hook into the tools context's Render and DrawHUD calls.
 	GetInteractiveToolsContext()->OnRender.AddUObject(this, &UUVEditorMode::Render);
 	GetInteractiveToolsContext()->OnDrawHUD.AddUObject(this, &UUVEditorMode::DrawHUD);
+
+	// We also want the Render and DrawHUD calls from the 3D viewport
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	UUVEditorInitializationContext* InitContext = ContextStore->FindContext<UUVEditorInitializationContext>();
+	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
+	if (ensure(InitContext && InitContext->LivePreviewITC.IsValid() && LivePreviewAPI))
+	{
+		LivePreviewITC = InitContext->LivePreviewITC;
+		LivePreviewITC->OnRender.AddWeakLambda(this, [this, LivePreviewAPI](IToolsContextRenderAPI* RenderAPI) 
+		{ 
+			if (LivePreviewAPI->IsValidLowLevel())
+			{
+				LivePreviewAPI->OnRender.Broadcast(RenderAPI);
+			}
+
+			// This could have been attached to the LivePreviewAPI delegate the way that tools might do it,
+			// but might as well do the call ourselves. Same for DrawHUD.
+			if (SelectionAPI)
+			{
+				SelectionAPI->LivePreviewRender(RenderAPI);
+			}
+		});
+		LivePreviewITC->OnDrawHUD.AddWeakLambda(this, [this, LivePreviewAPI](FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+		{
+			if (LivePreviewAPI->IsValidLowLevel())
+			{
+				LivePreviewAPI->OnDrawHUD.Broadcast(Canvas, RenderAPI);
+			}
+
+			if (SelectionAPI)
+			{
+				SelectionAPI->LivePreviewDrawHUD(Canvas, RenderAPI);
+			}
+		});
+	}
 
 	InitializeModeContexts();
 	InitializeTargets();
@@ -688,6 +724,11 @@ void UUVEditorMode::Exit()
 
 	GetInteractiveToolsContext()->OnRender.RemoveAll(this);
 	GetInteractiveToolsContext()->OnDrawHUD.RemoveAll(this);
+	if (LivePreviewITC.IsValid())
+	{
+		LivePreviewITC->OnRender.RemoveAll(this);
+		LivePreviewITC->OnDrawHUD.RemoveAll(this);
+	}
 
 	Super::Exit();
 }
@@ -718,6 +759,14 @@ void UUVEditorMode::InitializeAssetEditorContexts(UContextObjectStore& ContextSt
 				GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut);
 			});
 		ContextStore.AddContextObject(LivePreviewAPI);
+	}
+
+	// Prep the editor-only context that we use to pass things to the mode.
+	if (!ContextStore.FindContext<UUVEditorInitializationContext>())
+	{
+		UUVEditorInitializationContext* InitContext = NewObject<UUVEditorInitializationContext>();
+		InitContext->LivePreviewITC = Cast<UEditorInteractiveToolsContext>(LivePreviewModeManager.GetInteractiveToolsContext());
+		ContextStore.AddContextObject(InitContext);
 	}
 
 	if (!ContextStore.FindContext<UUVToolViewportButtonsAPI>())
