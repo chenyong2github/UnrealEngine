@@ -166,7 +166,7 @@ public:
 		if (!IS_DEDICATED_SERVER)
 		{
 			// just use the standard texture format name for this texture (with DX11 support)
-			GetAllDefaultTextureFormats(this, OutFormats, true);
+			GetAllDefaultTextureFormats(this, OutFormats);
 		}
 	}
 
