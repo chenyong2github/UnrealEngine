@@ -43,6 +43,8 @@ public:
 	virtual void ReconstructNode() override;
 	virtual FLinearColor GetNodeTitleColor() const;
 	virtual void PostPasteNode() override;
+	virtual FText GetTooltipText() const override;
+	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }

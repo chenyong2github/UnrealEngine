@@ -4,6 +4,9 @@
 
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGNode.h"
+#include "PCGPin.h"
+
+#include "SGraphPin.h"
 
 void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode)
 {
@@ -22,12 +25,32 @@ void SPCGEditorGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFil
 {
 	SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 
+	check(PCGEditorGraphNode);
 	if (UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode())
 	{
 		PCGNode->Modify();
 		PCGNode->PositionX = PCGEditorGraphNode->NodePosX;
 		PCGNode->PositionY = PCGEditorGraphNode->NodePosY;
 	}
+}
+
+void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
+{
+	check(PCGEditorGraphNode);
+	UPCGNode* PCGNode = PCGEditorGraphNode ? PCGEditorGraphNode->GetPCGNode() : nullptr;
+	// Implementation note: we do not distinguish single/multiple pins on the output since that is not relevant
+	if (PCGNode && PinToAdd->GetPinObj())
+	{
+		if (UPCGPin* Pin = PCGNode->GetInputPin(PinToAdd->GetPinObj()->PinName))
+		{
+			if (Pin->Properties.bAllowMultipleConnections)
+			{
+				PinToAdd->SetCustomPinIcon(FAppStyle::GetBrush("Graph.ArrayPin.Connected"), FAppStyle::GetBrush("Graph.ArrayPin.Disconnected"));
+			}
+		}
+	}
+
+	SGraphNode::AddPin(PinToAdd);
 }
 
 void SPCGEditorGraphNode::OnNodeChanged()

@@ -337,4 +337,73 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 	return EdPinType;
 }
 
+FText UPCGEditorGraphNodeBase::GetTooltipText() const
+{
+	return FText::Format(LOCTEXT("NodeTooltip", "{0}\n{1} - Node index {2}"),
+		GetNodeTitle(ENodeTitleType::FullTitle),
+		PCGNode ? FText::FromName(PCGNode->GetFName()) :FText(LOCTEXT("InvalidNodeName", "Unbound node")),
+		PCGNode ? FText::AsNumber(PCGNode->GetGraph()->GetNodes().IndexOfByKey(PCGNode)) : FText(LOCTEXT("InvalidNodeIndex", "Invalid index")));
+}
+
+void UPCGEditorGraphNodeBase::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
+{
+	const bool bIsInputPin = (Pin.Direction == EGPD_Input);
+	UPCGPin* MatchingPin = (PCGNode ? (bIsInputPin ? PCGNode->GetInputPin(Pin.PinName) : PCGNode->GetOutputPin(Pin.PinName)) : nullptr);
+
+	auto PCGDataTypeToText = [](EPCGDataType DataType)
+	{
+		TArray<FText> BitFlags;
+
+		for (uint64 BitIndex = 1; BitIndex < 8 * sizeof(EPCGDataType); ++BitIndex)
+		{
+			const int64 BitValue = static_cast<__underlying_type(EPCGDataType)>(DataType) & (1 << BitIndex);
+			if (BitValue)
+			{
+				BitFlags.Add(StaticEnum<EPCGDataType>()->GetDisplayNameTextByValue(BitValue));
+			}
+		}
+
+		return FText::Join(FText(LOCTEXT("Delimiter", " | ")), BitFlags);
+	};
+
+	auto PinTypeToText = [&PCGDataTypeToText](const FName& Category, UPCGPin* MatchingPin)
+	{
+		if (Category != NAME_None)
+		{
+			return FText::FromName(Category);
+		}
+		else if (MatchingPin && MatchingPin->Properties.AllowedTypes == EPCGDataType::Any)
+		{
+			return FText::FromName(FName("Any"));
+		}
+		else if (MatchingPin)
+		{
+			return PCGDataTypeToText(MatchingPin->Properties.AllowedTypes);
+		}
+		else
+		{
+			return FText(LOCTEXT("Unknown data type", "Unknown data type"));
+		}
+	};
+
+	const FText DataTypeText = PinTypeToText(Pin.PinType.PinCategory, MatchingPin);
+	const FText DataSubtypeText = PinTypeToText(Pin.PinType.PinSubCategory, MatchingPin);
+
+	if (MatchingPin != nullptr && bIsInputPin)
+	{
+		const FText AdditionalInfo = MatchingPin->Properties.bAllowMultipleConnections ? FText(LOCTEXT("SupportsMultiInput", "Supports multiple inputs")) : FText(LOCTEXT("SingleInputOnly", "Supports only one input"));
+
+		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipFull", "Type: {0}\nSubtype: {1}\nAdditional information: {2}"),
+			DataTypeText,
+			DataSubtypeText,
+			AdditionalInfo).ToString();
+	}
+	else
+	{
+		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipFull", "Type: {0}\nSubtype: {1}"),
+			DataTypeText,
+			DataSubtypeText).ToString();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
