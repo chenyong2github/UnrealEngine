@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
@@ -18,7 +19,7 @@ namespace Horde.Agent.Parser
 	/// <summary>
 	/// Class to handle uploading log data to the server in the background
 	/// </summary>
-	class JsonRpcLogger : JsonLogger, IAsyncDisposable
+	class JsonRpcLogger : ILogger, IAsyncDisposable
 	{
 		class QueueItem
 		{
@@ -42,6 +43,8 @@ namespace Horde.Agent.Parser
 		readonly string? _jobId;
 		readonly string? _jobBatchId;
 		readonly string? _jobStepId;
+		readonly bool _warnings;
+		readonly ILogger _inner;
 		readonly Channel<QueueItem> _dataChannel;
 		Task? _dataWriter;
 
@@ -65,19 +68,39 @@ namespace Horde.Agent.Parser
 		/// <param name="warnings">Whether to include warnings in the output</param>
 		/// <param name="inner">Additional logger to write to</param>
 		public JsonRpcLogger(IRpcConnection rpcClient, string logId, string? jobId, string? jobBatchId, string? jobStepId, bool? warnings, ILogger inner)
-			: base(warnings, inner)
 		{
 			_rpcClient = rpcClient;
 			_logId = logId;
 			_jobId = jobId;
 			_jobBatchId = jobBatchId;
 			_jobStepId = jobStepId;
+			_warnings = warnings ?? true;
+			_inner = inner;
 			_dataChannel = Channel.CreateUnbounded<QueueItem>();
 			_dataWriter = Task.Run(() => RunDataWriter());
 			Outcome = JobStepOutcome.Success;
 		}
 
-		protected override void WriteFormattedEvent(LogLevel level, int lineIndex, int lineCount, byte[] line)
+		/// <inheritdoc/>
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception?, string> formatter)
+		{
+			// Downgrade warnings to information if not required
+			if (logLevel == LogLevel.Warning && !_warnings)
+			{
+				logLevel = LogLevel.Information;
+			}
+
+			LogEvent logEvent = LogEvent.FromState(logLevel, eventId, state, exception, formatter);
+			WriteFormattedEvent(logLevel, logEvent.ToJsonBytes());
+		}
+
+		/// <inheritdoc/>
+		public bool IsEnabled(LogLevel logLevel) => _inner.IsEnabled(logLevel);
+
+		/// <inheritdoc/>
+		public IDisposable BeginScope<TState>(TState state) => _inner.BeginScope(state);
+
+		protected void WriteFormattedEvent(LogLevel level, byte[] line)
 		{
 			// Update the state of this job if this is an error status
 			if (level == LogLevel.Error || level == LogLevel.Critical)
@@ -91,9 +114,10 @@ namespace Horde.Agent.Parser
 
 			// If we want an event for this log event, create one now
 			CreateEventRequest? eventRequest = null;
-			if (lineIndex == 0)
+			if (level == LogLevel.Warning || level == LogLevel.Error || level == LogLevel.Critical)
 			{
-				if (level == LogLevel.Warning || level == LogLevel.Error || level == LogLevel.Critical)
+				int lineCount = GetEventLineCount(line);
+				if (lineCount > 0)
 				{
 					eventRequest = CreateEvent(level, lineCount);
 				}
@@ -107,29 +131,29 @@ namespace Horde.Agent.Parser
 			}
 		}
 
-		/// <summary>
-		/// Callback to write a systemic event
-		/// </summary>
-		/// <param name="eventId">The event id</param>
-		/// <param name="text">The event text</param>
-		protected override void WriteSystemicEvent(EventId eventId, string text)
+		static int GetEventLineCount(byte[] line)
 		{
-			if (_jobId == null)
+			Utf8JsonReader reader = new Utf8JsonReader(line);
+			if(!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
 			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId}: {Text}", eventId.Id, text);
+				return 0;
 			}
-			else if (_jobBatchId == null)
+
+			int lineCount = 1;
+			while(reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
 			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job {JobId}): {Text})", eventId.Id, _jobId, text);
+				if(reader.ValueTextEquals(LogEventPropertyName.Line) && reader.TryGetInt32(out int lineIndex) && lineIndex > 0)
+				{
+					return 0;
+				}
+				else if(reader.ValueTextEquals(LogEventPropertyName.LineCount) && reader.TryGetInt32(out int lineCountValue))
+				{
+					lineCount = lineCountValue;
+				}
+				reader.Skip();
 			}
-			else if (_jobStepId == null)
-			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job batch {JobId}:{BatchId}): {Text})", eventId.Id, _jobId, _jobStepId, text);
-			}
-			else
-			{
-				Inner.LogWarning("Systemic event {KnownLogEventId} in log {LogId} (job step {JobId}:{BatchId}:{StepId}): {Text}", eventId.Id, _logId, _jobId, _jobBatchId, _jobStepId, text);
-			}
+
+			return lineCount;
 		}
 
 		/// <summary>
@@ -246,7 +270,7 @@ namespace Horde.Agent.Parser
 					}
 					catch (Exception ex)
 					{
-						Inner.LogWarning(ex, "Unable to write data to server (log {LogId}, offset {Offset})", _logId, offset);
+						_inner.LogWarning(ex, "Unable to write data to server (log {LogId}, offset {Offset})", _logId, offset);
 					}
 					offset += data.Length;
 				}
@@ -260,7 +284,7 @@ namespace Horde.Agent.Parser
 					}
 					catch (Exception ex)
 					{
-						Inner.LogWarning(ex, "Unable to create events");
+						_inner.LogWarning(ex, "Unable to create events");
 					}
 				}
 
@@ -273,7 +297,7 @@ namespace Horde.Agent.Parser
 					}
 					catch (Exception ex)
 					{
-						Inner.LogWarning(ex, "Unable to update step outcome to {NewOutcome}", Outcome);
+						_inner.LogWarning(ex, "Unable to update step outcome to {NewOutcome}", Outcome);
 					}
 					postedOutcome = Outcome;
 				}
@@ -287,7 +311,7 @@ namespace Horde.Agent.Parser
 					}
 					catch (Exception ex)
 					{
-						Inner.LogWarning(ex, "Unable to flush data to server (log {LogId}, offset {Offset})", _logId, offset);
+						_inner.LogWarning(ex, "Unable to flush data to server (log {LogId}, offset {Offset})", _logId, offset);
 					}
 					break;
 				}

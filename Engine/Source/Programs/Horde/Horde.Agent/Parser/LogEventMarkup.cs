@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
 
 namespace Horde.Agent.Parser
 {
@@ -13,6 +13,9 @@ namespace Horde.Agent.Parser
 	/// </summary>
 	static class LogEventMarkup
 	{
+		public static readonly Utf8String Asset = new Utf8String("Asset");
+		public static readonly Utf8String SourceFile = new Utf8String("SourceFile");
+
 		public static LogValue Channel => new LogValue("Channel", "");
 		public static LogValue Severity => new LogValue("Severity", "");
 		public static LogValue Message => new LogValue("Message", "");
@@ -26,45 +29,27 @@ namespace Horde.Agent.Parser
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
-		public static void AnnotateSourceFile(this LogEventBuilder builder, Group group, ILogContext context, string baseDir)
+		public static void AnnotateSourceFile(this LogEventBuilder builder, Group group, string? baseDir)
 		{
-			LogValue? value = null;
-			if (context.WorkspaceDir != null && context.PerforceStream != null && context.PerforceChange != null)
+			Dictionary<Utf8String, object>? properties = null;
+			if (!String.IsNullOrEmpty(baseDir))
 			{
-				FileReference location = FileReference.Combine(context.WorkspaceDir, baseDir.Replace('\\', Path.DirectorySeparatorChar), group.Value.Replace('\\', Path.DirectorySeparatorChar));
-				if (location.IsUnderDirectory(context.WorkspaceDir) && !location.ContainsName("Intermediate", context.WorkspaceDir))
+				string file = group.Value;
+				if (!Path.IsPathRooted(file))
 				{
-					string relativePath = location.MakeRelativeTo(context.WorkspaceDir).Replace('\\', '/');
-					string depotPath = $"{context.PerforceStream.TrimEnd('/')}/{relativePath.Replace(Path.DirectorySeparatorChar, '/')}@{context.PerforceChange.Value}";
-
-					Dictionary<string, object> properties = new Dictionary<string, object>();
-					properties["relativePath"] = relativePath;
-					properties["depotPath"] = depotPath;
-					value = new LogValue("SourceFile", "", properties);
+					properties = new Dictionary<Utf8String, object>();
+					properties["file"] = Path.Combine(baseDir, file);
 				}
 			}
-			builder.Annotate(group, value);
+			builder.Annotate(group, new LogValue(SourceFile, group.Value, properties));
 		}
 
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
-		public static void AnnotateAsset(this LogEventBuilder builder, Group group, ILogContext context)
+		public static void AnnotateAsset(this LogEventBuilder builder, Group group)
 		{
-			if (context.WorkspaceDir != null && context.PerforceStream != null && context.PerforceChange != null)
-			{
-				FileReference location = FileReference.Combine(DirectoryReference.Combine(context.WorkspaceDir, "Engine", "Binaries", "Win64"), group.Value);
-				if (location.IsUnderDirectory(context.WorkspaceDir) && !location.ContainsName("Intermediate", context.WorkspaceDir))
-				{
-					string relativePath = location.MakeRelativeTo(context.WorkspaceDir).Replace('\\', '/');
-					string depotPath = $"{context.PerforceStream.TrimEnd('/')}/{relativePath.Replace(Path.DirectorySeparatorChar, '/')}@{context.PerforceChange.Value}";
-
-					Dictionary<string, object> properties = new Dictionary<string, object>();
-					properties["relativePath"] = relativePath;
-					properties["depotPath"] = depotPath;
-					builder.Annotate(group, new LogValue("Asset", "", properties));
-				}
-			}
+			builder.Annotate(group, new LogValue(Asset, group.Value));
 		}
 
 		/// <summary>
@@ -84,7 +69,7 @@ namespace Horde.Agent.Parser
 			identifier = Regex.Replace(identifier, "^.* ", "");
 
 			// Add it to the list
-			Dictionary<string, object> properties = new Dictionary<string, object>();
+			Dictionary<Utf8String, object> properties = new Dictionary<Utf8String, object>();
 			properties["identifier"] = identifier;
 			builder.Annotate(group, new LogValue("symbol", "", properties));
 		}

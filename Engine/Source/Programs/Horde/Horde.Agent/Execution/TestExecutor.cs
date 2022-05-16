@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Perforce;
 using Horde.Agent.Parser;
 using Horde.Agent.Utility;
 using HordeCommon;
@@ -146,12 +147,11 @@ namespace Horde.Agent.Execution
 				logger.LogInformation("Credential: {CredentialName}={CredentialValue}", credential.Key, credential.Value);
 			}
 
-			LogParserContext context = new LogParserContext();
-			context.WorkspaceDir = new DirectoryReference("D:\\Test");
-			context.PerforceStream = "//UE4/Main";
-			context.PerforceChange = 12345;
-
-			using (LogParser filter = new LogParser(logger, context, new List<string>()))
+			PerforceViewMap viewMap = new PerforceViewMap();
+			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
+			
+			JsonPerforceLogger perforceLogger = new JsonPerforceLogger(logger, new DirectoryReference("D:\\Test"), viewMap, 12345);
+			using (LogParser filter = new LogParser(perforceLogger, new List<string>()))
 			{
 				if(outcome == JobStepOutcome.Warnings)
 				{

@@ -335,6 +335,12 @@ namespace EpicGames.Core
 		{
 			return new Utf8String(new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(text)));
 		}
+
+		/// <summary>
+		/// Implict conversion to a span of bytes
+		/// </summary>
+		/// <param name="str"></param>
+		public static implicit operator ReadOnlySpan<byte>(Utf8String str) => str.Span;
 	}
 
 	/// <summary>

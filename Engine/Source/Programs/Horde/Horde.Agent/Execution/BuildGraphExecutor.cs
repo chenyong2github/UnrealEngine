@@ -13,6 +13,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Perforce;
 using Grpc.Core;
 using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Parser;
@@ -809,16 +810,16 @@ namespace Horde.Agent.Execution
 			{
 				FileUtils.ForceDeleteDirectoryContents(telemetryDir);
 			}
-			
-			LogParserContext context = new LogParserContext();
-			context.WorkspaceDir = workspaceDir;
-			context.PerforceStream = _stream.Name;
-			context.PerforceChange = _job.Change;
+
+			PerforceViewMap viewMap = new PerforceViewMap();
+			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", $"{_stream.Name}/..."));
+
+			PerforceLogger perforceLogger = new PerforceLogger(logger, workspaceDir, viewMap, _job.Change);
 
 			List<string> ignorePatterns = await ReadIgnorePatternsAsync(workspaceDir, logger);
 
 			int exitCode;
-			using (LogParser filter = new LogParser(logger, context, ignorePatterns))
+			using (LogParser filter = new LogParser(perforceLogger, ignorePatterns))
 			{
 				await ExecuteCleanupScriptAsync(cleanupScript, filter, logger);
 				try

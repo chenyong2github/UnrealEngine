@@ -14,6 +14,29 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.Core
 {
 	/// <summary>
+	/// Static read-only utf8 strings for parsing log events
+	/// </summary>
+	public static class LogEventPropertyName
+	{
+		public static readonly Utf8String Time = new Utf8String("time");
+		public static readonly Utf8String Level = new Utf8String("level");
+		public static readonly Utf8String Id = new Utf8String("id");
+		public static readonly Utf8String Line = new Utf8String("line");
+		public static readonly Utf8String LineCount = new Utf8String("lineCount");
+		public static readonly Utf8String Message = new Utf8String("message");
+		public static readonly Utf8String Format = new Utf8String("format");
+		public static readonly Utf8String Properties = new Utf8String("properties");
+
+		public static readonly Utf8String Type = new Utf8String("$type");
+		public static readonly Utf8String Text = new Utf8String("$text");
+
+		public static readonly Utf8String Exception = new Utf8String("exception");
+		public static readonly Utf8String Trace = new Utf8String("trace");
+		public static readonly Utf8String InnerException = new Utf8String("innerException");
+		public static readonly Utf8String InnerExceptions = new Utf8String("innerExceptions");
+	}
+
+	/// <summary>
 	/// Epic representation of a log event. Can be serialized to/from Json for the Horde dashboard, and passed directly through ILogger interfaces.
 	/// </summary>
 	[JsonConverter(typeof(LogEventConverter))]
@@ -23,26 +46,6 @@ namespace EpicGames.Core
 		{
 			public static string LineIndex = "$line";
 			public static string LineCount = "$lineCount";
-		}
-
-		static class JsonPropertyNames
-		{
-			public static Utf8String Time { get; } = new Utf8String("time");
-			public static Utf8String Level { get; } = new Utf8String("level");
-			public static Utf8String Id { get; } = new Utf8String("id");
-			public static Utf8String Line { get; } = new Utf8String("line");
-			public static Utf8String LineCount { get; } = new Utf8String("lineCount");
-			public static Utf8String Message { get; } = new Utf8String("message");
-			public static Utf8String Format { get; } = new Utf8String("format");
-			public static Utf8String Properties { get; } = new Utf8String("properties");
-
-			public static Utf8String Type { get; } = new Utf8String("$type");
-			public static Utf8String Text { get; } = new Utf8String("$text");
-
-			public static Utf8String Exception { get; } = new Utf8String("exception");
-			public static Utf8String Trace { get; } = new Utf8String("trace");
-			public static Utf8String InnerException { get; } = new Utf8String("innerException");
-			public static Utf8String InnerExceptions { get; } = new Utf8String("innerExceptions");
 		}
 
 		/// <summary>
@@ -146,35 +149,35 @@ namespace EpicGames.Core
 			ReadOnlySpan<byte> propertyName;
 			for (; JsonExtensions.TryReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 			{
-				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Time.Span))
+				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Time.Span))
 				{
 					time = reader.GetDateTime();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Level.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Level.Span))
 				{
 					level = Enum.Parse<LogLevel>(reader.GetString());
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Id.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Id.Span))
 				{
 					eventId = reader.GetInt32();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Line.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Line.Span))
 				{
 					line = reader.GetInt32();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.LineCount.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.LineCount.Span))
 				{
 					lineCount = reader.GetInt32();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Message.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Message.Span))
 				{
 					message = reader.GetString();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Format.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Format.Span))
 				{
 					format = reader.GetString();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Properties.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Properties.Span))
 				{
 					properties = ReadProperties(ref reader);
 				}
@@ -221,23 +224,23 @@ namespace EpicGames.Core
 		{
 			string type = String.Empty;
 			string text = String.Empty;
-			Dictionary<string, object>? properties = null;
+			Dictionary<Utf8String, object>? properties = null;
 
 			ReadOnlySpan<byte> propertyName;
 			for (; JsonExtensions.TryReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 			{
-				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Type.Span))
+				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Type.Span))
 				{
 					type = reader.GetString();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Text.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Text.Span))
 				{
 					text = reader.GetString();
 				}
 				else
 				{
-					properties ??= new Dictionary<string, object>();
-					properties.Add(Encoding.UTF8.GetString(propertyName), ReadPropertyValue(ref reader));
+					properties ??= new Dictionary<Utf8String, object>();
+					properties.Add(new Utf8String(propertyName.ToArray()), ReadPropertyValue(ref reader));
 				}
 			}
 
@@ -251,33 +254,33 @@ namespace EpicGames.Core
 		public void Write(Utf8JsonWriter writer)
 		{
 			writer.WriteStartObject();
-			writer.WriteString(JsonPropertyNames.Time.Span, Time.ToString("s", CultureInfo.InvariantCulture));
-			writer.WriteString(JsonPropertyNames.Level.Span, Level.ToString());
-			writer.WriteString(JsonPropertyNames.Message.Span, Message);
+			writer.WriteString(LogEventPropertyName.Time.Span, Time.ToString("s", CultureInfo.InvariantCulture));
+			writer.WriteString(LogEventPropertyName.Level.Span, Level.ToString());
+			writer.WriteString(LogEventPropertyName.Message.Span, Message);
 
 			if (Id.Id != 0)
 			{
-				writer.WriteNumber(JsonPropertyNames.Id.Span, Id.Id);
+				writer.WriteNumber(LogEventPropertyName.Id.Span, Id.Id);
 			}
 
 			if (LineIndex > 0)
 			{
-				writer.WriteNumber(JsonPropertyNames.Line.Span, LineIndex);
+				writer.WriteNumber(LogEventPropertyName.Line.Span, LineIndex);
 			}
 
 			if (LineCount > 1)
 			{
-				writer.WriteNumber(JsonPropertyNames.LineCount.Span, LineCount);
+				writer.WriteNumber(LogEventPropertyName.LineCount.Span, LineCount);
 			}
 
 			if (Format != null)
 			{
-				writer.WriteString(JsonPropertyNames.Format.Span, Format);
+				writer.WriteString(LogEventPropertyName.Format.Span, Format);
 			}
 
 			if (Properties != null && Properties.Any())
 			{
-				writer.WriteStartObject(JsonPropertyNames.Properties.Span);
+				writer.WriteStartObject(LogEventPropertyName.Properties.Span);
 				foreach ((string name, object? value) in Properties!)
 				{
 					writer.WritePropertyName(name);
@@ -288,7 +291,7 @@ namespace EpicGames.Core
 
 			if (Exception != null)
 			{
-				writer.WriteStartObject(JsonPropertyNames.Exception.Span);
+				writer.WriteStartObject(LogEventPropertyName.Exception.Span);
 				WriteException(ref writer, Exception);
 				writer.WriteEndObject();
 			}
@@ -323,11 +326,11 @@ namespace EpicGames.Core
 		static void WriteStructuredPropertyValue(ref Utf8JsonWriter writer, LogValue value)
 		{
 			writer.WriteStartObject();
-			writer.WriteString(JsonPropertyNames.Type.Span, value.Type);
-			writer.WriteString(JsonPropertyNames.Text.Span, value.Text);
+			writer.WriteString(LogEventPropertyName.Type.Span, value.Type);
+			writer.WriteString(LogEventPropertyName.Text.Span, value.Text);
 			if (value.Properties != null)
 			{
-				foreach ((string propertyName, object? propertyValue) in value.Properties)
+				foreach ((Utf8String propertyName, object? propertyValue) in value.Properties)
 				{
 					writer.WritePropertyName(propertyName);
 					WritePropertyValue(ref writer, propertyValue);
@@ -546,7 +549,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Type of the event
 		/// </summary>
-		public string Type { get; set; }
+		public Utf8String Type { get; set; }
 
 		/// <summary>
 		/// Rendering of the value
@@ -556,7 +559,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Properties associated with the value
 		/// </summary>
-		public Dictionary<string, object>? Properties { get; }
+		public Dictionary<Utf8String, object>? Properties { get; }
 
 		/// <summary>
 		/// Constructor
@@ -564,7 +567,7 @@ namespace EpicGames.Core
 		/// <param name="type">Type of the value</param>
 		/// <param name="text">Rendering of the value as text</param>
 		/// <param name="properties">Additional properties for this value</param>
-		public LogValue(string type, string text, Dictionary<string, object>? properties = null)
+		public LogValue(Utf8String type, string text, Dictionary<Utf8String, object>? properties = null)
 		{
 			Type = type;
 			Text = text;

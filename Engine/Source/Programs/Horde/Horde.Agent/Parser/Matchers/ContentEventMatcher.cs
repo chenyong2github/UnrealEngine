@@ -3,7 +3,6 @@
 using System;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser.Matchers
@@ -21,13 +20,6 @@ namespace Horde.Agent.Parser.Matchers
 			@"(?<asset>(?:[a-zA-Z]:)?[^:]+(?:.uasset|.umap)):\s*" + 
 			@"(?<message>.*)";
 
-		private readonly ILogContext _context;
-
-		public ContentEventMatcher(ILogContext context)
-		{
-			_context = context;
-		}
-
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
 		{
@@ -42,7 +34,7 @@ namespace Horde.Agent.Parser.Matchers
 
 					builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
 					builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
-					builder.AnnotateAsset(match.Groups["asset"], _context);
+					builder.AnnotateAsset(match.Groups["asset"]);
 					builder.Annotate(match.Groups["message"], LogEventMarkup.Message);
 
 					return builder.ToMatch(LogEventPriority.AboveNormal, GetLogLevelFromSeverity(match), KnownLogEvents.Engine_AssetLog);

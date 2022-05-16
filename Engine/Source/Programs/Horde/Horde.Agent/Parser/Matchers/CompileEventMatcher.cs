@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser.Matchers
@@ -53,13 +52,6 @@ namespace Horde.Agent.Parser.Matchers
 		};
 
 		const string DefaultSourceFileBaseDir = "Engine/Source";
-
-		private readonly ILogContext _context;
-
-		public CompileEventMatcher(ILogContext context)
-		{
-			_context = context;
-		}
 
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
@@ -115,7 +107,7 @@ namespace Horde.Agent.Parser.Matchers
 				{
 					LogLevel level = GetLogLevelFromSeverity(match);
 
-					builder.AnnotateSourceFile(match.Groups["file"], _context, "Engine/Source");
+					builder.AnnotateSourceFile(match.Groups["file"], "Engine/Source");
 					builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 					builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 					builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
@@ -129,7 +121,7 @@ namespace Horde.Agent.Parser.Matchers
 						Group fileGroup = match.Groups["file"];
 						if (fileGroup.Success)
 						{
-							builder.AnnotateSourceFile(fileGroup, _context, DefaultSourceFileBaseDir);
+							builder.AnnotateSourceFile(fileGroup, DefaultSourceFileBaseDir);
 							builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 						}
 					}
@@ -164,7 +156,7 @@ namespace Horde.Agent.Parser.Matchers
 					Match? projectMatch;
 					if (builder.Current.TryMatch(@"\[(?<project>[^[\]]+)]\s*$", out projectMatch))
 					{
-						builder.AnnotateSourceFile(projectMatch.Groups[1], _context, "");
+						builder.AnnotateSourceFile(projectMatch.Groups[1], "");
 						sourceFileBaseDir = GetPlatformAgnosticDirectoryName(projectMatch.Groups[1].Value) ?? sourceFileBaseDir;
 					}
 				}
@@ -179,14 +171,14 @@ namespace Horde.Agent.Parser.Matchers
 					Match? projectMatch;
 					if (builder.Current.TryMatch(@"\[(?<file>[^[\]]+)]\s*$", out projectMatch))
 					{
-						builder.AnnotateSourceFile(projectMatch.Groups[1], _context, "");
+						builder.AnnotateSourceFile(projectMatch.Groups[1], "");
 						outEvent = builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.MSBuild);
 						return true;
 					}
 				}
 			}
 
-			builder.AnnotateSourceFile(match.Groups["file"], _context, sourceFileBaseDir);
+			builder.AnnotateSourceFile(match.Groups["file"], sourceFileBaseDir);
 			builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 			builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
 
@@ -199,7 +191,7 @@ namespace Horde.Agent.Parser.Matchers
 				Group group = match.Groups["file"];
 				if (group.Success)
 				{
-					builder.AnnotateSourceFile(group, _context, DefaultSourceFileBaseDir);
+					builder.AnnotateSourceFile(group, DefaultSourceFileBaseDir);
 					builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 					builder.AddProperty("note", true);
 				}

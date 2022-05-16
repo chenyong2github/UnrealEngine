@@ -2,7 +2,6 @@
 
 using System.Text.RegularExpressions;
 using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser.Matchers
@@ -12,13 +11,6 @@ namespace Horde.Agent.Parser.Matchers
 	/// </summary>
 	class MicrosoftEventMatcher : ILogEventMatcher
 	{
-		private readonly ILogContext _context;
-
-		public MicrosoftEventMatcher(ILogContext context)
-		{
-			_context = context;
-		}
-
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			// filename(line# [, column#]) | toolname} : [ any text ] {error | warning} code+number:localizable string [ any text ]
@@ -36,7 +28,7 @@ namespace Horde.Agent.Parser.Matchers
 					Match fileMatch = Regex.Match(fileOrToolMatch.Value, @"^\s*(?<file>.*)\((?<line>\d+)(?:, (?<column>\d+))?\)\s*:$");
 					if (fileMatch.Success)
 					{
-						builder.AnnotateSourceFile(fileMatch.Groups["file"], _context, "");
+						builder.AnnotateSourceFile(fileMatch.Groups["file"], null);
 						builder.Annotate(fileMatch.Groups["line"], LogEventMarkup.LineNumber);
 						builder.TryAnnotate(fileMatch.Groups["column"]);
 					}

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using EpicGames.Core;
+using EpicGames.Perforce;
 using Horde.Agent.Parser;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
@@ -30,32 +31,34 @@ namespace Horde.Agent.Tests
 
 			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception?, string> formatter)
 			{
-				if (state is LogEvent logEvent)
+				LogEvent logEvent = LogEvent.Read(JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter).Data.Span);
+				if (logEvent.Level != LogLevel.Information || logEvent.Id != default || logEvent.Properties != null)
 				{
 					logEvent.Properties ??= new Dictionary<string, object>();
 					logEvent.Properties.Add(LogLine, _logLineIndex);
 					_events.Add(logEvent);
 				}
-				else if(logLevel != LogLevel.Information || eventId.Id != 0)
-				{
-					_events.Add(LogEvent.FromState(logLevel, eventId, state, exception, formatter));
-				}
+
 				_logLineIndex++;
 			}
 		}
 
-		class JsonLoggerImpl : JsonLogger
+		class JsonLoggerImpl : ILogger
 		{
 			public List<LogEvent> _lines = new List<LogEvent>();
 
 			public JsonLoggerImpl(bool? warnings, ILogger inner) 
-				: base(warnings, inner)
 			{
 			}
 
-			protected override void WriteFormattedEvent(LogLevel level, int lineIndex, int lineCount, byte[] line)
+			public IDisposable BeginScope<TState>(TState state) => null!;
+
+			public bool IsEnabled(LogLevel logLevel) => true;
+
+			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception?, string> formatter)
 			{
-				_lines.Add(LogEvent.Read(line));
+				JsonLogEvent logEvent = JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter);
+				_lines.Add(LogEvent.Read(logEvent.Data.Span));
 			}
 		}
 
@@ -78,10 +81,10 @@ namespace Horde.Agent.Tests
 		{
 			string[] lines =
 			{
-				"{\"Timestamp\":\"2021-10-28T09:14:48.8561456-04:00\",\"Level\":\"Information\",\"MessageTemplate\":\"Hello {World}\",\"RenderedMessage\":\"Hello 123\",\"Properties\":{\"World\":123,\"EventId\":{\"Id\":123},\"SourceContext\":\"HordeAgent\",\"dd.env\":\"default\",\"dd.service\":\"hordeagent\",\"dd.version\":\"1.0.0\"}}",
-				"{\"Timestamp\":\"2021-10-28T05:36:08\",\"Level\":\"Information\",\"RenderedMessage\":\"Building 43 projects (see Log \u0027Engine/Programs/AutomationTool/Saved/Logs/Log.txt\u0027 for more details)\"}",
-				"{\"Timestamp\":\"2021-10-28T05:36:08\",\"Level\":\"Warning\",\"RenderedMessage\":\" Restore...\"}",
-				"{\"Timestamp\":\"2021-10-28T05:36:15\",\"Level\":\"Error\",\"RenderedMessage\":\" Build...\"}",
+				new LogEvent(DateTime.UtcNow, LogLevel.Information, new EventId(123), "Hello 123", null, null, null).ToJson(),
+				new LogEvent(DateTime.UtcNow, LogLevel.Information, default, "Building 43 projects (see Log \u0027Engine/Programs/AutomationTool/Saved/Logs/Log.txt\u0027 for more details)", null, null, null).ToJson(),
+				new LogEvent(DateTime.UtcNow, LogLevel.Warning, default, " Restore...", null, null, null).ToJson(),
+				new LogEvent(DateTime.UtcNow, LogLevel.Error, default, " Build...", null, null, null).ToJson(),
 			};
 
 			List<LogEvent> logEvents = Parse(lines);
@@ -414,7 +417,7 @@ namespace Horde.Agent.Tests
 		{
 			string[] lines =
 			{
-				@"LogBlueprint: Warning: [AssetLog] D:\\build\\++UE5\\Sync\\QAGame\\Plugins\\NiagaraFluids\\Content\\Blueprints\\Phsyarum_BP.uasset: [Compiler] Fill Texture 2D : Usage of 'Fill Texture 2D' has been deprecated. This function has been replaced by object user variables on the emitter to specify render targets to fill with data.",
+				@"LogBlueprint: Warning: [AssetLog] D:\build\++UE5\Sync\QAGame\Plugins\NiagaraFluids\Content\Blueprints\Phsyarum_BP.uasset: [Compiler] Fill Texture 2D : Usage of 'Fill Texture 2D' has been deprecated. This function has been replaced by object user variables on the emitter to specify render targets to fill with data.",
 			};
 
 			List<LogEvent> events = Parse(String.Join("\n", lines), new DirectoryReference("D:\\build\\++UE5\\Sync"));
@@ -1048,6 +1051,9 @@ namespace Horde.Agent.Tests
 
 		List<LogEvent> Parse(string text, DirectoryReference workspaceDir)
 		{
+			PerforceViewMap viewMap = new PerforceViewMap();
+			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
+
 			LogParserContext context = new LogParserContext();
 			context.WorkspaceDir = workspaceDir;
 			context.PerforceStream = "//UE4/Main";
@@ -1060,7 +1066,7 @@ namespace Horde.Agent.Tests
 			Random generator = new Random(0);
 
 			LoggerCapture logger = new LoggerCapture();
-			using (LogParser parser = new LogParser(logger, context, ignorePatterns))
+			using (LogParser parser = new LogParser(new JsonPerforceLogger(logger, workspaceDir, viewMap, 12345), context, ignorePatterns))
 			{
 				int pos = 0;
 				while(pos < textBytes.Length)

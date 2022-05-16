@@ -3,7 +3,6 @@
 using System;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
-using Horde.Agent.Parser.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser.Matchers
@@ -29,13 +28,6 @@ namespace Horde.Agent.Parser.Matchers
 		const string LinePattern =
 			@"(?<line>\d+)";
 
-		readonly ILogContext _context;
-
-		public SourceFileLineEventMatcher(ILogContext context)
-		{
-			_context = context;
-		}
-
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
 		{
@@ -46,7 +38,7 @@ namespace Horde.Agent.Parser.Matchers
 
 				LogEventBuilder builder = new LogEventBuilder(input);
 
-				builder.AnnotateSourceFile(match.Groups["file"], _context, "");
+				builder.AnnotateSourceFile(match.Groups["file"], "");
 				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 				builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 
