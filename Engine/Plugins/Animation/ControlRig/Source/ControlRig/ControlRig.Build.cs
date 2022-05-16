@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
                     "LevelSequence",
                     "RigVM",
                     "RHI",
+                    "Constraints"
                 }
             );
 

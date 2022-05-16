@@ -10,6 +10,7 @@
 #include "SRigSpacePickerWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+class SConstraintsEditionWidget;
 class FControlRigEditMode;
 class IDetailsView;
 class ISequencer;
@@ -91,6 +92,9 @@ private:
 	/** Storage for control rigs */
 	TArray<TWeakObjectPtr<UControlRig>> ControlRigs;
 
+	/** Constraint edition widget. */
+	TSharedPtr<SConstraintsEditionWidget> ConstraintsEditionWidget = nullptr; 
+
 	/** Display or edit set up for property */
 	bool ShouldShowPropertyOnDetailCustomization(const struct FPropertyAndParent& InPropertyAndParent) const;
 	bool IsReadOnlyPropertyOnDetailCustomization(const struct FPropertyAndParent& InPropertyAndParent) const;
@@ -107,6 +111,8 @@ private:
 	void HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList);
 	FReply HandleAddSpaceClicked();
 	FReply OnBakeControlsToNewSpaceButtonClicked();
+
+	FReply HandleAddConstraintClicked();
 
 	EVisibility GetRigOptionExpanderVisibility() const;
 

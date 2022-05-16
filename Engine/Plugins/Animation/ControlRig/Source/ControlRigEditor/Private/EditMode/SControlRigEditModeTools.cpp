@@ -38,6 +38,8 @@
 #include "ScopedTransaction.h"
 #include "ControlRigEditModeToolkit.h"
 #include "SControlRigDetails.h"
+#include "Constraints/SConstraintsWidget.h"
+
 #define LOCTEXT_NAMESPACE "ControlRigEditModeTools"
 
 
@@ -320,6 +322,79 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 					.OnBakeButtonClicked(this, &SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked)
 					// todo: implement GetAdditionalSpacesDelegate to pull spaces from sequencer
 				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(PickerExpander, SExpandableArea)
+				.InitiallyCollapsed(true)
+				.AreaTitle(LOCTEXT("ConstraintsWidget", "Constraints"))
+				.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
+				.Padding(FMargin(8.f))
+				.HeaderContent()
+				[
+					SNew(SHorizontalBox)
+
+					// "Constraints" label
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(0.f, 0.f, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ConstraintsWidget", "Constraints"))
+						.Font(FCoreStyle::Get().GetFontStyle("ExpandableArea.TitleFont"))
+					]
+
+					// Spacer
+					+SHorizontalBox::Slot()
+					.FillWidth(1.f)
+					[
+						SNew(SSpacer)
+					]
+
+					// "Plus" icon
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Center)
+					.Padding(0.f, 2.f, 8.f, 2.f)
+					[
+						SNew(SButton)
+						.ContentPadding(0.0f)
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
+						.IsEnabled_Lambda([InWorld]()
+						{
+							const ULevel* CurrentLevel = InWorld->GetCurrentLevel();
+							const TArray<AActor*> SelectedActors = CurrentLevel->Actors.FilterByPredicate( [](const AActor* Actor)
+							{
+								return Actor && Actor->IsSelected();
+							});
+							return !SelectedActors.IsEmpty();
+						})
+						.OnClicked(this, &SControlRigEditModeTools::HandleAddConstraintClicked)
+						.Cursor(EMouseCursor::Default)
+						.ToolTipText(LOCTEXT("AddConstraint", "Add Constraint"))
+						[
+							SNew(SImage)
+							.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
+						]
+					]
+				]
+				.BodyContent()
+				[
+					SAssignNew(ConstraintsEditionWidget, SConstraintsEditionWidget)
+				]
+				.OnAreaExpansionChanged_Lambda( [this](bool bIsExpanded)
+				{
+					if (ConstraintsEditionWidget)
+					{
+						ConstraintsEditionWidget->RefreshConstraintList();
+					}
+				})
 			]
 
 			+ SVerticalBox::Slot()
@@ -675,11 +750,18 @@ void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigCo
 		}
 	}
 #endif
-	if (Subject)
+	//mz todo handle multiple rigs
+	UControlRig* Rig = ControlRigs.Num() > 0 ? ControlRigs[0].Get() : nullptr;
+	if (Rig)
 	{
 		// get the selected controls
-		TArray<FRigElementKey> SelectedControls = Subject->GetHierarchy()->GetSelectedKeys(ERigElementType::Control);
-		SpacePickerWidget->SetControls(Subject->GetHierarchy(), SelectedControls);
+		TArray<FRigElementKey> SelectedControls = Rig->GetHierarchy()->GetSelectedKeys(ERigElementType::Control);
+		SpacePickerWidget->SetControls(Rig->GetHierarchy(), SelectedControls);
+
+		if (ConstraintsEditionWidget)
+		{
+			ConstraintsEditionWidget->InvalidateConstraintList();
+		}
 	}
 }
 
@@ -803,7 +885,7 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 	bool bNoValidControlRig = true;
 	for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 	{
-		if (ControlRig.IsValid() && SpacePickerWidget->GetHierarchy() == ControlRig->GetHierarchy())
+		if (ControlRig.IsValid())
 		{
 			bNoValidControlRig = false;
 			break;
@@ -821,7 +903,7 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 	}
 	for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 	{
-		if (ControlRig.IsValid() && SpacePickerWidget->GetHierarchy() == ControlRig->GetHierarchy())
+		if (ControlRig.IsValid())
 		{
 
 			FRigSpacePickerBakeSettings Settings;
@@ -899,6 +981,36 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 
 	}
 	return FReply::Unhandled();
+}
+
+FReply SControlRigEditModeTools::HandleAddConstraintClicked()
+{
+	const TSharedPtr<SConstraintsCreationWidget> Widget =
+		SNew(SConstraintsCreationWidget)
+		.OnConstraintCreated_Lambda( [this]()
+		{
+			if (ConstraintsEditionWidget)
+			{
+				ConstraintsEditionWidget->RefreshConstraintList();
+			}		
+		});
+	
+	FMenuBuilder MenuBuilder(true, nullptr);
+	MenuBuilder.BeginSection("CreateConstraint", LOCTEXT("CreateConstraintHeader", "Create New..."));
+	{
+		MenuBuilder.AddWidget(Widget.ToSharedRef(), FText::GetEmpty(), true);
+	}
+	MenuBuilder.EndSection();
+	
+	
+	FSlateApplication::Get().PushMenu(
+		AsShared(),
+		FWidgetPath(),
+		MenuBuilder.MakeWidget(),
+		FSlateApplication::Get().GetCursorPos(),
+		FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+	
+	return FReply::Handled();
 }
 
 EVisibility SControlRigEditModeTools::GetRigOptionExpanderVisibility() const

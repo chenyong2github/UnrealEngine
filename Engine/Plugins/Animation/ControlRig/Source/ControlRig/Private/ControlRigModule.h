@@ -18,4 +18,6 @@ public:
 	
 private:
 	FDelegateHandle OnCreateMovieSceneObjectSpawnerHandle;
+
+	void RegisterTransformableCustomization() const;
 };

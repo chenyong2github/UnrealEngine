@@ -390,7 +390,8 @@ enum class ETransformConstraintType : uint8
 	Translation,
 	Rotation,
 	Scale, 
-	Parent
+	Parent,
+	LookAt
 };
 
 /** A description of how to apply a simple transform constraint */

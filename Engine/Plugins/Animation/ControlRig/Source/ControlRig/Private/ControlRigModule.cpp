@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigModule.h"
+
+#include "ControlRigGizmoActor.h"
+#include "TransformableRegistry.h"
 #include "Modules/ModuleManager.h"
 #include "Sequencer/ControlRigObjectSpawner.h"
 #include "ILevelSequenceModule.h"
 #include "ControlRigObjectVersion.h"
+#include "Constraints/ControlRigTransformableHandle.h"
 #include "UObject/DevObjectVersion.h"
 
 // Unique Control Rig Object version id
@@ -18,6 +22,8 @@ void FControlRigModule::StartupModule()
 	OnCreateMovieSceneObjectSpawnerHandle = LevelSequenceModule.RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner::CreateStatic(&FControlRigObjectSpawner::CreateObjectSpawner));
 
 	ManipulatorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/ControlRig/M_Manip.M_Manip"));
+
+	RegisterTransformableCustomization();
 }
 
 void FControlRigModule::ShutdownModule()
@@ -27,6 +33,38 @@ void FControlRigModule::ShutdownModule()
 	{
 		LevelSequenceModule->UnregisterObjectSpawner(OnCreateMovieSceneObjectSpawnerHandle);
 	}
+}
+
+void FControlRigModule::RegisterTransformableCustomization() const
+{
+	// Register UTransformableControlHandle and has function to handle control thru the transform constraints system
+	// as AControlRigShapeActor is only available if the ControlRig plugin is loaded.
+	auto CreateControlHandleFunc = [](const UObject* InObject, UObject* Outer)->UTransformableHandle*
+	{
+		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
+		{
+			UTransformableControlHandle* CtrlHandle = NewObject<UTransformableControlHandle>(Outer);
+			CtrlHandle->ControlRig = ControlActor->ControlRig;
+			CtrlHandle->ControlName = ControlActor->ControlName;
+			return CtrlHandle;
+		}
+		return nullptr;
+	};
+
+	auto GetControlHashFunc = [](const UObject* InObject)->uint32
+	{
+		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
+		{
+			const uint32 ControlHash = HashCombine(
+				GetTypeHash(ControlActor->ControlRig.Get()),
+				GetTypeHash(ControlActor->ControlName));
+			return ControlHash;
+		}
+		return 0;
+	};
+
+	FTransformableRegistry& Registry = FTransformableRegistry::Get();
+	Registry.Register( AControlRigShapeActor::StaticClass(), CreateControlHandleFunc, GetControlHashFunc);
 }
 
 IMPLEMENT_MODULE(FControlRigModule, ControlRig)

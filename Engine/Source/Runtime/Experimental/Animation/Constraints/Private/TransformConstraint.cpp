@@ -1,0 +1,473 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "TransformConstraint.h"
+
+#include "Animation/Constraints/Public/TransformableHandle.h"
+#include "ConstraintsManager.h"
+#include "TransformableRegistry.h"
+
+/** 
+ * UTickableTransformConstraint
+ **/
+
+/** @todo remove to use something else. */
+int64 UTickableTransformConstraint::GetType() const
+{
+	return static_cast<int64>(Type);
+}
+
+#if WITH_EDITOR
+FName UTickableTransformConstraint::GetLabel() const
+{
+	const FName ParentName = ParentTRSHandle->IsValid() ? ParentTRSHandle->GetName() : NAME_None;
+	const FName ChildName = ChildTRSHandle->IsValid() ? ChildTRSHandle->GetName() : NAME_None;
+	const FString Label = FString::Printf(TEXT("%s -> %s"), *ParentName.ToString(), *ChildName.ToString() );
+	return FName(*Label);
+}
+#endif
+
+void UTickableTransformConstraint::Setup()
+{
+	if (!ParentTRSHandle->IsValid() || !ChildTRSHandle->IsValid())
+	{
+		// handle error
+		return;
+	}
+	
+	ComputeOffset();
+	SetupDependencies();
+}
+
+void UTickableTransformConstraint::SetupDependencies()
+{
+	FTickFunction* ParentTickFunction = ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTickFunction() : nullptr;
+	if (ParentTickFunction)
+	{
+		// manage dependencies
+		// force ConstraintTickFunction to tick after InParent does.
+		// Note that this might not register anything if the parent can't tick (static meshes for instance)
+		ConstraintTick.AddPrerequisite(ParentTRSHandle->GetPrerequisiteObject(), *ParentTickFunction);
+	}
+	
+	// TODO also check for cycle dependencies here
+	FTickFunction* ChildTickFunction = ChildTRSHandle ? ChildTRSHandle->GetTickFunction() : nullptr;
+	if (ChildTickFunction && ChildTickFunction != ParentTickFunction)
+	{
+		// force InParent to tick after ConstraintTickFunction does.
+		// Note that this might not register anything if the child can't tick (static meshes for instance)
+		ChildTickFunction->AddPrerequisite(this, ConstraintTick);
+	}
+}
+
+void UTickableTransformConstraint::PostLoad()
+{
+	Super::PostLoad();
+
+	ConstraintTick.RegisterFunction(GetFunction() );
+}
+
+void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+}
+
+uint32 UTickableTransformConstraint::GetTargetHash() const
+{
+	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetHash() : 0;
+}
+
+void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InGlobal) const
+{
+	if(ChildTRSHandle->IsValid())
+	{
+		ChildTRSHandle->SetTransform(InGlobal);
+	}
+}
+
+FTransform UTickableTransformConstraint::GetChildGlobalTransform() const
+{
+	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetTransform() : FTransform::Identity;
+}
+
+FTransform UTickableTransformConstraint::GetParentGlobalTransform() const
+{
+	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTransform() : FTransform::Identity;
+}
+
+/** 
+ * UTickableTranslationConstraint
+ **/
+
+UTickableTranslationConstraint::UTickableTranslationConstraint()
+{
+	Type = ETransformConstraintType::Translation;
+}
+
+void UTickableTranslationConstraint::ComputeOffset()
+{
+	UClass* StaticClass = UTickableTranslationConstraint::StaticClass();
+	
+	const FTransform InitParentTransform = GetParentGlobalTransform();
+	const FTransform InitChildTransform = GetChildGlobalTransform();
+	
+	OffsetTranslation = FVector::ZeroVector;
+	if (bMaintainOffset)
+	{
+		OffsetTranslation = InitChildTransform.GetLocation() - InitParentTransform.GetLocation();
+	}	
+}
+
+FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetFunction() const
+{
+	return [this]()
+	{
+		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
+		if (ClampedWeight < KINDA_SMALL_NUMBER)
+		{
+			return;
+		}
+
+		const FTransform ParentTransform = GetParentGlobalTransform();
+		FTransform Transform = GetChildGlobalTransform();
+		FVector NewTranslation = ParentTransform.GetLocation() + OffsetTranslation;
+		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
+		{
+			NewTranslation = FMath::Lerp<FVector>(Transform.GetLocation(), NewTranslation, ClampedWeight);
+		}
+		Transform.SetLocation(NewTranslation);
+			
+		SetChildGlobalTransform(Transform);
+	};
+}
+
+/** 
+ * UTickableRotationConstraint
+ **/
+
+UTickableRotationConstraint::UTickableRotationConstraint()
+{
+	Type = ETransformConstraintType::Rotation;
+}
+
+void UTickableRotationConstraint::ComputeOffset()
+{
+	const FTransform InitParentTransform = GetParentGlobalTransform();
+	const FTransform InitChildTransform = GetChildGlobalTransform();
+	
+	OffsetRotation = FQuat::Identity;
+	if (bMaintainOffset)
+	{
+		OffsetRotation = InitParentTransform.GetRotation().Inverse() * InitChildTransform.GetRotation();
+		OffsetRotation.Normalize();
+	}
+}
+
+FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunction() const
+{
+	return [this]()
+	{
+		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
+		if (ClampedWeight < KINDA_SMALL_NUMBER)
+		{
+			return;
+		}
+		
+		const FTransform ParentTransform = GetParentGlobalTransform();
+		FTransform Transform = GetChildGlobalTransform();
+
+		FQuat NewRotation = ParentTransform.GetRotation() * OffsetRotation;
+		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
+		{
+			NewRotation = FQuat::Slerp(Transform.GetRotation(), NewRotation, ClampedWeight);
+		}
+		Transform.SetRotation(NewRotation);
+		
+		SetChildGlobalTransform(Transform);
+	};
+}
+
+/** 
+ * UTickableScaleConstraint
+ **/
+
+UTickableScaleConstraint::UTickableScaleConstraint()
+{
+	Type = ETransformConstraintType::Scale;
+}
+
+void UTickableScaleConstraint::ComputeOffset()
+{
+	const FTransform InitParentTransform = GetParentGlobalTransform();
+	const FTransform InitChildTransform = GetChildGlobalTransform();
+	
+	OffsetScale = FVector::OneVector;
+	if (bMaintainOffset)
+	{
+		const FVector InitParentScale = InitParentTransform.GetScale3D();
+		OffsetScale = InitChildTransform.GetScale3D();
+		OffsetScale[0] = FMath::Abs(InitParentScale[0]) > KINDA_SMALL_NUMBER ? OffsetScale[0] / InitParentScale[0] : 0.f;
+		OffsetScale[1] = FMath::Abs(InitParentScale[1]) > KINDA_SMALL_NUMBER ? OffsetScale[1] / InitParentScale[1] : 0.f;
+		OffsetScale[2] = FMath::Abs(InitParentScale[2]) > KINDA_SMALL_NUMBER ? OffsetScale[2] / InitParentScale[2] : 0.f;
+	}
+}
+
+FConstraintTickFunction::ConstraintFunction UTickableScaleConstraint::GetFunction() const
+{
+	return [this]()
+	{
+		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
+		if (ClampedWeight < KINDA_SMALL_NUMBER)
+		{
+			return;
+		}
+		
+		const FTransform ParentTransform = GetParentGlobalTransform();
+		FTransform Transform = GetChildGlobalTransform();
+		FVector NewScale = ParentTransform.GetScale3D() * OffsetScale;
+		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
+		{
+			NewScale = FMath::Lerp<FVector>(Transform.GetScale3D(), NewScale, ClampedWeight);
+		}
+		Transform.SetScale3D(NewScale);
+			
+		SetChildGlobalTransform(Transform);
+	};
+}
+
+/** 
+ * UTickableParentConstraint
+ **/
+
+UTickableParentConstraint::UTickableParentConstraint()
+{
+	Type = ETransformConstraintType::Parent;
+}
+
+void UTickableParentConstraint::ComputeOffset()
+{
+	const FTransform InitParentTransform = GetParentGlobalTransform();
+	const FTransform InitChildTransform = GetChildGlobalTransform();
+	
+	OffsetTransform = FTransform::Identity;
+	if (bMaintainOffset)
+	{
+		OffsetTransform = InitChildTransform.GetRelativeTransform(InitParentTransform);
+	}
+}
+
+FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFunction() const
+{
+	return [this]()
+	{
+		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
+		if (ClampedWeight < KINDA_SMALL_NUMBER)
+		{
+			return;
+		}
+		
+		const FTransform ParentTransform = ParentTRSHandle->GetTransform();
+
+		FTransform TargetTransform = OffsetTransform * ParentTransform;
+		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
+		{
+			const  FTransform Transform = GetChildGlobalTransform();
+			TargetTransform.SetLocation(
+				FMath::Lerp<FVector>(Transform.GetLocation(), TargetTransform.GetLocation(), ClampedWeight));
+			TargetTransform.SetRotation(
+				FQuat::Slerp(Transform.GetRotation(), TargetTransform.GetRotation(), ClampedWeight));
+			TargetTransform.SetScale3D(
+				FMath::Lerp<FVector>(Transform.GetScale3D(), TargetTransform.GetScale3D(), ClampedWeight));
+		}
+		
+		SetChildGlobalTransform(TargetTransform);
+	};
+}
+
+/** 
+ * UTickableLookAtConstraint
+ **/
+
+UTickableLookAtConstraint::UTickableLookAtConstraint()
+{
+	Type = ETransformConstraintType::LookAt;
+}
+
+void UTickableLookAtConstraint::ComputeOffset()
+{
+	// TODO compute offset
+}
+
+FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFunction() const
+{
+	// @todo handle weight here
+	return [this]()
+	{
+		const FTransform ParentTransform = GetParentGlobalTransform();
+		const FTransform ChildTransform = GetChildGlobalTransform();
+		
+		const FVector LookAtDir = ParentTransform.GetLocation() - ChildTransform.GetLocation();
+		const FRotator LookAtRotation = LookAtDir.Rotation();
+
+		FTransform Transform = GetChildGlobalTransform();
+		Transform.SetRotation(LookAtRotation.Quaternion());
+		
+		SetChildGlobalTransform(Transform);
+	};
+}
+
+/** 
+ * TransformConstraintUtils
+ **/
+
+namespace
+{
+
+UTransformableHandle* GetHandle(const AActor* InActor, UObject* Outer)
+{
+	// look for customized transform handle
+	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
+	if (const FTransformableRegistry::CreateHandleFuncT CreateFunction = Registry.GetCreateFunction(InActor->GetClass()))
+	{
+		return CreateFunction(InActor, Outer);
+	}
+
+	// scene component handle
+	UTransformableComponentHandle* ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
+	ComponentHandle->Component = InActor->GetRootComponent();
+	
+	return ComponentHandle;
+}
+	
+uint32 GetConstrainableHash(const AActor* InActor)
+{
+	// look for customized hash function
+	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
+	if (const FTransformableRegistry::GetHashFuncT HashFunction = Registry.GetHashFunction(InActor->GetClass()))
+	{
+		return HashFunction(InActor);
+	}
+
+	// scene component hash
+	const uint32 ComponentHash = GetTypeHash(InActor->GetRootComponent());
+	return ComponentHash;
+}
+	
+}
+
+void TransformConstraintUtils::GetParentConstraints(
+	UWorld* InWorld,
+	const AActor* InChild,
+	TArray< TObjectPtr<UTickableConstraint> >& OutConstraints)
+{
+	if (!InWorld || !InChild)
+	{
+		return;
+	}
+
+	const uint32 ChildHash = GetConstrainableHash(InChild);
+	if (ChildHash == 0)
+	{
+		return;
+	}
+	
+	static constexpr bool bSorted = true;
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	OutConstraints.Append(Controller.GetParentConstraints(ChildHash, bSorted));
+}
+
+bool TransformConstraintUtils::Create(
+	UWorld* InWorld,
+	const AActor* InParent,
+	const AActor* InChild,
+	const ETransformConstraintType InType,
+	const bool bMaintainOffset)
+{
+	// SANITY CHECK
+	if (!InWorld || !InParent || !InChild)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformConstraintUtils::Create sanity check failed."));
+		return false;
+	}
+	
+	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
+	if (!ConstraintsManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformConstraintUtils::Create constraint manager is null."));
+		return false;
+	}
+
+	UTransformableHandle* ParentHandle = GetHandle(InParent, ConstraintsManager);
+	UTransformableHandle* ChildHandle = GetHandle(InChild, ConstraintsManager);
+	
+	// DO IT
+	if (ParentHandle->IsValid() && ChildHandle->IsValid())
+	{
+		return AddConst(InWorld, ParentHandle, ChildHandle, InType, bMaintainOffset);
+	}
+	
+	return false;
+}
+
+bool TransformConstraintUtils::AddConst(
+	UWorld* InWorld,
+	UTransformableHandle* InParentHandle,
+	UTransformableHandle* InChildHandle,
+	const ETransformConstraintType InType,
+	const bool bMaintainOffset)
+{
+	const bool bIsValidParent = InParentHandle && InParentHandle->IsValid();
+	const bool bIsValidChild = InChildHandle && InChildHandle->IsValid();
+	if (!bIsValidParent || !bIsValidChild)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformConstraintUtils::AddConst error creating constraint"));
+		return false;
+	}
+
+	const UEnum* ETransformConstraintTypeEnum = StaticEnum<ETransformConstraintType>();
+	if (!ETransformConstraintTypeEnum->IsValidEnumValue(static_cast<int64>(InType)))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Constraint Type %d not recognized"), InType);
+		return false;
+	}
+	
+	// unique name (we may want to use another approach here to manage uniqueness)
+	const FString ConstraintTypeStr = ETransformConstraintTypeEnum->GetNameStringByValue((uint8)InType);
+	const FName BaseName(*FString::Printf(TEXT("%sConstraint"), *ConstraintTypeStr));
+
+	auto SetupConstraint = [InParentHandle, InChildHandle, bMaintainOffset](UTickableTransformConstraint* InConstraint)
+	{
+		InConstraint->ParentTRSHandle = InParentHandle;
+		InConstraint->ChildTRSHandle = InChildHandle;
+		InConstraint->bMaintainOffset = bMaintainOffset;
+		InConstraint->Setup();
+	};
+	
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	
+	UTickableTransformConstraint* Constraint = nullptr;
+	switch (InType)
+	{
+	case ETransformConstraintType::Translation:
+		Constraint = Controller.AllocateConstraintT<UTickableTranslationConstraint>(BaseName);
+		break;
+	case ETransformConstraintType::Rotation:
+		Constraint = Controller.AllocateConstraintT<UTickableRotationConstraint>(BaseName);
+		break;
+	case ETransformConstraintType::Scale:
+		Constraint = Controller.AllocateConstraintT<UTickableScaleConstraint>(BaseName);
+		break;
+	case ETransformConstraintType::Parent:
+		Constraint = Controller.AllocateConstraintT<UTickableParentConstraint>(BaseName);
+		break;
+	case ETransformConstraintType::LookAt:
+		Constraint = Controller.AllocateConstraintT<UTickableLookAtConstraint>(BaseName);
+		break;
+	default:
+		ensure(false);
+		return false;
+	}
+
+	SetupConstraint(Constraint);
+
+	return true;
+}
