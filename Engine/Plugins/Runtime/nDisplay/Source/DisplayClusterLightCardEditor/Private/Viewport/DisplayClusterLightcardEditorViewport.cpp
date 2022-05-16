@@ -59,9 +59,7 @@ public:
 				.Padding( 3.0f, 1.0f )
 				.HAlign( HAlign_Right )
 				[
-					SNew(STransformViewportToolBar)
-					.Viewport(EditorViewport.Pin().ToSharedRef())
-					.CommandList(EditorViewport.Pin()->GetCommandList())
+					MakeTransformToolBar()
 				]
 			]
 		];
@@ -147,6 +145,40 @@ public:
 		return Label;
 	}
 
+	TSharedRef<SWidget> MakeTransformToolBar()
+	{
+		FSlimHorizontalToolBarBuilder ToolbarBuilder(EditorViewport.Pin()->GetCommandList(), FMultiBoxCustomization::None);
+
+		const FName ToolBarStyle = TEXT("EditorViewportToolBar");
+		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
+		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+
+		ToolbarBuilder.SetIsFocusable(false);
+
+		ToolbarBuilder.BeginSection("Transform");
+		{
+			ToolbarBuilder.BeginBlockGroup();
+
+			//static FName SelectModeName = FName(TEXT("SelectMode"));
+			//ToolbarBuilder.AddToolBarButton(FEditorViewportCommands::Get().SelectMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), SelectModeName);
+
+			static FName TranslateModeName = FName(TEXT("TranslateMode"));
+			ToolbarBuilder.AddToolBarButton(FEditorViewportCommands::Get().TranslateMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TranslateModeName);
+
+			//static FName RotateModeName = FName(TEXT("RotateMode"));
+			//ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().RotateMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), RotateModeName );
+
+			static FName ScaleModeName = FName(TEXT("ScaleMode"));
+			ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().ScaleMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), ScaleModeName );
+
+			ToolbarBuilder.EndBlockGroup();
+		}
+
+		ToolbarBuilder.EndSection();
+
+		return ToolbarBuilder.MakeWidget();
+	}
+
 private:
 	/** Reference to the parent viewport */
 	TWeakPtr<SDisplayClusterLightCardEditorViewport> EditorViewport;
@@ -218,25 +250,79 @@ void SDisplayClusterLightCardEditorViewport::PopulateViewportOverlays(TSharedRef
 
 void SDisplayClusterLightCardEditorViewport::BindCommands()
 {
-	const FDisplayClusterLightCardEditorCommands& Commands = FDisplayClusterLightCardEditorCommands::Get();
-
-	CommandList->MapAction(
-		FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Perspective),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Perspective));
-
-	CommandList->MapAction(
-		FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Azimuthal),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal));
-
-	CommandList->MapAction(
-		Commands.ResetCamera,
-		FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera, false));
-	
 	SEditorViewport::BindCommands();
+
+	// Override some of the editor viewport commands to work with the light card editor viewport
+	{
+		const FEditorViewportCommands& Commands = FEditorViewportCommands::Get();
+
+		CommandList->MapAction(
+			Commands.TranslateMode,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetEditorWidgetMode, FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsEditorWidgetModeSelected, FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
+		);
+
+		CommandList->MapAction(
+			Commands.ScaleMode,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetEditorWidgetMode, FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Scale),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsEditorWidgetModeSelected, FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Scale)
+		);
+
+		CommandList->MapAction(
+			Commands.CycleTransformGizmos,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CycleEditorWidgetMode),
+			FCanExecuteAction()
+		);
+	}
+
+	{
+		const FDisplayClusterLightCardEditorCommands& Commands = FDisplayClusterLightCardEditorCommands::Get();
+
+		CommandList->MapAction(
+			FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Perspective),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Perspective));
+
+		CommandList->MapAction(
+			FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Azimuthal),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal));
+
+		CommandList->MapAction(
+			Commands.ResetCamera,
+			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera, false));
+	}
+}
+
+void SDisplayClusterLightCardEditorViewport::SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode)
+{
+	if (ViewportClient.IsValid())
+	{
+		ViewportClient->SetEditorWidgetMode(InWidgetMode);
+	}
+}
+
+bool SDisplayClusterLightCardEditorViewport::IsEditorWidgetModeSelected(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) const
+{
+	if (ViewportClient.IsValid())
+	{
+		return ViewportClient->GetEditorWidgetMode() == InWidgetMode;
+	}
+
+	return false;
+}
+
+void SDisplayClusterLightCardEditorViewport::CycleEditorWidgetMode()
+{
+	int32 WidgetModeAsInt = ViewportClient->GetEditorWidgetMode();
+
+	WidgetModeAsInt = (WidgetModeAsInt + 1) % FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Max;
+
+	SetEditorWidgetMode((FDisplayClusterLightCardEditorWidget::EWidgetMode)WidgetModeAsInt);
 }
 
 void SDisplayClusterLightCardEditorViewport::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode)

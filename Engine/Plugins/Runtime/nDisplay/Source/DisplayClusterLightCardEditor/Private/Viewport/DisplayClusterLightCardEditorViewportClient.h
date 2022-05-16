@@ -10,11 +10,11 @@
 #include "DisplayClusterLightCardEditorProxyType.h"
 #include "DisplayClusterMeshProjectionRenderer.h"
 #include "DisplayClusterLightCardActor.h"
+#include "DisplayClusterLightCardEditorWidget.h"
 
 class ADisplayClusterRootActor;
 class SDisplayClusterLightCardEditor;
 class FScopedTransaction;
-class FDisplayClusterLightCardEditorWidget;
 class UDisplayClusterConfigurationViewport;
 
 /** Viewport Client for the preview viewport */
@@ -161,6 +161,9 @@ public:
 	/** Selects the light card proxies that correspond to the specified light cards */
 	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
 
+	FDisplayClusterLightCardEditorWidget::EWidgetMode GetEditorWidgetMode() const { return EditorWidget->GetWidgetMode(); }
+	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) { EditorWidget->SetWidgetMode(InWidgetMode); }
+
 	EDisplayClusterMeshProjectionType GetProjectionMode() const { return ProjectionMode; }
 	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
 
@@ -229,17 +232,32 @@ private:
 	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the mouse's location */
 	FSphericalCoordinates GetLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
 
+	/** Scales the currently selected light cards */
+	void ScaleSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
+
+	/** Determines the appropriate scale delta needed to scale the light card */
+	FVector2D GetLightCardScaleDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
+
 	/** Gets the spherical coordinates of the specified light card */
 	FSphericalCoordinates GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const;
 
 	/** Traces to find the light card corresponding to a click on a stage screen */
 	ADisplayClusterLightCardActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);
 
+	/** Projects the specified world position to the viewport's current projection space */
+	FVector ProjectWorldPosition(const FVector& UnprojectedWorldPosition, const FViewMatrices& ViewMatrices) const;
+
 	/** Converts a pixel coordinate into a point and direction vector in world space */
 	void PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection);
 
+	/** Converts a world coordinate into a point in screen space, and returns true if the world position is on the screen */
+	bool WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos) const;
+
+	/** Converts a direction vector from world space to screen screen space, and returns true of the direction vector is on the screen */
+	bool WorldToScreenDirection(const FSceneView& View, const FVector& WorldPos, const FVector& WorldDirection, FVector2D& OutScreenDir);
+
 	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
-	bool CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection, FTransform& WidgetTransformAfterMapProjection);
+	bool CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection);
 	
 	/** Renders the viewport's normal map and stores the texture data to be used later */
 	void RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection);
@@ -287,14 +305,14 @@ private:
 	/** The LC editor widget used to manipulate light cards */
 	TSharedPtr<FDisplayClusterLightCardEditorWidget> EditorWidget;
 
-	/** The cached editor widget transform after map projection calculated for the editor widget on the last tick */
-	FTransform CachedEditorWidgetTransformAfterMapProjection;
-
-	/** The cached editor widget transform before map projection calculated for the editor widget on the last tick */
-	FTransform CachedEditorWidgetTransformBeforeMapProjection;
+	/** The cached editor widget transform in unprojected world space */
+	FTransform CachedEditorWidgetWorldTransform;
 
 	/** The offset between the widget's origin and the place it was clicked when a drag action was started */
 	FVector DragWidgetOffset;
+
+	/** The mouse position registered on the previous widget input pass */
+	FIntPoint LastWidgetMousePos;
 
 	/** The location the camera should be looking at */
 	TOptional<FVector> DesiredLookAtLocation;

@@ -91,10 +91,10 @@ bool FDisplayClusterLightCardEditorViewportClient::FNormalMap::GetNormalAndDista
 {
 	auto GetPixel = [this](uint32 InX, uint32 InY)
 	{
-		uint32 WrappedX = InX % SizeX;
-		uint32 WrappedY = InY % SizeY;
+		uint32 ClampedX = FMath::Clamp(InX, (uint32)0, SizeX);
+		uint32 ClampedY = FMath::Clamp(InY, (uint32)0, SizeY);
 
-		return CachedNormalData[WrappedY * SizeX + WrappedX].GetFloats();
+		return CachedNormalData[ClampedY * SizeX + ClampedX].GetFloats();
 	};
 
 	const FVector ViewPos = FVector(ViewMatrices.GetViewMatrix().TransformFVector4(FVector4(Position, 1)));
@@ -240,7 +240,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 	// Camera position is locked to a specific location
 	ResetCamera(/* bLocationOnly */ true);
 
-	CalcEditorWidgetTransform(CachedEditorWidgetTransformBeforeMapProjection, CachedEditorWidgetTransformAfterMapProjection);
+	CalcEditorWidgetTransform(CachedEditorWidgetWorldTransform);
 
 	// Tick the preview scene world.
 	if (!GIntraFrameDebuggingGameThread)
@@ -293,8 +293,14 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 		const FRotator NewRotation = FMath::RInterpTo(GetViewRotation(), LookAtRotation, DeltaSeconds, DesiredLookAtSpeed);
 		SetViewRotation(NewRotation);
 
+		FSceneViewInitOptions SceneVewInitOptions;
+		GetSceneViewInitOptions(SceneVewInitOptions);
+		FViewMatrices ViewMatrices(SceneVewInitOptions);
+
+		FVector ProjectedEditorWidgetPosition = ProjectWorldPosition(CachedEditorWidgetWorldTransform.GetTranslation(), ViewMatrices);
+
 		if (NewRotation.Equals(LookAtRotation, 2.f) ||
-			!IsLocationCloseToEdge(CachedEditorWidgetTransformAfterMapProjection.GetTranslation()))
+			!IsLocationCloseToEdge(ProjectedEditorWidgetPosition))
 		{
 			DesiredLookAtLocation.Reset();
 		}
@@ -491,8 +497,19 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 {
 	if (SelectedLightCards.Num())
 	{
-		EditorWidget->SetTransform(CachedEditorWidgetTransformAfterMapProjection);
-		EditorWidget->Draw(View, PDI);
+		// Project the editor widget's world position into projection space so that it renders at the appropriate screen location.
+		// This needs to be computed on the render thread using the render thread's scene view, which will be behind the game thread's scene view
+		// by at least one frame
+
+		FTransform ProjectedEditorWidgetTransform(CachedEditorWidgetWorldTransform);
+
+		if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
+		{
+			ProjectedEditorWidgetTransform.SetTranslation(ProjectWorldPosition(CachedEditorWidgetWorldTransform.GetTranslation(), View->ViewMatrices));
+		}
+
+		EditorWidget->SetTransform(ProjectedEditorWidgetTransform);
+		EditorWidget->Draw(View, this, PDI);
 	}
 }
 
@@ -557,9 +574,19 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 	{
 		if (CurrentAxis != EAxisList::Type::None && SelectedLightCards.Num())
 		{
-			MoveSelectedLightCards(InViewport, CurrentAxis);
+			if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
+			{
+				MoveSelectedLightCards(InViewport, CurrentAxis);
+			}
+			else if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Scale)
+			{
+				ScaleSelectedLightCards(InViewport, CurrentAxis);
+			}
+
 			bHandled = true;
 		}
+
+		InViewport->GetMousePos(LastWidgetMousePos);
 	}
 
 	return bHandled;
@@ -599,7 +626,8 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 		FVector Direction;
 		PixelToWorld(*View, MousePos, Origin, Direction);
 
-		DragWidgetOffset = Direction - (CachedEditorWidgetTransformBeforeMapProjection.GetTranslation() - Origin).GetSafeNormal();
+		DragWidgetOffset = Direction - (CachedEditorWidgetWorldTransform.GetTranslation() - Origin).GetSafeNormal();
+		LastWidgetMousePos = MousePos;
 	}
 
 	FEditorViewportClient::TrackingStarted(InInputState, bIsDraggingWidget, bNudge);
@@ -1436,6 +1464,7 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardTransform(A
 		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin));
 		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch));
 		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw));
+		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale));
 		
 		// Snapshot the changed properties so multi-user can update while dragging.
 		if (ChangedProperties.Num() > 0)
@@ -1482,9 +1511,6 @@ void FDisplayClusterLightCardEditorViewportClient::VerifyAndFixLightCardOrigin(A
 
 void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
-	UWorld* PreviewWorld = PreviewScene->GetWorld();
-	check(PreviewWorld);
-
 	FIntPoint MousePos;
 	InViewport->GetMousePos(MousePos);
 
@@ -1498,9 +1524,6 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 	FVector Origin;
 	FVector Direction;
 	PixelToWorld(*View, MousePos, Origin, Direction);
-
-	const FVector CursorRayStart = Origin;
-	const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
 
 	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
 	if (LastSelectedLightCard.IsValid())
@@ -1534,12 +1557,16 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 			PropagateLightCardTransform(LightCard.Get());
 		}
 
-		FVector LightCardWorldLocation = CachedEditorWidgetTransformAfterMapProjection.GetTranslation();
+		FSceneViewInitOptions SceneVewInitOptions;
+		GetSceneViewInitOptions(SceneVewInitOptions);
+		FViewMatrices ViewMatrices(SceneVewInitOptions);
+
+		FVector LightCardProjectedLocation = ProjectWorldPosition(CachedEditorWidgetWorldTransform.GetTranslation(), ViewMatrices);
 		FVector2D ScreenPercentage;
-		if (IsLocationCloseToEdge(LightCardWorldLocation, InViewport, View, &ScreenPercentage))
+		if (IsLocationCloseToEdge(LightCardProjectedLocation, InViewport, View, &ScreenPercentage))
 		{
 			DesiredLookAtSpeed = FMath::Max(ScreenPercentage.X, ScreenPercentage.Y) * MaxDesiredLookAtSpeed;
-			DesiredLookAtLocation = LightCardWorldLocation;
+			DesiredLookAtLocation = LightCardProjectedLocation;
 		}
 		else
 		{
@@ -1611,6 +1638,91 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 	}
 
 	return DeltaCoords;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::ScaleSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
+{
+	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
+	if (LastSelectedLightCard.IsValid())
+	{
+		const FVector2D DeltaScale = GetLightCardScaleDelta(InViewport, LastSelectedLightCard.Get(), CurrentAxis);
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		{
+			if (!LightCard.IsValid())
+			{
+				continue;
+			}
+
+			LightCard->Scale += DeltaScale;
+
+			PropagateLightCardTransform(LightCard.Get());
+		}
+	}
+}
+
+FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis)
+{
+	FIntPoint MousePos;
+	InViewport->GetMousePos(MousePos);
+
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		InViewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime()));
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	const FVector2D DragDir = MousePos - LastWidgetMousePos;
+
+	const FVector WorldWidgetOrigin = CachedEditorWidgetWorldTransform.GetTranslation();
+	const FVector WorldWidgetXAxis = CachedEditorWidgetWorldTransform.GetRotation().RotateVector(FVector::XAxisVector);
+	const FVector WorldWidgetYAxis = CachedEditorWidgetWorldTransform.GetRotation().RotateVector(FVector::YAxisVector);
+
+	FVector2D ScreenXAxis = FVector2D::ZeroVector;
+	FVector2D ScreenYAxis = FVector2D::ZeroVector;
+
+	WorldToScreenDirection(*View, WorldWidgetOrigin, WorldWidgetXAxis, ScreenXAxis);
+	WorldToScreenDirection(*View, WorldWidgetOrigin, WorldWidgetYAxis, ScreenYAxis);
+
+	FVector2D ScaleDir = FVector2D::ZeroVector;
+
+	if (CurrentAxis & EAxisList::Type::X)
+	{
+		ScaleDir += ScreenXAxis;
+	}
+
+	if (CurrentAxis & EAxisList::Type::Y)
+	{
+		ScaleDir += ScreenYAxis;
+	}
+
+	ScaleDir.Normalize();
+
+	// To give the scale delta a nice feel to it when dragging, we want the distance the user is dragging the mouse to be proportional to the change in size
+	// of the light card when the scale delta is applied. So, if the user moves the mouse a distance d, then the light card's bounds along the direction of scale
+	// should change by 2d (one d for each side), and the new scale should be s' = (h + 2d) / h_0, where h is the current length of the side and h_0 is the unscaled
+	// length of the side. Since the current scale s = h / h_0, this means that the scale delta is s' - s = 2d / h_0.
+
+	// First, obtain the size of the unscaled light card in the direction the user is scaling. Convert to screen space as the scale and drag vectors are in screen space
+	const bool bLocalSpace = true;
+	const FVector LightCardSize3D = LightCard->GetLightCardBounds(bLocalSpace).GetSize();
+	const FVector2D SizeToScale = FVector2D((CurrentAxis & EAxisList::X) * LightCardSize3D.Y, (CurrentAxis & EAxisList::Y) * LightCardSize3D.Z);
+	const float DistanceFromCamera = FMath::Max(FVector::Dist(WorldWidgetOrigin, View->ViewMatrices.GetViewOrigin()), 1.0f);
+	const float ScreenSize = View->ViewMatrices.GetScreenScale() * SizeToScale.Length() / DistanceFromCamera;
+
+	// Compute the scale delta as s' - s = 2d / h_0
+	const float ScaleMagnitude = 2.0f * (ScaleDir | DragDir) / ScreenSize;
+
+	FVector2D ScaleDelta = FVector2D((CurrentAxis & EAxisList::X) * ScaleMagnitude, (CurrentAxis & EAxisList::Y) * ScaleMagnitude);
+
+	// If both axes are being scaled at the same time, preserve the aspect ratio of the scale delta
+	if (CurrentAxis == EAxisList::Type::XY)
+	{
+		// Ensure the signs of the deltas remain the same, and avoid potential divide by zero
+		ScaleDelta.Y = ScaleDelta.X * FMath::Abs(LightCard->Scale.Y) / FMath::Max(0.001, FMath::Abs(LightCard->Scale.X));
+	}
+
+	return ScaleDelta;
 }
 
 FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClusterLightCardEditorViewportClient::GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const
@@ -1699,6 +1811,20 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::Tra
 	return nullptr;
 }
 
+FVector FDisplayClusterLightCardEditorViewportClient::ProjectWorldPosition(const FVector& UnprojectedWorldPosition, const FViewMatrices& ViewMatrices) const
+{
+	FVector ProjectedPosition(UnprojectedWorldPosition);
+
+	if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
+	{
+		const FVector ViewPos = ViewMatrices.GetViewMatrix().TransformPosition(CachedEditorWidgetWorldTransform.GetTranslation());
+		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
+		ProjectedPosition = ViewMatrices.GetInvViewMatrix().TransformPosition(ProjectedViewPos);
+	}
+
+	return ProjectedPosition;
+}
+
 void FDisplayClusterLightCardEditorViewportClient::PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection)
 {
 	const FMatrix& InvProjMatrix = View.ViewMatrices.GetInvProjectionMatrix();
@@ -1712,7 +1838,48 @@ void FDisplayClusterLightCardEditorViewportClient::PixelToWorld(const FSceneView
 	OutDirection = InvViewMatrix.TransformVector(UnprojectedViewPos).GetSafeNormal();
 }
 
-bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection, FTransform& WidgetTransformAfterMapProjection)
+bool FDisplayClusterLightCardEditorViewportClient::WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos) const
+{
+	const FMatrix& ViewMatrix = View.ViewMatrices.GetViewMatrix();
+	const FMatrix& ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
+
+	const FVector ViewPos = ViewMatrix.TransformPosition(WorldPos);
+	const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
+	const FVector4 ScreenPos = ProjMatrix.TransformFVector4(FVector4(ProjectedViewPos, 1));
+
+	return View.ScreenToPixel(ScreenPos, OutPixelPos);
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::WorldToScreenDirection(const FSceneView& View, const FVector& WorldPos, const FVector& WorldDirection, FVector2D& OutScreenDir)
+{
+	FVector2D ScreenVectorStart = FVector2D::ZeroVector;
+	FVector2D ScreenVectorEnd = FVector2D::ZeroVector;
+
+	if (WorldToPixel(View, WorldPos, ScreenVectorStart) && WorldToPixel(View, WorldPos + WorldDirection, ScreenVectorEnd))
+	{
+		OutScreenDir = (ScreenVectorEnd - ScreenVectorStart).GetSafeNormal();
+		return true;
+	}
+	else
+	{
+		// If either the start or end of the vector is not onscreen, translate the vector to be in front of the camera to approximate the screen space direction
+		const FMatrix InvViewMatrix = View.ViewMatrices.GetInvViewMatrix();
+		const FVector ViewLocation = InvViewMatrix.GetOrigin();
+		const FVector ViewDirection = InvViewMatrix.GetUnitAxis(EAxis::Z);
+		const FVector Offset = ViewDirection * (FVector::DotProduct(ViewLocation - WorldPos, ViewDirection) + 100.0f);
+		const FVector AdjustedWorldPos = WorldPos + Offset;
+
+		if (WorldToPixel(View, AdjustedWorldPos, ScreenVectorStart) && WorldToPixel(View, AdjustedWorldPos + WorldDirection, ScreenVectorEnd))
+		{
+			OutScreenDir = -(ScreenVectorEnd - ScreenVectorStart).GetSafeNormal();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection)
 {
 	if (!SelectedLightCards.Num())
 	{
@@ -1728,30 +1895,32 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 
 	FVector LightCardPosition = LastSelected->GetLightCardTransform().GetTranslation();
 
-	WidgetTransformAfterMapProjection = WidgetTransformBeforeMapProjection = FTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
+	WidgetTransformBeforeMapProjection = FTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
 
-	if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
+	FQuat WidgetOrientation;
+	if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
 	{
-		FSceneViewInitOptions SceneVewInitOptions;
-		GetSceneViewInitOptions(SceneVewInitOptions);
-		FViewMatrices ViewMatrices(SceneVewInitOptions);
+		// The translation widget should be oriented to show the x axis pointing in the longitudinal direction and the y axis pointing in the latitudinal direction
+		const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
+		const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
+		const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
+		const FVector InclinationVector = RadialVector ^ AzimuthalVector;
 
-		const FVector ViewPos = ViewMatrices.GetViewMatrix().TransformPosition(LightCardPosition);
-		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
-		const FVector ProjectedPosition = ViewMatrices.GetInvViewMatrix().TransformPosition(ProjectedViewPos);
+		WidgetOrientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).ToQuat();
+	}
+	else
+	{
+		// Otherwise, orient the widget to match the light card's local orientation (spin, pitch, yaw)
+		const FQuat LightCardOrientation = LastSelected->GetLightCardTransform().GetRotation();
+		const FVector Normal = LightCardOrientation.RotateVector(FVector::XAxisVector);
+		const FVector Tangent = LightCardOrientation.RotateVector(FVector::YAxisVector);
+		const FVector Binormal = LightCardOrientation.RotateVector(FVector::ZAxisVector);
 
-		WidgetTransformAfterMapProjection.SetTranslation(ProjectedPosition);
+		// Reorder the orientation basis so that the x axis and the y axis point along the light card's width and height, respectively
+		WidgetOrientation = FMatrix(-Tangent, Binormal, -Normal, FVector::ZeroVector).ToQuat();
 	}
 
-	const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
-	const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
-	const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
-	const FVector InclinationVector = RadialVector ^ AzimuthalVector;
-
-	FRotator Orientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).Rotator();
-
-	WidgetTransformBeforeMapProjection.SetRotation(Orientation.Quaternion());
-	WidgetTransformAfterMapProjection.SetRotation(Orientation.Quaternion());
+	WidgetTransformBeforeMapProjection.SetRotation(WidgetOrientation);
 
 	return true;
 }

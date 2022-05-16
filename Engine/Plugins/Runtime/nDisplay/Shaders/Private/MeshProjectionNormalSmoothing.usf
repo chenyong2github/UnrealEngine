@@ -22,10 +22,10 @@ float2 SampleDirection;
 float2 SampleOffsetScale;
 float InvSigma;
 
-/** Wraps the specified pixel position around the input viewport's extent */
-uint2 WrapPixelPos(uint2 PixelPos)
+/** Adjusts the specified pixel position so as not to be outside of the viewport bounds */
+uint2 AdjustPixelPos(uint2 PixelPos)
 {
-	return uint2(PixelPos.x % (uint)Input_Extent.x, PixelPos.y % (uint)Input_Extent.y);
+	return uint2(clamp(PixelPos.x, 0.0, Input_Extent.x), clamp(PixelPos.y, 0.0, Input_Extent.y));
 }
 
 /** Converts a vector in normal space to color space */
@@ -98,19 +98,19 @@ void DepthDilationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const int kRadius = (FILTER_KERNEL_SIZE - 1) / 2;
 
 	float InitialDepth = RWDepth[PixelPos];
-	uint Stencil = RWStencil[PixelPos];
+	uint InitialStencil = RWStencil[PixelPos];
 
 	float FinalDepth = 0.0;
 	float W = 0.0;
 	
 	// Only dilate onto geometry; if the current pixel's stencil is zero, the dilation can be skipped
-	if (Stencil > 0)
+	if (InitialStencil > 0)
 	{
 		UNROLL
 		for (int kIndex = 0; kIndex < FILTER_KERNEL_SIZE; ++kIndex)
 		{
 			int2 PixelOffset = int2(kIndex - kRadius, kIndex - kRadius) * SampleOffsetScale * SampleDirection;
-			uint2 SamplePos = WrapPixelPos(PixelPos + PixelOffset);
+			uint2 SamplePos = AdjustPixelPos(PixelPos + PixelOffset);
 			
 			float Depth = RWDepth[SamplePos];
 			uint Stencil = RWStencil[SamplePos];
@@ -157,7 +157,7 @@ void DilationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		for (int kIndex = 0; kIndex < FILTER_KERNEL_SIZE; ++kIndex)
 		{
 			int2 PixelOffset = int2(kIndex - kRadius, kIndex - kRadius) * SampleOffsetScale * SampleDirection;
-			uint2 SamplePos = WrapPixelPos(PixelPos + PixelOffset);
+			uint2 SamplePos = AdjustPixelPos(PixelPos + PixelOffset);
 		
 			float3 Color = RWColor[SamplePos].rgb;
 			float Depth = RWDepth[SamplePos];
@@ -206,7 +206,7 @@ void BlurCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	for (int kIndex = 0; kIndex < FILTER_KERNEL_SIZE; ++kIndex)
 	{
 		int2 PixelOffset = int2(kIndex - kRadius, kIndex - kRadius) * SampleOffsetScale * SampleDirection;
-		uint2 SamplePos = WrapPixelPos(PixelPos + PixelOffset);
+		uint2 SamplePos = AdjustPixelPos(PixelPos + PixelOffset);
 		
 		float3 Normal = NormalFromColorSpace(RWColor[SamplePos].rgb);
 		float Depth = RWDepth[SamplePos];

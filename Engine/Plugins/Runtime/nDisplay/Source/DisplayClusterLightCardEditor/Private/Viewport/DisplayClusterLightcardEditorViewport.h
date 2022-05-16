@@ -8,6 +8,7 @@
 #include "SEditorViewport.h"
 
 #include "DisplayClusterMeshProjectionRenderer.h"
+#include "DisplayClusterLightCardEditorWidget.h"
 
 class SDisplayClusterLightCardEditor;
 class ADisplayClusterRootActor;
@@ -44,6 +45,10 @@ private:
 	virtual void PopulateViewportOverlays(TSharedRef<SOverlay> Overlay) override;
 	virtual void BindCommands() override;
 	// ~SEditorViewport
+
+	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode);
+	bool IsEditorWidgetModeSelected(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) const;
+	void CycleEditorWidgetMode();
 
 	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
 	bool IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode) const;

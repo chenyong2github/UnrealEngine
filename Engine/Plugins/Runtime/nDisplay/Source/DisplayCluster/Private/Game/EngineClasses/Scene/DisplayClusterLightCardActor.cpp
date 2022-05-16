@@ -8,6 +8,8 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
 
+const FRotator ADisplayClusterLightCardActor::PlaneMeshRotation = FRotator(0.0f, -90.0f, 90.0f);
+
 ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DistanceFromCenter(300.f)
@@ -130,16 +132,36 @@ FTransform ADisplayClusterLightCardActor::GetLightCardTransform(bool bIgnoreSpin
 
 	Transform.SetLocation(LightCardComponent->GetComponentLocation());
 
-	FRotator LightCardRotation = LightCardTransformerComponent->GetComponentRotation();
+	FQuat LightCardOrientation;
 
-	if (bIgnoreSpinYawPitch)
+	if (!bIgnoreSpinYawPitch)
 	{
-		LightCardRotation -= FRotator(Spin, -Yaw, -Pitch);
+		// Use the light card component's orientation, but remove the plane mesh rotation so that the returned transform's local x axis
+		// points radially inwards to match engine convention
+		LightCardOrientation = LightCardComponent->GetComponentQuat() * PlaneMeshRotation.Quaternion().Inverse();
+	}
+	else
+	{
+		LightCardOrientation = LightCardTransformerComponent->GetComponentQuat();
 	}
 
-	Transform.SetRotation(LightCardRotation.Quaternion());
+	Transform.SetRotation(LightCardOrientation);
 
 	return Transform;
+}
+
+FBox ADisplayClusterLightCardActor::GetLightCardBounds(bool bLocalSpace) const
+{
+	FTransform ObjectOrientedTransform;
+	ObjectOrientedTransform.SetRotation(PlaneMeshRotation.Quaternion());
+
+	if (!bLocalSpace)
+	{
+		ObjectOrientedTransform.SetTranslation(LightCardComponent->GetComponentLocation());
+		ObjectOrientedTransform.SetScale3D(LightCardComponent->GetComponentScale());
+	}
+
+	return LightCardComponent->CalcBounds(ObjectOrientedTransform).GetBox();
 }
 
 void ADisplayClusterLightCardActor::UpdateLightCardTransform()
@@ -147,7 +169,9 @@ void ADisplayClusterLightCardActor::UpdateLightCardTransform()
 	MainSpringArmComponent->TargetArmLength = DistanceFromCenter;
 	MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
 
-	LightCardComponent->SetRelativeRotation(FRotator(-Spin, -90.f + Yaw, 90.f + Pitch));
+	FRotator LightCardOrientation = FRotator(-Pitch, Yaw, Spin);
+
+	LightCardComponent->SetRelativeRotation((LightCardOrientation.Quaternion() * PlaneMeshRotation.Quaternion()).Rotator());
 	LightCardComponent->SetRelativeScale3D(FVector(Scale, 1.f));
 }
 

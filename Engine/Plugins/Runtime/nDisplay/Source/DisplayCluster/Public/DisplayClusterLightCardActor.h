@@ -26,6 +26,10 @@ class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor
 	GENERATED_BODY()
 
 public:
+	/** The rotation used to orient the plane mesh used for the light card so that its normal points radially inwards */
+	static const FRotator PlaneMeshRotation;
+
+public:
 	ADisplayClusterLightCardActor(const FObjectInitializer& ObjectInitializer);
 
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -41,6 +45,9 @@ public:
 	 * @param bIgnoreSpinYawPitch - If the light card component's spin, yaw, and pitch should be ignored when computing the transform
 	 */
 	FTransform GetLightCardTransform(bool bIgnoreSpinYawPitch = false) const;
+
+	/** Gets the object oriented bounding box of the light card component */
+	FBox GetLightCardBounds(bool bLocalSpace = false) const;
 
 	/** Returns the current static mesh used by this light card */
 	UStaticMesh* GetStaticMesh() const;
