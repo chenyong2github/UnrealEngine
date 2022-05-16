@@ -225,6 +225,8 @@ struct FEngineShowFlags
 
 		// TODO: Remove when Physical page pool size scales automatically with demand
 		SetVirtualShadowMapCaching(false);
+
+		SetShaderPrint(false);
 	}
 
 	void EnableAdvancedFeatures()

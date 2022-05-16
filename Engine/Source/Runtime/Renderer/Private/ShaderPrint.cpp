@@ -259,7 +259,7 @@ namespace ShaderPrint
 
 	bool IsEnabled(const FSceneView& View)
 	{
-		return IsEnabled() && IsSupported(View.GetShaderPlatform());
+		return IsEnabled() && View.Family->EngineShowFlags.ShaderPrint && IsSupported(View.GetShaderPlatform());
 	}
 
 	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
