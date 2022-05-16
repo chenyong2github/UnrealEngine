@@ -785,19 +785,27 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 
 	if (!IsCookedId())
 	{
-		if (Usage != ReferenceSet.Usage
-			|| UsageCustomOutput != ReferenceSet.UsageCustomOutput
-			|| BaseMaterialId != ReferenceSet.BaseMaterialId)
+		if (BaseMaterialId != ReferenceSet.BaseMaterialId)
 		{
 			return false;
 		}
 	}
 	else
 #endif
-	if (CookedShaderMapIdHash != ReferenceSet.CookedShaderMapIdHash)
+	{
+		if (CookedShaderMapIdHash != ReferenceSet.CookedShaderMapIdHash)
+		{
+			return false;
+		}
+	}
+
+#if WITH_EDITOR
+	if (Usage != ReferenceSet.Usage
+		|| UsageCustomOutput != ReferenceSet.UsageCustomOutput)
 	{
 		return false;
 	}
+#endif
 
 	if (QualityLevel != ReferenceSet.QualityLevel
 		|| FeatureLevel != ReferenceSet.FeatureLevel)
