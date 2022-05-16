@@ -53,27 +53,29 @@ FBox UPCGIntersectionData::GetStrictBounds() const
 bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	check(A && B);
+	const UPCGSpatialData* X = (A->HasNonTrivialTransform() || !B->HasNonTrivialTransform()) ? A : B;
+	const UPCGSpatialData* Y = (X == A) ? B : A;
 
-	FPCGPoint PointFromA;
-	if(!A->SamplePoint(InTransform, InBounds, PointFromA, OutMetadata))
+	FPCGPoint PointFromX;
+	if(!X->SamplePoint(InTransform, InBounds, PointFromX, OutMetadata))
 	{
 		return false;
 	}
 
-	FPCGPoint PointFromB;
-	if(!B->SamplePoint(InTransform, InBounds, PointFromB, OutMetadata))
+	FPCGPoint PointFromY;
+	if(!Y->SamplePoint(PointFromX.Transform, InBounds, PointFromY, OutMetadata))
 	{
 		return false;
 	}
 
 	// Merge points into a single point
-	OutPoint = (A->HasNonTrivialTransform() ? PointFromA : PointFromB);
-	OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(PointFromA.Density, PointFromB.Density, DensityFunction);
-	OutPoint.Color = PointFromA.Color * PointFromB.Color;
+	OutPoint = PointFromY;
+	OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(PointFromX.Density, PointFromY.Density, DensityFunction);
+	OutPoint.Color = PointFromX.Color * PointFromY.Color;
 
 	if (OutMetadata)
 	{
-		OutMetadata->MergePointAttributes(PointFromA, PointFromB, OutPoint, EPCGMetadataOp::Min);
+		OutMetadata->MergePointAttributes(PointFromX, PointFromY, OutPoint, EPCGMetadataOp::Min);
 	}
 
 	return true;

@@ -80,12 +80,14 @@ FBox UPCGUnionData::GetStrictBounds() const
 
 bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	FTransform PointTransform = InTransform;
 	bool bHasSetPoint = false;
 
 	if (FirstNonTrivialTransformData)
 	{
 		if (FirstNonTrivialTransformData->SamplePoint(InTransform, InBounds, OutPoint, OutMetadata))
 		{
+			PointTransform = OutPoint.Transform;
 			bHasSetPoint = true;
 
 			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
@@ -105,7 +107,7 @@ bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 		}
 
 		FPCGPoint PointInData;
-		if(Data[DataIndex]->SamplePoint(InTransform, InBounds, PointInData, OutMetadata))
+		if(Data[DataIndex]->SamplePoint(PointTransform, InBounds, PointInData, OutMetadata))
 		{
 			if (!bHasSetPoint)
 			{
