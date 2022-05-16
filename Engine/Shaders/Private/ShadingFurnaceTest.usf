@@ -29,7 +29,7 @@ uint NumSamplesPerSet;
 
 void MainPS(
 	float4 SVPos : SV_POSITION,
-	out float3 OutColor : SV_Target0)
+	out float4 OutColor : SV_Target0)
 {
 	// Non strata path (todo: add strata path)
 	const float2 ScreenUV = SvPositionToBufferUV(SVPos);
@@ -245,12 +245,12 @@ void MainPS(
 
 				FinalRadiance += Weight * SampleRadiance;
 			}
-			OutColor = FinalRadiance;
+			OutColor = float4(FinalRadiance, 1.f);
 		}
 	}
 	else
 	{
-		OutColor = InRadiance;
+		OutColor = float4(InRadiance, 1.f);
 	}
 
 }

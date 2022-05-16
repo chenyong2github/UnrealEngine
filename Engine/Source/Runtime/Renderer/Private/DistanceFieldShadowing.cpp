@@ -1115,7 +1115,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
-				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetPixelShader(), PassParameters->VS);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
 
 				//@todo - depth bounds test for local lights
 				if (bDirectionalLight)
