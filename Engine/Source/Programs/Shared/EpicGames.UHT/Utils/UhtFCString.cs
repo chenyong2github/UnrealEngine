@@ -452,25 +452,10 @@ namespace EpicGames.UHT.Utils
 			{
 				return input;
 			}
-			return TabsToSpacesInternal(input.Span, tabSpacing, emulateCrBug, tabIndex).AsMemory();
-		}
-
-		/// <summary>
-		/// Replace tabs to spaces in a string containing zero or more lines.
-		/// </summary>
-		/// <param name="input">Input string</param>
-		/// <param name="tabSpacing">Number of spaces to exchange for tabs</param>
-		/// <param name="emulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
-		/// <returns>Resulting string or the original string if the string didn't contain any spaces.</returns>
-		public static string TabsToSpaces(string input, int tabSpacing, bool emulateCrBug)
-		{
-			// If we have any tab characters, then we need to convert them to spaces
-			int tabIndex = input.IndexOf('\t', StringComparison.Ordinal);
-			if (tabIndex == -1)
-			{
-				return input;
-			}
-			return TabsToSpacesInternal(input.AsSpan(), tabSpacing, emulateCrBug, tabIndex);
+			using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+			StringBuilder builder = borrower.StringBuilder;
+			TabsToSpaces(input.Span, tabSpacing, emulateCrBug, tabIndex, builder);
+			return builder.ToString().AsMemory();
 		}
 
 		/// <summary>
@@ -480,14 +465,12 @@ namespace EpicGames.UHT.Utils
 		/// <param name="tabSpacing">Number of spaces to exchange for tabs</param>
 		/// <param name="emulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
 		/// <param name="tabIndex">Initial tab index</param>
-		/// <returns>Resulting string or the original string if the string didn't contain any spaces.</returns>
-		private static string TabsToSpacesInternal(ReadOnlySpan<char> span, int tabSpacing, bool emulateCrBug, int tabIndex)
+		/// <param name="builder">Destination string builder</param>
+		public static void TabsToSpaces(ReadOnlySpan<char> span, int tabSpacing, bool emulateCrBug, int tabIndex, StringBuilder builder)
 		{
 			// Locate the last \n since all tabs have to be computed relative to this.
 			int crPos = span[..tabIndex].LastIndexOf('\n') + 1;
 
-			using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
-			StringBuilder builder = borrower.StringBuilder;
 			int committed = 0;
 			do
 			{
@@ -522,7 +505,6 @@ namespace EpicGames.UHT.Utils
 
 			// Commit the remaining data
 			builder.Append(span);
-			return builder.ToString();
 		}
 	}
 }

@@ -64,7 +64,7 @@ namespace EpicGames.UHT.Parsers
 					using UhtMessageContext tokenContext = new(ScopeName);
 					// Parse the specifiers
 					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, classObj.MetaData);
-					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Class));
+					UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Class));
 					specifiers.ParseSpecifiers();
 					classObj.PrologLineNumber = topScope.TokenReader.InputLine;
 					classObj.ClassFlags |= EClassFlags.Native;

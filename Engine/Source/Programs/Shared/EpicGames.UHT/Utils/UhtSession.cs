@@ -1053,24 +1053,6 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
-		/// Try the given action regardless of any prior errors.  If an exception occurs that doesn't have the required
-		/// context, use the supplied context to generate the message.
-		/// </summary>
-		/// <param name="messageSource">Message context for when the exception doesn't contain a context.</param>
-		/// <param name="action">The lambda to be invoked</param>
-		public void TryAlways(IUhtMessageSource? messageSource, Action action)
-		{
-			try
-			{
-				action();
-			}
-			catch (Exception e)
-			{
-				HandleException(messageSource, e);
-			}
-		}
-
-		/// <summary>
 		/// Try the given action.  If an exception occurs that doesn't have the required
 		/// context, use the supplied context to generate the message.
 		/// </summary>
@@ -1723,11 +1705,15 @@ namespace EpicGames.UHT.Utils
 		private UhtHeaderFileParser? ParseHeaderFile(UhtHeaderFile headerFile)
 		{
 			UhtHeaderFileParser? parser = null;
-			TryAlways(headerFile.MessageSource, () =>
+			try
 			{
 				headerFile.Read();
 				parser = UhtHeaderFileParser.Parse(headerFile);
-			});
+			}
+			catch (Exception e)
+			{
+				HandleException(headerFile.MessageSource, e);
+			}
 			return parser;
 		}
 
@@ -1987,10 +1973,14 @@ namespace EpicGames.UHT.Utils
 
 		private void Resolve(UhtHeaderFile headerFile, UhtResolvePhase resolvePhase)
 		{
-			TryAlways(headerFile.MessageSource, () =>
+			try
 			{
 				headerFile.Resolve(resolvePhase);
-			});
+			}
+			catch (Exception e)
+			{
+				HandleException(headerFile.MessageSource, e);
+			}
 		}
 
 		private delegate void StepDelegate(UhtHeaderFile headerFile);

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
@@ -177,17 +178,17 @@ namespace EpicGames.UHT.Parsers
 			ReadOnlySpan<StringView> comments = this.TokenReader.Comments;
 
 			// If we don't have any comments, just return
-			string mergedString = String.Empty;
 			if (comments.Length == 0)
 			{
 				return;
 			}
 
 			// Set the comment as just a simple concatenation of all the strings
+			string mergedString = String.Empty;
 			if (comments.Length == 1)
 			{
 				mergedString = comments[0].ToString();
-				type.MetaData.Add(UhtNames.Comment, metaNameIndex, comments[0].ToString());
+				type.MetaData.Add(UhtNames.Comment, metaNameIndex, mergedString);
 			}
 			else
 			{
@@ -202,10 +203,10 @@ namespace EpicGames.UHT.Parsers
 			}
 
 			// Format the tooltip and set the metadata
-			StringView toolTip = FormatCommentForToolTip(mergedString);
-			if (toolTip.Span.Length > 0)
+			string toolTip = FormatCommentForToolTip(mergedString);
+			if (!String.IsNullOrEmpty(toolTip))
 			{
-				type.MetaData.Add(UhtNames.ToolTip, metaNameIndex, toolTip.ToString());
+				type.MetaData.Add(UhtNames.ToolTip, metaNameIndex, toolTip);
 
 				//COMPATIBILITY-TODO - Old UHT would only clear the comments if there was some form of a tooltip
 				this.TokenReader.ClearComments();
@@ -252,97 +253,96 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		/// <param name="comments">Comments to be parsed</param>
 		/// <returns>The generated tooltip</returns>
-		private static StringView FormatCommentForToolTip(string comments)
+		private static string FormatCommentForToolTip(string comments)
 		{
 			if (!HasValidCommentChar(comments))
 			{
-				return new StringView();
+				return String.Empty;
 			}
 
-			string result = comments;
+			// Use the scratch characters to store the string as we process it in MANY passes
+			char[] scratchChars = ArrayPool<char>.Shared.Rent(comments.Length);
+			comments.CopyTo(0, scratchChars, 0, comments.Length);
 
-			// Sweep out comments marked to be ignored.
-			{
-				int commentStart, commentEnd;
-
-				// Block comments go first
-				while ((commentStart = result.IndexOf("/*~", StringComparison.Ordinal)) != -1)
-				{
-					commentEnd = result.IndexOf("*/", commentStart, StringComparison.Ordinal);
-					if (commentEnd != -1)
-					{
-						result = result.Remove(commentStart, commentEnd - commentStart + 2);
-					}
-					else
-					{
-						// This looks like an error - an unclosed block comment.
-						break;
-					}
-				}
-
-				// Leftover line comments go next
-				while ((commentStart = result.IndexOf("//~", StringComparison.Ordinal)) != -1)
-				{
-					commentEnd = result.IndexOf("\n", commentStart, StringComparison.Ordinal);
-					if (commentEnd != -1)
-					{
-						result = result.Remove(commentStart, commentEnd - commentStart + 1);
-					}
-					else
-					{
-						result = result.Remove(commentStart);
-						break;
-					}
-				}
-			}
-
-			// Check for known commenting styles.
-			bool javaDocStyle = result.Contains("/**", StringComparison.Ordinal);
-			bool cStyle = result.Contains("/*", StringComparison.Ordinal);
-			bool cppStyle = result.StartsWith("//", StringComparison.Ordinal);
-
-			if (javaDocStyle || cStyle)
-			{
-				// Remove beginning and end markers.
-				if (javaDocStyle)
-				{
-					result = result.Replace("/**", "", StringComparison.Ordinal);
-				}
-				if (cStyle)
-				{
-					result = result.Replace("/*", "", StringComparison.Ordinal);
-				}
-				result = result.Replace("*/", "", StringComparison.Ordinal);
-			}
-
-			if (cppStyle)
-			{
-				// Remove c++-style comment markers.  Also handle javadoc-style comments 
-				result = result.Replace("///", "", StringComparison.Ordinal);
-				result = result.Replace("//", "", StringComparison.Ordinal);
-
-				// Parser strips cpptext and replaces it with "// (cpptext)" -- prevent
-				// this from being treated as a comment on variables declared below the
-				// cpptext section
-				result = result.Replace("(cpptext)", "", StringComparison.Ordinal);
-			}
-
-			// Get rid of carriage return or tab characters, which mess up tooltips.
-			result = result.Replace("\r", "", StringComparison.Ordinal);
+			// Remove ignore comments and strip the comment markers:
+			// These are all issues with how the old UHT worked.
+			// 1) Must be done in order
+			// 2) Block comment markers are removed first so that '///**' is process by removing '/**' first and then '//' second
+			// 3) We only remove block comments if we find the start of a comment.  This means that if there is a '*/' in a line comment, it won't be removed.
+			// 4) We must check to see if we have cppStyle prior to removing block style comments. 
+			ReadOnlySpan<char> span = comments.AsSpan(0, comments.Length);
+			int commentsLength = RemoveIgnoreComments(scratchChars, comments.Length);
+			bool javaDocStyle = span.Contains("/**", StringComparison.Ordinal);
+			bool cStyle = javaDocStyle || span.Contains("/*", StringComparison.Ordinal);
+			bool cppStyle = span.StartsWith("//", StringComparison.Ordinal);
+			commentsLength = javaDocStyle || cStyle ? RemoveBlockCommentMarkers(scratchChars, commentsLength) : commentsLength;
+			commentsLength = cppStyle ? RemoveLineCommentMarkers(scratchChars, commentsLength) : commentsLength;
 
 			//wx widgets has a hard coded tab size of 8
 			{
 				const int SpacesPerTab = 8;
-				result = UhtFCString.TabsToSpaces(result, SpacesPerTab, true);
+
+				// If we have any tab characters, then we need to convert them to spaces
+				span = scratchChars.AsSpan(0, commentsLength);
+				int tabIndex = span.IndexOf('\t');
+				if (tabIndex != -1)
+				{
+					using BorrowStringBuilder tabsBorrower = new(StringBuilderCache.Small);
+					StringBuilder tabsBuilder = tabsBorrower.StringBuilder;
+					UhtFCString.TabsToSpaces(span, SpacesPerTab, true, tabIndex, tabsBuilder);
+					commentsLength = tabsBuilder.Length;
+					if (commentsLength > scratchChars.Length)
+					{
+						ArrayPool<char>.Shared.Return(scratchChars);
+						scratchChars = ArrayPool<char>.Shared.Rent(commentsLength);
+					}
+					tabsBuilder.CopyTo(0, scratchChars, 0, commentsLength);
+				}
 			}
 
-			// get rid of uniform leading whitespace and all trailing whitespace, on each line
-			string[] lines = result.Split('\n');
-
-			for (int index = 0; index < lines.Length; ++index)
+			static bool IsAllSameChar(ReadOnlySpan<char> line, int startIndex, char testChar)
 			{
-				// Remove trailing whitespace
-				string line = lines[index].TrimEnd();
+				for (int index = startIndex, end = line.Length; index < end; ++index)
+				{
+					if (line[index] != testChar)
+					{
+						return false;
+					}
+				}
+				return true;
+			}
+
+			static bool IsWhitespaceOrLineSeparator(ReadOnlySpan<char> line)
+			{
+				// Skip any leading spaces
+				int index = 0;
+				int endPos = line.Length;
+				for (; index < endPos && UhtFCString.IsWhitespace(line[index]); ++index)
+				{
+				}
+				if (index == endPos)
+				{
+					return true;
+				}
+
+				// Check for the same character
+				return IsAllSameChar(line, index, '-') || IsAllSameChar(line, index, '=') || IsAllSameChar(line, index, '*');
+			}
+
+			// Loop while we have data
+			span = scratchChars.AsSpan(0, commentsLength);
+			bool firstLine = true;
+			int maxNumWhitespaceToRemove = 0;
+			int lastNonWhitespaceLength = 0;
+			int outEndPos = 0;
+			while (span.Length > 0)
+			{
+
+				// Extract the next line to process
+				int eolIndex = span.IndexOf('\n');
+				ReadOnlySpan<char> line = eolIndex != -1 ? span[..eolIndex] : span;
+				span = eolIndex != -1 ? span[(eolIndex + 1)..] : new ReadOnlySpan<char>();
+				line = line.TrimEnd();
 
 				// Remove leading "*" and "* " in javadoc comments.
 				if (javaDocStyle)
@@ -366,113 +366,228 @@ namespace EpicGames.UHT.Parsers
 						line = line[(pos + 1)..];
 					}
 				}
-				lines[index] = line;
-			}
 
-			static bool IsAllSameChar(string line, int startIndex, char testChar)
-			{
-				for (int index = startIndex, end = line.Length; index < end; ++index)
+				// Test to see if this is whitespace or line separator.  If also first line, then just skip
+				bool isWhitespaceOrLineSeparator = IsWhitespaceOrLineSeparator(line);
+				if (firstLine && isWhitespaceOrLineSeparator)
 				{
-					if (line[index] != testChar)
-					{
-						return false;
-					}
+					continue;
 				}
-				return true;
-			}
-
-			static bool IsWhitespaceOrLineSeparator(string line)
-			{
-				// Skip any leading spaces
-				int index = 0;
-				int endPos = line.Length;
-				for (; index < endPos && UhtFCString.IsWhitespace(line[index]); ++index)
-				{
-				}
-				if (index == endPos)
-				{
-					return true;
-				}
-
-				// Check for the same character
-				return IsAllSameChar(line, index, '-') || IsAllSameChar(line, index, '=') || IsAllSameChar(line, index, '*');
-			}
-
-			// Find first meaningful line
-			int firstIndex = 0;
-			for (; firstIndex < lines.Length && IsWhitespaceOrLineSeparator(lines[firstIndex]); ++firstIndex)
-			{ }
-
-			int lastIndex = lines.Length;
-			for (; lastIndex > firstIndex && IsWhitespaceOrLineSeparator(lines[lastIndex - 1]); --lastIndex)
-			{ }
-
-			result = String.Empty;
-			if (firstIndex != lastIndex)
-			{
-				string firstLine = lines[firstIndex];
 
 				// Figure out how much whitespace is on the first line
-				int maxNumWhitespaceToRemove = 0;
-				for (; maxNumWhitespaceToRemove < firstLine.Length; maxNumWhitespaceToRemove++)
+				if (firstLine)
 				{
-					if (/*!UhtFCString.IsLinebreak(FirstLine[MaxNumWhitespaceToRemove]) && */!UhtFCString.IsWhitespace(firstLine[maxNumWhitespaceToRemove]))
+					for (; maxNumWhitespaceToRemove < line.Length; maxNumWhitespaceToRemove++)
 					{
-						break;
+						if (!UhtFCString.IsWhitespace(line[maxNumWhitespaceToRemove]))
+						{
+							break;
+						}
+					}
+					line = line[maxNumWhitespaceToRemove..];
+				}
+				else
+				{
+
+					// Trim any leading whitespace
+					for (int i = 0; i < maxNumWhitespaceToRemove && line.Length > 0; i++)
+					{
+						if (!UhtFCString.IsWhitespace(line[0]))
+						{
+							break;
+						}
+						line = line[1..];
+					}
+
+					scratchChars[outEndPos++] = '\n';
+				}
+
+				if (line.Length > 0 && !IsAllSameChar(line, 0, '='))
+				{
+					for (int i = 0; i < line.Length; i++)
+					{
+						scratchChars[outEndPos++] = line[i];
 					}
 				}
 
-				for (int index = firstIndex; index != lastIndex; ++index)
+				if (!isWhitespaceOrLineSeparator)
 				{
-					string line = lines[index];
-
-					int temporaryMaxWhitespace = maxNumWhitespaceToRemove;
-
-					// Allow eating an extra tab on subsequent lines if it's present
-					if ((index > firstIndex) && (line.Length > 0) && (line[0] == '\t'))
-					{
-						temporaryMaxWhitespace++;
-					}
-
-					// Advance past whitespace
-					int pos = 0;
-					while (pos < temporaryMaxWhitespace && pos < line.Length && UhtFCString.IsWhitespace(line[pos]))
-					{
-						++pos;
-					}
-
-					if (pos > 0)
-					{
-						line = line[pos..];
-					}
-
-					if (index > firstIndex)
-					{
-						result += "\n";
-					}
-
-					if (line.Length > 0 && !IsAllSameChar(line, 0, '='))
-					{
-						result += line;
-					}
+					lastNonWhitespaceLength = outEndPos;
 				}
+				firstLine = false;
 			}
+
+			outEndPos = lastNonWhitespaceLength;
 
 			//@TODO: UCREMOVAL: Really want to trim an arbitrary number of newlines above and below, but keep multiple newlines internally
 			// Make sure it doesn't start with a newline
-			if (result.Length != 0 && UhtFCString.IsLinebreak(result[0]))
+			int outStartPos = 0;
+			if (outStartPos < outEndPos && scratchChars[outStartPos] == '\n')
 			{
-				result = result[1..];
+				outStartPos++;
 			}
 
 			// Make sure it doesn't end with a dead newline
-			if (result.Length != 0 && UhtFCString.IsLinebreak(result[^1]))
+			if (outStartPos < outEndPos && scratchChars[outEndPos - 1] == '\n')
 			{
-				result = result[0..^1];
+				outEndPos--;
 			}
 
-			// Done.
-			return result;
+			string results = scratchChars.AsSpan(outStartPos, outEndPos - outStartPos).ToString();
+			ArrayPool<char>.Shared.Return(scratchChars);
+			return results;
+		}
+
+		/// <summary>
+		/// Remove any comments marked to be ignored
+		/// </summary>
+		/// <param name="comments">Buffer containing comments to be processed.  Comments are removed inline</param>
+		/// <param name="inLength">Length of the comments</param>
+		/// <returns>New length of the comments</returns>
+		private static int RemoveIgnoreComments(char[] comments, int inLength)
+		{
+			ReadOnlySpan<char> span = comments.AsSpan(0, inLength);
+			int commentStart, commentEnd;
+
+			// Block comments go first
+			while ((commentStart = span.IndexOf("/*~", StringComparison.Ordinal)) != -1)
+			{
+				commentEnd = span[commentStart..].IndexOf("*/", StringComparison.Ordinal);
+				if (commentEnd != -1)
+				{
+					commentEnd += 2;
+					Array.Copy(comments, commentStart + commentEnd, comments, commentStart, span.Length - (commentStart + commentEnd));
+					span = span[..(span.Length - commentEnd)];
+				}
+				else
+				{
+					// This looks like an error - an unclosed block comment.
+					break;
+				}
+			}
+
+			// Leftover line comments go next
+			while ((commentStart = span.IndexOf("//~", StringComparison.Ordinal)) != -1)
+			{
+				commentEnd = span[commentStart..].IndexOf("\n", StringComparison.Ordinal);
+				if (commentEnd != -1)
+				{
+					commentEnd++;
+					Array.Copy(comments, commentStart + commentEnd, comments, commentStart, span.Length - (commentStart + commentEnd));
+					span = span[..(span.Length - commentEnd)];
+				}
+				else
+				{
+					span = span[..commentStart];
+					break;
+				}
+			}
+
+			return span.Length;
+		}
+
+		/// <summary>
+		/// Remove any block comment markers
+		/// </summary>
+		/// <param name="comments">Buffer containing comments to be processed.  Comments are removed inline</param>
+		/// <param name="inLength">Length of the comments</param>
+		/// <returns>New length of the comments</returns>
+		private static int RemoveBlockCommentMarkers(char[] comments, int inLength)
+		{
+			int outPos = 0;
+			int inPos = 0;
+			while (inPos < inLength)
+			{
+				switch (comments[inPos])
+				{
+					case '\r':
+						inPos++;
+						break;
+					case '/':
+						if (inPos + 2 < inLength && comments[inPos + 1] == '*' && comments[inPos + 2] == '*')
+						{
+							inPos += 3;
+						}
+						else if (inPos + 1 < inLength && comments[inPos + 1] == '*')
+						{
+							inPos += 2;
+						}
+						else
+						{
+							comments[outPos++] = comments[inPos++];
+						}
+						break;
+					case '*':
+						if (inPos + 1 < inLength && comments[inPos + 1] == '/')
+						{
+							inPos += 2;
+						}
+						else
+						{
+							comments[outPos++] = comments[inPos++];
+						}
+						break;
+					default:
+						comments[outPos++] = comments[inPos++];
+						break;
+				}
+			}
+			return outPos;
+		}
+
+		/// <summary>
+		/// Remove any line comment markers
+		/// </summary>
+		/// <param name="comments">Buffer containing comments to be processed.  Comments are removed inline</param>
+		/// <param name="inLength">Length of the comments</param>
+		/// <returns>New length of the comments</returns>
+		private static int RemoveLineCommentMarkers(char[] comments, int inLength)
+		{
+			ReadOnlySpan<char> span = comments.AsSpan(0, inLength);
+			int outPos = 0;
+			int inPos = 0;
+			while (inPos < inLength)
+			{
+				switch (comments[inPos])
+				{
+					case '\r':
+						inPos++;
+						break;
+					case '/':
+						if (inPos + 1 < inLength && comments[inPos + 1] == '/')
+						{
+							if (inPos + 2 < inLength && comments[inPos + 2] == '/')
+							{
+								inPos += 3;
+							}
+							else
+							{
+								inPos += 2;
+							}
+						}
+						else
+						{
+							comments[outPos++] = comments[inPos++];
+						}
+						break;
+					case '(':
+						{
+							if (span[inPos..].StartsWith("(cpptext)", StringComparison.Ordinal))
+							{
+								inPos += 9;
+							}
+							else
+							{
+								comments[outPos++] = comments[inPos++];
+							}
+						}
+						break;
+					default:
+						comments[outPos++] = comments[inPos++];
+						break;
+				}
+			}
+			return outPos;
 		}
 	}
 

@@ -764,7 +764,7 @@ namespace EpicGames.UHT.Parsers
 
 			bool isParamList = this._specifierContext.PropertySettings.PropertyCategory != UhtPropertyCategory.Member && this.TokenReader.TryOptional("UPARAM");
 
-			UhtSpecifierParser specifiers = this.TopScope.HeaderParser.GetCachedSpecifierParser(this._specifierContext, "Variable",
+			UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(this._specifierContext, "Variable",
 				isParamList ? this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyArgument) : this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 			if (_declarationStyle == UhtParsePropertyDeclarationStyle.UPROPERTY || isParamList)
 			{
@@ -1102,7 +1102,7 @@ namespace EpicGames.UHT.Parsers
 			// Try gathering metadata for member fields
 			if (newProperty.PropertyCategory == UhtPropertyCategory.Member)
 			{
-				UhtSpecifierParser specifiers = this.TopScope.HeaderParser.GetCachedSpecifierParser(this._specifierContext, newProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
+				UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(this._specifierContext, newProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 				specifiers.ParseFieldMetaData();
 				this.TopScope.AddFormattedCommentsAsTooltipMetaData(newProperty);
 			}

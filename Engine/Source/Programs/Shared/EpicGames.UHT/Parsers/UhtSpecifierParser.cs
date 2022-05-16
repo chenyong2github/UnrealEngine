@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
@@ -23,6 +24,12 @@ namespace EpicGames.UHT.Parsers
 			public object? _value;
 		}
 
+		/// <summary>
+		/// For a given header file, we share a common specifier parser to reduce the number of allocations.
+		/// Before the parser can be reused, the ParseDeferred method must be called to dispatch that list.
+		/// </summary>
+		private static readonly ThreadLocal<UhtSpecifierParser?> s_tls = new(() => null);
+
 		private static readonly List<KeyValuePair<StringView, StringView>> s_emptyKVPValues = new();
 
 		private UhtSpecifierContext _specifierContext;
@@ -42,6 +49,26 @@ namespace EpicGames.UHT.Parsers
 		private readonly Action _parseStringViewListAction;
 
 		/// <summary>
+		/// Get the cached specifier parser
+		/// </summary>
+		/// <param name="specifierContext">Specifier context</param>
+		/// <param name="context">User facing context</param>
+		/// <param name="table">Specifier table</param>
+		/// <returns>Specifier parser</returns>
+		public static UhtSpecifierParser GetThreadInstance(UhtSpecifierContext specifierContext, StringView context, UhtSpecifierTable table)
+		{
+			if (s_tls.Value == null)
+			{
+				s_tls.Value = new UhtSpecifierParser(specifierContext, context, table);
+			}
+			else
+			{
+				s_tls.Value.Reset(specifierContext, context, table);
+			}
+			return s_tls.Value;
+		}
+
+		/// <summary>
 		/// Construct a new specifier parser
 		/// </summary>
 		/// <param name="specifierContext">Specifier context</param>
@@ -56,22 +83,8 @@ namespace EpicGames.UHT.Parsers
 
 			this._parseAction = ParseInternal;
 			this._parseFieldMetaDataAction = ParseFieldMetaDataInternal;
-			this._parseKVPValueAction = () =>
-			{
-				if (this._currentKVPValues == null)
-				{
-					this._currentKVPValues = new List<KeyValuePair<StringView, StringView>>();
-				}
-				this._currentKVPValues.Add(ReadKVP());
-			};
-			this._parseStringViewListAction = () =>
-			{
-				if (this._currentStringValues == null)
-				{
-					this._currentStringValues = new List<StringView>();
-				}
-				this._currentStringValues.Add(ReadValue());
-			};
+			this._parseKVPValueAction = ParseKVPValueInternal;
+			this._parseStringViewListAction = ParseStringViewListInternal;
 		}
 
 		/// <summary>
@@ -205,6 +218,24 @@ namespace EpicGames.UHT.Parsers
 
 			++this._umetaElementsParsed;
 			this._specifierContext.MetaData.Add(key.Value.ToString(), this._specifierContext.MetaNameIndex, builder.ToString());
+		}
+
+		private void ParseKVPValueInternal()
+		{
+			if (this._currentKVPValues == null)
+			{
+				this._currentKVPValues = new List<KeyValuePair<StringView, StringView>>();
+			}
+			this._currentKVPValues.Add(ReadKVP());
+		}
+
+		private void ParseStringViewListInternal()
+		{
+			if (this._currentStringValues == null)
+			{
+				this._currentStringValues = new List<StringView>();
+			}
+			this._currentStringValues.Add(ReadValue());
 		}
 
 		private void Dispatch(UhtSpecifier specifier, object? value)

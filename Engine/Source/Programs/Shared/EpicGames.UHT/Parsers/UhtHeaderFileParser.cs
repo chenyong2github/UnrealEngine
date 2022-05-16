@@ -209,12 +209,6 @@ namespace EpicGames.UHT.Parsers
 		public UhtPropertyParser? PropertyParser { get; set; } = null;
 
 		/// <summary>
-		/// For a given header file, we share a common specifier parser to reduce the number of allocations.
-		/// Before the parser can be reused, the ParseDeferred method must be called to dispatch that list.
-		/// </summary>
-		private UhtSpecifierParser? _specifierParser = null;
-
-		/// <summary>
 		/// Stack of current #if states
 		/// </summary>
 		private readonly List<CompilerDirective> _compilerDirectives = new();
@@ -296,26 +290,6 @@ namespace EpicGames.UHT.Parsers
 				throw new UhtIceException("Attempt to pop a scope that isn't the top scope");
 			}
 			this._topScope = scope.ParentScope;
-		}
-
-		/// <summary>
-		/// Get the cached specifier parser
-		/// </summary>
-		/// <param name="specifierContext">Specifier context</param>
-		/// <param name="context">User facing context</param>
-		/// <param name="table">Specifier table</param>
-		/// <returns>Specifier parser</returns>
-		public UhtSpecifierParser GetCachedSpecifierParser(UhtSpecifierContext specifierContext, StringView context, UhtSpecifierTable table)
-		{
-			if (this._specifierParser == null)
-			{
-				this._specifierParser = new UhtSpecifierParser(specifierContext, context, table);
-			}
-			else
-			{
-				this._specifierParser.Reset(specifierContext, context, table);
-			}
-			return this._specifierParser;
 		}
 
 		/// <summary>

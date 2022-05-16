@@ -140,7 +140,7 @@ namespace EpicGames.UHT.Parsers
 					topScope.AddModuleRelativePathToMetaData();
 
 					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, function.MetaData);
-					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Function));
+					UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 
 					// If this is a UDELEGATE, parse the specifiers
 					StringView delegateMacro = new();
@@ -312,7 +312,7 @@ namespace EpicGames.UHT.Parsers
 					topScope.AddModuleRelativePathToMetaData();
 
 					UhtSpecifierContext specifierContext = new(topScope, topScope.TokenReader, function.MetaData);
-					UhtSpecifierParser specifierParser = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, scopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Function));
+					UhtSpecifierParser specifierParser = UhtSpecifierParser.GetThreadInstance(specifierContext, scopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 					specifierParser.ParseSpecifiers();
 
 					if (!outerClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
