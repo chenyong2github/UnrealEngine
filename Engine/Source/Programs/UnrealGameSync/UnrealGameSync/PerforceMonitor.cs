@@ -248,7 +248,7 @@ namespace UnrealGameSync
 						await PollForUpdatesInner(CancellationToken);
 					}
 				}
-				catch (TaskCanceledException) when (CancellationToken.IsCancellationRequested)
+				catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested)
 				{
 					break;
 				}
