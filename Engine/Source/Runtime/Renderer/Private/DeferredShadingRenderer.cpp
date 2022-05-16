@@ -2812,12 +2812,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			LLM_SCOPE_BYTAG(Lumen);
 			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
 		}
-
-		// If forward shading is enabled, we computed fog earlier already
-		if (!IsForwardShadingEnabled(ShaderPlatform))
-		{
-			ComputeVolumetricFog(GraphBuilder, SceneTextures);
-		}
 	}
 	// End shadow and fog after base pass
 
@@ -2980,6 +2974,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RenderLightsForHair(GraphBuilder, SceneTextures, SortedLightSet, ForwardScreenSpaceShadowMaskHairTexture, LightingChannelsTexture);
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder);
+	}
+
+	// Volumetric fog after Lumen GI and shadow depths
+	if (!IsForwardShadingEnabled(ShaderPlatform) && !bHasRayTracedOverlay)
+	{
+		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 	}
 
 	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled() && !bHasHalfResCheckerboardMinMaxDepth && !bHasRayTracedOverlay)
