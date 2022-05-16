@@ -14,13 +14,13 @@ public class PlasticSourceControl : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
-				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
 				"SourceControl",
 				"XmlParser",
 				"Projects",
 				"AssetRegistry",
+				"ToolMenus",
 			}
 		);
 	}

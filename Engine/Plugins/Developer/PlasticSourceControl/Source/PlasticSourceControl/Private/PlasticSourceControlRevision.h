@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
 
 class FPlasticSourceControlState;
@@ -58,6 +57,9 @@ public:
 
 	/** The user that made the change */
 	FString UserName;
+
+	/** Branch where the change was made */
+	FString Branch;
 
 	/** The action (add, edit, branch etc.) performed at this revision */
 	FString Action;

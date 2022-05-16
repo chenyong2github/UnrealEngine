@@ -10,6 +10,7 @@
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 
+#include "Interfaces/IPluginManager.h"
 #include "LevelEditor.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -22,30 +23,31 @@
 
 #include "Logging/MessageLog.h"
 
-static const FName PlasticSourceControlMenuTabName("PlasticSourceControlMenu");
+#include "ToolMenus.h"
+#include "ToolMenuContext.h"
+#include "ToolMenuMisc.h"
 
 #define LOCTEXT_NAMESPACE "PlasticSourceControl"
 
 void FPlasticSourceControlMenu::Register()
 {
-	// Register the extension with the level editor
-	FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-	if (LevelEditorModule)
+	// Register the menu extension with the level editor
+	FToolMenuOwnerScoped SourceControlMenuOwner("PlasticSourceControlMenu");
+	if (UToolMenus* ToolMenus = UToolMenus::Get())
 	{
-		FLevelEditorModule::FLevelEditorMenuExtender ViewMenuExtender = FLevelEditorModule::FLevelEditorMenuExtender::CreateRaw(this, &FPlasticSourceControlMenu::OnExtendLevelEditorViewMenu);
-		auto& MenuExtenders = LevelEditorModule->GetAllLevelEditorToolbarSourceControlMenuExtenders();
-		MenuExtenders.Add(ViewMenuExtender);
-		ViewMenuExtenderHandle = MenuExtenders.Last().GetHandle();
+		UToolMenu* SourceControlMenu = ToolMenus->ExtendMenu("StatusBar.ToolBar.SourceControl");
+		FToolMenuSection& Section = SourceControlMenu->AddSection("PlasticSourceControlActions", LOCTEXT("PlasticSourceControlMenuHeadingActions", "Plastic SCM"), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
+
+		AddMenuExtension(Section);
 	}
 }
 
 void FPlasticSourceControlMenu::Unregister()
 {
-	// Unregister the level editor extensions
-	FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-	if (LevelEditorModule)
+	// Unregister the menu extension from the level editor
+	if (UToolMenus* ToolMenus = UToolMenus::Get())
 	{
-		LevelEditorModule->GetAllLevelEditorToolbarSourceControlMenuExtenders().RemoveAll([=](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == ViewMenuExtenderHandle; });
+		UToolMenus::Get()->UnregisterOwnerByName("PlasticSourceControlMenu");
 	}
 }
 
@@ -292,7 +294,8 @@ void FPlasticSourceControlMenu::RefreshClicked()
 		FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
 		FPlasticSourceControlProvider& Provider = PlasticSourceControl.GetProvider();
 		TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> RefreshOperation = ISourceControlOperation::Create<FUpdateStatus>();
-		RefreshOperation->SetCheckingAllFiles(true);
+		// This is the flag used by the Content Browser's "Checkout" filter to trigger a full status update
+		RefreshOperation->SetGetOpenedOnly(true);
 		const ECommandResult::Type Result = Provider.Execute(RefreshOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
 		if (Result == ECommandResult::Succeeded)
 		{
@@ -310,6 +313,26 @@ void FPlasticSourceControlMenu::RefreshClicked()
 		FMessageLog SourceControlLog("SourceControl");
 		SourceControlLog.Warning(LOCTEXT("SourceControlMenu_InProgress", "Source control operation already in progress"));
 		SourceControlLog.Notify();
+	}
+}
+
+void FPlasticSourceControlMenu::VisitDocsURLClicked()
+{
+	// Grab the URL from the uplugin file
+	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("PlasticSourceControl"));
+	if (Plugin.IsValid())
+	{
+		FPlatformProcess::LaunchURL(*Plugin->GetDescriptor().DocsURL, NULL, NULL);
+	}
+}
+
+void FPlasticSourceControlMenu::VisitSupportURLClicked()
+{
+	// Grab the URL from the uplugin file
+	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("PlasticSourceControl"));
+	if (Plugin.IsValid())
+	{
+		FPlatformProcess::LaunchURL(*Plugin->GetDescriptor().SupportURL, NULL, NULL);
 	}
 }
 
@@ -388,9 +411,10 @@ void FPlasticSourceControlMenu::OnSourceControlOperationComplete(const FSourceCo
 	}
 }
 
-void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
+void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 {
-	Builder.AddMenuEntry(
+	Menu.AddMenuEntry(
+		"PlasticSync",
 		LOCTEXT("PlasticSync",			"Sync/Update Workspace"),
 		LOCTEXT("PlasticSyncTooltip",	"Update all files in the workspace to the latest version."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
@@ -400,7 +424,8 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 		)
 	);
 
-	Builder.AddMenuEntry(
+	Menu.AddMenuEntry(
+		"PlasticRevertUnchanged",
 		LOCTEXT("PlasticRevertUnchanged",			"Revert Unchanged"),
 		LOCTEXT("PlasticRevertUnchangedTooltip",	"Revert checked-out but unchanged files in the workspace."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
@@ -410,7 +435,8 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 		)
 	);
 
-	Builder.AddMenuEntry(
+	Menu.AddMenuEntry(
+		"PlasticRevertAll",
 		LOCTEXT("PlasticRevertAll",			"Revert All"),
 		LOCTEXT("PlasticRevertAllTooltip",	"Revert all files in the workspace to their controlled/unchanged state."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
@@ -420,7 +446,8 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 		)
 	);
 
-	Builder.AddMenuEntry(
+	Menu.AddMenuEntry(
+		"PlasticRefresh",
 		LOCTEXT("PlasticRefresh",			"Refresh"),
 		LOCTEXT("PlasticRefreshTooltip",	"Update the source control status of all files in the workspace."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
@@ -429,19 +456,29 @@ void FPlasticSourceControlMenu::AddMenuExtension(FMenuBuilder& Builder)
 			FCanExecuteAction()
 		)
 	);
+
+	Menu.AddMenuEntry(
+		"PlasticDocsURL",
+		LOCTEXT("PlasticDocsURL",			"Plugin's Documentation"),
+		LOCTEXT("PlasticDocsURLTooltip",	"Visit documentation of the plugin on Github."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::VisitDocsURLClicked),
+			FCanExecuteAction()
+		)
+	);
+
+	Menu.AddMenuEntry(
+		"PlasticSupportURL",
+		LOCTEXT("PlasticSupportURL",		"Plastic SCM Support"),
+		LOCTEXT("PlasticSupportURLTooltip",	"Visit official support for Plastic SCM."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Support"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::VisitSupportURLClicked),
+			FCanExecuteAction()
+		)
+	);
 }
 
-TSharedRef<FExtender> FPlasticSourceControlMenu::OnExtendLevelEditorViewMenu(const TSharedRef<FUICommandList> CommandList)
-{
-	TSharedRef<FExtender> Extender(new FExtender());
-
-	Extender->AddMenuExtension(
-		"SourceControlActions",
-		EExtensionHook::After,
-		nullptr,
-		FMenuExtensionDelegate::CreateRaw(this, &FPlasticSourceControlMenu::AddMenuExtension));
-
-	return Extender;
-}
 
 #undef LOCTEXT_NAMESPACE

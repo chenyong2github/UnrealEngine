@@ -28,14 +28,14 @@ bool FPlasticSourceControlSettings::SetBinaryPath(const FString& InString)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 	const bool bChanged = (BinaryPath != InString);
-	if(bChanged)
+	if (bChanged)
 	{
 		BinaryPath = InString;
 	}
 	return bChanged;
 }
 
-bool FPlasticSourceControlSettings::UpdateStatusAtStartup() const
+bool FPlasticSourceControlSettings::GetUpdateStatusAtStartup() const
 {
 	FScopeLock ScopeLock(&CriticalSection);
 	return bUpdateStatusAtStartup;
@@ -47,6 +47,30 @@ void FPlasticSourceControlSettings::SetUpdateStatusAtStartup(const bool bInUpdat
 	bUpdateStatusAtStartup = bInUpdateStatusAtStartup;
 }
 
+bool FPlasticSourceControlSettings::GetUpdateStatusOtherBranches() const
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bUpdateStatusOtherBranches;
+}
+
+void FPlasticSourceControlSettings::SetUpdateStatusOtherBranches(const bool bInUpdateStatusOtherBranches)
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	bUpdateStatusOtherBranches = bInUpdateStatusOtherBranches;
+}
+
+bool FPlasticSourceControlSettings::GetEnableVerboseLogs() const
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bEnableVerboseLogs;
+}
+
+void FPlasticSourceControlSettings::SetEnableVerboseLogs(const bool bInEnableVerboseLogs)
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	bEnableVerboseLogs = bInEnableVerboseLogs;
+}
+
 // This is called at startup nearly before anything else in our module: BinaryPath will then be used by the provider
 void FPlasticSourceControlSettings::LoadSettings()
 {
@@ -54,6 +78,8 @@ void FPlasticSourceControlSettings::LoadSettings()
 	const FString& IniFile = SourceControlHelpers::GetSettingsIni();
 	GConfig->GetString(*PlasticSettingsConstants::SettingsSection, TEXT("BinaryPath"), BinaryPath, IniFile);
 	GConfig->GetBool(*PlasticSettingsConstants::SettingsSection, TEXT("UpdateStatusAtStartup"), bUpdateStatusAtStartup, IniFile);
+	GConfig->GetBool(*PlasticSettingsConstants::SettingsSection, TEXT("UpdateStatusOtherBranches"), bUpdateStatusOtherBranches, IniFile);
+	GConfig->GetBool(*PlasticSettingsConstants::SettingsSection, TEXT("EnableVerboseLogs"), bEnableVerboseLogs, IniFile);
 }
 
 void FPlasticSourceControlSettings::SaveSettings() const
@@ -62,4 +88,6 @@ void FPlasticSourceControlSettings::SaveSettings() const
 	const FString& IniFile = SourceControlHelpers::GetSettingsIni();
 	GConfig->SetString(*PlasticSettingsConstants::SettingsSection, TEXT("BinaryPath"), *BinaryPath, IniFile);
 	GConfig->SetBool(*PlasticSettingsConstants::SettingsSection, TEXT("UpdateStatusAtStartup"), bUpdateStatusAtStartup, IniFile);
+	GConfig->SetBool(*PlasticSettingsConstants::SettingsSection, TEXT("UpdateStatusOtherBranches"), bUpdateStatusOtherBranches, IniFile);
+	GConfig->SetBool(*PlasticSettingsConstants::SettingsSection, TEXT("EnableVerboseLogs"), bEnableVerboseLogs, IniFile);
 }

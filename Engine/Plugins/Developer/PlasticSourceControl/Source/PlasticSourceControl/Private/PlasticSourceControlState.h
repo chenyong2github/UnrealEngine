@@ -34,19 +34,24 @@ class FPlasticSourceControlState : public ISourceControlState, public TSharedFro
 {
 public:
 
-	FPlasticSourceControlState(const FString& InLocalFilename)
-		: LocalFilename(InLocalFilename)
+	FPlasticSourceControlState(FString&& InLocalFilename)
+		: LocalFilename(MoveTemp(InLocalFilename))
 		, WorkspaceState(EWorkspaceState::Unknown)
-		, DepotRevisionChangeset(-1)
-		, LocalRevisionChangeset(-1)
+		, DepotRevisionChangeset(INVALID_REVISION)
+		, LocalRevisionChangeset(INVALID_REVISION)
 		, TimeStamp(0)
 	{
 	}
 
+	FPlasticSourceControlState() = delete;
 	FPlasticSourceControlState(const FPlasticSourceControlState& InState) = delete;
 	const FPlasticSourceControlState& operator=(const FPlasticSourceControlState& InState) = delete;
 
 	FPlasticSourceControlState(FPlasticSourceControlState&& InState)
+		: WorkspaceState(EWorkspaceState::Unknown)
+		, DepotRevisionChangeset(INVALID_REVISION)
+		, LocalRevisionChangeset(INVALID_REVISION)
+		, TimeStamp(0)
 	{
 		Move(MoveTemp(InState));
 	}
@@ -61,16 +66,32 @@ public:
 	{
 		History = MoveTemp(InState.History);
 		LocalFilename = MoveTemp(InState.LocalFilename);
-		RepSpec = MoveTemp(InState.RepSpec);
+		WorkspaceState = InState.WorkspaceState;
 		PendingMergeFilename = MoveTemp(InState.PendingMergeFilename);
 		PendingMergeBaseChangeset = InState.PendingMergeBaseChangeset;
 		PendingMergeSourceChangeset = InState.PendingMergeSourceChangeset;
 		PendingMergeParameters = MoveTemp(InState.PendingMergeParameters);
-		LockedBy = MoveTemp(InState.LockedBy);
-		LockedWhere = MoveTemp(InState.LockedWhere);
-		WorkspaceState = InState.WorkspaceState;
-		DepotRevisionChangeset = InState.DepotRevisionChangeset;
-		LocalRevisionChangeset = InState.LocalRevisionChangeset;
+		// Update "fileinfo" information only if the command was issued
+		if (InState.DepotRevisionChangeset != INVALID_REVISION)
+		{
+			LockedBy = MoveTemp(InState.LockedBy);
+			LockedWhere = MoveTemp(InState.LockedWhere);
+			RepSpec = MoveTemp(InState.RepSpec);
+			DepotRevisionChangeset = InState.DepotRevisionChangeset;
+			LocalRevisionChangeset = InState.LocalRevisionChangeset;
+
+			HeadBranch = MoveTemp(InState.HeadBranch);
+			HeadAction = MoveTemp(InState.HeadAction);
+			HeadChangeList = MoveTemp(InState.HeadChangeList);
+			HeadUserName = MoveTemp(InState.HeadUserName);
+			HeadModTime = MoveTemp(InState.HeadModTime);
+		}
+		// Don't override "fileinfo" information in case of an optimized/lightweight "whole folder status" triggered by a global Submit Content or Refresh
+		// and regenerate the LockedByOther state based on LockedBy
+		else if (!IsCheckedOut() && !LockedBy.IsEmpty())
+		{
+			WorkspaceState = EWorkspaceState::LockedByOther;
+		}
 		MovedFrom = MoveTemp(InState.MovedFrom);
 		TimeStamp = InState.TimeStamp;
 
@@ -102,12 +123,12 @@ public:
 	virtual bool CanCheckout() const override;
 	virtual bool IsCheckedOut() const override;
 	virtual bool IsCheckedOutOther(FString* Who = nullptr) const override;
-	virtual bool IsCheckedOutInOtherBranch(const FString& CurrentBranch = FString()) const;
-	virtual bool IsModifiedInOtherBranch(const FString& CurrentBranch = FString()) const;
-	virtual bool IsCheckedOutOrModifiedInOtherBranch(const FString& CurrentBranch = FString()) const;
-	virtual TArray<FString> GetCheckedOutBranches() const;
-	virtual FString GetOtherUserBranchCheckedOuts() const;
-	virtual bool GetOtherBranchHeadModification(FString& HeadBranchOut, FString& ActionOut, int32& HeadChangeListOut) const;
+	virtual bool IsCheckedOutInOtherBranch(const FString& CurrentBranch = FString()) const override;
+	virtual bool IsModifiedInOtherBranch(const FString& CurrentBranch = FString()) const override;
+	virtual bool IsCheckedOutOrModifiedInOtherBranch(const FString& CurrentBranch = FString()) const override { return IsCheckedOutInOtherBranch(CurrentBranch) || IsModifiedInOtherBranch(CurrentBranch); }
+	virtual TArray<FString> GetCheckedOutBranches() const override { return TArray<FString>(); }
+	virtual FString GetOtherUserBranchCheckedOuts() const override { return FString(); }
+	virtual bool GetOtherBranchHeadModification(FString& HeadBranchOut, FString& ActionOut, int32& HeadChangeListOut) const override;
 	virtual bool IsCurrent() const override;
 	virtual bool IsSourceControlled() const override;
 	virtual bool IsAdded() const override;
@@ -119,7 +140,7 @@ public:
 	virtual bool CanAdd() const override;
 	virtual bool CanDelete() const override;
 	virtual bool IsConflicted() const override;
-	virtual bool CanRevert() const;
+	virtual bool CanRevert() const override;
 
 public:
 	/** History of the item, if any */
@@ -161,9 +182,21 @@ public:
 	/** Original name in case of a Moved/Renamed file */
 	FString MovedFrom;
 
-	/** Whether the file is a binary file or not */
-//	bool bBinary;
-
 	/** The timestamp of the last update */
 	FDateTime TimeStamp;
+
+	/** The branch with the head change list */
+	FString HeadBranch;
+
+	/** The type of action of the last modification */
+	FString HeadAction;
+
+	/** The user of the last modification */
+	FString HeadUserName;
+
+	/** The last file modification time */
+	int64 HeadModTime;
+
+	/** The change list of the last modification */
+	int32 HeadChangeList;
 };

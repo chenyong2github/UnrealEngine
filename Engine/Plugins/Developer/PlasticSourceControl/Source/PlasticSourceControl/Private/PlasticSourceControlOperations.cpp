@@ -46,6 +46,16 @@ FText FPlasticMakeWorkspace::GetInProgressString() const
 	return LOCTEXT("SourceControl_MakeWorkspace", "Create a new Repository and initialize the Workspace");
 }
 
+static bool AreAllFiles(const TArray<FString>& InFiles)
+{
+	for (const FString& File : InFiles)
+	{
+		if (File.IsEmpty() || File[File.Len() - 1] == TEXT('/'))
+			return false;
+	}
+	return true;
+}
+
 
 FName FPlasticConnectWorker::GetName() const
 {
@@ -72,15 +82,14 @@ bool FPlasticConnectWorker::Execute(FPlasticSourceControlCommand& InCommand)
 				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("checkconnection"), TArray<FString>(), TArray<FString>(), InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 				if (InCommand.bCommandSuccessful)
 				{
-					// Then, update the status of assets in Content/ directory and also Config files,
+					// Now update the status of assets in the Content directory
 					// but only on real (re-)connection (but not each time Login() is called by Rename or Fixup Redirector command to check connection)
 					// and only if enabled in the settings
-					if (!PlasticSourceControl.GetProvider().IsAvailable() && PlasticSourceControl.AccessSettings().UpdateStatusAtStartup())
+					if (!PlasticSourceControl.GetProvider().IsAvailable() && PlasticSourceControl.AccessSettings().GetUpdateStatusAtStartup())
 					{
-						TArray<FString> ProjectDirs;
-						ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-						ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-						PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+						TArray<FString> ContentDir;
+						ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+						PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 					}
 				}
 				else
@@ -174,7 +183,7 @@ bool FPlasticCheckInWorker::Execute(FPlasticSourceControlCommand& InCommand)
 
 	// make a temp file to place our commit message in
 	FScopedTempFile CommitMsgFile(Operation->GetDescription());
-	if (CommitMsgFile.GetFilename().Len() > 0)
+	if (!CommitMsgFile.GetFilename().IsEmpty())
 	{
 		TArray<FString> Parameters;
 		FString ParamCommitMsgFilename = TEXT("--commentsfile=\"");
@@ -236,11 +245,24 @@ bool FPlasticMarkForAddWorker::Execute(FPlasticSourceControlCommand& InCommand)
 	check(InCommand.Operation->GetName() == GetName());
 
 	TArray<FString> Parameters;
-	Parameters.Add(TEXT("--parents"));
+	Parameters.Add(TEXT("--parents")); // NOTE: deprecated in 8.0.16.3100 when it became the default https://www.plasticscm.com/download/releasenotes/8.0.16.3100
+	// Note: using "?" is a workaround to trigger the Plastic's "SkipIgnored" internal flag meaning "don't add file that are ignored":
+	//			options.SkipIgnored = cla.GetWildCardArguments().Count > 0;
+	//		 It's behavior is similar as Subversion:
+	//  		if you explicitely add one file that is ignored, "cm" will happily accept it and add it,
+	//			if you try to add a set of files with a pattern, "cm" will skip the files that are ignored and only add the other ones
+	// TODO: provide an updated version of "cm" with a new flag like --applyignorerules
+	if (AreAllFiles(InCommand.Files))
+	{
+		Parameters.Add(TEXT("?"));	// needed only when used with a list of files
+	}
+	else
+	{
+		Parameters.Add(TEXT("-R"));	// needed only at the time of workspace creation, to add directories recursively
+	}
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 	if (-1 != InCommand.ChangesetNumber)
 	{
-		Parameters.Add(TEXT("-R")); // needed at the time of workspace creation, but not working in a partial workspace
 		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("add"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 	else
@@ -303,7 +325,7 @@ bool FPlasticRevertWorker::Execute(FPlasticSourceControlCommand& InCommand)
 
 	InCommand.bCommandSuccessful = true;
 
-	for(const FString& File : InCommand.Files)
+	for (const FString& File : InCommand.Files)
 	{
 		TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = Provider.GetStateInternal(File);
 
@@ -364,11 +386,10 @@ bool FPlasticRevertUnchangedWorker::Execute(FPlasticSourceControlCommand& InComm
 	// revert the checkout of all unchanged files recursively
 	InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("uncounchanged"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 
-	// Now update the status of assets in Content/ directory and also Config files
-	TArray<FString> ProjectDirs;
-	ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-	ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-	PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	// Now update the status of assets in the Content directory
+	TArray<FString> ContentDir;
+	ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+	PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -400,11 +421,10 @@ bool FPlasticRevertAllWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial undocheckout"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 
-	// Now update the status of assets in Content/ directory and also Config files
-	TArray<FString> ProjectDirs;
-	ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-	ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-	PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	// Now update the status of assets in the Content directory
+	TArray<FString> ContentDir;
+	ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+	PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -456,9 +476,9 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 	check(InCommand.Operation->GetName() == GetName());
 	TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FUpdateStatus>(InCommand.Operation);
 
-	// @todo: temporary debug log
-	UE_LOG(LogSourceControl, Log, TEXT("status (of %d files, ShouldCheckAllFiles=%d, ShouldUpdateHistory=%d, ShouldGetOpenedOnly=%d, ShouldUpdateModifiedState=%d)"),
-		InCommand.Files.Num(), Operation->ShouldCheckAllFiles()?1:0, Operation->ShouldUpdateHistory()?1:0, Operation->ShouldGetOpenedOnly()?1:0, Operation->ShouldUpdateModifiedState()?1:0);
+	// Note: ShouldCheckAllFiles is never set to true (SetCheckingAllFiles)
+	UE_LOG(LogSourceControl, Log, TEXT("status (of %d files, ShouldUpdateHistory=%d, ShouldGetOpenedOnly=%d, ShouldUpdateModifiedState=%d)"),
+		InCommand.Files.Num(), Operation->ShouldUpdateHistory(), Operation->ShouldGetOpenedOnly(), Operation->ShouldUpdateModifiedState());
 
 	if (InCommand.Files.Num() > 0)
 	{
@@ -470,54 +490,62 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 			UE_LOG(LogSourceControl, Error, TEXT("FPlasticUpdateStatusWorker(ErrorMessages.Num()=%d) => checkconnection"), InCommand.ErrorMessages.Num());
 			// In case of error, execute a 'checkconnection' command to check the connectivity of the server.
 			InCommand.bConnectionDropped = !PlasticSourceControlUtils::RunCommand(TEXT("checkconnection"), TArray<FString>(), TArray<FString>(), InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			return false;
 		}
-		else
-		{
-			if (Operation->ShouldUpdateHistory())
-			{
-				for (int32 IdxFile = 0; IdxFile < States.Num(); IdxFile++)
-				{
-					FString& File = InCommand.Files[IdxFile];
-					FPlasticSourceControlState& State = States[IdxFile];
 
-					if (State.IsSourceControlled())
+		if (Operation->ShouldUpdateHistory())
+		{
+			// Get the history of the files (on all branches)
+			InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunGetHistory(Operation->ShouldUpdateHistory(), States, InCommand.ErrorMessages);
+
+			// Special case for conflicts
+			for (FPlasticSourceControlState& State : States)
+			{
+				if (State.IsConflicted())
+				{
+					// In case of a merge conflict, we need to put the tip of the "remote branch" on top of the history
+					UE_LOG(LogSourceControl, Log, TEXT("%s: PendingMergeSourceChangeset %d"), *State.LocalFilename, State.PendingMergeSourceChangeset);
+					for (int32 IdxRevision = 0; IdxRevision < State.History.Num(); IdxRevision++)
 					{
-						// Get the history of the file (on all branches)
-						InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunGetHistory(File, InCommand.ErrorMessages, State);
-						if (State.IsConflicted())
+						const auto& Revision = State.History[IdxRevision];
+						if (Revision->ChangesetNumber == State.PendingMergeSourceChangeset)
 						{
-							// In case of a merge conflict, we need to put the tip of the "remote branch" on top of the history
-							UE_LOG(LogSourceControl, Log, TEXT("%s: PendingMergeSourceChangeset %d"), *State.LocalFilename, State.PendingMergeSourceChangeset);
-							for (int32 IdxRevision = 0; IdxRevision < State.History.Num(); IdxRevision++)
+							// If the Source Changeset is not already at the top of the History, duplicate it there.
+							if (IdxRevision > 0)
 							{
-								const auto& Revision = State.History[IdxRevision];
-								if (Revision->ChangesetNumber == State.PendingMergeSourceChangeset)
-								{
-									// If the Source Changeset is not already at the top of the History, duplicate it there.
-									if (IdxRevision > 0)
-									{
-										const auto RevisionCopy = Revision;
-										State.History.Insert(RevisionCopy, 0);
-									}
-									break;
-								}
+								const auto RevisionCopy = Revision;
+								State.History.Insert(RevisionCopy, 0);
 							}
+							break;
 						}
 					}
 				}
 			}
 		}
+		else
+		{
+			const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
+			if (PlasticSourceControl.AccessSettings().GetUpdateStatusOtherBranches() && AreAllFiles(InCommand.Files))
+			{
+				// Get only the last revision of the files (checking all branches)
+				// in order to warn the user if the file has been changed on another branch
+				InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunGetHistory(Operation->ShouldUpdateHistory(), States, InCommand.ErrorMessages);
+			}
+		}
 	}
-	else
+	// no path provided: only update the status of assets in Content/ directory if requested
+	// Perforce "opened files" are those that have been modified (or added/deleted): that is what we get with a simple status from the root
+	// This is called by the "CheckOut" Content Browser filter as well as our source control Refresh menu.
+	else if (Operation->ShouldGetOpenedOnly())
 	{
-		// no path provided: only update the status of assets in Content/ directory and also Config files
 		TArray<FString> ProjectDirs;
 		ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-		ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, Operation->ShouldUpdateHistory(), InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 	}
 
-	// don't use the ShouldUpdateModifiedState() hint here as it is specific to Perforce: the above normal Plastic status has already told us this information (like Git and Mercurial)
+	// TODO: re-evaluate how to optimize this heavy operation using some of these hints flags
+	// - ShouldGetOpenedOnly hint would be to call for all a whole workspace status update
+	// - ShouldUpdateModifiedState hint not used as the above normal Plastic status has already told us this information (like Git and Mercurial)
 
 	return InCommand.bCommandSuccessful;
 }
@@ -545,24 +573,24 @@ bool IsMoveOperation(const FString& InOrigin)
 			Promise->SetValue(MoveTemp(AssetsData));
 		});
 		const TArray<FAssetData> AssetsData = Promise->GetFuture().Get();
-		UE_LOG(LogSourceControl, Log, TEXT("PackageName: %s, AssetsData: Num=%d"), *PackageName, AssetsData.Num());
+		UE_LOG(LogSourceControl, Log, TEXT("IsMoveOperation: PackageName: %s, AssetsData: Num=%d"), *PackageName, AssetsData.Num());
 		if (AssetsData.Num() > 0)
 		{
 			const FAssetData& AssetData = AssetsData[0];
 			if (!AssetData.IsRedirector())
 			{
-				UE_LOG(LogSourceControl, Log, TEXT("%s is a plain asset, so it's a duplicate/copy"), *InOrigin);
+				UE_LOG(LogSourceControl, Log, TEXT("IsMoveOperation: %s is a plain asset, so it's a duplicate/copy"), *InOrigin);
 				bIsMoveOperation = false;
 			}
 			else
 			{
-				UE_LOG(LogSourceControl, Log, TEXT("%s is a redirector, so it's a move/rename"), *InOrigin);
+				UE_LOG(LogSourceControl, Log, TEXT("IsMoveOperation: %s is a redirector, so it's a move/rename"), *InOrigin);
 			}
 		}
 		else
 		{
 			// no asset in package (no redirector) so it should be a rename/move of a newly Added (not Controlled/Checked-In) file
-			UE_LOG(LogSourceControl, Log, TEXT("%s does not have asset in package (ie. no redirector) so it's a move/rename of a newly added file"), *InOrigin);
+			UE_LOG(LogSourceControl, Log, TEXT("IsMoveOperation: %s does not have asset in package (ie. no redirector) so it's a move/rename of a newly added file"), *InOrigin);
 		}
 	}
 
@@ -590,46 +618,29 @@ bool FPlasticCopyWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		{
 			UE_LOG(LogSourceControl, Log, TEXT("Moving %s to %s..."), *Origin, *Destination);
 			// In case of rename, we have to undo what the Editor (created a redirector and added the dest asset), and then redo it with Plastic SCM
-			// - backup the redirector (if it exists) to a temp file
-			const bool bReplace = true;
-			const bool bEvenIfReadOnly = true;
-			const FString TempFileName = FPaths::CreateTempFilename(*FPaths::ProjectLogDir(), TEXT("Plastic-MoveTemp"), TEXT(".uasset"));
-			UE_LOG(LogSourceControl, Log, TEXT("Move '%s' -> '%d'"), *Origin, *TempFileName);
-			InCommand.bCommandSuccessful = IFileManager::Get().Move(*TempFileName, *Origin, bReplace, bEvenIfReadOnly);
 			// - revert the 'cm add' that was applied to the destination by the Editor
-			if (InCommand.bCommandSuccessful)
 			{
 				TArray<FString> DestinationFiles;
 				DestinationFiles.Add(Destination);
 				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("undochange"), TArray<FString>(), DestinationFiles, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 			}
-			// - move back the asset from the destination to it's original location
+			// - execute a 'cm move --nomoveondisk' command to the destination to tell cm what happened
 			if (InCommand.bCommandSuccessful)
 			{
-				UE_LOG(LogSourceControl, Log, TEXT("Move '%s' -> '%d'"), *Destination, *Origin);
-				InCommand.bCommandSuccessful = IFileManager::Get().Move(*Origin, *Destination, bReplace, bEvenIfReadOnly);
-			}
-			// - execute a 'cm move' command to the destination to redo the actual job
-			if (InCommand.bCommandSuccessful)
-			{
+				TArray<FString> Parameters;
+				Parameters.Add(TEXT("--nomoveondisk"));
 				TArray<FString> Files;
 				Files.Add(Origin);
 				Files.Add(Destination);
 				// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 				if (-1 != InCommand.ChangesetNumber)
 				{
-					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("move"), TArray<FString>(), Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("move"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 				}
 				else
 				{
-					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial move"), TArray<FString>(), Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial move"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 				}
-			}
-			// - restore the redirector file (if it exists) to it's former location
-			if (InCommand.bCommandSuccessful)
-			{
-				UE_LOG(LogSourceControl, Log, TEXT("Move '%s' -> '%d'"), *TempFileName, *Origin);
-				InCommand.bCommandSuccessful = IFileManager::Get().Move(*Origin, *TempFileName, bReplace, bEvenIfReadOnly);
 			}
 			// - add the redirector file (if it exists) to source control
 			if (InCommand.bCommandSuccessful)
@@ -701,11 +712,10 @@ bool FPlasticSyncWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		// detect the special case of a Sync of the root folder:
 		if ((InCommand.Files.Num() == 1) && (InCommand.Files.Last() == InCommand.PathToWorkspaceRoot))
 		{
-			// only update the status of assets in Content/ directory and also Config files
-			TArray<FString> ProjectDirs;
-			ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-			ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-			PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+			// only update the status of assets in the Content directory
+			TArray<FString> ContentDir;
+			ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+			PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 		}
 		// else: optim, no need to update the status of our files since this is done immediately after by the Editor
 	}
@@ -746,7 +756,6 @@ bool FPlasticResolveWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		TArray<FString> OneFile;
 		OneFile.Add(State->PendingMergeFilename);
 
-		// @todo temporary debug log
 		UE_LOG(LogSourceControl, Log, TEXT("resolve %s"), *State->PendingMergeFilename);
 
 		// Mark the conflicted file as resolved

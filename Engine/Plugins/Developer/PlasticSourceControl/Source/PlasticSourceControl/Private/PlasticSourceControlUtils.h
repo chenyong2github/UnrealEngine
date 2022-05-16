@@ -96,12 +96,14 @@ bool GetWorkspaceInformation(int32& OutChangeset, FString& OutRepositoryName, FS
  * @returns true if the command succeeded and returned no errors
  */
 bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, const EConcurrency::Type InConcurrency, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages);
+// Run a Plastic command - output is a string.
+bool RunCommandInternal(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, const EConcurrency::Type InConcurrency, FString& OutResults, FString& OutErrors);
 
 /**
  * Run a Plastic "status" command and parse it.
  *
  * @param	InFiles				The files to be operated on
- * @param	InForceFileinfo		Also force execute the fileinfo command required to do get RepSpec of xlinks when getting history (or for diffs)
+ * @param	bInUpdateHistory	If getting the history of files, force execute the fileinfo command required to do get RepSpec of xlinks (history view or visual diff)
  * @param	InConcurrency		Is the command running in the background, or blocking the main thread
  * @param	OutErrorMessages	Any errors (from StdErr) as an array per-line
  * @param	OutStates			States of the files
@@ -109,7 +111,7 @@ bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, c
  * @param	OutBranchName		Name of the current checked-out branch
  * @returns true if the command succeeded and returned no errors
  */
-bool RunUpdateStatus(const TArray<FString>& InFiles, const bool InForceFileinfo, const EConcurrency::Type InConcurrency, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName);
+bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory, const EConcurrency::Type InConcurrency, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName);
 
 /**
  * Run a Plastic "cat" command to dump the binary content of a revision into a file.
@@ -124,11 +126,11 @@ bool RunDumpToFile(const FString& InPathToPlasticBinary, const FString& InRevSpe
 /**
  * Run a Plastic "history" and "log" commands and parse it.
  *
- * @param	InFile				The file to be operated on
+ * @param	bInUpdateHistory	If getting the history of files, versus only checking the heads of branches to detect newer commits
+ * @param	InOutStates			The file states to update with the history
  * @param	OutErrorMessages	Any errors (from StdErr) as an array per-line
- * @param	InOutState			The status to update with the history of the file
  */
-bool RunGetHistory(const FString& InFile, TArray<FString>& OutErrorMessages, FPlasticSourceControlState& InOutState);
+bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlState>& InOutStates, TArray<FString>& OutErrorMessages);
 
 /**
  * Helper function for various commands to update cached states.
@@ -141,5 +143,18 @@ bool UpdateCachedStates(TArray<FPlasticSourceControlState>&& InStates);
  * update the commands success status if all errors were removed.
  */
 void RemoveRedundantErrors(FPlasticSourceControlCommand& InCommand, const FString& InFilter);
+
+/**
+ * Change LogSourceControl verbosity level at startup and when toggled from the Plastic Source Control Settings
+ *
+ * Override to Verbose or back to Log, but only if the current log verbosity is not already set to VeryVerbose
+ */
+void SwitchVerboseLogs(const bool bInEnable);
+
+/**
+ * Find the best(longest) common directory between two paths, terminated by a slash, returning an empty string if none.
+ * Assumes that both input strings are already normalized paths, slash delimited, for performance reason.
+ */
+FString FindCommonDirectory(const FString& InPath1, const FString& InPath2);
 
 }
