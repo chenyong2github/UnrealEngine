@@ -74,14 +74,36 @@ FNiagaraSystemUpdateContext::~FNiagaraSystemUpdateContext()
 
 void FNiagaraSystemUpdateContext::CommitUpdate()
 {
-	for (UNiagaraSystem* Sys : SystemSimsToDestroy)
+	// Sims that are sent for destruction will also get a recache
+	if (SystemSimsToDestroy.Num() > 0)
 	{
-		if(Sys)
+		bool bAnyGpuSims = false;
+		for (UNiagaraSystem* NiagaraSystem : SystemSimsToDestroy)
 		{
-			FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
+			if (NiagaraSystem)
+			{
+				bAnyGpuSims |= NiagaraSystem->HasAnyGPUEmitters();
+				FNiagaraWorldManager::DestroyAllSystemSimulations(NiagaraSystem);
+			}
 		}
+
+		if (bAnyGpuSims)
+		{
+			FlushRenderingCommands();
+		}
+
+		for (UNiagaraSystem* NiagaraSystem : SystemSimsToDestroy)
+		{
+			if (NiagaraSystem)
+			{
+				NiagaraSystem->ComputeEmittersExecutionOrder();
+				NiagaraSystem->ComputeRenderersDrawOrder();
+				NiagaraSystem->CacheFromCompiledData();
+			}
+		}
+
+		SystemSimsToDestroy.Empty();
 	}
-	SystemSimsToDestroy.Empty();
 
 	for (UNiagaraComponent* Comp : ComponentsToReInit)
 	{

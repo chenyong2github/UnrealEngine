@@ -82,7 +82,6 @@ static FAutoConsoleVariableRef CVarNiagaraEmitterMaxGPUBufferElements(
 				if ( IsValid(System) )
 				{
 					UpdateCtx.Add(System, true);
-					System->CacheFromCompiledData();
 				}
 			}
 		}
@@ -2779,8 +2778,9 @@ void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer, FGuid Em
 
 	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
 	{
-		Owner->ComputeRenderersDrawOrder();
-		Owner->CacheFromCompiledData();
+		FNiagaraSystemUpdateContext UpdateContext;
+		UpdateContext.Add(Owner, true);
+		UpdateContext.CommitUpdate();
 	}
 }
 

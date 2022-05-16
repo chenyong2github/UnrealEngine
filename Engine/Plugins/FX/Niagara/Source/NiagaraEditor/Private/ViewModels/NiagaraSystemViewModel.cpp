@@ -1652,12 +1652,6 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 	{
 		UNiagaraSystem* NiagaraSystem = &GetSystem();
 		UpdateContext.Add(NiagaraSystem, ReinitMode == EReinitMode::ReinitializeSystem);
-
-		// When reinitializing the whole system update all re-cache all information
-		// Note: This must be done after we add the system to the update context as this will ensure we waited for any async work to complete
-		NiagaraSystem->ComputeEmittersExecutionOrder();
-		NiagaraSystem->ComputeRenderersDrawOrder();
-		NiagaraSystem->CacheFromCompiledData();
 	}
 
 	UpdateContext.CommitUpdate();
