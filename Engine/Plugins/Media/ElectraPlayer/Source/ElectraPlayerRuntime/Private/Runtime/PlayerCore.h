@@ -6,7 +6,6 @@
 #include "Core/MediaMacros.h"
 #include "Core/MediaNoncopyable.h"
 
-#include "Core/MediaFastDelegate.h"
 #include "Core/MediaThreads.h"
 #include "Core/MediaQueue.h"
 #include "Core/MediaSemaphore.h"

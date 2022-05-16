@@ -453,7 +453,7 @@ namespace Electra
 		ThreadSetPriority(Config.ThreadConfig.Decoder.Priority);
 		ThreadSetStackSize(Config.ThreadConfig.Decoder.StackSize);
 		ThreadSetCoreAffinity(Config.ThreadConfig.Decoder.CoreAffinity);
-		ThreadStart(Electra::MakeDelegate(this, &FAudioDecoderAAC::WorkerThread));
+		ThreadStart(FMediaRunnable::FStartDelegate::CreateRaw(this, &FAudioDecoderAAC::WorkerThread));
 		bThreadStarted = true;
 	}
 

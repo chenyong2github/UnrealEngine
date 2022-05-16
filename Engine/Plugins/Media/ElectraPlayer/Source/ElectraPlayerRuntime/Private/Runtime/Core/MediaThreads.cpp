@@ -11,17 +11,19 @@
  * Actually only the parameters are set, but no actual thread is created.
  * We leave this to the Start() function so it becomes possible to change parameters after construction.
  *
- * @param coreAffinityMask
- * @param priority
- * @param stackSize
- * @param pName
+ * @param InCoreAffinityMask
+ * @param InPriority
+ * @param InStackSize
+ * @param InThreadName
  *
- * @return none
+ * @return New runnable object
  */
-FMediaRunnable* FMediaRunnable::Create(int32 InCoreAffinityMask, EThreadPriority InPriority, SIZE_T InStackSize, const FString& InThreadName)
+FMediaRunnable* FMediaRunnable::Create(int32 InCoreAffinityMask, EThreadPriority InPriority, uint32 InStackSize, const FString& InThreadName)
 {
 	if (InCoreAffinityMask == 0 || InCoreAffinityMask == -1)
+	{
 		InCoreAffinityMask = FPlatformAffinity::GetNoAffinityMask();
+	}
 
 	FMediaRunnable* t = new FMediaRunnable;
 	if (t)
@@ -32,7 +34,7 @@ FMediaRunnable* FMediaRunnable::Create(int32 InCoreAffinityMask, EThreadPriority
 		t->ThreadName = InThreadName;
 		t->bIsStarted = false;
 	}
-	return(t);
+	return t;
 }
 
 //-----------------------------------------------------------------------------
@@ -48,19 +50,21 @@ void FMediaRunnable::Destroy(FMediaRunnable* InMediaRunnable)
 /**
  * Creates and starts the thread with the current settings.
  *
- * @param entry
+ * @param Entry
  * @param bWaitRunning
  */
-void FMediaRunnable::Start(FMediaRunnable::StartDelegate0 Entry, bool bWaitRunning)
+void FMediaRunnable::Start(FMediaRunnable::FStartDelegate Entry, bool bWaitRunning)
 {
 	// Remember entry function
-	EntryFunction0 = Entry;
+	EntryFunction = Entry;
 
 	StartInternal();
 
 	// Optionally wait for thread startup
 	if (bWaitRunning)
+	{
 		SignalRunning->Wait();
+	}
 }
 
 
@@ -103,7 +107,7 @@ void FMediaRunnable::StartInternal()
 uint32 FMediaRunnable::Run()
 {
 	SignalRunning->Trigger();
-	EntryFunction0();
+	EntryFunction.Execute();
 	return 0;
 }
 
@@ -122,7 +126,9 @@ void FMediaRunnable::Exit()
 	DoneSignal = nullptr;
 	StateAccessMutex.Unlock();
 	if (Sig)
+	{
 		Sig->Signal();
+	}
 }
 
 
@@ -218,9 +224,13 @@ FMediaThread::FMediaThread(const char* AnsiName)
 FMediaThread::~FMediaThread()
 {
 	if (bWaitDoneOnDelete && bIsStarted)
+	{
 		SigDone.Wait();
+	}
 	if (MediaRunnable)
+	{
 		FMediaRunnable::Destroy(MediaRunnable);
+	}
 }
 
 
@@ -234,7 +244,9 @@ void FMediaThread::ThreadSetPriority(EThreadPriority InPriority)
 {
 	Priority = InPriority;
 	if (MediaRunnable)
+	{
 		MediaRunnable->ChangePriority(Priority);
+	}
 }
 
 
@@ -259,7 +271,7 @@ void FMediaThread::ThreadSetCoreAffinity(int32 coreAffinity)
  *
  * @param stackSize
  */
-void FMediaThread::ThreadSetStackSize(SIZE_T stackSize)
+void FMediaThread::ThreadSetStackSize(uint32 stackSize)
 {
 	checkf(!bIsStarted, TEXT("not while the thread is already running!"));
 	StackSize = stackSize;
@@ -327,7 +339,7 @@ void FMediaThread::ThreadWaitDone(void)
  *
  * @param entryFunction
  */
-void FMediaThread::ThreadStart(FMediaRunnable::StartDelegate0 EntryFunction)
+void FMediaThread::ThreadStart(FMediaRunnable::FStartDelegate EntryFunction)
 {
 	MediaRunnable = FMediaRunnable::Create(CoreAffinity, Priority, StackSize, ThreadName);
 	MediaRunnable->SetDoneSignal(&SigDone);
@@ -345,7 +357,9 @@ void FMediaThread::ThreadReset()
 {
 	check(!bIsStarted || (bIsStarted && SigDone.IsSignaled()));
 	if (MediaRunnable)
+	{
 		FMediaRunnable::Destroy(MediaRunnable);
+	}
 	MediaRunnable = nullptr;
 	bIsStarted = false;
 	SigDone.Reset();

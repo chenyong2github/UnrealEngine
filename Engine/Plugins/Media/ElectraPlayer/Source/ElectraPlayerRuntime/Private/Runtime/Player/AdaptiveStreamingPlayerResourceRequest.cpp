@@ -14,8 +14,8 @@ FHTTPResourceRequest::FHTTPResourceRequest()
 	Request = MakeSharedTS<IElectraHttpManager::FRequest>();
 	ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
 	ProgressListener = MakeSharedTS<IElectraHttpManager::FProgressListener>();
-	ProgressListener->ProgressDelegate   = Electra::MakeDelegate(this, &FHTTPResourceRequest::HTTPProgressCallback);
-	ProgressListener->CompletionDelegate = Electra::MakeDelegate(this, &FHTTPResourceRequest::HTTPCompletionCallback);
+	ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FHTTPResourceRequest::HTTPProgressCallback);
+	ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FHTTPResourceRequest::HTTPCompletionCallback);
 	Request->ProgressListener = ProgressListener;
 	Request->ReceiveBuffer = ReceiveBuffer;
 }

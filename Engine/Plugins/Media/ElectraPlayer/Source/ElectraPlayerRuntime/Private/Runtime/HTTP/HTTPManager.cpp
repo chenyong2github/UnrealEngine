@@ -764,7 +764,7 @@ namespace Electra
 			TSharedPtrTS<FProgressListener> ProgressListener = Request->ProgressListener.Pin();
 			if (ProgressListener.IsValid())
 			{
-				if (!ProgressListener->CompletionDelegate.empty())
+				if (ProgressListener->CompletionDelegate.IsBound())
 				{
 					ProgressListener->CallCompletionDelegate(Request.Get());
 				}
@@ -788,7 +788,7 @@ namespace Electra
 				TSharedPtrTS<FProgressListener> ProgressListener = It.Value()->ProgressListener.Pin();
 				if (ProgressListener.IsValid())
 				{
-					if (!ProgressListener->ProgressDelegate.empty())
+					if (ProgressListener->ProgressDelegate.IsBound())
 					{
 						int32 Result = ProgressListener->CallProgressDelegate(It.Value().Get());
 						// Did the progress callback ask to abort the download?

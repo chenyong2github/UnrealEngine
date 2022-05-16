@@ -13,6 +13,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/CriticalSection.h"
+#include "Delegates/Delegate.h"
 
 #include "Containers/UnrealString.h"
 #include "Containers/StringConv.h"
@@ -25,6 +26,7 @@
 class FMediaRunnable : private TMediaNoncopyable<FMediaRunnable>, public FRunnable
 {
 public:
+	DECLARE_DELEGATE(FStartDelegate);
 
 	//! Common thread configuration parameters.
 	struct Param
@@ -37,16 +39,14 @@ public:
 			CoreAffinity = -1;
 		}
 		EThreadPriority		Priority;
-		SIZE_T				StackSize;
+		uint32				StackSize;
 		int32				CoreAffinity;
 	};
 
-	static FMediaRunnable* Create(int32 CoreAffinityMask, EThreadPriority Priority, SIZE_T StackSize, const FString& InThreadName);
+	static FMediaRunnable* Create(int32 CoreAffinityMask, EThreadPriority Priority, uint32 StackSize, const FString& InThreadName);
 	static void Destroy(FMediaRunnable* Thread);
 
-	typedef Electra::FastDelegate0<> StartDelegate0;
-
-	void Start(StartDelegate0 Entry, bool bWaitRunning = false);
+	void Start(FStartDelegate Entry, bool bWaitRunning = false);
 
 	void SetDoneSignal(FMediaEvent* DoneSignal);
 
@@ -60,13 +60,13 @@ public:
 	}
 
 	//! Returns the size of the stack.
-	SIZE_T StackSizeGet() const
+	uint32 StackSizeGet() const
 	{
 		return StackSize;
 	}
 
 	//! Returns the default stack size passed to Startup()
-	static SIZE_T StackSizeGetDefault()
+	static uint32 StackSizeGetDefault()
 	{
 		return 0;
 	}
@@ -95,7 +95,7 @@ private:
 	FString					ThreadName;
 	FCriticalSection		StateAccessMutex;
 	FEvent*					SignalRunning;
-	StartDelegate0			EntryFunction0;
+	FStartDelegate			EntryFunction;
 	FMediaEvent*			DoneSignal;
 	bool					bIsStarted;
 
@@ -141,7 +141,7 @@ public:
 	void ThreadSetCoreAffinity(int32 CoreAffinity);
 
 	//! Set a thread stack size other than the one given to the constructor before starting the thread.
-	void ThreadSetStackSize(SIZE_T StackSize);
+	void ThreadSetStackSize(uint32 StackSize);
 
 	//! Set a thread name other than the one given to the constructor before starting the thread.
 	void ThreadSetName(const char* InAnsiThreadName);
@@ -156,7 +156,7 @@ public:
 	void ThreadWaitDone();
 
 	//! Starts the thread at the given function void(*)(void)
-	void ThreadStart(FMediaRunnable::StartDelegate0 EntryFunction);
+	void ThreadStart(FMediaRunnable::FStartDelegate EntryFunction);
 
 	//! Resets the thread to be started again. Must have waited for thread termination using ThreadWaitDone() first!
 	void ThreadReset();
@@ -166,13 +166,9 @@ private:
 	FMediaRunnable*					MediaRunnable;
 	EThreadPriority					Priority;
 	int32							CoreAffinity;
-	SIZE_T							StackSize;
+	uint32							StackSize;
 	FString 						ThreadName;
 	bool							bIsStarted;
 	bool							bWaitDoneOnDelete;
 
 };
-
-
-
-

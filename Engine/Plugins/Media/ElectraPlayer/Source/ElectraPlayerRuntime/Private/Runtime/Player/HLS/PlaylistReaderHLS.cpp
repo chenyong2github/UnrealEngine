@@ -323,7 +323,7 @@ void FPlaylistReaderHLS::Initialize(IPlayerSessionServices* InPlayerSessionServi
 {
 	PlayerSessionServices = InPlayerSessionServices;
 	ProgressListener = MakeSharedTS<IElectraHttpManager::FProgressListener>();
-	ProgressListener->CompletionDelegate = Electra::MakeDelegate(this, &FPlaylistReaderHLS::HTTPCompletionCallback);
+	ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FPlaylistReaderHLS::HTTPCompletionCallback);
 }
 
 void FPlaylistReaderHLS::Close()

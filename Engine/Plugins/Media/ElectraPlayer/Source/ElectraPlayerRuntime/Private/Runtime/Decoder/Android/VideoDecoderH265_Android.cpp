@@ -487,7 +487,7 @@ void FVideoDecoderH265::SetResourceDelegate(const TSharedPtr<IVideoDecoderResour
  */
 void FVideoDecoderH265::StartThread()
 {
-	ThreadStart(Electra::MakeDelegate(this, &FVideoDecoderH265::WorkerThread));
+	ThreadStart(FMediaRunnable::FStartDelegate::CreateRaw(this, &FVideoDecoderH265::WorkerThread));
 	bThreadStarted = true;
 }
 

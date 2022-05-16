@@ -164,7 +164,7 @@ UEMediaError FStreamReaderMP4::Create(IPlayerSessionServices* InPlayerSessionSer
 	bIsStarted = true;
 
 	ThreadSetName("ElectraPlayer::MP4 streamer");
-	ThreadStart(Electra::MakeDelegate(this, &FStreamReaderMP4::WorkerThread));
+	ThreadStart(FMediaRunnable::FStartDelegate::CreateRaw(this, &FStreamReaderMP4::WorkerThread));
 
 	return UEMEDIA_ERROR_OK;
 }
@@ -389,8 +389,8 @@ void FStreamReaderMP4::HandleRequest()
 
 	TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener;
 	ProgressListener = MakeSharedTS<IElectraHttpManager::FProgressListener>();
-	ProgressListener->CompletionDelegate = Electra::MakeDelegate(this, &FStreamReaderMP4::HTTPCompletionCallback);
-	ProgressListener->ProgressDelegate   = Electra::MakeDelegate(this, &FStreamReaderMP4::HTTPProgressCallback);
+	ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FStreamReaderMP4::HTTPCompletionCallback);
+	ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamReaderMP4::HTTPProgressCallback);
 
 	ReadBuffer.Reset();
 	ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();

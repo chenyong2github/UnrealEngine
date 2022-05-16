@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PlayerCore.h"
+#include "Delegates/Delegate.h"
 
 #include "StreamDataBuffer.h"
 #include "OptionalValue.h"
@@ -180,10 +181,11 @@ namespace Electra
 
 		struct FRequest;
 
-		typedef Electra::FastDelegate1<const FRequest*, int32> FProgressDelegate;
-		typedef Electra::FastDelegate1<const FRequest*> FCompletionDelegate;
 		struct FProgressListener
 		{
+			DECLARE_DELEGATE_RetVal_OneParam(int32, FProgressDelegate, const FRequest*);
+			DECLARE_DELEGATE_OneParam(FCompletionDelegate, const FRequest*);
+
 			~FProgressListener()
 			{
 				Clear();
@@ -191,24 +193,24 @@ namespace Electra
 			void Clear()
 			{
 				FMediaCriticalSection::ScopedLock lock(Lock);
-				ProgressDelegate.clear();
-				CompletionDelegate.clear();
+				ProgressDelegate.Unbind();
+				CompletionDelegate.Unbind();
 			}
 			int32 CallProgressDelegate(const FRequest* Request)
 			{
 				FMediaCriticalSection::ScopedLock lock(Lock);
-				if (!ProgressDelegate.empty())
+				if (ProgressDelegate.IsBound())
 				{
-					return ProgressDelegate(Request);
+					return ProgressDelegate.Execute(Request);
 				}
 				return 0;
 			}
 			void CallCompletionDelegate(const FRequest* Request)
 			{
 				FMediaCriticalSection::ScopedLock lock(Lock);
-				if (!CompletionDelegate.empty())
+				if (CompletionDelegate.IsBound())
 				{
-					CompletionDelegate(Request);
+					CompletionDelegate.Execute(Request);
 				}
 			}
 			FMediaCriticalSection	Lock;

@@ -4930,7 +4930,7 @@ void FAdaptiveStreamingPlayerWorkerThread::StartWorkerThread()
 	{
 		WorkerThread.ThreadSetName("ElectraPlayer::SharedWorker");
 	}
-	WorkerThread.ThreadStart(Electra::MakeDelegate(this, &FAdaptiveStreamingPlayerWorkerThread::WorkerThreadFN));
+	WorkerThread.ThreadStart(FMediaRunnable::FStartDelegate::CreateRaw(this, &FAdaptiveStreamingPlayerWorkerThread::WorkerThreadFN));
 }
 
 void FAdaptiveStreamingPlayerWorkerThread::StopWorkerThread()
@@ -5013,7 +5013,7 @@ FAdaptiveStreamingPlayerEventHandler::~FAdaptiveStreamingPlayerEventHandler()
 void FAdaptiveStreamingPlayerEventHandler::StartWorkerThread()
 {
 	WorkerThread.ThreadSetName("ElectraPlayer::EventDispatch");
-	WorkerThread.ThreadStart(Electra::MakeDelegate(this, &FAdaptiveStreamingPlayerEventHandler::WorkerThreadFN));
+	WorkerThread.ThreadStart(FMediaRunnable::FStartDelegate::CreateRaw(this, &FAdaptiveStreamingPlayerEventHandler::WorkerThreadFN));
 }
 
 void FAdaptiveStreamingPlayerEventHandler::StopWorkerThread()
