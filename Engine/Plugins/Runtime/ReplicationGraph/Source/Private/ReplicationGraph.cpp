@@ -1041,6 +1041,8 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		ConnectionManager->GetClientVisibleLevelNames(AllVisibleLevelNames);
 		const FConnectionGatherActorListParameters Parameters(ConnectionViewers, *ConnectionManager, AllVisibleLevelNames, FrameNum, GatheredReplicationListsForConnection);
 
+		UNetReplicationGraphConnection::FRepGraphDestructionViewerInfoArray DestructionViewersInfo;
+
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_GatherForConnection);
 
@@ -1061,6 +1063,14 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 				// No lists were returned, kind of weird but not fatal. Early out because code below assumes at least 1 list
 				UE_LOG(LogReplicationGraph, Warning, TEXT("No Replication Lists were returned for connection"));
 				return 0;
+			}
+
+			for( const FNetViewer& NetViewer : ConnectionViewers )
+			{
+				FLastLocationGatherInfo* LastInfoForViewer = ConnectionManager->LastGatherLocations.FindByKey<UNetConnection*>(NetViewer.Connection);
+				check(LastInfoForViewer);
+
+				DestructionViewersInfo.Emplace(UNetReplicationGraphConnection::FRepGraphDestructionViewerInfo(NetViewer.ViewLocation, LastInfoForViewer->LastOutOfRangeLocationCheck));
 			}
 		}
 
@@ -1141,7 +1151,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 			// ------------------------------------------
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_ReplicateDestructionInfos);
-				ConnectionManager->ReplicateDestructionInfos(ConnectionViewers, DestructionSettings.DestructInfoMaxDistanceSquared);
+				ConnectionManager->ReplicateDestructionInfos(DestructionViewersInfo, DestructionSettings);
 			}
 
 			// ------------------------------------------
@@ -2756,29 +2766,37 @@ void UNetReplicationGraphConnection::NotifyClientVisibleLevelNamesAdd(FName Leve
 	}
 }
 
-int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewerArray& Viewers, const float DestructInfoMaxDistanceSquared)
+int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FRepGraphDestructionViewerInfoArray& DestructionViewersInfo, const FReplicationGraphDestructionSettings& DestructionSettings)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(ReplicateDestructionInfos);
-
 	int64 NumBits = 0;
 #if WITH_SERVER_CODE
+
 	for (int32 idx=PendingDestructInfoList.Num()-1; idx >=0; --idx)
 	{
 		FCachedDestructInfo& Info = PendingDestructInfoList[idx];
 		FActorDestructionInfo* DestructInfo = Info.DestructionInfo;
 		bool bSendDestructionInfo = false;
+		bool bAddToOutOfRangeList = true;
 
 		if (!DestructInfo->bIgnoreDistanceCulling)
 		{
 			// Only send destruction info if the viewers are close enough to the destroyed actor
-			for (const FNetViewer& CurViewer : Viewers)
+			for (const FRepGraphDestructionViewerInfo& Viewer : DestructionViewersInfo)
 			{
-				const float DistSquared = FVector::DistSquared2D(Info.CachedPosition, CurViewer.ViewLocation);
+				const float DistSquared = FVector::DistSquared2D(Info.CachedPosition, Viewer.ViewerLocation);
 
-				if (DistSquared < DestructInfoMaxDistanceSquared)
+				if (DistSquared < DestructionSettings.DestructInfoMaxDistanceSquared)
 				{
 					bSendDestructionInfo = true;
 					break;
+				}
+
+				const float OutOfRangeDistSquared = FVector::DistSquared2D(Info.CachedPosition, Viewer.LastOutOfRangeLocationCheck);
+				
+				// Add the actor to the OutOfRangeList only if he is outside the range from the next check. If not keep him in the destruction list to be evaluated next frame.
+				if (OutOfRangeDistSquared <= DestructionSettings.MaxPendingListDistanceSquared)
+				{
+					bAddToOutOfRangeList = false;
 				}
 			}
 		}
@@ -2793,7 +2811,7 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewer
 				TrackedDestructionInfoPtrs.Remove(DestructInfo);
 			}
 		}
-		else
+		else if (bAddToOutOfRangeList)
 		{
 			// Add the far actor to the out of range list so we don't evaluate it every frame
 			OutOfRangeDestroyedActors.Emplace(MoveTemp(Info));
@@ -2807,7 +2825,6 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewer
 int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ReplicateDormantDestructionInfos);
-	QUICK_SCOPE_CYCLE_COUNTER(ReplicateDormantDestructionInfos);
 
 	int64 NumBits = 0;
 
@@ -2881,7 +2898,7 @@ void UNetReplicationGraphConnection::OnUpdateViewerLocation(FLastLocationGatherI
 
 			const float ActorDistSquared = FVector::DistSquared2D(CachedInfo.CachedPosition, Viewer.ViewLocation);
 				
-			if (ActorDistSquared < DestructionSettings.DestructInfoMaxDistanceSquared)
+			if (ActorDistSquared <= DestructionSettings.MaxPendingListDistanceSquared)
 			{
 				// Swap the info into the Pending List to get it replicated
 				PendingDestructInfoList.Emplace(MoveTemp(CachedInfo));

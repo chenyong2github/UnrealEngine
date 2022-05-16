@@ -1301,6 +1301,21 @@ private:
 
 	friend UReplicationGraph;
 
+	/** Holds relevant data when parsing deleted actors that could be sent to a viewer */
+	struct FRepGraphDestructionViewerInfo
+	{
+		FRepGraphDestructionViewerInfo() = default;
+		FRepGraphDestructionViewerInfo(const FVector& InViewerLocation, const FVector& InOutOfRangeLocationCheck)
+			: ViewerLocation(InViewerLocation)
+			, LastOutOfRangeLocationCheck(InOutOfRangeLocationCheck)
+		{ }
+
+		FVector ViewerLocation;
+		FVector	LastOutOfRangeLocationCheck;
+	};
+
+	typedef TArray< FRepGraphDestructionViewerInfo, TInlineAllocator<REPGRAPH_VIEWERS_PER_CONNECTION> > FRepGraphDestructionViewerInfoArray;
+
 	// ----------------------------------------
 
 	/** Called right after this is created to associate with the owning Graph */
@@ -1317,7 +1332,7 @@ private:
 
 	bool PrepareForReplication();
 
-	int64 ReplicateDestructionInfos(const FNetViewerArray& InViewers, const float DestructInfoMaxDistanceSquared);
+	int64 ReplicateDestructionInfos(const FRepGraphDestructionViewerInfoArray& DestructionViewersInfo, const FReplicationGraphDestructionSettings& DestructionSettings);
 	
 	int64 ReplicateDormantDestructionInfos();
 
@@ -1453,8 +1468,10 @@ struct FReplicationGraphDestructionSettings
 	FReplicationGraphDestructionSettings(float InDestructInfoMaxDistanceSquared, float InOutOfRangeDistanceCheckThresholdSquared)
 		: DestructInfoMaxDistanceSquared(InDestructInfoMaxDistanceSquared)
 		, OutOfRangeDistanceCheckThresholdSquared(InOutOfRangeDistanceCheckThresholdSquared)
+		, MaxPendingListDistanceSquared(DestructInfoMaxDistanceSquared + OutOfRangeDistanceCheckThresholdSquared)
 	{ }
 
 	float DestructInfoMaxDistanceSquared;
 	float OutOfRangeDistanceCheckThresholdSquared;
+	float MaxPendingListDistanceSquared; 
 };
