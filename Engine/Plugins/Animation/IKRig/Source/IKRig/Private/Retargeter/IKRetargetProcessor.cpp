@@ -1302,6 +1302,7 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 			RetargeterAsset->Log.LogWarning( FText::Format(
 			LOCTEXT("MissingTargetChain", "IK Retargeter missing target bone chain: {0}. Please update the mapping."),
 			FText::FromString(ChainMap->TargetChain.ToString())));
+			continue;
 		}
 		
 		// user opted to not map this to anything, we don't need to spam a warning about it
