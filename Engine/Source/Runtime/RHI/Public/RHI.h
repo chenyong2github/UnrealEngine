@@ -66,6 +66,7 @@ extern RHI_API int32 GRHIPersistentThreadGroupCount;
 extern RHI_API int32 GMaxTextureMipCount;
 
 /** Does the RHI implements CopyToTexture() with FRHICopyTextureInfo::NumMips > 1 */
+UE_DEPRECATED(5.1, "All RHIs now support copying to multiple mips.")
 extern RHI_API bool GRHISupportsCopyToTextureMultipleMips;
 
 /** true if this platform has quad buffer stereo support. */

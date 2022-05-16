@@ -3555,37 +3555,13 @@ public:
 		check(SourceTextureRHI && DestTextureRHI);
 		check(SourceTextureRHI != DestTextureRHI);
 		check(IsOutsideRenderPass());
-		if (GRHISupportsCopyToTextureMultipleMips)
-		{
-			if (Bypass())
-			{
-				GetContext().RHICopyTexture(SourceTextureRHI, DestTextureRHI, CopyInfo);
-				return;
-			}
-			ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, CopyInfo);
-		}
-		else
-		{
-			FRHICopyTextureInfo PerMipInfo = CopyInfo;
-			PerMipInfo.NumMips = 1;
-			for (uint32 MipIndex = 0; MipIndex < CopyInfo.NumMips; MipIndex++)
-			{
-				if (Bypass())
-				{
-					GetContext().RHICopyTexture(SourceTextureRHI, DestTextureRHI, PerMipInfo);
-				}
-				else
-				{
-					ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, PerMipInfo);
-				}
 
-				++PerMipInfo.SourceMipIndex;
-				++PerMipInfo.DestMipIndex;
-				PerMipInfo.Size.X = FMath::Max(1, PerMipInfo.Size.X / 2);
-				PerMipInfo.Size.Y = FMath::Max(1, PerMipInfo.Size.Y / 2);
-				PerMipInfo.Size.Z = FMath::Max(1, PerMipInfo.Size.Z / 2);
-			}
+		if (Bypass())
+		{
+			GetContext().RHICopyTexture(SourceTextureRHI, DestTextureRHI, CopyInfo);
+			return;
 		}
+		ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, CopyInfo);
 	}
 
 	FORCEINLINE_DEBUGGABLE void ResummarizeHTile(FRHITexture2D* DepthTexture)

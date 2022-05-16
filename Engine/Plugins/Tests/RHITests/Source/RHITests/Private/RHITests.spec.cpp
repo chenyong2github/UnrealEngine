@@ -63,4 +63,12 @@ void FAutomationRHITest::Define()
 		});
 	});
 
+	Describe("Test RHI Copy", [this]
+	{
+		It("RHICopyTexture", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHITextureTests::Test_RHICopyTexture);
+			TestEqual("RHICopyTexture", bResult, 1);
+		});
+	});
 }

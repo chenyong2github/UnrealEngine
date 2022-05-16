@@ -26,7 +26,7 @@ bool FRHITextureTests::VerifyTextureContents(const TCHAR* TestName, FRHICommandL
 					FTextureRHIRef StagingTexture = RHICreateTexture(Desc);
 
 					FRHICopyTextureInfo CopyInfo = {};
-					CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1); // @todo - required for D3D11RHI to prevent crash in FD3D11DynamicRHI::RHICopyTexture
+					CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1);
 					CopyInfo.SourceMipIndex = MipIndex;
 					if (Texture->GetTexture3D())
 					{
@@ -39,9 +39,10 @@ bool FRHITextureTests::VerifyTextureContents(const TCHAR* TestName, FRHICommandL
 					}
 					CopyInfo.NumSlices = 1;
 					CopyInfo.NumMips = 1;
+
 					RHICmdList.CopyTexture(Texture, StagingTexture, CopyInfo);
 
-					RHICmdList.Transition(FRHITransitionInfo(StagingTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+					RHICmdList.Transition(FRHITransitionInfo(StagingTexture, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 
 					FGPUFenceRHIRef GPUFence = RHICreateGPUFence(TEXT("ReadbackFence"));
 					RHICmdList.WriteGPUFence(GPUFence);

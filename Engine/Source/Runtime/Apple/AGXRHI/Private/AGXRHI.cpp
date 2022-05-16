@@ -434,9 +434,6 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 #endif
-
-	
-	GRHISupportsCopyToTextureMultipleMips = true;
 		
 	if(
 	   #if PLATFORM_MAC

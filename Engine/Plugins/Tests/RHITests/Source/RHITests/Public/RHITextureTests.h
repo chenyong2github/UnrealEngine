@@ -6,6 +6,8 @@
 #include <type_traits>
 #include "Math/PackedVector.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 class FRHITextureTests
 {
 	static bool VerifyTextureContents(const TCHAR* TestName, FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, TFunctionRef<bool(void* Ptr, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)> VerifyCallback);
@@ -732,4 +734,382 @@ public:
 
 		return bResult;
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	static bool Test_RHICopyTexture(FRHICommandListImmediate& RHICmdList)
+	{
+		bool bResult = true;
+
+		const auto WriteTestData = [](void* Ptr, int32 Stride, FIntPoint Size, FIntPoint Offset, int32 ImageIndex)
+		{
+			int32 Index = ImageIndex;
+			uint8* Bytes = (uint8*)Ptr;
+
+			for (int32 Y = Offset.Y; Y < Offset.Y + Size.Y; Y++)
+			{
+				uint32* Row = (uint32*)(Bytes + Y * Stride);
+
+				for (int32 X = Offset.X; X < Offset.X + Size.X; X++)
+				{
+					Row[X] = Index;
+					Index++;
+				}
+			}
+		};
+
+		const auto DumpTestData = [](const void* Ptr, int32 Stride, FIntPoint Size, FIntPoint Offset = FIntPoint::ZeroValue)
+		{
+			FString DataString;
+			uint8* Bytes = (uint8*)Ptr;
+
+			for (int32 Y = Offset.Y; Y < Offset.Y + Size.Y; Y++)
+			{
+				const uint32* Row = (const uint32*)(Bytes + Y * Stride);
+
+				for (int32 X = Offset.X; X < Offset.X + Size.X; X++)
+				{
+					DataString += FString::Printf(TEXT(" %d"), Row[X]);
+				}
+
+				DataString += TEXT("\n");
+			}
+
+			return DataString;
+		};
+
+		const auto CheckTestData = [&](const void* Ptr, int32 Stride, FIntPoint Size, FIntPoint  Offset, int32 ImageIndex) -> bool
+		{
+			int32 Index = ImageIndex;
+			const uint8* Bytes = (uint8*)Ptr;
+
+			for (int32 Y = Offset.Y; Y < Offset.Y + Size.Y; Y++)
+			{
+				const uint32* Row = (const uint32*)(Bytes + Y * Stride);
+
+				for (int32 X = Offset.X; X < Offset.X + Size.X; X++)
+				{
+					if (Row[X] != Index)
+					{
+						UE_LOG(LogRHIUnitTestCommandlet, Error,
+							TEXT("Dumping Test Data:\n")
+							TEXT("\tCoordinates: [%d, %d]\n")
+							TEXT("\tExpected Value: %d\n")
+							TEXT("\tActual Value: %d\n")
+							TEXT("%s"),
+							X, Y, Index, Row[X], *DumpTestData(Ptr, Stride, Size, Offset));
+
+						return false;
+					}
+
+					Index++;
+				}
+			}
+
+			return true;
+		};
+
+		{
+			// Copy to identical texture
+			{
+				const TCHAR* TestName = TEXT("Copy Texture Whole");
+				const FIntPoint Extent(16, 16);
+				const FIntPoint PatternOffset(0, 0);
+				const FIntPoint PatternSize(16, 16);
+				const int32 ImageIndex = 1;
+
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create2D(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+
+				uint32 Stride = 0;
+				void* Data = RHICmdList.LockTexture2D(SourceTexture, 0, RLM_WriteOnly, Stride, false);
+				WriteTestData(Data, Stride, PatternSize, PatternOffset, ImageIndex);
+				RHICmdList.UnlockTexture2D(SourceTexture, 0, false);
+
+				const FRHITextureCreateDesc DestDesc =
+					FRHITextureCreateDesc::Create2D(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopyDest);
+
+				FTextureRHIRef DestTexture = RHICreateTexture(DestDesc);
+				RHICmdList.CopyTexture(SourceTexture, DestTexture, {});
+				RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+
+				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
+				{
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+				}));
+			}
+
+			// Copy mip to another texture.
+			const auto CopyTextureMipsLambda = [&](bool bUseExplicitSize)
+			{
+				const FIntPoint Extent(32, 32);
+				const int32 NumMips = 3;
+
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create2D(TEXT("Copy Texture Mips"))
+					.SetExtent(Extent.X, Extent.Y)
+					.SetNumMips(NumMips)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+
+				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+				{
+					uint32 Stride = 0;
+					void* Data = RHICmdList.LockTexture2D(SourceTexture, MipIndex, RLM_WriteOnly, Stride, false);
+					WriteTestData(Data, Stride, FIntPoint(Extent.X >> MipIndex, Extent.Y >> MipIndex), FIntPoint::ZeroValue, MipIndex);
+					RHICmdList.UnlockTexture2D(SourceTexture, MipIndex, false);
+				}
+
+				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+				{
+					const FString TestName = FString::Printf(TEXT("Copy Texture Mips [Mip %d, Size Explicit: %s]"), MipIndex, bUseExplicitSize ? TEXT("Yes") : TEXT("No"));
+
+					const FRHITextureCreateDesc DestDesc =
+						FRHITextureCreateDesc::Create2D(*TestName)
+						.SetExtent(Extent.X >> MipIndex, Extent.Y >> MipIndex)
+						.SetFormat(PF_R32_UINT)
+						.SetInitialState(ERHIAccess::CopySrc);
+
+					FTextureRHIRef DestTexture = RHICreateTexture(DestDesc);
+
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.Size = bUseExplicitSize ? FIntVector(DestDesc.Extent.X, DestDesc.Extent.Y, 1) : FIntVector::ZeroValue;
+					CopyInfo.SourceMipIndex = MipIndex;
+
+					RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopySrc, ERHIAccess::CopyDest));
+					RHICmdList.CopyTexture(SourceTexture, DestTexture, CopyInfo);
+					RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+
+					RUN_TEST(VerifyTextureContents(*TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32, uint32 SliceIndex)
+					{
+						return CheckTestData(Data, Width * sizeof(uint32), DestDesc.Extent, FIntPoint::ZeroValue, MipIndex);
+					}));
+				}
+			};
+
+			CopyTextureMipsLambda(true);
+			CopyTextureMipsLambda(false);
+
+			// Copy region
+			{
+				const TCHAR* TestName = TEXT("Copy Texture Region");
+				const FIntPoint Extent(32, 32);
+				const FIntPoint PatternOffsetSource(8, 4);
+				const FIntPoint PatternOffsetDest(8, 4);
+				const FIntPoint PatternSize(16, 24);
+				const int32 ImageIndex = 1;
+
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create2D(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+
+				uint32 Stride = 0;
+				void* Data = RHICmdList.LockTexture2D(SourceTexture, 0, RLM_WriteOnly, Stride, false);
+				WriteTestData(Data, Stride, PatternSize, PatternOffsetSource, ImageIndex);
+				RHICmdList.UnlockTexture2D(SourceTexture, 0, false);
+
+				const FRHITextureCreateDesc DestDesc =
+					FRHITextureCreateDesc::Create2D(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopyDest);
+
+				FRHICopyTextureInfo CopyInfo;
+				CopyInfo.Size           = FIntVector(PatternSize.X, PatternSize.Y, 1);
+				CopyInfo.SourcePosition = FIntVector(PatternOffsetSource.X, PatternOffsetSource.Y, 0);
+				CopyInfo.DestPosition   = FIntVector(PatternOffsetDest.X, PatternOffsetDest.Y, 0);
+
+				FTextureRHIRef DestTexture = RHICreateTexture(DestDesc);
+				RHICmdList.CopyTexture(SourceTexture, DestTexture, CopyInfo);
+				RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+
+				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
+				{
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffsetDest, ImageIndex);
+				}));
+			}
+
+			// Copy mip chains
+			{
+				const TCHAR* TestName = TEXT("Copy Texture Subresources - Mips");
+				const FIntPoint Extent(128, 128);
+				const int32 NumMips = 4;
+				const int32 NumArraySlices = 4;
+				const FIntPoint PatternOffsetMip0(8, 16);
+				const FIntPoint PatternSizeMip0(64, 96);
+
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create2DArray(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetNumMips(NumMips) // 128, 64, 32, 16
+					.SetArraySize(NumArraySlices)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+
+				int32 ImageIndex = 1;
+
+				/*   SLICES
+				  M  1  5  9 13
+				  I  2  6 10 14
+				  P  3  7 11 15
+				  S  4  8 12 16
+				*/
+
+				uint32 Strides[NumMips] = {};
+
+				for (int32 ArraySlice = 0; ArraySlice < NumArraySlices; ++ArraySlice)
+				{
+					for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+					{
+						const FIntPoint PatternSize(PatternSizeMip0.X     >> MipIndex, PatternSizeMip0.Y   >> MipIndex);
+						const FIntPoint PatternOffset(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex);
+
+						void* Data = RHICmdList.LockTexture2DArray(SourceTexture, ArraySlice, MipIndex, RLM_WriteOnly, Strides[MipIndex], false);
+						WriteTestData(Data, Strides[MipIndex], PatternSize, PatternOffset, ImageIndex);
+						RHICmdList.UnlockTexture2DArray(SourceTexture, ArraySlice, MipIndex, false);
+
+						ImageIndex++;
+					}
+				}
+
+				const FRHITextureCreateDesc DestDesc =
+					FRHITextureCreateDesc::Create2DArray(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetNumMips(NumMips)
+					.SetArraySize(NumArraySlices)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopyDest);
+
+				FTextureRHIRef DestTexture = RHICreateTexture(DestDesc);
+
+				/*   SLICES
+				  M  13  9  5  1
+				  I  14 10  6  2
+				  P  15 11  7  3
+				  S  16 12  8  4
+				*/
+				for (int32 SourceSliceIndex = 0; SourceSliceIndex < NumArraySlices; ++SourceSliceIndex)
+				{
+					int32 DestSliceIndex = NumArraySlices - SourceSliceIndex - 1;
+
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.SourcePosition   = FIntVector(PatternOffsetMip0.X, PatternOffsetMip0.Y, 0);
+					CopyInfo.DestPosition     = FIntVector(PatternOffsetMip0.X, PatternOffsetMip0.Y, 0);
+					CopyInfo.Size             = FIntVector(PatternSizeMip0.X, PatternSizeMip0.Y, 1);
+					CopyInfo.NumMips          = NumMips;
+					CopyInfo.SourceSliceIndex = SourceSliceIndex;
+					CopyInfo.DestSliceIndex   = DestSliceIndex;
+
+					RHICmdList.CopyTexture(SourceTexture, DestTexture, CopyInfo);
+				}
+
+				RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+
+				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
+				{
+					int32 ImageIndex = (NumArraySlices - SliceIndex - 1) * NumMips + MipIndex + 1;
+
+					const FIntPoint PatternSize(PatternSizeMip0.X     >> MipIndex, PatternSizeMip0.Y   >> MipIndex);
+					const FIntPoint PatternOffset(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex);
+
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+				}));
+			}
+
+			// Copy array slices
+			{
+				const TCHAR* TestName = TEXT("Copy Texture Subresources - Slices");
+				const FIntPoint Extent(128, 128);
+				const int32 NumMips = 4;
+				const int32 NumArraySlices = 4;
+				const FIntPoint PatternOffsetMip0(8, 16);
+				const FIntPoint PatternSizeMip0(64, 96);
+
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create2DArray(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetNumMips(NumMips) // 128, 64, 32, 16
+					.SetArraySize(NumArraySlices)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+
+				int32 ImageIndex = 1;
+
+				uint32 Strides[NumMips] = {};
+
+				for (int32 ArraySlice = 0; ArraySlice < NumArraySlices; ++ArraySlice)
+				{
+					for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+					{
+						const FIntPoint PatternSize(PatternSizeMip0.X >> MipIndex, PatternSizeMip0.Y >> MipIndex);
+						const FIntPoint PatternOffset(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex);
+
+						void* Data = RHICmdList.LockTexture2DArray(SourceTexture, ArraySlice, MipIndex, RLM_WriteOnly, Strides[MipIndex], false);
+						WriteTestData(Data, Strides[MipIndex], PatternSize, PatternOffset, ImageIndex);
+						RHICmdList.UnlockTexture2DArray(SourceTexture, ArraySlice, MipIndex, false);
+
+						ImageIndex++;
+					}
+				}
+
+				const FRHITextureCreateDesc DestDesc =
+					FRHITextureCreateDesc::Create2DArray(TestName)
+					.SetExtent(Extent.X, Extent.Y)
+					.SetNumMips(NumMips)
+					.SetArraySize(NumArraySlices)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopyDest);
+
+				FTextureRHIRef DestTexture = RHICreateTexture(DestDesc);
+
+				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+				{
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.SourcePosition   = FIntVector(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex, 0);
+					CopyInfo.DestPosition     = FIntVector(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex, 0);
+					CopyInfo.Size             = FIntVector(PatternSizeMip0.X   >> MipIndex, PatternSizeMip0.Y   >> MipIndex, 1);
+					CopyInfo.NumMips          = 1;
+					CopyInfo.NumSlices        = NumArraySlices;
+					CopyInfo.SourceMipIndex   = MipIndex;
+					CopyInfo.DestMipIndex     = MipIndex;
+
+					RHICmdList.CopyTexture(SourceTexture, DestTexture, CopyInfo);
+				}
+
+				RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+
+				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 SliceIndex)
+				{
+					int32 ImageIndex = SliceIndex * NumMips + MipIndex + 1;
+
+					const FIntPoint PatternSize(PatternSizeMip0.X >> MipIndex, PatternSizeMip0.Y >> MipIndex);
+					const FIntPoint PatternOffset(PatternOffsetMip0.X >> MipIndex, PatternOffsetMip0.Y >> MipIndex);
+
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+				}));
+			}
+		}
+
+		return bResult;
+	}
 };
+
+PRAGMA_ENABLE_OPTIMIZATION

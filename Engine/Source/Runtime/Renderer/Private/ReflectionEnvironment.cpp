@@ -487,9 +487,6 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 			FRHITransitionInfo(ReflectionEnvs->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopyDest)
 		});
 
-		FRHICopyTextureInfo CopyInfo;
-		CopyInfo.Size = TexRef->GetSizeXYZ();
-
 		// Copy the cubemaps, remapping the elements as necessary
 		for (int32 SourceCubemapIndex = 0; SourceCubemapIndex < OldMaxCubemaps; SourceCubemapIndex++)
 		{
@@ -501,6 +498,7 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 
 				for (int32 Face = 0; Face < CubeFace_MAX; Face++)
 				{
+					FRHICopyTextureInfo CopyInfo;
 					CopyInfo.SourceSliceIndex = SourceCubemapIndex * CubeFace_MAX + Face;
 					CopyInfo.DestSliceIndex   = DestCubemapIndex   * CubeFace_MAX + Face;
 

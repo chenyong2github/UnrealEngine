@@ -2322,8 +2322,10 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 	VkCommandBuffer CmdBuffer = InCmdBuffer->GetHandle();
 
 	const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[DestTexture->GetDesc().Format];
-	const FIntVector SourceXYZ = Source->GetSizeXYZ();
-	const FIntVector DestXYZ = Source->GetSizeXYZ();
+	const FRHITextureDesc& SourceDesc = SourceTexture->GetDesc();
+	const FRHITextureDesc& DestDesc = DestTexture->GetDesc();
+	const FIntVector SourceXYZ = SourceDesc.GetSize();
+	const FIntVector DestXYZ = DestDesc.GetSize();
 
 	check(!EnumHasAnyFlags(Source->GetDesc().Flags, TexCreate_CPUReadback));
 	if(EnumHasAllFlags(Dest->GetDesc().Flags, TexCreate_CPUReadback))
@@ -2378,17 +2380,17 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 		if (CopyInfo.Size == FIntVector::ZeroValue)
 		{
 			// Copy whole texture when zero vector is specified for region size
-			ensure(SourceXYZ.X <= DestXYZ.X && SourceXYZ.Y <= DestXYZ.Y);
-			Region.extent.width = FMath::Max<uint32>(PixelFormatInfo.BlockSizeX, SourceXYZ.X >> CopyInfo.SourceMipIndex);
+			Region.extent.width  = FMath::Max<uint32>(PixelFormatInfo.BlockSizeX, SourceXYZ.X >> CopyInfo.SourceMipIndex);
 			Region.extent.height = FMath::Max<uint32>(PixelFormatInfo.BlockSizeY, SourceXYZ.Y >> CopyInfo.SourceMipIndex);
-			Region.extent.depth = FMath::Max<uint32>(PixelFormatInfo.BlockSizeZ, SourceXYZ.Z >> CopyInfo.SourceMipIndex);
+			Region.extent.depth  = FMath::Max<uint32>(PixelFormatInfo.BlockSizeZ, SourceXYZ.Z >> CopyInfo.SourceMipIndex);
+			ensure(Region.extent.width <= (uint32)DestXYZ.X && Region.extent.height <= (uint32)DestXYZ.Y);
 		}
 		else
 		{
 			ensure(CopyInfo.Size.X > 0 && CopyInfo.Size.X <= DestXYZ.X && CopyInfo.Size.Y > 0 && CopyInfo.Size.Y <= DestXYZ.Y);
-			Region.extent.width = CopyInfo.Size.X;
-			Region.extent.height = CopyInfo.Size.Y;
-			Region.extent.depth = FMath::Max(1, CopyInfo.Size.Z);
+			Region.extent.width  = FMath::Max(PixelFormatInfo.BlockSizeX, CopyInfo.Size.X);
+			Region.extent.height = FMath::Max(PixelFormatInfo.BlockSizeY, CopyInfo.Size.Y);
+			Region.extent.depth  = FMath::Max(PixelFormatInfo.BlockSizeZ, CopyInfo.Size.Z);
 		}
 		Region.srcSubresource.aspectMask = Source->GetFullAspectMask();
 		Region.srcSubresource.baseArrayLayer = CopyInfo.SourceSliceIndex;
@@ -2426,9 +2428,9 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 				Region.dstOffset.y /= 2;
 				Region.dstOffset.z /= 2;
 
-				Region.extent.width  = FMath::Max<uint32>(Region.extent.width / 2, 1);
-				Region.extent.height = FMath::Max<uint32>(Region.extent.height / 2, 1);
-				Region.extent.depth  = FMath::Max<uint32>(Region.extent.depth / 2, 1);
+				Region.extent.width  = FMath::Max<uint32>(Region.extent.width  / 2, PixelFormatInfo.BlockSizeX);
+				Region.extent.height = FMath::Max<uint32>(Region.extent.height / 2, PixelFormatInfo.BlockSizeY);
+				Region.extent.depth  = FMath::Max<uint32>(Region.extent.depth  / 2, PixelFormatInfo.BlockSizeZ);
 
 				// RHICopyTexture is allowed to copy mip regions only if are aligned on the block size to prevent unexpected / inconsistent results.
 				ensure(Region.srcOffset.x % PixelFormatInfo.BlockSizeX == 0 && Region.srcOffset.y % PixelFormatInfo.BlockSizeY == 0 && Region.srcOffset.z % PixelFormatInfo.BlockSizeZ == 0);

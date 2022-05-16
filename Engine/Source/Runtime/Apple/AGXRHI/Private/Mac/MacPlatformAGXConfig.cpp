@@ -493,7 +493,6 @@ GRHISupportsBackBufferWithCustomDepthStencil           = MAC_PLATFORM_AGXRHI_SUP
 GRHISupportsBaseVertexIndex                            = MAC_PLATFORM_AGXRHI_SUPPORTS_BASE_VERTEX_INDEX;
 GRHISupportsComplexVariableRateShadingCombinerOps      = MAC_PLATFORM_AGXRHI_SUPPORTS_COMPLEX_VARIABLE_RATE_SHADING_COMBINER_OPS;
 GRHISupportsConservativeRasterization                  = MAC_PLATFORM_AGXRHI_SUPPORTS_CONSERVATIVE_RASTERIZATION;
-GRHISupportsCopyToTextureMultipleMips                  = MAC_PLATFORM_AGXRHI_SUPPORTS_COPY_TO_TEXTURE_MULTIPLE_MIPS;
 GRHISupportsDepthUAV                                   = MAC_PLATFORM_AGXRHI_SUPPORTS_DEPTH_UAV;
 GRHISupportsDirectGPUMemoryLock                        = MAC_PLATFORM_AGXRHI_SUPPORTS_DIRECT_GPU_MEMORY_LOCK;
 GRHISupportsDrawIndirect                               = MAC_PLATFORM_AGXRHI_SUPPORTS_DRAW_INDIRECT;

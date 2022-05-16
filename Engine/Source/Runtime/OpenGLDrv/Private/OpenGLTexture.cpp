@@ -2087,8 +2087,10 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 	if (CopyInfo.Size == FIntVector::ZeroValue)
 	{
+		const FRHITextureDesc& SourceDesc = SourceTextureRHI->GetDesc();
+
 		// Copy whole texture when zero vector is specified for region size.
-		FIntVector SrcTexSize = SourceTextureRHI->GetSizeXYZ();
+		FIntVector SrcTexSize = SourceDesc.GetSize();
 		Width = FMath::Max(1, SrcTexSize.X >> CopyInfo.SourceMipIndex);
 		Height = FMath::Max(1, SrcTexSize.Y >> CopyInfo.SourceMipIndex);
 		switch (SourceTexture->Target)
@@ -2116,32 +2118,38 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 	if (FOpenGL::SupportsCopyImage())
 	{
-		GLint SrcZOffset, DestZOffset;
-		switch (SourceTexture->Target)
-		{
-		case GL_TEXTURE_3D:
-		case GL_TEXTURE_CUBE_MAP:
-			// For cube maps, the Z offsets select the starting faces.
-			SrcZOffset = CopyInfo.SourcePosition.Z;
-			DestZOffset = CopyInfo.DestPosition.Z;
-			break;
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D_ARRAY:
-			// For texture arrays, the Z offsets and depth actually refer to the range of slices to copy.
-			SrcZOffset = CopyInfo.SourceSliceIndex;
-			DestZOffset = CopyInfo.DestSliceIndex;
-			Depth = CopyInfo.NumSlices;
-			break;
-		default:
-			SrcZOffset = 0;
-			DestZOffset = 0;
-			break;
-		}
-
 		for (uint32 MipIndex = 0; MipIndex < CopyInfo.NumMips; ++MipIndex)
 		{
-			FOpenGL::CopyImageSubData(SourceTexture->GetResource(), SourceTexture->Target, SrcMip, CopyInfo.SourcePosition.X, CopyInfo.SourcePosition.Y, SrcZOffset,
-				DestTexture->GetResource(), DestTexture->Target, DestMip, CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, DestZOffset,
+			GLint SrcZOffset, DestZOffset;
+			switch (SourceTexture->Target)
+			{
+			case GL_TEXTURE_3D:
+			case GL_TEXTURE_CUBE_MAP:
+				// For cube maps, the Z offsets select the starting faces.
+				SrcZOffset = CopyInfo.SourcePosition.Z >> MipIndex;
+				DestZOffset = CopyInfo.DestPosition.Z  >> MipIndex;
+				break;
+			case GL_TEXTURE_1D_ARRAY:
+			case GL_TEXTURE_2D_ARRAY:
+				// For texture arrays, the Z offsets and depth actually refer to the range of slices to copy.
+				SrcZOffset = CopyInfo.SourceSliceIndex;
+				DestZOffset = CopyInfo.DestSliceIndex;
+				Depth = CopyInfo.NumSlices;
+				break;
+			default:
+				SrcZOffset = 0;
+				DestZOffset = 0;
+				break;
+			}
+
+			GLint SourceX = CopyInfo.SourcePosition.X >> MipIndex;
+			GLint SourceY = CopyInfo.SourcePosition.Y >> MipIndex;
+
+			GLint DestX = CopyInfo.DestPosition.X >> MipIndex;
+			GLint DestY = CopyInfo.DestPosition.Y >> MipIndex;
+
+			FOpenGL::CopyImageSubData(SourceTexture->GetResource(), SourceTexture->Target, SrcMip, SourceX, SourceY, SrcZOffset,
+				DestTexture->GetResource(), DestTexture->Target, DestMip, DestX, DestY, DestZOffset,
 				Width, Height, Depth);
 
 			++SrcMip;
@@ -2190,25 +2198,25 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 			switch (DestTexture->Target)
 			{
 				case GL_TEXTURE_1D:
-					FOpenGL::CopyTexSubImage1D(DestTexture->Target, DestMip, XOffset, X, 0, Width);
+					FOpenGL::CopyTexSubImage1D(DestTexture->Target, DestMip, XOffset >> MipIndex, X >> MipIndex, 0, Width);
 					break;
 				case GL_TEXTURE_1D_ARRAY:
-					FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset, CopyInfo.DestSliceIndex + SliceIndex, X, 0, Width, 1);
+					FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset >> MipIndex, CopyInfo.DestSliceIndex + SliceIndex, X >> MipIndex, 0, Width, 1);
 					break;
 				case GL_TEXTURE_2D:
 				case GL_TEXTURE_RECTANGLE:
-					FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset, YOffset, X, Y, Width, Height);
+					FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset >> MipIndex, YOffset >> MipIndex, X >> MipIndex, Y >> MipIndex, Width, Height);
 					break;
 				case GL_TEXTURE_2D_ARRAY:
-					FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset, YOffset, CopyInfo.DestSliceIndex + SliceIndex, X, Y, Width, Height);
+					FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset >> MipIndex, YOffset >> MipIndex, CopyInfo.DestSliceIndex + SliceIndex, X >> MipIndex, Y >> MipIndex, Width, Height);
 					break;
 				case GL_TEXTURE_3D:
-					FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset, YOffset, ZOffset, X, Y, Width, Height);
+					FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset >> MipIndex, YOffset >> MipIndex, ZOffset >> MipIndex, X >> MipIndex, Y >> MipIndex, Width, Height);
 					break;
 				case GL_TEXTURE_CUBE_MAP:
 					for (int32 FaceIndex = FMath::Min((int32)CopyInfo.NumSlices, 6) - 1; FaceIndex >= 0; FaceIndex--)
 					{
-						FOpenGL::CopyTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + (uint32)FaceIndex, CopyInfo.DestMipIndex, XOffset, YOffset, X, Y, Width, Height);
+						FOpenGL::CopyTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + (uint32)FaceIndex, CopyInfo.DestMipIndex, XOffset >> MipIndex, YOffset >> MipIndex, X >> MipIndex, Y >> MipIndex, Width, Height);
 					}					
 					break;
 			}

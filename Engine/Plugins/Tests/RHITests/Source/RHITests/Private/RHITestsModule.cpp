@@ -38,6 +38,10 @@ static bool RunTests_RenderThread(FRHICommandListImmediate& RHICmdList)
 		RUN_TEST(FRHITextureTests::Test_RHIFormats(RHICmdList));
 	}
 
+	{
+		RUN_TEST(FRHITextureTests::Test_RHICopyTexture(RHICmdList));
+	}
+
 	// @todo - add more tests
 	return bResult;
 }

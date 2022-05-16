@@ -2919,18 +2919,8 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 
 	if (!bAllPixels || !bAllSubresources || bReadback)
 	{
-		// Interpret zero size as source size
-		const FIntVector CopySize = CopyInfo.Size == FIntVector::ZeroValue ? SourceTextureRHI->GetSizeXYZ() : CopyInfo.Size;
-
-		// Copy sub texture regions
-		const CD3DX12_BOX SourceBoxD3D(
-			CopyInfo.SourcePosition.X,
-			CopyInfo.SourcePosition.Y,
-			CopyInfo.SourcePosition.Z,
-			CopyInfo.SourcePosition.X + CopySize.X,
-			CopyInfo.SourcePosition.Y + CopySize.Y,
-			CopyInfo.SourcePosition.Z + CopySize.Z
-		);
+		const FIntVector SourceSize = SourceDesc.GetSize();
+		const FIntVector CopySize = CopyInfo.Size == FIntVector::ZeroValue ? SourceSize >> CopyInfo.SourceMipIndex : CopyInfo.Size;
 
 		D3D12_TEXTURE_COPY_LOCATION Src;
 		Src.pResource = SourceTexture->GetResource()->GetResource();
@@ -2963,23 +2953,20 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 				uint32 SourceMipIndex = CopyInfo.SourceMipIndex + MipIndex;
 				uint32 DestMipIndex   = CopyInfo.DestMipIndex   + MipIndex;
 
-				CD3DX12_BOX MipSourceBoxD3D(
-					SourceBoxD3D.left  >> MipIndex,
-					SourceBoxD3D.top   >> MipIndex,
-					SourceBoxD3D.front >> MipIndex,
-					// Align to block size to pad the copy when processing the last surface texels.
-					// This will give inconsistent results otherwise between different RHI.
-					AlignArbitrary<uint32>(FMath::Max<uint32>(SourceBoxD3D.right  >> MipIndex, 1), SourcePixelFormatInfo.BlockSizeX),
-					AlignArbitrary<uint32>(FMath::Max<uint32>(SourceBoxD3D.bottom >> MipIndex, 1), SourcePixelFormatInfo.BlockSizeY),
-					AlignArbitrary<uint32>(FMath::Max<uint32>(SourceBoxD3D.back   >> MipIndex, 1), SourcePixelFormatInfo.BlockSizeZ)
-					);
+				D3D12_BOX SrcBox;
+				SrcBox.left   = CopyInfo.SourcePosition.X >> MipIndex;
+				SrcBox.top    = CopyInfo.SourcePosition.Y >> MipIndex;
+				SrcBox.front  = CopyInfo.SourcePosition.Z >> MipIndex;
+				SrcBox.right  = AlignArbitrary<uint32>(FMath::Max<uint32>((CopyInfo.SourcePosition.X + CopySize.X) >> MipIndex, 1), SourcePixelFormatInfo.BlockSizeX);
+				SrcBox.bottom = AlignArbitrary<uint32>(FMath::Max<uint32>((CopyInfo.SourcePosition.Y + CopySize.Y) >> MipIndex, 1), SourcePixelFormatInfo.BlockSizeY);
+				SrcBox.back   = AlignArbitrary<uint32>(FMath::Max<uint32>((CopyInfo.SourcePosition.Z + CopySize.Z) >> MipIndex, 1), SourcePixelFormatInfo.BlockSizeZ);
 
 				const uint32 DestX = CopyInfo.DestPosition.X >> MipIndex;
 				const uint32 DestY = CopyInfo.DestPosition.Y >> MipIndex;
 				const uint32 DestZ = CopyInfo.DestPosition.Z >> MipIndex;
 
 				// RHICopyTexture is allowed to copy mip regions only if are aligned on the block size to prevent unexpected / inconsistent results.
-				ensure(MipSourceBoxD3D.left % SourcePixelFormatInfo.BlockSizeX == 0 && MipSourceBoxD3D.top % SourcePixelFormatInfo.BlockSizeY == 0 && MipSourceBoxD3D.front % SourcePixelFormatInfo.BlockSizeZ == 0);
+				ensure(SrcBox.left % SourcePixelFormatInfo.BlockSizeX == 0 && SrcBox.top % SourcePixelFormatInfo.BlockSizeY == 0 && SrcBox.front % SourcePixelFormatInfo.BlockSizeZ == 0);
 				ensure(DestX % DestPixelFormatInfo.BlockSizeX == 0 && DestY % DestPixelFormatInfo.BlockSizeY == 0 && DestZ % DestPixelFormatInfo.BlockSizeZ == 0);
 
 				Src.SubresourceIndex = CalcSubresource(SourceMipIndex, SourceSliceIndex, SourceTextureRHI->GetNumMips());
@@ -2991,10 +2978,10 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 				}
 
 				CommandListHandle->CopyTextureRegion(
-					&Dst, 
+					&Dst,
 					DestX, DestY, DestZ,
 					&Src,
-					&MipSourceBoxD3D
+					&SrcBox
 				);
 			}
 		}
