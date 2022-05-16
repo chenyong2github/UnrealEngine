@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chooser.h"
 #include "DataInterfaceTypes.h"
 #include "DataInterface.h"
