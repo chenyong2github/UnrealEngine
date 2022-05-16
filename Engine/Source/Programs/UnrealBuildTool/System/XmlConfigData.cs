@@ -28,16 +28,101 @@ namespace UnrealBuildTool
 		/// </summary>
 		public FileReference[] InputFiles;
 
+		/// <summary>
+		/// Abstract description of a target data member.
+		/// </summary>
+		public abstract class TargetMember
+		{
+			/// <summary>
+			/// Returns Reflection.MemberInfo describing the target class member.
+			/// </summary>
+			public abstract MemberInfo               MemberInfo { get; }
+
+			/// <summary>
+			/// Returns Reflection.Type of the target class member.
+			/// </summary>
+			public abstract Type                     Type       { get; }
+
+			/// <summary>
+			/// Indicates whether the target class member is static or not.
+			/// </summary>
+			public abstract bool                     IsStatic   { get; }
+
+			/// <summary>
+			/// Returns the value setter of the target class member.
+			/// </summary>
+			public abstract Action<object?, object?> SetValue   { get; }
+
+			/// <summary>
+			/// Returns the value getter of the target class member.
+			/// </summary>
+			public abstract Func<object?, object?>   GetValue   { get; }
+		}
+
+		/// <summary>
+		/// Description of a field member.
+		/// </summary>
+		public class TargetField : TargetMember
+		{
+			public override MemberInfo               MemberInfo => FieldInfo;
+			public override Type                     Type       => FieldInfo.FieldType;
+			public override bool                     IsStatic   => FieldInfo.IsStatic;
+			public override Action<object?, object?> SetValue   => FieldInfo.SetValue;
+			public override Func<object?, object?>   GetValue   => FieldInfo.GetValue;
+
+			private FieldInfo FieldInfo;
+
+			public TargetField(FieldInfo FieldInfo)
+			{
+				this.FieldInfo = FieldInfo;
+			}
+		}
+
+		/// <summary>
+		/// Description of a property member.
+		/// </summary>
+		public class TargetProperty : TargetMember
+		{
+			public override MemberInfo               MemberInfo => PropertyInfo;
+			public override Type                     Type       => PropertyInfo.PropertyType;
+			public override bool                     IsStatic   => PropertyInfo.GetGetMethod()!.IsStatic;
+			public override Action<object?, object?> SetValue   => PropertyInfo.SetValue;
+			public override Func<object?, object?>   GetValue   => PropertyInfo.GetValue;
+
+			private PropertyInfo PropertyInfo;
+
+			public TargetProperty(PropertyInfo PropertyInfo)
+			{
+				this.PropertyInfo = PropertyInfo;
+			}
+		}
+
 		public class ValueInfo
 		{
-			public FieldInfo FieldInfo;
+			public TargetMember Target;
 			public object Value;
 			public FileReference SourceFile;
 			public XmlConfigFileAttribute XmlConfigAttribute;
 
 			public ValueInfo(FieldInfo FieldInfo, object Value, FileReference SourceFile, XmlConfigFileAttribute XmlConfigAttribute)
 			{
-				this.FieldInfo = FieldInfo;
+				this.Target = new TargetField(FieldInfo);
+				this.Value = Value;
+				this.SourceFile = SourceFile;
+				this.XmlConfigAttribute = XmlConfigAttribute;
+			}
+
+			public ValueInfo(PropertyInfo PropertyInfo, object Value, FileReference SourceFile, XmlConfigFileAttribute XmlConfigAttribute)
+			{
+				this.Target = new TargetProperty(PropertyInfo);
+				this.Value = Value;
+				this.SourceFile = SourceFile;
+				this.XmlConfigAttribute = XmlConfigAttribute;
+			}
+
+			public ValueInfo(TargetMember Target, object Value, FileReference SourceFile, XmlConfigFileAttribute XmlConfigAttribute)
+			{
+				this.Target = Target;
 				this.Value = Value;
 				this.SourceFile = SourceFile;
 				this.XmlConfigAttribute = XmlConfigAttribute;
@@ -45,7 +130,7 @@ namespace UnrealBuildTool
 		}
 		
 		/// <summary>
-		/// Stores a mapping from type -> field -> value, with all the config values for configurable fields.
+		/// Stores a mapping from type -> member -> value, with all the config values for configurable fields.
 		/// </summary>
 		public Dictionary<Type, ValueInfo[]> TypeToValues;
 
@@ -70,7 +155,7 @@ namespace UnrealBuildTool
 		public static bool TryRead(FileReference Location, IEnumerable<Type> Types, [NotNullWhen(true)] out XmlConfigData? Data)
 		{
 			// Check the file exists first
-			if(!FileReference.Exists(Location))
+			if (!FileReference.Exists(Location))
 			{
 				Data = null;
 				return false;
@@ -107,26 +192,30 @@ namespace UnrealBuildTool
 
 					// Read all the values
 					ValueInfo[] Values = new ValueInfo[Reader.ReadInt32()];
-					for(int ValueIdx = 0; ValueIdx < Values.Length; ValueIdx++)
+					for (int ValueIdx = 0; ValueIdx < Values.Length; ValueIdx++)
 					{
-						string FieldName = Reader.ReadString();
+						string MemberName = Reader.ReadString();
 
-						// Find the matching field on the output type
-						FieldInfo? Field = Type.GetField(FieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-						XmlConfigFileAttribute? XmlConfigAttribute = Field?.GetCustomAttribute<XmlConfigFileAttribute>();
-						if(Field == null || XmlConfigAttribute == null)
+						XmlConfigData.TargetMember? TargetMember = GetTargetMemberWithAttribute<XmlConfigFileAttribute>(Type, MemberName);
+
+						if (TargetMember != null)
+						{
+							// If TargetMember is not null, we know it has our attribute.
+							XmlConfigFileAttribute XmlConfigAttribute = TargetMember!.MemberInfo.GetCustomAttribute<XmlConfigFileAttribute>()!;
+
+							// Try to parse the value and add it to the output array
+							object Value = Reader.ReadObject(TargetMember.Type)!;
+
+							// Read the path of the config file that provided this setting
+							FileReference SourceFile = Reader.ReadFileReference();
+
+							Values[ValueIdx] = new ValueInfo(TargetMember, Value, SourceFile, XmlConfigAttribute);
+						}
+						else
 						{
 							Data = null;
 							return false;
 						}
-
-						// Try to parse the value and add it to the output array
-						object Value = Reader.ReadObject(Field.FieldType)!;
-						
-						// Read the path of the config file that provided this setting
-						FileReference SourceFile = Reader.ReadFileReference();
-
-						Values[ValueIdx] = new ValueInfo(Field, Value, SourceFile, XmlConfigAttribute);
 					}
 
 					// Add it to the type map
@@ -137,6 +226,37 @@ namespace UnrealBuildTool
 				Data = new XmlConfigData(InputFiles.ToArray(), TypeToValues);
 				return true;
 			}
+		}
+
+		/// <summary>
+		/// Find a data member (field or property) with the given name and attribute and returns TargetMember wrapper created for it.
+		/// </summary>
+		/// <typeparam name="T">Attribute a member has to have to be considered.</typeparam>
+		/// <param name="Type">Type which members are to be searched</param>
+		/// <param name="MemberName">Name of a member (field or property) to find.</param>
+		/// <returns>TargetMember wrapper or null if no member has been found.</returns>
+		private static XmlConfigData.TargetMember? GetTargetMemberWithAttribute<T>(Type Type, string MemberName)
+			where T : System.Attribute
+		{
+			T? XmlConfigAttribute = null;
+
+			FieldInfo? Field = Type.GetField(MemberName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+			XmlConfigAttribute = Field?.GetCustomAttribute<T>();
+
+			if (Field != null && XmlConfigAttribute != null)
+			{
+				return new XmlConfigData.TargetField(Field);
+			}
+
+			PropertyInfo? Property = Type.GetProperty(MemberName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+			XmlConfigAttribute = Property?.GetCustomAttribute<T>();
+
+			if (Property != null && XmlConfigAttribute != null)
+			{
+				return new XmlConfigData.TargetProperty(Property);
+			}
+
+			return null;
 		}
 
 		/// <summary>
@@ -159,11 +279,11 @@ namespace UnrealBuildTool
 				{
 					Writer.Write(TypePair.Key.Name);
 					Writer.Write(TypePair.Value.Length);
-					foreach(ValueInfo FieldPair in TypePair.Value)
+					foreach(ValueInfo MemberPair in TypePair.Value)
 					{
-						Writer.Write(FieldPair.FieldInfo.Name);
-						Writer.Write(FieldPair.FieldInfo.FieldType, FieldPair.Value);
-						Writer.Write(FieldPair.SourceFile);
+						Writer.Write(MemberPair.Target.MemberInfo.Name);
+						Writer.Write(MemberPair.Target.Type, MemberPair.Value);
+						Writer.Write(MemberPair.SourceFile);
 					}
 				}
 			}

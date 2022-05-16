@@ -179,6 +179,29 @@ namespace UnrealBuildTool
 		/// Gets the XML comment for a particular field
 		/// </summary>
 		/// <param name="Documentation">The XML documentation</param>
+		/// <param name="Member">The member to search for (field or property)</param>
+		/// <param name="Lines">Receives the description for the requested member</param>
+		/// <returns>True if a comment was found for the member</returns>
+		public static bool TryGetXmlComment(XmlDocument Documentation, MemberInfo Member, [NotNullWhen(true)] out List<string>? Lines)
+		{
+			if (Member is FieldInfo)
+			{
+				return TryGetXmlComment(Documentation, (Member as FieldInfo)!, out Lines);
+			}
+			else if (Member is PropertyInfo)
+			{
+				return TryGetXmlComment(Documentation, (Member as PropertyInfo)!, out Lines);
+			}
+
+			Lines = null;
+
+			return false;
+		}
+
+		/// <summary>
+		/// Gets the XML comment for a particular field
+		/// </summary>
+		/// <param name="Documentation">The XML documentation</param>
 		/// <param name="MemberName">The member to search for</param>
 		/// <param name="Lines">Receives the description for the requested field</param>
 		/// <returns>True if a comment was found for the field</returns>

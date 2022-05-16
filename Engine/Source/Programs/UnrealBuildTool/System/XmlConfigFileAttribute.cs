@@ -11,7 +11,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Marks a field as being serializable from a config file
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
+	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
 	class XmlConfigFileAttribute : Attribute
 	{
 		/// <summary>
