@@ -47,7 +47,7 @@ namespace UnrealGameSync
 					string Filter = String.Format("//{0}/{1}", ClientName, Pattern);
 
 					List<FStatRecord> WildcardFileRecords = await Perforce.FStatAsync(Filter, CancellationToken).ToListAsync(CancellationToken);
-					WildcardFileRecords.RemoveAll(x => x.Action == FileAction.Delete || x.Action == FileAction.MoveDelete);
+					WildcardFileRecords.RemoveAll(x => x.HeadAction == FileAction.Delete || x.HeadAction == FileAction.MoveDelete);
 
 					FileRecords.AddRange(WildcardFileRecords);
 				}
