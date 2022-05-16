@@ -135,7 +135,14 @@ namespace Horde.Build.Collections.Impl
 		{
 			try
 			{
-				stream.Config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
+				if (stream.Deleted)
+				{
+					stream.Config = new StreamConfig();
+				}
+				else
+				{
+					stream.Config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
+				}
 			}
 			catch (Exception)
 			{
