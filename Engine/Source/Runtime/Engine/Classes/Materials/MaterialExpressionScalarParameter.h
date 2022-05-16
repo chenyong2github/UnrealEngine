@@ -15,7 +15,7 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionScalarParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionScalarParameter, Meta = (ShowAsInputPin = "Primary"))
 	float DefaultValue;
 
 	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData)
