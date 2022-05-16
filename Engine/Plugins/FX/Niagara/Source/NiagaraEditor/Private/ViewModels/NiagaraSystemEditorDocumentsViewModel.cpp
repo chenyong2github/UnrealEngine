@@ -92,8 +92,8 @@ void UNiagaraSystemEditorDocumentsViewModel::InitializePreTabManager(TSharedPtr<
 	// Register the document factories
 	{
 
-		TSharedRef<FDocumentTabFactory> GraphEditorFactory = MakeShareable(new FGraphEditorSummoner(InToolkit,
-			FGraphEditorSummoner::FOnCreateGraphEditorWidget::CreateUObject(this, &UNiagaraSystemEditorDocumentsViewModel::CreateGraphEditorWidget)
+		TSharedRef<FDocumentTabFactory> GraphEditorFactory = MakeShareable(new FNiagaraGraphEditorSummoner(InToolkit,
+			FNiagaraGraphEditorSummoner::FOnCreateGraphEditorWidget::CreateUObject(this, &UNiagaraSystemEditorDocumentsViewModel::CreateGraphEditorWidget)
 		));
 
 		// Also store off a reference to the grapheditor factory so we can find all the tabs spawned by it later.

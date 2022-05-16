@@ -77,16 +77,16 @@ private:
 
 
 /////////////////////////////////////////////////////
-// FGraphTabHistory
+// FNiagaraGraphTabHistory
 
-struct FGraphTabHistory : public FGenericTabHistory
+struct FNiagaraGraphTabHistory : public FGenericTabHistory
 {
 public:
 	/**
 	 * @param InFactory		The factory used to regenerate the content
 	 * @param InPayload		The payload object used to regenerate the content
 	 */
-	FGraphTabHistory(TSharedPtr<FDocumentTabFactory> InFactory, TSharedPtr<FTabPayload> InPayload)
+	FNiagaraGraphTabHistory(TSharedPtr<FDocumentTabFactory> InFactory, TSharedPtr<FTabPayload> InPayload)
 		: FGenericTabHistory(InFactory, InPayload)
 		, SavedLocation(FVector2D::ZeroVector)
 		, SavedZoomAmount(INDEX_NONE)
@@ -112,12 +112,12 @@ private:
 };
 
 
-struct FGraphEditorSummoner : public FDocumentTabFactoryForObjects<UEdGraph>
+struct FNiagaraGraphEditorSummoner : public FDocumentTabFactoryForObjects<UEdGraph>
 {
 public:
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<SNiagaraScratchPadScriptEditor>, FOnCreateGraphEditorWidget, TSharedRef<FTabInfo>, UEdGraph*);
 public:
-	FGraphEditorSummoner(TSharedPtr<class FNiagaraSystemToolkit> InToolkit, FOnCreateGraphEditorWidget CreateGraphEditorWidgetCallback);
+	FNiagaraGraphEditorSummoner(TSharedPtr<class FNiagaraSystemToolkit> InToolkit, FOnCreateGraphEditorWidget CreateGraphEditorWidgetCallback);
 
 	virtual void OnTabActivated(TSharedPtr<SDockTab> Tab) const override;
 
