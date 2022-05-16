@@ -69,6 +69,7 @@
 #include "Particles/EmitterCameraLensEffectBase.h"
 #include "LevelUtils.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "Physics/AsyncPhysicsInputComponent.h"
 
 DEFINE_LOG_CATEGORY(LogPlayerController);
 
@@ -4670,11 +4671,25 @@ void APlayerController::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 
 	// Replicate SpawnLocation for remote spectators
 	DOREPLIFETIME_CONDITION(APlayerController, SpawnLocation, COND_OwnerOnly);
+
+	DOREPLIFETIME_CONDITION(APlayerController, AsyncPhysicsDataComponent, COND_OwnerOnly);
+}
+
+void APlayerController::OnRep_AsyncPhysicsDataComponent()
+{
+	AsyncPhysicsDataComponent->SetDataClass(AsyncPhysicsDataClass);
 }
 
 void APlayerController::SetPlayer( UPlayer* InPlayer )
 {
 	FMoviePlayerProxyBlock MoviePlayerBlock;
+	if(AsyncPhysicsDataClass && GetLocalRole() == ROLE_Authority)
+	{
+		static const FName AsyncPhysicsDataComponentName(TEXT("PC_AsyncPhysicsDataComponent"));
+		AsyncPhysicsDataComponent = NewObject<UAsyncPhysicsInputComponent>(this, AsyncPhysicsDataComponentName);
+		AsyncPhysicsDataComponent->SetDataClass(AsyncPhysicsDataClass);
+		AsyncPhysicsDataComponent->RegisterComponent();
+	}
 
 	check(InPlayer!=NULL);
 
@@ -5817,5 +5832,16 @@ void APlayerController::IncludeInNetConditionGroup(FName NetGroup)
 	checkf(!NetGroup.IsNone(), TEXT("Invalid netcondition group: NONE"));
 	NetConditionGroups.AddUnique(NetGroup);
 }
+
+UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToWrite() const
+{
+	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToWrite() : nullptr;
+}
+
+const UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToConsume() const
+{
+	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToConsume() : nullptr;
+}
+
 
 #undef LOCTEXT_NAMESPACE

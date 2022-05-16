@@ -292,173 +292,21 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 	}
 };
 
-
 UAsyncPhysicsInputComponent::UAsyncPhysicsInputComponent()
 {
-	bWantsInitializeComponent = true;
 	bAutoActivate = true;
 	SetIsReplicatedByDefault(true);
+}
+
+void UAsyncPhysicsInputComponent::SetDataClass(TSubclassOf<UAsyncPhysicsData> InDataClass)
+{
+	ensureMsgf(DataClass == nullptr, TEXT("You can only set the data class once"));
+	DataClass = InDataClass;
+
+	DataToWrite = DuplicateObject((UAsyncPhysicsData*)DataClass->GetDefaultObject(), nullptr);
+	
+	//now that we have a class we're ready to async tick
 	SetAsyncPhysicsTickEnabled(true);
-}
-
-void UAsyncPhysicsInputComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
-{
-	Super::AsyncPhysicsTickComponent(DeltaTime, SimTime);
-	ensureMsgf(Pool != nullptr, TEXT("You must call RegisterInputPool in InitializeComponent"));
-
-	UWorld* World = GetWorld();
-	FPhysScene* PhysScene = World->GetPhysicsScene();
-	Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
-
-	// Pull server frame out in this unsafe way. Better if we can get piped into AsyncPhysicsTickComponent
-	FAsyncPhysicsInputRewindCallback* Callback = static_cast<FAsyncPhysicsInputRewindCallback*>(Solver->GetRewindCallback());
-	const int32 ServerFrame = Callback->CachedServerFrame;
-
-	if(World->IsNetMode(ENetMode::NM_DedicatedServer) || World->IsNetMode(ENetMode::NM_ListenServer))
-	{
-		//TODO: move this somewhere else - here because we need to run this when GT and PT are both on same core. Function guards against multiple calls per ServerFrame so calling from each instance is ok
-		Callback->UpdateReplicationMap_Internal(ServerFrame);
-	}
-
-	Pool->SetCurrentInputToAsyncExecute(nullptr);	//set current input to none in case we don't find it
-
-	for (int32 Idx = BufferedInputs.Num() - 1; Idx >= 0; --Idx)
-	{
-		FAsyncPhysicsInput* Input = BufferedInputs[Idx];
-		if (Input->ServerFrame == ServerFrame)
-		{
-			Pool->SetCurrentInputToAsyncExecute(Input);
-		}
-
-		bool bFreeInput = Input->ServerFrame < ServerFrame;	//for most cases once we're passed this frame we can free
-		if (APlayerController* PC = GetPlayerController())
-		{
-			if (PC->IsLocalController() && !InputCmdCVars::ForceInputDrop)
-			{
-				FAsyncPhysicsInputWrapper Wrapper;
-				Wrapper.Input = Input;
-				Wrapper.OwnerComponent = this;
-				ServerRPCBufferInput(Wrapper);
-
-				//If we are the local player then we need to keep this input around to send redundant RPCs to deal with potential packet loss
-				bFreeInput = --Input->Replicated == 0;
-			}
-		}
-
-		if (bFreeInput)
-		{
-			Pool->FreeInputToPool(Input);
-			BufferedInputs.RemoveAtSwap(Idx);
-		}
-	}
-}
-
-void UAsyncPhysicsInputComponent::ServerRPCBufferInput_Implementation(FAsyncPhysicsInputWrapper Wrapper)
-{
-	for (FAsyncPhysicsInput* Input : BufferedInputs)
-	{
-		if (Input->ServerFrame == Wrapper.Input->ServerFrame)
-		{
-			//already buffered this is just a redundant send to deal with potential packet loss
-			//question: what if client's offset changes so we get a new instruction for what we think is an existing frame? The case where offset changes is input fault (hopefully rare) so maybe we just accept it
-			return;
-		}
-	}
-
-	BufferedInputs.Add(Wrapper.Input);
-}
-
-
-bool FAsyncPhysicsInputWrapper::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-{
-	Ar << OwnerComponent;
-	FAsyncPhysicsInputPool* Pool = OwnerComponent->GetInputPool();
-	Pool->NetSerializeHelper(Input, Ar, Map, bOutSuccess);
-	return bOutSuccess;
-}
-
-void UAsyncPhysicsInputComponent::RegisterInputPool(FAsyncPhysicsInputPool* InPool)
-{
-	ensureMsgf(Pool == nullptr, TEXT("You can only register the input pool once during initialization"));
-	Pool = InPool;
-}
-
-void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32 NumSteps, int32 ServerFrame)
-{
-	ensureMsgf(Pool != nullptr, TEXT("You must call RegisterInputPool in InitializeComponent"));
-
-	// It would be better if we only registered while we had a local controller,
-	// but this is simpler to implement
-
-	if (APlayerController* PC = GetPlayerController())
-	{
-		if (PC->IsLocalController())
-		{
-			FAsyncPhysicsInput* Input = Pool->FlushLatestInputToPopulate();
-			for (int32 Step = 0; Step < NumSteps; ++Step)
-			{
-				if(Step > 0)
-				{
-					//Make sure each sub-step gets its own unique data so we don't have to worry about ref count
-					//TODO: should probably given user opportunity to modify this per sub-step. For example a jump instruction should only happen on first sub-step
-					Input = Pool->CloneInput(Input);
-				}
-				Input->ServerFrame = ServerFrame + 1 + Step;
-				BufferedInputs.Add(Input);
-			}
-		}
-	}
-}
-
-void UAsyncPhysicsInputComponent::InitializeComponent()
-{
-	Super::InitializeComponent();
-
-	// Test is component is valid for Network Physics. Needs a valid physics ActorHandle
-	auto ValidComponent = [](UActorComponent* Component)
-	{
-		bool bValid = false;
-		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
-		{
-			bValid = FPhysicsInterface::IsValid(PrimComp->BodyInstance.ActorHandle);
-		}
-		return bValid;
-	};
-
-	auto SelectComponent = [&ValidComponent](const TArray<UActorComponent*>& Components)
-	{
-		UPrimitiveComponent* Pc = nullptr;
-		for (UActorComponent* Ac : Components)
-		{
-			if (ValidComponent(Ac))
-			{
-				Pc = (UPrimitiveComponent*)Ac;
-				break;
-			}
-
-		}
-		return Pc;
-	};
-
-	if (AActor* MyActor = GetOwner())
-	{
-		TInlineComponentArray<UPrimitiveComponent*> FoundComponents;
-		MyActor->GetComponents<UPrimitiveComponent>(FoundComponents);
-		for (UPrimitiveComponent* FoundComponent : FoundComponents)
-		{
-			if (FPhysicsInterface::IsValid(FoundComponent->BodyInstance.ActorHandle))
-			{
-				UpdateComponent = FoundComponent;
-				break;
-			}
-		}
-	}
-
-	//TODO: set up tick dependency so that async input component runs before the update component
-	//ensure(UpdateComponent);
-
-
-
 	UWorld* World = GetWorld();
 	if (World->WorldType == EWorldType::PIE || World->WorldType == EWorldType::Game)
 	{
@@ -488,13 +336,127 @@ void UAsyncPhysicsInputComponent::InitializeComponent()
 	}
 }
 
-APlayerController* UAsyncPhysicsInputComponent::GetPlayerController()
+void UAsyncPhysicsInputComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
 {
-	APawn* Pawn = Cast<APawn>(GetOwner());
-	if (!Pawn)
+	Super::AsyncPhysicsTickComponent(DeltaTime, SimTime);
+	ensureMsgf(DataClass != nullptr, TEXT("You must call SetDataClass after creating the component"));
+
+	UWorld* World = GetWorld();
+	FPhysScene* PhysScene = World->GetPhysicsScene();
+	Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
+
+	// Pull server frame out in this unsafe way. Better if we can get piped into AsyncPhysicsTickComponent
+	FAsyncPhysicsInputRewindCallback* Callback = static_cast<FAsyncPhysicsInputRewindCallback*>(Solver->GetRewindCallback());
+	const int32 ServerFrame = Callback->CachedServerFrame;
+
+	if(World->IsNetMode(ENetMode::NM_DedicatedServer) || World->IsNetMode(ENetMode::NM_ListenServer))
 	{
-		return nullptr;
+		//TODO: move this somewhere else - here because we need to run this when GT and PT are both on same core. Function guards against multiple calls per ServerFrame so calling from each instance is ok
+		Callback->UpdateReplicationMap_Internal(ServerFrame);
 	}
 
-	return Pawn->GetController<APlayerController>();
+	DataToConsume = nullptr; //set current input to none in case we don't find it
+
+	for (int32 Idx = BufferedData.Num() - 1; Idx >= 0; --Idx)
+	{
+		UAsyncPhysicsData* Data = BufferedData[Idx];
+		if (Data->ServerFrame == ServerFrame)
+		{
+			DataToConsume = Data;
+		}
+
+		bool bFreeData = Data->ServerFrame < ServerFrame;	//for most cases once we're passed this frame we can free
+		if (APlayerController* PC = GetPlayerController())
+		{
+			if (PC->IsLocalController() && !InputCmdCVars::ForceInputDrop)
+			{
+				ServerRPCBufferInput(Data);
+
+				//If we are the local player then we need to keep this data around to send redundant RPCs to deal with potential packet loss
+				bFreeData = --Data->ReplicationRedundancy <= 0;
+			}
+		}
+
+		if (bFreeData)
+		{
+			BufferedData.RemoveAtSwap(Idx);
+		}
+	}
+}
+
+void UAsyncPhysicsInputComponent::ServerRPCBufferInput_Implementation(UAsyncPhysicsData* NewData)
+{
+	for (UAsyncPhysicsData* Data : BufferedData)
+	{
+		if (Data->ServerFrame == NewData->ServerFrame)
+		{
+			//already buffered this is just a redundant send to deal with potential packet loss
+			//question: what if client's offset changes so we get a new instruction for what we think is an existing frame? The case where offset changes is input fault (hopefully rare) so maybe we just accept it
+			return;
+		}
+	}
+
+	BufferedData.Add(NewData);
+}
+
+void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32 NumSteps, int32 ServerFrame)
+{
+	ensureMsgf(DataClass != nullptr, TEXT("You must call SetDataClass after creating the component"));
+
+	// It would be better if we only registered while we had a local controller,
+	// but this is simpler to implement
+
+	if (APlayerController* PC = GetPlayerController())
+	{
+		if (PC->IsLocalController())
+		{
+			UAsyncPhysicsData* DataToSend = DataToWrite;
+			DataToWrite = DuplicateObject((UAsyncPhysicsData*)DataClass->GetDefaultObject(), nullptr);
+			for (int32 Step = 0; Step < NumSteps; ++Step)
+			{
+				if(Step > 0 && DataToSend)
+				{
+					//Make sure each sub-step gets its own unique data so we don't have to worry about ref count
+					//TODO: should probably given user opportunity to modify this per sub-step. For example a jump instruction should only happen on first sub-step
+					DataToSend = DuplicateObject(DataToSend, nullptr);
+				}
+				DataToSend->ServerFrame = ServerFrame + 1 + Step;
+				BufferedData.Add(DataToSend);
+			}
+		}
+	}
+}
+
+APlayerController* UAsyncPhysicsInputComponent::GetPlayerController()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	{
+		return PC;
+	}
+
+	if (APawn* Pawn = Cast<APawn>(GetOwner()))
+	{
+		Pawn->GetController<APlayerController>();
+	}
+
+	return nullptr;
+}
+
+
+UAsyncPhysicsData* UAsyncPhysicsInputComponent::GetDataToWrite() const
+{
+	//TODO: ensure not inside async physics tick
+	return DataToWrite;
+}
+
+const UAsyncPhysicsData* UAsyncPhysicsInputComponent::GetDataToConsume() const
+{
+	//TODO: ensure inside async physics tick
+	ensureMsgf(DataClass != nullptr, TEXT("You must call SetDataClass after creating the component"));
+	if (DataToConsume)
+	{
+		return DataToConsume;
+	}
+	
+	return (UAsyncPhysicsData*)DataClass->GetDefaultObject();
 }

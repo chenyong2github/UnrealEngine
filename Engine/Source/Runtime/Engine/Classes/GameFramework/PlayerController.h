@@ -25,6 +25,7 @@
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "GameFramework/PlayerInput.h"
+#include "Physics/AsyncPhysicsData.h"
 #include "PlayerController.generated.h"
 
 class ACameraActor;
@@ -43,6 +44,7 @@ class UPlayer;
 class UPrimitiveComponent;
 struct FActiveHapticFeedbackEffect;
 struct FCollisionQueryParams;
+class UAsyncPhysicsInputComponent;
 
 /** Default delegate that provides an implementation for those that don't have special needs other than a toggle */
 DECLARE_DELEGATE_RetVal(bool, FCanUnpause);
@@ -340,7 +342,25 @@ public:
 	TArray<FForceFeedbackEffectHistoryEntry> ForceFeedbackEffectHistoryEntries;
 #endif
 
+	/** The type of async physics data object to use*/
+	UPROPERTY(EditDefaultsOnly, Category=PlayerController)
+	TSubclassOf<UAsyncPhysicsData> AsyncPhysicsDataClass;
+
+	/** Get the async physics data to write to. This data will make its way to the async physics tick on client and server. Should not be used during async tick */
+	UFUNCTION(BlueprintPure, Category = PlayerController)
+	UAsyncPhysicsData* GetAsyncPhysicsDataToWrite() const;
+
+	/** Get the async physics data to execute logic off of. This data should not be modified and will NOT make its way back. Must be used during async tick */
+	UFUNCTION(BlueprintPure, Category = PlayerController)
+	const UAsyncPhysicsData* GetAsyncPhysicsDataToConsume() const;
+
 private:
+
+	UPROPERTY(ReplicatedUsing=OnRep_AsyncPhysicsDataComponent)
+	TObjectPtr<UAsyncPhysicsInputComponent> AsyncPhysicsDataComponent;
+
+	UFUNCTION()
+	void OnRep_AsyncPhysicsDataComponent();
 
 	struct FDynamicForceFeedbackAction
 	{
