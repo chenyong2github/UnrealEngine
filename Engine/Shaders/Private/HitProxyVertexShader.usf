@@ -65,7 +65,7 @@ void Main(
 
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
-		Output.Position = mul(RasterizedWorldPosition, View.TranslatedWorldToClip);
+		Output.Position = INVARIANT(mul(RasterizedWorldPosition, View.TranslatedWorldToClip));
 	}
 
 #if USE_GLOBAL_CLIP_PLANE
