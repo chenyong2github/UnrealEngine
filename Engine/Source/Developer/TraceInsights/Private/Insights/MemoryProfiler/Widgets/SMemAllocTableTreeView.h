@@ -14,6 +14,7 @@
 namespace Insights
 {
 
+class FMemAllocNode;
 class FMemoryRuleSpec;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,10 +106,15 @@ public:
 protected:
 	virtual void InternalCreateGroupings() override;
 
-	virtual void ExtendMenu(FMenuBuilder& Menu) override;
+	TSharedPtr<FMemAllocNode> GetSingleSelectedMemAllocNode() const;
+	uint32 CountSourceFiles(FMemAllocNode& MemAllocNode);
+
+	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
+	void BuildOpenSourceSubMenu(FMenuBuilder& MenuBuilder);
 	bool CanOpenCallstackFrameSourceFileInIDE() const;
 	void OpenCallstackFrameSourceFileInIDE();
 	FText GetSelectedCallstackFrameFileName() const;
+	void OpenSourceFileInIDE(const TCHAR* File, uint32 Line) const;
 
 private:
 	void OnQueryInvalidated();
