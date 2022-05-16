@@ -2,7 +2,7 @@
 
 set -e
 
-OPENEXR_VERSION=3.1.1
+OPENEXR_VERSION=3.1.5
 
 UE_THIRD_PARTY_LOCATION=`cd $(pwd)/..; pwd`
 IMATH_CMAKE_LOCATION="$UE_THIRD_PARTY_LOCATION/Imath/Deploy/Imath-3.1.3/Mac/lib/cmake/Imath"

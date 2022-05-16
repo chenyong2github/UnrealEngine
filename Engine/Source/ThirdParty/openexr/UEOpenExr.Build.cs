@@ -13,7 +13,7 @@ public class UEOpenExr : ModuleRules
 
 		bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
 
-		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "openexr-3.1.1");
+		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "openexr-3.1.5");
 
 		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 

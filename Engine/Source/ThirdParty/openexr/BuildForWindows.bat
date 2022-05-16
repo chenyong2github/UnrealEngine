@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set OPENEXR_VERSION=3.1.1
+set OPENEXR_VERSION=3.1.5
 
 rem Set as VS2015 for backwards compatibility even though VS2019 is used
 rem when building.
