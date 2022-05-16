@@ -9,6 +9,7 @@ UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor
 	ExecutionFlags = (int32)EProcessorExecutionFlags::Server;
 
 	bAutoRegisterWithProcessingPhases = true;
+	bRequiresGameThreadExecution = true;
 
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
 }

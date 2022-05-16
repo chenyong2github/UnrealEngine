@@ -146,6 +146,7 @@ void UMassCharacterOrientationToActorTranslator::ConfigureQueries()
 	AddRequiredTagsToQuery(EntityQuery);
 	EntityQuery.AddRequirement<FCharacterMovementComponentWrapperFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.RequireMutatingWorldAccess(); // due to mutating World by setting component rotation
 }
 
 void UMassCharacterOrientationToActorTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

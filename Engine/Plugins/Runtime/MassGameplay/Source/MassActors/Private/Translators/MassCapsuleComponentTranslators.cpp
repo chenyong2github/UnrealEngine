@@ -50,6 +50,7 @@ UMassTransformToActorCapsuleTranslator::UMassTransformToActorCapsuleTranslator()
 	RequiredTags.Add<FMassCapsuleTransformCopyToActorTag>();
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
+	bRequiresGameThreadExecution = true;
 }
 
 void UMassTransformToActorCapsuleTranslator::ConfigureQueries()
@@ -57,6 +58,7 @@ void UMassTransformToActorCapsuleTranslator::ConfigureQueries()
 	AddRequiredTagsToQuery(EntityQuery);
 	EntityQuery.AddRequirement<FCapsuleComponentWrapperFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.RequireMutatingWorldAccess(); // due to mutating World by setting component transform
 }
 
 void UMassTransformToActorCapsuleTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

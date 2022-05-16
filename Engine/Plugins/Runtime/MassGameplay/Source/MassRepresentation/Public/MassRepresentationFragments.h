@@ -64,6 +64,16 @@ struct FMassRepresentationSubsystemSharedFragment : public FMassSharedFragment
 	UMassRepresentationSubsystem* RepresentationSubsystem = nullptr;
 };
 
+template<>
+struct TMassExternalSubsystemTraits<FMassRepresentationSubsystemSharedFragment> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
+};
+
+
 USTRUCT()
 struct FMassRepresentationParameters : public FMassSharedFragment
 {
@@ -108,6 +118,16 @@ struct FMassRepresentationParameters : public FMassSharedFragment
 	UPROPERTY(Transient)
 	mutable UMassRepresentationActorManagement* CachedRepresentationActorManagement = nullptr;
 };
+
+template<>
+struct TMassExternalSubsystemTraits<FMassRepresentationParameters> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
+};
+
 
 inline void FMassRepresentationParameters::ComputeCachedValues() const
 {

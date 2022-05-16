@@ -373,6 +373,7 @@ UMassRepresentationFragmentDestructor::UMassRepresentationFragmentDestructor()
 	ObservedType = FMassRepresentationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Remove;
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
+	bRequiresGameThreadExecution = true; // due to FMassRepresentationSubsystemSharedFragment.RepresentationSubsystem use
 }
 
 void UMassRepresentationFragmentDestructor::ConfigureQueries()

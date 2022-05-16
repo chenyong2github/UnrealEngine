@@ -13,6 +13,7 @@ UAssignDebugVisProcessor::UAssignDebugVisProcessor()
 	: EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = false;
+	bRequiresGameThreadExecution = true; // due to UMassDebuggerSubsystem
 	ObservedType = FSimDebugVisFragment::StaticStruct();
 	Operation = EMassObservedOperation::Add;
 }

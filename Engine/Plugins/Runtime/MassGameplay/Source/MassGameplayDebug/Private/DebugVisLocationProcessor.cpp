@@ -15,6 +15,7 @@ UDebugVisLocationProcessor::UDebugVisLocationProcessor()
 	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::SyncWorldToMass);
+	bRequiresGameThreadExecution = true; // due to UMassDebuggerSubsystem access
 }
 
 void UDebugVisLocationProcessor::ConfigureQueries()
@@ -75,6 +76,7 @@ UMassProcessor_UpdateDebugVis::UMassProcessor_UpdateDebugVis()
 	: EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::UpdateWorldFromMass);
+	bRequiresGameThreadExecution = true; // due to UMassDebuggerSubsystem access
 }
 
 void UMassProcessor_UpdateDebugVis::ConfigureQueries() 

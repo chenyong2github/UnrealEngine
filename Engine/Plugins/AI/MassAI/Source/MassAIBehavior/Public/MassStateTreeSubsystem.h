@@ -5,6 +5,7 @@
 #include "MassStateTreeTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "StateTreeExecutionContext.h"
+#include "MassExternalSubsystemTraits.h"
 #include "MassStateTreeSubsystem.generated.h"
 
 class UStateTree;
@@ -66,4 +67,13 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<FMassStateTreeInstanceDataItem> InstanceDataArray;
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassStateTreeSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
 };

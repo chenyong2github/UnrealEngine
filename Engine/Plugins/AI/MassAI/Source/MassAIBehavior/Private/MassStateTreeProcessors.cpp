@@ -178,6 +178,7 @@ UMassStateTreeFragmentDestructor::UMassStateTreeFragmentDestructor()
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	ObservedType = FMassStateTreeInstanceFragment::StaticStruct();
 	Operation = EMassObservedOperation::Remove;
+	bRequiresGameThreadExecution = true;
 }
 
 void UMassStateTreeFragmentDestructor::Initialize(UObject& Owner)
@@ -238,6 +239,7 @@ UMassStateTreeActivationProcessor::UMassStateTreeActivationProcessor()
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
 	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Behavior);
+	bRequiresGameThreadExecution = true; // due to UMassStateTreeSubsystem RW access
 }
 
 void UMassStateTreeActivationProcessor::Initialize(UObject& Owner)

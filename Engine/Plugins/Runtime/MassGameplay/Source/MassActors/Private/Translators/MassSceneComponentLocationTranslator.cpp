@@ -52,6 +52,7 @@ UMassSceneComponentLocationToActorTranslator::UMassSceneComponentLocationToActor
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
 	RequiredTags.Add<FMassSceneComponentLocationCopyToActorTag>();
+	bRequiresGameThreadExecution = true;
 }
 
 void UMassSceneComponentLocationToActorTranslator::ConfigureQueries()
@@ -59,6 +60,7 @@ void UMassSceneComponentLocationToActorTranslator::ConfigureQueries()
 	AddRequiredTagsToQuery(EntityQuery);
 	EntityQuery.AddRequirement<FMassSceneComponentWrapperFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.RequireMutatingWorldAccess(); // due to mutating World by setting actor's location
 }
 
 void UMassSceneComponentLocationToActorTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

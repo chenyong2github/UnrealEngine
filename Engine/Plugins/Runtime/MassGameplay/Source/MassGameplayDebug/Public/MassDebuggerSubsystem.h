@@ -71,3 +71,12 @@ protected:
 	AMassDebugVisualizer* DebugVisualizer;
 };
 
+
+template<>
+struct TMassExternalSubsystemTraits<UMassDebuggerSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
+};

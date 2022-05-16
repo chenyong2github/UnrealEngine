@@ -62,6 +62,7 @@ void UMassDebugCrowdVisualizationProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassActorFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.RequireMutatingWorldAccess(); // due to UWorld mutable access
 }
 
 void UMassDebugCrowdVisualizationProcessor::Initialize(UObject& Owner)
