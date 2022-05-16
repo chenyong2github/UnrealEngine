@@ -36,7 +36,7 @@ groupshared uint s_TileFlags[GROUP_THREAD_COUNT];
 #endif
 
 #if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
-RWTexture2D<uint2> SSSTextureUAV;
+RWTexture2DArray<uint> SSSTextureUAV;
 #endif
 
 [numthreads(STRATA_TILE_SIZE, STRATA_TILE_SIZE, 1)]
@@ -86,9 +86,8 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	BRANCH
 	if (!bContainsScreenSpaceSubsurfaceScattering)
 	{
-		// We must fill all the pixel which doe not hav subsurface scattering with default so that the SSS code is not executed where it should not.
-		FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
-		SSSTextureUAV[PixelCoord] = StrataPackSSSData(StrataSubsurfaceData);
+		// We must fill all the pixel which does not have subsurface scattering by default so that the SSS code is not executed where it should not.
+		SSSTextureUAV[uint3(PixelCoord, 0)] = 0; // This is a good clear for FStrataSubsurfaceHeader, and we only need to clear the header.
 	}
 #endif
 
@@ -264,7 +263,7 @@ void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_CLEAR_MATERIAL_BUFFER
 
 RWTexture2DArray<uint> MaterialTextureArrayUAV;
-RWTexture2D<uint2> SSSTextureUAV;
+RWTexture2DArray<uint> SSSTextureUAV;
 uint MaxBytesPerPixel;
 int2 TiledViewBufferResolution;
 
@@ -286,8 +285,7 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint FirstSlice = 0;
 	MaterialTextureArrayUAV[uint3(DispatchThreadId.xy, FirstSlice)] = PackedStrataHeader;
 
-	FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
-	SSSTextureUAV[DispatchThreadId.xy] = StrataPackSSSData(StrataSubsurfaceData);
+	SSSTextureUAV[uint3(DispatchThreadId.xy, 0)] = 0; // This is a good clear for FStrataSubsurfaceHeader, and we only need to clear the header.
 }
 
 #endif // SHADER_CLEAR_MATERIAL_BUFFER

@@ -269,16 +269,18 @@ void Main(
 		if (bIsSubsurfaceCompatible && bHasSubsurface)
 		{
 			#if STRATA_ENABLED
-			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
+			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, SVPos.xy);
+			const bool bSSSIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+			const bool bSSSIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
 			#endif
 
 			float Density = 1;
 			if (!bIsEyeOrHair)
 			{
 			#if STRATA_ENABLED
-				if (SSSData.bIsValid)
+				if (bSSSIsValid)
 				{
-					float Opacity = SSSData.bIsProfile ? SSSData.ProfileRadiusScale : 1.0f;
+					float Opacity = bSSSIsProfile ? StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader) : 1.0f;
 					Density = SubsurfaceDensityFromOpacity(Opacity);
 				}
 			#else // STRATA_ENABLED
@@ -307,9 +309,9 @@ void Main(
 
 				// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
 				FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
-				if (SSSData.bIsProfile)
+				if (bSSSIsProfile)
 				{
-					TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
+					TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
 				}
 			#else // STRATA_ENABLED
 				float3 WorldNormal = GBufferData.WorldNormal;
@@ -454,11 +456,12 @@ void MainOnePassPointLightPS(
 #if STRATA_ENABLED
 
 	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
 
-	const bool IsSubsurfaceProfile = SSSData.bIsValid;
+	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, SVPos.xy);
+
+	const bool IsSubsurfaceProfile = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 	const float3 WorldNormal = TopLayerData.WorldNormal;
-	const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
+	const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
 
 #else // STRATA_ENABLED
 

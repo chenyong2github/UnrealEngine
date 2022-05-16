@@ -623,24 +623,27 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 			const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
-			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+
+			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, PixelCoord);
+			const bool bSSSIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+			const bool bSSSIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
 
 			ShadingParameters.bIsValid = TopLayerData.bIsValid;
 			ShadingParameters.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
-			ShadingParameters.bIsSubsurface = SSSData.bIsValid && !SSSData.bIsProfile;
-			ShadingParameters.bHasSubsurfaceProfile = SSSData.bIsValid && SSSData.bIsProfile;
-			ShadingParameters.bBackfaceCulling = any(SSSData.MFP > 0); // STRATA_TODO
+			ShadingParameters.bIsSubsurface = bSSSIsValid && !bSSSIsProfile;
+			ShadingParameters.bHasSubsurfaceProfile = bSSSIsValid && bSSSIsProfile;
+			ShadingParameters.bBackfaceCulling = any(StrataSubSurfaceHeaderGetMFP(SSSHeader) > 0); // STRATA_TODO
 
 			WorldNormal = TopLayerData.WorldNormal;
 
 			if (ENABLE_TRANSMISSION && ShadingParameters.bHasSubsurfaceProfile)
 			{
-				TransmissionParameters = GetTransmissionProfileParams(SSSData.ProfileId);
+				TransmissionParameters = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
 			}
 
 			if (ShadingParameters.bIsSubsurface)
 			{
-				TransmissionParameters.ExtinctionScale = StrataGetOpacityFromSubSurface(SSSData);
+				TransmissionParameters.ExtinctionScale = StrataGetOpacityFromSubSurface(SSSHeader);
 			}
 		}	
 		#else

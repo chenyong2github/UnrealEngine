@@ -722,11 +722,11 @@ void DistanceFieldShadowingCS(
 
 #if !FORWARD_SHADING && DF_SHADOW_QUALITY > 1 && !SHADING_PATH_MOBILE
 		#if STRATA_ENABLED
-			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(ScreenPosition, 0)));
+			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, ScreenPosition);
 			BRANCH
-			if (SSSData.bIsValid)
+			if (StrataSubSurfaceHeaderGetIsValid(SSSHeader))
 			{
-				SubsurfaceDensity = SSSData.ProfileRadiusScale;
+				SubsurfaceDensity = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
 				bUseSubsurfaceTransmission = true;
 			}
 		#else

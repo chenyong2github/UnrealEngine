@@ -207,7 +207,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	FStrataAddressing StrataAddressing			= GetStrataPixelDataByteOffset(InPixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	const FStrataPixelHeader StrataPixelHeader	= UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	const FStrataTopLayerData TopLayerData		= StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InPixelPos, 0)));
-	const FStrataSubsurfaceData SSSData			= StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(InPixelPos, 0)));
+	const FStrataSubsurfaceHeader SSSHeader		= StrataLoadSubsurfaceHeader(Strata.SSSTexture, InPixelPos);
 
 	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
 	Out.WorldNormal						= TopLayerData.WorldNormal;
@@ -216,7 +216,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
 	Out.ShadingID						= TopLayerData.bIsValid ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
-	Out.bNeedsSeparateLightAccumulation = SSSData.bIsValid;
+	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 	Out.bIsSLW							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_SINGLELAYERWATER);
 	Out.bIsHair							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
 	Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
@@ -256,7 +256,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 			StrataSeekBSDF(StrataAddressing, AddressOffset);
 		}
 
-		const FStrataSubsurfaceData SSSData				= StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(InCoord, 0)));
+		const FStrataSubsurfaceHeader SSSHeader			= StrataLoadSubsurfaceHeader(Strata.SSSTexture, InCoord);
 		const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
 		const FStrataIrradianceAndOcclusion IrradianceAO = StrataGetIrradianceAndAO(StrataPixelHeader);
 
@@ -268,7 +268,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 		Out.MaterialAO						= IrradianceAO.MaterialAO;
 		Out.ShadingID						= SHADINGMODELID_STRATA;
 		Out.DiffuseIndirectSampleOcclusion	= IrradianceAO.DiffuseIndirectSampleOcclusion;
-		Out.bNeedsSeparateLightAccumulation = SSSData.bIsValid;
+		Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 		Out.bIsSLW							= StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SINGLELAYERWATER;
 		Out.bIsHair							= StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_HAIR;
 		Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'

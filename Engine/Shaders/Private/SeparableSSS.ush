@@ -268,9 +268,9 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 	FSeparableFilterParameters SeparableFilterParameters;
 
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
+	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(BufferUV);
 	// For SSS_PROFILE_ID_PERPIXEL is managed throught the burley passes
-	const uint SubsurfaceProfileInt = SSSData.bIsProfile ? SSSData.ProfileId : SSS_PROFILE_ID_PERPIXEL;
+	const uint SubsurfaceProfileInt = StrataSubSurfaceHeaderGetIsProfile(SSSData.Header) ? StrataSubSurfaceHeaderGetProfileId(SSSData.Header) : SSS_PROFILE_ID_PERPIXEL;
 	SeparableFilterParameters.SubsurfaceProfileInt = SubsurfaceProfileInt;
 	FillBurleyParameters(SSSData, SeparableFilterParameters);
 #else

@@ -462,6 +462,8 @@ uint   PackR8(float Value);
 float  UnpackR8(uint Value);
 uint   PackRGBA8(float4 rgba);
 float4 UnpackRGBA8(uint rgba);
+uint   Pack10F(float Value);
+float  Unpack10F(uint Value);
 uint   PackR11G11B10F(float3 rgb);
 float3 UnpackR11G11B10F(uint rgb);
 uint   PackColorLinearToGamma2AlphaLinear(float4 rgba);
@@ -604,57 +606,115 @@ float GetVarianceFromRoughness(float Roughness)
 ///////////////////////////////////////////////////////////////////////////////
 // Sub-surface 
 
+// Stored in frist slice as UINT
+// This is hot data that is often accessed by intrested passes.
+struct FStrataSubsurfaceHeader
+{
+	// 2 bits
+//	bool   bIsValid;
+//	bool   bIsProfile;
+
+	// 30 bits of data.
+	// If  bIsProfile: 8bit profile radius, 8bits ProfileId, 16bits unused
+	// If !bIsProfile: 101010 mean free path
+//	float3 ProfileOrMFP;
+	uint Bytes;
+};
+void StrataSubSurfaceHeaderSetIsValid(inout FStrataSubsurfaceHeader SSSHeader, bool bIsValid)
+{
+	SSSHeader.Bytes &= 0xFFFFFFFE;
+	SSSHeader.Bytes |= bIsValid ? 0x1 : 0x0;
+}
+void StrataSubSurfaceHeaderSetIsProfile(inout FStrataSubsurfaceHeader SSSHeader, bool bIsProfile)
+{
+	SSSHeader.Bytes &= 0xFFFFFFFD;
+	SSSHeader.Bytes |= bIsProfile ? 0x2 : 0x0;
+}
+void StrataSubSurfaceHeaderSetProfile(inout FStrataSubsurfaceHeader SSSHeader, float RadiusScale, uint ProfileId)
+{
+	SSSHeader.Bytes &= 0x00000003;
+	SSSHeader.Bytes |= ProfileId << 24;
+	SSSHeader.Bytes |= uint(saturate(RadiusScale) * 255.0f) << 16;
+}
+void StrataSubSurfaceHeaderSetNonProfile(inout FStrataSubsurfaceHeader SSSHeader, float3 MeanFreePath)
+{
+	SSSHeader.Bytes &= 0x00000003;
+	SSSHeader.Bytes |= (Pack10F(MeanFreePath.x) << 22) | (Pack10F(MeanFreePath.y) << 12) | (Pack10F(MeanFreePath.z) << 2);
+}
+bool StrataSubSurfaceHeaderGetIsValid(in FStrataSubsurfaceHeader SSSHeader)
+{
+	return (SSSHeader.Bytes & 0x1) > 0;
+}
+bool StrataSubSurfaceHeaderGetIsProfile(in FStrataSubsurfaceHeader SSSHeader)
+{
+	return (SSSHeader.Bytes & 0x2) > 0;
+}
+uint StrataSubSurfaceHeaderGetProfileId(in FStrataSubsurfaceHeader SSSHeader)
+{
+	const bool bIsValidAndProfile = (SSSHeader.Bytes & 0x3) == 0x3;
+	uint ProfileId = bIsValidAndProfile ? (SSSHeader.Bytes >> 24) & 0xFF : StrataSubSurfaceHeaderGetIsValid(SSSHeader) ? SSS_PROFILE_ID_PERPIXEL : SSS_PROFILE_ID_INVALID;
+	return ProfileId;
+}
+float StrataSubSurfaceHeaderGetProfileRadiusScale(in FStrataSubsurfaceHeader SSSHeader)
+{
+	const bool bIsValidAndProfile = (SSSHeader.Bytes & 0x3) == 0x3;
+	uint RadiusScale = bIsValidAndProfile ? (SSSHeader.Bytes >> 16) & 0xFF : 255;
+	return float(RadiusScale) * rcp(255.0f);
+}
+float3 StrataSubSurfaceHeaderGetMFP(in FStrataSubsurfaceHeader SSSHeader)				// Only when !IsProfile
+{
+	return float3(
+		Unpack10F(SSSHeader.Bytes >> 22),
+		Unpack10F(SSSHeader.Bytes >> 12),
+		Unpack10F(SSSHeader.Bytes >>  2)
+		);
+}
+
+// Stored in second slice as UINT
+// This is cold data, rarely accessed
+struct FStrataSubsurfaceExtras
+{
+//	float3 BaseColor; // alpha unused
+	uint Bytes;
+};
+void StrataSubsurfaceExtrasSetBaseColor(inout FStrataSubsurfaceExtras SSSExtras, float3 BaseColor)
+{
+	SSSExtras.Bytes = PackColorLinearToGamma2AlphaLinear(float4(BaseColor, 0.0f));
+}
+float3 StrataSubsurfaceExtrasGetBaseColor(in FStrataSubsurfaceExtras SSSExtras)
+{
+	return UnpackColorGamma2ToLinearAlphaLinear(SSSExtras.Bytes).rgb;
+}
+
 struct FStrataSubsurfaceData
 {
-	float3 BaseColor;
-	float  Specular;
-
-	bool   bIsValid;
-	bool   bIsProfile;
-	uint   ProfileId;
-	float  ProfileRadiusScale;
-
-	float3 MFP;				// When the profile is not used, a per pixel MFP is used
+	FStrataSubsurfaceHeader Header;
+	FStrataSubsurfaceExtras Extras;
 };
-
-uint2 StrataPackSSSData(FStrataSubsurfaceData In)
+FStrataSubsurfaceHeader StrataLoadSubsurfaceHeader(Texture2DArray<uint> SSSTexture, uint2 PixelPos)
 {
-	uint2 Out;
-	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.bIsValid ? (In.bIsProfile ? 1.0f : 0.5f) : 0.0f));
-	Out.y = In.bIsProfile ? ((In.ProfileId & 0xFF) | PackRGBA8(float4(0.f, In.ProfileRadiusScale, In.Specular, 0.0f))) : PackR11G11B10F(In.MFP);
-	return Out;
+	FStrataSubsurfaceHeader Header;
+	Header.Bytes = SSSTexture.Load(uint4(PixelPos, 0, 0));
+	return Header;
+}
+FStrataSubsurfaceExtras StrataLoadSubsurfaceExtras(Texture2DArray<uint> SSSTexture, uint2 PixelPos)
+{
+	FStrataSubsurfaceExtras Extras;
+	Extras.Bytes = SSSTexture.Load(uint4(PixelPos, 1, 0));
+	return Extras;
+}
+FStrataSubsurfaceData StrataLoadSubsurfaceData(Texture2DArray<uint> SSSTexture, uint2 PixelPos)
+{
+	FStrataSubsurfaceData SSSData;
+	SSSData.Header = StrataLoadSubsurfaceHeader(SSSTexture, PixelPos);
+	SSSData.Extras = StrataLoadSubsurfaceExtras(SSSTexture, PixelPos);
+	return SSSData;
 }
 
 uint StrataSubsurfaceProfileIdTo8bits(float In)
 {
 	// Similar encoding than ExtractSubsurfaceProfileInt. Valid profile ID start at 1.
 	return uint(In * 255.0f + 0.5f);
-}
-
-FStrataSubsurfaceData StrataUnpackSSSData(uint2 In)
-{
-	FStrataSubsurfaceData Out = (FStrataSubsurfaceData)0;
-
-	float4 Data0 = UnpackColorGamma2ToLinearAlphaLinear(In.x);
-	Out.BaseColor = Data0.rgb;
-	Out.bIsValid  = Data0.a > 0.0f;
-	Out.bIsProfile= Data0.a > 0.75f;
-	Out.ProfileId = SSS_PROFILE_ID_INVALID;
-
-	if (Out.bIsProfile)
-	{
-		float4 Data1 = UnpackRGBA8(In.y);
-		Out.ProfileId = In.y & 0xFF;
-		Out.ProfileRadiusScale = Data1.y;
-		Out.Specular = Data1.z;
-	}
-	else if (Out.bIsValid)
-	{
-		Out.ProfileId = SSS_PROFILE_ID_PERPIXEL;
-		Out.ProfileRadiusScale = 1.0f;
-		Out.MFP = UnpackR11G11B10F(In.y);
-	}
-	return Out;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2460,9 +2520,14 @@ float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
 
 // Legacy conversion function, which translated Strata sub-surface data into 'opacity' for shadow transmission purpose. 
 // Note: When SSS data uses DFMP data, the conversion to opacity is ad-hoc/hacky
-float StrataGetOpacityFromSubSurface(FStrataSubsurfaceData In)
+float StrataGetOpacityFromSubSurface(FStrataSubsurfaceHeader SSSHeader)
 {
-	return In.bIsValid ? (In.bIsProfile ? In.ProfileRadiusScale : saturate(1.f - max3(In.MFP.x, In.MFP.y, In.MFP.z))) : 1.f;
+	const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+	const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
+	const float ProfileRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
+	const float3 MFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+
+	return bIsValid ? (bIsProfile ? ProfileRadiusScale : saturate(1.0f - max3(MFP.x, MFP.y, MFP.z))) : 1.0f;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3312,16 +3377,19 @@ void PackStrataOut(
 							{
 								if (!bIsThin && BSDF_GETHASSSS(BSDF))
 								{
-									SSSData.BaseColor = SLAB_DIFFUSEALBEDO(BSDF);
-									SSSData.Specular = F0ToDielectricSpecular(SLAB_F0(BSDF).x);
+									const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSData.Header) || BSDF_GETHASSSSPROFILE(BSDF);
+									StrataSubSurfaceHeaderSetIsValid(SSSData.Header, true);
+									StrataSubSurfaceHeaderSetIsProfile(SSSData.Header, bIsProfile);
+									if (bIsProfile)
+									{
+										StrataSubSurfaceHeaderSetProfile(SSSData.Header, SLAB_SSSPROFILERADIUSSCALE(BSDF), StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDF)));
+									}
+									else
+									{
+										StrataSubSurfaceHeaderSetNonProfile(SSSData.Header, SLAB_SSSMFP(BSDF));
+									}
 
-									// Profile ID: we only keep the latest ID, and profile will overtake any non-profile based SSS
-									SSSData.bIsValid = true;
-									SSSData.bIsProfile = SSSData.bIsProfile || BSDF_GETHASSSSPROFILE(BSDF);
-									SSSData.ProfileId = StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDF));
-									SSSData.ProfileRadiusScale = SLAB_SSSPROFILERADIUSSCALE(BSDF);
-
-									SSSData.MFP = SLAB_SSSMFP(BSDF);
+									StrataSubsurfaceExtrasSetBaseColor(SSSData.Extras, SLAB_DIFFUSEALBEDO(BSDF));
 								}
 
 								if (BSDF_GETHASSSSPROFILE(BSDF) && !bIsSimpleVolume)

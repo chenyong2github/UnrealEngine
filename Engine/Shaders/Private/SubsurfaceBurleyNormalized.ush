@@ -304,12 +304,6 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 }
 
 #if STRATA_ENABLED
-FStrataSubsurfaceData LoadStrataSSSData(float2 UV)
-{
-	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
-	return StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
-}
-
 FStrataTopLayerData LoadStrataTopLayerData(float2 UV)
 {
 	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
@@ -321,8 +315,8 @@ FStrataTopLayerData LoadStrataTopLayerData(float2 UV)
 float GetProfileMask(float2 BufferUV)
 {
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(BufferUV);
-	const bool bIsProfile = SSSData.bIsValid;
+	const FStrataSubsurfaceHeader SSSHeader = LoadStrataSSSHeader(BufferUV);
+	const bool bIsProfile = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 #else
 	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
 	const bool bIsProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);	
@@ -479,9 +473,9 @@ int GetNumOfSamplesBasedOnQuality(float2 UV)
 // If the shading model is valid, return the profile. Otherwise, return SSS_PROFILE_ID_INVALID.
 // That way if we have a valid profile, we can check of the other profile is valid with a single boolean expression.
 #if STRATA_ENABLED
-uint ExtractSubsurfaceProfileIntWithInvalid(FStrataSubsurfaceData SSSData)
+uint ExtractSubsurfaceProfileIntWithInvalid(FStrataSubsurfaceHeader SSSHeader)
 {
-	return SSSData.ProfileId;
+	return StrataSubSurfaceHeaderGetProfileId(SSSHeader);
 }
 #else
 uint ExtractSubsurfaceProfileIntWithInvalid(FGBufferData BufferData)
@@ -741,9 +735,9 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 
 #if !(ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE !=1))
 	#if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(ClampedUV);
+	const FStrataSubsurfaceHeader SSSHeader = LoadStrataSSSHeader(ClampedUV);
 	#else
-	const FGBufferData SSSData = GetScreenSpaceData(ClampedUV).GBuffer;
+	const FGBufferData SSSHeader = GetScreenSpaceData(ClampedUV).GBuffer;
 	#endif
 #endif
 
@@ -769,7 +763,7 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 #if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE !=1)
 	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV,Sample.DiffuseLighting.w);
 #else
-	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSData);
+	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSHeader);
 #endif
 
 	return Sample;
@@ -793,7 +787,7 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 #if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE != 1)
 			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV, Sample.DiffuseLighting.w);
 #else
-			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSData);
+			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSHeader);
 #endif
 
 			return Sample;
@@ -810,7 +804,7 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 #if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE != 1)
 	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV, Sample.DiffuseLighting.w);
 #else
-	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSData);
+	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSHeader);
 #endif
 
 	return Sample;
@@ -918,7 +912,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(BufferUV);
 	const FStrataTopLayerData TopLayerData = LoadStrataTopLayerData(BufferUV);
 	const float3 WorldNormal = TopLayerData.WorldNormal;
-	const uint SubsurfaceProfileInt = SSSData.ProfileId;
+	const uint SubsurfaceProfileInt = StrataSubSurfaceHeaderGetProfileId(SSSData.Header);
 	const FBurleyParameter BurleyParameter = GetBurleyParameters(SSSData);
 #else
 	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
@@ -1211,16 +1205,16 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 		#if STRATA_ENABLED
 			const FStrataTopLayerData TopLayerData = LoadStrataTopLayerData(SampleUV);
 			const float3 SampleWorldNormal = TopLayerData.WorldNormal;
-			const FStrataSubsurfaceData SampleSSSData = LoadStrataSSSData(SampleUV);
+			const FStrataSubsurfaceHeader SampleSSSHeader = LoadStrataSSSHeader(SampleUV);
 		#else
-			const FGBufferData SampleSSSData = GetScreenSpaceData(SampleUV).GBuffer;
-			const float3 SampleWorldNormal = SampleSSSData.WorldNormal;
+			const FGBufferData SampleSSSHeader = GetScreenSpaceData(SampleUV).GBuffer;
+			const float3 SampleWorldNormal = SampleSSSHeader.WorldNormal;
 		#endif
 
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 			SharedSubsurfaceWorldNormal[LocalSharedIndex] = SampleWorldNormal;
 #endif
-			SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleSSSData);
+			SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleSSSHeader);
 		}
 	}
 

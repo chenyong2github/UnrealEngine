@@ -15,7 +15,7 @@ half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 	half Opacity = 1.0;
 
 #if STRATA_ENABLED
-	Opacity = StrataGetOpacityFromSubSurface(StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0))));
+	Opacity = StrataGetOpacityFromSubSurface(StrataLoadSubsurfaceHeader(Strata.SSSTexture, PixelPos));
 #else // STRATA_ENABLED
 	FGBufferData GBufferData = GetGBufferDataUint(PixelPos);
 

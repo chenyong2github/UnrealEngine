@@ -58,17 +58,22 @@ void AddDrawPixelFootprint(float3 P, float3 dPdx, float3 dPdy, float2 Scale, boo
 
 void DrawPixelFootprint(float3 P, float3 dPdx, float3 dPdy, uint2 PixelCoord)
 {
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
-	if (SSSData.bIsValid)
+	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, PixelCoord);
+	const uint SubsurfaceProfileInt = StrataSubSurfaceHeaderGetProfileId(SSSHeader);
+	const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+	const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
+	const float PixelRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
+
+	if (bIsValid)
 	{
 		float3 MFP = 0;
-		if (SSSData.bIsProfile)
+		if (bIsProfile)
 		{
-			MFP = GetSubsurfaceProfileMFPInCm(SSSData.ProfileId).xyz * SSSData.ProfileRadiusScale;
+			MFP = GetSubsurfaceProfileMFPInCm(StrataSubSurfaceHeaderGetProfileId(SSSHeader)).xyz * StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
 		}
 		else
 		{
-			MFP = SSSData.MFP;
+			MFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
 		}
 
 		FStrataPixelFootprint Footprint = StrataGetPixelFootprint(P);
@@ -335,7 +340,6 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 	if (BSDFIndex < Header.BSDFCount && BSDFIndex == 0)
 	{
 		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InCoord, 0)));
-		const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(InCoord, 0)));
 
 		const bool bStrataMaterial = Header.BSDFCount > 0;
 		const bool bIsSimpleMaterial = IsSimpleMaterial(Header) || Header.BSDFCount == 0;
