@@ -81,10 +81,18 @@ public:
 		const PixelType& DefaultValue
 	) const;
 
-	bool IsValidSample(
+	PixelType ComputeSample(
+		const int& PhotoIndex,
+		const FVector2d& PhotoCoords,
+		const PixelType& DefaultValue
+	) const;
+
+	bool ComputeSampleLocation(
 		const FVector3d& Position, 
 		const FVector3d& Normal, 
-		TFunctionRef<bool(const FVector3d&,const FVector3d&)> VisibilityFunction
+		TFunctionRef<bool(const FVector3d&,const FVector3d&)> VisibilityFunction,
+		int& PhotoIndex,
+		FVector2d& PhotoCoords
 	) const;
 
 protected:
@@ -94,8 +102,68 @@ typedef TSpatialPhotoSet<FVector4f, float> FSpatialPhotoSet4f;
 typedef TSpatialPhotoSet<FVector3f, float> FSpatialPhotoSet3f;
 typedef TSpatialPhotoSet<float, float> FSpatialPhotoSet1f;
 
+template<typename PixelType, typename RealType>
+bool TSpatialPhotoSet<PixelType, RealType>::ComputeSampleLocation(
+	const FVector3d& Position, 
+	const FVector3d& Normal, 
+	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
+	int& PhotoIndex,
+	FVector2d& PhotoCoords) const
+{
+	double DotTolerance = -0.1;		// dot should be negative for normal pointing towards photo
 
+	PhotoIndex = IndexConstants::InvalidID;
+	PhotoCoords = FVector2d(0., 0.);
 
+	double MinDot = 1.0;
+
+	int32 NumPhotos = Num();
+	for (int32 pi = 0; pi < NumPhotos; ++pi)
+	{
+		const TSpatialPhoto<PixelType>& Photo = *Photos[pi];
+		check(Photo.Dimensions.IsSquare());
+
+		FVector3d ViewDirection = Photo.Frame.X();
+		double ViewDot = ViewDirection.Dot(Normal);
+		if (ViewDot > DotTolerance || ViewDot > MinDot)
+		{
+			continue;
+		}
+
+		FFrame3d ViewPlane = Photo.Frame;
+		ViewPlane.Origin += Photo.NearPlaneDist * ViewDirection;
+
+		double ViewPlaneWidthWorld = Photo.NearPlaneDist * FMathd::Tan(Photo.HorzFOVDegrees * 0.5 * FMathd::DegToRad);
+		double ViewPlaneHeightWorld = ViewPlaneWidthWorld;
+
+		FVector3d RayOrigin = Photo.Frame.Origin;
+		FVector3d RayDir = Normalized(Position - RayOrigin);
+		FVector3d HitPoint;
+		bool bHit = ViewPlane.RayPlaneIntersection(RayOrigin, RayDir, 0, HitPoint);
+		if (bHit)
+		{
+			bool bVisible = VisibilityFunction(Position, HitPoint);
+			if ( bVisible )
+			{
+				double PlaneX = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Y());
+				double PlaneY = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Z());
+
+				//FVector2d PlanePos = ViewPlane.ToPlaneUV(HitPoint, 0);
+				double u = PlaneX / ViewPlaneWidthWorld;
+				double v = -(PlaneY / ViewPlaneHeightWorld);
+				if (FMathd::Abs(u) < 1 && FMathd::Abs(v) < 1)
+				{
+					PhotoCoords.X = (u/2.0 + 0.5) * (double)Photo.Dimensions.GetWidth();
+					PhotoCoords.Y = (v/2.0 + 0.5) * (double)Photo.Dimensions.GetHeight();
+					PhotoIndex = pi;
+					MinDot = ViewDot;
+				}
+			}
+		}
+	}
+
+	return PhotoIndex != IndexConstants::InvalidID;
+}
 
 template<typename PixelType, typename RealType>
 PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
@@ -104,119 +172,29 @@ PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
 	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
 	const PixelType& DefaultValue ) const
 {
-	double DotTolerance = -0.1;		// dot should be negative for normal pointing towards photo
-
-	PixelType BestSample = DefaultValue;
-	double MinDot = 1.0;
-
-	int32 NumPhotos = Num();
-	for (int32 pi = 0; pi < NumPhotos; ++pi)
+	PixelType Result = DefaultValue;
+	
+	int PhotoIndex;
+	FVector2d PhotoCoords;
+	if (ComputeSampleLocation(Position, Normal, VisibilityFunction, PhotoIndex, PhotoCoords))
 	{
-		const TSpatialPhoto<PixelType>& Photo = *Photos[pi];
-		check(Photo.Dimensions.IsSquare());
-
-		FVector3d ViewDirection = Photo.Frame.X();
-		double ViewDot = ViewDirection.Dot(Normal);
-		if (ViewDot > DotTolerance || ViewDot > MinDot)
-		{
-			continue;
-		}
-
-		FFrame3d ViewPlane = Photo.Frame;
-		ViewPlane.Origin += Photo.NearPlaneDist * ViewDirection;
-
-		double ViewPlaneWidthWorld = Photo.NearPlaneDist * FMathd::Tan(Photo.HorzFOVDegrees * 0.5 * FMathd::DegToRad);
-		double ViewPlaneHeightWorld = ViewPlaneWidthWorld;
-
-		FVector3d RayOrigin = Photo.Frame.Origin;
-		FVector3d RayDir = Normalized(Position - RayOrigin);
-		FVector3d HitPoint;
-		bool bHit = ViewPlane.RayPlaneIntersection(RayOrigin, RayDir, 0, HitPoint);
-		if (bHit)
-		{
-			bool bVisible = VisibilityFunction(Position, HitPoint);
-			if ( bVisible )
-			{
-				double PlaneX = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Y());
-				double PlaneY = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Z());
-
-				//FVector2d PlanePos = ViewPlane.ToPlaneUV(HitPoint, 0);
-				double u = PlaneX / ViewPlaneWidthWorld;
-				double v = -(PlaneY / ViewPlaneHeightWorld);
-				if (FMathd::Abs(u) < 1 && FMathd::Abs(v) < 1)
-				{
-					double x = (u/2.0 + 0.5) * (double)Photo.Dimensions.GetWidth();
-					double y = (v/2.0 + 0.5) * (double)Photo.Dimensions.GetHeight();
-					PixelType Sample = Photo.Image.template BilinearSample<RealType>(FVector2d(x, y), DefaultValue);
-
-					MinDot = ViewDot;
-					BestSample = Sample;
-				}
-			}
-		}
+		const TSpatialPhoto<PixelType>& Photo = *Photos[PhotoIndex];
+		Result = Photo.Image.template BilinearSample<RealType>(PhotoCoords, DefaultValue);
 	}
-
-	return BestSample;
+	
+	return Result;
 }
 
-
-// TODO Consider refactoring this to deduplicate code from ComputeSample, or not, since this is called in a tight inner
-// loop. Note: Unlike ComputeSample, which searches for the best valid photo, this function immediately returns from the
-// innermost if since we just want to know if at least one photo has passed the visibility check
 template<typename PixelType, typename RealType>
-bool TSpatialPhotoSet<PixelType, RealType>::IsValidSample(
-	const FVector3d& Position, 
-	const FVector3d& Normal, 
-	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction) const
+PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
+	const int& PhotoIndex, 
+	const FVector2d& PhotoCoords, 
+	const PixelType& DefaultValue) const
 {
-	double DotTolerance = -0.1;		// dot should be negative for normal pointing towards photo
-
-	double MinDot = 1.0;
-
-	int32 NumPhotos = Num();
-	for (int32 pi = 0; pi < NumPhotos; ++pi)
-	{
-		const TSpatialPhoto<PixelType>& Photo = *Photos[pi];
-		check(Photo.Dimensions.IsSquare());
-
-		FVector3d ViewDirection = Photo.Frame.X();
-		double ViewDot = ViewDirection.Dot(Normal);
-		if (ViewDot > DotTolerance || ViewDot > MinDot)
-		{
-			continue;
-		}
-
-		FFrame3d ViewPlane = Photo.Frame;
-		ViewPlane.Origin += Photo.NearPlaneDist * ViewDirection;
-
-		double ViewPlaneWidthWorld = Photo.NearPlaneDist * FMathd::Tan(Photo.HorzFOVDegrees * 0.5 * FMathd::DegToRad);
-		double ViewPlaneHeightWorld = ViewPlaneWidthWorld;
-
-		FVector3d RayOrigin = Photo.Frame.Origin;
-		FVector3d RayDir = Normalized(Position - RayOrigin);
-		FVector3d HitPoint;
-		bool bHit = ViewPlane.RayPlaneIntersection(RayOrigin, RayDir, 0, HitPoint);
-		if (bHit)
-		{
-			bool bVisible = VisibilityFunction(Position, HitPoint);
-			if ( bVisible )
-			{
-				double PlaneX = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Y());
-				double PlaneY = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Z());
-
-				//FVector2d PlanePos = ViewPlane.ToPlaneUV(HitPoint, 0);
-				double u = PlaneX / ViewPlaneWidthWorld;
-				double v = -(PlaneY / ViewPlaneHeightWorld);
-				if (FMathd::Abs(u) < 1 && FMathd::Abs(v) < 1)
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
+	const TSpatialPhoto<PixelType>& Photo = *Photos[PhotoIndex];
+	return Photo.Image.template BilinearSample<RealType>(PhotoCoords, DefaultValue);
 }
+
 
 
 } // end namespace UE::Geometry

@@ -203,7 +203,6 @@ void FMeshMapBaker::Bake()
 		else if (UseStrategy == ECorrespondenceStrategy::Custom && DetailSampler->SupportsCustomCorrespondence())
 		{
 			ValueOut.DetailMesh = DetailSampler->ComputeCustomCorrespondence(SampleInfo, ValueOut);
-			check(false); // @Incomplete
 		}
 		else	// Fall back to raycast strategy
 		{
@@ -218,12 +217,7 @@ void FMeshMapBaker::Bake()
 				(UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest));
 		}
 
-		if (ValueOut.DetailMesh && DetailSampler->IsTriangle(ValueOut.DetailMesh, ValueOut.DetailTriID))
-		{
-			return DetailSampler->IsValidCorrespondence(ValueOut);
-		}
-
-		return false;
+		return DetailSampler->IsValidCorrespondence(ValueOut);
 	};
 
 	// This computes a FMeshUVSampleInfo to pass to the ComputeCorrespondenceSample function, which will find the
@@ -378,10 +372,9 @@ void FMeshMapBaker::Bake()
 
 							// Compute the per-sample correspondence data 
 							// Note: Since we check LinearIdx is an interior sample above we know we'll get a valid
-							// SampleInfo because interior samples all have valid UVTriangleIDs. We don't check the
-							// return value of QuerySampleInfo though because this is a tight inner loop
+							// SampleInfo because interior samples all have valid UVTriangleIDs.
 							FMeshUVSampleInfo SampleInfo;
-							MeshUVSampler.QuerySampleInfo(UVTriangleID, UVPosition, SampleInfo);
+							if (MeshUVSampler.QuerySampleInfo(UVTriangleID, UVPosition, SampleInfo))
 							{
 								FMeshMapEvaluator::FCorrespondenceSample Sample;
 								bool bSampleValid = ComputeCorrespondenceSample(SampleInfo, Sample);

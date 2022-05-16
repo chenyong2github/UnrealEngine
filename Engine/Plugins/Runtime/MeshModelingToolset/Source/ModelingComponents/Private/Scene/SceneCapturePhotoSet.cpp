@@ -263,7 +263,15 @@ FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue4f(ERenderCaptureType Cap
 	return FVector4f::Zero();
 }
 
-
+bool FSceneCapturePhotoSet::ComputeSampleLocation(
+	const FVector3d& Position,
+	const FVector3d& Normal,
+	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
+	int& PhotoIndex,
+	FVector2d& PhotoCoords) const
+{
+	return BaseColorPhotoSet.ComputeSampleLocation(Position, Normal, VisibilityFunction, PhotoIndex, PhotoCoords);
+}
 
 bool FSceneCapturePhotoSet::ComputeSample(
 	const FRenderCaptureTypeFlags& SampleChannels,
@@ -274,6 +282,7 @@ bool FSceneCapturePhotoSet::ComputeSample(
 {
 	// This could be much more efficient if (eg) we knew that all the photo sets have
 	// the same captures, then the query only has to be done once and can be used to sample each specific photo
+	// This is implemented in the other ComputeSample overload
 
 	if (SampleChannels.bBaseColor)
 	{
@@ -324,14 +333,6 @@ bool FSceneCapturePhotoSet::ComputeSample(
 	}
 
 	return true;
-}
-
-bool FSceneCapturePhotoSet::IsValidSample(
-	const FVector3d& Position,
-	const FVector3d& Normal,
-	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction) const
-{
-	return BaseColorPhotoSet.IsValidSample(Position, Normal, VisibilityFunction);
 }
 
 void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString FolderName)

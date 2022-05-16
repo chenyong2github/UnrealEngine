@@ -159,9 +159,9 @@ public:
 		return nullptr;
 	}
 
-	virtual bool IsValidCorrespondence(const FMeshMapEvaluator::FCorrespondenceSample& CorrespondenceSample) const
+	virtual bool IsValidCorrespondence(const FMeshMapEvaluator::FCorrespondenceSample& Sample) const
 	{
-		return true;
+		return Sample.DetailMesh && IsTriangle(Sample.DetailMesh, Sample.DetailTriID);
 	}
 
 	/**

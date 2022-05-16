@@ -20,8 +20,7 @@ enum class EMeshMapEvaluatorType
 	Property,
 	ResampleImage,
 	MultiResampleImage,
-	GenericWorldPositionColor,
-	GenericWorldPositionNormal
+	Generic
 };
 
 class FMeshMapEvaluator
@@ -53,7 +52,8 @@ public:
 		FMeshUVSampleInfo BaseSample;
 		FVector3d BaseNormal = FVector3d::Zero();
 
-		const void* DetailMesh = nullptr;
+		// The following data has an interpretation which depends on the concrete MeshMapEvaluator/IMeshBakerDetailSampler
+		const void* DetailMesh = nullptr; // Arbitrary pointer to the mesh/surface being sampled
 		int32 DetailTriID = IndexConstants::InvalidID;
 		FVector3d DetailBaryCoords = FVector3d::Zero();
 	};

@@ -16,7 +16,7 @@
 
 #include "Sampling/MeshImageBakingCache.h"
 #include "Sampling/MeshMapBaker.h"
-#include "Sampling/MeshGenericWorldPositionEvaluator.h"
+#include "Sampling/GenericEvaluator.h"
 #include "Image/ImageInfilling.h"
 #include "Algo/NoneOf.h"
 
@@ -31,12 +31,11 @@ using namespace UE::Geometry;
 
 
 
-// TODO Reimplement this when the render capture algorithm is refactored to decouple the visibility checking from the evaluation
 class FSceneCapturePhotoSetSampler : public FMeshBakerDynamicMeshSampler
 {
 public:
 	FSceneCapturePhotoSetSampler(
-		const FSceneCapturePhotoSet* SceneCapture,
+		FSceneCapturePhotoSet* SceneCapture,
 		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
 		const FDynamicMesh3* Mesh,
 		const FDynamicMeshAABBTree3* Spatial,
@@ -47,13 +46,36 @@ public:
 	{
 	}
 
+	virtual bool SupportsCustomCorrespondence() const override
+	{
+		return true;
+	}
+
+	// Warning: Expects that Sample.BaseSample.SurfacePoint and Sample.BaseNormal are set when the function is called
+	virtual void* ComputeCustomCorrespondence(const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& Sample) const override
+	{
+		// Perform a ray-cast to determine which photo/coordinate, if any, should be sampled
+		int PhotoIndex;
+		FVector2d PhotoCoords;
+		SceneCapture->ComputeSampleLocation(Sample.BaseSample.SurfacePoint, Sample.BaseNormal, VisibilityFunction, PhotoIndex, PhotoCoords);
+
+		// Store the photo coordinates and index in the correspondence sample
+		Sample.DetailMesh = SceneCapture;
+		Sample.DetailTriID = PhotoIndex;
+		Sample.DetailBaryCoords.X = PhotoCoords.X;
+		Sample.DetailBaryCoords.Y = PhotoCoords.Y;
+
+		// This will be set to Sample.DetailMesh but we can already do that internally so it's kindof redundant
+		return SceneCapture;
+	}
+
 	virtual bool IsValidCorrespondence(const FMeshMapEvaluator::FCorrespondenceSample& Sample) const override
 	{
-		return SceneCapture->IsValidSample(Sample.BaseSample.SurfacePoint, Sample.BaseNormal, VisibilityFunction);
+		return Sample.DetailTriID != IndexConstants::InvalidID;
 	}
 
 public:
-	const FSceneCapturePhotoSet* SceneCapture = nullptr;
+	FSceneCapturePhotoSet* SceneCapture = nullptr;
 	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction;
 };
 
@@ -195,6 +217,32 @@ static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	return SceneCapture;
 }
 
+template <ERenderCaptureType CaptureType>
+TSharedPtr<FGenericEvaluator<FVector4f>>
+MakeColorEvaluator(const FSceneCapturePhotoSet::FSceneSample& DefaultSample, const FSceneCapturePhotoSet* SceneCapture)
+{
+	TSharedPtr<FGenericEvaluator<FVector4f>> Evaluator = MakeShared<FGenericEvaluator<FVector4f>>();
+
+	Evaluator->DefaultResult = DefaultSample.GetValue4f(CaptureType);
+
+	Evaluator->EvaluateSampleCallback = [&DefaultSample, SceneCapture](const FMeshMapEvaluator::FCorrespondenceSample& Sample)
+	{
+		const int PhotoIndex = Sample.DetailTriID;
+		const FVector2d PhotoCoords(Sample.DetailBaryCoords.X, Sample.DetailBaryCoords.Y);
+		const FVector4f SampleColor = SceneCapture->ComputeSample<CaptureType>(PhotoIndex, PhotoCoords, DefaultSample);
+		return SampleColor;
+	};
+
+	Evaluator->EvaluateColorCallback = [](const int DataIdx, float*& In)
+	{
+		const FVector4f Out(In[0], In[1], In[2], In[3]);
+		In += 4;
+		return Out;
+	};
+
+	return Evaluator;
+}
+
 static void ImageBuildersFromPhotoSet(
 	FSceneCapturePhotoSet* SceneCapture,
 	const FBakeRenderCaptureOptions::FOptions& Options,
@@ -334,7 +382,7 @@ static void ImageBuildersFromPhotoSet(
 
 	FSceneCapturePhotoSetSampler Sampler(SceneCapture, VisibilityFunction, BaseMesh, &BaseMeshSpatial, BaseMeshTangents.Get());
 	Baker.SetDetailSampler(&Sampler);
-	Baker.SetCorrespondenceStrategy(FMeshMapBaker::ECorrespondenceStrategy::Identity);
+	Baker.SetCorrespondenceStrategy(FMeshMapBaker::ECorrespondenceStrategy::Custom);
 
 	TMap<ERenderCaptureType, int32> CaptureTypeToEvaluatorIndexMap;
 
@@ -351,70 +399,100 @@ static void ImageBuildersFromPhotoSet(
 	DefaultColorSample.Emissive = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
 	DefaultColorSample.WorldNormal = FVector4f((DefaultNormal + FVector3f::One()) * .5f, InvalidColor.W);
 
-	auto AddColorEvaluator = [&](ERenderCaptureType CaptureType)
+	auto AddColorEvaluator = [&Baker, &InfillData, &CaptureTypeToEvaluatorIndexMap] (
+		const TSharedPtr<FGenericEvaluator<FVector4f>>& Evaluator,
+		ERenderCaptureType CaptureType)
 	{
-		TSharedPtr<FMeshGenericWorldPositionColorEvaluator> Evaluator = MakeShared<FMeshGenericWorldPositionColorEvaluator>();
-		Evaluator->DefaultColor = DefaultColorSample.GetValue4f(CaptureType);
-		Evaluator->ColorSampleFunction =
-			[&DefaultColorSample, &VisibilityFunction, SceneCapture, CaptureType](FVector3d Position, FVector3d Normal)
-		{
-			FSceneCapturePhotoSet::FSceneSample ColorSample = DefaultColorSample;
-			SceneCapture->ComputeSample(FRenderCaptureTypeFlags::Single(CaptureType), Position, Normal, VisibilityFunction, ColorSample);
-			return ColorSample.GetValue4f(CaptureType);
-		};
-		
 		int32 EvaluatorIndex = Baker.AddEvaluator(Evaluator);
-		
 		InfillData.EvaluatorNeedsInfill.Add(true);
 		CaptureTypeToEvaluatorIndexMap.Emplace(CaptureType, EvaluatorIndex);
 	};
 
-	AddColorEvaluator(ERenderCaptureType::BaseColor);
+	AddColorEvaluator(
+		MakeColorEvaluator<ERenderCaptureType::BaseColor>(DefaultColorSample, SceneCapture),
+		ERenderCaptureType::BaseColor);
 
 	if (Options.bUsePackedMRS)
 	{
-		AddColorEvaluator(ERenderCaptureType::CombinedMRS);
+		AddColorEvaluator(
+			MakeColorEvaluator<ERenderCaptureType::CombinedMRS>(DefaultColorSample, SceneCapture),
+			ERenderCaptureType::CombinedMRS);
 	}
 	else
 	{
 		if (Options.bBakeRoughness)
 		{
-			AddColorEvaluator(ERenderCaptureType::Roughness);
+			AddColorEvaluator(
+				MakeColorEvaluator<ERenderCaptureType::Roughness>(DefaultColorSample, SceneCapture),
+				ERenderCaptureType::Roughness);
 		}
 		if (Options.bBakeMetallic)
 		{
-			AddColorEvaluator(ERenderCaptureType::Metallic);
+			AddColorEvaluator(
+				MakeColorEvaluator<ERenderCaptureType::Metallic>(DefaultColorSample, SceneCapture),
+				ERenderCaptureType::Metallic);
 		}
 		if (Options.bBakeSpecular)
 		{
-			AddColorEvaluator(ERenderCaptureType::Specular);
+			AddColorEvaluator(
+				MakeColorEvaluator<ERenderCaptureType::Specular>(DefaultColorSample, SceneCapture),
+				ERenderCaptureType::Specular);
 		}
 	}
 
 	if (Options.bBakeEmissive)
 	{
-		AddColorEvaluator(ERenderCaptureType::Emissive);
+		AddColorEvaluator(
+			MakeColorEvaluator<ERenderCaptureType::Emissive>(DefaultColorSample, SceneCapture),
+			ERenderCaptureType::Emissive);
 	}
 
 	if (Options.bBakeNormalMap) {
-		TSharedPtr<FMeshGenericWorldPositionNormalEvaluator> Evaluator = MakeShared<FMeshGenericWorldPositionNormalEvaluator>();
-		Evaluator->DefaultUnitWorldNormal = DefaultNormal;
-		Evaluator->UnitWorldNormalSampleFunction =
-			[&DefaultColorSample, &VisibilityFunction, SceneCapture](FVector3d Position, FVector3d Normal)
+		TSharedPtr<FGenericEvaluator<FVector3f, FMeshMapEvaluator::EComponents::Float3>> Evaluator =
+			MakeShared<FGenericEvaluator<FVector3f, FMeshMapEvaluator::EComponents::Float3>>();
+
+		Evaluator->DefaultResult = DefaultNormal;
+
+		Evaluator->EvaluateSampleCallback = [&DefaultColorSample, &BaseMeshTangents, SceneCapture](const FMeshMapEvaluator::FCorrespondenceSample& Sample)
 		{
-			FSceneCapturePhotoSet::FSceneSample ColorSample = DefaultColorSample;
-			SceneCapture->ComputeSample(FRenderCaptureTypeFlags::WorldNormal(), Position, Normal, VisibilityFunction, ColorSample);
-			FVector3f NormalColor = ColorSample.WorldNormal;
+			const int32 TriangleID = Sample.BaseSample.TriangleIndex;
+			const FVector3d BaryCoords = Sample.BaseSample.BaryCoords;
+			const int PhotoIndex = Sample.DetailTriID;
+			const FVector2d PhotoCoords(Sample.DetailBaryCoords.X, Sample.DetailBaryCoords.Y);
+
+			const FVector4f NormalColor = SceneCapture->ComputeSample<ERenderCaptureType::WorldNormal>(PhotoIndex, PhotoCoords, DefaultColorSample);
 
 			// Map from color components [0,1] to normal components [-1,1]
-			float x = (NormalColor.X - 0.5f) * 2.0f;
-			float y = (NormalColor.Y - 0.5f) * 2.0f;
-			float z = (NormalColor.Z - 0.5f) * 2.0f;
-			return FVector3f(x, y, z);
+			const FVector3f WorldSpaceNormal(
+				(NormalColor.X - 0.5f) * 2.0f,
+				(NormalColor.Y - 0.5f) * 2.0f,
+				(NormalColor.Z - 0.5f) * 2.0f);
+
+			// Get tangents on base mesh
+			FVector3d BaseTangentX, BaseTangentY;
+			BaseMeshTangents->GetInterpolatedTriangleTangent(TriangleID, BaryCoords, BaseTangentX, BaseTangentY);
+
+			// Compute normal in tangent space
+			const FVector3f TangentSpaceNormal(
+					(float)WorldSpaceNormal.Dot(FVector3f(BaseTangentX)),
+					(float)WorldSpaceNormal.Dot(FVector3f(BaseTangentY)),
+					(float)WorldSpaceNormal.Dot(FVector3f(Sample.BaseNormal)));
+
+			return TangentSpaceNormal;
 		};
-		
+
+		Evaluator->EvaluateColorCallback = [](const int DataIdx, float*& In)
+		{
+			// Map normal space [-1,1] to color space [0,1]
+			const FVector3f Normal(In[0], In[1], In[2]);
+			const FVector3f Color = (Normal + FVector3f::One()) * 0.5f;
+			const FVector4f Out(Color.X, Color.Y, Color.Z, 1.0f);
+			In += 3;
+			return Out;
+		};
+
 		int32 EvaluatorIndex = Baker.AddEvaluator(Evaluator);
-		
+
 		CaptureTypeToEvaluatorIndexMap.Emplace(ERenderCaptureType::WorldNormal, EvaluatorIndex);
 
 		// Note: No infill on normal map for now, doesn't make sense to do after mapping to tangent space!

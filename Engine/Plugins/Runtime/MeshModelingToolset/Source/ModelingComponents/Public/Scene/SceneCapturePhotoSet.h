@@ -112,11 +112,18 @@ public:
 		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
 		FSceneSample& DefaultsInResultsOut) const;
 
-	bool IsValidSample(
+	bool ComputeSampleLocation(
 		const FVector3d& Position,
 		const FVector3d& Normal,
-		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction) const;
+		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
+		int& PhotoIndex,
+		FVector2d& PhotoCoords) const;
 
+	template <ERenderCaptureType CaptureType>
+	FVector4f ComputeSample(
+		const int& PhotoIndex,
+		const FVector2d& PhotoCoords,
+		const FSceneSample& DefaultSample) const;
 
 	const FSpatialPhotoSet3f& GetBaseColorPhotoSet() { return BaseColorPhotoSet; }
 	const FSpatialPhotoSet1f& GetRoughnessPhotoSet() { return RoughnessPhotoSet; }
@@ -158,6 +165,59 @@ protected:
 	FString DebugImagesFolderName = TEXT("SceneCapturePhotoSet");
 };
 
+
+template <ERenderCaptureType CaptureType>
+FVector4f FSceneCapturePhotoSet::ComputeSample(
+	const int& PhotoIndex,
+	const FVector2d& PhotoCoords,
+	const FSceneSample& DefaultSample) const
+{
+	if constexpr (CaptureType == ERenderCaptureType::BaseColor)
+	{
+		FVector3f BaseColor = BaseColorPhotoSet.ComputeSample(PhotoIndex, PhotoCoords, DefaultSample.BaseColor);
+		return FVector4f(BaseColor, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::Roughness)
+	{
+		float Roughness = RoughnessPhotoSet.ComputeSample(PhotoIndex, PhotoCoords, DefaultSample.Roughness);
+		return FVector4f(Roughness, Roughness, Roughness, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::Specular)
+	{
+		float Specular = SpecularPhotoSet.ComputeSample(PhotoIndex, PhotoCoords, DefaultSample.Specular);
+		return FVector4f(Specular, Specular, Specular, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::Metallic)
+	{
+		float Metallic = MetallicPhotoSet.ComputeSample(PhotoIndex, PhotoCoords, DefaultSample.Metallic);
+		return FVector4f(Metallic, Metallic, Metallic, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::CombinedMRS)
+	{
+		FVector3f MRSValue(DefaultSample.Metallic, DefaultSample.Roughness, DefaultSample.Specular);
+		MRSValue = PackedMRSPhotoSet.ComputeSample(PhotoIndex, PhotoCoords, MRSValue);
+		return FVector4f(MRSValue, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::Emissive)
+	{
+		FVector3f Emissive = EmissivePhotoSet.ComputeSample(PhotoIndex, PhotoCoords, DefaultSample.Emissive);
+		return FVector4f(Emissive, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::WorldNormal)
+	{
+		FVector3f WorldNormal = WorldNormalPhotoSet.ComputeSample(PhotoIndex, PhotoCoords, DefaultSample.WorldNormal);
+		return FVector4f(WorldNormal, 1.f);
+	}
+
+	ensure(false);
+	return FVector4f::Zero();
+}
 
 
 } // end namespace UE::Geometry
