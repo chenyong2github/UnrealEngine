@@ -6,6 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 //#include "Toolkits/IToolkit.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 //class ISlateStyle;
 //class FSlateStyleSet;

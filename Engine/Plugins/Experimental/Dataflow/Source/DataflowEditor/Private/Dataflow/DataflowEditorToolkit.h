@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "Misc/NotifyHook.h"
+#include "GraphEditor.h"
 
 class FEditorViewportTabContent;
 class IDetailsView;

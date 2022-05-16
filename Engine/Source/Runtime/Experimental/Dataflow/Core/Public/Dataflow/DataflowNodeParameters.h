@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 class  UDataflow;
-class  UEdGraphPin;
 
 namespace Dataflow
 {

@@ -6,10 +6,14 @@
 #include "Dataflow/Dataflow.h"
 #include "Logging/LogMacros.h"
 
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#include "EdGraph/EdGraphPin.h"
+#endif
+
+
 #define LOCTEXT_NAMESPACE "DataflowEdNode"
 
 DEFINE_LOG_CATEGORY_STATIC(DATAFLOWNODE_LOG, Error, All);
-
 
 void UDataflowEdNode::AllocateDefaultPins()
 {
