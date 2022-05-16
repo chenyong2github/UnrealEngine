@@ -379,9 +379,7 @@ void FUnixPlatformMisc::RequestExit(bool Force)
 		// Make sure the log is flushed.
 		if (!GEnteredSignalHandler && GLog)
 		{
-			// This may be called from other thread, so set this thread as the master.
-			GLog->SetCurrentThreadAsMasterThread();
-			GLog->TearDown();
+			GLog->Flush();
 		}
 
 		// Force immediate exit. Cannot call abort() here, because abort() raises SIGABRT which we treat as crash

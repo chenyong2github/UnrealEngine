@@ -951,9 +951,7 @@ void FWindowsPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
 		// Make sure the log is flushed.
 		if (GLog)
 		{
-			// This may be called from other thread, so set this thread as the master.
-			GLog->SetCurrentThreadAsMasterThread();
-			GLog->TearDown();
+			GLog->Flush();
 		}
 
 		TerminateProcess(GetCurrentProcess(), ReturnCode);
