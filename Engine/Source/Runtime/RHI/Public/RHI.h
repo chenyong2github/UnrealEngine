@@ -1939,6 +1939,16 @@ struct FResolveParams
 
 struct FRHICopyTextureInfo
 {
+	FIntRect GetSourceRect() const
+	{
+		return FIntRect(SourcePosition.X, SourcePosition.Y, SourcePosition.X + Size.X, SourcePosition.Y + Size.Y);
+	}
+	
+	FIntRect GetDestRect() const
+	{
+		return FIntRect(DestPosition.X, DestPosition.Y, DestPosition.X + Size.X, DestPosition.Y + Size.Y);
+	}
+
 	// Number of texels to copy. By default it will copy the whole resource if no size is specified.
 	FIntVector Size = FIntVector::ZeroValue;
 

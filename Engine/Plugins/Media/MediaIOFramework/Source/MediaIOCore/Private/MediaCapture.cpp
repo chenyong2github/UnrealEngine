@@ -270,7 +270,7 @@ namespace UE::MediaCaptureData
 		FRDGBuilder& GraphBuilder;
 		const FRDGTextureRef& SourceRGBTexture;
 		bool bRequiresFormatConversion = false;
-		FResolveParams ResolveParams;
+		FRHICopyTextureInfo CopyInfo;
 		FVector2D SizeU = FVector2D::ZeroVector;
 		FVector2D SizeV = FVector2D::ZeroVector;
 	};
@@ -374,40 +374,30 @@ namespace UE::MediaCaptureData
 			return true;
 		}
 
-		static void GetResolveParameters(const FCaptureFrameArgs& Args, const FTexture2DRHIRef& SourceTexture, FResolveParams& OutResolveParams, FVector2D& OutSizeU, FVector2D& OutSizeV)
+		static void GetCopyInfo(const FCaptureFrameArgs& Args, const FTexture2DRHIRef& SourceTexture, FRHICopyTextureInfo& OutCopyInfo, FVector2D& OutSizeU, FVector2D& OutSizeV)
 		{
 			// Default to no crop
 			OutSizeU = { 0.0f, 1.0f };
 			OutSizeV = { 0.0f, 1.0f };
-			OutResolveParams.Rect = FResolveRect(0, 0, SourceTexture->GetSizeX(), SourceTexture->GetSizeY());
+			OutCopyInfo.Size = FIntVector(SourceTexture->GetSizeX(), SourceTexture->GetSizeY(), 1);
 			if (Args.MediaCapture->DesiredCaptureOptions.Crop != EMediaCaptureCroppingType::None)
 			{
 				switch (Args.MediaCapture->DesiredCaptureOptions.Crop)
 				{
 				case EMediaCaptureCroppingType::Center:
-					OutResolveParams.Rect = FResolveRect((SourceTexture->GetSizeX() - Args.DesiredSize.X) / 2, (SourceTexture->GetSizeY() - Args.DesiredSize.Y) / 2, 0, 0);
-					OutResolveParams.Rect.X2 = OutResolveParams.Rect.X1 + Args.DesiredSize.X;
-					OutResolveParams.Rect.Y2 = OutResolveParams.Rect.Y1 + Args.DesiredSize.Y;
+					OutCopyInfo.SourcePosition = FIntVector((SourceTexture->GetSizeX() - Args.DesiredSize.X) / 2, (SourceTexture->GetSizeY() - Args.DesiredSize.Y) / 2, 0);
 					break;
 				case EMediaCaptureCroppingType::TopLeft:
-					OutResolveParams.Rect = FResolveRect(0, 0, Args.DesiredSize.X, Args.DesiredSize.Y);
 					break;
 				case EMediaCaptureCroppingType::Custom:
-					OutResolveParams.Rect = FResolveRect(Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint.X, Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint.Y, 0, 0);
-					OutResolveParams.Rect.X2 = OutResolveParams.Rect.X1 + Args.DesiredSize.X;
-					OutResolveParams.Rect.Y2 = OutResolveParams.Rect.Y1 + Args.DesiredSize.Y;
+					OutCopyInfo.SourcePosition = FIntVector(Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint.X, Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint.Y, 0);
 					break;
 				}
 
-				OutResolveParams.DestRect.X1 = 0;
-				OutResolveParams.DestRect.X2 = Args.DesiredSize.X;
-				OutResolveParams.DestRect.Y1 = 0;
-				OutResolveParams.DestRect.Y2 = Args.DesiredSize.Y;
-
-				OutSizeU.X = (float)OutResolveParams.Rect.X1 / (float)SourceTexture->GetSizeX();
-				OutSizeU.Y = (float)OutResolveParams.Rect.X2 / (float)SourceTexture->GetSizeX();
-				OutSizeV.X = (float)OutResolveParams.Rect.Y1 / (float)SourceTexture->GetSizeY();
-				OutSizeV.Y = (float)OutResolveParams.Rect.Y2 / (float)SourceTexture->GetSizeY();
+				OutSizeU.X = (float)(OutCopyInfo.SourcePosition.X)                      / (float)SourceTexture->GetSizeX();
+				OutSizeU.Y = (float)(OutCopyInfo.SourcePosition.X + OutCopyInfo.Size.X) / (float)SourceTexture->GetSizeX();
+				OutSizeV.X = (float)(OutCopyInfo.SourcePosition.Y)                      / (float)SourceTexture->GetSizeY();
+				OutSizeV.Y = (float)(OutCopyInfo.SourcePosition.Y + OutCopyInfo.Size.Y) / (float)SourceTexture->GetSizeY();
 			}
 		}
 
@@ -417,7 +407,7 @@ namespace UE::MediaCaptureData
 			bool bRequiresFormatConversion = ConversionPassArgs.bRequiresFormatConversion;
 
 			// Rectangle area to use from source
-			const FIntRect ViewRect(ConversionPassArgs.ResolveParams.Rect.X1, ConversionPassArgs.ResolveParams.Rect.Y1, ConversionPassArgs.ResolveParams.Rect.X2, ConversionPassArgs.ResolveParams.Rect.Y2);
+			const FIntRect ViewRect(ConversionPassArgs.CopyInfo.GetSourceRect());
 
 			//Dummy ViewFamily/ViewInfo created to use built in Draw Screen/Texture Pass
 			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
@@ -434,7 +424,7 @@ namespace UE::MediaCaptureData
 			// If no conversion was required, go through a simple copy
 			if (Args.MediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE && !bRequiresFormatConversion)
 			{
-				AddCopyToResolveTargetPass(ConversionPassArgs.GraphBuilder, ConversionPassArgs.SourceRGBTexture, OutputResource, ConversionPassArgs.ResolveParams);
+				AddCopyTexturePass(ConversionPassArgs.GraphBuilder, ConversionPassArgs.SourceRGBTexture, OutputResource, ConversionPassArgs.CopyInfo);
 			}
 			else
 			{
@@ -536,10 +526,10 @@ namespace UE::MediaCaptureData
 				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FrameCapture);
 				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_FrameCapture);
 
-				FResolveParams ResolveParams;
+				FRHICopyTextureInfo CopyInfo;
 				FVector2D SizeU;
 				FVector2D SizeV;
-				GetResolveParameters(Args, SourceTexture, ResolveParams, SizeU, SizeV);
+				GetCopyInfo(Args, SourceTexture, CopyInfo, SizeU, SizeV);
 
 				FRDGBuilder GraphBuilder(Args.RHICmdList);
 
@@ -558,12 +548,12 @@ namespace UE::MediaCaptureData
 						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::CustomCapture);
 
 						Args.MediaCapture->OnCustomCapture_RenderingThread(GraphBuilder, CapturingFrame->CaptureBaseData, CapturingFrame->UserData
-							, SourceRGBTexture, OutputResource, ResolveParams, SizeU, SizeV);
+							, SourceRGBTexture, OutputResource, CopyInfo, SizeU, SizeV);
 					}
 					else
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FormatConversion);
-						AddConversionPass(Args, { GraphBuilder, SourceRGBTexture, bRequiresFormatConversion, ResolveParams, SizeU, SizeV }, OutputResource);
+						AddConversionPass(Args, { GraphBuilder, SourceRGBTexture, bRequiresFormatConversion, CopyInfo, SizeU, SizeV }, OutputResource);
 					}
 				}
 

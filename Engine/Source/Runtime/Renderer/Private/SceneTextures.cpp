@@ -75,14 +75,6 @@ static TAutoConsoleVariable<int32> CVarDefaultBackBufferPixelFormat(
 	TEXT(" 4: 10bit RGB, 2bit Alpha\n"),
 	ECVF_ReadOnly);
 
-int32 GAllowCustomMSAAResolves = 1;
-static FAutoConsoleVariableRef CVarAllowCustomResolves(
-   TEXT("r.MSAA.AllowCustomResolves"),
-   GAllowCustomMSAAResolves,
-   TEXT("Whether to use builtin HW resolve or allow custom shader MSAA resolves"),
-   ECVF_RenderThreadSafe
-   );
-
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(SceneTextures);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FSceneTextureUniformParameters, "SceneTexturesStruct", SceneTextures);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileSceneTextureUniformParameters, "MobileSceneTextures", SceneTextures);

@@ -344,23 +344,6 @@ TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVerte
 
 static void AddCopyAndFlipTexturePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SrcTexture, FRDGTextureRef DestTexture)
 {
-	if (IsOpenGLPlatform(GShaderPlatformForFeatureLevel[View.GetFeatureLevel()]))
-	{
-		// The OpenGL RHI can copy and flip at the same time by using an upside down destination rectangle.
-		FResolveParams ResolveParams;
-		FMemory::Memzero(ResolveParams);
-		ResolveParams.Rect.X1 = 0;
-		ResolveParams.Rect.X2 = SrcTexture->Desc.Extent.X;
-		ResolveParams.Rect.Y1 = 0;
-		ResolveParams.Rect.Y2 = SrcTexture->Desc.Extent.Y;
-		ResolveParams.DestRect.X1 = 0;
-		ResolveParams.DestRect.X2 = DestTexture->Desc.Extent.X;
-		ResolveParams.DestRect.Y1 = DestTexture->Desc.Extent.Y - 1;
-		ResolveParams.DestRect.Y2 = -1;
-		AddCopyToResolveTargetPass(GraphBuilder, SrcTexture, DestTexture, ResolveParams);
-		return;
-	}
-
 	// Other RHIs can't flip and copy at the same time, so we'll use a pixel shader to perform the copy, together with the FlipYAxis
 	// flag on the screen pass. This path is only taken when using the mobile preview feature in the editor with
 	// r.Mobile.ForceRHISwitchVerticalAxis set to 1, so we don't care about it being sub-optimal.

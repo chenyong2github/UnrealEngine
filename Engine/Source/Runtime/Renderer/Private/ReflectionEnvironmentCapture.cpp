@@ -1239,7 +1239,13 @@ void CopyToSceneArray(FRDGBuilder& GraphBuilder, FScene* Scene, FRDGTexture* Fil
 	{
 		for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 		{
-			AddCopyToResolveTargetPass(GraphBuilder, FilteredCubeTexture, DestCubeTexture, FResolveParams({}, (ECubeFace)CubeFace, MipIndex, 0, CaptureIndex));
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.SourceMipIndex   = MipIndex;
+			CopyInfo.DestMipIndex     = MipIndex;
+			CopyInfo.SourceSliceIndex = CubeFace;
+			CopyInfo.DestSliceIndex   = CaptureIndex * CubeFace_MAX + CubeFace;
+
+			AddCopyTexturePass(GraphBuilder, FilteredCubeTexture, DestCubeTexture, CopyInfo);
 		}
 	}
 }

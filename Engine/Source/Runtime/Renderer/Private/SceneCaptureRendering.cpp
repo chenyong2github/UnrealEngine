@@ -243,7 +243,6 @@ void CopySceneCaptureComponentToTarget(
 
 				if (bNeedsFlippedRenderTarget)
 				{
-					CopyCaptureToTargetSetViewportFn(RHICmdList);
 					DrawRectangle(
 						RHICmdList,
 						View.ViewRect.Min.X, View.ViewRect.Min.Y,
@@ -257,7 +256,6 @@ void CopySceneCaptureComponentToTarget(
 				}
 				else
 				{
-					CopyCaptureToTargetSetViewportFn(RHICmdList);
 					DrawRectangle(
 						RHICmdList,
 						View.ViewRect.Min.X, View.ViewRect.Min.Y,
@@ -280,7 +278,7 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 	FRenderTarget* RenderTarget, 
 	FTexture* RenderTargetTexture, 
 	const FString& EventName, 
-	const FResolveParams& ResolveParams,
+	const FRHICopyTextureInfo& CopyInfo,
 	bool bGenerateMips,
 	const FGenerateMipsParams& GenerateMipsParams,
 	bool bClearRenderTarget,
@@ -306,23 +304,27 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 #endif
 
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("SceneCaptureTarget"));
+		FRDGTextureRef ShaderResourceTexture = RegisterExternalTexture(GraphBuilder, RenderTargetTexture->TextureRHI, TEXT("SceneCaptureTexture"));
+
 		if (bClearRenderTarget)
 		{
 			AddClearRenderTargetPass(GraphBuilder, TargetTexture, FLinearColor::Black, SceneRenderer->Views[0].UnscaledViewRect);
 		}
 
-		if (ResolveParams.DestRect.IsValid())
+		const FIntRect CopyDestRect = CopyInfo.GetDestRect();
+
+		if (!CopyDestRect.IsEmpty())
 		{
-			CopyCaptureToTargetSetViewportFn = [ResolveParams](FRHICommandList& RHICmdList)
+			CopyCaptureToTargetSetViewportFn = [CopyDestRect](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 				RHICmdList.SetViewport
 				(
-					float(ResolveParams.DestRect.X1), 
-					float(ResolveParams.DestRect.Y1), 
-					0.0f, 
-					float(ResolveParams.DestRect.X2), 
-					float(ResolveParams.DestRect.Y2), 
+					float(CopyDestRect.Min.X),
+					float(CopyDestRect.Min.Y),
+					0.0f,
+					float(CopyDestRect.Max.X),
+					float(CopyDestRect.Max.Y),
 					1.0f
 				);
 			};
@@ -347,13 +349,12 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 			SceneRenderer->Render(GraphBuilder);
 		}
 
-			if (bGenerateMips)
-			{
+		if (bGenerateMips)
+		{
 			FGenerateMips::Execute(GraphBuilder, TargetTexture, GenerateMipsParams);
-			}
+		}
 
-		FRDGTextureRef ResolveTexture = RegisterExternalTexture(GraphBuilder, RenderTargetTexture->TextureRHI, TEXT("SceneCaptureResolve"));
-		AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, ResolveTexture, ResolveParams);
+		AddCopyTexturePass(GraphBuilder, TargetTexture, ShaderResourceTexture, CopyInfo);
 
 		GraphBuilder.Execute();
 	}
@@ -367,7 +368,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	FRenderTarget* RenderTarget,
 	FTexture* RenderTargetTexture,
 	const FString& EventName,
-	const FResolveParams& ResolveParams,
+	const FRHICopyTextureInfo& CopyInfo,
 	bool bGenerateMips,
 	const FGenerateMipsParams& GenerateMipsParams,
 	bool bDisableFlipCopyGLES)
@@ -427,26 +428,28 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			AddClearRenderTargetPass(GraphBuilder, FlippedOutputTexture, FLinearColor::Black, ViewRect);
 		}
 
-		if (ResolveParams.DestRect.IsValid())
+		const FIntRect CopyDestRect = CopyInfo.GetDestRect();
+
+		if (!CopyDestRect.IsEmpty())
 		{
-			CopyCaptureToTargetSetViewportFn = [ResolveParams, bNeedsFlippedFinalColor, ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
+			CopyCaptureToTargetSetViewportFn = [CopyDestRect, bNeedsFlippedFinalColor, ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 
 				if (bNeedsFlippedFinalColor)
 				{
-					FResolveRect DestRect = ResolveParams.DestRect;
-					int32 TileYID = DestRect.Y1 / ViewRect.Height();
+					FIntRect DestRect = CopyDestRect;
+					int32 TileYID = DestRect.Min.Y / ViewRect.Height();
 					int32 TileYCount = (FlippedOutputTexture->Desc.GetSize().Y / ViewRect.Height()) - 1;
-					DestRect.Y1 = (TileYCount - TileYID) * ViewRect.Height();
-					DestRect.Y2 = DestRect.Y1 + ViewRect.Height();
+					DestRect.Min.Y = (TileYCount - TileYID) * ViewRect.Height();
+					DestRect.Max.Y = DestRect.Min.Y + ViewRect.Height();
 					RHICmdList.SetViewport
 					(
-						float(DestRect.X1),
-						float(DestRect.Y1),
+						float(DestRect.Min.X),
+						float(DestRect.Min.Y),
 						0.0f,
-						float(DestRect.X2),
-						float(DestRect.Y2),
+						float(DestRect.Max.X),
+						float(DestRect.Max.Y),
 						1.0f
 					);
 				}
@@ -454,11 +457,11 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 				{
 					RHICmdList.SetViewport
 					(
-						float(ResolveParams.DestRect.X1),
-						float(ResolveParams.DestRect.Y1),
+						float(CopyDestRect.Min.X),
+						float(CopyDestRect.Min.Y),
 						0.0f,
-						float(ResolveParams.DestRect.X2),
-						float(ResolveParams.DestRect.Y2),
+						float(CopyDestRect.Max.X),
+						float(CopyDestRect.Max.Y),
 						1.0f
 					);
 				}
@@ -593,7 +596,7 @@ static void UpdateSceneCaptureContent_RenderThread(
 	FRenderTarget* RenderTarget,
 	FTexture* RenderTargetTexture,
 	const FString& EventName,
-	const FResolveParams& ResolveParams,
+	const FRHICopyTextureInfo& CopyInfo,
 	bool bGenerateMips,
 	const FGenerateMipsParams& GenerateMipsParams,
 	const bool bDisableFlipCopyLDRGLES,
@@ -612,7 +615,7 @@ static void UpdateSceneCaptureContent_RenderThread(
 				RenderTarget,
 				RenderTargetTexture,
 				EventName,
-				ResolveParams,
+				CopyInfo,
 				bGenerateMips,
 				GenerateMipsParams,
 				bDisableFlipCopyLDRGLES);
@@ -626,7 +629,7 @@ static void UpdateSceneCaptureContent_RenderThread(
 				RenderTarget,
 				RenderTargetTexture,
 				EventName,
-				ResolveParams,
+				CopyInfo,
 				bGenerateMips,
 				GenerateMipsParams,
 				bClearRenderTarget,
@@ -1101,7 +1104,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 					TextureRenderTargetResource->SetActiveGPUMask(FRHIGPUMask::All());
 				}
 
-				FResolveParams ResolveParams;
+				FRHICopyTextureInfo CopyInfo;
 
 				if (bEnableOrthographicTiling)
 				{
@@ -1109,15 +1112,15 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 					const uint32 RTSizeY = TextureRenderTargetResource->GetSizeY() / NumYTiles;
 					const uint32 TileX = TileID % NumXTiles;
 					const uint32 TileY = TileID / NumXTiles;
-					ResolveParams.DestRect.X1 = TileX * RTSizeX;
-					ResolveParams.DestRect.Y1 = TileY * RTSizeY;
-					ResolveParams.DestRect.X2 = ResolveParams.DestRect.X1 + RTSizeX;
-					ResolveParams.DestRect.Y2 = ResolveParams.DestRect.Y1 + RTSizeY;
+					CopyInfo.DestPosition.X = TileX * RTSizeX;
+					CopyInfo.DestPosition.Y = TileY * RTSizeY;
+					CopyInfo.Size.X = RTSizeX;
+					CopyInfo.Size.Y = RTSizeY;
 				}
 
 				RectLightAtlas::FAtlasTextureInvalidationScope Invalidation(TexturePtrNotDeferenced);
 
-				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, ResolveParams, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, !bEnableOrthographicTiling, bOrthographicCamera);
+				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, CopyInfo, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, !bEnableOrthographicTiling, bOrthographicCamera);
 			}
 		);
 	}
@@ -1244,7 +1247,10 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 				ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 					[SceneRenderer, TextureRenderTarget, EventName, TargetFace](FRHICommandListImmediate& RHICmdList)
 					{
-						UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, FResolveParams(FResolveRect(), TargetFace), false, FGenerateMipsParams(), false, true, false);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourceSliceIndex = TargetFace;
+						CopyInfo.DestSliceIndex   = TargetFace; 
+						UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, CopyInfo, false, FGenerateMipsParams(), false, true, false);
 					}
 				);
 			}

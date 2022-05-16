@@ -329,10 +329,9 @@ static void UpdateWaterInfoRendering_RenderThread(
 			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderWaterInfoDepth);
 			DepthRenderer->Render(GraphBuilder);
 		}
-		
-		FRDGTextureRef ResolveTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterDepthResolve"));
-		FResolveParams ResolveParams;
-		AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, ResolveTexture, ResolveParams);
+
+		FRDGTextureRef ShaderResourceTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterDepthTexture"));
+		AddCopyTexturePass(GraphBuilder, TargetTexture, ShaderResourceTexture);
 
 		if (DepthRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
 		{
@@ -342,7 +341,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
 				SceneTextures,
-				ResolveTexture,
+				ShaderResourceTexture,
 				*DepthRenderer->ActiveViewFamily,
 				DepthRenderer->Views,
 				bNeedsFlippedRenderTarget);
@@ -406,9 +405,8 @@ static void UpdateWaterInfoRendering_RenderThread(
 		FRDGTextureRef FinalizedTexture = GraphBuilder.CreateTexture(TargetTexture->Desc, TEXT("WaterInfoFinalized"));
 		FinalizeWaterInfo(GraphBuilder, SceneTextures, *ColorRenderer->ActiveViewFamily, ColorRenderer->Views[0], MergeTargetTexture, FinalizedTexture, Params);
 		
-		FRDGTextureRef ResolveOutputTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterInfoResolve"));
-		FResolveParams ResolveParams;
-		AddCopyToResolveTargetPass(GraphBuilder, FinalizedTexture, ResolveOutputTexture, ResolveParams);
+		FRDGTextureRef ShaderResourceTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterInfoResolve"));
+		AddCopyTexturePass(GraphBuilder, FinalizedTexture, ShaderResourceTexture);
 		GraphBuilder.Execute();
 		
 		SetWaterBodiesWithinWaterInfoPass(ColorRenderer, false);
