@@ -1606,7 +1606,7 @@ bool FPluginManager::IsPluginCompatible(const FPlugin& Plugin)
 		EVersionComparison Comparison = FEngineVersion::GetNewest(FEngineVersion::CompatibleWith(), Version, nullptr);
 		if (Comparison != EVersionComparison::Neither)
 		{
-			UE_LOG(LogPluginManager, Warning, TEXT("Plugin '%s' is not compatible with the current engine version (%s)"), *Plugin.Name, *Plugin.Descriptor.EngineVersion);
+			UE_LOG(LogPluginManager, Warning, TEXT("Plugin '%s' requires engine version '%s' and may not be compatible with the current current engine version '%s'"), *Plugin.Name, *Plugin.Descriptor.EngineVersion, *FEngineVersion::CompatibleWith().ToString());
 			return false;
 		}
 	}
