@@ -32,7 +32,7 @@ FString HLODOutliner::FStaticMeshActorItem::GetDisplayString() const
 {
 	if (StaticMeshActor.IsValid())
 	{
-		return StaticMeshActor->GetFName().GetPlainNameString();
+		return StaticMeshActor->GetActorNameOrLabel();
 	}
 	else
 	{
