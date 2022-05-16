@@ -158,6 +158,42 @@ namespace AutomationTool
 			Files.Sort(StringComparer.OrdinalIgnoreCase);
 			return Task.FromResult(Files.ToArray());
 		}
+
+		/// <inheritdoc/>
+		public string CombinePaths(string basePath, string nextPath)
+		{
+			if (Path.IsPathRooted(nextPath))
+			{
+				return nextPath;
+			}
+
+			List<string> fragments = new List<string>(basePath.Split('/'));
+			fragments.RemoveAt(fragments.Count - 1);
+
+			foreach (string appendFragment in nextPath.Split('/'))
+			{
+				if (appendFragment.Equals(".", StringComparison.Ordinal))
+				{
+					continue;
+				}
+				else if (appendFragment.Equals("..", StringComparison.Ordinal))
+				{
+					if (fragments.Count > 0)
+					{
+						fragments.RemoveAt(fragments.Count - 1);
+					}
+					else
+					{
+						throw new Exception($"Path '{nextPath}' cannot be combined with '{basePath}'");
+					}
+				}
+				else
+				{
+					fragments.Add(appendFragment);
+				}
+			}
+			return String.Join('/', fragments);
+		}
 	}
 
 	/// <summary>
