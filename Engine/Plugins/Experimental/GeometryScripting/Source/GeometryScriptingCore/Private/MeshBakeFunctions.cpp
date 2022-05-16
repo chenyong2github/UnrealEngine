@@ -497,7 +497,7 @@ namespace GeometryScriptBakeLocals
 			const FTransformSRT3d SourceToWorld = SourceTransform;
 			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld);
 			const FTransformSRT3d TargetToWorld = TargetTransform;
-			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld);
+			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld, true);
 			SourceMeshToUse = &SourceMeshCopy;
 		}
 
@@ -660,9 +660,9 @@ namespace GeometryScriptBakeLocals
 			// TODO: Remove this once we have support for transforming rays in the core bake loop
 			SourceMeshCopy = *SourceMeshOriginal;
 			const FTransformSRT3d SourceToWorld = SourceTransform;
-			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld);
+			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld, true);
 			const FTransformSRT3d TargetToWorld = TargetTransform;
-			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld);
+			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld, true);
 			SourceMeshToUse = &SourceMeshCopy;
 		}
 

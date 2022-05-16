@@ -40,7 +40,7 @@ static void AppendPrimitive(
 			MeshTransforms::Translate(Mesh, PreTranslate);
 		}
 
-		MeshTransforms::ApplyTransform(Mesh, (FTransformSRT3d)Transform);
+		MeshTransforms::ApplyTransform(Mesh, (FTransformSRT3d)Transform, true);
 		if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::SingleGroup)
 		{
 			for (int32 tid : Mesh.TriangleIndicesItr())
@@ -100,7 +100,7 @@ static void AppendPrimitiveMesh(
 			MeshTransforms::Translate(Mesh, PreTranslate);
 		}
 
-		MeshTransforms::ApplyTransform(Mesh, (FTransformSRT3d)Transform);
+		MeshTransforms::ApplyTransform(Mesh, (FTransformSRT3d)Transform, true);
 		if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::SingleGroup)
 		{
 			for (int32 tid : Mesh.TriangleIndicesItr())

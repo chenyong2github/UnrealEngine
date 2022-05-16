@@ -16,12 +16,13 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshTransformFunctions : 
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
-	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod, AdvancedDisplay = "bFixOrientationForNegativeScale"))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	TransformMesh(
 		UDynamicMesh* TargetMesh,
 		FTransform Transform,
-		UGeometryScriptDebug* Debug = nullptr );
+		bool bFixOrientationForNegativeScale = true,
+		UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
@@ -30,11 +31,12 @@ public:
 		FVector Translation,
 		UGeometryScriptDebug* Debug = nullptr );
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod, AdvancedDisplay = "bFixOrientationForNegativeScale"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ScaleMesh(
 		UDynamicMesh* TargetMesh,
 		FVector Scale = FVector(1,1,1),
-		UGeometryScriptDebug* Debug = nullptr );
+		bool bFixOrientationForNegativeScale = true,
+		UGeometryScriptDebug* Debug = nullptr);
 
 };

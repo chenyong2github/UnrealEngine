@@ -369,7 +369,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 		AppendMesh->ProcessMesh([&](const FDynamicMesh3& OtherMesh) { TmpMesh.Copy(OtherMesh); });
 		if (bApplyTransformToFirstInstance)
 		{
-			MeshTransforms::ApplyTransform(TmpMesh, XForm);
+			MeshTransforms::ApplyTransform(TmpMesh, XForm, true);
 		}
 		TargetMesh->EditMesh([&](FDynamicMesh3& AppendToMesh)
 		{
@@ -380,7 +380,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 				Editor.AppendMesh(&TmpMesh, TmpMappings);
 				if (k < RepeatCount)
 				{
-					MeshTransforms::ApplyTransform(TmpMesh, XForm);
+					MeshTransforms::ApplyTransform(TmpMesh, XForm, true);
 					TmpMappings.Reset();
 				}
 			}

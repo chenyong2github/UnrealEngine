@@ -21,7 +21,7 @@ void MeshTransforms::Translate(FDynamicMesh3& Mesh, const FVector3d& Translation
 }
 
 
-void MeshTransforms::Scale(FDynamicMesh3& Mesh, const FVector3d& Scale, const FVector3d& Origin)
+void MeshTransforms::Scale(FDynamicMesh3& Mesh, const FVector3d& Scale, const FVector3d& Origin, bool bReverseOrientationIfNeeded)
 {
 	int NumVertices = Mesh.MaxVertexID();
 	ParallelFor(NumVertices, [&](int32 vid)
@@ -31,6 +31,10 @@ void MeshTransforms::Scale(FDynamicMesh3& Mesh, const FVector3d& Scale, const FV
 			Mesh.SetVertex(vid, (Mesh.GetVertex(vid) - Origin) * Scale + Origin);
 		}
 	});
+	if (bReverseOrientationIfNeeded && Scale.X * Scale.Y * Scale.Z < 0)
+	{
+		Mesh.ReverseOrientation(false);
+	}
 }
 
 
@@ -112,7 +116,7 @@ void MeshTransforms::FrameCoordsToWorld(FDynamicMesh3& Mesh, const FFrame3d& Fra
 
 
 
-void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform)
+void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform, bool bReverseOrientationIfNeeded)
 {
 	bool bVertexNormals = Mesh.HasVertexNormals();
 
@@ -139,11 +143,16 @@ void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransformSRT3d& 
 			Normals->SetElement(elemid, Normalized(Normal));
 		}
 	}
+
+	if (bReverseOrientationIfNeeded && Transform.GetDeterminant() < 0)
+	{
+		Mesh.ReverseOrientation(false);
+	}
 }
 
 
 
-void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform)
+void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform, bool bReverseOrientationIfNeeded)
 {
 	bool bVertexNormals = Mesh.HasVertexNormals();
 
@@ -181,6 +190,11 @@ void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransform
 				}
 			});
 		}
+	}
+
+	if (bReverseOrientationIfNeeded && Transform.GetDeterminant() < 0)
+	{
+		Mesh.ReverseOrientation(false);
 	}
 }
 

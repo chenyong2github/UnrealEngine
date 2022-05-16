@@ -14,6 +14,7 @@ using namespace UE::Geometry;
 UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(
 	UDynamicMesh* TargetMesh,
 	FTransform Transform,
+	bool bFixOrientationForNegativeScale,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -25,7 +26,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(
 	// todo: publish correct change types
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
-		MeshTransforms::ApplyTransform(EditMesh, (FTransformSRT3d)Transform);
+		MeshTransforms::ApplyTransform(EditMesh, (FTransformSRT3d)Transform, bFixOrientationForNegativeScale);
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
@@ -59,6 +60,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::TranslateMesh(
 UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(
 	UDynamicMesh* TargetMesh,
 	FVector Scale,
+	bool bFixOrientationForNegativeScale,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -70,7 +72,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::ScaleMesh(
 	// todo: publish correct change types
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
-		MeshTransforms::Scale(EditMesh, (FVector3d)Scale, FVector3d::Zero());
+		MeshTransforms::Scale(EditMesh, (FVector3d)Scale, FVector3d::Zero(), bFixOrientationForNegativeScale);
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
