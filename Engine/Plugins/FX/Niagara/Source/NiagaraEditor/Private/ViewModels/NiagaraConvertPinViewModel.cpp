@@ -80,7 +80,7 @@ void GenerateSocketViewModelsRecursive(const UEdGraphSchema_Niagara* Schema, TSh
 	for (TFieldIterator<FProperty> PropertyIterator(Struct); PropertyIterator; ++PropertyIterator)
 	{
 		FProperty* Property = *PropertyIterator;
-		if (Property != nullptr)
+		if (Schema->IsValidNiagaraPropertyType(Property))
 		{
 			FNiagaraTypeDefinition ChildTypeDef = Schema->GetTypeDefForProperty(Property);
 			TSharedRef<FNiagaraConvertPinSocketViewModel> SocketViewModel = MakeShareable(new FNiagaraConvertPinSocketViewModel(OwnerPinViewModel, OwnerPinSocketViewModel, Property->GetFName(), FName(*Property->GetDisplayNameText().ToString()), ChildTypeDef, Direction, TypeTraversalDepth));

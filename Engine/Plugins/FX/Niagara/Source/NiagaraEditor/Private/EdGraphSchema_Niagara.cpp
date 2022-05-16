@@ -684,11 +684,14 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 						// we are checking here if the candidate type has a property that is the same as our pin
 						for (TFieldIterator<FProperty> CandidatePropertyIt(CandidateType.GetStruct(), EFieldIteratorFlags::IncludeSuper); CandidatePropertyIt; ++CandidatePropertyIt)
 						{
-							FNiagaraTypeDefinition CandidatePropertyType = GetTypeDefForProperty(*CandidatePropertyIt);
-							if(FNiagaraTypeDefinition::TypesAreAssignable(CandidatePropertyType, PinType))
+							if (IsValidNiagaraPropertyType(*CandidatePropertyIt))
 							{
-								bAddMake = true;
-								break;
+								FNiagaraTypeDefinition CandidatePropertyType = GetTypeDefForProperty(*CandidatePropertyIt);
+								if(FNiagaraTypeDefinition::TypesAreAssignable(CandidatePropertyType, PinType))
+								{
+									bAddMake = true;
+									break;
+								}
 							}
 						}
 					}
@@ -1886,6 +1889,18 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		}
 	}
 	return nullptr;
+}
+
+bool UEdGraphSchema_Niagara::IsValidNiagaraPropertyType(const FProperty* Property) const
+{
+	return Property != nullptr &&
+		(Property->IsA(FFloatProperty::StaticClass()) ||
+		Property->IsA(FDoubleProperty::StaticClass()) ||
+		Property->IsA(FIntProperty::StaticClass()) ||
+		Property->IsA(FBoolProperty::StaticClass()) ||
+		Property->IsA(FEnumProperty::StaticClass()) ||
+		Property->IsA(FStructProperty::StaticClass()) ||
+		Property->IsA(FUInt16Property::StaticClass()));
 }
 
 FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProperty* Property)const

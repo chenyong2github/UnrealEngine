@@ -102,15 +102,18 @@ struct FNiagaraConvertEntry
 		for (TFieldIterator<FProperty> PropertyIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
 			const FProperty* Property = *PropertyIt;
-			FNiagaraTypeDefinition PropType = Schema->GetTypeDefForProperty(Property);		
-
-			int32 Index = OutEntries.Emplace(InPinId, Property->GetFName(), PropType, InPin);
-
-			const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-
-			 if (StructProperty != nullptr)
+			if (Schema->IsValidNiagaraPropertyType(Property))
 			{
-				CreateEntries(Schema, InPinId, InPin, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct, ENiagaraStructConversion::UserFacing), OutEntries[Index].Children);
+				FNiagaraTypeDefinition PropType = Schema->GetTypeDefForProperty(Property);
+
+				int32 Index = OutEntries.Emplace(InPinId, Property->GetFName(), PropType, InPin);
+
+				const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+
+				if (StructProperty != nullptr)
+				{
+					CreateEntries(Schema, InPinId, InPin, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct, ENiagaraStructConversion::UserFacing), OutEntries[Index].Children);
+				}
 			}
 		}
 	}
@@ -566,6 +569,10 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 				SrcPath.Empty(SrcPath.Num());
 				DestPath.Empty(DestPath.Num());
 				const FProperty* Property = *PropertyIt;
+				if (!Schema->IsValidNiagaraPropertyType(Property))
+				{
+					continue;
+				}
 				FNiagaraTypeDefinition PropType = Schema->GetTypeDefForProperty(Property);
 				UEdGraphPin* NewPin = RequestNewTypedPin(Dir, PropType, *Property->GetDisplayNameText().ToString());
 
@@ -788,24 +795,27 @@ bool UNiagaraNodeConvert::InitConversion(UEdGraphPin* FromPin, UEdGraphPin* ToPi
 			++NextFromPropertyIt;
 		}
 
-		FNiagaraTypeDefinition FromPropType = Schema->GetTypeDefForProperty(FromProp);
-		FNiagaraTypeDefinition ToPropType = Schema->GetTypeDefForProperty(ToProp);
-		SrcPath.Empty();
-		DestPath.Empty();
-		if (FNiagaraTypeDefinition::TypesAreAssignable(FromPropType, ToPropType) || FNiagaraTypeDefinition::IsLossyConversion(FromPropType, ToPropType))
+		if (Schema->IsValidNiagaraPropertyType(FromProp) && Schema->IsValidNiagaraPropertyType(ToProp))
 		{
-			SrcPath.Add(*FromProp->GetName());
-			DestPath.Add(*ToProp->GetName());
-			Connections.Add(FNiagaraConvertConnection(ConnectFromPin->PinId, SrcPath, ConnectToPin->PinId, DestPath));
-
-			if (SrcPath.Num())
+			FNiagaraTypeDefinition FromPropType = Schema->GetTypeDefForProperty(FromProp);
+			FNiagaraTypeDefinition ToPropType = Schema->GetTypeDefForProperty(ToProp);
+			SrcPath.Empty();
+			DestPath.Empty();
+			if (FNiagaraTypeDefinition::TypesAreAssignable(FromPropType, ToPropType) || FNiagaraTypeDefinition::IsLossyConversion(FromPropType, ToPropType))
 			{
-				AddExpandedRecord(FNiagaraConvertPinRecord(ConnectFromPin->PinId, SrcPath).GetParent());
-			}
+				SrcPath.Add(*FromProp->GetName());
+				DestPath.Add(*ToProp->GetName());
+				Connections.Add(FNiagaraConvertConnection(ConnectFromPin->PinId, SrcPath, ConnectToPin->PinId, DestPath));
 
-			if (DestPath.Num())
-			{
-				AddExpandedRecord(FNiagaraConvertPinRecord(ConnectToPin->PinId, DestPath).GetParent());
+				if (SrcPath.Num())
+				{
+					AddExpandedRecord(FNiagaraConvertPinRecord(ConnectFromPin->PinId, SrcPath).GetParent());
+				}
+
+				if (DestPath.Num())
+				{
+					AddExpandedRecord(FNiagaraConvertPinRecord(ConnectToPin->PinId, DestPath).GetParent());
+				}
 			}
 		}
 			
