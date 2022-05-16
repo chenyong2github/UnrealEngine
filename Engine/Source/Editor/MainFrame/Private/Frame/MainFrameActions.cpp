@@ -299,7 +299,7 @@ bool FMainFrameActionCallbacks::CanViewChangelists()
 void FMainFrameActionCallbacks::ConnectToSourceControl()
 {
 	ELoginWindowMode::Type Mode = !FSlateApplication::Get().GetActiveModalWindow().IsValid() ? ELoginWindowMode::Modeless : ELoginWindowMode::Modal;
-	ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed(), Mode);
+	ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed(), Mode, EOnLoginWindowStartup::PreserveProvider);
 }
 
 bool FMainFrameActionCallbacks::CanSaveWorld()
