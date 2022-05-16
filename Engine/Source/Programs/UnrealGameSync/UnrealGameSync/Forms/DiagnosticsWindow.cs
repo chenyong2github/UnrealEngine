@@ -13,20 +13,29 @@ namespace UnrealGameSync
 {
 	public partial class DiagnosticsWindow : Form
 	{
-		DirectoryReference DataFolder;
+		DirectoryReference AppDataFolder;
+		DirectoryReference WorkspaceDataFolder;
 		List<FileReference> ExtraFiles;
 
-		public DiagnosticsWindow(DirectoryReference InDataFolder, string InDiagnosticsText, IEnumerable<FileReference> InExtraFiles)
+		public DiagnosticsWindow(DirectoryReference InAppDataFolder, DirectoryReference InWorkspaceDataFolder, string InDiagnosticsText, IEnumerable<FileReference> InExtraFiles)
 		{
 			InitializeComponent();
-			DataFolder = InDataFolder;
+
+			AppDataFolder = InAppDataFolder;
+			WorkspaceDataFolder = InWorkspaceDataFolder;
+
 			DiagnosticsTextBox.Text = InDiagnosticsText.Replace("\n", "\r\n");
 			ExtraFiles = InExtraFiles.ToList();
 		}
 
-		private void ViewLogsButton_Click(object sender, EventArgs e)
+		private void ViewApplicationDataButton_Click(object sender, EventArgs e)
 		{
-			Process.Start("explorer.exe", DataFolder.FullName);
+			Process.Start("explorer.exe", AppDataFolder.FullName);
+		}
+
+		private void ViewWorkspaceDataButton_Click(object sender, EventArgs e)
+		{
+			Process.Start("explorer.exe", WorkspaceDataFolder.FullName);
 		}
 
 		private void SaveButton_Click(object sender, EventArgs e)
@@ -37,7 +46,7 @@ namespace UnrealGameSync
 			Dialog.FileName = Path.Combine(Dialog.InitialDirectory, "UGS-Diagnostics.zip");
 			if(Dialog.ShowDialog() == DialogResult.OK)
 			{
-				FileReference DiagnosticsFileName = FileReference.Combine(DataFolder, "Diagnostics.txt");
+				FileReference DiagnosticsFileName = FileReference.Combine(AppDataFolder, "Diagnostics.txt");
 				try
 				{
 					FileReference.WriteAllLines(DiagnosticsFileName, DiagnosticsTextBox.Lines);
@@ -53,20 +62,9 @@ namespace UnrealGameSync
 				{
 					using (ZipArchive Zip = new ZipArchive(File.OpenWrite(ZipFileName), ZipArchiveMode.Create))
 					{
-						foreach (FileReference FileName in DirectoryReference.EnumerateFiles(DataFolder))
-						{
-							if (!FileName.HasExtension(".exe") && !FileName.HasExtension(".dll"))
-							{
-								using (FileStream InputStream = FileReference.Open(FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-								{
-									ZipArchiveEntry Entry = Zip.CreateEntry(FileName.MakeRelativeTo(DataFolder).Replace('\\', '/'));
-									using (Stream OutputStream = Entry.Open())
-									{
-										InputStream.CopyTo(OutputStream);
-									}
-								}
-							}
-						}
+						AddFilesToZip(Zip, AppDataFolder, "App/");
+						AddFilesToZip(Zip, WorkspaceDataFolder, "Workspace/");
+
 						foreach (FileReference ExtraFile in ExtraFiles)
 						{
 							if(FileReference.Exists(ExtraFile))
@@ -87,6 +85,24 @@ namespace UnrealGameSync
 				{
 					MessageBox.Show(String.Format("Couldn't save '{0}'\n\n{1}", ZipFileName, Ex.ToString()));
 					return;
+				}
+			}
+		}
+
+		private static void AddFilesToZip(ZipArchive Zip, DirectoryReference DataFolder, string RelativeDir)
+		{
+			foreach (FileReference FileName in DirectoryReference.EnumerateFiles(DataFolder))
+			{
+				if (!FileName.HasExtension(".exe") && !FileName.HasExtension(".dll"))
+				{
+					using (FileStream InputStream = FileReference.Open(FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+					{
+						ZipArchiveEntry Entry = Zip.CreateEntry(RelativeDir + FileName.MakeRelativeTo(DataFolder).Replace('\\', '/'));
+						using (Stream OutputStream = Entry.Open())
+						{
+							InputStream.CopyTo(OutputStream);
+						}
+					}
 				}
 			}
 		}

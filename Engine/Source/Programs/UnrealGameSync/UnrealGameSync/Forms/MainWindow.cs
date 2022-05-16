@@ -1196,7 +1196,7 @@ namespace UnrealGameSync
 			}
 
 			// Now that we have the project settings, we can construct the tab
-			WorkspaceControl NewWorkspace = new WorkspaceControl(this, ApiUrl, OpenProjectInfo, ServiceProvider, Settings, OIDCTokenManager);
+			WorkspaceControl NewWorkspace = new WorkspaceControl(this, DataFolder, ApiUrl, OpenProjectInfo, ServiceProvider, Settings, OIDCTokenManager);
 			
 			NewWorkspace.Parent = TabPanel;
 			NewWorkspace.Dock = DockStyle.Fill;

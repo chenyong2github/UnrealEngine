@@ -201,8 +201,9 @@ namespace UnrealGameSync
 		const int BuildListExpandCount = 250;
 
 		IWorkspaceControlOwner Owner;
+		DirectoryReference AppDataFolder;
 		string? ApiUrl;
-		DirectoryReference DataFolder;
+		DirectoryReference WorkspaceDataFolder;
 		IServiceProvider ServiceProvider;
 		ILogger Logger;
 		IPerforceSettings PerforceSettings;
@@ -290,15 +291,16 @@ namespace UnrealGameSync
 		// Placeholder text that is in the control and cleared when the user starts editing.
 		static string AuthorFilterPlaceholderText = "<username>";
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string? InApiUrl, OpenProjectInfo OpenProjectInfo, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, DirectoryReference InAppDataFolder, string? InApiUrl, OpenProjectInfo OpenProjectInfo, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
 		{
 			InitializeComponent();
 
 			MainThreadSynchronizationContext = SynchronizationContext.Current!;
 
 			Owner = InOwner;
+			AppDataFolder = InAppDataFolder;
 			ApiUrl = InApiUrl;
-			DataFolder = OpenProjectInfo.ProjectInfo.DataFolder;
+			WorkspaceDataFolder = OpenProjectInfo.ProjectInfo.DataFolder;
 			ServiceProvider = InServiceProvider;
 			Logger = InServiceProvider.GetRequiredService<ILogger<WorkspaceControl>>();
 			PerforceSettings = OpenProjectInfo.PerforceSettings;
@@ -366,7 +368,7 @@ namespace UnrealGameSync
 			Workspace = new Workspace(PerforceClientSettings, Project, WorkspaceState, OpenProjectInfo.WorkspaceProjectConfigFile, OpenProjectInfo.WorkspaceProjectStreamFilter, new LogControlTextWriter(SyncLog), ServiceProvider);
 			Workspace.OnUpdateComplete += UpdateCompleteCallback;
 
-			FileReference ProjectLogBaseName = FileReference.Combine(DataFolder, "sync.log");
+			FileReference ProjectLogBaseName = FileReference.Combine(WorkspaceDataFolder, "sync.log");
 
 			ILogger PerforceLogger = ServiceProvider.GetRequiredService<ILogger<PerforceMonitor>>();
 			PerforceMonitor = new PerforceMonitor(PerforceClientSettings, OpenProjectInfo.ProjectInfo, OpenProjectInfo.LatestProjectConfigFile, OpenProjectInfo.ProjectInfo.CacheFolder, OpenProjectInfo.LocalConfigFiles, ServiceProvider);
@@ -5361,7 +5363,7 @@ namespace UnrealGameSync
 			DiagnosticsText.AppendFormat("Event monitor: {0}\n", (EventMonitor == null) ? "(inactive)" : EventMonitor.LastStatusMessage);
 			DiagnosticsText.AppendFormat("Issue monitor: {0}\n", (IssueMonitor == null) ? "(inactive)" : IssueMonitor.LastStatusMessage);
 
-			DiagnosticsWindow Diagnostics = new DiagnosticsWindow(DataFolder, DiagnosticsText.ToString(), Settings.GetCachedFilePaths());
+			DiagnosticsWindow Diagnostics = new DiagnosticsWindow(AppDataFolder, WorkspaceDataFolder, DiagnosticsText.ToString(), Settings.GetCachedFilePaths());
 			Diagnostics.ShowDialog(this);
 		}
 
