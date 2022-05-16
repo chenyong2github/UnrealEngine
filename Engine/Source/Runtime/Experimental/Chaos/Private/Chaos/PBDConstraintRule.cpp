@@ -202,7 +202,8 @@ namespace Chaos
 								}
 							}
 						}
-						InnerPhysicsParallelFor(IslandConstraints.Num(), [&](const int32 Index)
+
+					        auto Gather = [&](const int32 Index)
 						{
 							FConstraintHandle* ConstraintHandle = IslandConstraints[Index];
 							if (ConstraintHandle->GetContainerId() == GetContainerId())
@@ -217,7 +218,12 @@ namespace Chaos
 									Constraint->GatherInput(Dt, INDEX_NONE, INDEX_NONE, *IslandGroup);
 								}
 							}
-						});
+						};
+						for (int32 Index = 0; Index < IslandConstraints.Num(); ++Index)
+						{
+							Gather(Index);
+						}
+						
 					}
 				}
 			}

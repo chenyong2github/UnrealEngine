@@ -458,7 +458,6 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	TArray<TArray<FPBDRigidParticleHandle*>> DisabledParticles;
 	DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
-	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	if(Dt > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
