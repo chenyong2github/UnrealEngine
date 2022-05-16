@@ -32,6 +32,9 @@ public:
 	/** Execute a predicate function on each valid water body. Predicate should return false for early exit. */
 	void ForEachWaterBodyComponent (TFunctionRef<bool(UWaterBodyComponent*)> Pred) const;
 
+	/** Execute a predicate function on each valid water body. Predicate should return false for early exit. */
+	static void ForEachWaterBodyComponent (const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Pred);
+
 	bool HasAnyWaterBodies() const { return WaterBodyComponents.Num() > 0; }
 
 private:

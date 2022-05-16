@@ -2,6 +2,7 @@
 
 #include "WaterBodyManager.h"
 #include "WaterBodyActor.h"
+#include "WaterSubsystem.h"
 #include "GerstnerWaterWaveViewExtension.h"
 
 void FWaterBodyManager::Initialize(UWorld* World)
@@ -85,5 +86,13 @@ void FWaterBodyManager::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyCo
 				return;
 			}
 		}
+	}
+}
+
+void FWaterBodyManager::ForEachWaterBodyComponent(const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Pred)
+{
+	if (FWaterBodyManager* Manager = UWaterSubsystem::GetWaterBodyManager(World))
+	{
+		Manager->ForEachWaterBodyComponent(Pred);
 	}
 }

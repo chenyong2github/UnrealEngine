@@ -112,7 +112,7 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 
 void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate)
 {
-	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [this, Predicate](UWaterBodyComponent* Component)
+	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [this, Predicate](UWaterBodyComponent* Component)
 		{
 			if (Component->GetWaterZone() == this)
 			{

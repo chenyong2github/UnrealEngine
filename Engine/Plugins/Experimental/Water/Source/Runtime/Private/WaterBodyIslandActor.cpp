@@ -184,7 +184,7 @@ void AWaterBodyIsland::UpdateOverlappingWaterBodyComponents()
 	TLazyObjectPtr<AWaterBodyIsland> LazyThis(this);
 
 	// Fixup overlapping bodies
-	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [LazyThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
+	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [LazyThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
 	{
 		if (WaterBodyComponent->ContainsIsland(LazyThis))
 		{

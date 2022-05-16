@@ -99,8 +99,8 @@ public:
 	/** Static helper function to get a waterbody manager from a world, returns nullptr if world or manager don't exist */
 	static FWaterBodyManager* GetWaterBodyManager(const UWorld* InWorld);
 
-	/** Execute a predicate function on each valid water body. Predicate should return false for early exit. */
-	static void ForEachWaterBodyComponent(const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Predicate);
+	UE_DEPRECATED(5.1, "Please use FWaterBodyManager::ForEachWaterBodyComponent instead.")
+	static void ForEachWaterBodyComponent(const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Predicate) {}
 
 	UE_DEPRECATED(5.1, "This will become a private member. Prefer calling GetWaterBodyManager instead")
 	FWaterBodyManager WaterBodyManager;

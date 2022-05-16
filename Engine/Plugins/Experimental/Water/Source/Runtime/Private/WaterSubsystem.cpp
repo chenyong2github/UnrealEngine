@@ -180,14 +180,6 @@ FWaterBodyManager* UWaterSubsystem::GetWaterBodyManager(const UWorld* InWorld)
 	return nullptr;
 }
 
-void UWaterSubsystem::ForEachWaterBodyComponent(const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Predicate)
-{
-	if (UWaterSubsystem* Subsystem = GetWaterSubsystem(World))
-	{
-		Subsystem->GetWaterBodyManagerInternal().ForEachWaterBodyComponent(Predicate);
-	}
-}
-
 void UWaterSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);

@@ -47,7 +47,7 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 		const TWeakObjectPtr<UWorld> WorldPtr = GetWorld();
 		check(WorldPtr.IsValid())
 
-		UWaterSubsystem::ForEachWaterBodyComponent(WorldPtr.Get(), [&WaterIndirectionBuffer, &WaterDataBuffer](UWaterBodyComponent* WaterBodyComponent)
+		FWaterBodyManager::ForEachWaterBodyComponent(WorldPtr.Get(), [&WaterIndirectionBuffer, &WaterDataBuffer](UWaterBodyComponent* WaterBodyComponent)
 		{
 			// Some max value
 			constexpr int32 MaxWavesPerWaterBody = 4096;

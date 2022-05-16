@@ -26,7 +26,7 @@ void UEnvQueryTest_InsideWaterBody::RunTest(FEnvQueryInstance& QueryInstance) co
 		const FVector ItemLocation = GetItemLocation(QueryInstance, It.GetIndex());
 
 		bool bInside = false;
-		UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [this, ItemLocation, &bInside](UWaterBodyComponent* WaterBodyComponent)
+		FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [this, ItemLocation, &bInside](UWaterBodyComponent* WaterBodyComponent)
 		{
 			EWaterBodyQueryFlags QueryFlags = EWaterBodyQueryFlags::ComputeImmersionDepth;
 			if (bIncludeWaves)
