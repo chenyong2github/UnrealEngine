@@ -30,7 +30,7 @@ IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter(UWorld* InWo
 
 IWorldPartitionActorLoaderInterface::ILoaderAdapter::~ILoaderAdapter()
 {
-	Unload();
+	UnregisterDelegates();
 }
 
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Load()
@@ -39,7 +39,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Load()
 	{
 		bLoaded = true;
 		RefreshLoadedState();
-		FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged);
+		RegisterDelegates();
 	}
 
 	return true;
@@ -65,7 +65,8 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 			FScopedSlowTask SlowTask(1, LOCTEXT("UpdatingLoading", "Updating loading..."));
 			SlowTask.MakeDialog();
 
-			FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
+			UnregisterDelegates();
+
 			ActorReferences.Empty();
 			bLoaded = false;
 
@@ -81,6 +82,16 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::IsLoaded() const
 {
 	return bLoaded;
+}
+
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RegisterDelegates()
+{
+	FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged);
+}
+
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::UnregisterDelegates()
+{
+	FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
 }
 
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()

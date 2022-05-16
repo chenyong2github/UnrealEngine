@@ -42,6 +42,8 @@ public:
 		virtual bool Intersect(const FBox& Box) const =0;
 		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const =0;
 
+		void RegisterDelegates();
+		void UnregisterDelegates();
 		bool RefreshLoadedState();
 		bool ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const;
 		void PostLoadedStateChanged(bool bUnloadedActors);
