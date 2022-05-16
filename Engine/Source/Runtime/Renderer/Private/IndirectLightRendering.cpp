@@ -1219,7 +1219,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 		if (bApplyDiffuseIndirect)
 		{
-			if (Strata::IsStrataEnabled() && ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+			if (Strata::IsStrataEnabled())
 			{
 				ApplyDiffuseIndirect(EStrataTileType::EComplex);
 				ApplyDiffuseIndirect(EStrataTileType::ESingle);

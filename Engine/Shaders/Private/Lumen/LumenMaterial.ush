@@ -209,12 +209,14 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	const FStrataTopLayerData TopLayerData		= StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InPixelPos, 0)));
 	const FStrataSubsurfaceHeader SSSHeader		= StrataLoadSubsurfaceHeader(Strata.SSSTexture, InPixelPos);
 
+	// When Lumen is not used, only MaterialAO and ShadingID (see IsValid) are read, sourced form the single UINT read for the StrataPixelHeader.
+
 	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
 	Out.WorldNormal						= TopLayerData.WorldNormal;
 	Out.Roughness						= TopLayerData.Roughness;
 	Out.TopLayerRoughness				= TopLayerData.Roughness;
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
-	Out.ShadingID						= TopLayerData.bIsValid ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
+	Out.ShadingID						= StrataHeaderIsValid(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
 	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 	Out.bIsSLW							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_SINGLELAYERWATER);
