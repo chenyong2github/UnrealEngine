@@ -129,7 +129,7 @@ struct FNiagaraRendererVariableInfo
 };
 
 /** Used for building renderer layouts for vertex factories */
-struct FNiagaraRendererLayout
+struct NIAGARA_API FNiagaraRendererLayout
 {
 	void Initialize(int32 NumVariables);
 	bool SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableBase& Variable, int32 VFVarOffset);
