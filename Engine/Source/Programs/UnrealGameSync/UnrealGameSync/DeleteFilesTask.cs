@@ -28,7 +28,7 @@ namespace UnrealGameSync
 					RevisionsToSync.Add(String.Format("{0}#have", PerforceUtils.EscapePath(FileToSync.FullName)));
 				}
 
-				List<PerforceResponse<SyncRecord>> FailedRecords = await Perforce.TrySyncAsync(RevisionsToSync, CancellationToken).Where(x => x.Failed).ToListAsync(CancellationToken);
+				List<PerforceResponse<SyncRecord>> FailedRecords = await Perforce.TrySyncAsync(SyncOptions.Force, RevisionsToSync, CancellationToken).Where(x => x.Failed).ToListAsync(CancellationToken);
 				foreach (PerforceResponse<SyncRecord> FailedRecord in FailedRecords)
 				{
 					FailMessage.Append(FailedRecord.ToString());
