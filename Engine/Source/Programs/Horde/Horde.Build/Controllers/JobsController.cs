@@ -154,16 +154,6 @@ namespace Horde.Build.Controllers
 			// New properties for the job
 			List<string> arguments = create.Arguments ?? template.GetDefaultArguments();
 
-			// Special handling for internal graph evaluation
-			if (arguments.Any(x => x.Equals("-InternalParser", StringComparison.OrdinalIgnoreCase)))
-			{
-				IPerforceConnection? perforceConnection = await _perforce.GetServiceUserConnection(stream.ClusterName);
-				if (perforceConnection != null)
-				{
-					graph = await _graphs.AddAsync(perforceConnection, stream, change, codeChange, arguments);
-				}
-			}
-
 			// Check the preflight change is valid
 			if (create.PreflightChange != null)
 			{
