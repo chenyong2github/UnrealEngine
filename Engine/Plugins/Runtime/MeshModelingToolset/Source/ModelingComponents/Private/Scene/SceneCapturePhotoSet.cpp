@@ -2,8 +2,11 @@
 
 #include "Scene/SceneCapturePhotoSet.h"
 #include "EngineUtils.h"
+#include "Misc/ScopedSlowTask.h"
 
 using namespace UE::Geometry;
+
+#define LOCTEXT_NAMESPACE "SceneCapture"
 
 void FSceneCapturePhotoSet::SetCaptureSceneActors(UWorld* World, const TArray<AActor*>& Actors)
 {
@@ -90,6 +93,9 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 	const TArray<FVector3d>& Directions)
 {
 	check(this->TargetWorld != nullptr);
+	
+	FScopedSlowTask Progress(Directions.Num(), LOCTEXT("ComputingViewpoints", "Computing Viewpoints..."));
+	Progress.MakeDialog(bAllowCancel);
 
 	// Workaround for Nanite scene proxies visibility
 	// Unregister all components to remove unwanted proxies from the scene. This is currently the only way to "hide" nanite meshes.
@@ -103,6 +109,16 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 			ActorsToRegister.Add(*Actor);
 		}
 	}
+
+	ON_SCOPE_EXIT
+	{
+		// Workaround for Nanite scene proxies visibility
+		// Reregister all components we previously unregistered
+		for (AActor* Actor : ActorsToRegister)
+		{
+			Actor->RegisterAllComponents();
+		}
+	};
 
 	FWorldRenderCapture RenderCapture;
 	RenderCapture.SetWorld(TargetWorld);
@@ -119,6 +135,13 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 	int32 NumDirections = Directions.Num();
 	for (int32 di = 0; di < NumDirections; ++di)
 	{
+		Progress.EnterProgressFrame(1.f);
+		if (Progress.ShouldCancel())
+		{
+			bWasCancelled = true;
+			return;
+		}
+
 		FVector3d ViewDirection = Directions[di];
 		ViewDirection.Normalize();
 
@@ -134,12 +157,13 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		BasePhoto3f.HorzFOVDegrees = HorizontalFOVDegrees;
 		BasePhoto3f.Dimensions = PhotoDimensions;
 
-		auto CaptureImageTypeFunc_3f = [&BasePhoto3f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet3f& PhotoSet)
+		auto CaptureImageTypeFunc_3f = [&Progress, &BasePhoto3f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet3f& PhotoSet)
 		{
 			FSpatialPhoto3f NewPhoto = BasePhoto3f;
 			FImageAdapter Image(&NewPhoto.Image);
 			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image);
 			PhotoSet.Add(MoveTemp(NewPhoto));
+			Progress.TickProgress();
 		};
 
 		FSpatialPhoto1f BasePhoto1f;
@@ -148,12 +172,13 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		BasePhoto1f.HorzFOVDegrees = HorizontalFOVDegrees;
 		BasePhoto1f.Dimensions = PhotoDimensions;
 
-		auto CaptureImageTypeFunc_1f = [&BasePhoto1f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet1f& PhotoSet)
+		auto CaptureImageTypeFunc_1f = [&Progress, &BasePhoto1f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet1f& PhotoSet)
 		{
 			FSpatialPhoto1f NewPhoto = BasePhoto1f;
 			FImageAdapter Image(&NewPhoto.Image);
 			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image);
 			PhotoSet.Add(MoveTemp(NewPhoto));
+			Progress.TickProgress();
 		};
 
 		if (bEnableBaseColor)
@@ -184,13 +209,6 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::Emissive, EmissivePhotoSet);
 		}
-	}
-
-	// Workaround for Nanite scene proxies visibility
-	// Reregister all components we previously unregistered
-	for (AActor* Actor : ActorsToRegister)
-	{
-		Actor->RegisterAllComponents();
 	}
 }
 
@@ -343,3 +361,5 @@ void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString Fold
 		DebugImagesFolderName = FolderName;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

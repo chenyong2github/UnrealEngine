@@ -8,6 +8,7 @@
 
 class UWorld;
 class AActor;
+struct FScopedSlowTask;
 
 namespace UE
 {
@@ -140,6 +141,15 @@ public:
 	 */
 	void SetEnableWriteDebugImages(bool bEnable, FString FolderName = FString());
 
+	void SetAllowCancel(bool bAllowCancelIn)
+	{
+		bAllowCancel = bAllowCancelIn;
+	}
+
+	bool Cancelled() const
+	{
+		return bWasCancelled;
+	}
 
 protected:
 	UWorld* TargetWorld = nullptr;
@@ -163,6 +173,9 @@ protected:
 
 	bool bWriteDebugImages = false;
 	FString DebugImagesFolderName = TEXT("SceneCapturePhotoSet");
+
+	bool bAllowCancel = false;
+	bool bWasCancelled = false;
 };
 
 

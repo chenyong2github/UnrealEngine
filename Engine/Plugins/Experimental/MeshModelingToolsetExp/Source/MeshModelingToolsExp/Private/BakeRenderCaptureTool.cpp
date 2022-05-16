@@ -19,6 +19,7 @@
 #include "Sampling/GenericEvaluator.h"
 #include "Image/ImageInfilling.h"
 #include "Algo/NoneOf.h"
+#include "Misc/ScopedSlowTask.h"
 
 
 using namespace UE::Geometry;
@@ -175,10 +176,15 @@ public:
 
 static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	const TArray<TObjectPtr<AActor>>& Actors,
-	const FBakeRenderCaptureOptions::FOptions& Options
+	const FBakeRenderCaptureOptions::FOptions& Options,
+	bool bAllowCancel
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
+
+	FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
+	Progress.EnterProgressFrame(1.f);
+	Progress.MakeDialog(bAllowCancel);
 
 	double FieldOfView = Options.FieldOfViewDegrees;
 	double NearPlaneDist = Options.NearPlaneDist;
@@ -186,6 +192,7 @@ static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	FImageDimensions CaptureDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize);
 
 	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
+	SceneCapture->SetAllowCancel(bAllowCancel);
 
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::BaseColor, Options.bBakeBaseColor);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, Options.bBakeNormalMap);
@@ -213,7 +220,7 @@ static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
 		CaptureDimensions, FieldOfView, NearPlaneDist,
 		true, true, true);
-	
+
 	return SceneCapture;
 }
 
@@ -676,6 +683,9 @@ void UBakeRenderCaptureTool::Setup()
 	AddToolPropertySource(ResultSettings);
 	SetToolPropertySourceEnabled(ResultSettings, true);
 
+	// Used to implmement SceneCapture cancellation
+	ComputedSettings = NewObject<UBakeRenderCaptureToolProperties>(this);
+
 	// Hide the render capture meshes since this baker operates solely in world space which will occlude the preview of
 	// the target mesh.
 	for (int Idx = 1; Idx < NumTargets; ++Idx)
@@ -1011,7 +1021,6 @@ void UBakeRenderCaptureTool::InvalidateComputeRC()
 		ComputeRC->OnResultUpdated.AddLambda([this](const TUniquePtr<FBakeRenderCaptureResultsBuilder>& NewResult) { OnMapsUpdatedRC(NewResult); });
 	}
 	ComputeRC->InvalidateResult();
-	OpState = EBakeOpState::Clean;
 }
 
 
@@ -1035,13 +1044,42 @@ void UBakeRenderCaptureTool::UpdateResult()
 		UE::ToolTarget::ShowSourceObject(Targets[Idx]);
 	}
 
+	// Do not allow user-cancellation on the call that occurs when the Render Capture Tool starts up
+	const bool bAllowCancel = (bFirstEverSceneCapture == false);
+
 	SceneCapture.Reset();
-	SceneCapture = CapturePhotoSet(Actors, Options);
+	SceneCapture = CapturePhotoSet(Actors, Options, bAllowCancel);
 
 	for (int Idx = 1; Idx < Targets.Num(); ++Idx)
 	{
 		UE::ToolTarget::HideSourceObject(Targets[Idx]);
 	}
+
+	if (SceneCapture->Cancelled())
+	{
+		// Restore the settings present before the change that invoked the scene capture recompute
+		Settings->SamplesPerPixel = ComputedSettings->SamplesPerPixel;
+		Settings->RenderCaptureResolution = ComputedSettings->RenderCaptureResolution;
+		Settings->MaterialSettings = ComputedSettings->MaterialSettings;
+		Settings->CaptureFieldOfView = ComputedSettings->CaptureFieldOfView;
+		Settings->NearPlaneDist = ComputedSettings->NearPlaneDist;
+
+		// Silently make the above Settings updates so we don't overwrite the change to OpState below and call this function again
+		Settings->SilentUpdateWatched();
+
+		OpState = EBakeOpState::Clean;
+
+		return;
+	}
+
+	bFirstEverSceneCapture = false;
+
+	// Cache Settings used to compute this SceneCapture so we can restore them if the user cancels a SceneCapture recompute
+	ComputedSettings->SamplesPerPixel = Settings->SamplesPerPixel;
+	ComputedSettings->RenderCaptureResolution = Settings->RenderCaptureResolution;
+	ComputedSettings->MaterialSettings = Settings->MaterialSettings;
+	ComputedSettings->CaptureFieldOfView = Settings->CaptureFieldOfView;
+	ComputedSettings->NearPlaneDist = Settings->NearPlaneDist;
 
 	// @Incomplete Clear our invalid bitflag to check for valid inputs.
 	//OpState &= ~EBakeOpState::Invalid;
@@ -1053,9 +1091,9 @@ void UBakeRenderCaptureTool::UpdateResult()
 	//}
 	
 	InvalidateResults();
-
-	// This should be the only point of compute invalidation to minimize synchronization issues.
 	InvalidateComputeRC();
+
+	OpState = EBakeOpState::Clean;
 }
 
 

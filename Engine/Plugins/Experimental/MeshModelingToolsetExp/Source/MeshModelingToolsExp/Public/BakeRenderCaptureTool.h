@@ -320,8 +320,13 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterialPackedRC;
 	void InitializePreviewMaterials();
 
-	// @Refactor TODO We currently need to compute this on the game thread because the implementation has checks for this
+	// TODO We currently need to compute this on the game thread because the implementation has checks for this
 	TUniquePtr<UE::Geometry::FSceneCapturePhotoSet> SceneCapture;
+	bool bFirstEverSceneCapture = true;
+
+	// If the user cancels a scene capture before the computation completes then the settings which changed to invoke
+	// the capture are reverted to these values
+	TObjectPtr<UBakeRenderCaptureToolProperties> ComputedSettings;
 
 	// Analytics
 	virtual FString GetAnalyticsEventName() const override
