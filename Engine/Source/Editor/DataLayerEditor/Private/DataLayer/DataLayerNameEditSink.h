@@ -3,7 +3,7 @@
 #pragma once
 
 #include "DataLayer/DataLayerEditorSubsystem.h"
-#include "DataLayerTransaction.h"
+#include "ScopedTransaction.h"
 #include "IObjectNameEditSink.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
@@ -39,7 +39,7 @@ class FDataLayerNameEditSink : public UE::EditorWidgets::IObjectNameEditSink
 		{
 			if (!DisplayName.Equals(DataLayerInstance->GetDataLayerShortName(), ESearchCase::CaseSensitive))
 			{
-				const FScopedDataLayerTransaction Transaction(LOCTEXT("DataLayerNameEditSinkRenameDataLayerTransaction", "Rename Data Layer"), DataLayerInstance->GetWorld());
+				const FScopedTransaction Transaction(LOCTEXT("DataLayerNameEditSinkRenameDataLayerTransaction", "Rename Data Layer"));
 
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				return UDataLayerEditorSubsystem::Get()->RenameDataLayer(DataLayerInstance, *DisplayName);

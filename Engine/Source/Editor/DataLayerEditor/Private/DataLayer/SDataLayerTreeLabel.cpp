@@ -8,7 +8,7 @@
 #include "Math/ColorList.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerMode.h"
-#include "DataLayerTransaction.h"
+#include "ScopedTransaction.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
@@ -278,7 +278,7 @@ void SDataLayerTreeLabel::OnLabelCommitted(const FText& InLabel, ETextCommit::Ty
 	check(DataLayerInstance->SupportRelabeling());
 	if (!InLabel.ToString().Equals(DataLayerInstance->GetDataLayerShortName(), ESearchCase::CaseSensitive))
 	{
-		const FScopedDataLayerTransaction Transaction(LOCTEXT("SceneOutlinerRenameDataLayerTransaction", "Rename Data Layer"), DataLayerInstance->GetWorld());
+		const FScopedTransaction Transaction(LOCTEXT("SceneOutlinerRenameDataLayerTransaction", "Rename Data Layer"));
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UDataLayerEditorSubsystem::Get()->RenameDataLayer(DataLayerInstance, *InLabel.ToString());
