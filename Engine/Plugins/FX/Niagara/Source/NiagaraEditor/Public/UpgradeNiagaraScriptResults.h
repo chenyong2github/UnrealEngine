@@ -166,7 +166,7 @@ public:
 
 	// Returns the raw underlying object
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-	UNiagaraStackModuleItem* Object() const;
+	UNiagaraStackModuleItem* GetObject() const;
 
 	//TODO: extend the api here to fully support module actions
 
@@ -188,7 +188,7 @@ public:
 
 	// Returns the raw underlying object
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-	UNiagaraEmitter* Object();
+	UNiagaraEmitter* GetObject();
 
 	// returns the emitter properties, such as determinism or interpolated spawning
 	UFUNCTION(BlueprintCallable, Category = "Scripting")

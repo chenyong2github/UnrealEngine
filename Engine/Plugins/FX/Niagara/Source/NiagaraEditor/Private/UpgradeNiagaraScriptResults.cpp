@@ -292,7 +292,7 @@ void UNiagaraPythonModule::Init(UNiagaraStackModuleItem* InModuleItem)
 	ModuleItem = InModuleItem;
 }
 
-UNiagaraStackModuleItem* UNiagaraPythonModule::Object() const
+UNiagaraStackModuleItem* UNiagaraPythonModule::GetObject() const
 {
 	return ModuleItem;
 }
@@ -302,7 +302,7 @@ void UNiagaraPythonEmitter::Init(TSharedRef<FNiagaraEmitterHandleViewModel> InEm
 	EmitterViewModel = InEmitterViewModel;
 }
 
-UNiagaraEmitter* UNiagaraPythonEmitter::Object()
+UNiagaraEmitter* UNiagaraPythonEmitter::GetObject()
 {
 	return EmitterViewModel->GetEmitterViewModel()->GetEmitter().Emitter;
 }
