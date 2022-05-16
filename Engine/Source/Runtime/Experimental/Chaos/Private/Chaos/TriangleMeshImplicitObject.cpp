@@ -1572,7 +1572,13 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 	int32 FaceNum = 0;
 	TArray<TVec3<FTrimeshIndexBuffer::LargeIdxType>> LargeIndices;
 	TArray<TVec3<FTrimeshIndexBuffer::SmallIdxType>> SmallIndices;
-		
+	TArray<int32> OldFaceIndexMap;
+
+	if (ExternalFaceIndexMap.IsValid())
+	{
+		OldFaceIndexMap = MoveTemp(*ExternalFaceIndexMap.Get());
+		ExternalFaceIndexMap->Reserve(OldFaceIndexMap.Num());
+	}
 
 	// since we do skip leaf nodes, we need to handle the case where we have only one node that will be a leaf by default
 	if (Nodes.Num() == 1)
@@ -1595,6 +1601,10 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 			// Reorder triangle indices, triangles will be in the same order as the bounding volume in the BVH structure.
 			// And all triangles in a leaf will be contiguous in memory.
 			AddTriangles(LargeIndices, SmallIndices, MElements, LeafPayload.Payload);
+			if (ExternalFaceIndexMap.IsValid())
+			{
+				ExternalFaceIndexMap->Add(OldFaceIndexMap[LeafPayload.Payload]);
+			}
 		}
 		if (MElements.RequiresLargeIndices())
 		{
@@ -1672,6 +1682,10 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 							// Reorder triangle indices, triangles will be in the same order as the bounding volume in the BVH structure.
 							// And all triangles in a leaf will be contiguous in memory.
 							AddTriangles(LargeIndices, SmallIndices, MElements, LeafPayload.Payload);
+							if (ExternalFaceIndexMap.IsValid())
+							{
+								ExternalFaceIndexMap->Add(OldFaceIndexMap[LeafPayload.Payload]);
+							}
 							FaceNum++;
 						}
 					}

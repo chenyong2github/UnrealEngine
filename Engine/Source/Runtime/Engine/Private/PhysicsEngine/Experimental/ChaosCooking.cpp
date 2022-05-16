@@ -16,6 +16,14 @@ namespace Chaos
 {
 	namespace Cooking
 	{
+		static void CopyUpdatedFaceRemapFromTriangleMesh(const Chaos::FTriangleMeshImplicitObject& TriangleMesh, TArray<int32>& OutFaceRemap)
+		{
+			for (int32 TriangleIndex = 0; TriangleIndex < OutFaceRemap.Num(); TriangleIndex++)
+			{
+				OutFaceRemap[TriangleIndex] = TriangleMesh.GetExternalFaceIndexFromInternal(TriangleIndex);
+			}
+		}
+
 		TUniquePtr<Chaos::FTriangleMeshImplicitObject> BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap, TArray<int32>& OutVertexRemap)
 		{
 			if(Desc.Vertices.Num() == 0)
@@ -65,6 +73,10 @@ namespace Chaos
 					MaterialIndices.Reserve(NumTriangles);
 				}
 
+				// Need to rebuild face remap array, in case there are any invalid triangles
+				TArray<int32> OldFaceRemap = MoveTemp(OutFaceRemap);
+				OutFaceRemap.Reserve(OldFaceRemap.Num());
+
 				Triangles.Reserve(NumTriangles);
 				for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 				{
@@ -80,19 +92,23 @@ namespace Chaos
 					if(bIsValidTriangle)
 					{
 						Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+						if (!OldFaceRemap.IsEmpty())
+						{
+							OutFaceRemap.Add(OldFaceRemap[TriangleIndex]);
+						}
 
 						if(bHasMaterials)
 						{
 							if(EnableMeshClean)
 							{
-								if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
+								if(!ensure(OldFaceRemap.IsValidIndex(TriangleIndex)))
 								{
 									MaterialIndices.Empty();
 									bHasMaterials = false;
 								}
 								else
 								{
-									const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+									const int32 OriginalIndex = OldFaceRemap[TriangleIndex];
 
 									if(ensure(Desc.MaterialIndices.IsValidIndex(OriginalIndex)))
 									{
@@ -124,7 +140,12 @@ namespace Chaos
 
 				TUniquePtr<TArray<int32>> OutFaceRemapPtr = MakeUnique<TArray<int32>>(OutFaceRemap);
 				TUniquePtr<TArray<int32>> OutVertexRemapPtr = Chaos::TriMeshPerPolySupport ? MakeUnique<TArray<int32>>(OutVertexRemap) : nullptr;
-				return MakeUnique<Chaos::FTriangleMeshImplicitObject>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr), MoveTemp(OutVertexRemapPtr));
+				TUniquePtr<Chaos::FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<Chaos::FTriangleMeshImplicitObject>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr), MoveTemp(OutVertexRemapPtr));
+
+				// Propagate remapped indices from the FTriangleMeshImplicitObject back to the remap array
+				CopyUpdatedFaceRemapFromTriangleMesh(*TriangleMesh.Get(), OutFaceRemap);
+
+				return TriangleMesh;
 			};
 
 			if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
@@ -237,6 +258,10 @@ namespace Chaos
 					MaterialIndices.Reserve(NumTriangles);
 				}
 
+				// Need to rebuild face remap array, in case there are any invalid triangles
+				TArray<int32> OldFaceRemap = MoveTemp(OutFaceRemap);
+				OutFaceRemap.Reserve(OldFaceRemap.Num());
+
 				Triangles.Reserve(NumTriangles);
 				for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 				{
@@ -252,19 +277,23 @@ namespace Chaos
 					if(bIsValidTriangle)
 					{
 						Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+						if (OldFaceRemap.Num())
+						{
+							OutFaceRemap.Add(OldFaceRemap[TriangleIndex]);
+						}
 
 						if(bHasMaterials)
 						{
 							if(EnableMeshClean)
 							{
-								if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
+								if(!ensure(OldFaceRemap.IsValidIndex(TriangleIndex)))
 								{
 									MaterialIndices.Empty();
 									bHasMaterials = false;
 								}
 								else
 								{
-									const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+									const int32 OriginalIndex = OldFaceRemap[TriangleIndex];
 
 									if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
 									{
@@ -296,7 +325,11 @@ namespace Chaos
 
 				TUniquePtr<TArray<int32>> OutFaceRemapPtr = MakeUnique<TArray<int32>>(OutFaceRemap);
 				TUniquePtr<TArray<int32>> OutVertexRemapPtr = Chaos::TriMeshPerPolySupport ? MakeUnique<TArray<int32>>(OutVertexRemap) : nullptr;
-				OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr), MoveTemp(OutVertexRemapPtr)));
+				Chaos::FTriangleMeshImplicitObject* TriangleMesh = new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr), MoveTemp(OutVertexRemapPtr));
+				OutTriangleMeshes.Emplace(TriangleMesh);
+
+				// Propagate remapped indices from the FTriangleMeshImplicitObject back to the remap array
+				CopyUpdatedFaceRemapFromTriangleMesh(*TriangleMesh, OutFaceRemap);
 			};
 
 			if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
