@@ -23,26 +23,38 @@ class UMG_API UUniformGridPanel : public UPanelWidget
 public:
 
 	/** Padding given to each slot */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout")
+	UE_DEPRECATED(5.1, "Direct access to SlotPadding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSlotPadding", Category="Child Layout")
 	FMargin SlotPadding;
 
 	/** The minimum desired width of the slots */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout")
+	UE_DEPRECATED(5.1, "Direct access to MinDesiredSlotWidth is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinDesiredSlotWidth", Category="Child Layout")
 	float MinDesiredSlotWidth;
 
 	/** The minimum desired height of the slots */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout")
+	UE_DEPRECATED(5.1, "Direct access to MinDesiredSlotHeight is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinDesiredSlotHeight", Category="Child Layout")
 	float MinDesiredSlotHeight;
 
 public:
+
+	/** */
+	FMargin GetSlotPadding() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Child Layout")
 	void SetSlotPadding(FMargin InSlotPadding);
 
+	/** */
+	float GetMinDesiredSlotWidth() const;
+
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Child Layout")
 	void SetMinDesiredSlotWidth(float InMinDesiredSlotWidth);
+
+	/** */
+	float GetMinDesiredSlotHeight() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Child Layout")
@@ -56,15 +68,14 @@ public:
 
 public:
 
-	// UWidget interface
+	//~ UWidget interface
 	virtual void SynchronizeProperties() override;
-	// End of UWidget interface
-
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 #endif
+	//~ End of UWidget interface
 
 protected:
 
@@ -79,7 +90,7 @@ protected:
 	TSharedPtr<SUniformGridPanel> MyUniformGridPanel;
 
 protected:
-	// UWidget interface
+	//~ UWidget interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
-	// End of UWidget interface
+	//~ End of UWidget interface
 };

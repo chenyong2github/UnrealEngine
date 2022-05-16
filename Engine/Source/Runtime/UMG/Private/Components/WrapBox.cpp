@@ -11,12 +11,14 @@
 UWrapBox::UWrapBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsVariable = false;
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 	WrapSize = 500;
 	bExplicitWrapSize = false;
 	HorizontalAlignment = HAlign_Left;
 	Orientation = EOrientation::Orient_Horizontal;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UWrapBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -60,11 +62,13 @@ UWrapBoxSlot* UWrapBox::AddChildToWrapBox(UWidget* Content)
 
 TSharedRef<SWidget> UWrapBox::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyWrapBox = SNew(SWrapBox)
 		.UseAllottedSize(!bExplicitWrapSize)
 		.PreferredSize(WrapSize)
 		.HAlign(HorizontalAlignment)
 		.Orientation(Orientation);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	for ( UPanelSlot* PanelSlot : Slots )
 	{
@@ -78,6 +82,7 @@ TSharedRef<SWidget> UWrapBox::RebuildWidget()
 	return MyWrapBox.ToSharedRef();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UWrapBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
@@ -89,25 +94,76 @@ void UWrapBox::SynchronizeProperties()
 	MyWrapBox->SetOrientation(Orientation);
 }
 
+FVector2D UWrapBox::GetInnerSlotPadding() const
+{
+	return InnerSlotPadding;
+}
+
 void UWrapBox::SetInnerSlotPadding(FVector2D InPadding)
 {
 	InnerSlotPadding = InPadding;
-
-	if ( MyWrapBox.IsValid() )
+	if (MyWrapBox.IsValid())
 	{
 		MyWrapBox->SetInnerSlotPadding(InPadding);
 	}
 }
 
+float UWrapBox::GetWrapSize() const
+{
+	return WrapSize;
+}
+
+void UWrapBox::SetWrapSize(float InWrapSize)
+{
+	WrapSize = InWrapSize;
+	if (MyWrapBox.IsValid())
+	{
+		MyWrapBox->SetWrapSize(InWrapSize);
+	}
+}
+
+bool UWrapBox::UseExplicitWrapSize() const
+{
+	return bExplicitWrapSize;
+}
+
+void UWrapBox::SetExplicitWrapSize(bool bInExplicitWrapSize)
+{
+	bExplicitWrapSize = bInExplicitWrapSize;
+	if (MyWrapBox.IsValid())
+	{
+		MyWrapBox->SetUseAllottedSize(!bExplicitWrapSize);
+	}
+}
+
+EHorizontalAlignment UWrapBox::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
+}
+
 void UWrapBox::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
-
-	if (MyWrapBox.IsValid())
+	if (MyWrapBox)
 	{
 		MyWrapBox->SetHorizontalAlignment(InHorizontalAlignment);
 	}
 }
+
+EOrientation UWrapBox::GetOrientation() const
+{
+	return Orientation;
+}
+
+void UWrapBox::SetOrientation(EOrientation InOrientation)
+{
+	Orientation = InOrientation;
+	if (MyWrapBox)
+	{
+		MyWrapBox->SetOrientation(InOrientation);
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 

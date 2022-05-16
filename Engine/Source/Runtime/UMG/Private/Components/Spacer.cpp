@@ -9,6 +9,7 @@
 /////////////////////////////////////////////////////
 // USpacer
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USpacer::USpacer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Size(1.0f, 1.0f)
@@ -16,12 +17,24 @@ USpacer::USpacer(const FObjectInitializer& ObjectInitializer)
 	bIsVariable = false;
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void USpacer::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
 
 	MySpacer.Reset();
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FVector2D USpacer::GetSize() const
+{
+	if (MySpacer.IsValid())
+	{
+		return MySpacer->GetSize();
+	}
+	
+	return Size;
 }
 
 void USpacer::SetSize(FVector2D InSize)
@@ -36,10 +49,8 @@ void USpacer::SetSize(FVector2D InSize)
 
 TSharedRef<SWidget> USpacer::RebuildWidget()
 {
-	MySpacer = SNew(SSpacer);
-
-	//TODO UMG Consider using a design time wrapper for spacer to show expandy arrows or some other
-	// indicator that there's a widget at work here.
+	MySpacer = SNew(SSpacer)
+		.Size(Size);
 	
 	return MySpacer.ToSharedRef();
 }
@@ -50,6 +61,7 @@ void USpacer::SynchronizeProperties()
 	
 	MySpacer->SetSize(Size);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 
