@@ -545,6 +545,23 @@ void UnpackVisPixel(
 	VisibleClusterIndex--;
 }
 
+void UnpackVisPixel(
+	UlongType Pixel,
+	out uint DepthInt,
+	out uint VisibleClusterIndex, 
+	out uint TriIndex,
+	out bool bIsImposter
+	)
+{
+	const uint2 Unpacked = UnpackUlongType(Pixel);
+	VisibleClusterIndex = Unpacked.x >> 7;
+	TriIndex = Unpacked.x & 0x7F;
+	DepthInt = Unpacked.y;
+	bIsImposter = (Unpacked.x >> 31);
+
+	VisibleClusterIndex--;
+}
+
 void UnpackDbgPixel(
 	UlongType Pixel,
 	out uint DepthInt,

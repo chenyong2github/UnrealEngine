@@ -259,7 +259,7 @@ FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData Instanc
 	return Transforms;
 }
 
-FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO[3], FNaniteRawAttributeData RawAttributeData[3], uint3 TriIndices)
+FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO[3], FNaniteRawAttributeData RawAttributeData[3], uint3 TriIndices, bool bEvaluateWPO)
 {
 	FNaniteTransformedTri Tri = (FNaniteTransformedTri)0;
 
@@ -272,7 +272,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 
 #if USES_WORLD_POSITION_OFFSET
 	BRANCH
-	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	if (bEvaluateWPO && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 	{
 		UNROLL_N(3)
 		for (int i = 0; i < 3; ++i)
@@ -493,7 +493,8 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
 	uint TriIndex = 0;
-	UnpackVisPixel(PackedPixel, DepthInt, VisibleClusterIndex, TriIndex);
+	bool bIsImposter = false;
+	UnpackVisPixel(PackedPixel, DepthInt, VisibleClusterIndex, TriIndex, bIsImposter);
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
@@ -522,7 +523,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		GetRawAttributeData3(RawAttributeData, Cluster, TriIndices, NANITE_NUM_TEXCOORDS_TO_DECODE);
 		
 		const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
-		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData, TriIndices);
+		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData, TriIndices, !bIsImposter);
 
 		if (bCalcBarycentrics)
 		{
