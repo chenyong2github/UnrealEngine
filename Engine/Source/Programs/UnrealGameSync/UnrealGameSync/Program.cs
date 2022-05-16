@@ -4,6 +4,8 @@ using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Sentry;
+using Sentry.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -19,6 +21,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
@@ -36,6 +39,25 @@ namespace UnrealGameSync
 		[STAThread]
 		static void Main(string[] Args)
 		{
+			if (DeploymentSettings.SentryDsn != null)
+			{
+				SentryOptions sentryOptions = new SentryOptions();
+				sentryOptions.Dsn = DeploymentSettings.SentryDsn;
+				sentryOptions.StackTraceMode = StackTraceMode.Enhanced;
+				sentryOptions.AttachStacktrace = true;
+				sentryOptions.TracesSampleRate = 1.0;
+				sentryOptions.SendDefaultPii = true;
+				sentryOptions.Debug = true;
+				sentryOptions.AutoSessionTracking = true;
+				sentryOptions.DetectStartupTime = StartupTimeDetectionMode.Best;
+				sentryOptions.ReportAssembliesMode = ReportAssembliesMode.InformationalVersion;
+				sentryOptions.DiagnosticLogger = new TraceDiagnosticLogger(SentryLevel.Debug);
+				SentrySdk.Init(sentryOptions);
+
+				Application.ThreadException += Application_ThreadException_Sentry;
+				AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException_Sentry;
+			}
+
 			bool bFirstInstance;
 			using (Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
 			{
@@ -196,6 +218,23 @@ namespace UnrealGameSync
 			{
 				Telemetry.SendEvent("Crash", new {Exception = Ex.ToString()});
 			}
+		}
+
+		private static void CurrentDomain_UnhandledException_Sentry(object Sender, UnhandledExceptionEventArgs Args)
+		{
+			Exception? Ex = Args.ExceptionObject as Exception;
+			if (Ex != null)
+			{
+				SentrySdk.CaptureException(Ex);
+			}
+		}
+
+		private static void Application_ThreadException_Sentry(object sender, ThreadExceptionEventArgs e)
+		{
+			SentrySdk.CaptureException(e.Exception);
+
+			ThreadExceptionDialog dialog = new ThreadExceptionDialog(e.Exception);
+			dialog.ShowDialog();
 		}
 
 		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string? UpdatePath, ref string? UpdateSpawn)

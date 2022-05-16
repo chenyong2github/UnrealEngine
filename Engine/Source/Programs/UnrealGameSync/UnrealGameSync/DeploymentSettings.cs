@@ -54,6 +54,11 @@ namespace UnrealGameSync
 		/// </summary>
 		public static readonly string? ToolsDepotPath = null;
 
+		/// <summary>
+		/// DSN for sending crash reports to Sentry.
+		/// </summary>
+		public static readonly string? SentryDsn = null;
+
 #if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a new telemetry sink
