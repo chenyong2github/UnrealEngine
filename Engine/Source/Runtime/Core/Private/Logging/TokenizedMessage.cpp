@@ -8,7 +8,7 @@
 
 TSharedRef<FTokenizedMessage> FTokenizedMessage::Create(EMessageSeverity::Type InSeverity, const FText& InMessageText)
 {
-	TSharedRef<FTokenizedMessage> Message = MakeShareable(new FTokenizedMessage());
+	TSharedRef<FTokenizedMessage> Message = MakeShared<FTokenizedMessage>(FPrivateToken());
 	Message->SetSeverity( InSeverity );
 	Message->AddToken( FSeverityToken::Create(InSeverity) );
 	if(!InMessageText.IsEmpty())
@@ -144,12 +144,37 @@ TSharedPtr<IMessageToken> FTokenizedMessage::GetMessageLink() const
 	return MessageLink;
 }
 
+TSharedRef<FTextToken> FTextToken::Create(const FText& InMessage)
+{
+	return MakeShared<FTextToken>(FPrivateToken(), InMessage);
+}
+
+TSharedRef<FDynamicTextToken> FDynamicTextToken::Create(const TAttribute<FText>& InMessage)
+{
+	return MakeShared<FDynamicTextToken>(FPrivateToken(), InMessage);
+}
+
+TSharedRef<FImageToken> FImageToken::Create(const FName& InImageName)
+{
+	return MakeShared<FImageToken>(FPrivateToken(), InImageName);
+}
+
+TSharedRef<FSeverityToken> FSeverityToken::Create(EMessageSeverity::Type InSeverity)
+{
+	return MakeShared<FSeverityToken>(FPrivateToken(), InSeverity);
+}
+
+TSharedRef<FURLToken> FURLToken::Create(const FString& InURL, const FText& InMessage)
+{
+	return MakeShared<FURLToken>(FPrivateToken(), InURL, InMessage);
+}
+
 void FURLToken::VisitURL(const TSharedRef<IMessageToken>& Token, FString InURL)
 {	
 	FPlatformProcess::LaunchURL(*InURL, NULL, NULL);
 }
 
-FURLToken::FURLToken( const FString& InURL, const FText& InMessage )
+FURLToken::FURLToken(const FString& InURL, const FText& InMessage)
 {
 	URL = InURL;
 
@@ -177,7 +202,7 @@ void FAssetNameToken::FindAsset(const TSharedRef<IMessageToken>& Token, FString 
 
 TSharedRef<FAssetNameToken> FAssetNameToken::Create(const FString& InAssetName, const FText& InMessage)
 {
-	return MakeShareable(new FAssetNameToken(InAssetName, InMessage));
+	return MakeShared<FAssetNameToken>(FPrivateToken(), InAssetName, InMessage);
 }
 
 FAssetNameToken::FAssetNameToken(const FString& InAssetName, const FText& InMessage)
@@ -195,10 +220,10 @@ FAssetNameToken::FAssetNameToken(const FString& InAssetName, const FText& InMess
 	MessageTokenActivated = FOnMessageTokenActivated::CreateStatic(&FAssetNameToken::FindAsset, AssetName);
 }
 
-FDocumentationToken::FDocumentationToken( FString InDocumentationLink, FString InPreviewExcerptLink, FString InPreviewExcerptName )
-	: DocumentationLink(MoveTemp(InDocumentationLink))
-	, PreviewExcerptLink(MoveTemp(InPreviewExcerptLink))
-	, PreviewExcerptName(MoveTemp(InPreviewExcerptName))
+FDocumentationToken::FDocumentationToken(const FString& InDocumentationLink, const FString& InPreviewExcerptLink, const FString& InPreviewExcerptName)
+	: DocumentationLink(InDocumentationLink)
+	, PreviewExcerptLink(InPreviewExcerptLink)
+	, PreviewExcerptName(InPreviewExcerptName)
 {
 	if (!PreviewExcerptName.IsEmpty())
 	{
@@ -206,16 +231,26 @@ FDocumentationToken::FDocumentationToken( FString InDocumentationLink, FString I
 	}
 }
 
+TSharedRef<FActionToken> FActionToken::Create(const FText& ActionName, const FText& ActionDescription, const FOnActionTokenExecuted& Action, bool bInSingleUse)
+{
+	return MakeShared<FActionToken>(FPrivateToken(), ActionName, ActionDescription, Action, bInSingleUse);
+}
+
+TSharedRef<FTutorialToken> FTutorialToken::Create(const FString& TutorialAssetName)
+{
+	return MakeShared<FTutorialToken>(FPrivateToken(), TutorialAssetName);
+}
+
 TSharedRef<FDocumentationToken> FDocumentationToken::Create(const FString& InDocumentationLink, const FString& InPreviewExcerptLink, const FString& InPreviewExcerptName)
 {
-	return MakeShareable(new FDocumentationToken(InDocumentationLink, InPreviewExcerptLink, InPreviewExcerptName));
+	return MakeShared<FDocumentationToken>(FPrivateToken(), InDocumentationLink, InPreviewExcerptLink, InPreviewExcerptName);
 }
 
 FOnMessageTokenActivated FActorToken::DefaultMessageTokenActivated;
 
 TSharedRef<FActorToken> FActorToken::Create(const FString& InActorPath, const FGuid& InActorGuid, const FText& InMessage)
 {
-	return MakeShareable(new FActorToken(InActorPath, InActorGuid, InMessage));
+	return MakeShared<FActorToken>(FPrivateToken(), InActorPath, InActorGuid, InMessage);
 }
 
 FActorToken::FActorToken(const FString& InActorPath, const FGuid& InActorGuid, const FText& InMessage)
