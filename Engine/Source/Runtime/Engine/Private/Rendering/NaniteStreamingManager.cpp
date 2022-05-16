@@ -104,7 +104,7 @@ static FAutoConsoleVariableRef CVarNaniteStreamingMaxPageInstallsPerFrame(
 	ECVF_ReadOnly
 );
 
-static int32 GNaniteStreamingAsyncCompute = 0;	//TODO: Enabling this seems to cause readback errors and sometimes GPU crashes on some platforms. Investigate!
+static int32 GNaniteStreamingAsyncCompute = 1;
 static FAutoConsoleVariableRef CVarNaniteStreamingAsyncCompute(
 	TEXT("r.Nanite.Streaming.AsyncCompute"),
 	GNaniteStreamingAsyncCompute,
