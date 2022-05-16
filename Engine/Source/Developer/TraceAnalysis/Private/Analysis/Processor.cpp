@@ -33,6 +33,8 @@ FAnalysisProcessor::FImpl::~FImpl()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FAnalysisProcessor::FImpl::Run()
 {
+	LLM_SCOPE_BYNAME(TEXT("TraceAnalysis"));
+
 	AnalysisEngine.Begin();
 
 	FStreamBuffer Buffer(4 << 20);

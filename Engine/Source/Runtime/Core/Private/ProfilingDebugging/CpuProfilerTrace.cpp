@@ -115,6 +115,7 @@ thread_local uint32 FCpuProfilerTraceInternal::ThreadDepth = 0;
 
 FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThreadBuffer()
 {
+	LLM_SCOPE_BYNAME(TEXT("Trace/CpuProfiler"));
 	ThreadBuffer = new FThreadBuffer();
 	ThreadBuffer->Register();
 	return ThreadBuffer;
