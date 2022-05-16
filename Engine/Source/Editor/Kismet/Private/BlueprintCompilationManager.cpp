@@ -1002,7 +1002,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					
 					SkeletonToRelink->ClassConstructor = nullptr;
 					SkeletonToRelink->ClassVTableHelperCtorCaller = nullptr;
-					SkeletonToRelink->ClassAddReferencedObjects = nullptr;
+					SkeletonToRelink->CppClassStaticFunctions.Reset();
 					SkeletonToRelink->Bind();
 					SkeletonToRelink->ClearFunctionMapsCaches();
 					SkeletonToRelink->StaticLink(true);
@@ -1935,7 +1935,7 @@ void FBlueprintCompilationManagerImpl::ReparentHierarchies(const TMap<UClass*, U
 		{
 			ClassToReinstance->ClassConstructor = nullptr;
 			ClassToReinstance->ClassVTableHelperCtorCaller = nullptr;
-			ClassToReinstance->ClassAddReferencedObjects = nullptr;
+			ClassToReinstance->CppClassStaticFunctions.Reset();
 		
 			// check to see if we're a direct parent of one of the new classes:
 			UClass* const* NewParent = OldToNewClasses.Find(ClassToReinstance->GetSuperClass());

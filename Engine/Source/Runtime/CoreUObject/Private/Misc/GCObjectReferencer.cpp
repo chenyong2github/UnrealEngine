@@ -209,7 +209,7 @@ void UGCObjectReferencer::VerifyGCObjectNames()
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UGCObjectReferencer, UObject, 
 	{
-		Class->ClassAddReferencedObjects = &UGCObjectReferencer::AddReferencedObjects;
+		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UGCObjectReferencer);
 	}
 );
 

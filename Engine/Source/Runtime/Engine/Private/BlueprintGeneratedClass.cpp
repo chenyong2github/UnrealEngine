@@ -130,7 +130,7 @@ void UBlueprintGeneratedClass::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Default__BlueprintGeneratedClass uses its own AddReferencedObjects function.
-		ClassAddReferencedObjects = &UBlueprintGeneratedClass::AddReferencedObjects;
+		CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UBlueprintGeneratedClass);
 	}
 }
 
@@ -1742,7 +1742,7 @@ void UBlueprintGeneratedClass::Bind()
 
 	if (UsePersistentUberGraphFrame() && UberGraphFunction)
 	{
-		ClassAddReferencedObjects = &UBlueprintGeneratedClass::AddReferencedObjectsInUbergraphFrame;
+		CppClassStaticFunctions.SetAddReferencedObjects(&UBlueprintGeneratedClass::AddReferencedObjectsInUbergraphFrame);
 	}
 }
 

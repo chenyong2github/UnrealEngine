@@ -337,12 +337,13 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
 void FEdGraphPinType::DeclareCustomVersions(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 }
-
+#endif
 
 FEdGraphPinType FEdGraphPinType::GetPinTypeForTerminalType( const FEdGraphTerminalType& TerminalType )
 {
@@ -1782,13 +1783,15 @@ bool UEdGraphPin::Serialize(FArchive& Ar)
 	return true;
 }
 
-void UEdGraphPin::DeclareCustomVersions(FArchive& Ar)
+#if WITH_EDITORONLY_DATA
+void UEdGraphPin::DeclarePinCustomVersions(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	FEdGraphPinType::DeclareCustomVersions(Ar);
 }
+#endif
 
 void UEdGraphPin::ConvertConnectedGhostNodesToRealNodes(UEdGraphNode* InNode)
 {

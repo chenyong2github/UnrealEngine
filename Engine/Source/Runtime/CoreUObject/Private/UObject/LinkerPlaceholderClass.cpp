@@ -41,7 +41,7 @@ void ULinkerPlaceholderClass::Bind()
 	ClassVTableHelperCtorCaller = InternalVTableHelperCtorCaller<ULinkerPlaceholderClass>;
 	Super::Bind();
 
-	ClassAddReferencedObjects = &ULinkerPlaceholderClass::AddReferencedObjects;
+	CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(ULinkerPlaceholderClass);
 }
 
 

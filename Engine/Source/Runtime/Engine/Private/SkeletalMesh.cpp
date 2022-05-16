@@ -1962,14 +1962,14 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	}
 }
 
-void USkeletalMesh::DeclareCustomVersions(FArchive& Ar)
-{
-	Super::DeclareCustomVersions(Ar);
-	FSkeletalMaterial::DeclareCustomVersions(Ar);
 #if WITH_EDITORONLY_DATA
+void USkeletalMesh::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass)
+{
+	Super::DeclareCustomVersions(Ar, SpecificSubclass);
+	FSkeletalMaterial::DeclareCustomVersions(Ar);
 	FSkeletalMeshLODModel::DeclareCustomVersions(Ar);
-#endif
 }
+#endif
 
 void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
@@ -4460,11 +4460,13 @@ FArchive& operator<<(FArchive& Ar, FMeshUVChannelInfo& ChannelData)
 	return Ar;
 }
 
+#if WITH_EDITORONLY_DATA
 void FSkeletalMaterial::DeclareCustomVersions(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
 }
+#endif
 
 FArchive& operator<<(FArchive& Ar, FSkeletalMaterial& Elem)
 {

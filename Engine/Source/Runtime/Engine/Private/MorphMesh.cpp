@@ -36,12 +36,14 @@ void UMorphTarget::Serialize( FArchive& Ar )
 	}
 }
 
-void UMorphTarget::DeclareCustomVersions(FArchive& Ar)
+#if WITH_EDITORONLY_DATA
+void UMorphTarget::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass)
 {
-	Super::DeclareCustomVersions(Ar);
+	Super::DeclareCustomVersions(Ar, SpecificSubclass);
 	FMorphTargetLODModel MorphLODModel;
 	Ar << MorphLODModel;
 }
+#endif
 
 namespace
 {

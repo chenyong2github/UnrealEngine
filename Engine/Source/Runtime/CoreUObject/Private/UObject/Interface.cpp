@@ -6,7 +6,7 @@
 #if WITH_EDITOR
 IMPLEMENT_CORE_INTRINSIC_CLASS(UInterface, UObject,
 	{
-		Class->ClassAddReferencedObjects = &UInterface::AddReferencedObjects;
+		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UInterface);
 		Class->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
 		Class->SetMetaData(TEXT("CannotImplementInterfaceInBlueprint"), TEXT(""));
 	}
@@ -16,7 +16,7 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UInterface, UObject,
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UInterface, UObject,
 {
-	Class->ClassAddReferencedObjects = &UInterface::AddReferencedObjects;
+	Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UInterface);
 }
 );
 

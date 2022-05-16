@@ -778,7 +778,7 @@ private:
 TArray<FGuid> GetCustomVersions(UClass& Class)
 {
 	FCustomVersionCollectorArchive Ar;
-	Class.GetDefaultObject()->DeclareCustomVersions(Ar);
+	Class.CallDeclareCustomVersions(Ar);
 	// Default objects of blueprint classes are serialized during SavePackage with a special call to
 	// UBlueprintGeneratedClass::SerializeDefaultObject
 	// All packages that include a BlueprintGeneratedClass import the UClass BlueprintGeneratedClass

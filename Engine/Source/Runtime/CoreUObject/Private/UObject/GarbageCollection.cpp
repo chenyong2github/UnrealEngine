@@ -3244,20 +3244,20 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 		}
 
 		{
-			check(ClassAddReferencedObjects != NULL);
+			check(CppClassStaticFunctions.GetAddReferencedObjects() != nullptr);
 			const bool bKeepOuter = true;//GetFName() != NAME_Package;
 			const bool bKeepClass = true;//!HasAnyInternalFlags(EInternalObjectFlags::Native);
 
-			ClassAddReferencedObjectsType AddReferencedObjectsFn = nullptr;
+			FUObjectCppClassStaticFunctions::AddReferencedObjectsType AddReferencedObjectsFn = nullptr;
 #if !WITH_EDITOR
 			// In no-editor builds UObject::ARO is empty, thus only classes
 			// which implement their own ARO function need to have the ARO token generated.
-			if (ClassAddReferencedObjects != &UObject::AddReferencedObjects)
+			if (CppClassStaticFunctions.GetAddReferencedObjects() != &UObject::AddReferencedObjects)
 			{
-				AddReferencedObjectsFn = ClassAddReferencedObjects;
+				AddReferencedObjectsFn = CppClassStaticFunctions.GetAddReferencedObjects();
 			}
 #else
-			AddReferencedObjectsFn = ClassAddReferencedObjects;
+			AddReferencedObjectsFn = CppClassStaticFunctions.GetAddReferencedObjects();
 #endif
 			ReferenceTokenStream.Fixup(AddReferencedObjectsFn, bKeepOuter, bKeepClass);
 

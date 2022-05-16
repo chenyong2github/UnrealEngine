@@ -365,12 +365,14 @@ public:
 	 */
 	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Call Ar.UsingCustomVersion for every CustomVersion that might be serialized by this class when saving.
 	 * This duplicates CustomVersions declared in Serialize; Serialize still needs to declare them.
 	 * Used to track which customversions will be used by a package when it is resaved.
 	 * Not yet exhaustive; add CustomVersions as necessary to remove EditorDomain warnings about missing versions. */
-	virtual void DeclareCustomVersions(FArchive& Ar);
+	static void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
+#endif
 
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */
 	virtual void ShutdownAfterError() {}

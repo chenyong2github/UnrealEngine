@@ -1499,12 +1499,13 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 #endif
 }
 
-void UObject::DeclareCustomVersions(FArchive& Ar)
+#if WITH_EDITORONLY_DATA
+void UObject::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass)
 {
 	// DeclareCustomVersions is called on the default object for each class
 	// We first Serialize the object, which catches all the UsingCustomVersion statements
 	// class authors have added unconditionally in their Serialize function
-	Serialize(Ar);
+	SpecificSubclass->GetDefaultObject()->Serialize(Ar);
 
 	// To further catch CustomVersions used by non-native structs that are in an array or don't
 	// otherwise exist on the default object, Construct an instance of the struct and serialize
@@ -1512,12 +1513,11 @@ void UObject::DeclareCustomVersions(FArchive& Ar)
 	// Since structs can contain other structs, we do a tree search of the fields.
 	struct FStackData
 	{
-		UStruct* Struct;
+		const UStruct* Struct;
 		FProperty* NextProperty;
 	};
 	TArray<FStackData> StructStack;
-	UClass* Class = GetClass();
-	StructStack.Add(FStackData{ Class, Class->PropertyLink });
+	StructStack.Add(FStackData{ SpecificSubclass, SpecificSubclass->PropertyLink });
 	TArray<uint8> AllocationBuffer;
 	while (!StructStack.IsEmpty())
 	{
@@ -1572,6 +1572,7 @@ void UObject::DeclareCustomVersions(FArchive& Ar)
 		}
 	}
 }
+#endif
 
 void UObject::SerializeScriptProperties(FArchive& Ar) const
 {

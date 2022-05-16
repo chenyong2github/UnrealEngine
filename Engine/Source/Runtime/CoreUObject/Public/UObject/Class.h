@@ -2382,13 +2382,11 @@ public:
 
 	typedef void		(*ClassConstructorType)				(const FObjectInitializer&);
 	typedef UObject*	(*ClassVTableHelperCtorCallerType)	(FVTableHelper& Helper);
-	typedef void		(*ClassAddReferencedObjectsType)	(UObject*, class FReferenceCollector&);
 	typedef UClass* (*StaticClassFunctionType)();
 
 	ClassConstructorType ClassConstructor;
 	ClassVTableHelperCtorCallerType ClassVTableHelperCtorCaller;
-	/** Pointer to a static AddReferencedObjects method. */
-	ClassAddReferencedObjectsType ClassAddReferencedObjects;
+	FUObjectCppClassStaticFunctions CppClassStaticFunctions;
 
 	/** Class pseudo-unique counter; used to accelerate unique instance name generation */
 	mutable int32 ClassUnique;
@@ -2463,10 +2461,19 @@ public:
 	{
 		// The object must of this class type.
 		check(This->IsA(this)); 
-		// This is should always be set to something, at the very least to UObject::ARO
-		check(ClassAddReferencedObjects != nullptr);
-		ClassAddReferencedObjects(This, Collector);
+		// This should always be set to something, at the very least to UObject::ARO
+		check(CppClassStaticFunctions.GetAddReferencedObjects() != nullptr);
+		CppClassStaticFunctions.GetAddReferencedObjects()(This, Collector);
 	}
+
+#if WITH_EDITORONLY_DATA
+	/** Calls the c++ class's DeclareCustomVersions static function (from the nearest native parent if this is not native) */
+	void CallDeclareCustomVersions(FArchive& Ar) const
+	{
+		check(CppClassStaticFunctions.GetDeclareCustomVersions());
+		CppClassStaticFunctions.GetDeclareCustomVersions()(Ar, this);
+	}
+#endif
 
 	/** The class default object; used for delta serialization and object initialization */
 	UObject* ClassDefaultObject;
@@ -2555,7 +2562,7 @@ public:
 	UClass( EStaticConstructor, FName InName, uint32 InSize, uint32 InAlignment, EClassFlags InClassFlags, EClassCastFlags InClassCastFlags,
 		const TCHAR* InClassConfigName, EObjectFlags InFlags, ClassConstructorType InClassConstructor,
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-		ClassAddReferencedObjectsType InClassAddReferencedObjects);
+		FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions);
 
 #if WITH_RELOAD
 	/**
@@ -2575,7 +2582,7 @@ public:
 		const TCHAR*    InConfigName,
 		ClassConstructorType InClassConstructor,
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-		ClassAddReferencedObjectsType InClassAddReferencedObjects,
+		FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions,
 		class UClass* TClass_Super_StaticClass,
 		class UClass* TClass_WithinClass_StaticClass
 		);
@@ -3130,7 +3137,7 @@ public:
 	UDynamicClass(EStaticConstructor, FName InName, uint32 InSize, uint32 InAlignment, EClassFlags InClassFlags, EClassCastFlags InClassCastFlags,
 		const TCHAR* InClassConfigName, EObjectFlags InFlags, ClassConstructorType InClassConstructor,
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-		ClassAddReferencedObjectsType InClassAddReferencedObjects,
+		FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions,
 		DynamicClassInitializerType InDynamicClassInitializer)
 	{}
 
@@ -3204,7 +3211,7 @@ COREUOBJECT_API void InitializePrivateStaticClass(
  * @param InConfigName Class config name
  * @param InClassConstructor Class constructor function pointer
  * @param InClassVTableHelperCtorCaller Class constructor function for vtable pointer
- * @param InClassAddReferencedObjects Class AddReferencedObjects function pointer
+ * @param InCppClassStaticFunctions Function pointers for the class's version of Unreal's reflected static functions
  * @param InSuperClassFn Super class function pointer
  * @param WithinClass Within class
  */
@@ -3220,7 +3227,7 @@ COREUOBJECT_API void GetPrivateStaticClassBody(
 	const TCHAR* InConfigName,
 	UClass::ClassConstructorType InClassConstructor,
 	UClass::ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
+	FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions,
 	UClass::StaticClassFunctionType InSuperClassFn,
 	UClass::StaticClassFunctionType InWithinClassFn);
 

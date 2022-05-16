@@ -2159,7 +2159,7 @@ void UStruct::InstanceSubobjectTemplates( void* Data, void const* DefaultData, U
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UStruct, UField,
 	{
-		Class->ClassAddReferencedObjects = &UStruct::AddReferencedObjects;
+		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UStruct);
 		Class->EmitObjectReference(STRUCT_OFFSET(UStruct, SuperStruct), TEXT("SuperStruct"));
 		Class->EmitObjectReference(STRUCT_OFFSET(UStruct, Children), TEXT("Children"));
 
@@ -3665,10 +3665,9 @@ void UClass::PostInitProperties()
 	Super::PostInitProperties();
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (ClassAddReferencedObjects == NULL)
+		if (!CppClassStaticFunctions.IsInitialized())
 		{
-			// Default__Class uses its own AddReferencedObjects function.
-			ClassAddReferencedObjects = &UClass::AddReferencedObjects;
+			CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UClass);
 		}
 	}
 }
@@ -3774,8 +3773,8 @@ class FRestoreClassInfo: public FRestoreForUObjectOverwrite
 	UClass::ClassConstructorType Constructor;
 	/** Saved ClassVTableHelperCtorCaller **/
 	UClass::ClassVTableHelperCtorCallerType ClassVTableHelperCtorCaller;
-	/** Saved ClassConstructor **/
-	UClass::ClassAddReferencedObjectsType AddReferencedObjects;
+	/** Saved CppClassStaticFunctions **/
+	FUObjectCppClassStaticFunctions CppClassStaticFunctions;
 	/** Saved NativeFunctionLookupTable. */
 	TArray<FNativeFunctionLookup> NativeFunctionLookupTable;
 public:
@@ -3796,7 +3795,7 @@ public:
 		CastFlags(Save->ClassCastFlags),
 		Constructor(Save->ClassConstructor),
 		ClassVTableHelperCtorCaller(Save->ClassVTableHelperCtorCaller),
-		AddReferencedObjects(Save->ClassAddReferencedObjects),
+		CppClassStaticFunctions(Save->CppClassStaticFunctions),
 		NativeFunctionLookupTable(Save->NativeFunctionLookupTable)
 	{
 	}
@@ -3813,7 +3812,7 @@ public:
 		Target->ClassCastFlags |= CastFlags;
 		Target->ClassConstructor = Constructor;
 		Target->ClassVTableHelperCtorCaller = ClassVTableHelperCtorCaller;
-		Target->ClassAddReferencedObjects = AddReferencedObjects;
+		Target->CppClassStaticFunctions = CppClassStaticFunctions;
 		Target->NativeFunctionLookupTable = NativeFunctionLookupTable;
 	}
 };
@@ -4067,7 +4066,7 @@ void UClass::Bind()
 	}
 
 	UClass* SuperClass = GetSuperClass();
-	if (SuperClass && (ClassConstructor == nullptr || ClassAddReferencedObjects == nullptr
+	if (SuperClass && (ClassConstructor == nullptr || !CppClassStaticFunctions.IsInitialized()
 		|| ClassVTableHelperCtorCaller == nullptr
 		))
 	{
@@ -4081,9 +4080,9 @@ void UClass::Bind()
 		{
 			ClassVTableHelperCtorCaller = SuperClass->ClassVTableHelperCtorCaller;
 		}
-		if (!ClassAddReferencedObjects)
+		if (!CppClassStaticFunctions.IsInitialized())
 		{
-			ClassAddReferencedObjects = SuperClass->ClassAddReferencedObjects;
+			CppClassStaticFunctions = SuperClass->CppClassStaticFunctions;
 		}
 
 		// propagate flags.
@@ -5073,7 +5072,7 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	RefLink = nullptr;
 	PropertyLink = nullptr;
 	DestructorLink = nullptr;
-	ClassAddReferencedObjects = nullptr;
+	CppClassStaticFunctions.Reset();
 
 	ScriptAndPropertyObjectReferences.Empty();
 	DeleteUnresolvedScriptProperties();
@@ -5261,12 +5260,12 @@ UClass::UClass
 	EObjectFlags	InFlags,
 	ClassConstructorType InClassConstructor,
 	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	ClassAddReferencedObjectsType InClassAddReferencedObjects
+	FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions
 )
 :	UStruct					( EC_StaticConstructor, InSize, InAlignment, InFlags )
 ,	ClassConstructor		( InClassConstructor )
 ,	ClassVTableHelperCtorCaller(InClassVTableHelperCtorCaller)
-,	ClassAddReferencedObjects( InClassAddReferencedObjects )
+,	CppClassStaticFunctions(MoveTemp(InCppClassStaticFunctions))
 ,	ClassUnique				( 0 )
 ,	bCooked					( false )
 ,	bLayoutChanging			( false )
@@ -5439,7 +5438,7 @@ bool UClass::HotReloadPrivateStaticClass(
 	const TCHAR*    InConfigName,
 	ClassConstructorType InClassConstructor,
 	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	ClassAddReferencedObjectsType InClassAddReferencedObjects,
+	FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions,
 	class UClass* TClass_Super_StaticClass,
 	class UClass* TClass_WithinClass_StaticClass
 	)
@@ -5460,7 +5459,7 @@ bool UClass::HotReloadPrivateStaticClass(
 	ClassConstructorType OldClassConstructor = ClassConstructor;
 	ClassConstructor = InClassConstructor;
 	ClassVTableHelperCtorCaller = InClassVTableHelperCtorCaller;
-	ClassAddReferencedObjects = InClassAddReferencedObjects;
+	CppClassStaticFunctions = InCppClassStaticFunctions; // Not MoveTemp; it is used again below
 	/* No recursive ::StaticClass calls allowed. Setup extras. */
 	/* @todo safe? 
 	if (TClass_Super_StaticClass != this)
@@ -5527,7 +5526,7 @@ bool UClass::HotReloadPrivateStaticClass(
 				{
 					Class->ClassConstructor = ClassConstructor;
 					Class->ClassVTableHelperCtorCaller = ClassVTableHelperCtorCaller;
-					Class->ClassAddReferencedObjects = ClassAddReferencedObjects;
+					Class->CppClassStaticFunctions = InCppClassStaticFunctions; // Not MoveTemp; it is used in later loop iterations
 					CountClass++;
 				}
 			}
@@ -5852,7 +5851,7 @@ bool UClass::IsClassGroupName(const TCHAR* InGroupName) const
 #if WITH_EDITORONLY_DATA
 IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 	{
-		Class->ClassAddReferencedObjects = &UClass::AddReferencedObjects;
+		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UClass);
 
 		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
 		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
@@ -5863,7 +5862,7 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 #else
 IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 	{
-		Class->ClassAddReferencedObjects = &UClass::AddReferencedObjects;
+		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UClass);
 
 		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
 		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
@@ -5884,7 +5883,7 @@ void GetPrivateStaticClassBody(
 	const TCHAR* InConfigName,
 	UClass::ClassConstructorType InClassConstructor,
 	UClass::ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
+	FUObjectCppClassStaticFunctions&& InCppClassStaticFunctions,
 	UClass::StaticClassFunctionType InSuperClassFn,
 	UClass::StaticClassFunctionType InWithinClassFn
 	)
@@ -5905,7 +5904,7 @@ void GetPrivateStaticClassBody(
 					InConfigName,
 					InClassConstructor,
 					InClassVTableHelperCtorCaller,
-					InClassAddReferencedObjects,
+					FUObjectCppClassStaticFunctions(InCppClassStaticFunctions),
 					InSuperClassFn(),
 					InWithinClassFn()
 					))
@@ -5941,7 +5940,7 @@ void GetPrivateStaticClassBody(
 		EObjectFlags(RF_Public | RF_Standalone | RF_Transient | RF_MarkAsNative | RF_MarkAsRootSet),
 		InClassConstructor,
 		InClassVTableHelperCtorCaller,
-		InClassAddReferencedObjects
+		MoveTemp(InCppClassStaticFunctions)
 		);
 	check(ReturnClass);
 	
@@ -6591,7 +6590,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IMPLEMENT_CORE_INTRINSIC_CLASS(UDynamicClass, UClass,
 {
-	Class->ClassAddReferencedObjects = &UDynamicClass::AddReferencedObjects;
+	Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UDynamicClass);
 }
 );
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -442,7 +442,9 @@ public:
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void DeclareCustomVersions(FArchive& Ar) override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
+#endif
 	// End of UObject interface
 
 #if WITH_EDITOR

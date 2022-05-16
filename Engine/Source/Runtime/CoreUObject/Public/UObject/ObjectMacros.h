@@ -11,6 +11,7 @@
 #include "UObject/Script.h"
 
 class FObjectInitializer;
+class FReferenceCollector;
 struct FFrame;
 struct FClassReloadVersionInfo;
 
@@ -1838,6 +1839,109 @@ public: \
 #define DECLARE_WITHIN_UPACKAGE() \
 	DECLARE_WITHIN_INTERNAL( UPackage, true )
 
+#define UOBJECT_CPPCLASS_STATICFUNCTIONS_ALLCONFIGS(TClass) \
+	&TClass::AddReferencedObjects
+	/* UObjectCppClassStaticFunctions: Extend this macro with the address of your new static function, if it applies to all configs. */ \
+	/* Order must match the order in the FUObjectCppClassStaticFunctions constructor. */ \
+
+#if WITH_EDITORONLY_DATA
+	#define UOBJECT_CPPCLASS_STATICFUNCTIONS_WITHEDITORONLYDATA(TClass) \
+		, &TClass::DeclareCustomVersions
+		/* UObjectCppClassStaticFunctions: Extend this macro with the address of your new static function, if it is editor-only. */ \
+		/* Order must match the order in the FUObjectCppClassStaticFunctions constructor. */ \
+#else
+	#define UOBJECT_CPPCLASS_STATICFUNCTIONS_WITHEDITORONLYDATA(TClass)
+#endif
+
+/**
+ * A macro called from the IMPLEMENT_CLASS macro that allows the compiler to report to the UClass constructor
+ * the class-specific overrides of UnrealEngine's list of reflected UObject static functions.
+ */
+#define UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(TClass) \
+	FUObjectCppClassStaticFunctions \
+	( \
+		UOBJECT_CPPCLASS_STATICFUNCTIONS_ALLCONFIGS(TClass) \
+		UOBJECT_CPPCLASS_STATICFUNCTIONS_WITHEDITORONLYDATA(TClass) \
+	)
+
+/**
+ * Collection of the pointers to our specified list of static functions that are defined on a specific c++ class,
+ * for reference by the corresponding UClass. The pointers in this structure point to the class's version of that
+ * function, if it exists, or to the version on the nearest parent class where it does exist, similar to a virtual
+ * function table in c++.
+ */
+struct FUObjectCppClassStaticFunctions
+{
+public:
+	typedef void (*AddReferencedObjectsType)	(UObject* ThisObject, FReferenceCollector& Ar);
+#if WITH_EDITORONLY_DATA
+	typedef void (*DeclareCustomVersionsType)   (FArchive& Ar, const UClass* SpecificSubclass);
+#endif
+	// UObjectCppClassStaticFunctions: Extend this list of types with the type of your new static function.
+
+	FUObjectCppClassStaticFunctions(AddReferencedObjectsType InAddReferencedObjects
+#if WITH_EDITORONLY_DATA
+		, DeclareCustomVersionsType InDeclareCustomVersions
+#endif
+	)
+		: AddReferencedObjects(InAddReferencedObjects)
+#if WITH_EDITORONLY_DATA
+		, DeclareCustomVersions(InDeclareCustomVersions)
+#endif
+	{
+		// Null elements are not valid in this constructor
+		check(InAddReferencedObjects);
+#if WITH_EDITORONLY_DATA
+		check(InDeclareCustomVersions);
+#endif
+		// UObjectCppClassStaticFunctions: Extend the constructor with initializers for your new static function member.
+		// Order must match the order in UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS.
+	}
+public:
+	FUObjectCppClassStaticFunctions() = default;
+	bool IsInitialized() const
+	{
+		// All methods that set the functions in this class guarantee that if any function is non-null, they all are.
+		// So we only need to check the first one to know whether we are completely initialized.
+		return AddReferencedObjects != nullptr;
+	}
+	void Reset()
+	{
+		*this = FUObjectCppClassStaticFunctions();
+	}
+
+public:
+	AddReferencedObjectsType GetAddReferencedObjects() const
+	{
+		return AddReferencedObjects;
+	}
+	void SetAddReferencedObjects(AddReferencedObjectsType InAddReferencedObjects)
+	{
+		check(InAddReferencedObjects != nullptr); // It is not valid to clear single elements (see IsInitialized). Call Reset to clear all elements.
+		AddReferencedObjects = InAddReferencedObjects;
+	}
+#if WITH_EDITORONLY_DATA
+	DeclareCustomVersionsType GetDeclareCustomVersions() const
+	{
+		return DeclareCustomVersions;
+	}
+	void SetDeclareCustomVersions(DeclareCustomVersionsType InDeclareCustomVersions)
+	{
+		check(InDeclareCustomVersions != nullptr); // It is not valid to clear single elements (see IsInitialized). Call Reset to clear all elements.
+		DeclareCustomVersions = InDeclareCustomVersions;
+	}
+#endif
+	// UObjectCppClassStaticFunctions: Extend the list of accessors for your new static function.
+
+private:
+	AddReferencedObjectsType AddReferencedObjects = nullptr;
+#if WITH_EDITORONLY_DATA
+	DeclareCustomVersionsType DeclareCustomVersions = nullptr;
+#endif
+	// UObjectCppClassStaticFunctions: Extend this list of members with the member for your new static function.
+
+};
+
 // Implement the GetPrivateStaticClass and the registration info but do not auto register the class.  
 // This is primarily used by UnrealHeaderTool
 #define IMPLEMENT_CLASS_NO_AUTO_REGISTRATION(TClass) \
@@ -1859,7 +1963,7 @@ public: \
 				TClass::StaticConfigName(), \
 				(UClass::ClassConstructorType)InternalConstructor<TClass>, \
 				(UClass::ClassVTableHelperCtorCallerType)InternalVTableHelperCtorCaller<TClass>, \
-				&TClass::AddReferencedObjects, \
+				UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(TClass), \
 				&TClass::Super::StaticClass, \
 				&TClass::WithinClass::StaticClass \
 			); \

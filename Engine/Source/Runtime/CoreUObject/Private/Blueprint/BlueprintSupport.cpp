@@ -839,7 +839,7 @@ static PlaceholderType* MakeImportPlaceholder(UObject* Outer, const TCHAR* Targe
 	// in the FLinkerLoad's ImportPlaceholders map
 
 	// make sure the class is fully formed (has its 
-	// ClassAddReferencedObjects/ClassConstructor members set)
+	// CppClassStaticFunctions/ClassConstructor members set)
 	PlaceholderObj->Bind();
 	PlaceholderObj->StaticLink(/*bRelinkExistingProperties =*/true);
 
