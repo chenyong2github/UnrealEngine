@@ -13,6 +13,8 @@
 #include "SlateOptMacros.h"
 #include "LevelEditor.h"
 #include "TransformConstraint.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/Input/SButton.h"
 
 
 #define LOCTEXT_NAMESPACE "SConstraintsWidget"
@@ -27,13 +29,17 @@ TArray< SConstraintsCreationWidget::ItemSharedPtr > SConstraintsCreationWidget::
 	FDroppableConstraintItem::Make(ETransformConstraintType::LookAt)
 });
 
-TArray< const FSlateBrush* > FConstraintInfo::Brushes({
-	FAppStyle::Get().GetBrush("EditorViewport.TranslateMode"),
-	FAppStyle::Get().GetBrush("EditorViewport.RotateMode"),
-	FAppStyle::Get().GetBrush("EditorViewport.ScaleMode"),
-	FAppStyle::Get().GetBrush("Icons.Transform"),
-	FAppStyle::Get().GetBrush("Level.VisibleHighlightIcon16x")
-});
+const TArray< const FSlateBrush* >& FConstraintInfo::GetBrushes()
+{
+	static const TArray< const FSlateBrush* > Brushes({
+		FAppStyle::Get().GetBrush("EditorViewport.TranslateMode"),
+		FAppStyle::Get().GetBrush("EditorViewport.RotateMode"),
+		FAppStyle::Get().GetBrush("EditorViewport.ScaleMode"),
+		FAppStyle::Get().GetBrush("Icons.Transform"),
+		FAppStyle::Get().GetBrush("Level.VisibleHighlightIcon16x")
+		});
+	return Brushes;
+}
 
 TMap< UClass*, ETransformConstraintType > FConstraintInfo::ConstraintToType({
 	{UTickableTranslationConstraint::StaticClass(), ETransformConstraintType::Translation},
@@ -48,7 +54,7 @@ const FSlateBrush* FConstraintInfo::GetBrush(uint8 InType)
 	static const UEnum* ETransformConstraintTypeEnum = StaticEnum<ETransformConstraintType>();
 	if (ETransformConstraintTypeEnum->IsValidEnumValue(InType))
 	{
-		return Brushes[InType];
+		return GetBrushes()[InType];
 	}
 
 	return FAppStyle::Get().GetDefaultBrush();

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
 #include "Constraint.h"
 
 class AActor;
@@ -20,7 +21,7 @@ public:
 	static const FSlateBrush* GetBrush(uint8 InType);
 	static int8 GetType(UClass* InClass);
 private:
-	static TArray< const FSlateBrush* > Brushes;
+	static const TArray< const FSlateBrush* >& GetBrushes();
 	static TMap< UClass*, ETransformConstraintType > ConstraintToType;
 };
 
