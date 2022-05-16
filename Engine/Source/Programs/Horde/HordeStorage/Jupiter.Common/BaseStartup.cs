@@ -450,17 +450,23 @@ namespace Jupiter
         /// Port used to host the internally accessible api (as well as the public api).
         /// This hosts both public and private namespaces
         /// </summary>
-        public int InternalApiPort { get; set; } = 8080;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+
+        public List<int> InternalApiPorts { get; set; } = new List<int>() { 8080 };
 
         /// <summary>
         /// Port that hosts public and private namespaces
         /// </summary>
-        public int CorpApiPort { get; set; } = 8008;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+
+        public List<int> CorpApiPorts { get; set; } = new List<int>() { 8008 };
 
         /// <summary>
         /// Port that only hosts the public namespaces
         /// </summary>
-        public int PublicApiPort { get; set; } = 80;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+
+        public List<int> PublicApiPorts { get; set; } = new List<int>() { 80 };
 
         // Enable to echo every request to the log file, usually this is more efficiently done on the load balancer
         public bool UseRequestLogging { get; set; } = false;

@@ -15,7 +15,7 @@ namespace Jupiter.Implementation
 		{
 			IOptionsMonitor<JupiterSettings>? settings = context.HttpContext.RequestServices.GetService<IOptionsMonitor<JupiterSettings>>();
 
-			bool isInternalPort = context.HttpContext.Connection.LocalPort == settings!.CurrentValue.InternalApiPort || 
+			bool isInternalPort = settings!.CurrentValue.InternalApiPorts.Contains(context.HttpContext.Connection.LocalPort) || 
 				/* unit tests do not run on ports, we consider them always on the internal port */ (context.HttpContext.Connection.LocalPort == 0 && context.HttpContext.Connection.LocalIpAddress == null);
 			if (!isInternalPort)
 			{

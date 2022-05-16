@@ -46,7 +46,7 @@ public class RequestHelper
 
         // namespace is a restricted namespace
         HttpContext context = request.HttpContext;
-        bool isPublicPort = context.Connection.LocalPort == _settings!.CurrentValue.PublicApiPort ||
+        bool isPublicPort = _settings!.CurrentValue.PublicApiPorts.Contains(context.Connection.LocalPort) ||
             /* unit tests do not run on ports, we consider them always on the internal port */ !(context.Connection.LocalPort == 0 && context.Connection.LocalIpAddress == null);
             
         if (isPublicPort)
