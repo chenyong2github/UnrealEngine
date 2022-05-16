@@ -353,7 +353,7 @@ TArray<UNiagaraPythonModule*> UNiagaraPythonEmitter::GetModules() const
 
 bool UNiagaraPythonEmitter::HasModule(const FString& ModuleName) const
 {
-	return GetModule(ModuleName)->Object() != nullptr;
+	return GetModule(ModuleName)->GetObject() != nullptr;
 }
 
 UNiagaraPythonModule* UNiagaraPythonEmitter::GetModule(const FString& ModuleName) const
