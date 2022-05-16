@@ -511,7 +511,7 @@ void AWorldSettings::SaveDefaultWorldPartitionSettings()
 
 	if (WorldPartition)
 	{
-		DefaultWorldPartitionSettings.LoadedEditorGridRegions = WorldPartition->GetUserLoadedEditorGridRegions();		
+		DefaultWorldPartitionSettings.LoadedEditorRegions = WorldPartition->GetUserLoadedEditorRegions();
 
 		if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 		{

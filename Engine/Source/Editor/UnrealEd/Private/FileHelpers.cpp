@@ -754,7 +754,7 @@ static bool SaveWorld(UWorld* World,
 				// When creating a Partitioned Level for a Level Instance, the WorldPartition is not initialized, so no need to do this.
 				if (RenamedWorldPartition && RenamedWorldPartition->IsInitialized())
 				{
-					LoadedEditorRegions = RenamedWorldPartition->GetUserLoadedEditorGridRegions();
+					LoadedEditorRegions = RenamedWorldPartition->GetUserLoadedEditorRegions();
 					RenamedWorldPartition->LoadAllActors(ActorReferences);
 
 					if (bIsTempPackage)
@@ -900,7 +900,7 @@ static bool SaveWorld(UWorld* World,
 			if (RenamedWorldPartition)
 			{
 				// Save Snapshot of loaded Editor regions
-				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedRegions(SaveWorld, LoadedEditorRegions);
+				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorLoadedRegions(SaveWorld, LoadedEditorRegions);
 				RenamedWorldPartition->LoadLastLoadedRegions();
 			}
 		}

@@ -19,25 +19,46 @@ void UWorldPartitionEditorPerProjectUserSettings::SetWorldDataLayersNonDefaultEd
 	}
 }
 
-void UWorldPartitionEditorPerProjectUserSettings::SetEditorGridLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorGridLoadedRegions)
+void UWorldPartitionEditorPerProjectUserSettings::SetEditorLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorLoadedRegions)
 {
 	if (ShouldSaveSettings(InWorld))
 	{
 		FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
-		PerWorldSettings.LoadedEditorGridRegions = InEditorGridLoadedRegions;
+		PerWorldSettings.LoadedEditorRegions = InEditorLoadedRegions;
 		
 		SaveConfig();
 	}
 }
 
-TArray<FBox> UWorldPartitionEditorPerProjectUserSettings::GetEditorGridLoadedRegions(UWorld* InWorld) const
+TArray<FBox> UWorldPartitionEditorPerProjectUserSettings::GetEditorLoadedRegions(UWorld* InWorld) const
 {
 	if (const FWorldPartitionPerWorldSettings* PerWorldSettings = GetWorldPartitionPerWorldSettings(InWorld))
 	{
-		return PerWorldSettings->LoadedEditorGridRegions;
+		return PerWorldSettings->LoadedEditorRegions;
 	}
 
 	return TArray<FBox>();
+}
+
+void UWorldPartitionEditorPerProjectUserSettings::SetEditorLoadedLocationVolumes(UWorld* InWorld, const TArray<FName>& InEditorLoadedLocationVolumes)
+{
+	if (ShouldSaveSettings(InWorld))
+	{
+		FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
+		PerWorldSettings.LoadedEditorLocationVolumes = InEditorLoadedLocationVolumes;
+		
+		SaveConfig();
+	}
+}
+
+TArray<FName> UWorldPartitionEditorPerProjectUserSettings::GetEditorLoadedLocationVolumes(UWorld* InWorld) const
+{
+	if (const FWorldPartitionPerWorldSettings* PerWorldSettings = GetWorldPartitionPerWorldSettings(InWorld))
+	{
+		return PerWorldSettings->LoadedEditorLocationVolumes;
+	}
+
+	return TArray<FName>();
 }
 
 TArray<FName> UWorldPartitionEditorPerProjectUserSettings::GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const

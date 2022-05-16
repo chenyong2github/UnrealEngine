@@ -18,31 +18,27 @@ struct FWorldPartitionPerWorldSettings
 	FWorldPartitionPerWorldSettings()
 	{}
 
-	FWorldPartitionPerWorldSettings(TArray<FBox>& InLoadedEditorGridRegions)
-		: LoadedEditorGridRegions(InLoadedEditorGridRegions)
-	{}
-
 	void Reset()
 	{
-		LoadedEditorGridRegions.Empty();
+		LoadedEditorRegions.Empty();
+		LoadedEditorLocationVolumes.Empty();
 		NotLoadedDataLayers.Empty();
 		LoadedDataLayers.Empty();
-		EditorGridConfigHash = 0;
 	}
 #endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FBox> LoadedEditorGridRegions;
+	TArray<FBox> LoadedEditorRegions;
+
+	UPROPERTY()
+	TArray<FName> LoadedEditorLocationVolumes;
 
 	UPROPERTY()
 	TArray<FName> NotLoadedDataLayers;
 
 	UPROPERTY()
 	TArray<FName> LoadedDataLayers;
-
-	UPROPERTY()
-	uint32 EditorGridConfigHash = 0;
 #endif
 };
 
@@ -67,10 +63,11 @@ public:
 	{}
 
 #if WITH_EDITOR
-	void UpdateEditorGridConfigHash(UWorld* InWorld);
-	static void UpdateEditorGridConfigHash(UWorld* InWorld, FWorldPartitionPerWorldSettings& PerWorldSettings);
-	TArray<FBox> GetEditorGridLoadedRegions(UWorld* InWorld) const;
-	void SetEditorGridLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorGridLoadedRegions);
+	TArray<FBox> GetEditorLoadedRegions(UWorld* InWorld) const;
+	void SetEditorLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorLoadedRegions);
+
+	TArray<FName> GetEditorLoadedLocationVolumes(UWorld* InWorld) const;
+	void SetEditorLoadedLocationVolumes(UWorld* InWorld, const TArray<FName>& InEditorLoadedLocationVolumes);
 
 	bool GetEnableLoadingOfLastLoadedRegions() const
 	{

@@ -12,12 +12,25 @@ ALocationVolume::ALocationVolume(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITORONLY_DATA
 	bIsSpatiallyLoaded = false;
+	bIsAutoLoad = false;
 #endif
 
 #if WITH_EDITOR
 	if (!IsTemplate() && GetWorld() && GetWorld()->GetWorldPartition())
 	{
 		WorldPartitionActorLoader = new FLoaderAdapterActor(this);
+	}
+#endif
+}
+
+void ALocationVolume::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+#if WITH_EDITOR
+	if (WorldPartitionActorLoader && bIsAutoLoad)
+	{
+		WorldPartitionActorLoader->Load();
 	}
 #endif
 }

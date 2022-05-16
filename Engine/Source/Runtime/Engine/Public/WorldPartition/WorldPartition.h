@@ -96,7 +96,7 @@ public:
 	FWorldPartitionInitializeDelegate OnWorldPartitionUninitialized;
 
 #if WITH_EDITOR
-	TArray<FBox> GetUserLoadedEditorGridRegions() const;
+	TArray<FBox> GetUserLoadedEditorRegions() const;
 
 public:
 	bool SupportsStreaming() const;

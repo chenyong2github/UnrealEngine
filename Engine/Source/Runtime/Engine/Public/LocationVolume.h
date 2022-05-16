@@ -25,6 +25,7 @@ public:
 
 	//~ Begin AActor Interface
 	virtual bool IsEditorOnly() const override { return !bIsRuntime; }
+	virtual void PostRegisterAllComponents();
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual bool SupportsDataLayer() const override { return false; }
@@ -42,6 +43,11 @@ public:
 
 	UPROPERTY(EditAnywhere, Category=LocationVolume)
 	uint8 bIsRuntime : 1;
+
+#if WITH_EDITORONLY_DATA
+	/* To support per-user last loaded location volumes */
+	uint8 bIsAutoLoad : 1;
+#endif
 
 #if WITH_EDITOR
 private:

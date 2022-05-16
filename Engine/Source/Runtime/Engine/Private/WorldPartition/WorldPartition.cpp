@@ -32,6 +32,7 @@
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
+#include "LocationVolume.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
@@ -1154,13 +1155,13 @@ bool UWorldPartition::FinalizeGeneratorPackageForCook(const TArray<ICookPackageS
 	return false;
 }
 
-TArray<FBox> UWorldPartition::GetUserLoadedEditorGridRegions() const
+TArray<FBox> UWorldPartition::GetUserLoadedEditorRegions() const
 {
 	TArray<FBox> Result;
 
 	for (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter : RegisteredEditorLoaderAdapters)
 	{
-		if (LoaderAdapter->GetUserCreated())
+		if (LoaderAdapter->IsLoaded() && LoaderAdapter->GetUserCreated())
 		{
 			Result.Add(*LoaderAdapter->GetBoundingBox());
 		}
@@ -1173,7 +1174,25 @@ void UWorldPartition::SavePerUserSettings()
 {
 	if (GIsEditor && !World->IsGameWorld() && !IsRunningCommandlet() && !IsEngineExitRequested())
 	{
-		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedRegions(GetWorld(), GetUserLoadedEditorGridRegions());
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorLoadedRegions(GetWorld(), GetUserLoadedEditorRegions());
+
+		TArray<FName> EditorLoadedLocationVolumes;
+		for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+		{
+			if (ALocationVolume* LocationVolume = Cast<ALocationVolume>(ActorDescIterator->GetActor()))
+			{
+				check(LocationVolume->GetClass()->ImplementsInterface(UWorldPartitionActorLoaderInterface::StaticClass()));
+
+				IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(LocationVolume)->GetLoaderAdapter();
+				check(LoaderAdapter);
+
+				if (LoaderAdapter->IsLoaded() && LoaderAdapter->GetUserCreated())
+				{
+					EditorLoadedLocationVolumes.Add(LocationVolume->GetFName());
+				}
+			}
+		}
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorLoadedLocationVolumes(GetWorld(), EditorLoadedLocationVolumes);
 	}
 }
 
@@ -1293,13 +1312,23 @@ bool UWorldPartition::IsActorPinned(const FGuid& ActorGuid) const
 
 void UWorldPartition::LoadLastLoadedRegions()
 {
-	TArray<FBox> EditorGridLastLoadedRegions = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedRegions(World);
+	TArray<FBox> EditorLastLoadedRegions = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorLoadedRegions(World);
 
-	for (const FBox& EditorGridLastLoadedRegion : EditorGridLastLoadedRegions)
+	for (const FBox& EditorLastLoadedRegion : EditorLastLoadedRegions)
 	{
-		FLoaderAdapterShape* LoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, EditorGridLastLoadedRegion, TEXT("Last Loaded Region"));
+		FLoaderAdapterShape* LoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, EditorLastLoadedRegion, TEXT("Last Loaded Region"));
 		LoaderAdapter->SetUserCreated(true);
 		LoaderAdapter->Load();
+	}
+
+	TArray<FName> EditorLoadedLocationVolumes = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorLoadedLocationVolumes(World);
+
+	for (const FName& EditorLoadedLocationVolume : EditorLoadedLocationVolumes)
+	{
+		if (ALocationVolume* LocationVolume = FindObject<ALocationVolume>(World->PersistentLevel, *EditorLoadedLocationVolume.ToString()))
+		{
+			LocationVolume->bIsAutoLoad = true;
+		}
 	}
 }
 
