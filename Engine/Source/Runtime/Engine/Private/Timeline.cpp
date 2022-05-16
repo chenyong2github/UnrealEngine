@@ -948,12 +948,11 @@ void UTimelineComponent::SetDirectionPropertyName(FName DirectionPropertyName)
 	TheTimeline.SetDirectionPropertyName(DirectionPropertyName);
 }
 
-void UTimelineComponent::OnRep_Timeline()
+void UTimelineComponent::OnRep_Timeline(FTimeline& OldTimeline)
 {
-	if (!TheTimeline.IsPlaying())
+	if (!TheTimeline.IsPlaying() && OldTimeline.GetPlaybackPosition() != TheTimeline.GetPlaybackPosition())
 	{
 		// make sure a final update call occurs on the client for the final position
-		// FIXME: this is incomplete, we need to compare vs the last simulated position for firing events and such
 		TheTimeline.SetPlaybackPosition(TheTimeline.GetPlaybackPosition(), false, true);
 	}
 }

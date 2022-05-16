@@ -498,7 +498,7 @@ public:
 	ENGINE_API void SetLinearColorCurve(UCurveLinearColor* NewLinearColorCurve, FName LinearColorTrackName);
 
 	UFUNCTION()
-	void OnRep_Timeline();
+	void OnRep_Timeline(FTimeline& OldTimeline);
 
 	//~ Begin ActorComponent Interface.
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
