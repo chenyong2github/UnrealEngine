@@ -4,13 +4,16 @@
 
 #include "DNAReader.h"
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/AssetUserData.h"
-#include "Interfaces/Interface_AssetUserData.h"
+#include "BoneIndices.h"
 
 #include "DNAIndexMapping.generated.h"
+
+
+class IBehaviorReader;
+class USkeleton;
+class USkeletalMesh;
+
 
 struct FDNAIndexMapping
 {

@@ -2,10 +2,13 @@
 
 #include "DNAIndexMapping.h"
 
-#include "CoreMinimal.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "DNAReader.h"
 #include "Hasher.h"
+#include "Animation/Skeleton.h"
+#include "Animation/SmartName.h"
+#include "Components/SkeletalMeshComponent.h"
+
 
 static uint32 HashDNA(const IDefinitionReader* Reader)
 {
