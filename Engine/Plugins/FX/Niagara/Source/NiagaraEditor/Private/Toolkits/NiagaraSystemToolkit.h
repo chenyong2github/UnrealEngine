@@ -103,7 +103,7 @@ public:
 
 	TSharedPtr<SWidget> GetSystemOverview() const;
 	void SetSystemOverview(const TSharedPtr<SWidget>& SystemOverview);
-	TSharedPtr<SWidget> GetScriptScratchpad() const;
+	TSharedPtr<SWidget> GetScriptScratchpadManager() const;
 	void SetScriptScratchpad(const TSharedPtr<SWidget>& ScriptScratchpad);
 	TSharedPtr<SWidget> GetVersioningWidget() const { return VersionsWidget; }
 	FText GetVersionButtonLabel() const;
@@ -113,6 +113,8 @@ public:
 	bool IsVersionSelected(FNiagaraAssetVersion Version) const;
 	FText GetVersionMenuLabel(FNiagaraAssetVersion Version) const;
 
+	void SetScriptScratchpadManager(const TSharedPtr<SWidget>& ScriptScratchpad);
+	
 	/** Mode exposed functions */
 	TSharedRef<SWidget> GenerateCompileMenuContent();
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
@@ -123,6 +125,8 @@ public:
 	bool HasSystem() const { return SystemToolkitMode == ESystemToolkitMode::System && System != nullptr; }
 
 	const TArray<UObject*>& GetObjectsBeingEdited() const;
+
+	
 public:
 	FRefreshItemSelectorDelegate RefreshItemSelector;
 
@@ -253,8 +257,8 @@ private:
 	bool bScratchPadChangesDiscarded;
 
 	TSharedPtr<SWidget> SystemOverview;
-	TSharedPtr<SWidget> ScriptScratchpad;
 	TSharedPtr<SWidget> VersionsWidget;
+	TSharedPtr<SWidget> ScriptScratchpadManager;
 	
 	static IConsoleVariable* VmStatEnabledVar;
 

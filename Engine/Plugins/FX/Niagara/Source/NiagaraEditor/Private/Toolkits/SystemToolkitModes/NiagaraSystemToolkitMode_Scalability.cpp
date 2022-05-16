@@ -259,7 +259,7 @@ TSharedRef<FTabManager::FLayout> FNiagaraSystemToolkitMode_Scalability::ChooseTa
 {
 	if(SystemToolkit.Pin()->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		return FTabManager::NewLayout("Standalone_Niagara_System_Layout_Scalability_v29")
+		return FTabManager::NewLayout("Standalone_Niagara_System_Layout_Scalability_v30")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -294,7 +294,6 @@ TSharedRef<FTabManager::FLayout> FNiagaraSystemToolkitMode_Scalability::ChooseTa
 								FTabManager::NewStack()
 								->SetSizeCoefficient(0.8f)
 								->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
-								->AddTab(ScratchPadTabID, ETabState::OpenedTab)
 								->SetForegroundTab(SystemOverviewTabID)
 							)
 						)
@@ -370,7 +369,6 @@ TSharedRef<FTabManager::FLayout> FNiagaraSystemToolkitMode_Scalability::ChooseTa
 						(							
 							FTabManager::NewStack()
 							->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
-							->AddTab(ScratchPadTabID, ETabState::OpenedTab)
 							->SetForegroundTab(SystemOverviewTabID)							
 						)
 					)

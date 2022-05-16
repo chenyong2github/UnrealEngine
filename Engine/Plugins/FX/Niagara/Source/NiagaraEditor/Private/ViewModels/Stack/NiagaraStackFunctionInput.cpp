@@ -50,6 +50,7 @@
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
@@ -2630,6 +2631,24 @@ TOptional<FNiagaraVariableMetaData> UNiagaraStackFunctionInput::GetMetadata() co
 TOptional<FGuid> UNiagaraStackFunctionInput::GetMetadataGuid() const
 {
 	return InputMetaData.IsSet() ? InputMetaData->GetVariableGuid() : TOptional<FGuid>();
+}
+
+
+const UNiagaraStackFunctionInput::FCollectedUsageData& UNiagaraStackFunctionInput::GetCollectedUsageData() const
+{
+	if (CachedCollectedUsageData.IsSet() == false)
+	{
+		CachedCollectedUsageData = FCollectedUsageData();
+		TSharedRef<FNiagaraSystemViewModel> SystemVM = GetSystemViewModel();
+		INiagaraParameterPanelViewModel* ParamVM = SystemVM->GetParameterPanelViewModel();
+		if (ParamVM)
+		{
+			FNiagaraVariableBase Var(InputType, AliasedInputParameterHandle.GetParameterHandleString());
+			CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = ParamVM->IsVariableSelected(Var);
+		}
+	}
+
+	return CachedCollectedUsageData.GetValue();
 }
 
 void UNiagaraStackFunctionInput::OnGraphChanged(const struct FEdGraphEditAction& InAction)

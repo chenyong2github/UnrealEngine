@@ -6,6 +6,9 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraScriptSource.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
@@ -30,6 +33,27 @@ void UNiagaraStackModuleItemOutput::Initialize(FRequiredEntryData InRequiredEntr
 FText UNiagaraStackModuleItemOutput::GetDisplayName() const
 {
 	return DisplayName;
+}
+
+const UNiagaraStackModuleItemOutput::FCollectedUsageData& UNiagaraStackModuleItemOutput::GetCollectedUsageData() const
+{
+	if (CachedCollectedUsageData.IsSet() == false)
+	{
+		CachedCollectedUsageData = FCollectedUsageData();
+		TSharedRef<FNiagaraSystemViewModel> SystemVM = GetSystemViewModel();
+		INiagaraParameterPanelViewModel* ParamVM = SystemVM->GetParameterPanelViewModel();
+		if (ParamVM)
+		{
+			FNiagaraVariableBase Var(OutputType, OutputParameterHandle.GetParameterHandleString());
+			bool bHandled = ParamVM->IsVariableSelected(Var);
+			if (GetOuter() && GetOuter()->IsA<UNiagaraStackModuleItemOutputCollection>())
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = bHandled;
+			else
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = bHandled;
+		}
+	}
+
+	return CachedCollectedUsageData.GetValue();
 }
 
 FText UNiagaraStackModuleItemOutput::GetTooltipText() const

@@ -39,6 +39,7 @@ void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagar
 
 	GraphTitle = InArgs._GraphTitle;
 	SetForegroundColor(InArgs._ForegroundColor);
+	bShowHeader = InArgs._ShowHeader;
 
 	GraphEditor = ConstructGraphEditor();
 	if (InArgs._ZoomToFitOnLoad)
@@ -112,6 +113,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 					.Text(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetDisplayName)
 					.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 					.Justification(ETextJustify::Center)
+					.Visibility(bShowHeader ? EVisibility::Visible : EVisibility::Collapsed)
 				]
 			]
 			// Search Box

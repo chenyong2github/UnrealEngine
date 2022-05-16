@@ -792,6 +792,10 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	{
 		return CanDropParameterOnTarget(TargetEntry, DropRequest);
 	}
+	else if (DropRequest.DragDropOperation->IsOfType<FNiagaraScriptDragOperation>())
+	{
+		return CanDropScriptsOnTarget(TargetEntry, DropRequest);
+	}
 	return TOptional<FDropRequestResponse>();
 }
 
@@ -978,6 +982,53 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	return FDropRequestResponse(TargetDropZone, DropMessage);
 }
 
+
+TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup::CanDropScriptsOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest)
+{
+	TSharedRef<const FNiagaraScriptDragOperation> DragDropOp = StaticCastSharedRef<const FNiagaraScriptDragOperation>(DropRequest.DragDropOperation);
+	const UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptUsage"), true);
+
+	if (&TargetEntry != this && TargetEntry.IsA<UNiagaraStackModuleItem>() == false)
+	{
+		// Only handle drops onto this script group, or child drop requests from module items.
+		return TOptional<FDropRequestResponse>();
+	}
+	if (DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview)
+	{
+		// Only allow dropping in the overview stacks.
+		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("AssetCantDropOnStack", "Scripts can only be dropped into the overview."));
+	}
+	UNiagaraScript* Script = DragDropOp->Script.Get();
+	if (Script)
+	{
+		ENiagaraScriptUsage ScriptscriptUsage = Script->Usage;
+		if (ScriptscriptUsage != ENiagaraScriptUsage::Module)
+		{
+			return FDropRequestResponse(TOptional<EItemDropZone>(), FText::Format(LOCTEXT("CantDropNonModuleAssetFormat", "Can not drop asset {0} here because it is not a module script."), DragDropOp->FriendlyName));
+		}
+
+		int32 BitfieldValue = Script->GetScriptData(DragDropOp->Version)->ModuleUsageBitmask;;
+		TArray<ENiagaraScriptUsage> SupportedUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(BitfieldValue);
+		if (SupportedUsages.Contains(GetScriptUsage()) == false)
+		{
+			return FDropRequestResponse(TOptional<EItemDropZone>(), FText::Format(LOCTEXT("CantDropAssetByUsageFormat", "Can not drop asset {0} in this part of the stack\nbecause it's not valid for this usage context."), DragDropOp->FriendlyName));
+		}
+	}
+
+	TOptional<EItemDropZone> TargetDropZone = GetTargetDropZoneForTargetEntry(this, TargetEntry, DropRequest.DropZone);
+	if (TargetDropZone.IsSet() == false)
+	{
+		return TOptional<FDropRequestResponse>();
+	}
+
+	FText DropMessage;
+	if (Script)
+	{
+		DropMessage = LOCTEXT("DropAsset", "Insert a module for this asset here.");
+	}
+	return FDropRequestResponse(TargetDropZone, DropMessage);
+}
+
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup::CanDropParameterOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest)
 {
 	TSharedRef<const FNiagaraParameterDragOperation> ParameterDragDropOp = StaticCastSharedRef<const FNiagaraParameterDragOperation>(DropRequest.DragDropOperation);
@@ -1029,6 +1080,10 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	else if (DropRequest.DragDropOperation->IsOfType<FNiagaraParameterDragOperation>())
 	{
 		return DropParameterOnTarget(TargetEntry, DropRequest);
+	}
+	else if (DropRequest.DragDropOperation->IsOfType<FNiagaraScriptDragOperation>())
+	{
+		return DropScriptsOnTarget(TargetEntry, DropRequest);
 	}
 	return TOptional<FDropRequestResponse>();
 }
@@ -1107,6 +1162,22 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 		TSharedRef<FScriptGroupAddAction> AddAction = FScriptGroupAddAction::CreateAssetModuleAction(AssetData);
 		AddUtilities->ExecuteAddAction(AddAction, TargetIndex);
 		TargetIndex++;
+	}
+	return FDropRequestResponse(DropRequest.DropZone);
+}
+
+
+TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup::DropScriptsOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest)
+{
+	TSharedRef<const FNiagaraScriptDragOperation> DragDropOp = StaticCastSharedRef<const FNiagaraScriptDragOperation>(DropRequest.DragDropOperation);
+
+	int32 TargetIndex = GetTargetIndexForTargetEntry(this, TargetEntry, DropRequest.DropZone);
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("DragAndDropScript", "Insert modules for scripts"));
+	if (UNiagaraScript* Script = DragDropOp->Script.Get())
+	{
+		TSharedRef<FScriptGroupAddAction> AddAction = FScriptGroupAddAction::CreateModuleActionFromScratchPadScript(Script);
+		AddUtilities->ExecuteAddAction(AddAction, TargetIndex);
 	}
 	return FDropRequestResponse(DropRequest.DropZone);
 }

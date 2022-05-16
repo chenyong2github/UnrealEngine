@@ -50,6 +50,7 @@ private:
 	void InitOutlinerStyle();
 	void InitScalabilityColors();
 	void InitScalabilityIcons();
+	void InitScratchStyle();
 
 	static TSharedPtr<FNiagaraEditorStyle> NiagaraEditorStyle;
 };

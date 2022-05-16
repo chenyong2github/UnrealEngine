@@ -231,6 +231,11 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	Set("NiagaraEditor.Scalability.EffectType.CullReaction",  new IMAGE_BRUSH_SVG("Icons/Scalability/CullReaction_20", Icon20x20));
 	Set("NiagaraEditor.Scalability.EffectType.SignificanceHandler",  new IMAGE_BRUSH_SVG("Icons/Scalability/SignificanceHandler_20", Icon20x20));
 
+
+	Set("NiagaraEditor.Stack.ReadIcon", new IMAGE_BRUSH_SVG("Icons/Read_Icon", Icon16x16));
+	Set("NiagaraEditor.Stack.ReadWriteIcon", new IMAGE_BRUSH_SVG("Icons/Read_Write_Icon", Icon16x16));
+	Set("NiagaraEditor.Stack.WriteIcon", new IMAGE_BRUSH_SVG("Icons/Write_Icon", Icon16x16));
+
 	FTextBlockStyle EffectTypeScalabilityPropertyTextStyle = FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Regular", 8))
 		.SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 1.f));

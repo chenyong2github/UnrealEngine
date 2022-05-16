@@ -32,6 +32,8 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ End FGCObject
 
+	TArray<UNiagaraGraph*> GetEditableGraphs();
+
 	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
 protected:
 	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override { return &EditScript; };

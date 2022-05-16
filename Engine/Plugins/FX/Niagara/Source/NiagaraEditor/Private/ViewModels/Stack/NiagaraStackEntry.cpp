@@ -567,6 +567,17 @@ bool UNiagaraStackEntry::HasIssuesOrAnyChildHasIssues() const
 	return GetCollectedIssueData().HasAnyIssues();
 }
 
+bool UNiagaraStackEntry::HasUsagesOrAnyChildHasUsages() const
+{
+	return GetCollectedUsageData().bHasReferencedParameterRead || GetCollectedUsageData().bHasReferencedParameterWrite;
+}
+
+void UNiagaraStackEntry::GetRecursiveUsages(bool& bRead, bool& bWrite) const
+{
+	bRead = GetCollectedUsageData().bHasReferencedParameterRead;
+	bWrite = GetCollectedUsageData().bHasReferencedParameterWrite;
+}
+
 int32 UNiagaraStackEntry::GetTotalNumberOfCustomNotes() const
 {
 	return GetCollectedIssueData().TotalNumberOfCustomNotes;
@@ -858,6 +869,7 @@ void UNiagaraStackEntry::InvalidateFilteredChildren()
 {
 	FilteredChildren.Empty();
 	CachedCollectedIssueData.Reset();
+	CachedCollectedUsageData.Reset();
 	bFilterChildrenPending = true;
 }
 
@@ -907,6 +919,42 @@ const UNiagaraStackEntry::FCollectedIssueData& UNiagaraStackEntry::GetCollectedI
 	}
 
 	return CachedCollectedIssueData.GetValue();
+}
+
+
+const UNiagaraStackEntry::FCollectedUsageData& UNiagaraStackEntry::GetCollectedUsageData() const
+{
+	if (CachedCollectedUsageData.IsSet() == false)
+	{
+		CachedCollectedUsageData = FCollectedUsageData();
+
+		TArray<UNiagaraStackEntry*> RefreshedChildren;
+		GetUnfilteredChildren(RefreshedChildren);
+
+		for (UNiagaraStackEntry* ChildStackEntry : RefreshedChildren)
+		{
+			if (ChildStackEntry->GetCollectedUsageData().bHasReferencedParameterRead)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;
+			if (ChildStackEntry->GetCollectedUsageData().bHasReferencedParameterWrite)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = true;
+
+		}
+	}
+
+	return CachedCollectedUsageData.GetValue();
+}
+
+void UNiagaraStackEntry::InvalidateCollectedUsage()
+{
+	// Make sure to use the unfiltered children instead of filtered as the info we need is only found in certain, usually filtered children.
+	CachedCollectedUsageData.Reset();
+	TArray<UNiagaraStackEntry*> RefreshedFilteredChildren;
+	GetUnfilteredChildren(RefreshedFilteredChildren);
+
+	for (UNiagaraStackEntry* ChildStackEntry : RefreshedFilteredChildren)
+	{
+		ChildStackEntry->InvalidateCollectedUsage();
+	}
 }
 
 void UNiagaraStackEntry::BeginDestroy()

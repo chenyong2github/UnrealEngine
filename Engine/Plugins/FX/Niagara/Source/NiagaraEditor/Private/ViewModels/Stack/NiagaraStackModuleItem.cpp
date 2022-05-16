@@ -92,6 +92,8 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 	});
 }
 
+
+
 FText UNiagaraStackModuleItem::GetDisplayName() const
 {
 	if (DisplayNameCache.IsSet() == false)
@@ -212,6 +214,42 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 	RefreshIsEnabled();
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 	RefreshIssues(NewIssues);
+}
+
+
+const UNiagaraStackModuleItem::FCollectedUsageData& UNiagaraStackModuleItem::GetCollectedUsageData() const
+{
+	if (CachedCollectedUsageData.IsSet() == false)
+	{
+		CachedCollectedUsageData = FCollectedUsageData();
+		if (!LinkedInputCollection.IsNull())
+		{
+			if (LinkedInputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;
+			if (LinkedInputCollection->GetCollectedUsageData().bHasReferencedParameterWrite)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = true;
+		}
+
+
+		if (!InputCollection.IsNull())
+		{
+			if (InputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;
+			if (InputCollection->GetCollectedUsageData().bHasReferencedParameterWrite)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = true;
+		}
+
+		if (!OutputCollection.IsNull())
+		{
+			if (OutputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;
+			if (OutputCollection->GetCollectedUsageData().bHasReferencedParameterWrite)
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = true;
+		}
+		
+	}
+
+	return CachedCollectedUsageData.GetValue();
 }
 
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::CanDropInternal(const FDropRequest& DropRequest)

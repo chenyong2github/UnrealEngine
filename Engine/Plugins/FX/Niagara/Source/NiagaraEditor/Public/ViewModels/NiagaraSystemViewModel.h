@@ -18,6 +18,7 @@
 #include "NiagaraSystemScalabilityViewModel.h"
 #include "UObject/ObjectKey.h"
 
+
 class UNiagaraSystem;
 class UNiagaraComponent;
 class UNiagaraSequence;
@@ -44,10 +45,12 @@ class UNiagaraScratchPadViewModel;
 class UNiagaraCurveSelectionViewModel;
 class UNiagaraMessageData;
 class UNiagaraEditorParametersAdapter;
+class UNiagaraSystemEditorDocumentsViewModel;
 
 class INiagaraParameterDefinitionsSubscriber;
 
 class FNiagaraPlaceholderDataInterfaceManager;
+class INiagaraParameterPanelViewModel;
 
 /** Defines different editing modes for this system view model. */
 enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
@@ -410,6 +413,13 @@ public:
 	/** Gets whether or not this view model is for data processing only and will not be displayed in the UI. */
 	bool GetIsForDataProcessingOnly() const;
 
+	INiagaraParameterPanelViewModel* GetParameterPanelViewModel() const {
+		return ParameterPanelViewModel.Pin().Get();
+	}
+	void SetParameterPanelViewModel(TSharedPtr<INiagaraParameterPanelViewModel> InVM) { ParameterPanelViewModel = InVM; }
+
+	UNiagaraSystemEditorDocumentsViewModel* GetDocumentViewModel() { return EditorDocumentsViewModel;};
+
 private:
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
 	void SendLastCompileMessageJobs() const;
@@ -662,6 +672,8 @@ private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> OverviewGraphViewModel;
 
 	UNiagaraStackViewModel* SystemStackViewModel;
+	
+	UNiagaraSystemEditorDocumentsViewModel* EditorDocumentsViewModel;
 
 	UNiagaraSystemSelectionViewModel* SelectionViewModel;
 
@@ -670,6 +682,8 @@ private:
 	UNiagaraCurveSelectionViewModel* CurveSelectionViewModel;
 
 	UNiagaraSystemScalabilityViewModel* ScalabilityViewModel;
+
+	TWeakPtr<INiagaraParameterPanelViewModel> ParameterPanelViewModel;
 
 	TSharedPtr<FNiagaraPlaceholderDataInterfaceManager> PlaceholderDataInterfaceManager;
 

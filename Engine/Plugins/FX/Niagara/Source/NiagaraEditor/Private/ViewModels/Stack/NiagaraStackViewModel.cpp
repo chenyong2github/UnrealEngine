@@ -235,6 +235,13 @@ bool UNiagaraStackViewModel::HasIssues() const
 	return bHasIssues;
 }
 
+void UNiagaraStackViewModel::InvalidateCachedParameterUsage()
+{
+	if (RootEntry)
+		RootEntry->InvalidateCollectedUsage();
+
+}
+
 void UNiagaraStackViewModel::Finalize()
 {
 	Reset();

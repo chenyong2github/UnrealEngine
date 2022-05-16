@@ -5,17 +5,24 @@
 #include "NiagaraBakerViewModel.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "GraphEditAction.h"
+class FDocumentTracker;
 
 class FNiagaraSystemToolkit;
+class FNiagaraObjectSelection;
 
 class FNiagaraSystemToolkitModeBase : public FApplicationMode
 {
 public:
-	FNiagaraSystemToolkitModeBase(FName InModeName, TWeakPtr<FNiagaraSystemToolkit> InSystemToolkit) : FApplicationMode(InModeName), SystemToolkit(InSystemToolkit)
-	{ }
+	FNiagaraSystemToolkitModeBase(FName InModeName, TWeakPtr<FNiagaraSystemToolkit> InSystemToolkit);
+	~FNiagaraSystemToolkitModeBase();
 	
 	virtual void RegisterTabFactories(TSharedPtr<FTabManager> InTabManager) override;
 
+	int GetActiveSelectionDetailsIndex() const;
+
+	virtual void OnActiveDocumentChanged(TSharedPtr<class SDockTab> NewActiveTab);
+	virtual void OnSystemSelectionChanged();
 private:
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_CurveEd(const FSpawnTabArgs& Args);
@@ -30,13 +37,30 @@ private:
 	TSharedRef<SDockTab> SpawnTab_GeneratedCode(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_MessageLog(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemOverview(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_ScratchPad(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_ScratchPadScripts(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ScriptStats(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Baker(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Versioning(const FSpawnTabArgs& Args);
 
 protected:
 	TWeakPtr<FNiagaraSystemToolkit> SystemToolkit;
+	FDelegateHandle DocChangedHandle;
+	FDelegateHandle LastSelectionUpdateDelegate;
+	FDelegateHandle LastParamPanelSelectionUpdateDelegate;
+	FDelegateHandle LastSystemSelectionUpdateDelegate;
+	FDelegateHandle LastGraphEditDelegate;
+	int32 SwitcherIdx;
+	TSharedPtr<FNiagaraObjectSelection> ObjectSelection;
+	FText ObjectSelectionSubHeaderText;
+
+	EVisibility GetObjectSelectionSubHeaderTextVisibility() const;
+	FText GetObjectSelectionSubHeaderText() const;
+	EVisibility GetObjectSelectionNoSelectionTextVisibility() const;
+	void UpdateSelectionForActiveDocument();
+	void OnParameterPanelViewModelExternalSelectionChanged();
+	void OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction);
+
+	TWeakPtr< class FNiagaraScratchPadScriptViewModel > LastActiveDocumentModel;
 
 public:
 	static const FName ViewportTabID;
@@ -53,7 +77,7 @@ public:
 	static const FName GeneratedCodeTabID;
 	static const FName MessageLogTabID;
 	static const FName SystemOverviewTabID;
-	static const FName ScratchPadTabID;
+	static const FName ScratchPadScriptsTabID;
 	static const FName ScriptStatsTabID;
 	static const FName BakerTabID;
 	static const FName VersioningTabID;

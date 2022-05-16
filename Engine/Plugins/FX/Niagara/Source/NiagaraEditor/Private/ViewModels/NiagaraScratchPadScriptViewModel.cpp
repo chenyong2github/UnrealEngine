@@ -12,6 +12,7 @@
 #include "NiagaraObjectSelection.h"
 #include "NiagaraParameterDefinitions.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 
 #include "ScopedTransaction.h"
 #include "Framework/Commands/UICommandList.h"
@@ -87,6 +88,16 @@ UNiagaraScript* FNiagaraScratchPadScriptViewModel::GetOriginalScript() const
 const FVersionedNiagaraScript& FNiagaraScratchPadScriptViewModel::GetEditScript() const
 {
 	return EditScript;
+}
+
+TArray<UNiagaraGraph*> FNiagaraScratchPadScriptViewModel::GetEditableGraphs() 
+{
+	TArray<UNiagaraGraph*> EditableGraphs;
+	if (UNiagaraGraph* Graph = GetGraphViewModel()->GetGraph())
+	{
+		EditableGraphs.Add(Graph);
+	}
+	return EditableGraphs;
 }
 
 TSharedPtr<INiagaraParameterPanelViewModel> FNiagaraScratchPadScriptViewModel::GetParameterPanelViewModel() const

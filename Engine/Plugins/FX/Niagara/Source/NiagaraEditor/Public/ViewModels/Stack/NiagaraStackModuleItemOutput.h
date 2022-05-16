@@ -38,6 +38,8 @@ public:
 	/** Gets the assigned parameter handle as displayable text. */
 	FText GetOutputParameterHandleText() const;
 
+	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+
 private:
 	/** The function call node which represents the emitter which owns this Output */
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> FunctionCallNode;

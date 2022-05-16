@@ -16,7 +16,7 @@
 
 FNiagaraSystemToolkitMode_Default::FNiagaraSystemToolkitMode_Default(TWeakPtr<FNiagaraSystemToolkit> InSystemToolkit) : FNiagaraSystemToolkitModeBase(FNiagaraSystemToolkit::DefaultModeName, InSystemToolkit)
 {
-	TabLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v24")
+	TabLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v27")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -25,52 +25,50 @@ FNiagaraSystemToolkitMode_Default::FNiagaraSystemToolkitMode_Default(TWeakPtr<FN
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
 				->Split
 				(
-					// Top Level Left
 					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(.75f)
-					->Split
-					(
-						// Inner Left Top
-						FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
-						->SetSizeCoefficient(0.75f)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(.25f)
-							->AddTab(ViewportTabID, ETabState::OpenedTab)
-						)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.15f)
-							->AddTab(SystemParametersTabID, ETabState::OpenedTab)
-						)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.6f)
-							->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
-							->AddTab(ScratchPadTabID, ETabState::OpenedTab)
-							->AddTab(BakerTabID, ETabState::ClosedTab)
-							->SetForegroundTab(SystemOverviewTabID)
-						)
-					)
-					->Split
-					(
-						// Inner Left Bottom
+					->SetSizeCoefficient(0.33f)
+					->Split(
+						// Left top
 						FTabManager::NewStack()
-						->SetSizeCoefficient(0.25f)
+						->AddTab(ViewportTabID, ETabState::OpenedTab)
+					)
+					
+					->Split(
+						// Left sidebar
+						FTabManager::NewStack()
+						->AddTab(SystemParametersTabID, ETabState::OpenedTab)
+						->AddTab(ScratchPadScriptsTabID, ETabState::OpenedTab)
+						->SetForegroundTab(SystemParametersTabID)
+					)
+				)
+				->SetSizeCoefficient(0.33f)
+				->Split
+				(
+					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
+					->Split(
+						// Center top
+						FTabManager::NewStack()
+						->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
+						->AddTab("Document", ETabState::ClosedTab)
+						->AddTab(BakerTabID, ETabState::ClosedTab)
+						->SetForegroundTab(SystemOverviewTabID)
+					)
+					->Split(
+						// center bottom
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.33f)
+						->AddTab(SequencerTabID, ETabState::OpenedTab)
 						->AddTab(CurveEditorTabID, ETabState::OpenedTab)
 						->AddTab(MessageLogTabID, ETabState::OpenedTab)
-						->AddTab(SequencerTabID, ETabState::OpenedTab)
-						->AddTab(ScriptStatsTabID, ETabState::ClosedTab)
+						->AddTab(ScriptStatsTabID, ETabState::OpenedTab)
+						->SetForegroundTab(SequencerTabID)
 					)
 				)
 				->Split
 				(
-					// Top Level Right
+					// Right
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.25f)
+					->SetSizeCoefficient(0.33f)
 					->AddTab(SelectedEmitterStackTabID, ETabState::OpenedTab)
 					->AddTab(SelectedEmitterGraphTabID, ETabState::ClosedTab)
 					->AddTab(SystemScriptTabID, ETabState::ClosedTab)

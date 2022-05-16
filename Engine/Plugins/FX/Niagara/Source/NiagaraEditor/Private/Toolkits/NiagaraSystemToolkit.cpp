@@ -28,6 +28,7 @@
 #include "NiagaraScriptStatsViewModel.h"
 #include "NiagaraBakerViewModel.h"
 #include "NiagaraToolkitCommon.h"
+#include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -128,14 +129,15 @@ void FNiagaraSystemToolkit::SetSystemOverview(const TSharedPtr<SWidget>& InSyste
 	this->SystemOverview = InSystemOverview;
 }
 
-TSharedPtr<SWidget> FNiagaraSystemToolkit::GetScriptScratchpad() const
+TSharedPtr<SWidget> FNiagaraSystemToolkit::GetScriptScratchpadManager() const
 {
-	return ScriptScratchpad;
+	return ScriptScratchpadManager;
 }
 
-void FNiagaraSystemToolkit::SetScriptScratchpad(const TSharedPtr<SWidget>& InScriptScratchpad)
+
+void FNiagaraSystemToolkit::SetScriptScratchpadManager(const TSharedPtr<SWidget>& InScriptScratchpadManager)
 {
-	this->ScriptScratchpad = InScriptScratchpad;
+	this->ScriptScratchpadManager = InScriptScratchpadManager;
 }
 
 void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraSystem& InSystem)
@@ -164,6 +166,7 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 	ParameterDefinitionsPanelViewModel->Init(UIContext);
 	
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
+	SystemViewModel->SetParameterPanelViewModel(ParameterPanelViewModel);
 	SystemToolkitMode = ESystemToolkitMode::System;
 
 	if (GbLogNiagaraSystemChanges > 0)
@@ -290,8 +293,8 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->OnRequestFocusTab().AddSP(this, &FNiagaraSystemToolkit::OnViewModelRequestFocusTab);
-	
 	SystemViewModel->OnGetWorkflowMode().BindSP(this, &FNiagaraSystemToolkit::GetCurrentMode);
+	SystemViewModel->GetDocumentViewModel()->InitializePreTabManager(SharedThis(this));
 	
 	constexpr bool bCreateDefaultStandaloneMenu = true;
 	constexpr bool bCreateDefaultToolbar = true;
@@ -302,7 +305,9 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, FNiagaraEditorModule::NiagaraEditorAppIdentifier,
 		DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ToolkitObject);
-	
+
+	SystemViewModel->GetDocumentViewModel()->InitializePostTabManager(SharedThis(this));
+
 	AddApplicationMode(DefaultModeName, MakeShared<FNiagaraSystemToolkitMode_Default>(SharedThis(this)));
 	AddApplicationMode(ScalabilityModeName, MakeShared<FNiagaraSystemToolkitMode_Scalability>(SharedThis(this)));
 
@@ -893,6 +898,7 @@ void FNiagaraSystemToolkit::OpenAttributeSpreadsheet()
 	InvokeTab(FNiagaraSystemToolkitModeBase::DebugSpreadsheetTabID);
 }
 
+
 void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_Emitters()
 {
 	FScopedTransaction Transaction(LOCTEXT("SetFixedBoundsEmitters", "Set Fixed Bounds (Emitters)"));
@@ -1389,5 +1395,6 @@ void FNiagaraSystemToolkit::OnViewModelRequestFocusTab(FName TabName)
 {
 	GetTabManager()->TryInvokeTab(TabName);
 }
+
 
 #undef LOCTEXT_NAMESPACE

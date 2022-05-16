@@ -17,7 +17,7 @@
 #include "SNiagaraOverviewGraph.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
-#include "SNiagaraScratchPad.h"
+#include "SNiagaraScratchPadScriptManager.h"
 #include "SNiagaraCurveOverview.h"
 
 #include "Modules/ModuleManager.h"
@@ -207,9 +207,9 @@ TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::C
 	return SNew(SNiagaraStackIssueIcon, &StackViewModel, &StackEntry);
 }
 
-TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateScriptScratchPadManager(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const
 {
-	return SNew(SNiagaraScratchPad, &ScriptScratchPadViewModel);
+	return SNew(SNiagaraScratchPadScriptManager, &ScriptScratchPadViewModel);
 }
 
 TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateCurveOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const

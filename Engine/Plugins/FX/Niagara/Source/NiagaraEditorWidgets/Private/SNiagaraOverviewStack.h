@@ -34,6 +34,11 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	static EVisibility GetIssueIconVisibility(UNiagaraStackEntry* StackEntry);
+	static EVisibility GetUsageIconVisibility(UNiagaraStackEntry* StackEntry);
+	static const FSlateBrush* GetUsageIcon(UNiagaraStackEntry* StackEntry);
+	static int32 GetUsageIconWidth(UNiagaraStackEntry* StackEntry);
+	static int32 GetUsageIconHeight(UNiagaraStackEntry* StackEntry);
+	static FText GetUsageTooltip(UNiagaraStackEntry* StackEntry);
 
 private:
 	void AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain);

@@ -124,6 +124,16 @@ private:
 
 	static const FSlateBrush* GetViewOptionsBorderBrush();
 
+	void ConstructSectionButtons();
+
+	ECheckBoxState GetSectionCheckState(FText Section) const;
+
+	void OnSectionChecked(ECheckBoxState CheckState, FText Section);
+
+	FText GetTooltipForSection(FText Section);
+
+	EVisibility GetVisibilityForReferenceCounter() const;
+
 private:
 	mutable bool bPendingRefresh;
 	mutable bool bPendingSelectionRestore;
@@ -146,6 +156,7 @@ private:
 	TSharedPtr<INiagaraParameterPanelViewModel> ParameterPanelViewModel;
 	TSharedPtr<SNiagaraParameterPanelSelector> ItemSelector;
 	TSharedPtr<SSearchBox> ItemSelectorSearchBox;
+	TSharedPtr<class SWrapBox> SectionSelectorBox;
 
 	/** Whether or not to display icons signifying whether parameters in the panel are synchronizing with a subscribed parameter definition. */
 	bool bShowParameterSynchronizingWithLibraryIcon;

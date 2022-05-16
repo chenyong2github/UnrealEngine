@@ -280,6 +280,8 @@ public:
 	TOptional<FNiagaraVariableMetaData> GetMetadata() const;
 	TOptional<FGuid> GetMetadataGuid() const;
 
+
+	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void FinalizeInternal() override;

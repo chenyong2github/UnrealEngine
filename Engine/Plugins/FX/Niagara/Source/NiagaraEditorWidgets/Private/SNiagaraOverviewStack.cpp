@@ -730,6 +730,87 @@ EVisibility SNiagaraOverviewStack::GetIssueIconVisibility(UNiagaraStackEntry* St
 	return bDisplayIcon ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+const FSlateBrush* SNiagaraOverviewStack::GetUsageIcon(UNiagaraStackEntry* StackEntry)
+{
+	bool bRead = false;
+	bool bWrite = false;
+
+	StackEntry->GetRecursiveUsages(bRead, bWrite);
+	if (bRead && bWrite)
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ReadWriteIcon");
+	}
+	else if (bRead)
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ReadIcon");
+	}
+	else if (bWrite)
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.WriteIcon");
+	}
+	else
+	{
+		return FAppStyle::Get().GetBrush("WhiteBrush");
+	}
+}
+
+
+int32 SNiagaraOverviewStack::GetUsageIconWidth(UNiagaraStackEntry* StackEntry)
+{
+	const FSlateBrush* Brush = FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ReadWriteIcon");
+	if (Brush)
+		return Brush->GetImageSize().X;
+	return 20;
+}
+
+int32 SNiagaraOverviewStack::GetUsageIconHeight(UNiagaraStackEntry* StackEntry)
+{
+	const FSlateBrush* Brush = FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ReadWriteIcon");
+	if (Brush)
+		return Brush->GetImageSize().Y;
+	return 20;
+}
+
+EVisibility SNiagaraOverviewStack::GetUsageIconVisibility(UNiagaraStackEntry* StackEntry)
+{
+	bool bDisplayIcon;
+	if (StackEntry->IsA<UNiagaraStackItemGroup>() && StackEntry->GetCanExpandInOverview() && StackEntry->GetIsExpandedInOverview())
+	{
+		// If the entry is a group and it can expand and it is expanded, we only want to show the stack Usage icon if the group itself has Usages.
+		bDisplayIcon = StackEntry->HasUsagesOrAnyChildHasUsages();
+	}
+	else
+	{
+		bDisplayIcon = StackEntry->HasUsagesOrAnyChildHasUsages();
+	}
+	return bDisplayIcon ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+
+FText SNiagaraOverviewStack::GetUsageTooltip(UNiagaraStackEntry* StackEntry)
+{
+	bool bRead = false;
+	bool bWrite = false;
+
+	StackEntry->GetRecursiveUsages(bRead, bWrite);
+	if (bRead && bWrite)
+	{
+		return LOCTEXT("UsageTooltipRW", "Reads and writes selected parameter in Parameters panel.");
+	}
+	else if (bRead)
+	{
+		return LOCTEXT("UsageTooltipR", "Reads selected parameter in Parameters panel.");
+	}
+	else if (bWrite)
+	{
+		return LOCTEXT("UsageTooltipW", "Writes selected parameter in Parameters panel.");
+	}
+	else
+	{
+		return LOCTEXT("UsageTooltipNone", "Does not touch selected parameter in Parameters panel.");
+	}
+}
+
 void SNiagaraOverviewStack::AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain)
 {
 	if (AcceptableClasses.ContainsByPredicate([&] (UClass* Class) { return EntryToAdd.IsA(Class); }) && EntryToAdd.GetShouldShowInOverview())
@@ -803,6 +884,33 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
+
+		FSlateColor IconColor(FColor::White);
+
+		int32 WidthMax = SNiagaraOverviewStack::GetUsageIconWidth(Item);
+		int32 HeightMax = SNiagaraOverviewStack::GetUsageIconHeight(Item);
+
+		// Stack Usage Highlight
+		ContentBox->AddSlot()
+			.VAlign(VAlign_Center)
+			//.AutoWidth()
+			.MaxWidth(WidthMax)
+			.Padding(4, 0, 0, 0)
+			[
+				SNew(SBorder)
+				.BorderImage_Static(&SNiagaraOverviewStack::GetUsageIcon, Item)
+				.Visibility_Static(&SNiagaraOverviewStack::GetUsageIconVisibility, Item)
+				.ToolTipText_Static(& SNiagaraOverviewStack::GetUsageTooltip, Item)
+				.BorderBackgroundColor(IconColor)
+				.Padding(FMargin(0, 0, 0, 1))
+				[
+					SNew(SBox)
+					.WidthOverride(WidthMax)
+					.HeightOverride(HeightMax)
+				]
+			];
+
+
 		// Icon Brush
 		if (StackItem->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Brush)
 		{
@@ -864,6 +972,8 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			.IconMode(SNiagaraStackIssueIcon::EIconMode::Compact)
 			.Visibility_Static(&SNiagaraOverviewStack::GetIssueIconVisibility, Item)
 		];
+
+
 		// Perf widget
 		ContentBox->AddSlot()
         .AutoWidth()

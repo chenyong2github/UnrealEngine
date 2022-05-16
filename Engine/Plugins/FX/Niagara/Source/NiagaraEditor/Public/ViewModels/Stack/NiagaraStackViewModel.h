@@ -148,6 +148,8 @@ public:
 
 	void RequestValidationUpdate() { bValidatorUpdatePending = true; }
 
+	void InvalidateCachedParameterUsage();
+
 private:
 	/** Recursively Expands all groups and collapses all items in the stack. */
 	void CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries);

@@ -24,6 +24,8 @@
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SItemSelector.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanel"
 
@@ -85,7 +87,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.OnItemSelected(this, &SNiagaraParameterPanel::OnParameterItemSelected)
 	.OnItemsDragged(this, &SNiagaraParameterPanel::OnParameterItemsDragged)
 	.OnItemActivated(this, &SNiagaraParameterPanel::OnParameterItemActived)
-	.AllowMultiselect(true)
+	.AllowMultiselect(ParameterPanelViewModel->GetAllowMultiSelect())
 	.ClearSelectionOnClick(true)
 	.CategoryRowStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.TableRow")
 	.OnGetCategoryBackgroundImage(this, &SNiagaraParameterPanel::GetCategoryBackgroundImage)
@@ -97,9 +99,18 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 
 	// Finalize the widget
 	ChildSlot
-	[
-		SNew(SBox)
-		.MinDesiredWidth(300)
+		[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4, 2)
+		[
+			SAssignNew(SectionSelectorBox, SWrapBox)
+			.UseAllottedSize(true)
+			.InnerSlotPadding(FVector2D(4, 4))
+		]
+		+ SVerticalBox::Slot()
+		.Padding(0, 2)
 		[
 			// Drop target
 			SNew(SDropTarget)
@@ -123,8 +134,48 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	ToolkitCommands->MapAction(FGenericCommands::Get().Copy,
 		FExecuteAction::CreateSP(this, &SNiagaraParameterPanel::CopyParameterReference),
 		FCanExecuteAction::CreateSP(this, &SNiagaraParameterPanel::CanCopyParameterReference));
+
+	ConstructSectionButtons();
 }
 
+
+void SNiagaraParameterPanel::ConstructSectionButtons()
+{
+	SectionSelectorBox->ClearChildren();
+
+	SectionSelectorBox->SetVisibility(ParameterPanelViewModel->GetShowSections() ? EVisibility::Visible : EVisibility::Collapsed);
+	for (FText Section : ParameterPanelViewModel->GetSections())
+	{
+		SectionSelectorBox->AddSlot()
+			[
+				SNew(SCheckBox)
+				.Style(FAppStyle::Get(), "DetailsView.SectionButton")
+				.OnCheckStateChanged(this, &SNiagaraParameterPanel::OnSectionChecked, Section)
+				.IsChecked(this, &SNiagaraParameterPanel::GetSectionCheckState, Section)
+				.ToolTipText(ParameterPanelViewModel->GetTooltipForSection(Section))
+				[
+					SNew(STextBlock)
+					.TextStyle(FAppStyle::Get(), "SmallText")
+					.Text(Section)
+				]
+			];
+	}
+}
+
+ECheckBoxState SNiagaraParameterPanel::GetSectionCheckState(FText Section) const
+{
+	return Section.IdenticalTo(ParameterPanelViewModel->GetActiveSection()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+
+void SNiagaraParameterPanel::OnSectionChecked(ECheckBoxState CheckState, FText Section)
+{
+	if (CheckState == ECheckBoxState::Checked)
+	{
+		ParameterPanelViewModel->SetActiveSection(Section);
+		Refresh();
+	}
+}
 
 TArray<FNiagaraParameterPanelCategory> SNiagaraParameterPanel::OnGetCategoriesForItem(const FNiagaraParameterPanelItem& Item)
 {
@@ -389,6 +440,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 			.ButtonStyle(FAppStyle::Get(), "RoundButton")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ContentPadding(FMargin(2.0f))
+			.Visibility(this, &SNiagaraParameterPanel::GetVisibilityForReferenceCounter)
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.ButtonContent()
@@ -405,6 +457,18 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 	[
 		ItemWidgetHorizontalBox.ToSharedRef()
 	];
+}
+
+EVisibility SNiagaraParameterPanel::GetVisibilityForReferenceCounter() const
+{
+	if (ParameterPanelViewModel->GetShowReferenceCounter())
+	{
+		return EVisibility::Visible;
+	}
+	else
+	{
+		return EVisibility::Collapsed;
+	}
 }
 
 TSharedPtr<SWidget> SNiagaraParameterPanel::OnContextMenuOpening()

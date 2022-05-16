@@ -83,6 +83,8 @@ public:
 
 	FOnScriptDeleted& OnScriptDeleted();
 
+	void OpenEditorForActive();
+
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
 
@@ -96,7 +98,7 @@ private:
 
 	void ScriptGraphNodeSelectionChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> InScriptViewModelWeak);
 
-	void ScriptViewModelScriptRenamed();
+	void ScriptViewModelScriptRenamed(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
 
 	void ScriptViewModelPinnedChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
 

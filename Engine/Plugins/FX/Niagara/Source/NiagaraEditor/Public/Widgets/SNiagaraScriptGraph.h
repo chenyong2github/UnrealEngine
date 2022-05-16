@@ -19,11 +19,13 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraScriptGraph)
 		: _ForegroundColor(FAppStyle::GetColor("Graph.ForegroundColor"))
 		, _ZoomToFitOnLoad(false)
+		, _ShowHeader(true)
 	{}
 		/** The text displayed in the title bar of the graph. */
 		SLATE_ATTRIBUTE(FText, GraphTitle)
 		SLATE_ATTRIBUTE(FSlateColor, ForegroundColor)
 		SLATE_ARGUMENT(bool, ZoomToFitOnLoad)
+		SLATE_ARGUMENT(bool, ShowHeader)
 	SLATE_END_ARGS();
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel);
@@ -129,6 +131,7 @@ private:
 	int CurrentFocusedSearchMatchIndex;
 	TArray<TSharedPtr<INiagaraScriptGraphFocusInfo>> CurrentSearchResults;
 	bool bGraphSearchBoxActive;
+	bool bShowHeader;
 
 private:
 	// action menu data

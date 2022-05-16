@@ -140,7 +140,7 @@ public:
 
 	/** Delegate to get the names of all selected parameter items. */
 	DECLARE_DELEGATE_RetVal(TArray<FName>, FOnGetSelectedParameterNames);
-
+	INiagaraParameterPanelViewModel();
 	virtual ~INiagaraParameterPanelViewModel() override;
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
@@ -198,6 +198,9 @@ public:
 	virtual void PasteParameterMetaData(const TArray<FNiagaraParameterPanelItem> SelectedItems);
 	virtual bool GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip);
 
+	virtual bool GetAllowMultiSelect() const { return false; }
+	virtual bool GetShowReferenceCounter() const { return true; }
+
 	virtual void DuplicateParameters(const TArray<FNiagaraParameterPanelItem> ItemToDuplicate) const;
 	virtual bool GetCanDuplicateParameterAndToolTip(const TArray<FNiagaraParameterPanelItem>& ItemsToDuplicate, FText& OutCanDuplicateParameterToolTip) const;
 	bool GetCanDebugParameters(const TArray<FNiagaraParameterPanelItem>& ItemsToDebug) const;
@@ -239,6 +242,20 @@ public:
 	FOnNotifyParameterPendingNamespaceModifierRename& GetOnNotifyParameterPendingNamespaceModifierRenameDelegate() { return OnNotifyParameterPendingNamespaceModifierRenameDelegate; };
 	FOnGetParametersWithNamespaceModifierRenamePending& GetParametersWithNamespaceModifierRenamePendingDelegate() { return OnGetParametersWithNamespaceModifierRenamePendingDelegate; };
 
+	FText GetActiveSection() const
+	{
+		return Sections.IsValidIndex(ActiveSectionIndex) ? Sections[ActiveSectionIndex] : FText::GetEmpty();
+	}
+	virtual bool GetShowSections() const { return false; }
+	virtual bool GetNamespaceActive(const FName& InNamespace) const { return true; }
+	virtual const TArray<FText>& GetSections() const { return Sections; }
+	virtual FText GetTooltipForSection(FText& InSection) const;
+	virtual void SetActiveSection(FText& InSection);
+
+	virtual bool IsVariableSelected(FNiagaraVariableBase& InVar) const { return false; };
+
+	virtual TSharedPtr<FNiagaraObjectSelection> GetVariableObjectSelection() { return TSharedPtr<FNiagaraObjectSelection>(); };
+
 protected:
 	static bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType);
 
@@ -262,6 +279,10 @@ protected:
 
 	/** Transient UNiagaraScriptVariables used to pass to new FNiagaraParameterPanelItems when the source FNiagaraVariable is not associated with a UNiagaraScriptVariable in a graph. */
 	mutable TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> TransientParameterToScriptVarMap;
+
+	TArray<FText> Sections;
+	TArray<FText> SectionDescriptions;
+	int32 ActiveSectionIndex;
 };
 
 class FNiagaraSystemToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel, public TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>
@@ -326,6 +347,16 @@ public:
 	TSharedRef<SWidget> CreateAddParameterMenuForAssignmentNode(UNiagaraNodeAssignment* AssignmentNode, const TSharedPtr<SComboButton>& AddButton) const;
 
 	void DebugParameters(const TArray<FNiagaraParameterPanelItem> ItemToDuplicate) const;
+
+	virtual void OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const override;
+	virtual bool IsVariableSelected(FNiagaraVariableBase& InVar) const override;
+
+
+	virtual bool GetShowSections() const override { return true; }
+	virtual bool GetNamespaceActive(const FName& InNamespace) const override { return true; }
+
+	virtual TSharedPtr<FNiagaraObjectSelection> GetVariableObjectSelection() override { return VariableObjectSelection; };
+	virtual bool GetShowReferenceCounter() const override;
 private:
 	const TArray<UNiagaraGraph*> GetAllGraphsConst() const;
 
@@ -363,7 +394,13 @@ private:
 	mutable TArray<FNiagaraParameterPanelCategory> CachedCurrentCategories;
 
 	static TArray<FNiagaraParameterPanelCategory> DefaultCategories;
+	static TArray<FNiagaraParameterPanelCategory> UserCategories;
 	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedCategories;
+
+	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
+	int32 UserOnlyIdx = -1;
+	int32 CommonOnlyIdx = -1;
+	int32 ActiveIdx = -1;
 
 	TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>::Handle RegisteredHandle;
 };
@@ -418,6 +455,9 @@ public:
 	virtual TArray<FNiagaraParameterPanelItem> GetViewedParameterItems() const override;
 
 	virtual const TArray<FNiagaraParameterPanelCategory>& GetDefaultCategories() const override;
+
+	virtual bool GetAllowMultiSelect() const override { return true; }
+
 
 	virtual FMenuAndSearchBoxWidgets GetParameterMenu(FNiagaraParameterPanelCategory Category) const override;
 

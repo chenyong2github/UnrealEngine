@@ -363,3 +363,18 @@ private:
 	TSharedPtr<FEdGraphSchemaAction> SourceAction;
 	TOptional<FNiagaraVariable> TargetParameter;
 };
+
+class NIAGARAEDITOR_API FNiagaraScriptDragOperation : public FDecoratedDragDropOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FNiagaraScriptDragOperation, FDecoratedDragDropOp)
+
+		FNiagaraScriptDragOperation(UNiagaraScript* InPayloadScript, const FGuid& InVersion, const FText& InFriendlyName)
+		: Script(InPayloadScript), Version(InVersion), FriendlyName(InFriendlyName)
+	{
+	}
+
+	TWeakObjectPtr<UNiagaraScript> Script;
+	FGuid Version;
+	FText FriendlyName;
+};

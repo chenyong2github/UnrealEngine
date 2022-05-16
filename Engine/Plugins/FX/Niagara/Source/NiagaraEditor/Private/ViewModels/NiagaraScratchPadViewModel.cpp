@@ -6,6 +6,7 @@
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
@@ -262,7 +263,7 @@ void UNiagaraScratchPadViewModel::FocusScratchPadScriptViewModel(TSharedRef<FNia
 	if (ensureMsgf(ScriptViewModels.Contains(InScriptViewModel), TEXT("Can only focus a view model from this scratch pad view model.")))
 	{
 		SetActiveScriptViewModel(InScriptViewModel);
-		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkitModeBase::ScratchPadTabID);
+		GetSystemViewModel()->GetDocumentViewModel()->OpenChildScript(InScriptViewModel->GetGraphViewModel()->GetGraph());
 	}
 }
 
@@ -373,6 +374,9 @@ void UNiagaraScratchPadViewModel::DeleteActiveScript()
 				FunctionCallNode->FunctionScript = nullptr;
 			}
 		}
+
+		// Close any open tabs
+		GetSystemViewModel()->GetDocumentViewModel()->CloseChildScript(ActiveScriptViewModel->GetGraphViewModel()->GetGraph());
 
 		UObject* ScriptOuter;
 		TArray<TObjectPtr<UNiagaraScript>>* TargetScripts;
@@ -508,6 +512,19 @@ void UNiagaraScratchPadViewModel::CreateAssetFromActiveScript()
 	}
 }
 
+void UNiagaraScratchPadViewModel::OpenEditorForActive()
+{
+	if (ActiveScriptViewModel.IsValid())
+	{
+		UEdGraph* Graph = ActiveScriptViewModel->GetGraphViewModel()->GetGraph();
+		if (Graph)
+		{
+			GetSystemViewModel()->GetDocumentViewModel()->OpenChildScript(Graph);
+		}
+	}
+}
+
+
 bool UNiagaraScratchPadViewModel::CanSelectNextUsageForActiveScript()
 {
 	if (ActiveScriptViewModel.IsValid())
@@ -627,7 +644,7 @@ TSharedRef<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	TSharedRef<FNiagaraScratchPadScriptViewModel> ScriptViewModel = MakeShared<FNiagaraScratchPadScriptViewModel>(GetSystemViewModel()->GetIsForDataProcessingOnly());
 	ScriptViewModel->Initialize(ScratchPadScript);
 	ScriptViewModel->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptGraphNodeSelectionChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
-	ScriptViewModel->OnRenamed().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed);
+	ScriptViewModel->OnRenamed().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->OnPinnedChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelPinnedChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->OnHasUnappliedChangesChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelHasUnappliedChangesChanged);
 	ScriptViewModel->OnChangesApplied().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelChangesApplied);
@@ -681,10 +698,21 @@ void UNiagaraScratchPadViewModel::ScriptGraphNodeSelectionChanged(TWeakPtr<FNiag
 	}
 }
 
-void UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed()
+void UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak)
 {
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel = ScriptViewModelWeak.Pin();
+	if (ScriptViewModel.IsValid())
+	{
+		GetSystemViewModel()->GetDocumentViewModel()->CloseChildScript(ScriptViewModel->GetGraphViewModel()->GetGraph());
+	}
+
 	UpdateChangeId(GetSystemViewModel());
 	OnScriptRenamed().Broadcast();
+
+	if (ScriptViewModel.IsValid())
+	{
+		GetSystemViewModel()->GetDocumentViewModel()->OpenChildScript(ScriptViewModel->GetGraphViewModel()->GetGraph());
+	}
 }
 
 void UNiagaraScratchPadViewModel::ScriptViewModelPinnedChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak)

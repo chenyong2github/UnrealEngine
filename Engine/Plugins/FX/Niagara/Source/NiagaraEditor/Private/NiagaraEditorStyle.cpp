@@ -678,10 +678,10 @@ void FNiagaraEditorStyle::InitScalabilityIcons()
 }
 
 FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle")
-{	
+{
 	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("FX/Niagara/Content/Slate"));
 	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
-	
+
 	InitStats();
 	InitAssetPicker();
 	InitActionMenu();
@@ -710,6 +710,21 @@ FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle"
 	InitScalabilityColors();
 	InitScalabilityIcons();
 	InitViewportStyle();
+	InitScratchStyle();
+}
+void FNiagaraEditorStyle::InitScratchStyle()
+{
+	const FTextBlockStyle NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+
+	FSlateFontInfo ScratchPadEditorHeaderFont = DEFAULT_FONT("Bold", 11);
+	FTextBlockStyle ScratchPadEditorHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadEditorHeaderFont);
+	Set("NiagaraEditor.ScratchPad.EditorHeaderText", ScratchPadEditorHeaderText);
+
+	FSlateFontInfo ScratchPadSubSectionHeaderFont = DEFAULT_FONT("Bold", 9);
+	FTextBlockStyle ScratchPadSubSectionHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadSubSectionHeaderFont);
+	Set("NiagaraEditor.ScratchPad.SubSectionHeaderText", ScratchPadSubSectionHeaderText);
 }
 
 void FNiagaraEditorStyle::ReloadTextures()

@@ -19,6 +19,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
+#include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraSequence.h"
@@ -85,6 +86,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, bResetRequestPending(false)
 	, bCompilePendingCompletion(false)
 	, SystemStackViewModel(nullptr)
+	, EditorDocumentsViewModel(nullptr)
 	, SelectionViewModel(nullptr)
 	, ScriptScratchPadViewModel(nullptr)
 	, bPendingAssetMessagesChanged(true)
@@ -125,6 +127,9 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 
 	SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
 	SystemStackViewModel->OnStructureChanged().AddSP(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
+
+	EditorDocumentsViewModel = NewObject< UNiagaraSystemEditorDocumentsViewModel >(GetTransientPackage());
+	EditorDocumentsViewModel->Initialize(this->AsShared());
 
 	ScriptScratchPadViewModel = NewObject<UNiagaraScratchPadViewModel>(GetTransientPackage());
 	ScriptScratchPadViewModel->Initialize(this->AsShared());
@@ -217,6 +222,12 @@ void FNiagaraSystemViewModel::Cleanup()
 		SystemStackViewModel->OnStructureChanged().RemoveAll(this);
 		SystemStackViewModel->Finalize();
 		SystemStackViewModel = nullptr;
+	}
+
+	if (EditorDocumentsViewModel != nullptr)
+	{
+		EditorDocumentsViewModel->Finalize();
+		EditorDocumentsViewModel = nullptr;
 	}
 
 	if (SelectionViewModel != nullptr)
@@ -676,6 +687,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	if (SystemStackViewModel != nullptr)
 	{
 		Collector.AddReferencedObject(SystemStackViewModel);
+	}
+	if (EditorDocumentsViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(EditorDocumentsViewModel);
 	}
 	if (SelectionViewModel != nullptr)
 	{

@@ -25,6 +25,11 @@
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "Widgets/SNiagaraSpreadsheetView.h"
 #include "Widgets/SNiagaraGeneratedCodeView.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "Widgets/SNiagaraSelectedObjectsDetails.h"
+#include "NiagaraObjectSelection.h"
+#include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemToolkitModeBase"
 
@@ -42,10 +47,160 @@ const FName FNiagaraSystemToolkitModeBase::PreviewSettingsTabId(TEXT("NiagaraSys
 const FName FNiagaraSystemToolkitModeBase::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_GeneratedCode"));
 const FName FNiagaraSystemToolkitModeBase::MessageLogTabID(TEXT("NiagaraSystemEditor_MessageLog"));
 const FName FNiagaraSystemToolkitModeBase::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
-const FName FNiagaraSystemToolkitModeBase::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
 const FName FNiagaraSystemToolkitModeBase::ScriptStatsTabID(TEXT("NiagaraSystemEditor_ScriptStats"));
 const FName FNiagaraSystemToolkitModeBase::BakerTabID(TEXT("NiagaraSystemEditor_Baker"));
 const FName FNiagaraSystemToolkitModeBase::VersioningTabID(TEXT("NiagaraSystemEditor_Versioning"));
+const FName FNiagaraSystemToolkitModeBase::ScratchPadScriptsTabID(TEXT("NiagaraSystemEditor_ScratchPadScripts"));
+
+
+FNiagaraSystemToolkitModeBase::FNiagaraSystemToolkitModeBase(FName InModeName, TWeakPtr<FNiagaraSystemToolkit> InSystemToolkit) : FApplicationMode(InModeName), SystemToolkit(InSystemToolkit), SwitcherIdx(0)
+{
+	DocChangedHandle = InSystemToolkit.Pin()->GetSystemViewModel()->GetDocumentViewModel()->OnActiveDocumentChanged().AddRaw(this, &FNiagaraSystemToolkitModeBase::OnActiveDocumentChanged);
+	ObjectSelection = MakeShared<FNiagaraObjectSelection>();
+}
+
+FNiagaraSystemToolkitModeBase::~FNiagaraSystemToolkitModeBase()
+{
+	if (SystemToolkit.Pin().IsValid())
+	{
+		SystemToolkit.Pin()->GetSystemViewModel()->GetDocumentViewModel()->OnActiveDocumentChanged().Remove(DocChangedHandle);
+		if (LastActiveDocumentModel.IsValid())
+		{
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> OldScratchScriptVM = LastActiveDocumentModel.Pin();
+			OldScratchScriptVM->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().Remove(LastSelectionUpdateDelegate);
+		}
+	}
+}
+
+void FNiagaraSystemToolkitModeBase::OnActiveDocumentChanged(TSharedPtr<SDockTab> NewActiveTab)
+{
+	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
+	if (LastActiveDocumentModel.IsValid())
+	{
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> OldScratchScriptVM = LastActiveDocumentModel.Pin();
+		OldScratchScriptVM->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().Remove(LastSelectionUpdateDelegate);
+
+		TArray<UNiagaraGraph*> EdGraphs = OldScratchScriptVM->GetEditableGraphs();
+		check(EdGraphs.Num() <= 1);
+		if (EdGraphs.Num() == 1)
+		{
+			EdGraphs[0]->OnSubObjectSelectionChanged().Remove(LastParamPanelSelectionUpdateDelegate);
+		}
+
+		Toolkit->GetSystemViewModel()->GetSelectionViewModel()->OnEntrySelectionChanged().Remove(LastSystemSelectionUpdateDelegate);
+		OldScratchScriptVM->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(LastGraphEditDelegate);
+
+	}
+
+	SwitcherIdx = 0;
+	TSharedPtr<SDockTab>  ActiveTab = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveDocumentTab().Pin();
+	if (ActiveTab.IsValid())
+	{
+		if (ActiveTab->GetLayoutIdentifier().TabType == SystemOverviewTabID)
+		{
+			SwitcherIdx = 0;
+		}
+		else
+		{
+			SwitcherIdx = 1;
+		}
+		UpdateSelectionForActiveDocument();
+
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchScriptVM = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveScratchPadViewModelIfSet();
+		if (ScratchScriptVM.IsValid())
+		{
+			LastSelectionUpdateDelegate = ScratchScriptVM->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraSystemToolkitModeBase::UpdateSelectionForActiveDocument);
+			LastParamPanelSelectionUpdateDelegate = Toolkit->GetSystemViewModel()->GetParameterPanelViewModel()->GetVariableObjectSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraSystemToolkitModeBase::OnParameterPanelViewModelExternalSelectionChanged);
+			LastSystemSelectionUpdateDelegate = Toolkit->GetSystemViewModel()->GetSelectionViewModel()->OnEntrySelectionChanged().AddSP(this, &FNiagaraSystemToolkitModeBase::OnSystemSelectionChanged);
+			LastGraphEditDelegate = ScratchScriptVM->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
+				FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraSystemToolkitModeBase::OnEditedScriptGraphChanged));
+		}
+	}
+}
+
+void FNiagaraSystemToolkitModeBase::OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction)
+{
+	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
+	// We need to update the parameter panel view model with new parameters potentially
+	if (Toolkit->GetSystemViewModel()->GetParameterPanelViewModel())
+		Toolkit->GetSystemViewModel()->GetParameterPanelViewModel()->RefreshNextTick();
+}
+
+void FNiagaraSystemToolkitModeBase::OnParameterPanelViewModelExternalSelectionChanged()
+{
+	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchScriptVM = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveScratchPadViewModelIfSet();
+	if (ScratchScriptVM.IsValid())
+	{
+		TSharedPtr<FNiagaraObjectSelection> ParamSel = Toolkit->GetSystemViewModel()->GetParameterPanelViewModel()->GetVariableObjectSelection();
+		if (ParamSel.IsValid())
+		{
+			TArray<UObject*> SelectedNodes = ParamSel->GetSelectedObjects().Array();
+			if (SelectedNodes.Num() != 0)
+			{
+				ObjectSelection->SetSelectedObject(SelectedNodes[0]);
+				ObjectSelectionSubHeaderText = LOCTEXT("ParamPanelSel", "Parameter Panel Selection");
+			}
+		}
+	}
+}
+
+void FNiagaraSystemToolkitModeBase::OnSystemSelectionChanged()
+{
+	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
+	TSharedPtr<SDockTab>  ActiveTab = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveDocumentTab().Pin();
+	if (ActiveTab.IsValid())
+	{
+		if (ActiveTab->GetLayoutIdentifier().TabType != SystemOverviewTabID)
+		{
+			TSharedPtr<SDockTab> FoundOverviewTab = Toolkit->GetTabManager()->FindExistingLiveTab(SystemOverviewTabID);
+			if (FoundOverviewTab.IsValid())
+			{
+				FoundOverviewTab->DrawAttention();
+				FoundOverviewTab->ActivateInParent(ETabActivationCause::SetDirectly);
+			}
+		}
+	}
+}
+
+void FNiagaraSystemToolkitModeBase::UpdateSelectionForActiveDocument()
+{
+	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchScriptVM = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveScratchPadViewModelIfSet();
+	if (ScratchScriptVM.IsValid())
+	{
+		TArray<UObject*> SelectedNodes = ScratchScriptVM->GetGraphViewModel()->GetNodeSelection()->GetSelectedObjects().Array();
+		if (SelectedNodes.Num() == 0)
+		{
+			if (ScratchScriptVM)
+			{
+				ObjectSelection->SetSelectedObject(ScratchScriptVM->GetEditScript().Script);
+				ObjectSelectionSubHeaderText = ScratchScriptVM->GetDisplayName();
+			}
+			else
+			{
+				ObjectSelection->ClearSelectedObjects();
+				ObjectSelectionSubHeaderText = LOCTEXT("InvalidSelection","Missing selection");
+			}
+		}
+		else if (SelectedNodes.Num() == 1)
+		{
+			UEdGraphNode* SelectedGraphNode = CastChecked<UEdGraphNode>(SelectedNodes[0]);
+			ObjectSelectionSubHeaderText = SelectedGraphNode->GetNodeTitle(ENodeTitleType::ListView);
+			ObjectSelection->SetSelectedObject(SelectedGraphNode);
+		}
+		else
+		{
+			ObjectSelection->SetSelectedObjects(SelectedNodes);
+			ObjectSelectionSubHeaderText = LOCTEXT("MultipleNodesSelection", "Multiple items selected");
+		}
+	}
+	else
+	{
+		ObjectSelection->ClearSelectedObjects();
+		ObjectSelectionSubHeaderText = LOCTEXT("EmptySelection", "Nothing selected");
+	}
+}
 
 void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
 {
@@ -118,8 +273,8 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.SystemOverview"));
 
-	InTabManager->RegisterTabSpawner(ScratchPadTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPad))
-		.SetDisplayName(LOCTEXT("ScratchPadTabName", "Scratch Pad"))
+	InTabManager->RegisterTabSpawner(ScratchPadScriptsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPadScripts))
+		.SetDisplayName(LOCTEXT("ScratchPadScriptsTabName", "Local Scripts"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.ScratchPad"));
 
@@ -138,6 +293,12 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"));
 }
+
+int FNiagaraSystemToolkitModeBase::GetActiveSelectionDetailsIndex() const
+{
+	return SwitcherIdx;
+}
+
 
 class SNiagaraSelectedEmitterGraph : public SCompoundWidget
 {
@@ -391,7 +552,38 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SelectedEmitterStac
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("SystemOverviewSelection", "Selection"))
 		[
-			NiagaraEditorModule.GetWidgetProvider()->CreateStackView(*SystemToolkit.Pin()->GetSystemViewModel()->GetSelectionViewModel()->GetSelectionStackViewModel())
+			SNew(SWidgetSwitcher)
+			.WidgetIndex(this, &FNiagaraSystemToolkitModeBase::GetActiveSelectionDetailsIndex)
+			+ SWidgetSwitcher::Slot()
+			[
+				NiagaraEditorModule.GetWidgetProvider()->CreateStackView(*SystemToolkit.Pin()->GetSystemViewModel()->GetSelectionViewModel()->GetSelectionStackViewModel())
+			]
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f, 2.0f, 2.0f, 5.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ScratchPad.SubSectionHeaderText")
+					.Visibility(this, &FNiagaraSystemToolkitModeBase::GetObjectSelectionSubHeaderTextVisibility)
+					.Text(this, &FNiagaraSystemToolkitModeBase::GetObjectSelectionSubHeaderText)
+				]
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Center)
+				.AutoHeight()
+				.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+				[
+					SNew(STextBlock)
+					.Visibility(this, &FNiagaraSystemToolkitModeBase::GetObjectSelectionNoSelectionTextVisibility)
+					.Text(LOCTEXT("NoObjectSelection", "No object selected"))
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SNiagaraSelectedObjectsDetails, ObjectSelection.ToSharedRef())
+				]
+			]
 		];
 
 	SDockTab::FOnTabClosedCallback TabClosedCallback = SDockTab::FOnTabClosedCallback::CreateLambda([=](TSharedRef<SDockTab> DockTab)
@@ -401,6 +593,21 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SelectedEmitterStac
 	
 	SpawnedTab->SetOnTabClosed(TabClosedCallback);
 	return SpawnedTab;
+}
+
+EVisibility FNiagaraSystemToolkitModeBase::GetObjectSelectionSubHeaderTextVisibility() const
+{
+	return ObjectSelection->GetSelectedObjects().Num() != 0 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText FNiagaraSystemToolkitModeBase::GetObjectSelectionSubHeaderText() const
+{
+	return ObjectSelectionSubHeaderText;
+}
+
+EVisibility FNiagaraSystemToolkitModeBase::GetObjectSelectionNoSelectionTextVisibility() const
+{
+	return ObjectSelection->GetSelectedObjects().Num() == 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SelectedEmitterGraph(const FSpawnTabArgs& Args)
@@ -468,6 +675,12 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SystemOverview(cons
 			SystemToolkit.Pin()->GetSystemOverview().ToSharedRef()
 		];
 
+
+	SpawnedTab->SetOnTabActivated(SDockTab::FOnTabActivatedCallback::CreateLambda([this](TSharedRef<SDockTab> Input, ETabActivationCause)
+		{
+			SystemToolkit.Pin()->GetSystemViewModel()->GetDocumentViewModel()->SetActiveDocumentTab(Input);			
+		}));
+
 	SpawnedTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda([this](TSharedRef<SDockTab>)
 	{
 		SystemToolkit.Pin()->SetSystemOverview(nullptr);
@@ -476,23 +689,25 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SystemOverview(cons
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPad(const FSpawnTabArgs& Args)
+
+
+TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPadScripts(const FSpawnTabArgs& Args)
 {
-	if(!SystemToolkit.Pin()->GetScriptScratchpad().IsValid())
+	if (!SystemToolkit.Pin()->GetScriptScratchpadManager().IsValid())
 	{
-		SystemToolkit.Pin()->SetScriptScratchpad(FNiagaraEditorModule::Get().GetWidgetProvider()->CreateScriptScratchPad(*SystemToolkit.Pin()->GetSystemViewModel()->GetScriptScratchPadViewModel()));
+		SystemToolkit.Pin()->SetScriptScratchpadManager(FNiagaraEditorModule::Get().GetWidgetProvider()->CreateScriptScratchPadManager(*SystemToolkit.Pin()->GetSystemViewModel()->GetScriptScratchPadViewModel()));
 	}
-	
+
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("ScratchPadTabLabel", "Scratch Pad"))
+		.Label(LOCTEXT("ScratchPadTabLabel", "Local Scripts"))
 		[
-			SystemToolkit.Pin()->GetScriptScratchpad().ToSharedRef()
+			SystemToolkit.Pin()->GetScriptScratchpadManager().ToSharedRef()
 		];
 
 	SpawnedTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda([this](TSharedRef<SDockTab>)
-	{
-		SystemToolkit.Pin()->SetScriptScratchpad(nullptr);
-	}));
+		{
+			SystemToolkit.Pin()->SetScriptScratchpadManager(nullptr);
+		}));
 
 	return SpawnedTab;
 }
