@@ -109,7 +109,6 @@ TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc()
 void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHLODComponents)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODComponents);
-	check(!InHLODComponents.IsEmpty());
 
 	TArray<UActorComponent*> ComponentsToRemove;
 	GetComponents(ComponentsToRemove);
