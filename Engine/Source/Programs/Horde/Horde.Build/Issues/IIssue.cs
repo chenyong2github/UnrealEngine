@@ -146,6 +146,12 @@ namespace Horde.Build.Models
 		/// Update index for this instance
 		/// </summary>
 		public int UpdateIndex { get; }
+
+		/// <summary>
+		/// External issue linked to this issue
+		/// </summary>
+		public string? ExternalIssueKey { get; }
+
 	}
 
 	/// <summary>

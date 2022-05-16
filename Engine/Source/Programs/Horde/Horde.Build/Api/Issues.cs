@@ -514,6 +514,11 @@ namespace Horde.Build.Api
 		public bool ShowDesktopAlerts { get; set; }
 
 		/// <summary>
+		/// Key for this issue in external issue tracker
+		/// </summary>
+		public string? ExternalIssueKey { get; set; }
+
+		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="details">Issue to construct from</param>
@@ -570,6 +575,7 @@ namespace Horde.Build.Api
 			PrimarySuspectIds= details.SuspectUsers.Select(x => x.Id.ToString()).ToList();
 			PrimarySuspectsInfo = details.SuspectUsers.ConvertAll(x => new GetThinUserInfoResponse(x));
 			ShowDesktopAlerts = showDesktopAlerts;
+			ExternalIssueKey = details.ExternalIssueKey;
 		}
 	}
 
@@ -726,6 +732,11 @@ namespace Horde.Build.Api
 		public List<FindIssueSpanResponse> Spans { get; set; }
 
 		/// <summary>
+		/// Key for this issue in external issue tracker
+		/// </summary>
+		public string? ExternalIssueKey { get; set; }
+
+		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="issue">The isseu information</param>
@@ -762,6 +773,7 @@ namespace Horde.Build.Api
 			VerifiedAt = issue.VerifiedAt;
 			LastSeenAt = issue.LastSeenAt;
 			Spans = spans;
+			ExternalIssueKey = issue.ExternalIssueKey;
 		}
 	}
 
@@ -824,5 +836,200 @@ namespace Horde.Build.Api
 		/// List of spans to remove from this issue
 		/// </summary>
 		public List<string>? RemoveSpans { get; set; }
+
+		/// <summary>
+		/// A key to issue in external tracker
+		/// </summary>
+		public string? ExternalIssueKey { get; set; }
+
 	}
+
+	
+	/// <summary>
+	/// External issue project information
+	/// </summary>
+	public class GetExternalIssueProjectResponse
+	{
+		/// <summary>
+		/// The project key
+		/// </summary>
+		public string ProjectKey { get; set; }
+
+		/// <summary>
+		/// The name of the project
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// The id of the project
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// component id => name
+		/// </summary>
+		public Dictionary<string, string> Components { get; set; }
+
+		/// <summary>
+		/// IssueType id => name
+		/// </summary>
+		public Dictionary<string, string> IssueTypes { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="key"></param>
+		/// <param name="name"></param>
+		/// <param name="id"></param>
+		/// <param name="components"></param>
+		/// <param name="issueTypes"></param>
+		public GetExternalIssueProjectResponse(string key, string name, string id, Dictionary<string, string> components, Dictionary<string, string> issueTypes)
+		{
+			ProjectKey = key;
+			Name = name; 
+			Id = id; 
+			Components = new Dictionary<string, string>(components); 
+			IssueTypes = new Dictionary<string, string>(issueTypes);
+		}
+	}
+
+
+	/// <summary>
+	/// Request an issue to be created on external issue tracking system
+	/// </summary>
+	public class CreateExternalIssueRequest
+	{
+		/// <summary>
+		/// Horde issue which is linked to external issue
+		/// </summary>
+		public int IssueId { get; set; } = 0;
+
+		/// <summary>
+		/// StreamId of a stream with this issue
+		/// </summary>
+		public string StreamId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Summary text for external issue
+		/// </summary>
+		public string Summary { get; set; } = String.Empty;
+
+		/// <summary>
+		/// External issue project id
+		/// </summary>
+		public string ProjectId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// External issue component id
+		/// </summary>
+		public string ComponentId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// External issue type id
+		/// </summary>
+		public string IssueTypeId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Optional description text for external issue
+		/// </summary>
+		public string? Description { get; set; }
+
+		/// <summary>
+		/// Optional link to issue on Horde
+		/// </summary>
+		public string? HordeIssueLink { get; set; }
+
+	}
+
+	/// <summary>
+	/// Response for externally created issue
+	/// </summary>
+	public class CreateExternalIssueResponse
+	{
+		/// <summary>
+		/// External issue key 
+		/// </summary>
+		public string Key { get; set; }
+
+		/// <summary>
+		/// Link to issue on external tracking site
+		/// </summary>
+		public string? Link { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="key"></param>
+		/// <param name="link"></param>
+		public CreateExternalIssueResponse(string key, string? link)
+		{
+			Key = key;
+			Link = link;
+		}
+
+	}
+
+	/// <summary>
+	/// External issue response object
+	/// </summary>
+	public class GetExternalIssueResponse : IExternalIssue
+	{
+		/// <summary>
+		/// The external issue key
+		/// </summary>
+		public string Key { get; set; }
+
+		/// <summary>
+		/// The issue link on external tracking site
+		/// </summary>
+		public string? Link { get; set; }
+
+		/// <summary>
+		/// The issue status name, "To Do", "In Progress", etc
+		/// </summary>
+		public string? StatusName { get; set; }
+
+		/// <summary>
+		/// The issue resolution name, "Fixed", "Closed", etc
+		/// </summary>
+		public string? ResolutionName { get; set; }
+
+		/// <summary>
+		/// The issue priority name, "1 - Critical", "2 - Major", etc
+		/// </summary>
+		public string? PriorityName { get; set; }
+
+		/// <summary>
+		/// The current assignee's user name
+		/// </summary>
+		public string? AssigneeName { get; set; }
+
+		/// <summary>
+		/// The current assignee's display name
+		/// </summary>
+		public string? AssigneeDisplayName { get; set; }
+
+		/// <summary>
+		/// The current assignee's email address
+		/// </summary>
+		public string? AssigneeEmailAddress { get; set; }
+
+		/// <summary>
+		/// Response constructor
+		/// </summary>
+		public GetExternalIssueResponse(IExternalIssue issue)
+		{
+			Key = issue.Key;
+			Link = issue.Link;
+			StatusName = issue.StatusName;
+			ResolutionName = issue.ResolutionName;
+			PriorityName = issue.PriorityName;
+			AssigneeName = issue.AssigneeName;
+			AssigneeDisplayName = issue.AssigneeDisplayName;
+			AssigneeEmailAddress = issue.AssigneeEmailAddress;
+		}
+
+
+	}
+
 }

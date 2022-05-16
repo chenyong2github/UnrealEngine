@@ -4,46 +4,6 @@ import dashboard from "../../backend/Dashboard";
 import { projectStore } from "../../backend/ProjectStore";
 import { displayTimeZone } from "./timeUtils";
 
-export type IssueJira = {
-	description: string;
-	link: string;
-}
-
-// This regex could be optimized, though it works
-// eslint-disable-next-line
-const urlRegex = /([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#\.]?[\w-]+)*\/?/gm
-
-export function getIssueJiras(description?: string): IssueJira[] {
-
-	if (!description) {
-		return [];
-	}
-
-	const jiras: IssueJira[] = [];
-
-	const matches = Array.from(description.matchAll(urlRegex));
-
-	matches.forEach(m => {
-		m.forEach(match => {
-
-			if (!match) {
-				return;
-			}
-			// @todo: add jira match to server config
-			if (match.toLowerCase().startsWith("https://jira.it.epicgames.com")) {
-				const path = new URL(match).pathname.split("/");
-				if (path.length) {
-					jiras.push({link: match, description: path[path.length - 1]})
-				}
-				
-			}
-		})
-	})
-	
-	return jiras;
-
-}
-
 export function getIssueStatus(issue: GetIssueResponse, showResolveTime?: boolean): string {
 
 	let text = "";

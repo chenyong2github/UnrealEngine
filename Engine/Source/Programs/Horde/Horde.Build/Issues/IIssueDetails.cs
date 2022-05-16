@@ -55,6 +55,11 @@ namespace Horde.Build.Models
 		IReadOnlyList<IUser> SuspectUsers { get; }
 
 		/// <summary>
+		/// Issue key in external issue tracker
+		/// </summary>
+		string? ExternalIssueKey { get; }
+
+		/// <summary>
 		/// Determines whether the given user should be notified about the given issue
 		/// </summary>
 		/// <returns>True if the user should be notified for this change</returns>

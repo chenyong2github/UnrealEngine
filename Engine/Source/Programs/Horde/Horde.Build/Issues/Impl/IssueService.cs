@@ -52,6 +52,9 @@ namespace Horde.Build.Services.Impl
 		public IUser? ResolvedBy { get; }
 
 		/// <inheritdoc/>
+		public string? ExternalIssueKey { get; }
+
+		/// <inheritdoc/>
 		public IReadOnlyList<IIssueSpan> Spans { get; }
 
 		/// <inheritdoc/>
@@ -81,7 +84,8 @@ namespace Horde.Build.Services.Impl
 		/// <param name="suspects"></param>
 		/// <param name="suspectUsers"></param>
 		/// <param name="showDesktopAlerts"></param>
-		public IssueDetails(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IReadOnlyList<IIssueSpan> spans, IReadOnlyList<IIssueStep> steps, IReadOnlyList<IIssueSuspect> suspects, IReadOnlyList<IUser> suspectUsers, bool showDesktopAlerts)
+		/// <param name="externalIssueKey"></param>
+		public IssueDetails(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IReadOnlyList<IIssueSpan> spans, IReadOnlyList<IIssueStep> steps, IReadOnlyList<IIssueSuspect> suspects, IReadOnlyList<IUser> suspectUsers, bool showDesktopAlerts, string? externalIssueKey)
 		{
 			Issue = issue;
 			Owner = owner;
@@ -91,7 +95,9 @@ namespace Horde.Build.Services.Impl
 			Steps = steps;
 			Suspects = suspects;
 			SuspectUsers = suspectUsers;
+			ExternalIssueKey = externalIssueKey; 
 			_showDesktopAlerts = showDesktopAlerts;
+
 
 			if (issue.OwnerId == null)
 			{
@@ -303,7 +309,7 @@ namespace Horde.Build.Services.Impl
 				}
 			}
 
-			return new IssueDetails(issue, owner, nominatedBy, resolvedBy, spans, steps, suspects, suspectUsers, ShowDesktopAlertsForIssue(issue, spans));
+			return new IssueDetails(issue, owner, nominatedBy, resolvedBy, spans, steps, suspects, suspectUsers, ShowDesktopAlertsForIssue(issue, spans), issue.ExternalIssueKey);
 		}
 
 		/// <inheritdoc/>
@@ -384,7 +390,7 @@ namespace Horde.Build.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int id, string? userSummary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null)
+		public async Task<bool> UpdateIssueAsync(int id, string? userSummary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null)
 		{
 			IIssue? issue;
 			for (; ; )
@@ -395,7 +401,7 @@ namespace Horde.Build.Services.Impl
 					return false;
 				}
 
-				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: userSummary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds);
+				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: userSummary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, externalIssueKey: externalIssueKey);
 				if (issue != null)
 				{
 					break;

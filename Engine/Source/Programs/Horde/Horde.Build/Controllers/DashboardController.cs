@@ -5,6 +5,7 @@
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using Horde.Build.Api;
 using Horde.Build.Controllers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -19,7 +20,7 @@ namespace Horde.Build
 	/// </summary>	
 	[ApiController]
 	[Route("[controller]")]
-	public class DashboardChallengeController : Controller
+	public class DashboardController : Controller
 	{
 		/// <summary>
 		/// Authentication scheme in use
@@ -27,12 +28,19 @@ namespace Horde.Build
 		readonly string _authenticationScheme;
 
 		/// <summary>
+		/// Server settings
+		/// </summary>
+		private readonly ServerSettings _settings;
+
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="serverSettings">Server settings</param>
-		public DashboardChallengeController(IOptionsMonitor<ServerSettings> serverSettings)
+		public DashboardController(IOptionsMonitor<ServerSettings> serverSettings)
 		{
 			_authenticationScheme = AccountController.GetAuthScheme(serverSettings.CurrentValue.AuthMethod);
+			_settings = serverSettings.CurrentValue;
 		}
 
 		/// <summary>	
@@ -98,5 +106,31 @@ namespace Horde.Build
 
 			return Ok();
 		}
+
+		/// <summary>
+		/// Query all the projects
+		/// </summary>
+		/// <returns>Config information needed by the dashboard</returns>
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v1/dashboard/config")]
+		public ActionResult<GetDashboardConfigResponse> GetDashbordConfig()
+		{
+			GetDashboardConfigResponse dashboardConfigResponse = new GetDashboardConfigResponse();
+
+			if (_settings.JiraUrl != null)
+			{
+				dashboardConfigResponse.ExternalIssueServiceName = "Jira";
+				dashboardConfigResponse.ExternalIssueServiceUrl = _settings.JiraUrl.ToString().TrimEnd('/');
+			}
+
+			if (_settings.P4SwarmUrl != null)
+			{
+				dashboardConfigResponse.PerforceSwarmUrl = _settings.P4SwarmUrl.ToString().TrimEnd('/');
+			}
+
+			return dashboardConfigResponse;
+		}
+
 	}
 }

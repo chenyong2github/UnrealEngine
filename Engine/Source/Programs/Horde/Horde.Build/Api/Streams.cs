@@ -436,6 +436,46 @@ namespace Horde.Build.Api
 	}
 
 	/// <summary>
+	/// State information for a step in the stream
+	/// </summary>
+	public class GetTemplateStepStateResponse
+	{
+		/// <summary>
+		/// Name of the step
+		/// </summary>
+		public string Name { get; set; } = String.Empty;
+
+		/// <summary>
+		/// User who paused the step
+		/// </summary>
+		public string? PausedByUserId { get; set; }
+
+		/// <summary>
+		/// User who quarantined the step
+		/// </summary>
+		public string? QuarantinedByUserId { get; set; }
+
+		/// <summary>
+		/// Default constructor for serialization
+		/// </summary>
+		private GetTemplateStepStateResponse()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetTemplateStepStateResponse(TemplateStepState state)
+		{
+			Name = state.Name;
+			PausedByUserId = state.PausedByUserId?.ToString();
+			QuarantinedByUserId = state.QuarantinedByUserId?.ToString();
+		}
+
+	}
+
+
+	/// <summary>
 	/// Information about a template in this stream
 	/// </summary>
 	public class GetTemplateRefResponse : GetTemplateResponseBase
@@ -486,6 +526,11 @@ namespace Horde.Build.Api
 		public List<GetChainedJobTemplateResponse>? ChainedJobs { get; set; }
 
 		/// <summary>
+		/// List of step states
+		/// </summary>
+		public List<GetTemplateStepStateResponse>? StepStates { get; set; }
+
+		/// <summary>
 		/// ACL for this template
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
@@ -508,6 +553,7 @@ namespace Horde.Build.Api
 			NotificationChannelFilter = templateRef.NotificationChannelFilter;
 			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule) : null;
 			ChainedJobs = (templateRef.ChainedJobs != null && templateRef.ChainedJobs.Count > 0) ? templateRef.ChainedJobs.ConvertAll(x => new GetChainedJobTemplateResponse(x)) : null;
+			StepStates = (templateRef.StepStates != null && templateRef.StepStates.Count > 0) ? templateRef.StepStates.ConvertAll(x => new GetTemplateStepStateResponse(x)) : null;
 			Acl = (bIncludeAcl && templateRef.Acl != null)? new GetAclResponse(templateRef.Acl) : null;
 		}
 	}

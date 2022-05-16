@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
-using Horde.Build.Config;
 using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Services;
@@ -36,6 +35,7 @@ namespace Horde.Build.Controllers
 	{
 		private readonly IIssueCollection _issueCollection;
 		private readonly IIssueService _issueService;
+		private readonly IExternalIssueService _externalIssueService;
 		private readonly JobService _jobService;
 		private readonly StreamService _streamService;
 		private readonly IUserCollection _userCollection;
@@ -45,7 +45,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssuesController(ILogger<IssuesController> logger, IIssueCollection issueCollection, IIssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService)
+		public IssuesController(ILogger<IssuesController> logger, IIssueCollection issueCollection, IIssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService, IExternalIssueService externalIssueService)
 		{			
 			_issueCollection = issueCollection;
 			_issueService = issueService;
@@ -53,6 +53,7 @@ namespace Horde.Build.Controllers
 			_streamService = streamService;
 			_userCollection = userCollection;
 			_logFileService = logFileService;
+			_externalIssueService = externalIssueService;
 			_logger = logger;
 		}
 
@@ -566,11 +567,125 @@ namespace Horde.Build.Controllers
 				removeSpans = request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
 			}
 
-			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans))
+			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey))
 			{
 				return NotFound();
 			}
 			return Ok();
 		}
+
+		// External issue tracking
+
+		/// <summary>
+		/// Get external issue information for provided keys
+		/// </summary>
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v1/issues/external")]
+		public async Task<ActionResult<List<GetExternalIssueResponse>>> GetExternalIssuesAsync([FromQuery] string streamId, [FromQuery] string[] keys)
+		{
+			if (_externalIssueService == null)
+			{
+				return NotFound();
+			}
+
+			StreamId streamIdValue = new StreamId(streamId);
+			StreamPermissionsCache cache = new StreamPermissionsCache();
+
+			if (!await _streamService.AuthorizeAsync(streamIdValue, AclAction.ViewStream, User, cache))
+			{
+				return Forbid();
+			}
+
+			List<GetExternalIssueResponse> response = new List<GetExternalIssueResponse>();
+
+			if (keys.Length != 0)
+			{
+				List<IExternalIssue> issues = await _externalIssueService.GetIssuesAsync(keys);
+
+				for (int i = 0; i < issues.Count; i++)
+				{
+					response.Add(new GetExternalIssueResponse(issues[i]));
+				}
+			}
+
+			return response;
+		}
+
+		/// <summary>
+		/// Create a new external issue
+		/// </summary>
+		[HttpPost]
+		[Authorize]
+		[Route("/api/v1/issues/external")]
+		public async Task<ActionResult<CreateExternalIssueResponse>> CreateExternalIssueAsync([FromBody] CreateExternalIssueRequest issueRequest)
+		{
+			if (_externalIssueService == null)
+			{
+				return NotFound();
+			}
+
+			StreamId streamIdValue = new StreamId(issueRequest.StreamId);
+			StreamPermissionsCache cache = new StreamPermissionsCache();
+
+			if (!await _streamService.AuthorizeAsync(streamIdValue, AclAction.ViewStream, User, cache))
+			{
+				return Forbid();
+			}
+
+			IUser? user = await _userCollection.GetUserAsync(User);
+
+			if (user == null)
+			{
+				return BadRequest($"Missing user for {User.GetUserName()}");
+			}
+
+			(string? key, string? url) = await _externalIssueService.CreateIssueAsync(user, issueRequest.IssueId, issueRequest.Summary, issueRequest.ProjectId, issueRequest.ComponentId, issueRequest.IssueTypeId, issueRequest.Description, issueRequest.HordeIssueLink);
+
+			if (key == null)
+			{
+				throw new Exception($"Unable to create external issue");
+			}
+
+			return new CreateExternalIssueResponse(key, url);
+		}
+
+		/// <summary>
+		/// Gets external issue tracking projects associated with the provided stream
+		/// </summary>
+		/// <param name="streamId"></param>
+		/// <returns></returns>
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v1/issues/external/projects")]
+		public async Task<ActionResult<List<GetExternalIssueProjectResponse>>> GetExternalIssueProjectsAsync([FromQuery] string streamId)
+		{
+			if (_externalIssueService == null)
+			{
+				return NotFound();
+			}
+
+			StreamId streamIdValue = new StreamId(streamId);
+			StreamPermissionsCache cache = new StreamPermissionsCache();
+
+			if (!await _streamService.AuthorizeAsync(streamIdValue, AclAction.ViewStream, User, cache))
+			{
+				return Forbid();
+			}
+
+			IStream? stream = await _streamService.GetStreamAsync(streamIdValue);
+
+			List<IExternalIssueProject> projects = await _externalIssueService.GetProjects(stream!);
+			List<GetExternalIssueProjectResponse> response = new List<GetExternalIssueProjectResponse>();
+
+			projects.ForEach(project =>
+			{
+				response.Add(new GetExternalIssueProjectResponse(project.Key, project.Name, project.Id, project.Components, project.IssueTypes));
+			});
+
+			return response;
+		}
+
+
 	}
 }

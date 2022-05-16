@@ -374,6 +374,20 @@ export enum IssueSeverity {
 	Error = "Error"
 }
 
+/** Setting information required by dashboard */
+export type GetDashboardConfigResponse = {
+	
+	/** The name of the external issue service */
+	externalIssueServiceName?: string;
+
+	/** The url of the external issue service */
+	externalIssueServiceUrl?: string;
+
+	/** The url of the perforce swarm installation */
+	perforceSwarmUrl?: string;
+}
+
+
 /**Parameters to register a new agent */
 export type CreateAgentRequest = {
 
@@ -1763,8 +1777,26 @@ export type GetWorkspaceTypeResponse = {
 }
 
 
+/** State information for a step in the stream */
+export type GetTemplateStepStateResponse = {
+
+	/**Name of the step */
+	name: string;
+
+	/**User who paused the step */
+	pausedByUserId?: string;
+
+	/**User who quarantined the step */
+	quarantinedByUserId?: string; 
+
+}
+
 /**Information about a template in this stream */
 export type GetTemplateRefResponse = {
+
+	/** The name of the template */
+	name: string;
+
 	/**Unique id of this template ref */
 	id: string;
 
@@ -1774,8 +1806,8 @@ export type GetTemplateRefResponse = {
 	/// The schedule for this ref
 	schedule?: GetScheduleResponse;
 
-	name: string;
-
+	/** Step state for template in stream */
+	stepStates?: GetTemplateStepStateResponse[];
 }
 
 /** Specifies defaults for running a preflight */
@@ -2718,7 +2750,6 @@ export type GetIssueResponse = {
 	/**Whether the issue is promoted */
 	promoted: boolean;
 
-
 	/** Owner of the issue */
 	ownerInfo: GetThinUserInfoResponse;
 
@@ -2753,6 +2784,9 @@ export type GetIssueResponse = {
 
 	/** Whether to show alerts for this issue */
 	showDesktopAlerts: boolean;
+
+	/** External issue tracking */
+	externalIssueKey?: string;
 
 }
 
@@ -2791,6 +2825,9 @@ export type UpdateIssueRequest = {
 
 	/** List of spans to remove from this issue */
 	removeSpans?: string[];
+
+	/** An external issue key*/
+	externalIssueKey?: string;
 
 }
 
@@ -3847,6 +3884,9 @@ export type FindIssueResponse = {
 
 	/// Spans for this issue
 	spans: FindIssueSpanResponse[];
+
+	/** External issue tracking */
+	externalIssueKey?: string;
 }
 
 export type GetAgentSoftwareChannelResponse = {
@@ -3856,33 +3896,89 @@ export type GetAgentSoftwareChannelResponse = {
 	version?: string;
 }
 
-/// Jira issue information
-export type GetJiraIssueResponse = {
+/// External Issue Response
+export type GetExternalIssueResponse = {
 
-	/** The jira key */
-	key: string;
+	/** The external issue key */
+	key: string; 
 
-	/** Link to the issue on jira */
-	jiraLink: string;
+	/** The issue link on external tracking site */
+	link?: string; 
 
-	/** The current status of the issue */
+	/** The issue status name, "To Do", "In Progress", etc*/
 	statusName?: string;
 
-	/** The current priority of the issue */
-	priorityName?: string;
-
-	/** The resolution of the issue */
+	/** The issue resolution name, "Fixed", "Closed", etc*/
 	resolutionName?: string;
 
-	/** Jira username of assignee */
+	/** The issue priority name, "1 - Critical", "2 - Major", etc*/
+	priorityName?: string;
+
+	/** The current assignee's user name*/
 	assigneeName?: string;
 
-	/** Jira display name of assignee */
+	/** The current assignee's display name*/
 	assigneeDisplayName?: string;
 
-	/** Email address of assignee */
+	/** The current assignee's email address*/
 	assigneeEmailAddress?: string;
+}
 
+/** Request an issue to be created on external issue tracking system */
+export type CreateExternalIssueRequest = {
+		
+	/** Horde issue which is linked to external issue */
+	issueId: number;
+
+	/** Summary text for external issue */
+	summary: string;
+
+	/** A stream this this issue */
+	streamId: string;
+
+	/** External issue project id */
+	projectId: string;
+
+	/** External issue component id */
+	componentId: string;
+
+	/** External issue type id */
+	issueTypeId: string;
+
+	/** Optional description text for external issue */
+	description?: string;
+
+	/** Optional link to Horde issue */
+	hordeIssueLink?: string;
+}
+
+/** Response for externally created issue */
+export type CreateExternalIssueResponse = {
+	
+	/** External issue tracking key	 */
+	key: string;
+
+	/**  Link to issue on external tracking site */
+	link?: string;
+}
+
+/// External issue project information
+export type GetExternalIssueProjectResponse = {
+		
+	/// The project key	
+	projectKey: string;
+
+	/// The name of the project
+	name: string;
+
+	/// The id of the project
+	id: string;
+
+	/// component id => name
+	components: Record<string, string>;
+
+	/// IssueType id => name
+	issueTypes: Record<string, string>;
 }
 
 /// Create a notice which will display on the dashboard

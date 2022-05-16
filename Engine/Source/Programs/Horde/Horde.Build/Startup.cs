@@ -403,9 +403,18 @@ namespace Horde.Build
 			services.AddSingleton<INotificationSink, SlackNotificationSink>(sp => sp.GetRequiredService<SlackNotificationSink>());
 			services.AddSingleton<StreamService>();
 			services.AddSingleton<UpgradeService>();
-			services.AddSingleton<DeviceService>();			
-			services.AddSingleton<JiraService>();
+			services.AddSingleton<DeviceService>();						
 			services.AddSingleton<NoticeService>();
+
+			if (settings.JiraUrl != null)
+			{
+				services.AddSingleton<IExternalIssueService, JiraService>();
+			}
+			else
+			{
+				services.AddSingleton<IExternalIssueService, DefaultExternalIssueService>();
+			}
+
 
 			AWSOptions awsOptions = Configuration.GetAWSOptions();
 			if (settings.S3CredentialType == "AssumeRole" && settings.S3AssumeArn != null)
@@ -598,6 +607,8 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
 			}
 
+			services.AddHostedService(provider => provider.GetRequiredService<IExternalIssueService>());
+				
 			// Task sources. Order of registration is important here; it dictates the priority in which sources are served.
 			services.AddSingleton<JobTaskSource>();
 			services.AddHostedService<JobTaskSource>(provider => provider.GetRequiredService<JobTaskSource>());

@@ -460,6 +460,11 @@ namespace Horde.Build
 		public bool P4BridgeCanImpersonate { get; set; } = false;
 
 		/// <summary>
+		/// Url of P4 Swarm installation
+		/// </summary>
+		public Uri? P4SwarmUrl { get; set; }
+
+		/// <summary>
 		/// The Jira service account user name
 		/// </summary>
 		public string? JiraUsername { get; set; }

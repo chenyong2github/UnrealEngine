@@ -3,7 +3,7 @@
 import { getTheme } from "@fluentui/react";
 import { action, observable } from 'mobx';
 import backend from '.';
-import { DashboardPreference, GetUserResponse, UserClaim } from './Api';
+import { DashboardPreference, GetDashboardConfigResponse, GetUserResponse, UserClaim } from './Api';
 
 const theme = getTheme();
 
@@ -75,7 +75,7 @@ export class Dashboard {
 
         this.data.pinnedJobIds = [];
 
-        backend.updateUser({ removePinnedJobIds:jobs });
+        backend.updateUser({ removePinnedJobIds: jobs });
 
         this.setUpdated();
     }
@@ -138,10 +138,21 @@ export class Dashboard {
 
     }
 
+
+    get swarmUrl(): string | undefined {
+        return this.config?.perforceSwarmUrl;
+    }
+
+    get externalIssueService(): { name: string, url: string } | undefined {
+        if (!this.config?.externalIssueServiceUrl) {
+            return undefined;
+        }
+        return { name: this.config.externalIssueServiceName ?? "???", url: this.config.externalIssueServiceUrl };
+    }
+
     get userId(): string {
         return this.data.id;
     }
-
 
     get pinnedJobsIds(): string[] {
 
@@ -299,7 +310,7 @@ export class Dashboard {
             [StatusColor.Running, dark ? "#146579" : theme.palette.blueLight],
             [StatusColor.Waiting, dark ? "#474542" : "#A19F9D"],
             [StatusColor.Ready, dark ? "#474542" : "#A19F9D"],
-            [StatusColor.Skipped, dark ? "#63625c" : "#F3F2F1"],            
+            [StatusColor.Skipped, dark ? "#63625c" : "#F3F2F1"],
             [StatusColor.Unspecified, "#637087"]
         ]);
 
@@ -371,6 +382,10 @@ export class Dashboard {
             }
 
             this.updating = true;
+
+            if (!this.config) {
+                this.config = await backend.getDashboardConfig();                
+            }
 
             if (this.polling || !this.available) {
 
@@ -462,7 +477,7 @@ export class Dashboard {
         return this.data;
     }
 
-    private async postPreferences(reload?:boolean): Promise<boolean> {
+    private async postPreferences(reload?: boolean): Promise<boolean> {
 
         // cancel any pending        
         for (let i = 0; i < this.cancelId; i++) {
@@ -485,13 +500,13 @@ export class Dashboard {
             if (reload) {
                 window.location.reload();
             }
-                
+
         }
 
         return success;
 
     }
-    
+
     requestLogout = false;
 
     serverSettingsChanged: boolean = false;
@@ -508,6 +523,8 @@ export class Dashboard {
     private cancelId = 0;
 
     private pollMS = 4 * 1000;
+
+    private config?: GetDashboardConfigResponse;
 
 }
 

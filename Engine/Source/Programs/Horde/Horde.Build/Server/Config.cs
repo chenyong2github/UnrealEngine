@@ -298,6 +298,31 @@ namespace Horde.Build.Server
 	}
 
 	/// <summary>
+	/// External issue tracking configuration for a workflow
+	/// </summary>
+	public class ExternalIssueConfig
+	{
+		/// <summary>
+		/// Project key in external issue tracker
+		/// </summary>
+		[Required]
+		public string ProjectKey { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Default component id for issues using workflow
+		/// </summary>
+		[Required]
+		public string DefaultComponentId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Default issue type id for issues using workflow
+		/// </summary>
+		[Required]
+		public string DefaultIssueTypeId { get; set; } = String.Empty;
+
+	}
+
+	/// <summary>
 	/// Configuration for an issue workflow
 	/// </summary>
 	public class WorkflowConfig
@@ -346,6 +371,11 @@ namespace Horde.Build.Server
 		/// Additional node annotations implicit in this workflow
 		/// </summary>
 		public NodeAnnotations Annotations { get; set; } = new NodeAnnotations();
+
+		/// <summary>
+		/// External issue tracking configuration for this workflow
+		/// </summary>
+		public ExternalIssueConfig? ExternalIssues { get; set; }
 	}
 
 	/// <summary>
