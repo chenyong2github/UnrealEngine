@@ -142,6 +142,12 @@ namespace Chaos
 
 		bool bChaos_CollisionStore_Enabled = true;
 		FAutoConsoleVariableRef CVarCollisionStoreEnabled(TEXT("p.Chaos.CollisionStore.Enabled"), bChaos_CollisionStore_Enabled, TEXT(""));
+
+		// Put the solver into a mode where it reset particles to their initial positions each frame.
+		// This is used to test collision detection and - it will be removed
+		// @chaos(todo): remove this when no longer needed
+		bool bChaos_Solver_TestMode  = false;
+		FAutoConsoleVariableRef CVarChaosSolverTestMode(TEXT("p.Chaos.Solver.TestMode"), bChaos_Solver_TestMode, TEXT(""));
 	}
 
 	using namespace CVars;
@@ -368,6 +374,12 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Integrate);
 		Integrate(Particles.GetActiveParticlesView(), Dt);
+	}
+
+	if (bChaos_Solver_TestMode)
+	{
+		TestModeResetParticles();
+		TestModeResetCollisions();
 	}
 
 	{
@@ -615,6 +627,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
 
+	if (bChaos_Solver_TestMode)
+	{
+		TestModeResetParticles();
+	}
+
 	if (CVars::DoFinalProbeNarrowPhase)
 	{
 		// Run contact updates on probe constraints
@@ -788,6 +805,44 @@ void FPBDRigidsEvolutionGBF::SetIsDeterministic(const bool bInIsDeterministic)
 {
 	// We detect collisions in parallel, so order is non-deterministic without additional processing
 	CollisionConstraints.SetIsDeterministic(bInIsDeterministic);
+}
+
+
+void FPBDRigidsEvolutionGBF::TestModeResetParticles()
+{
+	for (auto& Rigid : Particles.GetNonDisabledDynamicView())
+	{
+		FTestModeParticleData* Data = TestModeData.Find(Rigid.Handle());
+		if (Data != nullptr)
+		{
+			Rigid.X() = Data->X;
+			Rigid.P() = Data->P;
+			Rigid.R() = Data->R;
+			Rigid.Q() = Data->Q;
+			Rigid.V() = Data->V;
+			Rigid.W() = Data->W;
+		}
+		if (Data == nullptr)
+		{
+			Data = &TestModeData.Add(Rigid.Handle());
+			Data->X = Rigid.X();
+			Data->P = Rigid.P();
+			Data->R = Rigid.R();
+			Data->Q = Rigid.Q();
+			Data->V = Rigid.V();
+			Data->W = Rigid.W();
+		}
+	}
+}
+
+void FPBDRigidsEvolutionGBF::TestModeResetCollisions()
+{
+	for (FPBDCollisionConstraintHandle* Collision : CollisionConstraints.GetConstraintHandles())
+	{
+		Collision->GetContact().ResetManifold();
+		Collision->GetContact().ResetMaterial();
+		Collision->GetContact().GetGJKWarmStartData().Reset();
+	}
 }
 
 FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers, bool InIsSingleThreaded)

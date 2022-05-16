@@ -16,6 +16,8 @@
 #include "Chaos/Triangle.h"
 #include "Chaos/TriangleRegister.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 	extern FRealSingle Chaos_Collision_EdgePrunePlaneDistance;
@@ -1778,11 +1780,11 @@ namespace Chaos
 				const FReal ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
 				const FReal SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
 				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
-				if (GJKRaycast2(TriangleConvexReg, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, (FReal)0., true))
+				if (GJKRaycast2(TriangleConvexReg, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestA, Normal, (FReal)0., true))
 				{
-					LocalContactLocation = ClosestB;
-					LocalContactNormal = TriNormal;
 					LocalContactPhi = Penetration - SweepLength;
+					LocalContactLocation = ClosestA + LocalContactPhi * Normal;
+					LocalContactNormal = TriNormal;
 					return true;
 				}
 				return false;
