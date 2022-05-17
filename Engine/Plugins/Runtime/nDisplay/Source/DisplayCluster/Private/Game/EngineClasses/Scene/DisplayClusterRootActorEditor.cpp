@@ -96,12 +96,16 @@ void ADisplayClusterRootActor::Constructor_Editor()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	ResetPreviewInternals_Editor();
+
+	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &ADisplayClusterRootActor::HandleAssetReload);
 }
 
 void ADisplayClusterRootActor::Destructor_Editor()
 {
 	OnPreviewGenerated.Unbind();
 	OnPreviewDestroyed.Unbind();
+
+	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 }
 
 void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
@@ -777,6 +781,18 @@ void ADisplayClusterRootActor::PostEditMove(bool bFinished)
 	FrustumPreviewViewportContextCache.Empty();
 
 	ResetPreviewComponents_Editor(false);
+}
+
+void ADisplayClusterRootActor::HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase,
+	FPackageReloadedEvent* InPackageReloadedEvent)
+{
+	if (InPackageReloadPhase == EPackageReloadPhase::PrePackageFixup)
+	{
+		// Preview components need to be released here. During a package reload BeginDestroy will be called on the
+		// actor, but the preview components are already detached and never have DestroyComponent called on them.
+		// This causes the package to keep references around and cause a crash during the reload.
+		BeginDestroy_Editor();
+	}
 }
 
 void ADisplayClusterRootActor::ResetPreviewComponents_Editor(bool bInRestoreSceneMaterial)
