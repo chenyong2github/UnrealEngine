@@ -332,6 +332,8 @@ UActorComponent::UActorComponent(const FObjectInitializer& ObjectInitializer /*=
 
 	bMarkedForPreEndOfFrameSync = false;
 	bAsyncPhysicsTickEnabled = false;
+
+	bReplicateUsingRegisteredSubObjectList = DEFAULT_USE_SUBOBJECT_LIST;
 }
 
 void UActorComponent::PostInitProperties()

@@ -7,6 +7,15 @@
 
 class UActorComponent;
 
+/** 
+* Chooses the default value of Actor and ActorComponent's bReplicateUsingRegisteredSubObjectList.  
+* If a project wants to replicate subobjects using the registration list by default it should define it to true in it's TargetRules.
+* Classes can also chose to use the list or not by setting bReplicateUsingRegisteredSubObjectList in their config or constructor.
+*/
+#ifndef DEFAULT_USE_SUBOBJECT_LIST
+	#define DEFAULT_USE_SUBOBJECT_LIST false
+#endif
+
 namespace UE::Net 
 {
 

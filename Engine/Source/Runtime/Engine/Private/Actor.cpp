@@ -126,6 +126,7 @@ void AActor::InitializeDefaults()
 	bReplicates = false;
 	bCallPreReplication = true;
 	bCallPreReplicationForReplay = true;
+	bReplicateUsingRegisteredSubObjectList = DEFAULT_USE_SUBOBJECT_LIST;
 	NetPriority = 1.0f;
 	NetUpdateFrequency = 100.0f;
 	MinNetUpdateFrequency = 2.0f;
