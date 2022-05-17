@@ -411,6 +411,10 @@ namespace UnrealBuildTool
 				
 				Arguments.Add("/permissive-");
 				Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
+				if (EnvVars.CompilerVersion >= new VersionNumber(14, 32))
+				{
+					Arguments.Add("/Zc:lambda-");
+				}
 			}
 
 			// @todo HoloLens: UE is non-compliant when it comes to use of %s and %S
