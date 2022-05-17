@@ -3506,13 +3506,6 @@ private:
 				GenerateBaseCubeMipFromLongitudeLatitude2D(Mip, Image, BuildSettings.MaxTextureResolution, BuildSettings.SourceEncodingOverride);
 	
 				check( CopyCount == 1 );
-
-				if (!BuildSettings.bUseNewMipFilter)
-				{
-					// note the break here skips other adjustments:
-					// this is maintained only for old textures
-					break;
-				}
 			}
 			else
 			{

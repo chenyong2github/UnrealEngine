@@ -241,7 +241,15 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempGuid = FGuid(0x27B79A99, 0xE1A5458E, 0xAB619475, 0xCD01AD2A);
 		Ar << TempGuid;
 	}
-	
+
+	if (Settings.bLongLatSource)
+	{
+		// @@!! these can go away whenever we bump the overall ddc key
+		// texture processing for cubemaps generated from longlat sources changed, so modify the key :
+		TempGuid = FGuid(0x3D642836, 0xEBF64714, 0x9E8E3241, 0x39F66906);
+		Ar << TempGuid;
+	}
+
 	if (Settings.CompressionCacheId.IsValid())
 	{
 		TempGuid = Settings.CompressionCacheId; Ar << TempGuid;
