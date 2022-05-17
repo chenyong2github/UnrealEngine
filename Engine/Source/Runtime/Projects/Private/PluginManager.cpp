@@ -2097,6 +2097,18 @@ bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& 
 
 	if ((Plugin->CanContainContent() || Plugin->CanContainVerse()) && ensure(UnRegisterMountPointDelegate.IsBound()))
 	{
+		// Remove this plugin's path from the list of content directories that the editor will search
+		if (Plugin->CanContainContent())
+		{
+			if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni))
+			{
+				if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
+				{
+					CoreSystemSection->Remove("Paths", Plugin->GetContentDir());
+				}
+			}
+		}
+
 		UnRegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), Plugin->GetContentDir());
 	}
 
